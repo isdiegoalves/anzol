@@ -310,6 +310,7 @@ exemplos das mesmas rotas.
 Entrega os webhooks que chegam na URL direto no app que você está desenvolvendo, como o
 `stripe listen`: sem aba aberta e sem CORS.
 Também baixa e sobe as [regras de resposta](#regras-de-resposta) da URL como arquivo JSON.
+Com o `send`, faz o papel do provedor: dispara webhooks assinados, com retentativas, para o seu app.
 
 ### Instalar
 
@@ -390,10 +391,95 @@ $ webhook rules push 9f3c…e21a regras.json
 | Arquivo do `push` que não é JSON | `Invalid JSON in <arquivo>: <motivo>`, saída 1, sem chamar o servidor |
 | Pasta do `--file` inexistente | `Could not write <arquivo>: no such directory`, saída 1 |
 
+### `webhook send`
+
+Simula o provedor: dispara webhooks assinados como o Stripe, o GitHub, o Shopify ou o Slack
+assinariam, direto para o receptor do seu app, e tenta de novo quando ele falha. Serve para testar a
+verificação de assinatura, a idempotência e o que o app faz com a retentativa, sem depender do
+provedor de verdade. Não passa pelo servidor do webhook.site (não usa `--server`).
+
+```bash
+# Stripe: 3 retentativas com backoff exponencial (1 s, 2 s, 4 s), Idempotency-Key igual em todas
+webhook send --to http://localhost:3000/webhooks/stripe \
+  --provider stripe --secret whsec_teste \
+  --header "Content-Type: application/json" --header "Idempotency-Key: {{uuid}}" \
+  --data '{"id":"evt_{{random 24}}","type":"payment_intent.succeeded","created":{{timestamp}}}' \
+  --retries 3
+
+# GitHub: corpo de um arquivo, 5 eventos com meio segundo entre eles
+webhook send --to http://localhost:3000/webhooks/github \
+  --provider github --secret segredo-do-webhook \
+  --header "Content-Type: application/json" --header "X-GitHub-Event: push" \
+  --header "X-GitHub-Delivery: {{uuid}}" \
+  --data-file push.json --repeat 5 --interval 500
+```
+
+```
+14:02:07 #1 attempt 1/4 -> 503 (12 ms), retrying in 1000 ms
+14:02:08 #1 attempt 2/4 -> 429 (3 ms), retrying in 5000 ms (Retry-After)
+14:02:13 #1 attempt 3/4 -> 200 (9 ms)
+#1 delivered after 3 attempt(s)
+```
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| `--to <url>` | obrigatória | Receptor (`http://` ou `https://`), com caminho e query |
+| `--method`, `-X` | `POST` | Método |
+| `--header`, `-H "Nome: valor"` | — | Repetível; placeholders no valor. `Host`, `Content-Length`, `Connection`, `Expect` e `Upgrade` não são aceitos (o cliente HTTP os controla); valor fora do ASCII é recusado |
+| `--data`, `-d <texto>` / `--data-file <arquivo>` | sem corpo | Corpo (arquivo lido em UTF-8, byte a byte); placeholders valem nos dois; um ou outro. Sem `Content-Type` automático: mande `--header "Content-Type: application/json"` |
+| `--provider stripe\|github\|shopify\|slack\|generic` | sem assinatura | Assina como o provedor; exige `--secret` |
+| `--secret <s>` | — | Segredo do HMAC; nunca aparece na saída |
+| `--sig-header H`, `--algorithm sha1\|sha256\|sha512`, `--encoding hex\|base64`, `--prefix P` | —, `sha256`, `hex`, sem prefixo | Só no `generic`; `--sig-header` é obrigatório nele |
+| `--retries N` | `0` | Retentativas depois da primeira tentativa, de 0 a 10 |
+| `--backoff fixed\|exponential` | `exponential` | Espera `initial` (fixo) ou `initial × 2^(n-1)` antes da tentativa n+1, sem jitter |
+| `--initial-delay ms` / `--max-delay ms` | `1000` / `30000` | Primeira espera e teto de toda espera, `Retry-After` incluído |
+| `--timeout ms` | `10000` | Prazo de cada tentativa (conexão e resposta) |
+| `--repeat N` / `--interval ms` | `1` / `0` | Quantos eventos e a pausa entre o fim de um e o início do próximo |
+
+**Assinatura.** As mesmas fórmulas da [verificação de assinatura](#verificação-de-assinatura) do
+servidor: uma URL do webhook.site configurada com o mesmo provedor e segredo grava `valid: true`.
+
+| Provedor | Header | Conteúdo assinado (HMAC) |
+|---|---|---|
+| `stripe` | `Stripe-Signature: t=<agora>,v1=<hex>` | SHA-256 de `"{t}.{corpo}"` |
+| `github` | `X-Hub-Signature-256: sha256=<hex>` | SHA-256 do corpo |
+| `shopify` | `X-Shopify-Hmac-Sha256: <base64>` | SHA-256 do corpo |
+| `slack` | `X-Slack-Signature: v0=<hex>` e `X-Slack-Request-Timestamp: <agora>` | SHA-256 de `"v0:{ts}:{corpo}"` |
+| `generic` | `<--sig-header>: <--prefix><hex ou base64>` | `--algorithm` do corpo |
+
+A assinatura é refeita a cada tentativa (timestamp novo, como o Stripe faz) e substitui um `--header`
+com o mesmo nome.
+
+**Placeholders** no corpo e nos valores de `--header`, resolvidos uma vez por envio: as retentativas
+são o mesmo evento e levam os mesmos valores (só a assinatura muda).
+
+| Placeholder | Valor |
+|---|---|
+| `{{uuid}}` | UUID novo a cada envio; o mesmo em todas as ocorrências do envio |
+| `{{now}}` | Instante do envio em ISO-8601 UTC, em segundos (`2026-09-26T14:02:07Z`) |
+| `{{timestamp}}` | O mesmo instante em segundos Unix |
+| `{{seq}}` | Número do envio no `--repeat`: 1, 2, 3… |
+| `{{random N}}` | N letras e dígitos aleatórios, N de 1 a 256; cada ocorrência sorteia a sua |
+| `{{{{` | `{{` literal (`{{{{uuid}}` chega como `{{uuid}}`) |
+
+Outro `{{…}}`, ou `{{` sem fechar, é recusado antes de enviar (`Invalid template in --data: unknown
+placeholder {{foo}}`, saída 1).
+
+**Retentativa** em erro de conexão, timeout, 5xx e 429; nunca em 2xx, 3xx e nos outros 4xx. Quando a
+resposta traz `Retry-After` (segundos ou data HTTP), ele substitui o backoff e a linha termina em
+` (Retry-After)`; a espera nunca passa de `--max-delay`.
+
+**Saída.** Uma linha por tentativa, `HH:mm:ss #<seq> attempt <n>/<total> -> <status> (<ms> ms)` ou
+`-> error: <motivo>`, com `, retrying in <ms> ms` quando vai tentar de novo; e uma por envio,
+`#<seq> delivered after <n> attempt(s)` (2xx) ou `#<seq> gave up after <n> attempt(s)`. Um envio que
+desiste não interrompe o `--repeat`. Sai com 0 se todos os envios entregaram e com 1 se algum
+desistiu ou se as opções são inválidas (motivo no stderr, nada é enviado). Ctrl+C sai com 130 sem
+reenviar.
+
 ### Servidor
 
-`--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para todos
-os comandos e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
+`--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
+`replay` e `rules` (o `send` fala direto com o `--to`) e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
 `webhook rules pull <token> --server https://hooks.exemplo`.
 
 ### O que é reenviado

@@ -23,7 +23,7 @@ import kotlin.system.exitProcess
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
-fun main(args: Array<String>) = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush())).main(args)
+fun main(args: Array<String>) = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send()).main(args)
 
 /**
  * O `clikt-core` (sem o Mordant, que no JDK 25 avisa sobre acesso nativo no stderr) não lê
@@ -42,15 +42,16 @@ class Webhook : CoreNoOpCliktCommand(name = "webhook") {
         }
     }
 
-    override fun help(context: Context) = "Delivers the webhooks captured by webhook.site to an app running locally."
+    override fun help(context: Context) =
+        "Delivers the webhooks captured by webhook.site to an app running locally, or sends webhooks to it as a provider would."
 }
 
 /** HTTP/1.1 sempre: o padrão do `java.net.http` tentaria upgrade para h2c no app local. */
-fun httpClient(): HttpClient =
+fun httpClient(connectTimeout: Duration = CONNECT_TIMEOUT): HttpClient =
     HttpClient
         .newBuilder()
         .version(HttpClient.Version.HTTP_1_1)
-        .connectTimeout(CONNECT_TIMEOUT)
+        .connectTimeout(connectTimeout)
         .build()
 
 /** `--server`, senão `WEBHOOK_SERVER`, senão o app local da porta 8084. */
