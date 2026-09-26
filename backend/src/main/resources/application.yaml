@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: webhook-site
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jackson:
+    mapper:
+      # Mantém a ordem de declaração dos campos, a mesma do JSON gravado pelo app antigo.
+      sort-properties-alphabetically: false
+  mvc:
+    # O corpo cru é lido uma vez pelo LegacyRequestFilter; nenhum outro filtro pode consumi-lo.
+    formcontent:
+      filter:
+        enabled: false
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
+      resolve-lazily: true
+  web:
+    resources:
+      add-mappings: false
+
+server:
+  port: 8080
+  tomcat:
+    # O nginx do app antigo aceita estes caracteres crus na query e no caminho (ex.: `a[]=1`).
+    relaxed-query-chars: "<,>,[,\\,],^,`,{,|,}"
+    relaxed-path-chars: "<,>,[,\\,],^,`,{,|,}"
+
+webhook:
+  max-requests: ${WEBHOOK_MAX_REQUESTS:500}
+  expiry: ${WEBHOOK_EXPIRY:604800}
