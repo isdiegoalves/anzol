@@ -4,6 +4,9 @@
 >
   Requests ({{ count() }})
 </h2>
+@if (store.hasRequests()) {
+  <app-request-search />
+}
 @if (!store.hasRequests()) {
   <p class="waiting">
     <mat-progress-spinner mode="indeterminate" diameter="16" />
@@ -14,6 +17,9 @@
     <button mat-button type="button" class="page" (click)="store.loadPreviousPage()">
       Previous Page
     </button>
+  }
+  @if (store.requests().length === 0) {
+    <p class="no-match">No requests match the filters.</p>
   }
   <cdk-virtual-scroll-viewport itemSize="60" class="viewport">
     <div

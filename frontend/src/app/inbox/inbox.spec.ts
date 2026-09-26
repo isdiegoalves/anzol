@@ -11,6 +11,7 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { routes } from '../app.routes';
 import { Preferences } from '../settings/preferences';
 import { RequestStore } from '../requests/request-store';
+import { NO_FILTER } from '../search/request-filter';
 import { Redirector } from '../settings/redirect';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
@@ -174,6 +175,29 @@ describe('Dado a tela principal', () => {
       const call = await flush(`/token/${TOKEN_ID}/request/${cortada.uuid}`, webhookRequest(3));
       expect(call.request.method).toBe('GET');
       await vi.waitFor(() => expect(snack).toHaveBeenCalledWith('Request received'));
+    });
+
+    it('deve refazer a busca uma vez, sem pôr a nova direto na lista nem trocar a aberta Quando chegam mensagens com filtro ativo', async () => {
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      const store = TestBed.inject(RequestStore);
+      const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'pedido' });
+      await flush(searchUrl, requestPage([R2], { total: 1 }));
+      await applied;
+      const [R3, R4] = [webhookRequest(3), webhookRequest(4)];
+
+      FakeEventSource.latest().emit('request.created', { request: R3, total: 3, truncated: false });
+      FakeEventSource.latest().emit('request.created', { request: R4, total: 4, truncated: false });
+
+      await vi.waitFor(() => expect(snack).toHaveBeenCalledTimes(2));
+      expect(store.requests()).toEqual([R2]);
+      expect(store.total()).toBe(4);
+      const call = await flush(searchUrl, requestPage([R2, R4], { total: 2 }));
+      expect(call.request.body).toMatchObject({ text: 'pedido', page: 1 });
+      await vi.waitFor(() => expect(store.requests()).toEqual([R2, R4]));
+      expect(store.matched()).toBe(2);
+      expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+      expect(store.selected()).toEqual(R1);
     });
 
     it('deve ir para a mensagem nova e reenviá-la Quando auto-navegar e redirect estão ligados', async () => {

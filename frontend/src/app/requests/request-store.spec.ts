@@ -2,10 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
+import { NO_FILTER } from '../search/request-filter';
 import { RequestStore } from './request-store';
 import { RequestPage } from './webhook-request';
 
 const listUrl = `/token/${TOKEN_ID}/requests`;
+const searchUrl = `/token/${TOKEN_ID}/requests/search`;
 
 describe('Dado o RequestStore da URL aberta', () => {
   let http: HttpTestingController;
@@ -197,5 +199,130 @@ describe('Dado o RequestStore da URL aberta', () => {
     http.expectOne(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`).flush(webhookRequest(1));
 
     expect(await fetched).toEqual(webhookRequest(1));
+  });
+
+  describe('Dado um filtro na lista', () => {
+    const [R1, R2, R3] = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
+    const search = () => http.expectOne({ method: 'POST', url: searchUrl });
+
+    beforeEach(async () => {
+      await respond(store.load(TOKEN_ID, 1), 1, requestPage([R1, R2, R3]));
+      store.select(R1.uuid);
+    });
+
+    it('deve buscar pelo search, contar "N of M" e manter a aberta fora do resultado Quando o filtro é aplicado', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'pedido', methods: ['PUT'] });
+      const call = search();
+      expect(call.request.body).toEqual({
+        text: 'pedido',
+        match: { method: ['PUT'] },
+        sorting: 'oldest',
+        page: 1,
+        per_page: 50,
+      });
+      call.flush(requestPage([R2], { total: 1 }));
+      await applied;
+
+      expect(store.filtering()).toBe(true);
+      expect(store.requests()).toEqual([R2]);
+      expect(store.matched()).toBe(1);
+      expect(store.total()).toBe(3);
+      expect(store.selected()).toEqual(R1);
+    });
+
+    it('deve dizer que a URL tem mensagens Quando nenhuma casa com o filtro', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'nada' });
+      search().flush(requestPage([], { total: 0 }));
+      await applied;
+
+      expect(store.requests()).toEqual([]);
+      expect(store.hasRequests()).toBe(true);
+      expect(store.hasNextPage()).toBe(false);
+    });
+
+    it('deve voltar à lista completa pelo GET Quando o filtro é limpo', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, methods: ['GET'] });
+      search().flush(requestPage([], { total: 0 }));
+      await applied;
+
+      await respond(store.applyFilter(NO_FILTER), 1, requestPage([R1, R2, R3]));
+
+      expect(store.filtering()).toBe(false);
+      expect(store.requests()).toHaveLength(3);
+    });
+
+    it('deve ignorar a resposta atrasada Quando o filtro muda com uma busca a caminho', async () => {
+      const first = store.applyFilter({ ...NO_FILTER, text: 'a' });
+      const second = store.applyFilter({ ...NO_FILTER, text: 'ab' });
+      const [atrasada, atual] = http.match({ method: 'POST', url: searchUrl });
+      atual.flush(requestPage([R3], { total: 1 }));
+      await second;
+      atrasada.flush(requestPage([R1, R2], { total: 2 }));
+      await first;
+
+      expect(store.requests()).toEqual([R3]);
+      expect(store.matched()).toBe(1);
+    });
+
+    it('deve contar a nova sem pôr na lista e refazer a busca das páginas carregadas Quando chega mensagem com filtro', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      search().flush(requestPage([R1], { total: 1 }));
+      await applied;
+      const R4 = webhookRequest(4);
+
+      store.countArrival(R4, 4);
+      expect(store.requests()).toEqual([R1]);
+      expect(store.total()).toBe(4);
+      expect(store.unread()).toContain(R4.uuid);
+
+      const refreshed = store.refreshSearch();
+      const call = search();
+      expect(call.request.body).toMatchObject({ page: 1, match: { method: ['POST'] } });
+      call.flush(requestPage([R1, R4], { total: 2 }));
+
+      expect(await refreshed).toBeUndefined();
+      expect(store.requests()).toEqual([R1, R4]);
+      expect(store.matched()).toBe(2);
+      expect(store.selected()).toEqual(R1);
+    });
+
+    it('deve limpar o filtro Quando outra URL é carregada', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+      search().flush(requestPage([], { total: 0 }));
+      await applied;
+
+      await respond(store.load(TOKEN_ID, 1), 1, requestPage([R1]));
+
+      expect(store.filter()).toEqual(NO_FILTER);
+      expect(store.matched()).toBe(0);
+    });
+
+    it('deve descontar do total e do resultado Quando uma mensagem do resultado é apagada', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+      search().flush(requestPage([R2], { total: 1 }));
+      await applied;
+
+      const deleted = store.deleteRequest(R2);
+      http.expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${R2.uuid}` }).flush({});
+      await deleted;
+
+      expect(store.total()).toBe(2);
+      expect(store.matched()).toBe(0);
+    });
+
+    it('deve recarregar o resultado e o total da URL Quando reload é chamado com filtro', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+      search().flush(requestPage([R2, R3], { total: 2 }));
+      await applied;
+
+      const reloaded = store.reload();
+      search().flush(requestPage([R3], { total: 1 }));
+      await vi.waitFor(() => http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3])));
+      await reloaded;
+
+      expect(store.requests()).toEqual([R3]);
+      expect(store.matched()).toBe(1);
+      expect(store.total()).toBe(1);
+    });
   });
 });

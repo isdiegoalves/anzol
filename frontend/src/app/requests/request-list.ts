@@ -7,12 +7,13 @@ import { Component, computed, inject, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { localDate } from '../request-detail/dates';
+import { RequestSearch } from '../search/request-search';
 import { TokenStore } from '../token/token-store';
 import { MethodLabel } from './method-label';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
-/** Lista lateral: mensagens da URL, paginação, não lidas e apagar uma. */
+/** Lista lateral: mensagens da URL, busca e filtros, paginação, não lidas e apagar uma. */
 @Component({
   selector: 'app-request-list',
   imports: [
@@ -22,6 +23,7 @@ import { WebhookRequest } from './webhook-request';
     MatButton,
     MatProgressSpinner,
     MethodLabel,
+    RequestSearch,
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',

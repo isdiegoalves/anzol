@@ -6,7 +6,7 @@ import { MatButton } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { EMPTY, switchMap } from 'rxjs';
+import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
@@ -18,6 +18,9 @@ import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { TokenStore } from '../token/token-store';
 import { Tutorial } from '../tutorial/tutorial';
+
+/** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
+export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
 
 /**
  * Tela principal. A rota (`/`, `/{tokenId}`, `/{tokenId}/{requestId}/{page}`) é a fonte da
@@ -47,6 +50,7 @@ export class Inbox {
 
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
+  private readonly searchRefresh = new Subject<void>();
 
   constructor() {
     effect(() => {
@@ -67,6 +71,18 @@ export class Inbox {
         takeUntilDestroyed(),
       )
       .subscribe((event) => void this.receive(event));
+
+    this.searchRefresh
+      .pipe(
+        debounceTime(SEARCH_REFRESH_DEBOUNCE_MS),
+        switchMap(() => this.requests.refreshSearch()),
+        takeUntilDestroyed(),
+      )
+      .subscribe((replacement) => {
+        if (replacement) {
+          void this.openRequest(replacement, true);
+        }
+      });
   }
 
   protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
@@ -152,6 +168,13 @@ export class Inbox {
     const complete = truncated
       ? await this.requests.fetchOne(request.token_id, request.uuid)
       : request;
+    if (this.requests.filtering()) {
+      // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
+      this.requests.countArrival(complete, total, removed);
+      this.searchRefresh.next();
+      this.notify(complete);
+      return;
+    }
     // A limpeza automática pode ter cortado a mensagem aberta: abre a mais próxima que ficou.
     const replacement = this.requests.append(complete, total, removed);
     const list = this.requests.requests();
@@ -163,8 +186,12 @@ export class Inbox {
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       await this.openRequest(list[list.length - 1]);
     }
+    this.notify(complete);
+  }
+
+  private notify(request: WebhookRequest): void {
     if (this.preferences.redirectEnable()) {
-      void this.redirector.redirect(complete);
+      void this.redirector.redirect(request);
     }
     this.snackBar.open('Request received');
   }

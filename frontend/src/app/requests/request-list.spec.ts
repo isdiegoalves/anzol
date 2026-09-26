@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { RequestList } from './request-list';
 import { RequestStore } from './request-store';
@@ -118,5 +119,27 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().textContent).toContain('Next page');
     expect(element().textContent).not.toContain('Previous Page');
+  });
+
+  it('deve mostrar a busca acima da lista Quando a URL tem mensagens', async () => {
+    await load([]);
+    expect(element().querySelector('app-request-search')).toBeNull();
+
+    await load([webhookRequest(1)]);
+    expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();
+  });
+
+  it('deve avisar que nada casa, sem "Waiting for first request..." Quando o filtro não acha nada', async () => {
+    await load([webhookRequest(1)]);
+
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'nada' });
+    http
+      .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+      .flush(requestPage([], { total: 0 }));
+    await applied;
+    await fixture.whenStable();
+
+    expect(element().textContent).toContain('No requests match the filters.');
+    expect(element().textContent).not.toContain('Waiting for first request...');
   });
 });

@@ -1,0 +1,42 @@
+@use '@angular/material' as mat;
+
+// A barra lateral é estreita: a busca ocupa a linha toda; os filtros rápidos vão dois a dois,
+// em letra menor para o rótulo caber.
+.search {
+  @include mat.form-field-overrides(
+    (
+      container-text-size: 12px,
+      filled-label-text-size: 12px,
+    )
+  );
+  @include mat.select-overrides(
+    (
+      trigger-text-size: 12px,
+    )
+  );
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 8px;
+  font-size: 12px;
+}
+
+.text,
+.count {
+  grid-column: 1 / -1;
+}
+
+mat-form-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.clear {
+  align-self: center;
+}
+
+.count {
+  margin: 0;
+  color: #777;
+}
