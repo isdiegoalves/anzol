@@ -1,0 +1,141 @@
+// Folha lateral do rail (Settings, Help): não modal, à direita; embaixo no celular.
+.sheet {
+  position: fixed;
+  z-index: 3;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 16px));
+  padding: 8px 24px 24px;
+  overflow: auto;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  box-shadow: var(--mat-sys-level3);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h2 {
+  margin: 12px 0;
+  font: var(--mat-sys-title-large);
+  font-variation-settings: 'ROND' 100;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+h3 {
+  margin: 20px 0 8px;
+  font: var(--mat-sys-title-small);
+}
+
+.close,
+.link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--mat-sys-corner-full);
+}
+
+.link {
+  padding: 0;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.group {
+  margin: 16px 0;
+}
+
+.group-label {
+  margin: 0 0 4px;
+  font: var(--mat-sys-title-small);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  font: var(--mat-sys-body-large);
+  cursor: pointer;
+}
+
+input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--mat-sys-primary);
+}
+
+.note {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    padding-right: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+}
+
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  list-style: none;
+
+  a {
+    display: inline-block;
+    padding: 8px 0;
+  }
+}
+
+.close,
+.link,
+a,
+input {
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}

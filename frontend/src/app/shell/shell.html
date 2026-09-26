@@ -1,0 +1,62 @@
+@let token = tokens.token();
+@let open = token && !locked() ? token : null;
+<div class="rail">
+  <a class="brand" routerLink="/" aria-label="Webhook Tester" title="Webhook Tester">
+    <app-icon name="anchor" [size]="24" />
+    <span class="brand-name" aria-hidden="true">Webhook Tester</span>
+  </a>
+  <button type="button" class="fab" aria-label="New URL" title="New URL (N)" (click)="createUrl()">
+    <app-icon name="plus" [size]="24" />
+    <span class="fab-text" aria-hidden="true">New URL</span>
+  </button>
+  @if (open) {
+    <nav class="destinations" aria-label="URL sections">
+      @for (destination of destinations; track destination.label) {
+        @let here = current() === destination;
+        <a
+          class="destination"
+          [routerLink]="link(destination, open.uuid)"
+          [class.current]="here"
+          [attr.aria-current]="here ? 'page' : null"
+          [attr.title]="destination.label + ' (G then ' + destination.key.toUpperCase() + ')'"
+        >
+          <span class="indicator"><app-icon [name]="destination.icon" [size]="22" /></span>
+          <span class="label">{{ destination.label }}</span>
+        </a>
+      }
+    </nav>
+  }
+  <span class="spacer"></span>
+  <button
+    type="button"
+    class="tool"
+    aria-label="Settings"
+    title="Settings"
+    [attr.aria-expanded]="sheet() === 'settings'"
+    (click)="toggleSheet('settings')"
+  >
+    <app-icon name="settings" [size]="22" />
+  </button>
+  <button
+    type="button"
+    class="tool"
+    aria-label="Help"
+    title="Help and shortcuts (?)"
+    [attr.aria-expanded]="sheet() === 'help'"
+    (click)="toggleSheet('help')"
+  >
+    <app-icon name="help" [size]="22" />
+  </button>
+</div>
+<div class="workspace">
+  @if (open) {
+    <app-url-header />
+  }
+  <div class="content">
+    <ng-container #unlockHost />
+    @if (!locked()) {
+      <router-outlet />
+    }
+  </div>
+</div>
+<ng-container #sheetHost />

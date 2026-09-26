@@ -3,9 +3,10 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { TOKEN_ID } from '../testing/fixtures';
+import { TOKEN_ID, token } from '../testing/fixtures';
 import { App } from './app';
 import { inboxMatcher } from './app.routes';
+import { Preferences } from './settings/preferences';
 import { UrlLock } from './token/url-lock';
 
 const OUTRO = '11111111-1111-4111-8111-111111111111';
@@ -73,5 +74,33 @@ describe('Dado a URL protegida sem acesso', () => {
 
     expect(text()).toContain('página da URL');
     expect(text()).not.toContain('This URL is protected');
+  });
+});
+
+describe('Dado a página do link só-leitura', () => {
+  afterEach(() => localStorage.clear());
+
+  it('deve ficar só com a marca, sem o shell (nenhum botão, destino ou URL)', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: 'share/:shareId', component: Page },
+          { matcher: inboxMatcher, component: Page },
+        ]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+    const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl('/share/abc123');
+    await fixture.whenStable();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.textContent).toContain('página da URL');
+    expect(element.querySelector('a.brand')?.textContent).toContain('Webhook Tester');
+    expect(element.querySelectorAll('button')).toHaveLength(0);
+    expect(element.querySelector('nav')).toBeNull();
+    expect(element.querySelector('input')).toBeNull();
   });
 });

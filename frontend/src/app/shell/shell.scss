@@ -1,0 +1,287 @@
+// Leiaute pelas *window size classes* do M3, em media queries (a troca acontece junto com o
+// redimensionamento, sem esperar a detecção de mudanças): rail de 96 px; rail expandido de 232 px a
+// partir de 1600 px; abaixo de 600 px, barra no topo e destinos na barra inferior.
+:host {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+}
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 96px;
+  padding: 12px 0 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  text-decoration: none;
+}
+
+.brand-name,
+.fab-text {
+  display: none;
+}
+
+.fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  margin: 12px 0 16px;
+  border: 0;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  box-shadow: var(--mat-sys-level1);
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+}
+
+// A navegação ocupa a largura do rail: é ela que encosta na borda (e na barra inferior, embaixo).
+.destinations {
+  display: flex;
+  align-self: stretch;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.destination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 80px;
+  min-height: 56px;
+  padding: 6px 0;
+  color: var(--mat-sys-on-surface-variant);
+  text-decoration: none;
+}
+
+.indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--mat-sys-corner-large);
+}
+
+.label {
+  font: var(--mat-sys-label-medium);
+  font-weight: 600;
+}
+
+.destination:hover .indicator {
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.destination.current {
+  color: var(--mat-sys-on-surface);
+
+  .indicator {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  .label {
+    font-weight: 700;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--mat-sys-corner-full);
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: pointer;
+
+  &:hover,
+  &[aria-expanded='true'] {
+    background: var(--mat-sys-surface-container-highest);
+  }
+}
+
+.brand,
+.fab,
+.destination,
+.tool {
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+// A página rola dentro daqui: a janela nunca rola na horizontal (WCAG 1.4.10).
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: var(--mat-sys-corner-large) 0 0;
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+// Rail expandido (M3 expressivo): rótulos ao lado, FAB estendido.
+@media (width >= 1600px) {
+  :host {
+    .rail {
+      align-items: stretch;
+      width: 232px;
+    }
+
+    .brand,
+    .fab,
+    .destination {
+      margin-right: 12px;
+      margin-left: 12px;
+    }
+
+    .brand {
+      justify-content: flex-start;
+      width: auto;
+      padding: 0 14px;
+      font: var(--mat-sys-title-medium);
+      font-variation-settings: 'ROND' 100;
+    }
+
+    .brand-name,
+    .fab-text {
+      display: inline;
+    }
+
+    .fab {
+      justify-content: flex-start;
+      width: auto;
+      padding: 0 20px 0 16px;
+    }
+
+    .destinations {
+      align-items: stretch;
+    }
+
+    .destination {
+      flex-direction: row;
+      gap: 12px;
+      width: auto;
+      min-height: 48px;
+      padding: 0 16px 0 0;
+      border-radius: var(--mat-sys-corner-full);
+    }
+
+    .destination.current {
+      background: var(--mat-sys-secondary-container);
+      color: var(--mat-sys-on-secondary-container);
+    }
+
+    .tool {
+      align-self: flex-start;
+      margin-left: 12px;
+    }
+  }
+}
+
+// Compacto (< 600 px): barra no topo com a marca, o FAB, Settings e Help; os destinos na barra
+// inferior (80 px, alvos de 48 px ou mais).
+@media (width < 600px) {
+  :host {
+    flex-direction: column;
+
+    .rail {
+      flex-direction: row;
+      width: 100%;
+      height: 64px;
+      padding: 8px 8px 8px 16px;
+    }
+
+    .brand {
+      width: 40px;
+      height: 40px;
+    }
+
+    .fab {
+      order: 1;
+      width: 48px;
+      height: 48px;
+      margin: 0 0 0 4px;
+    }
+
+    .tool {
+      order: 2;
+    }
+
+    .destinations {
+      position: fixed;
+      z-index: 2;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      flex-direction: row;
+      justify-content: space-around;
+      gap: 0;
+      height: 80px;
+      background: var(--mat-sys-surface-container);
+      box-shadow: 0 -1px 0 var(--mat-sys-outline-variant);
+    }
+
+    .destination {
+      flex: 1;
+      width: auto;
+      min-width: 48px;
+      min-height: 64px;
+      padding: 8px 0;
+    }
+
+    .indicator {
+      width: 48px;
+    }
+
+    .workspace {
+      padding-bottom: 80px;
+    }
+
+    .content {
+      border-radius: 0;
+    }
+  }
+}

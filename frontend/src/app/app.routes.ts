@@ -28,7 +28,7 @@ export function inboxMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   };
 }
 
-/** `/{tokenId}/{tab}`: aba da URL aberta (regras, histórico de saída). */
+/** `/{tokenId}/{tab}`: um destino da URL aberta (Rules, Checks, Outbound, Insights). */
 function tabMatcher(tab: string) {
   return (segments: UrlSegment[]): UrlMatchResult | null => {
     const [token, name] = segments;
@@ -45,17 +45,63 @@ export const rulesMatcher = tabMatcher('rules');
 /** `/{tokenId}/outbound`: aba com o histórico de replay e send da URL. */
 export const outboundMatcher = tabMatcher('outbound');
 
+/** `/{tokenId}/checks`: configuração da URL (`?section=`, `?schema-from=`). */
+export const checksMatcher = tabMatcher('checks');
+
+/** `/{tokenId}/insights`: números da URL. */
+export const insightsMatcher = tabMatcher('insights');
+
+/** `/{tokenId}/rules/{ruleId}` e `/{tokenId}/rules/new` (`?from={requestId}`): uma regra aberta. */
+export function ruleMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  const [token, name, ruleId] = segments;
+  if (segments.length !== 3 || !UUID.test(token.path) || name.path !== 'rules' || !ruleId.path) {
+    return null;
+  }
+  return { consumed: segments, posParams: { tokenId: token, ruleId } };
+}
+
+/** `/{tokenId}/compare/{a}/{b}`: duas mensagens lado a lado, com link compartilhável. */
+export function compareMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  const [token, name, a, b] = segments;
+  const valid =
+    segments.length === 4 &&
+    UUID.test(token.path) &&
+    name.path === 'compare' &&
+    UUID.test(a.path) &&
+    UUID.test(b.path);
+  return valid ? { consumed: segments, posParams: { tokenId: token, a, b } } : null;
+}
+
+/**
+ * Todas as rotas da interface nova (§1 do plano do item 14), declaradas na E3: as fatias seguintes
+ * trocam as páginas, não esta lista. Todo destino é carregado sob demanda.
+ */
 export const routes: Routes = [
   // `#/_catalog` em desenvolvimento; vazio no build de produção.
   ...CATALOG_ROUTES,
-  // Carregadas sob demanda: as abas de regras e de saída não pesam na carga inicial.
   {
     matcher: rulesMatcher,
     loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
   },
   {
+    matcher: ruleMatcher,
+    loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
+  },
+  {
     matcher: outboundMatcher,
     loadComponent: () => import('./outbound/outbound-page').then((m) => m.OutboundPage),
+  },
+  {
+    matcher: checksMatcher,
+    loadComponent: () => import('./checks/checks-page').then((m) => m.ChecksPage),
+  },
+  {
+    matcher: insightsMatcher,
+    loadComponent: () => import('./insights/insights-page').then((m) => m.InsightsPage),
+  },
+  {
+    matcher: compareMatcher,
+    loadComponent: () => import('./diff/compare-page').then((m) => m.ComparePage),
   },
   { matcher: inboxMatcher, loadComponent: () => import('./inbox/inbox').then((m) => m.Inbox) },
   // Link só-leitura de uma mensagem: público, sem o segredo da URL.

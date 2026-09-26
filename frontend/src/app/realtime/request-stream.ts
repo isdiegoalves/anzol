@@ -2,7 +2,11 @@ import { Injectable, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RequestCreated } from '../requests/webhook-request';
 
-export type StreamStatus = 'closed' | 'connecting' | 'open';
+/**
+ * `idle`: ninguém assina (a página não é a Inbox); `connecting`: abrindo pela primeira vez;
+ * `open`: recebendo; `reconnecting`: caiu e o navegador tenta de novo; `closed`: o servidor recusou.
+ */
+export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 
 /**
  * Tempo real por SSE: `GET /token/{id}/stream`, evento `request.created`.
@@ -13,7 +17,7 @@ export type StreamStatus = 'closed' | 'connecting' | 'open';
  */
 @Injectable({ providedIn: 'root' })
 export class RequestStream {
-  private readonly state = signal<StreamStatus>('closed');
+  private readonly state = signal<StreamStatus>('idle');
   readonly status = this.state.asReadonly();
 
   /** Abre o `EventSource` ao assinar e o fecha ao cancelar a assinatura. */
@@ -24,13 +28,13 @@ export class RequestStream {
       source.onopen = () => this.state.set('open');
       // O EventSource reconecta sozinho; só fica 'closed' quando o servidor recusa (ex.: 404).
       source.onerror = () =>
-        this.state.set(source.readyState === EventSource.CLOSED ? 'closed' : 'connecting');
+        this.state.set(source.readyState === EventSource.CLOSED ? 'closed' : 'reconnecting');
       source.addEventListener('request.created', (event: MessageEvent<string>) =>
         subscriber.next(JSON.parse(event.data) as RequestCreated),
       );
       return () => {
         source.close();
-        this.state.set('closed');
+        this.state.set('idle');
       };
     });
   }

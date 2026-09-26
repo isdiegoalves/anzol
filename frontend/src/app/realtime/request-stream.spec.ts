@@ -21,6 +21,10 @@ describe('Dado o stream SSE de uma URL', () => {
     vi.unstubAllGlobals();
   });
 
+  it('deve ficar parado (idle) Quando ninguém assina', () => {
+    expect(stream.status()).toBe('idle');
+  });
+
   it('deve abrir /token/{id}/stream e ficar conectado Quando alguém assina', () => {
     subscriptions.add(stream.connect(TOKEN_ID).subscribe());
     expect(stream.status()).toBe('connecting');
@@ -45,7 +49,7 @@ describe('Dado o stream SSE de uma URL', () => {
 
   it.each([
     ['recusa (ex.: 404 no app atual)', FakeEventSource.CLOSED, 'closed'],
-    ['cai e o navegador vai reconectar', FakeEventSource.CONNECTING, 'connecting'],
+    ['cai e o navegador vai reconectar', FakeEventSource.CONNECTING, 'reconnecting'],
   ])('deve refletir o estado Quando o servidor %s', (_caso, readyState, esperado) => {
     subscriptions.add(stream.connect(TOKEN_ID).subscribe());
 
@@ -61,6 +65,6 @@ describe('Dado o stream SSE de uma URL', () => {
     subscription.unsubscribe();
 
     expect(source.readyState).toBe(FakeEventSource.CLOSED);
-    expect(stream.status()).toBe('closed');
+    expect(stream.status()).toBe('idle');
   });
 });

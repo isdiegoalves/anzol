@@ -1,49 +1,50 @@
-import { Component, ViewContainerRef, computed, effect, inject, viewChild } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
-import { TokenBar } from './token/token-bar';
-import { UrlLock } from './token/url-lock';
+import { DOCUMENT } from '@angular/common';
+import { Component, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationStart, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
+import { Shell } from './shell/shell';
+import { ShellSettings } from './shell/shell-settings';
+import { Icon } from './ui/icon';
 
+/**
+ * Raiz: o shell (rail, cabeçalho da URL, página da rota) em toda tela, menos na página do link
+ * só-leitura (`#/share/{id}`), que fica só com a marca: quem abre o link só lê, sem nenhum botão.
+ */
 @Component({
-  imports: [RouterOutlet, TokenBar],
+  imports: [Icon, RouterLink, RouterOutlet, Shell],
   selector: 'app-root',
   styleUrl: './app.scss',
   template: `
-    <app-token-bar />
-    <ng-container #unlockHost />
-    @if (!locked()) {
+    @if (sharing()) {
+      <header class="brand-bar">
+        <a class="brand" routerLink="/"><app-icon name="anchor" [size]="22" />Webhook Tester</a>
+      </header>
       <router-outlet />
+    } @else {
+      <app-shell />
     }
   `,
 })
 export class App {
-  private readonly router = inject(Router);
-  private readonly urlLock = inject(UrlLock);
-  private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
-
   /**
-   * URL protegida sem acesso, enquanto a rota for dela. A página da rota sai (o SSE fecha junto) e
-   * volta do zero ao destrancar; navegar para outra URL também a traz de volta.
+   * `/share/{id}`: página só-leitura de um link compartilhado. Decidido no início da navegação,
+   * para a página nascer já no `router-outlet` certo (e não ser criada duas vezes).
    */
-  protected readonly locked = computed(() => {
-    const tokenId = this.urlLock.tokenId();
-    const route = this.router.lastSuccessfulNavigation()?.finalUrl;
-    return tokenId !== null && route?.root.children['primary']?.segments[0]?.path === tokenId
-      ? tokenId
-      : null;
-  });
+  protected readonly sharing = toSignal(
+    inject(Router).events.pipe(
+      filter((event) => event instanceof NavigationStart),
+      map((event) => isShare(event.url)),
+    ),
+    { initialValue: isShare(inject(DOCUMENT).location.hash.replace(/^#/, '')) },
+  );
 
   constructor() {
-    // A tela de desbloqueio vem sob demanda: quem nunca abre uma URL protegida não a baixa.
-    effect(async () => {
-      const tokenId = this.locked();
-      const host = this.unlockHost();
-      host.clear();
-      if (tokenId) {
-        const { UnlockScreen } = await import('./token/unlock-screen');
-        if (this.locked() === tokenId && host.length === 0) {
-          host.createComponent(UnlockScreen).setInput('tokenId', tokenId);
-        }
-      }
-    });
+    // O tema escolhido em Settings vale também na página do link, que não tem o shell.
+    inject(ShellSettings);
   }
+}
+
+function isShare(url: string): boolean {
+  return url.startsWith('/share/');
 }

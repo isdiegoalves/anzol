@@ -1,0 +1,59 @@
+<section class="sheet" role="dialog" aria-labelledby="settings-title">
+  <header class="sheet-header">
+    <h2 id="settings-title" tabindex="-1">Settings</h2>
+    <button type="button" class="close" aria-label="Close" (click)="closed.emit()">
+      <app-icon name="close" [size]="20" />
+    </button>
+  </header>
+
+  <div class="group" role="radiogroup" aria-labelledby="theme-label">
+    <p id="theme-label" class="group-label">Theme</p>
+    @for (theme of themes; track theme.value) {
+      <label class="option">
+        <input
+          type="radio"
+          name="theme"
+          [value]="theme.value"
+          [checked]="settings.theme() === theme.value"
+          (change)="chooseTheme(theme.value)"
+        />
+        {{ theme.label }}
+      </label>
+    }
+  </div>
+
+  <div class="group" role="radiogroup" aria-labelledby="language-label">
+    <p id="language-label" class="group-label">Language</p>
+    @for (language of languages; track language.value) {
+      <label class="option">
+        <input
+          type="radio"
+          name="language"
+          [value]="language.value"
+          [checked]="settings.language() === language.value"
+          (change)="chooseLanguage(language.value)"
+        />
+        {{ language.label }}
+      </label>
+    }
+    @if (settings.language() !== startLanguage) {
+      <p class="note" role="status">
+        The language changes when the page reloads.
+        <button type="button" class="link" (click)="reload()">Reload now</button>
+      </p>
+    }
+  </div>
+
+  <div class="group">
+    <label class="option">
+      <input
+        type="checkbox"
+        role="switch"
+        [checked]="settings.shortcuts()"
+        (change)="toggleShortcuts($event)"
+      />
+      Keyboard shortcuts
+    </label>
+    <p class="note">Single-key shortcuts (G then I, C, N, ?…). They never fire while typing.</p>
+  </div>
+</section>

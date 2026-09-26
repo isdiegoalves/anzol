@@ -2,4 +2,34 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+}
+
+.brand-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--mat-sys-surface-container);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-title-medium);
+  font-variation-settings: 'ROND' 100;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+app-shell {
+  flex: 1;
+  min-height: 0;
 }

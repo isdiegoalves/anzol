@@ -1,0 +1,47 @@
+@if (tokens.token(); as token) {
+  <app-copy-field
+    class="url"
+    label="Webhook URL"
+    hint="Copy URL (C)"
+    [value]="tokens.webhookUrl()"
+  />
+  @if (live(); as state) {
+    <app-live-status [state]="state" />
+  }
+  @if (token.signature; as signature) {
+    <a
+      class="chip"
+      [routerLink]="['/', token.uuid, 'checks']"
+      [queryParams]="{ section: 'signature' }"
+      [attr.aria-label]="
+        'Signature verification: ' + providerLabels[signature.provider] + '. Open Checks'
+      "
+    >
+      <app-icon name="checks" [size]="16" />{{ providerLabels[signature.provider] }}
+    </a>
+  }
+  @if (token.schema) {
+    <a
+      class="chip"
+      [routerLink]="['/', token.uuid, 'checks']"
+      [queryParams]="{ section: 'schema' }"
+      aria-label="Schema validation on. Open Checks"
+    >
+      <app-icon name="checks" [size]="16" />Schema
+    </a>
+  }
+  <span class="spacer"></span>
+  <div class="actions">
+    <button type="button" class="action" (click)="sendRequest()">
+      <app-icon name="outbound" [size]="18" />Send
+    </button>
+    @if (lockable()) {
+      <button type="button" class="action" (click)="lockUrl()">
+        <app-icon name="lock" [size]="18" />Lock
+      </button>
+    }
+    <button type="button" class="action" (click)="editUrl()">
+      <app-icon name="settings" [size]="18" />Edit
+    </button>
+  </div>
+}

@@ -1,5 +1,13 @@
 import { UrlSegment } from '@angular/router';
-import { inboxMatcher, outboundMatcher, rulesMatcher } from './app.routes';
+import {
+  checksMatcher,
+  compareMatcher,
+  inboxMatcher,
+  insightsMatcher,
+  outboundMatcher,
+  ruleMatcher,
+  rulesMatcher,
+} from './app.routes';
 
 const TOKEN = '3dbd68f4-8890-4f56-affb-c7c9b297e666';
 const REQUEST = '0691864a-71ef-4de5-953b-518660fe6287';
@@ -67,5 +75,42 @@ describe('Dado o casamento da rota da aba de saída', () => {
     ['segmento a mais', [TOKEN, 'outbound', 'x']],
   ])('não deve casar Quando a URL tem %s', (_caso, paths) => {
     expect(outboundMatcher(segments(...paths))).toBeNull();
+  });
+});
+
+describe('Dado as rotas novas da interface (item 14)', () => {
+  const posParams = (result: ReturnType<typeof compareMatcher>) =>
+    result &&
+    Object.fromEntries(Object.entries(result.posParams ?? {}).map(([k, v]) => [k, v.path]));
+
+  it.each([
+    ['Checks', checksMatcher, [TOKEN, 'checks']],
+    ['Insights', insightsMatcher, [TOKEN, 'insights']],
+  ])('deve casar %s com o token', (_caso, matcher, paths) => {
+    expect(posParams(matcher(segments(...paths)))).toEqual({ tokenId: TOKEN });
+    expect(matcher(segments('abc', paths[1]))).toBeNull();
+    expect(matcher(segments(...paths, 'x'))).toBeNull();
+  });
+
+  it.each([
+    ['uma regra', [TOKEN, 'rules', 'r-1'], { tokenId: TOKEN, ruleId: 'r-1' }],
+    ['a regra nova', [TOKEN, 'rules', 'new'], { tokenId: TOKEN, ruleId: 'new' }],
+  ])('deve casar %s', (_caso, paths, esperado) => {
+    expect(posParams(ruleMatcher(segments(...paths)))).toEqual(esperado);
+  });
+
+  it('não deve casar a regra Quando falta o id ou o segundo segmento não é rules', () => {
+    expect(ruleMatcher(segments(TOKEN, 'rules'))).toBeNull();
+    expect(ruleMatcher(segments(TOKEN, 'regras', 'x'))).toBeNull();
+  });
+
+  it('deve casar o Compare com as duas mensagens e recusar id que não é UUID', () => {
+    expect(posParams(compareMatcher(segments(TOKEN, 'compare', REQUEST, REQUEST)))).toEqual({
+      tokenId: TOKEN,
+      a: REQUEST,
+      b: REQUEST,
+    });
+    expect(compareMatcher(segments(TOKEN, 'compare', REQUEST, 'x'))).toBeNull();
+    expect(compareMatcher(segments(TOKEN, 'compare', REQUEST))).toBeNull();
   });
 });
