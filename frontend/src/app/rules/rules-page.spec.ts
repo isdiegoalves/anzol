@@ -203,6 +203,59 @@ describe('Dado a aba de regras', () => {
     );
   });
 
+  describe('Dado regras com template, atraso, falha ou cenário (fase B)', () => {
+    const URL_CENARIOS = `/token/${TOKEN_ID}/scenarios`;
+    const comCenario = rule(2, { scenario: { name: 'Retry', newState: 'falhou-1' } });
+    const flags = (id: string) =>
+      [...element().querySelectorAll(`[data-rule-id="${id}"] .flag`)].map((flag) => [
+        flag.textContent?.trim(),
+        flag.getAttribute('title'),
+      ]);
+    const flushScenarios = () =>
+      vi.waitFor(() =>
+        http
+          .expectOne({ method: 'GET', url: URL_CENARIOS })
+          .flush([{ name: 'Retry', state: 'Started', states: ['Started', 'falhou-1'] }]),
+      );
+
+    it('deve mostrar indicadores discretos com o detalhe no título, sem mudar as colunas da lista', async () => {
+      await open([
+        rule(1, { response: { template: true, delay: { fixed: 250 }, fault: null } }),
+        rule(3, { response: { fault: 'empty_response' } }),
+      ]);
+
+      expect(flags('r1')).toEqual([
+        ['template', 'Body and header values are templates'],
+        ['delay', 'Delay: 250 ms'],
+      ]);
+      expect(flags('r3')).toEqual([['fault', 'Fault: empty response (close without writing)']]);
+      expect(rows()[0]).toEqual(['Rule 1', '5', 'POST /r1', '200']);
+    });
+
+    it('não deve pedir os cenários nem mostrar o painel Quando nenhuma regra usa cenário', async () => {
+      await open([rule(1)]);
+
+      http.expectNone({ method: 'GET', url: URL_CENARIOS });
+      expect(element().querySelector('app-scenario-panel')).toBeNull();
+    });
+
+    it('deve mostrar o painel de cenários e relê-lo Quando uma regra salva usa cenário', async () => {
+      await open([rule(1), comCenario]);
+      await flushScenarios();
+      await vi.waitFor(() =>
+        expect(element().querySelector('app-scenario-panel')?.textContent).toContain('Retry'),
+      );
+
+      const toggle = await loader.getHarness(
+        MatSlideToggleHarness.with({ ancestor: '[data-rule-id="r1"]' }),
+      );
+      await toggle.toggle();
+      await expectPut([{ ...rule(1), enabled: false }, comCenario]);
+
+      await flushScenarios();
+    });
+  });
+
   describe('Dado o export e o import', () => {
     const chooseFile = async (content: string) => {
       const input = element().querySelector<HTMLInputElement>('input[type=file]');

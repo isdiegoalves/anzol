@@ -1,6 +1,15 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
@@ -10,25 +19,30 @@ import {
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   Rule,
+  RuleFlag,
   evaluationOrder,
   matchSummary,
+  ruleFlags,
 } from './rule';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { RuleStore, validationMessages } from './rule-store';
+import { ScenarioPanel } from './scenario-panel';
 
 /** Regra na posição em que o servidor a avalia, com o índice dela na lista salva. */
 interface OrderedRule {
   rule: Rule;
   index: number;
+  flags: RuleFlag[];
 }
 
 /**
  * Aba "Rules" (`/#/{tokenId}/rules`): lista das regras de resposta da URL na ordem de avaliação,
- * com ligar/desligar, reordenar, editar, apagar, import e export do JSON.
+ * com ligar/desligar, reordenar, editar, apagar, import e export do JSON, e o painel de cenários
+ * quando alguma regra usa cenário.
  */
 @Component({
   selector: 'app-rules-page',
-  imports: [MatButton, MatSlideToggle],
+  imports: [MatButton, MatSlideToggle, ScenarioPanel],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
 })
@@ -48,8 +62,17 @@ export class RulesPage {
 
   protected readonly ordered = computed<OrderedRule[]>(() => {
     const rules = this.store.rules();
-    return evaluationOrder(rules).map((index) => ({ rule: rules[index], index }));
+    return evaluationOrder(rules).map((index) => ({
+      rule: rules[index],
+      index,
+      flags: ruleFlags(rules[index]),
+    }));
   });
+  protected readonly hasScenarios = computed(() =>
+    this.store.rules().some((rule) => !!rule.scenario?.name),
+  );
+  /** Existe só quando alguma regra usa cenário; recém-criado, ele mesmo carrega os estados. */
+  private readonly scenarioPanel = viewChild(ScenarioPanel);
 
   protected readonly summary = matchSummary;
   protected readonly defaultPriority = RULE_DEFAULT_PRIORITY;
@@ -159,6 +182,7 @@ export class RulesPage {
     this.errors.set([]);
     try {
       await this.store.save(rules);
+      void this.scenarioPanel()?.refresh();
       return true;
     } catch (error) {
       this.errors.set(validationMessages(error));
@@ -175,7 +199,12 @@ export class RulesPage {
         maxWidth: '95vw',
       })
       .afterClosed()
-      .subscribe((saved) => saved && this.snackBar.open('Rule saved'));
+      .subscribe((saved) => {
+        if (saved) {
+          this.snackBar.open('Rule saved');
+          void this.scenarioPanel()?.refresh();
+        }
+      });
   }
 }
 

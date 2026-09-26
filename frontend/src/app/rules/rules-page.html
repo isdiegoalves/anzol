@@ -55,6 +55,7 @@
       <tr>
         <th class="toggle">On</th>
         <th>Name</th>
+        <th class="flags"><span class="visually-hidden">Behavior</span></th>
         <th class="number">Priority</th>
         <th>Match</th>
         <th class="number">Status</th>
@@ -75,6 +76,11 @@
             />
           </td>
           <td class="data name">{{ item.rule.name }}</td>
+          <td class="flags">
+            @for (flag of item.flags; track flag.label) {
+              <span class="flag" [title]="flag.detail">{{ flag.label }}</span>
+            }
+          </td>
           <td class="data number">{{ item.rule.priority ?? defaultPriority }}</td>
           <td class="data match">
             <code>{{ summary(item.rule) }}</code>
@@ -109,11 +115,14 @@
         </tr>
       } @empty {
         <tr>
-          <td class="empty" colspan="6">
+          <td class="empty" colspan="7">
             No rules yet. Every request gets the URL's default response.
           </td>
         </tr>
       }
     </tbody>
   </table>
+  @if (hasScenarios()) {
+    <app-scenario-panel [tokenId]="tokenId()" />
+  }
 }

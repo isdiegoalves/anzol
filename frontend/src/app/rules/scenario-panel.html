@@ -1,0 +1,84 @@
+<section aria-labelledby="scenarios-title">
+  <header class="heading">
+    <div>
+      <h2 id="scenarios-title">Scenarios</h2>
+      <p class="hint">
+        A rule with a scenario only answers in its required state, then moves the scenario to its
+        new state. Every scenario starts at "Started".
+      </p>
+    </div>
+    <div class="actions">
+      <button
+        mat-stroked-button
+        type="button"
+        title="Read the current states again"
+        [disabled]="busy()"
+        (click)="refresh()"
+      >
+        Refresh
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        title="Move every scenario back to Started"
+        [disabled]="busy()"
+        (click)="resetAll()"
+      >
+        Reset all
+      </button>
+    </div>
+  </header>
+
+  @if (errors().length > 0) {
+    <ul class="errors" role="alert">
+      @for (message of errors(); track $index) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+  }
+
+  <table class="table" aria-label="Scenarios">
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Current state</th>
+        <th class="set">Set state</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (scenario of store.scenarios(); track scenario.name) {
+        <tr [attr.data-scenario]="scenario.name">
+          <td class="data name">{{ scenario.name }}</td>
+          <td class="data">
+            <code>{{ scenario.state }}</code>
+          </td>
+          <td class="set">
+            <mat-select
+              class="state"
+              placeholder="State"
+              [aria-label]="'New state of ' + scenario.name"
+              [value]="chosen()[scenario.name]"
+              (selectionChange)="choose(scenario.name, $event.value)"
+            >
+              @for (state of options(scenario); track state) {
+                <mat-option [value]="state">{{ state }}</mat-option>
+              }
+            </mat-select>
+            <button
+              mat-button
+              type="button"
+              [disabled]="!canSet(scenario)"
+              (click)="setState(scenario)"
+            >
+              Set state
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty" colspan="3">No scenario state yet.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>

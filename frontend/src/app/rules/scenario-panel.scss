@@ -1,11 +1,6 @@
-@use '@angular/material' as mat;
-
 :host {
   display: block;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 10px 20px;
+  margin-top: 24px;
 }
 
 .heading {
@@ -15,9 +10,9 @@
   justify-content: space-between;
   gap: 8px 24px;
 
-  h1 {
+  h2 {
     margin: 0 0 4px;
-    font: var(--mat-sys-title-large);
+    font: var(--mat-sys-title-medium);
   }
 }
 
@@ -29,15 +24,6 @@
 .actions {
   display: flex;
   gap: 8px;
-}
-
-.file,
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
 
 .errors {
@@ -69,37 +55,8 @@
   }
 }
 
-.number {
-  width: 70px;
-}
-
-.toggle {
-  width: 60px;
-}
-
 .name {
   font-weight: 500;
-}
-
-.disabled .data,
-.disabled .flags {
-  opacity: 0.5;
-}
-
-.flags {
-  white-space: nowrap;
-}
-
-// Indicador discreto de template, atraso, falha e cenário; o detalhe fica no título.
-.flag {
-  margin-right: 4px;
-  padding: 0 6px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 11px;
-  line-height: 18px;
-  cursor: default;
 }
 
 code {
@@ -107,20 +64,17 @@ code {
   border-radius: 4px;
   background: #eee;
   color: #333;
-  word-break: break-all;
 }
 
-.row-actions {
+.set {
+  width: 320px;
   white-space: nowrap;
-  text-align: right;
 }
 
-.delete {
-  @include mat.button-overrides(
-    (
-      text-label-text-color: #d9534f,
-    )
-  );
+.state {
+  display: inline-block;
+  width: 180px;
+  vertical-align: middle;
 }
 
 .empty {
