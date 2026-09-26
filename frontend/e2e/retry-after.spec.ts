@@ -13,7 +13,7 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New' }).click();
+    await page.getByRole('button', { name: 'New URL', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
     await expect(
       dialog.getByText('Seconds or HTTP-date; useful with 429, 503 or 3xx'),
@@ -39,7 +39,7 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     }) => {
       await page.goto(`/#/${await tokens.create()}`);
 
-      await page.getByRole('button', { name: 'New' }).click();
+      await page.getByRole('button', { name: 'New URL', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Create New URL' });
       await dialog.getByLabel('Retry-After').fill(valor);
       await dialog.getByLabel('Default status code').click();

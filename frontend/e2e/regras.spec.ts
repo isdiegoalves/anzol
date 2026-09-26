@@ -101,7 +101,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     expect(webhook.headers()['content-type']).toContain('application/json');
     expect(await webhook.text()).toBe('{"ok":true}');
 
-    await page.getByRole('link', { name: 'Requests' }).click();
+    await page.getByRole('link', { name: 'Inbox', exact: true }).click();
     await expect(page.getByText('Answered by rule Pix pago')).toBeVisible();
   });
 
@@ -283,7 +283,7 @@ test.describe('Dado o export e o import de regras', () => {
   });
 });
 
-test.describe('Dado a alternância "Requests" / "Rules"', () => {
+test.describe('Dado a alternância "Inbox" / "Rules"', () => {
   test('deve ir e voltar entre as abas mantendo a URL e o tempo real', async ({
     page,
     request,
@@ -299,7 +299,7 @@ test.describe('Dado a alternância "Requests" / "Rules"', () => {
     await expect(page.getByRole('link', { name: 'Rules' })).toHaveAttribute('aria-current', 'page');
     await request.post(`/${tokenId}`);
 
-    await page.getByRole('link', { name: 'Requests' }).click();
+    await page.getByRole('link', { name: 'Inbox', exact: true }).click();
     await expect(page.getByText('Requests (2)')).toBeVisible();
     await request.post(`/${tokenId}`);
     await expect(page.getByText('Requests (3)')).toBeVisible();

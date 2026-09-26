@@ -26,7 +26,7 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New' }).click();
+    await page.getByRole('button', { name: 'New URL', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
     await expect(dialog.getByRole('combobox', { name: 'Auto cleanup' })).toHaveText('Disabled');
     await chooseAutoCleanup(page, '1000');

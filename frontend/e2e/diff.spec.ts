@@ -25,7 +25,8 @@ async function openRequest(page: Page, tokenId: string, requestId: string) {
 /** "Compare with…" na aberta e clique na B da lista; devolve a vista da comparação. */
 async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
   await page.getByRole('button', { name: 'Compare with…' }).click();
-  await expect(page.getByRole('status')).toContainText(
+  // Escopado: o chip "Live" do cabeçalho da URL (E3) também é `status`.
+  await expect(page.getByRole('status').filter({ hasText: 'Choose a request' })).toContainText(
     `Choose a request to compare with #${a.substring(0, 5)}`,
   );
   await page

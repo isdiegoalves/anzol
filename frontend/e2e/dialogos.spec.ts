@@ -11,7 +11,7 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New' }).click();
+    await page.getByRole('button', { name: 'New URL', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
     await dialog.getByLabel('Default status code').fill('404');
     await dialog.getByLabel('Content Type').fill('application/json');
@@ -41,7 +41,7 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
       }) => {
         await page.goto(`/#/${await tokens.create()}`);
 
-        await page.getByRole('button', { name: 'New' }).click();
+        await page.getByRole('button', { name: 'New URL', exact: true }).click();
         const dialog = page.getByRole('dialog', { name: 'Create New URL' });
         await dialog.getByLabel('Timeout before response').fill(timeout);
         await dialog.getByLabel('Default status code').click();

@@ -74,7 +74,7 @@ test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
   }) => {
     await page.goto(`/#/${await tokens.create()}`);
 
-    await page.getByRole('button', { name: 'New' }).click();
+    await page.getByRole('button', { name: 'New URL', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
     await dialog.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
     await dialog.getByLabel('Secret to view', { exact: true }).fill('curto');
