@@ -38,4 +38,7 @@ object RedisKeys {
 
     /** ZSET uuid da mensagem → chegada em microssegundos: a ordem e a paginação de [requests]. */
     fun requestIndex(id: TokenId): String = "token:$id:requests:index"
+
+    /** Maior `seq` já dado na URL: apagar a mais nova (ou todas) não o faz voltar. */
+    fun requestSeq(id: TokenId): String = "token:$id:requests:seq"
 }

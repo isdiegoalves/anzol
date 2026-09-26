@@ -29,12 +29,32 @@ private val PAGE = requestScript("requests-page", List::class.java)
 private val STORE = requestScript("requests-store", List::class.java)
 private val TRIM = requestScript("requests-trim", List::class.java)
 private val DELETE = requestScript("requests-delete", Long::class.javaObjectType)
+private val FIND = requestScript("requests-find", List::class.java)
+private val AFTER = requestScript("requests-after", List::class.java)
+
+/** Resultado da gravação: o `seq` que a mensagem recebeu e as que a limpeza tirou. */
+data class Stored(
+    val seq: Long,
+    val removed: List<RequestId>,
+)
+
+/** Trecho da listagem incremental; [hasMore] diz se há mensagens depois da última dele. */
+data class RequestBatch(
+    val messages: List<CapturedRequest>,
+    val hasMore: Boolean,
+)
+
+/** Pares (JSON, seq) de um script, sem os valores vazios (mensagem fantasma do app antigo). */
+private fun List<*>.toMessages(jsonMapper: JsonMapper): List<CapturedRequest> =
+    chunked(2)
+        .filter { (json, _) -> json is String && json.isNotEmpty() }
+        .map { (json, seq) -> jsonMapper.readValue(json.toString(), CapturedRequest::class.java).copy(seq = seq.toString().toLong()) }
 
 /**
  * Mensagens de um token em duas chaves que os scripts Lua mantêm coerentes: a hash
  * `token:{uuid}:requests` (uuid → JSON, no formato que o app antigo lê e grava) e o índice
  * `token:{uuid}:requests:index` (ZSET uuid → chegada em microssegundos), que dá a ordem, o total
- * e a página sem ler a hash inteira. Hash antiga sem índice ganha o índice na primeira leitura
+ * e a página sem ler a hash inteira. O score é o `seq` de cada mensagem lida. Hash antiga sem índice ganha o índice na primeira leitura
  * ou gravação (backfill em `requests-common.lua`).
  *
  * Limpeza FIFO: a URL guarda no máximo `auto_cleanup` mensagens, ou `WEBHOOK_MAX_REQUESTS` sem
@@ -56,10 +76,9 @@ class RequestStore(
         token: Token,
         id: RequestId,
     ): CapturedRequest? {
-        val json = redis.opsForHash<String, String>().get(RedisKeys.requests(token.uuid), id.toString())
-        if (json.isNullOrEmpty()) return null
+        val message = redis.execute(FIND, keys(token), id.toString()).toMessages(jsonMapper).firstOrNull() ?: return null
         keys(token).forEach { redis.expire(it, properties.expiry) }
-        return jsonMapper.readValue(json, CapturedRequest::class.java)
+        return message
     }
 
     /**
@@ -75,31 +94,39 @@ class RequestStore(
         val positions = phpPagePositions(count(token), page, perPage)
         if (positions.isEmpty()) return emptyList()
         val order = if (sorting == Sorting.NEWEST) "newest" else "oldest"
-        return redis
-            .execute(PAGE, keys(token), positions.first.toString(), positions.last.toString(), order)
-            .filterIsInstance<String>()
-            .filter { it.isNotEmpty() }
-            .map { jsonMapper.readValue(it, CapturedRequest::class.java) }
+        return redis.execute(PAGE, keys(token), positions.first.toString(), positions.last.toString(), order).toMessages(jsonMapper)
+    }
+
+    /** Até [limit] mensagens com `seq` maior que [after], da mais antiga para a mais nova, só pelo índice. */
+    fun after(
+        token: Token,
+        after: Long,
+        limit: Long,
+    ): RequestBatch {
+        val reply = redis.execute(AFTER, keys(token), after.toString(), limit.toString())
+        return RequestBatch(messages = reply.drop(1).toMessages(jsonMapper), hasMore = reply.first().toString().toLong() > 0)
     }
 
     fun count(token: Token): Long = redis.execute(COUNT, keys(token))
 
-    /** Grava e corta o excedente, atômico; devolve as mensagens que saíram (nunca a gravada). */
+    /** Grava e corta o excedente, atômico; devolve o `seq` dado à mensagem e as que saíram (nunca a gravada). */
     fun store(
         token: Token,
         request: CapturedRequest,
         arrival: Instant,
-    ): List<RequestId> =
-        redis
-            .execute(
+    ): Stored {
+        val reply =
+            redis.execute(
                 STORE,
-                keys(token),
+                keys(token) + RedisKeys.requestSeq(token.uuid),
                 request.uuid.toString(),
                 jsonMapper.writeValueAsString(request),
                 ChronoUnit.MICROS.between(Instant.EPOCH, arrival).toString(),
                 properties.expiry.seconds.toString(),
                 retention(token).toString(),
-            ).toRequestIds()
+            )
+        return Stored(seq = reply.first().toString().toLong(), removed = reply.drop(1).toRequestIds())
+    }
 
     /** Corta o excedente sobre o limite atual do token (depois de reduzi-lo). */
     fun trim(token: Token): List<RequestId> = redis.execute(TRIM, keys(token), retention(token).toString()).toRequestIds()

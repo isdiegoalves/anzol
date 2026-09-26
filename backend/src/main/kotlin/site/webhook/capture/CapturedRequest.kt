@@ -16,6 +16,9 @@ import java.time.LocalDateTime
  *
  * `query` e `request` são arrays do PHP (lista ou objeto). `request` tem três estados: ausente
  * (Kotlin `null`, requisição JSON), `null` no JSON (`NullNode`, sem campos) ou os campos.
+ *
+ * `seq` é o score da mensagem no índice (estritamente crescente por URL): anexado quando a mensagem
+ * sai do Redis (listagem, `GET`, evento) e nunca gravado na hash, que guarda o formato do app antigo.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class CapturedRequest(
@@ -35,6 +38,8 @@ data class CapturedRequest(
     val updatedAt: LocalDateTime,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val request: JsonNode? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val seq: Long? = null,
 ) {
     /** `Storage/Request::isJson()`: só o Content-Type exatamente `application/json`. */
     @JsonIgnore

@@ -1,10 +1,11 @@
 -- Uma página: posições ARGV[1]..ARGV[2] (inclusivas) na ordem de chegada, ou na inversa se ARGV[3]
 -- for 'newest'. Lê só os uuids da página (ZRANGE) e o JSON deles (HMGET), nunca a hash inteira.
+-- Devolve {JSON, seq, ...}.
 backfill()
-local ids
+local entries
 if ARGV[3] == 'newest' then
-  ids = redis.call('ZRANGE', index, ARGV[1], ARGV[2], 'REV')
+  entries = redis.call('ZRANGE', index, ARGV[1], ARGV[2], 'REV', 'WITHSCORES')
 else
-  ids = redis.call('ZRANGE', index, ARGV[1], ARGV[2])
+  entries = redis.call('ZRANGE', index, ARGV[1], ARGV[2], 'WITHSCORES')
 end
-return inBatches('HMGET', messages, ids)
+return withSeq(entries)

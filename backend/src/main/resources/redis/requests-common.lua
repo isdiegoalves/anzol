@@ -1,6 +1,7 @@
 -- Prelúdio de todo script de mensagens. KEYS[1] = token:{uuid}:requests (hash uuid -> JSON, formato
 -- do app antigo); KEYS[2] = token:{uuid}:requests:index (ZSET uuid -> chegada em microssegundos).
 -- Os scripts mantêm as duas chaves com os mesmos uuids; o Redis roda cada script sem intercalar.
+-- O score é o `seq` que a API mostra em cada mensagem: estritamente crescente por URL.
 local messages, index = KEYS[1], KEYS[2]
 
 -- 'yyyy-MM-dd HH:mm:ss' (UTC) em segundos desde 1970 (days_from_civil, H. Hinnant); nil se não casar.
@@ -64,4 +65,22 @@ local function trim(limit)
   redis.call('ZREMRANGEBYRANK', index, 0, excess - 1)
   inBatches('HDEL', messages, removed)
   return removed
+end
+
+-- Resposta de ZRANGE/ZRANGEBYSCORE WITHSCORES (uuid, score, ...) como JSON e seq de cada mensagem,
+-- na mesma ordem: {JSON, seq, JSON, seq, ...}. O JSON sai da hash (HMGET só desses uuids) e o seq
+-- é o score; o JSON gravado não muda.
+local function withSeq(entries)
+  local ids, seqs = {}, {}
+  for i = 1, #entries, 2 do
+    ids[#ids + 1] = entries[i]
+    seqs[#seqs + 1] = score(tonumber(entries[i + 1]))
+  end
+  local jsons = inBatches('HMGET', messages, ids)
+  local reply = {}
+  for i = 1, #ids do
+    reply[#reply + 1] = jsons[i]
+    reply[#reply + 1] = seqs[i]
+  end
+  return reply
 end

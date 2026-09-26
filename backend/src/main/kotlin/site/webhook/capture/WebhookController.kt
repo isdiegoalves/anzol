@@ -104,8 +104,8 @@ class WebhookController(
         if (token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
         val captured = request.toCapturedRequest(tokenId, arrival.toLegacyDateTime())
-        val removed = requests.store(token, captured, arrival)
-        stream.publish(captured, removed) { requests.count(token) }
+        val stored = requests.store(token, captured, arrival)
+        stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
         response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
     }
 

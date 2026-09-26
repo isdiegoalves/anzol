@@ -9,6 +9,7 @@ import site.webhook.support.ApiClient
 import site.webhook.support.ApiTest
 import site.webhook.support.JSON_CLIENT
 import tools.jackson.databind.json.JsonMapper
+import java.time.Instant
 import java.util.UUID
 
 /** O app antigo e o novo dividem o mesmo Redis: o que um grava o outro precisa ler. */
@@ -22,7 +23,10 @@ class LegacyRedisCompatibilityTest(
     private val api = ApiClient(port, jsonMapper)
 
     @Test
-    @DisplayName("Dado token e mensagens gravados pelo PHP, quando a API nova os lê, então devolve o mesmo JSON (campos novos nulos)")
+    @DisplayName(
+        "Dado token e mensagens gravados pelo PHP, quando a API nova os lê, " +
+            "então devolve o mesmo JSON (campos novos nulos, seq do created_at)",
+    )
     fun leitura_jsonGravadoPeloPhp_deveDevolverOMesmoConteudo() {
         val tokenId = UUID.randomUUID().toString()
         val requestId = UUID.randomUUID().toString()
@@ -39,8 +43,11 @@ class LegacyRedisCompatibilityTest(
         val raw = api.send("GET", "/token/$tokenId/request/$requestId/raw")
 
         assertThat(api.json(readToken)).isEqualTo(api.tree(token.dropLast(1) + ""","retry_after":null,"auto_cleanup":null}"""))
-        assertThat(api.json(readMessage)).isEqualTo(api.tree(json))
-        assertThat(page["data"].toList()).containsExactly(api.tree(json), api.tree(form))
+        assertThat(api.json(readMessage)).isEqualTo(api.tree(json.withSeq("2026-09-26T00:41:43Z")))
+        assertThat(page["data"].toList()).containsExactly(
+            api.tree(json.withSeq("2026-09-26T00:41:43Z")),
+            api.tree(form.withSeq("2026-09-26T00:42:10Z")),
+        )
         assertThat(page["total"].asInt()).isEqualTo(3)
         assertThat(raw.headers().firstValue("Content-Type")).hasValue("application/json")
         assertThat(raw.body()).isEqualTo("""{"a":1,"b":[1,2]}""")
@@ -95,6 +102,9 @@ class LegacyRedisCompatibilityTest(
         assertThat(redis.getExpire("token:$tokenId")).isBetween(EXPIRY_SECONDS - 5, EXPIRY_SECONDS)
         assertThat(redis.getExpire("token:$tokenId:requests")).isBetween(EXPIRY_SECONDS - 5, EXPIRY_SECONDS)
     }
+
+    /** A mensagem como a API a devolve: o JSON gravado mais o `seq`, que no backfill é o `created_at` em microssegundos. */
+    private fun String.withSeq(createdAt: String) = dropLast(1) + ""","seq":${Instant.parse(createdAt).epochSecond * 1_000_000}}"""
 
     private fun phpToken(tokenId: String) =
         """{"uuid":"$tokenId","ip":"192.168.107.1","user_agent":"curl\/8.16.0","default_content":"olá",""" +

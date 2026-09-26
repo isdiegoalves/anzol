@@ -48,10 +48,18 @@ dados ficam no volume.
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
-| `GET /token/{id}/requests` | Lista as mensagens (`page`, `per_page`, `sorting=oldest\|newest`) |
+| `GET /token/{id}/requests` | Lista as mensagens (`page`, `per_page`, `sorting=oldest\|newest`); com `after=<seq>`, as mensagens de `seq` maior, da mais antiga para a mais nova, até `per_page` |
 | `GET`/`DELETE /token/{id}/request/{requestId}` | Lê ou apaga uma mensagem; `.../raw` devolve o corpo cru |
 | `DELETE /token/{id}/request` | Apaga todas as mensagens |
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) |
+
+Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
+estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
+de apagar a mais nova ou todas (o índice das mensagens; nas gravadas antes dele, o `created_at` em
+microssegundos). `after=<seq>` percorre as mensagens a
+partir de um ponto sem depender de `page` (que desloca quando algo é apagado) nem da ordem de
+chegada dos eventos SSE (que pode trocar entre gravações simultâneas): ignora `page` e `sorting`,
+`is_last_page` diz se há mais depois da última devolvida, e `after` que não é inteiro ≥ 0 dá 422.
 
 `retry_after` (segundos, inteiro ≥ 0, ou data HTTP no formato `Sun, 06 Nov 1994 08:49:37 GMT`)
 faz toda resposta do webhook da URL levar o cabeçalho `Retry-After`; útil com `/429`, `/503` ou 3xx.
