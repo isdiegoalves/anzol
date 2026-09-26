@@ -25,6 +25,24 @@
   tbody tr:nth-of-type(odd) {
     background: #f9f9f9;
   }
+
+  // Linha do header de assinatura: fundo e borda do selo, e a frase do veredito embaixo do valor.
+  tbody tr.signature {
+    background: #f2dede;
+    box-shadow: inset 3px 0 #a94442;
+    color: #a94442;
+
+    &.valid {
+      background: #dff0d8;
+      box-shadow: inset 3px 0 #3c763d;
+      color: #3c763d;
+    }
+  }
+}
+
+.verdict {
+  margin: 4px 0 0;
+  word-break: normal;
 }
 
 .name {

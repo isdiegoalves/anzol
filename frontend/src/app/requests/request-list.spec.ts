@@ -66,6 +66,50 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items().map((item) => item.classList.contains('unread'))).toEqual([false, true]);
   });
 
+  it.each([
+    [
+      'válida',
+      { provider: 'github', valid: true, reason: null },
+      'valid',
+      '✓ Sig OK',
+      'Signature valid — GitHub',
+    ],
+    [
+      'inválida',
+      { provider: 'stripe', valid: false, reason: 'signature mismatch' },
+      'invalid',
+      '✕ Bad sig',
+      'Signature invalid — signature mismatch',
+    ],
+    [
+      'ausente',
+      { provider: 'github', valid: false, reason: 'header X-Hub-Signature-256 absent' },
+      'absent',
+      '⊘ No sig',
+      'Signature absent — header X-Hub-Signature-256 absent',
+    ],
+  ] as const)(
+    'deve mostrar o selo com ícone, texto curto e o veredito completo no aria-label Quando a assinatura é %s',
+    async (_caso, signature, state, texto, rotulo) => {
+      await load([webhookRequest(1, { signature })]);
+
+      const seal = items()[0].querySelector('.select [role=img]');
+
+      expect(seal?.textContent?.trim()).toBe(texto);
+      expect(seal?.getAttribute('aria-label')).toBe(rotulo);
+      expect(seal?.classList).toContain(state);
+    },
+  );
+
+  it.each([
+    ['nula (URL sem verificação)', { signature: null }],
+    ['ausente (mensagem gravada antes da verificação)', {}],
+  ])('não deve mostrar selo de assinatura Quando ela é %s', async (_caso, campos) => {
+    await load([webhookRequest(1, campos)]);
+
+    expect(items()[0].querySelector('[role=img]')).toBeNull();
+  });
+
   it('deve emitir a mensagem clicada Quando o usuário clica nela', async () => {
     await load([webhookRequest(1)]);
     const opened: WebhookRequest[] = [];

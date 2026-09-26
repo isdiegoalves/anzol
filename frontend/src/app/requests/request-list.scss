@@ -103,3 +103,27 @@
   color: #999;
   font-size: 12px;
 }
+
+// Selo da assinatura: ícone e texto, com as cores dos alertas do selo no detalhe.
+.signature {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: normal;
+  white-space: nowrap;
+
+  &.valid {
+    border-color: #d6e9c6;
+    background: #dff0d8;
+    color: #3c763d;
+  }
+
+  &.invalid,
+  &.absent {
+    border-color: #ebccd1;
+    background: #f2dede;
+    color: #a94442;
+  }
+}

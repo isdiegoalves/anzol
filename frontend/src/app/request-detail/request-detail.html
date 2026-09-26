@@ -70,12 +70,26 @@
         </tr>
       </thead>
       <tbody>
+        @let check = signature();
+        @if (check?.missing; as missing) {
+          <tr class="signature absent">
+            <td class="name">{{ missing.name }}</td>
+            <td>
+              <code>(not received)</code>
+              <p class="verdict">{{ missing.note }}</p>
+            </td>
+          </tr>
+        }
         @for (header of entries(current.headers); track header[0]) {
-          <tr>
+          @let verdict = check?.rows.get(header[0]);
+          <tr [class]="verdict ? 'signature ' + check?.state : ''">
             <td class="name">{{ header[0] }}</td>
             <td>
               @for (value of current.headers[header[0]]; track $index; let last = $last) {
                 <code>{{ value === '' ? '(empty)' : value }}{{ last ? '' : ', ' }}</code>
+              }
+              @if (verdict) {
+                <p class="verdict">{{ verdict }}</p>
               }
             </td>
           </tr>

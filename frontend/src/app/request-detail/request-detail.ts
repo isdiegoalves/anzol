@@ -26,6 +26,7 @@ import { formatContent, highlightContent } from './format-content';
 import { RuleBadge } from './rule-badge';
 import { SchemaBadge } from './schema-badge';
 import { SignatureBadge } from './signature-badge';
+import { signatureCheck } from './signature-check';
 
 /** Detalhe da mensagem: dados, headers, query, formulário e corpo (cru ou formatado). */
 @Component({
@@ -88,6 +89,9 @@ export class RequestDetail {
     const content = this.request().content ?? '';
     return highlightContent(this.preferences.formatJsonEnable() ? formatContent(content) : content);
   });
+
+  /** Linhas da tabela de headers que a verificação de assinatura leu (ou esperava). */
+  protected readonly signature = computed(() => signatureCheck(this.request(), this.token()));
 
   /** "Create schema from this request" só aparece quando há o que inferir. */
   protected readonly jsonBody = computed(() => isJson(this.request().content));

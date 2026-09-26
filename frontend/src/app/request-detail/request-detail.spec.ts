@@ -10,8 +10,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
 import { OutboundActions } from '../outbound/outbound-actions';
-import { WebhookRequest } from '../requests/webhook-request';
+import { SignatureResult, WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
+import { Token } from '../token/token';
 import { TokenActions } from '../token/token-actions';
 import { Preferences } from '../settings/preferences';
 import { RequestDetail } from './request-detail';
@@ -20,10 +21,10 @@ describe('Dado o detalhe de uma mensagem', () => {
   let fixture: ComponentFixture<RequestDetail>;
   let loader: HarnessLoader;
 
-  const render = async (request: WebhookRequest) => {
+  const render = async (request: WebhookRequest, url: Token = token()) => {
     fixture = TestBed.createComponent(RequestDetail);
     fixture.componentRef.setInput('request', request);
-    fixture.componentRef.setInput('token', token());
+    fixture.componentRef.setInput('token', url);
     fixture.componentRef.setInput('page', 2);
     loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
@@ -163,6 +164,162 @@ describe('Dado o detalhe de uma mensagem', () => {
     expect(element.querySelector('app-rule-badge')?.textContent).toContain(
       'Answered by rule Recusa',
     );
+  });
+
+  describe('Dado a linha do header de assinatura na tabela Headers', () => {
+    interface Highlighted {
+      state: string[];
+      text: string | undefined;
+    }
+    const highlighted = (element: HTMLElement): Highlighted[] =>
+      [...element.querySelectorAll('table[aria-label="Headers"] tbody tr.signature')].map(
+        (row) => ({
+          state: [...row.classList].filter((name) => name !== 'signature'),
+          text: [...row.querySelectorAll('.name, code, .verdict')]
+            .map((part) => part.textContent?.trim())
+            .join(' '),
+        }),
+      );
+
+    it.each<[string, SignatureResult, Record<string, string[]>, Highlighted[]]>([
+      [
+        'válida pela GitHub',
+        { provider: 'github', valid: true, reason: null },
+        { 'x-hub-signature-256': ['sha256=abc'] },
+        [
+          {
+            state: ['valid'],
+            text: 'x-hub-signature-256 sha256=abc ✓ Signature valid — HMAC-SHA256 of the raw body matched',
+          },
+        ],
+      ],
+      [
+        'inválida pela Stripe (HMAC diferente)',
+        { provider: 'stripe', valid: false, reason: 'signature mismatch' },
+        { 'stripe-signature': ['t=1,v1=ab'] },
+        [
+          {
+            state: ['invalid'],
+            text: 'stripe-signature t=1,v1=ab ✕ Signature invalid — HMAC-SHA256 of "{t}.{raw body}" did not match (signature mismatch)',
+          },
+        ],
+      ],
+      [
+        'inválida pelo Slack (fora da tolerância), com as duas linhas',
+        { provider: 'slack', valid: false, reason: 'timestamp outside tolerance (412 s)' },
+        { 'x-slack-request-timestamp': ['1'], 'x-slack-signature': ['v0=ab'] },
+        [
+          {
+            state: ['invalid'],
+            text: 'x-slack-request-timestamp 1 ✕ Timestamp signed with the body',
+          },
+          {
+            state: ['invalid'],
+            text: 'x-slack-signature v0=ab ✕ Signature invalid — HMAC-SHA256 of "v0:{timestamp}:{raw body}" matched, but timestamp outside tolerance (412 s)',
+          },
+        ],
+      ],
+      [
+        'inválida pela Shopify (header malformado)',
+        { provider: 'shopify', valid: false, reason: 'malformed header' },
+        { 'x-shopify-hmac-sha256': ['%%'] },
+        [
+          {
+            state: ['invalid'],
+            text: 'x-shopify-hmac-sha256 %% ✕ Signature invalid — malformed header',
+          },
+        ],
+      ],
+    ])(
+      'deve realçar a linha com o veredito e o que foi conferido Quando a assinatura é %s',
+      async (_caso, signature, headers, linhas) => {
+        const element = await render(
+          webhookRequest(1, { signature, headers: { accept: ['*/*'], ...headers } }),
+        );
+
+        expect(highlighted(element)).toEqual(linhas);
+        expect(rows(element, 'Headers')).toContain('accept */*');
+      },
+    );
+
+    it('deve pôr no topo a linha "(not received)" com o header esperado Quando a assinatura veio sem o header', async () => {
+      const element = await render(
+        webhookRequest(1, {
+          signature: {
+            provider: 'github',
+            valid: false,
+            reason: 'header X-Hub-Signature-256 absent',
+          },
+        }),
+      );
+
+      expect(highlighted(element)).toEqual([
+        {
+          state: ['absent'],
+          text: 'x-hub-signature-256 (not received) ⊘ Signature absent — the GitHub check expects the X-Hub-Signature-256 header',
+        },
+      ]);
+      expect(rows(element, 'Headers')[0]).toMatch(/^x-hub-signature-256 \(not received\)/);
+      expect(rows(element, 'Headers')).toHaveLength(2);
+    });
+
+    it('deve realçar o header configurado no genérico, com o algoritmo da URL, Quando a assinatura confere', async () => {
+      const element = await render(
+        webhookRequest(1, {
+          signature: { provider: 'generic', valid: true, reason: null },
+          headers: { 'x-signature': ['sha512=ab'] },
+        }),
+        token({
+          signature: {
+            provider: 'generic',
+            secret: '••••1234',
+            header: 'X-Signature',
+            algorithm: 'sha512',
+          },
+        }),
+      );
+
+      expect(highlighted(element)).toEqual([
+        {
+          state: ['valid'],
+          text: 'x-signature sha512=ab ✓ Signature valid — HMAC-SHA512 of the raw body matched',
+        },
+      ]);
+    });
+
+    it.each([
+      ['o header do genérico mudou', { provider: 'generic' as const, header: 'X-Outro' }],
+      ['a URL passou a verificar a GitHub', { provider: 'github' as const }],
+      ['a URL deixou de verificar', null],
+    ])(
+      'não deve realçar linha nenhuma, só o selo, Quando a configuração mudou depois da chegada (%s)',
+      async (_caso, atual) => {
+        const element = await render(
+          webhookRequest(1, {
+            signature: { provider: 'generic', valid: true, reason: null },
+            headers: { 'x-signature': ['ab'] },
+          }),
+          token({ signature: atual && { ...atual, secret: '••••1234' } }),
+        );
+
+        expect(highlighted(element)).toEqual([]);
+        expect(element.querySelector('app-signature-badge')?.textContent?.trim()).toBe(
+          'Signature valid — Generic',
+        );
+      },
+    );
+
+    it.each([
+      ['nula (URL sem verificação)', { signature: null }],
+      ['ausente (mensagem gravada antes da verificação)', {}],
+    ])('não deve realçar linha nenhuma Quando a assinatura é %s', async (_caso, campos) => {
+      const element = await render(
+        webhookRequest(1, { ...campos, headers: { 'x-hub-signature-256': ['sha256=ab'] } }),
+      );
+
+      expect(highlighted(element)).toEqual([]);
+      expect(rows(element, 'Headers')).toEqual(['x-hub-signature-256 sha256=ab']);
+    });
   });
 
   it.each([

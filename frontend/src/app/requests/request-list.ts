@@ -9,10 +9,18 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { CompareStore } from '../diff/compare-store';
 import { localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
+import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { MethodLabel } from './method-label';
 import { RequestStore } from './request-store';
-import { WebhookRequest } from './webhook-request';
+import { SignatureResult, SignatureState, WebhookRequest, signatureState } from './webhook-request';
+
+/** Texto curto do selo na lista: ícone e palavra, nunca só a cor. */
+const SEAL_TEXT: Record<SignatureState, string> = {
+  valid: '✓ Sig OK',
+  invalid: '✕ Bad sig',
+  absent: '⊘ No sig',
+};
 
 /**
  * Lista lateral: mensagens da URL, busca e filtros, paginação, não lidas e apagar uma. No
@@ -59,6 +67,16 @@ export class RequestList {
     } else {
       this.openRequest.emit(request);
     }
+  }
+
+  /** Selo da verificação; o `aria-label` diz por extenso o que o selo resume. */
+  protected signatureSeal(signature: SignatureResult) {
+    const state = signatureState(signature);
+    const label =
+      state === 'valid'
+        ? `Signature valid — ${SIGNATURE_PROVIDER_LABELS[signature.provider]}`
+        : `Signature ${state} — ${signature.reason}`;
+    return { state, label, text: SEAL_TEXT[state] };
   }
 
   protected deleteRequest(request: WebhookRequest): void {

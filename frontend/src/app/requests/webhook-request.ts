@@ -36,6 +36,24 @@ export interface SignatureResult {
   reason: string | null;
 }
 
+/** Como a condição `match.signature` das regras lê o resultado. */
+export type SignatureState = 'valid' | 'invalid' | 'absent';
+
+const ABSENT_REASON = /^header (\S+) absent$/;
+
+/** Ausente é faltar um header que a verificação exige (a assinatura ou, no Slack, o timestamp). */
+export function signatureState(signature: SignatureResult): SignatureState {
+  if (signature.valid) {
+    return 'valid';
+  }
+  return absentHeader(signature) === null ? 'invalid' : 'absent';
+}
+
+/** O header que faltou, como o servidor o escreve no motivo (`X-Hub-Signature-256`). */
+export function absentHeader(signature: SignatureResult): string | null {
+  return ABSENT_REASON.exec(signature.reason ?? '')?.[1] ?? null;
+}
+
 /** Resultado da validação no momento da captura; até 20 erros, na ordem do servidor. */
 export interface SchemaResult {
   valid: boolean;

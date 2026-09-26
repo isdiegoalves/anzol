@@ -40,6 +40,17 @@
         <app-method-label [method]="request.method" />
         #{{ request.uuid.substring(0, 5) }} {{ request.ip }}<br />
         <small>{{ localDate(request.created_at) }}</small>
+        @if (request.signature; as signature) {
+          @let seal = signatureSeal(signature);
+          <span
+            role="img"
+            class="signature"
+            [class]="seal.state"
+            [attr.aria-label]="seal.label"
+            [attr.title]="seal.label"
+            >{{ seal.text }}</span
+          >
+        }
       </button>
       <button
         type="button"
