@@ -32,6 +32,8 @@ private const val DEFAULT_PER_PAGE = 50
 private const val UNPROCESSABLE = 422
 private const val UNAVAILABLE = 503
 private const val TOKEN_NOT_FOUND = """{"success":false,"error":{"message":"Token not found","id":null}}"""
+private const val PROTECTED = """{"error":"This URL is protected","protected":true}"""
+private const val UNAUTHORIZED = 401
 
 /**
  * Servidor webhook.site falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
@@ -46,6 +48,11 @@ class FakeWebhookSite : AutoCloseable {
     private val subscribers = CopyOnWriteArrayList<Subscriber>()
     private val ruleLists = ConcurrentHashMap<String, JsonArray>()
     private val lastSeq = AtomicLong()
+
+    private val secrets = ConcurrentHashMap<String, String>()
+
+    /** O `X-Webhook-Secret` de cada chamada às rotas `/token/{id}/...` (vazio quando não veio), em ordem. */
+    val secretHeaders = CopyOnWriteArrayList<String>()
 
     /** Corpos recebidos no `POST /token/{id}/requests/wait`, em ordem. */
     val waits = CopyOnWriteArrayList<JsonObject>()
@@ -78,6 +85,14 @@ class FakeWebhookSite : AutoCloseable {
     fun createToken(): String = UUID.randomUUID().toString().also { messages[it] = CopyOnWriteArrayList() }
 
     fun tokens(): Set<String> = messages.keys
+
+    /** Protege a URL, como o `read_secret`: as rotas `/token/{id}/...` sem o [secret] no cabeçalho respondem 401. */
+    fun protect(
+        token: String,
+        secret: String,
+    ) {
+        secrets[token] = secret
+    }
 
     fun subscriberCount(): Int = subscribers.size
 
@@ -152,7 +167,12 @@ class FakeWebhookSite : AutoCloseable {
     private fun handle(exchange: HttpExchange) {
         val path = exchange.requestURI.path
         val method = exchange.requestMethod
+        val token = TOKEN_ROUTE.find(path)?.groupValues?.get(1)
+        val secret = exchange.requestHeaders.getFirst("X-Webhook-Secret")
+        if (token != null) secretHeaders += secret.orEmpty()
+        val required = token?.let(secrets::get)
         when {
+            required != null && secret != required -> exchange.respond(UNAUTHORIZED, PROTECTED)
             method == "POST" && path == "/token" -> exchange.respond(201, """{"uuid":"${createToken()}"}""")
             method == "PUT" && RULES_ROUTE.matches(path) -> replaceRules(exchange, RULES_ROUTE.matchEntire(path)?.groupValues?.get(1))
             method == "POST" && WAIT_ROUTE.matches(path) -> wait(exchange, WAIT_ROUTE.matchEntire(path)?.groupValues?.get(1))

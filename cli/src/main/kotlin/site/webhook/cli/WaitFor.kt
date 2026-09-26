@@ -97,6 +97,7 @@ private fun JsonElement.isStrict(): Boolean =
 class WaitFor : CoreCliktCommand(name = "wait-for") {
     private val token by option("--token", help = "webhook.site token (uuid)").convert { TokenId(it) }.required()
     private val server by serverOption()
+    private val readSecret by readSecretOption()
     private val match by option("--match", help = "JSON object in the format of a response rule's match")
     private val matchFile by option("--match-file", help = "File with the match JSON object")
     private val methods by option("--method", help = "Accepted method, repeatable").multiple()
@@ -118,7 +119,8 @@ class WaitFor : CoreCliktCommand(name = "wait-for") {
     override fun run() {
         if (after != null && new) invalid("--after and --new cannot be used together")
         val matchJson = shortcuts().applyTo(baseMatch())
-        val site = WebhookServer(server, httpClient())
+        val site = WebhookServer(server, httpClient(), readSecret)
+        requireAccess(site, token, WAIT_FOR_ERROR)
         val wait =
             buildJsonObject {
                 put("match", matchJson)

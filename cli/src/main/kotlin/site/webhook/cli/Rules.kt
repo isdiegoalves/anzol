@@ -33,11 +33,13 @@ class RulesPull : CoreCliktCommand(name = "pull") {
     private val token by argument("token", help = "webhook.site token (uuid)").convert { TokenId(it) }
     private val file by option("--file", help = "Writes the rules to this file instead of stdout")
     private val server by serverOption()
+    private val readSecret by readSecretOption()
 
     override fun help(context: Context) = "Prints the rules of a URL as indented JSON."
 
     override fun run() {
-        val site = WebhookServer(server, httpClient())
+        val site = WebhookServer(server, httpClient(), readSecret)
+        requireAccess(site, token)
         val rules = reaching(site) { site.rules(token) } ?: fail("Token not found")
         val json = prettyJson.encodeToString(JsonElement.serializer(), rules) + "\n"
         val target = file
@@ -61,12 +63,14 @@ class RulesPush : CoreCliktCommand(name = "push") {
     private val token by argument("token", help = "webhook.site token (uuid)").convert { TokenId(it) }
     private val file by argument("file", help = "JSON file with the list of rules, as pull writes it")
     private val server by serverOption()
+    private val readSecret by readSecretOption()
 
     override fun help(context: Context) = "Replaces all the rules of a URL with the list in a JSON file."
 
     override fun run() {
         val rules = parse(read(file))
-        val site = WebhookServer(server, httpClient())
+        val site = WebhookServer(server, httpClient(), readSecret)
+        requireAccess(site, token)
         when (val replaced = reaching(site) { site.replaceRules(token, rules) }) {
             is RulesReplaced.Saved -> {
                 echo("Pushed ${replaced.count} rule(s)")

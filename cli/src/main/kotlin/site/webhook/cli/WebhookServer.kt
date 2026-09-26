@@ -18,9 +18,26 @@ import java.util.stream.Stream
 
 private const val OK = 200
 private const val CREATED = 201
+private const val UNAUTHORIZED = 401
 private const val NOT_FOUND = 404
 private const val GONE = 410
 private const val UNPROCESSABLE = 422
+private const val TOO_MANY_REQUESTS = 429
+
+/** Cabeçalho com o segredo de leitura de uma URL protegida. */
+const val SECRET_HEADER = "X-Webhook-Secret"
+
+/** O que `GET /token/{id}` diz de uma URL, com o segredo que o CLI tem (ou nenhum). */
+enum class TokenAccess {
+    OPEN,
+
+    /** 401: a URL é protegida e o segredo faltou ou está errado. */
+    PROTECTED,
+
+    /** 429: segredos errados demais na URL no último minuto. */
+    LIMITED,
+    NOT_FOUND,
+}
 
 @Serializable
 private data class NewToken(
@@ -73,13 +90,29 @@ sealed interface WaitAnswer {
     data object TokenNotFound : WaitAnswer
 }
 
-/** A API do webhook.site que o CLI usa; nada além dela. */
+/**
+ * A API do webhook.site que o CLI usa; nada além dela. Com [readSecret], toda chamada leva o [SECRET_HEADER]: numa URL
+ * protegida é ele que dá acesso (numa aberta, o servidor o ignora). O segredo só sai neste cabeçalho.
+ */
 @Suppress("TooManyFunctions") // uma função por rota da API que o CLI chama, mais o envio e a leitura de status
 class WebhookServer(
     server: String,
     private val http: HttpClient,
+    private val readSecret: String? = null,
 ) {
     val base: String = server.trimEnd('/')
+
+    /** `GET /token/{id}`: se a URL existe e se o segredo (ou a falta dele) dá acesso. */
+    fun access(token: TokenId): TokenAccess {
+        val response = send("GET", "/token/$token")
+        return when (response.statusCode()) {
+            OK -> TokenAccess.OPEN
+            UNAUTHORIZED -> TokenAccess.PROTECTED
+            TOO_MANY_REQUESTS -> TokenAccess.LIMITED
+            NOT_FOUND, GONE -> TokenAccess.NOT_FOUND
+            else -> throw unexpected(response)
+        }
+    }
 
     /** `POST /token`: uma URL nova, com a resposta padrão. */
     fun createToken(): TokenId {
@@ -87,9 +120,6 @@ class WebhookServer(
         if (response.statusCode() != CREATED) throw unexpected(response)
         return apiJson.decodeFromString<NewToken>(response.body()).uuid
     }
-
-    /** `GET /token/{id}`: 410 quando não existe (404 quando o id nem é uuid). */
-    fun exists(token: TokenId): Boolean = found(send("GET", "/token/$token")) != null
 
     /** `GET /token/{id}/request/{rid}`: a mensagem inteira; `null` quando ela ou o token não existem. */
     fun find(
@@ -155,14 +185,20 @@ class WebhookServer(
 
     /**
      * Assina o SSE do token: as linhas do `text/event-stream`, já com a assinatura registrada no
-     * servidor (ele só manda o status depois de registrar). `null` quando o token não existe.
+     * servidor (ele só manda o status depois de registrar). `null` quando o token não existe ou deixou de dar
+     * acesso (401: o segredo foi trocado com o `listen` rodando).
      */
     fun subscribe(token: TokenId): Stream<String>? {
-        val request = HttpRequest.newBuilder(URI.create("$base/token/$token/stream")).header("Accept", "text/event-stream").build()
+        val request =
+            HttpRequest
+                .newBuilder(URI.create("$base/token/$token/stream"))
+                .header("Accept", "text/event-stream")
+                .withSecret()
+                .build()
         val response = http.send(request, BodyHandlers.ofLines())
         if (response.statusCode() == OK) return response.body()
         response.body().close()
-        if (response.statusCode() in setOf(NOT_FOUND, GONE)) return null
+        if (response.statusCode() in setOf(UNAUTHORIZED, NOT_FOUND, GONE)) return null
         throw unexpected(response)
     }
 
@@ -173,7 +209,7 @@ class WebhookServer(
         json: String? = null,
         timeout: Duration? = null,
     ): HttpResponse<String> {
-        val request = HttpRequest.newBuilder(URI.create(base + path))
+        val request = HttpRequest.newBuilder(URI.create(base + path)).withSecret()
         if (timeout != null) request.timeout(timeout)
         if (json == null) {
             request.method(method, BodyPublishers.noBody())
@@ -192,4 +228,9 @@ class WebhookServer(
         }
 
     private fun unexpected(response: HttpResponse<*>) = IOException("${response.uri()} answered ${response.statusCode()}")
+
+    private fun HttpRequest.Builder.withSecret(): HttpRequest.Builder {
+        val secret = readSecret ?: return this
+        return header(SECRET_HEADER, secret)
+    }
 }
