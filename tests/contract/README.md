@@ -109,18 +109,20 @@ como sucesso.
 
 ## Limites do Tomcat (`limiteDoTomcat`)
 
-Entradas que o app Laravel aceitava e gravava, e que o Tomcat do app novo recusa com 400 antes de
-chegar ao código. Com `CONTRATO_ALVO=novo` o teste é marcado `test.fail` até o dono decidir entre
-o backend aceitar (a marcação sai) ou o caso virar exclusão.
+Entradas que o app Laravel aceitava e gravava e que o Tomcat 11 do app novo recusa com 400 antes de
+chegar a qualquer ponto de extensão. Com `CONTRATO_ALVO=novo` o teste fica marcado `test.fail`:
+documenta a divergência e avisa (passando "inesperadamente") se um dia o servidor passar a aceitar.
+Decisão de 2026-09-26: aceitar a divergência — contorná-la exigiria trocar de servidor, e as duas
+requisições são inválidas pelo RFC 9112 (§3.2: o alvo não carrega fragmento; §3.2.2: em
+absolute-form o servidor deve usar o host do alvo, não o cabeçalho `Host`).
 
-| Teste | App Laravel |
-|---|---|
-| `Host` com underscore (`my_host.com`) | 200; `hostname` e `url` com o host como veio |
-| `\` no caminho | 200; a `url` guarda a barra invertida |
-| `%` solto no caminho (`/abc%`) | 200; a `url` guarda o `%` |
-| `%FF` no caminho | 200; a `url` guarda `%FF` |
-| `#` cru no caminho | 200; o fragmento some da `url` |
-| absolute-form com outro host (`GET http://outro.host:1234/{token}`) | 200; `hostname` e `url` vêm do cabeçalho `Host` |
+| Teste | App Laravel | Por que o Tomcat recusa |
+|---|---|---|
+| `#` cru no caminho | 200; o fragmento some da `url` | `Http11InputBuffer` recusa antes de qualquer extensão; `#` fica fora de `relaxed-*-chars` |
+| absolute-form com outro host (`GET http://outro.host:1234/{token}`) | 200; `hostname` e `url` vêm do cabeçalho `Host` | `Http11Processor.prepareRequest` chama `badRequest("inconsistentHosts")` sem configuração possível |
+
+`Host` com underscore, `\`, `%` solto e `%FF` no caminho eram recusados pelo Tomcat e passaram a
+ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
 
 ## Exclusões propositais
 

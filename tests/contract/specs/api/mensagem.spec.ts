@@ -273,9 +273,8 @@ test.describe('mensagem gravada: entradas grandes e incomuns', () => {
   });
 });
 
-test.describe('mensagem gravada: alvo que o Tomcat recusa (limiteDoTomcat)', () => {
+test.describe('mensagem gravada: alvo HTTP cru incomum', () => {
   test('HTTP cru: Host com underscore é gravado como veio', async ({ request, tokens }) => {
-    limiteDoTomcat();
     const token = await tokens.criar();
     const res = await httpCru([`GET /${token.uuid}?b=1 HTTP/1.1`], '', 'my_host.com');
     expect(res.status).toBe(200);
@@ -285,15 +284,16 @@ test.describe('mensagem gravada: alvo que o Tomcat recusa (limiteDoTomcat)', () 
     expect(msg.headers['host']).toEqual(['my_host.com']);
   });
 
-  const caminhos: Array<[string, string, string]> = [
-    ['barra invertida', '/a\\b', '/a\\b'],
-    ['% solto', '/abc%', '/abc%'],
-    ['%FF', '/%FF', '/%FF'],
-    ['# cru (o fragmento some da url)', '/x#frag', '/x'],
+  // O último campo marca o que o Tomcat 11 recusa antes de qualquer ponto de extensão (ver README).
+  const caminhos: Array<[string, string, string, boolean]> = [
+    ['barra invertida', '/a\\b', '/a\\b', false],
+    ['% solto', '/abc%', '/abc%', false],
+    ['%FF', '/%FF', '/%FF', false],
+    ['# cru (o fragmento some da url)', '/x#frag', '/x', true],
   ];
-  for (const [nome, caminho, gravado] of caminhos) {
+  for (const [nome, caminho, gravado, tomcatRecusa] of caminhos) {
     test(`HTTP cru: ${nome} no caminho → 200 e grava`, async ({ request, tokens }) => {
-      limiteDoTomcat();
+      if (tomcatRecusa) limiteDoTomcat();
       const token = await tokens.criar();
       const res = await httpCru([`GET /${token.uuid}${caminho} HTTP/1.1`]);
       expect(res.status).toBe(200);
