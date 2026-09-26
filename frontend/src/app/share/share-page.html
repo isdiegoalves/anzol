@@ -1,0 +1,26 @@
+@let current = state();
+<main class="share">
+  @switch (current.kind) {
+    @case ('loaded') {
+      <p class="banner" role="status">
+        Shared read-only link · expires {{ expires(current.request) }}
+      </p>
+      <app-request-view [request]="current.request" />
+    }
+    @case ('missing') {
+      <section class="missing">
+        <h1>This link is not available</h1>
+        <p>It may have expired, been revoked, or the request may have been deleted.</p>
+        <p>Ask whoever shared it for a new link.</p>
+      </section>
+    }
+    @case ('failed') {
+      <p class="error" role="alert">
+        Could not load the shared request ({{ current.status }}). Try again later.
+      </p>
+    }
+    @default {
+      <p class="loading">Loading…</p>
+    }
+  }
+</main>

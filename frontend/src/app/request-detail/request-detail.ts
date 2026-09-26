@@ -16,36 +16,22 @@ import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
-import { MethodLabel } from '../requests/method-label';
-import { FieldValue, WebhookRequest } from '../requests/webhook-request';
-import { Preferences } from '../settings/preferences';
+import { WebhookRequest } from '../requests/webhook-request';
 import { Token } from '../token/token';
 import { COPY_FORMATS, CopyFormat, convertRequest } from './copy-as';
-import { fromNow, localDate } from './dates';
-import { formatContent, highlightContent } from './format-content';
-import { RuleBadge } from './rule-badge';
-import { SchemaBadge } from './schema-badge';
-import { SignatureBadge } from './signature-badge';
-import { signatureCheck } from './signature-check';
+import { RequestView } from './request-view';
 
-/** Detalhe da mensagem: dados, headers, query, formulário e corpo (cru ou formatado). */
+/**
+ * Detalhe da mensagem: a visualização (`RequestView`) com as ações da URL — permalink, copiar,
+ * reenviar, comparar, compartilhar, explicar, criar regra e schema.
+ */
 @Component({
   selector: 'app-request-detail',
-  imports: [
-    MatButton,
-    MatMenu,
-    MatMenuItem,
-    MatMenuTrigger,
-    MethodLabel,
-    RuleBadge,
-    SchemaBadge,
-    SignatureBadge,
-  ],
+  imports: [MatButton, MatMenu, MatMenuItem, MatMenuTrigger, RequestView],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',
 })
 export class RequestDetail {
-  protected readonly preferences = inject(Preferences);
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
   private readonly origin = inject(DOCUMENT).location.origin;
@@ -67,8 +53,6 @@ export class RequestDetail {
   protected readonly aiOffHint = AI_OFF_HINT;
 
   protected readonly formats = COPY_FORMATS;
-  protected readonly localDate = localDate;
-  protected readonly fromNow = fromNow;
 
   constructor() {
     // Fechar (ou abrir outra mensagem) tira o painel.
@@ -85,23 +69,8 @@ export class RequestDetail {
   protected readonly rawUrl = computed(
     () => `${this.origin}/token/${this.token().uuid}/request/${this.request().uuid}/raw`,
   );
-  protected readonly body = computed(() => {
-    const content = this.request().content ?? '';
-    return highlightContent(this.preferences.formatJsonEnable() ? formatContent(content) : content);
-  });
-
-  /** Linhas da tabela de headers que a verificação de assinatura leu (ou esperava). */
-  protected readonly signature = computed(() => signatureCheck(this.request(), this.token()));
-
   /** "Create schema from this request" só aparece quando há o que inferir. */
   protected readonly jsonBody = computed(() => isJson(this.request().content));
-
-  protected entries(fields: Record<string, FieldValue> | null | undefined): [string, string][] {
-    return Object.entries(fields ?? {}).map(([name, value]) => [
-      name,
-      typeof value === 'string' ? value : JSON.stringify(value),
-    ]);
-  }
 
   /** Corpo exatamente como chegou, mesmo com "Format JSON/XML" ligado na tela. */
   protected copyPayload(): void {
@@ -149,6 +118,12 @@ export class RequestDetail {
   protected async replayRequest(): Promise<void> {
     const { OutboundActions } = await import('../outbound/outbound-actions');
     this.injector.get(OutboundActions).replay(this.request());
+  }
+
+  /** O diálogo do link só-leitura vem sob demanda (pedaço do `share-dialog`). */
+  protected async shareRequest(): Promise<void> {
+    const { openShareDialog } = await import('../share/share-dialog');
+    openShareDialog(this.injector, this.request());
   }
 
   /** O Send da URL, já preenchido com método, headers e corpo da mensagem. */

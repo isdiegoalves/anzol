@@ -9,6 +9,7 @@ export interface TokenFields {
   auto_cleanup?: number | null;
   signature?: Record<string, unknown> | null;
   schema?: Record<string, unknown> | null;
+  read_secret?: string | null;
 }
 
 export interface Webhook {
@@ -21,6 +22,8 @@ export interface Webhook {
 /** Tokens criados pelo teste (pela API ou pela tela), apagados no fim. */
 export class TokenTracker {
   private readonly ids = new Set<string>();
+  /** Segredo de leitura de cada URL protegida: a limpeza precisa dele (sem ele, 401). */
+  private readonly secrets = new Map<string, string>();
 
   constructor(private readonly api: APIRequestContext) {}
 
@@ -29,7 +32,15 @@ export class TokenTracker {
     expect(response.status()).toBe(201);
     const { uuid } = (await response.json()) as { uuid: string };
     this.ids.add(uuid);
+    if (fields.read_secret) {
+      this.secrets.set(uuid, fields.read_secret);
+    }
     return uuid;
+  }
+
+  /** Registra o segredo que a tela definiu (ou trocou) numa URL, para a limpeza. */
+  protectedWith(uuid: string, secret: string): void {
+    this.secrets.set(uuid, secret);
   }
 
   /** Registra um token que a tela criou sozinha (ex.: `/` sem token salvo). */
@@ -71,8 +82,10 @@ export class TokenTracker {
   /** O DELETE do token não apaga as mensagens no app atual: apaga as mensagens antes. */
   async cleanup(): Promise<void> {
     for (const id of this.ids) {
-      await this.api.delete(`/token/${id}/request`);
-      await this.api.delete(`/token/${id}`);
+      const secret = this.secrets.get(id);
+      const headers = secret ? { 'X-Webhook-Secret': secret } : undefined;
+      await this.api.delete(`/token/${id}/request`, { headers });
+      await this.api.delete(`/token/${id}`, { headers });
     }
   }
 }

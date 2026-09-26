@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  flex: 1;
+  overflow: auto;
+}
+
+.share {
+  padding: 0 15px 15px;
+}
+
+.banner {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #bce8f1;
+  border-radius: 4px;
+  background: #d9edf7;
+  color: #31708f;
+}
+
+.missing {
+  max-width: 560px;
+  margin: 48px auto;
+
+  h1 {
+    font-size: 24px;
+    font-weight: normal;
+  }
+}
+
+.error {
+  color: #a94442;
+}
+
+.loading {
+  color: #777;
+}

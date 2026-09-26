@@ -33,9 +33,13 @@ function headerKey(name: string): string {
 /**
  * Liga o veredito gravado na chegada às linhas da tabela de headers. No genérico o header vem da
  * configuração atual da URL: se ela mudou depois da chegada (o header não está na mensagem), nenhuma
- * linha é realçada e fica só o selo. `null` quando a URL não verificava a mensagem.
+ * linha é realçada e fica só o selo. `null` quando a URL não verificava a mensagem. Sem a URL (link
+ * compartilhado), o genérico também fica só com o selo.
  */
-export function signatureCheck(request: WebhookRequest, token: Token): SignatureCheck | null {
+export function signatureCheck(
+  request: WebhookRequest,
+  token: Token | null,
+): SignatureCheck | null {
   const signature = request.signature;
   if (!signature) {
     return null;
@@ -50,7 +54,7 @@ export function signatureCheck(request: WebhookRequest, token: Token): Signature
         note: `${ICONS.absent} Signature absent — the ${label} check expects the ${absent} header`,
       }
     : null;
-  const config = token.signature?.provider === provider ? token.signature : null;
+  const config = token?.signature?.provider === provider ? token.signature : null;
   // No genérico ausente, o único header lido é o que faltou: nenhuma linha da mensagem é dele.
   const generic = config?.header && !absent ? [headerKey(config.header)] : [];
   const names = provider === 'generic' ? generic : PROVIDER_HEADERS[provider];

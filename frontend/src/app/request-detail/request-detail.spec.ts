@@ -6,12 +6,14 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
 import { OutboundActions } from '../outbound/outbound-actions';
 import { SignatureResult, WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
+import { ShareDialog } from '../share/share-dialog';
 import { Token } from '../token/token';
 import { TokenActions } from '../token/token-actions';
 import { Preferences } from '../settings/preferences';
@@ -419,6 +421,23 @@ describe('Dado o detalhe de uma mensagem', () => {
       await vi.waitFor(() => expect(actions[action]).toHaveBeenCalledWith(request));
     },
   );
+
+  it('deve abrir o diálogo do link só-leitura com a mensagem Quando "Share read-only link…" é clicado', async () => {
+    const request = webhookRequest(6);
+    await render(request);
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({} as never);
+
+    await (
+      await loader.getHarness(MatButtonHarness.with({ text: 'Share read-only link…' }))
+    ).click();
+
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        ShareDialog,
+        expect.objectContaining({ data: { request } }),
+      ),
+    );
+  });
 
   describe('Dado o "Explain"', () => {
     const explainUrl = (request: WebhookRequest) =>

@@ -55,5 +55,10 @@ export const routes: Routes = [
     loadComponent: () => import('./outbound/outbound-page').then((m) => m.OutboundPage),
   },
   { matcher: inboxMatcher, loadComponent: () => import('./inbox/inbox').then((m) => m.Inbox) },
+  // Link só-leitura de uma mensagem: público, sem o segredo da URL.
+  {
+    path: 'share/:shareId',
+    loadComponent: () => import('./share/share-page').then((m) => m.SharePage),
+  },
   { path: '**', redirectTo: '' },
 ];

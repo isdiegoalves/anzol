@@ -1,0 +1,80 @@
+<h2 mat-dialog-title>Share read-only link</h2>
+<mat-dialog-content>
+  <p class="hint">
+    Anyone with the link sees this request only, read-only, until it expires. No secret is needed.
+  </p>
+  <form id="share-form" class="fields" [formGroup]="form" (ngSubmit)="createLink()">
+    <mat-form-field>
+      <mat-label>Expires in</mat-label>
+      <mat-select formControlName="expires_in">
+        @for (option of expirations; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-slide-toggle formControlName="redact">Hide sensitive values</mat-slide-toggle>
+    <p class="hint">
+      Hides credential headers (Authorization, Cookie, API keys, the signature header) and query
+      values whose name has token, key, secret, password or signature.
+    </p>
+    <p class="warning" role="note">
+      The request body is not masked: the link shows it exactly as received.
+    </p>
+  </form>
+
+  @if (created(); as link) {
+    <div class="created">
+      <mat-form-field class="grow">
+        <mat-label>Read-only link</mat-label>
+        <input matInput readonly [value]="address(link)" />
+        <mat-hint>Expires {{ expires(link) }}</mat-hint>
+      </mat-form-field>
+      <button
+        mat-flat-button
+        type="button"
+        [cdkCopyToClipboard]="address(link)"
+        (cdkCopyToClipboardCopied)="copied()"
+      >
+        Copy link
+      </button>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+
+  <h3 class="section">Active links</h3>
+  @if (loaded()) {
+    <ul class="links" aria-label="Active links">
+      @for (link of links(); track link.id) {
+        <li>
+          <a target="_blank" rel="noopener" [href]="address(link)">{{ link.id }}</a>
+          <span class="meta">
+            expires {{ expires(link) }} ·
+            {{ link.redact ? 'sensitive values hidden' : 'all values shown' }}
+            @if (isThisRequest(link)) {
+              · this request
+            }
+          </span>
+          <button
+            mat-button
+            type="button"
+            [attr.aria-label]="'Revoke link ' + link.id"
+            (click)="revokeLink(link)"
+          >
+            Revoke
+          </button>
+        </li>
+      } @empty {
+        <li class="empty">No active links for this URL.</li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Close</button>
+  <button mat-flat-button type="submit" form="share-form" [disabled]="creating()">
+    Create link
+  </button>
+</mat-dialog-actions>
