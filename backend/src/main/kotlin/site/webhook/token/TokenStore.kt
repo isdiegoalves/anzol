@@ -30,6 +30,18 @@ class TokenStore(
         return token
     }
 
-    /** Apaga só o token; as mensagens ficam até expirar, como no app antigo. */
-    fun delete(token: Token): Boolean = redis.delete(RedisKeys.token(token.uuid))
+    /**
+     * Apaga o token e as mensagens dele (hash, índice e `seq`) num DEL só, atômico. O app antigo
+     * apagava só o token e deixava as mensagens ocupando memória até expirar. O `seq` sai junto:
+     * o token deixa de existir e o UUID não se repete, então não há sequência a preservar.
+     */
+    fun delete(token: Token): Boolean =
+        redis.delete(
+            listOf(
+                RedisKeys.token(token.uuid),
+                RedisKeys.requests(token.uuid),
+                RedisKeys.requestIndex(token.uuid),
+                RedisKeys.requestSeq(token.uuid),
+            ),
+        ) > 0
 }

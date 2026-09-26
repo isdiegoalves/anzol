@@ -2,21 +2,26 @@ package site.webhook.token
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.data.redis.core.StringRedisTemplate
 import site.webhook.support.ApiClient
 import site.webhook.support.ApiTest
 import site.webhook.support.JSON_BODY
 import site.webhook.support.JSON_CLIENT
 import tools.jackson.databind.json.JsonMapper
+import java.time.Duration
+import java.util.UUID
 
 @ApiTest
 @DisplayName("API de tokens")
 class TokenApiTest(
     @LocalServerPort port: Int,
     jsonMapper: JsonMapper,
+    private val redis: StringRedisTemplate,
 ) {
     private val api = ApiClient(port, jsonMapper)
 
@@ -173,5 +178,72 @@ class TokenApiTest(
         assertThat(deleted.body()).isEmpty()
         assertThat(after.statusCode()).isEqualTo(410)
         assertThat(api.json(after)).isEqualTo(api.tree("""{"success":false,"error":{"message":"Token not found","id":null}}"""))
+    }
+
+    /** O token e as três chaves das mensagens dele, na ordem de `RedisKeys`. */
+    private fun keysOf(tokenId: String) =
+        listOf("token:$tokenId", "token:$tokenId:requests", "token:$tokenId:requests:index", "token:$tokenId:requests:seq")
+
+    @Nested
+    @DisplayName("Chaves no Redis depois de apagar a URL")
+    inner class DeleteKeys {
+        @Test
+        @DisplayName("Dado uma URL com mensagens, quando é apagada, então o token, a hash, o índice e o seq deixam de existir")
+        fun delete_urlComMensagens_deveApagarAsQuatroChaves() {
+            val tokenId = api.tokenId()
+            repeat(3) { api.send("GET", "/$tokenId") }
+            assertThat(redis.countExistingKeys(keysOf(tokenId))).isEqualTo(4)
+
+            val deleted = api.send("DELETE", "/token/$tokenId", headers = JSON_CLIENT)
+
+            assertThat(deleted.statusCode()).isEqualTo(204)
+            assertThat(keysOf(tokenId).filter { redis.hasKey(it) }).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado uma hash antiga sem índice e uma mensagem que fez o backfill, quando apaga a URL, então nenhuma chave fica")
+        fun delete_hashAntigaComBackfill_deveApagarAsQuatroChaves() {
+            val tokenId = seedLegacy()
+            api.send("GET", "/$tokenId")
+            assertThat(redis.opsForZSet().size("token:$tokenId:requests:index")).isEqualTo(2)
+
+            api.send("DELETE", "/token/$tokenId", headers = JSON_CLIENT)
+
+            assertThat(keysOf(tokenId).filter { redis.hasKey(it) }).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado uma hash antiga nunca lida (sem índice nem seq), quando apaga a URL, então a hash sai junto com o token")
+        fun delete_hashAntigaSemIndice_deveApagarAHash() {
+            val tokenId = seedLegacy()
+
+            api.send("DELETE", "/token/$tokenId", headers = JSON_CLIENT)
+
+            assertThat(keysOf(tokenId).filter { redis.hasKey(it) }).isEmpty()
+        }
+
+        /** Token e uma mensagem gravados pelo app antigo: só `token:{uuid}` e a hash, sem índice nem seq. */
+        private fun seedLegacy(): String {
+            val tokenId = UUID.randomUUID().toString()
+            val requestId = UUID.randomUUID().toString()
+            val week = Duration.ofDays(7)
+            redis.opsForValue().set(
+                "token:$tokenId",
+                """{"uuid":"$tokenId","ip":"1.1.1.1","user_agent":null,"default_content":"","default_status":200,""" +
+                    """"default_content_type":"text\/plain","timeout":0,""" +
+                    """"created_at":"2025-12-01 00:00:00","updated_at":"2025-12-01 00:00:00"}""",
+                week,
+            )
+            redis.opsForHash<String, String>().put(
+                "token:$tokenId:requests",
+                requestId,
+                """{"uuid":"$requestId","token_id":"$tokenId","ip":"1.1.1.1","hostname":"localhost","method":"GET",""" +
+                    """"user_agent":null,"content":"","query":null,"headers":{"host":["localhost"]},""" +
+                    """"url":"http:\/\/localhost\/$tokenId","created_at":"2025-12-31 23:59:59",""" +
+                    """"updated_at":"2025-12-31 23:59:59","request":null}""",
+            )
+            redis.expire("token:$tokenId:requests", week)
+            return tokenId
+        }
     }
 }

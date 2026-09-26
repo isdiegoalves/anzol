@@ -38,8 +38,10 @@ o de volume grava ~150 MB no Redis do app sob teste e apaga tudo ao fim. Contra 
 reais, rodar com o Redis com folga de memória.
 
 Cada teste cria os próprios tokens e, ao terminar, apaga as mensagens (`DELETE
-/token/{id}/request`) e depois o token (`DELETE /token/{id}`). A ordem importa: no app Laravel o
-DELETE do token não apagava a hash de mensagens.
+/token/{id}/request`) e depois o token (`DELETE /token/{id}`). A ordem importa para rodar contra o
+app Laravel, cujo DELETE do token não apagava a hash de mensagens (ficava até expirar). No app
+novo o DELETE do token apaga também as mensagens, o índice e o `seq`; isso não é observável pela
+API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenApiTest`).
 
 ## O que cobre
 

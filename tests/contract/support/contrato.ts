@@ -108,8 +108,8 @@ export const test = base.extend<{ tokens: Tokens }>({
         criados.push(uuid);
       },
     });
-    // Limpa só o que o teste criou. As mensagens vão antes: no app atual o DELETE do token
-    // não apaga a hash de mensagens, e depois dele a API já responde 410.
+    // Limpa só o que o teste criou. As mensagens vão antes: no app Laravel o DELETE do token
+    // não apagava a hash de mensagens, e depois dele a API já responde 410.
     for (const uuid of criados) {
       await request.delete(`/token/${uuid}/request`, { headers: JSON_ACCEPT });
       await request.delete(`/token/${uuid}`, { headers: JSON_ACCEPT });
