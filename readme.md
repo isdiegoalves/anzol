@@ -40,6 +40,17 @@ continua legível. Com mensagens de ~15 KB, 1 GB guarda cerca de 60 mil; `WEBHOO
 `auto_cleanup` limitam cada URL. Mudar o `command` do Redis no compose recria o container, e os
 dados ficam no volume.
 
+### Observabilidade
+
+O `docker-compose.yml` manda métricas, traces e logs por OTLP HTTP para um Grafana Alloy em
+`host.docker.internal:4318` (`service.name=webhook-site`, `deployment.environment=local`). São as variáveis
+`OTEL_*` do serviço `app`: sem elas (o padrão do app, os testes e o `./ci.sh`) nada é exportado, e com o Alloy
+fora do ar o app segue normal. Métricas de negócio: `webhook_requests_captured_total` (por `method`,
+`status_class`, `rule`, `signature`, `schema` e `fault`, nunca com token), `webhook_capture_duration_seconds`,
+`webhook_storage_full_total`, `webhook_cleanup_removed_total`, `webhook_sse_subscribers` e `webhook_wait_active`.
+Cada captura vira um trace com o token em `span.webhook.token`, e os logs levam o `trace_id`. O dashboard e a
+importação no Grafana estão em [`observability/`](observability/README.md).
+
 ## API
 
 | Rota | O que faz |
