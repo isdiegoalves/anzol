@@ -75,6 +75,7 @@ importação no Grafana estão em [`observability/`](observability/README.md).
 | `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
 | `POST /token/{id}/requests/search` | Busca nas mensagens por texto e pelo `match` das regras, paginada como a listagem (ver [Buscar mensagens](#buscar-mensagens)) |
 | `POST /token/{id}/requests/wait` | Espera, com prazo, até chegarem mensagens que casam um `match` das regras (ver [Esperar por mensagens](#esperar-por-mensagens)) |
+| `GET /token/{id}/stats` | Resumo das mensagens mais novas (`window`, padrão 500): métodos, assinatura, schema, regras e mensagens por hora (ver [Estatísticas da URL](#estatísticas-da-url)) |
 | `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
 | `PUT /token/{id}/scenarios/{name}` | Define à mão o estado de um cenário (`{"state": "..."}`) |
 | `POST /token/{id}/request/{requestId}/replay` | O servidor reenvia a mensagem gravada para uma URL e devolve a resposta (ver [Reenvio e envio pelo servidor](#reenvio-e-envio-pelo-servidor)) |
@@ -430,6 +431,40 @@ filtro, é a mesma página da listagem. O servidor varre todas as mensagens da U
 Mensagem fantasma do app antigo (valor vazio na hash) não casa nada e não conta no `total`. Corpo vazio vale
 `{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`, `text`, `sorting`, `page` e `per_page`
 na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexistente dá 410.
+
+### Estatísticas da URL
+
+`GET /token/{id}/stats?window=N` resume as `N` mensagens mais novas da URL (`window` de 1 a 500, padrão 500;
+ausente ou vazio vale 500). É o que alimenta o Health e o Insights da tela.
+
+```json
+{ "window": 500, "evaluated": 128, "total": 128,
+  "newest_seq": 1790438428567114, "oldest_seq": 1790438402000001,
+  "newest_at": "2026-09-26 14:02:07", "oldest_at": "2026-09-25 09:13:44",
+  "methods": { "POST": 120, "GET": 8 },
+  "signature": { "valid": 110, "invalid": 9, "absent": 3, "unchecked": 6,
+                 "reasons": [ { "reason": "signature mismatch", "count": 6 },
+                              { "reason": "timestamp outside tolerance", "count": 3 } ] },
+  "schema": { "valid": 100, "invalid": 20, "unchecked": 8, "paths": [ { "path": "/data/object/amount_paid", "count": 4 } ] },
+  "rules": { "answered": [ { "id": "…", "name": "Stripe payment OK", "count": 41 } ],
+             "near_miss": [ { "id": "…", "name": "Refund queued", "count": 3 } ], "default": 84 },
+  "hourly": [ { "hour": "2026-09-26 14:00:00", "count": 12, "methods": { "POST": 12 } } ] }
+```
+
+| Campo | O que conta |
+|---|---|
+| `evaluated`, `total` | quantas foram avaliadas (`min(window, total)`) e quantas a URL guarda |
+| `newest_*`, `oldest_*` | `seq` e `created_at` da mais nova e da mais antiga avaliadas; `null` sem mensagens |
+| `methods` | mensagens por método, da mais frequente para a menos |
+| `signature` | o estado da [verificação de assinatura](#verificação-de-assinatura) gravado em cada mensagem; `unchecked` é `signature: null`. `reasons`: os motivos das inválidas e ausentes sem o parêntese final (`timestamp outside tolerance (412 s)` conta como `timestamp outside tolerance`), por contagem decrescente e, no empate, pelo texto; no máximo 10 |
+| `schema` | o resultado da [validação de schema](#validação-de-schema); `unchecked` é `schema: null`. `paths`: cada `errors[].path` conta uma vez por mensagem (`""` é a raiz), na mesma ordem e com o mesmo teto dos motivos |
+| `rules` | `answered` agrupa por `rule.id`, com o nome da mensagem mais nova; `near_miss` agrupa por `near_miss.id`; `default` conta as que tiveram `rule: null` (a resposta padrão da URL) |
+| `hourly` | as horas UTC com pelo menos uma mensagem, da mais antiga para a mais nova, com o total e os métodos |
+
+Horários no formato do `created_at` (UTC). Mensagens gravadas antes da assinatura, do schema ou das regras contam
+como `unchecked` e `default`. Nada é gravado: a rota só lê, em trechos de 100 pelo índice, como a busca. Validação:
+422 `{"window": ["The window must be an integer between 1 and 500."]}`; URL inexistente dá 410 (antes de validar);
+URL protegida sem acesso dá 401, como toda rota `/token/{id}/...`.
 
 ### Reenvio e envio pelo servidor
 
