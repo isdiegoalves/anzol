@@ -79,6 +79,12 @@ fun HttpServletRequest.readLegacyInput(
     return LegacyInput(multipart?.unread ?: body, method, contentType, query, form, json)
 }
 
+/** O que o filtro montaria para um POST com este corpo JSON, sem requisição HTTP (as ferramentas do MCP). */
+fun jsonInput(
+    body: ByteArray,
+    jsonMapper: JsonMapper,
+): LegacyInput = LegacyInput(body, "POST", "application/json", PhpArray(), PhpArray(), jsonObject(body, jsonMapper))
+
 /** `Request::isJson()` do Laravel: `/json` ou `+json` em qualquer ponto do Content-Type. */
 fun isLaravelJson(contentType: String): Boolean = "/json" in contentType || "+json" in contentType
 

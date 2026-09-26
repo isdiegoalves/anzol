@@ -1,0 +1,128 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rule", "explanation"],
+  "properties": {
+    "explanation": { "type": "string" },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "match", "response"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "enabled": { "type": "boolean" },
+        "priority": { "type": "integer", "minimum": 1 },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": { "type": "array", "items": { "type": "string" } },
+            "path": {
+              "anyOf": [
+                { "type": "object", "additionalProperties": false, "required": ["equals"], "properties": { "equals": { "type": "string" } } },
+                { "type": "object", "additionalProperties": false, "required": ["prefix"], "properties": { "prefix": { "type": "string" } } },
+                { "type": "object", "additionalProperties": false, "required": ["regex"], "properties": { "regex": { "type": "string" } } }
+              ]
+            },
+            "query": { "type": "object", "additionalProperties": { "$ref": "#/$defs/field" } },
+            "headers": { "type": "object", "additionalProperties": { "$ref": "#/$defs/field" } },
+            "body": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  { "type": "object", "additionalProperties": false, "required": ["equals"], "properties": { "equals": { "type": "string" } } },
+                  { "type": "object", "additionalProperties": false, "required": ["contains"], "properties": { "contains": { "type": "string" } } },
+                  { "type": "object", "additionalProperties": false, "required": ["regex"], "properties": { "regex": { "type": "string" } } },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["jsonPath"],
+                    "properties": {
+                      "jsonPath": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["path"],
+                        "properties": { "path": { "type": "string" }, "equals": {} }
+                      }
+                    }
+                  },
+                  { "type": "object", "additionalProperties": false, "required": ["equalToJson"], "properties": { "equalToJson": {} } }
+                ]
+              }
+            },
+            "signature": { "enum": ["valid", "invalid", "absent"] },
+            "schema": { "enum": ["valid", "invalid"] }
+          }
+        },
+        "scenario": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "name": { "type": "string" },
+            "requiredState": { "type": "string" },
+            "newState": { "type": "string" }
+          }
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "body": { "type": "string" },
+            "template": { "type": "boolean" },
+            "delay": {
+              "anyOf": [
+                { "type": "object", "additionalProperties": false, "required": ["fixed"], "properties": { "fixed": { "type": "integer" } } },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["uniform"],
+                  "properties": {
+                    "uniform": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["min", "max"],
+                      "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["lognormal"],
+                  "properties": {
+                    "lognormal": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["median", "sigma"],
+                      "properties": { "median": { "type": "number" }, "sigma": { "type": "number" } }
+                    }
+                  }
+                }
+              ]
+            },
+            "dribble": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["chunks", "durationMs"],
+              "properties": { "chunks": { "type": "integer" }, "durationMs": { "type": "integer" } }
+            },
+            "fault": { "enum": ["connection_reset", "empty_response", "malformed_chunk", "random_data_then_close"] }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "anyOf": [
+        { "type": "object", "additionalProperties": false, "required": ["equals"], "properties": { "equals": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["contains"], "properties": { "contains": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["regex"], "properties": { "regex": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["present"], "properties": { "present": { "type": "boolean" } } }
+      ]
+    }
+  }
+}

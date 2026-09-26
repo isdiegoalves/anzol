@@ -1,6 +1,8 @@
 package site.webhook.http
 
 import jakarta.servlet.FilterChain
+import jakarta.servlet.ReadListener
+import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletRequestWrapper
 import jakarta.servlet.http.HttpServletResponse
@@ -11,6 +13,12 @@ import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import site.webhook.UUID_PATTERN
 import tools.jackson.databind.json.JsonMapper
+import java.io.BufferedReader
+import java.io.ByteArrayInputStream
+import java.io.InputStreamReader
+
+/** Rota do servidor MCP (`spring.ai.mcp.server.streamable-http.mcp-endpoint`). */
+const val MCP_ENDPOINT = "/mcp"
 
 /** `client_max_body_size` padrão do nginx do app antigo (1 MiB). */
 const val MAX_BODY_BYTES = 1024 * 1024
@@ -39,7 +47,7 @@ private const val HEADER_TOO_LARGE_PAGE =
  * Faz o que o nginx e o PHP faziam antes do controller: recusa linha de cabeçalho acima de 8 KB
  * (400) e corpo acima de 1 MiB (413), lê o corpo cru uma vez, monta o [LegacyInput] e aplica o
  * `X-HTTP-Method-Override` / `_method` do Symfony. Roda antes de tudo para que ninguém consuma o
- * corpo antes dele.
+ * corpo antes dele. Só o transporte do MCP lê o corpo pelo stream: para ele, o corpo lido volta ([ReplayedBody]).
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -69,7 +77,8 @@ class LegacyRequestFilter(
             request.setAttribute(LegacyInput.ATTRIBUTE, input)
             request.setAttribute(RAW_BODY_ATTRIBUTE, body)
             response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, private")
-            filterChain.doFilter(request.withMethodOverride(input), response)
+            val forward = request.withMethodOverride(input)
+            filterChain.doFilter(if (request.requestURI == MCP_ENDPOINT) ReplayedBody(forward, body) else forward, response)
         }
     }
 }
@@ -104,4 +113,33 @@ private fun HttpServletRequest.withMethodOverride(input: LegacyInput): HttpServl
     return object : HttpServletRequestWrapper(this) {
         override fun getMethod(): String = override
     }
+}
+
+/** O corpo que o filtro já leu, de novo no stream, para quem o lê por ali (o transporte do MCP em [MCP_ENDPOINT]). */
+private class ReplayedBody(
+    request: HttpServletRequest,
+    private val body: ByteArray,
+) : HttpServletRequestWrapper(request) {
+    private val stream = ByteArrayInputStream(body)
+
+    override fun getInputStream(): ServletInputStream =
+        object : ServletInputStream() {
+            override fun read(): Int = stream.read()
+
+            override fun read(
+                buffer: ByteArray,
+                offset: Int,
+                length: Int,
+            ): Int = stream.read(buffer, offset, length)
+
+            override fun isFinished(): Boolean = stream.available() == 0
+
+            override fun isReady(): Boolean = true
+
+            override fun setReadListener(listener: ReadListener) = throw UnsupportedOperationException("corpo já lido pelo filtro")
+        }
+
+    override fun getReader(): BufferedReader = BufferedReader(InputStreamReader(inputStream, characterEncoding ?: "UTF-8"))
+
+    override fun getContentLengthLong(): Long = body.size.toLong()
 }

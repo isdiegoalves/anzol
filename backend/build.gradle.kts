@@ -20,6 +20,13 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        // Spring AI 2.0.1 é compilado contra o Spring Boot 4.1.1 (o mesmo deste projeto) e o Spring Framework 7.0.9.
+        mavenBom("org.springframework.ai:spring-ai-bom:2.0.1")
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -41,6 +48,12 @@ dependencies {
     // Motor de saída do replay/send: aceita o IP já validado (HttpHost com endereço) e mantém o nome no Host e no
     // SNI, sem resolver de novo. Versão do Spring Boot (5.6).
     implementation("org.apache.httpcomponents.client5:httpclient5")
+    // Servidor MCP (Streamable HTTP sobre o Spring MVC), desligado por padrão (webhook.mcp.enabled).
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
+    // Cliente de LLM OpenAI-compatível (o oMLX local), montado à mão só com webhook.ai.enabled: sem o starter, nada de
+    // autoconfiguração exigindo chave na inicialização.
+    implementation("org.springframework.ai:spring-ai-openai")
+    implementation("org.springframework.ai:spring-ai-client-chat")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

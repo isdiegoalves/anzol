@@ -15,6 +15,7 @@ import site.webhook.UUID_PATTERN
 import site.webhook.capture.RequestStore
 import site.webhook.capture.Sorting
 import site.webhook.http.legacyInput
+import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
 import tools.jackson.core.JacksonException
@@ -40,6 +41,21 @@ data class RuleTestResult(
     val matches: List<TestMatch>,
     val misses: List<TestMiss>,
 )
+
+/** A regra (salva ou não) contra as [TEST_WINDOW] mensagens gravadas mais recentes; `enabled` não conta. */
+fun RequestStore.test(
+    token: Token,
+    rule: Rule,
+): RuleTestResult {
+    val evaluated =
+        page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST).map { message ->
+            Triple(message.uuid, checkNotNull(message.seq), rule.failures(message.toMatchInput()))
+        }
+    return RuleTestResult(
+        matches = evaluated.filter { it.third.isEmpty() }.map { (uuid, seq) -> TestMatch(uuid, seq) },
+        misses = evaluated.filter { it.third.isNotEmpty() }.map { (uuid, seq, failed) -> TestMiss(uuid, seq, failed) },
+    )
+}
 
 /**
  * Regras de resposta da URL. Token inexistente responde 410 antes de validar; a validação responde
@@ -83,16 +99,7 @@ class RuleController(
                 is Parsed.Valid -> parsed.value
                 is Parsed.Invalid -> return unprocessable(parsed.errors)
             }
-        val evaluated =
-            requests.page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST).map { message ->
-                Triple(message.uuid, checkNotNull(message.seq), rule.failures(message.toMatchInput()))
-            }
-        return ResponseEntity.ok(
-            RuleTestResult(
-                matches = evaluated.filter { it.third.isEmpty() }.map { (uuid, seq) -> TestMatch(uuid, seq) },
-                misses = evaluated.filter { it.third.isNotEmpty() }.map { (uuid, seq, failed) -> TestMiss(uuid, seq, failed) },
-            ),
-        )
+        return ResponseEntity.ok(requests.test(token, rule))
     }
 
     /** O corpo cru como JSON; `null` quando não é JSON. */

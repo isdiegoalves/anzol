@@ -32,7 +32,7 @@ class TokenStore(
 
     /**
      * Apaga o token, as mensagens dele (hash, índice e `seq`), as regras, os cenários e o histórico de saída (com a
-     * contagem do limite) num DEL só, atômico. O app
+     * contagem do limite), a contagem das chamadas de IA num DEL só, atômico. O app
      * antigo apagava só o token e deixava as mensagens ocupando memória até expirar. O `seq` sai junto:
      * o token deixa de existir e o UUID não se repete, então não há sequência a preservar.
      */
@@ -47,6 +47,7 @@ class TokenStore(
                 RedisKeys.scenarios(token.uuid),
                 RedisKeys.outbound(token.uuid),
                 RedisKeys.outboundRate(token.uuid),
+                RedisKeys.aiRate(token.uuid),
             ),
         ) > 0
 }

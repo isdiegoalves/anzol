@@ -1,0 +1,353 @@
+package site.webhook.mcp
+
+import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification
+import org.springframework.ai.mcp.customizer.McpSyncServerCustomizer
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Primary
+import org.springframework.core.io.ClassPathResource
+import site.webhook.capture.RequestListing
+import site.webhook.capture.RequestStore
+import site.webhook.capture.findOrNotFound
+import site.webhook.http.jsonInput
+import site.webhook.outbound.OutboundActions
+import site.webhook.outbound.OutboundStore
+import site.webhook.rules.Parsed
+import site.webhook.rules.RuleStore
+import site.webhook.rules.parseRule
+import site.webhook.rules.parseRules
+import site.webhook.rules.readJson
+import site.webhook.rules.test
+import site.webhook.search.RequestSearch
+import site.webhook.search.parseSearch
+import site.webhook.token.TokenService
+import site.webhook.token.TokenStore
+import site.webhook.token.findOrGone
+import site.webhook.wait.RequestWaiter
+import site.webhook.wait.parseWait
+import tools.jackson.databind.json.JsonMapper
+
+/** O `user_agent` do token criado pelo MCP (o IP do agente não chega às ferramentas). */
+private const val MCP_USER_AGENT = "MCP"
+
+private val RULES_LANGUAGE = ClassPathResource("ai/rules-language.md").getContentAsString(Charsets.UTF_8)
+
+private const val TOKEN_ID = """"token_id": {"type": "string", "format": "uuid", "description": "UUID of the webhook URL (token)"}"""
+private const val REQUEST_ID = """"request_id": {"type": "string", "format": "uuid", "description": "UUID of a captured request"}"""
+private const val MATCH =
+    """"match": {"type": "object", "description": "Conditions of a response rule's match (method, path, query, headers, body, signature, schema); absent matches every request"}"""
+
+private const val SETTINGS = """
+    "default_status": {"type": "integer", "description": "HTTP status the URL answers with (default 200)"},
+    "default_content": {"type": "string", "description": "Response body (default empty)"},
+    "default_content_type": {"type": "string", "description": "Response Content-Type (default text/plain)"},
+    "timeout": {"type": "integer", "description": "Seconds to wait before answering, 0 to 10"},
+    "retry_after": {"description": "Retry-After header on every answer: seconds (integer >= 0) or an HTTP date"},
+    "auto_cleanup": {"type": "integer", "description": "Keep only the newest N requests: 500, 1000, 5000 or 10000"},
+    "signature": {"type": "object", "description": "HMAC verification: {provider: stripe|github|shopify|slack|generic, secret, header?, algorithm?, encoding?, prefix?, toleranceSeconds?}. The secret is never returned, only masked"},
+    "schema": {"description": "JSON Schema (draft 7, 2019-09 or 2020-12) the request body is validated against"}"""
+
+private fun objectSchema(
+    properties: String,
+    vararg required: String,
+): String = """{"type": "object", "properties": {$properties}, "required": [${required.joinToString(", ") { "\"$it\"" }}]}"""
+
+/**
+ * O servidor MCP (`/mcp`, Streamable HTTP) só existe com `webhook.mcp.enabled`: desligado, a rota é 404 como qualquer
+ * outra inexistente. As ferramentas são as rotas da API, sobre os mesmos serviços, com a validação e as mensagens
+ * delas. O SDK não valida os argumentos pelo schema: quem valida é a API, para que as mensagens sejam as mesmas.
+ */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnBooleanProperty("webhook.mcp.enabled")
+class McpTools {
+    /**
+     * O autoconfigurador aceita um customizador só: este substitui o dele (`immediateExecution`, a ferramenta roda na
+     * thread da requisição, virtual) e desliga a validação dos argumentos pelo schema, que fica com a API.
+     */
+    @Bean
+    @Primary
+    fun apiValidatesToolInputs(): McpSyncServerCustomizer =
+        McpSyncServerCustomizer { it.immediateExecution(true).validateToolInputs(false) }
+
+    @Bean
+    fun urlTools(
+        jsonMapper: JsonMapper,
+        tokens: TokenStore,
+        service: TokenService,
+    ): List<SyncToolSpecification> {
+        val kit = McpToolkit(jsonMapper)
+        return listOf(
+            kit.tool(
+                ToolDefinition(
+                    "create_url",
+                    "Create a new webhook URL (token). Any HTTP request to /{uuid} on this server is then captured. " +
+                        "Returns the token as POST /token does, with the signature secret masked.",
+                    objectSchema(SETTINGS),
+                    readOnly = false,
+                ),
+            ) { args ->
+                service.create(jsonInput(args.body().toByteArray(), jsonMapper), ip = null, userAgent = MCP_USER_AGENT).map { it.forApi() }
+            },
+            kit.tool(
+                ToolDefinition(
+                    "get_url",
+                    "Read a webhook URL's settings (signature secret masked).",
+                    objectSchema(TOKEN_ID, "token_id"),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                tokens.findOrGone(id).forApi()
+            },
+            kit.tool(
+                ToolDefinition(
+                    "update_url",
+                    "Replace a webhook URL's settings, as PUT /token/{id}: fields left out go back to their defaults, " +
+                        "except the signature secret, which is kept when omitted.",
+                    objectSchema("$TOKEN_ID,$SETTINGS", "token_id"),
+                    readOnly = false,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                service.update(id, jsonInput(args.body().toByteArray(), jsonMapper)).map { it.forApi() }
+            },
+            kit.tool(
+                ToolDefinition(
+                    "delete_url",
+                    "Delete a webhook URL with all its requests, rules and history.",
+                    objectSchema(TOKEN_ID, "token_id"),
+                    readOnly = false,
+                    destructive = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                service.delete(id)
+                mapOf("deleted" to true)
+            },
+        )
+    }
+
+    @Bean
+    fun requestTools(
+        jsonMapper: JsonMapper,
+        tokens: TokenStore,
+        requests: RequestStore,
+        listing: RequestListing,
+    ): List<SyncToolSpecification> {
+        val kit = McpToolkit(jsonMapper)
+        return listOf(
+            kit.tool(
+                ToolDefinition(
+                    "list_requests",
+                    "List the requests a webhook URL captured, paginated as GET /token/{id}/requests. With after=<seq>, " +
+                        "the requests with a greater seq, oldest first (page and sorting are ignored).",
+                    objectSchema(
+                        """$TOKEN_ID,
+                        "page": {"type": "integer", "description": "Page, from 1"},
+                        "per_page": {"type": "integer", "description": "Requests per page (default 50)"},
+                        "sorting": {"type": "string", "enum": ["newest", "oldest"]},
+                        "after": {"type": "integer", "description": "Only requests with seq greater than this"}""",
+                        "token_id",
+                    ),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                listing.list(
+                    id,
+                    mapOf(
+                        "page" to args["page"],
+                        "per_page" to args["per_page"],
+                        "sorting" to args["sorting"],
+                        "after" to args["after"],
+                    ),
+                )
+            },
+            kit.tool(
+                ToolDefinition(
+                    "get_request",
+                    "Read one captured request: method, URL, headers, query, body, signature and schema results, the rule " +
+                        "that answered or the near miss.",
+                    objectSchema("$TOKEN_ID, $REQUEST_ID", "token_id", "request_id"),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val requestId = args.requestId() ?: return@tool missingUuid("request_id")
+                requests.findOrNotFound(tokens.findOrGone(id), requestId)
+            },
+        )
+    }
+
+    @Bean
+    fun searchTools(
+        jsonMapper: JsonMapper,
+        tokens: TokenStore,
+        search: RequestSearch,
+        waiter: RequestWaiter,
+    ): List<SyncToolSpecification> {
+        val kit = McpToolkit(jsonMapper)
+        return listOf(
+            kit.tool(
+                ToolDefinition(
+                    "search_requests",
+                    "Search a webhook URL's requests by text (method, URL, IP, headers, query and body, case-insensitive) " +
+                        "and by a rule match, paginated.",
+                    objectSchema(
+                        """$TOKEN_ID,
+                        "text": {"type": "string", "description": "Text to find, up to 200 characters"},
+                        $MATCH,
+                        "sorting": {"type": "string", "enum": ["newest", "oldest"]},
+                        "page": {"type": "integer"},
+                        "per_page": {"type": "integer", "description": "1 to 100 (default 50)"}""",
+                        "token_id",
+                    ),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val token = tokens.findOrGone(id)
+                parseSearch(args.body()).map { search.search(token, it) }
+            },
+            kit.tool(
+                ToolDefinition(
+                    "wait_for_request",
+                    "Wait (long poll) until the webhook URL has `count` requests that match `match` and have seq greater " +
+                        "than `after`, or until `timeout` ms. Returns {matched, count, requests, near_miss}.",
+                    objectSchema(
+                        """$TOKEN_ID,
+                        $MATCH,
+                        "after": {"type": "integer", "description": "Only requests with seq greater than this (default: all)"},
+                        "count": {"type": "integer", "description": "How many requests to wait for, 1 to 100 (default 1)"},
+                        "timeout": {"type": "integer", "description": "Milliseconds to wait, 0 to 300000 (default 30000)"}""",
+                        "token_id",
+                    ),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val token = tokens.findOrGone(id)
+                parseWait(args.body()).map { waiter.wait(token, it) }
+            },
+        )
+    }
+
+    @Bean
+    fun ruleTools(
+        jsonMapper: JsonMapper,
+        tokens: TokenStore,
+        requests: RequestStore,
+        rules: RuleStore,
+    ): List<SyncToolSpecification> {
+        val kit = McpToolkit(jsonMapper)
+        return listOf(
+            kit.tool(
+                ToolDefinition("get_rules", "Read a webhook URL's response rules.", objectSchema(TOKEN_ID, "token_id"), readOnly = true),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                rules.find(tokens.findOrGone(id).uuid)
+            },
+            kit.tool(
+                ToolDefinition(
+                    "set_rules",
+                    "Replace all response rules of a webhook URL (up to 100) and return the saved list, with ids.\n\n$RULES_LANGUAGE",
+                    objectSchema("""$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}""", "token_id", "rules"),
+                    readOnly = false,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val token = tokens.findOrGone(id)
+                parseRules(readJson(args.bodyOf("rules"))?.get("rules")).map { rules.store(token.uuid, it) }
+            },
+            kit.tool(
+                ToolDefinition(
+                    "test_rule",
+                    "Test one rule (saved or not) against the 500 newest requests; returns {matches, misses} with the " +
+                        "failed conditions of each miss. `enabled` is ignored.",
+                    objectSchema("$TOKEN_ID, \"rule\": {\"type\": \"object\"}", "token_id", "rule"),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val token = tokens.findOrGone(id)
+                parseRule(readJson(args.bodyOf("rule"))?.get("rule")).map { requests.test(token, it) }
+            },
+        )
+    }
+
+    @Bean
+    fun outboundTools(
+        jsonMapper: JsonMapper,
+        tokens: TokenStore,
+        requests: RequestStore,
+        actions: OutboundActions,
+        store: OutboundStore,
+    ): List<SyncToolSpecification> {
+        val kit = McpToolkit(jsonMapper)
+        return listOf(
+            kit.tool(
+                ToolDefinition(
+                    "replay_request",
+                    "The server resends a captured request (method, headers, body) to `url` and returns the response. " +
+                        "With keep_path (default true) the path and query after the token are appended to `url`.",
+                    objectSchema(
+                        """$TOKEN_ID, $REQUEST_ID,
+                        "url": {"type": "string", "description": "Absolute http(s) URL"},
+                        "keep_path": {"type": "boolean"},
+                        "timeout": {"type": "integer", "description": "Milliseconds, 1000 to 30000 (default 10000)"}""",
+                        "token_id",
+                        "request_id",
+                        "url",
+                    ),
+                    readOnly = false,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val requestId = args.requestId() ?: return@tool missingUuid("request_id")
+                val token = tokens.findOrGone(id)
+                actions.replay(token, requests.findOrNotFound(token, requestId), args.body())
+            },
+            kit.tool(
+                ToolDefinition(
+                    "send_request",
+                    "The server sends a request built here (method, headers, body) to `url` and returns the response; " +
+                        "with sign=true it is signed with the URL's signature settings.",
+                    objectSchema(
+                        """$TOKEN_ID,
+                        "url": {"type": "string", "description": "Absolute http(s) URL"},
+                        "method": {"type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]},
+                        "headers": {"type": "object", "additionalProperties": {"type": "string"}},
+                        "body": {"type": "string"},
+                        "sign": {"type": "boolean"},
+                        "timeout": {"type": "integer", "description": "Milliseconds, 1000 to 30000 (default 10000)"}""",
+                        "token_id",
+                        "url",
+                    ),
+                    readOnly = false,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                actions.send(tokens.findOrGone(id), args.body())
+            },
+            kit.tool(
+                ToolDefinition(
+                    "get_outbound",
+                    "The URL's last 50 replays and sends, newest first.",
+                    objectSchema(TOKEN_ID, "token_id"),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                store.history(tokens.findOrGone(id).uuid)
+            },
+        )
+    }
+}
+
+/** Transforma o valor válido, mantendo os erros. */
+private fun <T, R> Parsed<T>.map(transform: (T) -> R): Parsed<R> =
+    when (this) {
+        is Parsed.Valid -> Parsed.Valid(transform(value))
+        is Parsed.Invalid -> this
+    }

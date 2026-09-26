@@ -53,4 +53,7 @@ object RedisKeys {
 
     /** Disparos de replay e send na janela de um minuto (limite por URL). */
     fun outboundRate(id: TokenId): String = "token:$id:outbound:rate"
+
+    /** Chamadas de IA (`rules/suggest` e `explain`) na janela de um minuto (limite por URL). */
+    fun aiRate(id: TokenId): String = "token:$id:ai:rate"
 }

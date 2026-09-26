@@ -84,3 +84,35 @@ webhook:
   outbound:
     allow-private: ${WEBHOOK_OUTBOUND_ALLOW_PRIVATE:false}
     localhost-alias: ${WEBHOOK_OUTBOUND_LOCALHOST_ALIAS:}
+  # Servidor MCP em /mcp (Streamable HTTP) e IA local (LLM OpenAI-compatível, o oMLX do dono): os dois DESLIGADOS por
+  # padrão (testes e ./ci.sh sem o LLM falso). Quem liga é o docker-compose.yml, que só publica no loopback. Sem chave ou
+  # sem o LLM no ar o app sobe igual: o LLM só é chamado nas rotas de IA, que respondem 502 quando ele falha.
+  mcp:
+    enabled: ${WEBHOOK_MCP_ENABLED:false}
+  ai:
+    enabled: ${WEBHOOK_AI_ENABLED:false}
+    # Raiz do servidor, sem o /v1: o cliente chama {base-url}/v1/chat/completions.
+    base-url: ${WEBHOOK_AI_BASE_URL:http://localhost:8000}
+    # Nunca em arquivo versionado nem em log; vazio = sem cabeçalho Authorization.
+    api-key: ${WEBHOOK_AI_API_KEY:}
+    # Regra sugerida (saída estruturada) e diagnóstico em texto: os modelos recomendados na descoberta do oMLX.
+    model-json: ${WEBHOOK_AI_MODEL_JSON:NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit}
+    model-text: ${WEBHOOK_AI_MODEL_TEXT:KAT-Coder-V2.5-Dev-oQ4e-mtp}
+    # Prazo da chamada inteira: modelo frio no oMLX leva de 9 a 31 s para carregar antes do primeiro token.
+    timeout: 90s
+
+spring.ai.mcp.server:
+  enabled: ${webhook.mcp.enabled}
+  protocol: STREAMABLE
+  type: SYNC
+  name: webhook-site
+  version: 1.0.0
+  instructions: >-
+    Operates webhook.site: create webhook URLs (tokens), read and wait for the requests they capture, set response
+    rules, and replay or send requests through the server. Every tool takes the URL by its UUID (token_id); the
+    webhook itself is any HTTP request to /{token_id} on this server.
+  # Ferramentas registradas à mão (site.webhook.mcp), com o schema e os erros da API: sem varredura de anotações.
+  annotation-scanner:
+    enabled: false
+  streamable-http:
+    mcp-endpoint: /mcp

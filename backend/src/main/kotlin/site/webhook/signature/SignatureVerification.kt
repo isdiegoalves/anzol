@@ -24,6 +24,16 @@ internal const val SLACK_SIGNATURE = "X-Slack-Signature"
 internal const val SLACK_TIMESTAMP = "X-Slack-Request-Timestamp"
 internal const val SLACK_VERSION = "v0="
 
+/** Os cabeçalhos que a verificação do provedor lê. */
+fun SignatureProvider.headerNames(): List<String> =
+    when (this) {
+        is SignatureProvider.Stripe -> listOf(STRIPE_HEADER)
+        SignatureProvider.GitHub -> listOf(GITHUB.header)
+        SignatureProvider.Shopify -> listOf(SHOPIFY.header)
+        is SignatureProvider.Slack -> listOf(SLACK_SIGNATURE, SLACK_TIMESTAMP)
+        is SignatureProvider.Generic -> listOf(header)
+    }
+
 /** O que a condição `match.signature` das regras compara. */
 enum class SignatureState(
     @get:JsonValue val id: String,

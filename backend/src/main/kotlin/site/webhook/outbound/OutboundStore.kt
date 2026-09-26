@@ -1,11 +1,12 @@
 package site.webhook.outbound
 
 import org.springframework.data.redis.core.StringRedisTemplate
-import org.springframework.data.redis.core.script.RedisScript
 import org.springframework.stereotype.Component
+import site.webhook.RateLimited
 import site.webhook.RedisKeys
 import site.webhook.TokenId
 import site.webhook.WebhookProperties
+import site.webhook.countInWindow
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
@@ -15,25 +16,6 @@ const val MAX_HISTORY = 50
 /** Disparos (replay + send) por URL a cada [RATE_WINDOW]. */
 const val MAX_DISPATCHES_PER_WINDOW = 30
 val RATE_WINDOW: Duration = Duration.ofMinutes(1)
-
-/**
- * Janela fixa: conta o disparo e, no primeiro da janela, põe o prazo dela; devolve a contagem e os segundos que
- * faltam para a janela acabar. Num script só, para que duas chamadas simultâneas não percam o prazo.
- */
-private val COUNT_DISPATCH =
-    RedisScript.of(
-        """
-        local count = redis.call('INCR', KEYS[1])
-        if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
-        return {count, redis.call('TTL', KEYS[1])}
-        """.trimIndent(),
-        List::class.java,
-    )
-
-/** Disparo recusado pelo limite: [retryAfterSeconds] até a janela acabar. */
-data class RateLimited(
-    val retryAfterSeconds: Long,
-)
 
 /**
  * `token:{uuid}:outbound` (lista com os [MAX_HISTORY] resultados mais novos, em JSON, o mais novo à esquerda) e
@@ -47,11 +29,7 @@ class OutboundStore(
     private val properties: WebhookProperties,
 ) {
     /** Conta o disparo; nulo quando cabe na janela. */
-    fun countDispatch(id: TokenId): RateLimited? {
-        val reply = redis.execute(COUNT_DISPATCH, listOf(RedisKeys.outboundRate(id)), RATE_WINDOW.seconds.toString())
-        val (count, ttl) = reply.map { it.toString().toLong() }
-        return if (count > MAX_DISPATCHES_PER_WINDOW) RateLimited(retryAfterSeconds = ttl.coerceIn(1, RATE_WINDOW.seconds)) else null
-    }
+    fun countDispatch(id: TokenId): RateLimited? = redis.countInWindow(RedisKeys.outboundRate(id), RATE_WINDOW, MAX_DISPATCHES_PER_WINDOW)
 
     fun record(
         id: TokenId,

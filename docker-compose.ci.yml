@@ -13,5 +13,11 @@ services:
       # O contrato do reenvio sobe um receptor no host: o app precisa sair para ele (host.docker.internal).
       - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
       - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
+      # MCP e IA ligados, a IA no LLM falso OpenAI-compatível que o contrato (globalSetup) e o E2E sobem no host, na
+      # 18099: o CI nunca fala com o oMLX. A chave é qualquer uma.
+      - WEBHOOK_MCP_ENABLED=true
+      - WEBHOOK_AI_ENABLED=true
+      - WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099
+      - WEBHOOK_AI_API_KEY=ci-fake
   redis:
     container_name: webhookci-redis

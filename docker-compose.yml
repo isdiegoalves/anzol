@@ -22,6 +22,15 @@ services:
       # endereço público: é o que vale ao publicar.
       - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
       - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
+      # MCP em /mcp e IA local (oMLX do dono no Mac, porta 8000). Os dois são desligados no padrão do app; aqui ligam
+      # porque a porta só escuta no loopback. A chave vem do `.env` ao lado deste arquivo (fora do git, permissão 600):
+      # nunca aqui. Sem ela, ou com o oMLX fora do ar, o app sobe igual e só as rotas de IA respondem 502.
+      - WEBHOOK_MCP_ENABLED=true
+      - WEBHOOK_AI_ENABLED=true
+      - WEBHOOK_AI_BASE_URL=http://host.docker.internal:8000
+      - WEBHOOK_AI_API_KEY=${WEBHOOK_AI_API_KEY:-}
+      - WEBHOOK_AI_MODEL_JSON=NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
+      - WEBHOOK_AI_MODEL_TEXT=KAT-Coder-V2.5-Dev-oQ4e-mtp
     extra_hosts:
       # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
       - "host.docker.internal:host-gateway"

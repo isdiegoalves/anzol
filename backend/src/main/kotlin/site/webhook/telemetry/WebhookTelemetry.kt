@@ -141,6 +141,32 @@ class WebhookTelemetry(
             .increment()
     }
 
+    /**
+     * Uma chamada de IA que chegou ao LLM: [kind] é `suggest` ou `explain`; [outcome] é `ok`, `invalid` (o suggest não
+     * obteve regra válida nas tentativas) ou `error` (o LLM falhou); [model] é o nome configurado. Nada do prompt, da
+     * mensagem nem do token. A duração inclui todas as tentativas do suggest.
+     */
+    fun aiCall(
+        kind: String,
+        outcome: String,
+        model: String,
+        duration: Duration,
+    ) {
+        val tags = Tags.of("kind", kind, "outcome", outcome, "model", model)
+        Counter
+            .builder("webhook.ai.calls")
+            .description("Chamadas de IA (rules/suggest e explain) ao LLM local, pelo resultado")
+            .tags(tags)
+            .register(registry)
+            .increment()
+        Timer
+            .builder("webhook.ai.duration")
+            .description("Duração das chamadas de IA ao LLM local, com todas as tentativas")
+            .tags(tags)
+            .register(registry)
+            .record(duration)
+    }
+
     fun storageFull() = storageFull.increment()
 
     fun cleanupRemoved(count: Int) {
