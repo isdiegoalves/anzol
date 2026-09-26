@@ -79,6 +79,9 @@ private val HELPERS: Map<String, Helper<*>> =
 /**
  * Helper que exige [count] parâmetros: faltando, a validação ao salvar recusa (422) e a execução deixa
  * o trecho vazio (o Handlebars.java aceitaria `{{#if}}` ou `{{#each}}` sem parâmetro, sobre o contexto).
+ * Com dois ou mais, conta `options.params` (os depois do primeiro): o `PARAM_SIZE` de uma tag simples
+ * é sobrescrito por uma subexpressão no primeiro parâmetro (`{{math (jsonPath …) '*' 2}}`). Com um,
+ * vale o `PARAM_SIZE`, que num bloco é gravado depois de avaliar o parâmetro.
  */
 private fun withParams(
     name: String,
@@ -86,9 +89,14 @@ private fun withParams(
     helper: Helper<Any?>,
 ): Helper<Any?> =
     Helper { context, options ->
-        val given = options.data<Int?>(Context.PARAM_SIZE) ?: 0
+        val enough =
+            when (count) {
+                0 -> true
+                1 -> (options.data<Int?>(Context.PARAM_SIZE) ?: 0) >= 1
+                else -> options.params.size >= count - 1
+            }
         when {
-            given >= count -> helper.apply(context, options)
+            enough -> helper.apply(context, options)
             options.data<Boolean?>(VALIDATING_DATA) == true -> throw IllegalArgumentException("$name requires $count parameter(s)")
             else -> ""
         }
@@ -135,7 +143,7 @@ private object ResponseHandlebars : Handlebars() {
  */
 fun templateError(text: String): String? =
     try {
-        ResponseHandlebars.compileInline(text).apply(context(VALIDATION_INPUT).data(VALIDATING_DATA, true))
+        ResponseHandlebars.compileInline(separateClosingBraces(text)).apply(context(VALIDATION_INPUT).data(VALIDATING_DATA, true))
         null
     } catch (e: HandlebarsException) {
         val error = e.error
@@ -158,7 +166,7 @@ fun renderTemplate(
     input: TemplateInput,
 ): String =
     try {
-        ResponseHandlebars.compileInline(text).apply(context(input))
+        ResponseHandlebars.compileInline(separateClosingBraces(text)).apply(context(input))
     } catch (_: HandlebarsException) {
         ""
     }

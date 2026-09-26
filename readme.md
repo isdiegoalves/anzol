@@ -122,7 +122,7 @@ Com `"template": true`, o `body` e os valores dos `headers` da resposta são tem
 ```json
 { "name": "eco", "response": { "template": true,
   "headers": { "X-Pedido": "{{jsonPath request.body '$.id'}}" },
-  "body": "{\"id\": \"{{jsonPath request.body '$.id'}}\", \"seq\": {{seq}} }" } }
+  "body": "{\"id\": \"{{jsonPath request.body '$.id'}}\", \"seq\": {{seq}}}" } }
 ```
 
 | No template | Valor |
@@ -139,10 +139,12 @@ Valem também os blocos `if`, `unless`, `each`, `with` e `lookup`. Não há help
 ambiente ou rede: partials (`{{> x}}`), decorators e os demais helpers embutidos do Handlebars
 (`embedded`, `block`, `partial`, `precompile`, `i18n`, `log`...) ficam desligados, e o template só
 enxerga os valores acima (nada de propriedade ou método de objeto Java). Erro de sintaxe, helper
-desconhecido, partial ou decorator dão 422 ao salvar (`"0.response.body": ["The template is invalid: could not find helper: 'x' (line 1, column 2)."]`,
-ou a chave do cabeçalho). Falha ao executar (`jsonPath` em corpo que não é JSON, caminho ausente,
-divisão por zero) deixa só aquele trecho vazio. Como no Handlebars, `}}}` fecha `{{{`: em JSON, separe
-com espaço (`{{seq}} }`).
+desconhecido, helper sem os parâmetros que exige (`{{#each}}`, `{{#if}}`, `{{math 1 '+'}}`, em
+qualquer ramo), partial ou decorator dão 422 ao salvar
+(`"0.response.body": ["The template is invalid: could not find helper: 'x' (line 1, column 2)."]`, ou a
+chave do cabeçalho). Falha ao executar (`jsonPath` em corpo que não é JSON, caminho ausente, divisão
+por zero) deixa só aquele trecho vazio. Diferente do Handlebars puro, `}` logo depois do fim de uma tag
+é texto: `{"seq":{{seq}}}` vale e sai `{"seq":42}`.
 
 #### Cenários
 

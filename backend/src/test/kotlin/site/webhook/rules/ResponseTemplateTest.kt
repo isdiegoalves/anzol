@@ -189,7 +189,8 @@ class ResponseTemplateTest {
             {{math request.query.n '*' 1.5}}  | 10.5
             {{math 10 '/' 4}}                 | 2.5
             {{math 10 '/' 5}}                 | 2
-            {{math 1 '/' 3}}                  | 0.3333333333333333""",
+            {{math 1 '/' 3}}                  | 0.3333333333333333
+            {{math (jsonPath request.body '$.valor') '*' 2}} | 21""",
         )
         fun render_math_deveFazerAConta(
             template: String,
@@ -203,6 +204,32 @@ class ResponseTemplateTest {
         @ValueSource(strings = ["{{math 1 '/' 0}}", "{{math 1 '%' 2}}", "{{math request.method '+' 1}}", "{{math request.query.x '+' 1}}"])
         fun render_mathInvalido_deveSairVazio(template: String) {
             assertThat(render("[$template]")).isEqualTo("[]")
+        }
+    }
+
+    @Nested
+    @DisplayName("Chaves de JSON depois de uma tag")
+    inner class ClosingBraces {
+        @ParameterizedTest(name = "{0} → {1}")
+        @DisplayName("Dado }}} fechando uma tag {{ }}, quando renderiza, então a tag fecha e sobra uma chave literal")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            {"seq":{{seq}}}                                          | {"seq":42}
+            {"c":{{jsonPath request.body '$.cliente'}}}              | {"c":{"nome":"Ana"}}
+            {"a":{"b":{{seq}}}}                                      | {"a":{"b":42}}
+            {{#if seq}}{"s":{{seq}}}{{/if}}                          | {"s":42}
+            {"h":"{{jsonPath request.body '$.x}}}'}}"}               | {"h":""}
+            {"t":"{{now format="yyyy'}}}'"}}"}                       | {"t":"2026}}}"}
+            {{{request.method}}}}                                    | POST}
+            {{!-- }} --}}}                                           | }""",
+        )
+        fun render_chaveDepoisDaTag_deveFecharATag(
+            template: String,
+            expected: String,
+        ) {
+            assertThat(templateError(template)).isNull()
+            assertThat(render(template)).isEqualTo(expected)
         }
     }
 
