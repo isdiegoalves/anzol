@@ -37,6 +37,21 @@
   color: #8a6d3b;
 }
 
+.info {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #bce8f1;
+  border-radius: 4px;
+  background: #d9edf7;
+  color: #31708f;
+}
+
+.hint {
+  margin: 0;
+  color: #777;
+  font-size: 12px;
+}
+
 // Quadro fixo dos provedores: o escolhido em destaque (negrito, fundo e barra, não só a cor).
 .providers {
   width: 100%;

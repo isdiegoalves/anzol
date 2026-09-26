@@ -19,6 +19,7 @@ import { OptionsBar } from '../settings/options-bar';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { TokenStore } from '../token/token-store';
+import { isProtectedError } from '../token/url-lock';
 import { Tutorial } from '../tutorial/tutorial';
 
 /** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
@@ -139,13 +140,18 @@ export class Inbox {
     try {
       await this.tokens.load(tokenId);
     } catch (error) {
-      await this.replaceMissingToken(error);
+      // URL protegida sem acesso: a tela de desbloqueio assume (`UrlLock`); não é URL apagada.
+      if (!isProtectedError(error)) {
+        await this.replaceMissingToken(error);
+      }
       return false;
     }
     try {
       await this.requests.load(tokenId, page);
-    } catch {
-      this.snackBar.open('Requests not found - invalid ID');
+    } catch (error) {
+      if (!isProtectedError(error)) {
+        this.snackBar.open('Requests not found - invalid ID');
+      }
       return false;
     }
     this.streamTokenId.set(tokenId);

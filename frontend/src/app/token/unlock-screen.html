@@ -1,0 +1,24 @@
+<main class="unlock">
+  <h1>This URL is protected</h1>
+  <p>
+    Enter the secret to view the requests, rules and history of
+    <code class="url">{{ webhookUrl() }}</code
+    >.
+  </p>
+  <p class="note">Webhooks sent to the URL are still captured without the secret.</p>
+  <form class="form" [formGroup]="form" (ngSubmit)="unlockUrl()">
+    <mat-form-field class="field">
+      <mat-label>Secret</mat-label>
+      <input matInput type="password" autocomplete="current-password" formControlName="secret" />
+      <mat-error>Enter the secret.</mat-error>
+    </mat-form-field>
+    <button mat-flat-button type="submit" [disabled]="unlocking() || waiting() > 0">Unlock</button>
+  </form>
+  @if (waiting() > 0) {
+    <p class="error" role="alert">
+      Too many attempts. Try again in {{ waiting() }} second{{ waiting() === 1 ? '' : 's' }}.
+    </p>
+  } @else if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+</main>

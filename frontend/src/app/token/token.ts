@@ -28,6 +28,11 @@ export interface Token {
    * localStorage por versões anteriores da tela.
    */
   schema?: JsonSchema | null;
+  /**
+   * A URL exige o segredo de leitura para ver e gerir (o segredo nunca volta). Ausente no token
+   * gravado no localStorage por versões anteriores da tela.
+   */
+  protected?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -71,7 +76,7 @@ export type JsonSchema = Record<string, unknown>;
 /**
  * Campos editáveis nos diálogos criar/editar. Os de texto só vão preenchidos; `retry_after`,
  * `auto_cleanup`, `signature` e `schema` vão sempre, `null` quando vazios, porque o `PUT` volta ao
- * padrão o campo ausente.
+ * padrão o campo ausente. `read_secret` é a exceção (ver o campo).
  */
 export interface TokenSettings {
   default_status?: string;
@@ -82,4 +87,9 @@ export interface TokenSettings {
   auto_cleanup?: AutoCleanup | null;
   signature?: SignatureConfig | null;
   schema?: JsonSchema | null;
+  /**
+   * Segredo de leitura. Só vai quando muda: no `PUT`, ausente mantém o atual (ao contrário dos
+   * outros campos) e `null` tira a proteção.
+   */
+  read_secret?: string | null;
 }

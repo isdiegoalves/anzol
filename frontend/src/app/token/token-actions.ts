@@ -10,14 +10,16 @@ import { inferSchema } from './infer-schema';
 import { JsonSchema, Token, TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
+import { UrlAccess } from './url-access';
 
 /**
- * Fluxos "New" e "Edit" da barra superior. Fica num chunk carregado no primeiro clique: diálogo,
- * formulários e overlay não pesam na carga inicial.
+ * Fluxos "New", "Edit" e "Lock" da barra superior. Fica num chunk carregado no primeiro clique:
+ * diálogo, formulários e overlay não pesam na carga inicial.
  */
 @Injectable({ providedIn: 'root' })
 export class TokenActions {
   private readonly tokens = inject(TokenStore);
+  private readonly access = inject(UrlAccess);
   private readonly requests = inject(RequestStore);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -27,6 +29,7 @@ export class TokenActions {
     await this.askSettings('create', async (settings) => {
       try {
         const token = await this.tokens.create(settings);
+        await this.unlockWith(token.uuid, settings);
         this.requests.resetUnread();
         await this.router.navigate(['/', token.uuid]);
         this.snackBar.open('New URL created');
@@ -48,6 +51,7 @@ export class TokenActions {
         }
         try {
           const updated = await this.tokens.update(token.uuid, settings);
+          await this.unlockWith(token.uuid, settings);
           this.snackBar.open('URL updated!');
           if (cutsRequests(token, updated)) {
             await this.reloadRequests();
@@ -61,9 +65,29 @@ export class TokenActions {
     );
   }
 
+  /** "Lock": tira o acesso deste navegador à URL protegida; a tela de desbloqueio assume. */
+  async lockUrl(): Promise<void> {
+    const token = this.tokens.token();
+    if (token) {
+      await this.access.lock(token.uuid);
+      this.snackBar.open('URL locked');
+    }
+  }
+
   /** "Create schema from this request": abre o Edit URL com o schema inferido do corpo JSON. */
   async createSchemaFrom(request: WebhookRequest): Promise<void> {
     await this.editUrl(inferSchema(JSON.parse(request.content ?? '')));
+  }
+
+  /**
+   * Segredo novo (ao criar protegida ou ao trocar): o servidor não dá o cookie de acesso no
+   * `POST`/`PUT`, e a troca invalida o anterior. Desbloqueia já com ele, senão a próxima chamada da
+   * tela voltaria 401 para quem acabou de definir o segredo.
+   */
+  private async unlockWith(tokenId: string, settings: TokenSettings): Promise<void> {
+    if (typeof settings.read_secret === 'string') {
+      await this.access.unlock(tokenId, settings.read_secret);
+    }
   }
 
   /** O corte feito no `PUT` não gera evento: a lista vem de novo do servidor. */

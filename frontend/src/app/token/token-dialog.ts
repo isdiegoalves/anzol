@@ -18,6 +18,7 @@ import {
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { retryAfterValidator } from './retry-after';
 import {
   AUTO_CLEANUP_LIMITS,
@@ -105,6 +106,8 @@ const ANATOMY: Record<Exclude<SignatureProvider, 'generic'>, readonly string[]> 
 const TOLERANCE_DEFAULT = 300;
 const TOLERANCE_MAX = 86_400;
 const SECRET_MAX = 256;
+/** Tamanho do segredo de leitura que o servidor aceita. */
+const READ_SECRET_MIN = 8;
 
 /** O schema salvo, ou o sugerido, indentado para editar à mão. */
 function schemaText(schema: JsonSchema | null | undefined): string {
@@ -147,6 +150,7 @@ function schemaValidator(control: AbstractControl<string>): ValidationErrors | n
     MatSelect,
     MatOption,
     MatButton,
+    MatSlideToggle,
   ],
   templateUrl: './token-dialog.html',
   styleUrl: './token-dialog.scss',
@@ -158,6 +162,8 @@ export class TokenDialog {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   private readonly editing = this.data.mode === 'edit' ? this.data.token : null;
+  /** A URL editada já exige segredo: campo em branco mantém o atual. */
+  protected readonly wasProtected = this.editing?.protected === true;
   protected readonly form = this.formBuilder.group({
     default_status: [
       this.editing ? String(this.editing.default_status) : '',
@@ -173,7 +179,21 @@ export class TokenDialog {
     auto_cleanup: [this.editing?.auto_cleanup ?? (null as AutoCleanup | null)],
     signature: this.signatureGroup(this.editing?.signature ?? null),
     schema: [schemaText(this.data.schema ?? this.editing?.schema), schemaValidator],
+    privacy: this.formBuilder.group({
+      required: [this.wasProtected],
+      // Obrigatório só para quem ainda não tem segredo; na URL protegida, em branco mantém o atual.
+      read_secret: [
+        '',
+        [
+          ...(this.wasProtected ? [] : [Validators.required]),
+          Validators.minLength(READ_SECRET_MIN),
+          Validators.maxLength(SECRET_MAX),
+        ],
+      ],
+      read_secret_confirm: [''],
+    }),
   });
+  protected readonly secretLabel = this.wasProtected ? 'New secret' : 'Secret to view';
   protected readonly saving = signal(false);
   /** Tentou salvar com pendência: o resumo do que falta aparece e acompanha o preenchimento. */
   protected readonly attempted = signal(false);
@@ -200,6 +220,15 @@ export class TokenDialog {
     const { provider } = this.form.controls.signature.controls;
     provider.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncSignature());
     this.syncSignature();
+    const privacy = this.form.controls.privacy.controls;
+    privacy.read_secret_confirm.addValidators((confirm) =>
+      confirm.value === privacy.read_secret.value ? null : { mismatch: true },
+    );
+    privacy.required.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncPrivacy());
+    privacy.read_secret.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => privacy.read_secret_confirm.updateValueAndValidity());
+    this.syncPrivacy();
   }
 
   /**
@@ -215,7 +244,8 @@ export class TokenDialog {
       this.showPending();
       return;
     }
-    const { retry_after, auto_cleanup, signature, schema, ...fields } = this.form.getRawValue();
+    const { retry_after, auto_cleanup, signature, schema, privacy, ...fields } =
+      this.form.getRawValue();
     const settings: TokenSettings = {};
     for (const [name, value] of Object.entries(fields)) {
       if (value !== null && value !== '') {
@@ -228,6 +258,7 @@ export class TokenDialog {
       auto_cleanup,
       signature: signatureOf(signature, this.keepsSecret() ? this.savedSecret : null),
       schema: schema.trim() === '' ? null : (JSON.parse(schema) as JsonSchema),
+      ...this.readSecret(privacy.required, privacy.read_secret),
     };
     this.saving.set(true);
     const schemaErrors = await this.data.save(sent);
@@ -239,6 +270,17 @@ export class TokenDialog {
       return;
     }
     this.dialogRef.close(sent);
+  }
+
+  /**
+   * `read_secret` só vai quando muda: segredo novo, ou `null` para tirar a proteção. Ausente mantém
+   * o atual no `PUT` (e, no create, a URL nasce aberta).
+   */
+  private readSecret(required: boolean, secret: string): Pick<TokenSettings, 'read_secret'> {
+    if (required && secret !== '') {
+      return { read_secret: secret };
+    }
+    return !required && this.wasProtected ? { read_secret: null } : {};
   }
 
   /**
@@ -302,6 +344,8 @@ export class TokenDialog {
       [s.secret, 'secret', 'Secret'],
       [s.toleranceSeconds, 'toleranceSeconds', 'Timestamp tolerance (seconds)'],
       [c.schema, 'schema', 'JSON Schema'],
+      [c.privacy.controls.read_secret, 'read_secret', this.secretLabel],
+      [c.privacy.controls.read_secret_confirm, 'read_secret_confirm', 'Confirm secret'],
     ];
   }
 
@@ -332,6 +376,18 @@ export class TokenDialog {
         ],
       ],
     });
+  }
+
+  /** Com a proteção desligada, os campos do segredo saem da validação. */
+  private syncPrivacy(): void {
+    const c = this.form.controls.privacy.controls;
+    for (const control of [c.read_secret, c.read_secret_confirm]) {
+      if (c.required.value) {
+        control.enable({ emitEvent: false });
+      } else {
+        control.disable({ emitEvent: false });
+      }
+    }
   }
 
   /** Segredo obrigatório, com o asterisco no rótulo, a menos que o salvo continue valendo. */

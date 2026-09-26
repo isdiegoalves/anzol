@@ -6,6 +6,7 @@ import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
+import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
 import { token } from '../../testing/fixtures';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 
@@ -785,5 +786,170 @@ describe('Dado a seção "Schema validation" do diálogo "Edit URL"', () => {
     const { loader } = await openDialog({ mode: 'edit', token: antigo });
 
     expect(await (await schemaInput(loader)).getValue()).toBe('');
+  });
+});
+
+const privacyToggle = (loader: HarnessLoader) =>
+  loader.getHarness(MatSlideToggleHarness.with({ label: 'Require a secret to view this URL' }));
+
+const privacyText = (fixture: Fixture) =>
+  (fixture.nativeElement as HTMLElement).querySelector('[formGroupName=privacy]')?.textContent ??
+  '';
+
+/** Campos mandados ao fechar o diálogo. */
+const sentKeys = (dialogRef: { close: ReturnType<typeof vi.fn> }) =>
+  Object.keys(dialogRef.close.mock.calls[0][0] as object);
+
+async function typeSecret(loader: HarnessLoader, secret: string, confirm = secret) {
+  await (await signatureInput(loader, 'read_secret')).setValue(secret);
+  await (await signatureInput(loader, 'read_secret_confirm')).setValue(confirm);
+}
+
+describe('Dado a seção "Privacy" do diálogo "Create New URL"', () => {
+  it('deve começar desligada, sem campos de segredo, e não mandar read_secret Quando nada é mudado', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    expect(await (await privacyToggle(loader)).isChecked()).toBe(false);
+    expect(
+      await loader.getAllHarnesses(
+        MatInputHarness.with({ selector: '[formControlName=read_secret]' }),
+      ),
+    ).toHaveLength(0);
+    await (await button(loader, 'Create')).click();
+
+    expect(sentKeys(dialogRef)).not.toContain('read_secret');
+  });
+
+  it('deve mandar o segredo Quando a proteção é ligada com segredo e confirmação iguais', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await (await privacyToggle(loader)).check();
+    await typeSecret(loader, 'segredo-longo');
+    await (await button(loader, 'Create')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ read_secret: 'segredo-longo' }),
+    );
+  });
+
+  it.each([
+    ['vazio', '', '', 'To save, fill in: Secret to view'],
+    ['com menos de 8 caracteres', 'curto', 'curto', 'To save, fix: Secret to view'],
+    [
+      'com mais de 256 caracteres',
+      'x'.repeat(257),
+      'x'.repeat(257),
+      'To save, fix: Secret to view',
+    ],
+    ['diferente da confirmação', 'segredo-longo', 'segredo-outro', 'To save, fix: Confirm secret'],
+  ])(
+    'não deve salvar e deve dizer o que falta Quando o segredo está %s',
+    async (_caso, segredo, confirmacao, resumo) => {
+      const { fixture, loader, save } = await openDialog({ mode: 'create', token: token() });
+
+      await (await privacyToggle(loader)).check();
+      await typeSecret(loader, segredo, confirmacao);
+
+      expect(await trySave(fixture, loader, 'Create')).toBe(resumo);
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('deve aceitar de novo Quando a confirmação passa a bater com o segredo', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+    await (await privacyToggle(loader)).check();
+    await typeSecret(loader, 'segredo-longo', 'segredo-lon');
+    expect(await trySave(fixture, loader, 'Create')).toBe('To save, fix: Confirm secret');
+
+    await (await signatureInput(loader, 'read_secret_confirm')).setValue('segredo-longo');
+    await fixture.whenStable();
+
+    expect(pendingSummary(fixture)).toBeNull();
+    await (await button(loader, 'Create')).click();
+    expect(dialogRef.close).toHaveBeenCalled();
+  });
+});
+
+describe('Dado a seção "Privacy" do diálogo "Edit URL"', () => {
+  it('deve vir ligada e dizer que em branco mantém o segredo Quando a URL é protegida', async () => {
+    const { fixture, loader } = await openDialog({
+      mode: 'edit',
+      token: token({ protected: true }),
+    });
+
+    expect(await (await privacyToggle(loader)).isChecked()).toBe(true);
+    expect(privacyText(fixture)).toContain(
+      'This URL is protected. Leave the fields blank to keep the current secret.',
+    );
+    expect(
+      await loader.getAllHarnesses(MatFormFieldHarness.with({ floatingLabelText: 'New secret' })),
+    ).toHaveLength(1);
+  });
+
+  it('não deve mandar read_secret (o servidor mantém o atual) Quando os campos ficam em branco', async () => {
+    const { loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ protected: true }),
+    });
+
+    await (await button(loader, 'Edit')).click();
+
+    expect(sentKeys(dialogRef)).not.toContain('read_secret');
+  });
+
+  it('deve mandar o segredo novo Quando o segredo é trocado', async () => {
+    const { loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ protected: true }),
+    });
+
+    await typeSecret(loader, 'segredo-novo');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ read_secret: 'segredo-novo' }),
+    );
+  });
+
+  it('deve recusar pelo nome do campo, "New secret", Quando o segredo novo é curto', async () => {
+    const { fixture, loader, save } = await openDialog({
+      mode: 'edit',
+      token: token({ protected: true }),
+    });
+
+    await typeSecret(loader, 'curto');
+
+    expect(await trySave(fixture, loader, 'Edit')).toBe('To save, fix: New secret');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('deve avisar e mandar read_secret null Quando a proteção é desligada', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ protected: true }),
+    });
+
+    await (await privacyToggle(loader)).uncheck();
+
+    expect(privacyText(fixture)).toContain('Saving removes the secret');
+    await (await button(loader, 'Edit')).click();
+    expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ read_secret: null }));
+  });
+
+  it('não deve mandar read_secret Quando a URL não é protegida e continua assim', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: token() });
+
+    expect(await (await privacyToggle(loader)).isChecked()).toBe(false);
+    await (await button(loader, 'Edit')).click();
+
+    expect(sentKeys(dialogRef)).not.toContain('read_secret');
+  });
+
+  it('deve exigir o segredo Quando a proteção é ligada numa URL que não era protegida', async () => {
+    const { fixture, loader } = await openDialog({ mode: 'edit', token: token() });
+
+    await (await privacyToggle(loader)).check();
+
+    expect(await trySave(fixture, loader, 'Edit')).toBe('To save, fill in: Secret to view');
   });
 });

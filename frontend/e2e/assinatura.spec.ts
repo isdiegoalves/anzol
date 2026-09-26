@@ -98,8 +98,8 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await expect(dialog.locator('.anatomy')).toHaveText(
       'Expected header: X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>',
     );
-    await dialog.getByLabel('Secret').fill(SECRET);
-    await expect(dialog.getByLabel('Secret')).toHaveAttribute('type', 'password');
+    await dialog.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute('type', 'password');
     await providers.scrollIntoViewIfNeeded();
     await screenshot(page, '01-edit-url-github');
     const put = await submitEdit(page, dialog, tokenId);
@@ -163,8 +163,11 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     const dialog = await openEditUrl(page, tokenId);
 
     await expect(dialog.getByRole('combobox', { name: 'Signature provider' })).toHaveText('GitHub');
-    await expect(dialog.getByLabel('Secret')).toHaveValue('');
-    await expect(dialog.getByLabel('Secret')).toHaveAttribute('placeholder', MASKED);
+    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveValue('');
+    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute(
+      'placeholder',
+      MASKED,
+    );
     await dialog.getByText('Leave blank to keep the current secret').scrollIntoViewIfNeeded();
     await expect(dialog.getByText('Leave blank to keep the current secret')).toBeVisible();
     await screenshot(page, '04-edit-url-segredo-mascarado');
@@ -207,7 +210,7 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
 
     await choose(page, dialog.getByRole('combobox', { name: 'Signature provider' }), 'Generic');
     const header = dialog.getByRole('textbox', { name: 'Signature header' });
-    const secret = dialog.getByLabel('Secret');
+    const secret = dialog.getByLabel('Secret', { exact: true });
     await expect(header).toHaveAttribute('required', '');
     await expect(secret).toHaveAttribute('required', '');
     await expect(dialog.getByRole('textbox', { name: 'Prefix' })).not.toHaveAttribute('required');
@@ -269,13 +272,16 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await expect(dialog.getByRole('status')).toHaveText(
       'The saved GitHub secret is not reused for Shopify: paste the Shopify secret.',
     );
-    await expect(dialog.getByLabel('Secret')).toHaveAttribute('required', '');
-    await expect(dialog.getByLabel('Secret')).not.toHaveAttribute('placeholder', MASKED);
+    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute('required', '');
+    await expect(dialog.getByLabel('Secret', { exact: true })).not.toHaveAttribute(
+      'placeholder',
+      MASKED,
+    );
     await dialog.getByRole('button', { name: 'Edit' }).click();
     await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fill in: Secret');
-    await expect(dialog.getByLabel('Secret')).toBeFocused();
+    await expect(dialog.getByLabel('Secret', { exact: true })).toBeFocused();
     await screenshot(page, '10-troca-de-provedor');
-    await dialog.getByLabel('Secret').fill('shpss_novo');
+    await dialog.getByLabel('Secret', { exact: true }).fill('shpss_novo');
     const put = await submitEdit(page, dialog, tokenId);
 
     expect(put['signature']).toEqual({ provider: 'shopify', secret: 'shpss_novo' });

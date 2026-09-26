@@ -6,6 +6,7 @@ import { TOKEN_ID, token } from '../../testing/fixtures';
 import { inboxMatcher, outboundMatcher, rulesMatcher } from '../app.routes';
 import { OutboundActions } from '../outbound/outbound-actions';
 import { Preferences } from '../settings/preferences';
+import { TokenActions } from './token-actions';
 import { TokenBar } from './token-bar';
 
 @Component({ template: '' })
@@ -40,6 +41,7 @@ describe('Dado as abas "Requests" / "Rules" / "Outbound" na barra superior', () 
           { matcher: rulesMatcher, component: Page },
           { matcher: outboundMatcher, component: Page },
           { matcher: inboxMatcher, component: Page },
+          { path: 'share/:shareId', component: Page },
         ]),
       ],
     });
@@ -101,5 +103,43 @@ describe('Dado as abas "Requests" / "Rules" / "Outbound" na barra superior', () 
     sendButton()?.click();
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith());
+  });
+
+  const lockButton = () =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.lock');
+
+  it('deve mostrar "Lock" e trancar a URL Quando a URL aberta é protegida', async () => {
+    const lockUrl = vi.fn().mockResolvedValue(undefined);
+    TestBed.configureTestingModule({
+      providers: [{ provide: TokenActions, useValue: { lockUrl } }],
+    });
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+    await render(`/${TOKEN_ID}`);
+
+    lockButton()?.click();
+
+    await vi.waitFor(() => expect(lockUrl).toHaveBeenCalledWith());
+  });
+
+  it.each([
+    ['não é protegida', token({ protected: false })],
+    ['veio de uma versão sem o campo', token()],
+  ])('não deve mostrar "Lock" Quando a URL %s', async (_caso, url) => {
+    TestBed.inject(Preferences).token.set(url);
+
+    await render(`/${TOKEN_ID}`);
+
+    expect(lockButton()).toBeNull();
+  });
+
+  it('deve mostrar só a marca e os links, sem nada que mexa na URL, Quando é a página de um link compartilhado', async () => {
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+
+    await render('/share/abc123');
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(tabs()).toEqual([]);
+    expect([...element.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual([]);
+    expect(element.querySelector('input.url')).toBeNull();
   });
 });

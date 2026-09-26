@@ -1,0 +1,36 @@
+.unlock {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: normal;
+}
+
+.url {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #eee;
+  word-break: break-all;
+}
+
+.note {
+  color: #777;
+  font-size: 13px;
+}
+
+.form {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.field {
+  flex: 1;
+}
+
+.error {
+  color: #a94442;
+}

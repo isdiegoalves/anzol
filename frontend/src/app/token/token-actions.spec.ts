@@ -12,6 +12,7 @@ import { Preferences } from '../settings/preferences';
 import { TokenSettings } from './token';
 import { TokenActions, schemaErrors, settingsError } from './token-actions';
 import { TokenDialog, TokenDialogData } from './token-dialog';
+import { UrlLock } from './url-lock';
 
 describe('Dado o erro ao criar ou editar uma URL', () => {
   it.each([
@@ -233,6 +234,87 @@ describe('Dado os botões New e Edit da barra superior', () => {
         }),
       }),
     );
+  });
+});
+
+describe('Dado o segredo de leitura salvo pelos diálogos e o botão Lock', () => {
+  let http: HttpTestingController;
+  let snack: MockInstance<MatSnackBar['open']>;
+
+  const answerDialog = (settings: TokenSettings) =>
+    vi.spyOn(TestBed.inject(MatDialog), 'open').mockImplementation((_component, config) => {
+      const { save } = config?.data as TokenDialogData;
+      return { afterClosed: () => from(save(settings)) } as MatDialogRef<unknown>;
+    });
+  const NO_CONTENT = { status: 204, statusText: 'No Content' };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve desbloquear a URL nova com o segredo antes de abri-la Quando é criada protegida', async () => {
+    answerDialog({ read_secret: 'segredo-longo' });
+
+    const done = TestBed.inject(TokenActions).createUrl();
+    const create = await vi.waitFor(() => http.expectOne('/token'));
+    create.flush(token({ protected: true }));
+    const unlock = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/unlock`));
+    unlock.flush(null, NO_CONTENT);
+    await done;
+
+    expect(create.request.body).toEqual({ read_secret: 'segredo-longo' });
+    expect(unlock.request.body).toEqual({ secret: 'segredo-longo' });
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/', TOKEN_ID]);
+  });
+
+  it('deve desbloquear com o segredo novo Quando o segredo é trocado (o cookie antigo cai)', async () => {
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+    answerDialog({ read_secret: 'segredo-novo' });
+
+    const done = TestBed.inject(TokenActions).editUrl();
+    http.expectOne(`/token/${TOKEN_ID}`).flush(token({ protected: true }));
+    const unlock = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/unlock`));
+    unlock.flush(null, NO_CONTENT);
+    await done;
+
+    expect(unlock.request.body).toEqual({ secret: 'segredo-novo' });
+    expect(snack).toHaveBeenCalledWith('URL updated!');
+  });
+
+  it.each([
+    ['o segredo é mantido (ausente)', {}],
+    ['a proteção é tirada (null)', { read_secret: null }],
+  ])('não deve chamar o unlock Quando %s', async (_caso, settings: TokenSettings) => {
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+    answerDialog(settings);
+
+    const done = TestBed.inject(TokenActions).editUrl();
+    http.expectOne(`/token/${TOKEN_ID}`).flush(token());
+    await done;
+
+    http.expectNone(`/token/${TOKEN_ID}/unlock`);
+  });
+
+  it('deve apagar o acesso, trancar a tela e avisar Quando Lock é clicado', async () => {
+    TestBed.inject(Preferences).token.set(token({ protected: true }));
+
+    const done = TestBed.inject(TokenActions).lockUrl();
+    http.expectOne(`/token/${TOKEN_ID}/lock`).flush(null, NO_CONTENT);
+    await done;
+
+    expect(TestBed.inject(UrlLock).tokenId()).toBe(TOKEN_ID);
+    expect(TestBed.inject(Preferences).token()).toBeNull();
+    expect(snack).toHaveBeenCalledWith('URL locked');
   });
 });
 

@@ -8,7 +8,8 @@ import { TokenStore } from './token-store';
 
 /**
  * Barra superior: marca, links, abas "Requests"/"Rules"/"Outbound" da URL aberta, URL do webhook
- * com enviar, copiar, editar e criar URL.
+ * com enviar, copiar, editar, trancar (URL protegida) e criar URL. Na página de um link
+ * compartilhado fica só a marca: quem abre o link só lê.
  */
 @Component({
   selector: 'app-token-bar',
@@ -21,15 +22,29 @@ export class TokenBar {
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
 
+  private readonly segments = computed(
+    () =>
+      this.router.lastSuccessfulNavigation()?.finalUrl?.root.children['primary']?.segments ?? [],
+  );
+
   /**
    * Aba ativa pela rota: `/{token}/rules` e `/{token}/outbound` são as delas; o resto (lista,
    * mensagem) é "Requests".
    */
   protected readonly view = computed(() => {
-    const url = this.router.lastSuccessfulNavigation()?.finalUrl;
-    const tab = url?.root.children['primary']?.segments[1]?.path;
+    const tab = this.segments()[1]?.path;
     return tab === 'rules' || tab === 'outbound' ? tab : 'requests';
   });
+
+  /** `/share/{id}`: página só-leitura de um link compartilhado. */
+  protected readonly sharing = computed(() => this.segments()[0]?.path === 'share');
+
+  /** "Lock" só com a URL protegida aberta: a tela só tem o token depois de ter acesso a ele. */
+  protected readonly lockable = computed(() => this.tokens.token()?.protected === true);
+
+  protected async lockUrl(): Promise<void> {
+    await (await this.actions()).lockUrl();
+  }
 
   protected async createUrl(): Promise<void> {
     await (await this.actions()).createUrl();

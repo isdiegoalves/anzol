@@ -106,6 +106,23 @@ describe('Dado a tela principal', () => {
     expect(router.url).toBe(`/${NOVO_TOKEN}`);
   });
 
+  it('não deve criar outra URL nem avisar Quando o token do link é protegido e o acesso falta (401)', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}`);
+
+    await flush(
+      `/token/${TOKEN_ID}`,
+      { error: 'This URL is protected', protected: true },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    await new Promise((resolve) => setTimeout(resolve));
+
+    http.expectNone('/token');
+    http.expectNone(`/token/${TOKEN_ID}/requests?page=1`);
+    expect(snack).not.toHaveBeenCalled();
+    expect(FakeEventSource.instances).toHaveLength(0);
+    expect(router.url).toBe(`/${TOKEN_ID}`);
+  });
+
   it('deve fechar o stream na aba de regras e recarregar a lista e reabri-lo Quando volta para "Requests"', async () => {
     await openToken(`/${TOKEN_ID}`);
     await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
