@@ -1,4 +1,4 @@
-import { WebhookRequest } from '../requests/webhook-request';
+import { CapturedRequest } from '../requests/webhook-request';
 
 /** Validades que o servidor aceita em `expires_in`; o padrão é 7 dias. */
 export const SHARE_EXPIRATIONS = ['1h', '1d', '7d', '30d'] as const;
@@ -35,4 +35,4 @@ export interface ShareLink {
  * `GET /share/{id}`: a mensagem (mesmo JSON de `GET /request`) e as datas do link, sem o UUID da
  * URL: `token_id` não vem e a `url` traz `[redacted]` no lugar dele. A página não usa nenhum dos dois.
  */
-export type SharedRequest = WebhookRequest & { shared_at: string; expires_at: string };
+export type SharedRequest = CapturedRequest & { shared_at: string; expires_at: string };

@@ -148,7 +148,7 @@ describe('Dado o botão "Create rule from this request"', () => {
         data: { index: null, draft: ruleFromRequest(request), example: request },
       }),
     );
-    expect(snackBar.open).toHaveBeenCalledWith('Rule saved', 'View rules');
+    expect(snackBar.open).toHaveBeenCalledWith('Rule saved', 'View rules', { duration: 1000 });
   });
 
   it('deve levar à aba de regras Quando "View rules" é clicado depois de salvar', async () => {
@@ -167,7 +167,9 @@ describe('Dado o botão "Create rule from this request"', () => {
     await done;
 
     expect(dialog.open).not.toHaveBeenCalled();
-    expect(snackBar.open).toHaveBeenCalledWith('Could not load the rules (410).');
+    expect(snackBar.open).toHaveBeenCalledWith('Could not load the rules (410).', undefined, {
+      duration: 1000,
+    });
   });
 
   it('não deve avisar nada Quando o editor é cancelado', async () => {

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { MethodLabel } from '../requests/method-label';
-import { FieldValue, WebhookRequest } from '../requests/webhook-request';
+import { FieldValue, CapturedRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
 import { fromNow, localDate } from './dates';
@@ -25,7 +25,7 @@ import { signatureCheck } from './signature-check';
 export class RequestView {
   protected readonly preferences = inject(Preferences);
 
-  readonly request = input.required<WebhookRequest>();
+  readonly request = input.required<CapturedRequest>();
   /** URL da mensagem; `null` no link compartilhado, que não expõe a configuração da URL. */
   readonly token = input<Token | null>(null);
 

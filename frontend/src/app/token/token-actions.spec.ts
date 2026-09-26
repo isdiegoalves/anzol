@@ -81,7 +81,7 @@ describe('Dado os botões New e Edit da barra superior', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID]);
     expect(TestBed.inject(Preferences).unread()).toEqual([]);
-    expect(snack).toHaveBeenCalledWith('New URL created');
+    expect(snack).toHaveBeenCalledWith('New URL created', undefined, { duration: 1000 });
   });
 
   it('não deve chamar a API Quando o diálogo é fechado sem confirmar', async () => {
@@ -104,7 +104,7 @@ describe('Dado os botões New e Edit da barra superior', () => {
 
     expect(call.request.method).toBe('PUT');
     expect(call.request.body).toEqual({ default_content: 'novo' });
-    expect(snack).toHaveBeenCalledWith('URL updated!');
+    expect(snack).toHaveBeenCalledWith('URL updated!', undefined, { duration: 1000 });
   });
 
   describe('Dado a lista da URL aberta com a primeira mensagem selecionada', () => {
@@ -156,7 +156,7 @@ describe('Dado os botões New e Edit da barra superior', () => {
 
       http.expectNone(`/token/${TOKEN_ID}/requests?page=1`);
       expect(navigate).not.toHaveBeenCalled();
-      expect(snack).toHaveBeenCalledWith('URL updated!');
+      expect(snack).toHaveBeenCalledWith('URL updated!', undefined, { duration: 1000 });
     });
   });
 
@@ -177,7 +177,7 @@ describe('Dado os botões New e Edit da barra superior', () => {
       undefined,
       { duration: 10000 },
     );
-    expect(snack).not.toHaveBeenCalledWith('URL updated!');
+    expect(snack).not.toHaveBeenCalledWith('URL updated!', undefined, { duration: 1000 });
     expect(TestBed.inject(Preferences).token()).toEqual(token());
   });
 
@@ -288,7 +288,7 @@ describe('Dado o segredo de leitura salvo pelos diálogos e o botão Lock', () =
     await done;
 
     expect(unlock.request.body).toEqual({ secret: 'segredo-novo' });
-    expect(snack).toHaveBeenCalledWith('URL updated!');
+    expect(snack).toHaveBeenCalledWith('URL updated!', undefined, { duration: 1000 });
   });
 
   it.each([
@@ -314,7 +314,7 @@ describe('Dado o segredo de leitura salvo pelos diálogos e o botão Lock', () =
 
     expect(TestBed.inject(UrlLock).tokenId()).toBe(TOKEN_ID);
     expect(TestBed.inject(Preferences).token()).toBeNull();
-    expect(snack).toHaveBeenCalledWith('URL locked');
+    expect(snack).toHaveBeenCalledWith('URL locked', undefined, { duration: 1000 });
   });
 });
 

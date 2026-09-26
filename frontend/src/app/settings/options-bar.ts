@@ -44,11 +44,13 @@ export class OptionsBar {
     }
     try {
       const enabled = await this.tokens.toggleCors(token.uuid);
-      this.snackBar.open(enabled ? 'CORS enabled.' : 'CORS disabled.');
+      this.snackBar.open(enabled ? 'CORS enabled.' : 'CORS disabled.', undefined, {
+        duration: 1000,
+      });
     } catch (error) {
       const message =
         error instanceof HttpErrorResponse ? (error.error?.error?.message ?? error.message) : '';
-      this.snackBar.open(`Could not toggle CORS: ${message}`);
+      this.snackBar.open(`Could not toggle CORS: ${message}`, undefined, { duration: 1000 });
     }
   }
 }

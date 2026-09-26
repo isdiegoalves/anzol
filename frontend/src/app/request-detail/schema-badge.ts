@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { WebhookRequest } from '../requests/webhook-request';
+import { CapturedRequest } from '../requests/webhook-request';
 
 /**
  * Selo da validação de schema na mensagem: válido, ou inválido com os erros (caminho JSON Pointer
@@ -11,5 +11,5 @@ import { WebhookRequest } from '../requests/webhook-request';
   styleUrl: './schema-badge.scss',
 })
 export class SchemaBadge {
-  readonly request = input.required<WebhookRequest>();
+  readonly request = input.required<CapturedRequest>();
 }

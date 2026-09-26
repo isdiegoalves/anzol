@@ -123,14 +123,14 @@ export class ShareDialog {
       if (this.created()?.id === link.id) {
         this.created.set(null);
       }
-      this.snackBar.open('Link revoked');
+      this.snackBar.open('Link revoked', undefined, { duration: 1000 });
     } catch (error) {
       this.error.set(shareError('revoke the link', error));
     }
   }
 
   protected copied(): void {
-    this.snackBar.open('Copied link');
+    this.snackBar.open('Copied link', undefined, { duration: 1000 });
   }
 
   /** Endereço completo do link, para abrir em outro navegador. */

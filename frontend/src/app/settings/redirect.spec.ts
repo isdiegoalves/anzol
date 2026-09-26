@@ -64,7 +64,11 @@ describe('Dado o Redirector com a URL de destino configurada', () => {
 
     expect(call.request.method).toBe('PUT');
     expect(call.request.body).toBe('{"n":1}');
-    expect(open).toHaveBeenCalledWith('Redirected request to http://destino. Status: OK');
+    expect(open).toHaveBeenCalledWith(
+      'Redirected request to http://destino. Status: OK',
+      undefined,
+      { duration: 1000 },
+    );
   });
 
   it('deve avisar o erro por 5 s Quando o destino falha', async () => {

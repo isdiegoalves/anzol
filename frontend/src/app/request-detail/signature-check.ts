@@ -1,6 +1,6 @@
 import {
   SignatureState,
-  WebhookRequest,
+  CapturedRequest,
   absentHeader,
   signatureState,
 } from '../requests/webhook-request';
@@ -37,7 +37,7 @@ function headerKey(name: string): string {
  * compartilhado), o genérico também fica só com o selo.
  */
 export function signatureCheck(
-  request: WebhookRequest,
+  request: CapturedRequest,
   token: Token | null,
 ): SignatureCheck | null {
   const signature = request.signature;

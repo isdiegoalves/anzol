@@ -52,6 +52,39 @@ module.exports = defineConfig([
     },
   },
   {
+    // §7 Pacote inicial: o que o `main.ts` alcança estaticamente não importa (em valor) o que traz o
+    // `Overlay` do CDK ou barras do Material. Esses entram só em chunk lazy, por rota ou `import()`.
+    files: [
+      'src/main.ts',
+      'src/locale/**/*.ts',
+      'src/app/app.ts',
+      'src/app/app.config.ts',
+      'src/app/app.routes.ts',
+      'src/app/legacy-hash.ts',
+      'src/app/token/token-bar.ts',
+      'src/app/token/token-store.ts',
+      'src/app/token/url-lock.ts',
+      'src/app/settings/preferences.ts',
+    ],
+    ignores: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex:
+                '^@angular/(material/(snack-bar|toolbar|tooltip|menu|dialog|select|autocomplete)|cdk/(overlay|dialog|menu))$',
+              allowTypeImports: true,
+              message:
+                'Traz o Overlay ou barra do Material para o pacote inicial (docs/padroes-angular.md §7): carregue por import() ou rota lazy.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['src/**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {

@@ -4,6 +4,11 @@ const target = process.env.BACKEND_URL ?? 'http://localhost:8084';
 
 // changeOrigin: false mantém o Host do navegador, então a URL gravada na mensagem é a mesma
 // que a tela mostra (http://localhost:4200/{uuid}), como quando o backend serve a tela.
+// Também é o que deixa as escritas passarem na conferência de Origin da gestão (item 12): o
+// backend recebe `Host: localhost:4200` e `Origin: http://localhost:4200`, mesma porta e nome da
+// lista `webhook.allowed-hosts`, então é "mesma origem". Com changeOrigin: true o Host viraria o
+// do backend e todo POST/PUT/DELETE em /token levaria 403 "origin not allowed". Em outra porta
+// (npx ng serve --port 4300) vale o mesmo; o nome precisa ser um da lista (localhost, 127.0.0.1).
 const backend = { target, changeOrigin: false, secure: false };
 
 export default {

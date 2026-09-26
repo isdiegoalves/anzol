@@ -55,7 +55,7 @@ describe('Dado a tela de desbloqueio da URL protegida', () => {
     await tryUnlock('segredo-certo');
 
     expect(unlock).toHaveBeenCalledWith(TOKEN_ID, 'segredo-certo');
-    expect(snack).toHaveBeenCalledWith('URL unlocked');
+    expect(snack).toHaveBeenCalledWith('URL unlocked', undefined, { duration: 1000 });
     expect(alert()).toBeUndefined();
   });
 

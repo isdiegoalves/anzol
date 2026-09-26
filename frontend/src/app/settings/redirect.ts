@@ -68,7 +68,11 @@ export class Redirector {
           responseType: 'text',
         }),
       );
-      this.snackBar.open(`Redirected request to ${call.url}. Status: ${response.statusText}`);
+      this.snackBar.open(
+        `Redirected request to ${call.url}. Status: ${response.statusText}`,
+        undefined,
+        { duration: 1000 },
+      );
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.statusText : String(error);
       this.snackBar.open(`Error redirecting request to ${call.url}. Status: ${status}`, undefined, {

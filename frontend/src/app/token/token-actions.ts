@@ -32,7 +32,7 @@ export class TokenActions {
         await this.unlockWith(token.uuid, settings);
         this.requests.resetUnread();
         await this.router.navigate(['/', token.uuid]);
-        this.snackBar.open('New URL created');
+        this.snackBar.open('New URL created', undefined, { duration: 1000 });
         return [];
       } catch (error) {
         return this.failed('creating', error);
@@ -52,7 +52,7 @@ export class TokenActions {
         try {
           const updated = await this.tokens.update(token.uuid, settings);
           await this.unlockWith(token.uuid, settings);
-          this.snackBar.open('URL updated!');
+          this.snackBar.open('URL updated!', undefined, { duration: 1000 });
           if (cutsRequests(token, updated)) {
             await this.reloadRequests();
           }
@@ -70,7 +70,7 @@ export class TokenActions {
     const token = this.tokens.token();
     if (token) {
       await this.access.lock(token.uuid);
-      this.snackBar.open('URL locked');
+      this.snackBar.open('URL locked', undefined, { duration: 1000 });
     }
   }
 

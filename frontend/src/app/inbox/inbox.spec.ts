@@ -156,7 +156,9 @@ describe('Dado a tela principal', () => {
         truncated: false,
       });
 
-      await vi.waitFor(() => expect(snack).toHaveBeenCalledWith('Request received'));
+      await vi.waitFor(() =>
+        expect(snack).toHaveBeenCalledWith('Request received', undefined, { duration: 1000 }),
+      );
       await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Webhook.site'));
       expect(text()).toContain('Requests (3)');
       expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
@@ -191,7 +193,9 @@ describe('Dado a tela principal', () => {
 
       const call = await flush(`/token/${TOKEN_ID}/request/${cortada.uuid}`, webhookRequest(3));
       expect(call.request.method).toBe('GET');
-      await vi.waitFor(() => expect(snack).toHaveBeenCalledWith('Request received'));
+      await vi.waitFor(() =>
+        expect(snack).toHaveBeenCalledWith('Request received', undefined, { duration: 1000 }),
+      );
     });
 
     it('deve refazer a busca uma vez, sem pôr a nova direto na lista nem trocar a aberta Quando chegam mensagens com filtro ativo', async () => {

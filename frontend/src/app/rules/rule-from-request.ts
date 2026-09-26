@@ -98,7 +98,7 @@ export class RuleFromRequest {
       await this.store.load(tokenId);
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.snackBar.open(`Could not load the rules (${status}).`);
+      this.snackBar.open(`Could not load the rules (${status}).`, undefined, { duration: 1000 });
       return;
     }
     this.dialog
@@ -111,7 +111,7 @@ export class RuleFromRequest {
       .subscribe((saved) => {
         if (saved) {
           this.snackBar
-            .open('Rule saved', 'View rules')
+            .open('Rule saved', 'View rules', { duration: 1000 })
             .onAction()
             .subscribe(() => void this.router.navigate(['/', tokenId, 'rules']));
         }

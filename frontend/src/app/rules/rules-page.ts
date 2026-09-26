@@ -161,7 +161,9 @@ export class RulesPage {
       return;
     }
     if (await this.save(rules as Rule[])) {
-      this.snackBar.open(`Imported ${this.store.rules().length} rules`);
+      this.snackBar.open(`Imported ${this.store.rules().length} rules`, undefined, {
+        duration: 1000,
+      });
     }
   }
 
@@ -206,7 +208,7 @@ export class RulesPage {
       .afterClosed()
       .subscribe((saved) => {
         if (saved) {
-          this.snackBar.open('Rule saved');
+          this.snackBar.open('Rule saved', undefined, { duration: 1000 });
           void this.scenarioPanel()?.refresh();
         }
       });

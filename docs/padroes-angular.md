@@ -78,6 +78,13 @@
   `pdpj-bdd-tests`. Componentes do Material testados pelos harnesses do CDK
   (`TestbedHarnessEnvironment`), não por seletor CSS interno.
 - `ng lint` (angular-eslint 22.5.0 + typescript-eslint) e Prettier no `check`; o build falha em violação.
+- **Pacote inicial:** aviso em 500 kB e **erro em 550 kB** (orçamento `initial` do `angular.json`);
+  `anyScript` só com aviso, em 310 kB (o maior chunk medido em 2026-09-26). O que é novo nasce em
+  chunk lazy (rota com `loadComponent` ou `import()`). Nada de `MatToolbar`, `MatSnackBar`,
+  `MatTooltip`, `MatMenu`, `MatDialog` ou `Overlay` no que o `main.ts` alcança estaticamente: o
+  `Overlay` do CDK traz o `scrolling` junto (~80 kB). Por isso não há `MAT_SNACK_BAR_DEFAULT_OPTIONS`
+  no `app.config.ts`: cada `open()` do snackbar diz a duração. Guarda: `budgets` do `angular.json` e
+  `no-restricted-imports` nos arquivos do caminho inicial (`eslint.config.js`).
 - Regras ativadas: as da coluna "Guarda". **Desligadas de propósito** por conflitarem com o
   Angular 22: `component-class-suffix`, `directive-class-suffix`,
   `prefer-on-push-component-change-detection`, `template/no-call-expression` (ler signal é chamada).

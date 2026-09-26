@@ -4,10 +4,15 @@ import { SignatureProvider } from '../token/token';
 /** Valor de query string ou formulário: texto, ou lista/objeto quando vem de `a[]=1`. */
 export type FieldValue = string | FieldValue[] | { [name: string]: FieldValue };
 
-/** Mensagem recebida pela URL, no formato da API (`Storage/Request.php` no app atual). */
-export interface WebhookRequest {
+/**
+ * Mensagem como qualquer leitura a devolve, inclusive o link só-leitura (`GET /share/{sid}`), que
+ * não traz `token_id` e põe `[redacted]` no lugar do UUID da URL em `url`. Quem mostra a mensagem
+ * sem agir sobre ela (detalhe, selos) usa este tipo.
+ */
+export interface CapturedRequest {
   uuid: string;
-  token_id: string;
+  /** Ausente no link só-leitura. */
+  token_id?: string;
   ip: string;
   hostname: string;
   method: string;
@@ -27,6 +32,11 @@ export interface WebhookRequest {
   schema?: SchemaResult | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Mensagem recebida pela URL, no formato da API (`Storage/Request.php` no app atual), lida pelo dono. */
+export interface WebhookRequest extends CapturedRequest {
+  token_id: string;
 }
 
 /** `reason` é `null` quando válida; senão uma frase curta (`signature mismatch`). */

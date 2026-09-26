@@ -23,6 +23,7 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
+            "polyfills": ["@angular/localize/init"],
             "outputPath": {
               "base": "dist/frontend",
               "browser": ""
@@ -43,7 +44,11 @@
                 {
                   "type": "initial",
                   "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumError": "550kB"
+                },
+                {
+                  "type": "anyScript",
+                  "maximumWarning": "310kB"
                 },
                 {
                   "type": "anyComponentStyle",

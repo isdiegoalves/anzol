@@ -318,7 +318,9 @@ describe('Dado a aba de regras', () => {
 
       await expectPut([rule(7), rule(8)]);
       expect(rows().map((row) => row[0])).toEqual(['Rule 7', 'Rule 8']);
-      await vi.waitFor(() => expect(snack).toHaveBeenCalledWith('Imported 2 rules'));
+      await vi.waitFor(() =>
+        expect(snack).toHaveBeenCalledWith('Imported 2 rules', undefined, { duration: 1000 }),
+      );
     });
 
     it('deve mostrar os erros do servidor e manter a lista Quando o import responde 422', async () => {

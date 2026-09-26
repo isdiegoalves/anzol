@@ -69,7 +69,9 @@ describe('Dado a barra de opções acima do detalhe', () => {
 
     await cors.toggle();
     http.expectOne(`/token/${TOKEN_ID}/cors/toggle`).flush({ enabled: true });
-    await vi.waitFor(() => expect(open).toHaveBeenCalledWith('CORS enabled.'));
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith('CORS enabled.', undefined, { duration: 1000 }),
+    );
 
     expect(await cors.isChecked()).toBe(true);
     expect(preferences.token()?.cors).toBe(true);
@@ -83,6 +85,10 @@ describe('Dado a barra de opções acima do detalhe', () => {
       .expectOne(`/token/${TOKEN_ID}/cors/toggle`)
       .flush({ success: false, error: { message: 'Gone' } }, { status: 410, statusText: 'Gone' });
 
-    await vi.waitFor(() => expect(open).toHaveBeenCalledWith('Could not toggle CORS: Gone'));
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith('Could not toggle CORS: Gone', undefined, {
+        duration: 1000,
+      }),
+    );
   });
 });

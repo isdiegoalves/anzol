@@ -150,7 +150,7 @@ export class Inbox {
       await this.requests.load(tokenId, page);
     } catch (error) {
       if (!isProtectedError(error)) {
-        this.snackBar.open('Requests not found - invalid ID');
+        this.snackBar.open('Requests not found - invalid ID', undefined, { duration: 1000 });
       }
       return false;
     }
@@ -209,6 +209,6 @@ export class Inbox {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(request);
     }
-    this.snackBar.open('Request received');
+    this.snackBar.open('Request received', undefined, { duration: 1000 });
   }
 }

@@ -109,7 +109,7 @@ describe('Dado o detalhe de uma mensagem', () => {
     await menu.clickItem({ text: 'curl' });
 
     expect(copy).toHaveBeenCalledWith(`curl -X 'POST' '${request.url}'`);
-    expect(open).toHaveBeenCalledWith('Copied request as curl');
+    expect(open).toHaveBeenCalledWith('Copied request as curl', undefined, { duration: 1000 });
   });
 
   it('deve copiar o corpo cru e avisar Quando "Copy payload" é clicado, mesmo com o JSON formatado na tela', async () => {
@@ -122,7 +122,7 @@ describe('Dado o detalhe de uma mensagem', () => {
     await button.click();
 
     expect(copy).toHaveBeenCalledWith('{"a":1}');
-    expect(open).toHaveBeenCalledWith('Copied payload');
+    expect(open).toHaveBeenCalledWith('Copied payload', undefined, { duration: 1000 });
   });
 
   it('deve manter "Copy payload" Quando "Hide Details" está ligado', async () => {

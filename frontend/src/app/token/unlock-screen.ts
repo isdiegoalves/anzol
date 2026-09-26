@@ -54,7 +54,7 @@ export class UnlockScreen {
     this.error.set(null);
     try {
       await this.access.unlock(this.tokenId(), this.form.getRawValue().secret);
-      this.snackBar.open('URL unlocked');
+      this.snackBar.open('URL unlocked', undefined, { duration: 1000 });
     } catch (error) {
       this.failed(error);
     } finally {

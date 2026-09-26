@@ -1,6 +1,6 @@
 import { Component, input, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { WebhookRequest } from '../requests/webhook-request';
+import { CapturedRequest } from '../requests/webhook-request';
 
 /**
  * Selo da regra de resposta na mensagem: qual regra respondeu (`rule`) ou, quando havia regras
@@ -14,7 +14,7 @@ import { WebhookRequest } from '../requests/webhook-request';
   styleUrl: './rule-badge.scss',
 })
 export class RuleBadge {
-  readonly request = input.required<WebhookRequest>();
+  readonly request = input.required<CapturedRequest>();
 
   protected readonly expanded = signal(false);
 

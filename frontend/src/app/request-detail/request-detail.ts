@@ -75,12 +75,12 @@ export class RequestDetail {
   /** Corpo exatamente como chegou, mesmo com "Format JSON/XML" ligado na tela. */
   protected copyPayload(): void {
     this.clipboard.copy(this.request().content ?? '');
-    this.snackBar.open('Copied payload');
+    this.snackBar.open('Copied payload', undefined, { duration: 1000 });
   }
 
   protected copyRequestAs(format: CopyFormat): void {
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
-    this.snackBar.open(`Copied request as ${format}`);
+    this.snackBar.open(`Copied request as ${format}`, undefined, { duration: 1000 });
   }
 
   /** A lista entra em modo de escolha da mensagem B. */

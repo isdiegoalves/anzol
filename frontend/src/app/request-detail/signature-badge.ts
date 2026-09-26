@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { WebhookRequest } from '../requests/webhook-request';
+import { CapturedRequest } from '../requests/webhook-request';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 
 /**
@@ -12,7 +12,7 @@ import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
   styleUrl: './signature-badge.scss',
 })
 export class SignatureBadge {
-  readonly request = input.required<WebhookRequest>();
+  readonly request = input.required<CapturedRequest>();
 
   protected readonly labels = SIGNATURE_PROVIDER_LABELS;
 }

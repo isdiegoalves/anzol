@@ -84,7 +84,9 @@ describe('Dado o painel de cenários da aba de regras', () => {
     call.flush(null);
     await flushGet([retry('falhou-2')]);
     await vi.waitFor(() => expect(rows()).toEqual([['Retry', 'falhou-2']]));
-    expect(snack).toHaveBeenCalledWith('Scenario Retry set to falhou-2');
+    expect(snack).toHaveBeenCalledWith('Scenario Retry set to falhou-2', undefined, {
+      duration: 1000,
+    });
   });
 
   it('deve apagar todos os estados e reler Quando "Reset all" é clicado', async () => {

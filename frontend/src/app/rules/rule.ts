@@ -109,6 +109,12 @@ export interface RuleRef {
 /** Regra mais próxima quando nenhuma casou, com uma frase por condição que falhou. */
 export interface NearMiss extends RuleRef {
   failed: string[];
+  /**
+   * A condição de cada frase de `failed`, na mesma ordem (`match.method`, `match.headers.X-Sig`,
+   * `match.body.0`, `scenario`…). `null` em mensagem gravada antes do campo; ausente em servidor
+   * anterior a ele.
+   */
+  conditions?: string[] | null;
 }
 
 export const RULE_DEFAULT_PRIORITY = 5;
@@ -117,7 +123,7 @@ export const RULE_DEFAULT_STATUS = 200;
 /** Resposta de `POST /token/{id}/rules/test`, da mensagem mais nova para a mais antiga. */
 export interface RuleTestResponse {
   matches: { uuid: string; seq: number }[];
-  misses: { uuid: string; seq: number; failed: string[] }[];
+  misses: { uuid: string; seq: number; failed: string[]; conditions?: string[] | null }[];
 }
 
 /** Mensagem que a regra não casaria, com a página da lista onde ela está (para o link). */

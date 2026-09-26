@@ -61,14 +61,16 @@ export class ScenarioPanel {
       this.chosen.update((chosen) =>
         Object.fromEntries(Object.entries(chosen).filter(([name]) => name !== scenario.name)),
       );
-      this.snackBar.open(`Scenario ${scenario.name} set to ${state}`);
+      this.snackBar.open(`Scenario ${scenario.name} set to ${state}`, undefined, {
+        duration: 1000,
+      });
     }
   }
 
   protected async resetAll(): Promise<void> {
     if (await this.run(() => this.store.resetAll())) {
       this.chosen.set({});
-      this.snackBar.open(`Scenarios reset to ${SCENARIO_STARTED}`);
+      this.snackBar.open(`Scenarios reset to ${SCENARIO_STARTED}`, undefined, { duration: 1000 });
     }
   }
 

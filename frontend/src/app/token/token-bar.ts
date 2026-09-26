@@ -1,7 +1,6 @@
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
 import { Component, Injector, computed, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatToolbar } from '@angular/material/toolbar';
 import { Router, RouterLink } from '@angular/router';
 import type { TokenActions } from './token-actions';
 import { TokenStore } from './token-store';
@@ -10,10 +9,13 @@ import { TokenStore } from './token-store';
  * Barra superior: marca, links, abas "Requests"/"Rules"/"Outbound" da URL aberta, URL do webhook
  * com enviar, copiar, editar, trancar (URL protegida) e criar URL. Na página de um link
  * compartilhado fica só a marca: quem abre o link só lê.
+ *
+ * Um `<header>` com SCSS, sem `MatToolbar`: a barra está no pacote inicial e o orçamento dele não
+ * comporta o Material além do botão (docs/padroes-angular.md §7).
  */
 @Component({
   selector: 'app-token-bar',
-  imports: [MatToolbar, MatButton, RouterLink, CdkCopyToClipboard],
+  imports: [MatButton, RouterLink, CdkCopyToClipboard],
   templateUrl: './token-bar.html',
   styleUrl: './token-bar.scss',
 })
