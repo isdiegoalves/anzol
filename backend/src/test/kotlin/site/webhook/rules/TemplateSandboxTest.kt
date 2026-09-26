@@ -39,38 +39,55 @@ private fun internalDataKeys(): List<String> =
         .filter { Modifier.isStatic(it.modifiers) && it.type == String::class.java }
         .map { it.get(null) as String } + listOf(NOW_DATA, VALIDATING_DATA, BUDGET_DATA, DOCUMENTS_DATA)
 
+/** A única chave dos dados da renderização que o template pode ler: o próprio contexto do Anexo B. */
+private const val READABLE_DATA_KEY = "root"
+
 /**
- * Formas de alcançar o dado [key]: com `@` e como segmento literal (`[key]`, que o Handlebars também
- * procura nos dados), impresso, como contexto de bloco, como condição, pelo `lookup` e dentro de helpers
- * (cada helper grava o número de parâmetros nos dados).
+ * `@chave`, `chave` e os blocos sobre `@chave`, sem colchetes: o Handlebars só os compila quando a chave não
+ * tem `#` (as de [Context], `…Context#paramSize`, têm).
  */
-private fun probesOf(key: String): List<String> =
+private fun bareProbesOf(key: String): List<String> =
+    listOf("{{@$key}}", "{{$key}}", "{{#with @$key}}vazou{{/with}}", "{{#each @$key}}vazou{{/each}}")
+
+/**
+ * Formas de alcançar o dado [key] que compilam, e por isso poderiam ser salvas numa regra: como segmento
+ * literal (`[key]`, que o Handlebars também procura nos dados), impresso, como contexto de bloco, como
+ * condição, pelo `lookup` e dentro de helpers e de blocos (cada helper grava o número de parâmetros nos
+ * dados); sem colchetes ([bareProbesOf]) quando a chave permite.
+ */
+private fun reachingProbesOf(key: String): List<String> =
     listOf(
-        "{{@$key}}",
-        "{{@[$key]}}",
-        "{{$key}}",
         "{{[$key]}}",
         "{{{[$key]}}}",
         "{{#with [$key]}}vazou{{/with}}",
-        "{{#with @$key}}vazou{{/with}}",
         "{{#each [$key]}}vazou{{/each}}",
-        "{{#each @$key}}vazou{{/each}}",
         "{{#if [$key]}}vazou{{/if}}",
         "{{#unless [$key]}}{{else}}vazou{{/unless}}",
         "{{lookup this '[$key]'}}",
         "{{lookup this '$key'}}",
-        "{{lookup [$key] 'x'}}",
+        "{{lookup [$key] 'seq'}}",
         "{{#if seq}}{{[$key]}}{{#with [$key]}}vazou{{/with}}{{/if}}",
         "{{#each request.query}}{{[$key]}}{{#each [$key]}}vazou{{/each}}{{/each}}",
         "{{#with request}}{{[$key]}}{{lookup this '[$key]'}}{{/with}}",
         "{{math [$key] '+' 0}}",
-    )
+    ) + if ('#' in key) emptyList() else bareProbesOf(key)
+
+/** Formas que nem compilam (422 ao salvar): `@[key]` sempre, e as sem colchetes quando a chave tem `#`. */
+private fun refusedProbesOf(key: String): List<String> = listOf("{{@[$key]}}") + if ('#' in key) bareProbesOf(key) else emptyList()
 
 @DisplayName("Isolamento do template das regras: só os valores do Anexo B, dados do remetente como texto")
 class TemplateSandboxTest {
     companion object {
         @JvmStatic
-        fun internalDataProbes(): List<Arguments> = internalDataKeys().flatMap { key -> probesOf(key).map { Arguments.of(key, it) } }
+        fun internalDataProbes(): List<Arguments> =
+            internalDataKeys().flatMap { key -> reachingProbesOf(key).map { Arguments.of(key, it) } }
+
+        @JvmStatic
+        fun refusedDataProbes(): List<Arguments> = internalDataKeys().flatMap { key -> refusedProbesOf(key).map { Arguments.of(key, it) } }
+
+        /** As sondas sobre o dado legível; `math` fica de fora porque só lê número, e `root` é mapa. */
+        @JvmStatic
+        fun readableDataProbes(): List<String> = reachingProbesOf(READABLE_DATA_KEY).filterNot { it.startsWith("{{math") }
     }
 
     @Nested
@@ -94,20 +111,6 @@ class TemplateSandboxTest {
             assertThat(sandboxRender(template)).isEmpty()
         }
 
-        @ParameterizedTest(name = "{0}")
-        @DisplayName("Dado os dados internos da renderização, quando o template os pede, então nada sai")
-        @ValueSource(
-            strings = [
-                "{{@site.webhook.now}}", "{{@[site.webhook.now]}}", "{{@site.webhook.validating}}", "{{@[site.webhook.validating]}}",
-                "{{@[site.webhook.budget]}}", "{{@[com.github.jknack.handlebars.Context#paramSize]}}",
-                "{{@[com.github.jknack.handlebars.Context#partials]}}", "{{@[com.github.jknack.handlebars.Context#invocationStack]}}",
-                "{{@__inline_partials_}}", "{{@[__inline_partials_]}}",
-            ],
-        )
-        fun render_dadoInterno_deveSairVazio(template: String) {
-            assertThat(sandboxRender(template)).isEmpty()
-        }
-
         @Test
         @DisplayName("Dado as constantes String de Context, quando lidas por reflexão, então incluem as chaves de dados conhecidas")
         fun internalDataKeys_reflexao_deveAcharAsChavesConhecidas() {
@@ -116,12 +119,31 @@ class TemplateSandboxTest {
 
         @ParameterizedTest(name = "{0}: {1}")
         @MethodSource("site.webhook.rules.TemplateSandboxTest#internalDataProbes")
-        @DisplayName("Dado cada chave de dado interno, quando o template a imprime ou aplica um bloco sobre ela, então nada sai")
+        @DisplayName("Dado cada chave de dado interno, quando um template válido a imprime ou aplica um bloco sobre ela, então nada sai")
         fun render_dadoInternoEmBloco_naoDeveVazar(
             key: String,
             template: String,
         ) {
+            assertThat(templateError(template)).describedAs("a sonda precisa compilar para provar algo").isNull()
             assertThat(sandboxRender(template)).describedAs("dado %s", key).isEmpty()
+        }
+
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("site.webhook.rules.TemplateSandboxTest#refusedDataProbes")
+        @DisplayName("Dado cada chave de dado interno, quando a forma de pedi-la nem compila, então há erro (422 ao salvar)")
+        fun templateError_dadoInternoSemSintaxe_deveHaverErro(
+            key: String,
+            template: String,
+        ) {
+            assertThat(templateError(template)).describedAs("dado %s", key).isNotBlank()
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource("site.webhook.rules.TemplateSandboxTest#readableDataProbes")
+        @DisplayName("Dado root, o único dado legível, quando as mesmas sondas o pedem, então alcançam o contexto (chegam aos dados)")
+        fun render_sondaSobreDadoLegivel_deveAlcancarOContexto(template: String) {
+            assertThat(templateError(template)).isNull()
+            assertThat(sandboxRender(template)).isNotEmpty()
         }
 
         @ParameterizedTest(name = "{0} → {1}")
