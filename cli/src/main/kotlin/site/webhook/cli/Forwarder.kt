@@ -39,6 +39,12 @@ fun CapturedRequest.route(token: TokenId): Route {
     return Route(path = afterToken.substringBefore('?'), query = query.ifEmpty { null })
 }
 
+/** Linha de saída de um reenvio; [delivered] é false quando o app local não respondeu. */
+data class Forwarding(
+    val line: String,
+    val delivered: Boolean,
+)
+
 /**
  * Reenvia uma mensagem gravada ao app local e devolve a linha de saída:
  * `HH:mm:ss MÉTODO caminho?query -> status (n ms)` ou `... -> error: motivo`.
@@ -50,20 +56,18 @@ class Forwarder(
     fun forward(
         token: TokenId,
         message: CapturedRequest,
-    ): String {
+    ): Forwarding {
         val route = message.route(token)
         val prefix = "${LocalTime.now().format(CLOCK_FORMAT)} ${message.method} $route -> "
         val started = System.nanoTime()
-        val outcome =
-            try {
-                val status = http.send(request(message, route), BodyHandlers.discarding()).statusCode()
-                "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)"
-            } catch (e: IOException) {
-                "error: ${e.reason()}"
-            } catch (e: IllegalArgumentException) {
-                "error: ${e.message}"
-            }
-        return prefix + outcome
+        return try {
+            val status = http.send(request(message, route), BodyHandlers.discarding()).statusCode()
+            Forwarding(prefix + "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)", delivered = true)
+        } catch (e: IOException) {
+            Forwarding(prefix + "error: ${e.reason()}", delivered = false)
+        } catch (e: IllegalArgumentException) {
+            Forwarding(prefix + "error: ${e.message}", delivered = false)
+        }
     }
 
     private fun request(
@@ -83,7 +87,8 @@ class Forwarder(
     }
 }
 
-private fun IOException.reason(): String =
+/** Motivo curto de uma falha de rede (o `ConnectException` do `java.net.http` vem sem mensagem). */
+fun IOException.reason(): String =
     when (this) {
         is ConnectException -> "connection refused"
         is HttpTimeoutException -> "timed out"

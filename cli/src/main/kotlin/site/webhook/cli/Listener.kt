@@ -22,7 +22,7 @@ class Listener(
                 val event = parser.feed(line)
                 if (event?.name == REQUEST_CREATED) {
                     val created = apiJson.decodeFromString<RequestCreated>(event.data)
-                    out(forwarder.forward(token, created.request))
+                    out(forwarder.forward(token, created.request).line)
                 }
             }
         }

@@ -15,6 +15,7 @@ import site.webhook.cli.support.Received
 import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
 import java.time.Duration
+import java.util.UUID
 
 @DisplayName("webhook listen")
 class ListenTest {
@@ -146,5 +147,47 @@ class ListenTest {
         (1..3).forEach { site.publish(message(token, target = "/$it")) }
 
         assertThat(awaitReceived(3).map { it.path }).containsExactly("/1", "/2", "/3")
+    }
+
+    @Nested
+    @DisplayName("Escolha do token")
+    inner class Token {
+        @Test
+        @DisplayName("Dado o listen sem --token, quando sobe, então cria uma URL nova, a mostra e reenvia o que chega nela")
+        fun listen_semToken_deveCriarUrlNovaEReenviar() {
+            val cli = CliProcess("listen", "--server", site.base, "--forward", app.url).also(this@ListenTest.cli::add)
+
+            val line =
+                cli.awaitLine(
+                    Regex("""Listening on ${Regex.escape(site.base)}/[0-9a-f-]{36} \(forwarding to ${Regex.escape(app.url)}\)"""),
+                )
+            val token = line.substringAfter("${site.base}/").substringBefore(' ')
+            assertThat(site.tokens()).containsExactly(token)
+            site.publish(message(token, target = "/nova"))
+            assertThat(awaitReceived(1).single().path).isEqualTo("/nova")
+        }
+
+        @Test
+        @DisplayName("Dado um --token que não existe, quando sobe, então escreve Token not found no stderr e sai com 1")
+        fun listen_tokenInexistente_deveSairComErro() {
+            val cli = CliProcess("listen", "--server", site.base, "--forward", app.url, "--token", UUID.randomUUID().toString())
+            this@ListenTest.cli += cli
+
+            assertThat(cli.awaitExit()).isEqualTo(1)
+            assertThat(cli.stderr).containsExactly("Token not found")
+            assertThat(cli.stdout).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado WEBHOOK_SERVER e nenhum --server, quando sobe, então usa o servidor da variável")
+        fun listen_variavelWebhookServer_deveUsarOServidorDaVariavel() {
+            val token = site.createToken()
+            val cli =
+                CliProcess("listen", "--forward", app.url, "--token", token, env = mapOf("WEBHOOK_SERVER" to "${site.base}/"))
+            this@ListenTest.cli += cli
+
+            cli.awaitLine(Regex(Regex.escape("Listening on ${site.base}/$token (forwarding to ${app.url})")))
+            assertThat(site.subscriberCount()).isEqualTo(1)
+        }
     }
 }
