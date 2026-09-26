@@ -3,11 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * E2E da tela (checklist de paridade 1–14 do item 00).
  *
- *   npx ng serve                                        # proxy para o app atual (8084)
- *   BASE_URL=http://localhost:4200 npx playwright test  # BASE_URL = onde a tela nova está
- *
- * Contra o backend Kotlin: `BACKEND_URL=http://localhost:8086 npx ng serve` e o mesmo comando;
- * com o SSE disponível, o `tempo-real.spec.ts` deixa de ser pulado.
+ *   BASE_URL=http://localhost:8084 npx playwright test  # app do docker compose (backend + tela)
+ *   npx ng serve                                        # ou a tela em desenvolvimento (proxy → 8084)
+ *   BASE_URL=http://localhost:4200 npx playwright test
  */
 const baseURL = process.env['BASE_URL'] ?? 'http://localhost:4200';
 

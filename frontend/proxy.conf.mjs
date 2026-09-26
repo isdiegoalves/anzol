@@ -1,6 +1,5 @@
-// Proxy do `ng serve` para o backend. Troque o destino com BACKEND_URL:
-//   npx ng serve                                    → app atual (http://localhost:8084)
-//   BACKEND_URL=http://localhost:8086 npx ng serve  → backend Kotlin
+// Proxy do `ng serve` para o backend (padrão: o app do docker compose em http://localhost:8084).
+// Troque o destino com BACKEND_URL, ex.: BACKEND_URL=http://localhost:8080 npx ng serve.
 const target = process.env.BACKEND_URL ?? 'http://localhost:8084';
 
 // changeOrigin: false mantém o Host do navegador, então a URL gravada na mensagem é a mesma

@@ -3,8 +3,8 @@ package site.webhook
 import java.util.UUID
 
 /*
- * Formatos compartilhados com o app antigo (Laravel), num lugar só (docs/padroes-kotlin.md §3).
- * Mudar qualquer um deles quebra a convivência dos dois apps no mesmo Redis.
+ * Formatos herdados do app antigo (Laravel), num lugar só (docs/padroes-kotlin.md §3).
+ * Mudar qualquer um deles deixa ilegíveis os tokens e mensagens já gravados no Redis.
  */
 
 /** Regex de `app/Http/routes.php:5-6`: só minúsculas, como o `Uuid::uuid4()->toString()` grava. */
