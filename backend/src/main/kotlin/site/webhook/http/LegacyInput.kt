@@ -1,16 +1,13 @@
 package site.webhook.http
 
-import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.Part
 import site.webhook.legacy.PhpArray
+import site.webhook.legacy.parseMultipart
 import site.webhook.legacy.parseStr
-import site.webhook.legacy.register
+import site.webhook.legacy.phpMultipartBoundary
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
-import java.io.IOException
 import java.nio.charset.StandardCharsets.ISO_8859_1
-import java.nio.charset.StandardCharsets.UTF_8
 
 private const val FORM_URLENCODED = "application/x-www-form-urlencoded"
 private const val MULTIPART = "multipart/form-data"
@@ -19,7 +16,8 @@ private val FORM_BODY_METHODS = setOf("PUT", "DELETE", "PATCH")
 /**
  * A requisição como o Laravel 5.4 a enxerga: corpo cru (`php://input`), query (`$_GET`) e o
  * "input source" (`$request->request`), que é o JSON do corpo, a própria query num GET, ou os
- * campos de formulário que o PHP e o Symfony decodificam.
+ * campos de formulário que o PHP e o Symfony decodificam. Num multipart, `php://input` guarda só o
+ * que o PHP não chegou a ler (em geral nada).
  */
 class LegacyInput(
     val body: ByteArray,
@@ -50,14 +48,11 @@ fun HttpServletRequest.legacyInput(): LegacyInput =
     checkNotNull(getAttribute(LegacyInput.ATTRIBUTE) as? LegacyInput) { "LegacyRequestFilter não processou a requisição" }
 
 /**
- * `true` quando o PHP decodificaria o corpo como multipart (e `php://input` ficaria vazio). Sem
- * `boundary=` no Content-Type o PHP desiste ("Missing boundary") e o corpo fica cru em `content`.
+ * O boundary quando o PHP decodificaria o corpo como multipart. Sem boundary utilizável no
+ * Content-Type o PHP desiste e o corpo fica cru em `php://input`.
  */
-fun HttpServletRequest.isPhpMultipartPost(): Boolean =
-    method == "POST" && phpPostContentType(contentType) == MULTIPART && hasMultipartBoundary(contentType.orEmpty())
-
-/** `rfc1867.c`: procura `boundary` (sem caixa) e depois um `=`. */
-private fun hasMultipartBoundary(contentType: String): Boolean = '=' in contentType.lowercase().substringAfter("boundary", "")
+private fun HttpServletRequest.phpMultipartPostBoundary(): String? =
+    if (method == "POST" && phpPostContentType(contentType) == MULTIPART) phpMultipartBoundary(contentType.orEmpty()) else null
 
 fun HttpServletRequest.readLegacyInput(
     body: ByteArray,
@@ -65,16 +60,17 @@ fun HttpServletRequest.readLegacyInput(
 ): LegacyInput {
     val contentType = contentType.orEmpty()
     val query = parseStr(queryString.orEmpty().toByteArray(ISO_8859_1))
+    val multipart = phpMultipartPostBoundary()?.let { parseMultipart(body, it) }
     val form =
         when {
             method == "GET" -> query
             method == "POST" && phpPostContentType(contentType) == FORM_URLENCODED -> parseStr(body)
-            isPhpMultipartPost() -> multipartFields()
+            multipart != null -> multipart.fields
             method in FORM_BODY_METHODS && contentType.startsWith(FORM_URLENCODED) -> parseStr(body)
             else -> PhpArray()
         }
     val json = if (isLaravelJson(contentType)) jsonObject(body, jsonMapper) else emptyMap()
-    return LegacyInput(body, method, contentType, query, form, json)
+    return LegacyInput(multipart?.unread ?: body, method, contentType, query, form, json)
 }
 
 /** `Request::isJson()` do Laravel: `/json` ou `+json` em qualquer ponto do Content-Type. */
@@ -87,28 +83,6 @@ private fun phpPostContentType(contentType: String?): String =
         .lowercase()
         .split(';', ',', ' ')
         .first()
-
-/**
- * `$_POST` de um multipart: só os campos de texto; arquivos vão para `$_FILES` e são descartados.
- * Corpo que não se decodifica (boundary vazio, partes malformadas) fica sem campos, como no PHP;
- * corpo acima do limite sobe como a `InvalidParameterException` do Tomcat (413).
- */
-private fun HttpServletRequest.multipartFields(): PhpArray {
-    val fields = PhpArray()
-    readablePartsOrEmpty().filter { it.submittedFileName == null }.forEach { part ->
-        fields.register(part.name, String(part.inputStream.readAllBytes(), UTF_8))
-    }
-    return fields
-}
-
-private fun HttpServletRequest.readablePartsOrEmpty(): Collection<Part> =
-    try {
-        parts
-    } catch (_: ServletException) {
-        emptyList()
-    } catch (_: IOException) {
-        emptyList()
-    }
 
 @Suppress("UNCHECKED_CAST")
 private fun jsonObject(

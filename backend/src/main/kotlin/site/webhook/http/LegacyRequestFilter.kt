@@ -4,7 +4,6 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletRequestWrapper
 import jakarta.servlet.http.HttpServletResponse
-import org.apache.tomcat.util.http.InvalidParameterException
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.http.HttpHeaders
@@ -49,29 +48,20 @@ class LegacyRequestFilter(
             return
         }
         val body =
-            when {
-                request.contentLengthLong > MAX_BODY_BYTES -> null
-                request.isPhpMultipartPost() -> ByteArray(0)
-                else -> request.inputStream.readNBytes(MAX_BODY_BYTES + 1).takeIf { it.size <= MAX_BODY_BYTES }
+            if (request.contentLengthLong > MAX_BODY_BYTES) {
+                null
+            } else {
+                request.inputStream.readNBytes(MAX_BODY_BYTES + 1).takeIf { it.size <= MAX_BODY_BYTES }
             }
-        val input = body?.let { request.readLegacyInputOrNullIfTooLarge(it) }
-        if (input == null) {
+        if (body == null) {
             response.rejectTooLarge()
         } else {
+            val input = request.readLegacyInput(body, jsonMapper)
             request.setAttribute(LegacyInput.ATTRIBUTE, input)
             response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, private")
             filterChain.doFilter(request.withMethodOverride(input), response)
         }
     }
-
-    /** Multipart chunked acima de 1 MiB só é descoberto quando o Tomcat lê as partes. */
-    private fun HttpServletRequest.readLegacyInputOrNullIfTooLarge(body: ByteArray): LegacyInput? =
-        try {
-            readLegacyInput(body, jsonMapper)
-        } catch (error: InvalidParameterException) {
-            if (error.errorCode != HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE) throw error
-            null
-        }
 }
 
 fun HttpServletResponse.rejectTooLarge() = rejectLikeNginx(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, TOO_LARGE_PAGE)

@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest
 import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.http.LegacyInput
-import site.webhook.http.isPhpMultipartPost
 import site.webhook.http.legacyInput
 import site.webhook.http.rawPath
 import site.webhook.legacy.latin1ToUtf8
@@ -39,7 +38,7 @@ fun HttpServletRequest.toCapturedRequest(
         hostname = serverName.lowercase(),
         method = method,
         userAgent = headers["user-agent"]?.firstOrNull(),
-        content = if (isPhpMultipartPost()) "" else String(input.body, UTF_8),
+        content = String(input.body, UTF_8),
         query = input.query.takeIf { it.isNotEmpty() }?.toJson(),
         headers = headers,
         url = legacyUrl(),

@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper
 @DisplayName("Corpo da requisição como o nginx + PHP o entregavam")
 class RequestBodyApiTest(
     @LocalServerPort private val port: Int,
-    jsonMapper: JsonMapper,
+    private val jsonMapper: JsonMapper,
 ) {
     private val api = ApiClient(port, jsonMapper)
 
@@ -118,6 +118,73 @@ class RequestBodyApiTest(
             assertThat(stored["content"].asString()).isEqualTo(content)
             assertThat(stored["request"].isNull).isTrue()
             assertThat(stored["headers"]["content-type"][0].asString()).isEqualTo(contentType)
+        }
+    }
+
+    @Nested
+    @DisplayName("Multipart malformado lido como o rfc1867.c do PHP")
+    inner class MalformedMultipart {
+        private fun bytes(escaped: String): ByteArray = escaped.replace("\\r", "\r").replace("\\n", "\n").toByteArray()
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName(
+            "Dado um multipart malformado que o PHP lia em parte, quando chama o webhook, então grava os campos lidos e content vazio",
+        )
+        @CsvSource(
+            delimiter = '|',
+            quoteCharacter = '`',
+            textBlock = """
+            sem o boundary final | boundary=XyZ  | --XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ\r\nContent-Disposition: form-data; name="b"\r\n\r\n2\r\n              | {"a":"1","b":"2"}
+            lixo sem fechar      | boundary=XyZ  | --XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ\r\nContent-Disposition: form-data; name="b"\r\n\r\n2\r\nlixo sem fechar | {"a":"1","b":"2\r\nlixo sem fechar"}
+            linhas só LF         | boundary=XyZ  | --XyZ\nContent-Disposition: form-data; name="a"\n\n1\n--XyZ--\n                                                                              | {"a":"1"}
+            parâmetro xboundary  | xboundary=XyZ | --XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ--\r\n                                                                      | {"a":"1"}
+            boundary com vírgula | boundary=XyZ,x | --XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ--\r\n                                                                     | {"a":"1"}
+            preâmbulo | boundary=XyZ | a\r\n--XyZx\r\n--XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ-- | {"a":"1"}""",
+        )
+        fun capture_multipartMalformado_deveGravarOsCamposLidos(
+            case: String,
+            parameter: String,
+            body: String,
+            expected: String,
+        ) {
+            val tokenId = api.tokenId()
+
+            val response = postMultipart(tokenId, bytes(body), "multipart/form-data; $parameter")
+
+            assertThat(response.status).isEqualTo(200)
+            val stored = stored(tokenId, response)
+            assertThat(stored["request"]).`as`(case).isEqualTo(jsonMapper.readTree(expected))
+            assertThat(stored["content"].asString()).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado um boundary com aspas sem fechar, quando chama o webhook, então o PHP desiste e o corpo fica cru em content")
+        fun capture_boundaryComAspasSemFechar_deveGravarCorpoCru() {
+            val tokenId = api.tokenId()
+            val body = multipart(listOf("a" to "1"))
+
+            val response = postMultipart(tokenId, body, "multipart/form-data; boundary=\"XyZ")
+
+            assertThat(response.status).isEqualTo(200)
+            val stored = stored(tokenId, response)
+            assertThat(stored["request"].isNull).isTrue()
+            assertThat(stored["content"].asString()).isEqualTo(String(body))
+        }
+
+        @Test
+        @DisplayName(
+            "Dado uma parte sem name num corpo maior que 5 KB, quando chama o webhook, então content guarda o que o PHP não chegou a ler",
+        )
+        fun capture_desistenciaComCorpoGrande_deveGravarORestoEmContent() {
+            val tokenId = api.tokenId()
+            val body = bytes("--XyZ\\r\\nContent-Disposition: form-data\\r\\n\\r\\nx\\r\\n") + multipart(listOf("b" to "y".repeat(20_000)))
+
+            val response = postMultipart(tokenId, body)
+
+            assertThat(response.status).isEqualTo(200)
+            val stored = stored(tokenId, response)
+            assertThat(stored["request"].isNull).isTrue()
+            assertThat(stored["content"].asString()).isEqualTo(String(body.copyOfRange(5 * 1024, body.size)))
         }
     }
 
