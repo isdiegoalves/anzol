@@ -1,34 +1,75 @@
-# [Webhook.site](https://webhook.site)
+# Webhook.site
 
-[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/fredsted/webhook.site.svg)](https://hub.docker.com/r/fredsted/webhook.site)
-[![GitHub last commit](https://img.shields.io/github/last-commit/fredsted/webhook.site.svg)](https://github.com/fredsted/webhook.site/commits/master)
+Gera uma URL única e aleatória que grava toda requisição HTTP recebida e a mostra na tela em
+tempo real: método, cabeçalhos, query, corpo. Serve para testar e depurar webhooks e clientes
+HTTP sem subir um servidor exposto à internet.
 
-With [Webhook.site](https://webhook.site), you instantly get a unique, random URL that you can use to test and debug Webhooks and HTTP requests, as well as to create your own workflows using the Custom Actions graphical editor or WebhookScript, a simple scripting language, to transform, validate and process HTTP requests.
+Este repositório é um fork do [webhook.site](https://github.com/fredsted/webhook.site) de
+Simon Fredsted (licença MIT), reescrito sem mudança de comportamento:
 
-## What are people using it for?
+| Parte | Stack | Pasta |
+|---|---|---|
+| API, webhook e tempo real (SSE) | Kotlin 2.4 + Spring Boot 4.1 + Java 25 | `backend/` |
+| Tela | Angular 22 + Angular Material | `frontend/` |
+| Armazenamento | Redis 8.10 (tokens expiram em 7 dias) | serviço `redis` do compose |
+| Contrato caixa-preta da API e do evento | Playwright | `tests/contract/` |
 
-* Receive Webhooks without needing an internet-facing Web server
-* Send Webhooks to a server that’s behind a firewall or private subnet
-* Transforming Webhooks into other formats, and re-sending them to different systems
-* Connect different APIs that aren’t compatible
-* Building contact forms that send emails
-* Instantly build APIs without needing infrastructure
-Built by Simon Fredsted (@fredsted).
+Uma imagem só (`Dockerfile` da raiz): o Node constrói o Angular, o Gradle embute o build no jar
+e o Spring Boot serve a API e a tela na mesma porta.
 
-## Open Source
+## Como subir
 
-There are two versions of Webhook.site:
+```bash
+docker compose up -d --build
+```
 
-* The completely open-source, MIT-licensed version is available on Github, which can be self-hosted using e.g. Docker, is great for testing Webhooks, but doesn’t include features like Custom Actions.
+Abra <http://localhost:8084>. Os dados do Redis ficam no volume `webhooksite_redis-data` e
+sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 
-* The cloud version at [https://webhook.site](https://webhook.site) which has more features, some of them requiring a paid subscription.
+## API
 
-## Acknowledgements
+| Rota | O que faz |
+|---|---|
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s) |
+| `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL |
+| `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
+| `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
+| `GET /token/{id}/requests` | Lista as mensagens (`page`, `per_page`, `sorting=oldest\|newest`) |
+| `GET`/`DELETE /token/{id}/request/{requestId}` | Lê ou apaga uma mensagem; `.../raw` devolve o corpo cru |
+| `DELETE /token/{id}/request` | Apaga todas as mensagens |
+| `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada |
 
-* The app was built with [Laravel](https://laravel.com) for the API and Angular.js for the frontend SPA.
-* WebhookScript based on [Primi](https://github.com/smuuf/Primi) Copyright (c) Přemysl Karbula.
-* The WebhookScript editor is using the [Ace](https://ace.c9.io/).
-* JSONPath extraction provided by [FlowCommunications](https://github.com/FlowCommunications/JSONPath).
-* This documentation site uses [Just the Docs](https://github.com/pmarsceill/just-the-docs), a documentation theme for Jekyll.
+O comportamento exato (status, erros, limites de 500 mensagens e 1 MiB) está descrito em
+[`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem
+exemplos das mesmas rotas.
 
-**[Full Documentation at docs.webhook.site](https://docs.webhook.site)**
+## Como testar
+
+```bash
+# Backend: testes (Redis em container, precisa de Docker), ktlint e detekt
+cd backend && ./gradlew check
+
+# Frontend: lint, testes unitários (Vitest) e build
+cd frontend && npm ci && npx ng lint && npx ng test --watch=false && npx ng build
+
+# E2E da tela (Playwright) contra o app no ar
+cd frontend && npx playwright install chromium   # uma vez
+BASE_URL=http://localhost:8084 npx playwright test
+
+# Contrato caixa-preta da API e do evento contra o app no ar
+cd tests/contract && npm ci && npx playwright test
+```
+
+Para mexer na tela com recarga automática, com o compose no ar: `cd frontend && npx ng serve`
+abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf.mjs`).
+
+## Padrões de código
+
+- Kotlin: [`docs/padroes-kotlin.md`](docs/padroes-kotlin.md)
+- Angular: [`docs/padroes-angular.md`](docs/padroes-angular.md)
+
+## Helm
+
+O chart em `helm/` está desatualizado: ainda descreve a stack antiga (imagens upstream
+`webhooksite/webhook.site` e `webhooksite/laravel-echo-server`, `redis:alpine`). Serve só
+como ponto de partida; o app roda com o `docker-compose.yml`.
