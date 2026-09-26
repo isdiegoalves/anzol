@@ -31,5 +31,8 @@ export interface ShareLink {
   request_id?: string;
 }
 
-/** `GET /share/{id}`: a mensagem (mesmo JSON de `GET /request`) e as datas do link. */
+/**
+ * `GET /share/{id}`: a mensagem (mesmo JSON de `GET /request`) e as datas do link, sem o UUID da
+ * URL: `token_id` não vem e a `url` traz `[redacted]` no lugar dele. A página não usa nenhum dos dois.
+ */
 export type SharedRequest = WebhookRequest & { shared_at: string; expires_at: string };

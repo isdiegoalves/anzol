@@ -184,6 +184,9 @@
         Requests, rules and history open only with the secret. Sending webhooks to the URL keeps
         working without it.
       </p>
+      @if (data.mode === 'edit') {
+        <p class="hint">Changing the secret revokes existing read-only links.</p>
+      }
       @if (privacy.required.value) {
         @if (wasProtected) {
           <p class="info" role="status">

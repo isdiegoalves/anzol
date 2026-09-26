@@ -807,7 +807,7 @@ async function typeSecret(loader: HarnessLoader, secret: string, confirm = secre
 
 describe('Dado a seção "Privacy" do diálogo "Create New URL"', () => {
   it('deve começar desligada, sem campos de segredo, e não mandar read_secret Quando nada é mudado', async () => {
-    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
     expect(await (await privacyToggle(loader)).isChecked()).toBe(false);
     expect(
@@ -815,6 +815,8 @@ describe('Dado a seção "Privacy" do diálogo "Create New URL"', () => {
         MatInputHarness.with({ selector: '[formControlName=read_secret]' }),
       ),
     ).toHaveLength(0);
+    // URL nova não tem links só-leitura: nada a revogar.
+    expect(privacyText(fixture)).not.toContain('revokes existing read-only links');
     await (await button(loader, 'Create')).click();
 
     expect(sentKeys(dialogRef)).not.toContain('read_secret');
@@ -944,6 +946,23 @@ describe('Dado a seção "Privacy" do diálogo "Edit URL"', () => {
 
     expect(sentKeys(dialogRef)).not.toContain('read_secret');
   });
+
+  it.each([
+    ['protegida', true],
+    ['aberta', false],
+  ])(
+    'deve avisar que trocar o segredo revoga os links só-leitura Quando a URL é %s',
+    async (_caso, isProtected) => {
+      const { fixture } = await openDialog({
+        mode: 'edit',
+        token: token({ protected: isProtected }),
+      });
+
+      expect(privacyText(fixture)).toContain(
+        'Changing the secret revokes existing read-only links.',
+      );
+    },
+  );
 
   it('deve exigir o segredo Quando a proteção é ligada numa URL que não era protegida', async () => {
     const { fixture, loader } = await openDialog({ mode: 'edit', token: token() });
