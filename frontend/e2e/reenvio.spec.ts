@@ -220,8 +220,9 @@ test.describe('Dado o Send da barra da URL', () => {
 
     await page.getByRole('link', { name: 'Outbound' }).click();
     const detail = page.getByRole('region', { name: 'Outbound detail' });
+    // Nome de header não diferencia maiúsculas: o servidor manda X-Hub-Signature-256.
     await expect(detail.getByRole('table', { name: 'Sent headers' })).toContainText(
-      'x-hub-signature-256',
+      /x-hub-signature-256/i,
     );
     await expect(page.locator('app-outbound-page')).not.toContainText(SECRET);
   });
