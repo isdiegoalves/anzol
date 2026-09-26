@@ -187,6 +187,30 @@ cd tests/cli && node --test
 Para mexer na tela com recarga automática, com o compose no ar: `cd frontend && npx ng serve`
 abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf.mjs`).
 
+### CI local
+
+Não há pipeline remoto: o CI é o `./ci.sh` da raiz, que roda tudo o que está acima de uma vez.
+
+```bash
+./ci.sh
+```
+
+Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da porta 8088 livre.
+
+1. **Sem stack:** `backend` → `./gradlew check`; `cli` → `./gradlew check installDist`;
+   `frontend` → `npm ci`, `ng lint`, `prettier --check .`, `ng test --watch=false`, `ng build`.
+2. **Stack isolado:** `docker compose -p webhookci` com o override `docker-compose.ci.yml` sobe o
+   app na porta 8088, com Redis `webhookci-redis` e volume `webhookci_redis-data` próprios. O app da
+   8084 e o Redis `webhook-redis` (dados reais) não são tocados.
+3. **Integração contra a 8088:** contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E da tela
+   (`frontend/e2e`) e aceite do CLI (`tests/cli`, com o CLI do passo 1).
+4. **Fim:** `down -v` do stack isolado (containers, rede, volume e imagem do app), também em falha ou
+   Ctrl+C, e uma tabela etapa → OK/FALHOU/NÃO RODOU → tempo.
+
+Uma etapa que falha não interrompe as seguintes; se o stack não sobe, as de integração aparecem
+como NÃO RODOU. A saída é 0 só com tudo OK. Com os caches do Gradle, do npm e do Docker quentes, a
+rodada inteira leva uns 2 minutos.
+
 ## Padrões de código
 
 - Kotlin (`backend/` e `cli/`): [`docs/padroes-kotlin.md`](docs/padroes-kotlin.md)
