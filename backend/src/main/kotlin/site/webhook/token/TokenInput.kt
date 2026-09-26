@@ -18,6 +18,7 @@ private enum class Rule(
     INTEGER(::isPhpInteger, { "The $it must be an integer." }),
     MIN_ZERO({ phpNumericSize(it) >= 0 }, { "The $it must be at least 0." }),
     MAX_TEN({ phpNumericSize(it) <= MAX_TIMEOUT }, { "The $it may not be greater than 10." }),
+    RETRY_AFTER({ it == null || RetryAfter.parse(it) != null }, { "The $it must be a number of seconds or an HTTP date." }),
 }
 
 private val RULES =
@@ -26,6 +27,7 @@ private val RULES =
         "default_content_type" to listOf(Rule.STRING),
         "default_status" to listOf(Rule.INTEGER),
         "timeout" to listOf(Rule.INTEGER, Rule.MIN_ZERO, Rule.MAX_TEN),
+        "retry_after" to listOf(Rule.RETRY_AFTER),
     )
 
 /**
@@ -50,4 +52,5 @@ fun LegacyInput.toTokenSettings(): TokenSettings =
         defaultStatus = get("default_status")?.let(::phpIntval) ?: DEFAULT_STATUS,
         defaultContentType = get("default_content_type") as? String ?: "text/plain",
         timeout = phpIntval(get("timeout")),
+        retryAfter = RetryAfter.parse(get("retry_after")),
     )

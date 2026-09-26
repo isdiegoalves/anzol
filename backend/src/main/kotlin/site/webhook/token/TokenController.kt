@@ -56,6 +56,7 @@ class TokenController(
                 cors = false,
                 createdAt = now,
                 updatedAt = now,
+                retryAfter = settings.retryAfter,
             )
         return ResponseEntity.status(HttpStatus.CREATED).body(tokens.store(token))
     }

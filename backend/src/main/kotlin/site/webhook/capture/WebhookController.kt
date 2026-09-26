@@ -20,6 +20,7 @@ import site.webhook.stream.RequestStream
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
+import site.webhook.token.headerValue
 import site.webhook.token.legacyNow
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Clock
@@ -124,6 +125,7 @@ class WebhookController(
         setHeader("X-Request-Id", captured.uuid.toString())
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
+        token.retryAfter?.let { setHeader("Retry-After", it.headerValue()) }
         if (status != HttpServletResponse.SC_NO_CONTENT && status != HttpServletResponse.SC_NOT_MODIFIED) {
             outputStream.write(token.defaultContent.toByteArray(UTF_8))
         }

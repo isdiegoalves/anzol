@@ -22,6 +22,8 @@ data class Token(
     val createdAt: LocalDateTime,
     @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
     val updatedAt: LocalDateTime,
+    /** Campos novos ficam no fim; token gravado antes deles lê `null`. */
+    val retryAfter: RetryAfter? = null,
 ) {
     /** `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. */
     fun withSettings(settings: TokenSettings): Token =
@@ -30,15 +32,17 @@ data class Token(
             defaultStatus = settings.defaultStatus,
             defaultContentType = settings.defaultContentType,
             timeout = settings.timeout,
+            retryAfter = settings.retryAfter,
         )
 }
 
-/** Os quatro campos que o cliente escolhe na criação e na edição. */
+/** Os campos que o cliente escolhe na criação e na edição. */
 data class TokenSettings(
     val defaultContent: String,
     val defaultStatus: Long,
     val defaultContentType: String,
     val timeout: Long,
+    val retryAfter: RetryAfter?,
 )
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

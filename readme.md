@@ -30,7 +30,7 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 
 | Rota | O que faz |
 |---|---|
-| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s) |
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`) |
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
@@ -38,6 +38,9 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 | `GET`/`DELETE /token/{id}/request/{requestId}` | Lê ou apaga uma mensagem; `.../raw` devolve o corpo cru |
 | `DELETE /token/{id}/request` | Apaga todas as mensagens |
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada |
+
+`retry_after` (segundos, inteiro ≥ 0, ou data HTTP no formato `Sun, 06 Nov 1994 08:49:37 GMT`)
+faz toda resposta do webhook da URL levar o cabeçalho `Retry-After`; útil com `/429`, `/503` ou 3xx.
 
 O comportamento exato (status, erros, limites de 500 mensagens e 1 MiB) está descrito em
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem
