@@ -18,7 +18,7 @@ cd tests/contract
 npm ci
 
 npx playwright test                  # tudo: api + event
-npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, reenvio, IA/MCP, erros, limpeza, volume
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, reenvio, IA/MCP, privacidade, erros, limpeza, volume
 npx playwright test --project=event  # evento request.created (SSE)
 
 BASE_URL=http://localhost:8087 npx playwright test   # outra instância
@@ -559,6 +559,93 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `list_requests`, `search_requests`, `get_request`, `get_rules`, `replay_request`, `send_request`,
   `get_outbound`: só o nome e o schema são exigidos) e a tela (CA-4, E2E do frontend).
 
+- **Privacidade e segurança da API** (`specs/api/privacidade-*.spec.ts`, helpers em `support/privacidade.ts`; §1 do
+  plano "privacidade", item 12). Os testes falam HTTP pelo `fetch` do Node, não pelo `request` do Playwright, porque o
+  contexto do Playwright guarda cookies e o `Set-Cookie` do `unlock` iria sozinho nas chamadas seguintes: aqui cada
+  chamada diz que credencial leva (nenhuma, `X-Webhook-Secret` ou `Cookie: wh_access=…`). `Host` diferente vai por
+  HTTP cru (`httpCruCompleto`, que também lê o corpo). A fixture `urls` cria URLs protegidas e as apaga ao fim com o
+  segredo (a limpeza do `tokens` apaga sem credencial, o que numa URL protegida dá 401). O stack sob teste precisa de
+  `WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal` (o `./ci.sh` e o compose da 8084 a definem);
+  a porta dos `Host` e `Origin` válidos vem do `BASE_URL`.
+  - *Acesso* (`privacidade-acesso.spec.ts`, CA-1): numa URL protegida, as 25 rotas de gestão de `/token/{id}/**` (token
+    `GET`/`PUT`/`DELETE`, `cors/toggle`, `requests`, `request/{rid}`, `raw`, `search`, `wait`, `rules`, `rules/test`,
+    `scenarios` `GET`/`PUT`/`DELETE`, `suggest`, `explain`, `replay`, `send`, `outbound`, `share`, `shares`,
+    `shares/{sid}`, `DELETE request/{rid}` e `DELETE request`) respondem 401 com exatamente `{"error":"This URL is
+    protected","protected":true}` (JSON) sem credencial e com o header errado (outro segredo, o certo + 1 caractere, o
+    certo em maiúsculas), e nada muda (token, mensagens, regras, cenários, saídas, links e o link público lidos antes e
+    depois com o segredo). Com o header certo, cada rota responde o que responderia numa URL aberta (o `DELETE` do token
+    por último, e 410 depois). O SSE: 401 sem acesso e com o header errado; 200 com o certo, e o evento chega. A
+    captura continua aberta: GET, POST, PUT, PATCH e DELETE respondem o padrão da URL e gravam. O token traz
+    `protected` (`false` sem segredo, `true` com) e as chaves de sempre; o segredo não aparece no `POST`, `GET`, `PUT`
+    (nem o novo nem o antigo, ao trocar), na mensagem, na listagem nem no 401. `read_secret` de 8 e 256 caracteres
+    protege; 7 e 257 → 422 com a chave `read_secret`, no `POST` e no `PUT` (e o segredo anterior continua valendo).
+  - *Cookie* (`privacidade-cookie.spec.ts`, CA-2): `unlock` certo → 204 sem corpo e um `Set-Cookie` `wh_access` com
+    `HttpOnly`, `SameSite=Strict`, `Path=/token/{id}`, `Max-Age=2592000`, sem `Secure` (HTTP) e sem `Domain`; o valor
+    não contém o segredo e é o mesmo em dois unlocks (HMAC de id:versão). O cookie dá acesso a `GET`, `PUT`, `rules` e
+    ao SSE (o evento chega); forjado, vazio ou de outra URL protegida → 401 (inclusive no SSE). Errado → 401 sem cookie;
+    10 falhas e a 11ª → 429 com `Retry-After` inteiro de 1 a 60 e sem cookie; outra URL segue (401 errado, 204 certo).
+    Trocar o segredo pelo `PUT` → o cookie e o header antigos dão 401, o novo abre, o unlock com o antigo dá 401 e o
+    novo cookie é outro. `lock` (com ou sem cookie) → 2xx com `Set-Cookie` `wh_access` de mesmo `Path`, expirado
+    (`Max-Age` ≤ 0 ou `Expires` no passado). `unlock` e `lock` respondem sem acesso. `PUT` sem `read_secret` (e `PUT
+    {}`) → `protected` continua `true` e o segredo vale; `read_secret: null` → `protected: false` e tudo abre sem
+    credencial (inclusive o SSE); `PUT` com texto numa URL aberta protege de novo.
+  - *Links* (`privacidade-share.spec.ts`, CA-3): numa URL protegida, `POST …/share {}` → `{id, url, expires_at,
+    redact}` com `id` base62 de 16 a 22 caracteres, `url` = `/#/share/{id}`, `redact` true e `expires_at` a 7 dias
+    (±2 min); `GET /shares` lista; o público lê `GET /share/{sid}` sem credencial nenhuma: exatamente a mensagem de
+    `GET /token/{id}/request/{rid}` mais `shared_at` (agora) e `expires_at` (o mesmo instante da criação); revogar →
+    some da lista e 404. `expires_in` `1h`, `1d`, `7d`, `30d` → o prazo certo; `redact: false` volta `false`; ids
+    distintos; a lista é por URL; revogar pela URL errada não revoga. `expires_in` `2h`, `1w`, `""`, `7`, `7D` → 422
+    em `expires_in`; mensagem inexistente → 404; nada criado. 50 ativos (de duas mensagens) → o 51º dá 422; revogar um
+    libera a vaga. **404 igual**: revogado, mensagem apagada, todas as mensagens apagadas e URL apagada respondem
+    exatamente o 404 (status, Content-Type e corpo) de um id que nunca existiu; `GET /shares` da URL apagada → 410;
+    ids fora do formato → 404. **Máscara** (mensagem gravada por HTTP cru): com `redact`, os valores de
+    `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-webhook-secret` e do header de
+    assinatura do provedor configurado (`x-hub-signature-256` no GitHub; o `header` do `generic`) viram
+    `["[redacted]"]`, e os valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` sem
+    diferenciar maiúsculas (`access_token`, `API_KEY`, `clientSecret`, `Password`, `x-signature`, `monkey`, `TOKENS`)
+    viram `"[redacted]"`; o resto da mensagem é igual ao gravado, inclusive `x-auth-token`, `x-api-keys`,
+    `stripe-signature` numa URL GitHub, `x-hub-signature-256` numa URL sem assinatura, as queries `tok` e `segredo` e o
+    corpo (que tem `password`). Nenhum valor mascarado aparece em lugar nenhum do JSON, cru ou codificado (a `url`
+    gravada também carrega a query). `redact: false` → a mensagem inteira.
+  - *Host e Origin* (`privacidade-host-origin.spec.ts`, CA-4): `Host` `evil.test`, `localhost.evil.test`,
+    `evil.test:{porta}`, `127.0.0.1.nip.io` e `rebind.localhost.evil.test` → 403 `{"error":"host not allowed"}` em
+    `POST /token`, token `GET`/`PUT`/`DELETE`, `requests`, `request/{rid}`, `stream`, `rules`, `unlock`, `share`,
+    `shares`, `/share/{sid}` e `POST /mcp`, e nada muda; na captura → a resposta de sempre, gravada com esse
+    `hostname`; `GET /` (a tela) → 200. Os quatro hosts da lista passam com e sem porta. `Origin` `http://evil.test`,
+    com porta, `https://localhost.evil.test` e `http://127.0.0.1.nip.io` → 403 `{"error":"origin not allowed"}` em
+    `POST /token`, `PUT` do token, `cors/toggle`, `PUT rules`, `send`, `share`, `unlock`, os dois `DELETE` de mensagem e
+    o `DELETE` do token, e nada muda; `POST /mcp` idem. `GET` com `Origin` estranho passa (token, listagem, mensagem,
+    link). `Origin` da própria tela (`BASE_URL`), `127.0.0.1`, `[::1]` e `host.docker.internal` na porta do app, e sem
+    `Origin` (CLI) → criar, editar, regras, link e apagar passam. A captura com `Origin` estranho responde como sempre.
+  - *MCP* (`privacidade-mcp.spec.ts`, CA-5): as 13 ferramentas da URL declaram `read_secret` string e opcional. Numa
+    URL protegida, sem `read_secret` e com ele errado, cada uma devolve `isError` com texto que cita `protected`, sem
+    o segredo, e nada muda (`delete_url` não apaga, `set_rules` não grava, `send_request`/`replay_request` não entram no
+    histórico). Com o certo, `get_url` (`protected: true`), `list_requests`, `get_request`, `search_requests`,
+    `wait_for_request`, `get_rules`, `set_rules` (gravou, conferido pela API), `test_rule`, `replay_request`,
+    `send_request`, `get_outbound` e `delete_url` (410 depois) funcionam, e o segredo não aparece em resultado nenhum.
+
+  Leituras assumidas onde a §1 deixava folga: a varredura com header errado e sem credencial usa uma URL nova a cada 8
+  rotas, porque a §1 não diz se pedido sem credencial ou com header errado conta nas 10 falhas por minuto (o 429 é
+  testado só pelo `unlock`); o explain com acesso usa uma mensagem inexistente (404) e o suggest sem `prompt` (422),
+  para não chamar o LLM (503 aceito num stack com a IA desligada); `POST …/share` responde 200 ou 201 e `DELETE
+  /shares/{sid}` 200 ou 204; o link traz pelo menos `id`, `url`, `expires_at` e `redact`; `GET /shares` é uma lista
+  JSON de objetos com `id`; `expires_at` e `shared_at` no formato de data do app (UTC) ou ISO 8601; "404 igual" é
+  status, Content-Type e corpo iguais aos de um id que nunca existiu; revogar pela URL errada responde erro (≥ 400); o
+  valor mascarado de header é `["[redacted]"]` (a lista da mensagem) e o de query `"[redacted]"`; "valores de query"
+  inclui a query dentro da `url` gravada (a forma mascarada da `url` fica livre, desde que nenhum valor sensível
+  apareça); a lista de headers é exata (nome igual) e a de query é por trecho do nome; o header do provedor mascarado é
+  só o do provedor configurado; o `Host` é comparado sem a porta e o `Origin` pelo host (qualquer esquema e porta);
+  `lock` responde 2xx e apaga o cookie no navegador (o valor antigo, se reenviado, não é conferido: a §1 invalida
+  cookies só pela troca de segredo); o 422 de `read_secret` e de `expires_in` só precisa da chave; o erro de
+  ferramenta MCP cita `protected` (o texto do 401). **Fora do contrato:** a expiração real do link (o menor prazo é
+  1 h; o link expirado some pelo TTL de `share:{sid}` e fica igual ao que nunca existiu, que é o que o contrato
+  compara; o corte no tempo fica com os testes do backend), a lista vazia de `allowed-hosts` (padrão do app, sem
+  checagem: outro stack), `Secure` no cookie sob HTTPS (o stack é HTTP), a comparação em tempo constante, o cache de
+  PBKDF2, o formato gravado no Redis (PBKDF2, `secret_version`, `webhook:server-key`, `share:{sid}`,
+  `token:{id}:shares`) e o token antigo sem o campo (não protegido: lê o Redis, testes do backend), as métricas
+  `webhook.privacy.unlock` e `webhook.share` e "nenhum segredo em log" (observabilidade), `read_secret` no
+  `create_url` do MCP e a tela (CA-5, E2E do frontend).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -590,6 +677,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Achar uma mensagem exigia rolar a listagem | `POST /token/{id}/requests/search` (texto sem diferenciar maiúsculas + `match` das regras, paginado como a listagem) | Feature "busca, filtro e diff" (2026-09-26): achar a mensagem que interessa entre milhares. Rota nova; nada do que existia muda |
 | Reenviar uma mensagem ou montar uma requisição só pelo CLI, do host | `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound` (o servidor sai, com proteções contra SSRF, 30 disparos por minuto e histórico das últimas 50) | Feature "reenvio pelo servidor e envio pela tela" (2026-09-26): reenviar da tela para o app do dono e ver a resposta. Rotas novas; nada do que existia muda |
 | Nenhuma IA nem MCP | Servidor MCP em `/mcp`, `POST /token/{id}/rules/suggest` e `POST /token/{id}/request/{rid}/explain`, com o LLM local do dono (desligados por padrão) | Feature "IA local" (item 13, 2026-09-26): agentes operam o webhook.site por MCP, regra a partir de linguagem natural e diagnóstico da mensagem, sem o payload sair da máquina. Rotas novas; nada do que existia muda |
+| Quem tem o UUID lê e gere a URL; token sem `protected`; qualquer `Host` e `Origin` na API | `read_secret` opcional por URL: sem acesso, toda rota `/token/{id}/**` (fora `unlock`/`lock`) dá 401 `{"error":"This URL is protected","protected":true}`; `protected` no token; links só-leitura de uma mensagem (`/share/{sid}`); com `webhook.allowed-hosts` definido, `Host` fora da lista → 403 nas rotas de gestão e `Origin` fora da lista → 403 nos métodos que mudam estado | Item 12, "privacidade e segurança" (2026-09-26): pré-requisito para publicar. URL sem `read_secret` responde como antes. `protected` entrou em `CHAVES_TOKEN` (e no tipo `Token`), então os quatro testes que comparam as chaves do token passam a exigi-lo: `token.spec.ts` "sem campos: 201 com os padrões e exatamente as chaves do token", `schema-config.spec.ts` "POST com schema: 201 devolve o schema como enviado, e o GET também" e os dois de `assinatura-config.spec.ts` ("POST com signature: GET devolve o provedor e o segredo mascarado…" e "token com signature null; mensagem com signature null…"). Nenhum outro teste antigo mudou: nenhum manda `Host` fora da lista a uma rota de gestão nem `Origin` a um método de gestão (os `Host` e `Origin` estranhos dos testes antigos vão para a captura) |
 
 ## Defeitos do legado (`bugDoLegado`)
 

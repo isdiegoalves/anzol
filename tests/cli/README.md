@@ -46,7 +46,8 @@ temporária do sistema, apagada ao fim de cada teste.
 - `servidor.mjs`: API de tokens e mensagens, webhook por HTTP cru (cabeçalho repetido, underscore,
   hop-by-hop, chunked) e assinatura do SSE; `rajada` (N POSTs com no máximo P em voo) e
   `mensagensPorSeq` (todas as mensagens por `after=<seq>` a partir de 0, a ordem que o reenvio deve
-  seguir; falha se a API não devolve `seq`).
+  seguir; falha se a API não devolve `seq`); `criarTokenProtegido(segredo)` cria uma URL com `read_secret` e a
+  apaga ao fim com o header `X-Webhook-Secret` (`apagarToken` aceita os cabeçalhos).
 - `conferencia.mjs`: a regra de reenvio conferida contra a mensagem gravada, lida pela API.
 
 ## O que cobre
@@ -83,6 +84,8 @@ temporária do sistema, apagada ao fim de cada teste.
 | `wait-for.test.mjs` saída (CA-6) | stdout inteiro é um array JSON com as mensagens que casaram, cada uma igual ao `GET /token/{id}/request/{id}`; stderr `matched <n>/<count> in <ms> ms`; prazo de 1500 sem casar → saída 1, `[]`, `timed out after <ms ≥ 1400> ms: 0/1 matched`, `closest: #<seq> <uuid>` da mensagem e uma linha `  - method … POST … PUT`; 2 de 3 → saída 1, as 2 no stdout, `2/3`, sem `closest`; `--count 3` com 4 → as 3 de menor `seq`; URL vazia com `--timeout 2500` → espera ≥ 2400 ms e sai com 1 (o prazo HTTP do CLI tem folga), sem `closest` |
 | `wait-for.test.mjs` código 2 (CA-6) | sem `--token`; `--after` com `--new`; `--match` e `--match-file` que não são JSON; arquivo inexistente; `--count` 0 e 101; 422 da API (regex inválida); token inexistente; servidor fora (`--server http://127.0.0.1:9`): saída 2 com mensagem no stderr |
 | `wait-for.test.mjs` `--new` e `--after` (CA-6) | `--new --timeout 0` com só uma antiga que casa → saída 1 e `[]`; `--new` com uma nova a cada 400 ms → saída 0 com uma das novas (nunca a antiga), antes do prazo; `--after <seq da 1ª> --count 2` → 2ª e 3ª; `--after <seq da mais nova>` → saída 1 |
+| `privacidade.test.mjs` com segredo (item 12, CA-5) | numa URL protegida (pré-condição: `GET /token/{id}` sem o header dá 401), com `--read-secret` e, em outro teste, com `WEBHOOK_READ_SECRET`: `listen` imprime `Listening on …` e entrega o POST (linha com o status do app); `replay` entrega a mensagem e sai com 0; `wait-for --path --timeout 0` sai com 0 e o stdout é a mensagem igual à da API; `rules push` grava (`Pushed 1 rule(s)`, conferido pela API) e `rules pull` devolve o que a API tem. Em toda execução o segredo não aparece no stdout nem no stderr |
+| `privacidade.test.mjs` sem segredo | `listen`, `replay`, `wait-for` e `rules pull` sem o segredo e com `--read-secret` errado: saída ≠ 0, nada chega ao app local, nenhum dos dois segredos na saída, a mensagem continua na URL |
 
 ## Leituras da especificação assumidas
 
@@ -145,3 +148,9 @@ temporária do sistema, apagada ao fim de cada teste.
   recusou a linha de comando; falta \`webhook wait-for\` ou alguma opção dele (…)?`.
 - `wait-for --new`: sem sinal de "pronto" no CLI, o teste manda uma mensagem nova a cada 400 ms até o CLI
   sair; qualquer uma delas vale, a do histórico não.
+- Segredo de leitura (item 12): "opção global" é lida como a opção aceita por `listen`, `replay`, `wait-for`,
+  `rules pull` e `rules push` depois do subcomando e dos argumentos, na posição do `--server`
+  (`webhook listen --server … --read-secret …`); o CLI que só a aceite antes do subcomando falha com `falta
+  --read-secret (depois do subcomando)`. Os testes exigem o app com o item 12 (ver `tests/contract/README.md`).
+- Sem o segredo, ou com ele errado, a mensagem e o código de saída são livres, desde que o código não seja 0 e nada
+  seja entregue: a §1 não fixa a mensagem do CLI para o 401.

@@ -24,10 +24,27 @@ export async function verificarServidor() {
   verificado = true;
 }
 
-/** Apaga mensagens e depois o token (a ordem do contrato). Token inexistente responde 410: ok. */
-export async function apagarToken(uuid) {
-  await fetch(`${SERVIDOR}/token/${uuid}/request`, { method: 'DELETE', headers: JSON_ACCEPT });
-  await fetch(`${SERVIDOR}/token/${uuid}`, { method: 'DELETE', headers: JSON_ACCEPT });
+/**
+ * Apaga mensagens e depois o token (a ordem do contrato). Token inexistente responde 410: ok. `cabecalhos`
+ * leva o segredo de uma URL protegida (`X-Webhook-Secret`).
+ */
+export async function apagarToken(uuid, cabecalhos = {}) {
+  await fetch(`${SERVIDOR}/token/${uuid}/request`, { method: 'DELETE', headers: { ...JSON_ACCEPT, ...cabecalhos } });
+  await fetch(`${SERVIDOR}/token/${uuid}`, { method: 'DELETE', headers: { ...JSON_ACCEPT, ...cabecalhos } });
+}
+
+/** Cria uma URL protegida por `segredo` (`read_secret`) e a apaga ao fim do teste, com o segredo. */
+export async function criarTokenProtegido(segredo) {
+  await verificarServidor();
+  const res = await fetch(`${SERVIDOR}/token`, {
+    method: 'POST',
+    headers: { ...JSON_ACCEPT, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ read_secret: segredo }),
+  });
+  if (res.status !== 201) throw new Error(`POST /token com read_secret respondeu ${res.status}: ${await res.text()}`);
+  const { uuid } = await res.json();
+  aoFinal(() => apagarToken(uuid, { 'X-Webhook-Secret': segredo }));
+  return uuid;
 }
 
 const registrados = new Set();

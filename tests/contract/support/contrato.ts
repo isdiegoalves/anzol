@@ -34,6 +34,8 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export const CHAVES_TOKEN = [
   'uuid', 'ip', 'user_agent', 'default_content', 'default_status', 'default_content_type',
   'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup', 'signature', 'schema',
+  // Item 12 (privacidade): a URL exige segredo de leitura? O segredo (`read_secret`) nunca volta.
+  'protected',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
@@ -68,6 +70,8 @@ export interface Token {
   } | null;
   /** JSON Schema que valida o corpo de cada requisição capturada, como foi enviado; `null` = sem validação. */
   schema: Record<string, unknown> | null;
+  /** A URL exige segredo de leitura para ver e gerir (`read_secret`, que nunca volta na resposta). */
+  protected: boolean;
 }
 
 export interface Mensagem {
