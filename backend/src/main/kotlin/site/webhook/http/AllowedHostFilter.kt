@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import site.webhook.DEFAULT_ALLOWED_HOSTS
 import site.webhook.WebhookProperties
+import site.webhook.privacy.ACCESS_COOKIE
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -52,9 +53,9 @@ private data class Authority(
  *   aberta por outro nome do loopback — ou se `nome:porta` estiver na lista. Outra porta do mesmo nome é outra origem
  *   (outro app local), e o `SameSite` do cookie não a separa: 403 `{"error":"origin not allowed"}`.
  * - Formulário de navegador: `_method` (que transforma o POST de um `<form>` em PUT ou DELETE) → 403
- *   `{"error":"_method not allowed"}`; corpo de formulário (urlencoded, multipart, `text/plain`) com `Origin` → 403
- *   `{"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` (CLI, scripts), o formulário continua valendo,
- *   como no app antigo.
+ *   `{"error":"_method not allowed"}`; corpo de formulário (urlencoded, multipart, `text/plain`) com `Origin` ou com o
+ *   cookie de acesso ([ACCESS_COOKIE], que só um navegador manda sozinho) → 403 `{"error":"form not allowed"}`. A tela
+ *   só manda JSON. Sem `Origin` e sem o cookie (CLI, scripts), o formulário continua valendo, como no app antigo.
  *
  * Cliente sem `Origin` (CLI, SDKs, agentes) passa pelo `Host`. Com [ANY_HOST] na lista, `Host` e `Origin` das rotas
  * de gestão não são conferidos (o `/mcp` fica com [DEFAULT_ALLOWED_HOSTS]); o formulário continua recusado.
@@ -126,7 +127,10 @@ class AllowedHostFilter(
     }
 }
 
-/** `_method` num POST (o que o [LegacyRequestFilter] aplicaria) ou corpo de formulário com `Origin`: o motivo; senão nulo. */
+/**
+ * `_method` num POST (o que o [LegacyRequestFilter] aplicaria) ou corpo de formulário com `Origin` ou com o cookie de
+ * acesso (um `<form>` que o navegador mandou sem `Origin` ainda leva o cookie): o motivo; senão nulo.
+ */
 private fun HttpServletRequest.formDenial(): String? {
     val input = getAttribute(LegacyInput.ATTRIBUTE) as? LegacyInput
     val mediaType =
@@ -140,7 +144,7 @@ private fun HttpServletRequest.formDenial(): String? {
             "_method not allowed"
         }
 
-        getHeader(HttpHeaders.ORIGIN) != null && mediaType in FORM_CONTENT_TYPES -> {
+        mediaType in FORM_CONTENT_TYPES && (getHeader(HttpHeaders.ORIGIN) != null || hasAccessCookie()) -> {
             "form not allowed"
         }
 
@@ -149,6 +153,8 @@ private fun HttpServletRequest.formDenial(): String? {
         }
     }
 }
+
+private fun HttpServletRequest.hasAccessCookie(): Boolean = cookies.orEmpty().any { it.name == ACCESS_COOKIE }
 
 /**
  * O primeiro segmento não vazio do caminho, como o Spring MVC o compara (decodificado, sem `;x=y`), em minúsculas. Só

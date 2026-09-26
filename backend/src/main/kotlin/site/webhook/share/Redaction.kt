@@ -31,10 +31,11 @@ private val SENSITIVE_NAME_PARTS = listOf("token", "key", "secret", "password", 
 
 /**
  * Cabeçalho cujo nome contém um destes (sem diferenciar maiúsculas) também é mascarado, além da lista fixa: credencial
- * em cabeçalho próprio (`X-Auth-Token`, `X-Api-Keys`, `X-Client-Secret`). Sem `signature`: a assinatura mascarada é a
- * do provedor configurado na URL.
+ * em cabeçalho próprio (`X-Auth-Token`, `X-Api-Keys`, `X-Client-Secret`, `X-Session-Id`, `X-Jwt`, `X-Db-Pwd`). Sem
+ * `signature`: a assinatura mascarada é a do provedor configurado na URL.
  */
-private val SENSITIVE_HEADER_NAME_PARTS = listOf("token", "key", "secret", "password", "auth")
+private val SENSITIVE_HEADER_NAME_PARTS =
+    listOf("token", "key", "secret", "password", "auth", "session", "credential", "jwt", "bearer", "passwd", "pwd")
 
 private val FAILURE_TARGET = Regex("^(header|query) ([^:]*):")
 

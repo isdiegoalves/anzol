@@ -49,6 +49,15 @@ val CORS_HEADERS =
         "Access-Control-Expose-Headers" to "Content-Length,Content-Range",
     )
 
+/**
+ * Toda resposta da captura roda numa origem opaca: a tela e a API servem pelo mesmo endereço, e uma página que a URL
+ * responda (HTML com script) leria o `localStorage` da tela e chamaria a API com o cookie de acesso. Sem
+ * `allow-same-origin`, de propósito. Vai com `addHeader` depois dos cabeçalhos da regra: um CSP da regra se soma a este
+ * (o navegador aplica os dois), nunca o substitui.
+ */
+const val CAPTURE_SANDBOX = "sandbox allow-scripts allow-forms allow-popups allow-modals"
+const val CSP_HEADER = "Content-Security-Policy"
+
 /** `charset_types` padrão do nginx que não começam com `text/` (esses o Symfony já cobre). */
 private val NGINX_CHARSET_TYPES = setOf("application/javascript", "application/rss+xml")
 private val VALID_FINAL_STATUS = 200..599
@@ -205,10 +214,14 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         token.retryAfter?.let { setHeader("Retry-After", it.headerValue()) }
+        addHeader(CSP_HEADER, CAPTURE_SANDBOX)
         writeBody(token.defaultContent)
     }
 
-    /** Status, cabeçalhos e corpo da regra, sem mexer no Content-Type; identificação e CORS da URL continuam (a regra sobrescreve). */
+    /**
+     * Status, cabeçalhos e corpo da regra, sem mexer no Content-Type; identificação e CORS da URL continuam (a regra
+     * sobrescreve). O [CAPTURE_SANDBOX] vem depois e a regra não o tira.
+     */
     private fun HttpServletResponse.writeRuleResponse(
         token: Token,
         captured: CapturedRequest,
@@ -220,6 +233,7 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         answer.headers.forEach(::setHeader)
+        addHeader(CSP_HEADER, CAPTURE_SANDBOX)
         val dribble = answer.dribble
         if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble, stopwatch)
     }

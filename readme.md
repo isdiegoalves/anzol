@@ -522,6 +522,18 @@ Limites (o modelo não tem contas de usuário):
   URLs faz o servidor calcular um PBKDF2 (210.000 iterações) por tentativa. Limites globais anti-abuso, para publicar
   o app, são outro tema.
 
+### Captura isolada (CSP sandbox)
+
+Toda resposta da captura `/{id}/...` — a resposta padrão da URL, a de uma regra e a da falha `malformed_chunk` — sai
+com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, **sem
+`allow-same-origin`**. Motivo: a tela, a API e a captura servem pelo mesmo endereço (`localhost:8084`), e a resposta
+de uma URL é conteúdo de quem a configurou (ou de quem conhece o UUID de uma URL aberta). Sem o sandbox, uma captura
+que responde HTML com `<script>` rodaria na origem da tela: leria o `localStorage` (os UUIDs de quem abre a página) e
+chamaria a API com o cookie de desbloqueio. Com ele, a página roda numa origem opaca: o script roda, formulários e
+pop-ups funcionam, mas nada da origem do app fica ao alcance. O cabeçalho vem depois dos cabeçalhos da regra e é
+acrescentado, não trocado: uma regra que define o próprio `Content-Security-Policy` fica com os dois, e o navegador
+aplica os dois. Clientes que não são navegador (CLI, SDKs, provedores) ignoram o cabeçalho.
+
 ### Segredo de leitura
 
 `read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Nunca é devolvido: o
@@ -593,13 +605,17 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
 - `GET /token/{id}/shares` lista os ativos; `DELETE /token/{id}/shares/{sid}` revoga (`204`; link de outra URL, 404).
   No máximo 50 ativos por URL (422 acima).
 - `GET /share/{sid}` é público: a mensagem como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
-  `expires_at`, **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com o UUID da `url` trocado por
-  `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`). Expirado, revogado, de mensagem apagada, de URL
-  apagada ou inexistente: o mesmo `404`.
-- Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela.
+  `expires_at`, **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com toda ocorrência do UUID no
+  JSON inteiro trocada por `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`) — na `url`, nos cabeçalhos
+  (`referer`), na query, no `request` e no corpo (o ping do GitHub traz a própria URL) —, também escrito com
+  maiúsculas ou com caracteres em `%hh` (`%2D` no lugar do hífen). O UUID é do servidor, não dado do remetente: do
+  corpo, só ele sai. Expirado, revogado, de mensagem apagada, de URL apagada ou inexistente: o mesmo `404`.
+- Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela. O link guarda a `secret_version`
+  da URL na criação e só abre enquanto ela for a atual: um link criado no mesmo instante da troca também morre.
 - `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
-  `set-cookie`, `x-api-key`, `x-webhook-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`
-  ou `auth` (sem diferenciar maiúsculas: `X-Auth-Token`, `X-Api-Keys`) e do cabeçalho de assinatura do provedor
+  `set-cookie`, `x-api-key`, `x-webhook-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`,
+  `auth`, `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (sem diferenciar maiúsculas: `X-Auth-Token`,
+  `X-Api-Keys`, `X-Session-Id`) e do cabeçalho de assinatura do provedor
   configurado na URL, e os
   valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` (sem diferenciar maiúsculas),
   também dentro da `url` gravada. Os `php-auth-user`/`php-auth-pw` (o `Authorization: Basic` decodificado que a
@@ -627,8 +643,9 @@ as rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
 - `_method` num POST (campo de formulário ou query, que transformaria o POST de um `<form>` em PUT ou DELETE) →
   `403 {"error":"_method not allowed"}`, com ou sem `Origin`;
 - corpo de formulário (`application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain`, os que um `<form>`
-  manda sem preflight) com `Origin` → `403 {"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` (CLI,
-  curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415, porque o tipo é aceito: o que se
+  manda sem preflight) com `Origin` ou com o cookie de desbloqueio `wh_access` (que só um navegador manda sozinho,
+  mesmo quando omite o `Origin`) → `403 {"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` e sem o
+  cookie (CLI, curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415, porque o tipo é aceito: o que se
   recusa é o formulário vindo de um navegador.
 
 Cliente sem `Origin` (CLI, curl, agentes) passa pelo `Host`. A captura `/{id}/...` e os arquivos da tela não conferem

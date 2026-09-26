@@ -92,7 +92,10 @@ enum class ShareExpiry(
     }
 }
 
-/** `share:{id}`: qual mensagem de qual URL, com ou sem máscara, até quando. */
+/**
+ * `share:{id}`: qual mensagem de qual URL, com ou sem máscara, até quando, e a `secret_version` da URL na criação: o
+ * link só abre enquanto ela for a atual. Link gravado antes do campo lê 0, a versão de uma URL que nunca teve segredo.
+ */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class Share(
     val id: String,
@@ -103,6 +106,7 @@ data class Share(
     val createdAt: LocalDateTime,
     @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
     val expiresAt: LocalDateTime,
+    val secretVersion: Long = 0,
 )
 
 /**
@@ -115,9 +119,10 @@ class ShareStore(
     private val jsonMapper: JsonMapper,
     private val clock: Clock,
 ) {
-    /** O link novo; nulo quando a URL já tem [MAX_ACTIVE_SHARES] ativos. */
+    /** O link novo, preso à [secretVersion] da URL; nulo quando a URL já tem [MAX_ACTIVE_SHARES] ativos. */
     fun create(
         tokenId: TokenId,
+        secretVersion: Long,
         requestId: RequestId,
         expiry: ShareExpiry,
         redact: Boolean,
@@ -132,6 +137,7 @@ class ShareStore(
                 redact = redact,
                 createdAt = now.toLegacyDateTime(),
                 expiresAt = expires.toLegacyDateTime(),
+                secretVersion = secretVersion,
             )
         val created =
             redis.execute(

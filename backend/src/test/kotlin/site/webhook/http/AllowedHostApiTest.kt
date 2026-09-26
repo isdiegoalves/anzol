@@ -228,6 +228,29 @@ class AllowedHostApiTest(
         assertThat(capture.status).isEqualTo(203)
     }
 
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = ["application/x-www-form-urlencoded", "multipart/form-data; boundary=x", "text/plain; charset=utf-8"])
+    @DisplayName(
+        "Dado um corpo de formulário sem Origin mas com o cookie de acesso (só um navegador o manda sozinho), quando chama a " +
+            "gestão, então 403 form not allowed e nada muda",
+    )
+    fun form_semOriginComCookieDeAcesso_deveResponder403(contentType: String) {
+        val tokenId = api.tokenId()
+        val body = "default_status=203"
+
+        val response =
+            rawHttp(
+                port,
+                "PUT /token/$tokenId HTTP/1.1",
+                listOf("Cookie: outro=1; wh_access=qualquer", "Content-Type: $contentType", "Content-Length: ${body.length}"),
+                body.toByteArray(),
+            )
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo(FORM_DENIED)
+        assertThat(api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))["default_status"].asInt()).isEqualTo(200)
+    }
+
     @Test
     @DisplayName("Dado o /mcp com Origin de fora, quando chama, então 403 origin not allowed (no MCP vale em todo método)")
     fun mcp_originDeFora_deveResponder403() {

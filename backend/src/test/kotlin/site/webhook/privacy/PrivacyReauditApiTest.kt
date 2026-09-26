@@ -30,7 +30,6 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.text.Charsets.UTF_8
 
 private const val SECRET = "segredo-da-reauditoria-R2d"
-private const val OTHER_SECRET = "segredo-trocado-reauditoria-T5x"
 private const val SENSITIVE_VALUE = "valor-sensivel-Q7w"
 private const val SERVER_KEY = "webhook:server-key"
 

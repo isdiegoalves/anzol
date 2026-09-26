@@ -277,6 +277,38 @@ class ShareApiTest(
 
             assertThat(view(id).statusCode()).isEqualTo(200)
         }
+
+        @Test
+        @DisplayName(
+            "Dado um link gravado com a versão anterior do segredo (a criação que termina depois da revogação da troca), quando " +
+                "o público abre, então o 404 de sempre: o link guarda a secret_version e só abre com a atual",
+        )
+        fun linkDeVersaoAnterior_naoDeveAbrir() {
+            val tokenId = api.tokenId("""{"read_secret":"$SECRET"}""")
+            val access = mapOf("X-Webhook-Secret" to SECRET)
+            val id = api.json(share(tokenId, captureId(tokenId), headers = access))["id"].asString()
+            val stored = checkNotNull(redis.opsForValue().get("share:$id"))
+
+            put(tokenId, """{"read_secret":"outro-segredo-7Zp"}""", access)
+            redis.opsForValue().set("share:$id", stored)
+
+            assertThat(api.tree(stored)["secret_version"].asLong()).isEqualTo(1)
+            assertThat(view(id).body()).isEqualTo(NOT_FOUND)
+        }
+
+        @Test
+        @DisplayName(
+            "Dado um link gravado antes da secret_version (formato antigo) numa URL que nunca teve segredo, quando o público " +
+                "abre, então abre: sem o campo, vale a versão 0",
+        )
+        fun linkSemVersao_urlSemTrocaDeSegredo_deveAbrir() {
+            val tokenId = api.tokenId()
+            val id = shareId(tokenId, captureId(tokenId))
+            val legacy = (api.tree(checkNotNull(redis.opsForValue().get("share:$id"))) as ObjectNode).apply { remove("secret_version") }
+            redis.opsForValue().set("share:$id", legacy.toString())
+
+            assertThat(view(id).statusCode()).isEqualTo(200)
+        }
     }
 
     @Nested
@@ -330,6 +362,31 @@ class ShareApiTest(
             assertThat(kept.associateWith { h[it.lowercase()][0].asString() }).allSatisfy { name, value ->
                 assertThat(value).isEqualTo("valor-de-$name")
             }
+        }
+
+        @Test
+        @DisplayName(
+            "Dado redact true, quando abre o link, então os cabeçalhos de nome com session, credential, jwt, bearer, passwd ou " +
+                "pwd (qualquer caixa) também viram [redacted]",
+        )
+        fun ver_comMascara_deveMascararSessaoECredencialPeloNome() {
+            val tokenId = api.tokenId()
+            val masked = listOf("X-Session-Id", "X-Credentials", "X-JWT", "X-Bearer", "X-Db-Passwd", "X-Pwd")
+            val requestId =
+                rawHttp(
+                    port,
+                    "POST /$tokenId HTTP/1.1",
+                    masked.map { "$it: valor-de-$it" } + listOf("Content-Type: text/plain", "Content-Length: 1"),
+                    "x".toByteArray(),
+                ).headers.getValue("x-request-id")
+
+            val public = view(shareId(tokenId, requestId))
+
+            val h = api.json(public)["headers"]
+            assertThat(masked.associateWith { h[it.lowercase()][0].asString() }).allSatisfy { _, value ->
+                assertThat(value).isEqualTo("[redacted]")
+            }
+            assertThat(public.body()).doesNotContain("valor-de-")
         }
 
         @Test
