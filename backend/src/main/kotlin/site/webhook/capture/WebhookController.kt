@@ -13,6 +13,7 @@ import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
 import site.webhook.WebhookProperties
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
+import site.webhook.http.rawPath
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.urlDecode
 import site.webhook.stream.RequestStream
@@ -73,7 +74,7 @@ fun responseContentType(
 
 /** `$request->segment(2)`: segmentos decodificados, sem os vazios nem os `"0"` (`array_filter`). */
 private fun HttpServletRequest.secondSegment(): String? =
-    urlDecode(requestURI)
+    urlDecode(rawPath())
         .split('/')
         .filter { it.isNotEmpty() && it != "0" }
         .getOrNull(1)

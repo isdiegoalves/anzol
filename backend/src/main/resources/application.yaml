@@ -28,10 +28,13 @@ spring:
 
 server:
   port: 8080
+  # nginx do app antigo: `large_client_header_buffers 4 8k`, ou seja, até 32 KB de linha de
+  # requisição e cabeçalhos (a linha de 8 KB é cobrada pelo LegacyRequestFilter).
+  max-http-request-header-size: 32KB
   tomcat:
-    # O nginx do app antigo aceita estes caracteres crus na query e no caminho (ex.: `a[]=1`).
-    relaxed-query-chars: "<,>,[,\\,],^,`,{,|,}"
-    relaxed-path-chars: "<,>,[,\\,],^,`,{,|,}"
+    # O nginx do app antigo aceita estes caracteres crus na query e no caminho (ex.: `a[]=1`, `{"a":1}`).
+    relaxed-query-chars: '",<,>,[,\,],^,`,{,|,}'
+    relaxed-path-chars: '",<,>,[,\,],^,`,{,|,}'
 
 webhook:
   max-requests: ${WEBHOOK_MAX_REQUESTS:500}

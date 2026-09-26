@@ -17,16 +17,29 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import site.webhook.capture.WebhookController
 import java.time.Clock
 
+/** Valor do Tomcat para "sem limite". */
+private const val UNLIMITED = -1
+
 @Configuration
 class WebConfig {
     @Bean
     fun clock(): Clock = Clock.systemUTC()
 
-    /** O nginx do app antigo aceita `%2F` no caminho (`/{token}/a%2Fb`); o Tomcat recusaria com 400. */
+    /**
+     * O conector aceita o que o nginx do app antigo deixava passar e o Tomcat recusaria com 400:
+     * `%2F` e `%5C` no caminho (`/{token}/a%2Fb`), `\` cru, qualquer quantidade de cabeçalhos
+     * (o nginx só limita o tamanho), e o `Host` e os escapes de [LegacyHttpProtocol].
+     */
     @Bean
-    fun encodedSlashPassThrough(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> =
+    fun nginxTolerantConnector(): WebServerFactoryCustomizer<TomcatServletWebServerFactory> =
         WebServerFactoryCustomizer { factory ->
-            factory.addConnectorCustomizers({ it.encodedSolidusHandling = EncodedSolidusHandling.PASS_THROUGH.value })
+            factory.protocol = LegacyHttpProtocol::class.java.name
+            factory.addConnectorCustomizers({ connector ->
+                connector.encodedSolidusHandling = EncodedSolidusHandling.PASS_THROUGH.value
+                connector.encodedReverseSolidusHandling = EncodedSolidusHandling.PASS_THROUGH.value
+                connector.allowBackslash = true
+                (connector.protocolHandler as LegacyHttpProtocol).maxHeaderCount = UNLIMITED
+            })
         }
 
     /** O Laravel ignora a `/` final na escolha da rota (`/token/{id}/` é `/token/{id}`). */

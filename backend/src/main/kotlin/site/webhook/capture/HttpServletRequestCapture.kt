@@ -6,6 +6,7 @@ import site.webhook.TokenId
 import site.webhook.http.LegacyInput
 import site.webhook.http.isPhpMultipartPost
 import site.webhook.http.legacyInput
+import site.webhook.http.rawPath
 import site.webhook.legacy.latin1ToUtf8
 import site.webhook.legacy.normalizeQueryString
 import site.webhook.legacy.toJson
@@ -100,11 +101,11 @@ private fun decodeBase64(encoded: String): String? =
         null
     }
 
-/** `$request->fullUrl()`: host do cabeçalho Host, caminho cru sem `/` no fim, query normalizada. */
+/** `$request->fullUrl()`: host do cabeçalho Host, caminho cru (como chegou) sem `/` no fim, query normalizada. */
 private fun HttpServletRequest.legacyUrl(): String {
     val defaultPort = if (scheme == "https") HTTPS_DEFAULT_PORT else HTTP_DEFAULT_PORT
     val port = if (serverPort == defaultPort) "" else ":$serverPort"
     val query = normalizeQueryString(queryString)
-    val base = "$scheme://${serverName.lowercase()}$port${requestURI.trimEnd('/')}"
+    val base = "$scheme://${serverName.lowercase()}$port${rawPath().trimEnd('/')}"
     return if (query.isEmpty()) base else "$base?$query"
 }
