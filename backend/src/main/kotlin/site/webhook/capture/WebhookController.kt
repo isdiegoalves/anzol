@@ -15,6 +15,7 @@ import site.webhook.WebhookProperties
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.urlDecode
+import site.webhook.stream.RequestStream
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
@@ -83,6 +84,7 @@ class WebhookController(
     private val requests: RequestStore,
     private val properties: WebhookProperties,
     private val clock: Clock,
+    private val stream: RequestStream,
 ) {
     /** `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. */
     @RequestMapping(
@@ -104,6 +106,7 @@ class WebhookController(
         if (token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val captured = request.toCapturedRequest(tokenId, clock.legacyNow())
         requests.store(token, captured)
+        stream.publish(captured) { requests.count(token) }
         response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
     }
 
