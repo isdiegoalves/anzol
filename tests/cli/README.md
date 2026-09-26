@@ -34,8 +34,10 @@ temporária do sistema, apagada ao fim de cada teste.
 
 - `cli.mjs`: o CLI como processo filho, stdout e stderr linha a linha, espera por regex com prazo
   (a falha traz a saída do CLI), SIGINT/SIGKILL ao fim; regex das linhas da especificação.
-- `capturador.mjs`: o app local, servidor HTTP que guarda método, caminho+query, cabeçalhos crus e
-  corpo em bytes; leitor de multipart.
+- `capturador.mjs`: o app local, servidor HTTP que guarda método, caminho+query, cabeçalhos crus,
+  corpo em bytes e hora de chegada (`em`, ms); `responder(requisicao, indice)` opcional devolve
+  `{ status, cabecalhos, atraso }` por requisição (503 duas vezes e depois 200, `Retry-After`,
+  resposta lenta); leitor de multipart.
 - `proxy.mjs`: proxy TCP entre o CLI e o app real; `derrubar()` corta as conexões e fecha a porta,
   `religar()` volta na mesma porta. Ganchos opcionais: `aoEvento(evento)` roda depois de cada evento
   `request.created` entregue ao CLI, com o SSE parado até ele terminar (derrubar ali corta logo depois
@@ -69,6 +71,12 @@ temporária do sistema, apagada ao fim de cada teste.
 | `regras.test.mjs` ida e volta | pull `--file` → a lista do servidor é esvaziada → push do arquivo → pull `--file`: os dois arquivos são idênticos byte a byte e o `GET` volta ao original, com os mesmos `id`s (regras com todos os campos das fases A e B) |
 | `regras.test.mjs` 422 | push com regras inválidas (3 chaves): saída 1, sem `Pushed`, cada par chave/mensagem do 422 que a API dá para o mesmo arquivo numa linha do stderr, regras salvas intactas |
 | `regras.test.mjs` erros | token inexistente → `Token not found` no stderr e saída 1 (pull e push; o push não cria o token); arquivo inexistente e JSON inválido → saída 1, mensagem no stderr, regras intactas |
+| `send.test.mjs` CA-1 | `send --method PUT` com query, 4 `--header` e `--data`: chega método, caminho+query, cabeçalhos e o corpo byte a byte com `{{uuid}}` (igual no cabeçalho e no corpo), `{{now}}` ISO-8601 UTC e `{{timestamp}}` na janela do envio, `{{seq}}` = 1, `{{random 1\|16\|256}}` alfanuméricos, `{{{{` → `{{`; `--data-file` com UTF-8 e CRLF, POST por padrão; linhas `#1 attempt 1/1 -> 201 (…)` e `#1 delivered after 1 attempt(s)`, saída 0 |
+| `send.test.mjs` CA-2 | stripe, github, shopify, slack e generic (padrões sha256/hex; sha512/base64/`hmac=`; sha1/hex): o receptor confere a assinatura com `node:crypto` sobre os bytes recebidos (timestamps a ≤ 5 s da chegada); prova cruzada: URL da 8084 com a mesma `signature` grava `{provider, valid: true, reason: null}` |
+| `send.test.mjs` CA-3 | 503, 503, 200 com `--retries 3 --initial-delay 1100` (exponencial padrão): linhas `1/4 -> 503 …, retrying in 1100 ms`, `2/4 … 2200 ms`, `3/4 -> 200`, `delivered after 3`, saída 0; intervalos medidos no receptor entre −30 e +2500 ms da espera; corpo e `Idempotency-Key: {{uuid}}` idênticos nas 3; Stripe reassinado com `t` crescente e sempre válido. Fixo (400, 400); exponencial com teto (300, 500, 500), 4 × 503 → `gave up after 4`, saída 1 |
+| `send.test.mjs` CA-4 | 429 + `Retry-After: 1` → `retrying in 1000 ms (Retry-After)` e ≥ 1 s medido; `Retry-After: 5` com `--max-delay 400` → 400 ms; `Retry-After` em data HTTP (~3 s) → espera entre 1 e 3 s com `(Retry-After)`; 400 → uma tentativa, `gave up after 1 attempt(s)`, saída 1; porta recusando → `-> error: …, retrying in 3000 ms`, o receptor sobe na porta e a 2ª tentativa entrega (~3 s depois da linha); `--timeout 500` estourado → erro e retenta |
+| `send.test.mjs` CA-5 | `--repeat 3 --interval 300`: `{{seq}}` 1..3 no corpo e no cabeçalho, `{{uuid}}` distintos, intervalos ≥ 300 ms, três `delivered`, saída 0; com o 2º recusado (500, sem retentativa): os três saem, `#2 gave up after 1 attempt(s)`, saída 1 |
+| `send.test.mjs` segredo | toda execução com `--secret` falha se o segredo aparece em qualquer linha do stdout ou do stderr |
 
 ## Leituras da especificação assumidas
 
@@ -95,6 +103,22 @@ temporária do sistema, apagada ao fim de cada teste.
 - `Pushed <n> rule(s)` casada por inteiro, no stdout ou no stderr; `n` = regras gravadas.
 - 422 do push: cada par chave/mensagem numa mesma linha do stderr (ex.: `1.match.path.regex: The regex is
   invalid.`), em qualquer formato; as chaves e mensagens esperadas vêm da própria API.
+- `send`: `--to` é o alvo; não usa `--server` nem `WEBHOOK_SERVER`. Linhas casadas por inteiro, no stdout
+  ou no stderr; `HH:mm:ss` é a hora local e o `(<ms> ms)` da tentativa não é conferido. Outras linhas
+  são livres, mas toda linha com ` attempt ` ou ` attempt(s)` tem de seguir o formato da §1.
+- `send`: `<total>` = `--retries` + 1; a espera impressa é exata: `initial × 2^(n-1)` (sem jitter) ou
+  `initial` no fixo, cortada por `--max-delay`; o `Retry-After` substitui o backoff (mesmo se menor) e
+  também é cortado pelo teto. Com a espera do `Retry-After` cortada pelo teto, o sufixo ` (Retry-After)`
+  é livre. A linha da tentativa sai antes da espera.
+- `send`: `{{uuid}}` é um valor por envio (o mesmo em todas as ocorrências do corpo e dos cabeçalhos); todos
+  os placeholders (inclusive `{{random N}}`, `{{now}}` e `{{timestamp}}`) ficam iguais entre as tentativas;
+  a assinatura Stripe/Slack usa o relógio da tentativa. `{{{{` vira `{{` literal (o texto que segue não é
+  placeholder: `{{{{uuid}}` → `{{uuid}}`). Placeholders valem também no `--data-file`.
+- `send`: timeout e erro de conexão saem como `-> error: <motivo>` (motivo livre). Com `--repeat`, um envio que
+  desiste não interrompe os seguintes; o código de saída é 1 se algum desistiu. `--repeat`/`--interval`
+  espaçam o início dos envios em ≥ `--interval`.
+- `send`: sem o comando (ou sem uma opção dele), cada teste falha com `o CLI em … recusou a linha de comando
+  (erro de uso); falta \`webhook send\` ou alguma opção dele?`.
 - Arquivo inexistente e JSON inválido: a mensagem é livre, mas não pode ser erro de uso do CLI
   (`Usage:`, `unexpected extra argument`, `no such subcommand`…). Esse erro de uso falha qualquer teste
   de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta webhook rules …?`, para os casos

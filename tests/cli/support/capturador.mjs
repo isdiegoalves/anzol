@@ -1,28 +1,33 @@
 /**
  * "App local" do desenvolvedor: servidor HTTP que guarda cada requisição reenviada pelo CLI
- * (método, caminho+query, cabeçalhos crus na ordem e corpo em bytes) e responde `status`
- * depois de `atraso` ms.
+ * (método, caminho+query, cabeçalhos crus na ordem, corpo em bytes e hora de chegada em ms) e
+ * responde `status` depois de `atraso` ms. Com `responder(requisicao, indice)`, a resposta de cada
+ * requisição (índice a partir de 0) é `{ status, cabecalhos, atraso }`, cada campo opcional.
  */
 import http from 'node:http';
 import { saidaDosClis } from './cli.mjs';
 import { aoFinal } from './limpeza.mjs';
 
-export async function iniciarCapturador({ status = 200, atraso = 0, porta = 0 } = {}) {
+export async function iniciarCapturador({ status = 200, atraso = 0, porta = 0, responder } = {}) {
   const recebidas = [];
   const consumidas = new Set();
   const ouvintes = new Set();
   const servidor = http.createServer((req, res) => {
+    const em = Date.now();
     const partes = [];
     req.on('data', (p) => partes.push(p));
     req.on('end', () => {
       const cabecalhos = [];
       for (let i = 0; i < req.rawHeaders.length; i += 2) cabecalhos.push([req.rawHeaders[i].toLowerCase(), req.rawHeaders[i + 1]]);
-      recebidas.push({ metodo: req.method, url: req.url, cabecalhos, corpo: Buffer.concat(partes) });
+      const requisicao = { metodo: req.method, url: req.url, cabecalhos, corpo: Buffer.concat(partes), em };
+      const indice = recebidas.push(requisicao) - 1;
       for (const f of [...ouvintes]) f();
+      const resposta = { status, atraso, cabecalhos: {}, ...responder?.(requisicao, indice) };
       setTimeout(() => {
-        res.writeHead(status, { 'Content-Type': 'text/plain' });
+        if (res.destroyed) return;
+        res.writeHead(resposta.status, { 'Content-Type': 'text/plain', ...resposta.cabecalhos });
         res.end('capturado');
-      }, atraso);
+      }, resposta.atraso);
     });
   });
   await new Promise((resolve, reject) => {
