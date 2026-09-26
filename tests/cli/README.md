@@ -27,7 +27,8 @@ com `servidor webhook.site não responde em …`.
 
 Cada teste cria os próprios tokens e os apaga ao fim, passe ou falhe (`DELETE /token/{id}/request`
 e depois `DELETE /token/{id}`), inclusive a URL que o `listen` sem `--token` cria: todo uuid que esse
-CLI imprimiu atrás de uma barra é apagado.
+CLI imprimiu atrás de uma barra é apagado. Os arquivos de regras de `regras.test.mjs` ficam numa pasta
+temporária do sistema, apagada ao fim de cada teste.
 
 ## Infra (`support/`)
 
@@ -63,6 +64,11 @@ CLI imprimiu atrás de uma barra é apagado.
 | `ordem.test.mjs` CA-11 | rajada de 60 com 30 em paralelo, sem queda: o app recebe as 60 uma vez, na ordem de `seq` (não na do SSE) |
 | `ordem.test.mjs` CA-12 | 120 mensagens na queda; na primeira listagem da recuperação (resposta já montada, ainda não entregue) as 3 mais novas são apagadas: as outras 117 chegam todas, uma vez, na ordem de `seq` |
 | `ordem.test.mjs` CA-13 | 3 mensagens antes do `listen`, no mesmo segundo; na queda a mais nova (o cursor) é apagada e chega `/depois`: o app recebe só `/depois` e a linha diz `forwarding 1` |
+| `regras.test.mjs` pull | `rules pull <token>`: stdout é JSON formatado (com recuo) igual ao `GET /token/{id}/rules`, saída 0; com `--file`, o arquivo tem esse JSON e nenhum `id` da lista sai no stdout |
+| `regras.test.mjs` push | `rules push <token> <arquivo>` com 3 regras sobre um token que tinha outra: `Pushed 3 rule(s)`, saída 0; o `GET` devolve só as 3, com `id` uuid, iguais (sem os `id`s) ao que a API grava num PUT direto do mesmo arquivo |
+| `regras.test.mjs` ida e volta | pull `--file` → a lista do servidor é esvaziada → push do arquivo → pull `--file`: os dois arquivos são idênticos byte a byte e o `GET` volta ao original, com os mesmos `id`s (regras com todos os campos das fases A e B) |
+| `regras.test.mjs` 422 | push com regras inválidas (3 chaves): saída 1, sem `Pushed`, cada par chave/mensagem do 422 que a API dá para o mesmo arquivo numa linha do stderr, regras salvas intactas |
+| `regras.test.mjs` erros | token inexistente → `Token not found` no stderr e saída 1 (pull e push; o push não cria o token); arquivo inexistente e JSON inválido → saída 1, mensagem no stderr, regras intactas |
 
 ## Leituras da especificação assumidas
 
@@ -80,3 +86,16 @@ CLI imprimiu atrás de uma barra é apagado.
   se chegarem, é uma vez e no lugar delas na ordem de `seq`. A recuperação precisa passar por
   `GET /token/{id}/requests` (é onde o proxy apaga).
 - CA-13: o cursor apagado não conta como perdido: `Reconnected; forwarding 1 missed request(s)`.
+- `rules pull|push`: `--server` depois dos argumentos (`webhook rules pull <token> --server …`, a ordem
+  do Anexo C). O CLI herda `WEBHOOK_SERVER` apontando para uma porta fechada (`127.0.0.1:9`): só o
+  `--server` leva ao app.
+- `rules pull` "formatado" = JSON com uma linha por campo e recuo; o conteúdo é comparado como JSON
+  com o `GET` (a ordem das chaves não conta), mas a ida e volta compara os dois arquivos byte a byte.
+- `rules pull --file`: o que sai no stdout é livre, desde que não traga a lista.
+- `Pushed <n> rule(s)` casada por inteiro, no stdout ou no stderr; `n` = regras gravadas.
+- 422 do push: cada par chave/mensagem numa mesma linha do stderr (ex.: `1.match.path.regex: The regex is
+  invalid.`), em qualquer formato; as chaves e mensagens esperadas vêm da própria API.
+- Arquivo inexistente e JSON inválido: a mensagem é livre, mas não pode ser erro de uso do CLI
+  (`Usage:`, `unexpected extra argument`, `no such subcommand`…). Esse erro de uso falha qualquer teste
+  de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta webhook rules …?`, para os casos
+  de erro não passarem contra um CLI sem os comandos.
