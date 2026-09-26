@@ -127,14 +127,6 @@ class Violations {
         key: String,
     ): JsonNode? = node.takeIf { it.isObject } ?: fail(key, "The ${attribute(key)} must be an object.")
 
-    /** Campo das fatias seguintes: aceito só nulo ou ausente. */
-    fun notSupported(
-        node: JsonNode?,
-        key: String,
-    ) {
-        if (node.given() != null) fail(key, "The ${attribute(key)} is not supported yet.")
-    }
-
     /** O único operador presente entre [operators], ou `null` com o erro de "exatamente um". */
     fun operator(
         node: JsonNode,

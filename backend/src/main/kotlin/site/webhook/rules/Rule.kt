@@ -1,5 +1,6 @@
 package site.webhook.rules
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonValue
 import com.jayway.jsonpath.JsonPath
 import tools.jackson.databind.JsonNode
@@ -16,7 +17,6 @@ value class RuleId(
  * Regra de resposta de uma URL, no formato do Anexo A do plano (fase A): condições em [match], todas
  * em E; a primeira regra ativa que casa, pela menor [priority] e depois pela ordem na lista, define a
  * resposta. Com [scenario], a regra só casa no estado exigido do cenário e o muda ao responder.
- * `delay`, `dribble` e `fault` existem só para o formato: por enquanto são sempre nulos.
  */
 data class Rule(
     val id: RuleId,
@@ -37,7 +37,9 @@ const val STARTED = "Started"
  */
 data class RuleScenario(
     val name: String,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val requiredState: String? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val newState: String? = null,
 )
 
@@ -50,14 +52,15 @@ data class RuleMatch(
     val body: List<BodyMatcher> = emptyList(),
 )
 
+/** Com [fault], a conexão falha no lugar da resposta e os demais campos são ignorados. */
 data class RuleResponse(
     val status: Int = DEFAULT_RESPONSE_STATUS,
     val headers: Map<String, String> = emptyMap(),
     val body: String = "",
     val template: Boolean = false,
-    val delay: JsonNode? = null,
-    val dribble: JsonNode? = null,
-    val fault: JsonNode? = null,
+    val delay: Delay? = null,
+    val dribble: Dribble? = null,
+    val fault: Fault? = null,
 )
 
 const val DEFAULT_RESPONSE_STATUS = 200

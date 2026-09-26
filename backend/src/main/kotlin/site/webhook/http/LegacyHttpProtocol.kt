@@ -28,8 +28,9 @@ private val SYMFONY_TRAILING_PORT = Regex(":\\d+$")
  * HTTP/1.1 do Tomcat com duas tolerâncias do nginx + Symfony do app antigo, que o Tomcat
  * recusaria com 400 antes de o webhook gravar: `Host` fora da RFC que o Symfony aceita
  * (`my_host.com`, `example.com:abc`) e caminho com escape que o nginx deixa passar (`%` no fim,
- * `%FF`). Entra pelo nome da classe (`TomcatServletWebServerFactory.protocol`), o ponto de
- * extensão do próprio Tomcat.
+ * `%FF`). Também expõe a conexão do cliente a cada requisição ([ClientConnection]), para as falhas
+ * de rede das regras. Entra pelo nome da classe (`TomcatServletWebServerFactory.protocol`), o ponto
+ * de extensão do próprio Tomcat.
  */
 class LegacyHttpProtocol : Http11NioProtocol() {
     override fun createProcessor(): Processor = SymfonyHostProcessor(this, adapter)
@@ -51,6 +52,11 @@ private class SymfonyHostProcessor(
     protocol: AbstractHttp11Protocol<*>,
     adapter: Adapter,
 ) : Http11Processor(protocol, adapter) {
+    private val withConnection = ClientConnectionAdapter(adapter) { checkNotNull(socketWrapper) }
+
+    /** O `service` do processador chama o adapter por aqui, a cada requisição da conexão. */
+    override fun getAdapter(): Adapter = withConnection
+
     override fun parseHost(valueMB: MessageBytes?) {
         val host =
             valueMB

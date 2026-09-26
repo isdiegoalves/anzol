@@ -107,13 +107,12 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
 | `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
-| `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`) |
+| `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`), `delay`, `dribble` e `fault` (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)) |
 
 Todas as condições valem em E, e uma regra sem condições casa tudo. `regex` é a sintaxe do Java e
 precisa casar o valor inteiro (`.` atravessa linhas). JSONPath segue a
 [Jayway](https://github.com/json-path/JsonPath): `equals` aceita qualquer valor JSON, e texto casa
-também número ou booleano de mesmo texto. `delay`, `dribble` e `fault` fazem parte do formato, mas por
-enquanto só aceitam nulo; outro valor dá 422 `"... is not supported yet."`.
+também número ou booleano de mesmo texto.
 
 #### Template
 
@@ -175,6 +174,23 @@ requisição, sem o estado do cenário.
 com `{"state": "..."}` define um estado (422 em `state` se vazio ou não texto) e devolve o cenário;
 `DELETE /token/{id}/scenarios` volta todos a `Started` e devolve a lista. O estado fica em
 `token:{uuid}:scenarios` (hash nome → estado), com o TTL da URL e apagado junto com ela.
+
+#### Atrasos e falhas de rede
+
+Para testar o timeout, a retentativa e o tratamento de erro de quem envia o webhook:
+
+| Campo de `response` | Efeito |
+|---|---|
+| `delay` | espera antes de responder: `{"fixed": ms}`, `{"uniform": {"min": ms, "max": ms}}` (inteiros, sorteio no intervalo fechado) ou `{"lognormal": {"median": ms, "sigma": s}}` (mediana 1–60000, sigma 0–10, cortado em 60 s). Teto 60000 ms |
+| `dribble` | `{"chunks": 1..100, "durationMs": 0..60000}`: status e cabeçalhos na hora e o corpo dividido em `chunks` pedaços, um a cada `durationMs / chunks` ms, com flush (`Transfer-Encoding: chunked`) |
+| `fault` | a conexão falha no lugar da resposta: `connection_reset` (RST TCP), `empty_response` (fecha sem mandar nenhum byte), `malformed_chunk` (`HTTP/1.1 200 OK` chunked com um tamanho de chunk inválido, e fecha), `random_data_then_close` (1 KiB aleatório, e fecha) |
+
+A mensagem é gravada (e o evento sai) antes do atraso e da falha: ela aparece na tela enquanto o
+cliente ainda espera. Com `fault`, `status`, `headers`, `body`, `delay` e `dribble` são ignorados. O
+atraso ocupa só uma thread virtual. As falhas são feitas no conector do Tomcat (`LegacyHttpProtocol`),
+abaixo do HTTP: o Tomcat não escreve nada depois delas e a conexão não é reaproveitada. O RST chega
+ao cliente em até cerca de 1 s (o NIO do Java fecha o socket com `SO_LINGER 0` na volta seguinte do
+seletor do Tomcat).
 
 Validação: 422 em JSON com a chave em pontos a partir do índice da lista
 (`{"0.match.path.regex": ["The regex is invalid."]}`, `{"rules": ["The rules may not have more than 100 items."]}`);

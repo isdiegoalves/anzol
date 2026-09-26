@@ -207,6 +207,25 @@ class ResponseTemplateTest {
     }
 
     @Nested
+    @DisplayName("Parâmetros dos helpers")
+    inner class HelperParams {
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado helper sem os parâmetros que exige num ramo não validado, quando renderiza, então só o trecho sai vazio")
+        @ValueSource(
+            strings = ["{{#if}}x{{/if}}", "{{#each}}x{{/each}}", "{{jsonPath request.body}}", "{{math 1 '+'}}", "{{lookup request}}"],
+        )
+        fun render_semParametros_deveSairVazio(template: String) {
+            assertThat(render("[$template]{{request.method}}")).isEqualTo("[]POST")
+        }
+
+        @Test
+        @DisplayName("Dado helper sem parâmetro, quando valida, então o motivo diz qual helper e quantos parâmetros")
+        fun templateError_semParametro_deveDizerOHelper() {
+            assertThat(templateError("{{#each}}x{{/each}}")).isEqualTo("each requires 1 parameter(s) (line 1, column 3)")
+        }
+    }
+
+    @Nested
     @DisplayName("Validação ao salvar")
     inner class Validation {
         @ParameterizedTest(name = "{0}")
@@ -230,6 +249,9 @@ class ResponseTemplateTest {
                 "{{> cabecalho}}", "{{#> layout}}x{{/layout}}", "{{embedded 'x'}}", "{{i18n 'hello'}}", "{{i18nJs 'pt'}}",
                 "{{precompile 'x'}}", "{{log 'x'}}", "{{#block 'x'}}y{{/block}}", "{{#partial 'x'}}y{{/partial}}",
                 "{{helperMissing 'x'}}", "{{#*inline \"x\"}}y{{/inline}}", "{{*inline}}",
+                "{{#each}}x{{/each}}", "{{#if}}x{{/if}}", "{{#unless}}x{{/unless}}", "{{#with}}x{{/with}}", "{{lookup request}}",
+                "{{jsonPath request.body}}", "{{math 1 '+'}}", "{{#if request.query.nada}}{{#each}}x{{/each}}{{/if}}",
+                "{{#if seq}}a{{else}}{{math 1}}{{/if}}", "{{#unless seq}}{{jsonPath}}{{/unless}}",
             ],
         )
         fun templateError_invalido_deveTrazerOMotivo(template: String) {

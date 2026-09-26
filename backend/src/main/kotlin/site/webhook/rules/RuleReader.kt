@@ -5,6 +5,7 @@ import com.jayway.jsonpath.JsonPath
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import java.math.BigDecimal
 import java.util.UUID
 
 private const val MAX_NAME_LENGTH = 100
@@ -17,7 +18,11 @@ private val HEADER_NAME = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 private val PATH_OPERATORS = listOf("equals", "prefix", "regex")
 private val FIELD_OPERATORS = listOf("equals", "contains", "regex", "present")
 private val BODY_OPERATORS = listOf("equals", "contains", "regex", "jsonPath", "equalToJson")
-private val FUTURE_RESPONSE_FIELDS = listOf("delay", "dribble", "fault")
+private val DELAY_OPERATORS = listOf("fixed", "uniform", "lognormal")
+private val DELAY_RANGE = 0..MAX_DELAY_MS
+private val MEDIAN_RANGE = BigDecimal.ONE..BigDecimal(MAX_DELAY_MS)
+private val SIGMA_RANGE = BigDecimal.ZERO..BigDecimal.TEN
+private val CHUNKS_RANGE = 1..100
 
 private val jsonReader = JsonMapper.builder().build()
 
@@ -27,6 +32,7 @@ class RuleReader(
 ) {
     private val matchReader = MatchReader(violations)
     private val scenarioReader = ScenarioReader(violations)
+    private val timingReader = TimingReader(violations)
 
     fun rule(
         node: JsonNode?,
@@ -103,14 +109,24 @@ class RuleReader(
         val body = node["body"].given()?.let { violations.text(it, key(key, "body")) }.orEmpty()
         val template = violations.boolean(node["template"], key(key, "template"), default = false)
         if (template == true) validateTemplates(body, headers.orEmpty(), key)
-        FUTURE_RESPONSE_FIELDS.forEach { violations.notSupported(node[it], key(key, it)) }
+        val delay = timingReader.delay(node["delay"], key(key, "delay"))
+        val dribble = timingReader.dribble(node["dribble"], key(key, "dribble"))
+        val fault = timingReader.fault(node["fault"], key(key, "fault"))
         return if (violations.hasErrorsUnder(
                 key,
             )
         ) {
             null
         } else {
-            RuleResponse(status = checkNotNull(status), headers = checkNotNull(headers), body = body, template = checkNotNull(template))
+            RuleResponse(
+                status = checkNotNull(status),
+                headers = checkNotNull(headers),
+                body = body,
+                template = checkNotNull(template),
+                delay = delay,
+                dribble = dribble,
+                fault = fault,
+            )
         }
     }
 
@@ -368,4 +384,99 @@ private fun Violations.name(
             given.stringValue()
         }
     }
+}
+
+/** `delay`, `dribble` e `fault` da resposta (Anexo B); ausente ou nulo = sem. */
+class TimingReader(
+    private val violations: Violations,
+) {
+    fun delay(
+        node: JsonNode?,
+        key: String,
+    ): Delay? {
+        val given = node.given()?.let { violations.objectOrNull(it, key) }
+        val operator = given?.let { violations.operator(it, key, DELAY_OPERATORS, "delay") }
+        val operand = key(key, operator.orEmpty())
+        return when (operator) {
+            null -> null
+            "fixed" -> integerIn(given[operator], operand, DELAY_RANGE)?.let(Delay::Fixed)
+            "uniform" -> violations.objectOrNull(given[operator], operand)?.let { uniform(it, operand) }
+            else -> violations.objectOrNull(given[operator], operand)?.let { logNormal(it, operand) }
+        }
+    }
+
+    fun dribble(
+        node: JsonNode?,
+        key: String,
+    ): Dribble? {
+        val given = node.given()?.let { violations.objectOrNull(it, key) } ?: return null
+        val chunks = integerIn(given["chunks"], key(key, "chunks"), CHUNKS_RANGE)
+        val duration = integerIn(given["durationMs"], key(key, "durationMs"), DELAY_RANGE)
+        return if (chunks == null || duration == null) null else Dribble(chunks, duration)
+    }
+
+    fun fault(
+        node: JsonNode?,
+        key: String,
+    ): Fault? {
+        val given = node.given() ?: return null
+        return given.takeIf { it.isString }?.let { Fault.of(it.stringValue()) } ?: violations.fail(key, "The selected fault is invalid.")
+    }
+
+    private fun uniform(
+        node: JsonNode,
+        key: String,
+    ): Delay? {
+        val min = integerIn(node["min"], key(key, "min"), DELAY_RANGE)
+        val max = integerIn(node["max"], key(key, "max"), DELAY_RANGE)
+        return when {
+            min == null || max == null -> null
+            max < min -> violations.fail(key(key, "max"), "The max must be greater than or equal to the min.")
+            else -> Delay.Uniform(min, max)
+        }
+    }
+
+    private fun logNormal(
+        node: JsonNode,
+        key: String,
+    ): Delay? {
+        val median = numberIn(node["median"], key(key, "median"), MEDIAN_RANGE)
+        val sigma = numberIn(node["sigma"], key(key, "sigma"), SIGMA_RANGE)
+        return if (median == null || sigma == null) null else Delay.LogNormal(median, sigma)
+    }
+
+    private fun integerIn(
+        node: JsonNode?,
+        key: String,
+        range: IntRange,
+    ): Int? {
+        val value = required(node, key)?.let { violations.integer(it, key) }
+        return when {
+            value == null || value in range -> value
+            else -> violations.fail(key, "The ${attributeOf(key)} must be between ${range.first} and ${range.last}.")
+        }
+    }
+
+    private fun numberIn(
+        node: JsonNode?,
+        key: String,
+        range: ClosedRange<BigDecimal>,
+    ): BigDecimal? {
+        val given = required(node, key)
+        val value = given?.takeIf { it.isNumber }?.decimalValue()
+        val between = "between ${range.start.toPlainString()} and ${range.endInclusive.toPlainString()}"
+        return when {
+            given == null -> null
+            value == null -> violations.fail(key, "The ${attributeOf(key)} must be a number.")
+            value in range -> value
+            else -> violations.fail(key, "The ${attributeOf(key)} must be $between.")
+        }
+    }
+
+    private fun required(
+        node: JsonNode?,
+        key: String,
+    ): JsonNode? = node.given() ?: violations.fail(key, "The ${attributeOf(key)} field is required.")
+
+    private fun attributeOf(key: String): String = key.substringAfterLast('.')
 }

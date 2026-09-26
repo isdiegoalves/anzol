@@ -44,6 +44,7 @@ data class TemplateInput(
 )
 
 private const val NOW_DATA = "site.webhook.now"
+private const val VALIDATING_DATA = "site.webhook.validating"
 private const val DEFAULT_RANDOM_LENGTH = 16
 private val RANDOM_LENGTH = 1..10_000
 private val RANDOM_ALPHABETS =
@@ -63,16 +64,50 @@ private val ISO_SECONDS: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
  */
 private val HELPERS: Map<String, Helper<*>> =
     mapOf(
-        IfHelper.NAME to IfHelper.INSTANCE,
-        UnlessHelper.NAME to UnlessHelper.INSTANCE,
-        EachHelper.NAME to EachHelper.INSTANCE,
-        WithHelper.NAME to WithHelper.INSTANCE,
-        LookupHelper.NAME to LookupHelper.INSTANCE,
-        "jsonPath" to Helper<Any?> { body, options -> jsonPathValue(body, options.param<Any?>(0)) },
-        "now" to Helper<Any?> { _, options -> formatNow(options.data(NOW_DATA), options.hash<Any?>("format")) },
-        "randomValue" to Helper<Any?> { _, options -> randomValue(options.hash<Any?>("type"), options.hash<Any?>("length")) },
-        "math" to Helper<Any?> { left, options -> math(left, options.param<Any?>(0), options.param<Any?>(1)) },
+        IfHelper.NAME to block(IfHelper.NAME, IfHelper.INSTANCE),
+        UnlessHelper.NAME to block(UnlessHelper.NAME, UnlessHelper.INSTANCE),
+        EachHelper.NAME to block(EachHelper.NAME, EachHelper.INSTANCE),
+        WithHelper.NAME to block(WithHelper.NAME, WithHelper.INSTANCE),
+        LookupHelper.NAME to withParams(LookupHelper.NAME, 2) { context, options -> LookupHelper.INSTANCE.apply(context, options) },
+        "jsonPath" to withParams("jsonPath", 2) { body, options -> jsonPathValue(body, options.param<Any?>(0)) },
+        "now" to withParams("now", 0) { _, options -> formatNow(options.data(NOW_DATA), options.hash<Any?>("format")) },
+        "randomValue" to
+            withParams("randomValue", 0) { _, options -> randomValue(options.hash<Any?>("type"), options.hash<Any?>("length")) },
+        "math" to withParams("math", 3) { left, options -> math(left, options.param<Any?>(0), options.param<Any?>(1)) },
     )
+
+/**
+ * Helper que exige [count] parâmetros: faltando, a validação ao salvar recusa (422) e a execução deixa
+ * o trecho vazio (o Handlebars.java aceitaria `{{#if}}` ou `{{#each}}` sem parâmetro, sobre o contexto).
+ */
+private fun withParams(
+    name: String,
+    count: Int,
+    helper: Helper<Any?>,
+): Helper<Any?> =
+    Helper { context, options ->
+        val given = options.data<Int?>(Context.PARAM_SIZE) ?: 0
+        when {
+            given >= count -> helper.apply(context, options)
+            options.data<Boolean?>(VALIDATING_DATA) == true -> throw IllegalArgumentException("$name requires $count parameter(s)")
+            else -> ""
+        }
+    }
+
+/** Bloco embutido com um parâmetro; na validação renderiza os dois ramos, para achar erro em qualquer um. */
+private fun <T> block(
+    name: String,
+    helper: Helper<T>,
+): Helper<Any?> =
+    withParams(name, 1) { context, options ->
+        if (options.data<Boolean?>(VALIDATING_DATA) == true) {
+            options.fn()
+            options.inverse()
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            helper.apply(context as T, options)
+        }
+    }
 
 /**
  * Handlebars sem escape HTML (as respostas são JSON ou texto), sem carregador de templates e sem
@@ -93,17 +128,25 @@ private object ResponseHandlebars : Handlebars() {
     override fun decorator(name: String): Decorator = throw IllegalArgumentException("decorators are not supported")
 }
 
-/** `null` quando o texto é um template válido; senão o motivo, com linha e coluna. */
+/**
+ * `null` quando o texto é um template válido; senão o motivo, com linha e coluna. Além de compilar,
+ * renderiza uma vez em modo de validação (os dois ramos de cada bloco), que recusa helper sem os
+ * parâmetros que exige.
+ */
 fun templateError(text: String): String? =
     try {
-        ResponseHandlebars.compileInline(text)
+        ResponseHandlebars.compileInline(text).apply(context(VALIDATION_INPUT).data(VALIDATING_DATA, true))
         null
     } catch (e: HandlebarsException) {
         val error = e.error
-        if (error == null) e.message else "${error.reason} (line ${error.line}, column ${error.column})"
+        val reason = (e.cause as? IllegalArgumentException)?.message ?: error?.reason
+        if (error == null) e.message else "$reason (line ${error.line}, column ${error.column})"
     } catch (e: IllegalArgumentException) {
         e.message
     }
+
+private val VALIDATION_INPUT =
+    TemplateInput(TemplateRequest("GET", "/", "/", emptyMap(), emptyMap(), ""), seq = 0, now = Instant.EPOCH)
 
 /**
  * O texto renderizado com o contexto do Anexo B. Só mapas, listas e textos chegam ao template, e só o
@@ -113,7 +156,14 @@ fun templateError(text: String): String? =
 fun renderTemplate(
     text: String,
     input: TemplateInput,
-): String {
+): String =
+    try {
+        ResponseHandlebars.compileInline(text).apply(context(input))
+    } catch (_: HandlebarsException) {
+        ""
+    }
+
+private fun context(input: TemplateInput): Context {
     val request = input.request
     val model =
         mapOf(
@@ -128,17 +178,11 @@ fun renderTemplate(
                 ),
             "seq" to input.seq,
         )
-    val context =
-        Context
-            .newBuilder(model)
-            .resolver(MapValueResolver.INSTANCE)
-            .build()
-            .data(NOW_DATA, input.now)
-    return try {
-        ResponseHandlebars.compileInline(text).apply(context)
-    } catch (_: HandlebarsException) {
-        ""
-    }
+    return Context
+        .newBuilder(model)
+        .resolver(MapValueResolver.INSTANCE)
+        .build()
+        .data(NOW_DATA, input.now)
 }
 
 /** Valor do caminho no corpo JSON: escalar como texto, objeto ou lista como JSON; ausente ou nulo, vazio. */

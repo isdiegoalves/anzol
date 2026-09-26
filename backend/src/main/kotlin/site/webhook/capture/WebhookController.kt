@@ -10,16 +10,19 @@ import site.webhook.STATUS_IN_PATH
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
+import site.webhook.http.clientConnection
 import site.webhook.http.rawPath
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.urlDecode
 import site.webhook.rules.Decision
+import site.webhook.rules.Dribble
 import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
 import site.webhook.rules.RuleResponse
 import site.webhook.rules.RuleStore
 import site.webhook.rules.ScenarioStore
 import site.webhook.rules.TemplateInput
+import site.webhook.rules.dribblePieces
 import site.webhook.rules.rendered
 import site.webhook.rules.toMatchInput
 import site.webhook.rules.toTemplateRequest
@@ -133,14 +136,31 @@ class WebhookController(
         stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
         when (decision) {
             is Decision.Matched -> {
-                val input = TemplateInput(captured.toTemplateRequest(), stored.seq, clock.instant())
-                response.writeRuleResponse(token, captured, decision.rule.response.rendered(input))
+                answerByRule(request, response, token, captured.copy(seq = stored.seq), decision.rule.response)
             }
 
             is Decision.Unmatched -> {
                 response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
             }
         }
+    }
+
+    /**
+     * Com `fault`, a conexão falha e nada mais vale. Senão espera o `delay` (a mensagem já está gravada;
+     * a thread da requisição é virtual) e responde, com o corpo de uma vez ou pingando (`dribble`).
+     */
+    private fun answerByRule(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        token: Token,
+        captured: CapturedRequest,
+        answer: RuleResponse,
+    ) {
+        val fault = answer.fault
+        if (fault != null) return request.clientConnection().fail(fault, captured)
+        answer.delay?.let { Thread.sleep(it.millis()) }
+        val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant())
+        response.writeRuleResponse(token, captured, answer.rendered(input))
     }
 
     private fun HttpServletResponse.writeConfiguredResponse(
@@ -168,7 +188,26 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         answer.headers.forEach(::setHeader)
-        writeBody(answer.body)
+        val dribble = answer.dribble
+        if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble)
+    }
+
+    /**
+     * Cabeçalhos na hora e o corpo em `chunks` pedaços, cada um depois de `durationMs / chunks` e com
+     * flush: sem Content-Length, o Tomcat manda chunked (HTTP/1.1).
+     */
+    private fun HttpServletResponse.writeDribbled(
+        body: String,
+        dribble: Dribble,
+    ) {
+        flushBuffer()
+        if (status == HttpServletResponse.SC_NO_CONTENT || status == HttpServletResponse.SC_NOT_MODIFIED) return
+        val interval = dribble.durationMs.toLong() / dribble.chunks
+        dribblePieces(body.toByteArray(UTF_8), dribble.chunks).forEach { piece ->
+            Thread.sleep(interval)
+            outputStream.write(piece)
+            outputStream.flush()
+        }
     }
 
     private fun HttpServletResponse.writeBody(body: String) {

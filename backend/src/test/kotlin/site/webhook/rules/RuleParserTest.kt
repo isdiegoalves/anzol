@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import tools.jackson.databind.json.JsonMapper
+import java.math.BigDecimal
 
 @DisplayName("Leitura e validação das regras (422 do Anexo A)")
 class RuleParserTest {
@@ -145,9 +146,27 @@ class RuleParserTest {
             {"name":"a","response":{"template":true,"body":"{{foo 'x'}}"}} | 0.response.body | The template is invalid: could not find helper: 'foo' (line 1, column 2).
             {"name":"a","response":{"template":true,"headers":{"X-A":"{{> p}}"}}} | 0.response.headers.X-A | The template is invalid: partials are not supported.
             {"name":"a","response":{"template":"não"}}           | 0.response.template        | The template field must be true or false.
-            {"name":"a","response":{"delay":{"fixed":10}}}       | 0.response.delay           | The delay is not supported yet.
-            {"name":"a","response":{"dribble":{"chunks":2,"durationMs":10}}} | 0.response.dribble | The dribble is not supported yet.
-            {"name":"a","response":{"fault":"connection_reset"}} | 0.response.fault           | The fault is not supported yet.""",
+            {"name":"a","response":{"delay":"10"}}               | 0.response.delay           | The delay must be an object.
+            {"name":"a","response":{"delay":{}}}                 | 0.response.delay           | The delay must have exactly one of: fixed, uniform, lognormal.
+            {"name":"a","response":{"delay":{"fixed":1,"uniform":{"min":1,"max":2}}}} | 0.response.delay | The delay must have exactly one of: fixed, uniform, lognormal.
+            {"name":"a","response":{"delay":{"fixed":60001}}}    | 0.response.delay.fixed     | The fixed must be between 0 and 60000.
+            {"name":"a","response":{"delay":{"fixed":-1}}}       | 0.response.delay.fixed     | The fixed must be between 0 and 60000.
+            {"name":"a","response":{"delay":{"fixed":1.5}}}      | 0.response.delay.fixed     | The fixed must be an integer.
+            {"name":"a","response":{"delay":{"uniform":[1,2]}}}  | 0.response.delay.uniform   | The uniform must be an object.
+            {"name":"a","response":{"delay":{"uniform":{"min":10}}}} | 0.response.delay.uniform.max | The max field is required.
+            {"name":"a","response":{"delay":{"uniform":{"min":10,"max":5}}}} | 0.response.delay.uniform.max | The max must be greater than or equal to the min.
+            {"name":"a","response":{"delay":{"uniform":{"min":0,"max":60001}}}} | 0.response.delay.uniform.max | The max must be between 0 and 60000.
+            {"name":"a","response":{"delay":{"lognormal":{"median":0,"sigma":0.5}}}} | 0.response.delay.lognormal.median | The median must be between 1 and 60000.
+            {"name":"a","response":{"delay":{"lognormal":{"median":"x","sigma":0.5}}}} | 0.response.delay.lognormal.median | The median must be a number.
+            {"name":"a","response":{"delay":{"lognormal":{"median":100,"sigma":-1}}}} | 0.response.delay.lognormal.sigma | The sigma must be between 0 and 10.
+            {"name":"a","response":{"delay":{"lognormal":{"median":100}}}} | 0.response.delay.lognormal.sigma | The sigma field is required.
+            {"name":"a","response":{"dribble":"sim"}}            | 0.response.dribble         | The dribble must be an object.
+            {"name":"a","response":{"dribble":{"chunks":0,"durationMs":10}}} | 0.response.dribble.chunks | The chunks must be between 1 and 100.
+            {"name":"a","response":{"dribble":{"chunks":101,"durationMs":10}}} | 0.response.dribble.chunks | The chunks must be between 1 and 100.
+            {"name":"a","response":{"dribble":{"chunks":2,"durationMs":60001}}} | 0.response.dribble.durationMs | The durationMs must be between 0 and 60000.
+            {"name":"a","response":{"dribble":{"chunks":2}}}     | 0.response.dribble.durationMs | The durationMs field is required.
+            {"name":"a","response":{"fault":"timeout"}}          | 0.response.fault           | The selected fault is invalid.
+            {"name":"a","response":{"fault":1}}                  | 0.response.fault           | The selected fault is invalid.""",
         )
         fun parseRules_campoInvalido_deveResponderChaveEMensagem(
             rule: String,
@@ -173,6 +192,39 @@ class RuleParserTest {
             val rule = """{"name":"a","scenario":null,"response":{"template":false,"delay":null,"dribble":null,"fault":null}}"""
 
             assertThat(valid("[$rule]")).hasSize(1)
+        }
+    }
+
+    @Nested
+    @DisplayName("Atraso, dribble e falha")
+    inner class Timing {
+        @Test
+        @DisplayName("Dado os três tipos de atraso, dribble e cada falha, quando lê, então guarda os valores")
+        fun parseRules_atrasoDribbleFalha_deveGuardarOsValores() {
+            val rules =
+                valid(
+                    """[{"name":"a","response":{"delay":{"fixed":0},"dribble":{"chunks":100,"durationMs":60000}}},""" +
+                        """{"name":"b","response":{"delay":{"uniform":{"min":5,"max":5}}}},""" +
+                        """{"name":"c","response":{"delay":{"lognormal":{"median":60000,"sigma":0.25}},"fault":"connection_reset"}},""" +
+                        """{"name":"d","response":{"fault":"empty_response"}},{"name":"e","response":{"fault":"malformed_chunk"}},""" +
+                        """{"name":"f","response":{"fault":"random_data_then_close"}}]""",
+                )
+
+            assertThat(rules.map { it.response.delay }).containsExactly(
+                Delay.Fixed(0),
+                Delay.Uniform(5, 5),
+                Delay.LogNormal(BigDecimal("60000"), BigDecimal("0.25")),
+                null,
+                null,
+                null,
+            )
+            assertThat(rules[0].response.dribble).isEqualTo(Dribble(chunks = 100, durationMs = 60000))
+            assertThat(rules.mapNotNull { it.response.fault }).containsExactly(
+                Fault.CONNECTION_RESET,
+                Fault.EMPTY_RESPONSE,
+                Fault.MALFORMED_CHUNK,
+                Fault.RANDOM_DATA_THEN_CLOSE,
+            )
         }
     }
 

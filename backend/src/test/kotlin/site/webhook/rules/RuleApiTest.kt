@@ -76,13 +76,26 @@ class RuleApiTest(
                 """{"name":"completa","enabled":false,"priority":1,"match":{"method":["put"],"path":{"regex":"/a/\\d+"},""" +
                     """"query":{"q":{"contains":"x"}},"headers":{"X-A":{"present":false}},""" +
                     """"body":[{"equals":"a"},{"regex":"b.*"},{"jsonPath":{"path":"$.a"}},{"equalToJson":{"b":[1,2]}}]}}"""
-            putRules(tokenId, "[$PAGAMENTO,$completa]")
+            val faseB =
+                """{"name":"fase b","scenario":{"name":"s","requiredState":"a"},"response":{"template":true,""" +
+                    """"body":"{{seq}}","delay":{"lognormal":{"median":100,"sigma":0.5}},"dribble":{"chunks":2,"durationMs":10},""" +
+                    """"fault":"empty_response"}}"""
+            val uniforme = """{"name":"uniforme","response":{"delay":{"uniform":{"min":1,"max":2}}}}"""
+            putRules(tokenId, "[$PAGAMENTO,$completa,$faseB,$uniforme]")
             val exported = getRules(tokenId)
 
             val imported = putRules(api.tokenId(), exported.toString())
 
             assertThat(api.json(imported)).isEqualTo(exported)
-            assertThat(exported.toList().map { it["name"].asString() }).containsExactly("pagamento", "completa")
+            assertThat(exported.toList().map { it["name"].asString() }).containsExactly("pagamento", "completa", "fase b", "uniforme")
+            assertThat(exported[2]["scenario"]).isEqualTo(api.tree("""{"name":"s","requiredState":"a"}"""))
+            assertThat(exported[2]["response"]).isEqualTo(
+                api.tree(
+                    """{"status":200,"headers":{},"body":"{{seq}}","template":true,"delay":{"lognormal":{"median":100,"sigma":0.5}},""" +
+                        """"dribble":{"chunks":2,"durationMs":10},"fault":"empty_response"}""",
+                ),
+            )
+            assertThat(exported[3]["response"]["delay"]).isEqualTo(api.tree("""{"uniform":{"min":1,"max":2}}"""))
         }
 
         @Test
