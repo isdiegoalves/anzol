@@ -89,7 +89,7 @@ class ListenRobustnessTest {
     }
 
     @Test
-    @DisplayName("Dado um multipart gravado, quando reenvia, então remonta os campos de texto com o boundary gravado e avisa dos arquivos")
+    @DisplayName("Dado um multipart gravado, quando reenvia, então remonta os campos de texto com um boundary novo e avisa dos arquivos")
     fun listen_multipart_deveReenviarCamposDeTextoEAvisar() {
         val token = site.createToken()
         val cli = listen(token)
@@ -110,11 +110,13 @@ class ListenRobustnessTest {
         site.publish(message(token, target = "/upload", headers = mapOf("content-type" to listOf(contentType))).with("request", fields))
 
         val received = awaitReceived(1).single()
-        assertThat(received.headers["content-type"]).containsExactly(contentType)
+        val receivedType = received.headers["content-type"].orEmpty().single()
+        assertThat(receivedType).startsWith("multipart/form-data; boundary=").isNotEqualTo(contentType)
+        val boundary = receivedType.substringAfter("boundary=")
         assertThat(received.body).isEqualTo(
             listOf("nome" to "Ana", "tags[0]" to "a", "tags[1]" to "b", "end[rua]" to "X").joinToString("") { (name, value) ->
-                "------b0undary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n"
-            } + "------b0undary--\r\n",
+                "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n"
+            } + "--$boundary--\r\n",
         )
         cli.awaitLine(
             Regex(forwardedLine("POST", "/upload", 200).pattern + Regex.escape(" [files were not forwarded: not stored by the server]")),

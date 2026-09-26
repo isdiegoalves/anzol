@@ -60,12 +60,11 @@ class Forwarder(
     ): Forwarding {
         val route = message.route(token)
         val prefix = "${LocalTime.now().format(CLOCK_FORMAT)} ${message.method} $route -> "
-        val boundary = message.multipartBoundary()
-        val suffix = if (boundary == null) "" else FILES_NOT_FORWARDED
-        val body = if (boundary == null) message.content else message.multipartBody(boundary)
+        val multipart = message.rebuiltMultipart()
+        val suffix = if (multipart == null) "" else FILES_NOT_FORWARDED
         val started = System.nanoTime()
         return try {
-            val status = http.send(request(message, route, body), BodyHandlers.discarding()).statusCode()
+            val status = http.send(request(message, route, multipart), BodyHandlers.discarding()).statusCode()
             Forwarding(prefix + "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)" + suffix, delivered = true)
         } catch (e: IOException) {
             Forwarding(prefix + "error: ${e.reason()}" + suffix, delivered = false)
@@ -77,9 +76,9 @@ class Forwarder(
     private fun request(
         message: CapturedRequest,
         route: Route,
-        text: String,
+        multipart: RebuiltMultipart?,
     ): HttpRequest {
-        val body = text.toByteArray(UTF_8)
+        val body = (multipart?.body ?: message.content).toByteArray(UTF_8)
         val builder =
             HttpRequest
                 .newBuilder(URI.create(target.trimEnd('/') + route.path + route.query?.let { "?$it" }.orEmpty()))
@@ -87,7 +86,9 @@ class Forwarder(
                 .method(message.method, if (body.isEmpty()) BodyPublishers.noBody() else BodyPublishers.ofByteArray(body))
         message.headers
             .filterKeys { it.lowercase() !in DROPPED_HEADERS && !it.lowercase().startsWith(PROXY_PREFIX) }
+            .filterKeys { multipart == null || !it.equals("content-type", ignoreCase = true) }
             .forEach { (name, values) -> values.forEach { builder.header(name, it) } }
+        multipart?.let { builder.header("content-type", it.contentType) }
         return builder.build()
     }
 }
