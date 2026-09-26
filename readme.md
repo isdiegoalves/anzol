@@ -528,7 +528,8 @@ saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected"
 
 No Redis fica só o PBKDF2-HMAC-SHA256 (sal aleatório de 16 bytes, 210.000 iterações) e `secret_version`, que muda a
 cada troca; comparação em tempo constante. Acertos ficam 5 minutos em memória (o CLI não paga o PBKDF2 em toda
-chamada). **10 segredos errados por minuto por URL** (unlock, cabeçalho e MCP somados) → `429` com `Retry-After`
+chamada). **10 segredos errados por minuto por URL** (unlock e cabeçalho somados; o `read_secret` do MCP conta à parte, para
+um agente errando não travar a tela e o CLI) → `429` com `Retry-After`
 até o minuto acabar, **também para o segredo certo** (senão o 429 do errado e o 200 do certo diriam qual é o certo);
 o cookie não passa por esse limite. O segredo não aparece em log, resposta, métrica nem erro. Token gravado antes do
 segredo abre como não protegido.

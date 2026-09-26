@@ -199,15 +199,21 @@ class McpServerApiTest(
     }
 
     @Test
-    @DisplayName("Dado 10 read_secret errados, quando vem o 11º, então erro de ferramenta 429")
+    @DisplayName(
+        "Dado 10 read_secret errados, quando vem o 11º, então erro de ferramenta 429 que cita protected; o cabeçalho certo " +
+            "na API continua abrindo (o MCP conta à parte)",
+    )
     fun readSecret_limiteDeFalhas() {
         val tokenId = call("create_url", mapOf("read_secret" to READ_SECRET)).json()["uuid"].asString()
 
         repeat(10) { call("get_url", mapOf("token_id" to tokenId, "read_secret" to "errado-$it-errado")) }
         val limited = call("get_url", mapOf("token_id" to tokenId, "read_secret" to READ_SECRET))
+        val header = api.send("GET", "/token/$tokenId", headers = JSON_CLIENT + ("X-Webhook-Secret" to READ_SECRET))
 
         assertThat(limited.isError).isTrue()
         assertThat(limited.json()["status"].asInt()).isEqualTo(429)
+        assertThat(limited.json()["error"].asString()).contains("protected")
+        assertThat(header.statusCode()).isEqualTo(200)
     }
 
     /** `initialize` do MCP escrito à mão, com o `Host` e o `Origin` que o `HttpClient` do JDK não deixa escolher. */

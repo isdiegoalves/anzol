@@ -61,6 +61,9 @@ object RedisKeys {
     /** Tentativas erradas do segredo de leitura (unlock e header) na janela de um minuto (limite por URL). */
     fun secretFailures(id: TokenId): String = "token:$id:secret:failures"
 
+    /** O mesmo das [secretFailures], para o `read_secret` das ferramentas do MCP, que conta à parte. */
+    fun mcpSecretFailures(id: TokenId): String = "token:$id:secret:failures:mcp"
+
     /** Links só-leitura ativos da URL: ZSET id do link → expiração em milissegundos. */
     fun shares(id: TokenId): String = "token:$id:shares"
 

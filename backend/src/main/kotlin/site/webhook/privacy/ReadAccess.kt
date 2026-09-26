@@ -24,7 +24,7 @@ const val ACCESS_COOKIE = "wh_access"
 /** Cabeçalho com o segredo de leitura (CLI, scripts). */
 const val SECRET_HEADER = "X-Webhook-Secret"
 
-/** Tentativas erradas do segredo por URL a cada [FAILURE_WINDOW], somando unlock, cabeçalho e MCP. */
+/** Tentativas erradas do segredo por URL e por [SecretChannel] a cada [FAILURE_WINDOW]. */
 const val MAX_SECRET_FAILURES = 10
 val FAILURE_WINDOW: Duration = Duration.ofMinutes(1)
 
@@ -38,6 +38,17 @@ private val REFUND =
         "if redis.call('EXISTS', KEYS[1]) == 1 then return redis.call('DECR', KEYS[1]) end return 0",
         Long::class.java,
     )
+
+/**
+ * Por onde o segredo chegou; cada canal tem o seu contador de falhas. [HTTP] soma o unlock e o cabeçalho (a §1); o
+ * [MCP] conta à parte, para que um agente errando o `read_secret` não trave o dono na tela e no CLI.
+ */
+enum class SecretChannel(
+    val failuresKey: (TokenId) -> String,
+) {
+    HTTP(RedisKeys::secretFailures),
+    MCP(RedisKeys::mcpSecretFailures),
+}
 
 /** O resultado de uma tentativa de acesso a uma URL. */
 sealed interface Access {
@@ -59,7 +70,7 @@ sealed interface Access {
  * `HMAC(chave do servidor, id:versão:segredo)` (nem o segredo nem um hash rápido dele ficam guardados), para que o CLI
  * não pague o PBKDF2 em toda chamada; trocar o segredo muda a versão e esvazia o efeito do cache.
  *
- * Limite: [MAX_SECRET_FAILURES] tentativas erradas por minuto por URL; a partir daí, 429 até a janela acabar, **para
+ * Limite: [MAX_SECRET_FAILURES] tentativas erradas por minuto por URL e canal; a partir daí, 429 até a janela acabar, **para
  * qualquer segredo, certo ou errado, inclusive os do cache** (senão o 429 do errado e o 200 do certo seriam um
  * oráculo sem limite). Cada tentativa reserva uma vaga na janela antes do PBKDF2 (tentativas simultâneas não passam
  * do limite) e a devolve se acertar. O cookie não passa pelo limite: é um HMAC de 256 bits.
@@ -81,26 +92,29 @@ class ReadAccess(
         token: Token,
         secret: String?,
         cookies: List<String>,
+        channel: SecretChannel = SecretChannel.HTTP,
     ): Access =
         when {
             !token.isProtected() -> Access.Granted
             cookies.any { sameBytes(it, cookieValue(token)) } -> Access.Granted
             secret == null -> Access.Denied
-            else -> verify(token, secret)
+            else -> verify(token, secret, channel)
         }
 
     /** Confere [secret] contra o segredo da URL, com o limite de falhas. URL sem proteção: sempre. */
     fun verify(
         token: Token,
         secret: String,
+        channel: SecretChannel = SecretChannel.HTTP,
     ): Access {
         val hash = token.readSecretHash ?: return Access.Granted
-        val locked = lockedFor(token.uuid)
+        val failuresKey = channel.failuresKey(token.uuid)
+        val locked = lockedFor(failuresKey)
         val cacheKey = Base64.getEncoder().encodeToString(serverKey.hmac("${token.uuid}:${token.secretVersion}:$secret"))
         return when {
             locked != null -> Access.Limited(locked)
             verified.getIfPresent(cacheKey) == true -> Access.Granted
-            else -> attempt(token.uuid, hash, secret, cacheKey)
+            else -> attempt(failuresKey, hash, secret, cacheKey)
         }
     }
 
@@ -110,19 +124,19 @@ class ReadAccess(
 
     /** Reserva a vaga na janela, roda o PBKDF2 e, se acertou, devolve a vaga e guarda o acerto. */
     private fun attempt(
-        id: TokenId,
+        failuresKey: String,
         hash: ReadSecretHash,
         secret: String,
         cacheKey: String,
     ): Access {
-        val limited = redis.countInWindow(RedisKeys.secretFailures(id), FAILURE_WINDOW, MAX_SECRET_FAILURES)
+        val limited = redis.countInWindow(failuresKey, FAILURE_WINDOW, MAX_SECRET_FAILURES)
         return when {
             limited != null -> {
                 Access.Limited(limited.retryAfterSeconds)
             }
 
             hash.matches(secret) -> {
-                redis.execute(REFUND, listOf(RedisKeys.secretFailures(id)))
+                redis.execute(REFUND, listOf(failuresKey))
                 verified.put(cacheKey, true)
                 Access.Granted
             }
@@ -134,8 +148,7 @@ class ReadAccess(
     }
 
     /** Segundos até a janela acabar quando ela já tem [MAX_SECRET_FAILURES] falhas; nulo quando ainda cabe tentar. */
-    private fun lockedFor(id: TokenId): Long? {
-        val key = RedisKeys.secretFailures(id)
+    private fun lockedFor(key: String): Long? {
         val failures = redis.opsForValue().get(key)?.toLongOrNull() ?: 0
         return if (failures < MAX_SECRET_FAILURES) null else redis.getExpire(key).coerceIn(1, FAILURE_WINDOW.seconds)
     }
@@ -148,7 +161,7 @@ private fun sameBytes(
 
 /**
  * As URLs para quem mostra o segredo fora do HTTP (ferramentas do MCP, argumento `read_secret`): 410 sem a URL, 401
- * protegida sem o segredo certo, 429 no limite de falhas (o mesmo contador do unlock e do cabeçalho).
+ * protegida sem o segredo certo, 429 no limite de falhas do canal [SecretChannel.MCP].
  */
 @Component
 class ProtectedUrls(
@@ -160,7 +173,7 @@ class ProtectedUrls(
         secret: String?,
     ): Token {
         val token = tokens.findOrGone(id)
-        return when (val result = access.authorize(token, secret, cookies = emptyList())) {
+        return when (val result = access.authorize(token, secret, cookies = emptyList(), channel = SecretChannel.MCP)) {
             Access.Granted -> {
                 token
             }

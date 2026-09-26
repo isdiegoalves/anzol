@@ -56,6 +56,7 @@ class TokenStore(
                 RedisKeys.outboundRate(token.uuid),
                 RedisKeys.aiRate(token.uuid),
                 RedisKeys.secretFailures(token.uuid),
+                RedisKeys.mcpSecretFailures(token.uuid),
                 RedisKeys.shares(token.uuid),
             ) + shares,
         ) > 0
