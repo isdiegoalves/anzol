@@ -1,0 +1,30 @@
+// Tema único da aplicação (docs/padroes-angular.md, §5): só `mat.theme` e mixins de overrides.
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      // Fonte do sistema, como o Bootstrap do app atual; sem depender de fonte externa.
+      typography: (
+          plain-family: #{'"Helvetica Neue", Helvetica, Arial, sans-serif'},
+          brand-family: #{'"Helvetica Neue", Helvetica, Arial, sans-serif'},
+        ),
+      // -1: mais compacto que o padrão, sem esconder o rótulo dos campos (some a partir de -2).
+      density: -1,
+    )
+  );
+}
+
+body {
+  color-scheme: light;
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+}

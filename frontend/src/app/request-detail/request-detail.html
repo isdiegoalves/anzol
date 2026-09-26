@@ -1,0 +1,123 @@
+@let current = request();
+@if (!preferences.hideDetails()) {
+  <div class="grid">
+    <table class="table" aria-label="Request Details">
+      <thead>
+        <tr>
+          <th colspan="2">
+            <div class="heading">
+              Request Details
+              <span class="actions">
+                <a [href]="permalink()">Permalink</a>
+                <a target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+              </span>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="name">URL</td>
+          <td class="req-url">
+            <app-method-label [method]="current.method" />&nbsp;<a [href]="current.url">{{
+              current.url
+            }}</a>
+          </td>
+        </tr>
+        <tr>
+          <td class="name">Host</td>
+          <td class="req-ip">
+            {{ current.ip }}
+            <a
+              class="small"
+              target="_blank"
+              rel="noopener"
+              [href]="'https://who.is/whois-ip/ip-address/' + current.ip"
+              >whois</a
+            >
+          </td>
+        </tr>
+        <tr>
+          <td class="name">Date</td>
+          <td class="req-date" [title]="current.created_at + ' UTC'">
+            {{ localDate(current.created_at) }} ({{ fromNow(current.created_at) }})
+          </td>
+        </tr>
+        <tr>
+          <td class="name">ID</td>
+          <td class="req-id">{{ current.uuid }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="table headers" aria-label="Headers">
+      <thead>
+        <tr>
+          <th colspan="2">Headers</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (header of entries(current.headers); track header[0]) {
+          <tr>
+            <td class="name">{{ header[0] }}</td>
+            <td>
+              @for (value of current.headers[header[0]]; track $index; let last = $last) {
+                <code>{{ value === '' ? '(empty)' : value }}{{ last ? '' : ', ' }}</code>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <table class="table query" aria-label="Query strings">
+      <thead>
+        <tr>
+          <th colspan="2">Query strings</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (field of entries(current.query); track field[0]) {
+          <tr>
+            <td class="name">{{ field[0] }}</td>
+            <td>
+              <code>{{ field[1] === '' ? '(empty)' : field[1] }}</code>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="small">(empty)</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <table class="table form" aria-label="Form values">
+      <thead>
+        <tr>
+          <th colspan="2">Form values</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (field of entries(current.request); track field[0]) {
+          <tr>
+            <td class="name">{{ field[0] }}</td>
+            <td>
+              <code>{{ field[1] === '' ? '(empty)' : field[1] }}</code>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="small">(empty)</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (current.content) {
+  <pre class="content"><code class="hljs" [innerHTML]="body()"></code></pre>
+} @else {
+  <p class="no-content">(no body content)</p>
+}

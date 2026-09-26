@@ -1,0 +1,38 @@
+<h2 class="header">Requests ({{ store.total() }})</h2>
+@if (!store.hasRequests()) {
+  <p class="waiting">
+    <mat-progress-spinner mode="indeterminate" diameter="16" />
+    Waiting for first request...
+  </p>
+} @else {
+  @if (store.hasPreviousPage()) {
+    <button mat-button type="button" class="page" (click)="store.loadPreviousPage()">
+      Previous Page
+    </button>
+  }
+  <cdk-virtual-scroll-viewport itemSize="60" class="viewport">
+    <div
+      *cdkVirtualFor="let request of store.requests(); trackBy: trackByUuid"
+      class="item"
+      [class.active]="store.selected()?.uuid === request.uuid"
+      [class.unread]="isUnread(request)"
+    >
+      <button type="button" class="select" (click)="openRequest.emit(request)">
+        <app-method-label [method]="request.method" />
+        #{{ request.uuid.substring(0, 5) }} {{ request.ip }}<br />
+        <small>{{ localDate(request.created_at) }}</small>
+      </button>
+      <button
+        type="button"
+        class="delete"
+        [attr.aria-label]="'Delete request ' + request.uuid"
+        (click)="deleteRequest(request)"
+      >
+        X
+      </button>
+    </div>
+  </cdk-virtual-scroll-viewport>
+  @if (store.hasNextPage()) {
+    <button mat-button type="button" class="page" (click)="store.loadNextPage()">Next page</button>
+  }
+}

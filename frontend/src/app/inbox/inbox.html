@@ -1,0 +1,20 @@
+<aside class="sidebar">
+  <app-request-list (openRequest)="openRequest($event)" />
+</aside>
+<main class="main">
+  @if (requests.hasRequests()) {
+    <div class="toolbar">
+      <app-request-nav (openRequest)="openRequest($event)" />
+      <app-options-bar />
+    </div>
+    @let request = requests.selected();
+    @let token = tokens.token();
+    @if (request && token) {
+      <app-request-detail
+        [request]="request"
+        [token]="token"
+        [page]="requests.pageOf(request.uuid)"
+      />
+    }
+  }
+</main>

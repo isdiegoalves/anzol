@@ -1,0 +1,13 @@
+<div class="options">
+  <mat-slide-toggle
+    title="Automatically applies easy to read JSON and XML formatting on valid requests"
+    [checked]="preferences.formatJsonEnable()"
+    (change)="preferences.formatJsonEnable.set($event.checked)"
+    >Format JSON/XML</mat-slide-toggle
+  >
+  <mat-slide-toggle
+    [checked]="preferences.hideDetails()"
+    (change)="preferences.hideDetails.set($event.checked)"
+    >Hide Details</mat-slide-toggle
+  >
+</div>
