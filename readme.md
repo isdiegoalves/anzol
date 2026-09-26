@@ -33,6 +33,8 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 |---|---|---|
 | `WEBHOOK_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
 | `WEBHOOK_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
+| `WEBHOOK_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga; **deixe `false` ao publicar** |
+| `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app do dono) |
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
 webhook responde `507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado
@@ -47,7 +49,8 @@ O `docker-compose.yml` manda métricas, traces e logs por OTLP HTTP para um Graf
 `OTEL_*` do serviço `app`: sem elas (o padrão do app, os testes e o `./ci.sh`) nada é exportado, e com o Alloy
 fora do ar o app segue normal. Métricas de negócio: `webhook_requests_captured_total` (por `method`,
 `status_class`, `rule`, `signature`, `schema` e `fault`, nunca com token), `webhook_capture_duration_seconds`,
-`webhook_storage_full_total`, `webhook_cleanup_removed_total`, `webhook_sse_subscribers` e `webhook_wait_active`.
+`webhook_storage_full_total`, `webhook_cleanup_removed_total`, `webhook_sse_subscribers`, `webhook_wait_active` e
+`webhook_outbound_total` (replay e send, por `kind` e `outcome`: `2xx`…`5xx`, `blocked`, `error`; nunca com URL ou token).
 Cada captura vira um trace com o token em `span.webhook.token`, e os logs levam o `trace_id`. O dashboard e a
 importação no Grafana estão em [`observability/`](observability/README.md).
 
@@ -69,6 +72,9 @@ importação no Grafana estão em [`observability/`](observability/README.md).
 | `POST /token/{id}/requests/wait` | Espera, com prazo, até chegarem mensagens que casam um `match` das regras (ver [Esperar por mensagens](#esperar-por-mensagens)) |
 | `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
 | `PUT /token/{id}/scenarios/{name}` | Define à mão o estado de um cenário (`{"state": "..."}`) |
+| `POST /token/{id}/request/{requestId}/replay` | O servidor reenvia a mensagem gravada para uma URL e devolve a resposta (ver [Reenvio e envio pelo servidor](#reenvio-e-envio-pelo-servidor)) |
+| `POST /token/{id}/send` | O servidor envia uma requisição montada (método, headers, corpo), opcionalmente assinada com a `signature` da URL |
+| `GET /token/{id}/outbound` | Histórico dos últimos 50 replays e sends da URL, o mais novo primeiro |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -413,6 +419,71 @@ filtro, é a mesma página da listagem. O servidor varre todas as mensagens da U
 Mensagem fantasma do app antigo (valor vazio na hash) não casa nada e não conta no `total`. Corpo vazio vale
 `{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`, `text`, `sorting`, `page` e `per_page`
 na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexistente dá 410.
+
+### Reenvio e envio pelo servidor
+
+> **Aviso de SSRF.** Aqui o servidor abre conexão para uma URL escolhida por quem usa a API. Com
+> `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` (o `docker-compose.yml` local) ele alcança a sua máquina e a rede privada em
+> que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço público.
+
+`POST /token/{id}/request/{requestId}/replay` reenvia uma mensagem gravada; `POST /token/{id}/send` envia uma
+requisição montada:
+
+```json
+{ "url": "http://localhost:3000/hooks", "keep_path": true, "timeout": 10000 }
+
+{ "url": "http://localhost:3000/hooks", "method": "POST", "headers": { "Content-Type": "application/json" },
+  "body": "{\"evento\":\"pago\"}", "sign": true, "timeout": 10000 }
+```
+
+| Campo | Regra |
+|---|---|
+| `url` | obrigatória, URL absoluta de até 2048 caracteres (senão 422). Esquema que não é `http`/`https` sai como `error.kind=blocked` |
+| `timeout` | ms, inteiro de 1000 a 30000 (padrão 10000): prazo total do disparo (conexão, TLS e resposta) |
+| `keep_path` (replay) | padrão `true`: acrescenta à `url` o caminho depois do token e a query da mensagem (`/base` + `/pedidos/42?x=1`) |
+| `method` (send) | `GET`, `POST` (padrão), `PUT`, `PATCH`, `DELETE`, `HEAD` ou `OPTIONS` |
+| `headers` (send) | objeto nome → texto; nome no formato de header, valor sem CR/LF |
+| `body` (send) | texto de até 1 MiB em bytes UTF-8 (o pedido inteiro do send aceita até 2 MiB, por causa do JSON em volta) |
+| `sign` (send) | `true` assina o corpo com a `signature` da URL, com as fórmulas da [verificação](#verificação-de-assinatura) (Stripe e Slack com o timestamp de agora); sem `signature` na URL, 422 em `sign` |
+
+O replay sai com o método, o corpo e os headers gravados, menos `host`, `content-length`, `connection`,
+`transfer-encoding`, `keep-alive`, `upgrade`, `te`, `trailer`, `proxy-*`, `x-forwarded-*`, `x-real-ip` e `cf-*` (o
+send tira só os de conexão: `host`, `content-length`, `connection`, `transfer-encoding`, `keep-alive`, `upgrade`,
+`te`, `trailer`, `proxy-*`). A resposta é o resultado, que também entra no histórico:
+
+```json
+{ "id": "…", "kind": "replay", "at": "2026-09-26 18:00:00", "target": "http://host.docker.internal:3000/hooks/pedidos/42?x=1",
+  "method": "POST", "request_headers": { "content-type": "application/json" }, "status": 200,
+  "headers": { "content-type": ["text/plain"] }, "body": "ok", "truncated": false, "duration_ms": 12,
+  "source_request": "…" }
+```
+
+`body` guarda até 64 KiB da resposta (`truncated: true` além disso), decodificado como UTF-8. Redirecionamento
+não é seguido: o 3xx volta como resposta, com o `Location`. Falha de saída não é erro da API: 200 com
+`{"error": {"kind", "message"}}` e sem `status`, com `kind` `blocked` (destino proibido), `dns`, `connect`,
+`timeout`, `tls` ou `invalid_url` (host, porta ou IP que não servem). Token inexistente dá 410, mensagem
+inexistente 404, entrada inválida 422 (nada disso sai nem entra no histórico). Mais de 30 disparos (replay e send
+somados) por minuto na mesma URL dão 429 com `Retry-After`. O segredo da `signature` nunca vai para a resposta, o
+histórico ou o log; o header assinado vai em `request_headers`.
+
+`GET /token/{id}/outbound` devolve a lista (sem envelope) com os 50 resultados mais novos. O histórico
+(`token:{id}:outbound`) tem a expiração da URL e sai junto com ela no `DELETE /token/{id}`.
+
+**Destinos.** O servidor resolve o nome uma vez, confere **todos** os IPs e conecta no IP conferido, com o nome
+original no `Host` e no SNI/validação do TLS: um DNS que muda de resposta entre a conferência e a conexão (DNS
+rebinding) não troca o destino. IPv4 escrito de forma estranha (`2130706433`, `0x7f000001`, `0177.0.0.1`, `127.1`)
+vale o IP que os navegadores leem; IPv4 embutido em IPv6 (`::ffff:a.b.c.d`, `::a.b.c.d`, NAT64 `64:ff9b::/96` e
+6to4 `2002::/16`) vale pelo IPv4; IPv6 com zona (`%25en0`) é sempre recusado.
+
+| Faixa | `allow-private=false` (padrão) | `allow-private=true` |
+|---|---|---|
+| `0.0.0.0/8`, `::`, link-local `169.254.0.0/16` (metadados de nuvem) e `fe80::/10`, multicast, `240.0.0.0/4` (inclui o broadcast) | bloqueado | bloqueado |
+| loopback `127.0.0.0/8` e `::1`, privados `10/8`, `172.16/12`, `192.168/16`, CGNAT `100.64/10`, ULA `fc00::/7`, site-local `fec0::/10` | bloqueado | liberado |
+| IPs para os quais o `localhost-alias` resolve naquele disparo (o OrbStack põe `host.docker.internal` em `0.250.250.254`) | regra da faixa | liberado (menos `0.0.0.0` e `::`) |
+| demais (públicos) | liberado | liberado |
+
+Com `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS`, alvo cujos IPs são todos loopback (`localhost`, `127.0.0.1`, `[::1]`) vai
+para o alias, que aparece em `target`: dentro do container, o `localhost` é o do container, não o do Mac.
 
 O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB) está descrito em
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem

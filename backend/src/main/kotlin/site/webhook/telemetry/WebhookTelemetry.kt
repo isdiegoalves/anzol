@@ -125,6 +125,22 @@ class WebhookTelemetry(
         }
     }
 
+    /**
+     * Um replay ou send: [kind] é `replay` ou `send` e [outcome] a classe do status (`2xx`…`5xx`), `blocked` ou
+     * `error`. Nada da URL de destino nem do token.
+     */
+    fun outbound(
+        kind: String,
+        outcome: String,
+    ) {
+        Counter
+            .builder("webhook.outbound")
+            .description("Replays e sends que o servidor disparou, pelo resultado")
+            .tags(Tags.of("kind", kind, "outcome", outcome))
+            .register(registry)
+            .increment()
+    }
+
     fun storageFull() = storageFull.increment()
 
     fun cleanupRemoved(count: Int) {

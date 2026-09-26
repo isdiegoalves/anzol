@@ -79,3 +79,8 @@ webhook:
   stream:
     # Comentário periódico no SSE: mantém a conexão viva e descobre quem fechou a aba.
     heartbeat: 15s
+  # Replay e send pelo servidor. Padrão seguro para publicar: só destinos públicos. O docker-compose.yml (uso local)
+  # libera loopback e redes privadas e troca o `localhost` do alvo pelo host do Docker.
+  outbound:
+    allow-private: ${WEBHOOK_OUTBOUND_ALLOW_PRIVATE:false}
+    localhost-alias: ${WEBHOOK_OUTBOUND_LOCALHOST_ALIAS:}

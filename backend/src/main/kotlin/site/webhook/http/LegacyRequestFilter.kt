@@ -9,10 +9,18 @@ import org.springframework.core.annotation.Order
 import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import site.webhook.UUID_PATTERN
 import tools.jackson.databind.json.JsonMapper
 
 /** `client_max_body_size` padrão do nginx do app antigo (1 MiB). */
 const val MAX_BODY_BYTES = 1024 * 1024
+
+/**
+ * `POST /token/{id}/send`: o `body` a enviar tem até 1 MiB e vai dentro de um JSON, com aspas e escapes; o pedido
+ * inteiro pode ter o dobro. Só esta rota: capturas e demais rotas seguem com 1 MiB.
+ */
+private const val MAX_SEND_REQUEST_BYTES = 2 * MAX_BODY_BYTES
+private val SEND_ROUTE = Regex("/token/$UUID_PATTERN/send")
 
 /** `large_client_header_buffers 4 8k` do nginx: a linha `Nome: valor` cabe em 8190 bytes (+ CRLF). */
 private const val MAX_HEADER_LINE = 8190
@@ -47,11 +55,12 @@ class LegacyRequestFilter(
             response.rejectLikeNginx(HttpServletResponse.SC_BAD_REQUEST, HEADER_TOO_LARGE_PAGE)
             return
         }
+        val limit = request.bodyLimit()
         val body =
-            if (request.contentLengthLong > MAX_BODY_BYTES) {
+            if (request.contentLengthLong > limit) {
                 null
             } else {
-                request.inputStream.readNBytes(MAX_BODY_BYTES + 1).takeIf { it.size <= MAX_BODY_BYTES }
+                request.inputStream.readNBytes(limit + 1).takeIf { it.size <= limit }
             }
         if (body == null) {
             response.rejectTooLarge()
@@ -77,6 +86,9 @@ private fun HttpServletResponse.rejectLikeNginx(
     setHeader(HttpHeaders.CONNECTION, "close")
     outputStream.write(page.toByteArray())
 }
+
+private fun HttpServletRequest.bodyLimit(): Int =
+    if (method == "POST" && SEND_ROUTE.matches(requestURI)) MAX_SEND_REQUEST_BYTES else MAX_BODY_BYTES
 
 private fun HttpServletRequest.hasHeaderLineAbove(limit: Int): Boolean =
     headerNames.asSequence().any { name -> getHeaders(name).asSequence().any { value -> name.length + 2 + value.length > limit } }

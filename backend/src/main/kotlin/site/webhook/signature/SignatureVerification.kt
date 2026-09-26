@@ -17,12 +17,12 @@ private val ABSENT_REASON = Regex("header \\S+ absent")
 /** Timestamp de Stripe e Slack: só dígitos, curto o bastante para a conta de segundos não estourar. */
 private val TIMESTAMP = Regex("[0-9]{1,15}")
 
-private val GITHUB = SignatureProvider.Generic("X-Hub-Signature-256", HmacAlgorithm.SHA256, SignatureEncoding.HEX, "sha256=")
-private val SHOPIFY = SignatureProvider.Generic("X-Shopify-Hmac-Sha256", HmacAlgorithm.SHA256, SignatureEncoding.BASE64, null)
-private const val STRIPE_HEADER = "Stripe-Signature"
-private const val SLACK_SIGNATURE = "X-Slack-Signature"
-private const val SLACK_TIMESTAMP = "X-Slack-Request-Timestamp"
-private const val SLACK_VERSION = "v0="
+internal val GITHUB = SignatureProvider.Generic("X-Hub-Signature-256", HmacAlgorithm.SHA256, SignatureEncoding.HEX, "sha256=")
+internal val SHOPIFY = SignatureProvider.Generic("X-Shopify-Hmac-Sha256", HmacAlgorithm.SHA256, SignatureEncoding.BASE64, null)
+internal const val STRIPE_HEADER = "Stripe-Signature"
+internal const val SLACK_SIGNATURE = "X-Slack-Signature"
+internal const val SLACK_TIMESTAMP = "X-Slack-Request-Timestamp"
+internal const val SLACK_VERSION = "v0="
 
 /** O que a condição `match.signature` das regras compara. */
 enum class SignatureState(
@@ -146,7 +146,7 @@ private fun toleranceFailure(
     return "timestamp outside tolerance ($distance s)".takeIf { distance > toleranceSeconds }
 }
 
-private fun SignatureConfig.hmac(
+internal fun SignatureConfig.hmac(
     algorithm: HmacAlgorithm,
     vararg parts: ByteArray,
 ): ByteArray {

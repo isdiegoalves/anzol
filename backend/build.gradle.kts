@@ -38,6 +38,9 @@ dependencies {
     // JSON Schema da URL (drafts 7, 2019-09 e 2020-12) sobre o Jackson 3. A 3.0.6 é compilada com o
     // Jackson 3.1.4, a mesma linha 3.1 que o Spring Boot impõe; a 3.0.7 já exige o 3.2.
     implementation("com.networknt:json-schema-validator:3.0.6")
+    // Motor de saída do replay/send: aceita o IP já validado (HttpHost com endereço) e mantém o nome no Host e no
+    // SNI, sem resolver de novo. Versão do Spring Boot (5.6).
+    implementation("org.apache.httpcomponents.client5:httpclient5")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

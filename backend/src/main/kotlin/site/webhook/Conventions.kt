@@ -47,4 +47,10 @@ object RedisKeys {
 
     /** Estado dos cenários das regras: hash nome → estado, com o TTL das demais chaves da URL. */
     fun scenarios(id: TokenId): String = "token:$id:scenarios"
+
+    /** Histórico de replay e send da URL: lista de resultados em JSON, o mais novo primeiro, com o TTL da URL. */
+    fun outbound(id: TokenId): String = "token:$id:outbound"
+
+    /** Disparos de replay e send na janela de um minuto (limite por URL). */
+    fun outboundRate(id: TokenId): String = "token:$id:outbound:rate"
 }

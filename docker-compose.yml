@@ -14,6 +14,11 @@ services:
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_SERVICE_NAME=webhook-site
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.instance.id=webhook-site-local
+      # Replay e send pelo servidor (uso local): liberam loopback e redes privadas como destino, e o `localhost` do
+      # alvo vira o host do Docker (o Mac, onde roda o app do dono). O padrão do app, sem estas duas, só sai para
+      # endereço público: é o que vale ao publicar.
+      - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
+      - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
     extra_hosts:
       # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
       - "host.docker.internal:host-gateway"

@@ -9,5 +9,8 @@ services:
       - "8088:8080"
     environment: !override
       - REDIS_HOST=redis
+      # O contrato do reenvio sobe um receptor no host: o app precisa sair para ele (host.docker.internal).
+      - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
+      - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
   redis:
     container_name: webhookci-redis
