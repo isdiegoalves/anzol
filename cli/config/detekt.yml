@@ -1,0 +1,27 @@
+# Mesmas regras do backend (§5 de docs/padroes-kotlin.md); o restante segue o padrão do detekt.
+potential-bugs:
+  UnsafeCallOnNullableType:
+    active: true
+  LateinitUsage:
+    active: true
+style:
+  VarCouldBeVal:
+    active: true
+  UseRequire:
+    active: true
+  UseCheckOrError:
+    active: true
+  MaxLineLength:
+    maxLineLength: 140
+exceptions:
+  TooGenericExceptionThrown:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+complexity:
+  NestedScopeFunctions:
+    active: true
+  CyclomaticComplexMethod:
+    active: true
+  LongMethod:
+    active: true

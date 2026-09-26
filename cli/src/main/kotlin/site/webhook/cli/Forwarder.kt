@@ -1,0 +1,91 @@
+package site.webhook.cli
+
+import java.io.IOException
+import java.net.ConnectException
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpRequest.BodyPublishers
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.http.HttpTimeoutException
+import java.nio.charset.StandardCharsets.UTF_8
+import java.time.Duration
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+
+/**
+ * Headers gravados que não são reenviados: hop-by-hop (valem só para a conexão original), `host`
+ * e `content-length` (o cliente HTTP recalcula) e `expect` (o `java.net.http` o recusa).
+ * Mais os que começam com `proxy-`.
+ */
+private val DROPPED_HEADERS =
+    setOf("connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "host", "content-length", "expect")
+private const val PROXY_PREFIX = "proxy-"
+private val CLOCK_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+private val FORWARD_TIMEOUT: Duration = Duration.ofSeconds(30)
+private const val NANOS_PER_MILLI = 1_000_000
+
+/** Caminho após o token e query crua, tirados da `url` gravada. */
+data class Route(
+    val path: String,
+    val query: String?,
+) {
+    override fun toString(): String = path.ifEmpty { "/" } + query?.let { "?$it" }.orEmpty()
+}
+
+fun CapturedRequest.route(token: TokenId): Route {
+    val afterToken = url.substringAfter("/$token", missingDelimiterValue = "")
+    val query = afterToken.substringAfter('?', missingDelimiterValue = "")
+    return Route(path = afterToken.substringBefore('?'), query = query.ifEmpty { null })
+}
+
+/**
+ * Reenvia uma mensagem gravada ao app local e devolve a linha de saída:
+ * `HH:mm:ss MÉTODO caminho?query -> status (n ms)` ou `... -> error: motivo`.
+ */
+class Forwarder(
+    private val target: String,
+    private val http: HttpClient,
+) {
+    fun forward(
+        token: TokenId,
+        message: CapturedRequest,
+    ): String {
+        val route = message.route(token)
+        val prefix = "${LocalTime.now().format(CLOCK_FORMAT)} ${message.method} $route -> "
+        val started = System.nanoTime()
+        val outcome =
+            try {
+                val status = http.send(request(message, route), BodyHandlers.discarding()).statusCode()
+                "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)"
+            } catch (e: IOException) {
+                "error: ${e.reason()}"
+            } catch (e: IllegalArgumentException) {
+                "error: ${e.message}"
+            }
+        return prefix + outcome
+    }
+
+    private fun request(
+        message: CapturedRequest,
+        route: Route,
+    ): HttpRequest {
+        val body = message.content.toByteArray(UTF_8)
+        val builder =
+            HttpRequest
+                .newBuilder(URI.create(target.trimEnd('/') + route.path + route.query?.let { "?$it" }.orEmpty()))
+                .timeout(FORWARD_TIMEOUT)
+                .method(message.method, if (body.isEmpty()) BodyPublishers.noBody() else BodyPublishers.ofByteArray(body))
+        message.headers
+            .filterKeys { it.lowercase() !in DROPPED_HEADERS && !it.lowercase().startsWith(PROXY_PREFIX) }
+            .forEach { (name, values) -> values.forEach { builder.header(name, it) } }
+        return builder.build()
+    }
+}
+
+private fun IOException.reason(): String =
+    when (this) {
+        is ConnectException -> "connection refused"
+        is HttpTimeoutException -> "timed out"
+        else -> message ?: javaClass.simpleName
+    }
