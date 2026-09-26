@@ -131,6 +131,10 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
   (`-1` no legado, `0` no novo). Nenhum cliente real manda esses valores.
 - **Bytes UTF-8 crus no caminho** (`/{token}/é` sem percent-encoding, N3): o legado dá 500 com
   mensagem fantasma e o novo dá 400 do Tomcat; os dois recusam.
+- **`content` de multipart que o PHP abandona no meio** (parte sem `name` e sem `filename`,
+  "Mime headers garbled"): os campos em `request` saem iguais; o `content` difere porque o legado
+  grava `""` quando o PHP já tinha lido ~8 KB do corpo (`php://input` só relê o resto abaixo disso)
+  e o app novo grava o que sobrou. Artefato do buffer interno do PHP, sem perda de dado no novo.
 - **Perto do teto de 32 KB de cabeçalhos** (N4): ~31,5 KB dá 400 no nginx e 200 no novo; `TRACE`
   sai com o envelope do app em vez da página 405 do nginx.
 
