@@ -30,10 +30,12 @@ data class TestMatch(
     val seq: Long,
 )
 
+/** [conditions] é a chave de cada frase de [failed], na mesma ordem (ver [Condition.key]). */
 data class TestMiss(
     val uuid: RequestId,
     val seq: Long,
     val failed: List<String>,
+    val conditions: List<String>,
 )
 
 /** Resposta do `rules/test`, da mensagem mais nova para a mais antiga. */
@@ -53,7 +55,10 @@ fun RequestStore.test(
         }
     return RuleTestResult(
         matches = evaluated.filter { it.third.isEmpty() }.map { (uuid, seq) -> TestMatch(uuid, seq) },
-        misses = evaluated.filter { it.third.isNotEmpty() }.map { (uuid, seq, failed) -> TestMiss(uuid, seq, failed) },
+        misses =
+            evaluated
+                .filter { it.third.isNotEmpty() }
+                .map { (uuid, seq, failed) -> TestMiss(uuid, seq, failed.map { it.phrase }, failed.map { it.condition }) },
     )
 }
 

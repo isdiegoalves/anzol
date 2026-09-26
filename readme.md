@@ -362,9 +362,28 @@ condição em `failed` (`method: expected POST, got GET`, `header x-signature: a
 de erros gravados, `schema: expected invalid, got valid`, `schema: expected valid, got not configured`); `null` quando respondeu uma regra ou não há regra
 ativa. Mensagens gravadas antes das regras trazem os dois nulos.
 
+O `near_miss` traz também `conditions`: a condição que produziu cada frase de `failed`, na mesma ordem e com o
+mesmo tamanho, no formato das chaves do 422 (sem o índice da lista), para a tela apontar o campo da regra:
+
+```json
+"near_miss": { "id": "5b0c…", "name": "Pagamento pix",
+  "failed":     ["method: expected POST, got GET", "header x-signature: absent", "body $.status: expected \"pago\", got \"pendente\""],
+  "conditions": ["match.method",                   "match.headers.X-Signature",  "match.body.0"] }
+```
+
+| Chave | Condição |
+|---|---|
+| `match.method`, `match.path`, `match.signature`, `match.schema` | a condição de mesmo nome |
+| `match.query.<nome>`, `match.headers.<nome>` | o parâmetro ou cabeçalho, com o nome escrito como na regra (a frase usa o cabeçalho em minúsculas) |
+| `match.body.<i>` | a condição de índice `i` (a partir de 0) em `match.body` |
+| `scenario` | o estado do cenário (ver [Cenários](#cenários)) |
+
+Mensagem gravada antes de `conditions` traz `conditions: null`: a chave não é reconstruída, porque a regra pode ter
+mudado desde então. O link só-leitura mostra `conditions` como gravado (não carrega valores).
+
 `POST /token/{id}/rules/test` recebe uma regra (mesma validação, chaves sem o índice), ignora `enabled`
-e responde `{"matches": [{uuid, seq}], "misses": [{uuid, seq, failed}]}` sobre as 500 mensagens mais
-recentes, da mais nova para a mais antiga. As condições de assinatura e de schema usam o `signature` e o
+e responde `{"matches": [{uuid, seq}], "misses": [{uuid, seq, failed, conditions}]}` sobre as 500 mensagens mais
+recentes, da mais nova para a mais antiga (`conditions` como no `near_miss`, sem `scenario`). As condições de assinatura e de schema usam o `signature` e o
 `schema` gravados em cada mensagem (a verificação da época em que chegou).
 
 As regras ficam em `token:{uuid}:rules`, com o TTL da URL (renovado a cada webhook), e saem junto com
@@ -393,13 +412,15 @@ A resposta é sempre 200 quando a chamada é válida:
 
 ```json
 { "matched": false, "count": 0, "requests": [],
-  "near_miss": { "uuid": "bbe0…", "seq": 1790438428567114, "failed": ["method: expected DELETE, got POST"] } }
+  "near_miss": { "uuid": "bbe0…", "seq": 1790438428567114, "failed": ["method: expected DELETE, got POST"],
+                 "conditions": ["match.method"] } }
 ```
 
 `requests` traz as `count` mensagens que casaram de menor `seq`, em ordem crescente e completas (como
 no `GET /token/{id}/request/{requestId}`); sem sucesso, as que casaram até ali. `near_miss` só aparece
 com `matched: false`: entre as mensagens avaliadas que não casaram, a de menos condições falhando
-(empate: a mais nova), com as frases do `near_miss` das regras; `null` se nenhuma foi avaliada.
+(empate: a mais nova), com as frases do `near_miss` das regras e, em `conditions`, a chave `match.*` de cada uma
+(do `match` da espera; nunca `scenario`); `null` se nenhuma foi avaliada.
 
 O servidor registra a escuta das mensagens novas antes de ler o histórico e desconta a mesma mensagem
 vista nos dois (pelo `seq`): nenhuma que chegue durante a chamada se perde. A espera ocupa só uma thread

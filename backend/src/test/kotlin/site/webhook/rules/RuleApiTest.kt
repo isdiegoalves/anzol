@@ -14,6 +14,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.UUID
 
 private const val PAGAMENTO =
     """{"name":"pagamento","priority":2,"match":{"method":["POST"],"path":{"equals":"/pagamentos"},""" +
@@ -161,6 +162,82 @@ class RuleApiTest(
     }
 
     @Nested
+    @DisplayName("near_miss.conditions no formato persistido")
+    inner class PersistedNearMiss {
+        /** Grava a mensagem direto no Redis, como a captura (hash e índice), com o `near_miss` dado. */
+        private fun stored(
+            tokenId: String,
+            nearMiss: String,
+            seq: Long,
+        ): String {
+            val id = UUID.randomUUID().toString()
+            val json =
+                """{"uuid":"$id","token_id":"$tokenId","ip":"10.0.0.1","hostname":"localhost","method":"GET","user_agent":null,""" +
+                    """"content":"","query":[],"headers":{},"url":"http://localhost/$tokenId","created_at":"2026-09-26 14:02:07",""" +
+                    """"updated_at":"2026-09-26 14:02:07","request":null,"rule":null,"near_miss":$nearMiss,"signature":null,"schema":null}"""
+            redis.opsForHash<String, String>().put("token:$tokenId:requests", id, json)
+            redis.opsForZSet().add("token:$tokenId:requests:index", id, seq.toDouble())
+            return id
+        }
+
+        @Test
+        @DisplayName(
+            "Dado um near miss gravado antes de conditions (sem o campo), quando lê a mensagem e a lista, então conditions é null " +
+                "e o resto vem como foi gravado",
+        )
+        fun leitura_nearMissSemConditions_deveLerNull() {
+            val tokenId = api.tokenId()
+            val ruleId = UUID.randomUUID().toString()
+            val id = stored(tokenId, """{"id":"$ruleId","name":"antiga","failed":["method: expected POST, got GET"]}""", seq = 1)
+
+            val message = api.send("GET", "/token/$tokenId/request/$id", headers = JSON_CLIENT)
+            val page = api.send("GET", "/token/$tokenId/requests", headers = JSON_CLIENT)
+
+            val expected =
+                api.tree("""{"id":"$ruleId","name":"antiga","failed":["method: expected POST, got GET"],"conditions":null}""")
+            assertThat(message.statusCode()).`as`("GET da mensagem: %s", message.body()).isEqualTo(200)
+            assertThat(page.statusCode()).`as`("listagem: %s", page.body()).isEqualTo(200)
+            assertThat(api.json(message)["near_miss"]).isEqualTo(expected)
+            assertThat(api.json(page)["data"][0]["near_miss"]).isEqualTo(expected)
+        }
+
+        @Test
+        @DisplayName("Dado um near miss gravado com conditions, quando lê a mensagem, então devolve as chaves como gravadas")
+        fun leitura_nearMissComConditions_deveLerAsChaves() {
+            val tokenId = api.tokenId()
+            val ruleId = UUID.randomUUID().toString()
+            val nearMiss =
+                """{"id":"$ruleId","name":"nova",""" +
+                    """"failed":["method: expected POST, got GET","scenario s: expected state \"b\", got \"a\""],""" +
+                    """"conditions":["match.method","scenario"]}"""
+            val id = stored(tokenId, nearMiss, seq = 1)
+
+            val message = api.json(api.send("GET", "/token/$tokenId/request/$id", headers = JSON_CLIENT))
+
+            assertThat(message["near_miss"]).isEqualTo(api.tree(nearMiss))
+        }
+
+        @Test
+        @DisplayName(
+            "Dado uma regra que não casa, quando o webhook chega, então o JSON gravado no Redis traz conditions depois de failed, " +
+                "alinhado a ele",
+        )
+        fun gravacao_nearMiss_deveGravarConditions() {
+            val tokenId = api.tokenId()
+            putRules(tokenId, """[{"name":"q","match":{"method":["POST"],"query":{"Tipo":{"equals":"pix"}}}}]""")
+
+            val id = api.capture(tokenId, suffix = "?Tipo=boleto")["uuid"].asString()
+
+            val raw = api.tree(redis.opsForHash<String, String>().get("token:$tokenId:requests", id).orEmpty())
+            assertThat(raw["near_miss"].propertyNames().toList()).containsExactly("id", "name", "failed", "conditions")
+            assertThat(raw["near_miss"]["failed"]).isEqualTo(
+                api.tree("""["method: expected POST, got GET","query Tipo: expected \"pix\", got \"boleto\""]"""),
+            )
+            assertThat(raw["near_miss"]["conditions"]).isEqualTo(api.tree("""["match.method","match.query.Tipo"]"""))
+        }
+    }
+
+    @Nested
     @DisplayName("Webhook com regras")
     inner class Webhook {
         private val pago = """{"status":"pago"}""".toByteArray()
@@ -201,7 +278,8 @@ class RuleApiTest(
             assertThat(message["near_miss"]).isEqualTo(
                 api.tree(
                     """{"id":"$ruleId","name":"pagamento","failed":""" +
-                        """["header x-signature: absent","body $.status: expected \"pago\", got \"pendente\""]}""",
+                        """["header x-signature: absent","body $.status: expected \"pago\", got \"pendente\""],""" +
+                        """"conditions":["match.headers.X-Signature","match.body.0"]}""",
                 ),
             )
         }
@@ -346,8 +424,8 @@ class RuleApiTest(
             assertThat(api.json(response)).isEqualTo(
                 api.tree(
                     """{"matches":[${ref(post)}],"misses":[""" +
-                        """${ref(outro, """"path: expected \"/pagamentos\", got \"/outro\""""")},""" +
-                        """${ref(get, """"method: expected POST, got GET"""")}]}""",
+                        """${ref(outro, """"path: expected \"/pagamentos\", got \"/outro\""""", """"match.path"""")},""" +
+                        """${ref(get, """"method: expected POST, got GET"""", """"match.method"""")}]}""",
                 ),
             )
         }
@@ -364,9 +442,10 @@ class RuleApiTest(
         private fun ref(
             message: JsonNode,
             failed: String? = null,
+            conditions: String? = null,
         ): String {
             val base = """"uuid":"${message["uuid"].asString()}","seq":${message["seq"].asLong()}"""
-            return if (failed == null) "{$base}" else """{$base,"failed":[$failed]}"""
+            return if (failed == null) "{$base}" else """{$base,"failed":[$failed],"conditions":[$conditions]}"""
         }
     }
 

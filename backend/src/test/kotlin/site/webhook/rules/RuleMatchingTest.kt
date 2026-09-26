@@ -25,6 +25,9 @@ private fun rule(json: String): Rule =
         is Parsed.Invalid -> error("regra inválida no teste: ${parsed.errors}")
     }
 
+/** As frases do `failed`, na ordem das condições. */
+private fun Rule.phrases(input: MatchInput): List<String> = failures(input).map { it.phrase }
+
 /** Regra só com `match`, para testar uma condição. */
 private fun matching(match: String): Rule = rule("""{"name":"r","match":$match}""")
 
@@ -74,7 +77,7 @@ class RuleMatchingTest {
             method: String,
             expected: String?,
         ) {
-            assertThat(matching("""{"method":$methods}""").failures(input(method = method))).isEqualTo(listOfNotNull(expected))
+            assertThat(matching("""{"method":$methods}""").phrases(input(method = method))).isEqualTo(listOfNotNull(expected))
         }
 
         @ParameterizedTest(name = "{0} com {1} → {2}")
@@ -98,7 +101,7 @@ class RuleMatchingTest {
             path: String,
             expected: String?,
         ) {
-            assertThat(matching("""{"path":$condition}""").failures(input(path = path))).isEqualTo(listOfNotNull(expected))
+            assertThat(matching("""{"path":$condition}""").phrases(input(path = path))).isEqualTo(listOfNotNull(expected))
         }
     }
 
@@ -130,7 +133,7 @@ class RuleMatchingTest {
         ) {
             val query = if (value == null) emptyMap() else mapOf("tipo" to value)
 
-            val failures = matching("""{"query":{"tipo":$condition}}""").failures(input(query = query))
+            val failures = matching("""{"query":{"tipo":$condition}}""").phrases(input(query = query))
 
             assertThat(failures).isEqualTo(listOfNotNull(expected))
         }
@@ -141,8 +144,8 @@ class RuleMatchingTest {
         fun failures_nomeDeCabecalho_deveIgnorarCaixa(name: String) {
             val rule = matching("""{"headers":{"$name":{"equals":"abc"}}}""")
 
-            assertThat(rule.failures(input(headers = mapOf("x-signature" to "abc")))).isEmpty()
-            assertThat(rule.failures(input(headers = mapOf("x-signature" to "xyz"))))
+            assertThat(rule.phrases(input(headers = mapOf("x-signature" to "abc")))).isEmpty()
+            assertThat(rule.phrases(input(headers = mapOf("x-signature" to "xyz"))))
                 .containsExactly("header x-signature: expected \"abc\", got \"xyz\"")
         }
 
@@ -151,7 +154,7 @@ class RuleMatchingTest {
         fun failures_cabecalhoAusente_deveDizerAbsent() {
             val rule = matching("""{"headers":{"X-Signature":{"present":true}}}""")
 
-            assertThat(rule.failures(input())).containsExactly("header x-signature: absent")
+            assertThat(rule.phrases(input())).containsExactly("header x-signature: absent")
         }
     }
 
@@ -178,7 +181,7 @@ b'                                                    | null""",
             body: String,
             expected: String?,
         ) {
-            assertThat(matching("""{"body":[$condition]}""").failures(input(body = body))).isEqualTo(listOfNotNull(expected))
+            assertThat(matching("""{"body":[$condition]}""").phrases(input(body = body))).isEqualTo(listOfNotNull(expected))
         }
 
         @ParameterizedTest(name = "{0} com {1} → {2}")
@@ -207,7 +210,7 @@ b'                                                    | null""",
         ) {
             val rule = matching("""{"body":[{"jsonPath":$condition}]}""")
 
-            assertThat(rule.failures(input(body = body))).isEqualTo(listOfNotNull(expected))
+            assertThat(rule.phrases(input(body = body))).isEqualTo(listOfNotNull(expected))
         }
 
         @ParameterizedTest(name = "{0} com {1} → {2}")
@@ -230,7 +233,7 @@ b'                                                    | null""",
         ) {
             val rule = matching("""{"body":[{"equalToJson":$expectedJson}]}""")
 
-            assertThat(rule.failures(input(body = body))).isEqualTo(listOfNotNull(expected))
+            assertThat(rule.phrases(input(body = body))).isEqualTo(listOfNotNull(expected))
         }
     }
 
@@ -246,7 +249,7 @@ b'                                                    | null""",
                         """"headers":{"X-A":{"equals":"1"}},"body":[{"contains":"x"},{"contains":"y"}]}""",
                 )
 
-            val failures = rule.failures(input(method = "POST", path = "/p", headers = mapOf("x-a" to "2"), body = "x"))
+            val failures = rule.phrases(input(method = "POST", path = "/p", headers = mapOf("x-a" to "2"), body = "x"))
 
             assertThat(failures).containsExactly(
                 "query a: absent",
@@ -258,7 +261,46 @@ b'                                                    | null""",
         @Test
         @DisplayName("Dado uma regra sem condições, quando compara com qualquer requisição, então casa")
         fun failures_semCondicoes_deveCasarSempre() {
-            assertThat(rule("""{"name":"tudo"}""").failures(input(method = "DELETE", path = "/x", body = "y"))).isEmpty()
+            assertThat(rule("""{"name":"tudo"}""").phrases(input(method = "DELETE", path = "/x", body = "y"))).isEmpty()
+        }
+    }
+
+    @Nested
+    @DisplayName("Condição de cada falha (conditions)")
+    inner class Conditions {
+        @Test
+        @DisplayName(
+            "Dado uma regra com todos os tipos de condição falhando, quando compara, então cada frase traz a chave da condição, " +
+                "na mesma ordem, com query e cabeçalho com o nome como na regra e o corpo pelo índice",
+        )
+        fun failures_todosOsTipos_deveTrazerAChaveDeCada() {
+            val rule =
+                matching(
+                    """{"method":["POST"],"path":{"equals":"/p"},"query":{"Tipo":{"present":true}},""" +
+                        """"headers":{"X_Signature":{"present":true}},"body":[{"contains":"a"},{"contains":"y"}],""" +
+                        """"signature":"valid","schema":"valid"}""",
+                )
+
+            val failures = rule.failures(input(body = "a"))
+
+            assertThat(failures.map { it.condition }).containsExactly(
+                "match.method",
+                "match.path",
+                "match.query.Tipo",
+                "match.headers.X_Signature",
+                "match.body.1",
+                "match.signature",
+                "match.schema",
+            )
+            assertThat(failures.map { it.phrase }).containsExactly(
+                "method: expected POST, got GET",
+                "path: expected \"/p\", got \"/\"",
+                "query Tipo: absent",
+                "header x-signature: absent",
+                "body: expected to contain \"y\"",
+                "signature: expected valid, got not configured",
+                "schema: expected valid, got not configured",
+            )
         }
     }
 
@@ -306,7 +348,7 @@ b'                                                    | null""",
             val decision = listOf(longe, perto).decide(input(method = "GET", path = "/b"))
 
             assertThat(decision).isEqualTo(
-                Decision.Unmatched(NearMiss(perto.id, "perto", listOf("path: expected \"/a\", got \"/b\""))),
+                Decision.Unmatched(NearMiss(perto.id, "perto", listOf("path: expected \"/a\", got \"/b\""), listOf("match.path"))),
             )
         }
 
@@ -361,6 +403,7 @@ b'                                                    | null""",
                         passo.id,
                         "passo",
                         listOf("method: expected POST, got GET", "scenario pedido: expected state \"pago\", got \"novo\""),
+                        listOf("match.method", "scenario"),
                     ),
                 ),
             )
@@ -459,7 +502,7 @@ b'                                                    | null""",
         ) {
             val signature = SignatureResult("github", valid, reason)
 
-            val failures = matching("""{"signature":"$expected"}""").failures(signed(signature))
+            val failures = matching("""{"signature":"$expected"}""").phrases(signed(signature))
 
             assertThat(failures).isEqualTo(listOfNotNull(failure))
         }
@@ -467,7 +510,7 @@ b'                                                    | null""",
         @Test
         @DisplayName("Dado uma URL sem assinatura configurada, quando a regra exige um estado, então falha como não configurada")
         fun failures_semConfiguracao_deveDizerNaoConfigurada() {
-            val failures = matching("""{"signature":"absent"}""").failures(signed(null))
+            val failures = matching("""{"signature":"absent"}""").phrases(signed(null))
 
             assertThat(failures).containsExactly("signature: expected absent, got not configured")
         }
@@ -477,7 +520,7 @@ b'                                                    | null""",
         fun failures_corpoEAssinatura_deveListarAAssinaturaPorUltimo() {
             val rule = matching("""{"body":[{"contains":"x"}],"signature":"valid"}""")
 
-            val failures = rule.failures(signed(SignatureResult("github", false, "signature mismatch"), body = "y"))
+            val failures = rule.phrases(signed(SignatureResult("github", false, "signature mismatch"), body = "y"))
 
             assertThat(failures).containsExactly(
                 "body: expected to contain \"x\"",
@@ -506,7 +549,7 @@ b'                                                    | null""",
             errors: Int,
             failure: String?,
         ) {
-            val failures = matching("""{"schema":"$expected"}""").failures(validated(schemaResult(errors)))
+            val failures = matching("""{"schema":"$expected"}""").phrases(validated(schemaResult(errors)))
 
             assertThat(failures).isEqualTo(listOfNotNull(failure))
         }
@@ -515,7 +558,7 @@ b'                                                    | null""",
         @DisplayName("Dado uma URL sem schema configurado, quando a regra exige um estado, então falha como não configurado")
         @CsvSource("valid", "invalid")
         fun failures_semConfiguracao_deveDizerNaoConfigurado(expected: String) {
-            val failures = matching("""{"schema":"$expected"}""").failures(validated(null))
+            val failures = matching("""{"schema":"$expected"}""").phrases(validated(null))
 
             assertThat(failures).containsExactly("schema: expected $expected, got not configured")
         }
@@ -525,7 +568,7 @@ b'                                                    | null""",
         fun failures_assinaturaESchema_deveListarOSchemaPorUltimo() {
             val rule = matching("""{"signature":"valid","schema":"valid"}""")
 
-            val failures = rule.failures(validated(schemaResult(1), SignatureResult("github", false, "signature mismatch")))
+            val failures = rule.phrases(validated(schemaResult(1), SignatureResult("github", false, "signature mismatch")))
 
             assertThat(failures).containsExactly(
                 "signature: expected valid, got invalid (signature mismatch)",

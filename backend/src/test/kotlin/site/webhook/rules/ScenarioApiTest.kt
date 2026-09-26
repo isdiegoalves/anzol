@@ -92,6 +92,7 @@ class ScenarioApiTest(
             assertThat(message["near_miss"]["failed"]).isEqualTo(
                 api.tree("""["scenario entrega: expected state \"entregue\", got \"Started\""]"""),
             )
+            assertThat(message["near_miss"]["conditions"]).isEqualTo(api.tree("""["scenario"]"""))
         }
 
         @Test

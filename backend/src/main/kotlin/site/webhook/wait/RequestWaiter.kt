@@ -5,7 +5,7 @@ import site.webhook.capture.CapturedRequest
 import site.webhook.capture.RequestStore
 import site.webhook.rules.TestMiss
 import site.webhook.rules.conditions
-import site.webhook.rules.failure
+import site.webhook.rules.failures
 import site.webhook.rules.toMatchInput
 import site.webhook.stream.Arrival
 import site.webhook.stream.RequestStream
@@ -91,11 +91,12 @@ private class Evaluation(
         val seq = checkNotNull(message.seq)
         if (seq <= wait.after) return
         val input = message.toMatchInput()
-        val failed = conditions.mapNotNull { it.failure(input) }
+        val failed = conditions.failures(input)
         if (failed.isEmpty()) {
             matches[seq] = message
         } else {
-            closest = listOfNotNull(closest, TestMiss(message.uuid, seq, failed)).minWith(CLOSEST_FIRST)
+            val miss = TestMiss(message.uuid, seq, failed.map { it.phrase }, failed.map { it.condition })
+            closest = listOfNotNull(closest, miss).minWith(CLOSEST_FIRST)
         }
     }
 

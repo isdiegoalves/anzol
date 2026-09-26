@@ -3,7 +3,10 @@ package site.webhook.rules
 import site.webhook.schema.SchemaState
 import site.webhook.signature.SignatureState
 
-/** Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo, assinatura, schema. */
+/**
+ * Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo, assinatura, schema.
+ * [key] é a chave dela no `conditions` do near miss, no formato das chaves do 422 do `rules/test`.
+ */
 sealed interface Condition {
     data class Method(
         val methods: List<String>,
@@ -18,12 +21,17 @@ sealed interface Condition {
         val matcher: FieldMatcher,
     ) : Condition
 
+    /** [original] é o nome como na regra (a chave); [name], o normalizado que a comparação e a frase usam. */
     data class Header(
-        val name: String,
+        val original: String,
         val matcher: FieldMatcher,
-    ) : Condition
+    ) : Condition {
+        val name: String = original.lowercase().replace('_', '-')
+    }
 
+    /** [index] é a posição em `match.body`, a partir de 0. */
     data class Body(
+        val index: Int,
         val matcher: BodyMatcher,
     ) : Condition
 
@@ -42,12 +50,9 @@ fun RuleMatch.conditions(): List<Condition> =
         path?.let(Condition::Path),
     ) +
         query.map { (name, matcher) -> Condition.Query(name, matcher) } +
-        headers.map { (name, matcher) -> Condition.Header(name.lowercase().replace('_', '-'), matcher) } +
-        body.map(Condition::Body) +
+        headers.map { (name, matcher) -> Condition.Header(name, matcher) } +
+        body.mapIndexed { index, matcher -> Condition.Body(index, matcher) } +
         listOfNotNull(signature?.let(Condition::Signature), schema?.let(Condition::Schema))
-
-/** Uma frase por condição que falhou; vazia quando a regra casa (sem olhar `enabled`). */
-fun Rule.failures(input: MatchInput): List<String> = match.conditions().mapNotNull { it.failure(input) }
 
 /** Escolha da regra: a que respondeu, ou nenhuma e a mais próxima (se havia regra ativa). */
 sealed interface Decision {
@@ -77,19 +82,21 @@ fun List<Rule>.decide(
     val matched = evaluated.firstOrNull { (_, failed) -> failed.isEmpty() }
     if (matched != null) return Decision.Matched(matched.first)
     val closest = evaluated.minByOrNull { (_, failed) -> failed.size }
-    return Decision.Unmatched(closest?.let { (rule, failed) -> NearMiss(rule.id, rule.name, failed) })
+    return Decision.Unmatched(
+        closest?.let { (rule, failed) -> NearMiss(rule.id, rule.name, failed.map { it.phrase }, failed.map { it.condition }) },
+    )
 }
 
 /** Nomes dos cenários de que a escolha entre as regras ativas depende. */
 fun List<Rule>.activeScenarios(): List<String> = filter { it.enabled }.mapNotNull { it.scenario?.name }.distinct()
 
-private fun Rule.scenarioFailure(states: Map<String, String>): String? {
+private fun Rule.scenarioFailure(states: Map<String, String>): Failure? {
     val name = scenario?.name
     val required = scenario?.requiredState
     val current = states[name] ?: STARTED
     return when {
         name == null || required == null || current == required -> null
-        else -> "scenario $name: expected state ${quote(required)}, got ${quote(current)}"
+        else -> Failure(SCENARIO_CONDITION, "scenario $name: expected state ${quote(required)}, got ${quote(current)}")
     }
 }
 

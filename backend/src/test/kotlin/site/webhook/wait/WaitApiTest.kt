@@ -196,7 +196,7 @@ class WaitApiTest(
             assertThat(api.json(response)).isEqualTo(
                 api.tree(
                     """{"matched":false,"count":0,"requests":[],"near_miss":{"uuid":"${maisNova["uuid"].asString()}",""" +
-                        """"seq":${maisNova["seq"]},"failed":["method: expected PUT, got GET"]}}""",
+                        """"seq":${maisNova["seq"]},"failed":["method: expected PUT, got GET"],"conditions":["match.method"]}}""",
                 ),
             )
             assertThat(elapsed).isBetween(Duration.ofMillis(600), PROMPTLY)

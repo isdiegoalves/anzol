@@ -175,9 +175,14 @@ data class RuleRef(
     val name: String,
 )
 
-/** `near_miss` da mensagem: a regra ativa mais próxima de casar e uma frase por condição que falhou. */
+/**
+ * `near_miss` da mensagem: a regra ativa mais próxima de casar, uma frase por condição que falhou e, na mesma ordem,
+ * a chave de cada condição ([Condition.key]). Formato persistido: mensagem gravada antes de [conditions] o lê `null`
+ * (a condição não é reconstruída, porque a regra pode ter mudado).
+ */
 data class NearMiss(
     val id: RuleId,
     val name: String,
     val failed: List<String>,
+    val conditions: List<String>? = null,
 )
