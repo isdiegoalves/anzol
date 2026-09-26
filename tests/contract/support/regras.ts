@@ -30,6 +30,8 @@ export interface MatchRegra {
   /** Nome do cabeçalho sem distinção de caixa. */
   headers?: Record<string, CondicaoTexto>;
   body?: CondicaoCorpo[];
+  /** Resultado da verificação de assinatura da URL: `absent` = header de assinatura ausente. */
+  signature?: 'valid' | 'invalid' | 'absent';
 }
 
 /** Atraso antes de responder, em ms; teto 60 000 (log-normal cortado no teto). */

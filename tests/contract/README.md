@@ -227,6 +227,46 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `0.response.dribble` (o subcampo fica livre, mas "not supported yet" não vale mais); o status da linha
   de `malformed_chunk` fica livre (qualquer 1xx–5xx válido).
 
+- **Verificação de assinatura HMAC** (`specs/api/assinatura-*.spec.ts`, helpers em `support/assinatura.ts`;
+  §1 do plano "assinatura-hmac"). O teste assina com `node:crypto` a partir do segredo e dos mesmos bytes
+  que envia. `signature` entrou em `CHAVES_TOKEN` e em `CHAVES_MENSAGEM`, então os testes de forma de
+  `token.spec.ts` e `mensagem.spec.ts` também a exigem.
+  - *Provedores* (`assinatura-provedores.spec.ts`, CA-1 a CA-4): para `stripe`, `github`, `shopify`, `slack`
+    e `generic` (só `header`: sha256 hex), assinatura válida → `{provider, valid: true, reason: null}` no
+    `GET` e na listagem, com a resposta padrão do token; corpo alterado e segredo errado → `signature
+    mismatch`; header ausente → `header <Nome> absent`; header malformado (Stripe sem `t`/`v1`, GitHub e
+    Slack sem `sha256=`/`v0=`, base64 ou hex inválido) → `malformed header`. Stripe e Slack com timestamp
+    412 s atrás → `timestamp outside tolerance (N s)` com N a ±30 s de 412; `toleranceSeconds` 600 aceita o
+    mesmo timestamp. Stripe com vários `v1`: basta um conferir; nenhum conferindo (com o `v1` certo só no
+    `v0`) → mismatch. Genérico: sha1/sha256/sha512 × hex/base64 × com e sem `prefix` (válida e corpo
+    alterado); com `prefix` configurado e header sem ele → malformado; header configurado procurado sem
+    caixa. Bytes crus: corpo com UTF-8 inválido (GitHub e Stripe), JSON com espaços, escapes e CRLF
+    (Slack), multipart com arquivo binário (GitHub, e `request` com o campo), formulário urlencoded
+    (Shopify) e `Transfer-Encoding: chunked` por socket cru (assinatura sobre o corpo sem o enquadramento).
+  - *Configuração* (`assinatura-config.spec.ts`, CA-5 e CA-8): `POST`, `GET` e `PUT` devolvem o segredo
+    como `"••••"` + 4 últimos e nenhum deles (nem a mensagem) contém o segredo inteiro; campos do genérico
+    e `toleranceSeconds` voltam como enviados; 256 caracteres aceito. `PUT` com `signature` sem `secret`,
+    ou com o mascarado (mesmo trocando de provedor), mantém o segredo e a assinatura seguinte confere; segredo
+    novo troca (o antigo passa a dar mismatch); `signature: null` e `PUT` sem o campo removem (como os outros
+    campos do `PUT`). 422 com chave `signature` ou `signature.*` (subcampo livre) para provedor
+    desconhecido ou ausente, generic sem header, algoritmo ou encoding fora da lista, segredo vazio, ausente
+    na criação ou com 257 caracteres e `signature` que não é objeto; no `PUT`, o 422 não mexe na configuração
+    salva. URL sem configuração: `signature: null` no token e na mensagem (mesmo com header de assinatura),
+    resposta e gravação como antes.
+  - *Regras* (`assinatura-regras.spec.ts`, CA-6): `match.signature` `invalid` → 401 (divergente e
+    malformada), `valid` → 202, `absent` → 428, com a `rule` certa; combina em E com as outras condições;
+    volta no `GET` das regras; valor fora da lista → 422 em `0.match.signature`. Near miss:
+    `signature: expected valid, got invalid (signature mismatch)` (sozinha quando só a assinatura falha) e,
+    com header ausente, `expected valid, got absent` citando o header.
+
+  Decisões onde a §1 deixava folga: os três estados da condição são disjuntos (`absent` = header ausente;
+  `invalid` = header presente que não confere, inclusive malformado ou timestamp vencido), testado com a
+  regra `invalid` na melhor prioridade; `POST` e `PUT` também mascaram (a §1 só cita o `GET`); `PUT` sem
+  `signature` volta a `null`, como `retry_after` e `auto_cleanup`; segredo vazio no `PUT` fica fora (o
+  backend o trata como "mantém"); a idade citada no motivo tem folga de ±30 s de relógio. Ficam fora:
+  timestamp no futuro, header de timestamp do Slack ausente sozinho, condição `signature` numa URL sem
+  configuração e `rules/test` com `match.signature`.
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -252,6 +292,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Mensagem sem número de ordem; listagem só por página | `seq` na mensagem (listagem, `GET`, evento) e `after=<seq>` na listagem | Correção da refutação do CLI (2026-09-26): o evento SSE sai fora da ordem de gravação sob concorrência e a paginação por página desloca quando alguém apaga; o CLI reenvia por `after` sem perder nem duplicar. A chave `seq` entrou em `CHAVES_MENSAGEM`, então os testes de forma de `mensagem.spec.ts` também a exigem |
 | Toda URL responde o padrão do token; mensagem sem registro de regra | Regras de resposta por URL (`/token/{id}/rules`, `rules/test`) e `rule`/`near_miss` em toda mensagem | Feature "regras de resposta" (fase A, 2026-09-26): testar de verdade quem envia webhooks. `rule` e `near_miss` entraram em `CHAVES_MENSAGEM`, então os dois testes de forma de `mensagem.spec.ts` também as exigem; URL sem regras responde exatamente como antes |
 | `template: true`, `scenario`, `delay`, `dribble`, `fault` → 422 "not supported yet" (fase A) | Aceitos: templating, cenários com estado (`/token/{id}/scenarios`), atrasos, dribble e falhas de rede | Fase B da feature "regras de resposta" (Anexo B, 2026-09-26): simular retentativa, lentidão e rede ruim para quem envia webhooks |
+| Token e mensagem sem informação de assinatura | `signature` no token (configuração, segredo mascarado) e na mensagem (`{provider, valid, reason}` ou `null`); condição de regra `match.signature` | Feature "verificação de assinatura HMAC" (2026-09-26): dizer se a assinatura do provedor confere e por que não. `signature` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem configuração responde e grava como antes, com `signature: null` |
 
 ## Defeitos do legado (`bugDoLegado`)
 

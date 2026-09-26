@@ -33,12 +33,12 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 export const CHAVES_TOKEN = [
   'uuid', 'ip', 'user_agent', 'default_content', 'default_status', 'default_content_type',
-  'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup',
+  'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup', 'signature',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
   'uuid', 'token_id', 'ip', 'hostname', 'method', 'user_agent', 'content', 'query', 'headers',
-  'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss',
+  'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss', 'signature',
 ].sort();
 
 export interface Token {
@@ -56,6 +56,16 @@ export interface Token {
   retry_after: number | string | null;
   /** Mantém só as N mais recentes (500, 1000, 5000 ou 10000); `null` = teto do servidor. */
   auto_cleanup: number | null;
+  /** Verificação de assinatura HMAC da URL, com o segredo mascarado; `null` = sem verificação. */
+  signature: {
+    provider: string;
+    secret: string;
+    header?: string | null;
+    algorithm?: string | null;
+    encoding?: string | null;
+    prefix?: string | null;
+    toleranceSeconds?: number | null;
+  } | null;
 }
 
 export interface Mensagem {
@@ -80,6 +90,8 @@ export interface Mensagem {
    * prioridade) e as condições que falharam. `null` quando uma regra casou ou não há regra ativa.
    */
   near_miss: { id: string; name: string; failed: string[] } | null;
+  /** Resultado da verificação de assinatura; `null` quando a URL não tem `signature` configurada. */
+  signature: { provider: string; valid: boolean; reason: string | null } | null;
   request?: Record<string, unknown> | null;
 }
 
