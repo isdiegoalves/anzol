@@ -251,6 +251,8 @@ export function rotasDeGestao(uuid: string, rid: string, sid: string, ridInexist
     { nome: 'GET raw', metodo: 'GET', caminho: `${t}/request/${rid}/raw`, comAcesso: [200] },
     { nome: 'POST search', metodo: 'POST', caminho: `${t}/requests/search`, corpo: {}, comAcesso: [200] },
     { nome: 'POST wait', metodo: 'POST', caminho: `${t}/requests/wait`, corpo: { timeout: 0 }, comAcesso: [200] },
+    // Item 14, B2: agregados da URL para Checks › Health e Insights.
+    { nome: 'GET stats', metodo: 'GET', caminho: `${t}/stats`, comAcesso: [200] },
     { nome: 'GET rules', metodo: 'GET', caminho: `${t}/rules`, comAcesso: [200] },
     { nome: 'PUT rules', metodo: 'PUT', caminho: `${t}/rules`, corpo: [REGRA_COM_CENARIO], comAcesso: [200] },
     { nome: 'POST rules/test', metodo: 'POST', caminho: `${t}/rules/test`, corpo: { name: 't' }, comAcesso: [200] },

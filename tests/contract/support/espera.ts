@@ -23,8 +23,11 @@ export interface ResultadoDaEspera {
   count: number;
   /** As mensagens que casaram, completas como no `GET /token/{id}/request/{id}`, em ordem de `seq`. */
   requests: Mensagem[];
-  /** Só com `matched=false`: a mensagem avaliada mais próxima de casar, ou `null` se nenhuma foi avaliada. */
-  near_miss: { uuid: string; seq: number; failed: string[] } | null;
+  /**
+   * Só com `matched=false`: a mensagem avaliada mais próxima de casar, ou `null` se nenhuma foi avaliada.
+   * `conditions[i]` é a chave `match.*` da condição que produziu `failed[i]` (item 14, B1).
+   */
+  near_miss: { uuid: string; seq: number; failed: string[]; conditions: string[] } | null;
 }
 
 export const CHAVES_RESULTADO = ['count', 'matched', 'near_miss', 'requests'];
@@ -78,7 +81,8 @@ export function expectFormaDoResultado(r: ResultadoDaEspera): void {
   expect(seqs, 'requests em ordem crescente de seq').toEqual([...seqs].sort((a, b) => a - b));
   if (r.matched) expect(r.near_miss, 'near_miss só quando matched=false').toBeNull();
   if (r.near_miss !== null) {
-    expect(Object.keys(r.near_miss).sort()).toEqual(['failed', 'seq', 'uuid']);
+    // Item 14, B1: `conditions` ao lado de `failed`.
+    expect(Object.keys(r.near_miss).sort()).toEqual(['conditions', 'failed', 'seq', 'uuid']);
     expect(Number.isInteger(r.near_miss.seq)).toBe(true);
   }
 }

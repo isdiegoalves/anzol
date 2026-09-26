@@ -21,6 +21,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     permissions: ['clipboard-read', 'clipboard-write'],
     viewport: { width: 1400, height: 900 },
+    // Item 14 (CA-4): a tela passa a escolher o idioma pelo navegador; os specs rodam em inglês fixo, e o smoke
+    // em pt-BR troca o idioma no próprio spec.
+    locale: 'en-US',
   },
   projects: [
     { name: 'ui', use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } } },

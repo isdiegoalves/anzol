@@ -98,11 +98,13 @@ export interface RegraQueRespondeu {
 /** `near_miss` da mensagem gravada: a regra ativa mais próxima e as condições que falharam. */
 export interface QuaseCasou extends RegraQueRespondeu {
   failed: string[];
+  /** Chave da condição de cada frase de `failed`, na mesma ordem (item 14, B1); `null` em mensagem antiga. */
+  conditions: string[] | null;
 }
 
 export interface ResultadoTesteDeRegra {
   matches: Array<{ uuid: string; seq: number }>;
-  misses: Array<{ uuid: string; seq: number; failed: string[] }>;
+  misses: Array<{ uuid: string; seq: number; failed: string[]; conditions: string[] }>;
 }
 
 export function putRegras(request: APIRequestContext, tokenId: string, corpo: unknown): Promise<APIResponse> {

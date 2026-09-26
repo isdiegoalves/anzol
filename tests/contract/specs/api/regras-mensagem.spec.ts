@@ -53,7 +53,8 @@ test.describe('mensagem: rule e near_miss', () => {
     expect(res.status()).toBe(200);
     expect(msg).toHaveProperty('rule', null);
     expect(msg.near_miss).not.toBeNull();
-    expect(Object.keys(msg.near_miss!).sort()).toEqual(['failed', 'id', 'name']);
+    // Item 14, B1: `conditions` ao lado de `failed` (as chaves são conferidas em regras-condicoes.spec.ts).
+    expect(Object.keys(msg.near_miss!).sort()).toEqual(['conditions', 'failed', 'id', 'name']);
     expect(msg.near_miss!.id).toBe(salva.id);
     expect(msg.near_miss!.name).toBe('Pagamento pix');
     expect(msg.near_miss!.failed, JSON.stringify(msg.near_miss!.failed)).toHaveLength(3);

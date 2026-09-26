@@ -94,8 +94,10 @@ export interface Mensagem {
   /**
    * Com regras ativas e nenhuma casando: a mais próxima (menos condições falhando, empate pela
    * prioridade) e as condições que falharam. `null` quando uma regra casou ou não há regra ativa.
+   * `conditions[i]` é a chave da condição que produziu `failed[i]` (item 14, B1); `null` em mensagem
+   * gravada antes do campo existir.
    */
-  near_miss: { id: string; name: string; failed: string[] } | null;
+  near_miss: { id: string; name: string; failed: string[]; conditions: string[] | null } | null;
   /** Resultado da verificação de assinatura; `null` quando a URL não tem `signature` configurada. */
   signature: { provider: string; valid: boolean; reason: string | null } | null;
   /**

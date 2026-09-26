@@ -31,7 +31,8 @@ test.describe('rules/test', () => {
     expect(resultado.matches).toEqual([{ uuid: pago.uuid, seq: pago.seq }]);
     expect(porUuid(resultado.misses).map(({ uuid, seq }) => ({ uuid, seq })))
       .toEqual(porUuid([{ uuid: pendente.uuid, seq: pendente.seq }, { uuid: outra.uuid, seq: outra.seq }]));
-    for (const miss of resultado.misses) expect(Object.keys(miss).sort()).toEqual(['failed', 'seq', 'uuid']);
+    // Item 14, B1: `conditions` ao lado de `failed`.
+    for (const miss of resultado.misses) expect(Object.keys(miss).sort()).toEqual(['conditions', 'failed', 'seq', 'uuid']);
 
     const missPendente = resultado.misses.find((m) => m.uuid === pendente.uuid)!;
     expect(missPendente.failed).toHaveLength(1);

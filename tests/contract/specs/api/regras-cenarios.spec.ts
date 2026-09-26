@@ -174,7 +174,12 @@ test.describe('cenários: casamento e transição', () => {
     const { res, msg } = await enviarEGuardar(request, token.uuid, '/recibo');
     expect(res.status()).toBe(200);
     expect(msg.rule).toBeNull();
-    expect(msg.near_miss).toEqual({ id: salva.id, name: 'só depois de pago', failed: ['scenario pagamento: expected state "pago", got "Started"'] });
+    expect(msg.near_miss).toEqual({
+      id: salva.id, name: 'só depois de pago',
+      failed: ['scenario pagamento: expected state "pago", got "Started"'],
+      // Item 14, B1: a condição que produziu a frase.
+      conditions: ['scenario'],
+    });
 
     // Com o caminho errado também, as duas frases.
     const outro = await enviarEGuardar(request, token.uuid, '/outro');
