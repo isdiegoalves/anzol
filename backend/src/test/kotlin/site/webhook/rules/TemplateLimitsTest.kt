@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.function.ThrowingSupplier
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
@@ -19,19 +20,31 @@ import com.sun.management.ThreadMXBean as AllocationMXBean
 /** Como os tetos só precisam provar que a renderização para cedo, 2 s é folga larga sobre o teto de 1 s. */
 private val FAST = Duration.ofSeconds(2)
 
-/** Bem abaixo do que materializar a saída sem teto custaria (gigabytes). */
+/**
+ * Alocação (lixo incluído) aceita para produzir 1 MiB de saída em pedaços de 1 KiB ou mais. Materializar
+ * um bloco antes de escrever passa disso em várias vezes; o lixo que o Handlebars cria a cada iteração
+ * (contexto, dados do `each`) não entra, porque com pedaços grandes a saída estoura em poucas iterações.
+ */
 private const val MAX_ALLOCATED_BYTES = 64L * 1024 * 1024
 
-/** Requisição com [count] parâmetros de query e [count] cabeçalhos, como um remetente pode mandar. */
-private fun crowded(count: Int): TemplateRequest =
-    TemplateRequest(
+/**
+ * Requisição com [count] parâmetros de query e [count] cabeçalhos, como um remetente pode mandar; com
+ * [size], cada nome e cada valor completa [size] caracteres.
+ */
+private fun crowded(
+    count: Int,
+    size: Int = 0,
+): TemplateRequest {
+    fun padded(text: String) = text.padEnd(size, '.')
+    return TemplateRequest(
         method = "POST",
         path = "/",
         url = "/",
-        query = (1..count).associate { "q$it" to "v$it" },
-        headers = (1..count).associate { "h$it" to "v$it" },
+        query = (1..count).associate { padded("q$it") to padded("v$it") },
+        headers = (1..count).associate { padded("h$it") to padded("v$it") },
         body = "",
     )
+}
 
 private fun input(request: TemplateRequest = crowded(1)): TemplateInput = TemplateInput(request, seq = 1, now = Instant.EPOCH)
 
@@ -46,13 +59,21 @@ private fun assertRefused(
         }
 }
 
-/** Bytes alocados pela thread atual enquanto [block] roda (inclui o que já virou lixo). */
-private fun allocatedBy(block: () -> Unit): Long {
-    val bean = ManagementFactory.getThreadMXBean() as AllocationMXBean
-    val before = bean.currentThreadAllocatedBytes
-    block()
-    return bean.currentThreadAllocatedBytes - before
-}
+/**
+ * Roda [block] com o prazo [FAST] e devolve os bytes que ele alocou (inclui o que já virou lixo). A conta
+ * é feita dentro do bloco: o `assertTimeoutPreemptively` o roda em outra thread, e medir a do teste daria
+ * sempre perto de zero.
+ */
+private fun allocatedWithinFast(block: () -> Unit): Long =
+    assertTimeoutPreemptively(
+        FAST,
+        ThrowingSupplier {
+            val bean = ManagementFactory.getThreadMXBean() as AllocationMXBean
+            val before = bean.currentThreadAllocatedBytes
+            block()
+            bean.currentThreadAllocatedBytes - before
+        },
+    )
 
 @DisplayName("Tetos da renderização do template: tamanho da saída, tempo, math e randomValue")
 class TemplateLimitsTest {
@@ -76,40 +97,50 @@ class TemplateLimitsTest {
         }
 
         @Test
-        @DisplayName("Dado each sobre centenas de cabeçalhos com randomValue no teto, quando renderiza, então recusa rápido e sem acumular")
+        @DisplayName("Dado each sobre milhares de cabeçalhos com randomValue no teto, quando renderiza, então recusa rápido e sem acumular")
         fun render_eachComRandomValueNoTeto_deveRecusarCedo() {
             val template = "{{#each request.headers}}{{randomValue type='HEX' length=10000}}{{/each}}"
 
-            val allocated =
-                allocatedBy {
-                    assertTimeoutPreemptively(FAST) { assertRefused(TEMPLATE_TOO_LARGE) { renderTemplate(template, input(crowded(500))) } }
-                }
+            val allocated = allocatedWithinFast { assertRefused(TEMPLATE_TOO_LARGE) { renderTemplate(template, input(crowded(2000))) } }
+
+            assertThat(allocated).isLessThan(MAX_ALLOCATED_BYTES)
+        }
+
+        @ParameterizedTest(name = "{0} sobre {1}")
+        @DisplayName("Dado blocos aninhados sobre dados do remetente, quando a saída estoura, então para no teto sem materializar")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            {{#each request.query}}{{#each ../request.headers}}{{#each ../../request.query}}{{@key}}{{/each}}{{/each}}{{/each}}       | 150
+            {{#if seq}}{{#each request.query}}{{#with request}}{{#each ../../request.headers}}{{this}}{{/each}}{{/with}}{{/each}}{{/if}} | 150
+            {{#unless x}}{{#each request.query}}{{#each @root.request.query}}{{#each @root.request.query}}{{this}}{{/each}}{{/each}}{{/each}}{{/unless}} | 30
+            {{#each request.query}}{{#each @root.request.headers}}{{#each @root.request.headers}}{{@key}}{{/each}}{{/each}}{{/each}} | 150
+            {{#each request.query}}{{#each @root.request.query}}{{#each @root.request.query}}{{#each @root.request.query}}{{this}}{{/each}}{{/each}}{{/each}}{{/each}} | 40""",
+        )
+        fun render_blocosAninhados_devePararNoTeto(
+            template: String,
+            count: Int,
+        ) {
+            val request = crowded(count, size = 1024)
+
+            val allocated = allocatedWithinFast { assertRefused(TEMPLATE_TOO_LARGE) { renderTemplate(template, input(request)) } }
 
             assertThat(allocated).isLessThan(MAX_ALLOCATED_BYTES)
         }
 
         @ParameterizedTest(name = "{0}")
-        @DisplayName("Dado blocos aninhados sobre dados do remetente, quando a saída estoura, então para no teto sem materializar")
+        @DisplayName("Dado blocos aninhados que imprimem pouco a cada volta, quando a saída estoura, então para no teto a tempo")
         @ValueSource(
             strings = [
                 "{{#each request.query}}{{#each ../request.headers}}{{#each ../../request.query}}{{@key}}{{/each}}{{/each}}{{/each}}",
-                "{{#if seq}}{{#each request.query}}{{#with request}}{{#each ../../request.headers}}{{this}}" +
-                    "{{/each}}{{/with}}{{/each}}{{/if}}",
                 "{{#unless x}}{{#each request.query}}{{#each @root.request.query}}{{#each @root.request.query}}x" +
                     "{{/each}}{{/each}}{{/each}}{{/unless}}",
                 "{{#each request.query}}{{#each @root.request.headers}}{{#each @root.request.headers}}{{@index}}" +
                     "{{/each}}{{/each}}{{/each}}",
-                "{{#each request.query}}{{#each @root.request.query}}{{#each @root.request.query}}{{#each @root.request.query}}x" +
-                    "{{/each}}{{/each}}{{/each}}{{/each}}",
             ],
         )
-        fun render_blocosAninhados_devePararNoTeto(template: String) {
-            val allocated =
-                allocatedBy {
-                    assertTimeoutPreemptively(FAST) { assertRefused(TEMPLATE_TOO_LARGE) { renderTemplate(template, input(crowded(1000))) } }
-                }
-
-            assertThat(allocated).isLessThan(MAX_ALLOCATED_BYTES)
+        fun render_blocosAninhadosDeSaidaMiuda_devePararNoTeto(template: String) {
+            assertTimeoutPreemptively(FAST) { assertRefused(TEMPLATE_TOO_LARGE) { renderTemplate(template, input(crowded(1000))) } }
         }
     }
 
