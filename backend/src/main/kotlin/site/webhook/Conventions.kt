@@ -44,4 +44,7 @@ object RedisKeys {
 
     /** Regras de resposta da URL: o JSON da lista, com o TTL das demais chaves dela. */
     fun rules(id: TokenId): String = "token:$id:rules"
+
+    /** Estado dos cenários das regras: hash nome → estado, com o TTL das demais chaves da URL. */
+    fun scenarios(id: TokenId): String = "token:$id:scenarios"
 }

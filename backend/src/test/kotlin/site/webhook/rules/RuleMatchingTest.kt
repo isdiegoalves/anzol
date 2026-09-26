@@ -312,6 +312,50 @@ b'                                                    | null""",
             assertThat(emptyList<Rule>().decide(input())).isEqualTo(Decision.Unmatched(null))
         }
 
+        @Test
+        @DisplayName("Dado uma regra de cenário no estado exigido, quando decide, então ela responde")
+        fun decide_cenarioNoEstadoExigido_deveResponder() {
+            val passo = rule("""{"name":"passo","scenario":{"name":"pedido","requiredState":"pago","newState":"enviado"}}""")
+
+            val decision = listOf(passo).decide(input(), states = mapOf("pedido" to "pago"))
+
+            assertThat((decision as Decision.Matched).rule.scenario).isEqualTo(RuleScenario("pedido", "pago", "enviado"))
+        }
+
+        @Test
+        @DisplayName("Dado um cenário sem estado gravado, quando decide, então o estado é Started")
+        fun decide_cenarioSemEstado_deveUsarStarted() {
+            val inicio = rule("""{"name":"início","scenario":{"name":"pedido","requiredState":"Started"}}""")
+
+            assertThat(listOf(inicio).decide(input())).isInstanceOf(Decision.Matched::class.java)
+        }
+
+        @Test
+        @DisplayName("Dado uma regra de cenário fora do estado exigido, quando decide, então não responde e o near miss diz o estado")
+        fun decide_cenarioForaDoEstado_deveApontarNoNearMiss() {
+            val passo = rule("""{"name":"passo","match":{"method":["POST"]},"scenario":{"name":"pedido","requiredState":"pago"}}""")
+
+            val decision = listOf(passo).decide(input(), states = mapOf("pedido" to "novo"))
+
+            assertThat(decision).isEqualTo(
+                Decision.Unmatched(
+                    NearMiss(
+                        passo.id,
+                        "passo",
+                        listOf("method: expected POST, got GET", "scenario pedido: expected state \"pago\", got \"novo\""),
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("Dado uma regra de cenário sem requiredState, quando decide, então casa em qualquer estado")
+        fun decide_cenarioSemEstadoExigido_deveCasarSempre() {
+            val qualquer = rule("""{"name":"qualquer","scenario":{"name":"pedido","newState":"x"}}""")
+
+            assertThat(listOf(qualquer).decide(input(), states = mapOf("pedido" to "outro"))).isInstanceOf(Decision.Matched::class.java)
+        }
+
         /** O `id` é gerado na leitura; a comparação usa o da regra escolhida. */
         private fun Rule.withIdOf(decision: Decision) = copy(id = (decision as Decision.Matched).rule.id)
     }

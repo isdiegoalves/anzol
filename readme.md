@@ -54,6 +54,8 @@ dados ficam no volume.
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) |
 | `GET`/`PUT /token/{id}/rules` | Lê ou substitui a lista de regras de resposta da URL (o `PUT` é também o import) |
 | `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
+| `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
+| `PUT /token/{id}/scenarios/{name}` | Define à mão o estado de um cenário (`{"state": "..."}`) |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -104,13 +106,14 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.path` | um de `equals`, `prefix`, `regex`, sobre o caminho após o token, decodificado e sem a barra final (`/` quando vazio) |
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
+| `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
 | `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`) |
 
 Todas as condições valem em E, e uma regra sem condições casa tudo. `regex` é a sintaxe do Java e
 precisa casar o valor inteiro (`.` atravessa linhas). JSONPath segue a
 [Jayway](https://github.com/json-path/JsonPath): `equals` aceita qualquer valor JSON, e texto casa
-também número ou booleano de mesmo texto. `scenario`, `delay`, `dribble` e `fault` fazem parte do
-formato, mas por enquanto só aceitam nulo; outro valor dá 422 `"... is not supported yet."`.
+também número ou booleano de mesmo texto. `delay`, `dribble` e `fault` fazem parte do formato, mas por
+enquanto só aceitam nulo; outro valor dá 422 `"... is not supported yet."`.
 
 #### Template
 
@@ -141,6 +144,37 @@ desconhecido, partial ou decorator dão 422 ao salvar (`"0.response.body": ["The
 ou a chave do cabeçalho). Falha ao executar (`jsonPath` em corpo que não é JSON, caminho ausente,
 divisão por zero) deixa só aquele trecho vazio. Como no Handlebars, `}}}` fecha `{{{`: em JSON, separe
 com espaço (`{{seq}} }`).
+
+#### Cenários
+
+Uma regra com `"scenario": {"name": "entrega", "requiredState": "falhou 1", "newState": "falhou 2"}` só
+casa quando o cenário `entrega` da URL está em `requiredState` (ausente: qualquer estado) e, ao
+responder, o leva a `newState` (ausente: mantém). Todo cenário começa em `Started`. Exemplo "falha 3×,
+depois 200", para testar a retentativa de quem envia:
+
+```json
+[
+  { "name": "falha 1", "scenario": { "name": "entrega", "requiredState": "Started", "newState": "falhou 1" },
+    "response": { "status": 503, "headers": { "Retry-After": "1" } } },
+  { "name": "falha 2", "scenario": { "name": "entrega", "requiredState": "falhou 1", "newState": "falhou 2" },
+    "response": { "status": 503, "headers": { "Retry-After": "1" } } },
+  { "name": "falha 3", "scenario": { "name": "entrega", "requiredState": "falhou 2", "newState": "entregue" },
+    "response": { "status": 503, "headers": { "Retry-After": "1" } } },
+  { "name": "ok", "scenario": { "name": "entrega", "requiredState": "entregue" }, "response": { "status": 200 } }
+]
+```
+
+A escolha da regra e a mudança de estado são atômicas por URL, mesmo com várias instâncias do app:
+com requisições simultâneas, cada transição acontece uma vez só (compare-and-set num script Lua; quem
+perde relê o estado e decide de novo). Regra de cenário fora do estado entra no `near_miss` com
+`scenario entrega: expected state "entregue", got "Started"`; o `rules/test` avalia só as condições da
+requisição, sem o estado do cenário.
+
+`GET /token/{id}/scenarios` responde `[{"name", "state", "states"}]`: os cenários citados pelas regras
+(e os definidos à mão), o estado atual e os estados que as regras citam. `PUT /token/{id}/scenarios/{name}`
+com `{"state": "..."}` define um estado (422 em `state` se vazio ou não texto) e devolve o cenário;
+`DELETE /token/{id}/scenarios` volta todos a `Started` e devolve a lista. O estado fica em
+`token:{uuid}:scenarios` (hash nome → estado), com o TTL da URL e apagado junto com ela.
 
 Validação: 422 em JSON com a chave em pontos a partir do índice da lista
 (`{"0.match.path.regex": ["The regex is invalid."]}`, `{"rules": ["The rules may not have more than 100 items."]}`);

@@ -15,8 +15,8 @@ value class RuleId(
 /**
  * Regra de resposta de uma URL, no formato do Anexo A do plano (fase A): condições em [match], todas
  * em E; a primeira regra ativa que casa, pela menor [priority] e depois pela ordem na lista, define a
- * resposta. `scenario` e os campos de `response` das fatias seguintes existem só para o formato: na
- * fase A são sempre nulos (a validação recusa outro valor).
+ * resposta. Com [scenario], a regra só casa no estado exigido do cenário e o muda ao responder.
+ * `delay`, `dribble` e `fault` existem só para o formato: por enquanto são sempre nulos.
  */
 data class Rule(
     val id: RuleId,
@@ -24,8 +24,21 @@ data class Rule(
     val enabled: Boolean,
     val priority: Int,
     val match: RuleMatch,
-    val scenario: JsonNode? = null,
+    val scenario: RuleScenario? = null,
     val response: RuleResponse,
+)
+
+/** Estado de todo cenário antes da primeira transição (como na WireMock). */
+const val STARTED = "Started"
+
+/**
+ * Cenário da regra: ela só casa com o cenário [name] em [requiredState] (nulo = qualquer) e, ao
+ * responder, o leva a [newState] (nulo = mantém). O estado é por URL e nome do cenário.
+ */
+data class RuleScenario(
+    val name: String,
+    val requiredState: String? = null,
+    val newState: String? = null,
 )
 
 /** Sem nenhuma condição, a regra casa qualquer requisição. Nome de cabeçalho fica como veio; a comparação ignora caixa. */

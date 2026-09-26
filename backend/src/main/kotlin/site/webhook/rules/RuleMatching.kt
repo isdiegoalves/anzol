@@ -50,14 +50,35 @@ sealed interface Decision {
 
 /**
  * Regras ativas pela menor prioridade, empate pela ordem na lista: a primeira sem falhas responde.
- * Nenhuma casou: o near miss é a de menos falhas, com o mesmo desempate.
+ * Nenhuma casou: o near miss é a de menos falhas, com o mesmo desempate. [states] é o estado de cada
+ * cenário (ausente = [STARTED]); o do cenário conta como a última condição da regra.
  */
-fun List<Rule>.decide(input: MatchInput): Decision {
-    val evaluated = filter { it.enabled }.sortedBy { it.priority }.map { it to it.failures(input) }
+fun List<Rule>.decide(
+    input: MatchInput,
+    states: Map<String, String> = emptyMap(),
+): Decision {
+    val evaluated =
+        filter { it.enabled }.sortedBy { it.priority }.map {
+            it to
+                it.failures(input) + listOfNotNull(it.scenarioFailure(states))
+        }
     val matched = evaluated.firstOrNull { (_, failed) -> failed.isEmpty() }
     if (matched != null) return Decision.Matched(matched.first)
     val closest = evaluated.minByOrNull { (_, failed) -> failed.size }
     return Decision.Unmatched(closest?.let { (rule, failed) -> NearMiss(rule.id, rule.name, failed) })
+}
+
+/** Nomes dos cenários de que a escolha entre as regras ativas depende. */
+fun List<Rule>.activeScenarios(): List<String> = filter { it.enabled }.mapNotNull { it.scenario?.name }.distinct()
+
+private fun Rule.scenarioFailure(states: Map<String, String>): String? {
+    val name = scenario?.name
+    val required = scenario?.requiredState
+    val current = states[name] ?: STARTED
+    return when {
+        name == null || required == null || current == required -> null
+        else -> "scenario $name: expected state ${quote(required)}, got ${quote(current)}"
+    }
 }
 
 private fun Condition.failure(input: MatchInput): String? =

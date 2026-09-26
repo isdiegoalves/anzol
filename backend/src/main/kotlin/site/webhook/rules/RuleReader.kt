@@ -26,6 +26,7 @@ class RuleReader(
     private val violations: Violations,
 ) {
     private val matchReader = MatchReader(violations)
+    private val scenarioReader = ScenarioReader(violations)
 
     fun rule(
         node: JsonNode?,
@@ -33,11 +34,11 @@ class RuleReader(
     ): Rule? {
         if (node == null || !node.isObject) return violations.fail(prefix.ifEmpty { "rule" }, "The rule must be an object.")
         val id = id(node["id"], key(prefix, "id"))
-        val name = name(node["name"], key(prefix, "name"))
+        val name = violations.name(node["name"], key(prefix, "name"))
         val enabled = violations.boolean(node["enabled"], key(prefix, "enabled"), default = true)
         val priority = priority(node["priority"], key(prefix, "priority"))
         val match = matchReader.match(node["match"], key(prefix, "match"))
-        violations.notSupported(node["scenario"], key(prefix, "scenario"))
+        val scenario = scenarioReader.scenario(node["scenario"], key(prefix, "scenario"))
         val response = response(node["response"], key(prefix, "response"))
         return if (violations.hasErrorsUnder(prefix)) {
             null
@@ -48,6 +49,7 @@ class RuleReader(
                 enabled = checkNotNull(enabled),
                 priority = checkNotNull(priority),
                 match = checkNotNull(match),
+                scenario = scenario,
                 response = checkNotNull(response),
             )
         }
@@ -74,30 +76,6 @@ class RuleReader(
         val given = node.given() ?: return RuleId(UUID.randomUUID())
         val text = given.takeIf { it.isString }?.stringValue()?.takeIf { UUID_TEXT.matches(it) }
         return if (text == null) violations.fail(key, "The id must be a valid UUID.") else RuleId(UUID.fromString(text))
-    }
-
-    private fun name(
-        node: JsonNode?,
-        key: String,
-    ): String? {
-        val given = node.given()
-        return when {
-            given == null || (given.isString && given.stringValue().isBlank()) -> {
-                violations.fail(key, "The name field is required.")
-            }
-
-            !given.isString -> {
-                violations.fail(key, "The name must be a string.")
-            }
-
-            given.stringValue().length > MAX_NAME_LENGTH -> {
-                violations.fail(key, "The name may not be greater than $MAX_NAME_LENGTH characters.")
-            }
-
-            else -> {
-                given.stringValue()
-            }
-        }
     }
 
     private fun priority(
@@ -341,4 +319,53 @@ class MatchReader(
                 violations.fail(key, "The equalToJson must be a valid JSON string.")
             }
         }
+}
+
+/** O `scenario` de uma regra, `{name, requiredState?, newState?}`: nome como o da regra, estados em texto não vazio. */
+class ScenarioReader(
+    private val violations: Violations,
+) {
+    fun scenario(
+        node: JsonNode?,
+        key: String,
+    ): RuleScenario? {
+        val given = node.given()?.let { violations.objectOrNull(it, key) } ?: return null
+        val name = violations.name(given["name"], key(key, "name"))
+        val required = given["requiredState"].given()?.let { state(it, key(key, "requiredState")) }
+        val next = given["newState"].given()?.let { state(it, key(key, "newState")) }
+        return name?.let { RuleScenario(it, required, next) }
+    }
+
+    private fun state(
+        node: JsonNode,
+        key: String,
+    ): String? {
+        val text = violations.text(node, key) ?: return null
+        return text.ifEmpty { violations.fail(key, "The ${key.substringAfterLast('.')} field is required.") }
+    }
+}
+
+/** Nome da regra ou do cenário: obrigatório, texto, até [MAX_NAME_LENGTH] caracteres. */
+private fun Violations.name(
+    node: JsonNode?,
+    key: String,
+): String? {
+    val given = node.given()
+    return when {
+        given == null || (given.isString && given.stringValue().isBlank()) -> {
+            fail(key, "The name field is required.")
+        }
+
+        !given.isString -> {
+            fail(key, "The name must be a string.")
+        }
+
+        given.stringValue().length > MAX_NAME_LENGTH -> {
+            fail(key, "The name may not be greater than $MAX_NAME_LENGTH characters.")
+        }
+
+        else -> {
+            given.stringValue()
+        }
+    }
 }

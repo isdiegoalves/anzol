@@ -126,7 +126,13 @@ class RuleParserTest {
             {"name":"a","match":{"body":[{"jsonPath":{"path":"$['status'"}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
             {"name":"a","match":{"body":[{"jsonPath":{"path":"$.a."}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
             {"name":"a","match":{"body":[{"equalToJson":"{a"}]}} | 0.match.body.0.equalToJson | The equalToJson must be a valid JSON string.
-            {"name":"a","scenario":{"name":"s"}}                 | 0.scenario                 | The scenario is not supported yet.
+            {"name":"a","scenario":"s"}                          | 0.scenario                 | The scenario must be an object.
+            {"name":"a","scenario":{}}                           | 0.scenario.name            | The name field is required.
+            {"name":"a","scenario":{"name":" "}}                 | 0.scenario.name            | The name field is required.
+            {"name":"a","scenario":{"name":1}}                   | 0.scenario.name            | The name must be a string.
+            {"name":"a","scenario":{"name":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}} | 0.scenario.name | The name may not be greater than 100 characters.
+            {"name":"a","scenario":{"name":"s","requiredState":1}} | 0.scenario.requiredState | The requiredState must be a string.
+            {"name":"a","scenario":{"name":"s","newState":""}}   | 0.scenario.newState        | The newState field is required.
             {"name":"a","response":"ok"}                         | 0.response                 | The response must be an object.
             {"name":"a","response":{"status":99}}                | 0.response.status          | The status must be between 100 and 599.
             {"name":"a","response":{"status":600}}               | 0.response.status          | The status must be between 100 and 599.
@@ -167,6 +173,24 @@ class RuleParserTest {
             val rule = """{"name":"a","scenario":null,"response":{"template":false,"delay":null,"dribble":null,"fault":null}}"""
 
             assertThat(valid("[$rule]")).hasSize(1)
+        }
+    }
+
+    @Nested
+    @DisplayName("Cenário")
+    inner class Scenario {
+        @Test
+        @DisplayName("Dado um cenário completo, quando lê, então guarda nome, estado exigido e novo estado")
+        fun parseRules_cenario_deveGuardarOsTresCampos() {
+            val rule = valid("""[{"name":"a","scenario":{"name":"pedido","requiredState":"Started","newState":"pago"}}]""").single()
+
+            assertThat(rule.scenario).isEqualTo(RuleScenario(name = "pedido", requiredState = "Started", newState = "pago"))
+        }
+
+        @Test
+        @DisplayName("Dado um cenário só com nome, quando lê, então estado exigido e novo estado ficam nulos")
+        fun parseRules_cenarioSoNome_deveDeixarEstadosNulos() {
+            assertThat(valid("""[{"name":"a","scenario":{"name":"pedido"}}]""").single().scenario).isEqualTo(RuleScenario("pedido"))
         }
     }
 

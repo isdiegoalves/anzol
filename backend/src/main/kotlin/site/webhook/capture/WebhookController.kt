@@ -18,8 +18,8 @@ import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
 import site.webhook.rules.RuleResponse
 import site.webhook.rules.RuleStore
+import site.webhook.rules.ScenarioStore
 import site.webhook.rules.TemplateInput
-import site.webhook.rules.decide
 import site.webhook.rules.rendered
 import site.webhook.rules.toMatchInput
 import site.webhook.rules.toTemplateRequest
@@ -95,13 +95,15 @@ class WebhookController(
     private val tokens: TokenStore,
     private val requests: RequestStore,
     private val rules: RuleStore,
+    private val scenarios: ScenarioStore,
     private val clock: Clock,
     private val stream: RequestStream,
 ) {
     /**
      * `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. A primeira regra ativa que
-     * casa responde; sem ela, a resposta padrão da URL de sempre (`default_*`, `timeout`, `retry_after`
-     * e o status pelo caminho). A mensagem grava qual regra respondeu, ou a mais próxima.
+     * casa responde (e muda o estado do cenário dela, junto com a escolha); sem ela, a resposta padrão da
+     * URL de sempre (`default_*`, `timeout`, `retry_after` e o status pelo caminho). A mensagem grava qual
+     * regra respondeu, ou a mais próxima.
      */
     @RequestMapping(
         path = ["/{tokenId:$UUID_PATTERN}", "/{tokenId:$UUID_PATTERN}/**"],
@@ -117,7 +119,7 @@ class WebhookController(
     ) {
         val token = tokens.findOrGone(tokenId)
         val received = request.toCapturedRequest(tokenId, clock.instant().toLegacyDateTime())
-        val decision = rules.find(tokenId).decide(received.toMatchInput())
+        val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
         if (decision is Decision.Unmatched && token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
         val captured =
