@@ -1,6 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, Injector, computed, inject, input } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -25,6 +25,7 @@ export class RequestDetail {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
   private readonly origin = inject(DOCUMENT).location.origin;
+  private readonly injector = inject(Injector);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -61,5 +62,11 @@ export class RequestDetail {
   protected copyRequestAs(format: CopyFormat): void {
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
     this.snackBar.open(`Copied request as ${format}`);
+  }
+
+  /** O editor de regras vem sob demanda (no pedaço da aba Rules), fora da carga inicial. */
+  protected async createRule(): Promise<void> {
+    const { RuleFromRequest } = await import('../rules/rule-from-request');
+    await this.injector.get(RuleFromRequest).open(this.request());
   }
 }

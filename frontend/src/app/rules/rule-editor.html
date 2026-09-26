@@ -449,8 +449,28 @@
       }
     </mat-form-field>
   }
+  @if (historyErrors().length > 0) {
+    <ul class="errors history-errors" role="alert">
+      @for (message of historyErrors(); track $index) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+  }
+  @if (historyTest(); as result) {
+    <app-history-test-panel [result]="result" [tokenId]="tokenId() ?? ''" />
+  }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
+  <button
+    mat-stroked-button
+    type="button"
+    class="test"
+    title="Check which of the recorded requests this rule would match, without saving it"
+    [disabled]="!canTest()"
+    (click)="testAgainstHistory()"
+  >
+    Test against history
+  </button>
   <button mat-button type="button" mat-dialog-close>Cancel</button>
   <button mat-flat-button type="button" [disabled]="!canSave()" (click)="saveRule()">Save</button>
 </mat-dialog-actions>

@@ -67,6 +67,42 @@ describe('Dado as regras da URL aberta', () => {
 
     expect(await done).toEqual([rule(9)]);
   });
+
+  it('deve testar a regra em edição e contar as mensagens da URL para achar a página Quando testa contra o histórico', async () => {
+    await loaded();
+    const emEdicao = { ...rule(3), id: undefined };
+
+    const done = store.testRule(emEdicao);
+    const test = http.expectOne({ method: 'POST', url: `${url}/test` });
+    const count = http.expectOne(
+      (req) => req.url === `/token/${TOKEN_ID}/requests` && req.params.get('per_page') === '1',
+    );
+    test.flush({
+      matches: [{ uuid: 'a', seq: 2 }],
+      misses: [{ uuid: 'b', seq: 1, failed: ['method: expected POST, got GET'] }],
+    });
+    count.flush({ data: [], total: 52 });
+
+    expect(test.request.body).toEqual(emEdicao);
+    expect(await done).toEqual({
+      tested: 2,
+      matched: 1,
+      misses: [{ uuid: 'b', seq: 1, failed: ['method: expected POST, got GET'], page: 2 }],
+      windowFull: false,
+    });
+  });
+
+  it('deve repassar o erro Quando o servidor recusa a regra (422)', async () => {
+    await loaded();
+
+    const done = store.testRule(rule(1));
+    http
+      .expectOne(`${url}/test`)
+      .flush({ 'match.path.regex': ['The regex is invalid.'] }, { status: 422, statusText: 'x' });
+    http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`).flush({ total: 0 });
+
+    await expect(done).rejects.toMatchObject({ status: 422 });
+  });
 });
 
 describe('Dado a resposta de erro ao salvar regras', () => {

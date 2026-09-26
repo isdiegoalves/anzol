@@ -26,10 +26,13 @@ import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/for
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { merge } from 'rxjs';
+import { HistoryTestPanel } from './history-test-panel';
 import {
   DELAY_MAX_MS,
   DRIBBLE_MAX_CHUNKS,
   FAULT_LABELS,
+  HistoryTest,
   RULE_FAULTS,
   Rule,
   scenarioNames,
@@ -57,6 +60,8 @@ import { RuleStore, validationMessages } from './rule-store';
 export interface RuleEditorData {
   /** Posição da regra na lista salva; `null` para uma regra nova (entra no fim). */
   index: number | null;
+  /** Regra nova já preenchida (ex.: a partir de uma mensagem); sem ela, uma regra em branco. */
+  draft?: Rule;
 }
 
 type ConditionGroup = FormGroup<{
@@ -132,6 +137,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     MatButton,
     MatButtonToggleGroup,
     MatButtonToggle,
+    HistoryTestPanel,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',
@@ -144,7 +150,9 @@ export class RuleEditor {
 
   /** Regra de partida: o que o formulário não edita (`id`, `scenario`...) sai dela. */
   private base: Rule =
-    this.data.index === null ? newRule() : (this.store.rules()[this.data.index] ?? newRule());
+    this.data.index === null
+      ? (this.data.draft ?? newRule())
+      : (this.store.rules()[this.data.index] ?? newRule());
 
   protected readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -194,6 +202,11 @@ export class RuleEditor {
   protected readonly saving = signal(false);
   /** Erros do servidor sem campo no formulário (ou de outras regras da lista). */
   protected readonly generalErrors = signal<readonly string[]>([]);
+  /** Último "Test against history" da regra como está; some quando a regra muda. */
+  protected readonly historyTest = signal<HistoryTest | null>(null);
+  protected readonly historyErrors = signal<readonly string[]>([]);
+  protected readonly testing = signal(false);
+  protected readonly tokenId = this.store.tokenId;
 
   protected readonly methods = [
     ...METHODS,
@@ -245,6 +258,9 @@ export class RuleEditor {
     delayMin.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => delayMax.updateValueAndValidity());
+    merge(this.form.valueChanges, this.json.valueChanges)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.clearHistoryTest());
     this.loadForm(this.base);
   }
 
@@ -293,14 +309,32 @@ export class RuleEditor {
   }
 
   protected canSave(): boolean {
-    return !this.saving() && (this.view() === JSON_VIEW ? this.json.valid : this.form.valid);
+    return !this.saving() && this.editedValid();
+  }
+
+  protected canTest(): boolean {
+    return !this.testing() && this.editedValid();
+  }
+
+  /** `rules/test` com a regra como está no editor (formulário ou JSON), sem salvar. */
+  protected async testAgainstHistory(): Promise<void> {
+    const rule = this.canTest() ? this.editedRule() : undefined;
+    if (!rule) {
+      return;
+    }
+    this.clearHistoryTest();
+    this.testing.set(true);
+    try {
+      this.historyTest.set(await this.store.testRule(rule));
+    } catch (error) {
+      this.historyErrors.set(testMessages(error));
+    } finally {
+      this.testing.set(false);
+    }
   }
 
   protected async saveRule(): Promise<void> {
-    if (!this.canSave()) {
-      return;
-    }
-    const rule = this.view() === JSON_VIEW ? parseRuleJson(this.json.value).rule : this.formRule();
+    const rule = this.canSave() ? this.editedRule() : undefined;
     if (!rule) {
       return;
     }
@@ -330,6 +364,20 @@ export class RuleEditor {
 
   private formRule(): Rule {
     return fromFormValue(this.form.getRawValue() as RuleFormValue, this.base);
+  }
+
+  private editedValid(): boolean {
+    return this.view() === JSON_VIEW ? this.json.valid : this.form.valid;
+  }
+
+  /** A regra na visão aberta: a do formulário, ou o JSON como foi escrito. */
+  private editedRule(): Rule | undefined {
+    return this.view() === JSON_VIEW ? parseRuleJson(this.json.value).rule : this.formRule();
+  }
+
+  private clearHistoryTest(): void {
+    this.historyTest.set(null);
+    this.historyErrors.set([]);
   }
 
   private loadForm(rule: Rule): void {
@@ -507,4 +555,13 @@ function jsonWhenEqualToJson(control: AbstractControl<string>): ValidationErrors
 
 function requiredWhenJsonPath(control: AbstractControl<string>): ValidationErrors | null {
   return rowType(control) === 'jsonPath' && !control.value.trim() ? { required: true } : null;
+}
+
+/** Erro do `rules/test`: o 422 (regra inválida) e a URL apagada como no salvar; o resto, genérico. */
+function testMessages(error: unknown): string[] {
+  if (error instanceof HttpErrorResponse && [404, 410, 422].includes(error.status)) {
+    return validationMessages(error);
+  }
+  const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
+  return [`Could not test the rule (${status}).`];
 }

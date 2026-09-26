@@ -1,0 +1,49 @@
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.history {
+  padding: 8px 12px;
+  border: 1px solid #bce8f1;
+  border-radius: 4px;
+  background: #d9edf7;
+  color: #31708f;
+}
+
+h3 {
+  margin: 0 0 4px;
+  font: var(--mat-sys-title-small);
+}
+
+h4 {
+  margin: 8px 0 4px;
+  font: var(--mat-sys-label-large);
+}
+
+p {
+  margin: 0;
+}
+
+.window {
+  font-size: 12px;
+}
+
+.misses {
+  max-height: 240px;
+  margin: 0;
+  padding-left: 20px;
+  overflow-y: auto;
+
+  a {
+    color: #245269;
+    font-weight: 500;
+  }
+}
+
+.failed {
+  margin: 0 0 4px;
+  padding-left: 16px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 12px;
+}

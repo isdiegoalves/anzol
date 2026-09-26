@@ -10,10 +10,11 @@ import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
-import { TOKEN_ID } from '../../testing/fixtures';
+import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { RuleEditor, RuleEditorData } from './rule-editor';
+import { ruleFromRequest } from './rule-from-request';
 import { RuleStore } from './rule-store';
 
 const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
@@ -31,6 +32,7 @@ describe('Dado o editor de regra', () => {
     http.expectOne(URL_REGRAS).flush(rules);
     await loaded;
     dialogData.index = data.index;
+    dialogData.draft = data.draft;
     fixture = TestBed.createComponent(RuleEditor);
     loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
@@ -411,6 +413,146 @@ describe('Dado o editor de regra', () => {
       await (await view('Form')).check();
 
       expect(await (await input('Name')).getValue()).toBe('Pelo JSON');
+    });
+  });
+
+  describe('Dado uma regra criada a partir de uma mensagem', () => {
+    const draft = () =>
+      ruleFromRequest(
+        webhookRequest(7, {
+          method: 'POST',
+          url: `http://localhost:8084/${TOKEN_ID}/pedidos?tipo=pix`,
+          query: { tipo: 'pix' },
+          content: '{"id":42}',
+        }),
+      );
+
+    it('deve abrir preenchido com método, caminho, query e corpo da mensagem', async () => {
+      await open({ index: null, draft: draft() });
+
+      expect(await (await input('Name')).getValue()).toBe('POST /pedidos');
+      expect(await (await select('Methods')).getValueText()).toBe('POST');
+      expect(await (await select('Path match')).getValueText()).toBe('Equals');
+      expect(await (await input('Path')).getValue()).toBe('/pedidos');
+      expect(await (await input('Query 1 name')).getValue()).toBe('tipo');
+      expect(await (await select('Query 1 operator')).getValueText()).toBe('equals');
+      expect(await (await input('Query 1 value')).getValue()).toBe('pix');
+      expect(await (await select('Body 1 type')).getValueText()).toBe('Equal to JSON');
+      expect(await (await input('Body 1 value')).getValue()).toBe('{"id":42}');
+      expect(await (await input('Status')).getValue()).toBe('200');
+      expect(await (await input('Response body')).getValue()).toBe('');
+    });
+
+    it('deve acrescentar a regra no fim da lista com prioridade 5 Quando salva', async () => {
+      await open({ index: null, draft: draft() }, [rule(1), rule(2)]);
+
+      await save();
+
+      const call = await put();
+      expect(call.request.body).toEqual([
+        rule(1),
+        rule(2),
+        {
+          name: 'POST /pedidos',
+          enabled: true,
+          priority: 5,
+          match: {
+            method: ['POST'],
+            path: { equals: '/pedidos' },
+            query: { tipo: { equals: 'pix' } },
+            headers: {},
+            body: [{ equalToJson: { id: 42 } }],
+          },
+          scenario: null,
+          response: {
+            status: 200,
+            headers: {},
+            body: '',
+            template: false,
+            delay: null,
+            dribble: null,
+            fault: null,
+          },
+        },
+      ]);
+      call.flush([rule(1), rule(2), rule(3)]);
+      await vi.waitFor(() => expect(dialogRef.close).toHaveBeenCalledWith(true));
+    });
+  });
+
+  describe('Dado o botão "Test against history"', () => {
+    const MISS = '00000000-0000-4000-8000-000000000009';
+    const testCall = () =>
+      vi.waitFor(() => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }));
+    const countCall = () =>
+      vi.waitFor(() => http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`));
+    const panel = (): HTMLElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('[aria-label="History test"]');
+
+    it('deve testar a regra em edição e mostrar quantas casariam e por que as outras não', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      await (await input('Name')).setValue('Em edição');
+
+      await (await button('Test against history')).click();
+      const call = await testCall();
+      call.flush({
+        matches: [{ uuid: 'a', seq: 3 }],
+        misses: [{ uuid: MISS, seq: 2, failed: ['method: expected POST, got GET', 'x: y'] }],
+      });
+      (await countCall()).flush({ data: [], total: 2 });
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      expect(call.request.body).toEqual({ ...rule(1), name: 'Em edição' });
+      expect(panel()?.querySelector('.summary')?.textContent?.trim()).toBe(
+        '1 of 2 recorded requests would match.',
+      );
+      const link = panel()?.querySelector('a') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${MISS}/1`);
+      expect(link.target).toBe('_blank');
+      expect(link.textContent?.trim()).toBe('#00000');
+      expect(
+        [...(panel()?.querySelectorAll('.failed li') ?? [])].map((li) => li.textContent),
+      ).toEqual(['method: expected POST, got GET', 'x: y']);
+      expect(dialogRef.close).not.toHaveBeenCalled();
+    });
+
+    it('deve mostrar o erro no editor e não fechar Quando o servidor recusa a regra (422)', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await (await button('Test against history')).click();
+      (await testCall()).flush(
+        { 'match.path.regex': ['The regex is invalid.'] },
+        { status: 422, statusText: 'Unprocessable' },
+      );
+      (await countCall()).flush({ data: [], total: 0 });
+      await vi.waitFor(() =>
+        expect(fixture.nativeElement.querySelector('.history-errors')).not.toBeNull(),
+      );
+
+      const alert = (fixture.nativeElement as HTMLElement).querySelector('.history-errors');
+      expect(alert?.textContent?.trim()).toBe('match.path.regex: The regex is invalid.');
+      expect(panel()).toBeNull();
+      expect(dialogRef.close).not.toHaveBeenCalled();
+    });
+
+    it('não deve permitir testar Quando a regra em edição é inválida', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await (await input('Name')).setValue('');
+
+      expect(await (await button('Test against history')).isDisabled()).toBe(true);
+    });
+
+    it('deve apagar o resultado Quando a regra muda depois do teste', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [], misses: [] });
+      (await countCall()).flush({ data: [], total: 0 });
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      await (await input('Name')).setValue('Outra');
+
+      expect(panel()).toBeNull();
     });
   });
 });

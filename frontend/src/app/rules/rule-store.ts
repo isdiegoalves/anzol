@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Rule } from './rule';
+import { HistoryTest, Rule, RuleTestResponse, summarizeHistoryTest } from './rule';
 
 /**
  * Regras da URL aberta. A API só tem a lista inteira: `GET` lê, `PUT` substitui (e é o import).
@@ -40,6 +40,23 @@ export class RuleStore {
       this.rules.set(previous);
       throw error;
     }
+  }
+
+  /**
+   * A regra em edição (salva ou não) contra as mensagens gravadas mais recentes. O total de
+   * mensagens da URL vem junto, para o link de cada falha abrir a página certa da lista.
+   */
+  async testRule(rule: Rule): Promise<HistoryTest> {
+    const tokenId = this.requireToken();
+    const [response, requests] = await Promise.all([
+      firstValueFrom(this.http.post<RuleTestResponse>(`${this.url(tokenId)}/test`, rule)),
+      firstValueFrom(
+        this.http.get<{ total: number }>(`/token/${tokenId}/requests`, {
+          params: { per_page: 1 },
+        }),
+      ),
+    ]);
+    return summarizeHistoryTest(response, requests.total);
   }
 
   private url(tokenId: string): string {

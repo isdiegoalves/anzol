@@ -5,6 +5,7 @@ import {
   ruleFlags,
   scenarioNames,
   scenarioStates,
+  summarizeHistoryTest,
 } from './rule';
 
 const rule = (fields: Partial<Rule>): Rule => ({ name: 'r', ...fields });
@@ -126,5 +127,71 @@ describe('Dado as sugestões de cenário do editor', () => {
 
   it('deve sugerir só Started Quando o cenário ainda não existe', () => {
     expect(scenarioStates(regras, 'Novo')).toEqual(['Started']);
+  });
+});
+
+describe('Dado a resposta do teste da regra contra o histórico', () => {
+  const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+  it('deve contar as que casam e pôr em cada falha a página da lista onde ela está', () => {
+    // 120 mensagens na URL, 50 por página, da mais antiga para a mais nova; as quatro testadas são
+    // as mais novas (posições 117 a 120), todas na página 3.
+    const resumo = summarizeHistoryTest(
+      {
+        matches: [{ uuid: uuid(120), seq: 120 }],
+        misses: [
+          { uuid: uuid(119), seq: 119, failed: ['method: expected POST, got GET'] },
+          { uuid: uuid(71), seq: 71, failed: ['path: expected "/a", got "/b"'] },
+          { uuid: uuid(51), seq: 51, failed: ['body: body is not JSON'] },
+        ],
+      },
+      120,
+    );
+
+    expect(resumo.tested).toBe(4);
+    expect(resumo.matched).toBe(1);
+    expect(resumo.windowFull).toBe(false);
+    expect(resumo.misses).toEqual([
+      { uuid: uuid(119), seq: 119, failed: ['method: expected POST, got GET'], page: 3 },
+      { uuid: uuid(71), seq: 71, failed: ['path: expected "/a", got "/b"'], page: 3 },
+      { uuid: uuid(51), seq: 51, failed: ['body: body is not JSON'], page: 3 },
+    ]);
+  });
+
+  it('deve contar a posição pela ordem das mensagens, não pelo seq (mensagens apagadas)', () => {
+    // 60 mensagens na URL; as quatro testadas são as mais novas, com buracos no seq.
+    const resumo = summarizeHistoryTest(
+      {
+        matches: [{ uuid: uuid(1), seq: 900 }],
+        misses: [
+          { uuid: uuid(2), seq: 500, failed: ['x'] },
+          { uuid: uuid(3), seq: 30, failed: ['x'] },
+          { uuid: uuid(4), seq: 20, failed: ['x'] },
+        ],
+      },
+      53,
+    );
+
+    // Da mais antiga, contando de 0: posições 52, 51, 50 e 49 → páginas 2, 2, 2 e 1.
+    expect(resumo.misses.map(({ seq, page }) => [seq, page])).toEqual([
+      [500, 2],
+      [30, 2],
+      [20, 1],
+    ]);
+  });
+
+  it('deve avisar que só as 500 mais recentes entram Quando o teste cobriu 500 mensagens', () => {
+    const matches = Array.from({ length: 500 }, (_, i) => ({ uuid: uuid(i), seq: i }));
+
+    expect(summarizeHistoryTest({ matches, misses: [] }, 800).windowFull).toBe(true);
+  });
+
+  it('deve dar zero testadas Quando a URL não tem mensagens', () => {
+    expect(summarizeHistoryTest({ matches: [], misses: [] }, 0)).toEqual({
+      tested: 0,
+      matched: 0,
+      misses: [],
+      windowFull: false,
+    });
   });
 });

@@ -7,6 +7,7 @@ import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
+import { RuleFromRequest } from '../rules/rule-from-request';
 import { Preferences } from '../settings/preferences';
 import { RequestDetail } from './request-detail';
 
@@ -141,4 +142,27 @@ describe('Dado o detalhe de uma mensagem', () => {
       'Answered by rule Pix pago',
     );
   });
+
+  it.each([
+    ['com o corpo e os detalhes', {}, false],
+    ['sem corpo e com "Hide Details"', { content: '' }, true],
+  ])(
+    'deve abrir o editor de regra a partir da mensagem Quando "Create rule from this request" é clicado %s',
+    async (_caso, overrides, hideDetails) => {
+      const open = vi.fn().mockResolvedValue(undefined);
+      TestBed.configureTestingModule({
+        providers: [{ provide: RuleFromRequest, useValue: { open } }],
+      });
+      TestBed.inject(Preferences).hideDetails.set(hideDetails);
+      const request = webhookRequest(3, overrides);
+      await render(request);
+
+      const button = await loader.getHarness(
+        MatButtonHarness.with({ text: 'Create rule from this request' }),
+      );
+      await button.click();
+
+      await vi.waitFor(() => expect(open).toHaveBeenCalledWith(request));
+    },
+  );
 });

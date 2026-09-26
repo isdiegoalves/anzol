@@ -127,10 +127,13 @@
   </div>
 }
 
-@if (current.content) {
-  <div class="content-actions">
+<div class="content-actions">
+  <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
+  @if (current.content) {
     <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
-  </div>
+  }
+</div>
+@if (current.content) {
   <pre class="content"><code class="hljs" [innerHTML]="body()"></code></pre>
 } @else {
   <p class="no-content">(no body content)</p>

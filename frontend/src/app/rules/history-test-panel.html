@@ -1,0 +1,37 @@
+@let current = result();
+<section class="history" aria-label="History test" role="status">
+  <h3>Test against history</h3>
+  @if (current.tested === 0) {
+    <p class="summary">No recorded requests to test against.</p>
+  } @else {
+    <p class="summary">
+      <strong>{{ current.matched }} of {{ current.tested }}</strong> recorded
+      {{ current.tested === 1 ? 'request' : 'requests' }} would match.
+    </p>
+    @if (current.windowFull) {
+      <p class="window">Only the {{ window }} most recent requests were tested.</p>
+    }
+    @if (current.misses.length > 0) {
+      <h4>Would not match ({{ current.misses.length }})</h4>
+      <ul class="misses">
+        @for (miss of current.misses; track miss.uuid) {
+          <li>
+            <a
+              target="_blank"
+              rel="noopener"
+              title="Open the request in a new tab"
+              [href]="'#/' + tokenId() + '/' + miss.uuid + '/' + miss.page"
+              [attr.aria-label]="'Open request ' + miss.uuid"
+              >#{{ miss.uuid.substring(0, 5) }}</a
+            >
+            <ul class="failed">
+              @for (reason of miss.failed; track $index) {
+                <li>{{ reason }}</li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

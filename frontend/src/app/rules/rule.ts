@@ -103,6 +103,57 @@ export interface NearMiss extends RuleRef {
 export const RULE_DEFAULT_PRIORITY = 5;
 export const RULE_DEFAULT_STATUS = 200;
 
+/** Resposta de `POST /token/{id}/rules/test`, da mensagem mais nova para a mais antiga. */
+export interface RuleTestResponse {
+  matches: { uuid: string; seq: number }[];
+  misses: { uuid: string; seq: number; failed: string[] }[];
+}
+
+/** Mensagem que a regra não casaria, com a página da lista onde ela está (para o link). */
+export interface HistoryMiss {
+  uuid: string;
+  seq: number;
+  failed: string[];
+  page: number;
+}
+
+/** Resultado do "Test against history" como a tela mostra. */
+export interface HistoryTest {
+  tested: number;
+  matched: number;
+  misses: HistoryMiss[];
+  /** O servidor só testa as 500 mensagens mais recentes. */
+  windowFull: boolean;
+}
+
+/** Quantas mensagens, das mais recentes, o `rules/test` avalia. */
+export const HISTORY_TEST_WINDOW = 500;
+/** Página padrão de `GET /token/{id}/requests`, a da lista lateral. */
+const REQUESTS_PER_PAGE = 50;
+
+/**
+ * Resume o `rules/test` e acha a página de cada falha na lista lateral, que vai da mais antiga
+ * para a mais nova com `total` mensagens: as testadas são as mais novas, então a posição de cada
+ * uma sai da ordem dela entre as testadas (pelo `seq`, que só cresce).
+ */
+export function summarizeHistoryTest(response: RuleTestResponse, total: number): HistoryTest {
+  const newestFirst = [...response.matches, ...response.misses]
+    .map(({ seq }) => seq)
+    .sort((a, b) => b - a);
+  const rank = new Map(newestFirst.map((seq, index) => [seq, index]));
+  const pageOf = (seq: number) => {
+    const position = total - 1 - (rank.get(seq) ?? 0);
+    return Math.max(1, Math.floor(position / REQUESTS_PER_PAGE) + 1);
+  };
+  const tested = newestFirst.length;
+  return {
+    tested,
+    matched: response.matches.length,
+    misses: response.misses.map((miss) => ({ ...miss, page: pageOf(miss.seq) })),
+    windowFull: tested >= HISTORY_TEST_WINDOW,
+  };
+}
+
 /** Resumo do match para a lista: `POST /pagamentos`, `ANY prefix /api`, `GET ~ ^/v\d+`. */
 export function matchSummary(rule: Rule): string {
   const methods = rule.match?.method?.length ? rule.match.method.join(', ') : 'ANY';
