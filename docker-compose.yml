@@ -15,7 +15,7 @@ services:
   redis:
     container_name: "webhook-redis"
     image: "redis:8.10.2-alpine"
-    # Teto de memória: cheio, o Redis recusa gravação (o webhook responde 500) em vez de despejar
+    # Teto de memória: cheio, o Redis recusa gravação (o webhook responde 507) em vez de despejar
     # chaves; nenhum token some. O que já está gravado continua legível. A limpeza por URL
     # (auto_cleanup / WEBHOOK_MAX_REQUESTS) é o que mantém o uso abaixo do teto.
     command: ["redis-server", "--maxmemory", "1gb", "--maxmemory-policy", "noeviction"]
