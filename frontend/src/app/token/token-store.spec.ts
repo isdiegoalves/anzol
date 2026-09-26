@@ -53,6 +53,17 @@ describe('Dado o TokenStore falando com /token', () => {
     expect((await created).default_status).toBe(404);
   });
 
+  it('deve guardar o token devolvido pelo servidor, e não o enviado, Quando a URL é editada', async () => {
+    TestBed.inject(Preferences).token.set(token({ retry_after: '120' }));
+    const updated = store.update(TOKEN_ID, { retry_after: '007' });
+    const call = http.expectOne(`/token/${TOKEN_ID}`);
+    call.flush(token({ retry_after: 7 }));
+    await updated;
+
+    expect(call.request.body).toEqual({ retry_after: '007' });
+    expect(store.token()?.retry_after).toBe(7);
+  });
+
   it('deve refletir o valor devolvido pelo servidor Quando o CORS é alternado (regressão do C2)', async () => {
     TestBed.inject(Preferences).token.set(token({ cors: false }));
     const toggled = store.toggleCors(TOKEN_ID);

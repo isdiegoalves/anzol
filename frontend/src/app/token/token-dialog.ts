@@ -8,8 +8,9 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { retryAfterValidator } from './retry-after';
 import { Token, TokenSettings } from './token';
 
 export interface TokenDialogData {
@@ -20,7 +21,10 @@ export interface TokenDialogData {
 
 const INTEGER = /^[+-]?\d+$/;
 
-/** Diálogos "Create New URL" e "Edit URL", com a validação do servidor (`timeout` 0–10). */
+/**
+ * Diálogos "Create New URL" e "Edit URL", com a validação do servidor (`timeout` 0–10,
+ * `retry_after` em segundos ou data HTTP).
+ */
 @Component({
   selector: 'app-token-dialog',
   imports: [
@@ -30,6 +34,7 @@ const INTEGER = /^[+-]?\d+$/;
     MatDialogActions,
     MatFormField,
     MatLabel,
+    MatHint,
     MatError,
     MatInput,
     MatButton,
@@ -54,19 +59,24 @@ export class TokenDialog {
       [Validators.pattern(INTEGER), Validators.min(0), Validators.max(10)],
     ],
     default_content: [this.editing?.default_content ?? ''],
+    retry_after: [String(this.editing?.retry_after ?? ''), retryAfterValidator],
   });
 
-  /** Envia só os campos preenchidos, como o `serializeArray` filtrado do app atual. */
+  /**
+   * Campos de texto vão só preenchidos, como o `serializeArray` filtrado do app atual. O
+   * `retry_after` vai sempre (`null` quando vazio): no `PUT`, campo ausente volta ao padrão.
+   */
   protected saveSettings(): void {
     if (this.form.invalid) {
       return;
     }
+    const { retry_after, ...fields } = this.form.getRawValue();
     const settings: TokenSettings = {};
-    for (const [name, value] of Object.entries(this.form.getRawValue())) {
+    for (const [name, value] of Object.entries(fields)) {
       if (value !== null && value !== '') {
-        settings[name as keyof TokenSettings] = String(value);
+        settings[name as keyof typeof fields] = String(value);
       }
     }
-    this.dialogRef.close(settings);
+    this.dialogRef.close({ ...settings, retry_after: retry_after || null });
   }
 }

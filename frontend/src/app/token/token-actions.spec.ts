@@ -8,9 +8,9 @@ import { of } from 'rxjs';
 import type { MockInstance } from 'vitest';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
-import { TokenActions, creationError } from './token-actions';
+import { TokenActions, settingsError } from './token-actions';
 
-describe('Dado o erro ao criar uma URL', () => {
+describe('Dado o erro ao criar ou editar uma URL', () => {
   it.each([
     [
       '422 com dois campos',
@@ -26,7 +26,18 @@ describe('Dado o erro ao criar uma URL', () => {
     ['500', new HttpErrorResponse({ status: 500 }), 'Error creating token (500)'],
     ['desconhecido', new Error('x'), 'Error creating token (unknown)'],
   ])('deve montar a mensagem do app atual Quando a API responde %s', (_caso, erro, esperado) => {
-    expect(creationError(erro)).toBe(esperado);
+    expect(settingsError('creating', erro)).toBe(esperado);
+  });
+
+  it('deve dizer que o erro foi ao editar Quando o PUT responde 422', () => {
+    const erro = new HttpErrorResponse({
+      status: 422,
+      error: { retry_after: ['The retry after must be a number of seconds or an HTTP date.'] },
+    });
+
+    expect(settingsError('updating', erro)).toBe(
+      'Error updating token: The retry after must be a number of seconds or an HTTP date.',
+    );
   });
 });
 
@@ -87,5 +98,26 @@ describe('Dado os botões New e Edit da barra superior', () => {
     expect(call.request.method).toBe('PUT');
     expect(call.request.body).toEqual({ default_content: 'novo' });
     expect(snack).toHaveBeenCalledWith('URL updated!');
+  });
+
+  it('deve mostrar o erro de validação e manter a URL como estava Quando o PUT responde 422', async () => {
+    TestBed.inject(Preferences).token.set(token());
+    answerDialog({ retry_after: '120' });
+
+    const done = TestBed.inject(TokenActions).editUrl();
+    const call = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
+    call.flush(
+      { retry_after: ['The retry after must be a number of seconds or an HTTP date.'] },
+      { status: 422, statusText: 'Unprocessable Entity' },
+    );
+    await done;
+
+    expect(snack).toHaveBeenCalledWith(
+      'Error updating token: The retry after must be a number of seconds or an HTTP date.',
+      undefined,
+      { duration: 10000 },
+    );
+    expect(snack).not.toHaveBeenCalledWith('URL updated!');
+    expect(TestBed.inject(Preferences).token()).toEqual(token());
   });
 });

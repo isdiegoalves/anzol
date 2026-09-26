@@ -5,6 +5,7 @@ export interface TokenFields {
   default_content_type?: string;
   timeout?: string;
   default_content?: string;
+  retry_after?: string | number | null;
 }
 
 export interface Webhook {
@@ -40,6 +41,11 @@ export class TokenTracker {
       data: webhook.data,
     });
     return response.headers()['x-request-id'];
+  }
+
+  /** Token como a API devolve em `GET /token/{id}`. */
+  async read(tokenId: string): Promise<Record<string, unknown>> {
+    return (await (await this.api.get(`/token/${tokenId}`)).json()) as Record<string, unknown>;
   }
 
   /**

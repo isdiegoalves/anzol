@@ -32,7 +32,7 @@ export class TokenActions {
       await this.router.navigate(['/', token.uuid]);
       this.snackBar.open('New URL created');
     } catch (error) {
-      this.snackBar.open(creationError(error), undefined, { duration: 10000 });
+      this.snackBar.open(settingsError('creating', error), undefined, { duration: 10000 });
     }
   }
 
@@ -42,8 +42,12 @@ export class TokenActions {
     if (!settings || !token) {
       return;
     }
-    await this.tokens.update(token.uuid, settings);
-    this.snackBar.open('URL updated!');
+    try {
+      await this.tokens.update(token.uuid, settings);
+      this.snackBar.open('URL updated!');
+    } catch (error) {
+      this.snackBar.open(settingsError('updating', error), undefined, { duration: 10000 });
+    }
   }
 
   private askSettings(mode: TokenDialogData['mode']): Promise<TokenSettings | undefined> {
@@ -56,11 +60,11 @@ export class TokenActions {
 }
 
 /** Mesma mensagem do app atual: erros de validação (422) juntos, ou o status HTTP. */
-export function creationError(error: unknown): string {
+export function settingsError(action: 'creating' | 'updating', error: unknown): string {
   if (error instanceof HttpErrorResponse && error.status === 422) {
     const messages = Object.values(error.error as Record<string, string[]>).flat();
-    return `Error creating token: ${messages.join(', ')}`;
+    return `Error ${action} token: ${messages.join(', ')}`;
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return `Error creating token (${status})`;
+  return `Error ${action} token (${status})`;
 }

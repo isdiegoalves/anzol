@@ -13,6 +13,7 @@ export function token(overrides: Partial<Token> = {}): Token {
     default_content_type: 'text/plain',
     timeout: 0,
     cors: false,
+    retry_after: null,
     created_at: '2026-09-26 00:43:49',
     updated_at: '2026-09-26 00:43:49',
     ...overrides,

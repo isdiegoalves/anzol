@@ -28,6 +28,12 @@
       <mat-error>The timeout must be an integer between 0 and 10.</mat-error>
     </mat-form-field>
     <mat-form-field>
+      <mat-label>Retry-After</mat-label>
+      <input matInput formControlName="retry_after" placeholder="120" />
+      <mat-hint>Seconds or HTTP-date; useful with 429, 503 or 3xx</mat-hint>
+      <mat-error>The retry after must be a number of seconds or an HTTP date.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
       <mat-label>Response body</mat-label>
       <textarea matInput rows="5" formControlName="default_content"></textarea>
     </mat-form-field>
