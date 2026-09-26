@@ -5,6 +5,7 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatInputHarness } from '@angular/material/input/testing';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { token } from '../../testing/fixtures';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 
@@ -26,11 +27,16 @@ async function openDialog(data: TokenDialogData) {
 const input = (loader: HarnessLoader, placeholder: string) =>
   loader.getHarness(MatInputHarness.with({ placeholder }));
 
+const autoCleanup = (loader: HarnessLoader) => loader.getHarness(MatSelectHarness);
+
+const autoCleanupField = (loader: HarnessLoader) =>
+  loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Auto cleanup' }));
+
 const retryAfter = (loader: HarnessLoader) =>
   loader.getHarness(MatInputHarness.with({ selector: '[formControlName=retry_after]' }));
 
 describe('Dado o diálogo "Create New URL"', () => {
-  it('deve enviar os campos preenchidos, timeout 0 e Retry-After nulo Quando Create é clicado', async () => {
+  it('deve enviar os campos preenchidos, timeout 0 e Retry-After e limpeza nulos Quando Create é clicado', async () => {
     const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
     await (await input(loader, '200')).setValue('404');
@@ -40,7 +46,38 @@ describe('Dado o diálogo "Create New URL"', () => {
       default_status: '404',
       timeout: '0',
       retry_after: null,
+      auto_cleanup: null,
     });
+  });
+
+  it('deve oferecer Disabled e os limites do servidor, começando em Disabled, Quando o diálogo abre', async () => {
+    const { loader } = await openDialog({ mode: 'create', token: token() });
+    const select = await autoCleanup(loader);
+
+    expect(await select.getValueText()).toBe('Disabled');
+    await select.open();
+    const options = await select.getOptions();
+    expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+      'Disabled',
+      '500',
+      '1000',
+      '5000',
+      '10000',
+    ]);
+  });
+
+  it('deve enviar o limite como número e explicar o que ele faz Quando 1000 é escolhido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+    const select = await autoCleanup(loader);
+
+    await select.open();
+    await select.clickOptions({ text: '1000' });
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Create' }))).click();
+
+    expect(await (await autoCleanupField(loader)).getTextHints()).toEqual([
+      'Keeps the 1000 most recent requests',
+    ]);
+    expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ auto_cleanup: 1000 }));
   });
 
   it.each([
@@ -134,7 +171,27 @@ describe('Dado o diálogo "Edit URL"', () => {
       timeout: '3',
       default_content: 'ok',
       retry_after: null,
+      auto_cleanup: null,
     });
+  });
+
+  it('deve vir com o limite salvo e enviar nulo, e não omitir o campo, Quando Disabled é escolhido', async () => {
+    const { loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ auto_cleanup: 500 }),
+    });
+    const select = await autoCleanup(loader);
+    expect(await select.getValueText()).toBe('500');
+    expect(await (await autoCleanupField(loader)).getTextHints()).toEqual([
+      'Keeps the 500 most recent requests',
+    ]);
+
+    await select.open();
+    await select.clickOptions({ text: 'Disabled' });
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Edit' }))).click();
+
+    expect(await select.getValueText()).toBe('Disabled');
+    expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ auto_cleanup: null }));
   });
 
   it.each([
@@ -159,11 +216,13 @@ describe('Dado o diálogo "Edit URL"', () => {
     expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ retry_after: null }));
   });
 
-  it('deve abrir vazio Quando o token veio do localStorage de uma versão sem Retry-After', async () => {
+  it('deve abrir vazio e Disabled Quando o token veio do localStorage de uma versão sem os campos', async () => {
     const antigo = token();
     delete antigo.retry_after;
+    delete antigo.auto_cleanup;
     const { loader } = await openDialog({ mode: 'edit', token: antigo });
 
     expect(await (await retryAfter(loader)).getValue()).toBe('');
+    expect(await (await autoCleanup(loader)).getValueText()).toBe('Disabled');
   });
 });

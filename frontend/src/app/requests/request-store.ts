@@ -91,14 +91,50 @@ export class RequestStore {
     this.markAsRead(requestId);
   }
 
-  /** Mensagem nova chegando em tempo real: entra no fim da lista e fica como não lida. */
-  append(request: WebhookRequest, total: number): void {
+  /**
+   * Mensagem nova chegando em tempo real: entra no fim da lista e fica como não lida. As que a
+   * limpeza automática cortou (`removed`) saem da lista e das não lidas. Se a mensagem aberta
+   * saiu, devolve a mais próxima que ficou, para a tela abri-la.
+   */
+  append(
+    request: WebhookRequest,
+    total: number,
+    removed: readonly string[] = [],
+  ): WebhookRequest | undefined {
+    const before = this.requests();
+    const cut = new Set(removed);
     this.pages.update((pages) => {
-      const last = pages.at(-1) ?? { page: 1, data: [] };
-      return [...pages.slice(0, -1), { ...last, data: [...last.data, request] }];
+      const kept = pages.map((page) => ({
+        ...page,
+        data: page.data.filter((r) => !cut.has(r.uuid)),
+      }));
+      const last = kept.at(-1) ?? { page: 1, data: [] };
+      return [...kept.slice(0, -1), { ...last, data: [...last.data, request] }];
     });
     this.total.set(total);
-    this.preferences.unread.update((unread) => [...unread, request.uuid]);
+    this.preferences.unread.update((unread) => [
+      ...unread.filter((id) => !cut.has(id)),
+      request.uuid,
+    ]);
+    return this.nearestToSelected(before);
+  }
+
+  /**
+   * Busca de novo a primeira página, mantendo a mensagem aberta: depois de reduzir a limpeza
+   * automática no `PUT`, que corta sem gerar evento. Se a aberta foi cortada, devolve a mais
+   * próxima que ficou.
+   */
+  async reload(): Promise<WebhookRequest | undefined> {
+    const tokenId = this.tokenId();
+    if (!tokenId) {
+      return undefined;
+    }
+    const before = this.requests();
+    const result = await this.fetchPage(tokenId, 1);
+    this.pages.set([{ page: result.current_page, data: result.data }]);
+    this.lastPageReached.set(result.is_last_page);
+    this.total.set(result.total);
+    return this.nearestToSelected(before);
   }
 
   async deleteRequest(request: WebhookRequest): Promise<void> {
@@ -124,6 +160,23 @@ export class RequestStore {
 
   resetUnread(): void {
     this.preferences.unread.set([]);
+  }
+
+  /**
+   * Com a mensagem aberta fora da lista atual, a mais próxima dela na lista anterior que ficou:
+   * primeiro as seguintes (a limpeza corta as mais antigas), depois as anteriores; sem nenhuma,
+   * a primeira da lista.
+   */
+  private nearestToSelected(before: readonly WebhookRequest[]): WebhookRequest | undefined {
+    const id = this.selection()?.id;
+    const after = this.requests();
+    const kept = new Set(after.map((request) => request.uuid));
+    const index = before.findIndex((request) => request.uuid === id);
+    if (index < 0 || kept.has(before[index].uuid)) {
+      return undefined;
+    }
+    const around = [...before.slice(index + 1), ...before.slice(0, index).reverse()];
+    return around.find((request) => kept.has(request.uuid)) ?? after[0];
   }
 
   private find(requestId: string): WebhookRequest | undefined {

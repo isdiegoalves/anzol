@@ -101,6 +101,66 @@ describe('Dado o RequestStore da URL aberta', () => {
     });
   });
 
+  describe('Dado a limpeza automática cortando as mais antigas', () => {
+    const [R1, R2, R3, R4] = [1, 2, 3, 4].map((n) => webhookRequest(n));
+
+    beforeEach(async () => {
+      await respond(store.load(TOKEN_ID, 1), 1, requestPage([R1, R2, R3], { total: 3 }));
+    });
+
+    it('deve tirar da lista e das não lidas o que o servidor cortou Quando chega mensagem com removed', () => {
+      store.append(R4, 9);
+      store.append(webhookRequest(5), 3, [R1.uuid, R4.uuid, webhookRequest(99).uuid]);
+
+      expect(store.requests().map((r) => r.uuid)).toEqual([
+        R2.uuid,
+        R3.uuid,
+        webhookRequest(5).uuid,
+      ]);
+      expect(store.total()).toBe(3);
+      expect(store.unread()).toEqual([webhookRequest(5).uuid]);
+      expect(JSON.parse(localStorage.getItem('unread') ?? '[]')).toEqual([webhookRequest(5).uuid]);
+    });
+
+    it('não deve indicar outra mensagem Quando a aberta continua na lista', () => {
+      store.select(R3.uuid);
+
+      expect(store.append(R4, 3, [R1.uuid])).toBeUndefined();
+      expect(store.selected()?.uuid).toBe(R3.uuid);
+    });
+
+    it.each([
+      ['a seguinte que ficou', [R1.uuid], R2],
+      ['a mais próxima depois de um bloco cortado', [R1.uuid, R2.uuid], R3],
+      ['a nova, se todas as carregadas saíram', [R1.uuid, R2.uuid, R3.uuid], R4],
+    ])('deve indicar %s Quando a mensagem aberta é cortada', (_caso, removed, esperada) => {
+      store.select(R1.uuid);
+
+      expect(store.append(R4, 3, removed)).toEqual(esperada);
+    });
+
+    it('deve buscar de novo a primeira página e manter a aberta Quando a lista é recarregada', async () => {
+      store.select(R3.uuid);
+
+      const reloaded = store.reload();
+      http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3, R4], { total: 2 }));
+
+      expect(await reloaded).toBeUndefined();
+      expect(store.requests()).toEqual([R3, R4]);
+      expect(store.total()).toBe(2);
+      expect(store.selected()?.uuid).toBe(R3.uuid);
+    });
+
+    it('deve indicar a mais próxima que ficou Quando a aberta foi cortada no recarregamento', async () => {
+      store.select(R1.uuid);
+
+      const reloaded = store.reload();
+      http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3, R4], { total: 2 }));
+
+      expect(await reloaded).toEqual(R3);
+    });
+  });
+
   it('deve carregar a página anterior no começo Quando o deep link abriu a página 2', async () => {
     await respond(
       store.load(TOKEN_ID, 2),

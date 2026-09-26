@@ -14,6 +14,7 @@ export function token(overrides: Partial<Token> = {}): Token {
     timeout: 0,
     cors: false,
     retry_after: null,
+    auto_cleanup: null,
     created_at: '2026-09-26 00:43:49',
     updated_at: '2026-09-26 00:43:49',
     ...overrides,

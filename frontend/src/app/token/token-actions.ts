@@ -5,7 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
-import { TokenSettings } from './token';
+import { Token, TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
 
@@ -43,10 +43,24 @@ export class TokenActions {
       return;
     }
     try {
-      await this.tokens.update(token.uuid, settings);
+      const updated = await this.tokens.update(token.uuid, settings);
       this.snackBar.open('URL updated!');
+      if (cutsRequests(token, updated)) {
+        await this.reloadRequests();
+      }
     } catch (error) {
       this.snackBar.open(settingsError('updating', error), undefined, { duration: 10000 });
+    }
+  }
+
+  /** O corte feito no `PUT` não gera evento: a lista vem de novo do servidor. */
+  private async reloadRequests(): Promise<void> {
+    const replacement = await this.requests.reload();
+    if (replacement) {
+      const page = this.requests.pageOf(replacement.uuid);
+      await this.router.navigate(['/', replacement.token_id, replacement.uuid, page], {
+        replaceUrl: true,
+      });
     }
   }
 
@@ -57,6 +71,13 @@ export class TokenActions {
     });
     return firstValueFrom(dialog.afterClosed());
   }
+}
+
+/** Ligar a limpeza automática, ou reduzir o limite, faz o servidor cortar as mais antigas. */
+function cutsRequests(before: Token, after: Token): boolean {
+  const limit = after.auto_cleanup ?? null;
+  const previous = before.auto_cleanup ?? null;
+  return limit !== null && (previous === null || limit < previous);
 }
 
 /** Mesma mensagem do app atual: erros de validação (422) juntos, ou o status HTTP. */

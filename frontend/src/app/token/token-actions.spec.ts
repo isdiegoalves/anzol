@@ -6,7 +6,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import type { MockInstance } from 'vitest';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { TokenActions, settingsError } from './token-actions';
 
@@ -98,6 +99,59 @@ describe('Dado os botões New e Edit da barra superior', () => {
     expect(call.request.method).toBe('PUT');
     expect(call.request.body).toEqual({ default_content: 'novo' });
     expect(snack).toHaveBeenCalledWith('URL updated!');
+  });
+
+  describe('Dado a lista da URL aberta com a primeira mensagem selecionada', () => {
+    const [R1, R2, R3] = [1, 2, 3].map((n) => webhookRequest(n));
+    let navigate: MockInstance<Router['navigate']>;
+
+    beforeEach(async () => {
+      const store = TestBed.inject(RequestStore);
+      const loaded = store.load(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1`).flush(requestPage([R1, R2, R3]));
+      await loaded;
+      store.select(R1.uuid);
+      navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    });
+
+    const edit = async (antes: number | null, depois: number | null) => {
+      TestBed.inject(Preferences).token.set(token({ auto_cleanup: antes as 500 | null }));
+      answerDialog({ auto_cleanup: depois });
+      const done = TestBed.inject(TokenActions).editUrl();
+      const call = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
+      call.flush(token({ auto_cleanup: depois as 500 | null }));
+      return { done, call };
+    };
+
+    it.each([
+      ['ligada', null, 1000],
+      ['reduzida', 5000, 1000],
+    ])(
+      'deve recarregar a lista e abrir a mais próxima Quando a limpeza é %s (o corte no PUT não gera evento)',
+      async (_caso, antes, depois) => {
+        const { done, call } = await edit(antes, depois);
+        const reload = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests?page=1`));
+        reload.flush(requestPage([R2, R3], { total: 2 }));
+        await done;
+
+        expect(call.request.body).toEqual({ auto_cleanup: depois });
+        expect(TestBed.inject(RequestStore).requests()).toEqual([R2, R3]);
+        expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, R2.uuid, 1], { replaceUrl: true });
+      },
+    );
+
+    it.each([
+      ['desligada', 500, null],
+      ['aumentada', 500, 1000],
+      ['mantida', 1000, 1000],
+    ])('não deve recarregar a lista Quando a limpeza é %s', async (_caso, antes, depois) => {
+      const { done } = await edit(antes, depois);
+      await done;
+
+      http.expectNone(`/token/${TOKEN_ID}/requests?page=1`);
+      expect(navigate).not.toHaveBeenCalled();
+      expect(snack).toHaveBeenCalledWith('URL updated!');
+    });
   });
 
   it('deve mostrar o erro de validação e manter a URL como estava Quando o PUT responde 422', async () => {

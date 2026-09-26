@@ -1,7 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { Preferences } from '../settings/preferences';
 import { RequestList } from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
@@ -84,6 +85,32 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(items()).toHaveLength(1);
     expect(element().textContent).toContain('Requests (1)');
+  });
+
+  it('deve mostrar total e limite no cabeçalho Quando a URL tem limpeza automática', async () => {
+    TestBed.inject(Preferences).token.set(token({ auto_cleanup: 500 }));
+    await load([webhookRequest(1)], 500, false);
+
+    const header = element().querySelector('h2');
+    expect(header?.textContent?.trim()).toBe('Requests (500 / 500)');
+    expect(header?.getAttribute('title')).toBe('Auto cleanup keeps the 500 most recent requests');
+  });
+
+  it('deve mostrar só o total Quando a limpeza automática está desligada', async () => {
+    TestBed.inject(Preferences).token.set(token({ auto_cleanup: null }));
+    await load([webhookRequest(1)], 12);
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (12)');
+    expect(element().querySelector('h2')?.hasAttribute('title')).toBe(false);
+  });
+
+  it('deve desenhar só as linhas visíveis Quando a lista tem 10.000 mensagens', async () => {
+    const dezMil = Array.from({ length: 10_000 }, (_, n) => webhookRequest(n + 1));
+    await load(dezMil);
+
+    expect(element().textContent).toContain('Requests (10000)');
+    expect(items().length).toBeGreaterThan(0);
+    expect(items().length).toBeLessThan(40);
   });
 
   it('deve oferecer "Next page" Quando a API diz que não é a última página', async () => {

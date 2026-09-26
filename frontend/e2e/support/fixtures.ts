@@ -6,6 +6,7 @@ export interface TokenFields {
   timeout?: string;
   default_content?: string;
   retry_after?: string | number | null;
+  auto_cleanup?: number | null;
 }
 
 export interface Webhook {
@@ -41,6 +42,14 @@ export class TokenTracker {
       data: webhook.data,
     });
     return response.headers()['x-request-id'];
+  }
+
+  /** Envia `count` webhooks em lotes paralelos (volume para a limpeza automática). */
+  async sendMany(tokenId: string, count: number, batch = 50): Promise<void> {
+    for (let sent = 0; sent < count; sent += batch) {
+      const size = Math.min(batch, count - sent);
+      await Promise.all(Array.from({ length: size }, () => this.send(tokenId)));
+    }
   }
 
   /** Token como a API devolve em `GET /token/{id}`. */

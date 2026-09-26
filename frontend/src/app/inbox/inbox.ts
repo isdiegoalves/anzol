@@ -145,14 +145,17 @@ export class Inbox {
     }
   }
 
-  private async receive({ request, total, truncated }: RequestCreated): Promise<void> {
+  private async receive({ request, total, truncated, removed }: RequestCreated): Promise<void> {
     // Corpo > 1 MB chega cortado no evento: a mensagem completa vem da API.
     const complete = truncated
       ? await this.requests.fetchOne(request.token_id, request.uuid)
       : request;
-    this.requests.append(complete, total);
+    // A limpeza automática pode ter cortado a mensagem aberta: abre a mais próxima que ficou.
+    const replacement = this.requests.append(complete, total, removed);
     const list = this.requests.requests();
-    if (!this.requests.selected()) {
+    if (replacement) {
+      await this.openRequest(replacement, true);
+    } else if (!this.requests.selected()) {
       await this.openRequest(list[0]);
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {

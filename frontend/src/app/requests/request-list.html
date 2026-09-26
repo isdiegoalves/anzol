@@ -1,4 +1,9 @@
-<h2 class="header">Requests ({{ store.total() }})</h2>
+<h2
+  class="header"
+  [attr.title]="limit() ? 'Auto cleanup keeps the ' + limit() + ' most recent requests' : null"
+>
+  Requests ({{ count() }})
+</h2>
 @if (!store.hasRequests()) {
   <p class="waiting">
     <mat-progress-spinner mode="indeterminate" diameter="16" />

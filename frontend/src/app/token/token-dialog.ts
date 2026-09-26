@@ -10,8 +10,9 @@ import {
 } from '@angular/material/dialog';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { retryAfterValidator } from './retry-after';
-import { Token, TokenSettings } from './token';
+import { AUTO_CLEANUP_LIMITS, AutoCleanup, Token, TokenSettings } from './token';
 
 export interface TokenDialogData {
   mode: 'create' | 'edit';
@@ -23,7 +24,7 @@ const INTEGER = /^[+-]?\d+$/;
 
 /**
  * Diálogos "Create New URL" e "Edit URL", com a validação do servidor (`timeout` 0–10,
- * `retry_after` em segundos ou data HTTP).
+ * `retry_after` em segundos ou data HTTP, `auto_cleanup` só com os limites aceitos).
  */
 @Component({
   selector: 'app-token-dialog',
@@ -37,6 +38,8 @@ const INTEGER = /^[+-]?\d+$/;
     MatHint,
     MatError,
     MatInput,
+    MatSelect,
+    MatOption,
     MatButton,
   ],
   templateUrl: './token-dialog.html',
@@ -60,23 +63,27 @@ export class TokenDialog {
     ],
     default_content: [this.editing?.default_content ?? ''],
     retry_after: [String(this.editing?.retry_after ?? ''), retryAfterValidator],
+    auto_cleanup: [this.editing?.auto_cleanup ?? (null as AutoCleanup | null)],
   });
 
+  protected readonly autoCleanupLimits = AUTO_CLEANUP_LIMITS;
+
   /**
-   * Campos de texto vão só preenchidos, como o `serializeArray` filtrado do app atual. O
-   * `retry_after` vai sempre (`null` quando vazio): no `PUT`, campo ausente volta ao padrão.
+   * Campos de texto vão só preenchidos, como o `serializeArray` filtrado do app atual.
+   * `retry_after` e `auto_cleanup` vão sempre (`null` quando vazios): no `PUT`, campo ausente
+   * volta ao padrão.
    */
   protected saveSettings(): void {
     if (this.form.invalid) {
       return;
     }
-    const { retry_after, ...fields } = this.form.getRawValue();
+    const { retry_after, auto_cleanup, ...fields } = this.form.getRawValue();
     const settings: TokenSettings = {};
     for (const [name, value] of Object.entries(fields)) {
       if (value !== null && value !== '') {
         settings[name as keyof typeof fields] = String(value);
       }
     }
-    this.dialogRef.close({ ...settings, retry_after: retry_after || null });
+    this.dialogRef.close({ ...settings, retry_after: retry_after || null, auto_cleanup });
   }
 }

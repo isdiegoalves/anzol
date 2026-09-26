@@ -34,6 +34,18 @@
       <mat-error>The retry after must be a number of seconds or an HTTP date.</mat-error>
     </mat-form-field>
     <mat-form-field>
+      <mat-label>Auto cleanup</mat-label>
+      <mat-select formControlName="auto_cleanup" canSelectNullableOptions>
+        <mat-option [value]="null">Disabled</mat-option>
+        @for (limit of autoCleanupLimits; track limit) {
+          <mat-option [value]="limit">{{ limit }}</mat-option>
+        }
+      </mat-select>
+      @if (form.controls.auto_cleanup.value; as limit) {
+        <mat-hint>Keeps the {{ limit }} most recent requests</mat-hint>
+      }
+    </mat-form-field>
+    <mat-form-field>
       <mat-label>Response body</mat-label>
       <textarea matInput rows="5" formControlName="default_content"></textarea>
     </mat-form-field>

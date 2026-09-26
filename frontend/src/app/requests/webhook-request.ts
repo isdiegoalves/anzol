@@ -34,4 +34,6 @@ export interface RequestCreated {
   request: WebhookRequest;
   total: number;
   truncated: boolean;
+  /** Mensagens que a limpeza automática cortou ao gravar esta (ausente em servidores antigos). */
+  removed?: string[];
 }

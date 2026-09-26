@@ -10,6 +10,7 @@ import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { Preferences } from '../settings/preferences';
+import { RequestStore } from '../requests/request-store';
 import { Redirector } from '../settings/redirect';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
@@ -125,6 +126,24 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Webhook.site'));
       expect(text()).toContain('Requests (3)');
       expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
+    });
+
+    it('deve tirar as cortadas e abrir a mais próxima Quando a mensagem aberta sai pela limpeza automática', async () => {
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      const nova = webhookRequest(3);
+
+      FakeEventSource.latest().emit('request.created', {
+        request: nova,
+        total: 2,
+        truncated: false,
+        removed: [R1.uuid],
+      });
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+      const store = TestBed.inject(RequestStore);
+      expect(store.requests().map((request) => request.uuid)).toEqual([R2.uuid, nova.uuid]);
+      expect(store.selected()?.uuid).toBe(R2.uuid);
+      expect(text()).toContain('Requests (2)');
     });
 
     it('deve buscar a mensagem completa pela API Quando o evento chega truncado (> 1 MB)', async () => {
