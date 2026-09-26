@@ -47,7 +47,8 @@ data class Forwarding(
 
 /**
  * Reenvia uma mensagem gravada ao app local e devolve a linha de saída:
- * `HH:mm:ss MÉTODO caminho?query -> status (n ms)` ou `... -> error: motivo`.
+ * `HH:mm:ss MÉTODO caminho?query -> status (n ms)` ou `... -> error: motivo`, com o sufixo
+ * [FILES_NOT_FORWARDED] no multipart.
  */
 class Forwarder(
     private val target: String,
@@ -59,22 +60,26 @@ class Forwarder(
     ): Forwarding {
         val route = message.route(token)
         val prefix = "${LocalTime.now().format(CLOCK_FORMAT)} ${message.method} $route -> "
+        val boundary = message.multipartBoundary()
+        val suffix = if (boundary == null) "" else FILES_NOT_FORWARDED
+        val body = if (boundary == null) message.content else message.multipartBody(boundary)
         val started = System.nanoTime()
         return try {
-            val status = http.send(request(message, route), BodyHandlers.discarding()).statusCode()
-            Forwarding(prefix + "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)", delivered = true)
+            val status = http.send(request(message, route, body), BodyHandlers.discarding()).statusCode()
+            Forwarding(prefix + "$status (${(System.nanoTime() - started) / NANOS_PER_MILLI} ms)" + suffix, delivered = true)
         } catch (e: IOException) {
-            Forwarding(prefix + "error: ${e.reason()}", delivered = false)
+            Forwarding(prefix + "error: ${e.reason()}" + suffix, delivered = false)
         } catch (e: IllegalArgumentException) {
-            Forwarding(prefix + "error: ${e.message}", delivered = false)
+            Forwarding(prefix + "error: ${e.message}" + suffix, delivered = false)
         }
     }
 
     private fun request(
         message: CapturedRequest,
         route: Route,
+        text: String,
     ): HttpRequest {
-        val body = message.content.toByteArray(UTF_8)
+        val body = text.toByteArray(UTF_8)
         val builder =
             HttpRequest
                 .newBuilder(URI.create(target.trimEnd('/') + route.path + route.query?.let { "?$it" }.orEmpty()))

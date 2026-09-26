@@ -14,9 +14,11 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import sun.misc.Signal
 import java.io.IOException
 import java.net.http.HttpClient
 import java.time.Duration
+import kotlin.system.exitProcess
 
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
@@ -84,8 +86,9 @@ class Listen : CoreCliktCommand(name = "listen") {
         val http = httpClient()
         val site = WebhookServer(server, http)
         val listening = token ?: reaching(site) { site.createToken() }
-        if (!reaching(site) { site.exists(listening) }) fail("Token not found")
-        Listener(site, listening, Forwarder(forward, http)) { echo(it) }.run {
+        val newest = reaching(site) { site.newest(listening, page = 1) } ?: fail("Token not found")
+        Signal.handle(Signal("INT")) { exitProcess(0) }
+        Listener(site, listening, Forwarder(forward, http), cursor = newest.data.firstOrNull()) { echo(it) }.run {
             echo("Listening on ${site.base}/$listening (forwarding to $forward)")
         }
         fail("Token not found")

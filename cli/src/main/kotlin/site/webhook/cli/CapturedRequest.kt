@@ -44,4 +44,11 @@ data class RequestCreated(
     val truncated: Boolean = false,
 )
 
+/** Página de `GET /token/{id}/requests`. */
+@Serializable
+data class RequestPage(
+    val data: List<CapturedRequest>,
+    @SerialName("is_last_page") val isLastPage: Boolean,
+)
+
 val apiJson = Json { ignoreUnknownKeys = true }

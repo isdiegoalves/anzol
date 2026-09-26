@@ -44,6 +44,16 @@ class WebhookServer(
     ): CapturedRequest? = found(send("GET", "/token/$token/request/$id"))?.let { apiJson.decodeFromString<CapturedRequest>(it) }
 
     /**
+     * `GET /token/{id}/requests?sorting=newest&page=n`: uma página, da mais nova para a mais
+     * antiga (ordem de chegada); `null` quando o token não existe.
+     */
+    fun newest(
+        token: TokenId,
+        page: Int,
+    ): RequestPage? =
+        found(send("GET", "/token/$token/requests?sorting=newest&page=$page"))?.let { apiJson.decodeFromString<RequestPage>(it) }
+
+    /**
      * Assina o SSE do token: as linhas do `text/event-stream`, já com a assinatura registrada no
      * servidor (ele só manda o status depois de registrar). `null` quando o token não existe.
      */

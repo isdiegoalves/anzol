@@ -19,8 +19,9 @@ data class Received(
 /** App local do desenvolvedor: grava cada requisição e responde [status] sem corpo. */
 class FakeLocalApp(
     @Volatile var status: Int = 200,
+    port: Int = 0,
 ) : AutoCloseable {
-    private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    private val server = HttpServer.create(InetSocketAddress("127.0.0.1", port), 0)
     val received = CopyOnWriteArrayList<Received>()
 
     val url: String get() = "http://127.0.0.1:${server.address.port}"
@@ -47,7 +48,7 @@ class FakeLocalApp(
     }
 
     companion object {
-        /** URL em que ninguém escuta: o app local fora do ar. */
-        fun unreachableUrl(): String = ServerSocket(0).use { "http://127.0.0.1:${it.localPort}" }
+        /** Porta em que ninguém escuta: o app local fora do ar. */
+        fun freePort(): Int = ServerSocket(0).use { it.localPort }
     }
 }

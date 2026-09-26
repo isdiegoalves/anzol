@@ -36,6 +36,9 @@ class FakeWebhookSite : AutoCloseable {
     /** Com true, o `/stream` responde 503: o servidor "caiu" para o CLI, mas ainda grava mensagens. */
     @Volatile var streamsRefused = false
 
+    /** Roda uma vez logo depois de registrar o próximo assinante, antes de o CLI ver a conexão. */
+    @Volatile var onNextSubscribe: (() -> Unit)? = null
+
     val base: String get() = "http://127.0.0.1:${server.address.port}"
 
     init {
@@ -49,6 +52,15 @@ class FakeWebhookSite : AutoCloseable {
     fun tokens(): Set<String> = messages.keys
 
     fun subscriberCount(): Int = subscribers.size
+
+    /** Apaga a mensagem, como a limpeza automática ou o DELETE da tela. */
+    fun remove(message: JsonObject) {
+        messages.getValue(message.token()).remove(message)
+    }
+
+    fun deleteToken(token: String) {
+        messages.remove(token)
+    }
 
     /** Grava a mensagem sem avisar ninguém: ela chegou enquanto o CLI estava desconectado. */
     fun store(message: JsonObject) {
@@ -124,6 +136,7 @@ class FakeWebhookSite : AutoCloseable {
         val subscriber = Subscriber(token, exchange)
         subscriber.send(":conectado\n\n")
         subscribers += subscriber
+        onNextSubscribe?.also { onNextSubscribe = null }?.invoke()
         subscriber.closed.await()
     }
 
