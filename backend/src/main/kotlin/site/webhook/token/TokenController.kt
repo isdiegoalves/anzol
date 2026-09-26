@@ -23,6 +23,7 @@ import site.webhook.signature.MISSING_SECRET
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureDraft
 import site.webhook.stream.RequestStream
+import site.webhook.telemetry.WebhookTelemetry
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDateTime
@@ -55,6 +56,7 @@ class TokenController(
     private val requests: RequestStore,
     private val clock: Clock,
     private val stream: RequestStream,
+    private val telemetry: WebhookTelemetry,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -119,7 +121,7 @@ class TokenController(
         val settings = input.toTokenSettings()
         return request.withSignature(settings.signature, current.signature) { signature ->
             val token = tokens.store(current.withSettings(settings, signature))
-            requests.trim(token)
+            telemetry.cleanupRemoved(requests.trim(token).size)
             ResponseEntity.ok(token.forApi())
         }
     }

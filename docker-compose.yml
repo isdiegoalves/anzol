@@ -8,6 +8,15 @@ services:
       - "8084:8080"
     environment:
       - REDIS_HOST=redis
+      # Métricas, traces e logs para o stack de observabilidade local (Alloy escutando OTLP HTTP na 4318 do
+      # host). Sem estas variáveis, o padrão do app, nada é exportado; com o Alloy fora do ar, o app segue normal.
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_SERVICE_NAME=webhook-site
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.instance.id=webhook-site-local
+    extra_hosts:
+      # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
+      - "host.docker.internal:host-gateway"
     depends_on:
       - redis
     restart: unless-stopped

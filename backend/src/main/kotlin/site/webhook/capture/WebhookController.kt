@@ -16,6 +16,7 @@ import site.webhook.legacy.phpIntval
 import site.webhook.legacy.urlDecode
 import site.webhook.rules.Decision
 import site.webhook.rules.Dribble
+import site.webhook.rules.Fault
 import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
 import site.webhook.rules.RuleResponse
@@ -27,6 +28,9 @@ import site.webhook.rules.rendered
 import site.webhook.rules.toMatchInput
 import site.webhook.rules.toTemplateRequest
 import site.webhook.stream.RequestStream
+import site.webhook.telemetry.CaptureOutcome
+import site.webhook.telemetry.CaptureStopwatch
+import site.webhook.telemetry.WebhookTelemetry
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
@@ -93,6 +97,9 @@ private fun HttpServletRequest.secondSegment(): String? =
         .filter { it.isNotEmpty() }
         .getOrNull(1)
 
+// Cada dependência é um passo da captura (token, mensagens, regras, cenários, hora, tempo real e métricas);
+// agrupá-las só para caber no limite criaria um tipo sem outro uso.
+@Suppress("LongParameterList")
 @RestController
 class WebhookController(
     private val tokens: TokenStore,
@@ -101,12 +108,14 @@ class WebhookController(
     private val scenarios: ScenarioStore,
     private val clock: Clock,
     private val stream: RequestStream,
+    private val telemetry: WebhookTelemetry,
 ) {
     /**
      * `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. A primeira regra ativa que
      * casa responde (e muda o estado do cenário dela, junto com a escolha); sem ela, a resposta padrão da
      * URL de sempre (`default_*`, `timeout`, `retry_after` e o status pelo caminho). A mensagem grava qual
-     * regra respondeu, ou a mais próxima.
+     * regra respondeu, ou a mais próxima. Cada captura respondida conta nas métricas de negócio, com o tempo
+     * gasto pelo app (sem as esperas programadas).
      */
     @RequestMapping(
         path = ["/{tokenId:$UUID_PATTERN}", "/{tokenId:$UUID_PATTERN}/**"],
@@ -120,10 +129,11 @@ class WebhookController(
         request: HttpServletRequest,
         response: HttpServletResponse,
     ) {
+        val stopwatch = CaptureStopwatch()
         val token = tokens.findOrGone(tokenId)
         val received = request.toCapturedRequest(tokenId, clock.instant(), token.signature, token.schema)
         val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
-        if (decision is Decision.Unmatched && token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
+        if (decision is Decision.Unmatched && token.timeout > 0) stopwatch.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
         val captured =
             received.copy(
@@ -133,34 +143,55 @@ class WebhookController(
                 nearMiss = decision.nearMiss(),
             )
         val stored = requests.store(token, captured, arrival)
+        telemetry.cleanupRemoved(stored.removed.size)
         stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
-        when (decision) {
-            is Decision.Matched -> {
-                answerByRule(request, response, token, captured.copy(seq = stored.seq), decision.rule.response)
-            }
+        val fault = decision.fault()
+        // Status dado ao cliente; nulo quando a falha de rede da regra derrubou a conexão (nada mais vale).
+        val status =
+            when (decision) {
+                is Decision.Matched -> {
+                    if (fault != null) {
+                        request.clientConnection().fail(fault, captured)
+                        null
+                    } else {
+                        answerByRule(response, token, captured.copy(seq = stored.seq), decision.rule.response, stopwatch)
+                    }
+                }
 
-            is Decision.Unmatched -> {
-                response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
+                is Decision.Unmatched -> {
+                    responseStatus(request.secondSegment(), token.defaultStatus).also {
+                        response.writeConfiguredResponse(token, captured, it)
+                    }
+                }
             }
-        }
+        val outcome =
+            CaptureOutcome(
+                method = request.method,
+                status = status,
+                ruleMatched = decision is Decision.Matched,
+                signature = captured.signature?.state(),
+                schema = captured.schema?.state(),
+                fault = fault,
+            )
+        telemetry.captured(request, tokenId, outcome, stopwatch.elapsed())
     }
 
     /**
-     * Com `fault`, a conexão falha e nada mais vale. Senão espera o `delay` (a mensagem já está gravada;
-     * a thread da requisição é virtual) e responde, com o corpo de uma vez ou pingando (`dribble`).
+     * Resposta da regra sem `fault`: espera o `delay` (a mensagem já está gravada; a thread da requisição é
+     * virtual) e responde, com o corpo de uma vez ou pingando (`dribble`). Devolve o status dado.
      */
     private fun answerByRule(
-        request: HttpServletRequest,
         response: HttpServletResponse,
         token: Token,
         captured: CapturedRequest,
         answer: RuleResponse,
-    ) {
-        val fault = answer.fault
-        if (fault != null) return request.clientConnection().fail(fault, captured)
-        answer.delay?.let { Thread.sleep(it.millis()) }
+        stopwatch: CaptureStopwatch,
+    ): Int {
+        answer.delay?.let { stopwatch.sleep(Duration.ofMillis(it.millis())) }
         val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant())
-        response.writeRuleResponse(token, captured, answer.rendered(input))
+        val rendered = answer.rendered(input)
+        response.writeRuleResponse(token, captured, rendered, stopwatch)
+        return rendered.status
     }
 
     private fun HttpServletResponse.writeConfiguredResponse(
@@ -182,6 +213,7 @@ class WebhookController(
         token: Token,
         captured: CapturedRequest,
         answer: RuleResponse,
+        stopwatch: CaptureStopwatch,
     ) {
         status = answer.status
         setHeader("X-Request-Id", captured.uuid.toString())
@@ -189,7 +221,7 @@ class WebhookController(
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         answer.headers.forEach(::setHeader)
         val dribble = answer.dribble
-        if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble)
+        if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble, stopwatch)
     }
 
     /**
@@ -199,12 +231,13 @@ class WebhookController(
     private fun HttpServletResponse.writeDribbled(
         body: String,
         dribble: Dribble,
+        stopwatch: CaptureStopwatch,
     ) {
         flushBuffer()
         if (status == HttpServletResponse.SC_NO_CONTENT || status == HttpServletResponse.SC_NOT_MODIFIED) return
         val interval = dribble.durationMs.toLong() / dribble.chunks
         dribblePieces(body.toByteArray(UTF_8), dribble.chunks).forEach { piece ->
-            Thread.sleep(interval)
+            stopwatch.sleep(Duration.ofMillis(interval))
             outputStream.write(piece)
             outputStream.flush()
         }
@@ -220,6 +253,13 @@ class WebhookController(
 private fun Decision.ruleRef(): RuleRef? =
     when (this) {
         is Decision.Matched -> RuleRef(rule.id, rule.name)
+        is Decision.Unmatched -> null
+    }
+
+/** A falha de rede da regra que respondeu: com ela, a conexão cai no lugar da resposta. */
+private fun Decision.fault(): Fault? =
+    when (this) {
+        is Decision.Matched -> rule.response.fault
         is Decision.Unmatched -> null
     }
 

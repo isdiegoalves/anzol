@@ -26,6 +26,34 @@ spring:
     resources:
       add-mappings: false
 
+# Observabilidade (métricas, traces e logs por OTLP): DESLIGADA por padrão; testes e ./ci.sh não exportam nada.
+# Quem liga é o ambiente, com as variáveis padrão do OpenTelemetry, que o Spring Boot 4.1 traduz para estas
+# propriedades (docker-compose.yml): OTEL_EXPORTER_OTLP_ENDPOINT liga traces e logs (sem endpoint não há
+# exportador) e OTEL_METRICS_EXPORTER=otlp liga as métricas.
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+        # Timers em segundos, como o Prometheus espera (o padrão do registro OTLP é milissegundos).
+        base-time-unit: seconds
+        step: 15s
+  opentelemetry:
+    # Coletor fora do ar: o exportador tenta de novo com espera crescente, e o desligamento aguarda o envio
+    # pendente (até 10 s, o mesmo prazo do `docker stop`). Com 2 s por envio, as tentativas desistem antes.
+    tracing:
+      export:
+        otlp:
+          timeout: 2s
+    logging:
+      export:
+        otlp:
+          timeout: 2s
+  tracing:
+    sampling:
+      # Uso local: toda requisição vira trace.
+      probability: 1.0
+
 server:
   port: 8080
   # nginx do app antigo: `large_client_header_buffers 4 8k`, ou seja, até 32 KB de linha de

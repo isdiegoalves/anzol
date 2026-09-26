@@ -1,10 +1,13 @@
 # Stack isolado do ./ci.sh, ao lado do app do dono (porta 8084, Redis `webhook-redis` com dados reais):
 #   docker compose -p webhookci -f docker-compose.yml -f docker-compose.ci.yml ...
 # O `-p webhookci` dá rede e volume próprios (webhookci_default, webhookci_redis-data), que o
-# ./ci.sh apaga no fim com `down -v`. Aqui só muda o que o compose fixa e colidiria.
+# ./ci.sh apaga no fim com `down -v`. Aqui só muda o que o compose fixa e colidiria, e a exportação de
+# observabilidade sai: o tráfego do contrato não vai para o stack de observabilidade do dono.
 services:
   app:
     ports: !override
       - "8088:8080"
+    environment: !override
+      - REDIS_HOST=redis
   redis:
     container_name: webhookci-redis

@@ -23,6 +23,9 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+    // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.62) do Spring Boot.
+    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.28.1-alpha")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")
@@ -41,6 +44,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.awaitility:awaitility")
+    // Exportadores em memória: os testes conferem os spans e os logs sem mandar nada para fora.
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
+    // Os tipos dos exportadores OTLP (o starter os traz só em runtime), para conferir que ficam desligados.
+    testImplementation("io.micrometer:micrometer-registry-otlp")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -52,6 +60,8 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // O Spring Boot lê as variáveis OTEL_* do ambiente: um shell com exportação ligada não pode fazer os testes exportarem.
+    environment = environment.filterKeys { !it.startsWith("OTEL_") }
 }
 
 ktlint {

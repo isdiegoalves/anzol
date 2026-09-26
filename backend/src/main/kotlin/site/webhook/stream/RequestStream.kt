@@ -1,5 +1,7 @@
 package site.webhook.stream
 
+import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.ContextClosedEvent
 import org.springframework.context.event.EventListener
@@ -51,15 +53,27 @@ class Arrivals(
 /**
  * Assinantes do SSE e escutas do `requests/wait` por token, em memória (uma instância, uso local).
  * Substitui a fila Redis, o `queue:work` e o laravel-echo-server: quem grava a mensagem avisa as abas
- * abertas e quem espera por ela.
+ * abertas e quem espera por ela. Os dois registros viram gauges (`webhook.sse.subscribers`, `webhook.wait.active`).
  */
 @Component
 class RequestStream(
     private val jsonMapper: JsonMapper,
+    registry: MeterRegistry,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val subscribers = ConcurrentHashMap<TokenId, Set<SseEmitter>>()
     private val listeners = ConcurrentHashMap<TokenId, Set<Arrivals>>()
+
+    init {
+        Gauge
+            .builder("webhook.sse.subscribers", this) { it.subscriberCount().toDouble() }
+            .description("Conexões SSE abertas (abas acompanhando uma URL)")
+            .register(registry)
+        Gauge
+            .builder("webhook.wait.active", listeners) { all -> all.values.sumOf { it.size }.toDouble() }
+            .description("Esperas do requests/wait em andamento")
+            .register(registry)
+    }
 
     /**
      * Registra o assinante e já manda um comentário: isso despacha o status e os cabeçalhos,

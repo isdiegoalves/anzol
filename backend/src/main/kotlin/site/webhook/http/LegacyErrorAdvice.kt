@@ -13,13 +13,16 @@ import org.springframework.web.context.request.async.AsyncRequestNotUsableExcept
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.NoHandlerFoundException
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import site.webhook.telemetry.WebhookTelemetry
 
 /** Mensagem do 507: o Redis atingiu o `maxmemory` (política `noeviction`) e recusou a gravação. */
 const val STORAGE_FULL_MESSAGE = "Storage is full; the request was not stored."
 
 /** Tratamento HTTP centralizado, no formato de `Exceptions/Handler.php`. */
 @RestControllerAdvice
-class LegacyErrorAdvice {
+class LegacyErrorAdvice(
+    private val telemetry: WebhookTelemetry,
+) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     /** 410 de token, 404 de mensagem: a mensagem vai para o cliente. */
@@ -54,6 +57,7 @@ class LegacyErrorAdvice {
     ): ResponseEntity<Any> {
         if (!error.isRedisOutOfMemory()) return onUnexpected(error, request)
         log.warn("Redis cheio: {} {} recusado", request.method, request.requestURI)
+        telemetry.storageFull()
         return request.legacyError(HttpStatus.INSUFFICIENT_STORAGE, STORAGE_FULL_MESSAGE)
     }
 
