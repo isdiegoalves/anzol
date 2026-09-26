@@ -44,9 +44,12 @@ function searchRequest(page: Page, fragment: string): Promise<Request> {
 
 /** Escolhe no `mat-select` e fecha o painel (o de Method é de múltipla escolha). */
 async function choose(page: Page, label: string, option: string) {
+  // Espera o painel abrir e fechar: reabrir o select durante a animação de fechamento desmonta o painel novo.
   await page.getByRole('combobox', { name: label }).click();
+  await expect(page.getByRole('listbox')).toBeVisible();
   await page.getByRole('option', { name: option, exact: true }).click();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
 }
 
 async function openListening(page: Page, path: string, tokenId: string): Promise<void> {
