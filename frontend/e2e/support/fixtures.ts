@@ -8,6 +8,7 @@ export interface TokenFields {
   retry_after?: string | number | null;
   auto_cleanup?: number | null;
   signature?: Record<string, unknown> | null;
+  schema?: Record<string, unknown> | null;
 }
 
 export interface Webhook {
