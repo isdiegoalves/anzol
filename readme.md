@@ -525,9 +525,20 @@ rota devolveria, com o segredo de assinatura mascarado. Validação, URL ou mens
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 
+Contra DNS rebinding (uma página na internet cujo nome passa a apontar para `127.0.0.1` e chama o `/mcp` do
+navegador), a rota confere, como o transporte Streamable HTTP do MCP exige:
+
+- `Origin`, quando vem (navegador), tem de ser de loopback (`localhost`, `127.0.0.1` ou `[::1]`, qualquer esquema e
+  porta); senão, `403 {"error":"origin not allowed"}`;
+- `Host` tem de estar em `WEBHOOK_MCP_ALLOWED_HOSTS` (`webhook.mcp.allowed-hosts`, lista separada por vírgula; padrão
+  `localhost,127.0.0.1,[::1],host.docker.internal`; nome sem porta casa qualquer porta); senão, `403 {"error":"host
+  not allowed"}`. No rebinding o `Host` chega com o nome do atacante.
+
+Cliente sem `Origin` (Claude Code, SDKs) passa pelo `Host`. Para chegar ao MCP por outro nome, acrescente-o à lista.
+
 O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs, inclusive o `send`
 para a rede local quando `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica só em `127.0.0.1`; não
-ligue o MCP num app publicado.
+ligue o MCP num app publicado. A conferência de `Origin` e `Host` vale só para `/mcp`; o resto da API ainda não a tem.
 
 ## IA local
 

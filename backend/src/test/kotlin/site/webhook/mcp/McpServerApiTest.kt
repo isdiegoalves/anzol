@@ -14,6 +14,8 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import site.webhook.support.AiApiTest
 import site.webhook.support.ApiClient
 import site.webhook.support.JSON_CLIENT
+import site.webhook.support.RawResponse
+import site.webhook.support.rawHttp
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
@@ -43,7 +45,7 @@ private val TOOLS =
 @AiApiTest
 @DisplayName("Servidor MCP em /mcp")
 class McpServerApiTest(
-    @LocalServerPort port: Int,
+    @LocalServerPort private val port: Int,
     private val jsonMapper: JsonMapper,
 ) {
     private val api = ApiClient(port, jsonMapper)
@@ -157,5 +159,59 @@ class McpServerApiTest(
             val text = (result.content().single() as TextContent).text()
             assertThat(text).doesNotContain(SECRET).contains("••••" + SECRET.takeLast(4))
         }
+    }
+
+    /** `initialize` do MCP escrito à mão, com o `Host` e o `Origin` que o `HttpClient` do JDK não deixa escolher. */
+    private fun initialize(
+        host: String,
+        origin: String? = null,
+    ): RawResponse {
+        val body =
+            """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18",""" +
+                """"capabilities":{},"clientInfo":{"name":"teste","version":"1"}}}"""
+        val headers =
+            listOfNotNull(
+                "Content-Type: application/json",
+                "Accept: application/json, text/event-stream",
+                "Content-Length: ${body.toByteArray().size}",
+                origin?.let { "Origin: $it" },
+            )
+        return rawHttp(port, "POST /mcp HTTP/1.1", headers, body.toByteArray(), host = host)
+    }
+
+    @Test
+    @DisplayName("Dado um Origin de fora do loopback, quando chama /mcp, então 403 origin not allowed")
+    fun origin_deFora_deveResponder403() {
+        val response = initialize(host = "localhost:$port", origin = "https://evil.example")
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo("""{"error":"origin not allowed"}""")
+    }
+
+    @Test
+    @DisplayName("Dado um Host fora da lista (DNS rebinding), quando chama /mcp, então 403")
+    fun host_deFora_deveResponder403() {
+        val response = initialize(host = "evil.example")
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo("""{"error":"host not allowed"}""")
+    }
+
+    @Test
+    @DisplayName("Dado um Origin de loopback em outra porta (a tela no ng serve), quando chama /mcp, então passa")
+    fun origin_loopback_devePassar() {
+        val response = initialize(host = "localhost:$port", origin = "http://localhost:4200")
+
+        assertThat(response.status).isEqualTo(200)
+        assertThat(response.body).contains("\"serverInfo\"")
+    }
+
+    @Test
+    @DisplayName("Dado um cliente sem Origin com Host 127.0.0.1:8084, quando chama /mcp, então passa")
+    fun semOrigin_hostPermitido_devePassar() {
+        val response = initialize(host = "127.0.0.1:8084")
+
+        assertThat(response.status).isEqualTo(200)
+        assertThat(response.body).contains("\"serverInfo\"")
     }
 }
