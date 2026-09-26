@@ -1,5 +1,11 @@
 package site.webhook.rules
 
+/**
+ * O valor de cabeçalho da regra como vai ao fio, igual para o templado e o fixo: controles viram espaço
+ * ([controlsAsSpaces]) e o que passa do ISO-8859-1 vira `?` ([latin1]).
+ */
+internal fun String.asHeaderValue(): String = controlsAsSpaces().latin1()
+
 /** Controle (C0, DEL e C1), menos o HTAB, vira espaço. */
 internal fun String.controlsAsSpaces(): String =
     String(CharArray(length) { i -> if (this[i] != '\t' && this[i].isISOControl()) ' ' else this[i] })

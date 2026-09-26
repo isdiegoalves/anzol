@@ -273,6 +273,27 @@ class TemplateSandboxApiTest(
             assertThat(lines).contains("X-Eco: <a?b?c ? ? é>")
         }
 
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado um cabeçalho fixo com controle C0, DEL ou C1, quando responde sem template, então cada um sai como espaço")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            a\u000bb\u0085c | X-Fixo: <a b c>
+            a\u007fb\u009fc | X-Fixo: <a b c>
+            a\u0085b ĉ      | X-Fixo: <a b ?>""",
+        )
+        fun capture_controleNoCabecalhoFixo_deveSairEspaco(
+            fixed: String,
+            expectedLine: String,
+        ) {
+            val tokenId = tokenWithRule("""{"headers":{"X-Fixo":"<$fixed>"}}""")
+
+            val lines = responseHeadLines(tokenId, "{}")
+
+            assertThat(lines).contains(expectedLine)
+            assertThat(lines.joinToString("\n")).doesNotContain("\u0085", "\u000b", "\u007f", "\u009f")
+        }
+
         @Test
         @DisplayName("Dado um cabeçalho fixo com caractere acima de U+00FF, quando responde sem template, então sai com ? e não some")
         fun capture_foraDoLatin1NoCabecalhoFixo_deveSairInterrogacao() {

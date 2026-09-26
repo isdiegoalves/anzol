@@ -78,18 +78,18 @@ fun renderTemplate(
  * [MAX_RENDERED_HEADERS] caracteres, tudo num prazo só ([MAX_RENDER_TIME]) depois de compilar tudo;
  * estourou, 500 (ver [render]). O corpo JSON lido por `jsonPath` é lido uma vez para a resposta inteira.
  *
- * No valor de cabeçalho renderizado, todo caractere de controle (C0, DEL e C1) menos o HTAB vira espaço: CR
- * e LF vindos do remetente (`{{request.query.x}}`, `jsonPath` no corpo) nunca abrem linha de cabeçalho nova.
- * O Tomcat 11 já troca C0 e DEL por espaço, mas manda os C1 (U+0080–U+009F) crus; a troca aqui não
- * depende dele. Espaço, e não 500, para o remetente não conseguir derrubar a resposta da regra com uma
- * quebra de linha. O corpo fica como veio.
+ * Em todo valor de cabeçalho, templado ou fixo ([asHeaderValue]), todo caractere de controle (C0, DEL e C1)
+ * menos o HTAB vira espaço: CR e LF vindos do remetente (`{{request.query.x}}`, `jsonPath` no corpo) nunca
+ * abrem linha de cabeçalho nova. O Tomcat 11 já troca C0 e DEL por espaço, mas manda os C1 (U+0080–U+009F)
+ * crus; a troca aqui não depende dele. Espaço, e não 500, para o remetente não conseguir derrubar a
+ * resposta da regra com uma quebra de linha; no valor fixo, o mesmo tratamento (CR, LF e NUL já são
+ * recusados ao salvar, templado ou não). O corpo fica como veio.
  *
- * Em todo valor de cabeçalho, templado ou fixo, cada caractere fora do ISO-8859-1 (acima de U+00FF,
- * inclusive U+2028 e U+2029; um par substituto conta como um) vira `?`: o Tomcat descartaria o cabeçalho
- * inteiro, sem aviso.
+ * Cada caractere fora do ISO-8859-1 (acima de U+00FF, inclusive U+2028 e U+2029; um par substituto conta
+ * como um) vira `?`: o Tomcat descartaria o cabeçalho inteiro, sem aviso.
  */
 fun RuleResponse.rendered(input: TemplateInput): RuleResponse {
-    if (!template) return copy(headers = headers.mapValues { (_, value) -> value.latin1() })
+    if (!template) return copy(headers = headers.mapValues { (_, value) -> value.asHeaderValue() })
     val compiledBody = compile(body, input)
     val compiledHeaders = headers.mapValues { (_, value) -> compile(value, input) }
     val deadline = deadline()
@@ -108,7 +108,7 @@ private fun renderHeaders(
 ): Map<String, String> {
     var total = 0
     return templates.mapValues { (_, template) ->
-        val value = template.render(input, MAX_RENDERED_HEADER, deadline, documents).controlsAsSpaces().latin1()
+        val value = template.render(input, MAX_RENDERED_HEADER, deadline, documents).asHeaderValue()
         total += value.length
         if (total > MAX_RENDERED_HEADERS) throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, TEMPLATE_TOO_LARGE)
         value

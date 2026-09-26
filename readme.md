@@ -183,6 +183,9 @@ U+0080–U+009F), menos o TAB, viram espaço: `{"X-Eco": "{{request.query.x}}"}`
 sai numa linha só, `X-Eco: a  X-Injetado: sim`. Espaço, e não erro, para que o remetente não consiga
 derrubar a resposta da regra com uma quebra de linha; o corpo sai como veio. (O Tomcat 11 já troca os
 controles C0 e o DEL por espaço, mas manda os C1 crus; a troca é feita pelo app, sem depender dele.)
+Valor fixo (`template` desligado) recebe o mesmo tratamento: CR, LF e NUL escritos na regra dão 422 ao
+salvar, templada ou não, e os demais controles saem como espaço (`"a\u0085b"` sai `a b`), para que os
+dois caminhos mandem ao fio o mesmo valor.
 
 Em todo valor de cabeçalho da regra, templado ou fixo, cada caractere fora do ISO-8859-1 (acima de U+00FF,
 inclusive U+2028 e U+2029; um emoji conta como um) vira `?`: `{"X-Eco": "ação ✓"}` sai `X-Eco: ação ?`.

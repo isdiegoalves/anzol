@@ -486,6 +486,26 @@ class TemplateLimitsTest {
         }
 
         @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado um cabeçalho fixo com controle C0, DEL ou C1, quando a regra responde sem template, então vira espaço")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            a\u000bb\u000cc      | a b c
+            a\u001fb\u007fc      | a b c
+            a\u0085b\u009fc      | a b c
+            a\tb                  | a\tb
+            a\u0085ĉ              | a ?""",
+        )
+        fun rendered_controleNoCabecalhoFixo_deveVirarEspaco(
+            fixed: String,
+            expected: String,
+        ) {
+            val rule = RuleResponse(headers = mapOf("X-Fixo" to unescape(fixed)), template = false)
+
+            assertThat(rule.rendered(input()).headers["X-Fixo"]).isEqualTo(unescape(expected))
+        }
+
+        @ParameterizedTest(name = "{0}")
         @DisplayName("Dado um valor do remetente com CR, LF ou outro controle, quando vira cabeçalho, então cada controle vira espaço")
         @CsvSource(
             delimiter = '|',
