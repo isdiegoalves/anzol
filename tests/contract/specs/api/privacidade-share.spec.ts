@@ -1,8 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { BASE_URL, type Mensagem } from '../../support/contrato.js';
+import { BASE_URL, CHAVES_MENSAGEM, type Mensagem } from '../../support/contrato.js';
 import {
-  CHAVES_DO_LINK, DIA, HORA, capturar, idDeLinkQualquer, comSegredo, compartilhar, expect, http, httpCruCompleto, instante, lerLink, lerLinkOk,
-  mensagem, type Link, type MensagemCompartilhada, test,
+  CHAVES_DO_LINK, DIA, HORA, capturar, idDeLinkQualquer, comSegredo, compartilhar, expect, http, httpCruCompleto, instante, lerLink,
+  mensagem, novoSegredo, type Link, type MensagemCompartilhada, test,
 } from '../../support/privacidade.js';
 
 // CA-3 do item 12 (§1 do plano "privacidade"): link só-leitura de UMA mensagem.
@@ -13,6 +13,11 @@ import {
 // protegida; expirado, revogado ou mensagem apagada → o mesmo 404. `redact=true` troca por "[redacted]" os valores
 // dos headers da lista da §1 (e o de assinatura do provedor configurado) e os valores de query cujo nome contém
 // token, key, secret, password ou signature, sem diferenciar maiúsculas; o corpo não é mascarado.
+//
+// Correções da refutação (fatia 05, decisões do dono, 2026-09-26): o link público nunca traz o UUID da URL — sem
+// `token_id`, e com o UUID da `url` trocado por "[redacted]", com ou sem `redact` —; `redact` também mascara os headers
+// cujo NOME contém token, key, secret, password ou auth (sem diferenciar maiúsculas); definir, trocar ou remover o
+// segredo de leitura revoga todos os links da URL.
 //
 // Expiração: o menor prazo é 1 h, e o contrato não espera. O link expirado some pelo TTL de `share:{sid}` no Redis,
 // então responde como um link que nunca existiu, e é assim que o contrato o cobre ("404 igual" ao de um sid
@@ -36,9 +41,28 @@ function revogar(uuid: string, sid: string, headers: Record<string, string> = {}
   return http('DELETE', `/token/${uuid}/shares/${sid}`, { headers });
 }
 
-function semCamposDoLink(m: MensagemCompartilhada): Mensagem {
+/** A mensagem pública sem `shared_at` e `expires_at`: o que se compara com `semUuidDaUrl` da mensagem gravada. */
+function semCamposDoLink(m: MensagemCompartilhada): Omit<Mensagem, 'token_id'> {
   const { shared_at: _s, expires_at: _e, ...resto } = m;
-  return resto as Mensagem;
+  return resto;
+}
+
+/** O que o link público mostra da mensagem gravada: sem `token_id` e com o UUID da URL trocado na `url`. */
+function semUuidDaUrl(m: Mensagem): Omit<Mensagem, 'token_id'> {
+  const { token_id: uuid, ...resto } = m;
+  return { ...resto, url: resto.url.split(uuid).join(REDACTED) };
+}
+
+/** `GET /share/{sid}` → 200 com as chaves da mensagem, menos `token_id`, mais `shared_at` e `expires_at`. */
+async function lerLinkOk(sid: string): Promise<MensagemCompartilhada> {
+  const res = await lerLink(sid);
+  expect(res.status, `GET /share/${sid}: ${res.texto.slice(0, 300)}`).toBe(200);
+  const msg = res.json<MensagemCompartilhada>();
+  for (const chave of [...CHAVES_MENSAGEM.filter((c) => c !== 'token_id'), 'shared_at', 'expires_at']) {
+    expect(msg, `chave ${chave} no link`).toHaveProperty(chave);
+  }
+  expect(msg, 'o link público não traz token_id').not.toHaveProperty('token_id');
+  return msg;
 }
 
 function perto(valor: string, esperadoMs: number, contexto: string): void {
@@ -62,7 +86,7 @@ test.describe('criar, listar e revogar (CA-3)', () => {
 
     const publico = await lerLinkOk(link.id);
     const original = await mensagem(url.uuid, rid, h);
-    expect(semCamposDoLink(publico)).toEqual(original);
+    expect(semCamposDoLink(publico)).toEqual(semUuidDaUrl(original));
     expect(instante(publico.expires_at)).toBe(instante(link.expires_at));
     perto(publico.shared_at, antes, 'shared_at');
 
@@ -129,6 +153,61 @@ test.describe('criar, listar e revogar (CA-3)', () => {
   });
 });
 
+test.describe('o link não entrega a URL (CA-3, fatia 05)', () => {
+  test('com e sem redact: sem token_id, e o UUID da URL não aparece em lugar nenhum (a url traz [redacted])', async ({ urls }) => {
+    const url = await urls.proteger();
+    const h = comSegredo(url.segredo);
+    const rid = await capturar(url.uuid, '/caminho?page=2', { body: 'x' });
+    for (const redact of [true, false]) {
+      const link = await compartilhar(url.uuid, rid, { redact }, h);
+      const res = await lerLink(link.id);
+      expect(res.status).toBe(200);
+      expect(res.texto, `redact ${redact}: o UUID da URL no link público`).not.toContain(url.uuid);
+      const publico = res.json<Record<string, unknown>>();
+      expect(publico, `redact ${redact}`).not.toHaveProperty('token_id');
+      expect(String(publico.url), `redact ${redact}`).toMatch(/\/\[redacted\]\/caminho\?page=2$/);
+    }
+  });
+});
+
+test.describe('trocar o segredo revoga os links (CA-3, fatia 05)', () => {
+  test('definir, trocar e remover o segredo: todos os links da URL → o 404 de sempre, e a lista fica vazia', async ({ urls }) => {
+    const aberta = await urls.abrir();
+    const nunca = await lerLink(idDeLinkQualquer());
+    const igualAoInexistente = async (sid: string, caso: string) => {
+      const res = await lerLink(sid);
+      expect({ status: res.status, corpo: res.texto }, caso).toEqual({ status: nunca.status, corpo: nunca.texto });
+    };
+
+    // Definir numa URL aberta.
+    const antes = [await compartilhar(aberta.uuid, await capturar(aberta.uuid)), await compartilhar(aberta.uuid, await capturar(aberta.uuid))];
+    const segredo = novoSegredo();
+    const definido = await http('PUT', `/token/${aberta.uuid}`, { corpo: { read_secret: segredo } });
+    expect(definido.status, definido.texto.slice(0, 200)).toBe(200);
+    for (const l of antes) await igualAoInexistente(l.id, 'link de antes de definir o segredo');
+    expect((await http('GET', `/token/${aberta.uuid}/shares`, { headers: comSegredo(segredo) })).json()).toEqual([]);
+
+    // Trocar.
+    const h = comSegredo(segredo);
+    const deAntesDaTroca = await compartilhar(aberta.uuid, await capturar(aberta.uuid), {}, h);
+    const outro = novoSegredo();
+    expect((await http('PUT', `/token/${aberta.uuid}`, { headers: h, corpo: { read_secret: outro } })).status).toBe(200);
+    await igualAoInexistente(deAntesDaTroca.id, 'link de antes de trocar o segredo');
+
+    // Remover.
+    const h2 = comSegredo(outro);
+    const deAntesDeRemover = await compartilhar(aberta.uuid, await capturar(aberta.uuid), {}, h2);
+    expect((await http('PUT', `/token/${aberta.uuid}`, { headers: h2, corpo: { read_secret: null } })).status).toBe(200);
+    await igualAoInexistente(deAntesDeRemover.id, 'link de antes de remover o segredo');
+    expect((await http('GET', `/token/${aberta.uuid}/shares`)).json()).toEqual([]);
+
+    // Editar sem mexer no segredo não revoga.
+    const fica = await compartilhar(aberta.uuid, await capturar(aberta.uuid));
+    expect((await http('PUT', `/token/${aberta.uuid}`, { corpo: { default_status: 201 } })).status).toBe(200);
+    expect((await lerLink(fica.id)).status).toBe(200);
+  });
+});
+
 test.describe('404 igual (CA-3)', () => {
   test('revogado, mensagem apagada, todas apagadas, URL apagada e inexistente → o mesmo 404; os links somem com a URL', async ({ urls }) => {
     const url = await urls.proteger();
@@ -180,11 +259,17 @@ test.describe('máscara (CA-3)', () => {
       'set-cookie': `id=${v('setcookie')}`,
       'x-api-key': v('apikey'),
       'x-webhook-secret': v('whsecret'),
-    };
-    const comunsHeader: Record<string, string> = {
+      // Pelo nome (fatia 05): contém token, key, secret, password ou auth.
       'x-auth-token': v('xauthtoken'),
       'x-api-keys': v('xapikeys'),
+      'x-client-secret': v('xclientsecret'),
+      'x-db-password': v('xdbpassword'),
+      'x-authenticated-user': v('xauthuser'),
+      'x-monkey': v('xmonkey'),
+    };
+    const comunsHeader: Record<string, string> = {
       'x-comum': v('comum'),
+      'x-tok': v('xtok'),
       'stripe-signature': `t=1,v1=${v('stripe')}`,
       ...extra,
     };
@@ -218,7 +303,7 @@ test.describe('máscara (CA-3)', () => {
     sensiveis: { headers: string[]; query: string[] },
     valoresSensiveis: string[],
   ): void {
-    const esperado: Mensagem = JSON.parse(JSON.stringify(original));
+    const esperado = semUuidDaUrl(JSON.parse(JSON.stringify(original)) as Mensagem);
     for (const n of sensiveis.headers) {
       expect(original.headers[n], `pré-condição: a mensagem gravou o header ${n}`).toBeDefined();
       esperado.headers[n] = original.headers[n].map(() => REDACTED);
@@ -233,6 +318,7 @@ test.describe('máscara (CA-3)', () => {
     // A query também aparece na `url` gravada: os valores mascarados não podem sair por ali.
     expect(urlCompartilhada).toContain('/mascara');
     const texto = JSON.stringify(compartilhada);
+    expect(texto, 'o UUID da URL no link público').not.toContain(original.token_id);
     for (const valor of valoresSensiveis) {
       expect(texto, `valor sensível ${valor} fora da máscara`).not.toContain(valor);
       expect(texto, `valor sensível ${valor} codificado fora da máscara`).not.toContain(encodeURIComponent(valor));
@@ -281,13 +367,13 @@ test.describe('máscara (CA-3)', () => {
     expect((await lerLinkOk(link2.id)).headers['x-hub-signature-256']).toEqual([hub]);
   });
 
-  test('redact false: a mensagem inteira, igual ao GET /request, mais shared_at e expires_at', async ({ urls }) => {
+  test('redact false: a mensagem inteira, igual ao GET /request sem o UUID da URL, mais shared_at e expires_at', async ({ urls }) => {
     const token = await urls.abrir({ signature: { provider: 'github', secret: 'segredo-github-123' } });
     const cap = await capturarSensivel(token.uuid, { 'x-hub-signature-256': `sha256=${v('hub')}` });
     const link = await compartilhar(token.uuid, cap.rid, { redact: false });
     expect(link.redact).toBe(false);
     const publico = await lerLinkOk(link.id);
-    expect(semCamposDoLink(publico)).toEqual(await mensagem(token.uuid, cap.rid));
+    expect(semCamposDoLink(publico)).toEqual(semUuidDaUrl(await mensagem(token.uuid, cap.rid)));
     expect(Object.keys(link)).toEqual(expect.arrayContaining(CHAVES_DO_LINK));
   });
 });

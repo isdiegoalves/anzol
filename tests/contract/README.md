@@ -592,21 +592,26 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   - *Links* (`privacidade-share.spec.ts`, CA-3): numa URL protegida, `POST …/share {}` → `{id, url, expires_at,
     redact}` com `id` base62 de 16 a 22 caracteres, `url` = `/#/share/{id}`, `redact` true e `expires_at` a 7 dias
     (±2 min); `GET /shares` lista; o público lê `GET /share/{sid}` sem credencial nenhuma: exatamente a mensagem de
-    `GET /token/{id}/request/{rid}` mais `shared_at` (agora) e `expires_at` (o mesmo instante da criação); revogar →
-    some da lista e 404. `expires_in` `1h`, `1d`, `7d`, `30d` → o prazo certo; `redact: false` volta `false`; ids
+    `GET /token/{id}/request/{rid}` **sem `token_id` e com o UUID da `url` trocado por `[redacted]`**, mais
+    `shared_at` (agora) e `expires_at` (o mesmo instante da criação); revogar → some da lista e 404. Com e sem
+    `redact`, o UUID da URL não aparece em lugar nenhum do corpo do link. Definir o segredo numa URL aberta, trocá-lo
+    e removê-lo revogam todos os links da URL (o 404 de um id que nunca existiu, e a lista vazia); `PUT` sem
+    `read_secret` não revoga. `expires_in` `1h`, `1d`, `7d`, `30d` → o prazo certo; `redact: false` volta `false`; ids
     distintos; a lista é por URL; revogar pela URL errada não revoga. `expires_in` `2h`, `1w`, `""`, `7`, `7D` → 422
     em `expires_in`; mensagem inexistente → 404; nada criado. 50 ativos (de duas mensagens) → o 51º dá 422; revogar um
     libera a vaga. **404 igual**: revogado, mensagem apagada, todas as mensagens apagadas e URL apagada respondem
     exatamente o 404 (status, Content-Type e corpo) de um id que nunca existiu; `GET /shares` da URL apagada → 410;
     ids fora do formato → 404. **Máscara** (mensagem gravada por HTTP cru): com `redact`, os valores de
-    `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-webhook-secret` e do header de
-    assinatura do provedor configurado (`x-hub-signature-256` no GitHub; o `header` do `generic`) viram
-    `["[redacted]"]`, e os valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` sem
-    diferenciar maiúsculas (`access_token`, `API_KEY`, `clientSecret`, `Password`, `x-signature`, `monkey`, `TOKENS`)
-    viram `"[redacted]"`; o resto da mensagem é igual ao gravado, inclusive `x-auth-token`, `x-api-keys`,
-    `stripe-signature` numa URL GitHub, `x-hub-signature-256` numa URL sem assinatura, as queries `tok` e `segredo` e o
-    corpo (que tem `password`). Nenhum valor mascarado aparece em lugar nenhum do JSON, cru ou codificado (a `url`
-    gravada também carrega a query). `redact: false` → a mensagem inteira.
+    `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-webhook-secret`, dos headers cujo
+    nome contém `token`, `key`, `secret`, `password` ou `auth` (`x-auth-token`, `x-api-keys`, `x-client-secret`,
+    `x-db-password`, `x-authenticated-user`, `x-monkey`) e do header de assinatura do provedor configurado
+    (`x-hub-signature-256` no GitHub; o `header` do `generic`) viram `["[redacted]"]`, e os valores de query cujo nome
+    contém `token`, `key`, `secret`, `password` ou `signature` sem diferenciar maiúsculas (`access_token`, `API_KEY`,
+    `clientSecret`, `Password`, `x-signature`, `monkey`, `TOKENS`) viram `"[redacted]"`; o resto da mensagem é igual
+    ao gravado (menos `token_id` e o UUID da `url`), inclusive `x-comum`, `x-tok`, `stripe-signature` numa URL GitHub,
+    `x-hub-signature-256` numa URL sem assinatura, as queries `tok` e `segredo` e o corpo (que tem `password`). Nenhum
+    valor mascarado aparece em lugar nenhum do JSON, cru ou codificado (a `url` gravada também carrega a query).
+    `redact: false` → a mensagem inteira, sem o UUID da URL.
   - *Host e Origin* (`privacidade-host-origin.spec.ts`, CA-4): `Host` `evil.test`, `localhost.evil.test`,
     `evil.test:{porta}`, `127.0.0.1.nip.io` e `rebind.localhost.evil.test` → 403 `{"error":"host not allowed"}` em
     `POST /token`, token `GET`/`PUT`/`DELETE`, `requests`, `request/{rid}`, `stream`, `rules`, `unlock`, `share`,
@@ -633,7 +638,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   status, Content-Type e corpo iguais aos de um id que nunca existiu; revogar pela URL errada responde erro (≥ 400); o
   valor mascarado de header é `["[redacted]"]` (a lista da mensagem) e o de query `"[redacted]"`; "valores de query"
   inclui a query dentro da `url` gravada (a forma mascarada da `url` fica livre, desde que nenhum valor sensível
-  apareça); a lista de headers é exata (nome igual) e a de query é por trecho do nome; o header do provedor mascarado é
+  apareça); a lista fixa de headers é exata (nome igual), e a por nome e a de query são por trecho do nome; o header do provedor mascarado é
   só o do provedor configurado; o `Host` é comparado sem a porta e o `Origin` pelo host (qualquer esquema e porta);
   `lock` responde 2xx e apaga o cookie no navegador (o valor antigo, se reenviado, não é conferido: a §1 invalida
   cookies só pela troca de segredo); o 422 de `read_secret` e de `expires_in` só precisa da chave; o erro de
@@ -678,6 +683,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Reenviar uma mensagem ou montar uma requisição só pelo CLI, do host | `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound` (o servidor sai, com proteções contra SSRF, 30 disparos por minuto e histórico das últimas 50) | Feature "reenvio pelo servidor e envio pela tela" (2026-09-26): reenviar da tela para o app do dono e ver a resposta. Rotas novas; nada do que existia muda |
 | Nenhuma IA nem MCP | Servidor MCP em `/mcp`, `POST /token/{id}/rules/suggest` e `POST /token/{id}/request/{rid}/explain`, com o LLM local do dono (desligados por padrão) | Feature "IA local" (item 13, 2026-09-26): agentes operam o webhook.site por MCP, regra a partir de linguagem natural e diagnóstico da mensagem, sem o payload sair da máquina. Rotas novas; nada do que existia muda |
 | Quem tem o UUID lê e gere a URL; token sem `protected`; qualquer `Host` e `Origin` na API | `read_secret` opcional por URL: sem acesso, toda rota `/token/{id}/**` (fora `unlock`/`lock`) dá 401 `{"error":"This URL is protected","protected":true}`; `protected` no token; links só-leitura de uma mensagem (`/share/{sid}`); com `webhook.allowed-hosts` definido, `Host` fora da lista → 403 nas rotas de gestão e `Origin` fora da lista → 403 nos métodos que mudam estado | Item 12, "privacidade e segurança" (2026-09-26): pré-requisito para publicar. URL sem `read_secret` responde como antes. `protected` entrou em `CHAVES_TOKEN` (e no tipo `Token`), então os quatro testes que comparam as chaves do token passam a exigi-lo: `token.spec.ts` "sem campos: 201 com os padrões e exatamente as chaves do token", `schema-config.spec.ts` "POST com schema: 201 devolve o schema como enviado, e o GET também" e os dois de `assinatura-config.spec.ts` ("POST com signature: GET devolve o provedor e o segredo mascarado…" e "token com signature null; mensagem com signature null…"). Nenhum outro teste antigo mudou: nenhum manda `Host` fora da lista a uma rota de gestão nem `Origin` a um método de gestão (os `Host` e `Origin` estranhos dos testes antigos vão para a captura) |
+| Link só-leitura com a mensagem inteira (`token_id` e a `url` com o UUID da URL); `redact` mascarava só a lista fixa de headers; trocar o segredo mantinha os links | Link sem `token_id` e com `[redacted]` no lugar do UUID da `url`, com ou sem `redact`; `redact` também mascara headers de nome com `token`, `key`, `secret`, `password` ou `auth`; definir, trocar ou remover o segredo revoga todos os links da URL | Correções da refutação do item 12 (fatia 05, decisões do dono, 2026-09-26): o link entregava o UUID da URL (quem o tem enviava à URL e, numa URL aberta, lia tudo), credenciais em header próprio escapavam da máscara e trocar o segredo não cortava quem tinha link. Mudou só `privacidade-share.spec.ts`: "numa URL protegida: cria com os padrões…", o teste de forma da máscara (`x-auth-token` e `x-api-keys` passaram de comuns a mascarados; entraram `x-client-secret`, `x-db-password`, `x-authenticated-user`, `x-monkey` e o comum `x-tok`) e "redact false…" passaram a comparar com a mensagem sem o UUID da URL; o `lerLinkOk` local exige as chaves da mensagem menos `token_id`; dois testes novos (o link não entrega a URL; trocar o segredo revoga) |
 
 ## Defeitos do legado (`bugDoLegado`)
 
