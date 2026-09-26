@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>Redirection Settings</h2>
+<mat-dialog-content>
+  <p>
+    Redirection allows you to automatically, or with a click, send incoming requests to another URL
+    via XHR. The content will be redirected, and you can choose a static method to use.
+  </p>
+  <p>
+    Headers to be passed along can be provided as a comma-separated list. Be sure to ensure these
+    headers are allowed in any security settings (Cross-Domain)
+  </p>
+  <p>Since XHR is used, there might be issues with Cross-Domain Requests.</p>
+  <form class="fields" [formGroup]="form">
+    <mat-form-field>
+      <mat-label>Redirect to</mat-label>
+      <input matInput formControlName="url" placeholder="http://localhost" />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Content Type</mat-label>
+      <input matInput formControlName="contentType" />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Redirect Headers</mat-label>
+      <input matInput formControlName="headers" placeholder="e.g. x-token,referer" />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>HTTP Method</mat-label>
+      <mat-select formControlName="method">
+        <mat-option value="">Default (use request method)</mat-option>
+        @for (method of methods; track method) {
+          <mat-option [value]="method">{{ method }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>Close</button>
+</mat-dialog-actions>

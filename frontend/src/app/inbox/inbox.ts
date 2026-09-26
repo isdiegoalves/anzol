@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { MatButton } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -14,7 +15,9 @@ import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { OptionsBar } from '../settings/options-bar';
 import { Preferences } from '../settings/preferences';
+import { Redirector } from '../settings/redirect';
 import { TokenStore } from '../token/token-store';
+import { Tutorial } from '../tutorial/tutorial';
 
 /**
  * Tela principal. A rota (`/`, `/{tokenId}`, `/{tokenId}/{requestId}/{page}`) é a fonte da
@@ -22,7 +25,7 @@ import { TokenStore } from '../token/token-store';
  */
 @Component({
   selector: 'app-inbox',
-  imports: [RequestList, RequestNav, RequestDetail, OptionsBar],
+  imports: [MatButton, RequestList, RequestNav, RequestDetail, OptionsBar, Tutorial],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
 })
@@ -31,6 +34,7 @@ export class Inbox {
   protected readonly requests = inject(RequestStore);
   protected readonly preferences = inject(Preferences);
   private readonly stream = inject(RequestStream);
+  private readonly redirector = inject(Redirector);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly title = inject(Title);
@@ -68,6 +72,10 @@ export class Inbox {
   protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
     const page = this.requests.pageOf(request.uuid);
     return this.router.navigate(['/', request.token_id, request.uuid, page], { replaceUrl });
+  }
+
+  protected deleteAllRequests(): void {
+    void this.requests.deleteAll();
   }
 
   private async openRoute(
@@ -149,6 +157,9 @@ export class Inbox {
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       await this.openRequest(list[list.length - 1]);
+    }
+    if (this.preferences.redirectEnable()) {
+      void this.redirector.redirect(complete);
     }
     this.snackBar.open('Request received');
   }

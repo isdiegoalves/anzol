@@ -1,9 +1,33 @@
 <div class="options">
   <mat-slide-toggle
+    title="Redirect incoming requests to another URL via XHR"
+    [disabled]="!preferences.redirectUrl()"
+    [checked]="preferences.redirectEnable()"
+    (change)="preferences.redirectEnable.set($event.checked)"
+    >Auto redirect</mat-slide-toggle
+  >
+  <button mat-button type="button" (click)="openRedirectSettings()">Settings...</button>
+  <button mat-button type="button" [disabled]="!preferences.redirectUrl()" (click)="redirectNow()">
+    Redirect Now
+  </button>
+
+  <mat-slide-toggle
+    title="Enable automatic CORS headers"
+    [checked]="tokens.token()?.cors ?? false"
+    (change)="toggleCors()"
+    >Enable CORS <sup class="muted">BETA</sup></mat-slide-toggle
+  >
+  <mat-slide-toggle
     title="Automatically applies easy to read JSON and XML formatting on valid requests"
     [checked]="preferences.formatJsonEnable()"
     (change)="preferences.formatJsonEnable.set($event.checked)"
     >Format JSON/XML</mat-slide-toggle
+  >
+  <mat-slide-toggle
+    title="Automatically select and go to the latest incoming webhook request"
+    [checked]="preferences.autoNavEnable()"
+    (change)="preferences.autoNavEnable.set($event.checked)"
+    >Auto Navigate</mat-slide-toggle
   >
   <mat-slide-toggle
     [checked]="preferences.hideDetails()"

@@ -1,4 +1,9 @@
+import { Clipboard } from '@angular/cdk/clipboard';
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatMenuHarness } from '@angular/material/menu/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
@@ -6,12 +11,14 @@ import { RequestDetail } from './request-detail';
 
 describe('Dado o detalhe de uma mensagem', () => {
   let fixture: ComponentFixture<RequestDetail>;
+  let loader: HarnessLoader;
 
   const render = async (request: WebhookRequest) => {
     fixture = TestBed.createComponent(RequestDetail);
     fixture.componentRef.setInput('request', request);
     fixture.componentRef.setInput('token', token());
     fixture.componentRef.setInput('page', 2);
+    loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   };
@@ -80,5 +87,18 @@ describe('Dado o detalhe de uma mensagem', () => {
 
     expect(element.querySelectorAll('table')).toHaveLength(0);
     expect(element.querySelector('pre')?.textContent).toBe('{"n":1}');
+  });
+
+  it('deve copiar o curl e avisar Quando "Copy As > curl" é escolhido', async () => {
+    const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    const request = webhookRequest(1, { headers: {}, content: null });
+    await render(request);
+
+    const menu = await loader.getHarness(MatMenuHarness);
+    await menu.clickItem({ text: 'curl' });
+
+    expect(copy).toHaveBeenCalledWith(`curl -X 'POST' '${request.url}'`);
+    expect(open).toHaveBeenCalledWith('Copied request as curl');
   });
 });

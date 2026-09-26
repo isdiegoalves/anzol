@@ -10,6 +10,16 @@
               <span class="actions">
                 <a [href]="permalink()">Permalink</a>
                 <a target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+                <button mat-button type="button" class="copy-as" [matMenuTriggerFor]="copyMenu">
+                  Copy As &#9662;
+                </button>
+                <mat-menu #copyMenu="matMenu">
+                  @for (format of formats; track format) {
+                    <button mat-menu-item type="button" (click)="copyRequestAs(format)">
+                      {{ format }}
+                    </button>
+                  }
+                </mat-menu>
               </span>
             </div>
           </th>

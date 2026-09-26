@@ -10,6 +10,7 @@ import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { Preferences } from '../settings/preferences';
+import { Redirector } from '../settings/redirect';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
 const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
@@ -140,9 +141,11 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(snack).toHaveBeenCalledWith('Request received'));
     });
 
-    it('deve ir para a mensagem nova Quando auto-navegar está ligado', async () => {
+    it('deve ir para a mensagem nova e reenviá-la Quando auto-navegar e redirect estão ligados', async () => {
       const preferences = TestBed.inject(Preferences);
       preferences.autoNavEnable.set(true);
+      preferences.redirectEnable.set(true);
+      const redirect = vi.spyOn(TestBed.inject(Redirector), 'redirect').mockResolvedValue();
       const nova = webhookRequest(3);
 
       FakeEventSource.latest().emit('request.created', {
@@ -152,6 +155,7 @@ describe('Dado a tela principal', () => {
       });
 
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
+      expect(redirect).toHaveBeenCalledWith(nova);
     });
   });
 });

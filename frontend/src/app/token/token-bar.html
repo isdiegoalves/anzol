@@ -10,6 +10,7 @@
     <a href="https://twitter.com/fredsted" target="_blank" rel="noopener">&#64;fredsted</a>
   </nav>
   <span class="spacer"></span>
+  <button mat-button type="button" class="edit" (click)="editUrl()">Edit</button>
   <input
     class="url"
     type="text"
@@ -22,4 +23,5 @@
   <button mat-flat-button type="button" class="copy" [cdkCopyToClipboard]="tokens.webhookUrl()">
     Copy
   </button>
+  <button mat-flat-button type="button" class="new" (click)="createUrl()">New</button>
 </mat-toolbar>

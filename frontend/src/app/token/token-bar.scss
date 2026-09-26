@@ -46,10 +46,26 @@
   font-size: 14px;
 }
 
+.edit {
+  @include mat.button-overrides(
+    (
+      text-label-text-color: #9d9d9d,
+    )
+  );
+}
+
 .copy {
   @include mat.button-overrides(
     (
       filled-container-color: #5cb85c,
+    )
+  );
+}
+
+.new {
+  @include mat.button-overrides(
+    (
+      filled-container-color: #337ab7,
     )
   );
 }

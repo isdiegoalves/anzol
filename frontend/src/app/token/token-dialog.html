@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>{{ data.mode === 'create' ? 'Create New URL' : 'Edit URL' }}</h2>
+<mat-dialog-content>
+  @if (data.token === null) {
+    <p class="warning" role="alert">
+      This URL could not be found. It might have been automatically deleted.<br />
+      Please create a new URL.
+    </p>
+  }
+  @if (data.mode === 'create') {
+    <p>
+      You have the ability to customize how your URL will respond by changing the status code,
+      content-type header and the content.
+    </p>
+  }
+  <form id="token-form" class="fields" [formGroup]="form" (ngSubmit)="saveSettings()">
+    <mat-form-field>
+      <mat-label>Default status code</mat-label>
+      <input matInput formControlName="default_status" placeholder="200" />
+      <mat-error>The default status must be an integer.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Content Type</mat-label>
+      <input matInput formControlName="default_content_type" placeholder="text/plain" />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Timeout before response</mat-label>
+      <input matInput type="number" min="0" max="10" formControlName="timeout" placeholder="0" />
+      <mat-error>The timeout must be an integer between 0 and 10.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Response body</mat-label>
+      <textarea matInput rows="5" formControlName="default_content"></textarea>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-flat-button type="submit" form="token-form" [disabled]="form.invalid">
+    {{ data.mode === 'create' ? 'Create' : 'Edit' }}
+  </button>
+</mat-dialog-actions>

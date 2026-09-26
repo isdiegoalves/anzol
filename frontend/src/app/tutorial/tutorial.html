@@ -1,0 +1,29 @@
+<section class="tutorial" aria-label="Tutorial">
+  <button type="button" class="close" aria-label="Close" (click)="toggleTutorial()">&times;</button>
+  <p>
+    <strong>Webhook.site</strong> allows you to easily test webhooks and other types of HTTP
+    requests.
+    <a href="https://simonfredsted.com/1583" target="_blank" rel="noopener">What is a webhook?</a>
+  </p>
+  <p>
+    Any requests sent to that URL are logged here instantly &mdash; you don't even have to refresh!
+  </p>
+  <hr />
+  <p>Here's your unique URL that was created just now:</p>
+  <p class="url-line">
+    <code class="url">{{ url() }}</code>
+    <button mat-button type="button" [cdkCopyToClipboard]="url()">Copy to clipboard</button>
+    <a mat-button [href]="url()" target="_blank" rel="noopener">Open in new tab</a>
+  </p>
+  <hr />
+  <p>Bookmark this page to go back to the requests at any time.</p>
+  <p>
+    Click <b>New URL</b> to create a new url with the ability to customize status code, response
+    body, etc.
+  </p>
+  <p>
+    <a href="https://github.com/fredsted/webhook.site" target="_blank" rel="noopener"
+      >Star on GitHub</a
+    >
+  </p>
+</section>
