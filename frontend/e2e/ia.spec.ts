@@ -1,0 +1,346 @@
+import { Server, createServer } from 'node:http';
+import { APIRequestContext, Page } from '@playwright/test';
+import { expect, test } from './support/fixtures';
+
+// IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
+// mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
+//
+// O app precisa estar ligado a um LLM falso OpenAI-compatível no host:
+// WEBHOOK_AI_ENABLED=true e WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099. O falso sobe
+// aqui, neste processo, na porta 18099 (troque com E2E_LLM_PORT), e cada teste programa as
+// respostas. Os testes deste arquivo rodam em sequência num só worker: o falso é um só.
+// Os estados 503 e 429 são simulados na rota (page.route): o CI roda com a IA ligada.
+
+const LLM_PORT = Number(process.env['E2E_LLM_PORT'] ?? 18099);
+
+interface Reply {
+  /** Status HTTP do falso; fora de 2xx, o backend deve responder 502. */
+  status?: number;
+  content?: string;
+  delayMs?: number;
+}
+
+/** LLM falso: `POST …/chat/completions` responde a próxima resposta programada, em ordem. */
+class FakeLlm {
+  readonly received: Record<string, unknown>[] = [];
+  private readonly replies: Reply[] = [];
+  private server?: Server;
+
+  program(...replies: Reply[]): void {
+    this.replies.push(...replies);
+  }
+
+  reset(): void {
+    this.replies.length = 0;
+    this.received.length = 0;
+  }
+
+  /** Texto de todas as mensagens enviadas ao modelo na chamada `n`. */
+  prompt(n: number): string {
+    return JSON.stringify(this.received[n]?.['messages'] ?? []);
+  }
+
+  start(): Promise<void> {
+    this.server = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        if (req.method !== 'POST' || !req.url?.endsWith('/chat/completions')) {
+          res.writeHead(404).end();
+          return;
+        }
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<
+          string,
+          unknown
+        >;
+        this.received.push(body);
+        // Sem resposta programada, erro do cliente (sem nova tentativa do lado do backend).
+        const reply = this.replies.shift() ?? { status: 400, content: 'no reply programmed' };
+        setTimeout(() => {
+          const status = reply.status ?? 200;
+          res.writeHead(status, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify(
+              status >= 300
+                ? { error: { message: reply.content ?? 'fake error', type: 'invalid_request' } }
+                : {
+                    id: `chatcmpl-e2e-${this.received.length}`,
+                    object: 'chat.completion',
+                    created: Math.floor(Date.now() / 1000),
+                    model: body['model'] ?? 'fake',
+                    choices: [
+                      {
+                        index: 0,
+                        message: { role: 'assistant', content: reply.content ?? '' },
+                        finish_reason: 'stop',
+                      },
+                    ],
+                    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+                  },
+            ),
+          );
+        }, reply.delayMs ?? 0);
+      });
+    });
+    return new Promise((resolve, reject) => {
+      this.server?.once('error', reject);
+      this.server?.listen(LLM_PORT, '0.0.0.0', () => resolve());
+    });
+  }
+
+  stop(): Promise<void> {
+    return new Promise((resolve) => (this.server ? this.server.close(() => resolve()) : resolve()));
+  }
+}
+
+const llm = new FakeLlm();
+
+/** Regra no formato da API, como o modelo a devolve dentro de `{"rule", "explanation"}`. */
+const RULE_429 = {
+  name: 'Pagamentos 429',
+  enabled: true,
+  priority: 5,
+  match: { method: ['POST'], path: { equals: '/pagamentos' } },
+  response: { status: 429, headers: { 'Retry-After': '5' }, body: '' },
+};
+
+const suggestion = (rule: object, explanation: string) => JSON.stringify({ rule, explanation });
+
+test.describe.configure({ mode: 'default' });
+
+test.beforeAll(() => llm.start());
+test.afterAll(() => llm.stop());
+test.beforeEach(() => llm.reset());
+
+async function rulesOf(api: APIRequestContext, tokenId: string) {
+  return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Record<string, unknown>[];
+}
+
+async function newRuleDialog(page: Page, tokenId: string) {
+  await page.goto(`/#/${tokenId}/rules`);
+  await expect(page.getByRole('table', { name: 'Rules' })).toBeVisible();
+  await page.getByRole('button', { name: 'New rule' }).click();
+  return page.getByRole('dialog', { name: 'New rule' });
+}
+
+async function openRequest(page: Page, tokenId: string, requestId: string) {
+  await page.goto(`/#/${tokenId}/${requestId}/1`);
+  await expect(page.locator('.req-id')).toHaveText(requestId);
+}
+
+test.describe('Dado o editor de regra com a IA ligada', () => {
+  test('deve avisar da espera e preencher o editor com a regra sugerida sem salvar, e gravar só no Save Quando "Suggest" é clicado', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+    const prompt = 'Responda 429 com Retry-After 5 para POST em /pagamentos';
+    llm.program({
+      delayMs: 1500,
+      content: suggestion(RULE_429, 'Answers **429** to `POST /pagamentos`.'),
+    });
+
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill(prompt);
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+
+    await expect(dialog.getByRole('status').filter({ hasText: 'up to ~30 s' })).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(
+      'Pagamentos 429',
+    );
+    await expect(dialog.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue(
+      '/pagamentos',
+    );
+    await expect(dialog.getByRole('spinbutton', { name: 'Status' })).toHaveValue('429');
+    await expect(dialog.getByRole('textbox', { name: 'Response header 1 name' })).toHaveValue(
+      'Retry-After',
+    );
+    const result = dialog.getByRole('status', { name: 'Suggestion' });
+    await expect(result).toContainText('Suggested in 1 attempt.');
+    await expect(result.locator('strong')).toHaveText('429');
+    expect(llm.prompt(0)).toContain(prompt);
+    expect(await rulesOf(request, tokenId)).toEqual([]);
+
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toBeHidden();
+    const saved = await rulesOf(request, tokenId);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toEqual(
+      expect.objectContaining({
+        name: 'Pagamentos 429',
+        response: expect.objectContaining({ status: 429, headers: { 'Retry-After': '5' } }),
+      }),
+    );
+  });
+
+  test('deve mandar a mensagem aberta como exemplo Quando a opção é marcada no editor aberto pela mensagem', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, {
+      path: '/pedidos',
+      headers: { 'Content-Type': 'application/json' },
+      data: '{"pedido":"e2e-exemplo-7731"}',
+    });
+    await openRequest(page, tokenId, requestId);
+    await page.getByRole('button', { name: 'Create rule from this request' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });
+
+    await dialog.getByRole('checkbox', { name: /Use the open request as example/ }).check();
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('Igual a esta mensagem');
+    const [call] = await Promise.all([
+      page.waitForRequest((r) => r.url().endsWith(`/token/${tokenId}/rules/suggest`)),
+      dialog.getByRole('button', { name: 'Suggest' }).click(),
+    ]);
+
+    expect(call.postDataJSON()).toEqual(
+      expect.objectContaining({ prompt: 'Igual a esta mensagem', request_id: requestId }),
+    );
+    await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Pedidos');
+    expect(llm.prompt(0)).toContain('e2e-exemplo-7731');
+  });
+
+  test('deve mostrar os últimos erros e manter o editor Quando o modelo erra a regra 3 vezes (422)', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+    const invalid = suggestion({ ...RULE_429, response: { status: 999 } }, 'wrong');
+    llm.program({ content: invalid }, { content: invalid }, { content: invalid });
+
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('status impossível');
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+
+    const alert = dialog.getByRole('alert', { name: 'Suggestion errors' });
+    await expect(alert).toBeVisible({ timeout: 30_000 });
+    await expect(alert).toContainText('status');
+    await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('');
+    expect(llm.received).toHaveLength(3);
+    expect(await rulesOf(request, tokenId)).toEqual([]);
+  });
+
+  test('deve dizer que o modelo não respondeu Quando o LLM falha (502)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+    llm.program({ status: 500, content: 'model crashed' });
+
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('qualquer regra');
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+
+    await expect(dialog.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
+      'The local model did not answer',
+    );
+    await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeEnabled();
+  });
+});
+
+test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => {
+  test.use({ locale: 'pt-BR' });
+
+  test('deve pedir o diagnóstico em pt-BR e mostrar o markdown sem executar o HTML do modelo Quando "Explain" é clicado', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, { data: '{"valor":10}' });
+    await openRequest(page, tokenId, requestId);
+    llm.program({
+      delayMs: 1000,
+      content: [
+        'A mensagem foi respondida pela **resposta padrão**.',
+        '',
+        '- nenhuma regra casou',
+        '- sem assinatura configurada',
+        '',
+        '```',
+        'POST / 200',
+        '```',
+        '',
+        '<img src=x onerror="window.__xss=1"><b>negrito cru</b>',
+      ].join('\n'),
+    });
+
+    const [call] = await Promise.all([
+      page.waitForRequest((r) => r.url().endsWith(`/request/${requestId}/explain`)),
+      page.getByRole('button', { name: 'Explain' }).click(),
+    ]);
+
+    expect(call.postDataJSON()).toEqual(expect.objectContaining({ lang: 'pt-BR' }));
+    const panel = page.getByRole('region', { name: 'Explanation' });
+    await expect(panel.getByRole('status')).toContainText('up to ~30 s');
+    await expect(panel.locator('strong')).toHaveText('resposta padrão');
+    await expect(panel.getByRole('listitem')).toHaveText([
+      'nenhuma regra casou',
+      'sem assinatura configurada',
+    ]);
+    await expect(panel.locator('pre code')).toHaveText('POST / 200');
+    await expect(panel).toContainText('<img src=x onerror="window.__xss=1"><b>negrito cru</b>');
+    await expect(panel.locator('img, b, script')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBe(
+      undefined,
+    );
+
+    await page.getByRole('button', { name: 'Hide explanation' }).click();
+    await expect(panel).toBeHidden();
+  });
+});
+
+test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', () => {
+  test('deve desabilitar "Explain" e o "Describe the rule" com a dica WEBHOOK_AI_* Quando o servidor responde 503', async ({
+    page,
+    tokens,
+  }) => {
+    await page.route(/\/token\/[^/]+\/(request\/[^/]+\/explain|rules\/suggest)$/, (route) =>
+      route.fulfill({ status: 503, json: { error: 'AI is not configured' } }),
+    );
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, { data: 'x' });
+    await openRequest(page, tokenId, requestId);
+
+    await page.getByRole('button', { name: 'Explain' }).click();
+
+    await expect(
+      page.getByRole('region', { name: 'Explanation' }).getByRole('alert'),
+    ).toContainText('Set WEBHOOK_AI_* to enable');
+    await expect(page.locator('.content-actions')).toContainText('Set WEBHOOK_AI_* to enable');
+    await page.getByRole('button', { name: 'Hide explanation' }).click();
+    await expect(page.getByRole('button', { name: 'Explain' })).toBeDisabled();
+
+    // A mesma sessão da tela (só o hash muda): o editor já abre com a IA desligada.
+    const dialog = await newRuleDialog(page, tokenId);
+    await expect(dialog.getByText('Set WEBHOOK_AI_* to enable')).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Describe the rule' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeDisabled();
+  });
+
+  test('deve dizer quando tentar de novo Quando o servidor responde 429 com Retry-After', async ({
+    page,
+    tokens,
+  }) => {
+    await page.route(/\/token\/[^/]+\/rules\/suggest$/, (route) =>
+      route.fulfill({
+        status: 429,
+        headers: { 'Retry-After': '30' },
+        json: { error: 'Too many AI calls' },
+      }),
+    );
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('qualquer');
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+
+    await expect(dialog.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
+      'Try again in 30 s.',
+    );
+    await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeEnabled();
+  });
+});
