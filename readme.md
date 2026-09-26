@@ -265,6 +265,7 @@ exemplos das mesmas rotas.
 
 Entrega os webhooks que chegam na URL direto no app que você está desenvolvendo, como o
 `stripe listen`: sem aba aberta e sem CORS.
+Também baixa e sobe as [regras de resposta](#regras-de-resposta) da URL como arquivo JSON.
 
 ### Instalar
 
@@ -317,10 +318,39 @@ webhook replay <token> <requestId> --to http://localhost:3000
 Reenvia uma mensagem gravada, igual ao `listen`, e imprime a mesma linha. Sai com 0 quando o app
 local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Request not found`.
 
+### `webhook rules pull` e `webhook rules push`
+
+```bash
+webhook rules pull <token>                     # a lista de regras no stdout
+webhook rules pull <token> --file regras.json  # no arquivo (o stdout fica vazio)
+webhook rules push <token> regras.json         # troca a lista inteira da URL pela do arquivo
+```
+
+O `pull` escreve a lista como o `GET /token/{id}/rules` a devolve, em JSON indentado com 2 espaços,
+UTF-8 e quebra de linha final, o mesmo formato do Export da tela. O `push` manda o arquivo no
+`PUT /token/{id}/rules` (a lista inteira: regra que não está no arquivo deixa de existir, e `[]`
+apaga todas) e imprime `Pushed <n> rule(s)`. Regra com `id` o mantém; sem `id`, o servidor gera um.
+Ida e volta `pull` → `push` → `pull` dá o mesmo arquivo.
+
+```
+$ webhook rules push 9f3c…e21a regras.json
+0.match.path.regex: The regex is invalid.
+1.priority: The priority must be at least 1.
+```
+
+| Situação | Saída |
+|---|---|
+| Regras recusadas pelo servidor (422) | cada `chave: mensagem` numa linha do stderr (chave em notação de ponto a partir da lista; `rules` quando o arquivo não é uma lista); nada muda na URL; saída 1 |
+| Token inexistente | `Token not found` no stderr, saída 1 |
+| Arquivo do `push` inexistente | `File not found: <arquivo>`, saída 1, sem chamar o servidor |
+| Arquivo do `push` que não é JSON | `Invalid JSON in <arquivo>: <motivo>`, saída 1, sem chamar o servidor |
+| Pasta do `--file` inexistente | `Could not write <arquivo>: no such directory`, saída 1 |
+
 ### Servidor
 
-`--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para os
-dois comandos e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`.
+`--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para todos
+os comandos e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
+`webhook rules pull <token> --server https://hooks.exemplo`.
 
 ### O que é reenviado
 

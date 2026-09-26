@@ -2,10 +2,12 @@ package site.webhook.cli.support
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
@@ -23,21 +25,27 @@ private val TOKEN_ROUTE = Regex("/token/([^/]+)")
 private val STREAM_ROUTE = Regex("/token/([^/]+)/stream")
 private val LIST_ROUTE = Regex("/token/([^/]+)/requests")
 private val FIND_ROUTE = Regex("/token/([^/]+)/request/([^/]+)")
+private val RULES_ROUTE = Regex("/token/([^/]+)/rules")
 private const val DEFAULT_PER_PAGE = 50
+private const val UNPROCESSABLE = 422
 private const val UNAVAILABLE = 503
 private const val TOKEN_NOT_FOUND = """{"success":false,"error":{"message":"Token not found","id":null}}"""
 
 /**
  * Servidor webhook.site falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
  * `POST /token`, `GET /token/{id}` (410 se não existe), o SSE `request.created`, a listagem
- * paginada (e a incremental, `after=<seq>`) e `GET /token/{id}/request/{rid}`. Cada mensagem gravada
- * ganha `seq` crescente, como o índice do servidor real.
+ * paginada (e a incremental, `after=<seq>`), `GET /token/{id}/request/{rid}` e `GET`/`PUT /token/{id}/rules`.
+ * Cada mensagem gravada ganha `seq` crescente, como o índice do servidor real.
  */
 class FakeWebhookSite : AutoCloseable {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
     private val messages = ConcurrentHashMap<String, MutableList<JsonObject>>()
     private val subscribers = CopyOnWriteArrayList<Subscriber>()
+    private val ruleLists = ConcurrentHashMap<String, JsonArray>()
     private val lastSeq = AtomicLong()
+
+    /** Quantos `PUT /token/{id}/rules` chegaram, válidos ou não. */
+    val rulePuts = AtomicLong()
 
     /** Com true, o `/stream` responde 503: o servidor "caiu" para o CLI, mas ainda grava mensagens. */
     @Volatile var streamsRefused = false
@@ -69,6 +77,17 @@ class FakeWebhookSite : AutoCloseable {
 
     fun deleteToken(token: String) {
         messages.remove(token)
+        ruleLists.remove(token)
+    }
+
+    /** As regras da URL, como o `GET /token/{id}/rules` devolve (lista vazia quando não há). */
+    fun rules(token: String): JsonArray = ruleLists[token] ?: JsonArray(emptyList())
+
+    fun storeRules(
+        token: String,
+        list: JsonArray,
+    ) {
+        ruleLists[token] = list
     }
 
     /**
@@ -124,6 +143,7 @@ class FakeWebhookSite : AutoCloseable {
         val method = exchange.requestMethod
         when {
             method == "POST" && path == "/token" -> exchange.respond(201, """{"uuid":"${createToken()}"}""")
+            method == "PUT" && RULES_ROUTE.matches(path) -> replaceRules(exchange, RULES_ROUTE.matchEntire(path)?.groupValues?.get(1))
             method != "GET" -> exchange.respond(405, "")
             else -> handleGet(exchange, path)
         }
@@ -146,6 +166,7 @@ class FakeWebhookSite : AutoCloseable {
             STREAM_ROUTE.matches(path) -> stream(exchange, token)
             LIST_ROUTE.matches(path) -> list(exchange, stored.toList())
             FIND_ROUTE.matches(path) -> find(exchange, stored, FIND_ROUTE.matchEntire(path)?.groupValues?.get(2))
+            RULES_ROUTE.matches(path) -> exchange.respond(200, rules(token).toString())
             else -> exchange.respond(404, "")
         }
     }
@@ -205,6 +226,50 @@ class FakeWebhookSite : AutoCloseable {
             exchange.respond(200, message.toString())
         }
     }
+
+    /**
+     * Como o servidor real: 410 sem o token; 422 com chaves em notação de ponto quando o corpo não é
+     * lista (`rules`) ou uma regra não tem `name` (`N.name`); senão grava, dando `id` a quem não tem,
+     * e devolve a lista salva.
+     */
+    private fun replaceRules(
+        exchange: HttpExchange,
+        token: String?,
+    ) {
+        rulePuts.incrementAndGet()
+        val body = exchange.requestBody.use { String(it.readAllBytes()) }
+        val list = runCatching { Json.parseToJsonElement(body) }.getOrNull() as? JsonArray
+        val missingName = list?.indices?.filter { "name" !in list[it].jsonObject }.orEmpty()
+        when {
+            token == null || !messages.containsKey(token) -> {
+                exchange.respond(410, TOKEN_NOT_FOUND)
+            }
+
+            list == null -> {
+                exchange.respond(UNPROCESSABLE, """{"rules":["The rules must be an array."]}""")
+            }
+
+            missingName.isNotEmpty() -> {
+                val errors =
+                    buildJsonObject {
+                        missingName.forEach {
+                            putJsonArray(
+                                "$it.name",
+                            ) { add(JsonPrimitive("The name field is required.")) }
+                        }
+                    }
+                exchange.respond(UNPROCESSABLE, errors.toString())
+            }
+
+            else -> {
+                val saved = JsonArray(list.map { rule -> rule.jsonObject.withId() })
+                ruleLists[token] = saved
+                exchange.respond(200, saved.toString())
+            }
+        }
+    }
+
+    private fun JsonObject.withId(): JsonObject = if ("id" in this) this else with("id", JsonPrimitive(UUID.randomUUID().toString()))
 
     private class Subscriber(
         val token: String,

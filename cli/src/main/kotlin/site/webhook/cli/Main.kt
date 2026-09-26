@@ -23,7 +23,7 @@ import kotlin.system.exitProcess
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
-fun main(args: Array<String>) = Webhook().subcommands(Listen(), Replay()).main(args)
+fun main(args: Array<String>) = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush())).main(args)
 
 /**
  * O `clikt-core` (sem o Mordant, que no JDK 25 avisa sobre acesso nativo no stderr) não lê
@@ -46,7 +46,7 @@ class Webhook : CoreNoOpCliktCommand(name = "webhook") {
 }
 
 /** HTTP/1.1 sempre: o padrão do `java.net.http` tentaria upgrade para h2c no app local. */
-private fun httpClient(): HttpClient =
+fun httpClient(): HttpClient =
     HttpClient
         .newBuilder()
         .version(HttpClient.Version.HTTP_1_1)
@@ -54,17 +54,17 @@ private fun httpClient(): HttpClient =
         .build()
 
 /** `--server`, senão `WEBHOOK_SERVER`, senão o app local da porta 8084. */
-private fun BaseCliktCommand<*>.serverOption() =
+fun BaseCliktCommand<*>.serverOption() =
     option("--server", envvar = "WEBHOOK_SERVER", help = "webhook.site server (default $DEFAULT_SERVER)").default(DEFAULT_SERVER)
 
 /** Mensagem no stderr e saída 1. */
-private fun BaseCliktCommand<*>.fail(message: String): Nothing {
+fun BaseCliktCommand<*>.fail(message: String): Nothing {
     echo(message, err = true)
     throw ProgramResult(1)
 }
 
 /** Servidor fora do ar na partida vira mensagem curta, não stack trace. */
-private fun <T> BaseCliktCommand<*>.reaching(
+fun <T> BaseCliktCommand<*>.reaching(
     site: WebhookServer,
     call: () -> T,
 ): T =

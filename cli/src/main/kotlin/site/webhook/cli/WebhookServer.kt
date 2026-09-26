@@ -1,6 +1,9 @@
 package site.webhook.cli
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonArray
 import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
@@ -14,11 +17,27 @@ private const val OK = 200
 private const val CREATED = 201
 private const val NOT_FOUND = 404
 private const val GONE = 410
+private const val UNPROCESSABLE = 422
 
 @Serializable
 private data class NewToken(
     val uuid: TokenId,
 )
+
+/** O que o `PUT /token/{id}/rules` respondeu. */
+sealed interface RulesReplaced {
+    /** Lista salva com [count] regras. */
+    data class Saved(
+        val count: Int,
+    ) : RulesReplaced
+
+    /** 422: chave em notação de ponto a partir da lista (`0.match.path.regex`, `rules`) → mensagens. */
+    data class Invalid(
+        val errors: Map<String, List<String>>,
+    ) : RulesReplaced
+
+    data object TokenNotFound : RulesReplaced
+}
 
 /** A API do webhook.site que o CLI usa; nada além dela. */
 class WebhookServer(
@@ -67,6 +86,23 @@ class WebhookServer(
     ): RequestPage? =
         found(send("GET", "/token/$token/requests?after=$seq&per_page=$perPage"))?.let { apiJson.decodeFromString<RequestPage>(it) }
 
+    /** `GET /token/{id}/rules`: a lista como o servidor a guarda; `null` quando o token não existe. */
+    fun rules(token: TokenId): JsonArray? = found(send("GET", "/token/$token/rules"))?.let { apiJson.parseToJsonElement(it).jsonArray }
+
+    /** `PUT /token/{id}/rules`: troca a lista inteira da URL por [rules] (o servidor valida). */
+    fun replaceRules(
+        token: TokenId,
+        rules: JsonElement,
+    ): RulesReplaced {
+        val response = send("PUT", "/token/$token/rules", rules.toString())
+        return when (response.statusCode()) {
+            OK -> RulesReplaced.Saved(apiJson.parseToJsonElement(response.body()).jsonArray.size)
+            UNPROCESSABLE -> RulesReplaced.Invalid(apiJson.decodeFromString<Map<String, List<String>>>(response.body()))
+            NOT_FOUND, GONE -> RulesReplaced.TokenNotFound
+            else -> throw unexpected(response)
+        }
+    }
+
     /**
      * Assina o SSE do token: as linhas do `text/event-stream`, já com a assinatura registrada no
      * servidor (ele só manda o status depois de registrar). `null` quando o token não existe.
@@ -80,11 +116,20 @@ class WebhookServer(
         throw unexpected(response)
     }
 
+    /** Com [json], o corpo vai em UTF-8 com `Content-Type: application/json`. */
     private fun send(
         method: String,
         path: String,
-    ): HttpResponse<String> =
-        http.send(HttpRequest.newBuilder(URI.create(base + path)).method(method, BodyPublishers.noBody()).build(), BodyHandlers.ofString())
+        json: String? = null,
+    ): HttpResponse<String> {
+        val request = HttpRequest.newBuilder(URI.create(base + path))
+        if (json == null) {
+            request.method(method, BodyPublishers.noBody())
+        } else {
+            request.method(method, BodyPublishers.ofString(json)).header("Content-Type", "application/json")
+        }
+        return http.send(request.build(), BodyHandlers.ofString())
+    }
 
     /** Corpo do 200; `null` no 404/410 (não existe); qualquer outro status é falha do servidor. */
     private fun found(response: HttpResponse<String>): String? =
