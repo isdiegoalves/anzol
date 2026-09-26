@@ -308,6 +308,16 @@ class TemplateLimitsTest {
         }
 
         @Test
+        @DisplayName("Dado milhares de templates curtos e distintos, quando valida cada um, então o cache guarda no máximo 4096")
+        fun templateError_milharesDeTemplatesCurtos_deveGuardarAteOTetoDeEntradas() {
+            val marker = UUID.randomUUID()
+
+            repeat(MAX_CACHED_TEMPLATES.toInt() + 1000) { assertThat(templateError("{{seq}} $marker $it")).isNull() }
+
+            assertThat(cachedTemplates()).isLessThanOrEqualTo(MAX_CACHED_TEMPLATES)
+        }
+
+        @Test
         @DisplayName("Dado um template de 64 KiB e um caractere, quando valida, então há erro de tamanho")
         fun templateError_umAcimaDoTeto_deveHaverErro() {
             assertThat(templateError("a".repeat(MAX_TEMPLATE_LENGTH + 1))).isEqualTo("longer than 65536 characters")
