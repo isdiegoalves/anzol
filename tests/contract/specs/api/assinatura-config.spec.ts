@@ -182,7 +182,8 @@ test.describe('URL sem configuração (CA-8)', () => {
 
     // Sem corpo e sem header: idem.
     const { msg: vazia } = await enviarEGuardar(request, criado.uuid, '', { method: 'GET' });
-    expect(Object.keys(vazia).sort()).toEqual(CHAVES_MENSAGEM);
+    // GET não é JSON: a mensagem traz `request` (como em mensagem.spec, "GET simples").
+    expect(Object.keys(vazia).sort()).toEqual([...CHAVES_MENSAGEM, 'request'].sort());
     expect(vazia).toHaveProperty('signature', null);
   });
 });
