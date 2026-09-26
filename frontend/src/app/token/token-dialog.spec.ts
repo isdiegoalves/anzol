@@ -116,9 +116,9 @@ describe('Dado o diálogo "Create New URL"', () => {
     ['negativo', '-5'],
     ['data fora do IMF-fixdate', '2026-09-26T10:00:00Z'],
   ])(
-    'não deve permitir criar e deve explicar o erro Quando o Retry-After é %s',
+    'não deve criar e deve explicar o erro e o que corrigir Quando o Retry-After é %s',
     async (_caso, valor) => {
-      const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+      const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
       await (await retryAfter(loader)).setValue(valor);
       await (await retryAfter(loader)).blur();
@@ -126,9 +126,7 @@ describe('Dado o diálogo "Create New URL"', () => {
         MatFormFieldHarness.with({ floatingLabelText: 'Retry-After' }),
       );
 
-      expect(
-        await (await loader.getHarness(MatButtonHarness.with({ text: 'Create' }))).isDisabled(),
-      ).toBe(true);
+      expect(await trySave(fixture, loader, 'Create')).toBe('To save, fix: Retry-After');
       expect(await field.getTextErrors()).toEqual([
         'The retry after must be a number of seconds or an HTTP date.',
       ]);
@@ -140,13 +138,12 @@ describe('Dado o diálogo "Create New URL"', () => {
     ['acima de 10', '11'],
     ['negativo', '-1'],
     ['fracionário', '1.5'],
-  ])('não deve permitir criar Quando o timeout é %s', async (_caso, timeout) => {
-    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+  ])('não deve criar e deve dizer o que corrigir Quando o timeout é %s', async (_caso, timeout) => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
     await (await input(loader, '0')).setValue(timeout);
-    const create = await loader.getHarness(MatButtonHarness.with({ text: 'Create' }));
 
-    expect(await create.isDisabled()).toBe(true);
+    expect(await trySave(fixture, loader, 'Create')).toBe('To save, fix: Timeout before response');
     expect(dialogRef.close).not.toHaveBeenCalled();
   });
 
@@ -248,6 +245,34 @@ const signatureField = (loader: HarnessLoader, label: string) =>
 const button = (loader: HarnessLoader, text: 'Create' | 'Edit') =>
   loader.getHarness(MatButtonHarness.with({ text }));
 
+type Fixture = Awaited<ReturnType<typeof openDialog>>['fixture'];
+
+/** Resumo do que falta para salvar, ao lado do botão; `null` quando não há. */
+function pendingSummary(fixture: Fixture): string | null {
+  const summary = (fixture.nativeElement as HTMLElement).querySelector('.pending[role=alert]');
+  return summary?.textContent?.trim() ?? null;
+}
+
+/** O botão nunca fica desabilitado em silêncio: clica e devolve o resumo do que falta. */
+async function trySave(fixture: Fixture, loader: HarnessLoader, text: 'Create' | 'Edit') {
+  const save = await button(loader, text);
+  expect(await save.isDisabled()).toBe(false);
+  await save.click();
+  await fixture.whenStable();
+  return pendingSummary(fixture);
+}
+
+/** Linhas do quadro dos provedores, com as células separadas por " | ". */
+function providerRows(element: HTMLElement): string[] {
+  return [...element.querySelectorAll('.providers tbody tr')].map((row) =>
+    [...row.children].map((cell) => cell.textContent?.trim()).join(' | '),
+  );
+}
+
+function anatomyLines(element: HTMLElement): string[] {
+  return [...element.querySelectorAll('.anatomy code')].map((line) => line.textContent ?? '');
+}
+
 async function chooseProvider(loader: HarnessLoader, provider: string) {
   const select = await signatureSelect(loader, 'provider');
   await select.open();
@@ -272,25 +297,47 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
     ]);
   });
 
+  it('deve mostrar o quadro fixo dos cinco provedores, sem destaque nem anatomia, Quando o diálogo abre em None', async () => {
+    const { fixture } = await openDialog({ mode: 'create', token: token() });
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(providerRows(element)).toEqual([
+      'Stripe | Stripe-Signature | "{t}.{raw body}", HMAC-SHA256, hex | Endpoint signing secret, whole (whsec_…)',
+      "GitHub | X-Hub-Signature-256 | Raw body, HMAC-SHA256, hex | The webhook's secret",
+      "Shopify | X-Shopify-Hmac-Sha256 | Raw body, HMAC-SHA256, base64 | The app's client secret",
+      'Slack | X-Slack-Signature + X-Slack-Request-Timestamp | "v0:{timestamp}:{raw body}", HMAC-SHA256, hex | The app\'s signing secret',
+      'Generic | The header you name | Raw body, HMAC-SHA1/256/512, hex or base64 | Any secret, up to 256 characters',
+    ]);
+    expect(element.querySelector('.providers [aria-current]')).toBeNull();
+    expect(element.querySelector('.anatomy')).toBeNull();
+  });
+
   it.each([
-    ['GitHub', 'Sent in X-Hub-Signature-256: sha256=<hex>; use the webhook secret'],
-    ['Shopify', "Sent in X-Shopify-Hmac-Sha256 (base64); use the app's client secret"],
-    ['Stripe', 'Sent in Stripe-Signature: t=…,v1=…; use the endpoint signing secret (whsec_…)'],
+    ['Stripe', ['Stripe-Signature: t=<unix time>,v1=<hex of HMAC-SHA256("{t}.{body}")>']],
+    ['GitHub', ['X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>']],
+    ['Shopify', ['X-Shopify-Hmac-Sha256: <base64 of HMAC-SHA256(body)>']],
     [
       'Slack',
-      'Sent in X-Slack-Signature: v0=… with X-Slack-Request-Timestamp; use the signing secret',
+      [
+        'X-Slack-Signature: v0=<hex of HMAC-SHA256("v0:{timestamp}:{body}")>',
+        'X-Slack-Request-Timestamp: <unix time>',
+      ],
     ],
-    ['Generic', 'HMAC of the raw body, sent in the header you choose'],
+    ['Generic', ['<header>: <hex of HMAC-SHA256(body)>']],
   ])(
-    'deve dizer onde a %s manda a assinatura Quando o provedor é escolhido',
-    async (nome, dica) => {
-      const { loader } = await openDialog({ mode: 'create', token: token() });
+    'deve destacar a %s no quadro e mostrar a anatomia do header esperado Quando o provedor é escolhido',
+    async (nome, anatomia) => {
+      const { fixture, loader } = await openDialog({ mode: 'create', token: token() });
 
       await chooseProvider(loader, nome);
+      const element = fixture.nativeElement as HTMLElement;
 
-      expect(await (await signatureField(loader, 'Signature provider')).getTextHints()).toEqual([
-        dica,
-      ]);
+      const chosen = [...element.querySelectorAll('.providers tbody tr')].filter(
+        (row) => row.getAttribute('aria-current') === 'true',
+      );
+      expect(chosen.map((row) => row.querySelector('th')?.textContent?.trim())).toEqual([nome]);
+      expect(chosen[0].classList).toContain('chosen');
+      expect(anatomyLines(element)).toEqual(anatomia);
     },
   );
 
@@ -308,16 +355,16 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
   });
 
   it.each([
-    ['vazio', ''],
-    ['acima de 256 caracteres', 'x'.repeat(257)],
-  ])('não deve permitir criar e deve explicar Quando o segredo está %s', async (_caso, segredo) => {
-    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+    ['vazio', '', 'To save, fill in: Secret'],
+    ['acima de 256 caracteres', 'x'.repeat(257), 'To save, fix: Secret'],
+  ])('não deve criar e deve explicar Quando o segredo está %s', async (_caso, segredo, resumo) => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
     await chooseProvider(loader, 'Shopify');
     await (await signatureInput(loader, 'secret')).setValue(segredo);
     await (await signatureInput(loader, 'secret')).blur();
 
-    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+    expect(await trySave(fixture, loader, 'Create')).toBe(resumo);
     expect(await (await signatureField(loader, 'Secret')).getTextErrors()).toEqual([
       'The secret is required, up to 256 characters.',
     ]);
@@ -350,15 +397,21 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
     ['zero', '0'],
     ['acima de 86400', '86401'],
     ['fracionária', '1.5'],
-  ])('não deve permitir criar Quando a tolerância é %s', async (_caso, valor) => {
-    const { loader } = await openDialog({ mode: 'create', token: token() });
+  ])(
+    'não deve criar e deve dizer o que corrigir Quando a tolerância é %s',
+    async (_caso, valor) => {
+      const { fixture, loader, save } = await openDialog({ mode: 'create', token: token() });
 
-    await chooseProvider(loader, 'Stripe');
-    await (await signatureInput(loader, 'secret')).setValue('whsec_abc');
-    await (await signatureInput(loader, 'toleranceSeconds')).setValue(valor);
+      await chooseProvider(loader, 'Stripe');
+      await (await signatureInput(loader, 'secret')).setValue('whsec_abc');
+      await (await signatureInput(loader, 'toleranceSeconds')).setValue(valor);
 
-    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
-  });
+      expect(await trySave(fixture, loader, 'Create')).toBe(
+        'To save, fix: Timestamp tolerance (seconds)',
+      );
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
 
   it('deve esconder a tolerância e os campos do genérico Quando o provedor é GitHub', async () => {
     const { loader } = await openDialog({ mode: 'create', token: token() });
@@ -373,8 +426,8 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
     expect(hidden.map((found) => found.length)).toEqual([0, 0, 0]);
   });
 
-  it('deve enviar header, algoritmo, encoding e prefixo Quando o genérico é preenchido', async () => {
-    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+  it('deve montar a anatomia e enviar header, algoritmo, encoding e prefixo Quando o genérico é preenchido', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
 
     await chooseProvider(loader, 'Generic');
     expect(await (await signatureSelect(loader, 'algorithm')).getValueText()).toBe('SHA-256');
@@ -388,6 +441,9 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
     await encoding.open();
     await encoding.clickOptions({ text: 'Base64' });
     await (await signatureInput(loader, 'prefix')).setValue('sha512=');
+    expect(anatomyLines(fixture.nativeElement as HTMLElement)).toEqual([
+      'X-Signature: sha512=<base64 of HMAC-SHA512(body)>',
+    ]);
     await (await button(loader, 'Create')).click();
 
     expect(dialogRef.close).toHaveBeenCalledWith(
@@ -425,18 +481,57 @@ describe('Dado a seção "Signature verification" do diálogo "Create New URL"',
     );
   });
 
-  it('não deve permitir criar e deve explicar Quando o genérico fica sem header', async () => {
-    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+  it('deve marcar Signature header e Secret como obrigatórios desde o início, com Create habilitado, Quando o genérico é escolhido', async () => {
+    const { fixture, loader } = await openDialog({ mode: 'create', token: token() });
 
     await chooseProvider(loader, 'Generic');
-    await (await signatureInput(loader, 'secret')).setValue('k');
-    await (await signatureInput(loader, 'header')).blur();
 
+    expect(await (await signatureInput(loader, 'header')).isRequired()).toBe(true);
+    expect(await (await signatureInput(loader, 'secret')).isRequired()).toBe(true);
+    expect(await (await signatureInput(loader, 'prefix')).isRequired()).toBe(false);
+    expect(await (await button(loader, 'Create')).isDisabled()).toBe(false);
+    expect(pendingSummary(fixture)).toBeNull();
+  });
+
+  it('deve listar o que falta, mostrar o erro de cada campo e focar o Signature header Quando Create é clicado com o genérico vazio', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Generic');
+
+    expect(await trySave(fixture, loader, 'Create')).toBe(
+      'To save, fill in: Signature header, Secret',
+    );
     expect(await (await signatureField(loader, 'Signature header')).getTextErrors()).toEqual([
       'The header is required.',
     ]);
-    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+    expect(await (await signatureField(loader, 'Secret')).getTextErrors()).toEqual([
+      'The secret is required, up to 256 characters.',
+    ]);
+    expect(await (await signatureInput(loader, 'header')).isFocused()).toBe(true);
+    expect(
+      await (await (await button(loader, 'Create')).host()).getAttribute('aria-describedby'),
+    ).toBe('token-form-pending');
     expect(dialogRef.close).not.toHaveBeenCalled();
+  });
+
+  it('deve tirar do resumo o que foi preenchido e criar Quando o que faltava é preenchido', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Generic');
+    await trySave(fixture, loader, 'Create');
+    await (await signatureInput(loader, 'header')).setValue('X-Signature');
+    await fixture.whenStable();
+    expect(pendingSummary(fixture)).toBe('To save, fill in: Secret');
+    await (await signatureInput(loader, 'secret')).setValue('k');
+    await fixture.whenStable();
+    expect(pendingSummary(fixture)).toBeNull();
+    await (await button(loader, 'Create')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signature: expect.objectContaining({ provider: 'generic', header: 'X-Signature' }),
+      }),
+    );
   });
 });
 
@@ -480,14 +575,44 @@ describe('Dado a seção "Signature verification" do diálogo "Edit URL"', () =>
     );
   });
 
-  it('deve manter o segredo salvo, sem exigir outro, Quando só o provedor muda', async () => {
-    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+  it('deve exigir segredo novo e avisar, sem reaproveitar o salvo, Quando o provedor muda', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
 
     await chooseProvider(loader, 'Shopify');
+    const secret = await signatureInput(loader, 'secret');
+
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.warning[role=status]')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim(),
+    ).toBe('The saved GitHub secret is not reused for Shopify: paste the Shopify secret.');
+    expect(await secret.isRequired()).toBe(true);
+    expect(await secret.getPlaceholder()).toBe('');
+    expect(await (await signatureField(loader, 'Secret')).getTextHints()).toEqual([]);
+    expect(await trySave(fixture, loader, 'Edit')).toBe('To save, fill in: Secret');
+    expect(await secret.isFocused()).toBe(true);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+
+    await secret.setValue('shpss_novo');
     await (await button(loader, 'Edit')).click();
 
     expect(dialogRef.close).toHaveBeenCalledWith(
-      expect.objectContaining({ signature: { provider: 'shopify', secret: '••••cdef' } }),
+      expect.objectContaining({ signature: { provider: 'shopify', secret: 'shpss_novo' } }),
+    );
+  });
+
+  it('deve voltar a manter o segredo salvo Quando o provedor volta ao salvo', async () => {
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+
+    await chooseProvider(loader, 'Shopify');
+    await chooseProvider(loader, 'GitHub');
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.warning')).toBeNull();
+    expect(await (await signatureInput(loader, 'secret')).isRequired()).toBe(false);
+    await (await button(loader, 'Edit')).click();
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ signature: { provider: 'github', secret: '••••cdef' } }),
     );
   });
 
@@ -501,11 +626,11 @@ describe('Dado a seção "Signature verification" do diálogo "Edit URL"', () =>
   });
 
   it('deve exigir o segredo Quando a URL não tinha assinatura e um provedor é escolhido', async () => {
-    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: token() });
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'edit', token: token() });
 
     await chooseProvider(loader, 'Slack');
 
-    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(true);
+    expect(await trySave(fixture, loader, 'Edit')).toBe('To save, fill in: Secret');
     expect(dialogRef.close).not.toHaveBeenCalled();
   });
 
@@ -580,20 +705,17 @@ describe('Dado a seção "Schema validation" do diálogo "Create New URL"', () =
     ['uma lista', '[{"type": "object"}]', /^The schema must be a JSON object\.$/],
     ['um texto JSON', '"object"', /^The schema must be a JSON object\.$/],
     ['null', 'null', /^The schema must be a JSON object\.$/],
-  ])(
-    'não deve deixar criar e deve explicar no campo Quando o schema é %s',
-    async (_caso, texto, erro) => {
-      const { loader, save } = await openDialog({ mode: 'create', token: token() });
+  ])('não deve criar e deve explicar no campo Quando o schema é %s', async (_caso, texto, erro) => {
+    const { fixture, loader, save } = await openDialog({ mode: 'create', token: token() });
 
-      await (await schemaInput(loader)).setValue(texto);
-      await (await schemaInput(loader)).blur();
+    await (await schemaInput(loader)).setValue(texto);
+    await (await schemaInput(loader)).blur();
 
-      const [mensagem] = await (await schemaField(loader)).getTextErrors();
-      expect(mensagem).toMatch(erro);
-      expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
-      expect(save).not.toHaveBeenCalled();
-    },
-  );
+    const [mensagem] = await (await schemaField(loader)).getTextErrors();
+    expect(mensagem).toMatch(erro);
+    expect(await trySave(fixture, loader, 'Create')).toBe('To save, fix: JSON Schema');
+    expect(save).not.toHaveBeenCalled();
+  });
 });
 
 describe('Dado a seção "Schema validation" do diálogo "Edit URL"', () => {
@@ -638,7 +760,7 @@ describe('Dado a seção "Schema validation" do diálogo "Edit URL"', () => {
   it('deve mostrar o erro do servidor no campo e continuar aberto Quando o servidor recusa o schema (422)', async () => {
     const recusa = 'The schema is invalid: $ref "https://exemplo.com/s.json" is not internal.';
     const save = vi.fn<TokenDialogData['save']>().mockResolvedValue([recusa]);
-    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: token() }, save);
+    const { fixture, loader, dialogRef } = await openDialog({ mode: 'edit', token: token() }, save);
 
     await (await schemaInput(loader)).setValue('{"$ref": "https://exemplo.com/s.json"}');
     await (await button(loader, 'Edit')).click();
@@ -647,12 +769,14 @@ describe('Dado a seção "Schema validation" do diálogo "Edit URL"', () => {
       expect(await (await schemaField(loader)).getTextErrors()).toEqual([recusa]),
     );
     expect(dialogRef.close).not.toHaveBeenCalled();
-    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(true);
+    expect(await trySave(fixture, loader, 'Edit')).toBe('To save, fix: JSON Schema');
+    expect(save).toHaveBeenCalledTimes(1);
 
     await (await schemaInput(loader)).setValue('{"type": "object"}');
+    await fixture.whenStable();
 
     expect(await (await schemaField(loader)).getTextErrors()).toEqual([]);
-    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(false);
+    expect(pendingSummary(fixture)).toBeNull();
   });
 
   it('deve abrir vazio Quando o token veio do localStorage de uma versão sem schema', async () => {

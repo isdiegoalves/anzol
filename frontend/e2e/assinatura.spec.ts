@@ -4,7 +4,8 @@ import { Webhook, expect, test } from './support/fixtures';
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pelo Edit URL, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
-// token, na mensagem e em `match.signature`.
+// token, na mensagem e em `match.signature`. Item 13.1: selo na lista, linha do header realçada,
+// quadro dos provedores com a anatomia e o Edit que diz o que falta.
 
 const SCREENS = process.env['SCREENS_DIR'];
 const SECRET = 'segredo-do-e2e';
@@ -26,6 +27,19 @@ function github(secret: string | null, body = BODY): Webhook {
       `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
   }
   return { headers, data: body };
+}
+
+/** Webhook assinado como o genérico `X-Signature: sha256=<hex>` configurado no teste. */
+function generic(secret: string, body = BODY): Webhook {
+  const signature = createHmac('sha256', secret).update(body).digest('hex');
+  return { headers: { 'X-Signature': `sha256=${signature}` }, data: body };
+}
+
+/** A linha da tabela Headers de um header (a sintética "(not received)" também). */
+function headerRow(page: Page, name: string): Locator {
+  return page
+    .getByRole('table', { name: 'Headers' })
+    .getByRole('row', { name: new RegExp(`^${name} `) });
 }
 
 async function choose(page: Page, select: Locator, option: string) {
@@ -74,13 +88,19 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     const dialog = await openEditUrl(page, tokenId);
 
     await expect(dialog.getByRole('combobox', { name: 'Signature provider' })).toHaveText('None');
+    const providers = dialog.getByRole('table', { name: 'Signature providers' });
+    await expect(providers.getByRole('row')).toHaveCount(6);
+    await expect(providers.locator('[aria-current]')).toHaveCount(0);
     await choose(page, dialog.getByRole('combobox', { name: 'Signature provider' }), 'GitHub');
-    await expect(
-      dialog.getByText('Sent in X-Hub-Signature-256: sha256=<hex>; use the webhook secret'),
-    ).toBeVisible();
+    await expect(providers.locator('[aria-current=true]')).toHaveText(
+      /^GitHub\s*X-Hub-Signature-256\s*Raw body, HMAC-SHA256, hex\s*The webhook's secret$/,
+    );
+    await expect(dialog.locator('.anatomy')).toHaveText(
+      'Expected header: X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>',
+    );
     await dialog.getByLabel('Secret').fill(SECRET);
     await expect(dialog.getByLabel('Secret')).toHaveAttribute('type', 'password');
-    await dialog.getByText('Sent in X-Hub-Signature-256').scrollIntoViewIfNeeded();
+    await providers.scrollIntoViewIfNeeded();
     await screenshot(page, '01-edit-url-github');
     const put = await submitEdit(page, dialog, tokenId);
 
@@ -95,16 +115,44 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
 
     await openRequest(page, tokenId, certa);
     await expect(page.locator('app-signature-badge')).toHaveText('Signature valid — GitHub');
+    const list = page.locator('app-request-list');
+    await expect(list.getByRole('img', { name: 'Signature valid — GitHub' })).toHaveText(
+      '✓ Sig OK',
+    );
+    await expect(
+      list.getByRole('img', { name: 'Signature invalid — signature mismatch' }),
+    ).toHaveText('✕ Bad sig');
+    await expect(
+      list.getByRole('img', { name: 'Signature absent — header X-Hub-Signature-256 absent' }),
+    ).toHaveText('⊘ No sig');
+    const valida = headerRow(page, 'x-hub-signature-256');
+    await expect(valida).toHaveClass(/\bsignature valid\b/);
+    await expect(valida.locator('.verdict')).toHaveText(
+      '✓ Signature valid — HMAC-SHA256 of the raw body matched',
+    );
+    await expect(page.getByRole('table', { name: 'Headers' }).locator('tr.signature')).toHaveCount(
+      1,
+    );
     await screenshot(page, '02-selo-valida');
     await openRequest(page, tokenId, errada);
     await expect(page.locator('app-signature-badge')).toHaveText(
       'Signature invalid — signature mismatch',
+    );
+    await expect(headerRow(page, 'x-hub-signature-256')).toHaveClass(/\bsignature invalid\b/);
+    await expect(headerRow(page, 'x-hub-signature-256').locator('.verdict')).toHaveText(
+      '✕ Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch)',
     );
     await screenshot(page, '03-selo-invalida');
     await openRequest(page, tokenId, semAssinatura);
     await expect(page.locator('app-signature-badge')).toHaveText(
       'Signature invalid — header X-Hub-Signature-256 absent',
     );
+    const ausente = page.getByRole('table', { name: 'Headers' }).getByRole('row').nth(1);
+    await expect(ausente).toHaveClass(/\bsignature absent\b/);
+    await expect(ausente).toHaveText(
+      /^\s*x-hub-signature-256\s*\(not received\)\s*⊘ Signature absent — the GitHub check expects the X-Hub-Signature-256 header\s*$/,
+    );
+    await screenshot(page, '03b-header-ausente');
   });
 
   test('deve mostrar o segredo mascarado e mantê-lo Quando a URL é editada sem mexer nele', async ({
@@ -130,7 +178,7 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await expect(page.locator('app-signature-badge')).toHaveText('Signature valid — GitHub');
   });
 
-  test('não deve mostrar selo de assinatura Quando a URL não verifica', async ({
+  test('não deve mostrar selo nem realce de assinatura Quando a URL não verifica', async ({
     page,
     tokens,
   }) => {
@@ -140,6 +188,100 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await openRequest(page, tokenId, requestId);
 
     await expect(page.locator('app-signature-badge')).toHaveText('');
+    await expect(page.locator('app-request-list').getByRole('img')).toHaveCount(0);
+    await expect(headerRow(page, 'x-hub-signature-256')).not.toHaveClass(/signature/);
+  });
+
+  test('deve dizer o que falta, focar o primeiro campo e salvar o genérico Quando Edit é clicado com os obrigatórios vazios', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await openEditUrl(page, tokenId);
+    const puts: string[] = [];
+    page.on('request', (sent) => {
+      if (sent.method() === 'PUT' && sent.url().endsWith(`/token/${tokenId}`)) {
+        puts.push(sent.url());
+      }
+    });
+
+    await choose(page, dialog.getByRole('combobox', { name: 'Signature provider' }), 'Generic');
+    const header = dialog.getByRole('textbox', { name: 'Signature header' });
+    const secret = dialog.getByLabel('Secret');
+    await expect(header).toHaveAttribute('required', '');
+    await expect(secret).toHaveAttribute('required', '');
+    await expect(dialog.getByRole('textbox', { name: 'Prefix' })).not.toHaveAttribute('required');
+    await expect(dialog.getByRole('button', { name: 'Edit' })).toBeEnabled();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await header.scrollIntoViewIfNeeded();
+    await screenshot(page, '08-generico-obrigatorios');
+
+    await dialog.getByRole('button', { name: 'Edit' }).click();
+
+    await expect(dialog.getByRole('alert')).toHaveText(
+      'To save, fill in: Signature header, Secret',
+    );
+    await expect(header).toBeFocused();
+    await expect(dialog.getByText('The header is required.')).toBeVisible();
+    await expect(dialog.getByText('The secret is required, up to 256 characters.')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Edit' })).toHaveAttribute(
+      'aria-describedby',
+      'token-form-pending',
+    );
+    expect(puts).toEqual([]);
+    await screenshot(page, '09-generico-o-que-falta');
+
+    await header.fill('X-Signature');
+    await expect(dialog.getByRole('alert')).toHaveText('To save, fill in: Secret');
+    await dialog.getByRole('textbox', { name: 'Prefix' }).fill('sha256=');
+    await expect(dialog.locator('.anatomy')).toHaveText(
+      'Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>',
+    );
+    await secret.fill(SECRET);
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    const put = await submitEdit(page, dialog, tokenId);
+
+    expect(put['signature']).toEqual({
+      provider: 'generic',
+      secret: SECRET,
+      header: 'X-Signature',
+      algorithm: 'sha256',
+      encoding: 'hex',
+      prefix: 'sha256=',
+    });
+    const requestId = await tokens.send(tokenId, generic(SECRET));
+    await openRequest(page, tokenId, requestId);
+    await expect(headerRow(page, 'x-signature')).toHaveClass(/\bsignature valid\b/);
+    await expect(headerRow(page, 'x-signature').locator('.verdict')).toHaveText(
+      '✓ Signature valid — HMAC-SHA256 of the raw body matched',
+    );
+  });
+
+  test('deve exigir segredo novo, com aviso, Quando o provedor muda numa URL com segredo salvo', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
+    const dialog = await openEditUrl(page, tokenId);
+
+    await choose(page, dialog.getByRole('combobox', { name: 'Signature provider' }), 'Shopify');
+
+    await expect(dialog.getByRole('status')).toHaveText(
+      'The saved GitHub secret is not reused for Shopify: paste the Shopify secret.',
+    );
+    await expect(dialog.getByLabel('Secret')).toHaveAttribute('required', '');
+    await expect(dialog.getByLabel('Secret')).not.toHaveAttribute('placeholder', MASKED);
+    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await expect(dialog.getByRole('alert')).toHaveText('To save, fill in: Secret');
+    await expect(dialog.getByLabel('Secret')).toBeFocused();
+    await screenshot(page, '10-troca-de-provedor');
+    await dialog.getByLabel('Secret').fill('shpss_novo');
+    const put = await submitEdit(page, dialog, tokenId);
+
+    expect(put['signature']).toEqual({ provider: 'shopify', secret: 'shpss_novo' });
+    expect(await tokens.read(tokenId)).toMatchObject({
+      signature: { provider: 'shopify', secret: '••••novo' },
+    });
   });
 });
 

@@ -35,15 +35,20 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
 
   test.describe('Dado um timeout fora da validação do servidor (0–10)', () => {
     for (const timeout of ['11', '-1']) {
-      test(`não deve permitir criar Quando o timeout é ${timeout}`, async ({ page, tokens }) => {
+      test(`não deve criar e deve dizer o que corrigir Quando o timeout é ${timeout}`, async ({
+        page,
+        tokens,
+      }) => {
         await page.goto(`/#/${await tokens.create()}`);
 
         await page.getByRole('button', { name: 'New' }).click();
         const dialog = page.getByRole('dialog', { name: 'Create New URL' });
         await dialog.getByLabel('Timeout before response').fill(timeout);
         await dialog.getByLabel('Default status code').click();
+        await dialog.getByRole('button', { name: 'Create' }).click();
 
-        await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled();
+        await expect(dialog.getByRole('alert')).toHaveText('To save, fix: Timeout before response');
+        await expect(dialog.getByLabel('Timeout before response')).toBeFocused();
         await expect(
           dialog.getByText('The timeout must be an integer between 0 and 10.'),
         ).toBeVisible();

@@ -36,3 +36,51 @@
   background: #fcf8e3;
   color: #8a6d3b;
 }
+
+// Quadro fixo dos provedores: o escolhido em destaque (negrito, fundo e barra, não só a cor).
+.providers {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th,
+  td {
+    padding: 3px 4px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    border-bottom-width: 2px;
+  }
+
+  tr.chosen {
+    background: #d9edf7;
+    box-shadow: inset 3px 0 #31708f;
+    font-weight: bold;
+  }
+}
+
+.anatomy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+
+  code {
+    padding: 2px 4px;
+    border-radius: 4px;
+    background: #eee;
+    font-family: Menlo, Consolas, monospace;
+    word-break: break-all;
+  }
+}
+
+// Resumo do que falta, ao lado do botão, depois de tentar salvar.
+.pending {
+  flex: 1;
+  margin: 0 8px 0 0;
+  color: #a94442;
+  font-size: 13px;
+}

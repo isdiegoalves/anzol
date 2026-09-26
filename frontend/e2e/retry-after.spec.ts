@@ -30,15 +30,20 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
   });
 
   for (const valor of ['amanhã', '-5', '2026-09-26T10:00:00Z']) {
-    test(`não deve permitir criar Quando o Retry-After é "${valor}"`, async ({ page, tokens }) => {
+    test(`não deve criar e deve dizer o que corrigir Quando o Retry-After é "${valor}"`, async ({
+      page,
+      tokens,
+    }) => {
       await page.goto(`/#/${await tokens.create()}`);
 
       await page.getByRole('button', { name: 'New' }).click();
       const dialog = page.getByRole('dialog', { name: 'Create New URL' });
       await dialog.getByLabel('Retry-After').fill(valor);
       await dialog.getByLabel('Default status code').click();
+      await dialog.getByRole('button', { name: 'Create' }).click();
 
-      await expect(dialog.getByRole('button', { name: 'Create' })).toBeDisabled();
+      await expect(dialog.getByRole('alert')).toHaveText('To save, fix: Retry-After');
+      await expect(dialog.getByLabel('Retry-After')).toBeFocused();
       await expect(
         dialog.getByText('The retry after must be a number of seconds or an HTTP date.'),
       ).toBeVisible();

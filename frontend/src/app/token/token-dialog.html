@@ -62,25 +62,37 @@
             <mat-option [value]="option.value">{{ option.label }}</mat-option>
           }
         </mat-select>
-        @if (provider !== 'none') {
-          <mat-hint>{{ providerHints[provider] }}</mat-hint>
-        }
       </mat-form-field>
-      @if (provider !== 'none') {
-        <mat-form-field [floatLabel]="savedSecret ? 'always' : 'auto'">
-          <mat-label>Secret</mat-label>
-          <input
-            matInput
-            type="password"
-            autocomplete="new-password"
-            formControlName="secret"
-            [placeholder]="savedSecret ?? ''"
-          />
-          @if (savedSecret) {
-            <mat-hint>Leave blank to keep the current secret</mat-hint>
+      <table class="providers" aria-label="Signature providers">
+        <thead>
+          <tr>
+            <th scope="col">Provider</th>
+            <th scope="col">Signature arrives in</th>
+            <th scope="col">What is signed</th>
+            <th scope="col">Secret to paste</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of providerGuide; track row.provider) {
+            <tr
+              [class.chosen]="row.provider === provider"
+              [attr.aria-current]="row.provider === provider ? 'true' : null"
+            >
+              <th scope="row">{{ row.label }}</th>
+              <td>{{ row.arrives }}</td>
+              <td>{{ row.signed }}</td>
+              <td>{{ row.secret }}</td>
+            </tr>
           }
-          <mat-error>The secret is required, up to 256 characters.</mat-error>
-        </mat-form-field>
+        </tbody>
+      </table>
+      @if (provider !== 'none') {
+        <div class="anatomy">
+          Expected header:
+          @for (line of anatomy(); track line) {
+            <code>{{ line }}</code>
+          }
+        </div>
       }
       @if (provider === 'generic') {
         <div class="row">
@@ -95,6 +107,31 @@
             <mat-hint>Optional, before the signature</mat-hint>
           </mat-form-field>
         </div>
+      }
+      @if (provider !== 'none') {
+        @let keeps = keepsSecret();
+        @if (savedProvider && savedProvider !== provider) {
+          <p class="warning" role="status">
+            The saved {{ providerLabels[savedProvider] }} secret is not reused for
+            {{ providerLabels[provider] }}: paste the {{ providerLabels[provider] }} secret.
+          </p>
+        }
+        <mat-form-field [floatLabel]="keeps ? 'always' : 'auto'">
+          <mat-label>Secret</mat-label>
+          <input
+            matInput
+            type="password"
+            autocomplete="new-password"
+            formControlName="secret"
+            [placeholder]="keeps ? (savedSecret ?? '') : ''"
+          />
+          @if (keeps) {
+            <mat-hint>Leave blank to keep the current secret</mat-hint>
+          }
+          <mat-error>The secret is required, up to 256 characters.</mat-error>
+        </mat-form-field>
+      }
+      @if (provider === 'generic') {
         <div class="row">
           <mat-form-field class="grow">
             <mat-label>Algorithm</mat-label>
@@ -139,7 +176,17 @@
   </form>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-flat-button type="submit" form="token-form" [disabled]="form.invalid || saving()">
+  @let summary = attempted() ? pending() : '';
+  @if (summary) {
+    <p id="token-form-pending" class="pending" role="alert">{{ summary }}</p>
+  }
+  <button
+    mat-flat-button
+    type="submit"
+    form="token-form"
+    [disabled]="saving()"
+    [attr.aria-describedby]="summary ? 'token-form-pending' : null"
+  >
     {{ data.mode === 'create' ? 'Create' : 'Edit' }}
   </button>
 </mat-dialog-actions>

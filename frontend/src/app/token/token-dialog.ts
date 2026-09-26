@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -51,13 +51,54 @@ const INTEGER = /^[+-]?\d+$/;
 
 type ProviderOption = SignatureProvider | 'none';
 
-/** Onde cada provedor manda a assinatura e qual segredo usar. */
-const PROVIDER_HINTS: Record<SignatureProvider, string> = {
-  stripe: 'Sent in Stripe-Signature: t=…,v1=…; use the endpoint signing secret (whsec_…)',
-  github: 'Sent in X-Hub-Signature-256: sha256=<hex>; use the webhook secret',
-  shopify: "Sent in X-Shopify-Hmac-Sha256 (base64); use the app's client secret",
-  slack: 'Sent in X-Slack-Signature: v0=… with X-Slack-Request-Timestamp; use the signing secret',
-  generic: 'HMAC of the raw body, sent in the header you choose',
+/** Quadro fixo dos provedores no diálogo: onde a assinatura chega, o que é assinado, qual segredo. */
+const PROVIDER_GUIDE: readonly {
+  provider: SignatureProvider;
+  arrives: string;
+  signed: string;
+  secret: string;
+}[] = [
+  {
+    provider: 'stripe',
+    arrives: 'Stripe-Signature',
+    signed: '"{t}.{raw body}", HMAC-SHA256, hex',
+    secret: 'Endpoint signing secret, whole (whsec_…)',
+  },
+  {
+    provider: 'github',
+    arrives: 'X-Hub-Signature-256',
+    signed: 'Raw body, HMAC-SHA256, hex',
+    secret: "The webhook's secret",
+  },
+  {
+    provider: 'shopify',
+    arrives: 'X-Shopify-Hmac-Sha256',
+    signed: 'Raw body, HMAC-SHA256, base64',
+    secret: "The app's client secret",
+  },
+  {
+    provider: 'slack',
+    arrives: 'X-Slack-Signature + X-Slack-Request-Timestamp',
+    signed: '"v0:{timestamp}:{raw body}", HMAC-SHA256, hex',
+    secret: "The app's signing secret",
+  },
+  {
+    provider: 'generic',
+    arrives: 'The header you name',
+    signed: 'Raw body, HMAC-SHA1/256/512, hex or base64',
+    secret: 'Any secret, up to 256 characters',
+  },
+];
+
+/** Anatomia do header esperado por provedor fixo; a do genérico se monta com os campos. */
+const ANATOMY: Record<Exclude<SignatureProvider, 'generic'>, readonly string[]> = {
+  stripe: ['Stripe-Signature: t=<unix time>,v1=<hex of HMAC-SHA256("{t}.{body}")>'],
+  github: ['X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>'],
+  shopify: ['X-Shopify-Hmac-Sha256: <base64 of HMAC-SHA256(body)>'],
+  slack: [
+    'X-Slack-Signature: v0=<hex of HMAC-SHA256("v0:{timestamp}:{body}")>',
+    'X-Slack-Request-Timestamp: <unix time>',
+  ],
 };
 
 /** Tolerância do timestamp (Stripe e Slack), em segundos, como o servidor aceita. */
@@ -114,6 +155,7 @@ export class TokenDialog {
   protected readonly data = inject<TokenDialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject<MatDialogRef<TokenDialog, TokenSettings>>(MatDialogRef);
   private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   private readonly editing = this.data.mode === 'edit' ? this.data.token : null;
   protected readonly form = this.formBuilder.group({
@@ -133,19 +175,26 @@ export class TokenDialog {
     schema: [schemaText(this.data.schema ?? this.editing?.schema), schemaValidator],
   });
   protected readonly saving = signal(false);
+  /** Tentou salvar com pendência: o resumo do que falta aparece e acompanha o preenchimento. */
+  protected readonly attempted = signal(false);
 
   protected readonly autoCleanupLimits = AUTO_CLEANUP_LIMITS;
   protected readonly providers = SIGNATURE_PROVIDERS.map((value) => ({
     value,
     label: SIGNATURE_PROVIDER_LABELS[value],
   }));
-  protected readonly providerHints = PROVIDER_HINTS;
+  protected readonly providerGuide = PROVIDER_GUIDE.map((row) => ({
+    ...row,
+    label: SIGNATURE_PROVIDER_LABELS[row.provider],
+  }));
+  protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
   protected readonly algorithms = SIGNATURE_ALGORITHMS.map((value) => ({
     value,
     label: value.replace('sha', 'SHA-'),
   }));
   /** Segredo salvo, mascarado pelo servidor (`••••` e os 4 últimos); reenviado, mantém o salvo. */
   protected readonly savedSecret = this.editing?.signature?.secret ?? null;
+  protected readonly savedProvider = this.editing?.signature?.provider ?? null;
 
   constructor() {
     const { provider } = this.form.controls.signature.controls;
@@ -159,7 +208,11 @@ export class TokenDialog {
    * `PUT`, campo ausente volta ao padrão.
    */
   protected async saveSettings(): Promise<void> {
-    if (this.form.invalid || this.saving()) {
+    if (this.saving()) {
+      return;
+    }
+    if (this.form.invalid) {
+      this.showPending();
       return;
     }
     const { retry_after, auto_cleanup, signature, schema, ...fields } = this.form.getRawValue();
@@ -173,7 +226,7 @@ export class TokenDialog {
       ...settings,
       retry_after: retry_after || null,
       auto_cleanup,
-      signature: signatureOf(signature, this.savedSecret),
+      signature: signatureOf(signature, this.keepsSecret() ? this.savedSecret : null),
       schema: schema.trim() === '' ? null : (JSON.parse(schema) as JsonSchema),
     };
     this.saving.set(true);
@@ -188,24 +241,83 @@ export class TokenDialog {
     this.dialogRef.close(sent);
   }
 
+  /**
+   * O segredo salvo só vale para o provedor em que foi salvo: trocar de provedor exige um novo
+   * (o `whsec_` da Stripe num genérico quase sempre é engano).
+   */
+  protected keepsSecret(): boolean {
+    return (
+      this.savedSecret !== null &&
+      this.form.controls.signature.controls.provider.value === this.savedProvider
+    );
+  }
+
+  /** O header que o provedor escolhido manda, com cada parte no lugar. */
+  protected anatomy(): readonly string[] {
+    const c = this.form.controls.signature.controls;
+    const provider = c.provider.value;
+    if (provider === 'none') {
+      return [];
+    }
+    if (provider !== 'generic') {
+      return ANATOMY[provider];
+    }
+    const hmac = `HMAC-${c.algorithm.value.toUpperCase()}(body)`;
+    return [`${c.header.value || '<header>'}: ${c.prefix.value}<${c.encoding.value} of ${hmac}>`];
+  }
+
+  /** "To save, fill in: Signature header, Secret"; vazio quando nada falta. */
+  protected pending(): string {
+    const problems = this.fields().filter(([control]) => control.invalid);
+    const missing = problems.filter(([control]) => control.hasError('required'));
+    const invalid = problems.filter(([control]) => !control.hasError('required'));
+    const parts = [
+      ...(missing.length > 0 ? [`fill in: ${missing.map(([, , label]) => label).join(', ')}`] : []),
+      ...(invalid.length > 0 ? [`fix: ${invalid.map(([, , label]) => label).join(', ')}`] : []),
+    ];
+    return parts.length > 0 ? `To save, ${parts.join('; ')}` : '';
+  }
+
+  /** Clicar com pendência: todos os erros à vista, o resumo e o foco no primeiro campo. */
+  private showPending(): void {
+    this.attempted.set(true);
+    this.form.markAllAsTouched();
+    const first = this.fields().find(([control]) => control.invalid);
+    if (first) {
+      this.host.nativeElement
+        .querySelector<HTMLElement>(`[formControlName="${first[1]}"]`)
+        ?.focus();
+    }
+  }
+
+  /** Campos que podem ficar pendentes, na ordem da tela, com o nome e o rótulo. */
+  private fields(): [AbstractControl, string, string][] {
+    const c = this.form.controls;
+    const s = c.signature.controls;
+    return [
+      [c.default_status, 'default_status', 'Default status code'],
+      [c.timeout, 'timeout', 'Timeout before response'],
+      [c.retry_after, 'retry_after', 'Retry-After'],
+      [s.header, 'header', 'Signature header'],
+      [s.secret, 'secret', 'Secret'],
+      [s.toleranceSeconds, 'toleranceSeconds', 'Timestamp tolerance (seconds)'],
+      [c.schema, 'schema', 'JSON Schema'],
+    ];
+  }
+
   /** "Clear schema": sem schema, a URL deixa de validar ao salvar. */
   protected clearSchema(): void {
     this.form.controls.schema.setValue('');
   }
 
   /**
-   * Segredo obrigatório só sem um salvo (criar, ou URL que não tinha assinatura); os campos do
-   * genérico e a tolerância só valem para os provedores que os usam. Campo desabilitado não conta
-   * na validade.
+   * Os campos do genérico e a tolerância só valem para os provedores que os usam; a obrigação do
+   * segredo segue o provedor escolhido (`syncSignature`). Campo desabilitado não conta na validade.
    */
   private signatureGroup(saved: SignatureConfig | null) {
-    const secret = [Validators.maxLength(SECRET_MAX)];
-    if (!saved?.secret) {
-      secret.push(Validators.required);
-    }
     return this.formBuilder.group({
       provider: [(saved?.provider ?? 'none') as ProviderOption],
-      secret: ['', secret],
+      secret: ['', Validators.maxLength(SECRET_MAX)],
       header: [saved?.header ?? '', Validators.required],
       algorithm: [saved?.algorithm ?? ('sha256' as SignatureAlgorithm)],
       encoding: [saved?.encoding ?? ('hex' as SignatureEncoding)],
@@ -222,9 +334,15 @@ export class TokenDialog {
     });
   }
 
+  /** Segredo obrigatório, com o asterisco no rótulo, a menos que o salvo continue valendo. */
   private syncSignature(): void {
     const c = this.form.controls.signature.controls;
     const provider = c.provider.value;
+    c.secret.setValidators(
+      this.keepsSecret()
+        ? Validators.maxLength(SECRET_MAX)
+        : [Validators.required, Validators.maxLength(SECRET_MAX)],
+    );
     const generic = provider === 'generic';
     const enabled: [AbstractControl, boolean][] = [
       [c.secret, provider !== 'none'],
