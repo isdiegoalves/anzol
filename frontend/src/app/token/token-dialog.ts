@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -21,6 +22,7 @@ import { retryAfterValidator } from './retry-after';
 import {
   AUTO_CLEANUP_LIMITS,
   AutoCleanup,
+  JsonSchema,
   SIGNATURE_ALGORITHMS,
   SIGNATURE_PROVIDERS,
   SIGNATURE_PROVIDER_LABELS,
@@ -36,6 +38,13 @@ export interface TokenDialogData {
   mode: 'create' | 'edit';
   /** `null` quando a URL não foi encontrada (mostra o aviso, como no app atual). */
   token: Token | null;
+  /** Schema que o campo mostra no lugar do salvo ("Create schema from this request"). */
+  schema?: JsonSchema;
+  /**
+   * Salva na API. Devolve os erros do servidor para o campo Schema (o diálogo fica aberto para
+   * corrigir); vazio fecha o diálogo com os campos enviados.
+   */
+  save: (settings: TokenSettings) => Promise<readonly string[]>;
 }
 
 const INTEGER = /^[+-]?\d+$/;
@@ -55,6 +64,28 @@ const PROVIDER_HINTS: Record<SignatureProvider, string> = {
 const TOLERANCE_DEFAULT = 300;
 const TOLERANCE_MAX = 86_400;
 const SECRET_MAX = 256;
+
+/** O schema salvo, ou o sugerido, indentado para editar à mão. */
+function schemaText(schema: JsonSchema | null | undefined): string {
+  return schema ? JSON.stringify(schema, null, 2) : '';
+}
+
+/** Vazio desliga a validação; senão, precisa ser um objeto JSON (o servidor compila o resto). */
+function schemaValidator(control: AbstractControl<string>): ValidationErrors | null {
+  const text = control.value.trim();
+  if (text === '') {
+    return null;
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    return { json: `Invalid JSON: ${(error as Error).message}` };
+  }
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? null
+    : { json: 'The schema must be a JSON object.' };
+}
 
 /**
  * Diálogos "Create New URL" e "Edit URL", com a validação do servidor (`timeout` 0–10,
@@ -99,7 +130,9 @@ export class TokenDialog {
     retry_after: [String(this.editing?.retry_after ?? ''), retryAfterValidator],
     auto_cleanup: [this.editing?.auto_cleanup ?? (null as AutoCleanup | null)],
     signature: this.signatureGroup(this.editing?.signature ?? null),
+    schema: [schemaText(this.data.schema ?? this.editing?.schema), schemaValidator],
   });
+  protected readonly saving = signal(false);
 
   protected readonly autoCleanupLimits = AUTO_CLEANUP_LIMITS;
   protected readonly providers = SIGNATURE_PROVIDERS.map((value) => ({
@@ -122,26 +155,42 @@ export class TokenDialog {
 
   /**
    * Campos de texto vão só preenchidos, como o `serializeArray` filtrado do app atual.
-   * `retry_after` e `auto_cleanup` vão sempre (`null` quando vazios): no `PUT`, campo ausente
-   * volta ao padrão.
+   * `retry_after`, `auto_cleanup`, `signature` e `schema` vão sempre (`null` quando vazios): no
+   * `PUT`, campo ausente volta ao padrão.
    */
-  protected saveSettings(): void {
-    if (this.form.invalid) {
+  protected async saveSettings(): Promise<void> {
+    if (this.form.invalid || this.saving()) {
       return;
     }
-    const { retry_after, auto_cleanup, signature, ...fields } = this.form.getRawValue();
+    const { retry_after, auto_cleanup, signature, schema, ...fields } = this.form.getRawValue();
     const settings: TokenSettings = {};
     for (const [name, value] of Object.entries(fields)) {
       if (value !== null && value !== '') {
         settings[name as keyof typeof fields] = String(value);
       }
     }
-    this.dialogRef.close({
+    const sent: TokenSettings = {
       ...settings,
       retry_after: retry_after || null,
       auto_cleanup,
       signature: signatureOf(signature, this.savedSecret),
-    });
+      schema: schema.trim() === '' ? null : (JSON.parse(schema) as JsonSchema),
+    };
+    this.saving.set(true);
+    const schemaErrors = await this.data.save(sent);
+    this.saving.set(false);
+    if (schemaErrors.length > 0) {
+      const control = this.form.controls.schema;
+      control.setErrors({ server: schemaErrors.join(' ') });
+      control.markAsTouched();
+      return;
+    }
+    this.dialogRef.close(sent);
+  }
+
+  /** "Clear schema": sem schema, a URL deixa de validar ao salvar. */
+  protected clearSchema(): void {
+    this.form.controls.schema.setValue('');
   }
 
   /**

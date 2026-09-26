@@ -358,6 +358,89 @@ describe('Dado o editor de regra', () => {
     });
   });
 
+  describe('Dado a condição "Schema" no match', () => {
+    const savedMatch = async () => {
+      await save();
+      const call = await put();
+      call.flush(call.request.body);
+      return (call.request.body as Rule[])[0].match;
+    };
+    const view = (text: 'Form' | 'JSON') =>
+      loader.getHarness(MatButtonToggleHarness.with({ text }));
+
+    it('deve oferecer Any, Valid e Invalid, começando em Any, e explicar de onde vem', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      const schema = await select('Schema');
+
+      expect(await schema.getValueText()).toBe('Any');
+      await schema.open();
+      const options = await schema.getOptions();
+      expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+        'Any',
+        'Valid',
+        'Invalid',
+      ]);
+      expect(await (await field('Schema')).getTextHints()).toEqual([
+        'Set up schema validation in Edit URL',
+      ]);
+    });
+
+    it('deve gravar match.schema Quando "Invalid" é escolhido', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      const schema = await select('Schema');
+      await schema.open();
+      await schema.clickOptions({ text: 'Invalid' });
+
+      expect(await savedMatch()).toEqual({ ...rule(1).match, schema: 'invalid' });
+    });
+
+    it('deve vir com a condição salva e retirá-la do match Quando volta para "Any"', async () => {
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, schema: 'valid' } })]);
+      const schema = await select('Schema');
+
+      expect(await schema.getValueText()).toBe('Valid');
+      await schema.open();
+      await schema.clickOptions({ text: 'Any' });
+
+      expect(await savedMatch()).toEqual(rule(1).match);
+    });
+
+    it('deve levar a condição do formulário ao JSON e de volta Quando alterna as abas', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      const schema = await select('Schema');
+      await schema.open();
+      await schema.clickOptions({ text: 'Invalid' });
+
+      await (await view('JSON')).check();
+      const json = await loader.getHarness(
+        MatInputHarness.with({ selector: '[aria-label="Rule JSON"]' }),
+      );
+      const regra = JSON.parse(await json.getValue()) as Rule;
+      expect(regra.match?.schema).toBe('invalid');
+      await json.setValue(JSON.stringify({ ...regra, match: { ...regra.match, schema: 'valid' } }));
+      await (await view('Form')).check();
+
+      expect(await (await select('Schema')).getValueText()).toBe('Valid');
+    });
+
+    it('deve mostrar no campo o erro do servidor para a condição de schema', async () => {
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, schema: 'valid' } })]);
+
+      await save();
+      (await put()).flush(
+        { '0.match.schema': ['The selected schema is invalid.'] },
+        { status: 422, statusText: 'Unprocessable Entity' },
+      );
+
+      await vi.waitFor(async () =>
+        expect(await (await field('Schema')).getTextErrors()).toEqual([
+          'The selected schema is invalid.',
+        ]),
+      );
+    });
+  });
+
   describe('Dado a seção "Scenario"', () => {
     const outras = [
       rule(1, { scenario: { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' } }),

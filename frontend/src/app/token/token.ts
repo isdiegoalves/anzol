@@ -23,6 +23,11 @@ export interface Token {
    * últimos). Ausente no token gravado no localStorage por versões anteriores da tela.
    */
   signature?: SignatureConfig | null;
+  /**
+   * JSON Schema que valida o corpo de cada mensagem; `null` desliga. Ausente no token gravado no
+   * localStorage por versões anteriores da tela.
+   */
+  schema?: JsonSchema | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,10 +65,13 @@ export interface SignatureConfig {
   toleranceSeconds?: number;
 }
 
+/** Documento JSON Schema (draft 2020-12 por padrão): sempre um objeto JSON. */
+export type JsonSchema = Record<string, unknown>;
+
 /**
  * Campos editáveis nos diálogos criar/editar. Os de texto só vão preenchidos; `retry_after`,
- * `auto_cleanup` e `signature` vão sempre, `null` quando vazios, porque o `PUT` volta ao padrão o
- * campo ausente.
+ * `auto_cleanup`, `signature` e `schema` vão sempre, `null` quando vazios, porque o `PUT` volta ao
+ * padrão o campo ausente.
  */
 export interface TokenSettings {
   default_status?: string;
@@ -73,4 +81,5 @@ export interface TokenSettings {
   retry_after?: string | null;
   auto_cleanup?: AutoCleanup | null;
   signature?: SignatureConfig | null;
+  schema?: JsonSchema | null;
 }

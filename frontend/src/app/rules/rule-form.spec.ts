@@ -81,6 +81,7 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
         { type: 'equalToJson', value: '{"a":1,"b":[true]}', path: '', equals: '' },
       ],
       signature: 'any',
+      schema: 'any',
       status: 201,
       responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
       responseBody: '{"ok":true}',
@@ -260,6 +261,48 @@ describe('Dado a condição de assinatura no formulário', () => {
   );
 });
 
+describe('Dado a condição de schema no formulário', () => {
+  it.each(['valid', 'invalid'] as const)(
+    'deve preencher e devolver a condição "%s"',
+    (condicao) => {
+      const regra: Rule = { ...completa, match: { ...completa.match, schema: condicao } };
+
+      const form = toFormValue(regra);
+
+      expect(form.schema).toBe(condicao);
+      expect(fromFormValue(form, regra)).toEqual(regra);
+    },
+  );
+
+  it('deve omitir a condição, e não gravar nula, Quando o formulário volta para "any"', () => {
+    const regra: Rule = { ...completa, match: { ...completa.match, schema: 'valid' } };
+
+    const gravada = fromFormValue({ ...toFormValue(regra), schema: 'any' }, regra);
+
+    expect(gravada.match).toEqual(completa.match);
+    expect(gravada.match && 'schema' in gravada.match).toBe(false);
+  });
+
+  it.each([
+    ['ausente', completa],
+    ['nula', { ...completa, match: { ...completa.match, schema: null } }],
+  ])('deve começar em "any" Quando a condição é %s', (_caso, regra) => {
+    expect(toFormValue(regra).schema).toBe('any');
+  });
+
+  it.each(['valid', 'invalid', null])('deve aceitar no JSON a condição %s', (condicao) => {
+    const texto = JSON.stringify({ name: 'a', match: { schema: condicao } });
+
+    expect(parseRuleJson(texto).errors).toEqual([]);
+  });
+
+  it.each(['absent', 'ok', true])('deve recusar no JSON a condição %s', (condicao) => {
+    const texto = JSON.stringify({ name: 'a', match: { schema: condicao } });
+
+    expect(parseRuleJson(texto).errors).toEqual(['match.schema: The selected schema is invalid.']);
+  });
+});
+
 describe('Dado um erro 422 com a chave em notação de ponto', () => {
   const form = toFormValue(completa);
 
@@ -275,6 +318,7 @@ describe('Dado um erro 422 com a chave em notação de ponto', () => {
     ['match.body.0.jsonPath.equals', { list: 'body', index: 0, field: 'equals' }],
     ['match.body.3.equalToJson', { list: 'body', index: 3, field: 'value' }],
     ['match.signature', { field: 'signature' }],
+    ['match.schema', { field: 'schema' }],
     ['response.status', { field: 'status' }],
     ['response.headers.Content-Type', { list: 'responseHeaders', index: 0, field: 'value' }],
     ['response.body', { field: 'responseBody' }],

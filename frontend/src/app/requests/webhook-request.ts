@@ -23,6 +23,8 @@ export interface WebhookRequest {
   near_miss?: NearMiss | null;
   /** Verificação da assinatura; `null` quando a URL não verifica (ausente em mensagens antigas). */
   signature?: SignatureResult | null;
+  /** Validação do corpo pelo schema da URL; `null` quando a URL não valida (ausente em mensagens antigas). */
+  schema?: SchemaResult | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +34,18 @@ export interface SignatureResult {
   provider: SignatureProvider;
   valid: boolean;
   reason: string | null;
+}
+
+/** Resultado da validação no momento da captura; até 20 erros, na ordem do servidor. */
+export interface SchemaResult {
+  valid: boolean;
+  errors: SchemaError[];
+}
+
+/** `path` é o JSON Pointer da instância (`/itens/0/qtd`; `""` é o corpo inteiro). */
+export interface SchemaError {
+  path: string;
+  message: string;
 }
 
 /** Página de `GET /token/{id}/requests`. */

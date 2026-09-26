@@ -4,12 +4,14 @@ import { TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { from } from 'rxjs';
 import type { MockInstance } from 'vitest';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
-import { TokenActions, settingsError } from './token-actions';
+import { TokenSettings } from './token';
+import { TokenActions, schemaErrors, settingsError } from './token-actions';
+import { TokenDialog, TokenDialogData } from './token-dialog';
 
 describe('Dado o erro ao criar ou editar uma URL', () => {
   it.each([
@@ -46,10 +48,13 @@ describe('Dado os botões New e Edit da barra superior', () => {
   let http: HttpTestingController;
   let snack: MockInstance<MatSnackBar['open']>;
 
-  const answerDialog = (settings: object | undefined) =>
-    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(settings),
-    } as MatDialogRef<unknown>);
+  /** Simula o diálogo: com `settings`, salva por `save` e fecha; sem, fecha sem salvar. */
+  const answerDialog = (settings: TokenSettings | undefined) =>
+    vi.spyOn(TestBed.inject(MatDialog), 'open').mockImplementation((_component, config) => {
+      const { save } = config?.data as TokenDialogData;
+      const closed = settings ? save(settings).then(() => settings) : Promise.resolve(undefined);
+      return { afterClosed: () => from(closed) } as MatDialogRef<unknown>;
+    });
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -116,7 +121,7 @@ describe('Dado os botões New e Edit da barra superior', () => {
 
     const edit = async (antes: number | null, depois: number | null) => {
       TestBed.inject(Preferences).token.set(token({ auto_cleanup: antes as 500 | null }));
-      answerDialog({ auto_cleanup: depois });
+      answerDialog({ auto_cleanup: depois as 500 | null });
       const done = TestBed.inject(TokenActions).editUrl();
       const call = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
       call.flush(token({ auto_cleanup: depois as 500 | null }));
@@ -174,4 +179,72 @@ describe('Dado os botões New e Edit da barra superior', () => {
     expect(snack).not.toHaveBeenCalledWith('URL updated!');
     expect(TestBed.inject(Preferences).token()).toEqual(token());
   });
+
+  it.each([
+    ['criar', 'create', '/token'],
+    ['editar', 'edit', `/token/${TOKEN_ID}`],
+  ] as const)(
+    'deve devolver o erro do schema ao diálogo, sem aviso, Quando o servidor recusa o schema ao %s',
+    async (_caso, modo, url) => {
+      TestBed.inject(Preferences).token.set(token());
+      const open = vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+        afterClosed: () => from([undefined]),
+      } as MatDialogRef<unknown>);
+      const actions = TestBed.inject(TokenActions);
+      await (modo === 'create' ? actions.createUrl() : actions.editUrl());
+      const { save } = open.mock.calls[0][1]?.data as TokenDialogData;
+
+      const erros = save({ schema: { $ref: 'https://exemplo.com/s.json' } });
+      http
+        .expectOne(url)
+        .flush(
+          { schema: ['The schema is invalid: $ref is not internal.'] },
+          { status: 422, statusText: 'Unprocessable Entity' },
+        );
+
+      expect(await erros).toEqual(['The schema is invalid: $ref is not internal.']);
+      expect(snack).not.toHaveBeenCalled();
+    },
+  );
+
+  it('deve abrir o Edit URL com o schema inferido do corpo Quando "Create schema from this request" é clicado', async () => {
+    TestBed.inject(Preferences).token.set(token());
+    const open = answerDialog(undefined);
+
+    await TestBed.inject(TokenActions).createSchemaFrom(
+      webhookRequest(1, { content: '{"id": 7, "tags": ["a"]}' }),
+    );
+
+    expect(open).toHaveBeenCalledWith(
+      TokenDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mode: 'edit',
+          token: token(),
+          schema: {
+            $schema: 'https://json-schema.org/draft/2020-12/schema',
+            type: 'object',
+            properties: {
+              id: { type: 'integer' },
+              tags: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['id', 'tags'],
+          },
+        }),
+      }),
+    );
+  });
+});
+
+describe('Dado o erro 422 do servidor ao salvar a URL', () => {
+  it.each([
+    ['só do schema', { schema: ['a', 'b'] }, 422, ['a', 'b']],
+    ['de outro campo', { timeout: ['x'] }, 422, []],
+    ['500', { schema: ['a'] }, 500, []],
+  ])(
+    'deve separar as mensagens do campo Schema Quando o erro é %s',
+    (_caso, body, status, esperado) => {
+      expect(schemaErrors(new HttpErrorResponse({ status, error: body }))).toEqual(esperado);
+    },
+  );
 });

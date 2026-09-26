@@ -29,12 +29,17 @@ export interface RuleMatch {
   body?: BodyMatcher[];
   /** Resultado da verificação de assinatura da URL; ausente (ou `null`) = qualquer. */
   signature?: SignatureCondition | null;
+  /** Resultado da validação de schema da URL; ausente (ou `null`) = qualquer. */
+  schema?: SchemaCondition | null;
   [field: string]: unknown;
 }
 
 export const SIGNATURE_CONDITIONS = ['valid', 'invalid', 'absent'] as const;
 /** `absent` = sem o header da assinatura. */
 export type SignatureCondition = (typeof SIGNATURE_CONDITIONS)[number];
+
+export const SCHEMA_CONDITIONS = ['valid', 'invalid'] as const;
+export type SchemaCondition = (typeof SCHEMA_CONDITIONS)[number];
 
 /** Exatamente um dos três, sobre o caminho depois do token. */
 export type PathMatcher = { equals: string } | { prefix: string } | { regex: string };

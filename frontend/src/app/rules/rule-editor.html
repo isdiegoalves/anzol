@@ -198,6 +198,18 @@
         <mat-error>{{ errorOf(form.controls.signature, '') }}</mat-error>
       </mat-form-field>
 
+      <h4>Schema</h4>
+      <mat-form-field class="schema">
+        <mat-label>Schema</mat-label>
+        <mat-select formControlName="schema" aria-label="Schema">
+          @for (option of schemaOptions; track option.value) {
+            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Set up schema validation in Edit URL</mat-hint>
+        <mat-error>{{ errorOf(form.controls.schema, '') }}</mat-error>
+      </mat-form-field>
+
       <h3>Response</h3>
       <div class="line">
         <mat-form-field class="short">

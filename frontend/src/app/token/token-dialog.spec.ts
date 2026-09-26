@@ -9,19 +9,23 @@ import { MatSelectHarness } from '@angular/material/select/testing';
 import { token } from '../../testing/fixtures';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 
-async function openDialog(data: TokenDialogData) {
+/** `save` salva sem erro, a menos que o teste diga outra coisa. */
+async function openDialog(
+  data: Omit<TokenDialogData, 'save'>,
+  save = vi.fn<TokenDialogData['save']>().mockResolvedValue([]),
+) {
   const dialogRef = { close: vi.fn() };
   TestBed.configureTestingModule({
     imports: [TokenDialog],
     providers: [
-      { provide: MAT_DIALOG_DATA, useValue: data },
+      { provide: MAT_DIALOG_DATA, useValue: { ...data, save } },
       { provide: MatDialogRef, useValue: dialogRef },
     ],
   });
   const fixture = TestBed.createComponent(TokenDialog);
   const loader: HarnessLoader = TestbedHarnessEnvironment.loader(fixture);
   await fixture.whenStable();
-  return { fixture, loader, dialogRef };
+  return { fixture, loader, dialogRef, save };
 }
 
 const input = (loader: HarnessLoader, placeholder: string) =>
@@ -49,6 +53,7 @@ describe('Dado o diálogo "Create New URL"', () => {
       retry_after: null,
       auto_cleanup: null,
       signature: null,
+      schema: null,
     });
   });
 
@@ -175,6 +180,7 @@ describe('Dado o diálogo "Edit URL"', () => {
       retry_after: null,
       auto_cleanup: null,
       signature: null,
+      schema: null,
     });
   });
 
@@ -539,5 +545,121 @@ describe('Dado a seção "Signature verification" do diálogo "Edit URL"', () =>
     const { loader } = await openDialog({ mode: 'edit', token: antigo });
 
     expect(await (await signatureSelect(loader, 'provider')).getValueText()).toBe('None');
+  });
+});
+
+const schemaInput = (loader: HarnessLoader) =>
+  loader.getHarness(MatInputHarness.with({ selector: '[formControlName=schema]' }));
+
+const schemaField = (loader: HarnessLoader) =>
+  loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'JSON Schema' }));
+
+const PEDIDO = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  properties: { id: { type: 'integer' } },
+  required: ['id'],
+};
+
+describe('Dado a seção "Schema validation" do diálogo "Create New URL"', () => {
+  it('deve começar vazio, explicar o campo e enviar o schema como objeto Quando um schema é colado', async () => {
+    const { loader, save } = await openDialog({ mode: 'create', token: token() });
+
+    expect(await (await schemaInput(loader)).getValue()).toBe('');
+    expect(await (await schemaField(loader)).getTextHints()).toEqual([
+      'Validates the JSON body of each request; leave empty to turn off',
+    ]);
+    await (await schemaInput(loader)).setValue(JSON.stringify(PEDIDO));
+    await (await button(loader, 'Create')).click();
+
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ schema: PEDIDO }));
+  });
+
+  it.each([
+    ['JSON malformado', '{"type": ', /^Invalid JSON: /],
+    ['uma lista', '[{"type": "object"}]', /^The schema must be a JSON object\.$/],
+    ['um texto JSON', '"object"', /^The schema must be a JSON object\.$/],
+    ['null', 'null', /^The schema must be a JSON object\.$/],
+  ])(
+    'não deve deixar criar e deve explicar no campo Quando o schema é %s',
+    async (_caso, texto, erro) => {
+      const { loader, save } = await openDialog({ mode: 'create', token: token() });
+
+      await (await schemaInput(loader)).setValue(texto);
+      await (await schemaInput(loader)).blur();
+
+      const [mensagem] = await (await schemaField(loader)).getTextErrors();
+      expect(mensagem).toMatch(erro);
+      expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('Dado a seção "Schema validation" do diálogo "Edit URL"', () => {
+  it('deve vir com o schema salvo, indentado, e reenviá-lo Quando outro campo é editado', async () => {
+    const { loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ schema: PEDIDO }),
+    });
+
+    expect(await (await schemaInput(loader)).getValue()).toBe(JSON.stringify(PEDIDO, null, 2));
+    await (await input(loader, '200')).setValue('202');
+    await (await button(loader, 'Edit')).click();
+
+    await vi.waitFor(() =>
+      expect(dialogRef.close).toHaveBeenCalledWith(
+        expect.objectContaining({ default_status: '202', schema: PEDIDO }),
+      ),
+    );
+  });
+
+  it('deve esvaziar o campo e enviar schema nulo, e não omitir o campo, Quando "Clear schema" é clicado', async () => {
+    const { loader, save } = await openDialog({ mode: 'edit', token: token({ schema: PEDIDO }) });
+
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Clear schema' }))).click();
+    expect(await (await schemaInput(loader)).getValue()).toBe('');
+    await (await button(loader, 'Edit')).click();
+
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ schema: null }));
+  });
+
+  it('deve mostrar o schema sugerido no lugar do salvo Quando o diálogo vem de "Create schema from this request"', async () => {
+    const sugerido = { $schema: PEDIDO.$schema, type: 'array' };
+    const { loader } = await openDialog({
+      mode: 'edit',
+      token: token({ schema: PEDIDO }),
+      schema: sugerido,
+    });
+
+    expect(await (await schemaInput(loader)).getValue()).toBe(JSON.stringify(sugerido, null, 2));
+  });
+
+  it('deve mostrar o erro do servidor no campo e continuar aberto Quando o servidor recusa o schema (422)', async () => {
+    const recusa = 'The schema is invalid: $ref "https://exemplo.com/s.json" is not internal.';
+    const save = vi.fn<TokenDialogData['save']>().mockResolvedValue([recusa]);
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: token() }, save);
+
+    await (await schemaInput(loader)).setValue('{"$ref": "https://exemplo.com/s.json"}');
+    await (await button(loader, 'Edit')).click();
+
+    await vi.waitFor(async () =>
+      expect(await (await schemaField(loader)).getTextErrors()).toEqual([recusa]),
+    );
+    expect(dialogRef.close).not.toHaveBeenCalled();
+    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(true);
+
+    await (await schemaInput(loader)).setValue('{"type": "object"}');
+
+    expect(await (await schemaField(loader)).getTextErrors()).toEqual([]);
+    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(false);
+  });
+
+  it('deve abrir vazio Quando o token veio do localStorage de uma versão sem schema', async () => {
+    const antigo = token();
+    delete antigo.schema;
+    const { loader } = await openDialog({ mode: 'edit', token: antigo });
+
+    expect(await (await schemaInput(loader)).getValue()).toBe('');
   });
 });

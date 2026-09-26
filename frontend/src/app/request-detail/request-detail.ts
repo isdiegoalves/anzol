@@ -12,6 +12,7 @@ import { COPY_FORMATS, CopyFormat, convertRequest } from './copy-as';
 import { fromNow, localDate } from './dates';
 import { formatContent, highlightContent } from './format-content';
 import { RuleBadge } from './rule-badge';
+import { SchemaBadge } from './schema-badge';
 import { SignatureBadge } from './signature-badge';
 
 /** Detalhe da mensagem: dados, headers, query, formulário e corpo (cru ou formatado). */
@@ -24,6 +25,7 @@ import { SignatureBadge } from './signature-badge';
     MatMenuTrigger,
     MethodLabel,
     RuleBadge,
+    SchemaBadge,
     SignatureBadge,
   ],
   templateUrl: './request-detail.html',
@@ -55,6 +57,9 @@ export class RequestDetail {
     return highlightContent(this.preferences.formatJsonEnable() ? formatContent(content) : content);
   });
 
+  /** "Create schema from this request" só aparece quando há o que inferir. */
+  protected readonly jsonBody = computed(() => isJson(this.request().content));
+
   protected entries(fields: Record<string, FieldValue> | null | undefined): [string, string][] {
     return Object.entries(fields ?? {}).map(([name, value]) => [
       name,
@@ -77,5 +82,23 @@ export class RequestDetail {
   protected async createRule(): Promise<void> {
     const { RuleFromRequest } = await import('../rules/rule-from-request');
     await this.injector.get(RuleFromRequest).open(this.request());
+  }
+
+  /** O diálogo do Edit URL e a inferência vêm sob demanda (no pedaço do `token-actions`). */
+  protected async createSchema(): Promise<void> {
+    const { TokenActions } = await import('../token/token-actions');
+    await this.injector.get(TokenActions).createSchemaFrom(this.request());
+  }
+}
+
+function isJson(content: string | null): boolean {
+  if (!content) {
+    return false;
+  }
+  try {
+    JSON.parse(content);
+    return true;
+  } catch {
+    return false;
   }
 }

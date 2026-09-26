@@ -48,6 +48,7 @@ import {
   HeaderRow,
   PathMode,
   RuleFormValue,
+  SchemaOption,
   SignatureOption,
   ValueOperator,
   fromFormValue,
@@ -166,6 +167,7 @@ export class RuleEditor {
     headers: this.formBuilder.array<ConditionGroup>([]),
     body: this.formBuilder.array<BodyGroup>([]),
     signature: ['any' as SignatureOption],
+    schema: ['any' as SchemaOption],
     status: [0, [Validators.required, Validators.min(100), Validators.max(599), integer]],
     responseHeaders: this.formBuilder.array<HeaderGroup>([]),
     responseBody: [''],
@@ -237,6 +239,11 @@ export class RuleEditor {
     { value: 'valid', label: 'Valid' },
     { value: 'invalid', label: 'Invalid' },
     { value: 'absent', label: 'Absent (no signature header)' },
+  ];
+  protected readonly schemaOptions: { value: SchemaOption; label: string }[] = [
+    { value: 'any', label: 'Any' },
+    { value: 'valid', label: 'Valid' },
+    { value: 'invalid', label: 'Invalid' },
   ];
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
     { value: 'none', label: 'None' },

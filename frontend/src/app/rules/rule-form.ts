@@ -10,7 +10,9 @@ import {
   RuleDelay,
   RuleFault,
   RuleScenario,
+  SCHEMA_CONDITIONS,
   SIGNATURE_CONDITIONS,
+  SchemaCondition,
   SignatureCondition,
   ValueMatcher,
 } from './rule';
@@ -56,6 +58,8 @@ export interface RuleFormValue {
   body: BodyRow[];
   /** `any` = sem condição (a chave fica fora do match). */
   signature: SignatureOption;
+  /** `any` = sem condição (a chave fica fora do match). */
+  schema: SchemaOption;
   status: number;
   responseHeaders: HeaderRow[];
   responseBody: string;
@@ -80,6 +84,7 @@ export interface RuleFormValue {
 }
 
 export type SignatureOption = 'any' | SignatureCondition;
+export type SchemaOption = 'any' | SchemaCondition;
 export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
 export type FaultOption = 'none' | RuleFault;
 
@@ -120,6 +125,7 @@ export function toFormValue(rule: Rule): RuleFormValue {
     headers: conditionRows(match.headers),
     body: (match.body ?? []).map(bodyRow),
     signature: match.signature ?? 'any',
+    schema: match.schema ?? 'any',
     status: rule.response?.status ?? RULE_DEFAULT_STATUS,
     responseHeaders: Object.entries(rule.response?.headers ?? {}).map(([name, value]) => ({
       name,
@@ -197,10 +203,14 @@ export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
     headers: conditionMap(form.headers),
     body: form.body.map(bodyMatcher),
     signature: form.signature === 'any' ? undefined : form.signature,
+    schema: form.schema === 'any' ? undefined : form.schema,
   };
-  // Sem condição de assinatura, a chave fica fora, como o servidor a devolve.
+  // Sem condição de assinatura ou de schema, a chave fica fora, como o servidor a devolve.
   if (match.signature === undefined) {
     delete match.signature;
+  }
+  if (match.schema === undefined) {
+    delete match.schema;
   }
   return {
     ...base,
@@ -316,6 +326,7 @@ const SINGLE_FIELDS: [string, SingleField][] = (
     ['match.method', 'methods'],
     ['match.path', 'path'],
     ['match.signature', 'signature'],
+    ['match.schema', 'schema'],
     ['response.status', 'status'],
     ['response.body', 'responseBody'],
     ['response.template', 'template'],
@@ -482,6 +493,14 @@ function matchErrors(match: unknown): string[] {
     !SIGNATURE_CONDITIONS.includes(signature as SignatureCondition)
   ) {
     errors.push('match.signature: The selected signature is invalid.');
+  }
+  const schema = match['schema'];
+  if (
+    schema !== undefined &&
+    schema !== null &&
+    !SCHEMA_CONDITIONS.includes(schema as SchemaCondition)
+  ) {
+    errors.push('match.schema: The selected schema is invalid.');
   }
   return errors;
 }

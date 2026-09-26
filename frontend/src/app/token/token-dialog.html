@@ -122,10 +122,24 @@
         </mat-form-field>
       }
     </div>
+
+    <h3 class="section">Schema validation</h3>
+    @let schema = form.controls.schema;
+    <mat-form-field>
+      <mat-label>JSON Schema</mat-label>
+      <textarea matInput rows="8" class="code" formControlName="schema"></textarea>
+      <mat-hint>Validates the JSON body of each request; leave empty to turn off</mat-hint>
+      <mat-error>{{ schema.errors?.['json'] ?? schema.errors?.['server'] }}</mat-error>
+    </mat-form-field>
+    <div class="clear">
+      <button mat-button type="button" [disabled]="schema.value === ''" (click)="clearSchema()">
+        Clear schema
+      </button>
+    </div>
   </form>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-flat-button type="submit" form="token-form" [disabled]="form.invalid">
+  <button mat-flat-button type="submit" form="token-form" [disabled]="form.invalid || saving()">
     {{ data.mode === 'create' ? 'Create' : 'Edit' }}
   </button>
 </mat-dialog-actions>

@@ -19,6 +19,16 @@
   flex: 1;
 }
 
+.code {
+  font-family: Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.clear {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .warning {
   padding: 12px;
   border: 1px solid #faebcc;

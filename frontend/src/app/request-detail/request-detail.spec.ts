@@ -8,6 +8,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
+import { TokenActions } from '../token/token-actions';
 import { Preferences } from '../settings/preferences';
 import { RequestDetail } from './request-detail';
 
@@ -180,6 +181,53 @@ describe('Dado o detalhe de uma mensagem', () => {
       await button.click();
 
       await vi.waitFor(() => expect(open).toHaveBeenCalledWith(request));
+    },
+  );
+
+  it('deve mostrar o selo de schema com os erros, mesmo com "Hide Details", Quando o corpo não segue o schema', async () => {
+    TestBed.inject(Preferences).hideDetails.set(true);
+    const element = await render(
+      webhookRequest(1, {
+        schema: { valid: false, errors: [{ path: '/id', message: 'must be integer' }] },
+      }),
+    );
+
+    const badge = element.querySelector('app-schema-badge');
+    expect(badge?.querySelector('p')?.textContent).toBe('Schema invalid');
+    expect(badge?.querySelector('li')?.textContent?.trim()).toBe('/id must be integer');
+  });
+
+  it('deve abrir o Edit URL com o schema da mensagem Quando "Create schema from this request" é clicado', async () => {
+    const createSchemaFrom = vi.fn().mockResolvedValue(undefined);
+    TestBed.configureTestingModule({
+      providers: [{ provide: TokenActions, useValue: { createSchemaFrom } }],
+    });
+    const request = webhookRequest(3, { content: '{"id": 7}' });
+    await render(request);
+
+    const button = await loader.getHarness(
+      MatButtonHarness.with({ text: 'Create schema from this request' }),
+    );
+    await button.click();
+
+    await vi.waitFor(() => expect(createSchemaFrom).toHaveBeenCalledWith(request));
+  });
+
+  it.each([
+    ['vazio', ''],
+    ['nulo', null],
+    ['um formulário', 'nome=Ana'],
+    ['JSON malformado', '{"id": '],
+  ])(
+    'não deve oferecer "Create schema from this request" Quando o corpo é %s',
+    async (_caso, content) => {
+      await render(webhookRequest(1, { content }));
+
+      expect(
+        await loader.getAllHarnesses(
+          MatButtonHarness.with({ text: 'Create schema from this request' }),
+        ),
+      ).toHaveLength(0);
     },
   );
 });

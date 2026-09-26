@@ -1,5 +1,6 @@
 @let current = request();
 <app-signature-badge [request]="current" />
+<app-schema-badge [request]="current" />
 <app-rule-badge [request]="current" />
 @if (!preferences.hideDetails()) {
   <div class="grid">
@@ -130,6 +131,11 @@
 
 <div class="content-actions">
   <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
+  @if (jsonBody()) {
+    <button mat-button type="button" (click)="createSchema()">
+      Create schema from this request
+    </button>
+  }
   @if (current.content) {
     <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
   }
