@@ -88,6 +88,8 @@ class AiExplainApiTest(
         assertThat(facts["schema"]["errors"][0]["message"].asString()).contains("id")
         assertThat(facts["rules"]["near_miss"]["name"].asString()).isEqualTo("pedido criado")
         assertThat(facts["rules"]["near_miss"]["failed"].toString()).contains("/pedidos")
+        // Sem regra casada, a resposta é a padrão da URL: o nome não pode sugerir redirecionamento ou proxy ao modelo.
+        assertThat(facts["response"]["source"].asString()).isEqualTo("url default (no rule matched)")
         assertThat(facts["response"]["status"].asInt()).isEqualTo(226)
         assertThat(facts["headers"].has("x-hub-signature-256")).isTrue()
         assertThat(facts["body"]["excerpt"].asString()).isEqualTo(body)

@@ -104,6 +104,9 @@ fun explainFacts(
     )
 }
 
+/** Origem da resposta sem regra casada: a padrão da URL (o nome não pode sugerir redirecionamento ao modelo). */
+private const val URL_DEFAULT = "url default (no rule matched)"
+
 private fun response(
     token: Token,
     message: CapturedRequest,
@@ -113,7 +116,7 @@ private fun response(
     val matched = message.rule
     val answer = matched?.let { ref -> rules.firstOrNull { it.id == ref.id }?.response }
     return when {
-        matched == null -> ResponseFact("url", responseStatus(path.firstSegment(), token.defaultStatus), fault = null)
+        matched == null -> ResponseFact(URL_DEFAULT, responseStatus(path.firstSegment(), token.defaultStatus), fault = null)
         answer == null -> ResponseFact("rule (deleted since)", status = null, fault = null)
         else -> ResponseFact("rule", answer.status.takeIf { answer.fault == null }, answer.fault?.value)
     }
