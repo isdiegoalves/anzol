@@ -13,6 +13,7 @@ import site.webhook.support.JSON_CLIENT
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
+import java.time.Duration
 
 private const val PAGAMENTO =
     """{"name":"pagamento","priority":2,"match":{"method":["POST"],"path":{"equals":"/pagamentos"},""" +
@@ -108,13 +109,14 @@ class RuleApiTest(
         }
 
         @Test
-        @DisplayName("Dado um token inexistente, quando chama GET ou PUT, então responde 410")
+        @DisplayName("Dado um token inexistente, quando chama GET, PUT ou rules/test, então responde 410")
         fun rotas_tokenInexistente_deveResponder410() {
             val tokenId = api.tokenId()
             api.send("DELETE", "/token/$tokenId", headers = JSON_CLIENT)
 
             assertThat(api.send("GET", "/token/$tokenId/rules", headers = JSON_CLIENT).statusCode()).isEqualTo(410)
             assertThat(putRules(tokenId, "[]").statusCode()).isEqualTo(410)
+            assertThat(api.send("POST", "/token/$tokenId/rules/test", "{}".toByteArray(), JSON_BODY).statusCode()).isEqualTo(410)
         }
     }
 
@@ -142,6 +144,158 @@ class RuleApiTest(
             api.send("DELETE", "/token/$tokenId", headers = JSON_CLIENT)
 
             assertThat(redis.hasKey("token:$tokenId:rules")).isFalse()
+        }
+    }
+
+    @Nested
+    @DisplayName("Webhook com regras")
+    inner class Webhook {
+        private val pago = """{"status":"pago"}""".toByteArray()
+        private val signed = mapOf("X-Signature" to "abc", "Content-Type" to "application/json")
+
+        @Test
+        @DisplayName("Dado uma regra que casa, quando o webhook chega, então responde status, cabeçalhos e corpo da regra e grava rule")
+        fun capture_regraQueCasa_deveResponderPelaRegra() {
+            val tokenId = api.tokenId("""{"default_status":202,"default_content":"padrão","retry_after":30}""")
+            val ruleId = api.json(putRules(tokenId, "[$PAGAMENTO]"))[0]["id"].asString()
+
+            val response = api.send("POST", "/$tokenId/pagamentos", pago, signed)
+
+            assertThat(response.statusCode()).isEqualTo(201)
+            assertThat(response.body()).isEqualTo("""{"ok":true}""")
+            assertThat(response.headers().firstValue("Content-Type")).hasValue("application/json")
+            assertThat(response.headers().firstValue("X-Mock")).hasValue("sim")
+            assertThat(response.headers().firstValue("X-Token-Id")).hasValue(tokenId)
+            assertThat(response.headers().firstValue("Retry-After")).isEmpty()
+            val message = message(tokenId, response)
+            assertThat(message["rule"]).isEqualTo(api.tree("""{"id":"$ruleId","name":"pagamento"}"""))
+            assertThat(message["near_miss"].isNull).isTrue()
+        }
+
+        @Test
+        @DisplayName("Dado uma regra que não casa, quando o webhook chega, então responde o padrão da URL e grava o near miss")
+        fun capture_regraQueNaoCasa_deveResponderPadraoEGravarNearMiss() {
+            val tokenId = api.tokenId("""{"default_status":202,"default_content":"padrão","retry_after":30}""")
+            val ruleId = api.json(putRules(tokenId, "[$PAGAMENTO]"))[0]["id"].asString()
+
+            val response = api.send("POST", "/$tokenId/pagamentos", """{"status":"pendente"}""".toByteArray(), JSON_BODY)
+
+            assertThat(response.statusCode()).isEqualTo(202)
+            assertThat(response.body()).isEqualTo("padrão")
+            assertThat(response.headers().firstValue("Retry-After")).hasValue("30")
+            val message = message(tokenId, response)
+            assertThat(message["rule"].isNull).isTrue()
+            assertThat(message["near_miss"]).isEqualTo(
+                api.tree(
+                    """{"id":"$ruleId","name":"pagamento","failed":""" +
+                        """["header x-signature: absent","body $.status: expected \"pago\", got \"pendente\""]}""",
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("Dado uma URL sem regras, quando o webhook chega, então a mensagem traz rule e near_miss nulos")
+        fun capture_semRegras_deveGravarCamposNulos() {
+            val tokenId = api.tokenId()
+
+            val message = api.capture(tokenId)
+
+            assertThat(message.has("rule")).isTrue()
+            assertThat(message["rule"].isNull).isTrue()
+            assertThat(message["near_miss"].isNull).isTrue()
+        }
+
+        @Test
+        @DisplayName("Dado duas regras que casam, quando o webhook chega, então responde a de menor prioridade e ignora a desativada")
+        fun capture_prioridade_deveResponderAMenor() {
+            val tokenId = api.tokenId()
+            putRules(
+                tokenId,
+                """[{"name":"cinco","response":{"status":205}},{"name":"um","priority":1,"response":{"status":201}},""" +
+                    """{"name":"zero-desligada","priority":1,"enabled":false,"response":{"status":500}}]""",
+            )
+
+            val response = api.send("GET", "/$tokenId/qualquer")
+
+            assertThat(response.statusCode()).isEqualTo(201)
+            assertThat(message(tokenId, response)["rule"]["name"].asString()).isEqualTo("um")
+        }
+
+        @Test
+        @DisplayName("Dado uma regra com status 200, quando o webhook chega em /404, então o status da regra vence o do caminho")
+        fun capture_statusNoCaminho_deveValerODaRegra() {
+            val tokenId = api.tokenId()
+            putRules(tokenId, """[{"name":"ok","response":{"status":200,"body":"regra"}}]""")
+
+            val response = api.send("GET", "/$tokenId/404")
+
+            assertThat(response.statusCode()).isEqualTo(200)
+            assertThat(response.body()).isEqualTo("regra")
+        }
+
+        @Test
+        @DisplayName("Dado uma URL com timeout de 3 s e uma regra que casa, quando o webhook chega, então responde sem esperar")
+        fun capture_regraComTimeoutNaUrl_naoDeveEsperar() {
+            val tokenId = api.tokenId("""{"timeout":3}""")
+            putRules(tokenId, """[{"name":"rápida","response":{"status":201}}]""")
+            val start = System.nanoTime()
+
+            val response = api.send("GET", "/$tokenId")
+
+            assertThat(response.statusCode()).isEqualTo(201)
+            assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(2))
+        }
+
+        private fun message(
+            tokenId: String,
+            response: HttpResponse<String>,
+        ): JsonNode {
+            val requestId = response.headers().firstValue("X-Request-Id").orElseThrow()
+            return api.json(api.send("GET", "/token/$tokenId/request/$requestId", headers = JSON_CLIENT))
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /token/{id}/rules/test")
+    inner class RulesTest {
+        @Test
+        @DisplayName(
+            "Dado mensagens gravadas, quando testa uma regra, então diz quais casariam e por que as outras não, da mais nova à mais antiga",
+        )
+        fun test_mensagensGravadas_deveSepararMatchesEMisses() {
+            val tokenId = api.tokenId()
+            val get = api.capture(tokenId, suffix = "/pagamentos")
+            val post = api.capture(tokenId, method = "POST", suffix = "/pagamentos")
+            val outro = api.capture(tokenId, method = "POST", suffix = "/outro")
+            val rule = """{"name":"t","enabled":false,"match":{"method":["POST"],"path":{"equals":"/pagamentos"}}}"""
+
+            val response = api.send("POST", "/token/$tokenId/rules/test", rule.toByteArray(), JSON_BODY)
+
+            assertThat(response.statusCode()).isEqualTo(200)
+            assertThat(api.json(response)).isEqualTo(
+                api.tree(
+                    """{"matches":[${ref(post)}],"misses":[""" +
+                        """${ref(outro, """"path: expected \"/pagamentos\", got \"/outro\""""")},""" +
+                        """${ref(get, """"method: expected POST, got GET"""")}]}""",
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("Dado uma regra inválida, quando testa, então responde 422 com a chave sem índice")
+        fun test_regraInvalida_deveResponder422() {
+            val response = api.send("POST", "/token/${api.tokenId()}/rules/test", """{"name":"t","priority":0}""".toByteArray(), JSON_BODY)
+
+            assertThat(response.statusCode()).isEqualTo(422)
+            assertThat(api.json(response)).isEqualTo(api.tree("""{"priority":["The priority must be at least 1."]}"""))
+        }
+
+        private fun ref(
+            message: JsonNode,
+            failed: String? = null,
+        ): String {
+            val base = """"uuid":"${message["uuid"].asString()}","seq":${message["seq"].asLong()}"""
+            return if (failed == null) "{$base}" else """{$base,"failed":[$failed]}"""
         }
     }
 

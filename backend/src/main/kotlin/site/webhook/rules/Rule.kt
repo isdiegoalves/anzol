@@ -142,3 +142,16 @@ sealed interface BodyMatcher {
             is EqualToJson -> mapOf("equalToJson" to source)
         }
 }
+
+/** `rule` da mensagem: a regra que respondeu. */
+data class RuleRef(
+    val id: RuleId,
+    val name: String,
+)
+
+/** `near_miss` da mensagem: a regra ativa mais próxima de casar e uma frase por condição que falhou. */
+data class NearMiss(
+    val id: RuleId,
+    val name: String,
+    val failed: List<String>,
+)

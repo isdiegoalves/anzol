@@ -13,6 +13,13 @@ import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
 import site.webhook.http.rawPath
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.urlDecode
+import site.webhook.rules.Decision
+import site.webhook.rules.NearMiss
+import site.webhook.rules.RuleRef
+import site.webhook.rules.RuleResponse
+import site.webhook.rules.RuleStore
+import site.webhook.rules.decide
+import site.webhook.rules.toMatchInput
 import site.webhook.stream.RequestStream
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
@@ -84,10 +91,15 @@ private fun HttpServletRequest.secondSegment(): String? =
 class WebhookController(
     private val tokens: TokenStore,
     private val requests: RequestStore,
+    private val rules: RuleStore,
     private val clock: Clock,
     private val stream: RequestStream,
 ) {
-    /** `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. */
+    /**
+     * `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. A primeira regra ativa que
+     * casa responde; sem ela, a resposta padrão da URL de sempre (`default_*`, `timeout`, `retry_after`
+     * e o status pelo caminho). A mensagem grava qual regra respondeu, ou a mais próxima.
+     */
     @RequestMapping(
         path = ["/{tokenId:$UUID_PATTERN}", "/{tokenId:$UUID_PATTERN}/**"],
         method = [
@@ -101,12 +113,28 @@ class WebhookController(
         response: HttpServletResponse,
     ) {
         val token = tokens.findOrGone(tokenId)
-        if (token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
+        val received = request.toCapturedRequest(tokenId, clock.instant().toLegacyDateTime())
+        val decision = rules.find(tokenId).decide(received.toMatchInput())
+        if (decision is Decision.Unmatched && token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
-        val captured = request.toCapturedRequest(tokenId, arrival.toLegacyDateTime())
+        val captured =
+            received.copy(
+                createdAt = arrival.toLegacyDateTime(),
+                updatedAt = arrival.toLegacyDateTime(),
+                rule = decision.ruleRef(),
+                nearMiss = decision.nearMiss(),
+            )
         val stored = requests.store(token, captured, arrival)
         stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
-        response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
+        when (decision) {
+            is Decision.Matched -> {
+                response.writeRuleResponse(token, captured, decision.rule.response)
+            }
+
+            is Decision.Unmatched -> {
+                response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
+            }
+        }
     }
 
     private fun HttpServletResponse.writeConfiguredResponse(
@@ -120,8 +148,38 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         token.retryAfter?.let { setHeader("Retry-After", it.headerValue()) }
+        writeBody(token.defaultContent)
+    }
+
+    /** Status, cabeçalhos e corpo da regra, sem mexer no Content-Type; identificação e CORS da URL continuam (a regra sobrescreve). */
+    private fun HttpServletResponse.writeRuleResponse(
+        token: Token,
+        captured: CapturedRequest,
+        answer: RuleResponse,
+    ) {
+        status = answer.status
+        setHeader("X-Request-Id", captured.uuid.toString())
+        setHeader("X-Token-Id", token.uuid.toString())
+        if (token.cors) CORS_HEADERS.forEach(::setHeader)
+        answer.headers.forEach(::setHeader)
+        writeBody(answer.body)
+    }
+
+    private fun HttpServletResponse.writeBody(body: String) {
         if (status != HttpServletResponse.SC_NO_CONTENT && status != HttpServletResponse.SC_NOT_MODIFIED) {
-            outputStream.write(token.defaultContent.toByteArray(UTF_8))
+            outputStream.write(body.toByteArray(UTF_8))
         }
     }
 }
+
+private fun Decision.ruleRef(): RuleRef? =
+    when (this) {
+        is Decision.Matched -> RuleRef(rule.id, rule.name)
+        is Decision.Unmatched -> null
+    }
+
+private fun Decision.nearMiss(): NearMiss? =
+    when (this) {
+        is Decision.Matched -> null
+        is Decision.Unmatched -> nearMiss
+    }

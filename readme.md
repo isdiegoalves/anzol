@@ -52,6 +52,8 @@ dados ficam no volume.
 | `GET`/`DELETE /token/{id}/request/{requestId}` | Lê ou apaga uma mensagem; `.../raw` devolve o corpo cru |
 | `DELETE /token/{id}/request` | Apaga todas as mensagens |
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) |
+| `GET`/`PUT /token/{id}/rules` | Lê ou substitui a lista de regras de resposta da URL (o `PUT` é também o import) |
+| `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -67,6 +69,67 @@ faz toda resposta do webhook da URL levar o cabeçalho `Retry-After`; útil com 
 `auto_cleanup` (500, 1000, 5000 ou 10000) é a limpeza automática: a URL guarda só as N mensagens
 mais recentes e apaga a mais antiga a cada nova (também na hora, se o limite for reduzido). A URL
 nunca para de receber.
+
+### Regras de resposta
+
+Cada URL pode ter até 100 regras que escolhem a resposta do webhook pela requisição, como um mock
+server (no estilo da WireMock). A primeira regra ativa que casa, pela menor `priority` e, no empate,
+pela ordem na lista, responde com o `status`, os `headers` e o `body` dela; sem regra que case, a URL
+responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho). Com regra, o
+`timeout` e o `Retry-After` da URL não se aplicam; `X-Request-Id`, `X-Token-Id` e os cabeçalhos de CORS
+(se ligados) continuam, e os `headers` da regra os sobrescrevem.
+
+```json
+{
+  "name": "pagamento aprovado",
+  "enabled": true,
+  "priority": 5,
+  "match": {
+    "method": ["POST"],
+    "path": { "equals": "/pagamentos" },
+    "query": { "tipo": { "equals": "pix" } },
+    "headers": { "X-Signature": { "present": true } },
+    "body": [ { "jsonPath": { "path": "$.status", "equals": "pago" } }, { "contains": "pedido" } ]
+  },
+  "response": { "status": 201, "headers": { "Content-Type": "application/json" }, "body": "{\"ok\":true}" }
+}
+```
+
+| Campo | Regra |
+|---|---|
+| `id` | UUID; gerado pelo servidor quando ausente |
+| `name` | obrigatório, até 100 caracteres |
+| `enabled`, `priority` | padrão `true` e `5`; `priority` inteiro ≥ 1, menor vence |
+| `match.method` | lista; vazia ou ausente casa qualquer método (sem caixa) |
+| `match.path` | um de `equals`, `prefix`, `regex`, sobre o caminho após o token, decodificado e sem a barra final (`/` quando vazio) |
+| `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
+| `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
+| `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`) |
+
+Todas as condições valem em E, e uma regra sem condições casa tudo. `regex` é a sintaxe do Java e
+precisa casar o valor inteiro (`.` atravessa linhas). JSONPath segue a
+[Jayway](https://github.com/json-path/JsonPath): `equals` aceita qualquer valor JSON, e texto casa
+também número ou booleano de mesmo texto. `scenario`, `response.template`, `delay`, `dribble` e `fault`
+fazem parte do formato, mas por enquanto só aceitam nulo (ou `false`, no `template`); outro valor dá
+422 `"... is not supported yet."`.
+
+Validação: 422 em JSON com a chave em pontos a partir do índice da lista
+(`{"0.match.path.regex": ["The regex is invalid."]}`, `{"rules": ["The rules may not have more than 100 items."]}`);
+URL inexistente dá 410. O `GET` devolve a regra com todos os campos, e devolver essa lista ao `PUT` a
+recria sem perda.
+
+Toda mensagem traz `rule` (`{id, name}` da regra que respondeu, ou `null`) e `near_miss`: sem regra
+que case, a regra ativa com menos condições falhando (empate pela prioridade), com uma frase por
+condição em `failed` (`method: expected POST, got GET`, `header x-signature: absent`,
+`body $.status: expected "pago", got "pendente"`); `null` quando respondeu uma regra ou não há regra
+ativa. Mensagens gravadas antes das regras trazem os dois nulos.
+
+`POST /token/{id}/rules/test` recebe uma regra (mesma validação, chaves sem o índice), ignora `enabled`
+e responde `{"matches": [{uuid, seq}], "misses": [{uuid, seq, failed}]}` sobre as 500 mensagens mais
+recentes, da mais nova para a mais antiga.
+
+As regras ficam em `token:{uuid}:rules`, com o TTL da URL (renovado a cada webhook), e saem junto com
+ela no `DELETE /token/{id}`.
 
 O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB) está descrito em
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem
