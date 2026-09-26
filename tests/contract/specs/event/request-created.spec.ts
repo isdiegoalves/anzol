@@ -1,4 +1,4 @@
-import { bugDoLegado, buscarMensagem, expect, test, type Token } from '../../support/contrato.js';
+import { bugDoLegado, buscarMensagem, disparar, expect, test, type Token } from '../../support/contrato.js';
 import { ADAPTADOR, assinar, type Assinatura } from '../../support/eventos.js';
 
 // Um canal por teste e um token por canal: nada de estado compartilhado entre testes.
@@ -25,12 +25,44 @@ test.describe(`evento request.created (adaptador ${ADAPTADOR})`, () => {
     expect(res.status()).toBe(201);
     const evento = await canal.proximo();
 
-    expect(Object.keys(evento).sort()).toEqual(['request', 'total', 'truncated']);
     expect(evento.total).toBe(1);
     expect(evento.truncated).toBe(false);
     const gravada = await buscarMensagem(request, token.uuid, res.headers()['x-request-id']!);
     expect(evento.request).toEqual(gravada);
     expect(evento.request).not.toHaveProperty('request');
+  });
+
+  test('payload {request, total, truncated, removed}: removed vazio quando nada sai', async ({ request, tokens }) => {
+    const semLimpeza = await tokens.criar();
+    const comLimpeza = await tokens.criar({ auto_cleanup: 500 });
+    for (const token of [semLimpeza, comLimpeza]) {
+      const canal = await abrir(token);
+      await request.get(`/${token.uuid}`);
+      const evento = await canal.proximo();
+      expect(Object.keys(evento).sort()).toEqual(['removed', 'request', 'total', 'truncated']);
+      expect(evento.removed).toEqual([]);
+    }
+  });
+
+  test('limpeza automática: removed traz os uuids cortados e total não passa do limite', async ({ request, tokens }) => {
+    test.setTimeout(300_000);
+    const token = await tokens.criar({ auto_cleanup: 500 });
+    const [primeira, segunda] = await disparar(request, token.uuid, 2, { paralelas: 1 });
+    await disparar(request, token.uuid, 498);
+
+    const canal = await abrir(token);
+    const res = await request.get(`/${token.uuid}`);
+    expect(res.status(), 'a 501ª mensagem entra (sem 410 por volume)').toBe(200);
+    const nova = res.headers()['x-request-id'];
+    const evento = await canal.proximo();
+    expect(evento.request.uuid).toBe(nova);
+    expect(evento.total).toBe(500);
+    expect(evento.removed).toEqual([primeira]);
+
+    await request.get(`/${token.uuid}`);
+    const seguinte = await canal.proximo();
+    expect(seguinte.total).toBe(500);
+    expect(seguinte.removed).toEqual([segunda]);
   });
 
   test('formulário: request inclui os campos (chave request presente)', async ({ request, tokens }) => {

@@ -1,4 +1,4 @@
-import { JSON_ACCEPT, espera, expect, expectContentType, listar, test } from '../../support/contrato.js';
+import { JSON_ACCEPT, disparar, espera, expect, expectContentType, listar, test } from '../../support/contrato.js';
 
 test.describe('GET /token/{id}/requests', () => {
   test('token sem mensagens: página vazia', async ({ request, tokens }) => {
@@ -48,8 +48,8 @@ test.describe('GET /token/{id}/requests', () => {
   test('ordenação oldest (padrão) e newest; valor desconhecido = oldest', async ({ request, tokens }) => {
     test.setTimeout(30_000);
     const token = await tokens.criar();
-    // created_at tem resolução de segundo e mensagens no mesmo segundo têm ordem indefinida:
-    // espaçar mais de 1 s entre elas.
+    // Mensagens em segundos distintos (created_at tem resolução de segundo); o mesmo segundo
+    // tem teste próprio abaixo.
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
       if (i > 0) await espera(1100);
@@ -62,5 +62,25 @@ test.describe('GET /token/{id}/requests', () => {
     expect(await uuids('sorting=qualquer')).toEqual(ids);
     expect(await uuids('sorting=newest&per_page=2&page=1')).toEqual([ids[2], ids[1]]);
     expect(await uuids('sorting=newest&per_page=2&page=2')).toEqual([ids[0]]);
+  });
+
+  test('mensagens no mesmo segundo: oldest e newest seguem a ordem de chegada, inclusive entre páginas', async ({ request, tokens }) => {
+    // O app antigo ordenava só pelo created_at (resolução de segundo): empates saíam em ordem
+    // indefinida. A listagem nova ordena pelo instante de chegada.
+    const token = await tokens.criar();
+    const ids = await disparar(request, token.uuid, 12, { paralelas: 1 });
+    const segundos = new Set((await listar(request, token.uuid)).data.map((m) => m.created_at));
+    expect(segundos.size, 'as 12 mensagens deviam cair em poucos segundos').toBeLessThan(12);
+
+    const uuids = async (q: string) => (await listar(request, token.uuid, q)).data.map((m) => m.uuid);
+    expect(await uuids('')).toEqual(ids);
+    expect(await uuids('sorting=newest')).toEqual([...ids].reverse());
+    const paginado = async (sorting: string) => [
+      ...(await uuids(`sorting=${sorting}&per_page=5&page=1`)),
+      ...(await uuids(`sorting=${sorting}&per_page=5&page=2`)),
+      ...(await uuids(`sorting=${sorting}&per_page=5&page=3`)),
+    ];
+    expect(await paginado('oldest')).toEqual(ids);
+    expect(await paginado('newest')).toEqual([...ids].reverse());
   });
 });

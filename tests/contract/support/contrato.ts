@@ -33,7 +33,7 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 export const CHAVES_TOKEN = [
   'uuid', 'ip', 'user_agent', 'default_content', 'default_status', 'default_content_type',
-  'timeout', 'cors', 'created_at', 'updated_at',
+  'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
@@ -52,6 +52,10 @@ export interface Token {
   cors: boolean;
   created_at: string;
   updated_at: string;
+  /** Segundos (número) ou data HTTP IMF-fixdate (string); `null` = sem `Retry-After`. */
+  retry_after: number | string | null;
+  /** Mantém só as N mais recentes (500, 1000, 5000 ou 10000); `null` = teto do servidor. */
+  auto_cleanup: number | null;
 }
 
 export interface Mensagem {
@@ -205,6 +209,39 @@ export function httpCru(linhas: string[], corpo = '', host = new URL(BASE_URL).h
       resolve({ status: Number(linhaStatus.split(' ')[1]), headers });
     });
   });
+}
+
+/**
+ * Dispara `quantidade` webhooks em lotes de `paralelas` simultâneas e devolve os X-Request-Id na
+ * ordem dos lotes (dentro de um lote a ordem de chegada é indefinida). Exige 200 em todas.
+ */
+export async function disparar(
+  request: APIRequestContext,
+  tokenId: string,
+  quantidade: number,
+  { paralelas = 10, opcoes = {} }: { paralelas?: number; opcoes?: Parameters<APIRequestContext['fetch']>[1] } = {},
+): Promise<string[]> {
+  const ids: string[] = [];
+  for (let i = 0; i < quantidade; i += paralelas) {
+    const respostas = await Promise.all(
+      Array.from({ length: Math.min(paralelas, quantidade - i) }, () => request.fetch(`/${tokenId}`, opcoes)),
+    );
+    for (const r of respostas) {
+      expect(r.status(), `webhook nº ${ids.length + 1}: ${(await r.text()).slice(0, 200)}`).toBe(200);
+      ids.push(r.headers()['x-request-id']!);
+    }
+  }
+  return ids;
+}
+
+/** Todos os uuids da listagem, página a página (`oldest`). */
+export async function todosOsUuids(request: APIRequestContext, tokenId: string): Promise<string[]> {
+  const uuids: string[] = [];
+  for (let pagina = 1; ; pagina++) {
+    const { data, is_last_page } = await listar(request, tokenId, `per_page=500&page=${pagina}`);
+    uuids.push(...data.map((m) => m.uuid));
+    if (is_last_page) return uuids;
+  }
 }
 
 export function espera(ms: number): Promise<void> {

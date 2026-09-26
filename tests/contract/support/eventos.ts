@@ -5,6 +5,8 @@ export interface EventoRequestCreated {
   request: Partial<Mensagem> & { uuid: string; token_id: string };
   total: number;
   truncated: boolean;
+  /** Uuids que a limpeza automática apagou ao gravar esta mensagem (vazio quando nada saiu). */
+  removed: string[];
 }
 
 export interface Assinatura {
@@ -61,7 +63,7 @@ class Caixa {
 
 /**
  * `GET {BASE_URL}/token/{id}/stream` em `text/event-stream`, eventos
- * `event: request.created` com `data:` = JSON `{request, total, truncated}`.
+ * `event: request.created` com `data:` = JSON `{request, total, truncated, removed}`.
  * A assinatura conta como pronta quando chegam o status 200 e o Content-Type do stream.
  */
 async function assinarSse(tokenId: string): Promise<Assinatura> {

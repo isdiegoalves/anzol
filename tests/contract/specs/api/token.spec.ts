@@ -22,6 +22,8 @@ test.describe('POST /token', () => {
       default_content_type: 'text/plain',
       timeout: 0,
       cors: false,
+      retry_after: null,
+      auto_cleanup: null,
     });
     expectDataUtcRecente(token.created_at, res);
     expect(token.updated_at).toBe(token.created_at);

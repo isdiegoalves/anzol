@@ -18,7 +18,7 @@ cd tests/contract
 npm ci
 
 npx playwright test                  # tudo: api + event
-npx playwright test --project=api    # tokens, webhook, mensagens, listagem, erros, limite
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, erros, limpeza, volume
 npx playwright test --project=event  # evento request.created (SSE)
 
 BASE_URL=http://localhost:8087 npx playwright test   # outra instância
@@ -31,6 +31,11 @@ npm run typecheck
 | `BASE_URL` | `http://localhost:8084` | App sob teste |
 | `EVENT_ADAPTER` | `sse` | Transporte do evento; `sse` é o único (o adaptador `redis` do app Laravel saiu com ele) |
 | `CONTRATO_ALVO` | `novo` | `novo` exige o comportamento corrigido nos defeitos do legado (abaixo); `legado` os marca `test.fail`, como quando o app Laravel era o alvo |
+| `TETO_PADRAO` | `10000` | O `WEBHOOK_MAX_REQUESTS` com que o app sob teste foi iniciado (limite das URLs sem `auto_cleanup`). O contrato não descobre esse valor pela API: rodar contra um app com outro teto exige declarar aqui (ex.: app com `WEBHOOK_MAX_REQUESTS=50` e `TETO_PADRAO=50` deixa o teste do teto rápido) |
+
+Os testes de volume (`limpeza.spec.ts`, `volume.spec.ts`) mandam de 500 a ~10.000 webhooks por teste;
+o de volume grava ~150 MB no Redis do app sob teste e apaga tudo ao fim. Contra um app com dados
+reais, rodar com o Redis com folga de memória.
 
 Cada teste cria os próprios tokens e, ao terminar, apaga as mensagens (`DELETE
 /token/{id}/request`) e depois o token (`DELETE /token/{id}`). A ordem importa: no app Laravel o
@@ -40,7 +45,7 @@ DELETE do token não apagava a hash de mensagens.
 
 - **Token** (`specs/api/token.spec.ts`): criação sem campos e com todos (JSON, formulário e
   query string), coerção de números em string, campos ignorados (`uuid`, `cors`,
-  desconhecidos), leitura, edição por `PUT` (campo ausente volta ao padrão; `cors`, `ip`,
+  desconhecidos), leitura (inclusive `retry_after` e `auto_cleanup` nulos por padrão), edição por `PUT` (campo ausente volta ao padrão; `cors`, `ip`,
   `user_agent`, `created_at` e `updated_at` ficam), exclusão (204 sem corpo e 410 em toda a API
   depois), validação 422 com as mensagens exatas, `PUT /token/{id}/cors/toggle`.
 - **Webhook** (`specs/api/webhook.spec.ts`): GET, POST, PUT, PATCH, DELETE, OPTIONS e HEAD
@@ -67,18 +72,40 @@ DELETE do token não apagava a hash de mensagens.
   no caminho; `Transfer-Encoding: chunked` grava `content-length` com o tamanho real.
 - **Listagem** (`specs/api/listagem.spec.ts`): `data, total, per_page, current_page,
   is_last_page, from, to`, padrões (página 1, 50 por página, `oldest`), página além do fim
-  (`from` > `to`), ordenação `oldest`/`newest` com mensagens espaçadas em mais de 1 s (no mesmo
-  segundo a ordem é indefinida).
+  (`from` > `to`), ordenação `oldest`/`newest` com mensagens em segundos distintos e **no mesmo
+  segundo** (ordem de chegada, inclusive entre páginas).
+- **Volume** (`specs/api/volume.spec.ts`): 10.000 mensagens de ~15 KB numa URL com `auto_cleanup`
+  10000; a primeira página (`oldest` e `newest`), uma do meio e a última respondem 200 com 50 itens e
+  `total` 10000, **cada uma em até 2 s** medidos no cliente. O prazo é generoso de propósito: pega o
+  custo O(total) por página (o app Laravel dava 500 com corpo vazio nesse volume) sem ficar sensível a
+  máquina lenta.
+- **Retry-After** (`specs/api/retry-after.spec.ts`): campo `retry_after` do token — `null`, segundos
+  (inteiro ≥ 0, número ou string de dígitos; volta como número) ou data HTTP IMF-fixdate (RFC 9110
+  §5.6.7; volta como foi enviada). `""` vale como ausente. Inválido (texto, negativo, fracionário,
+  booleano, lista, ISO 8601, fuso diferente de `GMT`, formato obsoleto RFC 850, dia inexistente, dia da
+  semana errado) → 422 `{"retry_after": ["The retry after must be a number of seconds or an HTTP
+  date."]}`. `PUT` troca; `PUT` sem o campo volta a `null`. Preenchido, **toda** resposta do webhook
+  leva `Retry-After: <valor>`: todos os métodos, status do token e pelo caminho (429, 503, 301, 204,
+  304, 404), CORS ligado e preflight `OPTIONS`. Sem o campo, nenhuma resposta leva o cabeçalho.
+- **Limpeza automática** (`specs/api/limpeza.spec.ts`): campo `auto_cleanup` — `null`, 500, 1000,
+  5000 ou 10000 (número ou string; volta como número; `""` vale como ausente). Outro valor → 422
+  `{"auto_cleanup": ["The selected auto cleanup is invalid."]}` (a mensagem da regra `in` do Laravel).
+  `PUT` sem o campo volta a `null`. A URL **nunca** responde 410 por volume: guarda as N mais recentes
+  (janela FIFO), com N = `auto_cleanup ?? WEBHOOK_MAX_REQUESTS` (`TETO_PADRAO`). Casos: 510
+  mensagens com 500 → `total` 500, as 10 primeiras dão 404, a última é a mais nova; reduzir de 1000
+  para 500 pelo `PUT` com 600 gravadas corta na hora, sem mensagem nova; 600 requisições com 20 em
+  paralelo numa URL com 500 → exatamente 500 na listagem e no `total`; sem `auto_cleanup`, a 501ª
+  entra e `TETO_PADRAO` + 10 mensagens deixam `TETO_PADRAO`.
 - **Erros** (`specs/api/erros.spec.ts`): para cliente JSON (`Accept: application/json`, o
   Accept do AngularJS, `X-Requested-With: XMLHttpRequest` ou corpo `application/json`), o
   envelope `{success: false, error: {message, id: null}}` com 410 `Token not found`, 404
   `Request not found`, 404 e 405 de rota com mensagem vazia (405 em toda rota da API); para
   cliente comum, só o status. 413 de corpo grande numa rota da API é só status: a página vem do
   servidor web (nginx no app Laravel) em HTML, sem envelope, mesmo para cliente JSON.
-- **Limite** (`specs/api/limite.spec.ts`): 500 mensagens por URL; a 501ª recebe 410 `Too many
-  requests, please create a new URL/token` e não é gravada; apagar uma abre vaga.
-- **Evento** (`specs/event/request-created.spec.ts`): payload `{request, total, truncated}`;
-  `request` igual à mensagem gravada; `total` é a contagem do token depois de gravar; o evento
+- **Evento** (`specs/event/request-created.spec.ts`): payload `{request, total, truncated,
+  removed}`; `request` igual à mensagem gravada; `total` é a contagem do token depois de gravar (e
+  do corte); `removed` é a lista dos uuids que a limpeza automática apagou ao gravar esta mensagem
+  (vazia quando nada saiu; com `auto_cleanup` 500 cheio, a 501ª traz `[a primeira]`); o evento
   só vai para o canal do próprio token; `truncated` fica true quando o JSON da mensagem passa de
   1.000.000 caracteres **contados como o `json_encode` do PHP** (`/` vira `\/`, não-ASCII vira
   `\uXXXX`): 990.000 letras não cortam, 600.000 barras e 200.000 `ç` cortam.
@@ -87,10 +114,24 @@ DELETE do token não apagava a hash de mensagens.
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
 mensagem gravada, um evento `event: request.created` cujo `data:` é o JSON
-`{request, total, truncated}` (o mesmo `data` que o app Laravel publicava no Redis, sem o
-envelope `event`/`socket`). O adaptador considera a assinatura pronta quando recebe o status e
+`{request, total, truncated, removed}` (o `data` que o app Laravel publicava no Redis, sem o
+envelope `event`/`socket`, mais o `removed` da limpeza automática). Reduzir o limite pelo `PUT`
+corta sem evento: quem editou recarrega a lista. O adaptador considera a assinatura pronta quando recebe o status e
 os cabeçalhos: o servidor só deve enviá-los depois de registrar o assinante, senão um webhook
 disparado logo em seguida se perde. Comentários (`:`) servem de keep-alive e são ignorados.
+
+## Mudanças de comportamento decididas pelo dono
+
+Plano de features "limpeza automática e Retry-After" (2026-09-26). O contrato mudou antes do código;
+os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz da implementação.
+
+| Antes | Agora | Por quê |
+|---|---|---|
+| 500 mensagens por URL; a 501ª recebia 410 `Too many requests, please create a new URL/token` e não era gravada (`limite.spec.ts`, removido) | Nunca 410 por volume: janela FIFO de `auto_cleanup ?? WEBHOOK_MAX_REQUESTS` (padrão 10000) | Queixa dos usuários: ao chegar em 500 a URL parava de receber. Decisões D1 (FIFO) e D2 (teto global) do plano |
+| Token sem `retry_after` e `auto_cleanup` | Campos novos, `null` por padrão, no JSON do token | Retry-After configurável por URL (requisito essencial do dono) e limpeza escolhida na tela |
+| Evento `{request, total, truncated}` | `{request, total, truncated, removed}` | A aba aberta tira da lista o que o servidor cortou |
+| Ordem indefinida entre mensagens do mesmo segundo | Ordem de chegada | Índice ordenado da listagem (item 02); a exclusão correspondente saiu |
+| Listagem lendo a URL inteira a cada página | Página em até 2 s com 10.000 × 15 KB | O fim do 410 levaria a opção 10000 ao 500 medido no app Laravel |
 
 ## Defeitos do legado (`bugDoLegado`)
 
@@ -157,13 +198,9 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
   `X-Forwarded-For` não o altere), **ordem de chaves e de cabeçalhos**, escape de `/` no JSON
   (a comparação é semântica) e cabeçalhos de servidor (`Server`, `X-Powered-By`,
   `Cache-Control`).
-- **Ordem entre mensagens do mesmo segundo**: indefinida no app atual (`created_at` tem
-  resolução de segundo).
 
 Casos levantados pela refutação adversária que ficam fora:
 
-- **Limite de 500 sob concorrência**: rajada paralela perto do limite grava mais de 500, nos dois
-  apps; o limite é refeito no plano de features.
 - **Redis pub/sub do tempo real**: o SSE substituiu o laravel-echo-server; o app novo não publica
   mais no Redis.
 - **`.php` e `.ht` no caminho**: o app Laravel responde 404/403 do PHP-FPM/nginx sem gravar; o app
