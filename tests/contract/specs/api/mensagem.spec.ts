@@ -241,6 +241,39 @@ test.describe('mensagem gravada: entradas grandes e incomuns', () => {
     expect(msg.headers['content-type']).toEqual(['multipart/form-data']);
   });
 
+  // O PHP guarda os campos que conseguiu ler de um multipart malformado; o app não pode perdê-los.
+  const multipartParcial: Array<[string, string, string, Record<string, string>]> = [
+    [
+      'sem o boundary final',
+      'boundary=XyZ',
+      '--XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ\r\nContent-Disposition: form-data; name="b"\r\n\r\n2\r\n',
+      { a: '1', b: '2' },
+    ],
+    [
+      'com linhas só LF',
+      'boundary=XyZ',
+      '--XyZ\nContent-Disposition: form-data; name="a"\n\n1\n--XyZ--\n',
+      { a: '1' },
+    ],
+    [
+      'com o parâmetro xboundary (o PHP acha "boundary=" dentro dele)',
+      'xboundary=XyZ',
+      '--XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ--\r\n',
+      { a: '1' },
+    ],
+  ];
+  for (const [nome, parametro, corpo, esperado] of multipartParcial) {
+    test(`multipart ${nome}: request guarda os campos lidos, content vazio`, async ({ request, tokens }) => {
+      const token = await tokens.criar();
+      const { res, msg } = await enviarEGuardar(request, token.uuid, '', {
+        method: 'POST', data: Buffer.from(corpo), headers: { 'Content-Type': `multipart/form-data; ${parametro}` },
+      });
+      expect(res.status()).toBe(200);
+      expect(msg.request).toEqual(esperado);
+      expect(msg.content).toBe('');
+    });
+  }
+
   test('HTTP cru: aspas sem codificar na query são decodificadas; a url guarda a query re-codificada', async ({ request, tokens }) => {
     const token = await tokens.criar();
     const res = await httpCru([`GET /${token.uuid}?data={"a":1} HTTP/1.1`]);

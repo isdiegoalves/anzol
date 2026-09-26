@@ -126,6 +126,14 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
 
 ## Exclusões propositais
 
+- **`Host` fora do padrão que o nginx recusa ou lê diferente** (reverificação de 2026-09-26, N2):
+  `::1` sem colchetes (nginx 400; o app novo grava), `example.com:` (porta vazia) e porta negativa
+  (`-1` no legado, `0` no novo). Nenhum cliente real manda esses valores.
+- **Bytes UTF-8 crus no caminho** (`/{token}/é` sem percent-encoding, N3): o legado dá 500 com
+  mensagem fantasma e o novo dá 400 do Tomcat; os dois recusam.
+- **Perto do teto de 32 KB de cabeçalhos** (N4): ~31,5 KB dá 400 no nginx e 200 no novo; `TRACE`
+  sai com o envelope do app em vez da página 405 do nginx.
+
 - **Validação para cliente não JSON** (sem `Accept: application/json`, sem `X-Requested-With`):
   o Laravel devolve 302 para a home com os erros na sessão. É artefato do formulário web do
   Laravel; nenhum cliente da API depende disso. Note que corpo `application/json` sem `Accept`
