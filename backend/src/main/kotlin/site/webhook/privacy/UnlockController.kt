@@ -20,9 +20,6 @@ import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
 import java.time.Duration
 
-/** Validade do cookie de desbloqueio. */
-private val COOKIE_MAX_AGE: Duration = Duration.ofDays(30)
-
 /** Erro do unlock com o segredo errado; nunca repete o que veio. */
 data class UnlockError(
     val error: String,
@@ -31,7 +28,8 @@ data class UnlockError(
 /**
  * Desbloqueio de uma URL protegida no navegador: o segredo certo vira o cookie [ACCESS_COOKIE] (`HttpOnly`,
  * `SameSite=Strict`, `Path=/token/{id}`, 30 dias, `Secure` em HTTPS), que dá acesso a toda rota da URL, inclusive ao
- * SSE, sem o segredo ficar no JavaScript. As duas rotas são as únicas da URL abertas sem acesso ([WithoutReadAccess]).
+ * SSE, sem o segredo ficar no JavaScript. Os 30 dias valem também no servidor (o dia de emissão vai assinado no valor).
+ * As duas rotas são as únicas da URL abertas sem acesso ([WithoutReadAccess]).
  */
 @RestController
 @RequestMapping("/token/{tokenId:$UUID_PATTERN}")
@@ -114,7 +112,7 @@ private fun cookie(
     request: HttpServletRequest,
     tokenId: TokenId,
     value: String,
-    maxAge: Duration = COOKIE_MAX_AGE,
+    maxAge: Duration = ACCESS_COOKIE_MAX_AGE,
 ): String =
     ResponseCookie
         .from(ACCESS_COOKIE, value)

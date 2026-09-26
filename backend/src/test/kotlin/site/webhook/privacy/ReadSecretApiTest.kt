@@ -24,6 +24,8 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets.ISO_8859_1
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Base64
 import java.util.UUID
 import javax.crypto.Mac
@@ -292,7 +294,9 @@ class ReadSecretApiTest(
         }
 
         @Test
-        @DisplayName("Dado o cookie do desbloqueio, quando lê a URL, as mensagens e o raw, então 200; o cookie é HMAC(chave, id:versão)")
+        @DisplayName(
+            "Dado o cookie do desbloqueio, quando lê a URL, as mensagens e o raw, então 200; o cookie é {dia}.HMAC(chave, id:versão:dia)",
+        )
         fun cookie_deveDarAcessoEValerOHmac() {
             val tokenId = protectedToken()
             val requestId =
@@ -309,6 +313,26 @@ class ReadSecretApiTest(
             assertThat(get("/token/$tokenId/request/$requestId/raw", withCookie(cookie)).body()).isEqualTo("oi")
             assertThat(cookie).isEqualTo(expectedCookie(tokenId, version = 1))
             assertThat(redis.getExpire(SERVER_KEY)).isEqualTo(-1)
+        }
+
+        @Test
+        @DisplayName(
+            "Dado um cookie bem assinado emitido há 29 dias, há 30, num dia futuro ou no formato antigo (sem o dia), quando lê a " +
+                "URL, então só o de 29 dias abre: o servidor confere os 30 dias, não só o navegador",
+        )
+        fun cookie_foraDoPrazoOuFormatoAntigo_naoDeveAbrir() {
+            val tokenId = protectedToken()
+            assertThat(unlock(tokenId, SECRET).statusCode()).`as`("cria a chave do servidor").isEqualTo(204)
+
+            val answers =
+                mapOf(
+                    "29 dias" to expectedCookie(tokenId, version = 1, day = today() - 29),
+                    "30 dias" to expectedCookie(tokenId, version = 1, day = today() - 30),
+                    "amanhã" to expectedCookie(tokenId, version = 1, day = today() + 1),
+                    "formato antigo" to hmac("$tokenId:1"),
+                ).mapValues { (_, cookie) -> get("/token/$tokenId", withCookie(cookie)).statusCode() }
+
+            assertThat(answers).isEqualTo(mapOf("29 dias" to 200, "30 dias" to 401, "amanhã" to 401, "formato antigo" to 401))
         }
 
         @Test
@@ -533,15 +557,21 @@ class ReadSecretApiTest(
         }
     }
 
-    /** O cookie que a §1 manda: HMAC-SHA256(chave do servidor, "id:versão"), em Base64 URL sem `=`. */
+    /** `HMAC-SHA256(chave do servidor, texto)` em Base64 URL sem `=`, como o servidor assina. */
+    private fun hmac(text: String): String {
+        val key = Base64.getDecoder().decode(redis.opsForValue().get(SERVER_KEY).orEmpty())
+        val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(text.toByteArray(UTF_8)))
+    }
+
+    /** O cookie `{dia}.{HMAC(chave, id:versão:dia)}` emitido no [day] (dias desde 1970, UTC). */
     private fun expectedCookie(
         tokenId: String,
         version: Long,
-    ): String {
-        val key = Base64.getDecoder().decode(redis.opsForValue().get(SERVER_KEY).orEmpty())
-        val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal("$tokenId:$version".toByteArray(UTF_8)))
-    }
+        day: Long = today(),
+    ): String = "$day.${hmac("$tokenId:$version:$day")}"
+
+    private fun today(): Long = LocalDate.now(ZoneOffset.UTC).toEpochDay()
 
     private companion object {
         const val SERVER_KEY = "webhook:server-key"

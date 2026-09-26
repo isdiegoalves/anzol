@@ -230,22 +230,106 @@ class ShareApiTest(
     }
 
     @Nested
+    @DisplayName("Troca do segredo de leitura revoga os links")
+    inner class SecretChange {
+        private fun put(
+            tokenId: String,
+            json: String,
+            headers: Map<String, String> = emptyMap(),
+        ): HttpResponse<String> = api.send("PUT", "/token/$tokenId", json.toByteArray(), JSON_BODY + headers)
+
+        @ParameterizedTest(name = "{0}")
+        @CsvSource(
+            delimiter = '|',
+            value = [
+                """definir numa URL aberta | '' | {"read_secret":"$SECRET"} | $SECRET""",
+                """trocar | $SECRET | {"read_secret":"outro-segredo-7Zp"} | outro-segredo-7Zp""",
+                """remover | $SECRET | {"read_secret":null} | ''""",
+            ],
+        )
+        @DisplayName("Dado links ativos, quando o PUT muda o segredo, então todos os links da URL saem e o público vê o 404 de sempre")
+        fun trocarSegredo_deveRevogarTodosOsLinks(
+            case: String,
+            before: String,
+            change: String,
+            after: String,
+        ) {
+            val tokenId = if (before.isEmpty()) api.tokenId() else api.tokenId("""{"read_secret":"$before"}""")
+            val access = if (before.isEmpty()) emptyMap() else mapOf("X-Webhook-Secret" to before)
+            val ids = (1..2).map { api.json(share(tokenId, captureId(tokenId), headers = access))["id"].asString() }
+
+            val changed = put(tokenId, change, access)
+
+            val newAccess = if (after.isEmpty()) emptyMap() else mapOf("X-Webhook-Secret" to after)
+            assertThat(changed.statusCode()).`as`(case).isEqualTo(200)
+            assertThat(ids.map { view(it).body() }).`as`(case).containsOnly(NOT_FOUND)
+            assertThat(api.json(api.send("GET", "/token/$tokenId/shares", headers = JSON_CLIENT + newAccess)).size()).isZero()
+            assertThat(redis.hasKey("token:$tokenId:shares")).isFalse()
+        }
+
+        @Test
+        @DisplayName("Dado links ativos, quando o PUT não mexe no segredo, então os links continuam")
+        fun putSemSegredo_naoDeveRevogar() {
+            val tokenId = api.tokenId("""{"read_secret":"$SECRET"}""")
+            val id = api.json(share(tokenId, captureId(tokenId), headers = mapOf("X-Webhook-Secret" to SECRET)))["id"].asString()
+
+            put(tokenId, """{"default_status":201}""", mapOf("X-Webhook-Secret" to SECRET))
+
+            assertThat(view(id).statusCode()).isEqualTo(200)
+        }
+    }
+
+    @Nested
     @DisplayName("Link público")
     inner class Public {
         @Test
-        @DisplayName("Dado redact false, quando abre o link, então é a mensagem do GET /request, mais shared_at e expires_at")
-        fun ver_semMascara_deveSerAMensagemInteira() {
+        @DisplayName(
+            "Dado redact false, quando abre o link, então é a mensagem do GET /request sem o UUID da URL (sem token_id e com " +
+                "[redacted] na url), mais shared_at e expires_at",
+        )
+        fun ver_semMascara_deveSerAMensagemInteiraSemOUuidDaUrl() {
             val tokenId = api.tokenId()
-            val requestId = captureId(tokenId, "?token=abc", mapOf("Authorization" to "Bearer cru"), body = "corpo")
+            val requestId = captureId(tokenId, "/caminho?token=abc", mapOf("Authorization" to "Bearer cru"), body = "corpo")
 
             val id = shareId(tokenId, requestId, """{"redact":false}""")
             val shared = api.json(view(id)) as ObjectNode
 
             val expected = (message(tokenId, requestId) as ObjectNode).deepCopy()
+            expected.remove("token_id")
+            expected.put("url", expected["url"].asString().replace(tokenId, "[redacted]"))
             expected.put("shared_at", shared["shared_at"].asString())
             expected.put("expires_at", shared["expires_at"].asString())
             assertThat(shared).isEqualTo(expected)
             assertThat(shared.propertyNames().toList().takeLast(2)).containsExactly("shared_at", "expires_at")
+            assertThat(shared["url"].asString()).endsWith("/[redacted]/caminho?token=abc")
+            assertThat(view(id).body()).doesNotContain(tokenId)
+        }
+
+        @Test
+        @DisplayName(
+            "Dado redact true, quando abre o link, então os cabeçalhos de nome com token, key, secret, password ou auth (qualquer " +
+                "caixa) também viram [redacted]; os outros, inclusive assinatura de provedor não configurado, ficam",
+        )
+        fun ver_comMascara_deveMascararCabecalhoPeloNome() {
+            val tokenId = api.tokenId()
+            val masked = listOf("X-Auth-Token", "X-Api-Keys", "X-Client-SECRET", "X-My-Password", "X-Authenticated-User", "Api-Key")
+            val kept = listOf("X-Normal", "Stripe-Signature", "X-Hub-Signature-256", "X-Keeper")
+            val requestId =
+                rawHttp(
+                    port,
+                    "POST /$tokenId HTTP/1.1",
+                    (masked + kept).map { "$it: valor-de-$it" } + listOf("Content-Type: text/plain", "Content-Length: 1"),
+                    "x".toByteArray(),
+                ).headers.getValue("x-request-id")
+
+            val h = api.json(view(shareId(tokenId, requestId)))["headers"]
+
+            assertThat(masked.associateWith { h[it.lowercase()][0].asString() }).allSatisfy { _, value ->
+                assertThat(value).isEqualTo("[redacted]")
+            }
+            assertThat(kept.associateWith { h[it.lowercase()][0].asString() }).allSatisfy { name, value ->
+                assertThat(value).isEqualTo("valor-de-$name")
+            }
         }
 
         @Test

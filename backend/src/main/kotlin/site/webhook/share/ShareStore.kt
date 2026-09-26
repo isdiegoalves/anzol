@@ -60,6 +60,21 @@ private val REVOKE =
         Long::class.java,
     )
 
+/**
+ * Revoga todos os links da URL: cada `share:{id}` do índice (ARGV[1] é o prefixo da chave) e o índice, num script só,
+ * para que um link criado ao mesmo tempo não escape. Devolve quantos havia no índice.
+ */
+private val REVOKE_ALL =
+    RedisScript.of(
+        """
+        local ids = redis.call('ZRANGE', KEYS[1], 0, -1)
+        for _, id in ipairs(ids) do redis.call('DEL', ARGV[1] .. id) end
+        redis.call('DEL', KEYS[1])
+        return #ids
+        """.trimIndent(),
+        Long::class.java,
+    )
+
 /** Expirações aceitas no `expires_in`. */
 @Suppress("MagicNumber") // os números são os próprios valores da regra, sem nome melhor que eles
 enum class ShareExpiry(
@@ -156,6 +171,11 @@ class ShareStore(
         tokenId: TokenId,
         id: String,
     ): Boolean = SHARE_ID.matches(id) && redis.execute(REVOKE, listOf(RedisKeys.shares(tokenId), RedisKeys.share(id)), id) == 1L
+
+    /** Revoga todos os links da URL (a troca do segredo de leitura o pede): o público passa a ver o 404 de sempre. */
+    fun revokeAll(tokenId: TokenId) {
+        redis.execute(REVOKE_ALL, listOf(RedisKeys.shares(tokenId)), RedisKeys.share(""))
+    }
 
     /** O link; nulo quando o id não tem o formato, expirou ou foi revogado. */
     fun find(id: String): Share? {

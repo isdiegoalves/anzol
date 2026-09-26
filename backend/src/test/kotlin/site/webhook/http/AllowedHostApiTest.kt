@@ -21,6 +21,8 @@ import tools.jackson.databind.json.JsonMapper
 private const val EVIL = "evil.example"
 private const val HOST_DENIED = """{"error":"host not allowed"}"""
 private const val ORIGIN_DENIED = """{"error":"origin not allowed"}"""
+private const val FORM_DENIED = """{"error":"form not allowed"}"""
+private const val METHOD_FIELD_DENIED = """{"error":"_method not allowed"}"""
 
 /** Com `WEBHOOK_ALLOWED_HOSTS` definido, como no compose da 8084 e do CI. */
 @ApiTest
@@ -127,19 +129,103 @@ class AllowedHostApiTest(
     }
 
     @Test
-    @DisplayName("Dado o Origin da própria tela ou nenhum (CLI), quando muda estado, então passa; GET com Origin de fora também")
+    @DisplayName(
+        "Dado o Origin da própria tela (também por outro nome do loopback, ou pelo proxy do ng serve, que mantém o Host) ou " +
+            "nenhum (CLI), quando muda estado, então passa; GET com Origin de fora também",
+    )
     fun origin_permitidoOuAusente_devePassar() {
         val tokenId = api.tokenId()
 
         val screen = raw("POST /token", headers = listOf("Origin: http://localhost:$port"), body = "{}")
-        val devServer = raw("PUT /token/$tokenId", headers = listOf("Origin: http://localhost:4200"), body = "{}")
+        val loopback = raw("PUT /token/$tokenId", headers = listOf("Origin: http://127.0.0.1:$port"), body = "{}")
+        val devServer = raw("PUT /token/$tokenId", host = "localhost:4200", headers = listOf("Origin: http://localhost:4200"), body = "{}")
         val cli = raw("POST /token", body = "{}")
         val read = raw("GET /token/$tokenId", headers = listOf("Origin: https://$EVIL"))
 
         assertThat(screen.status).isEqualTo(201)
+        assertThat(loopback.status).isEqualTo(200)
         assertThat(devServer.status).isEqualTo(200)
         assertThat(cli.status).isEqualTo(201)
         assertThat(read.status).isEqualTo(200)
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = ["http://localhost:4200", "http://localhost:1", "http://127.0.0.1:1", "http://localhost", "https://localhost"])
+    @DisplayName(
+        "Dado um Origin de outra porta de um nome da lista (outro app local; o SameSite do cookie não separa portas), quando " +
+            "muda estado, então 403 origin not allowed e nada muda",
+    )
+    fun origin_outraPortaDoMesmoNome_deveResponder403(origin: String) {
+        val tokenId = api.tokenId()
+
+        val response = raw("DELETE /token/$tokenId", headers = listOf("Origin: $origin"))
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo(ORIGIN_DENIED)
+        assertThat(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT).statusCode()).isEqualTo(200)
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = ["application/x-www-form-urlencoded", "multipart/form-data; boundary=x", "text/plain; charset=utf-8"])
+    @DisplayName(
+        "Dado um corpo de formulário com Origin (um <form> do navegador), mesmo da própria tela, quando chama a gestão, então " +
+            "403 form not allowed e nada muda",
+    )
+    fun form_comOrigin_deveResponder403(contentType: String) {
+        val tokenId = api.tokenId()
+        val body =
+            if (contentType.startsWith("multipart")) "--x\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n--x--\r\n" else "a=1"
+
+        val response =
+            rawHttp(
+                port,
+                "PUT /token/$tokenId HTTP/1.1",
+                listOf("Origin: http://localhost:$port", "Content-Type: $contentType", "Content-Length: ${body.length}"),
+                body.toByteArray(),
+            )
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo(FORM_DENIED)
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = ["corpo", "query"])
+    @DisplayName(
+        "Dado um POST com _method (no corpo do formulário ou na query), mesmo sem Origin, quando chama a gestão, então 403 e nada muda",
+    )
+    fun metodoPorCampo_deveResponder403(where: String) {
+        val tokenId = api.tokenId()
+        val (target, body) = if (where == "corpo") "/token/$tokenId" to "_method=DELETE" else "/token/$tokenId?_method=DELETE" to ""
+
+        val response =
+            rawHttp(
+                port,
+                "POST $target HTTP/1.1",
+                listOf("Content-Type: application/x-www-form-urlencoded", "Content-Length: ${body.length}", "Accept: application/json"),
+                body.toByteArray(),
+            )
+
+        assertThat(response.status).isEqualTo(403)
+        assertThat(response.body).isEqualTo(METHOD_FIELD_DENIED)
+        assertThat(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT).statusCode()).isEqualTo(200)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado um formulário sem Origin (CLI, scripts, como no app antigo) na gestão e um formulário com Origin e _method na " +
+            "captura, quando chegam, então passam",
+    )
+    fun form_semOriginOuNaCaptura_devePassar() {
+        val tokenId = api.tokenId()
+        val headers = listOf("Content-Type: application/x-www-form-urlencoded", "Content-Length: 18", "Accept: application/json")
+
+        val cli = rawHttp(port, "PUT /token/$tokenId HTTP/1.1", headers, "default_status=203".toByteArray())
+        val capture =
+            rawHttp(port, "POST /$tokenId/x HTTP/1.1", headers + "Origin: https://$EVIL", "_method=DELETE&a=1".toByteArray())
+
+        assertThat(cli.status).isEqualTo(200)
+        assertThat(api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))["default_status"].asInt()).isEqualTo(203)
+        assertThat(capture.status).isEqualTo(203)
     }
 
     @Test

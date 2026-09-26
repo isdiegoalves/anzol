@@ -253,12 +253,18 @@ class McpServerApiTest(
     }
 
     @Test
-    @DisplayName("Dado um Origin de loopback em outra porta (a tela no ng serve), quando chama /mcp, então passa")
-    fun origin_loopback_devePassar() {
-        val response = initialize(host = "localhost:$port", origin = "http://localhost:4200")
+    @DisplayName(
+        "Dado um Origin de loopback na porta do servidor, quando chama /mcp, então passa; em outra porta (outro app local), " +
+            "403 origin not allowed",
+    )
+    fun origin_loopback_soNaPortaDoServidor() {
+        val samePort = initialize(host = "localhost:$port", origin = "http://127.0.0.1:$port")
+        val otherPort = initialize(host = "localhost:$port", origin = "http://localhost:4200")
 
-        assertThat(response.status).isEqualTo(200)
-        assertThat(response.body).contains("\"serverInfo\"")
+        assertThat(samePort.status).isEqualTo(200)
+        assertThat(samePort.body).contains("\"serverInfo\"")
+        assertThat(otherPort.status).isEqualTo(403)
+        assertThat(otherPort.body).isEqualTo("""{"error":"origin not allowed"}""")
     }
 
     @Test

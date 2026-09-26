@@ -37,7 +37,7 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 | `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app do dono) |
 | `WEBHOOK_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](#mcp)). O `docker-compose.yml` liga |
 | `WEBHOOK_AI_ENABLED`, `WEBHOOK_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](#ia-local)). O `docker-compose.yml` liga, apontando para o oMLX do Mac |
-| `WEBHOOK_ALLOWED_HOSTS` | vazio | Nomes aceitos no `Host` (e no `Origin` dos métodos que mudam estado) das rotas de gestão e do `/mcp`, contra DNS rebinding e CSRF (ver [Proteção contra DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)). Vazio não confere nada. O `docker-compose.yml` e o do CI usam `localhost,127.0.0.1,[::1],host.docker.internal` |
+| `WEBHOOK_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],host.docker.internal` | Nomes aceitos no `Host` das rotas de gestão e do `/mcp`, contra DNS rebinding; o `Origin` dos métodos que mudam estado só passa na mesma porta do `Host` ou com `nome:porta` na lista, contra CSRF (ver [Proteção contra DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)). Vazio vale o padrão. `*` desliga a conferência da gestão: **inseguro** |
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
 webhook responde `507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado
@@ -513,6 +513,15 @@ exemplos das mesmas rotas.
 Quem tem o UUID de uma URL lê tudo dela. Com um **segredo de leitura**, ver e gerir a URL passa a exigir o segredo;
 **capturar continua aberto** (quem manda o webhook não tem segredo).
 
+Limites (o modelo não tem contas de usuário):
+
+- **Quem tem o UUID de uma URL ABERTA pode protegê-la** com um segredo seu, e o dono perde o acesso até saber o
+  segredo. É o mesmo poder que esse UUID já dava (ler, apagar, trocar a resposta): proteja a URL antes de o UUID
+  circular.
+- **O PBKDF2 não tem limite global.** O limite de 10 falhas por minuto é por URL; quem espalha tentativas por muitas
+  URLs faz o servidor calcular um PBKDF2 (210.000 iterações) por tentativa. Limites globais anti-abuso, para publicar
+  o app, são outro tema.
+
 ### Segredo de leitura
 
 `read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Nunca é devolvido: o
@@ -537,15 +546,21 @@ segredo abre como não protegido.
 ### Cookie de desbloqueio
 
 `POST /token/{id}/unlock {"secret": "..."}` → `204` com
-`Set-Cookie: wh_access=<HMAC-SHA256(chave do servidor, id:versão)>; Path=/token/{id}; Max-Age=2592000; HttpOnly;
-SameSite=Strict` (e `Secure` quando a requisição chega em HTTPS, direto ou com `X-Forwarded-Proto: https`). Errado:
-`401 {"error":"Wrong secret"}`; sem `secret`: 422; URL sem proteção: `204` sem cookie. O cookie abre toda rota da
-URL, inclusive o SSE, sem o segredo passar pelo JavaScript. `POST /token/{id}/lock` apaga o cookie (`204`).
+`Set-Cookie: wh_access=<dia>.<HMAC-SHA256(chave do servidor, id:versão:dia)>; Path=/token/{id}; Max-Age=2592000;
+HttpOnly; SameSite=Strict` (e `Secure` quando a requisição chega em HTTPS, direto ou com `X-Forwarded-Proto: https`).
+Errado: `401 {"error":"Wrong secret"}`; sem `secret`: 422; URL sem proteção: `204` sem cookie. O cookie abre toda rota
+da URL, inclusive o SSE, sem o segredo passar pelo JavaScript. `POST /token/{id}/lock` apaga o cookie (`204`).
+
+`<dia>` é o dia de emissão (dias desde 1970, UTC), assinado junto: **o servidor recusa o cookie com 30 dias ou mais**,
+mesmo que o navegador ainda o mande. É o dia, e não o instante, para que dois desbloqueios no mesmo dia deem o mesmo
+cookie; o prazo nunca passa de 30 dias (encurta menos de um dia). Cookies do formato anterior (sem o dia) deixaram de
+valer: quem os tinha desbloqueia de novo.
 
 A chave do servidor são 32 bytes aleatórios em `webhook:server-key` no Redis, criados no primeiro uso com `SET NX`
 (duas instâncias ficam com a mesma) e sem TTL: sobrevive a restart. Trocar ou remover o segredo muda a versão, então
-os cookies antigos param de valer (inclusive se o segredo for definido de novo), e as conexões SSE e esperas abertas
-da URL são fechadas: quem reconectar passa de novo pelo acesso.
+os cookies antigos param de valer (inclusive se o segredo for definido de novo), as conexões SSE e esperas abertas
+da URL são fechadas (quem reconectar passa de novo pelo acesso) e **todos os links só-leitura da URL são revogados**
+(um link é acesso; quem troca o segredo quer cortar quem tinha).
 
 ### CLI e MCP
 
@@ -578,9 +593,14 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
 - `GET /token/{id}/shares` lista os ativos; `DELETE /token/{id}/shares/{sid}` revoga (`204`; link de outra URL, 404).
   No máximo 50 ativos por URL (422 acima).
 - `GET /share/{sid}` é público: a mensagem como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
-  `expires_at`. Expirado, revogado, de mensagem apagada, de URL apagada ou inexistente: o mesmo `404`.
+  `expires_at`, **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com o UUID da `url` trocado por
+  `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`). Expirado, revogado, de mensagem apagada, de URL
+  apagada ou inexistente: o mesmo `404`.
+- Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela.
 - `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
-  `set-cookie`, `x-api-key`, `x-webhook-secret` e do cabeçalho de assinatura do provedor configurado na URL, e os
+  `set-cookie`, `x-api-key`, `x-webhook-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`
+  ou `auth` (sem diferenciar maiúsculas: `X-Auth-Token`, `X-Api-Keys`) e do cabeçalho de assinatura do provedor
+  configurado na URL, e os
   valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` (sem diferenciar maiúsculas),
   também dentro da `url` gravada. Os `php-auth-user`/`php-auth-pw` (o `Authorization: Basic` decodificado que a
   mensagem grava), os campos de formulário de nome sensível e as frases do `near_miss` que citam esses valores também
@@ -592,20 +612,33 @@ O id são 128 bits aleatórios em base62; no Redis, `share:{sid}` com TTL igual 
 ## Proteção contra DNS rebinding/CSRF
 
 Uma página maliciosa aberta no navegador pode tentar usar a API local: por DNS rebinding (o nome dela passa a apontar
-para `127.0.0.1`, e o navegador manda `Host: nome-do-atacante`) ou por CSRF (um formulário de outro site). Com
-`WEBHOOK_ALLOWED_HOSTS` (`webhook.allowed-hosts`, lista separada por vírgula; nome sem porta casa qualquer porta), as
-rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
+para `127.0.0.1`, e o navegador manda `Host: nome-do-atacante`) ou por CSRF (um formulário de outro site, inclusive de
+outro app em outra porta do `localhost`: o `SameSite` do cookie não separa portas). Com `WEBHOOK_ALLOWED_HOSTS`
+(`webhook.allowed-hosts`, lista separada por vírgula; padrão fechado `localhost,127.0.0.1,[::1],host.docker.internal`),
+as rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
 
-- `Host` fora da lista → `403 {"error":"host not allowed"}`;
+- `Host` fora da lista → `403 {"error":"host not allowed"}` (nome sem porta na lista casa qualquer porta);
 - nos métodos que mudam estado (POST, PUT, PATCH, DELETE, inclusive por `X-HTTP-Method-Override`), `Origin` presente
-  cujo host não está na lista → `403 {"error":"origin not allowed"}`. No `/mcp`, o `Origin` é conferido em todo
-  método, como o transporte Streamable HTTP exige.
+  que não seja deste servidor → `403 {"error":"origin not allowed"}`. Passa o `Origin` na **mesma porta do `Host`** com
+  nome da lista (a própria tela, também aberta por outro nome do loopback, ou pelo proxy do `ng serve`, que mantém o
+  `Host`) ou com `nome:porta` escrito na lista (ex.: `localhost:4200` para uma tela servida noutra porta). Outra porta
+  do mesmo nome é outra origem. No `/mcp`, o `Origin` é conferido em todo método, como o transporte Streamable HTTP
+  exige;
+- `_method` num POST (campo de formulário ou query, que transformaria o POST de um `<form>` em PUT ou DELETE) →
+  `403 {"error":"_method not allowed"}`, com ou sem `Origin`;
+- corpo de formulário (`application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain`, os que um `<form>`
+  manda sem preflight) com `Origin` → `403 {"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` (CLI,
+  curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415, porque o tipo é aceito: o que se
+  recusa é o formulário vindo de um navegador.
 
 Cliente sem `Origin` (CLI, curl, agentes) passa pelo `Host`. A captura `/{id}/...` e os arquivos da tela não conferem
-nada. A rota é reconhecida como o Spring a casa: `/token;x=1/...` ou `/%74oken/...` também são conferidos. Lista vazia
-(o padrão do app): nada é conferido, menos o `/mcp`, que continua aceitando só `localhost`, `127.0.0.1`, `[::1]` e
-`host.docker.internal`. O `docker-compose.yml` e o do CI definem a lista; para chegar ao app por outro nome,
-acrescente-o.
+nada (a captura aceita formulário, `_method` e qualquer `Origin`). A rota é reconhecida como o Spring a casa:
+`/token;x=1/...` ou `/%74oken/...` também são conferidos. Lista vazia vale o padrão. Para chegar ao app por outro
+nome, acrescente-o à lista.
+
+**`*` desliga a conferência de `Host` e `Origin` da gestão, e é inseguro**: qualquer página aberta no navegador (e
+qualquer nome que resolva para o app) passa a usar a API. O `/mcp` continua no padrão, e `_method` e formulário com
+`Origin` continuam recusados.
 
 ## MCP
 
@@ -630,8 +663,8 @@ ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "err
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 
 Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `WEBHOOK_ALLOWED_HOSTS` (ver [Proteção contra
-DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)); sem a lista, só `localhost`, `127.0.0.1`, `[::1]` e
-`host.docker.internal`. URL protegida exige o argumento `read_secret` (ver [Privacidade](#privacidade)).
+DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)); com `*` na lista, só o padrão (`localhost`, `127.0.0.1`,
+`[::1]` e `host.docker.internal`). URL protegida exige o argumento `read_secret` (ver [Privacidade](#privacidade)).
 
 O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs sem segredo de
 leitura, inclusive o `send` para a rede local quando `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica

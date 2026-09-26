@@ -13,12 +13,13 @@ import org.springframework.http.server.PathContainer
 import org.springframework.http.server.RequestPath
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import site.webhook.DEFAULT_ALLOWED_HOSTS
 import site.webhook.WebhookProperties
 import java.net.URI
 import java.net.URISyntaxException
 
-/** O `/mcp` sem [WebhookProperties.allowedHosts]: continua conferido, só com o loopback e o host do Docker. */
-private val MCP_DEFAULT_HOSTS = setOf("localhost", "127.0.0.1", "[::1]", "host.docker.internal")
+/** Em [WebhookProperties.allowedHosts], desliga a conferência de `Host` e `Origin` das rotas de gestão. Inseguro. */
+const val ANY_HOST = "*"
 
 /** Primeiro segmento das rotas de gestão (`/token`, `/token/...`, `/share/...`) e do servidor MCP. */
 private val MANAGEMENT_ROOTS = setOf("token", "share")
@@ -30,12 +31,33 @@ private val HOST_HEADER = Regex("""(\[[0-9a-f:.]+]|[^:\[\]/@\s]+)(?::([0-9]{1,5}
 /** Métodos que não mudam estado: neles o `Origin` não é conferido (só o `Host`). */
 private val SAFE_METHODS = setOf("GET", "HEAD", "OPTIONS", "TRACE")
 
+/** Os tipos de corpo que um `<form>` de outra página manda sem preflight. */
+private val FORM_CONTENT_TYPES = setOf("application/x-www-form-urlencoded", "multipart/form-data", "text/plain")
+
+private const val HTTP_PORT = 80
+private const val HTTPS_PORT = 443
+
+/** Nome e porta de um `Host` (nula quando não vem escrita) ou de um `Origin` (a padrão do esquema quando não vem). */
+private data class Authority(
+    val name: String,
+    val port: Int?,
+)
+
 /**
- * Contra DNS rebinding e CSRF, nas rotas de gestão e no `/mcp`: `Host` fora de [WebhookProperties.allowedHosts] →
- * 403 `{"error":"host not allowed"}` (no rebinding ele chega com o nome do atacante); `Origin` presente cujo host não
- * esteja na lista → 403 `{"error":"origin not allowed"}`, nos métodos que mudam estado (no `/mcp`, em todos, como o
- * transporte Streamable HTTP exige). Cliente sem `Origin` (CLI, SDKs, agentes) passa pelo `Host`. Nome sem porta
- * casa qualquer porta; com porta, só ela. Lista vazia: nada é conferido (o `/mcp` fica com [MCP_DEFAULT_HOSTS]).
+ * Contra DNS rebinding e CSRF, nas rotas de gestão e no `/mcp`:
+ * - `Host` fora de [WebhookProperties.allowedHosts] → 403 `{"error":"host not allowed"}` (no rebinding ele chega com
+ *   o nome do atacante). Nome da lista sem porta casa qualquer porta; com porta, só ela.
+ * - `Origin` presente, nos métodos que mudam estado (no `/mcp`, em todos, como o transporte Streamable HTTP exige), só
+ *   passa se apontar para este servidor — mesma porta do `Host` e nome aceito pela lista, como a própria tela, também
+ *   aberta por outro nome do loopback — ou se `nome:porta` estiver na lista. Outra porta do mesmo nome é outra origem
+ *   (outro app local), e o `SameSite` do cookie não a separa: 403 `{"error":"origin not allowed"}`.
+ * - Formulário de navegador: `_method` (que transforma o POST de um `<form>` em PUT ou DELETE) → 403
+ *   `{"error":"_method not allowed"}`; corpo de formulário (urlencoded, multipart, `text/plain`) com `Origin` → 403
+ *   `{"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` (CLI, scripts), o formulário continua valendo,
+ *   como no app antigo.
+ *
+ * Cliente sem `Origin` (CLI, SDKs, agentes) passa pelo `Host`. Com [ANY_HOST] na lista, `Host` e `Origin` das rotas
+ * de gestão não são conferidos (o `/mcp` fica com [DEFAULT_ALLOWED_HOSTS]); o formulário continua recusado.
  *
  * A captura (`/{id}/...`) e os arquivos da tela nunca passam por aqui. A rota é reconhecida pelo primeiro segmento
  * como o Spring MVC o casa (decodificado e sem `;parâmetros`), para que `/token;x=1/...` ou `/%74oken/...` não
@@ -46,12 +68,13 @@ private val SAFE_METHODS = setOf("GET", "HEAD", "OPTIONS", "TRACE")
 class AllowedHostFilter(
     properties: WebhookProperties,
 ) : OncePerRequestFilter() {
-    private val allowedHosts =
+    private val configured =
         properties.allowedHosts
             .map { it.trim().lowercase() }
             .filter { it.isNotEmpty() }
             .toSet()
-    private val mcpHosts = allowedHosts.ifEmpty { MCP_DEFAULT_HOSTS }
+    private val anyHost = ANY_HOST in configured
+    private val allowedHosts = configured.takeUnless { it.isEmpty() || anyHost } ?: DEFAULT_ALLOWED_HOSTS.toSet()
 
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -60,21 +83,70 @@ class AllowedHostFilter(
     ) {
         val root = request.firstSegment()
         val isMcp = root == MCP_ROOT
-        val hosts = if (isMcp) mcpHosts else allowedHosts.takeIf { root in MANAGEMENT_ROOTS }.orEmpty()
-        if (hosts.isEmpty()) return filterChain.doFilter(request, response)
-        val origin = request.getHeader(HttpHeaders.ORIGIN)
-        val host = request.getHeader(HttpHeaders.HOST).orEmpty()
-        when {
-            origin != null && (isMcp || request.changesState()) && !isAllowedOrigin(origin, hosts) -> response.forbid("origin not allowed")
-            !isAllowedHost(host, hosts) -> response.forbid("host not allowed")
-            else -> filterChain.doFilter(request, response)
+        if (!isMcp && root !in MANAGEMENT_ROOTS) return filterChain.doFilter(request, response)
+        val denial = (if (isMcp || !anyHost) request.hostOrOriginDenial(isMcp) else null) ?: request.formDenial()
+        if (denial == null) filterChain.doFilter(request, response) else response.forbid(denial)
+    }
+
+    private fun HttpServletRequest.hostOrOriginDenial(isMcp: Boolean): String? {
+        val origin = getHeader(HttpHeaders.ORIGIN)
+        val host = getHeader(HttpHeaders.HOST).orEmpty()
+        return when {
+            origin != null && (isMcp || changesState()) && !isAllowedOrigin(origin, host, isSecure) -> "origin not allowed"
+            !isAllowedHost(host) -> "host not allowed"
+            else -> null
         }
+    }
+
+    /** `Host` da lista: o nome (com ou sem a porta) está nela. Malformado, como `localhost:8084.evil.test`, não está. */
+    private fun isAllowedHost(host: String): Boolean {
+        val authority = parseHost(host) ?: return false
+        return authority.name in allowedHosts || (authority.port != null && "${authority.name}:${authority.port}" in allowedHosts)
+    }
+
+    /**
+     * `Origin` deste servidor: mesma porta efetiva do `Host` e nome da lista; ou `nome:porta` na lista. `null` (texto),
+     * sem host ou malformado não passa.
+     */
+    private fun isAllowedOrigin(
+        origin: String,
+        host: String,
+        secure: Boolean,
+    ): Boolean {
+        val from = parseOrigin(origin) ?: return false
+        val to = parseHost(host)
+        val toPort = to?.port ?: if (secure) HTTPS_PORT else HTTP_PORT
+        return "${from.name}:${from.port}" in allowedHosts || (to != null && from.port == toPort && from.name in allowedHosts)
     }
 
     private fun HttpServletResponse.forbid(message: String) {
         status = HttpServletResponse.SC_FORBIDDEN
         contentType = MediaType.APPLICATION_JSON_VALUE
         outputStream.write("""{"error":"$message"}""".toByteArray())
+    }
+}
+
+/** `_method` num POST (o que o [LegacyRequestFilter] aplicaria) ou corpo de formulário com `Origin`: o motivo; senão nulo. */
+private fun HttpServletRequest.formDenial(): String? {
+    val input = getAttribute(LegacyInput.ATTRIBUTE) as? LegacyInput
+    val mediaType =
+        contentType
+            .orEmpty()
+            .substringBefore(';')
+            .trim()
+            .lowercase()
+    return when {
+        input != null && input.realMethod == "POST" && (input.inputBag()["_method"] != null || input.query["_method"] != null) -> {
+            "_method not allowed"
+        }
+
+        getHeader(HttpHeaders.ORIGIN) != null && mediaType in FORM_CONTENT_TYPES -> {
+            "form not allowed"
+        }
+
+        else -> {
+            null
+        }
     }
 }
 
@@ -113,28 +185,27 @@ private fun HttpServletRequest.originalMethod(): String {
     return (current as? HttpServletRequest)?.method ?: method
 }
 
-/**
- * `Host` da lista: o nome (com ou sem a porta) está nela. Só `nome` ou `nome:dígitos` (IPv6 entre colchetes); o que
- * não tem essa forma, como `localhost:8084.evil.test`, não está.
- */
-private fun isAllowedHost(
-    host: String,
-    allowed: Set<String>,
-): Boolean {
-    val match = HOST_HEADER.matchEntire(host.trim().lowercase()) ?: return false
+/** `Host` como nome e porta; nulo se não tem a forma `nome` ou `nome:dígitos` (IPv6 entre colchetes). */
+private fun parseHost(host: String): Authority? {
+    val match = HOST_HEADER.matchEntire(host.trim().lowercase()) ?: return null
     val (name, port) = match.destructured
-    return name in allowed || (port.isNotEmpty() && "$name:$port" in allowed)
+    return Authority(name, port.toIntOrNull())
 }
 
-/** `Origin` cujo host (com ou sem a porta) está na lista; `null` (texto), sem host ou malformado não está. */
-private fun isAllowedOrigin(
-    origin: String,
-    allowed: Set<String>,
-): Boolean =
+/** `Origin` como nome e porta efetiva (a padrão do esquema); nulo quando é `null`, sem host ou malformado. */
+private fun parseOrigin(origin: String): Authority? =
     try {
         val uri = URI(origin.trim())
-        val host = uri.host?.lowercase()
-        host != null && (host in allowed || (uri.port >= 0 && "$host:${uri.port}" in allowed))
+        val name = uri.host?.lowercase()
+        val port = if (uri.port >= 0) uri.port else defaultPort(uri.scheme)
+        if (name == null || port == null) null else Authority(name, port)
     } catch (_: URISyntaxException) {
-        false
+        null
+    }
+
+private fun defaultPort(scheme: String?): Int? =
+    when (scheme?.lowercase()) {
+        "http" -> HTTP_PORT
+        "https" -> HTTPS_PORT
+        else -> null
     }

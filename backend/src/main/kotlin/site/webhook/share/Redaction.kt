@@ -29,13 +29,26 @@ private val SENSITIVE_HEADERS =
 /** Parâmetro de query cujo nome contém um destes (sem diferenciar maiúsculas) tem o valor mascarado. */
 private val SENSITIVE_NAME_PARTS = listOf("token", "key", "secret", "password", "signature")
 
+/**
+ * Cabeçalho cujo nome contém um destes (sem diferenciar maiúsculas) também é mascarado, além da lista fixa: credencial
+ * em cabeçalho próprio (`X-Auth-Token`, `X-Api-Keys`, `X-Client-Secret`). Sem `signature`: a assinatura mascarada é a
+ * do provedor configurado na URL.
+ */
+private val SENSITIVE_HEADER_NAME_PARTS = listOf("token", "key", "secret", "password", "auth")
+
 private val FAILURE_TARGET = Regex("^(header|query) ([^:]*):")
 
 fun isSensitiveName(name: String): Boolean = SENSITIVE_NAME_PARTS.any { name.contains(it, ignoreCase = true) }
 
+private fun isSensitiveHeader(
+    name: String,
+    alwaysMasked: Set<String>,
+): Boolean = name.lowercase() in alwaysMasked || SENSITIVE_HEADER_NAME_PARTS.any { name.contains(it, ignoreCase = true) }
+
 /**
- * A mensagem de um link só-leitura com `redact`: troca por [REDACTED] os valores dos cabeçalhos sensíveis e do
- * cabeçalho de assinatura do provedor da URL ([signature]), e os valores de query de nome sensível, onde quer que
+ * A mensagem de um link só-leitura com `redact`: troca por [REDACTED] os valores dos cabeçalhos sensíveis (a lista fixa
+ * e os de nome com [SENSITIVE_HEADER_NAME_PARTS]) e do cabeçalho de assinatura do provedor da URL ([signature]), e os
+ * valores de query de nome sensível, onde quer que
  * apareçam: `query`, a query dentro de `url`, o `request` (num GET ele é a própria query) e as frases do `near_miss`
  * que citam o valor recebido de um desses cabeçalhos ou parâmetros. O corpo (`content`) não é mascarado.
  */
@@ -48,7 +61,7 @@ fun CapturedRequest.redacted(signature: SignatureConfig?): CapturedRequest {
                 .orEmpty()
                 .map { it.lowercase() }
     return copy(
-        headers = headers.mapValues { (name, values) -> if (name.lowercase() in headersToMask) values.map { REDACTED } else values },
+        headers = headers.mapValues { (name, values) -> if (isSensitiveHeader(name, headersToMask)) values.map { REDACTED } else values },
         query = query?.withSensitiveNamesRedacted(),
         request = request?.withSensitiveNamesRedacted(),
         url = url.withSensitiveQueryRedacted(),
@@ -94,6 +107,6 @@ private fun String.withSensitiveQueryRedacted(): String {
 private fun String.redactedFailure(headersToMask: Set<String>): String {
     val match = FAILURE_TARGET.find(this) ?: return this
     val (kind, name) = match.destructured
-    val sensitive = if (kind == "header") name.lowercase() in headersToMask else isSensitiveName(name)
+    val sensitive = if (kind == "header") isSensitiveHeader(name, headersToMask) else isSensitiveName(name)
     return if (sensitive) "$kind $name: $REDACTED" else this
 }

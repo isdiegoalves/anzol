@@ -15,11 +15,20 @@ import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
 import java.security.MessageDigest
+import java.time.Clock
 import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Base64
 
 /** Nome do cookie de desbloqueio; o `Path` dele é o da URL (`/token/{id}`). */
 const val ACCESS_COOKIE = "wh_access"
+
+/**
+ * Validade do cookie de desbloqueio: o `Max-Age` para o navegador e o prazo que o servidor confere pelo dia de emissão
+ * assinado no valor ([ReadAccess.cookieValue]).
+ */
+val ACCESS_COOKIE_MAX_AGE: Duration = Duration.ofDays(30)
 
 /** Cabeçalho com o segredo de leitura (CLI, scripts). */
 const val SECRET_HEADER = "X-Webhook-Secret"
@@ -63,8 +72,8 @@ sealed interface Access {
 }
 
 /**
- * Quem pode ver e gerir uma URL protegida: quem tem o cookie de desbloqueio da versão atual do segredo, ou quem
- * mostra o segredo (cabeçalho [SECRET_HEADER], `read_secret` no MCP, corpo do unlock).
+ * Quem pode ver e gerir uma URL protegida: quem tem o cookie de desbloqueio da versão atual do segredo, dentro do
+ * prazo, ou quem mostra o segredo (cabeçalho [SECRET_HEADER], `read_secret` no MCP, corpo do unlock).
  *
  * O segredo é conferido por PBKDF2 em tempo constante. Os acertos ficam [VERIFIED_FOR] em memória, pela chave
  * `HMAC(chave do servidor, id:versão:segredo)` (nem o segredo nem um hash rápido dele ficam guardados), para que o CLI
@@ -79,6 +88,7 @@ sealed interface Access {
 class ReadAccess(
     private val redis: StringRedisTemplate,
     private val serverKey: ServerKey,
+    private val clock: Clock,
 ) {
     private val verified: Cache<String, Boolean> =
         Caffeine
@@ -96,7 +106,7 @@ class ReadAccess(
     ): Access =
         when {
             !token.isProtected() -> Access.Granted
-            cookies.any { sameBytes(it, cookieValue(token)) } -> Access.Granted
+            cookies.any { isValidCookie(token, it) } -> Access.Granted
             secret == null -> Access.Denied
             else -> verify(token, secret, channel)
         }
@@ -118,9 +128,33 @@ class ReadAccess(
         }
     }
 
-    /** O valor do cookie de desbloqueio: `HMAC-SHA256(chave do servidor, id:versão)`, em Base64 URL sem `=`. */
-    fun cookieValue(token: Token): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(serverKey.hmac("${token.uuid}:${token.secretVersion}"))
+    /**
+     * O valor do cookie de desbloqueio: `{dia}.{HMAC-SHA256(chave do servidor, id:versão:dia)}`, o HMAC em Base64 URL sem
+     * `=`, com o dia de emissão (dias desde 1970, UTC). O servidor recusa o cookie a partir de [ACCESS_COOKIE_MAX_AGE]
+     * do dia de emissão, mesmo que o navegador o guarde. O dia, e não o instante: dois desbloqueios no mesmo dia dão o
+     * mesmo cookie, e o prazo nunca passa de 30 dias (no máximo encurta em menos de um).
+     */
+    fun cookieValue(token: Token): String = cookieValue(token, today())
+
+    private fun cookieValue(
+        token: Token,
+        issuedDay: Long,
+    ): String {
+        val mac = serverKey.hmac("${token.uuid}:${token.secretVersion}:$issuedDay")
+        return "$issuedDay.${Base64.getUrlEncoder().withoutPadding().encodeToString(mac)}"
+    }
+
+    /** Cookie desta versão do segredo, assinado por este servidor e emitido há menos de [ACCESS_COOKIE_MAX_AGE]. */
+    private fun isValidCookie(
+        token: Token,
+        cookie: String,
+    ): Boolean {
+        val issuedDay = cookie.substringBefore('.', missingDelimiterValue = "").toLongOrNull() ?: return false
+        val age = today() - issuedDay
+        return age in 0 until ACCESS_COOKIE_MAX_AGE.toDays() && sameBytes(cookie, cookieValue(token, issuedDay))
+    }
+
+    private fun today(): Long = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC).toEpochDay()
 
     /** Reserva a vaga na janela, roda o PBKDF2 e, se acertou, devolve a vaga e guarda o acerto. */
     private fun attempt(

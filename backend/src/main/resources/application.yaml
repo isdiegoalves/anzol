@@ -73,10 +73,11 @@ server:
     max-parameter-count: -1
 
 webhook:
-  # Nomes aceitos no Host (e no Origin dos métodos que mudam estado) de /token, /token/**, /share/** e /mcp, contra DNS
-  # rebinding e CSRF; sem porta casa qualquer porta. Vazio (o padrão) não confere nada, exceto no /mcp, que sem a lista
-  # continua só com o loopback e o host.docker.internal. O docker-compose.yml define a lista.
-  allowed-hosts: "${WEBHOOK_ALLOWED_HOSTS:}"
+  # Nomes aceitos no Host de /token, /token/**, /share/** e /mcp, contra DNS rebinding (sem porta casa qualquer porta).
+  # O Origin dos métodos que mudam estado só passa na mesma porta do Host (ou com nome:porta na lista), contra CSRF.
+  # Padrão fechado: loopback e host.docker.internal (vazio também vale o padrão). "*" desliga a conferência de Host e
+  # Origin da gestão: INSEGURO, qualquer página aberta no navegador passa a usar a API (o /mcp continua no padrão).
+  allowed-hosts: "${WEBHOOK_ALLOWED_HOSTS:localhost,127.0.0.1,[::1],host.docker.internal}"
   # Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo); acima disso saem as mais antigas.
   max-requests: ${WEBHOOK_MAX_REQUESTS:10000}
   expiry: ${WEBHOOK_EXPIRY:604800}

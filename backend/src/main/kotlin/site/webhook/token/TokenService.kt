@@ -5,6 +5,7 @@ import site.webhook.TokenId
 import site.webhook.capture.RequestStore
 import site.webhook.http.LegacyInput
 import site.webhook.rules.Parsed
+import site.webhook.share.ShareStore
 import site.webhook.signature.MISSING_SECRET
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureDraft
@@ -23,6 +24,7 @@ class TokenService(
     private val requests: RequestStore,
     private val clock: Clock,
     private val stream: RequestStream,
+    private val shares: ShareStore,
     private val telemetry: WebhookTelemetry,
 ) {
     fun create(
@@ -59,8 +61,9 @@ class TokenService(
     /**
      * Validação antes da busca: token inexistente com dado inválido responde 422, como no app antigo.
      * Limite menor corta as mensagens excedentes na hora. Assinatura sem segredo novo mantém o atual; sem
-     * nenhum, 422. Trocar o segredo de leitura fecha o SSE e as esperas abertas: quem voltar passa de novo pelo
-     * acesso, com o segredo novo (o cookie antigo deixou de valer).
+     * nenhum, 422. Trocar o segredo de leitura (definir, trocar, remover) fecha o SSE e as esperas abertas — quem
+     * voltar passa de novo pelo acesso, com o segredo novo (o cookie antigo deixou de valer) — e revoga todos os
+     * links só-leitura da URL: quem troca o segredo quer cortar quem tinha acesso, e um link é acesso.
      */
     fun update(
         id: TokenId,
@@ -73,7 +76,10 @@ class TokenService(
         return withSignature(settings.signature, current.signature) { signature ->
             val updated = tokens.store(current.withSettings(settings, signature).withReadSecret(settings.readSecret))
             telemetry.cleanupRemoved(requests.trim(updated).size)
-            if (updated.secretVersion != current.secretVersion) stream.disconnect(id)
+            if (updated.secretVersion != current.secretVersion) {
+                shares.revokeAll(id)
+                stream.disconnect(id)
+            }
             updated
         }
     }

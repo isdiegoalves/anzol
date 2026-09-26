@@ -146,7 +146,9 @@ class ShareController(
 
     /**
      * O link público: a mensagem como `GET /token/{id}/request/{rid}` a devolve (mascarada se o link pediu), mais
-     * `shared_at` e `expires_at`. Qualquer ausência dá o mesmo 404, para que o link não diga o que aconteceu.
+     * `shared_at` e `expires_at`, **sempre sem o UUID da URL** (com ou sem máscara): sem `token_id`, e com o UUID da `url`
+     * trocado por [REDACTED]. O link é de UMA mensagem; com o UUID, quem o tem enviaria à URL e, numa URL aberta, leria
+     * tudo. Qualquer ausência dá o mesmo 404, para que o link não diga o que aconteceu.
      */
     @GetMapping("/share/{shareId}")
     fun view(
@@ -158,9 +160,11 @@ class ShareController(
         if (share == null || token == null || message == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(SHARE_NOT_FOUND_BODY)
         }
-        val shown = if (share.redact) message.redacted(token.signature) else message
+        val masked = if (share.redact) message.redacted(token.signature) else message
+        val shown = masked.copy(url = masked.url.replace(token.uuid.toString(), REDACTED, ignoreCase = true))
         val body =
             jsonMapper.valueToTree<ObjectNode>(shown).apply {
+                remove("token_id")
                 put("shared_at", share.createdAt.format(TIMESTAMP))
                 put("expires_at", share.expiresAt.format(TIMESTAMP))
             }
