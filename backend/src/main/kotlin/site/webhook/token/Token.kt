@@ -3,6 +3,7 @@ package site.webhook.token
 import com.fasterxml.jackson.annotation.JsonFormat
 import site.webhook.TIMESTAMP_PATTERN
 import site.webhook.TokenId
+import site.webhook.schema.SchemaConfig
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureDraft
 import tools.jackson.databind.PropertyNamingStrategies
@@ -28,6 +29,7 @@ data class Token(
     val retryAfter: RetryAfter? = null,
     val autoCleanup: AutoCleanup? = null,
     val signature: SignatureConfig? = null,
+    val schema: SchemaConfig? = null,
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A
@@ -45,6 +47,7 @@ data class Token(
             retryAfter = settings.retryAfter,
             autoCleanup = settings.autoCleanup,
             signature = signature,
+            schema = settings.schema,
         )
 
     /** O token como a API o devolve: o segredo da assinatura mascarado. */
@@ -60,6 +63,7 @@ data class TokenSettings(
     val retryAfter: RetryAfter?,
     val autoCleanup: AutoCleanup?,
     val signature: SignatureDraft?,
+    val schema: SchemaConfig?,
 )
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

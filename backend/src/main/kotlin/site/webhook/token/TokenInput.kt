@@ -5,6 +5,8 @@ import site.webhook.legacy.isPhpInteger
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.phpNumericSize
 import site.webhook.rules.Parsed
+import site.webhook.schema.SchemaConfig
+import site.webhook.schema.readSchema
 import site.webhook.signature.SignatureDraft
 import site.webhook.signature.readSignature
 
@@ -45,12 +47,19 @@ fun LegacyInput.validateTokenSettings(): Map<String, List<String>> {
         .filterKeys { it in data && !data[it].isBlankString() }
         .mapValues { (attribute, rules) ->
             rules.filterNot { it.passes(data[attribute]) }.map { it.message(attribute.replace('_', ' ')) }
-        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"])
+        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"]) + schemaErrors(data["schema"])
 }
 
 /** `signature` nula, ausente ou em branco não é validada (remove a assinatura). */
 private fun signatureErrors(value: Any?): Map<String, List<String>> =
     when (val parsed = if (value == null || value.isBlankString()) null else readSignature(value)) {
+        is Parsed.Invalid -> parsed.errors
+        is Parsed.Valid, null -> emptyMap()
+    }
+
+/** `schema` nulo, ausente ou em branco não é validado (desliga a validação). */
+private fun schemaErrors(value: Any?): Map<String, List<String>> =
+    when (val parsed = if (value == null || value.isBlankString()) null else readSchema(value)) {
         is Parsed.Invalid -> parsed.errors
         is Parsed.Valid, null -> emptyMap()
     }
@@ -67,11 +76,19 @@ fun LegacyInput.toTokenSettings(): TokenSettings =
         retryAfter = RetryAfter.parse(get("retry_after")),
         autoCleanup = AutoCleanup.parse(get("auto_cleanup")),
         signature = signatureDraft(get("signature")),
+        schema = schemaConfig(get("schema")),
     )
 
 /** Chamado depois da validação: o que não é um `signature` válido é ausência. */
 private fun signatureDraft(value: Any?): SignatureDraft? =
     when (val parsed = if (value == null || value.isBlankString()) null else readSignature(value)) {
+        is Parsed.Valid -> parsed.value
+        is Parsed.Invalid, null -> null
+    }
+
+/** Chamado depois da validação: o que não é um `schema` válido é ausência. */
+private fun schemaConfig(value: Any?): SchemaConfig? =
+    when (val parsed = if (value == null || value.isBlankString()) null else readSchema(value)) {
         is Parsed.Valid -> parsed.value
         is Parsed.Invalid, null -> null
     }

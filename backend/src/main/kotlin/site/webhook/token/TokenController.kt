@@ -81,6 +81,7 @@ class TokenController(
                     retryAfter = settings.retryAfter,
                     autoCleanup = settings.autoCleanup,
                     signature = signature,
+                    schema = settings.schema,
                 )
             ResponseEntity.status(HttpStatus.CREATED).body(tokens.store(token).forApi())
         }

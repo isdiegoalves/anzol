@@ -44,7 +44,7 @@ dados ficam no volume.
 
 | Rota | O que faz |
 |---|---|
-| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`) |
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`) |
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL (com as mensagens dela) |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
@@ -114,6 +114,42 @@ Toda mensagem traz `signature`: `null` quando a URL não verifica, senão `{prov
 
 Mensagens gravadas antes da verificação trazem `signature: null`.
 
+### Validação de schema
+
+Com `schema`, a URL valida o corpo de cada mensagem contra um [JSON Schema](https://json-schema.org/) e grava
+o resultado. O campo vai no `POST /token` e no `PUT /token/{id}` como um objeto; o dialeto é o 2020-12, ou o
+que o `$schema` do documento escolher entre draft-07 (`http://json-schema.org/draft-07/schema#`) e 2019-09
+(`https://json-schema.org/draft/2019-09/schema`). O token devolve o documento como foi enviado.
+
+```json
+{ "schema": { "type": "object", "required": ["id"],
+              "properties": { "id": { "type": "integer" }, "status": { "enum": ["pago", "pendente"] } } } }
+```
+
+`schema` ausente ou `null` desliga a validação, como os demais campos do `PUT`. Dá 422
+`{"schema": ["The schema is invalid: <motivo>."]}` o schema que não é objeto, passa de 64 KB (JSON compacto),
+tem `$schema` de outro dialeto, não segue o meta-schema do dialeto (`type` desconhecido, `required` que não é
+lista, `pattern` que não compila…), tem `$ref` que não resolve ou que não é interno. Só vale referência ao
+próprio documento (`#`, `#/$defs/…`): `$ref`, `$dynamicRef` e `$recursiveRef` com URL, caminho relativo,
+`file:` ou `classpath:` são recusados, e nada é buscado na rede.
+
+Toda mensagem traz `schema`: `null` quando a URL não valida, senão `{valid, errors}`, com até 20 erros (os
+primeiros, na ordem da biblioteca) no formato `{"path": "<JSON Pointer na instância>", "message": "<texto>"}`:
+
+```json
+{ "valid": false, "errors": [ { "path": "/status", "message": "does not have a value in the enumeration [\"pago\", \"pendente\"]" },
+                              { "path": "", "message": "required property 'id' not found" } ] }
+```
+
+O `path` é `""` na raiz; propriedade obrigatória ausente aponta para o objeto que devia tê-la. O corpo é JSON
+pelo conteúdo, não pelo `Content-Type`: vazio ou que não é JSON (formulário, XML, JSON quebrado) dá
+`valid: false` com o erro `{"path": "", "message": "body is not JSON"}`; um escalar JSON é validado como
+qualquer valor. No 2020-12 e no 2019-09, `format` é só anotação; no draft-07 é verificado. Se a própria
+validação falhar (por exemplo, `$ref` recursivo numa instância aninhada demais), a mensagem é gravada com
+`valid: false` e o motivo, e a URL responde normalmente. O resultado é o do momento da captura: trocar o schema
+não revalida o histórico. O evento `request.created` leva o mesmo `schema`. Mensagens e URLs gravadas antes da
+validação trazem `schema: null`.
+
 ### Regras de resposta
 
 Cada URL pode ter até 100 regras que escolhem a resposta do webhook pela requisição, como um mock
@@ -148,6 +184,7 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.path` | um de `equals`, `prefix`, `regex`, sobre o caminho após o token, decodificado e sem a barra final (`/` quando vazio) |
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
 | `match.signature` | `valid`, `invalid` ou `absent` (falta o cabeçalho de assinatura; ver [Verificação de assinatura](#verificação-de-assinatura)). URL sem verificação não casa nenhum dos três. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
+| `match.schema` | `valid` ou `invalid` (o resultado da [validação de schema](#validação-de-schema) gravado na mensagem). URL sem schema não casa nenhum dos dois. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
 | `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
 | `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`), `delay`, `dribble` e `fault` (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)) |
@@ -291,13 +328,14 @@ Toda mensagem traz `rule` (`{id, name}` da regra que respondeu, ou `null`) e `ne
 que case, a regra ativa com menos condições falhando (empate pela prioridade), com uma frase por
 condição em `failed` (`method: expected POST, got GET`, `header x-signature: absent`,
 `body $.status: expected "pago", got "pendente"`, `signature: expected valid, got invalid (signature mismatch)`,
-`signature: expected valid, got not configured`); `null` quando respondeu uma regra ou não há regra
+`signature: expected valid, got not configured`, `schema: expected valid, got invalid (3 errors)`, com o número
+de erros gravados, `schema: expected invalid, got valid`, `schema: expected valid, got not configured`); `null` quando respondeu uma regra ou não há regra
 ativa. Mensagens gravadas antes das regras trazem os dois nulos.
 
 `POST /token/{id}/rules/test` recebe uma regra (mesma validação, chaves sem o índice), ignora `enabled`
 e responde `{"matches": [{uuid, seq}], "misses": [{uuid, seq, failed}]}` sobre as 500 mensagens mais
-recentes, da mais nova para a mais antiga. A condição de assinatura usa o `signature` gravado em cada
-mensagem (a verificação da época em que chegou).
+recentes, da mais nova para a mais antiga. As condições de assinatura e de schema usam o `signature` e o
+`schema` gravados em cada mensagem (a verificação da época em que chegou).
 
 As regras ficam em `token:{uuid}:rules`, com o TTL da URL (renovado a cada webhook), e saem junto com
 ela no `DELETE /token/{id}`.
@@ -316,7 +354,7 @@ assim que houver mensagens suficientes que casam, ou quando o prazo acaba.
 
 | Campo | Regra |
 |---|---|
-| `match` | o `match` de uma regra (`method`, `path`, `query`, `headers`, `body`, `signature`; ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
+| `match` | o `match` de uma regra (`method`, `path`, `query`, `headers`, `body`, `signature`, `schema`; ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
 | `after` | inteiro ≥ 0: só mensagens com `seq` maior. Ausente: todo o histórico guardado e as que chegarem |
 | `count` | 1 a 100 (padrão 1): quantas mensagens que casam são necessárias |
 | `timeout` | 0 a 300000 ms (padrão 30000): quanto esperar por mensagens novas; `0` só olha o histórico |

@@ -32,6 +32,9 @@ dependencies {
     implementation("com.github.jknack:handlebars:4.5.5") {
         exclude(group = "org.openjdk.nashorn")
     }
+    // JSON Schema da URL (drafts 7, 2019-09 e 2020-12) sobre o Jackson 3. A 3.0.6 é compilada com o
+    // Jackson 3.1.4, a mesma linha 3.1 que o Spring Boot impõe; a 3.0.7 já exige o 3.2.
+    implementation("com.networknt:json-schema-validator:3.0.6")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

@@ -10,6 +10,8 @@ import site.webhook.http.rawPath
 import site.webhook.legacy.latin1ToUtf8
 import site.webhook.legacy.normalizeQueryString
 import site.webhook.legacy.toJson
+import site.webhook.schema.SchemaConfig
+import site.webhook.schema.validate
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.verify
 import site.webhook.token.toLegacyDateTime
@@ -28,15 +30,17 @@ private const val BASIC_PREFIX = "basic "
  * A única forma de criar um [CapturedRequest]: o que `Storage/Request::createFromRequest` grava,
  * com o corpo e os campos lidos pelo `LegacyRequestFilter`. Bytes que não são UTF-8 viram U+FFFD
  * (o app antigo respondia 500 e deixava uma mensagem fantasma). Com [signature] (a da URL), a
- * assinatura é verificada sobre o corpo cru, em [receivedAt].
+ * assinatura é verificada sobre o corpo cru, em [receivedAt]; com [schema] (o da URL), o corpo gravado é validado.
  */
 fun HttpServletRequest.toCapturedRequest(
     tokenId: TokenId,
     receivedAt: Instant,
     signature: SignatureConfig? = null,
+    schema: SchemaConfig? = null,
 ): CapturedRequest {
     val input = legacyInput()
     val headers = legacyHeaders(bodySize = input.body.size)
+    val content = String(input.body, UTF_8)
     return CapturedRequest(
         uuid = RequestId(UUID.randomUUID()),
         tokenId = tokenId,
@@ -44,7 +48,7 @@ fun HttpServletRequest.toCapturedRequest(
         hostname = serverName.lowercase(),
         method = method,
         userAgent = headers["user-agent"]?.firstOrNull(),
-        content = String(input.body, UTF_8),
+        content = content,
         query = input.query.takeIf { it.isNotEmpty() }?.toJson(),
         headers = headers,
         url = legacyUrl(),
@@ -52,6 +56,7 @@ fun HttpServletRequest.toCapturedRequest(
         updatedAt = receivedAt.toLegacyDateTime(),
         request = input.formField(),
         signature = signature?.verify(this::getHeader, rawBody(), receivedAt),
+        schema = schema?.validate(content),
     )
 }
 

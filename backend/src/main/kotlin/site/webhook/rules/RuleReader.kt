@@ -2,6 +2,7 @@ package site.webhook.rules
 
 import com.jayway.jsonpath.InvalidPathException
 import com.jayway.jsonpath.JsonPath
+import site.webhook.schema.SchemaState
 import site.webhook.signature.SignatureState
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
@@ -184,7 +185,7 @@ class RuleReader(
         }
 }
 
-/** O `match` de uma regra: método, caminho, query, cabeçalhos, corpo e assinatura. */
+/** O `match` de uma regra: método, caminho, query, cabeçalhos, corpo, assinatura e schema. */
 class MatchReader(
     private val violations: Violations,
 ) {
@@ -206,6 +207,7 @@ class MatchReader(
         val headers = fields(node["headers"], key(key, "headers"))
         val body = body(node["body"], key(key, "body"))
         val signature = node["signature"].given()?.let { violations.signatureState(it, key(key, "signature")) }
+        val schema = node["schema"].given()?.let { violations.schemaState(it, key(key, "schema")) }
         return if (violations.hasErrorsUnder(key)) {
             null
         } else {
@@ -216,6 +218,7 @@ class MatchReader(
                 headers = checkNotNull(headers),
                 body = checkNotNull(body),
                 signature = signature,
+                schema = schema,
             )
         }
     }
@@ -375,6 +378,14 @@ private fun Violations.signatureState(
 ): SignatureState? =
     SignatureState.entries.firstOrNull { node.isString && it.id == node.stringValue() }
         ?: fail(key, "The selected signature is invalid.")
+
+/** `match.schema`: `valid` ou `invalid`. */
+private fun Violations.schemaState(
+    node: JsonNode,
+    key: String,
+): SchemaState? =
+    SchemaState.entries.firstOrNull { node.isString && it.id == node.stringValue() }
+        ?: fail(key, "The selected schema is invalid.")
 
 /** Nome da regra ou do cenário: obrigatório, texto, até [MAX_NAME_LENGTH] caracteres. */
 private fun Violations.name(

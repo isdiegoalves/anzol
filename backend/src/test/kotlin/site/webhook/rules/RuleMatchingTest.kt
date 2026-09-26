@@ -9,6 +9,8 @@ import org.junit.jupiter.params.provider.CsvSource
 import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.capture.CapturedRequest
+import site.webhook.schema.SchemaError
+import site.webhook.schema.SchemaResult
 import site.webhook.signature.SignatureResult
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
@@ -39,6 +41,15 @@ private fun signed(
     signature: SignatureResult?,
     body: String = "",
 ) = MatchInput(method = "GET", path = "/", query = emptyMap(), headers = emptyMap(), body = body, signature = signature)
+
+/** Entrada com o resultado da validação do schema gravado. */
+private fun validated(
+    schema: SchemaResult?,
+    signature: SignatureResult? = null,
+) = MatchInput(method = "GET", path = "/", query = emptyMap(), headers = emptyMap(), body = "", signature = signature, schema = schema)
+
+/** Resultado com [count] erros (0 = válido). */
+private fun schemaResult(count: Int) = SchemaResult(valid = count == 0, errors = List(count) { SchemaError("/$it", "erro $it") })
 
 @DisplayName("Motor de matching das regras de resposta")
 class RuleMatchingTest {
@@ -471,6 +482,54 @@ b'                                                    | null""",
             assertThat(failures).containsExactly(
                 "body: expected to contain \"x\"",
                 "signature: expected valid, got invalid (signature mismatch)",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("Schema")
+    inner class Schema {
+        @ParameterizedTest(name = "espera {0}, recebe {1} erros → {2}")
+        @DisplayName("Dado a condição de schema, quando compara com o resultado gravado, então casa o estado ou diz o recebido")
+        @CsvSource(
+            delimiter = '|',
+            nullValues = ["null"],
+            textBlock = """
+            valid   | 0  | null
+            invalid | 2  | null
+            valid   | 3  | schema: expected valid, got invalid (3 errors)
+            valid   | 20 | schema: expected valid, got invalid (20 errors)
+            invalid | 0  | schema: expected invalid, got valid""",
+        )
+        fun failures_schema_deveCompararOEstado(
+            expected: String,
+            errors: Int,
+            failure: String?,
+        ) {
+            val failures = matching("""{"schema":"$expected"}""").failures(validated(schemaResult(errors)))
+
+            assertThat(failures).isEqualTo(listOfNotNull(failure))
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado uma URL sem schema configurado, quando a regra exige um estado, então falha como não configurado")
+        @CsvSource("valid", "invalid")
+        fun failures_semConfiguracao_deveDizerNaoConfigurado(expected: String) {
+            val failures = matching("""{"schema":"$expected"}""").failures(validated(null))
+
+            assertThat(failures).containsExactly("schema: expected $expected, got not configured")
+        }
+
+        @Test
+        @DisplayName("Dado assinatura e schema falhando, quando lista as falhas, então o schema vem depois da assinatura")
+        fun failures_assinaturaESchema_deveListarOSchemaPorUltimo() {
+            val rule = matching("""{"signature":"valid","schema":"valid"}""")
+
+            val failures = rule.failures(validated(schemaResult(1), SignatureResult("github", false, "signature mismatch")))
+
+            assertThat(failures).containsExactly(
+                "signature: expected valid, got invalid (signature mismatch)",
+                "schema: expected valid, got invalid (1 errors)",
             )
         }
     }
