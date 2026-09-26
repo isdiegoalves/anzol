@@ -18,7 +18,7 @@ cd tests/contract
 npm ci
 
 npx playwright test                  # tudo: api + event
-npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, erros, limpeza, volume
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, reenvio, erros, limpeza, volume
 npx playwright test --project=event  # evento request.created (SSE)
 
 BASE_URL=http://localhost:8087 npx playwright test   # outra instância
@@ -410,6 +410,86 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `hostname` como alvos do texto, caixa de letras não ASCII, `match.signature` numa URL sem assinatura, o tempo da
   busca com 10.000 mensagens e a leitura em lotes (não observável pela API).
 
+- **Reenvio pelo servidor e envio montado** (`specs/api/reenvio-*.spec.ts`, helpers em `support/reenvio.ts`; §1 do
+  plano "reenvio-servidor"). O app sai com a requisição, então cada teste sobe um **receptor** HTTP em Node numa porta
+  livre do host (escutando em `0.0.0.0`) e passa ao app o alvo `http://{ALVO_HOST}:{porta}`; o receptor guarda método,
+  alvo cru, headers e corpo em bytes, e responde o que o teste pedir (status, headers, corpo, atraso). O stack de
+  teste roda com `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` e `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal` (o
+  `./ci.sh` liga os dois no `docker-compose.ci.yml`); sem eles o receptor é bloqueado e quase tudo falha.
+
+  | Variável | Padrão | Uso |
+  |---|---|---|
+  | `ALVO_HOST` | `host.docker.internal` | Nome pelo qual o app (no container) alcança o host onde o receptor escuta |
+  | `ALIAS_LOCALHOST` | `host.docker.internal` | O `localhost-alias` do app sob teste: o `target` esperado quando o alvo é `localhost` |
+  | `APP_PELO_ALVO` | `http://{ALVO_HOST}:{porta do BASE_URL}` | O próprio webhook.site visto de dentro do container (prova cruzada da assinatura) |
+
+  - *Replay* (`reenvio-replay.spec.ts`, CA-1): `keep_path` ausente vale true e acrescenta ao alvo o caminho depois do
+    token e a query da mensagem (conferida pelos pares, com `%C3%A9` decodificado); com caminho no alvo (`/base`), o da
+    mensagem entra depois dele; mensagem sem caminho nem query → o alvo como veio; `keep_path` false → exatamente o
+    alvo pedido e `target` igual a ele. Headers (mensagem gravada por HTTP cru, com pré-condição de que a mensagem os
+    guardou): `x-forwarded-*`, `x-real-ip`, `cf-*`, `proxy-*`, `keep-alive`, `te`, `trailer` e `upgrade` não chegam ao
+    receptor nem aparecem em `request_headers`; `host`, `content-length` e `connection` são os do cliente de saída
+    (`host` é o do alvo); todo o resto chega com o valor gravado, inclusive `authorization` e nomes que só contêm
+    `cf`/`proxy` no meio (`x-cf-…`, `x-proxy-…`). Corpo byte a byte (CRLF, tab, acentos, emoji) com o método gravado em
+    POST, PUT, PATCH e DELETE; 300 KB inteiros; GET sem corpo. Resposta: status, headers (nome sem caixa), corpo,
+    `duration_ms` ≥ o atraso do receptor e o item do histórico igual ao resultado; corpo de 64 KB + 5000 →
+    `truncated: true` e exatamente os primeiros 65 536 bytes; exatamente 65 536 → não trunca. `id` próprio e
+    `source_request` = uuid da mensagem.
+  - *Send* (`reenvio-send.spec.ts`, CA-2): os 7 métodos saem como pedidos (HEAD sem corpo na resposta); headers pedidos
+    chegam com o valor; corpo byte a byte; `target` = a URL pedida, `source_request` ausente ou nulo; sem `body` →
+    corpo vazio. **Assinado:** para `github`, `stripe`, `generic` (sha512, base64, `prefix`), `shopify` e `slack`, a URL
+    de origem e outra URL do próprio webhook.site recebem a mesma `signature`; `sign=true` para
+    `{APP_PELO_ALVO}/{destino}` → a mensagem gravada lá tem `signature: {valid: true}` e o mesmo corpo; os headers de
+    assinatura estão em `request_headers` com o valor que chegou; o segredo não aparece no resultado, no histórico nem
+    na mensagem do destino. `sign=false` ou ausente numa URL com `signature` → sai sem header de assinatura. `sign=true`
+    sem `signature` → 422 (chave começando por `sign`), nada sai, nada no histórico.
+  - *SSRF* (`reenvio-ssrf.spec.ts`, CA-3): 200 com `error.kind=blocked`, sem `status`, registrado no histórico, para
+    `169.254.169.254` (com e sem porta, e outro `169.254.x`), `0.0.0.0` (com a porta do receptor, que não recebe
+    nada), `[fe80::1]`, `224.0.0.1`, `255.255.255.255`, `[::]`, `[::ffff:169.254.169.254]`, `[::ffff:a9fe:a9fe]`,
+    `[::ffff:0.0.0.0]`, `ftp://`, `file://`, `gopher://`, e o nome `169.254.169.254.nip.io` (pulado se o host do teste
+    não o resolve para 169.254.169.254). `169.254.169.254` em decimal (`2852039166`) e hexadecimal (`0xA9FEA9FE`) não
+    sai: `blocked`, `dns` ou `invalid_url`, nunca `connect`/`timeout`. Replay bloqueado leva `source_request`.
+    Redirecionamento não é seguido: receptor que responde 302 (send) ou 307 (replay) com `Location` para outro receptor
+    → o resultado mostra o 3xx e o `Location`, e o outro não recebe nada em 1 s. **localhost-alias:** `localhost` e
+    `127.0.0.1` no alvo chegam ao receptor do host e `target` mostra o alias (`ALIAS_LOCALHOST`) com a mesma porta,
+    caminho e query.
+  - *Limites* (`reenvio-limites.spec.ts`, CA-4): receptor que demora 5 s com `timeout` 1000 (send) e 1500 (replay) →
+    `error.kind=timeout` com `duration_ms` perto do prazo; sem `timeout` → corte em ~10 s (9,5 a 14 s). `body` de
+    exatamente 1 MiB (ASCII) sai inteiro; 1 MiB + 1 byte → 422 em `body`, nada sai. 15 replays + 15 sends passam; o
+    31º no mesmo minuto (send e replay) → 429 com `Retry-After` inteiro de 1 a 60; o recusado não sai nem entra no
+    histórico; outra URL continua saindo. 51 disparos (esperando o `Retry-After` do 429) → histórico com 50, do `/n/51`
+    ao `/n/2` (**teste lento, ~60 s**). Os testes de limite por minuto esperam a virada do minuto se começam depois
+    do segundo 40, para passar também com janela de minuto de relógio.
+  - *Histórico* (`reenvio-historico.spec.ts`, CA-1, CA-4): URL nova → `[]`; send, replay e bloqueado aparecem do mais
+    novo para o mais antigo, cada item igual ao resultado da chamada, com `id` distintos; o histórico é por URL.
+    Apagar a URL → 410 `Token not found` no `GET /outbound`, no replay e no send; URL que nunca existiu → 410.
+  - *Validação* (`reenvio-validacao.spec.ts`): 422 JSON `{chave: [mensagem]}` com a forma do Laravel. Send: `url`
+    ausente, vazia, número, texto solto, sem esquema (`www.exemplo.test/…`), relativa, 2049 caracteres → `url` (2048
+    passa); `method` `TRACE`, `CONNECT`, `FOO`, vazio, número, lista → `method`; `timeout` 0, 999, 30001, −1, 60000,
+    1500.5, texto, booleano → `timeout` (1000 e 30000 passam). Replay: `url` ausente, vazia, texto solto; `timeout` 999
+    e 30001. Um 422 não sai nem entra no histórico. Mensagem que não existe ou foi apagada → 404 `Request not found`;
+    token que nunca existiu → 410 `Token not found`. Os casos válidos usam `169.254.169.254` (bloqueado na hora) para
+    provar que passaram da validação sem depender de rede.
+
+  Leituras assumidas onde a §1 deixava folga: `ftp://`, `file://` e `gopher://` são "esquema não http(s)" do CA-3 →
+  200 `blocked`; o 422 de "esquema" é para URL sem esquema (texto que não é URL absoluta); URL acima de 2048 é
+  validação (422), não `invalid_url`; `timeout` em ms, inteiro de 1000 a 30000; 64 KB = 65 536 bytes e 1 MB = 1 MiB
+  (1 048 576 bytes, como o limite do webhook), `body` medido em bytes; `keep_path` junta os caminhos sem barra extra
+  (`/base` + `/eventos/novo`); `GET /outbound` devolve uma lista JSON (sem envelope de página), cada item igual ao
+  resultado devolvido pela chamada; o resultado bloqueado ou com erro também entra no histórico, o 422/404/410/429
+  não; `status` ausente ou `null` quando há `error`; `truncated` ausente vale false; headers da resposta e
+  `request_headers` podem vir como texto ou lista (o helper lê o último valor, sem caixa no nome); replay e send
+  dividem o limite de 30 por minuto da URL; a chave do 422 de `sign=true` sem configuração começa por `sign`.
+  **Fora do contrato:** `allow-private=false` (loopback e privados bloqueados) e DNS rebinding — o stack de teste roda
+  com `allow-private=true` e o contrato não controla o resolvedor; ficam com os testes do backend (resolvedor
+  controlado). No OrbStack `host.docker.internal` resolve para `0.250.250.254`, dentro de `0.0.0.0/8`: o receptor só é
+  alcançável porque a §1 libera os IPs do alias com `allow-private=true` (decisão de 2026-09-26); o contrato continua
+  exigindo `0.0.0.0` bloqueado. Também fora: o formato de `at`, o texto de `error.message`, o contador
+  `webhook.outbound` (observabilidade), HTTPS/TLS e SNI (sem receptor TLS), o Retry-After exato, a expiração do
+  histórico junto com o token (não observável no tempo de um teste), a chave `token:{id}:outbound` no Redis (apagar a
+  URL só é observável como 410), `method` ausente no send, `keep_path` que não é booleano, alvo com query própria
+  somada à da mensagem no replay e a tela (CA-5, E2E do frontend).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -439,6 +519,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Esperar uma requisição exigia polling da listagem | `POST /token/{id}/requests/wait` (long-poll com o `match` das regras, `count`, `after`, `timeout` e `near_miss`) | Feature "wait-for" (2026-09-26): teste automatizado afirma "chegou N vezes uma requisição assim em até T" sem `sleep` e sabe por que não chegou. Rota nova; nada do que existia muda |
 | Token e mensagem sem validação do corpo | `schema` no token (JSON Schema ou `null`) e na mensagem (`{valid, errors}` ou `null`); condição `match.schema` nas regras e no `wait-for` | Feature "validação de schema por URL" (2026-09-26): saber de imediato se o payload segue o contrato e responder erro quando não segue. `schema` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem schema responde e grava como antes, com `schema: null` |
 | Achar uma mensagem exigia rolar a listagem | `POST /token/{id}/requests/search` (texto sem diferenciar maiúsculas + `match` das regras, paginado como a listagem) | Feature "busca, filtro e diff" (2026-09-26): achar a mensagem que interessa entre milhares. Rota nova; nada do que existia muda |
+| Reenviar uma mensagem ou montar uma requisição só pelo CLI, do host | `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound` (o servidor sai, com proteções contra SSRF, 30 disparos por minuto e histórico das últimas 50) | Feature "reenvio pelo servidor e envio pela tela" (2026-09-26): reenviar da tela para o app do dono e ver a resposta. Rotas novas; nada do que existia muda |
 
 ## Defeitos do legado (`bugDoLegado`)
 
