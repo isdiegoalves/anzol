@@ -125,6 +125,53 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   só vai para o canal do próprio token; `truncated` fica true quando o JSON da mensagem passa de
   1.000.000 caracteres **contados como o `json_encode` do PHP** (`/` vira `\/`, não-ASCII vira
   `\uXXXX`): 990.000 letras não cortam, 600.000 barras e 200.000 `ç` cortam.
+- **Regras de resposta, fase A** (`specs/api/regras-*.spec.ts`, helpers em `support/regras.ts`).
+  Formato da regra e da API fixado no Anexo A do plano da feature (fatias 01 + 02):
+  - *API* (`regras-api.spec.ts`, CA-9): `GET /token/{id}/rules` → `[]` numa URL nova; `PUT` (lista
+    inteira, é o import) devolve a lista salva e o `GET` devolve a mesma, sem perda nem acréscimo;
+    `id` ausente vira uuid gerado (distinto por regra), `id` enviado fica; reimportar o exportado não
+    muda nada; a ordem é a enviada (não a da prioridade); `[]` apaga todas; padrões `enabled` true,
+    `priority` 5, `status` 200, `body` `""`, `template` false, `scenario`/`delay`/`dribble`/`fault`
+    nulos; 100 regras aceitas. Token inexistente ou apagado → 410 `Token not found` em `GET`, `PUT` e
+    `rules/test`. Validação → 422 com a chave em notação de ponto a partir do índice na lista
+    (`0.name`, `0.priority`, `0.match.path`, `0.match.{path|query.<nome>|headers.<nome>|body.<i>}.regex`
+    com `["The regex is invalid."]`, `0.match.body.<i>`, `0.match.body.<i>.jsonPath.path`,
+    `0.response.status`; `1.response.status` quando a inválida é a segunda); `template: true`,
+    `scenario`, `delay`, `dribble` e `fault` não nulos → mensagem com "not supported yet"; 101 regras
+    → exatamente `{"rules": ["The rules may not have more than 100 items."]}`; um 422 não mexe nas
+    regras salvas. Fora as duas mensagens exatas do Anexo A, o texto só precisa ter a forma do
+    Laravel (maiúscula no início, ponto no fim).
+  - *Webhook* (`regras-webhook.spec.ts`, CA-1, CA-2, CA-3): a regra que casa responde com o status, os
+    cabeçalhos e o corpo dela, com `X-Request-Id` e `X-Token-Id` e a mensagem gravada como sempre;
+    o status da regra vale inclusive em `/404`; regra sem `match` casa tudo. Prioridade: menor vence
+    em qualquer posição, empate fica com a primeira da lista, regra melhor que não casa não
+    atrapalha, desativada não responde. Nenhuma casando (ou só desativadas, ou `PUT []`): a resposta
+    padrão de hoje, conferida com status, corpo, Content-Type, `timeout`, `Retry-After`, CORS e
+    status pelo caminho. Cada condição casa e deixa de casar: método (lista; vazia = qualquer),
+    caminho `equals` (ignora a query; `"/"` é a URL sem caminho), `prefix` e `regex`; query e
+    cabeçalho com `equals`, `contains`, `regex`, `present: true|false` (nome de cabeçalho sem
+    caixa); corpo com `equals`, `contains`, `regex`, `jsonPath` existe e igual (corpo não JSON não
+    casa), `equalToJson` (ordem de chaves e espaçamento não importam; valor diferente, chave a mais
+    ou corpo não JSON não casam); todas as condições em E.
+  - *Mensagem* (`regras-mensagem.spec.ts`, CA-4): `rule` e `near_miss` sempre presentes (entraram em
+    `CHAVES_MENSAGEM`). URL sem regras → os dois `null`; regra casou → `rule` = `{id, name}` da que
+    respondeu (a vencedora, não outra que também casaria) e `near_miss` null, no `GET` e na
+    listagem; nenhuma casou → `near_miss` = `{id, name, failed}` da regra ativa com menos condições
+    falhando (vence mesmo com prioridade pior; empate → menor `priority`), uma frase por condição
+    que falhou; só desativadas → `near_miss` null. As frases são casadas pelo conteúdo com regex
+    tolerante: começam pelo alvo (`method`, `path`, `query <nome>`, `header <nome em minúsculas>`,
+    `body <jsonpath>`) e trazem o esperado e o recebido (`method: expected POST, got PUT`,
+    `header x-signature: absent`, `body $.status: expected "pago", got "pendente"`).
+  - *`POST /token/{id}/rules/test`* (`regras-teste.spec.ts`, CA-8): uma regra no corpo →
+    `{matches: [{uuid, seq}], misses: [{uuid, seq, failed}]}` sobre as mensagens gravadas, com
+    método, caminho, query, cabeçalho e JSONPath; ordem das listas fora do contrato; não salva a
+    regra nem grava mensagem; URL vazia → listas vazias; com 501 mensagens considera as 500 mais
+    recentes; regra inválida → 422 com a chave da condição (o prefixo de índice não é exigido).
+
+  Decisões onde o Anexo A deixava folga, alinhadas com o backend da fase A: os testes usam regex
+  ancorada (`^…$`), então não dependem de a regex casar o valor inteiro ou só um trecho; `match` e
+  `response` são opcionais (sem `match` casa tudo); o que a regra não define (Content-Type sem
+  cabeçalho na regra, `Retry-After`, `timeout` e CORS quando uma regra responde) fica fora do contrato.
 
 ### Contrato do SSE
 
@@ -149,6 +196,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Ordem indefinida entre mensagens do mesmo segundo | Ordem de chegada | Índice ordenado da listagem (item 02); a exclusão correspondente saiu |
 | Listagem lendo a URL inteira a cada página | Página em até 2 s com 10.000 × 15 KB | O fim do 410 levaria a opção 10000 ao 500 medido no app Laravel |
 | Mensagem sem número de ordem; listagem só por página | `seq` na mensagem (listagem, `GET`, evento) e `after=<seq>` na listagem | Correção da refutação do CLI (2026-09-26): o evento SSE sai fora da ordem de gravação sob concorrência e a paginação por página desloca quando alguém apaga; o CLI reenvia por `after` sem perder nem duplicar. A chave `seq` entrou em `CHAVES_MENSAGEM`, então os testes de forma de `mensagem.spec.ts` também a exigem |
+| Toda URL responde o padrão do token; mensagem sem registro de regra | Regras de resposta por URL (`/token/{id}/rules`, `rules/test`) e `rule`/`near_miss` em toda mensagem | Feature "regras de resposta" (fase A, 2026-09-26): testar de verdade quem envia webhooks. `rule` e `near_miss` entraram em `CHAVES_MENSAGEM`, então os dois testes de forma de `mensagem.spec.ts` também as exigem; URL sem regras responde exatamente como antes |
 
 ## Defeitos do legado (`bugDoLegado`)
 

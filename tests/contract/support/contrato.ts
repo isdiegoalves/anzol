@@ -38,7 +38,7 @@ export const CHAVES_TOKEN = [
 
 export const CHAVES_MENSAGEM = [
   'uuid', 'token_id', 'ip', 'hostname', 'method', 'user_agent', 'content', 'query', 'headers',
-  'url', 'created_at', 'updated_at', 'seq',
+  'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss',
 ].sort();
 
 export interface Token {
@@ -73,6 +73,13 @@ export interface Mensagem {
   updated_at: string;
   /** Inteiro ≥ 1, estritamente crescente por URL na ordem de gravação; nunca reaproveitado. */
   seq: number;
+  /** Regra de resposta que respondeu (`{id, name}`), ou `null` quando nenhuma casou. */
+  rule: { id: string; name: string } | null;
+  /**
+   * Com regras ativas e nenhuma casando: a mais próxima (menos condições falhando, empate pela
+   * prioridade) e as condições que falharam. `null` quando uma regra casou ou não há regra ativa.
+   */
+  near_miss: { id: string; name: string; failed: string[] } | null;
   request?: Record<string, unknown> | null;
 }
 
