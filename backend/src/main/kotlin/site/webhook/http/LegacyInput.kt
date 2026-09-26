@@ -17,7 +17,7 @@ private val FORM_BODY_METHODS = setOf("PUT", "DELETE", "PATCH")
  * A requisição como o Laravel 5.4 a enxerga: corpo cru (`php://input`), query (`$_GET`) e o
  * "input source" (`$request->request`), que é o JSON do corpo, a própria query num GET, ou os
  * campos de formulário que o PHP e o Symfony decodificam. Num multipart, `php://input` guarda só o
- * que o PHP não chegou a ler (em geral nada).
+ * que o PHP não chegou a ler (em geral nada); o corpo inteiro como chegou é [rawBody].
  */
 class LegacyInput(
     val body: ByteArray,
@@ -46,6 +46,12 @@ class LegacyInput(
 
 fun HttpServletRequest.legacyInput(): LegacyInput =
     checkNotNull(getAttribute(LegacyInput.ATTRIBUTE) as? LegacyInput) { "LegacyRequestFilter não processou a requisição" }
+
+const val RAW_BODY_ATTRIBUTE = "site.webhook.rawBody"
+
+/** O corpo inteiro, exatamente como chegou (inclusive num multipart): o que a assinatura HMAC cobre. */
+fun HttpServletRequest.rawBody(): ByteArray =
+    checkNotNull(getAttribute(RAW_BODY_ATTRIBUTE) as? ByteArray) { "LegacyRequestFilter não processou a requisição" }
 
 /**
  * O boundary quando o PHP decodificaria o corpo como multipart. Sem boundary utilizável no

@@ -58,6 +58,7 @@ class LegacyRequestFilter(
         } else {
             val input = request.readLegacyInput(body, jsonMapper)
             request.setAttribute(LegacyInput.ATTRIBUTE, input)
+            request.setAttribute(RAW_BODY_ATTRIBUTE, body)
             response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, private")
             filterChain.doFilter(request.withMethodOverride(input), response)
         }

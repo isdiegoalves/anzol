@@ -1,6 +1,7 @@
 package site.webhook.rules
 
 import site.webhook.capture.CapturedRequest
+import site.webhook.signature.SignatureResult
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -14,7 +15,7 @@ val bodyMapper: JsonMapper = JsonMapper.builder().build()
  * O que as condições enxergam de uma requisição, tirado da mensagem gravada (na captura e no
  * `rules/test`, a mesma visão): [path] é o caminho após o token, decodificado, sem a barra final
  * (como a `url` gravada) e `/` quando vazio; [query] e [headers] são os valores gravados (cabeçalho em
- * minúsculas, com `_` virando `-`).
+ * minúsculas, com `_` virando `-`); [signature] é o resultado da verificação HMAC gravado (nulo sem configuração).
  */
 class MatchInput(
     val method: String,
@@ -22,6 +23,7 @@ class MatchInput(
     val query: Map<String, String>,
     val headers: Map<String, String>,
     val body: String,
+    val signature: SignatureResult? = null,
 ) {
     /** O corpo como JSON, lido uma vez e só se alguma condição pedir; `null` se não for JSON. */
     val json: JsonNode? by lazy { readJson(body) }
@@ -48,6 +50,7 @@ fun CapturedRequest.toMatchInput(): MatchInput =
         query = query?.let(::queryValues).orEmpty(),
         headers = headers.mapValues { (_, values) -> values.lastOrNull().orEmpty() },
         body = content,
+        signature = signature,
     )
 
 private fun CapturedRequest.pathAfterToken(): String {

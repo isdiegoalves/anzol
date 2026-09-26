@@ -5,14 +5,18 @@ import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.http.LegacyInput
 import site.webhook.http.legacyInput
+import site.webhook.http.rawBody
 import site.webhook.http.rawPath
 import site.webhook.legacy.latin1ToUtf8
 import site.webhook.legacy.normalizeQueryString
 import site.webhook.legacy.toJson
+import site.webhook.signature.SignatureConfig
+import site.webhook.signature.verify
+import site.webhook.token.toLegacyDateTime
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.NullNode
 import java.nio.charset.StandardCharsets.UTF_8
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 
@@ -23,11 +27,13 @@ private const val BASIC_PREFIX = "basic "
 /**
  * A única forma de criar um [CapturedRequest]: o que `Storage/Request::createFromRequest` grava,
  * com o corpo e os campos lidos pelo `LegacyRequestFilter`. Bytes que não são UTF-8 viram U+FFFD
- * (o app antigo respondia 500 e deixava uma mensagem fantasma).
+ * (o app antigo respondia 500 e deixava uma mensagem fantasma). Com [signature] (a da URL), a
+ * assinatura é verificada sobre o corpo cru, em [receivedAt].
  */
 fun HttpServletRequest.toCapturedRequest(
     tokenId: TokenId,
-    receivedAt: LocalDateTime,
+    receivedAt: Instant,
+    signature: SignatureConfig? = null,
 ): CapturedRequest {
     val input = legacyInput()
     val headers = legacyHeaders(bodySize = input.body.size)
@@ -42,9 +48,10 @@ fun HttpServletRequest.toCapturedRequest(
         query = input.query.takeIf { it.isNotEmpty() }?.toJson(),
         headers = headers,
         url = legacyUrl(),
-        createdAt = receivedAt,
-        updatedAt = receivedAt,
+        createdAt = receivedAt.toLegacyDateTime(),
+        updatedAt = receivedAt.toLegacyDateTime(),
         request = input.formField(),
+        signature = signature?.verify(this::getHeader, rawBody(), receivedAt),
     )
 }
 

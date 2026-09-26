@@ -1,6 +1,8 @@
 package site.webhook.rules
 
-/** Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo. */
+import site.webhook.signature.SignatureState
+
+/** Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo, assinatura. */
 sealed interface Condition {
     data class Method(
         val methods: List<String>,
@@ -23,6 +25,10 @@ sealed interface Condition {
     data class Body(
         val matcher: BodyMatcher,
     ) : Condition
+
+    data class Signature(
+        val expected: SignatureState,
+    ) : Condition
 }
 
 fun RuleMatch.conditions(): List<Condition> =
@@ -32,7 +38,8 @@ fun RuleMatch.conditions(): List<Condition> =
     ) +
         query.map { (name, matcher) -> Condition.Query(name, matcher) } +
         headers.map { (name, matcher) -> Condition.Header(name.lowercase().replace('_', '-'), matcher) } +
-        body.map(Condition::Body)
+        body.map(Condition::Body) +
+        listOfNotNull(signature?.let(Condition::Signature))
 
 /** Uma frase por condição que falhou; vazia quando a regra casa (sem olhar `enabled`). */
 fun Rule.failures(input: MatchInput): List<String> = match.conditions().mapNotNull { it.failure(input) }
@@ -88,6 +95,7 @@ private fun Condition.failure(input: MatchInput): String? =
         is Condition.Query -> fieldFailure("query $name", matcher, input.query[name])
         is Condition.Header -> fieldFailure("header $name", matcher, input.headers[name])
         is Condition.Body -> bodyFailure(matcher, input)
+        is Condition.Signature -> signatureFailure(expected, input.signature)
     }
 
 private fun Condition.Method.methodFailure(actual: String): String? {

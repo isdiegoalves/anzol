@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource
 import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.capture.CapturedRequest
+import site.webhook.signature.SignatureResult
 import tools.jackson.databind.json.JsonMapper
 import java.time.LocalDateTime
 import java.util.UUID
@@ -32,6 +33,12 @@ private fun input(
     headers: Map<String, String> = emptyMap(),
     body: String = "",
 ) = MatchInput(method = method, path = path, query = query, headers = headers, body = body)
+
+/** Entrada com o resultado da verificação gravado. */
+private fun signed(
+    signature: SignatureResult?,
+    body: String = "",
+) = MatchInput(method = "GET", path = "/", query = emptyMap(), headers = emptyMap(), body = body, signature = signature)
 
 @DisplayName("Motor de matching das regras de resposta")
 class RuleMatchingTest {
@@ -413,6 +420,58 @@ b'                                                    | null""",
         @DisplayName("Dado uma query gravada como lista do PHP, quando monta a entrada, então os nomes são os índices")
         fun toMatchInput_queryLista_deveUsarIndices() {
             assertThat(message("http://localhost/x", """["a","b"]""").toMatchInput().query).isEqualTo(mapOf("0" to "a", "1" to "b"))
+        }
+    }
+
+    @Nested
+    @DisplayName("Assinatura")
+    inner class Signature {
+        @ParameterizedTest(name = "espera {0}, recebe valid={1} reason={2} → {3}")
+        @DisplayName("Dado a condição de assinatura, quando compara com o resultado gravado, então casa o estado ou diz o recebido")
+        @CsvSource(
+            delimiter = '|',
+            nullValues = ["null"],
+            textBlock = """
+            valid   | true  | null                              | null
+            invalid | false | signature mismatch                | null
+            absent  | false | header X-Hub-Signature-256 absent | null
+            valid   | false | signature mismatch                | signature: expected valid, got invalid (signature mismatch)
+            valid   | false | header X-Hub-Signature-256 absent | signature: expected valid, got absent (header X-Hub-Signature-256 absent)
+            invalid | true  | null                              | signature: expected invalid, got valid
+            absent  | false | malformed header                  | signature: expected absent, got invalid (malformed header)""",
+        )
+        fun failures_assinatura_deveCompararOEstado(
+            expected: String,
+            valid: Boolean,
+            reason: String?,
+            failure: String?,
+        ) {
+            val signature = SignatureResult("github", valid, reason)
+
+            val failures = matching("""{"signature":"$expected"}""").failures(signed(signature))
+
+            assertThat(failures).isEqualTo(listOfNotNull(failure))
+        }
+
+        @Test
+        @DisplayName("Dado uma URL sem assinatura configurada, quando a regra exige um estado, então falha como não configurada")
+        fun failures_semConfiguracao_deveDizerNaoConfigurada() {
+            val failures = matching("""{"signature":"absent"}""").failures(signed(null))
+
+            assertThat(failures).containsExactly("signature: expected absent, got not configured")
+        }
+
+        @Test
+        @DisplayName("Dado condições de corpo e de assinatura falhando, quando lista as falhas, então a assinatura vem depois do corpo")
+        fun failures_corpoEAssinatura_deveListarAAssinaturaPorUltimo() {
+            val rule = matching("""{"body":[{"contains":"x"}],"signature":"valid"}""")
+
+            val failures = rule.failures(signed(SignatureResult("github", false, "signature mismatch"), body = "y"))
+
+            assertThat(failures).containsExactly(
+                "body: expected to contain \"x\"",
+                "signature: expected valid, got invalid (signature mismatch)",
+            )
         }
     }
 }

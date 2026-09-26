@@ -25,7 +25,7 @@ class LegacyRedisCompatibilityTest(
     @Test
     @DisplayName(
         "Dado token e mensagens gravados pelo PHP, quando a API nova os lê, " +
-            "então devolve o mesmo JSON (campos novos nulos, rule e near_miss nulos, seq do created_at)",
+            "então devolve o mesmo JSON (campos novos nulos, rule, near_miss e signature nulos, seq do created_at)",
     )
     fun leitura_jsonGravadoPeloPhp_deveDevolverOMesmoConteudo() {
         val tokenId = UUID.randomUUID().toString()
@@ -42,7 +42,9 @@ class LegacyRedisCompatibilityTest(
         val page = api.json(api.send("GET", "/token/$tokenId/requests", headers = JSON_CLIENT))
         val raw = api.send("GET", "/token/$tokenId/request/$requestId/raw")
 
-        assertThat(api.json(readToken)).isEqualTo(api.tree(token.dropLast(1) + ""","retry_after":null,"auto_cleanup":null}"""))
+        assertThat(api.json(readToken)).isEqualTo(
+            api.tree(token.dropLast(1) + ""","retry_after":null,"auto_cleanup":null,"signature":null}"""),
+        )
         assertThat(api.json(readMessage)).isEqualTo(api.tree(json.withSeq("2026-09-26T00:41:43Z")))
         assertThat(page["data"].toList()).containsExactly(
             api.tree(json.withSeq("2026-09-26T00:41:43Z")),
@@ -82,6 +84,7 @@ class LegacyRedisCompatibilityTest(
             "updated_at",
             "retry_after",
             "auto_cleanup",
+            "signature",
         )
         assertThat(message.propertyNames().toList()).containsExactly(
             "uuid",
@@ -99,6 +102,7 @@ class LegacyRedisCompatibilityTest(
             "request",
             "rule",
             "near_miss",
+            "signature",
         )
         assertThat(message["created_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
         assertThat(redis.getExpire("token:$tokenId")).isBetween(EXPIRY_SECONDS - 5, EXPIRY_SECONDS)
@@ -106,11 +110,11 @@ class LegacyRedisCompatibilityTest(
     }
 
     /**
-     * A mensagem como a API a devolve: o JSON gravado, `rule` e `near_miss` nulos (gravada antes das regras) e o `seq`, que no
+     * A mensagem como a API a devolve: o JSON gravado, `rule`, `near_miss` e `signature` nulos (gravada antes deles) e o `seq`, que no
      * backfill é o `created_at` em microssegundos.
      */
     private fun String.withSeq(createdAt: String) =
-        dropLast(1) + ""","rule":null,"near_miss":null,"seq":${Instant.parse(createdAt).epochSecond * 1_000_000}}"""
+        dropLast(1) + ""","rule":null,"near_miss":null,"signature":null,"seq":${Instant.parse(createdAt).epochSecond * 1_000_000}}"""
 
     private fun phpToken(tokenId: String) =
         """{"uuid":"$tokenId","ip":"192.168.107.1","user_agent":"curl\/8.16.0","default_content":"olá",""" +

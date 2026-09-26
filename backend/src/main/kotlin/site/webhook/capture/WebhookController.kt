@@ -121,7 +121,7 @@ class WebhookController(
         response: HttpServletResponse,
     ) {
         val token = tokens.findOrGone(tokenId)
-        val received = request.toCapturedRequest(tokenId, clock.instant().toLegacyDateTime())
+        val received = request.toCapturedRequest(tokenId, clock.instant(), token.signature)
         val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
         if (decision is Decision.Unmatched && token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()

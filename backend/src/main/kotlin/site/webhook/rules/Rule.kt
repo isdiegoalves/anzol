@@ -3,6 +3,7 @@ package site.webhook.rules
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonValue
 import com.jayway.jsonpath.JsonPath
+import site.webhook.signature.SignatureState
 import tools.jackson.databind.JsonNode
 import java.util.UUID
 
@@ -43,13 +44,18 @@ data class RuleScenario(
     val newState: String? = null,
 )
 
-/** Sem nenhuma condição, a regra casa qualquer requisição. Nome de cabeçalho fica como veio; a comparação ignora caixa. */
+/**
+ * Sem nenhuma condição, a regra casa qualquer requisição. Nome de cabeçalho fica como veio; a comparação ignora caixa.
+ * [signature] é o estado da verificação HMAC da URL; sem ela, a chave nem aparece no JSON.
+ */
 data class RuleMatch(
     val method: List<String> = emptyList(),
     val path: PathMatcher? = null,
     val query: Map<String, FieldMatcher> = emptyMap(),
     val headers: Map<String, FieldMatcher> = emptyMap(),
     val body: List<BodyMatcher> = emptyList(),
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val signature: SignatureState? = null,
 )
 
 /** Com [fault], a conexão falha no lugar da resposta e os demais campos são ignorados. */

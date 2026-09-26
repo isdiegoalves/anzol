@@ -4,6 +4,9 @@ import site.webhook.http.LegacyInput
 import site.webhook.legacy.isPhpInteger
 import site.webhook.legacy.phpIntval
 import site.webhook.legacy.phpNumericSize
+import site.webhook.rules.Parsed
+import site.webhook.signature.SignatureDraft
+import site.webhook.signature.readSignature
 
 private const val PHP_TRIM = " \t\n\r\u0000\u000B"
 private const val MAX_TIMEOUT = 10.0
@@ -42,8 +45,15 @@ fun LegacyInput.validateTokenSettings(): Map<String, List<String>> {
         .filterKeys { it in data && !data[it].isBlankString() }
         .mapValues { (attribute, rules) ->
             rules.filterNot { it.passes(data[attribute]) }.map { it.message(attribute.replace('_', ' ')) }
-        }.filterValues { it.isNotEmpty() }
+        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"])
 }
+
+/** `signature` nula, ausente ou em branco não é validada (remove a assinatura). */
+private fun signatureErrors(value: Any?): Map<String, List<String>> =
+    when (val parsed = if (value == null || value.isBlankString()) null else readSignature(value)) {
+        is Parsed.Invalid -> parsed.errors
+        is Parsed.Valid, null -> emptyMap()
+    }
 
 private fun Any?.isBlankString(): Boolean = this is String && trim { it in PHP_TRIM }.isEmpty()
 
@@ -56,4 +66,12 @@ fun LegacyInput.toTokenSettings(): TokenSettings =
         timeout = phpIntval(get("timeout")),
         retryAfter = RetryAfter.parse(get("retry_after")),
         autoCleanup = AutoCleanup.parse(get("auto_cleanup")),
+        signature = signatureDraft(get("signature")),
     )
+
+/** Chamado depois da validação: o que não é um `signature` válido é ausência. */
+private fun signatureDraft(value: Any?): SignatureDraft? =
+    when (val parsed = if (value == null || value.isBlankString()) null else readSignature(value)) {
+        is Parsed.Valid -> parsed.value
+        is Parsed.Invalid, null -> null
+    }

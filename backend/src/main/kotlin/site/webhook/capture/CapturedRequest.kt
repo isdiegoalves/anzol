@@ -8,6 +8,7 @@ import site.webhook.TIMESTAMP_PATTERN
 import site.webhook.TokenId
 import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
+import site.webhook.signature.SignatureResult
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
@@ -19,8 +20,8 @@ import java.time.LocalDateTime
  * `query` e `request` são arrays do PHP (lista ou objeto). `request` tem três estados: ausente
  * (Kotlin `null`, requisição JSON), `null` no JSON (`NullNode`, sem campos) ou os campos.
  *
- * `rule` e `near_miss` (regras de resposta) são gravados sempre, nulos quando não se aplicam; mensagem
- * gravada antes deles os lê como `null`.
+ * `rule` e `near_miss` (regras de resposta) e `signature` (verificação HMAC) são gravados sempre, nulos
+ * quando não se aplicam; mensagem gravada antes deles os lê como `null`.
  *
  * `seq` é o score da mensagem no índice (estritamente crescente por URL): anexado quando a mensagem
  * sai do Redis (listagem, `GET`, evento) e nunca gravado na hash, que guarda o formato do app antigo.
@@ -45,6 +46,7 @@ data class CapturedRequest(
     val request: JsonNode? = null,
     val rule: RuleRef? = null,
     val nearMiss: NearMiss? = null,
+    val signature: SignatureResult? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val seq: Long? = null,
 ) {

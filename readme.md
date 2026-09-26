@@ -44,7 +44,7 @@ dados ficam no volume.
 
 | Rota | O que faz |
 |---|---|
-| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`) |
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`) |
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL (com as mensagens dela) |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
@@ -71,6 +71,47 @@ faz toda resposta do webhook da URL levar o cabeçalho `Retry-After`; útil com 
 `auto_cleanup` (500, 1000, 5000 ou 10000) é a limpeza automática: a URL guarda só as N mensagens
 mais recentes e apaga a mais antiga a cada nova (também na hora, se o limite for reduzido). A URL
 nunca para de receber.
+
+### Verificação de assinatura
+
+Com `signature`, a URL confere em cada mensagem se a assinatura HMAC que o provedor mandou bate com o segredo,
+e diz por que não bate. A conta é feita na chegada, sobre os bytes do corpo exatamente como chegaram (antes
+de qualquer decodificação: corpo com UTF-8 inválido, formulário e multipart também são verificados), e a
+comparação é em tempo constante. A chave do HMAC são os bytes UTF-8 do segredo inteiro (o `whsec_…` da
+Stripe inclusive).
+
+| `provider` | Cabeçalho | O que é assinado |
+|---|---|---|
+| `stripe` | `Stripe-Signature: t=…,v1=…` (vale qualquer `v1`; os demais itens são ignorados) | HMAC-SHA256 em hex de `"{t}.{corpo}"`; `t` a até `toleranceSeconds` de agora (padrão 300) |
+| `github` | `X-Hub-Signature-256: sha256=<hex>` | HMAC-SHA256 do corpo |
+| `shopify` | `X-Shopify-Hmac-Sha256: <base64>` | HMAC-SHA256 do corpo |
+| `slack` | `X-Slack-Signature: v0=<hex>` e `X-Slack-Request-Timestamp` | HMAC-SHA256 de `"v0:{timestamp}:{corpo}"`; timestamp a até `toleranceSeconds` de agora (padrão 300) |
+| `generic` | `header` (obrigatório), com `prefix` opcional antes do valor | HMAC do corpo com `algorithm` `sha1`, `sha256` (padrão) ou `sha512`, em `encoding` `hex` (padrão) ou `base64` |
+
+```json
+{ "signature": { "provider": "generic", "secret": "meu-segredo", "header": "X-Signature",
+  "algorithm": "sha256", "encoding": "hex", "prefix": "sha256=" } }
+```
+
+`secret` tem de 1 a 256 caracteres; `toleranceSeconds` (só `stripe` e `slack`) é inteiro de 1 a 86400;
+campos que não se aplicam ao provedor são ignorados. O token devolve a configuração com os padrões
+preenchidos e o segredo **mascarado**, `"••••"` e os 4 últimos caracteres (nunca mais que a metade do
+segredo); o segredo inteiro fica só no Redis, e nunca vai para o log. No `PUT`, `secret` ausente, nulo, vazio
+ou igual ao mascarado mantém o atual (a tela salva os outros campos sem apagá-lo); sem segredo atual, é 422
+em `signature.secret`. `signature` ausente ou `null` desliga a verificação, como os demais campos do `PUT`.
+Configuração inválida dá 422 com a chave em pontos (`{"signature.provider": ["The selected signature.provider is invalid."]}`).
+
+Toda mensagem traz `signature`: `null` quando a URL não verifica, senão `{provider, valid, reason}`, com
+`reason` `null` quando válida ou uma destas frases:
+
+| `reason` | Quando |
+|---|---|
+| `header X-Hub-Signature-256 absent` | falta um cabeçalho que a verificação exige (no Slack, a assinatura ou o timestamp) |
+| `malformed header` | o cabeçalho não está no formato do provedor (sem `t` ou `v1`, sem `sha256=`/`v0=`/`prefix`, hex ou base64 inválido) |
+| `signature mismatch` | o HMAC não confere (segredo errado ou corpo alterado) |
+| `timestamp outside tolerance (412 s)` | a assinatura confere, mas o timestamp está a mais de `toleranceSeconds` de agora, para trás ou para a frente |
+
+Mensagens gravadas antes da verificação trazem `signature: null`.
 
 ### Regras de resposta
 
@@ -105,6 +146,7 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.method` | lista; vazia ou ausente casa qualquer método (sem caixa) |
 | `match.path` | um de `equals`, `prefix`, `regex`, sobre o caminho após o token, decodificado e sem a barra final (`/` quando vazio) |
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
+| `match.signature` | `valid`, `invalid` ou `absent` (falta o cabeçalho de assinatura; ver [Verificação de assinatura](#verificação-de-assinatura)). URL sem verificação não casa nenhum dos três. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
 | `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
 | `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`), `delay`, `dribble` e `fault` (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)) |
@@ -247,12 +289,14 @@ recria sem perda.
 Toda mensagem traz `rule` (`{id, name}` da regra que respondeu, ou `null`) e `near_miss`: sem regra
 que case, a regra ativa com menos condições falhando (empate pela prioridade), com uma frase por
 condição em `failed` (`method: expected POST, got GET`, `header x-signature: absent`,
-`body $.status: expected "pago", got "pendente"`); `null` quando respondeu uma regra ou não há regra
+`body $.status: expected "pago", got "pendente"`, `signature: expected valid, got invalid (signature mismatch)`,
+`signature: expected valid, got not configured`); `null` quando respondeu uma regra ou não há regra
 ativa. Mensagens gravadas antes das regras trazem os dois nulos.
 
 `POST /token/{id}/rules/test` recebe uma regra (mesma validação, chaves sem o índice), ignora `enabled`
 e responde `{"matches": [{uuid, seq}], "misses": [{uuid, seq, failed}]}` sobre as 500 mensagens mais
-recentes, da mais nova para a mais antiga.
+recentes, da mais nova para a mais antiga. A condição de assinatura usa o `signature` gravado em cada
+mensagem (a verificação da época em que chegou).
 
 As regras ficam em `token:{uuid}:rules`, com o TTL da URL (renovado a cada webhook), e saem junto com
 ela no `DELETE /token/{id}`.

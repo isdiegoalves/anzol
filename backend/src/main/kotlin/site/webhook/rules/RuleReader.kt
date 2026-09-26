@@ -2,6 +2,7 @@ package site.webhook.rules
 
 import com.jayway.jsonpath.InvalidPathException
 import com.jayway.jsonpath.JsonPath
+import site.webhook.signature.SignatureState
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -14,7 +15,7 @@ private val STATUS_RANGE = 100..599
 private val UUID_TEXT = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 /** `token` da RFC 9110 §5.6.2: o que pode ser nome de cabeçalho. */
-private val HEADER_NAME = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+val HEADER_NAME = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 private val PATH_OPERATORS = listOf("equals", "prefix", "regex")
 private val FIELD_OPERATORS = listOf("equals", "contains", "regex", "present")
 private val BODY_OPERATORS = listOf("equals", "contains", "regex", "jsonPath", "equalToJson")
@@ -183,7 +184,7 @@ class RuleReader(
         }
 }
 
-/** O `match` de uma regra: método, caminho, query, cabeçalhos e corpo. */
+/** O `match` de uma regra: método, caminho, query, cabeçalhos, corpo e assinatura. */
 class MatchReader(
     private val violations: Violations,
 ) {
@@ -204,6 +205,7 @@ class MatchReader(
         val query = fields(node["query"], key(key, "query"))
         val headers = fields(node["headers"], key(key, "headers"))
         val body = body(node["body"], key(key, "body"))
+        val signature = node["signature"].given()?.let { violations.signatureState(it, key(key, "signature")) }
         return if (violations.hasErrorsUnder(key)) {
             null
         } else {
@@ -213,6 +215,7 @@ class MatchReader(
                 query = checkNotNull(query),
                 headers = checkNotNull(headers),
                 body = checkNotNull(body),
+                signature = signature,
             )
         }
     }
@@ -364,6 +367,14 @@ class ScenarioReader(
         return text.ifEmpty { violations.fail(key, "The ${key.substringAfterLast('.')} field is required.") }
     }
 }
+
+/** `match.signature`: `valid`, `invalid` ou `absent`. */
+private fun Violations.signatureState(
+    node: JsonNode,
+    key: String,
+): SignatureState? =
+    SignatureState.entries.firstOrNull { node.isString && it.id == node.stringValue() }
+        ?: fail(key, "The selected signature is invalid.")
 
 /** Nome da regra ou do cenário: obrigatório, texto, até [MAX_NAME_LENGTH] caracteres. */
 private fun Violations.name(
