@@ -9,18 +9,24 @@ export function convertRequest(request: WebhookRequest, format: CopyFormat, toke
 }
 
 /**
- * Mesmo comando do app atual. Diferença: `\` e `'` do corpo são escapados, porque dentro de
- * `$'...'` o comando antigo quebrava com aspas simples e reinterpretava barras invertidas.
+ * Mesmo comando do app atual, mas seguro para colar no terminal: quem envia o webhook controla
+ * método, URL, headers e corpo, e o app atual os punha entre aspas simples sem escape (um `'`
+ * fechava a aspa e injetava comando). Método, URL e headers usam aspas simples POSIX; o corpo
+ * segue em `$'...'` com `\` e `'` escapados.
  */
 export function toCurl(request: WebhookRequest): string {
-  let curl = `curl -X '${request.method}' '${request.url}'`;
+  let curl = `curl -X ${shellQuote(request.method)} ${shellQuote(request.url)}`;
   for (const [name, values] of Object.entries(request.headers)) {
-    curl += ` -H '${name}: ${values.join(',')}'`;
+    curl += ` -H ${shellQuote(`${name}: ${values.join(',')}`)}`;
   }
   if (request.content) {
     curl += ` -d $'${request.content.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
   }
   return curl;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 /**

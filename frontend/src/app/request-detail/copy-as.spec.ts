@@ -68,3 +68,45 @@ describe('Dado uma mensagem copiada como HAR', () => {
     );
   });
 });
+
+describe('Dado uma mensagem maliciosa copiada como curl', () => {
+  // Executa o comando gerado num bash real, com `curl` trocado por uma função que só imprime os
+  // argumentos. Se algum trecho escapar das aspas, o `touch` roda e/ou os argumentos mudam.
+  const executarNoBash = async (comando: string): Promise<{ args: string[]; injetou: boolean }> => {
+    const { execFileSync } = await import('node:child_process');
+    const { mkdtempSync, existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(join(tmpdir(), 'copy-as-'));
+    const saida = execFileSync('bash', [
+      '-c',
+      `cd ${dir}; curl() { printf '%s\\0' "$@"; }; ${comando}`,
+    ]);
+    return {
+      args: saida.toString().split('\0').slice(0, -1),
+      injetou: existsSync(join(dir, 'pwned')),
+    };
+  };
+  const ataque = "x'; touch pwned; echo '";
+
+  it.each([
+    ['no valor de um header', { headers: { 'x-evil': [ataque] } }],
+    ['no nome de um header', { headers: { [ataque]: ['v'] } }],
+    ['na URL', { url: `http://h/${ataque}`, headers: {} }],
+    ['no método', { method: ataque, headers: {} }],
+    ['no corpo', { content: ataque, headers: {} }],
+  ])('não deve executar comando injetado Quando o ataque vem %s', async (_caso, campos) => {
+    const request = webhookRequest(1, campos);
+
+    const { args, injetou } = await executarNoBash(toCurl(request));
+
+    expect(injetou).toBe(false);
+    expect(args.slice(0, 3)).toEqual(['-X', request.method, request.url]);
+    for (const [nome, valores] of Object.entries(request.headers)) {
+      expect(args).toContain(`${nome}: ${valores.join(',')}`);
+    }
+    if (request.content) {
+      expect(args.at(-1)).toBe(request.content);
+    }
+  });
+});
