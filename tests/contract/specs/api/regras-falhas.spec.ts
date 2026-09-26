@@ -243,11 +243,15 @@ const descrever = (o: Observado): string =>
   `erro=${o.erro?.code ?? 'nenhum'} bytes=${o.bytes.length} ${JSON.stringify(o.bytes.subarray(0, 120).toString('latin1'))}`;
 
 test.describe('falhas de rede (socket cru)', () => {
-  test('connection_reset: a conexão cai com ECONNRESET, sem resposta HTTP', async ({ request, tokens }) => {
+  test('connection_reset: a conexão cai sem resposta HTTP (RST; FIN atrás de encaminhador de porta)', async ({ request, tokens }) => {
     const token = await tokens.criar();
     const regraId = await salvarFalha(request, token.uuid, 'connection_reset');
     const o = await observarSocket(`/${token.uuid}/falha`);
-    expect(o.erro?.code, descrever(o)).toBe('ECONNRESET');
+    // Encaminhadores de porta (OrbStack, Docker Desktop) trocam o RST do container por um FIN no host.
+    // O RST de verdade é exigido por backend/.../rules/RuleTimingApiTest (Tomcat no mesmo processo,
+    // sem encaminhador), que roda no ./ci.sh. Aqui: RST, ou fechamento sem nenhum byte.
+    const resetOuFechouVazio = o.erro?.code === 'ECONNRESET' || (o.erro === undefined && o.bytes.length === 0);
+    expect(resetOuFechouVazio, descrever(o)).toBe(true);
     expect(o.bytes.toString('latin1'), descrever(o)).not.toMatch(/^HTTP\//);
     expect(o.ms, 'o atraso da regra é ignorado com fault').toBeLessThan(4000);
     await expectGravada(request, token.uuid, regraId, 'connection_reset');
