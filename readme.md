@@ -54,6 +54,7 @@ dados ficam no volume.
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) |
 | `GET`/`PUT /token/{id}/rules` | Lê ou substitui a lista de regras de resposta da URL (o `PUT` é também o import) |
 | `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
+| `POST /token/{id}/requests/search` | Busca nas mensagens por texto e pelo `match` das regras, paginada como a listagem (ver [Buscar mensagens](#buscar-mensagens)) |
 | `POST /token/{id}/requests/wait` | Espera, com prazo, até chegarem mensagens que casam um `match` das regras (ver [Esperar por mensagens](#esperar-por-mensagens)) |
 | `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
 | `PUT /token/{id}/scenarios/{name}` | Define à mão o estado de um cenário (`{"state": "..."}`) |
@@ -377,6 +378,30 @@ virtual. Apagar a URL durante a espera a encerra na hora, com o que houver (200,
 bastou). Corpo vazio vale `{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`
 (`{"match.path.regex": ["The regex is invalid."]}`), `after`, `count` e `timeout` na chave do campo e
 `wait` quando o corpo não é um objeto JSON; URL inexistente dá 410.
+
+### Buscar mensagens
+
+`POST /token/{id}/requests/search` acha mensagens entre as retidas na URL (até 10.000) sem rolar a lista.
+
+```json
+{ "text": "PED-7781", "match": { "method": ["POST"], "signature": "invalid" },
+  "sorting": "newest", "page": 1, "per_page": 50 }
+```
+
+| Campo | Regra |
+|---|---|
+| `text` | até 200 caracteres. Casa quando aparece como trecho literal, sem diferenciar maiúsculas, no método, na `url` gravada, no IP, num nome ou valor de header, num nome ou valor de query (em qualquer nível: `a[b]=1` também) ou no corpo. Vazio ou ausente: sem filtro de texto |
+| `match` | o `match` de uma regra (ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
+| `sorting` | `newest` (padrão) ou `oldest` |
+| `page`, `per_page` | `page` ≥ 1 (padrão 1); `per_page` de 1 a 100 (padrão 50) |
+
+`text` e `match` combinam em E. A resposta tem a forma e a aritmética de página do `GET /token/{id}/requests`
+(`data`, `total`, `per_page`, `current_page`, `is_last_page`, `from`, `to`), com `total` = quantas casam; sem
+filtro, é a mesma página da listagem. O servidor varre todas as mensagens da URL a cada chamada, em trechos de
+100 lidos pelo índice (na memória ficam o trecho e a página, nunca a URL inteira); não há índice de texto.
+Mensagem fantasma do app antigo (valor vazio na hash) não casa nada e não conta no `total`. Corpo vazio vale
+`{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`, `text`, `sorting`, `page` e `per_page`
+na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexistente dá 410.
 
 O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB) está descrito em
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem

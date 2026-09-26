@@ -31,6 +31,10 @@ private val TRIM = requestScript("requests-trim", List::class.java)
 private val DELETE = requestScript("requests-delete", Long::class.javaObjectType)
 private val FIND = requestScript("requests-find", List::class.java)
 private val AFTER = requestScript("requests-after", List::class.java)
+private val SCAN = requestScript("requests-scan", List::class.java)
+
+/** Itens antes dos pares (JSON, seq) na resposta de `requests-scan.lua`: entradas lidas e o cursor. */
+private const val SCAN_HEADER = 3
 
 /** Resultado da gravação: o `seq` que a mensagem recebeu e as que a limpeza tirou. */
 data class Stored(
@@ -44,11 +48,25 @@ data class RequestBatch(
     val hasMore: Boolean,
 )
 
+/** Ponto da varredura no índice: o `seq` da última entrada lida e quantas com esse `seq` já foram lidas. */
+data class ScanCursor(
+    val seq: Long,
+    val sameSeq: Long,
+)
+
+/** Trecho da varredura; [next] é nulo quando o índice acabou. */
+data class ScanBatch(
+    val messages: List<CapturedRequest>,
+    val next: ScanCursor?,
+)
+
 /** Pares (JSON, seq) de um script, sem os valores vazios (mensagem fantasma do app antigo). */
 private fun List<*>.toMessages(jsonMapper: JsonMapper): List<CapturedRequest> =
     chunked(2)
         .filter { (json, _) -> json is String && json.isNotEmpty() }
         .map { (json, seq) -> jsonMapper.readValue(json.toString(), CapturedRequest::class.java).copy(seq = seq.toString().toLong()) }
+
+private fun List<*>.toRequestIds(): List<RequestId> = filterIsInstance<String>().map { RequestId(UUID.fromString(it)) }
 
 /**
  * Mensagens de um token em duas chaves que os scripts Lua mantêm coerentes: a hash
@@ -69,8 +87,6 @@ class RequestStore(
     private fun keys(token: Token) = listOf(RedisKeys.requests(token.uuid), RedisKeys.requestIndex(token.uuid))
 
     private fun retention(token: Token): Long = token.autoCleanup?.limit ?: properties.maxRequests
-
-    private fun List<*>.toRequestIds(): List<RequestId> = filterIsInstance<String>().map { RequestId(UUID.fromString(it)) }
 
     fun find(
         token: Token,
@@ -105,6 +121,25 @@ class RequestStore(
     ): RequestBatch {
         val reply = redis.execute(AFTER, keys(token), after.toString(), limit.toString())
         return RequestBatch(messages = reply.drop(1).toMessages(jsonMapper), hasMore = reply.first().toString().toLong() > 0)
+    }
+
+    /**
+     * Até [limit] entradas do índice depois de [from] (nulo: do começo), na ordem [sorting]. A mensagem
+     * fantasma não vem em [ScanBatch.messages], mas avança o cursor: a varredura segue até o fim do índice.
+     */
+    fun scan(
+        token: Token,
+        sorting: Sorting,
+        from: ScanCursor?,
+        limit: Long,
+    ): ScanBatch {
+        val order = if (sorting == Sorting.NEWEST) "newest" else "oldest"
+        val reply =
+            redis.execute(SCAN, keys(token), order, from?.seq?.toString().orEmpty(), (from?.sameSeq ?: 0).toString(), limit.toString())
+        val (read, seq, sameSeq) = reply.take(SCAN_HEADER).map { it.toString() }
+        // Trecho incompleto: o índice acabou (e, vazio, nem há cursor a ler).
+        val next = if (read.toLong() < limit) null else ScanCursor(seq = seq.toLong(), sameSeq = sameSeq.toLong())
+        return ScanBatch(messages = reply.drop(SCAN_HEADER).toMessages(jsonMapper), next = next)
     }
 
     fun count(token: Token): Long = redis.execute(COUNT, keys(token))

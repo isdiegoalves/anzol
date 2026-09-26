@@ -4,9 +4,7 @@ import site.webhook.rules.MatchReader
 import site.webhook.rules.Parsed
 import site.webhook.rules.RuleMatch
 import site.webhook.rules.Violations
-import site.webhook.rules.given
 import site.webhook.rules.readJson
-import tools.jackson.databind.JsonNode
 import java.time.Duration
 
 private val COUNT_RANGE = 1L..100L
@@ -49,22 +47,5 @@ fun parseWait(body: String): Parsed<WaitRequest> {
             count = checkNotNull(count).toInt(),
             timeout = Duration.ofMillis(checkNotNull(timeout)),
         )
-    }
-}
-
-/** Inteiro dentro de [range], com as mensagens do Laravel (`integer`, `min`, `between`); ausente ou nulo é [default]. */
-private fun Violations.whole(
-    node: JsonNode?,
-    key: String,
-    range: LongRange,
-    default: Long,
-): Long? {
-    val given = node.given() ?: return default
-    val value = given.takeIf { it.isIntegralNumber && it.canConvertToLong() }?.longValue()
-    return when {
-        value == null -> fail(key, "The $key must be an integer.")
-        value in range -> value
-        range.last == Long.MAX_VALUE -> fail(key, "The $key must be at least ${range.first}.")
-        else -> fail(key, "The $key must be between ${range.first} and ${range.last}.")
     }
 }

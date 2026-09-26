@@ -113,6 +113,23 @@ class Violations {
             fail(key, "The ${attribute(key)} must be an integer.")
         }
 
+    /** Inteiro dentro de [range], com as mensagens do Laravel (`integer`, `min`, `between`); ausente ou nulo é [default]. */
+    fun whole(
+        node: JsonNode?,
+        key: String,
+        range: LongRange,
+        default: Long,
+    ): Long? {
+        val given = node.given() ?: return default
+        val value = given.takeIf { it.isIntegralNumber && it.canConvertToLong() }?.longValue()
+        return when {
+            value == null -> fail(key, "The ${attribute(key)} must be an integer.")
+            value in range -> value
+            range.last == Long.MAX_VALUE -> fail(key, "The ${attribute(key)} must be at least ${range.first}.")
+            else -> fail(key, "The ${attribute(key)} must be between ${range.first} and ${range.last}.")
+        }
+    }
+
     fun text(
         node: JsonNode?,
         key: String,
