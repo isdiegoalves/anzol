@@ -18,7 +18,7 @@ cd tests/contract
 npm ci
 
 npx playwright test                  # tudo: api + event
-npx playwright test --project=api    # tokens, webhook, mensagens, listagem, erros, limpeza, volume
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, erros, limpeza, volume
 npx playwright test --project=event  # evento request.created (SSE)
 
 BASE_URL=http://localhost:8087 npx playwright test   # outra instância
@@ -363,6 +363,53 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   lê `schema: null`; mensagem gravada antes do schema continua com `null`). A leitura de tokens e mensagens
   gravados no Redis sem o campo (app Laravel e versões anteriores) fica com os testes do backend.
 
+- **Busca de mensagens** (`specs/api/busca-*.spec.ts`, helpers em `support/busca.ts`; §1 do plano
+  "busca-filtro-diff"). `POST /token/{id}/requests/search` `{text?, match?, sorting?, page?, per_page?}` responde
+  200 com a forma do `GET /token/{id}/requests` (`data, total, per_page, current_page, is_last_page, from, to`).
+  - *Texto* (`busca-texto.spec.ts`, CA-1): `text` acha como trecho, sem diferenciar maiúsculas, com o texto
+    original, com a caixa trocada e com um pedaço, em cada campo, cada um numa mensagem que só o tem ali: corpo,
+    nome de header, valor de header, nome de query (`chaveúnica`, que a URL guarda como `chave%C3%BAnica`),
+    valor de query (`Valor Com Espaco`, que a URL guarda com `%20`), URL (caminho) e método; a busca devolve
+    exatamente aquela mensagem, com `total` 1. IP inteiro e trecho acham as duas mensagens do cliente (o teste
+    confere antes que o IP não aparece em outro campo). Texto que não está lá (inclusive quase igual, com espaço
+    no lugar do hífen ou espaço dobrado) → exatamente a página vazia `{data: [], total: 0, per_page: 50,
+    current_page: 1, is_last_page: true, from: 1, to: 0}`. `text` é literal: `(r$ 10.00) [TOTAL]*` acha, `r. 10`
+    e `total.` não. `text` vazio ou ausente não filtra.
+  - *Match* (`busca-match.spec.ts`, CA-2): numa URL com assinatura GitHub e schema, quatro mensagens (POST
+    válida e assinada; POST com schema inválido e assinatura divergente; PUT válido sem assinatura; GET sem corpo)
+    e a lista exata, em ordem `oldest`, para: `match` ausente e `{}`; `method` (lista; vazia = qualquer); `path`
+    `equals`, `prefix`, `regex`; header `equals` (nome em outra caixa), `contains`, `present: false`; corpo
+    `jsonPath` com `equals`, `contains`, `equalToJson` com chaves em outra ordem; `signature` `valid`, `invalid`,
+    `absent`; `schema` `valid`, `invalid` (GET sem corpo é inválido). Condições combinadas em E; `text` + `match`
+    em E (inclusive `text` que casa em duas e `match` que deixa uma, e combinação vazia). URL sem schema:
+    `match.schema` `valid` e `invalid` não acham nada.
+  - *Paginação e ordenação* (`busca-paginacao.spec.ts`, CA-3): URL vazia → a página vazia, igual à listagem. Sem
+    filtro (`{}`, `text: ""`, `match: {}`), 12 combinações de `page`/`per_page` (inclusive além do fim, `per_page`
+    1 e 100) × `oldest`/`newest`: a busca é **igual** à página do `GET /requests` com os mesmos parâmetros (itens e
+    metadados), e a aritmética de `metaEsperada` confere com a da listagem. Padrões: `sorting` newest, `page` 1,
+    `per_page` 50 (comparados com `GET /requests?sorting=newest…`). Com filtro (5 de 9 casando, intercaladas):
+    `total` 5 em toda página, `from`/`to`/`is_last_page` pela mesma aritmética, páginas além do fim, as páginas
+    juntas são as que casam na ordem `oldest` e `newest`; os itens são as mensagens como na listagem; o mesmo com
+    `match`. 12 mensagens no mesmo segundo: ordem de chegada entre páginas. **Varre tudo:** com 520 mensagens, a
+    mais antiga (fora das 500 que o `rules/test` considera) é achada por `text` e por `match` (`method`, `path`).
+  - *Validação* (`busca-validacao.spec.ts`, CA-4): 422 JSON `{chave: [mensagem]}` com a forma do Laravel: `text`
+    com 201 e 1000 caracteres → `text` (200 aceito); `per_page` 0, 101, −1, 1000, 1.5, `"abc"`, `true` →
+    `per_page` (1 e 100 aceitos); `page` 0, −1, 1.5, `"abc"`, `true` → `page` (1 e 99 além do fim aceitos); regex
+    inválida → exatamente `{"match.path.regex": ["The regex is invalid."]}`; `method` que não é lista, header sem
+    operador ou com dois, regex inválida na query ou no corpo, `body` que não é lista, `signature` e `schema` fora
+    da lista, `match` texto ou número → uma chave `match…` do campo. Um 422 não mexe nas mensagens. Token que
+    nunca existiu e token apagado → 410 `Token not found` no envelope JSON.
+
+  Leituras assumidas onde a §1 deixava folga: sem filtro a busca devolve exatamente a página da listagem (mesmos
+  itens, com todos os campos); "trecho" é substring literal (sem regex nem curinga); o IP é procurado como texto
+  (trecho do IP também acha); `text` vazio vale como ausente e não é 422; valor não inteiro de `page`/`per_page`
+  (fração, texto, booleano) é inválido como fora dos limites (como no `wait-for`); a chave do 422 de `match` não
+  tem prefixo de índice (`match.path.regex`, como no `wait-for`), e só a regex tem mensagem exata; "varre todas as
+  mensagens retidas" vale para `text` e para `match`, inclusive além das 500 mais recentes. Ficam fora: `sorting`
+  desconhecido, `text` que não é string, corpo ausente ou que não é objeto, o campo `request` (formulário) e o
+  `hostname` como alvos do texto, caixa de letras não ASCII, `match.signature` numa URL sem assinatura, o tempo da
+  busca com 10.000 mensagens e a leitura em lotes (não observável pela API).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -391,6 +438,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Token e mensagem sem informação de assinatura | `signature` no token (configuração, segredo mascarado) e na mensagem (`{provider, valid, reason}` ou `null`); condição de regra `match.signature` | Feature "verificação de assinatura HMAC" (2026-09-26): dizer se a assinatura do provedor confere e por que não. `signature` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem configuração responde e grava como antes, com `signature: null` |
 | Esperar uma requisição exigia polling da listagem | `POST /token/{id}/requests/wait` (long-poll com o `match` das regras, `count`, `after`, `timeout` e `near_miss`) | Feature "wait-for" (2026-09-26): teste automatizado afirma "chegou N vezes uma requisição assim em até T" sem `sleep` e sabe por que não chegou. Rota nova; nada do que existia muda |
 | Token e mensagem sem validação do corpo | `schema` no token (JSON Schema ou `null`) e na mensagem (`{valid, errors}` ou `null`); condição `match.schema` nas regras e no `wait-for` | Feature "validação de schema por URL" (2026-09-26): saber de imediato se o payload segue o contrato e responder erro quando não segue. `schema` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem schema responde e grava como antes, com `schema: null` |
+| Achar uma mensagem exigia rolar a listagem | `POST /token/{id}/requests/search` (texto sem diferenciar maiúsculas + `match` das regras, paginado como a listagem) | Feature "busca, filtro e diff" (2026-09-26): achar a mensagem que interessa entre milhares. Rota nova; nada do que existia muda |
 
 ## Defeitos do legado (`bugDoLegado`)
 
