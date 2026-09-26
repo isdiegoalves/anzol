@@ -287,6 +287,10 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
 
 ## Exclusões propositais
 
+- **`Expect: 100-continue` antes de uma falha de rede** (refutação da fase B): o Tomcat responde `HTTP/1.1 100`
+  ao começar a ler o corpo, antes de a regra decidir; com `empty_response`, `connection_reset` e
+  `random_data_then_close`, esse `100` chega antes da falha. É o comportamento do protocolo; os testes de falha
+  enviam sem `Expect`.
 - **Ordem das mensagens é a de chegada** (refutação do índice ordenado, 2026-09-26): coincide com
   `created_at` enquanto o relógio do servidor não volta. Mensagem gravada com `created_at` no futuro
   (dado migrado de servidor adiantado) ou relógio que volta (ajuste de NTP) faz a ordem divergir da
