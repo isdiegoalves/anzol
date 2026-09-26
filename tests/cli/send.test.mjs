@@ -241,7 +241,7 @@ describe('webhook send', () => {
       '--method', 'PUT',
       '--header', 'Content-Type: application/json',
       '--header', 'X-Evento: {{uuid}}',
-      '--header', 'X-Fixo: valor com espaço',
+      '--header', 'X-Fixo: valor com espaco',
       '--header', 'X-Seq: {{seq}}',
       '--data', modelo,
     ]);
@@ -252,7 +252,7 @@ describe('webhook send', () => {
     assert.equal(rec.metodo, 'PUT');
     assert.equal(rec.url, '/hook/ca1?origem=aceite&x=1');
     assert.equal(cabecalho(rec, 'content-type'), 'application/json');
-    assert.equal(cabecalho(rec, 'x-fixo'), 'valor com espaço');
+    assert.equal(cabecalho(rec, 'x-fixo'), 'valor com espaco');
     assert.equal(cabecalho(rec, 'x-seq'), '1');
 
     const texto = rec.corpo.toString('utf8');
@@ -275,6 +275,16 @@ describe('webhook send', () => {
     assert.deepEqual(resumo(r.tentativas), [tentativa(1, 1, 1, 201)], r.cli.descricao());
     assert.deepEqual(r.desfechos, [{ seq: 1, resultado: 'delivered', tentativas: 1 }], r.cli.descricao());
     assert.equal(r.codigo, 0, `código de saída\n${r.cli.descricao()}`);
+  });
+
+  // O cliente HTTP do JDK não manda header fora do ASCII (troca por `?`): o send recusa antes de enviar.
+  test('cabeçalho com valor fora do ASCII é recusado sem envio, citando o nome', { timeout: 90_000 }, async () => {
+    const app = await iniciarCapturador();
+    const cli = await iniciarSend(['--to', `${app.url}/nao-ascii`, '--header', 'X-Acento: ação', '--data', 'x']);
+    const { codigo } = await cli.esperarSaida(60_000);
+    assert.notEqual(codigo, 0, `código de saída\n${cli.descricao()}`);
+    assert.ok(cli.linhas.some((l) => l.texto.includes('X-Acento')), `a mensagem cita o cabeçalho\n${cli.descricao()}`);
+    assert.equal(app.recebidas.length, 0, `nada enviado; recebidas:\n${app.resumo()}`);
   });
 
   test('CA-1: --data-file com placeholders, POST por padrão, bytes UTF-8 preservados', { timeout: 90_000 }, async () => {
