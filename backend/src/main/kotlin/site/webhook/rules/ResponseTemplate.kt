@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache
 import com.github.jknack.handlebars.Context
 import com.github.jknack.handlebars.Decorator
 import com.github.jknack.handlebars.EscapingStrategy
+import com.github.jknack.handlebars.Formatter
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.HandlebarsException
 import com.github.jknack.handlebars.Helper
@@ -38,11 +39,14 @@ data class TemplateInput(
 /**
  * Handlebars sem escape HTML (as respostas são JSON ou texto), sem carregador de templates e sem
  * decorators: `{{> x}}` pede o carregador e `{{#*inline}}` o decorator já ao compilar, então os dois
- * falham ao salvar (422) e nunca leem arquivo.
+ * falham ao salvar (422) e nunca leem arquivo. Mapa impresso inteiro (`{{request.query}}`,
+ * `{{lookup request 'headers'}}`) sai como JSON, e não no `toString` do Java; acima de [MAX_RENDERED_BODY]
+ * caracteres o JSON para de ser escrito, e o teto da saída recusa a resposta.
  */
 private object ResponseHandlebars : Handlebars() {
     init {
         with(EscapingStrategy.NOOP)
+        with(Formatter { value, next -> if (value is Map<*, *>) jsonUpTo(value, MAX_RENDERED_BODY) else next.format(value) })
     }
 
     /** Toda busca de helper (compilação e execução) passa por aqui: só [HELPERS] existe. */
@@ -196,12 +200,17 @@ private fun Template?.render(
     return rendered
 }
 
+/** A única chave dos dados da renderização que o template lê: `@root` (buscada com e sem `@`), o próprio contexto do Anexo B. */
+private val ROOT_DATA = setOf("@root", "root")
+
 /**
- * O resolvedor de mapas, só com os tipos do contexto do Anexo B (texto, número, mapa): o que o
- * Handlebars guarda ao lado, nos dados da renderização (`{{@__inline_partials_}}`, o relógio e os
- * tetos desta renderização), não aparece no template nem como texto. Valor de outro tipo é recusado
- * com `null`, e não com `UNRESOLVED`: o `Context.Builder` põe o `MapValueResolver` cru depois deste, e
- * `UNRESOLVED` o deixaria achar o valor recusado.
+ * O resolvedor de mapas, só com os tipos do contexto do Anexo B (texto, número, mapa). Dos dados da
+ * renderização, que o Handlebars também consulta (`{{[chave]}}`, `{{@chave}}`, `lookup`), só sai `@root`:
+ * o resto (partials, pilha de chamadas, número de parâmetros do último helper, o relógio e os tetos desta
+ * renderização) não aparece no template nem como texto nem como bloco. Valor recusado é `null`, e não
+ * `UNRESOLVED`: o `Context.Builder` põe o `MapValueResolver` cru depois deste, e `UNRESOLVED` o deixaria
+ * achar o valor recusado. Chave ausente continua `UNRESOLVED`, para a busca seguir aos contextos de fora
+ * (`{{request.body}}` dentro de um `each`).
  */
 private object AnnexBResolver : ValueResolver by MapValueResolver.INSTANCE {
     override fun resolve(
@@ -209,8 +218,12 @@ private object AnnexBResolver : ValueResolver by MapValueResolver.INSTANCE {
         name: String?,
     ): Any? {
         val value = MapValueResolver.INSTANCE.resolve(context, name)
-        return value.takeIf { it === ValueResolver.UNRESOLVED || it is String || it is Number || it is Map<*, *> }
+        val readable = !context.isRenderData() || name in ROOT_DATA
+        return value.takeIf { it === ValueResolver.UNRESOLVED || (readable && (it is String || it is Number || it is Map<*, *>)) }
     }
+
+    /** Os dados da renderização, e não um mapa do Anexo B: só eles guardam um [RenderBudget] (o remetente só manda texto). */
+    private fun Any?.isRenderData(): Boolean = this is Map<*, *> && this[BUDGET_DATA] is RenderBudget
 }
 
 private fun context(

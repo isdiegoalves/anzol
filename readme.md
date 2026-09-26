@@ -130,6 +130,7 @@ Com `"template": true`, o `body` e os valores dos `headers` da resposta são tem
 | `request.method`, `request.path`, `request.url` | método, caminho após o token (como no `match.path`) e a `url` gravada |
 | `request.query.<nome>`, `request.headers.<nome>` | parâmetro da query e cabeçalho (nome em minúsculas; `request.headers.[content-type]` também vale) |
 | `request.body`, `seq` | corpo cru e o `seq` da mensagem gravada |
+| `{{request}}`, `{{request.query}}`, `{{request.headers}}` | mapa impresso inteiro sai como JSON (`{"x":"1"}`, na ordem de chegada), nunca no formato do Java |
 | `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON. Só caminho simples (propriedade, índice, `*`, união e fatia): busca profunda (`..`), filtro (`[?(…)]`) e função (`.length()`) dão 422 ao salvar e, se o caminho vier da requisição, deixam o trecho vazio |
 | `{{now}}`, `{{now format='yyyy-MM-dd'}}` | agora em ISO-8601 UTC (em segundos) ou no padrão do `DateTimeFormatter`, em UTC |
 | `{{randomValue type='UUID'\|'ALPHANUMERIC'\|'NUMERIC'\|'HEX' length=N}}` | valor aleatório; `length` de 1 a 10000 (fora disso, 422 ao salvar), padrão 16 |
@@ -138,9 +139,9 @@ Com `"template": true`, o `body` e os valores dos `headers` da resposta são tem
 Valem também os blocos `if`, `unless`, `each`, `with` e `lookup`. Não há helper que leia arquivo,
 ambiente ou rede: partials (`{{> x}}`), decorators e os demais helpers embutidos do Handlebars
 (`embedded`, `block`, `partial`, `precompile`, `i18n`, `log`...) ficam desligados, e o template só
-enxerga os valores acima (nada de propriedade ou método de objeto Java; `lookup` de chave ausente sai
-vazio). O que vem do remetente (query, cabeçalhos, corpo) é sempre texto: `{{seq}}` dentro de um valor
-sai literal, sem ser avaliado. Erro de sintaxe, helper
+enxerga os valores acima (nada de propriedade ou método de objeto Java nem dos dados internos da
+renderização; `lookup` de chave ausente sai vazio). O que vem do remetente (query, cabeçalhos, corpo) é
+sempre texto: `{{seq}}` dentro de um valor sai literal, sem ser avaliado. Erro de sintaxe, helper
 desconhecido, helper sem os parâmetros que exige (`{{#each}}`, `{{#if}}`, `{{math 1 '+'}}`, em
 qualquer ramo), partial ou decorator dão 422 ao salvar
 (`"0.response.body": ["The template is invalid: could not find helper: 'x' (line 1, column 2)."]`, ou a

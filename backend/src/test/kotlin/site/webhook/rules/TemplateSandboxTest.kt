@@ -1,12 +1,17 @@
 package site.webhook.rules
 
+import com.github.jknack.handlebars.Context
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import tools.jackson.databind.json.JsonMapper
+import java.lang.reflect.Modifier
 import java.time.Instant
 
 private val REMETENTE =
@@ -24,8 +29,50 @@ private fun sandboxRender(
     request: TemplateRequest = REMETENTE,
 ): String = renderTemplate(template, TemplateInput(request, seq = 42, now = Instant.parse("2026-09-26T13:45:07Z")))
 
+/**
+ * Chaves que o Handlebars e este app guardam nos dados da renderização: as constantes `String` públicas
+ * de [Context], lidas por reflexão (uma versão nova do Handlebars que acrescente outra entra sozinha), e
+ * as nossas.
+ */
+private fun internalDataKeys(): List<String> =
+    Context::class.java.fields
+        .filter { Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+        .map { it.get(null) as String } + listOf(NOW_DATA, VALIDATING_DATA, BUDGET_DATA, DOCUMENTS_DATA)
+
+/**
+ * Formas de alcançar o dado [key]: com `@` e como segmento literal (`[key]`, que o Handlebars também
+ * procura nos dados), impresso, como contexto de bloco, como condição, pelo `lookup` e dentro de helpers
+ * (cada helper grava o número de parâmetros nos dados).
+ */
+private fun probesOf(key: String): List<String> =
+    listOf(
+        "{{@$key}}",
+        "{{@[$key]}}",
+        "{{$key}}",
+        "{{[$key]}}",
+        "{{{[$key]}}}",
+        "{{#with [$key]}}vazou{{/with}}",
+        "{{#with @$key}}vazou{{/with}}",
+        "{{#each [$key]}}vazou{{/each}}",
+        "{{#each @$key}}vazou{{/each}}",
+        "{{#if [$key]}}vazou{{/if}}",
+        "{{#unless [$key]}}{{else}}vazou{{/unless}}",
+        "{{lookup this '[$key]'}}",
+        "{{lookup this '$key'}}",
+        "{{lookup [$key] 'x'}}",
+        "{{#if seq}}{{[$key]}}{{#with [$key]}}vazou{{/with}}{{/if}}",
+        "{{#each request.query}}{{[$key]}}{{#each [$key]}}vazou{{/each}}{{/each}}",
+        "{{#with request}}{{[$key]}}{{lookup this '[$key]'}}{{/with}}",
+        "{{math [$key] '+' 0}}",
+    )
+
 @DisplayName("Isolamento do template das regras: só os valores do Anexo B, dados do remetente como texto")
 class TemplateSandboxTest {
+    companion object {
+        @JvmStatic
+        fun internalDataProbes(): List<Arguments> = internalDataKeys().flatMap { key -> probesOf(key).map { Arguments.of(key, it) } }
+    }
+
     @Nested
     @DisplayName("Objetos Java fora de alcance")
     inner class JavaObjects {
@@ -59,6 +106,22 @@ class TemplateSandboxTest {
         )
         fun render_dadoInterno_deveSairVazio(template: String) {
             assertThat(sandboxRender(template)).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado as constantes String de Context, quando lidas por reflexão, então incluem as chaves de dados conhecidas")
+        fun internalDataKeys_reflexao_deveAcharAsChavesConhecidas() {
+            assertThat(internalDataKeys()).contains(Context.PARAM_SIZE, Context.INVOCATION_STACK, Context.INLINE_PARTIALS, BUDGET_DATA)
+        }
+
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("site.webhook.rules.TemplateSandboxTest#internalDataProbes")
+        @DisplayName("Dado cada chave de dado interno, quando o template a imprime ou aplica um bloco sobre ela, então nada sai")
+        fun render_dadoInternoEmBloco_naoDeveVazar(
+            key: String,
+            template: String,
+        ) {
+            assertThat(sandboxRender(template)).describedAs("dado %s", key).isEmpty()
         }
 
         @ParameterizedTest(name = "{0} → {1}")
@@ -104,6 +167,64 @@ class TemplateSandboxTest {
             expected: String,
         ) {
             assertThat(sandboxRender(template)).isEqualTo(expected)
+        }
+    }
+
+    @Nested
+    @DisplayName("Mapa impresso inteiro sai como JSON")
+    inner class PrintedMaps {
+        private val json = JsonMapper.builder().build()
+
+        @ParameterizedTest(name = "{0} → {1}")
+        @DisplayName("Dado um mapa do contexto impresso inteiro, quando renderiza, então sai o JSON dele, na ordem de chegada")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            {{request.query}}                         | {"x":"{{seq}}","fim":"{{/each}}}}"}
+            {{{request.query}}}                       | {"x":"{{seq}}","fim":"{{/each}}}}"}
+            {{request.headers}}                       | {"x-tpl":"{{request.method}}","class":"cabeçalho chamado class"}
+            {{lookup request 'query'}}                | {"x":"{{seq}}","fim":"{{/each}}}}"}
+            {{#with request}}{{headers}}{{/with}}     | {"x-tpl":"{{request.method}}","class":"cabeçalho chamado class"}
+            {{#with request.query}}{{this}}{{/with}}  | {"x":"{{seq}}","fim":"{{/each}}}}"}""",
+        )
+        fun render_mapaImpresso_deveSairJson(
+            template: String,
+            expected: String,
+        ) {
+            assertThat(sandboxRender(template)).isEqualTo(expected)
+        }
+
+        @Test
+        @DisplayName("Dado {{request}}, quando renderiza, então sai o JSON da requisição inteira, com o corpo como texto")
+        fun render_requestInteiro_deveSairJson() {
+            val rendered = sandboxRender("{{request}}")
+
+            assertThat(json.readTree(rendered)).isEqualTo(
+                json.valueToTree(
+                    mapOf(
+                        "method" to "POST",
+                        "path" to "/eco",
+                        "url" to REMETENTE.url,
+                        "query" to REMETENTE.query,
+                        "headers" to REMETENTE.headers,
+                        "body" to REMETENTE.body,
+                    ),
+                ),
+            )
+            assertThat(rendered).startsWith("""{"method":"POST","path":"/eco",""")
+        }
+
+        @Test
+        @DisplayName("Dado um mapa vazio impresso, quando renderiza, então sai {}")
+        fun render_mapaVazio_deveSairObjetoVazio() {
+            assertThat(sandboxRender("{{request.query}}", REMETENTE.copy(query = emptyMap()))).isEqualTo("{}")
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado lookup de chave ausente, quando renderiza, então continua vazio")
+        @ValueSource(strings = ["{{lookup request.query 'nada'}}", "{{lookup request 'nada'}}", "{{lookup request.headers 'x-nao'}}"])
+        fun render_lookupAusente_deveSairVazio(template: String) {
+            assertThat(sandboxRender(template)).isEmpty()
         }
     }
 
