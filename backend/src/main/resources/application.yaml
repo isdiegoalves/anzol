@@ -32,6 +32,9 @@ server:
   # requisição e cabeçalhos (a linha de 8 KB é cobrada pelo LegacyRequestFilter).
   max-http-request-header-size: 32KB
   tomcat:
+    # Cabeçalhos da resposta: o padrão (8 KB no total) não comporta um valor templado no teto de 8 KiB
+    # (MAX_RENDERED_HEADER) junto com os fixos; acima disto o Tomcat corta a resposta num 500 sem corpo.
+    max-http-response-header-size: 64KB
     # O nginx do app antigo aceita estes caracteres crus na query e no caminho (ex.: `a[]=1`, `{"a":1}`).
     relaxed-query-chars: '",<,>,[,\,],^,`,{,|,}'
     relaxed-path-chars: '",<,>,[,\,],^,`,{,|,}'

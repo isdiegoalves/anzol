@@ -6,25 +6,14 @@ import com.github.jknack.handlebars.EscapingStrategy
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.HandlebarsException
 import com.github.jknack.handlebars.Helper
+import com.github.jknack.handlebars.Template
+import com.github.jknack.handlebars.ValueResolver
 import com.github.jknack.handlebars.context.MapValueResolver
-import com.github.jknack.handlebars.helper.EachHelper
-import com.github.jknack.handlebars.helper.IfHelper
-import com.github.jknack.handlebars.helper.LookupHelper
-import com.github.jknack.handlebars.helper.UnlessHelper
-import com.github.jknack.handlebars.helper.WithHelper
 import com.github.jknack.handlebars.io.TemplateLoader
-import com.jayway.jsonpath.JsonPath
-import com.jayway.jsonpath.JsonPathException
+import org.springframework.http.HttpStatus
+import org.springframework.web.server.ResponseStatusException
 import site.webhook.capture.CapturedRequest
-import tools.jackson.databind.JsonNode
-import java.math.MathContext
-import java.time.DateTimeException
 import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.util.UUID
-import java.util.concurrent.ThreadLocalRandom
 
 /** O que o template enxerga da requisição (Anexo B): `request.*`; cabeçalhos com nome em minúsculas. */
 data class TemplateRequest(
@@ -42,80 +31,6 @@ data class TemplateInput(
     val seq: Long,
     val now: Instant,
 )
-
-private const val NOW_DATA = "site.webhook.now"
-private const val VALIDATING_DATA = "site.webhook.validating"
-private const val DEFAULT_RANDOM_LENGTH = 16
-private val RANDOM_LENGTH = 1..10_000
-private val RANDOM_ALPHABETS =
-    mapOf(
-        "ALPHANUMERIC" to "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        "NUMERIC" to "0123456789",
-        "HEX" to "0123456789abcdef",
-    )
-private val ISO_SECONDS: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
-
-/**
- * Os únicos helpers: os de lógica do Handlebars (sem E/S) e os quatro do Anexo B. Ficam de fora os
- * embutidos que leem arquivo ou classpath (`embedded`, `partial`, `block`, `precompile`, `i18n`,
- * `i18nJs`), o `log` (escreve no log do servidor) e o `helperMissing` (sem ele,
- * helper desconhecido é erro de compilação, o que dá o 422 ao salvar). Nenhum helper em JavaScript
- * (o Nashorn nem entra no classpath).
- */
-private val HELPERS: Map<String, Helper<*>> =
-    mapOf(
-        IfHelper.NAME to block(IfHelper.NAME, IfHelper.INSTANCE),
-        UnlessHelper.NAME to block(UnlessHelper.NAME, UnlessHelper.INSTANCE),
-        EachHelper.NAME to block(EachHelper.NAME, EachHelper.INSTANCE),
-        WithHelper.NAME to block(WithHelper.NAME, WithHelper.INSTANCE),
-        LookupHelper.NAME to withParams(LookupHelper.NAME, 2) { context, options -> LookupHelper.INSTANCE.apply(context, options) },
-        "jsonPath" to withParams("jsonPath", 2) { body, options -> jsonPathValue(body, options.param<Any?>(0)) },
-        "now" to withParams("now", 0) { _, options -> formatNow(options.data(NOW_DATA), options.hash<Any?>("format")) },
-        "randomValue" to
-            withParams("randomValue", 0) { _, options -> randomValue(options.hash<Any?>("type"), options.hash<Any?>("length")) },
-        "math" to withParams("math", 3) { left, options -> math(left, options.param<Any?>(0), options.param<Any?>(1)) },
-    )
-
-/**
- * Helper que exige [count] parâmetros: faltando, a validação ao salvar recusa (422) e a execução deixa
- * o trecho vazio (o Handlebars.java aceitaria `{{#if}}` ou `{{#each}}` sem parâmetro, sobre o contexto).
- * Com dois ou mais, conta `options.params` (os depois do primeiro): o `PARAM_SIZE` de uma tag simples
- * é sobrescrito por uma subexpressão no primeiro parâmetro (`{{math (jsonPath …) '*' 2}}`). Com um,
- * vale o `PARAM_SIZE`, que num bloco é gravado depois de avaliar o parâmetro.
- */
-private fun withParams(
-    name: String,
-    count: Int,
-    helper: Helper<Any?>,
-): Helper<Any?> =
-    Helper { context, options ->
-        val enough =
-            when (count) {
-                0 -> true
-                1 -> (options.data<Int?>(Context.PARAM_SIZE) ?: 0) >= 1
-                else -> options.params.size >= count - 1
-            }
-        when {
-            enough -> helper.apply(context, options)
-            options.data<Boolean?>(VALIDATING_DATA) == true -> throw IllegalArgumentException("$name requires $count parameter(s)")
-            else -> ""
-        }
-    }
-
-/** Bloco embutido com um parâmetro; na validação renderiza os dois ramos, para achar erro em qualquer um. */
-private fun <T> block(
-    name: String,
-    helper: Helper<T>,
-): Helper<Any?> =
-    withParams(name, 1) { context, options ->
-        if (options.data<Boolean?>(VALIDATING_DATA) == true) {
-            options.fn()
-            options.inverse()
-        } else {
-            @Suppress("UNCHECKED_CAST")
-            helper.apply(context as T, options)
-        }
-    }
 
 /**
  * Handlebars sem escape HTML (as respostas são JSON ou texto), sem carregador de templates e sem
@@ -139,39 +54,115 @@ private object ResponseHandlebars : Handlebars() {
 /**
  * `null` quando o texto é um template válido; senão o motivo, com linha e coluna. Além de compilar,
  * renderiza uma vez em modo de validação (os dois ramos de cada bloco), que recusa helper sem os
- * parâmetros que exige.
+ * parâmetros que exige e `randomValue` com `length` fora de 1..10000, com os mesmos tetos da resposta.
  */
 fun templateError(text: String): String? =
     try {
-        ResponseHandlebars.compileInline(separateClosingBraces(text)).apply(context(VALIDATION_INPUT).data(VALIDATING_DATA, true))
+        val template = ResponseHandlebars.compileInline(separateClosingBraces(text))
+        val budget = RenderBudget(MAX_RENDERED_BODY, deadline())
+        template.apply(context(VALIDATION_INPUT, budget).data(VALIDATING_DATA, true), BudgetWriter(budget))
         null
     } catch (e: HandlebarsException) {
         val error = e.error
-        val reason = (e.cause as? IllegalArgumentException)?.message ?: error?.reason
+        val reason = e.cause?.takeIf { it is IllegalArgumentException || it is IllegalStateException }?.message ?: error?.reason
         if (error == null) e.message else "$reason (line ${error.line}, column ${error.column})"
     } catch (e: IllegalArgumentException) {
         e.message
     }
 
+/** Requisição vazia da validação; `seq` 1, o primeiro que uma mensagem recebe (`length=seq` vale). */
 private val VALIDATION_INPUT =
-    TemplateInput(TemplateRequest("GET", "/", "/", emptyMap(), emptyMap(), ""), seq = 0, now = Instant.EPOCH)
+    TemplateInput(TemplateRequest("GET", "/", "/", emptyMap(), emptyMap(), ""), seq = 1, now = Instant.EPOCH)
 
 /**
- * O texto renderizado com o contexto do Anexo B. Só mapas, listas e textos chegam ao template, e só o
- * resolvedor de mapas os lê: nada de método ou propriedade Java (`{{request.method.class}}` sai vazio).
+ * O texto renderizado com o contexto do Anexo B. Só mapas, números e textos chegam ao template, e só o
+ * [AnnexBResolver] os lê: nada de método ou propriedade Java (`{{request.method.class}}` sai vazio).
  * Helper que falha devolve vazio no próprio trecho; template que não compila (nunca salvo) sai vazio.
+ * Com o teto do corpo e o prazo de [MAX_RENDER_TIME] (ver [render]).
  */
 fun renderTemplate(
     text: String,
     input: TemplateInput,
-): String =
+): String = compile(text).render(input, MAX_RENDERED_BODY, deadline())
+
+/**
+ * A resposta com corpo e valores de cabeçalho renderizados quando `template` está ligado; senão, como está.
+ * Corpo até [MAX_RENDERED_BODY] e cada valor de cabeçalho até [MAX_RENDERED_HEADER] caracteres, tudo num
+ * prazo só ([MAX_RENDER_TIME]) depois de compilar tudo; estourou, 500 (ver [render]).
+ *
+ * No valor de cabeçalho, todo caractere de controle (C0, DEL e C1) menos o HTAB vira espaço: CR e LF
+ * vindos do remetente (`{{request.query.x}}`, `jsonPath` no corpo) nunca abrem linha de cabeçalho nova.
+ * O Tomcat 11 já troca C0 e DEL por espaço, mas manda os C1 (U+0080–U+009F) crus; a troca aqui não
+ * depende dele. Espaço, e não 500, para o remetente não conseguir derrubar a resposta da regra com uma
+ * quebra de linha. O corpo fica como veio.
+ */
+fun RuleResponse.rendered(input: TemplateInput): RuleResponse {
+    if (!template) return this
+    val compiledBody = compile(body)
+    val compiledHeaders = headers.mapValues { (_, value) -> compile(value) }
+    val deadline = deadline()
+    return copy(
+        body = compiledBody.render(input, MAX_RENDERED_BODY, deadline),
+        headers = compiledHeaders.mapValues { (_, value) -> value.render(input, MAX_RENDERED_HEADER, deadline).controlsAsSpaces() },
+    )
+}
+
+private fun String.controlsAsSpaces(): String =
+    String(CharArray(length) { i -> if (this[i] != '\t' && this[i].isISOControl()) ' ' else this[i] })
+
+/** O template compilado; `null` se não compila (nunca salvo assim: a validação recusa). */
+private fun compile(text: String): Template? =
     try {
-        ResponseHandlebars.compileInline(separateClosingBraces(text)).apply(context(input))
+        ResponseHandlebars.compileInline(separateClosingBraces(text))
     } catch (_: HandlebarsException) {
-        ""
+        null
     }
 
-private fun context(input: TemplateInput): Context {
+/**
+ * Tetos, cobrados durante a renderização: a saída passa de [maxLength] caracteres ou o relógio passa
+ * de [deadline] (`System.nanoTime()`) → para na hora e lança 500 com [TEMPLATE_TOO_LARGE] ou
+ * [TEMPLATE_TOO_SLOW], que o `LegacyErrorAdvice` responde no envelope de erro de sempre.
+ */
+private fun Template?.render(
+    input: TemplateInput,
+    maxLength: Int,
+    deadline: Long,
+): String {
+    if (this == null) return ""
+    val budget = RenderBudget(maxLength, deadline)
+    val out = BudgetWriter(budget)
+    val rendered =
+        try {
+            apply(context(input, budget), out)
+            out.toString()
+        } catch (_: HandlebarsException) {
+            ""
+        }
+    budget.exceeded?.let { throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, it) }
+    return rendered
+}
+
+/**
+ * O resolvedor de mapas, só com os tipos do contexto do Anexo B (texto, número, mapa): o que o
+ * Handlebars guarda ao lado, nos dados da renderização (`{{@__inline_partials_}}`, o relógio e os
+ * tetos desta renderização), não aparece no template nem como texto. Valor de outro tipo é recusado
+ * com `null`, e não com `UNRESOLVED`: o `Context.Builder` põe o `MapValueResolver` cru depois deste, e
+ * `UNRESOLVED` o deixaria achar o valor recusado.
+ */
+private object AnnexBResolver : ValueResolver by MapValueResolver.INSTANCE {
+    override fun resolve(
+        context: Any?,
+        name: String?,
+    ): Any? {
+        val value = MapValueResolver.INSTANCE.resolve(context, name)
+        return value.takeIf { it === ValueResolver.UNRESOLVED || it is String || it is Number || it is Map<*, *> }
+    }
+}
+
+private fun context(
+    input: TemplateInput,
+    budget: RenderBudget,
+): Context {
     val request = input.request
     val model =
         mapOf(
@@ -188,93 +179,11 @@ private fun context(input: TemplateInput): Context {
         )
     return Context
         .newBuilder(model)
-        .resolver(MapValueResolver.INSTANCE)
+        .resolver(AnnexBResolver)
         .build()
         .data(NOW_DATA, input.now)
+        .data(BUDGET_DATA, budget)
 }
-
-/** Valor do caminho no corpo JSON: escalar como texto, objeto ou lista como JSON; ausente ou nulo, vazio. */
-private fun jsonPathValue(
-    body: Any?,
-    path: Any?,
-): String {
-    val document = (body as? String)?.let(::readJson)?.let(::jsonDocument)
-    if (document == null || path !is String) return ""
-    val value =
-        try {
-            JsonPath.compile(path).read<Any?>(document)
-        } catch (_: JsonPathException) {
-            null
-        }
-    val tree = value?.let { bodyMapper.valueToTree<JsonNode>(it) }
-    return when {
-        tree == null || tree.isNull -> ""
-        tree.isValueNode -> tree.asString()
-        else -> tree.toString()
-    }
-}
-
-private fun formatNow(
-    now: Instant,
-    format: Any?,
-): String =
-    when (format) {
-        null -> {
-            ISO_SECONDS.format(now.truncatedTo(ChronoUnit.SECONDS))
-        }
-
-        else -> {
-            try {
-                DateTimeFormatter.ofPattern(format.toString()).withZone(ZoneOffset.UTC).format(now)
-            } catch (_: IllegalArgumentException) {
-                ""
-            } catch (_: DateTimeException) {
-                ""
-            }
-        }
-    }
-
-private fun randomValue(
-    type: Any?,
-    length: Any?,
-): String {
-    val size = (length ?: DEFAULT_RANDOM_LENGTH).toString().toIntOrNull()?.takeIf { it in RANDOM_LENGTH }
-    val random = ThreadLocalRandom.current()
-    val alphabet = RANDOM_ALPHABETS[type?.toString()?.uppercase()]
-    return when {
-        size == null -> ""
-        type?.toString()?.uppercase() == "UUID" -> UUID.randomUUID().toString()
-        alphabet == null -> ""
-        else -> String(CharArray(size) { alphabet[random.nextInt(alphabet.length)] })
-    }
-}
-
-private fun math(
-    left: Any?,
-    operator: Any?,
-    right: Any?,
-): String {
-    val a = left?.toString()?.toBigDecimalOrNull()
-    val b = right?.toString()?.toBigDecimalOrNull()
-    val result =
-        when {
-            a == null || b == null -> null
-            operator == "+" -> a.add(b)
-            operator == "-" -> a.subtract(b)
-            operator == "*" -> a.multiply(b)
-            operator == "/" && b.signum() != 0 -> a.divide(b, MathContext.DECIMAL64)
-            else -> null
-        }
-    return result?.stripTrailingZeros()?.toPlainString().orEmpty()
-}
-
-/** A resposta com corpo e valores de cabeçalho renderizados quando `template` está ligado; senão, como está. */
-fun RuleResponse.rendered(input: TemplateInput): RuleResponse =
-    if (template) {
-        copy(body = renderTemplate(body, input), headers = headers.mapValues { (_, value) -> renderTemplate(value, input) })
-    } else {
-        this
-    }
 
 fun CapturedRequest.toTemplateRequest(): TemplateRequest {
     val input = toMatchInput()
