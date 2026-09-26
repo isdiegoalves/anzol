@@ -74,6 +74,20 @@ DELETE do token não apagava a hash de mensagens.
   is_last_page, from, to`, padrões (página 1, 50 por página, `oldest`), página além do fim
   (`from` > `to`), ordenação `oldest`/`newest` com mensagens em segundos distintos e **no mesmo
   segundo** (ordem de chegada, inclusive entre páginas).
+- **Seq e `after`** (`specs/api/seq.spec.ts`, `specs/event/seq.spec.ts`): toda mensagem traz `seq`,
+  inteiro ≥ 1, estritamente crescente por URL na ordem de gravação e **nunca reaproveitado** (apagar a
+  mais nova, ou todas, não faz a seguinte repetir um `seq`). É o mesmo na listagem, no `GET` de uma
+  mensagem e no `request` do evento (inclusive o evento `truncated`). 100 POSTs com 20 em paralelo:
+  os `seq` são únicos, crescem na ordem `oldest` e batem com os dos 100 eventos.
+  `GET /token/{id}/requests?after=<seq>&per_page=N` devolve as mensagens com `seq` > `after`, em
+  ordem crescente de `seq`, no máximo N (padrão 50), com o envelope de sempre; `page` e `sorting` são
+  ignorados; `is_last_page` é true quando nada vem depois das devolvidas (inclusive quando restam
+  exatamente N); `total` é o da URL; `current_page`, `from` e `to` são números sem valor definido.
+  `after=0` → todas; `after` = último `seq` ou acima → `data` vazio e `is_last_page` true; `after`
+  de mensagem apagada continua valendo (no meio e a mais nova). `after` que não é inteiro (`abc`,
+  `1.5`) → 422 `{"after": ["The after must be an integer."]}`; negativo → 422
+  `{"after": ["The after must be at least 0."]}` (as mensagens das regras `integer` e `min` do
+  Laravel).
 - **Volume** (`specs/api/volume.spec.ts`): 10.000 mensagens de ~15 KB numa URL com `auto_cleanup`
   10000; a primeira página (`oldest` e `newest`), uma do meio e a última respondem 200 com 50 itens e
   `total` 10000, **cada uma em até 2 s** medidos no cliente. O prazo é generoso de propósito: pega o
@@ -132,6 +146,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Evento `{request, total, truncated}` | `{request, total, truncated, removed}` | A aba aberta tira da lista o que o servidor cortou |
 | Ordem indefinida entre mensagens do mesmo segundo | Ordem de chegada | Índice ordenado da listagem (item 02); a exclusão correspondente saiu |
 | Listagem lendo a URL inteira a cada página | Página em até 2 s com 10.000 × 15 KB | O fim do 410 levaria a opção 10000 ao 500 medido no app Laravel |
+| Mensagem sem número de ordem; listagem só por página | `seq` na mensagem (listagem, `GET`, evento) e `after=<seq>` na listagem | Correção da refutação do CLI (2026-09-26): o evento SSE sai fora da ordem de gravação sob concorrência e a paginação por página desloca quando alguém apaga; o CLI reenvia por `after` sem perder nem duplicar. A chave `seq` entrou em `CHAVES_MENSAGEM`, então os testes de forma de `mensagem.spec.ts` também a exigem |
 
 ## Defeitos do legado (`bugDoLegado`)
 

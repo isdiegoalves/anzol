@@ -36,9 +36,14 @@ CLI imprimiu atrás de uma barra é apagado.
 - `capturador.mjs`: o app local, servidor HTTP que guarda método, caminho+query, cabeçalhos crus e
   corpo em bytes; leitor de multipart.
 - `proxy.mjs`: proxy TCP entre o CLI e o app real; `derrubar()` corta as conexões e fecha a porta,
-  `religar()` volta na mesma porta.
+  `religar()` volta na mesma porta. Ganchos opcionais: `aoEvento(evento)` roda depois de cada evento
+  `request.created` entregue ao CLI, com o SSE parado até ele terminar (derrubar ali corta logo depois
+  daquele evento); `antesDaResposta(linha)` pode devolver uma função que roda quando a resposta de
+  uma requisição da API já saiu do servidor e ainda não chegou ao CLI.
 - `servidor.mjs`: API de tokens e mensagens, webhook por HTTP cru (cabeçalho repetido, underscore,
-  hop-by-hop, chunked) e assinatura do SSE.
+  hop-by-hop, chunked) e assinatura do SSE; `rajada` (N POSTs com no máximo P em voo) e
+  `mensagensPorSeq` (todas as mensagens por `after=<seq>` a partir de 0, a ordem que o reenvio deve
+  seguir; falha se a API não devolve `seq`).
 - `conferencia.mjs`: a regra de reenvio conferida contra a mensagem gravada, lida pela API.
 
 ## O que cobre
@@ -54,6 +59,10 @@ CLI imprimiu atrás de uma barra é apagado.
 | `robustez.test.mjs` CA-7 | multipart com arquivo → multipart com os campos de texto gravados (boundary coerente), sem arquivo, e o sufixo ` [files were not forwarded: not stored by the server]` |
 | `listen.test.mjs` CA-8 | GET, PUT, PATCH, DELETE e HEAD com o método certo; `X-Dup: a` + `X-Dup: b` chega como o servidor grava (`b`), `X_Custom_Under` chega como `x-custom-under` |
 | `listen.test.mjs` Ctrl+C | SIGINT no processo → saída 0 (parte observável do CA-9) |
+| `ordem.test.mjs` CA-10 | rajada de 60 POSTs com 30 em paralelo; o proxy corta logo depois do primeiro evento SSE que chega antes de outro mais antigo ainda não entregue (ou do 25º, se nada inverter) e volta 1 s depois: o app recebe as 60 exatamente uma vez, na ordem de `seq` |
+| `ordem.test.mjs` CA-11 | rajada de 60 com 30 em paralelo, sem queda: o app recebe as 60 uma vez, na ordem de `seq` (não na do SSE) |
+| `ordem.test.mjs` CA-12 | 120 mensagens na queda; na primeira listagem da recuperação (resposta já montada, ainda não entregue) as 3 mais novas são apagadas: as outras 117 chegam todas, uma vez, na ordem de `seq` |
+| `ordem.test.mjs` CA-13 | 3 mensagens antes do `listen`, no mesmo segundo; na queda a mais nova (o cursor) é apagada e chega `/depois`: o app recebe só `/depois` e a linha diz `forwarding 1` |
 
 ## Leituras da especificação assumidas
 
@@ -64,3 +73,10 @@ CLI imprimiu atrás de uma barra é apagado.
   inteira). Linhas de mensagem podem sair no stdout ou no stderr; `Token not found`, só no stderr.
 - `Reconnected; forwarding <n> …` conta as mensagens gravadas durante a queda.
 - `replay` com sucesso sai com 0.
+- Ordem de reenvio = ordem de `seq` da API (`after=0` depois da rajada), não a ordem de disparo nem
+  a do SSE. Os testes de `ordem.test.mjs` exigem a API com `seq` e `after` (ver
+  `tests/contract/README.md`); contra um app sem isso falham em `mensagensPorSeq`.
+- CA-12: as mensagens apagadas durante a recuperação podem chegar ou não (o CLI pode já tê-las lido);
+  se chegarem, é uma vez e no lugar delas na ordem de `seq`. A recuperação precisa passar por
+  `GET /token/{id}/requests` (é onde o proxy apaga).
+- CA-13: o cursor apagado não conta como perdido: `Reconnected; forwarding 1 missed request(s)`.

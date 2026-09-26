@@ -38,7 +38,7 @@ export const CHAVES_TOKEN = [
 
 export const CHAVES_MENSAGEM = [
   'uuid', 'token_id', 'ip', 'hostname', 'method', 'user_agent', 'content', 'query', 'headers',
-  'url', 'created_at', 'updated_at',
+  'url', 'created_at', 'updated_at', 'seq',
 ].sort();
 
 export interface Token {
@@ -71,6 +71,8 @@ export interface Mensagem {
   url: string;
   created_at: string;
   updated_at: string;
+  /** Inteiro ≥ 1, estritamente crescente por URL na ordem de gravação; nunca reaproveitado. */
+  seq: number;
   request?: Record<string, unknown> | null;
 }
 

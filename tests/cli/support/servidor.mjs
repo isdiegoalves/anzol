@@ -164,6 +164,69 @@ export async function assinarEventos(token) {
   };
 }
 
+/**
+ * Todas as mensagens do token em ordem de `seq`, lidas por `after=<seq>` (a partir de 0). Falha se
+ * a API não devolve `seq` inteiro e estritamente crescente.
+ */
+export async function mensagensPorSeq(token) {
+  const msgs = [];
+  let cursor = 0;
+  for (;;) {
+    const res = await fetch(`${SERVIDOR}/token/${token}/requests?after=${cursor}&per_page=100`, { headers: JSON_ACCEPT });
+    if (res.status !== 200) throw new Error(`GET /token/${token}/requests?after=${cursor} respondeu ${res.status}: ${await res.text()}`);
+    const { data, is_last_page } = await res.json();
+    for (const m of data) {
+      if (!Number.isInteger(m.seq)) throw new Error(`a API não devolve seq inteiro na listagem (mensagem ${m.uuid}: seq ${JSON.stringify(m.seq)})`);
+      if (m.seq <= cursor) throw new Error(`after=${cursor} devolveu seq ${m.seq} (fora de ordem ou repetido)`);
+      cursor = m.seq;
+      msgs.push(m);
+    }
+    if (is_last_page || data.length === 0) return msgs;
+  }
+}
+
+/** As `n` mensagens mais novas, da mais nova para a mais antiga (sorting=newest). */
+export async function maisNovas(token, n) {
+  const res = await fetch(`${SERVIDOR}/token/${token}/requests?sorting=newest&per_page=${n}`, { headers: JSON_ACCEPT });
+  if (res.status !== 200) throw new Error(`listagem newest respondeu ${res.status}`);
+  return (await res.json()).data;
+}
+
+/** Todos os uuids na ordem de chegada (sorting=oldest, página a página). */
+export async function uuidsNaOrdemDeChegada(token) {
+  const uuids = [];
+  for (let pagina = 1; ; pagina++) {
+    const res = await fetch(`${SERVIDOR}/token/${token}/requests?per_page=500&page=${pagina}`, { headers: JSON_ACCEPT });
+    if (res.status !== 200) throw new Error(`listagem oldest respondeu ${res.status}`);
+    const { data, is_last_page } = await res.json();
+    uuids.push(...data.map((m) => m.uuid));
+    if (is_last_page) return uuids;
+  }
+}
+
+export async function apagarMensagem(token, uuid) {
+  const res = await fetch(`${SERVIDOR}/token/${token}/request/${uuid}`, { method: 'DELETE', headers: JSON_ACCEPT });
+  await res.arrayBuffer();
+  if (res.status !== 200) throw new Error(`DELETE da mensagem ${uuid} respondeu ${res.status}`);
+}
+
+/**
+ * Rajada: `quantidade` POSTs em `/{token}{prefixo}/<i>` (corpo = o caminho), no máximo `paralelas`
+ * em voo ao mesmo tempo. Devolve os caminhos após o token, na ordem de disparo.
+ */
+export async function rajada(token, quantidade, { paralelas, prefixo = '/r' }) {
+  const caminhos = Array.from({ length: quantidade }, (_, i) => `${prefixo}/${i}`);
+  let proximo = 0;
+  const trabalhador = async () => {
+    while (proximo < caminhos.length) {
+      const caminho = caminhos[proximo++];
+      await enviarCru(token, caminho, { corpo: caminho, cabecalhos: [['Content-Type', 'text/plain']] });
+    }
+  };
+  await Promise.all(Array.from({ length: paralelas }, trabalhador));
+  return caminhos;
+}
+
 /** Caminho após o token + `?` + query crua, como estão na `url` gravada (o que o CLI reenvia). */
 export function caminhoGravado(msg) {
   const url = msg.url;
