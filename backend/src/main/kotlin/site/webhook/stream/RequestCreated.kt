@@ -1,5 +1,6 @@
 package site.webhook.stream
 
+import site.webhook.RequestId
 import site.webhook.capture.CapturedRequest
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -13,11 +14,15 @@ private const val PHP_UNICODE_ESCAPE_EXTRA = 5L
 private const val LAST_ASCII = 0x7F
 private val TRUNCATED_FIELDS = listOf("content", "headers", "user_agent")
 
-/** Payload de `Events/RequestCreated.php`: `data:` do evento `request.created`. */
+/**
+ * `data:` do evento `request.created`: o payload de `Events/RequestCreated.php` mais `removed`, os
+ * uuids que a limpeza automática tirou ao gravar esta mensagem (lista vazia quando nada saiu).
+ */
 data class RequestCreated(
     val request: JsonNode,
     val total: Long,
     val truncated: Boolean,
+    val removed: List<RequestId>,
 )
 
 /**
@@ -27,12 +32,13 @@ data class RequestCreated(
  */
 fun CapturedRequest.toRequestCreated(
     total: Long,
+    removed: List<RequestId>,
     jsonMapper: JsonMapper,
 ): RequestCreated {
     val request: ObjectNode = jsonMapper.valueToTree(this)
     val truncated = phpJsonLength(jsonMapper.writeValueAsString(request)) > TRUNCATE_ABOVE
     if (truncated) request.remove(TRUNCATED_FIELDS)
-    return RequestCreated(request, total, truncated)
+    return RequestCreated(request, total, truncated, removed)
 }
 
 /** `mb_strlen(json_encode(...))`: o PHP escapa `/` como `\/` e cada unidade UTF-16 não ASCII como `\uXXXX`. */

@@ -24,6 +24,7 @@ data class Token(
     val updatedAt: LocalDateTime,
     /** Campos novos ficam no fim; token gravado antes deles lê `null`. */
     val retryAfter: RetryAfter? = null,
+    val autoCleanup: AutoCleanup? = null,
 ) {
     /** `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. */
     fun withSettings(settings: TokenSettings): Token =
@@ -33,6 +34,7 @@ data class Token(
             defaultContentType = settings.defaultContentType,
             timeout = settings.timeout,
             retryAfter = settings.retryAfter,
+            autoCleanup = settings.autoCleanup,
         )
 }
 
@@ -43,6 +45,7 @@ data class TokenSettings(
     val defaultContentType: String,
     val timeout: Long,
     val retryAfter: RetryAfter?,
+    val autoCleanup: AutoCleanup?,
 )
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

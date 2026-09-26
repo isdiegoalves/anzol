@@ -47,7 +47,7 @@ class StreamApiTest(
             val payload = api.tree(event.data)
             val stored = api.json(api.send("GET", "/token/$tokenId/request/${response.headers().firstValue("X-Request-Id").get()}"))
             assertThat(event.name).isEqualTo("request.created")
-            assertThat(payload.propertyNames().toList()).containsExactlyInAnyOrder("request", "total", "truncated")
+            assertThat(payload.propertyNames().toList()).containsExactlyInAnyOrder("request", "total", "truncated", "removed")
             assertThat(payload["request"]).isEqualTo(stored)
             assertThat(payload["total"].asInt()).isEqualTo(1)
             assertThat(payload["truncated"].asBoolean()).isFalse()

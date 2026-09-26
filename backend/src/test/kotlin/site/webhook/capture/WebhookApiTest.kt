@@ -164,19 +164,6 @@ class WebhookApiTest(
     }
 
     @Test
-    @DisplayName("Dado 500 mensagens gravadas, quando chega a 501ª, então responde 410 e não grava")
-    fun capture_acimaDoLimite_deveResponder410() {
-        val tokenId = api.tokenId()
-        repeat(500) { api.send("GET", "/$tokenId") }
-
-        val response = api.send("POST", "/$tokenId", headers = JSON_CLIENT)
-
-        assertThat(response.statusCode()).isEqualTo(410)
-        assertThat(api.json(response)["error"]["message"].asString()).isEqualTo("Too many requests, please create a new URL/token")
-        assertThat(api.json(api.send("GET", "/token/$tokenId/requests?per_page=1"))["total"].asInt()).isEqualTo(500)
-    }
-
-    @Test
     @DisplayName("Dado um token inexistente, quando chama o webhook como cliente comum, então responde 410 em HTML")
     fun capture_tokenInexistente_deveResponder410() {
         val response = api.send("POST", "/00000000-0000-4000-8000-000000000000/a/b")

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
+import site.webhook.capture.RequestStore
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
 import site.webhook.http.legacyInput
 import site.webhook.http.validationFailure
@@ -37,6 +38,7 @@ fun Clock.legacyNow(): LocalDateTime = instant().toLegacyDateTime()
 @RequestMapping("/token")
 class TokenController(
     private val tokens: TokenStore,
+    private val requests: RequestStore,
     private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -61,6 +63,7 @@ class TokenController(
                 createdAt = now,
                 updatedAt = now,
                 retryAfter = settings.retryAfter,
+                autoCleanup = settings.autoCleanup,
             )
         return ResponseEntity.status(HttpStatus.CREATED).body(tokens.store(token))
     }
@@ -78,7 +81,10 @@ class TokenController(
         return ResponseEntity.noContent().header(HttpHeaders.CONTENT_TYPE, PHP_DEFAULT_CONTENT_TYPE).build()
     }
 
-    /** Validação antes da busca: token inexistente com dado inválido responde 422, como no app antigo. */
+    /**
+     * Validação antes da busca: token inexistente com dado inválido responde 422, como no app antigo.
+     * Limite menor corta as mensagens excedentes na hora.
+     */
     @PutMapping("/{tokenId:$UUID_PATTERN}")
     fun update(
         @PathVariable tokenId: TokenId,
@@ -87,8 +93,9 @@ class TokenController(
         val input = request.legacyInput()
         val errors = input.validateTokenSettings()
         if (errors.isNotEmpty()) return request.validationFailure(errors)
-        val token = tokens.findOrGone(tokenId).withSettings(input.toTokenSettings())
-        return ResponseEntity.ok(tokens.store(token))
+        val token = tokens.store(tokens.findOrGone(tokenId).withSettings(input.toTokenSettings()))
+        requests.trim(token)
+        return ResponseEntity.ok(token)
     }
 
     /** Liga e desliga. O app antigo só ligava (`isset` em atributo mágico); o contrato exige o toggle real. */

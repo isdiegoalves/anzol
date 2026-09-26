@@ -54,7 +54,7 @@ class RequestCreatedTest {
         @Test
         @DisplayName("Dado 990.000 letras, quando monta o evento, então não corta e manda a mensagem inteira")
         fun toRequestCreated_abaixoDoLimite_deveMandarTudo() {
-            val event = message("a".repeat(990_000)).toRequestCreated(total = 1, jsonMapper = jsonMapper)
+            val event = message("a".repeat(990_000)).toRequestCreated(total = 1, removed = emptyList(), jsonMapper = jsonMapper)
 
             assertThat(event.truncated).isFalse()
             assertThat(event.request["content"].asString()).hasSize(990_000)
@@ -70,7 +70,7 @@ class RequestCreatedTest {
         ) {
             val captured = message(char.repeat(count))
 
-            val event = captured.toRequestCreated(total = 7, jsonMapper = jsonMapper)
+            val event = captured.toRequestCreated(total = 7, removed = emptyList(), jsonMapper = jsonMapper)
 
             assertThat(event.truncated).isTrue()
             assertThat(event.total).isEqualTo(7)

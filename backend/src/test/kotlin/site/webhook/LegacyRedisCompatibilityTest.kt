@@ -38,7 +38,7 @@ class LegacyRedisCompatibilityTest(
         val page = api.json(api.send("GET", "/token/$tokenId/requests", headers = JSON_CLIENT))
         val raw = api.send("GET", "/token/$tokenId/request/$requestId/raw")
 
-        assertThat(api.json(readToken)).isEqualTo(api.tree(token.dropLast(1) + ""","retry_after":null}"""))
+        assertThat(api.json(readToken)).isEqualTo(api.tree(token.dropLast(1) + ""","retry_after":null,"auto_cleanup":null}"""))
         assertThat(api.json(readMessage)).isEqualTo(api.tree(json))
         assertThat(page["data"].toList()).containsExactly(api.tree(json), api.tree(form))
         assertThat(page["total"].asInt()).isEqualTo(3)
@@ -74,6 +74,7 @@ class LegacyRedisCompatibilityTest(
             "created_at",
             "updated_at",
             "retry_after",
+            "auto_cleanup",
         )
         assertThat(message.propertyNames().toList()).containsExactly(
             "uuid",

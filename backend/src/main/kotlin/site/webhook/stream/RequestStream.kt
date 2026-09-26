@@ -7,6 +7,7 @@ import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.capture.CapturedRequest
 import tools.jackson.databind.json.JsonMapper
@@ -47,11 +48,17 @@ class RequestStream(
     /** Avisa os assinantes do token; `total` só é contado se houver alguém ouvindo. */
     fun publish(
         request: CapturedRequest,
+        removed: List<RequestId>,
         total: () -> Long,
     ) {
         val emitters = subscribers[request.tokenId].orEmpty()
         if (emitters.isEmpty()) return
-        val event = SseEmitter.event().name(EVENT_NAME).data(request.toRequestCreated(total(), jsonMapper), MediaType.APPLICATION_JSON)
+        val event =
+            SseEmitter
+                .event()
+                .name(
+                    EVENT_NAME,
+                ).data(request.toRequestCreated(total(), removed, jsonMapper), MediaType.APPLICATION_JSON)
         emitters.forEach { it.trySend(request.tokenId, event) }
     }
 

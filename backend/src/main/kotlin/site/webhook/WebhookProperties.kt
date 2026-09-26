@@ -5,7 +5,10 @@ import org.springframework.boot.convert.DurationUnit
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-/** `config/app.php` do app antigo: `WEBHOOK_MAX_REQUESTS` e `WEBHOOK_EXPIRY` (segundos). */
+/**
+ * `WEBHOOK_MAX_REQUESTS`: quantas mensagens uma URL sem `auto_cleanup` guarda (FIFO; o app antigo
+ * respondia 410 ao atingir). `WEBHOOK_EXPIRY`: TTL de tokens e mensagens, em segundos.
+ */
 @ConfigurationProperties("webhook")
 data class WebhookProperties(
     val maxRequests: Long,

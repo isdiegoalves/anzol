@@ -13,6 +13,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 /** Um script de `resources/redis/`, precedido do prelúdio comum (chaves, backfill, lotes). */
 private fun <T : Any> requestScript(
@@ -26,6 +27,7 @@ private fun <T : Any> requestScript(
 private val COUNT = requestScript("requests-count", Long::class.javaObjectType)
 private val PAGE = requestScript("requests-page", List::class.java)
 private val STORE = requestScript("requests-store", List::class.java)
+private val TRIM = requestScript("requests-trim", List::class.java)
 private val DELETE = requestScript("requests-delete", Long::class.javaObjectType)
 
 /**
@@ -34,6 +36,9 @@ private val DELETE = requestScript("requests-delete", Long::class.javaObjectType
  * `token:{uuid}:requests:index` (ZSET uuid → chegada em microssegundos), que dá a ordem, o total
  * e a página sem ler a hash inteira. Hash antiga sem índice ganha o índice na primeira leitura
  * ou gravação (backfill em `requests-common.lua`).
+ *
+ * Limpeza FIFO: a URL guarda no máximo `auto_cleanup` mensagens, ou `WEBHOOK_MAX_REQUESTS` sem
+ * limpeza configurada; o corte roda no mesmo script da gravação (e no PUT que reduz o limite).
  */
 @Component
 class RequestStore(
@@ -42,6 +47,10 @@ class RequestStore(
     private val properties: WebhookProperties,
 ) {
     private fun keys(token: Token) = listOf(RedisKeys.requests(token.uuid), RedisKeys.requestIndex(token.uuid))
+
+    private fun retention(token: Token): Long = token.autoCleanup?.limit ?: properties.maxRequests
+
+    private fun List<*>.toRequestIds(): List<RequestId> = filterIsInstance<String>().map { RequestId(UUID.fromString(it)) }
 
     fun find(
         token: Token,
@@ -75,20 +84,25 @@ class RequestStore(
 
     fun count(token: Token): Long = redis.execute(COUNT, keys(token))
 
+    /** Grava e corta o excedente, atômico; devolve as mensagens que saíram (nunca a gravada). */
     fun store(
         token: Token,
         request: CapturedRequest,
         arrival: Instant,
-    ) {
-        redis.execute(
-            STORE,
-            keys(token),
-            request.uuid.toString(),
-            jsonMapper.writeValueAsString(request),
-            ChronoUnit.MICROS.between(Instant.EPOCH, arrival).toString(),
-            properties.expiry.seconds.toString(),
-        )
-    }
+    ): List<RequestId> =
+        redis
+            .execute(
+                STORE,
+                keys(token),
+                request.uuid.toString(),
+                jsonMapper.writeValueAsString(request),
+                ChronoUnit.MICROS.between(Instant.EPOCH, arrival).toString(),
+                properties.expiry.seconds.toString(),
+                retention(token).toString(),
+            ).toRequestIds()
+
+    /** Corta o excedente sobre o limite atual do token (depois de reduzi-lo). */
+    fun trim(token: Token): List<RequestId> = redis.execute(TRIM, keys(token), retention(token).toString()).toRequestIds()
 
     fun delete(
         token: Token,

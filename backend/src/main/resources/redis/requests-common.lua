@@ -54,3 +54,14 @@ local function inBatches(command, key, ids)
   end
   return replies
 end
+
+-- Limpeza FIFO: tira as mais antigas até sobrar `limit` e devolve os uuids removidos. Com
+-- limit >= 1, a mensagem de maior score (a que acabou de chegar) nunca sai.
+local function trim(limit)
+  local excess = redis.call('ZCARD', index) - limit
+  if excess <= 0 then return {} end
+  local removed = redis.call('ZRANGE', index, 0, excess - 1)
+  redis.call('ZREMRANGEBYRANK', index, 0, excess - 1)
+  inBatches('HDEL', messages, removed)
+  return removed
+end

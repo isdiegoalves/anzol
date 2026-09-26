@@ -40,6 +40,7 @@ class TokenApiTest(
             "created_at",
             "updated_at",
             "retry_after",
+            "auto_cleanup",
         )
         assertThat(token["uuid"].asString()).matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}")
         assertThat(token["user_agent"].asString()).isEqualTo("teste/1.0")
@@ -49,6 +50,7 @@ class TokenApiTest(
         assertThat(token["timeout"].asInt()).isZero()
         assertThat(token["cors"].asBoolean()).isFalse()
         assertThat(token["retry_after"].isNull).isTrue()
+        assertThat(token["auto_cleanup"].isNull).isTrue()
         assertThat(token["created_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
         assertThat(token["updated_at"]).isEqualTo(token["created_at"])
     }

@@ -18,7 +18,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException
 class LegacyErrorAdvice {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 410 de token, 404 de mensagem, 410 de limite: a mensagem vai para o cliente. */
+    /** 410 de token, 404 de mensagem: a mensagem vai para o cliente. */
     @ExceptionHandler(ResponseStatusException::class)
     fun onStatus(
         error: ResponseStatusException,

@@ -2,16 +2,13 @@ package site.webhook.capture
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import site.webhook.STATUS_IN_PATH
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
-import site.webhook.WebhookProperties
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
 import site.webhook.http.rawPath
 import site.webhook.legacy.phpIntval
@@ -87,7 +84,6 @@ private fun HttpServletRequest.secondSegment(): String? =
 class WebhookController(
     private val tokens: TokenStore,
     private val requests: RequestStore,
-    private val properties: WebhookProperties,
     private val clock: Clock,
     private val stream: RequestStream,
 ) {
@@ -105,14 +101,11 @@ class WebhookController(
         response: HttpServletResponse,
     ) {
         val token = tokens.findOrGone(tokenId)
-        if (requests.count(token) >= properties.maxRequests) {
-            throw ResponseStatusException(HttpStatus.GONE, "Too many requests, please create a new URL/token")
-        }
         if (token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
         val captured = request.toCapturedRequest(tokenId, arrival.toLegacyDateTime())
-        requests.store(token, captured, arrival)
-        stream.publish(captured) { requests.count(token) }
+        val removed = requests.store(token, captured, arrival)
+        stream.publish(captured, removed) { requests.count(token) }
         response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
     }
 
