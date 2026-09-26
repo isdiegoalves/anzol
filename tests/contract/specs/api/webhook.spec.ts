@@ -108,6 +108,9 @@ test.describe('webhook: status pelo caminho', () => {
     ['/20', 202],
     ['/abc/def?x=1', 202],
     ['/a/b/c/', 202],
+    // "0" ocupa o lugar do status: o 404 que vem depois já é o terceiro segmento em diante.
+    ['/0/404', 202],
+    ['/0/0/404', 202],
   ];
   for (const [caminho, status] of casos) {
     test(`${caminho} → ${status} (padrão do token é 202) e grava`, async ({ request, tokens }) => {

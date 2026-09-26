@@ -49,7 +49,8 @@ DELETE do token não apagava a hash de mensagens.
   o `; charset=UTF-8` acrescentado a `text/*` e aos `charset_types` do nginx
   (`application/javascript`, `application/rss+xml`); Content-Type vazio some da resposta; 204
   sem corpo; `timeout` (a resposta e a gravação esperam); status pelo caminho (`/404`,
-  `/404/extra`, `/500/`; `/600`, `/20` e caminhos livres usam o padrão); CORS desligado e
+  `/404/extra`, `/500/`; `/600`, `/20`, `/0/404`, `/0/0/404` e caminhos livres usam o padrão);
+  CORS desligado e
   ligado (os 4 cabeçalhos de `Controller::corsHeaders`); token inexistente → 410; corpo de
   1 MiB aceito e 1 MiB + 1 byte → 413.
 - **Mensagem** (`specs/api/mensagem.spec.ts`): chaves e tipos; `request` só existe quando o
@@ -60,7 +61,10 @@ DELETE do token não apagava a hash de mensagens.
   (#160); cabeçalho repetido fica com o último valor; `content-type` e `content-length` vazios
   presentes em toda mensagem sem corpo; `user_agent` null sem User-Agent; `X-Forwarded-*`
   ignorados; `GET` de uma mensagem; `raw` (`application/json` só para Content-Type exatamente
-  `application/json`, senão `text/plain; charset=UTF-8`); apagar uma e todas.
+  `application/json`, senão `text/plain; charset=UTF-8`); apagar uma e todas. Entradas grandes e
+  incomuns: 3 cabeçalhos de 3000 bytes e 150 cabeçalhos; multipart com 51 e 200 campos e com nome
+  de 1000 caracteres; multipart sem `boundary` (corpo cru em `content`); aspas cruas na query e
+  no caminho; `Transfer-Encoding: chunked` grava `content-length` com o tamanho real.
 - **Listagem** (`specs/api/listagem.spec.ts`): `data, total, per_page, current_page,
   is_last_page, from, to`, padrões (página 1, 50 por página, `oldest`), página além do fim
   (`from` > `to`), ordenação `oldest`/`newest` com mensagens espaçadas em mais de 1 s (no mesmo
@@ -68,7 +72,9 @@ DELETE do token não apagava a hash de mensagens.
 - **Erros** (`specs/api/erros.spec.ts`): para cliente JSON (`Accept: application/json`, o
   Accept do AngularJS, `X-Requested-With: XMLHttpRequest` ou corpo `application/json`), o
   envelope `{success: false, error: {message, id: null}}` com 410 `Token not found`, 404
-  `Request not found`, 404 e 405 de rota com mensagem vazia; para cliente comum, só o status.
+  `Request not found`, 404 e 405 de rota com mensagem vazia (405 em toda rota da API); para
+  cliente comum, só o status. 413 de corpo grande numa rota da API é só status: a página vem do
+  servidor web (nginx no app Laravel) em HTML, sem envelope, mesmo para cliente JSON.
 - **Limite** (`specs/api/limite.spec.ts`): 500 mensagens por URL; a 501ª recebe 410 `Too many
   requests, please create a new URL/token` e não é gravada; apagar uma abre vaga.
 - **Evento** (`specs/event/request-created.spec.ts`): payload `{request, total, truncated}`;
@@ -101,6 +107,21 @@ como sucesso.
 | Segunda chamada ao toggle de CORS desliga | Sempre `{enabled: true}`; nada desliga o CORS | `isset()` em atributo mágico da `Entity` (sem `__isset`) é sempre falso |
 | Evento com `truncated: true` vem sem `content`, `headers` e `user_agent` | Marca `truncated` mas manda o corpo inteiro | `unset()` em atributo mágico (sem `__unset`) não faz nada |
 
+## Limites do Tomcat (`limiteDoTomcat`)
+
+Entradas que o app Laravel aceitava e gravava, e que o Tomcat do app novo recusa com 400 antes de
+chegar ao código. Com `CONTRATO_ALVO=novo` o teste é marcado `test.fail` até o dono decidir entre
+o backend aceitar (a marcação sai) ou o caso virar exclusão.
+
+| Teste | App Laravel |
+|---|---|
+| `Host` com underscore (`my_host.com`) | 200; `hostname` e `url` com o host como veio |
+| `\` no caminho | 200; a `url` guarda a barra invertida |
+| `%` solto no caminho (`/abc%`) | 200; a `url` guarda o `%` |
+| `%FF` no caminho | 200; a `url` guarda `%FF` |
+| `#` cru no caminho | 200; o fragmento some da `url` |
+| absolute-form com outro host (`GET http://outro.host:1234/{token}`) | 200; `hostname` e `url` vêm do cabeçalho `Host` |
+
 ## Exclusões propositais
 
 - **Validação para cliente não JSON** (sem `Accept: application/json`, sem `X-Requested-With`):
@@ -124,3 +145,26 @@ como sucesso.
   `Cache-Control`).
 - **Ordem entre mensagens do mesmo segundo**: indefinida no app atual (`created_at` tem
   resolução de segundo).
+
+Casos levantados pela refutação adversária que ficam fora:
+
+- **Limite de 500 sob concorrência**: rajada paralela perto do limite grava mais de 500, nos dois
+  apps; o limite é refeito no plano de features.
+- **Redis pub/sub do tempo real**: o SSE substituiu o laravel-echo-server; o app novo não publica
+  mais no Redis.
+- **`.php` e `.ht` no caminho**: o app Laravel responde 404/403 do PHP-FPM/nginx sem gravar; o app
+  novo grava como qualquer caminho, o que é melhor.
+- **UTF-8 inválido fora do corpo** (query, cabeçalho, campo multipart, `default_content`): gravado
+  com U+FFFD, extensão do defeito do corpo binário já corrigido.
+- **Limites do PHP** `max_input_vars` (1000) e aninhamento de arrays (64): não são emulados.
+- **Cabeçalhos que o nginx descarta ou mistura**: `Proxy`, nomes com `.` ou `~`, colisão
+  `X_Foo`/`X-Foo`, tab no fim do valor.
+- **`X-HTTP-Method-Override: HEAD` em POST**: artefato do Symfony; nenhum cliente depende.
+- **Cabeçalhos `Allow` e `Accept-Patch` em OPTIONS**: detalhe do servidor, fora da resposta
+  configurada no token.
+- **Normalizações de Content-Type da resposta pelo Tomcat**: aspas do charset, caixa, espaços, 205
+  sem corpo, CRLF saneado; a comparação já é pelo significado.
+- **Entradas absurdas**: `page`/`per_page` gigantes, `default_content_type[]`, `Accept` com `q`
+  inválido. `default_status` acima de 64 bits é a exceção: 422, como no app Laravel, e é testado.
+- **Detalhes de protocolo**: `Expires`/`Pragma` em HTTP/1.0, CONNECT (405 no app Laravel, 501 no
+  Tomcat), método em minúsculas.

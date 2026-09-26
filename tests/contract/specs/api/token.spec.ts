@@ -122,6 +122,17 @@ test.describe('validação (cliente JSON) → 422 {campo: [mensagem]}', () => {
     });
   }
 
+  test('default_status maior que um inteiro de 64 bits → 422', async ({ request, tokens }) => {
+    // Literal cru: em JS 99999999999999999999 viraria 1e20 antes de sair.
+    const res = await request.post('/token', {
+      data: Buffer.from('{"default_status": 99999999999999999999}'),
+      headers: { ...JSON_ACCEPT, 'Content-Type': 'application/json' },
+    });
+    if (res.status() === 201) tokens.registrar((await res.json()).uuid);
+    expect(res.status()).toBe(422);
+    expect(await res.json()).toEqual({ default_status: ['The default status must be an integer.'] });
+  });
+
   test('limites aceitos: timeout 0 e 10', async ({ tokens }) => {
     expect((await tokens.criar({ timeout: 0 })).timeout).toBe(0);
     expect((await tokens.criar({ timeout: 10 })).timeout).toBe(10);

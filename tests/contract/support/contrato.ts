@@ -16,6 +16,15 @@ export function bugDoLegado(motivo: string): void {
   test.fail(ALVO === 'legado', motivo);
 }
 
+/**
+ * Entrada que o app Laravel aceitava e o Tomcat do app novo recusa com 400 antes de chegar ao
+ * código. Com `CONTRATO_ALVO=novo` o teste é marcado `test.fail` até o dono decidir se o backend
+ * passa a aceitar (e a marcação sai) ou se o caso vira exclusão.
+ */
+export function limiteDoTomcat(): void {
+  test.fail(ALVO === 'novo', 'limite do Tomcat, ver relatório');
+}
+
 /** Cliente "de API": faz o Laravel responder erro em JSON em vez de HTML. */
 export const JSON_ACCEPT = { Accept: 'application/json' } as const;
 
@@ -171,12 +180,13 @@ export interface RespostaCrua {
 
 /**
  * HTTP/1.1 escrito à mão, para o que um cliente HTTP comum não deixa fazer: repetir um
- * cabeçalho em linhas separadas, omitir User-Agent, mandar cabeçalho vazio.
+ * cabeçalho em linhas separadas, omitir User-Agent, mandar cabeçalho vazio, caractere cru no
+ * alvo (`"`, `\`, `#`), corpo chunked, outro `Host`.
  */
-export function httpCru(linhas: string[], corpo = ''): Promise<RespostaCrua> {
+export function httpCru(linhas: string[], corpo = '', host = new URL(BASE_URL).host): Promise<RespostaCrua> {
   const url = new URL(BASE_URL);
   const porta = Number(url.port || (url.protocol === 'https:' ? 443 : 80));
-  const pedido = [...linhas, `Host: ${url.host}`, 'Connection: close', '', corpo].join('\r\n');
+  const pedido = [...linhas, `Host: ${host}`, 'Connection: close', '', corpo].join('\r\n');
   return new Promise((resolve, reject) => {
     const socket = net.connect(porta, url.hostname, () => socket.write(pedido));
     let bruto = '';

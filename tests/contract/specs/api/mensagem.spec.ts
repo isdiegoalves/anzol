@@ -1,9 +1,16 @@
 import {
   BASE_URL, CHAVES_MENSAGEM, JSON_ACCEPT, UUID, bugDoLegado, buscarMensagem, enviarEGuardar, expect,
-  expectContentType, expectDataUtcRecente, expectErroJson, httpCru, listar, test,
+  expectContentType, expectDataUtcRecente, expectErroJson, httpCru, limiteDoTomcat, listar, test,
 } from '../../support/contrato.js';
 
 const HOST = new URL(BASE_URL);
+
+/** Corpo multipart só com campos de texto, montado à mão para controlar nomes e quantidade. */
+function multipart(campos: Array<[string, string]>, fronteira = 'XyZcontrato'): Buffer {
+  const partes = campos.map(([nome, valor]) =>
+    `--${fronteira}\r\nContent-Disposition: form-data; name="${nome}"\r\n\r\n${valor}\r\n`);
+  return Buffer.from(`${partes.join('')}--${fronteira}--\r\n`);
+}
 
 test.describe('mensagem gravada: forma', () => {
   test('GET simples: chaves, tipos, url, hostname, datas e cabeçalhos vazios de corpo', async ({ request, tokens }) => {
@@ -178,6 +185,131 @@ test.describe('mensagem gravada: forma', () => {
       data: Buffer.from([0xff, 0xfe, 0x00, 0x41]), headers: { 'Content-Type': 'application/octet-stream' },
     });
     expect(res.status()).toBe(200);
+  });
+});
+
+test.describe('mensagem gravada: entradas grandes e incomuns', () => {
+  test('3 cabeçalhos de 3000 bytes (~9 KB): status do token e os três gravados inteiros', async ({ request, tokens }) => {
+    // Abaixo dos limites do nginx do app Laravel (8 KB por linha, 32 KB no total).
+    const token = await tokens.criar({ default_status: 202 });
+    const headers = Object.fromEntries([0, 1, 2].map((i) => [`X-Grande-${i}`, String(i).repeat(3000)]));
+    const { res, msg } = await enviarEGuardar(request, token.uuid, '', { method: 'GET', headers });
+    expect(res.status()).toBe(202);
+    for (const i of [0, 1, 2]) expect(msg.headers[`x-grande-${i}`]).toEqual([String(i).repeat(3000)]);
+  });
+
+  test('150 cabeçalhos: status do token e todos gravados', async ({ request, tokens }) => {
+    const token = await tokens.criar({ default_status: 202 });
+    const headers = Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`X-H-${i}`, `v${i}`]));
+    const { res, msg } = await enviarEGuardar(request, token.uuid, '', { method: 'GET', headers });
+    expect(res.status()).toBe(202);
+    for (let i = 0; i < 150; i++) expect(msg.headers[`x-h-${i}`]).toEqual([`v${i}`]);
+  });
+
+  for (const n of [51, 200]) {
+    test(`multipart com ${n} campos de texto: todos em request`, async ({ request, tokens }) => {
+      const token = await tokens.criar();
+      const campos = Array.from({ length: n }, (_, i): [string, string] => [`f${i}`, `v${i}`]);
+      const { res, msg } = await enviarEGuardar(request, token.uuid, '', {
+        method: 'POST', data: multipart(campos), headers: { 'Content-Type': 'multipart/form-data; boundary=XyZcontrato' },
+      });
+      expect(res.status()).toBe(200);
+      expect(msg.request).toEqual(Object.fromEntries(campos));
+      expect(msg.content).toBe('');
+    });
+  }
+
+  test('multipart com nome de campo de 1000 caracteres', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const nome = 'n'.repeat(1000);
+    const { res, msg } = await enviarEGuardar(request, token.uuid, '', {
+      method: 'POST', data: multipart([[nome, 'v']]), headers: { 'Content-Type': 'multipart/form-data; boundary=XyZcontrato' },
+    });
+    expect(res.status()).toBe(200);
+    expect(msg.request).toEqual({ [nome]: 'v' });
+  });
+
+  test('multipart sem boundary: 200, corpo cru em content, request null', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const corpo = '--XyZ\r\nfoo\r\n';
+    const { res, msg } = await enviarEGuardar(request, token.uuid, '', {
+      method: 'POST', data: Buffer.from(corpo), headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    expect(res.status()).toBe(200);
+    expect(msg.content).toBe(corpo);
+    expect(msg.request).toBeNull();
+    expect(msg.headers['content-type']).toEqual(['multipart/form-data']);
+  });
+
+  test('HTTP cru: aspas sem codificar na query são decodificadas; a url guarda a query re-codificada', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const res = await httpCru([`GET /${token.uuid}?data={"a":1} HTTP/1.1`]);
+    expect(res.status).toBe(200);
+    const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+    expect(msg.query).toEqual({ data: '{"a":1}' });
+    expect(msg.url).toBe(`${HOST.origin}/${token.uuid}?data=%7B%22a%22%3A1%7D`);
+  });
+
+  test('HTTP cru: aspas sem codificar no caminho ficam cruas na url', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const res = await httpCru([`GET /${token.uuid}/x"y?q="z" HTTP/1.1`]);
+    expect(res.status).toBe(200);
+    const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+    expect(msg.query).toEqual({ q: '"z"' });
+    expect(msg.url).toBe(`${HOST.origin}/${token.uuid}/x"y?q=%22z%22`);
+  });
+
+  test('HTTP cru: Transfer-Encoding chunked grava content-length com o tamanho real do corpo', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const res = await httpCru(
+      [`POST /${token.uuid} HTTP/1.1`, 'Content-Type: text/plain', 'Transfer-Encoding: chunked'],
+      '5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n',
+    );
+    expect(res.status).toBe(200);
+    const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+    expect(msg.content).toBe('hello world');
+    expect(msg.headers['content-length']).toEqual(['11']);
+    expect(msg.headers['transfer-encoding']).toEqual(['chunked']);
+  });
+});
+
+test.describe('mensagem gravada: alvo que o Tomcat recusa (limiteDoTomcat)', () => {
+  test('HTTP cru: Host com underscore é gravado como veio', async ({ request, tokens }) => {
+    limiteDoTomcat();
+    const token = await tokens.criar();
+    const res = await httpCru([`GET /${token.uuid}?b=1 HTTP/1.1`], '', 'my_host.com');
+    expect(res.status).toBe(200);
+    const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+    expect(msg.hostname).toBe('my_host.com');
+    expect(msg.url).toBe(`http://my_host.com/${token.uuid}?b=1`);
+    expect(msg.headers['host']).toEqual(['my_host.com']);
+  });
+
+  const caminhos: Array<[string, string, string]> = [
+    ['barra invertida', '/a\\b', '/a\\b'],
+    ['% solto', '/abc%', '/abc%'],
+    ['%FF', '/%FF', '/%FF'],
+    ['# cru (o fragmento some da url)', '/x#frag', '/x'],
+  ];
+  for (const [nome, caminho, gravado] of caminhos) {
+    test(`HTTP cru: ${nome} no caminho → 200 e grava`, async ({ request, tokens }) => {
+      limiteDoTomcat();
+      const token = await tokens.criar();
+      const res = await httpCru([`GET /${token.uuid}${caminho} HTTP/1.1`]);
+      expect(res.status).toBe(200);
+      const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+      expect(msg.url).toBe(`${HOST.origin}/${token.uuid}${gravado}`);
+    });
+  }
+
+  test('HTTP cru: absolute-form com outro host → hostname e url vêm do cabeçalho Host', async ({ request, tokens }) => {
+    limiteDoTomcat();
+    const token = await tokens.criar();
+    const res = await httpCru([`GET http://outro.host:1234/${token.uuid}?q=1 HTTP/1.1`]);
+    expect(res.status).toBe(200);
+    const msg = await buscarMensagem(request, token.uuid, res.headers['x-request-id']!);
+    expect(msg.hostname).toBe(HOST.hostname);
+    expect(msg.url).toBe(`${HOST.origin}/${token.uuid}?q=1`);
   });
 });
 
