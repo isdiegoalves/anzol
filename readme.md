@@ -350,6 +350,7 @@ Entrega os webhooks que chegam na URL direto no app que você está desenvolvend
 `stripe listen`: sem aba aberta e sem CORS.
 Também baixa e sobe as [regras de resposta](#regras-de-resposta) da URL como arquivo JSON.
 Com o `send`, faz o papel do provedor: dispara webhooks assinados, com retentativas, para o seu app.
+Com o `wait-for`, um teste automatizado espera o webhook chegar, sem `sleep`.
 
 ### Instalar
 
@@ -515,10 +516,64 @@ desiste não interrompe o `--repeat`. Sai com 0 se todos os envios entregaram e 
 desistiu ou se as opções são inválidas (motivo no stderr, nada é enviado). Ctrl+C sai com 130 sem
 reenviar.
 
+### `webhook wait-for`
+
+Para o teste de integração ou E2E do seu app: depois de disparar a ação que gera o webhook, espera
+(com prazo) até a URL receber a requisição esperada, e diz por que não chegou quando falha. Usa o
+[`requests/wait`](#esperar-por-mensagens) da API.
+
+```bash
+# um POST em /pedidos… com status "pago" no corpo JSON, em até 10 s; as mensagens vão para o jq
+webhook wait-for --token <uuid> --method POST --path /pedidos --json-path '$.status="pago"' --timeout 10000 | jq '.[0].content'
+
+# 3 webhooks que casam o match de uma regra (inline ou de arquivo), só os que chegarem daqui em diante
+webhook wait-for --token <uuid> --match-file match.json --count 3 --new
+```
+
+```
+$ webhook wait-for --token 9f3c…e21a --method DELETE --path /evento/2 --timeout 1500
+[]
+timed out after 1506 ms: 0/1 matched
+closest: #1790438428567114 bbe0928d-1e7f-4684-961c-9a2e86c4980d
+  - method: expected DELETE, got POST
+```
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| `--token <uuid>` | obrigatória | A URL observada |
+| `--match <json>` / `--match-file <arquivo>` | `{}` (casa qualquer mensagem) | O objeto `match` de uma [regra de resposta](#regras-de-resposta); um ou outro |
+| `--method M` | — | Repetível: casa qualquer um deles (`match.method`) |
+| `--path <prefixo>` | — | O caminho depois do token começa com o prefixo (`match.path.prefix`) |
+| `--header "Nome: valor"` | — | Repetível: o cabeçalho tem exatamente o valor (`match.headers`, nome sem caixa) |
+| `--body-contains <texto>` | — | O corpo contém o texto |
+| `--json-path '<caminho>[=<json>]'` | — | Repetível: sem `=`, o caminho existe no corpo JSON; com `=`, o valor nele é igual ao que vem depois do primeiro `=`, lido como JSON (`$.valor=10` é o número) ou, se não for JSON, como texto (`$.status=pago`) |
+| `--count N` | `1` | Quantas mensagens que casam são necessárias (1 a 100) |
+| `--timeout ms` | `30000` | Quanto esperar por mensagens novas (0 a 300000; `0` só olha o histórico) |
+| `--after <seq>` / `--new` | todo o histórico | Só mensagens com `seq` maior; `--new` usa o `seq` da mais nova no momento em que o comando começa. Um ou outro |
+
+Os atalhos montam o `match` e se somam ao `--match`: atalho de mesma chave de topo substitui a do
+`--match` (`--method` troca `method`; `--body-contains` e `--json-path` juntos formam o `body`), e todas as
+condições valem em E.
+
+**Saída.** O stdout é só o JSON das mensagens que casaram, um array numa linha (completas, como o
+`GET /token/{id}/request/{requestId}`, em ordem de `seq`), pronto para o `jq`; no prazo sem casar,
+as que casaram até ali (ou `[]`). O resumo vai para o stderr: `matched <n>/<count> in <ms> ms`, ou
+`timed out after <ms> ms: <n>/<count> matched` seguido de `closest: #<seq> <uuid>` e uma linha
+`  - <frase>` por condição que falhou na mensagem que chegou mais perto (sem essas linhas se nenhuma
+mensagem foi avaliada).
+
+| Situação | Saída |
+|---|---|
+| Casou | 0 |
+| Prazo acabou sem casar (ou a URL foi apagada durante a espera) | 1 |
+| Uso inválido (opção desconhecida ou com valor errado, `--after` com `--new`, `--match` que não é objeto JSON, arquivo inexistente), `match` recusado pelo servidor (422, cada `chave: mensagem` numa linha do stderr), `Token not found` ou servidor fora do ar | 2, stdout vazio |
+
+Quem corta a espera é o servidor: o prazo HTTP do CLI é o `--timeout` mais 10 s.
+
 ### Servidor
 
 `--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
-`replay` e `rules` (o `send` fala direto com o `--to`) e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
+`replay`, `rules` e `wait-for` (o `send` fala direto com o `--to`) e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
 `webhook rules pull <token> --server https://hooks.exemplo`.
 
 ### O que é reenviado

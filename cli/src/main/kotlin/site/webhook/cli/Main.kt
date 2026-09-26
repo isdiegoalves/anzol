@@ -1,12 +1,14 @@
 package site.webhook.cli
 
 import com.github.ajalt.clikt.core.BaseCliktCommand
+import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.CoreCliktCommand
 import com.github.ajalt.clikt.core.CoreNoOpCliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.core.main
+import com.github.ajalt.clikt.core.parse
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
@@ -23,7 +25,19 @@ import kotlin.system.exitProcess
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
-fun main(args: Array<String>) = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send()).main(args)
+/** O `main` do Clikt, com uma troca: uso inválido do `wait-for` sai com 2, porque o 1 dele é "não casou". */
+fun main(args: Array<String>) {
+    val webhook = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
+    try {
+        webhook.parse(args)
+    } catch (e: UsageError) {
+        webhook.echoFormattedHelp(e)
+        exitProcess(if (e.context?.command is WaitFor) WAIT_FOR_ERROR else e.statusCode)
+    } catch (e: CliktError) {
+        webhook.echoFormattedHelp(e)
+        exitProcess(e.statusCode)
+    }
+}
 
 /**
  * O `clikt-core` (sem o Mordant, que no JDK 25 avisa sobre acesso nativo no stderr) não lê
@@ -58,21 +72,25 @@ fun httpClient(connectTimeout: Duration = CONNECT_TIMEOUT): HttpClient =
 fun BaseCliktCommand<*>.serverOption() =
     option("--server", envvar = "WEBHOOK_SERVER", help = "webhook.site server (default $DEFAULT_SERVER)").default(DEFAULT_SERVER)
 
-/** Mensagem no stderr e saída 1. */
-fun BaseCliktCommand<*>.fail(message: String): Nothing {
+/** Mensagem no stderr e saída [status]. */
+fun BaseCliktCommand<*>.fail(
+    message: String,
+    status: Int = 1,
+): Nothing {
     echo(message, err = true)
-    throw ProgramResult(1)
+    throw ProgramResult(status)
 }
 
-/** Servidor fora do ar na partida vira mensagem curta, não stack trace. */
+/** Servidor fora do ar na partida vira mensagem curta, não stack trace, e saída [status]. */
 fun <T> BaseCliktCommand<*>.reaching(
     site: WebhookServer,
+    status: Int = 1,
     call: () -> T,
 ): T =
     try {
         call()
     } catch (e: IOException) {
-        fail("Could not reach ${site.base}: ${e.reason()}")
+        fail("Could not reach ${site.base}: ${e.reason()}", status)
     }
 
 class Listen : CoreCliktCommand(name = "listen") {

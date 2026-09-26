@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import java.io.OutputStream
 import java.net.InetSocketAddress
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -26,6 +27,7 @@ private val STREAM_ROUTE = Regex("/token/([^/]+)/stream")
 private val LIST_ROUTE = Regex("/token/([^/]+)/requests")
 private val FIND_ROUTE = Regex("/token/([^/]+)/request/([^/]+)")
 private val RULES_ROUTE = Regex("/token/([^/]+)/rules")
+private val WAIT_ROUTE = Regex("/token/([^/]+)/requests/wait")
 private const val DEFAULT_PER_PAGE = 50
 private const val UNPROCESSABLE = 422
 private const val UNAVAILABLE = 503
@@ -34,7 +36,8 @@ private const val TOKEN_NOT_FOUND = """{"success":false,"error":{"message":"Toke
 /**
  * Servidor webhook.site falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
  * `POST /token`, `GET /token/{id}` (410 se não existe), o SSE `request.created`, a listagem
- * paginada (e a incremental, `after=<seq>`), `GET /token/{id}/request/{rid}` e `GET`/`PUT /token/{id}/rules`.
+ * paginada (e a incremental, `after=<seq>`), `GET /token/{id}/request/{rid}`, `GET`/`PUT /token/{id}/rules` e o
+ * `POST /token/{id}/requests/wait` (grava o corpo e responde [waitReply], sem avaliar nada).
  * Cada mensagem gravada ganha `seq` crescente, como o índice do servidor real.
  */
 class FakeWebhookSite : AutoCloseable {
@@ -43,6 +46,14 @@ class FakeWebhookSite : AutoCloseable {
     private val subscribers = CopyOnWriteArrayList<Subscriber>()
     private val ruleLists = ConcurrentHashMap<String, JsonArray>()
     private val lastSeq = AtomicLong()
+
+    /** Corpos recebidos no `POST /token/{id}/requests/wait`, em ordem. */
+    val waits = CopyOnWriteArrayList<JsonObject>()
+
+    /** Status e corpo da resposta do `requests/wait`, depois de [waitDelay]. */
+    @Volatile var waitReply: Pair<Int, String> = 200 to """{"matched":true,"count":0,"requests":[],"near_miss":null}"""
+
+    @Volatile var waitDelay: Duration = Duration.ZERO
 
     /** Quantos `PUT /token/{id}/rules` chegaram, válidos ou não. */
     val rulePuts = AtomicLong()
@@ -144,6 +155,7 @@ class FakeWebhookSite : AutoCloseable {
         when {
             method == "POST" && path == "/token" -> exchange.respond(201, """{"uuid":"${createToken()}"}""")
             method == "PUT" && RULES_ROUTE.matches(path) -> replaceRules(exchange, RULES_ROUTE.matchEntire(path)?.groupValues?.get(1))
+            method == "POST" && WAIT_ROUTE.matches(path) -> wait(exchange, WAIT_ROUTE.matchEntire(path)?.groupValues?.get(1))
             method != "GET" -> exchange.respond(405, "")
             else -> handleGet(exchange, path)
         }
@@ -267,6 +279,17 @@ class FakeWebhookSite : AutoCloseable {
                 exchange.respond(200, saved.toString())
             }
         }
+    }
+
+    private fun wait(
+        exchange: HttpExchange,
+        token: String?,
+    ) {
+        if (token == null || !messages.containsKey(token)) return exchange.respond(410, TOKEN_NOT_FOUND)
+        waits += Json.parseToJsonElement(exchange.requestBody.use { String(it.readAllBytes()) }).jsonObject
+        Thread.sleep(waitDelay)
+        val (status, body) = waitReply
+        exchange.respond(status, body)
     }
 
     private fun JsonObject.withId(): JsonObject = if ("id" in this) this else with("id", JsonPrimitive(UUID.randomUUID().toString()))
