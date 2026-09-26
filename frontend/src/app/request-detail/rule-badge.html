@@ -1,0 +1,28 @@
+@let current = request();
+@if (current.rule; as rule) {
+  <p class="badge answered">
+    Answered by rule <strong>{{ rule.name }}</strong>
+  </p>
+} @else if (current.near_miss; as nearMiss) {
+  <div class="badge near-miss">
+    <p>
+      No rule matched — closest: <strong>{{ nearMiss.name }}</strong>
+      <button
+        mat-button
+        type="button"
+        class="why"
+        [attr.aria-expanded]="expanded()"
+        (click)="toggleFailed()"
+      >
+        Why? ({{ nearMiss.failed.length }})
+      </button>
+    </p>
+    @if (expanded()) {
+      <ul class="failed">
+        @for (reason of nearMiss.failed; track $index) {
+          <li>{{ reason }}</li>
+        }
+      </ul>
+    }
+  </div>
+}

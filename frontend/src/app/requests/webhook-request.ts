@@ -1,3 +1,5 @@
+import { NearMiss, RuleRef } from '../rules/rule';
+
 /** Valor de query string ou formulário: texto, ou lista/objeto quando vem de `a[]=1`. */
 export type FieldValue = string | FieldValue[] | { [name: string]: FieldValue };
 
@@ -14,6 +16,10 @@ export interface WebhookRequest {
   headers: Record<string, string[]>;
   url: string;
   request?: Record<string, FieldValue> | null;
+  /** Regra que respondeu; `null` sem regra (ausente em mensagens gravadas antes das regras). */
+  rule?: RuleRef | null;
+  /** Regra mais próxima quando havia regras ativas e nenhuma casou. */
+  near_miss?: NearMiss | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,5 @@
 @let current = request();
+<app-rule-badge [request]="current" />
 @if (!preferences.hideDetails()) {
   <div class="grid">
     <table class="table" aria-label="Request Details">

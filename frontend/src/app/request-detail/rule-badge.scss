@@ -1,0 +1,28 @@
+.badge {
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border-radius: 4px;
+
+  p {
+    margin: 0;
+  }
+}
+
+// Cores dos alertas do app atual (success/warning do Bootstrap).
+.answered {
+  border: 1px solid #d6e9c6;
+  background: #dff0d8;
+  color: #3c763d;
+}
+
+.near-miss {
+  border: 1px solid #faebcc;
+  background: #fcf8e3;
+  color: #8a6d3b;
+}
+
+.failed {
+  margin: 4px 0 0;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 12px;
+}

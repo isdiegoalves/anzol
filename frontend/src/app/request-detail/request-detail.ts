@@ -11,11 +11,12 @@ import { Token } from '../token/token';
 import { COPY_FORMATS, CopyFormat, convertRequest } from './copy-as';
 import { fromNow, localDate } from './dates';
 import { formatContent, highlightContent } from './format-content';
+import { RuleBadge } from './rule-badge';
 
 /** Detalhe da mensagem: dados, headers, query, formulário e corpo (cru ou formatado). */
 @Component({
   selector: 'app-request-detail',
-  imports: [MatButton, MatMenu, MatMenuItem, MatMenuTrigger, MethodLabel],
+  imports: [MatButton, MatMenu, MatMenuItem, MatMenuTrigger, MethodLabel, RuleBadge],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',
 })

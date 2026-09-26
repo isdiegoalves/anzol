@@ -132,4 +132,13 @@ describe('Dado o detalhe de uma mensagem', () => {
       await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Copy payload' })),
     ).toHaveLength(0);
   });
+
+  it('deve mostrar o selo da regra acima dos detalhes, mesmo com "Hide Details", Quando a mensagem foi respondida por regra', async () => {
+    TestBed.inject(Preferences).hideDetails.set(true);
+    const element = await render(webhookRequest(1, { rule: { id: 'r1', name: 'Pix pago' } }));
+
+    expect(element.querySelector('app-rule-badge')?.textContent).toContain(
+      'Answered by rule Pix pago',
+    );
+  });
 });
