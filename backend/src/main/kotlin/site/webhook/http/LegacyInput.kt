@@ -1,11 +1,14 @@
 package site.webhook.http
 
+import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.Part
 import site.webhook.legacy.PhpArray
 import site.webhook.legacy.parseStr
 import site.webhook.legacy.register
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
+import java.io.IOException
 import java.nio.charset.StandardCharsets.ISO_8859_1
 import java.nio.charset.StandardCharsets.UTF_8
 
@@ -46,8 +49,15 @@ class LegacyInput(
 fun HttpServletRequest.legacyInput(): LegacyInput =
     checkNotNull(getAttribute(LegacyInput.ATTRIBUTE) as? LegacyInput) { "LegacyRequestFilter não processou a requisição" }
 
-/** `true` quando o PHP decodificaria o corpo como multipart (e `php://input` ficaria vazio). */
-fun HttpServletRequest.isPhpMultipartPost(): Boolean = method == "POST" && phpPostContentType(contentType) == MULTIPART
+/**
+ * `true` quando o PHP decodificaria o corpo como multipart (e `php://input` ficaria vazio). Sem
+ * `boundary=` no Content-Type o PHP desiste ("Missing boundary") e o corpo fica cru em `content`.
+ */
+fun HttpServletRequest.isPhpMultipartPost(): Boolean =
+    method == "POST" && phpPostContentType(contentType) == MULTIPART && hasMultipartBoundary(contentType.orEmpty())
+
+/** `rfc1867.c`: procura `boundary` (sem caixa) e depois um `=`. */
+private fun hasMultipartBoundary(contentType: String): Boolean = '=' in contentType.lowercase().substringAfter("boundary", "")
 
 fun HttpServletRequest.readLegacyInput(
     body: ByteArray,
@@ -78,14 +88,27 @@ private fun phpPostContentType(contentType: String?): String =
         .split(';', ',', ' ')
         .first()
 
-/** `$_POST` de um multipart: só os campos de texto; arquivos vão para `$_FILES` e são descartados. */
+/**
+ * `$_POST` de um multipart: só os campos de texto; arquivos vão para `$_FILES` e são descartados.
+ * Corpo que não se decodifica (boundary vazio, partes malformadas) fica sem campos, como no PHP;
+ * corpo acima do limite sobe como a `InvalidParameterException` do Tomcat (413).
+ */
 private fun HttpServletRequest.multipartFields(): PhpArray {
     val fields = PhpArray()
-    parts.filter { it.submittedFileName == null }.forEach { part ->
+    readablePartsOrEmpty().filter { it.submittedFileName == null }.forEach { part ->
         fields.register(part.name, String(part.inputStream.readAllBytes(), UTF_8))
     }
     return fields
 }
+
+private fun HttpServletRequest.readablePartsOrEmpty(): Collection<Part> =
+    try {
+        parts
+    } catch (_: ServletException) {
+        emptyList()
+    } catch (_: IOException) {
+        emptyList()
+    }
 
 @Suppress("UNCHECKED_CAST")
 private fun jsonObject(

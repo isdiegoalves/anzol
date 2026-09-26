@@ -31,7 +31,7 @@ fun HttpServletRequest.toCapturedRequest(
     receivedAt: LocalDateTime,
 ): CapturedRequest {
     val input = legacyInput()
-    val headers = legacyHeaders()
+    val headers = legacyHeaders(bodySize = input.body.size)
     return CapturedRequest(
         uuid = RequestId(UUID.randomUUID()),
         tokenId = tokenId,
@@ -60,15 +60,17 @@ private fun LegacyInput.formField(): JsonNode? =
 /**
  * `$request->headers->all()` atrás do nginx + PHP-FPM: nome em minúsculas com `_` virando `-`,
  * um valor só (o último), ordem inversa à de chegada, `content-length` e `content-type` vazios
- * quando ausentes e, com Basic Auth, `php-auth-user`/`php-auth-pw` no fim.
+ * quando ausentes e, com Basic Auth, `php-auth-user`/`php-auth-pw` no fim. Com corpo chunked o
+ * nginx junta os pedaços e repassa o tamanho lido como `content-length`.
  */
-fun HttpServletRequest.legacyHeaders(): Map<String, List<String>> {
+fun HttpServletRequest.legacyHeaders(bodySize: Int): Map<String, List<String>> {
     val arrived =
         headerNames.toList().map { name ->
             name.lowercase().replace('_', '-') to getHeaders(name).toList().last().latin1ToUtf8()
         }
     val headers = LinkedHashMap<String, List<String>>()
     arrived.asReversed().forEach { (name, value) -> headers[name] = listOf(value) }
+    if ("transfer-encoding" in headers) headers.putIfAbsent("content-length", listOf(bodySize.toString()))
     headers.putIfAbsent("content-length", listOf(""))
     headers.putIfAbsent("content-type", listOf(""))
     val credentials = headers["authorization"]?.first()?.let(::basicCredentials)

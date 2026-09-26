@@ -86,7 +86,7 @@ class WebhookRulesTest {
             request.addHeader("X-Dup", "1")
             request.addHeader("X-Dup", "2")
 
-            val headers = request.legacyHeaders()
+            val headers = request.legacyHeaders(bodySize = 0)
 
             assertThat(headers).containsExactly(
                 java.util.Map.entry("x-dup", listOf("2")),
@@ -103,7 +103,7 @@ class WebhookRulesTest {
             val request = MockHttpServletRequest()
             request.addHeader("Authorization", "Basic dXMgZXI6cDp3")
 
-            val headers = request.legacyHeaders()
+            val headers = request.legacyHeaders(bodySize = 0)
 
             assertThat(headers.keys).endsWith("php-auth-user", "php-auth-pw")
             assertThat(headers["php-auth-user"]).containsExactly("us er")
@@ -116,7 +116,7 @@ class WebhookRulesTest {
             val request = MockHttpServletRequest()
             request.addHeader("Authorization", "Basic semdoispontos")
 
-            assertThat(request.legacyHeaders()).doesNotContainKeys("php-auth-user", "php-auth-pw")
+            assertThat(request.legacyHeaders(bodySize = 0)).doesNotContainKeys("php-auth-user", "php-auth-pw")
         }
     }
 }

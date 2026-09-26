@@ -35,6 +35,11 @@ server:
     # O nginx do app antigo aceita estes caracteres crus na query e no caminho (ex.: `a[]=1`, `{"a":1}`).
     relaxed-query-chars: '",<,>,[,\,],^,`,{,|,}'
     relaxed-path-chars: '",<,>,[,\,],^,`,{,|,}'
+    # O PHP não limita partes do multipart nem o tamanho do cabeçalho de cada parte; o teto que vale
+    # é o corpo de 1 MiB do nginx (spring.servlet.multipart e LegacyRequestFilter). -1 = sem limite.
+    max-part-count: -1
+    max-part-header-size: 1MB
+    max-parameter-count: -1
 
 webhook:
   max-requests: ${WEBHOOK_MAX_REQUESTS:500}
