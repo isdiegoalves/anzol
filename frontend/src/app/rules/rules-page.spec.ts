@@ -8,8 +8,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
+import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { Rule } from './rule';
 import { RuleEditor } from './rule-editor';
@@ -190,6 +191,28 @@ describe('Dado a aba de regras', () => {
       expect.objectContaining({ data: { index: null } }),
     );
   });
+
+  it.each([
+    ['desta URL', TOKEN_ID, true],
+    ['de outra URL', '11111111-2222-4333-8444-555555555555', false],
+  ])(
+    'deve passar a mensagem aberta como exemplo só se ela for desta URL Quando a aberta é %s',
+    async (_caso, tokenId, passa) => {
+      const aberta = webhookRequest(3, { token_id: tokenId });
+      vi.spyOn(TestBed.inject(RequestStore), 'selected').mockReturnValue(aberta);
+      await open([]);
+      const dialog = vi.spyOn(TestBed.inject(MatDialog), 'open');
+
+      await (await button('New rule')).click();
+
+      expect(dialog).toHaveBeenCalledWith(
+        RuleEditor,
+        expect.objectContaining({
+          data: passa ? { index: null, example: aberta } : { index: null },
+        }),
+      );
+    },
+  );
 
   it('deve abrir o editor com a posição da regra na lista Quando "Edit" é clicado', async () => {
     await open([rule(1, { priority: 9 }), rule(2)]);

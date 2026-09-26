@@ -103,7 +103,7 @@ export class RuleFromRequest {
     }
     this.dialog
       .open<RuleEditor, RuleEditorData, boolean>(RuleEditor, {
-        data: { index: null, draft: ruleFromRequest(request) },
+        data: { index: null, draft: ruleFromRequest(request), example: request },
         width: '960px',
         maxWidth: '95vw',
       })

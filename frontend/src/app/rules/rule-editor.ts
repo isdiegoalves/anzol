@@ -27,6 +27,8 @@ import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { merge } from 'rxjs';
+import { RuleSuggest } from '../ai/rule-suggest';
+import { WebhookRequest } from '../requests/webhook-request';
 import { HistoryTestPanel } from './history-test-panel';
 import {
   DELAY_MAX_MS,
@@ -64,6 +66,8 @@ export interface RuleEditorData {
   index: number | null;
   /** Regra nova já preenchida (ex.: a partir de uma mensagem); sem ela, uma regra em branco. */
   draft?: Rule;
+  /** Mensagem aberta: o "Describe the rule" pode mandá-la ao modelo como exemplo. */
+  example?: WebhookRequest;
 }
 
 type ConditionGroup = FormGroup<{
@@ -140,6 +144,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     MatButtonToggleGroup,
     MatButtonToggle,
     HistoryTestPanel,
+    RuleSuggest,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',
@@ -321,6 +326,19 @@ export class RuleEditor {
       }
     }
     this.view.set(index);
+  }
+
+  /**
+   * A regra do "Describe the rule" entra no editor (na visão aberta) sem salvar. Editando uma
+   * regra salva, ela fica com o `id` dessa regra.
+   */
+  protected applySuggestion(rule: Rule): void {
+    this.base = this.data.index === null ? rule : { ...rule, id: this.base.id };
+    this.generalErrors.set([]);
+    this.loadForm(this.base);
+    if (this.view() === JSON_VIEW) {
+      this.json.setValue(JSON.stringify(this.formRule(), null, 2));
+    }
   }
 
   protected canSave(): boolean {

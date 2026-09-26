@@ -80,5 +80,11 @@ code {
 
 .content-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+}
+
+.ai-off {
+  color: #a94442;
+  font-size: 85%;
 }

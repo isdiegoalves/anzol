@@ -1,0 +1,22 @@
+<section class="panel" aria-label="Explanation">
+  <header class="title">
+    <h3>Explain</h3>
+    <span class="note">Written by the local model; check the facts before acting on them.</span>
+  </header>
+  @if (loading()) {
+    <p class="wait" role="status">{{ waitHint }}</p>
+  }
+  @if (errors().length > 0) {
+    <ul class="errors" role="alert">
+      @for (message of errors(); track $index) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+    @if (!disabled()) {
+      <button mat-stroked-button type="button" (click)="retry()">Try again</button>
+    }
+  }
+  @if (explanation(); as text) {
+    <app-markdown class="text" [text]="text" />
+  }
+</section>

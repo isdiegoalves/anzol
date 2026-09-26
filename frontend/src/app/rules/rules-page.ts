@@ -14,6 +14,7 @@ import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import {
   RULE_DEFAULT_PRIORITY,
@@ -49,6 +50,7 @@ interface OrderedRule {
 export class RulesPage {
   protected readonly store = inject(RuleStore);
   private readonly tokens = inject(TokenStore);
+  private readonly requests = inject(RequestStore);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly document = inject(DOCUMENT);
@@ -192,9 +194,12 @@ export class RulesPage {
 
   private openEditor(data: RuleEditorData): void {
     this.errors.set([]);
+    // A mensagem aberta na caixa de entrada desta URL vira o exemplo do "Describe the rule".
+    const open = this.requests.selected();
+    const example = open?.token_id === this.tokenId() ? open : undefined;
     this.dialog
       .open<RuleEditor, RuleEditorData, boolean>(RuleEditor, {
-        data,
+        data: { ...data, ...(example && { example }) },
         width: '960px',
         maxWidth: '95vw',
       })

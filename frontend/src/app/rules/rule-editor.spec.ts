@@ -5,6 +5,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatButtonToggleHarness } from '@angular/material/button-toggle/testing';
+import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
@@ -33,6 +34,7 @@ describe('Dado o editor de regra', () => {
     await loaded;
     dialogData.index = data.index;
     dialogData.draft = data.draft;
+    dialogData.example = data.example;
     fixture = TestBed.createComponent(RuleEditor);
     loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
@@ -505,6 +507,103 @@ describe('Dado o editor de regra', () => {
         expect(await (await field('Scenario name')).getTextErrors()).toEqual([
           'The scenario name may not be greater than 100 characters.',
         ]),
+      );
+    });
+  });
+
+  describe('Dado o "Describe the rule"', () => {
+    const URL_SUGGEST = `/token/${TOKEN_ID}/rules/suggest`;
+    const sugerida: Rule = {
+      ...rule(9),
+      id: undefined,
+      name: 'Pagamentos 429',
+      match: { ...rule(9).match, path: { equals: '/pagamentos' } },
+      response: { ...rule(9).response, status: 429, headers: { 'Retry-After': '5' } },
+    };
+    const suggest = async (texto = 'Responda 429 com Retry-After 5 para POST em /pagamentos') => {
+      await (await input('Describe the rule')).setValue(texto);
+      await (await button('Suggest')).click();
+      const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: URL_SUGGEST }));
+      call.flush({ rule: sugerida, explanation: 'Responde **429**.', attempts: 1 });
+      await vi.waitFor(async () =>
+        expect(await (await input('Name')).getValue()).toBe(sugerida.name),
+      );
+      return call;
+    };
+
+    it('deve preencher o editor com a regra sugerida sem salvar Quando "Suggest" responde', async () => {
+      await open({ index: null }, [rule(1)]);
+
+      await suggest();
+
+      expect(await (await input('Path')).getValue()).toBe('/pagamentos');
+      expect(await (await input('Status')).getValue()).toBe('429');
+      expect(await (await input('Response header 1 name')).getValue()).toBe('Retry-After');
+      expect(await (await input('Response header 1 value')).getValue()).toBe('5');
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+        'Suggested in 1 attempt.',
+      );
+      http.expectNone({ method: 'PUT', url: URL_REGRAS });
+      expect(dialogRef.close).not.toHaveBeenCalled();
+      expect(TestBed.inject(RuleStore).rules()).toEqual([rule(1)]);
+    });
+
+    it('deve gravar a sugestão no fim da lista só Quando o dono clica "Save"', async () => {
+      await open({ index: null }, [rule(1)]);
+      await suggest();
+
+      await save();
+
+      const call = await put();
+      expect(call.request.body).toEqual([rule(1), sugerida]);
+      call.flush([rule(1), { ...sugerida, id: 'r9' }]);
+      await vi.waitFor(() => expect(dialogRef.close).toHaveBeenCalledWith(true));
+    });
+
+    it('deve manter o id da regra editada Quando a sugestão substitui uma regra salva', async () => {
+      await open({ index: 0 }, [rule(1), rule(2)]);
+      await suggest();
+
+      await save();
+
+      const call = await put();
+      expect(call.request.body).toEqual([{ ...sugerida, id: 'r1' }, rule(2)]);
+      call.flush([{ ...sugerida, id: 'r1' }, rule(2)]);
+    });
+
+    it('deve preencher o JSON Quando a visão aberta é a "JSON"', async () => {
+      await open({ index: null }, []);
+      await (await loader.getHarness(MatButtonToggleHarness.with({ text: 'JSON' }))).check();
+
+      await (await input('Describe the rule')).setValue('regra de 429');
+      await (await button('Suggest')).click();
+      (await vi.waitFor(() => http.expectOne(URL_SUGGEST))).flush({
+        rule: sugerida,
+        explanation: '',
+        attempts: 3,
+      });
+
+      await vi.waitFor(async () =>
+        expect(JSON.parse(await (await input('Rule JSON')).getValue())).toEqual(
+          JSON.parse(JSON.stringify(sugerida)),
+        ),
+      );
+      http.expectNone({ method: 'PUT', url: URL_REGRAS });
+    });
+
+    it('deve oferecer a mensagem aberta como exemplo Quando o editor recebe uma', async () => {
+      const example = webhookRequest(5);
+      await open({ index: null, example }, []);
+
+      await (await loader.getHarness(MatCheckboxHarness)).check();
+      await (await input('Describe the rule')).setValue('igual a esta');
+      await (await button('Suggest')).click();
+
+      const call = await vi.waitFor(() => http.expectOne(URL_SUGGEST));
+      expect(call.request.body).toEqual(expect.objectContaining({ request_id: example.uuid }));
+      call.flush({ rule: sugerida, explanation: '', attempts: 1 });
+      await vi.waitFor(async () =>
+        expect(await (await input('Name')).getValue()).toBe(sugerida.name),
       );
     });
   });

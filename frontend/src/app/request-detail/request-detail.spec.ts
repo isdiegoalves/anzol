@@ -1,4 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -260,4 +262,77 @@ describe('Dado o detalhe de uma mensagem', () => {
       await vi.waitFor(() => expect(actions[action]).toHaveBeenCalledWith(request));
     },
   );
+
+  describe('Dado o "Explain"', () => {
+    const explainUrl = (request: WebhookRequest) =>
+      `/token/${TOKEN_ID}/request/${request.uuid}/explain`;
+    const explainButton = () =>
+      loader.getHarness(MatButtonHarness.with({ text: /^(Explain|Hide explanation)$/ }));
+    let http: HttpTestingController;
+
+    beforeEach(() => {
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      http = TestBed.inject(HttpTestingController);
+    });
+
+    afterEach(() => http.verify());
+
+    it('deve abrir o painel e mostrar o diagnóstico da mensagem Quando "Explain" é clicado', async () => {
+      const request = webhookRequest(6);
+      const element = await render(request);
+      expect(element.querySelector('app-explain-panel')).toBeNull();
+
+      await (await explainButton()).click();
+
+      const call = await vi.waitFor(() =>
+        http.expectOne({ method: 'POST', url: explainUrl(request) }),
+      );
+      expect(call.request.body).toEqual({ lang: navigator.language });
+      call.flush({ explanation: 'Assinatura **válida**.', facts: {} });
+      await vi.waitFor(() =>
+        expect(element.querySelector('app-explain-panel strong')?.textContent).toBe('válida'),
+      );
+      expect(await (await explainButton()).getText()).toBe('Hide explanation');
+    });
+
+    it('deve fechar o painel Quando "Hide explanation" é clicado ou outra mensagem é aberta', async () => {
+      const request = webhookRequest(6);
+      const element = await render(request);
+      await (await explainButton()).click();
+      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({ explanation: 'x' });
+      await vi.waitFor(() => expect(element.querySelector('app-explain-panel')).not.toBeNull());
+
+      await (await explainButton()).click();
+      await vi.waitFor(() => expect(element.querySelector('app-explain-panel')).toBeNull());
+
+      await (await explainButton()).click();
+      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({ explanation: 'x' });
+      await vi.waitFor(() => expect(element.querySelector('app-explain-panel')).not.toBeNull());
+      fixture.componentRef.setInput('request', webhookRequest(7));
+      await fixture.whenStable();
+      expect(element.querySelector('app-explain-panel')).toBeNull();
+      expect(await (await explainButton()).getText()).toBe('Explain');
+    });
+
+    it('deve desabilitar o "Explain" com a dica de configuração Quando a IA está desligada (503)', async () => {
+      const request = webhookRequest(6);
+      const element = await render(request);
+      await (await explainButton()).click();
+      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush(
+        { error: 'AI is not configured' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+
+      await vi.waitFor(() =>
+        expect(element.querySelector('.ai-off')?.textContent?.trim()).toBe(
+          'Set WEBHOOK_AI_* to enable',
+        ),
+      );
+      await (await explainButton()).click();
+      await vi.waitFor(() => expect(element.querySelector('app-explain-panel')).toBeNull());
+      expect(await (await explainButton()).isDisabled()).toBe(true);
+    });
+  });
 });

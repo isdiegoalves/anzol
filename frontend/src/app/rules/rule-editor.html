@@ -7,6 +7,11 @@
       }
     </ul>
   }
+  <app-rule-suggest
+    [tokenId]="tokenId() ?? ''"
+    [example]="data.example"
+    (suggested)="applySuggestion($event)"
+  />
   <mat-button-toggle-group
     class="view"
     aria-label="Editor view"

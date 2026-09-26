@@ -134,7 +134,7 @@ describe('Dado o botão "Create rule from this request"', () => {
 
   afterEach(() => http.verify());
 
-  it('deve carregar as regras da URL e abrir o editor com a regra pré-preenchida Quando é clicado', async () => {
+  it('deve carregar as regras da URL e abrir o editor com a regra pré-preenchida e a mensagem como exemplo Quando é clicado', async () => {
     const request = webhookRequest(1, { url: `${BASE}/pedidos` });
 
     const done = TestBed.inject(RuleFromRequest).open(request);
@@ -144,7 +144,9 @@ describe('Dado o botão "Create rule from this request"', () => {
     expect(TestBed.inject(RuleStore).rules()).toEqual([rule(1)]);
     expect(dialog.open).toHaveBeenCalledWith(
       RuleEditor,
-      expect.objectContaining({ data: { index: null, draft: ruleFromRequest(request) } }),
+      expect.objectContaining({
+        data: { index: null, draft: ruleFromRequest(request), example: request },
+      }),
     );
     expect(snackBar.open).toHaveBeenCalledWith('Rule saved', 'View rules');
   });

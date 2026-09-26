@@ -1,9 +1,20 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT } from '@angular/common';
-import { Component, Injector, computed, inject, input } from '@angular/core';
+import {
+  Component,
+  Injector,
+  ViewContainerRef,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
 import { MethodLabel } from '../requests/method-label';
 import { FieldValue, WebhookRequest } from '../requests/webhook-request';
@@ -39,14 +50,33 @@ export class RequestDetail {
   private readonly origin = inject(DOCUMENT).location.origin;
   private readonly injector = inject(Injector);
   private readonly compare = inject(CompareStore);
+  protected readonly ai = inject(AiClient);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
   readonly page = input.required<number>();
 
+  /** Painel do "Explain" aberto; fecha ao abrir outra mensagem. */
+  protected readonly explaining = linkedSignal({
+    source: () => this.request().uuid,
+    computation: () => false,
+  });
+  /** Onde o painel entra. Criado à mão: o `@defer` e o `NgComponentOutlet` pesariam na carga inicial. */
+  private readonly explainHost = viewChild.required('explainHost', { read: ViewContainerRef });
+  protected readonly aiOffHint = AI_OFF_HINT;
+
   protected readonly formats = COPY_FORMATS;
   protected readonly localDate = localDate;
   protected readonly fromNow = fromNow;
+
+  constructor() {
+    // Fechar (ou abrir outra mensagem) tira o painel.
+    effect(() => {
+      if (!this.explaining()) {
+        this.explainHost().clear();
+      }
+    });
+  }
 
   protected readonly permalink = computed(
     () => `${this.origin}/#/${this.token().uuid}/${this.request().uuid}/${this.page()}`,
@@ -89,6 +119,26 @@ export class RequestDetail {
   protected async createRule(): Promise<void> {
     const { RuleFromRequest } = await import('../rules/rule-from-request');
     await this.injector.get(RuleFromRequest).open(this.request());
+  }
+
+  /**
+   * Abre ou fecha o diagnóstico da mensagem ("Explain"). O painel vem sob demanda (pedaço do
+   * `explain-panel`) e faz a chamada ao abrir.
+   */
+  protected async toggleExplain(): Promise<void> {
+    if (this.explaining()) {
+      this.explaining.set(false);
+      return;
+    }
+    const request = this.request();
+    const { ExplainPanel } = await import('../ai/explain-panel');
+    if (this.request() !== request || this.explaining()) {
+      return;
+    }
+    const panel = this.explainHost().createComponent(ExplainPanel);
+    panel.setInput('tokenId', request.token_id);
+    panel.setInput('requestId', request.uuid);
+    this.explaining.set(true);
   }
 
   /** Os diálogos de saída vêm sob demanda (no pedaço do `outbound-actions`). */

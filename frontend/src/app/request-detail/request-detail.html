@@ -133,6 +133,18 @@
   <button mat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
   <button mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
   <button mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+  <button
+    mat-button
+    type="button"
+    title="Ask the local model why signature, schema and rules gave this result"
+    [disabled]="ai.disabled() && !explaining()"
+    (click)="toggleExplain()"
+  >
+    {{ explaining() ? 'Hide explanation' : 'Explain' }}
+  </button>
+  @if (ai.disabled()) {
+    <span class="ai-off">{{ aiOffHint }}</span>
+  }
   <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
   @if (jsonBody()) {
     <button mat-button type="button" (click)="createSchema()">
@@ -143,6 +155,7 @@
     <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
   }
 </div>
+<ng-container #explainHost />
 @if (current.content) {
   <pre class="content"><code class="hljs" [innerHTML]="body()"></code></pre>
 } @else {

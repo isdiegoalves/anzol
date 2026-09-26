@@ -1,0 +1,37 @@
+.panel {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #bce8f1;
+  border-radius: 4px;
+  background: #f4fafd;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-small);
+  }
+}
+
+.note,
+.wait {
+  color: #777;
+  font-size: 90%;
+}
+
+.errors {
+  margin: 8px 0;
+  padding: 8px 8px 8px 28px;
+  border: 1px solid #ebccd1;
+  border-radius: 4px;
+  background: #f2dede;
+  color: #a94442;
+}
+
+.text {
+  margin-top: 8px;
+}
