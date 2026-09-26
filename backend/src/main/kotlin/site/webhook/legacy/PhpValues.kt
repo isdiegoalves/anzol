@@ -81,18 +81,18 @@ fun phpCompare(
     }
 
 /**
- * `Collection::forPage($page, $perPage)` do Laravel 5.4, ou seja,
- * `array_slice($items, ($page - 1) * $perPage, $perPage)` com os casos de borda do PHP
- * (deslocamento e tamanho negativos contam a partir do fim).
+ * As posições (0-based) que o `Collection::forPage($page, $perPage)` do Laravel 5.4 pega numa
+ * lista de [count] itens, ou seja, `array_slice($items, ($page - 1) * $perPage, $perPage)` com os
+ * casos de borda do PHP (deslocamento e tamanho negativos contam a partir do fim).
  */
-fun <T> List<T>.phpForPage(
+fun phpPagePositions(
+    count: Long,
     page: Long,
     perPage: Long,
-): List<T> {
-    val count = size.toLong()
+): LongRange {
     val requestedOffset = (page - 1) * perPage
-    if (requestedOffset > count) return emptyList()
+    if (requestedOffset > count) return LongRange.EMPTY
     val offset = if (requestedOffset < 0) maxOf(0, count + requestedOffset) else requestedOffset
     val length = if (perPage < 0) count - offset + perPage else minOf(perPage, count - offset)
-    return if (length <= 0) emptyList() else subList(offset.toInt(), (offset + length).toInt())
+    return if (length <= 0) LongRange.EMPTY else offset until offset + length
 }

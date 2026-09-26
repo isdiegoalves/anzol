@@ -45,7 +45,7 @@
 | Hierarquia fechada é `sealed`, com `when` exaustivo **sem `else`**; no plano de features, `sealed interface RetryAfter { Seconds; HttpDate }` | EK 39, EK 40, DL cap. 16 | revisão |
 | IDs com tipo próprio: `@JvmInline value class TokenId(val value: UUID)` e `RequestId` — os dois são UUID e hoje trocam de lugar sem erro de compilação. O Spring MVC 7 faz o binding de `@PathVariable` e o Jackson 3 (módulo Kotlin) lê e grava a value class como a string do UUID, sem `Converter` | EK 52 | revisão |
 | Exceção só no excepcional; capturar tipo específico; tratamento HTTP centralizado no `@RestControllerAdvice` | DL cap. 17 | `TooGenericExceptionCaught` |
-| Paginação sempre no Redis, nunca carregando tudo em memória (é o bug medido de 10k mensagens). Exceção vigente: a hash `token:{uuid}:requests` do app antigo não tem índice; enquanto ela for o formato, a página sai de um HGETALL limitado a `WEBHOOK_MAX_REQUESTS` | medição do plano de features; EK 57 | revisão |
+| Paginação sempre no Redis, nunca carregando tudo em memória (é o bug medido de 10k mensagens): a página sai do índice `token:{uuid}:requests:index` (ZRANGE) e do HMGET só dos uuids dela; nada de HGETALL na hash de mensagens | medição do plano de features; EK 57 | `RequestVolumeApiTest` (`INFO commandstats`) |
 
 ## 4. Concorrência
 

@@ -40,10 +40,10 @@ class PhpValuesTest {
     }
 
     @Nested
-    @DisplayName("phpForPage")
+    @DisplayName("phpPagePositions")
     inner class ForPage {
         @ParameterizedTest(name = "page={0} per_page={1} → {2}")
-        @DisplayName("Dado 13 itens, quando pagina como o Collection::forPage, então repete o array_slice do PHP")
+        @DisplayName("Dado 13 itens, quando pagina como o Collection::forPage, então pega as posições do array_slice do PHP")
         @CsvSource(
             delimiter = '|',
             textBlock = """
@@ -57,14 +57,12 @@ class PhpValuesTest {
             1   | 0  | ''
             1   | -2 | 0,1,2,3,4,5,6,7,8,9,10""",
         )
-        fun phpForPage_bordasMedidasNoLegado_deveRepetirArraySlice(
+        fun phpPagePositions_bordasMedidasNoLegado_deveRepetirArraySlice(
             page: Long,
             perPage: Long,
             expected: String,
         ) {
-            val items = (0..12).toList()
-
-            assertThat(items.phpForPage(page, perPage).joinToString(",")).isEqualTo(expected)
+            assertThat(phpPagePositions(count = 13, page = page, perPage = perPage).joinToString(",")).isEqualTo(expected)
         }
     }
 

@@ -19,15 +19,19 @@ import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
 import site.webhook.http.legacyInput
 import site.webhook.http.validationFailure
 import java.time.Clock
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /** Ausência do token vira 410, como `Storage/Redis/TokenStore::find`. */
 fun TokenStore.findOrGone(id: TokenId): Token = find(id) ?: throw ResponseStatusException(HttpStatus.GONE, "Token not found")
 
-/** Hora do app antigo: UTC com resolução de segundo (ordena como o `created_at` gravado). */
-fun Clock.legacyNow(): LocalDateTime = LocalDateTime.now(this).truncatedTo(ChronoUnit.SECONDS)
+/** Hora do app antigo: UTC com resolução de segundo, como o `created_at` gravado. */
+fun Instant.toLegacyDateTime(): LocalDateTime = LocalDateTime.ofInstant(this, ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS)
+
+fun Clock.legacyNow(): LocalDateTime = instant().toLegacyDateTime()
 
 @RestController
 @RequestMapping("/token")

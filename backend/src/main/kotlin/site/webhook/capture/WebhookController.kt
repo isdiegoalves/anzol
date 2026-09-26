@@ -21,7 +21,7 @@ import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
 import site.webhook.token.headerValue
-import site.webhook.token.legacyNow
+import site.webhook.token.toLegacyDateTime
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Clock
 import java.time.Duration
@@ -109,8 +109,9 @@ class WebhookController(
             throw ResponseStatusException(HttpStatus.GONE, "Too many requests, please create a new URL/token")
         }
         if (token.timeout > 0) Thread.sleep(Duration.ofSeconds(token.timeout))
-        val captured = request.toCapturedRequest(tokenId, clock.legacyNow())
-        requests.store(token, captured)
+        val arrival = clock.instant()
+        val captured = request.toCapturedRequest(tokenId, arrival.toLegacyDateTime())
+        requests.store(token, captured, arrival)
         stream.publish(captured) { requests.count(token) }
         response.writeConfiguredResponse(token, captured, responseStatus(request.secondSegment(), token.defaultStatus))
     }

@@ -35,4 +35,7 @@ object RedisKeys {
     fun token(id: TokenId): String = "token:$id"
 
     fun requests(id: TokenId): String = "token:$id:requests"
+
+    /** ZSET uuid da mensagem → chegada em microssegundos: a ordem e a paginação de [requests]. */
+    fun requestIndex(id: TokenId): String = "token:$id:requests:index"
 }
