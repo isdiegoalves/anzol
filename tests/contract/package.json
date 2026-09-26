@@ -1,0 +1,20 @@
+{
+  "name": "webhook-site-contrato",
+  "private": true,
+  "description": "Contrato de paridade caixa-preta da API HTTP e do evento request.created do webhook.site",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:event": "playwright test --project=event",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "typescript": "7.0.2"
+  }
+}
