@@ -18,7 +18,8 @@ const val MAX_BODY_BYTES = 1024 * 1024
 /** `large_client_header_buffers 4 8k` do nginx: a linha `Nome: valor` cabe em 8190 bytes (+ CRLF). */
 private const val MAX_HEADER_LINE = 8190
 
-private const val TOO_LARGE_PAGE =
+/** Página 413 do nginx, que respondia antes de a requisição chegar ao PHP, para qualquer cliente. */
+const val TOO_LARGE_PAGE =
     "<html>\r\n<head><title>413 Request Entity Too Large</title></head>\r\n<body>\r\n" +
         "<center><h1>413 Request Entity Too Large</h1></center>\r\n</body>\r\n</html>\r\n"
 
