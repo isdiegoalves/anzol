@@ -30,6 +30,8 @@ services:
   laravel-echo-server:
     container_name: "laravel-echo-server"
     image: "webhooksite/laravel-echo-server"
+    # Remove o lock deixado pelo SIGKILL do `docker stop`; senão o novo processo (mesmo PID) se acha já rodando
+    entrypoint: ["sh", "-c", "rm -f laravel-echo-server.lock && exec /opt/laravel-echo-server/entrypoint.sh laravel-echo-server start"]
     environment:
       - LARAVEL_ECHO_SERVER_AUTH_HOST=http://webhook
       - LARAVEL_ECHO_SERVER_HOST=0.0.0.0
@@ -41,3 +43,5 @@ services:
       - ECHO_ALLOW_ORIGIN=*
       - ECHO_ALLOW_METHODS=*
       - ECHO_ALLOW_HEADERS=*
+    depends_on:
+      - redis
