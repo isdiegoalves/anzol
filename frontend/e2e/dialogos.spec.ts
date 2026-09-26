@@ -47,7 +47,9 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
         await dialog.getByLabel('Default status code').click();
         await dialog.getByRole('button', { name: 'Create' }).click();
 
-        await expect(dialog.getByRole('alert')).toHaveText('To save, fix: Timeout before response');
+        await expect(dialog.locator('#token-form-pending')).toHaveText(
+          'To save, fix: Timeout before response',
+        );
         await expect(dialog.getByLabel('Timeout before response')).toBeFocused();
         await expect(
           dialog.getByText('The timeout must be an integer between 0 and 10.'),

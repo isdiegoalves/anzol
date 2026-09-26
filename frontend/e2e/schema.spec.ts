@@ -89,7 +89,7 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     await field.blur();
     await expect(dialog.getByText(/^Invalid JSON: /)).toBeVisible();
     await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog.getByRole('alert')).toHaveText('To save, fix: JSON Schema');
+    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: JSON Schema');
     await expect(field).toBeFocused();
     await field.fill(JSON.stringify(PEDIDO, null, 2));
     await field.scrollIntoViewIfNeeded();
@@ -137,7 +137,7 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     await expect(dialog.getByText(/^The schema is invalid: /)).toBeVisible();
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog.getByRole('alert')).toHaveText('To save, fix: JSON Schema');
+    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: JSON Schema');
     await field.scrollIntoViewIfNeeded();
     await screenshot(page, '04-edit-url-erro-do-servidor');
     expect(await tokens.read(tokenId)).toMatchObject({ schema: PEDIDO });

@@ -212,13 +212,13 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await expect(secret).toHaveAttribute('required', '');
     await expect(dialog.getByRole('textbox', { name: 'Prefix' })).not.toHaveAttribute('required');
     await expect(dialog.getByRole('button', { name: 'Edit' })).toBeEnabled();
-    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.locator('#token-form-pending')).toHaveCount(0);
     await header.scrollIntoViewIfNeeded();
     await screenshot(page, '08-generico-obrigatorios');
 
     await dialog.getByRole('button', { name: 'Edit' }).click();
 
-    await expect(dialog.getByRole('alert')).toHaveText(
+    await expect(dialog.locator('#token-form-pending')).toHaveText(
       'To save, fill in: Signature header, Secret',
     );
     await expect(header).toBeFocused();
@@ -232,13 +232,13 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await screenshot(page, '09-generico-o-que-falta');
 
     await header.fill('X-Signature');
-    await expect(dialog.getByRole('alert')).toHaveText('To save, fill in: Secret');
+    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fill in: Secret');
     await dialog.getByRole('textbox', { name: 'Prefix' }).fill('sha256=');
     await expect(dialog.locator('.anatomy')).toHaveText(
       'Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>',
     );
     await secret.fill(SECRET);
-    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.locator('#token-form-pending')).toHaveCount(0);
     const put = await submitEdit(page, dialog, tokenId);
 
     expect(put['signature']).toEqual({
@@ -272,7 +272,7 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     await expect(dialog.getByLabel('Secret')).toHaveAttribute('required', '');
     await expect(dialog.getByLabel('Secret')).not.toHaveAttribute('placeholder', MASKED);
     await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog.getByRole('alert')).toHaveText('To save, fill in: Secret');
+    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fill in: Secret');
     await expect(dialog.getByLabel('Secret')).toBeFocused();
     await screenshot(page, '10-troca-de-provedor');
     await dialog.getByLabel('Secret').fill('shpss_novo');

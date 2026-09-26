@@ -23,7 +23,8 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     page,
     tokens,
   }) => {
-    await page.goto(`/#/${await tokens.create()}`);
+    const original = await tokens.create();
+    await page.goto(`/#/${original}`);
 
     await page.getByRole('button', { name: 'New' }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
@@ -33,6 +34,8 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     await dialog.getByRole('button', { name: 'Create' }).click();
 
     await expect(page.getByText('New URL created')).toBeVisible();
+    // A mensagem aparece antes de a rota trocar: espera sair da URL de origem antes de ler o token.
+    await expect(page).not.toHaveURL(new RegExp(original));
     const novo = tokenInUrl(page);
     tokens.track(novo);
     expect(await tokens.read(novo)).toMatchObject({ auto_cleanup: 1000 });

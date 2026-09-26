@@ -10,7 +10,8 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     request,
     tokens,
   }) => {
-    await page.goto(`/#/${await tokens.create()}`);
+    const original = await tokens.create();
+    await page.goto(`/#/${original}`);
 
     await page.getByRole('button', { name: 'New' }).click();
     const dialog = page.getByRole('dialog', { name: 'Create New URL' });
@@ -21,6 +22,8 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     await dialog.getByRole('button', { name: 'Create' }).click();
 
     await expect(page.getByText('New URL created')).toBeVisible();
+    // A mensagem aparece antes de a rota trocar: espera sair da URL de origem antes de ler o token.
+    await expect(page).not.toHaveURL(new RegExp(original));
     const novo = tokenInUrl(page);
     tokens.track(novo);
     expect(await tokens.read(novo)).toMatchObject({ retry_after: 120 });
@@ -42,7 +45,7 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
       await dialog.getByLabel('Default status code').click();
       await dialog.getByRole('button', { name: 'Create' }).click();
 
-      await expect(dialog.getByRole('alert')).toHaveText('To save, fix: Retry-After');
+      await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: Retry-After');
       await expect(dialog.getByLabel('Retry-After')).toBeFocused();
       await expect(
         dialog.getByText('The retry after must be a number of seconds or an HTTP date.'),
