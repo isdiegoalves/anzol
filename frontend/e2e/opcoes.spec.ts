@@ -62,6 +62,7 @@ test.describe('Dado o redirect pelo navegador (checklist 9)', () => {
     await dialog.getByRole('combobox', { name: 'HTTP Method' }).click();
     await page.getByRole('option', { name: 'PUT' }).click();
     await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toBeHidden();
     await page.getByRole('button', { name: 'Redirect Now' }).click();
 
     await expect(

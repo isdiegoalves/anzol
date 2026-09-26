@@ -105,6 +105,8 @@ test.describe('Dado uma mensagem recebida', () => {
     expect(receiver.received[0].headers['x-origem']).toBe('e2e');
 
     await dialog.getByRole('button', { name: 'Close' }).click();
+    // Espera o diálogo sumir: clicar durante a animação de fechamento cai no backdrop.
+    await expect(dialog).toBeHidden();
     await page.getByRole('button', { name: /^Replay/ }).click();
     await expect(
       page.getByRole('dialog', { name: 'Replay request' }).getByRole('textbox', {
@@ -216,6 +218,7 @@ test.describe('Dado o Send da barra da URL', () => {
     await expect(dialog.locator('.status')).toHaveText('200');
     await expect(dialog).not.toContainText(SECRET);
     await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toBeHidden();
     await expect(page.getByText('Signature valid — GitHub')).toBeVisible();
 
     await page.getByRole('link', { name: 'Outbound' }).click();
