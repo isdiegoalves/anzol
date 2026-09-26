@@ -4,7 +4,8 @@
 >
   Requests ({{ count() }})
 </h2>
-@if (store.hasRequests()) {
+<!-- Com filtro ativo fica à vista mesmo com a URL vazia, para dar como limpar o filtro. -->
+@if (store.hasRequests() || store.filtering()) {
   <app-request-search />
 }
 @if (compare.picking(); as base) {

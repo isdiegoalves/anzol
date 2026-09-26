@@ -130,6 +130,22 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();
   });
 
+  it('deve manter a busca à vista para limpar o filtro Quando a URL fica vazia com filtro ativo', async () => {
+    await load([webhookRequest(1)]);
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+    http
+      .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+      .flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await applied;
+
+    const deleted = store.deleteAll();
+    http.expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request` }).flush({});
+    await deleted;
+    await fixture.whenStable();
+
+    expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();
+  });
+
   it('deve avisar que nada casa, sem "Waiting for first request..." Quando o filtro não acha nada', async () => {
     await load([webhookRequest(1)]);
 
