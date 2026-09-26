@@ -1,0 +1,189 @@
+package site.webhook.rules
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import tools.jackson.databind.json.JsonMapper
+
+@DisplayName("Leitura e validação das regras (422 do Anexo A)")
+class RuleParserTest {
+    private val mapper = JsonMapper.builder().build()
+
+    private fun errorsOf(json: String): Map<String, List<String>> =
+        when (val parsed = parseRules(mapper.readTree(json))) {
+            is Parsed.Valid -> emptyMap()
+            is Parsed.Invalid -> parsed.errors
+        }
+
+    private fun valid(json: String): List<Rule> =
+        when (val parsed = parseRules(mapper.readTree(json))) {
+            is Parsed.Valid -> parsed.value
+            is Parsed.Invalid -> error("esperava válida: ${parsed.errors}")
+        }
+
+    @Nested
+    @DisplayName("Lista")
+    inner class RuleList {
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado um corpo que não é lista, quando lê as regras, então responde rules: must be an array")
+        @CsvSource(delimiter = '|', value = ["{}", "\"x\"", "1", "null"])
+        fun parseRules_naoLista_deveRecusar(json: String) {
+            assertThat(errorsOf(json)).isEqualTo(mapOf("rules" to listOf("The rules must be an array.")))
+        }
+
+        @Test
+        @DisplayName("Dado 101 regras, quando lê, então recusa pelo teto de 100; com 100, aceita")
+        fun parseRules_acimaDoTeto_deveRecusar() {
+            val rules = { count: Int -> (1..count).joinToString(",", "[", "]") { """{"name":"r$it"}""" } }
+
+            assertThat(errorsOf(rules(101))).isEqualTo(mapOf("rules" to listOf("The rules may not have more than 100 items.")))
+            assertThat(valid(rules(100))).hasSize(100)
+        }
+
+        @Test
+        @DisplayName("Dado uma lista vazia, quando lê, então é válida e sem regras")
+        fun parseRules_listaVazia_deveSerValida() {
+            assertThat(valid("[]")).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado duas regras com o mesmo id, quando lê, então a segunda é recusada por duplicata")
+        fun parseRules_idRepetido_deveRecusarASegunda() {
+            val id = "0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41"
+
+            val errors = errorsOf("""[{"id":"$id","name":"a"},{"id":"$id","name":"b"}]""")
+
+            assertThat(errors).isEqualTo(mapOf("1.id" to listOf("The id field has a duplicate value.")))
+        }
+    }
+
+    @Nested
+    @DisplayName("Padrões")
+    inner class Defaults {
+        @Test
+        @DisplayName("Dado uma regra só com nome, quando lê, então gera id e aplica os padrões do Anexo A")
+        fun parseRules_soNome_deveAplicarPadroes() {
+            val rule = valid("""[{"name":"mínima"}]""").single()
+
+            assertThat(rule.id.value.toString()).matches("[0-9a-f-]{36}")
+            assertThat(rule.enabled).isTrue()
+            assertThat(rule.priority).isEqualTo(5)
+            assertThat(rule.match).isEqualTo(RuleMatch())
+            assertThat(rule.response).isEqualTo(RuleResponse(status = 200, headers = emptyMap(), body = ""))
+        }
+
+        @Test
+        @DisplayName("Dado uma regra com id, quando lê, então mantém o id enviado")
+        fun parseRules_comId_deveManterId() {
+            val rule = valid("""[{"id":"0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41","name":"a"}]""").single()
+
+            assertThat(rule.id.toString()).isEqualTo("0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41")
+        }
+    }
+
+    @Nested
+    @DisplayName("Campos da regra")
+    inner class Fields {
+        @ParameterizedTest(name = "{0} → {1}: {2}")
+        @DisplayName(
+            "Dado um campo inválido, quando lê a lista, então a chave em pontos a partir do índice leva a mensagem no estilo Laravel",
+        )
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            "x"                                                  | 0                          | The rule must be an object.
+            {"id":"abc","name":"a"}                              | 0.id                       | The id must be a valid UUID.
+            {}                                                   | 0.name                     | The name field is required.
+            {"name":""}                                          | 0.name                     | The name field is required.
+            {"name":7}                                           | 0.name                     | The name must be a string.
+            {"name":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} | 0.name | The name may not be greater than 100 characters.
+            {"name":"a","enabled":"sim"}                         | 0.enabled                  | The enabled field must be true or false.
+            {"name":"a","priority":0}                            | 0.priority                 | The priority must be at least 1.
+            {"name":"a","priority":1.5}                          | 0.priority                 | The priority must be an integer.
+            {"name":"a","priority":"2"}                          | 0.priority                 | The priority must be an integer.
+            {"name":"a","match":[]}                              | 0.match                    | The match must be an object.
+            {"name":"a","match":{"method":"POST"}}               | 0.match.method             | The method must be an array.
+            {"name":"a","match":{"method":["POST",1]}}           | 0.match.method.1           | The method must be a string.
+            {"name":"a","match":{"path":{}}}                     | 0.match.path               | The path must have exactly one of: equals, prefix, regex.
+            {"name":"a","match":{"path":{"equals":"/","prefix":"/"}}} | 0.match.path          | The path must have exactly one of: equals, prefix, regex.
+            {"name":"a","match":{"path":"/x"}}                   | 0.match.path               | The path must be an object.
+            {"name":"a","match":{"path":{"equals":1}}}           | 0.match.path.equals        | The equals must be a string.
+            {"name":"a","match":{"path":{"regex":"(abc"}}}       | 0.match.path.regex         | The regex is invalid.
+            {"name":"a","match":{"query":[]}}                    | 0.match.query              | The query must be an object.
+            {"name":"a","match":{"query":{"tipo":"pix"}}}        | 0.match.query.tipo         | The condition must be an object.
+            {"name":"a","match":{"query":{"tipo":{}}}}           | 0.match.query.tipo         | The condition must have exactly one of: equals, contains, regex, present.
+            {"name":"a","match":{"query":{"tipo":{"contains":1}}}} | 0.match.query.tipo.contains | The contains must be a string.
+            {"name":"a","match":{"headers":{"X-Canal":{"regex":"["}}}} | 0.match.headers.X-Canal.regex | The regex is invalid.
+            {"name":"a","match":{"headers":{"X-A":{"present":"sim"}}}} | 0.match.headers.X-A.present | The present field must be true or false.
+            {"name":"a","match":{"body":{}}}                     | 0.match.body               | The body must be an array.
+            {"name":"a","match":{"body":["x"]}}                  | 0.match.body.0             | The condition must be an object.
+            {"name":"a","match":{"body":[{"equals":"a","contains":"b"}]}} | 0.match.body.0    | The condition must have exactly one of: equals, contains, regex, jsonPath, equalToJson.
+            {"name":"a","match":{"body":[{"jsonPath":"$.a"}]}}   | 0.match.body.0.jsonPath    | The jsonPath must be an object.
+            {"name":"a","match":{"body":[{"jsonPath":{}}]}}      | 0.match.body.0.jsonPath.path | The path field is required.
+            {"name":"a","match":{"body":[{"jsonPath":{"path":"$['status'"}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
+            {"name":"a","match":{"body":[{"jsonPath":{"path":"$.a."}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
+            {"name":"a","match":{"body":[{"equalToJson":"{a"}]}} | 0.match.body.0.equalToJson | The equalToJson must be a valid JSON string.
+            {"name":"a","scenario":{"name":"s"}}                 | 0.scenario                 | The scenario is not supported yet.
+            {"name":"a","response":"ok"}                         | 0.response                 | The response must be an object.
+            {"name":"a","response":{"status":99}}                | 0.response.status          | The status must be between 100 and 599.
+            {"name":"a","response":{"status":600}}               | 0.response.status          | The status must be between 100 and 599.
+            {"name":"a","response":{"status":"200"}}             | 0.response.status          | The status must be an integer.
+            {"name":"a","response":{"headers":[]}}               | 0.response.headers         | The headers must be an object.
+            {"name":"a","response":{"headers":{"X-A":1}}}        | 0.response.headers.X-A     | The header value must be a string.
+            {"name":"a","response":{"headers":{"X A":"1"}}}      | 0.response.headers.X A     | The header name is invalid.
+            {"name":"a","response":{"headers":{"X-A":"1\r\nX-B: 2"}}} | 0.response.headers.X-A | The header value is invalid.
+            {"name":"a","response":{"body":{"a":1}}}             | 0.response.body            | The body must be a string.
+            {"name":"a","response":{"template":true}}            | 0.response.template        | The template is not supported yet.
+            {"name":"a","response":{"template":"não"}}           | 0.response.template        | The template field must be true or false.
+            {"name":"a","response":{"delay":{"fixed":10}}}       | 0.response.delay           | The delay is not supported yet.
+            {"name":"a","response":{"dribble":{"chunks":2,"durationMs":10}}} | 0.response.dribble | The dribble is not supported yet.
+            {"name":"a","response":{"fault":"connection_reset"}} | 0.response.fault           | The fault is not supported yet.""",
+        )
+        fun parseRules_campoInvalido_deveResponderChaveEMensagem(
+            rule: String,
+            key: String,
+            message: String,
+        ) {
+            assertThat(errorsOf("[$rule]")).isEqualTo(mapOf(key to listOf(message)))
+        }
+
+        @Test
+        @DisplayName("Dado erros em duas regras, quando lê, então cada chave leva o índice da sua regra")
+        fun parseRules_errosEmDuasRegras_deveUsarOIndiceDeCada() {
+            val errors = errorsOf("""[{"name":"ok"},{"priority":0}]""")
+
+            assertThat(errors).isEqualTo(
+                mapOf("1.name" to listOf("The name field is required."), "1.priority" to listOf("The priority must be at least 1.")),
+            )
+        }
+
+        @Test
+        @DisplayName("Dado campos nulos das fases seguintes, quando lê, então aceita como ausentes")
+        fun parseRules_camposFuturosNulos_deveAceitar() {
+            val rule = """{"name":"a","scenario":null,"response":{"template":false,"delay":null,"dribble":null,"fault":null}}"""
+
+            assertThat(valid("[$rule]")).hasSize(1)
+        }
+    }
+
+    @Nested
+    @DisplayName("Regra única do rules/test")
+    inner class Single {
+        @Test
+        @DisplayName("Dado uma regra inválida no rules/test, quando lê, então as chaves vêm sem o índice")
+        fun parseRule_invalida_deveUsarChaveSemIndice() {
+            val parsed = parseRule(mapper.readTree("""{"name":"a","match":{"path":{"regex":"("}}}"""))
+
+            assertThat(parsed).isEqualTo(Parsed.Invalid(mapOf("match.path.regex" to listOf("The regex is invalid."))))
+        }
+
+        @Test
+        @DisplayName("Dado um corpo que não é objeto no rules/test, quando lê, então a chave é rule")
+        fun parseRule_naoObjeto_deveUsarChaveRule() {
+            assertThat(parseRule(mapper.readTree("[]"))).isEqualTo(Parsed.Invalid(mapOf("rule" to listOf("The rule must be an object."))))
+        }
+    }
+}

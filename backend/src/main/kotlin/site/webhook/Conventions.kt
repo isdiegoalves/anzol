@@ -41,4 +41,7 @@ object RedisKeys {
 
     /** Maior `seq` já dado na URL: apagar a mais nova (ou todas) não o faz voltar. */
     fun requestSeq(id: TokenId): String = "token:$id:requests:seq"
+
+    /** Regras de resposta da URL: o JSON da lista, com o TTL das demais chaves dela. */
+    fun rules(id: TokenId): String = "token:$id:rules"
 }

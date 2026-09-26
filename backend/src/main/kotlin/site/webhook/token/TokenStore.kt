@@ -31,8 +31,8 @@ class TokenStore(
     }
 
     /**
-     * Apaga o token e as mensagens dele (hash, índice e `seq`) num DEL só, atômico. O app antigo
-     * apagava só o token e deixava as mensagens ocupando memória até expirar. O `seq` sai junto:
+     * Apaga o token, as mensagens dele (hash, índice e `seq`) e as regras num DEL só, atômico. O app
+     * antigo apagava só o token e deixava as mensagens ocupando memória até expirar. O `seq` sai junto:
      * o token deixa de existir e o UUID não se repete, então não há sequência a preservar.
      */
     fun delete(token: Token): Boolean =
@@ -42,6 +42,7 @@ class TokenStore(
                 RedisKeys.requests(token.uuid),
                 RedisKeys.requestIndex(token.uuid),
                 RedisKeys.requestSeq(token.uuid),
+                RedisKeys.rules(token.uuid),
             ),
         ) > 0
 }
