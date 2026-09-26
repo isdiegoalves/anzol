@@ -167,6 +167,12 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
 
 ## Exclusões propositais
 
+- **Ordem das mensagens é a de chegada** (refutação do índice ordenado, 2026-09-26): coincide com
+  `created_at` enquanto o relógio do servidor não volta. Mensagem gravada com `created_at` no futuro
+  (dado migrado de servidor adiantado) ou relógio que volta (ajuste de NTP) faz a ordem divergir da
+  ordenação por `created_at` do app antigo, e o corte FIFO segue a ordem de chegada.
+- **Reduzir o limite no `PUT` não emite evento SSE**: a aba que editou recarrega a lista; outras
+  abas abertas na mesma URL só se atualizam ao recarregar.
 - **`Host` fora do padrão que o nginx recusa ou lê diferente** (reverificação de 2026-09-26, N2):
   `::1` sem colchetes (nginx 400; o app novo grava), `example.com:` (porta vazia) e porta negativa
   (`-1` no legado, `0` no novo). Nenhum cliente real manda esses valores.
