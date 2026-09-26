@@ -43,6 +43,42 @@ class FrontendApiTest(
     }
 
     @Test
+    @DisplayName("Dada uma fonte do build, quando pede /fonts/x.woff2, então responde font/woff2 que o navegador revalida")
+    fun fonte_deveResponderWoff2ComRevalidacao() {
+        val response = api.send("GET", "/fonts/teste.woff2")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Type").orElseThrow()).isEqualTo("font/woff2")
+        assertThat(response.headers().firstValue("Cache-Control").orElseThrow()).isEqualTo("no-cache")
+        assertThat(response.body()).contains("fonte do teste")
+    }
+
+    @Test
+    @DisplayName("Dada uma fonte já baixada, quando o navegador revalida com If-Modified-Since, então responde 304 sem corpo")
+    fun fonteRevalidada_deveResponder304() {
+        val lastModified =
+            api
+                .send("GET", "/fonts/teste.woff2")
+                .headers()
+                .firstValue("Last-Modified")
+                .orElseThrow()
+
+        val response = api.send("GET", "/fonts/teste.woff2", headers = mapOf("If-Modified-Since" to lastModified))
+
+        assertThat(response.statusCode()).isEqualTo(304)
+        assertThat(response.body()).isEmpty()
+    }
+
+    @Test
+    @DisplayName("Dado um arquivo em /fonts que não é .woff2, quando pede, então responde o 404 de rota mesmo existindo")
+    fun arquivoDeFonteSemWoff2_deveResponder404DeRota() {
+        val response = api.send("GET", "/fonts/teste.txt", headers = JSON_CLIENT)
+
+        assertThat(response.statusCode()).isEqualTo(404)
+        assertThat(api.json(response)["error"]["message"].asString()).isEmpty()
+    }
+
+    @Test
     @DisplayName("Dado um arquivo que não existe, quando pede, então responde o 404 de rota com mensagem vazia")
     fun arquivoInexistente_deveResponder404DeRota() {
         val response = api.send("GET", "/main-NAOEXISTE.js", headers = JSON_CLIENT)

@@ -2,6 +2,7 @@ package site.webhook
 
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ClassPathResource
+import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -31,12 +32,20 @@ class IndexController {
 
 /**
  * Arquivos do build do Angular, publicados na raiz (`main-<hash>.js`, `chunk-<hash>.js`,
- * `styles-<hash>.css`, `favicon.ico`). Só nomes com essas extensões: as rotas de webhook casam
- * UUID sem extensão, e qualquer outro caminho continua sendo 404 ou 405 de rota.
+ * `styles-<hash>.css`, `favicon.ico`) e as fontes auto-hospedadas, `.woff2` em `/fonts/` (a tela roda
+ * offline, sem CDN). Só nomes com essas extensões: as rotas de webhook casam UUID sem extensão, e
+ * qualquer outro caminho continua sendo 404 ou 405 de rota.
+ *
+ * As fontes vêm de `public/fonts/` sem hash no nome: `no-cache` faz o navegador revalidar
+ * (`Last-Modified` → 304) e trocar a fonte assim que a imagem nova sobe.
  */
 @Configuration
 class FrontendResources : WebMvcConfigurer {
     override fun addResourceHandlers(registry: ResourceHandlerRegistry) {
         registry.addResourceHandler("/*.js", "/*.css", "/*.ico").addResourceLocations(FRONTEND_LOCATION)
+        registry
+            .addResourceHandler("/fonts/*.woff2")
+            .addResourceLocations("${FRONTEND_LOCATION}fonts/")
+            .setCacheControl(CacheControl.noCache())
     }
 }
