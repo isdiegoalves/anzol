@@ -136,8 +136,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     `rules/test`. Validação → 422 com a chave em notação de ponto a partir do índice na lista
     (`0.name`, `0.priority`, `0.match.path`, `0.match.{path|query.<nome>|headers.<nome>|body.<i>}.regex`
     com `["The regex is invalid."]`, `0.match.body.<i>`, `0.match.body.<i>.jsonPath.path`,
-    `0.response.status`; `1.response.status` quando a inválida é a segunda); `template: true`,
-    `scenario`, `delay`, `dribble` e `fault` não nulos → mensagem com "not supported yet"; 101 regras
+    `0.response.status`; `1.response.status` quando a inválida é a segunda); 101 regras
     → exatamente `{"rules": ["The rules may not have more than 100 items."]}`; um 422 não mexe nas
     regras salvas. Fora as duas mensagens exatas do Anexo A, o texto só precisa ter a forma do
     Laravel (maiúscula no início, ponto no fim).
@@ -173,6 +172,61 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `response` são opcionais (sem `match` casa tudo); o que a regra não define (Content-Type sem
   cabeçalho na regra, `Retry-After`, `timeout` e CORS quando uma regra responde) fica fora do contrato.
 
+- **Regras de resposta, fase B** (fatias 03, 04, 05; Anexo B do plano da feature). Os testes da fase A
+  que exigiam "not supported yet" para `template: true`, `scenario`, `delay`, `dribble` e `fault` saíram
+  de `regras-api.spec.ts`: a fase B os aceita, e a validação deles mora nos arquivos abaixo.
+  - *Templating* (`regras-template.spec.ts`, CA-5): cada teste dispara a mesma regra com `template: false`
+    (o texto sai literal, `{{…}}` incluído) e com `template: true`. Contexto: `request.method`,
+    `request.path` (depois do token, sem a query), `request.url` (igual à `url` gravada na mensagem),
+    `request.query.<nome>` (ausente → vazio), `request.headers.<nome em minúsculas>`, `request.body` cru e
+    **sem escape HTML**, `seq` (o da mensagem gravada). Helpers: `jsonPath` (texto e número como valor;
+    objeto e lista como JSON, comparados pelo significado), `now` (ISO-8601 UTC a até 15 s do relógio do
+    cliente) e `now format='yyyy-MM-dd'`, `randomValue` (`UUID`, `ALPHANUMERIC`, `NUMERIC`, `HEX`;
+    tamanho pedido e padrão 16, por regex; duas chamadas dão UUIDs distintos), `math` (`+ - *` de inteiros
+    dão inteiros; `12 / 4` aceita `3` ou `3.0`; subexpressão `(jsonPath …)`). Cabeçalhos da resposta
+    templados junto com o corpo. `jsonPath` em corpo que não é JSON → o trecho vira vazio. Sintaxe
+    inválida (bloco ou chaves sem fechar) e helper desconhecido (`file`, `env`) → 422 com exatamente
+    `0.response.body` (`1.response.body` se a inválida é a segunda) e mensagem começando por
+    `The template is invalid`; o mesmo texto com `template: false` é aceito e sai literal. Template
+    inválido em cabeçalho → 422 numa chave sob `0.response.headers` (o nome exato fica fora).
+  - *Cenários* (`regras-cenarios.spec.ts`, CA-6): "falha 3×, depois 200" — três regras 503 com
+    `Retry-After` 1, 2 e 3 encadeando `Started → falhou-1 → falhou-2 → ok` e uma 200 em `ok` sem
+    `newState` (fica), conferido pelo status, `Retry-After`, corpo e `rule` de cada mensagem; o `DELETE`
+    faz tudo de novo. `GET /token/{id}/scenarios` → `[]` sem regras; cada cenário citado pelas regras
+    aparece em `Started` antes da primeira requisição, com `{name, state, states}` e `states` = os
+    estados citados (ordem fora). `PUT /token/{id}/scenarios/{nome}` `{state}` define o estado e a
+    próxima requisição segue dele; `DELETE` volta todos a `Started` (status de sucesso: qualquer 2xx,
+    o Anexo B não fixa). Só a regra que responde transiciona (outra que casaria no mesmo estado, mas
+    perdeu na prioridade, não); `requiredState` ausente casa em qualquer estado; `newState` ausente
+    mantém; o estado é por URL. Near miss: frase exata `scenario <nome>: expected state "X", got "Y"`
+    (sozinha quando só o estado falha). **Concorrência:** 5 passos (status 230–234) e 20 requisições
+    simultâneas → cada status exatamente uma vez, 15 com a resposta padrão, estado final `fim`, 20
+    mensagens e cada passo em exatamente uma `rule`. Scenario sem nome, vazio ou com 101 caracteres →
+    422 em `0.scenario.name` (100 aceito). Apagada a URL, `GET`/`PUT`/`DELETE` de cenários → 410.
+  - *Atrasos, dribble e falhas* (`regras-falhas.spec.ts`, CA-7), medidos no cliente com margens
+    generosas: piso = atraso − 20 ms, teto = atraso + 5 s. `fixed` 1500; `uniform` 800–1600 (6
+    amostras, dispersão ≥ 80 ms: um atraso fixo não alcança); `lognormal` mediana 1000 e sigma 0,25
+    (5 amostras entre 300 ms e 7,6 s, dispersão ≥ 50 ms); `lognormal` mediana 60 000 e sigma 3 termina
+    em menos de 65 s (**teste lento, até ~60 s**; só metade das amostras passaria do teto sem o corte,
+    então pega um servidor sem corte em ~50% das rodadas). 60 000 aceito em `fixed`, `uniform` e
+    `lognormal`; 60 001 e negativo → 422 sob `0.response.delay`. `dribble` `{chunks: 10, durationMs:
+    2000}` lido em streaming (`node:http`): corpo íntegro, `Transfer-Encoding: chunked`, primeiro pedaço
+    antes de 1 s, último depois de 80% da duração, ≥ 4 separações de ≥ 100 ms entre pedaços; `chunks`
+    fora de 1..100 e `durationMs` fora de 0..60000 → 422 sob `0.response.dribble`. As quatro falhas por
+    socket cru (`node:net`), com a regra pedindo também status, corpo e `delay` de 5 s, que têm de ser
+    ignorados (tudo termina em menos de 4 s): `connection_reset` → erro `ECONNRESET` sem resposta HTTP;
+    `empty_response` → fecha limpo, zero bytes; `malformed_chunk` → linha de status e cabeçalhos válidos
+    com `Transfer-Encoding: chunked` e corpo que não é chunked completo e bem formado;
+    `random_data_then_close` → bytes que não começam por `HTTP/` e a conexão fecha. Em todas, a mensagem
+    está gravada (listagem logo depois, sem espera) com a `rule` da falha. `fault` desconhecido → 422 em
+    `0.response.fault`.
+
+  Decisões onde o Anexo B deixava folga: `request.path` sem a query (como o `match.path`); `request.url` é
+  a `url` da mensagem; o cenário aparece no `GET` assim que uma regra o cita; `PUT`/`DELETE` de cenários
+  aceitam qualquer 2xx; a chave do 422 de delay/dribble só precisa começar por `0.response.delay` /
+  `0.response.dribble` (o subcampo fica livre, mas "not supported yet" não vale mais); o status da linha
+  de `malformed_chunk` fica livre (qualquer 1xx–5xx válido).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -197,6 +251,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Listagem lendo a URL inteira a cada página | Página em até 2 s com 10.000 × 15 KB | O fim do 410 levaria a opção 10000 ao 500 medido no app Laravel |
 | Mensagem sem número de ordem; listagem só por página | `seq` na mensagem (listagem, `GET`, evento) e `after=<seq>` na listagem | Correção da refutação do CLI (2026-09-26): o evento SSE sai fora da ordem de gravação sob concorrência e a paginação por página desloca quando alguém apaga; o CLI reenvia por `after` sem perder nem duplicar. A chave `seq` entrou em `CHAVES_MENSAGEM`, então os testes de forma de `mensagem.spec.ts` também a exigem |
 | Toda URL responde o padrão do token; mensagem sem registro de regra | Regras de resposta por URL (`/token/{id}/rules`, `rules/test`) e `rule`/`near_miss` em toda mensagem | Feature "regras de resposta" (fase A, 2026-09-26): testar de verdade quem envia webhooks. `rule` e `near_miss` entraram em `CHAVES_MENSAGEM`, então os dois testes de forma de `mensagem.spec.ts` também as exigem; URL sem regras responde exatamente como antes |
+| `template: true`, `scenario`, `delay`, `dribble`, `fault` → 422 "not supported yet" (fase A) | Aceitos: templating, cenários com estado (`/token/{id}/scenarios`), atrasos, dribble e falhas de rede | Fase B da feature "regras de resposta" (Anexo B, 2026-09-26): simular retentativa, lentidão e rede ruim para quem envia webhooks |
 
 ## Defeitos do legado (`bugDoLegado`)
 

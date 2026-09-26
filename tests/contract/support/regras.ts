@@ -1,9 +1,10 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { JSON_ACCEPT, expect } from './contrato.js';
 
-// Regras de resposta por URL (fase A: fatias 01 + 02). Formato fixado no Anexo A do plano da
-// feature: a regra, `GET|PUT /token/{id}/rules`, `POST /token/{id}/rules/test` e os campos
-// `rule`/`near_miss` da mensagem gravada.
+// Regras de resposta por URL. Fase A (fatias 01 + 02, Anexo A do plano da feature): a regra,
+// `GET|PUT /token/{id}/rules`, `POST /token/{id}/rules/test` e os campos `rule`/`near_miss` da
+// mensagem gravada. Fase B (fatias 03, 04, 05, Anexo B): templating, cenários com estado
+// (`/token/{id}/scenarios`), atrasos, dribble e falhas de rede.
 
 /** Condição sobre um valor de query ou de cabeçalho: exatamente um operador. */
 export type CondicaoTexto =
@@ -31,14 +32,37 @@ export interface MatchRegra {
   body?: CondicaoCorpo[];
 }
 
+/** Atraso antes de responder, em ms; teto 60 000 (log-normal cortado no teto). */
+export type Atraso =
+  | { fixed: number }
+  | { uniform: { min: number; max: number } }
+  | { lognormal: { median: number; sigma: number } };
+
+/** Corpo dividido em `chunks` pedaços (1..100) enviados em intervalos iguais ao longo de `durationMs`. */
+export interface Gotejamento {
+  chunks: number;
+  durationMs: number;
+}
+
+export type Falha = 'connection_reset' | 'empty_response' | 'malformed_chunk' | 'random_data_then_close';
+
 export interface RespostaRegra {
   status?: number;
   headers?: Record<string, string>;
   body?: string;
+  /** Handlebars no corpo e nos valores de cabeçalho (fase B). */
   template?: boolean;
-  delay?: unknown;
-  dribble?: unknown;
-  fault?: unknown;
+  delay?: Atraso | null;
+  dribble?: Gotejamento | null;
+  /** Com `fault`, status, cabeçalhos, corpo, `delay` e `dribble` são ignorados. */
+  fault?: Falha | null;
+}
+
+/** Cenário da regra: só casa no estado `requiredState` (ausente = qualquer) e passa a `newState` ao responder. */
+export interface CenarioDaRegra {
+  name: string;
+  requiredState?: string;
+  newState?: string;
 }
 
 export interface Regra {
@@ -47,7 +71,7 @@ export interface Regra {
   enabled?: boolean;
   priority?: number;
   match?: MatchRegra;
-  scenario?: unknown;
+  scenario?: CenarioDaRegra | null;
   response?: RespostaRegra;
 }
 
@@ -105,4 +129,32 @@ export function expectFalhas(failed: string[], padroes: RegExp[]): void {
   for (const padrao of padroes) {
     expect(failed.some((f) => padrao.test(f)), `nenhuma frase de ${JSON.stringify(failed)} casa ${padrao}`).toBe(true);
   }
+}
+
+/** Mensagens de validação 422 no formato de sempre: `{chave.em.ponto: [mensagem]}`. */
+export async function erros422(res: APIResponse): Promise<Record<string, string[]>> {
+  expect(res.status(), (await res.text()).slice(0, 500)).toBe(422);
+  return (await res.json()) as Record<string, string[]>;
+}
+
+/** Estado de um cenário da URL, como `GET /token/{id}/scenarios` devolve. */
+export interface Cenario {
+  name: string;
+  state: string;
+  /** Os estados que as regras citam (`requiredState`/`newState`). */
+  states: string[];
+}
+
+export async function lerCenarios(request: APIRequestContext, tokenId: string): Promise<Cenario[]> {
+  const res = await request.get(`/token/${tokenId}/scenarios`, { headers: JSON_ACCEPT });
+  expect(res.status(), `GET /token/{id}/scenarios: ${(await res.text()).slice(0, 500)}`).toBe(200);
+  return (await res.json()) as Cenario[];
+}
+
+/** Estado atual de um cenário (falha se a URL não o lista). */
+export async function estadoDoCenario(request: APIRequestContext, tokenId: string, nome: string): Promise<string> {
+  const cenarios = await lerCenarios(request, tokenId);
+  const cenario = cenarios.find((c) => c.name === nome);
+  expect(cenario, `cenário ${nome} ausente de ${JSON.stringify(cenarios)}`).toBeDefined();
+  return cenario!.state;
 }

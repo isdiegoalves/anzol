@@ -134,7 +134,6 @@ test.describe('regras: token inexistente → 410', () => {
 
 test.describe('regras: validação (cliente JSON) → 422 {chave.em.ponto: [mensagem]}', () => {
   const REGEX_INVALIDA = 'The regex is invalid.';
-  const NAO_SUPORTADO = /not supported yet/i;
   const base = (): Regra => ({ name: 'ok', match: { path: { equals: '/a' } }, response: { status: 200 } });
 
   const casos: Array<[string, Regra, string, string | RegExp | null]> = [
@@ -152,11 +151,8 @@ test.describe('regras: validação (cliente JSON) → 422 {chave.em.ponto: [mens
     ['item de corpo com dois operadores', { ...base(), match: { body: [{ contains: 'a', regex: 'a' } as never] } }, '0.match.body.0', null],
     ['status 99', { ...base(), response: { status: 99 } }, '0.response.status', null],
     ['status 600', { ...base(), response: { status: 600 } }, '0.response.status', null],
-    ['template true (fatia 03)', { ...base(), response: { template: true } }, '0.response.template', NAO_SUPORTADO],
-    ['scenario (fatia 04)', { ...base(), scenario: { name: 'pagamento', requiredState: 'Started', newState: 'pago' } }, '0.scenario', NAO_SUPORTADO],
-    ['delay (fatia 05)', { ...base(), response: { delay: { fixed: 100 } } }, '0.response.delay', NAO_SUPORTADO],
-    ['dribble (fatia 05)', { ...base(), response: { dribble: { chunks: 2, durationMs: 100 } } }, '0.response.dribble', NAO_SUPORTADO],
-    ['fault (fatia 05)', { ...base(), response: { fault: 'connection_reset' } }, '0.response.fault', NAO_SUPORTADO],
+    // Os casos "not supported yet" da fase A (template, scenario, delay, dribble, fault) saíram: a
+    // fase B (Anexo B) os aceita, e a validação deles está em regras-{template,cenarios,falhas}.spec.ts.
   ];
 
   for (const [nome, regra, chave, mensagem] of casos) {
