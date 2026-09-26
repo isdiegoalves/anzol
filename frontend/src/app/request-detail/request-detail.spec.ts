@@ -2,6 +2,7 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
@@ -100,5 +101,35 @@ describe('Dado o detalhe de uma mensagem', () => {
 
     expect(copy).toHaveBeenCalledWith(`curl -X 'POST' '${request.url}'`);
     expect(open).toHaveBeenCalledWith('Copied request as curl');
+  });
+
+  it('deve copiar o corpo cru e avisar Quando "Copy payload" é clicado, mesmo com o JSON formatado na tela', async () => {
+    TestBed.inject(Preferences).formatJsonEnable.set(true);
+    const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    await render(webhookRequest(1, { content: '{"a":1}' }));
+
+    const button = await loader.getHarness(MatButtonHarness.with({ text: 'Copy payload' }));
+    await button.click();
+
+    expect(copy).toHaveBeenCalledWith('{"a":1}');
+    expect(open).toHaveBeenCalledWith('Copied payload');
+  });
+
+  it('deve manter "Copy payload" Quando "Hide Details" está ligado', async () => {
+    TestBed.inject(Preferences).hideDetails.set(true);
+    await render(webhookRequest(1));
+
+    expect(
+      await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Copy payload' })),
+    ).toHaveLength(1);
+  });
+
+  it('não deve mostrar "Copy payload" Quando o corpo é vazio', async () => {
+    await render(webhookRequest(1, { content: '' }));
+
+    expect(
+      await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Copy payload' })),
+    ).toHaveLength(0);
   });
 });

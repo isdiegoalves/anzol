@@ -35,4 +35,14 @@ test.describe('Dado uma mensagem JSON aberta (checklist 10)', () => {
       text: '{"a":12345678901234567890,"b":[1,2]}',
     });
   });
+
+  test('deve copiar o corpo exatamente como chegou Quando "Copy payload" é clicado', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Copy payload' }).click();
+    await expect(page.getByText('Copied payload')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      '{"a":12345678901234567890,"b":[1,2]}',
+    );
+  });
 });

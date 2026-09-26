@@ -77,3 +77,8 @@ code {
 .no-content {
   color: #ccc;
 }
+
+.content-actions {
+  display: flex;
+  justify-content: flex-end;
+}

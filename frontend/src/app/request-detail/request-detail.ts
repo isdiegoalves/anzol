@@ -51,6 +51,12 @@ export class RequestDetail {
     ]);
   }
 
+  /** Corpo exatamente como chegou, mesmo com "Format JSON/XML" ligado na tela. */
+  protected copyPayload(): void {
+    this.clipboard.copy(this.request().content ?? '');
+    this.snackBar.open('Copied payload');
+  }
+
   protected copyRequestAs(format: CopyFormat): void {
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
     this.snackBar.open(`Copied request as ${format}`);
