@@ -250,6 +250,12 @@ test.describe('mensagem gravada: entradas grandes e incomuns', () => {
       { a: '1', b: '2' },
     ],
     [
+      'com lixo depois da última parte, sem fechar',
+      'boundary=XyZ',
+      '--XyZ\r\nContent-Disposition: form-data; name="a"\r\n\r\n1\r\n--XyZ\r\nContent-Disposition: form-data; name="b"\r\n\r\n2\r\nlixo sem fechar',
+      { a: '1', b: '2\r\nlixo sem fechar' },
+    ],
+    [
       'com linhas só LF',
       'boundary=XyZ',
       '--XyZ\nContent-Disposition: form-data; name="a"\n\n1\n--XyZ--\n',
