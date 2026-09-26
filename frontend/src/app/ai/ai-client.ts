@@ -88,8 +88,13 @@ export function aiErrorMessages(error: unknown): string[] {
       ];
     case 429:
       return [tooManyCalls(error.headers.get('Retry-After'))];
-    case 422:
-      return [detail ?? 'The request was not accepted.', ...fieldErrors(body.errors)];
+    case 422: {
+      // `{"error", "errors": {chave: [msg]}}` ou só `{chave: [msg]}`, como no PUT das regras.
+      const fields = fieldErrors('errors' in body ? body.errors : { ...body, error: undefined });
+      return detail || fields.length === 0
+        ? [detail ?? 'The request was not accepted.', ...fields]
+        : fields;
+    }
     case 404:
     case 410:
       return [`This URL or request no longer exists (${error.status}).`];

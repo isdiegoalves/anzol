@@ -107,6 +107,13 @@ describe('Dado um erro de uma rota de IA', () => {
     ]);
   });
 
+  it('deve listar os erros por chave Quando o 422 vem só com o mapa de erros', () => {
+    expect(
+      aiErrorMessages(error(422, { 'response.status': ['The status must be at most 599.'] })),
+    ).toEqual(['response.status: The status must be at most 599.']);
+    expect(aiErrorMessages(error(422, null))).toEqual(['The request was not accepted.']);
+  });
+
   it.each([
     ['30', 'Try again in 30 s.'],
     ['Wed, 21 Oct 2026 07:28:00 GMT', 'Try again after Wed, 21 Oct 2026 07:28:00 GMT.'],
