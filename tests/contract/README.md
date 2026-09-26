@@ -2,28 +2,26 @@
 
 Testes Playwright (TypeScript) que falam HTTP com uma URL base e descrevem o comportamento
 observável do webhook.site: a API de tokens e mensagens, o webhook e o evento
-`request.created`. São verdes contra o app atual (Laravel 5.4, porta 8084) e servem de juiz
-para a reescrita (Kotlin + Spring Boot no backend, Angular no front): o app novo tem de passar
-neles sem que ninguém edite os testes.
+`request.created`. Foram gravados verdes contra o app Laravel 5.4 original e serviram de juiz
+para a reescrita (Kotlin + Spring Boot no backend, Angular no front); o legado saiu do
+repositório e o contrato continua sendo o juiz do app: ninguém edita os testes para o código
+passar.
 
-Nenhum teste lê código ou chaves do Redis: tudo passa pela API. A única exceção é o adaptador
-`redis` do evento, que assina o canal pub/sub do app atual porque é ali que ele publica.
+Nenhum teste lê código ou chaves do Redis: tudo passa pela API.
 
 ## Como rodar
 
-Pré-requisitos: Node 24+, o app no ar e, para o adaptador `redis`, Docker com o container do
-Redis do app (`webhook-redis`).
+Pré-requisitos: Node 24+ e o app no ar (`docker compose up -d --build` na raiz, porta 8084).
 
 ```bash
 cd tests/contract
 npm ci
 
-# API (tokens, webhook, mensagens, listagem, erros, limite)
-BASE_URL=http://localhost:8084 npx playwright test --project=api
+npx playwright test                  # tudo: api + event
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, erros, limite
+npx playwright test --project=event  # evento request.created (SSE)
 
-# Evento request.created
-EVENT_ADAPTER=redis npx playwright test --project=event                        # app atual
-BASE_URL=http://localhost:8085 EVENT_ADAPTER=sse npx playwright test --project=event  # app novo
+BASE_URL=http://localhost:8087 npx playwright test   # outra instância
 
 npm run typecheck
 ```
@@ -31,13 +29,12 @@ npm run typecheck
 | Variável | Padrão | Uso |
 |---|---|---|
 | `BASE_URL` | `http://localhost:8084` | App sob teste |
-| `EVENT_ADAPTER` | `redis` | `redis` (app atual) ou `sse` (app novo) |
-| `REDIS_CONTAINER` | `webhook-redis` | Container onde roda o `redis-cli SUBSCRIBE` do adaptador `redis` |
-| `CONTRATO_ALVO` | `legado` | `legado` ou `novo`; só muda os casos de defeito do legado (abaixo) |
+| `EVENT_ADAPTER` | `sse` | Transporte do evento; `sse` é o único (o adaptador `redis` do app Laravel saiu com ele) |
+| `CONTRATO_ALVO` | `novo` | `novo` exige o comportamento corrigido nos defeitos do legado (abaixo); `legado` os marca `test.fail`, como quando o app Laravel era o alvo |
 
 Cada teste cria os próprios tokens e, ao terminar, apaga as mensagens (`DELETE
-/token/{id}/request`) e depois o token (`DELETE /token/{id}`). A ordem importa: no app atual o
-DELETE do token não apaga a hash de mensagens.
+/token/{id}/request`) e depois o token (`DELETE /token/{id}`). A ordem importa: no app Laravel o
+DELETE do token não apagava a hash de mensagens.
 
 ## O que cobre
 
@@ -80,22 +77,23 @@ DELETE do token não apaga a hash de mensagens.
   1.000.000 caracteres **contados como o `json_encode` do PHP** (`/` vira `\/`, não-ASCII vira
   `\uXXXX`): 990.000 letras não cortam, 600.000 barras e 200.000 `ç` cortam.
 
-### Contrato do SSE (app novo)
+### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
 mensagem gravada, um evento `event: request.created` cujo `data:` é o JSON
-`{request, total, truncated}` (o mesmo `data` que o app atual publica no Redis, sem o
+`{request, total, truncated}` (o mesmo `data` que o app Laravel publicava no Redis, sem o
 envelope `event`/`socket`). O adaptador considera a assinatura pronta quando recebe o status e
 os cabeçalhos: o servidor só deve enviá-los depois de registrar o assinante, senão um webhook
 disparado logo em seguida se perde. Comentários (`:`) servem de keep-alive e são ignorados.
 
-## Defeitos do legado (`bugDoLegado` → `test.fail`)
+## Defeitos do legado (`bugDoLegado`)
 
-Comportamentos claramente acidentais do app atual. Com `CONTRATO_ALVO=legado` (padrão) o
-teste é marcado `test.fail`: descreve o comportamento correto e falha no app atual, o que conta
-como sucesso. Com `CONTRATO_ALVO=novo` o mesmo teste exige o comportamento correto.
+Comportamentos claramente acidentais do app Laravel. Com `CONTRATO_ALVO=novo` (padrão) o teste
+exige o comportamento correto, que o app atual implementa. Com `CONTRATO_ALVO=legado` o teste é
+marcado `test.fail`: descreve o comportamento correto e falhava no app Laravel, o que contava
+como sucesso.
 
-| Teste | App atual | Causa |
+| Teste | App Laravel | Causa |
 |---|---|---|
 | `/{token}/12345` usa o status padrão | 500 (mensagem já gravada) | `preg_match('/[1-5][0-9][0-9]/')` sem âncora casa dentro de `12345` e o segmento inteiro vira status |
 | `default_status` 999 não derruba o webhook | 500 (a criação aceita 999, 0, 42…) | Validação só exige inteiro; o Symfony rejeita o status ao responder |

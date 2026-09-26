@@ -1,7 +1,6 @@
-import { spawn } from 'node:child_process';
 import { BASE_URL, type Mensagem } from './contrato.js';
 
-/** Payload do evento `request.created`, igual nos dois transportes. */
+/** Payload do evento `request.created`. */
 export interface EventoRequestCreated {
   request: Partial<Mensagem> & { uuid: string; token_id: string };
   total: number;
@@ -16,17 +15,19 @@ export interface Assinatura {
   fechar(): Promise<void>;
 }
 
-export const ADAPTADOR = process.env.EVENT_ADAPTER ?? 'redis';
-const CONTAINER_REDIS = process.env.REDIS_CONTAINER ?? 'webhook-redis';
+/**
+ * Transporte do evento. Só existe `sse`: o adaptador `redis`, que assinava o canal pub/sub do
+ * app Laravel, saiu junto com ele.
+ */
+export const ADAPTADOR = process.env.EVENT_ADAPTER ?? 'sse';
 const PRAZO_PADRAO = 30_000;
 
 export function assinar(tokenId: string): Promise<Assinatura> {
-  if (ADAPTADOR === 'redis') return assinarRedis(tokenId);
   if (ADAPTADOR === 'sse') return assinarSse(tokenId);
-  throw new Error(`EVENT_ADAPTER desconhecido: ${ADAPTADOR} (use redis ou sse)`);
+  throw new Error(`EVENT_ADAPTER desconhecido: ${ADAPTADOR} (use sse)`);
 }
 
-/** Fila de eventos com espera por prazo, comum aos dois adaptadores. */
+/** Fila de eventos com espera por prazo. */
 class Caixa {
   private eventos: EventoRequestCreated[] = [];
   private esperando: Array<(e: EventoRequestCreated) => void> = [];
@@ -59,62 +60,7 @@ class Caixa {
 }
 
 /**
- * App atual: o broadcaster Redis do Laravel publica no canal `<token uuid>` a mensagem
- * `{"event":"request.created","data":{request,total,truncated},"socket":null}`.
- * O Redis não publica porta no host, então a assinatura roda dentro do container.
- */
-function assinarRedis(tokenId: string): Promise<Assinatura> {
-  const caixa = new Caixa();
-  const proc = spawn('docker', ['exec', '-i', CONTAINER_REDIS, 'redis-cli', '--raw', 'SUBSCRIBE', tokenId], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  let buffer = '';
-  let inscrito: () => void;
-  const pronto = new Promise<void>((r) => { inscrito = r; });
-  let linhasDeControle = 0;
-
-  proc.stdout.setEncoding('utf8');
-  proc.stdout.on('data', (parte: string) => {
-    buffer += parte;
-    let i: number;
-    while ((i = buffer.indexOf('\n')) >= 0) {
-      const linha = buffer.slice(0, i);
-      buffer = buffer.slice(i + 1);
-      // Confirmação do SUBSCRIBE em --raw: "subscribe", "<canal>", "1".
-      if (linhasDeControle < 3) {
-        linhasDeControle++;
-        if (linhasDeControle === 3) inscrito!();
-        continue;
-      }
-      if (!linha.startsWith('{')) continue; // "message" e o nome do canal
-      const envelope = JSON.parse(linha) as { event: string; data: EventoRequestCreated };
-      if (envelope.event === 'request.created') caixa.entregar(envelope.data);
-    }
-  });
-  let stderr = '';
-  proc.stderr.on('data', (d) => { stderr += d; });
-  proc.on('exit', (codigo) => {
-    if (codigo !== null && codigo !== 0) caixa.erro = new Error(`redis-cli saiu com ${codigo}: ${stderr}`);
-  });
-
-  const assinatura: Assinatura = {
-    proximo: (prazo = PRAZO_PADRAO) => caixa.proximo(prazo),
-    nenhum: (janela) => caixa.nenhum(janela),
-    async fechar() {
-      proc.kill();
-    },
-  };
-  return Promise.race([
-    pronto.then(() => assinatura),
-    new Promise<Assinatura>((_, reject) => setTimeout(() => {
-      proc.kill();
-      reject(new Error(`SUBSCRIBE não confirmou em 10 s: ${stderr}`));
-    }, 10_000)),
-  ]);
-}
-
-/**
- * App novo: `GET {BASE_URL}/token/{id}/stream` em `text/event-stream`, eventos
+ * `GET {BASE_URL}/token/{id}/stream` em `text/event-stream`, eventos
  * `event: request.created` com `data:` = JSON `{request, total, truncated}`.
  * A assinatura conta como pronta quando chegam o status 200 e o Content-Type do stream.
  */

@@ -6,11 +6,11 @@ export { expect };
 export const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8084';
 
 /**
- * Alvo do contrato. `legado` (padrão) é o app Laravel atual; `novo` é o backend reescrito.
- * Só muda os testes marcados com `bugDoLegado`: no legado eles falham de propósito
+ * Alvo do contrato. `novo` (padrão) é o backend Kotlin; `legado` era o app Laravel, removido do
+ * repositório. Só muda os testes marcados com `bugDoLegado`: no legado eles falhavam de propósito
  * (`test.fail`) porque documentam um defeito acidental; no novo, exigem o comportamento corrigido.
  */
-export const ALVO = process.env.CONTRATO_ALVO ?? 'legado';
+export const ALVO = process.env.CONTRATO_ALVO ?? 'novo';
 
 export function bugDoLegado(motivo: string): void {
   test.fail(ALVO === 'legado', motivo);
