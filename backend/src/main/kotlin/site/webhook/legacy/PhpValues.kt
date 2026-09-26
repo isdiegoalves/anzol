@@ -1,5 +1,7 @@
 package site.webhook.legacy
 
+import java.math.BigInteger
+
 /*
  * Semântica de conversão do PHP 7.3 que o app antigo aplica à entrada do usuário.
  * Os valores chegam como o Jackson ou o parse_str os entregam: String, Number, Boolean,
@@ -41,12 +43,16 @@ fun isPhpNumeric(value: Any?): Boolean =
         else -> false
     }
 
-/** `filter_var($value, FILTER_VALIDATE_INT) !== false`, a regra `integer` do Laravel 5.4. */
+/**
+ * `filter_var($value, FILTER_VALIDATE_INT) !== false`, a regra `integer` do Laravel 5.4. Inteiro
+ * JSON fora de 64 bits (o Jackson entrega `BigInteger`) vira float no `json_decode` e é recusado.
+ */
 fun isPhpInteger(value: Any?): Boolean =
     when (value) {
         true -> true
         is Double -> value % 1.0 == 0.0 && kotlin.math.abs(value) < LARGEST_PRINTED_AS_INTEGER
         is Float -> isPhpInteger(value.toDouble())
+        is BigInteger -> value.bitLength() < Long.SIZE_BITS
         is Number -> true
         is String -> value.trim { it in FILTER_TRIM }.let { DECIMAL_INTEGER.matches(it) && it.toLongOrNull() != null }
         else -> false

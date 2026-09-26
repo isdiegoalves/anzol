@@ -81,6 +81,9 @@ class TokenApiTest(
         {"timeout":null}                | {"timeout":["The timeout must be an integer."]}
         {"timeout":"abcdefghijklmnop"}  | {"timeout":["The timeout must be an integer.","The timeout may not be greater than 10."]}
         {"default_status":"abc"}        | {"default_status":["The default status must be an integer."]}
+        {"default_status":99999999999999999999} | {"default_status":["The default status must be an integer."]}
+        {"default_status":9223372036854775808}  | {"default_status":["The default status must be an integer."]}
+        {"timeout":99999999999999999999} | {"timeout":["The timeout must be an integer.","The timeout may not be greater than 10."]}
         {"default_content":123}         | {"default_content":["The default content must be a string."]}
         {"default_content_type":{"a":1}}| {"default_content_type":["The default content type must be a string."]}""",
     )

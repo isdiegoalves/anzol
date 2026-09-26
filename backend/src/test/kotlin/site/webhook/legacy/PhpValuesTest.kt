@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
+import java.math.BigInteger
 
 @DisplayName("Valores do PHP")
 class PhpValuesTest {
@@ -102,6 +103,9 @@ class PhpValuesTest {
                 Arguments.of(null, false),
                 Arguments.of("abc", false),
                 Arguments.of(listOf(1), false),
+                Arguments.of(Long.MAX_VALUE, true),
+                Arguments.of(BigInteger("9223372036854775808"), false),
+                Arguments.of(BigInteger("-99999999999999999999"), false),
             )
     }
 }

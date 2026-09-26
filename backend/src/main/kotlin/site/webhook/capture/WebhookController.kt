@@ -72,11 +72,14 @@ fun responseContentType(
     }
 }
 
-/** `$request->segment(2)`: segmentos decodificados, sem os vazios nem os `"0"` (`array_filter`). */
+/**
+ * `$request->segment(2)`: segmentos decodificados sem os vazios. O filtro do Laravel 5.4 é
+ * `$v != ''`, então `"0"` fica (`/{token}/0/404` usa o status padrão).
+ */
 private fun HttpServletRequest.secondSegment(): String? =
     urlDecode(rawPath())
         .split('/')
-        .filter { it.isNotEmpty() && it != "0" }
+        .filter { it.isNotEmpty() }
         .getOrNull(1)
 
 @RestController

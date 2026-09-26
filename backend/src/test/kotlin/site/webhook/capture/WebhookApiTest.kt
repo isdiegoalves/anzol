@@ -104,7 +104,9 @@ class WebhookApiTest(
     }
 
     @Test
-    @DisplayName("Dado o segundo segmento do caminho, quando responde, então usa o status dele só se for válido")
+    @DisplayName(
+        "Dado o segundo segmento do caminho (\"0\" conta, só vazio é pulado), quando responde, então usa o status dele só se for válido",
+    )
     fun capture_statusPeloCaminho_deveRespeitarFaixa() {
         val tokenId = api.tokenId("""{"default_status":202}""")
 
@@ -112,6 +114,8 @@ class WebhookApiTest(
         assertThat(api.send("POST", "/$tokenId//302").statusCode()).isEqualTo(302)
         assertThat(api.send("POST", "/$tokenId/12345").statusCode()).isEqualTo(202)
         assertThat(api.send("POST", "/$tokenId/600").statusCode()).isEqualTo(202)
+        assertThat(api.send("POST", "/$tokenId/0/404").statusCode()).isEqualTo(202)
+        assertThat(api.send("POST", "/$tokenId/0/0/404").statusCode()).isEqualTo(202)
     }
 
     @Test
