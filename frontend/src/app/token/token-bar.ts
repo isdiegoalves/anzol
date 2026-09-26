@@ -7,8 +7,8 @@ import type { TokenActions } from './token-actions';
 import { TokenStore } from './token-store';
 
 /**
- * Barra superior: marca, links, alternância "Requests"/"Rules" da URL aberta, URL do webhook
- * com copiar, editar e criar URL.
+ * Barra superior: marca, links, abas "Requests"/"Rules"/"Outbound" da URL aberta, URL do webhook
+ * com enviar, copiar, editar e criar URL.
  */
 @Component({
   selector: 'app-token-bar',
@@ -21,10 +21,14 @@ export class TokenBar {
   private readonly injector = inject(Injector);
   private readonly router = inject(Router);
 
-  /** Aba ativa pela rota: `/{token}/rules` é a de regras; o resto (lista, mensagem) é "Requests". */
-  protected readonly onRules = computed(() => {
+  /**
+   * Aba ativa pela rota: `/{token}/rules` e `/{token}/outbound` são as delas; o resto (lista,
+   * mensagem) é "Requests".
+   */
+  protected readonly view = computed(() => {
     const url = this.router.lastSuccessfulNavigation()?.finalUrl;
-    return !!url && url.root.children['primary']?.segments[1]?.path === 'rules';
+    const tab = url?.root.children['primary']?.segments[1]?.path;
+    return tab === 'rules' || tab === 'outbound' ? tab : 'requests';
   });
 
   protected async createUrl(): Promise<void> {
@@ -33,6 +37,12 @@ export class TokenBar {
 
   protected async editUrl(): Promise<void> {
     await (await this.actions()).editUrl();
+  }
+
+  /** O diálogo Send vem sob demanda (no pedaço do `outbound-actions`). */
+  protected async sendRequest(): Promise<void> {
+    const { OutboundActions } = await import('../outbound/outbound-actions');
+    this.injector.get(OutboundActions).send();
   }
 
   protected selectAll(event: Event): void {

@@ -1,0 +1,110 @@
+:host {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 20px;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 24px;
+
+  h1 {
+    margin: 0 0 4px;
+    font: var(--mat-sys-title-large);
+  }
+}
+
+.hint {
+  margin: 0 0 12px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.errors {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #ebccd1;
+  border-radius: 4px;
+  background: #f2dede;
+  color: #a94442;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 6px;
+    border-bottom: 2px solid #ddd;
+    text-align: left;
+  }
+
+  td {
+    padding: 6px;
+    vertical-align: middle;
+  }
+
+  tbody tr[tabindex] {
+    cursor: pointer;
+  }
+
+  tbody tr:nth-of-type(odd) {
+    background: #f9f9f9;
+  }
+
+  tbody tr.selected {
+    background: #d9edf7;
+  }
+}
+
+.status {
+  width: 110px;
+}
+
+.method {
+  width: 90px;
+}
+
+.kind {
+  width: 70px;
+}
+
+.number {
+  width: 80px;
+}
+
+.when {
+  width: 140px;
+  color: #777;
+}
+
+.target {
+  word-break: break-all;
+}
+
+.failed {
+  color: #a94442;
+  font-weight: bold;
+}
+
+.empty {
+  color: #777;
+}
+
+.detail {
+  margin-top: 16px;
+
+  h2 {
+    margin: 0 0 8px;
+    font: var(--mat-sys-title-medium);
+  }
+}

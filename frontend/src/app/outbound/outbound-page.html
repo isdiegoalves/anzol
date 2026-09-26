@@ -1,0 +1,70 @@
+<header class="heading">
+  <div>
+    <h1>Outbound</h1>
+    <p class="hint">
+      The last 50 requests the server sent for this URL (Replay on a request, or Send). Newest
+      first.
+    </p>
+  </div>
+  <div class="actions">
+    <button mat-flat-button type="button" (click)="sendRequest()">Send…</button>
+    <button mat-stroked-button type="button" (click)="refresh()">Refresh</button>
+  </div>
+</header>
+
+@if (loadError(); as message) {
+  <p class="errors" role="alert">{{ message }}</p>
+}
+
+@if (loaded()) {
+  <table class="table" aria-label="Outbound history">
+    <thead>
+      <tr>
+        <th class="status">Status</th>
+        <th class="method">Method</th>
+        <th>Target</th>
+        <th class="kind">Kind</th>
+        <th class="number">Time</th>
+        <th class="when">When</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of store.history(); track item.id) {
+        <tr
+          tabindex="0"
+          [attr.data-outbound-id]="item.id"
+          [class.selected]="item.id === selected()?.id"
+          [attr.aria-selected]="item.id === selected()?.id"
+          (click)="select(item.id)"
+          (keydown.enter)="select(item.id)"
+        >
+          <td class="status">
+            @if (item.error; as error) {
+              <span class="failed">{{ errorTitle(error).title }}</span>
+            } @else {
+              {{ item.status }}
+            }
+          </td>
+          <td class="method"><app-method-label [method]="item.method" /></td>
+          <td class="target">{{ item.target }}</td>
+          <td class="kind">{{ item.kind === 'replay' ? 'Replay' : 'Send' }}</td>
+          <td class="number">{{ item.duration_ms }} ms</td>
+          <td class="when" [title]="date(item.at)">{{ when(item.at) }}</td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty" colspan="6">
+            Nothing sent yet. Use Replay on a request, or Send in the top bar.
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (selected(); as current) {
+    <section class="detail" aria-label="Outbound detail">
+      <h2>{{ current.kind === 'replay' ? 'Replay' : 'Send' }} &middot; {{ date(current.at) }}</h2>
+      <app-outbound-result-view [result]="current" [sentHeaders]="true" />
+    </section>
+  }
+}

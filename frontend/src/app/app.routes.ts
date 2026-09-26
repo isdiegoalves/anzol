@@ -27,20 +27,32 @@ export function inboxMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   };
 }
 
-/** `/{tokenId}/rules`: aba de regras de resposta da URL. */
-export function rulesMatcher(segments: UrlSegment[]): UrlMatchResult | null {
-  const [token, rules] = segments;
-  if (segments.length !== 2 || !UUID.test(token.path) || rules.path !== 'rules') {
-    return null;
-  }
-  return { consumed: segments, posParams: { tokenId: token } };
+/** `/{tokenId}/{tab}`: aba da URL aberta (regras, histórico de saída). */
+function tabMatcher(tab: string) {
+  return (segments: UrlSegment[]): UrlMatchResult | null => {
+    const [token, name] = segments;
+    if (segments.length !== 2 || !UUID.test(token.path) || name.path !== tab) {
+      return null;
+    }
+    return { consumed: segments, posParams: { tokenId: token } };
+  };
 }
 
+/** `/{tokenId}/rules`: aba de regras de resposta da URL. */
+export const rulesMatcher = tabMatcher('rules');
+
+/** `/{tokenId}/outbound`: aba com o histórico de replay e send da URL. */
+export const outboundMatcher = tabMatcher('outbound');
+
 export const routes: Routes = [
-  // Carregada sob demanda: a aba de regras não pesa na carga inicial.
+  // Carregadas sob demanda: as abas de regras e de saída não pesam na carga inicial.
   {
     matcher: rulesMatcher,
     loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
+  },
+  {
+    matcher: outboundMatcher,
+    loadComponent: () => import('./outbound/outbound-page').then((m) => m.OutboundPage),
   },
   { matcher: inboxMatcher, loadComponent: () => import('./inbox/inbox').then((m) => m.Inbox) },
   { path: '**', redirectTo: '' },

@@ -14,20 +14,30 @@
       <a
         mat-button
         [routerLink]="['/', token.uuid]"
-        [class.active]="!onRules()"
-        [attr.aria-current]="onRules() ? null : 'page'"
+        [class.active]="view() === 'requests'"
+        [attr.aria-current]="view() === 'requests' ? 'page' : null"
         >Requests</a
       >
       <a
         mat-button
         [routerLink]="['/', token.uuid, 'rules']"
-        [class.active]="onRules()"
-        [attr.aria-current]="onRules() ? 'page' : null"
+        [class.active]="view() === 'rules'"
+        [attr.aria-current]="view() === 'rules' ? 'page' : null"
         >Rules</a
+      >
+      <a
+        mat-button
+        [routerLink]="['/', token.uuid, 'outbound']"
+        [class.active]="view() === 'outbound'"
+        [attr.aria-current]="view() === 'outbound' ? 'page' : null"
+        >Outbound</a
       >
     </nav>
   }
   <span class="spacer"></span>
+  @if (tokens.token()) {
+    <button mat-button type="button" class="send" (click)="sendRequest()">Send</button>
+  }
   <button mat-button type="button" class="edit" (click)="editUrl()">Edit</button>
   <input
     class="url"

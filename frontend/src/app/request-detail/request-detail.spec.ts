@@ -7,6 +7,7 @@ import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
+import { OutboundActions } from '../outbound/outbound-actions';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
 import { TokenActions } from '../token/token-actions';
@@ -240,4 +241,23 @@ describe('Dado o detalhe de uma mensagem', () => {
 
     expect(TestBed.inject(CompareStore).picking()).toEqual(request);
   });
+
+  it.each([
+    ['Replay…', 'replay'],
+    ['Send as new…', 'send'],
+  ] as const)(
+    'deve abrir o diálogo de saída com a mensagem Quando "%s" é clicado',
+    async (text, action) => {
+      const actions = { replay: vi.fn(), send: vi.fn() };
+      TestBed.configureTestingModule({
+        providers: [{ provide: OutboundActions, useValue: actions }],
+      });
+      const request = webhookRequest(5);
+      await render(request);
+
+      await (await loader.getHarness(MatButtonHarness.with({ text }))).click();
+
+      await vi.waitFor(() => expect(actions[action]).toHaveBeenCalledWith(request));
+    },
+  );
 });

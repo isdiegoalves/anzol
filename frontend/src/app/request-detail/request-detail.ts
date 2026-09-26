@@ -91,6 +91,18 @@ export class RequestDetail {
     await this.injector.get(RuleFromRequest).open(this.request());
   }
 
+  /** Os diálogos de saída vêm sob demanda (no pedaço do `outbound-actions`). */
+  protected async replayRequest(): Promise<void> {
+    const { OutboundActions } = await import('../outbound/outbound-actions');
+    this.injector.get(OutboundActions).replay(this.request());
+  }
+
+  /** O Send da URL, já preenchido com método, headers e corpo da mensagem. */
+  protected async sendAsNew(): Promise<void> {
+    const { OutboundActions } = await import('../outbound/outbound-actions');
+    this.injector.get(OutboundActions).send(this.request());
+  }
+
   /** O diálogo do Edit URL e a inferência vêm sob demanda (no pedaço do `token-actions`). */
   protected async createSchema(): Promise<void> {
     const { TokenActions } = await import('../token/token-actions');
