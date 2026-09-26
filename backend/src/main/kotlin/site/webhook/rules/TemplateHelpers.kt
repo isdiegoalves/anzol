@@ -8,9 +8,6 @@ import com.github.jknack.handlebars.helper.IfHelper
 import com.github.jknack.handlebars.helper.LookupHelper
 import com.github.jknack.handlebars.helper.UnlessHelper
 import com.github.jknack.handlebars.helper.WithHelper
-import com.jayway.jsonpath.JsonPath
-import com.jayway.jsonpath.JsonPathException
-import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
 import java.math.MathContext
 import java.time.DateTimeException
@@ -54,7 +51,7 @@ internal val HELPERS: Map<String, Helper<*>> =
         EachHelper.NAME to block(EachHelper.NAME, EachHelper.INSTANCE),
         WithHelper.NAME to block(WithHelper.NAME, WithHelper.INSTANCE),
         LookupHelper.NAME to withParams(LookupHelper.NAME, 2) { target, options -> lookup(target, options) },
-        "jsonPath" to withParams("jsonPath", 2) { body, options -> jsonPathValue(body, options.param<Any?>(0)) },
+        "jsonPath" to withParams("jsonPath", 2) { body, options -> jsonPathValue(body, options.param<Any?>(0), options) },
         "now" to withParams("now", 0) { _, options -> formatNow(options.data(NOW_DATA), options.hash<Any?>("format")) },
         "randomValue" to
             withParams("randomValue", 0) { _, options ->
@@ -119,27 +116,6 @@ private fun lookup(
     target: Any?,
     options: Options,
 ): Any? = target?.let { Context.newBuilder(options.context, it).build().get(options.param<Any?>(0).toString()) }
-
-/** Valor do caminho no corpo JSON: escalar como texto, objeto ou lista como JSON; ausente ou nulo, vazio. */
-private fun jsonPathValue(
-    body: Any?,
-    path: Any?,
-): String {
-    val document = (body as? String)?.let(::readJson)?.let(::jsonDocument)
-    if (document == null || path !is String) return ""
-    val value =
-        try {
-            JsonPath.compile(path).read<Any?>(document)
-        } catch (_: JsonPathException) {
-            null
-        }
-    val tree = value?.let { bodyMapper.valueToTree<JsonNode>(it) }
-    return when {
-        tree == null || tree.isNull -> ""
-        tree.isValueNode -> tree.asString()
-        else -> tree.toString()
-    }
-}
 
 private fun formatNow(
     now: Instant,

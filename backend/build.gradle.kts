@@ -26,6 +26,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")
+    // Cache dos templates de regra já compilados (versão do Spring Boot).
+    implementation("com.github.ben-manes.caffeine:caffeine")
     // Templates das regras de resposta. Sem o Nashorn: helpers em JavaScript nunca são registrados.
     implementation("com.github.jknack:handlebars:4.5.5") {
         exclude(group = "org.openjdk.nashorn")

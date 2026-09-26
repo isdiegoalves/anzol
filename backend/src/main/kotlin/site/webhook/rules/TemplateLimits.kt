@@ -3,6 +3,7 @@ package site.webhook.rules
 import com.github.jknack.handlebars.Context
 import com.github.jknack.handlebars.Options
 import com.github.jknack.handlebars.Template
+import tools.jackson.core.JacksonException
 import java.io.Writer
 import java.nio.CharBuffer
 import java.time.Duration
@@ -12,6 +13,29 @@ const val MAX_RENDERED_BODY = 1024 * 1024
 
 /** Teto de cada valor de cabeçalho renderizado, em caracteres (8 KiB). */
 const val MAX_RENDERED_HEADER = 8 * 1024
+
+/**
+ * Teto da soma dos valores de cabeçalho renderizados de uma resposta, em caracteres (32 KiB): abaixo do
+ * buffer de 64 KB do Tomcat (`max-http-response-header-size`), com folga para nomes e cabeçalhos fixos.
+ * Acima do buffer o Tomcat responderia um 500 sem corpo.
+ */
+const val MAX_RENDERED_HEADERS = 32 * 1024
+
+/** Teto de cada campo templado (corpo e cada valor de cabeçalho) ao salvar, em caracteres (64 KiB). */
+const val MAX_TEMPLATE_LENGTH = 64 * 1024
+
+/**
+ * Teto de aninhamento de blocos e de subexpressões ao salvar. O parser do Handlebars é recursivo e estoura
+ * a pilha com ~1000 blocos aninhados, bem dentro de 64 KiB; 32 sobra para qualquer template escrito à mão.
+ */
+const val MAX_TEMPLATE_NESTING = 32
+
+/**
+ * `jsonPath`: soma do tamanho dos caminhos achados numa chamada, em caracteres (4 Mi). O Jayway guarda o
+ * caminho de cada resultado ao lado do valor, e uma união repetida (`$[0,0,0][0,0,0]…`) multiplica os
+ * resultados sem aumentar a saída de cada um.
+ */
+internal const val MAX_JSONPATH_RESULT_PATHS = 4L * 1024 * 1024
 
 const val TEMPLATE_TOO_LARGE = "The rendered template is too large."
 const val TEMPLATE_TOO_SLOW = "The template took too long to render."
@@ -34,7 +58,7 @@ internal fun deadline(): Long = System.nanoTime() + MAX_RENDER_TIME.toNanos()
  * camada do Handlebars engula a exceção.
  */
 internal class RenderBudget(
-    private val maxLength: Int,
+    val maxLength: Int,
     private val deadline: Long,
 ) {
     private var length = 0
@@ -52,6 +76,9 @@ internal class RenderBudget(
         val reason = exceeded ?: TEMPLATE_TOO_SLOW.takeIf { System.nanoTime() - deadline > 0 }
         if (reason != null) stop(reason)
     }
+
+    /** Recusa por tamanho algo que ainda não chegou à saída (o resultado de um `jsonPath`, por exemplo). */
+    fun tooLarge(): Nothing = stop(TEMPLATE_TOO_LARGE)
 
     private fun stop(reason: String): Nothing {
         exceeded = reason
@@ -156,4 +183,51 @@ internal class AppendableWriter(
     override fun flush() = Unit
 
     override fun close() = Unit
+}
+
+/**
+ * JSON de [value] (mapa ou lista), escrito até [limit] caracteres: se passar, para de escrever e devolve só
+ * os primeiros `limit + 1`. Quem chama vê pelo tamanho que passou do teto, sem que o JSON inteiro chegue a
+ * existir em memória.
+ */
+internal fun jsonUpTo(
+    value: Any,
+    limit: Int,
+): String {
+    val out = CappedWriter(limit)
+    try {
+        bodyMapper.writeValue(out, value)
+    } catch (e: IllegalStateException) {
+        if (!out.full) throw e
+    } catch (e: JacksonException) {
+        if (!out.full) throw e
+    }
+    return out.toString()
+}
+
+/** Guarda até `limit + 1` caracteres; o que passa disso para a escrita com [IllegalStateException]. */
+private class CappedWriter(
+    private val limit: Int,
+) : Writer() {
+    private val text = StringBuilder()
+
+    val full: Boolean
+        get() = text.length > limit
+
+    override fun write(
+        cbuf: CharArray,
+        off: Int,
+        len: Int,
+    ) {
+        check(!full) { TEMPLATE_TOO_LARGE }
+        val room = minOf(len, limit + 1 - text.length)
+        text.appendRange(cbuf, off, off + room)
+        check(!full) { TEMPLATE_TOO_LARGE }
+    }
+
+    override fun flush() = Unit
+
+    override fun close() = Unit
+
+    override fun toString(): String = text.toString()
 }

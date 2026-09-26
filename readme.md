@@ -130,7 +130,7 @@ Com `"template": true`, o `body` e os valores dos `headers` da resposta são tem
 | `request.method`, `request.path`, `request.url` | método, caminho após o token (como no `match.path`) e a `url` gravada |
 | `request.query.<nome>`, `request.headers.<nome>` | parâmetro da query e cabeçalho (nome em minúsculas; `request.headers.[content-type]` também vale) |
 | `request.body`, `seq` | corpo cru e o `seq` da mensagem gravada |
-| `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON |
+| `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON. Só caminho simples (propriedade, índice, `*`, união e fatia): busca profunda (`..`), filtro (`[?(…)]`) e função (`.length()`) dão 422 ao salvar e, se o caminho vier da requisição, deixam o trecho vazio |
 | `{{now}}`, `{{now format='yyyy-MM-dd'}}` | agora em ISO-8601 UTC (em segundos) ou no padrão do `DateTimeFormatter`, em UTC |
 | `{{randomValue type='UUID'\|'ALPHANUMERIC'\|'NUMERIC'\|'HEX' length=N}}` | valor aleatório; `length` de 1 a 10000 (fora disso, 422 ao salvar), padrão 16 |
 | `{{math a '+'\|'-'\|'*'\|'/' b}}` | conta com números ou textos numéricos de até 100 dígitos na parte inteira e 100 casas decimais (operando ou resultado maior deixa o trecho vazio) |
@@ -148,6 +148,16 @@ chave do cabeçalho). Falha ao executar (`jsonPath` em corpo que não é JSON, c
 por zero) deixa só aquele trecho vazio. Diferente do Handlebars puro, `}` logo depois do fim de uma tag
 é texto: `{"seq":{{seq}}}` vale e sai `{"seq":42}`.
 
+Tetos do template, conferidos ao salvar:
+
+| Teto | Ao estourar |
+|---|---|
+| tamanho do `body` e de cada valor de cabeçalho templado: 64 KiB (65 536 caracteres) | 422, `The template is invalid: longer than 65536 characters.` |
+| blocos aninhados e subexpressões aninhadas: 32 níveis (cada `{{else if …}}` conta um) | 422, `The template is invalid: blocks nested more than 32 levels deep (line 1, column 353).` |
+
+O template é compilado uma vez e guardado pelo texto: o webhook não recompila a regra a cada requisição,
+e salvar a regra com outro texto compila o novo.
+
 Tetos da renderização, cobrados enquanto ela acontece (um `each` sobre os cabeçalhos do remetente não
 junta a saída inteira antes de conferir):
 
@@ -155,14 +165,21 @@ junta a saída inteira antes de conferir):
 |---|---|
 | corpo renderizado: 1 MiB (1 048 576 caracteres) | a mensagem continua gravada e a resposta é 500 com o envelope de erro de sempre: `{"success":false,"error":{"message":"The rendered template is too large.","id":null}}` para cliente JSON, a página de erro para os demais |
 | cada valor de cabeçalho renderizado: 8 KiB (8192 caracteres) | o mesmo 500, `The rendered template is too large.` |
-| tempo de renderizar a resposta (corpo e cabeçalhos, depois de compilar): 1 s | 500, `The template took too long to render.` (ex.: `each` aninhado que gira sem produzir saída) |
+| soma dos valores de cabeçalho renderizados: 32 KiB (32 768 caracteres), abaixo do buffer de 64 KB do Tomcat | o mesmo 500 (sem o teto, o Tomcat responderia um 500 sem corpo) |
+| `jsonPath`: objeto ou lista maior que o teto da saída (corpo ou cabeçalho), ou caminhos achados somando 4 Mi caracteres (ex.: união repetida `$[0,0,0][0,0,0]…`) | o mesmo 500, mesmo que o valor só sirva de condição |
+| tempo de renderizar a resposta (corpo e cabeçalhos, depois de compilar): 1 s | 500, `The template took too long to render.` (ex.: `each` aninhado que gira sem produzir saída; o `jsonPath` confere o prazo a cada passo no documento) |
+
+O corpo JSON que o `jsonPath` percorre é lido uma vez por resposta, não uma por chamada.
 
 Num valor de cabeçalho renderizado, CR, LF e todo outro caractere de controle (U+0000–U+001F, U+007F e
 U+0080–U+009F), menos o TAB, viram espaço: `{"X-Eco": "{{request.query.x}}"}` com `x=a%0D%0AX-Injetado:%20sim`
 sai numa linha só, `X-Eco: a  X-Injetado: sim`. Espaço, e não erro, para que o remetente não consiga
 derrubar a resposta da regra com uma quebra de linha; o corpo sai como veio. (O Tomcat 11 já troca os
-controles C0 e o DEL por espaço, mas manda os C1 crus e descarta o cabeçalho inteiro quando o valor tem
-caractere acima de U+00FF; a troca é feita pelo app, sem depender dele.)
+controles C0 e o DEL por espaço, mas manda os C1 crus; a troca é feita pelo app, sem depender dele.)
+
+Em todo valor de cabeçalho da regra, templado ou fixo, cada caractere fora do ISO-8859-1 (acima de U+00FF,
+inclusive U+2028 e U+2029; um emoji conta como um) vira `?`: `{"X-Eco": "ação ✓"}` sai `X-Eco: ação ?`.
+Sem a troca, o Tomcat descartaria o cabeçalho inteiro, sem aviso.
 
 #### Cenários
 

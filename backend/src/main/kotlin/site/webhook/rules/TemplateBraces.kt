@@ -74,3 +74,90 @@ private fun simpleTagEnd(
     }
     return null
 }
+
+/**
+ * `null` quando blocos e subexpressões aninham até [MAX_TEMPLATE_NESTING] níveis; senão o motivo, com linha
+ * e coluna da tag que passou do teto. Conferido antes de compilar: o parser do Handlebars é recursivo e, sem
+ * isso, estoura a pilha (`StackOverflowError`, 500) em vez de recusar. Cada `{{else …}}` com helper
+ * (`{{else if x}}`) conta um nível, porque o Handlebars o monta como um bloco dentro do anterior.
+ */
+fun nestingError(text: String): String? {
+    val blocks = ArrayDeque<Int>()
+    var open = text.indexOf("{{")
+    var end = open.takeIf { it >= 0 }?.let { tagEnd(text, it) }
+    while (end != null) {
+        val tag = text.substring(open, end)
+        when (tagKind(tag)) {
+            TagKind.OPEN -> blocks.addLast(1)
+            TagKind.CHAINED_ELSE -> blocks.removeLastOrNull()?.let { blocks.addLast(it + 1) }
+            TagKind.CLOSE -> blocks.removeLastOrNull()
+            TagKind.OTHER -> Unit
+        }
+        val reason =
+            when {
+                blocks.sum() > MAX_TEMPLATE_NESTING -> "blocks nested more than $MAX_TEMPLATE_NESTING levels deep"
+                subexpressionDepth(tag) > MAX_TEMPLATE_NESTING -> "subexpressions nested more than $MAX_TEMPLATE_NESTING levels deep"
+                else -> null
+            }
+        if (reason != null) return "$reason (${position(text, open)})"
+        open = text.indexOf("{{", end)
+        end = open.takeIf { it >= 0 }?.let { tagEnd(text, it) }
+    }
+    return null
+}
+
+private enum class TagKind { OPEN, CHAINED_ELSE, CLOSE, OTHER }
+
+/** `{{#x}}`/`{{^x}}` abre bloco, `{{/x}}` fecha, `{{else x}}` encadeia; `{{{{raw}}}}` e comentários não contam. */
+private fun tagKind(tag: String): TagKind {
+    if (tag.startsWith("{{{{")) return TagKind.OTHER
+    val inside =
+        tag
+            .removePrefix("{{")
+            .removePrefix("{")
+            .removePrefix("~")
+            .trimStart()
+    val rest =
+        inside
+            .drop(1)
+            .removeSuffix("}}")
+            .removeSuffix("}")
+            .removeSuffix("~")
+            .trim()
+    return when {
+        inside.startsWith("#") -> TagKind.OPEN
+        inside.startsWith("^") -> if (rest.isEmpty()) TagKind.OTHER else TagKind.OPEN
+        inside.startsWith("/") -> TagKind.CLOSE
+        CHAINED_ELSE.matchesAt(inside, 0) -> TagKind.CHAINED_ELSE
+        else -> TagKind.OTHER
+    }
+}
+
+private val CHAINED_ELSE = Regex("""else\s+[^\s~}]""")
+
+/** Maior profundidade de parênteses da tag, fora de texto entre aspas; comentário conta zero. */
+private fun subexpressionDepth(tag: String): Int {
+    if (tag.startsWith("{{!") || tag.startsWith("{{~!") || tag.startsWith("{{{{")) return 0
+    var quote: Char? = null
+    var depth = 0
+    var deepest = 0
+    for (c in tag) {
+        when {
+            quote != null -> if (c == quote) quote = null
+            c == '\'' || c == '"' -> quote = c
+            c == '(' -> deepest = maxOf(deepest, ++depth)
+            c == ')' -> depth--
+        }
+    }
+    return deepest
+}
+
+/** "line L, column C" de [offset], como nas mensagens do Handlebars. */
+private fun position(
+    text: String,
+    offset: Int,
+): String {
+    val line = text.substring(0, offset).count { it == '\n' } + 1
+    val column = offset - (text.lastIndexOf('\n', offset - 1) + 1) + 1
+    return "line $line, column $column"
+}
