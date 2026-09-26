@@ -22,26 +22,26 @@ value class RequestId(
 }
 
 /**
- * Mensagem gravada, como a API devolve (`GET /token/{id}/request/{rid}`) e o evento
+ * Mensagem gravada, como a API devolve (`GET /token/{id}/request/{rid}` e a listagem) e o evento
  * `request.created` traz. Só os campos que o reenvio usa; `url` é a URL inteira recebida pelo
- * webhook.site, com o caminho cru e a query normalizada.
+ * webhook.site, com o caminho cru e a query normalizada; `seq` é a posição dela no índice do
+ * servidor, estritamente crescente por URL.
  */
 @Serializable
 data class CapturedRequest(
     val uuid: RequestId,
+    val seq: Long,
     val method: String,
     val url: String,
-    @SerialName("created_at") val createdAt: String,
     val content: String = "",
     val headers: Map<String, List<String>> = emptyMap(),
     val request: JsonElement? = null,
 )
 
-/** `data:` do evento `request.created`; truncado, `request` vem sem `content` e `headers`. */
+/** `data:` do evento `request.created`; o CLI só usa o `seq` da mensagem (truncada ou não). */
 @Serializable
 data class RequestCreated(
     val request: CapturedRequest,
-    val truncated: Boolean = false,
 )
 
 /** Página de `GET /token/{id}/requests`. */

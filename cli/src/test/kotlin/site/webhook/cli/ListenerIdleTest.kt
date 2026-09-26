@@ -38,7 +38,7 @@ class ListenerIdleTest {
                 WebhookServer(site.base, http),
                 TokenId(token),
                 Forwarder(app.url, http),
-                cursor = null,
+                cursor = 0,
                 idleLimit = Duration.ofSeconds(1),
             ) { output += it }
         threads += Thread.ofVirtual().start { listener.run { listening.countDown() } }

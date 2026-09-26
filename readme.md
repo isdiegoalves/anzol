@@ -102,7 +102,8 @@ Reconnected; forwarding 2 missed request(s)
 ```
 
 Cada mensagem gravada é reenviada para `<forward>` + o caminho depois do token + a query, uma de
-cada vez, na ordem de chegada; a linha traz o status que o app local respondeu e o tempo. Quem
+cada vez, na ordem em que o servidor as gravou (`seq`); a linha traz o status que o app local
+respondeu e o tempo. Quem
 mandou o webhook já recebeu a resposta configurada na URL: a resposta do app local só aparece na linha.
 
 - App local fora do ar ou com erro de rede: linha `error:` e o CLI continua ouvindo (a mensagem
@@ -110,7 +111,11 @@ mandou o webhook já recebeu a resposta configurada na URL: a resposta do app lo
 - Queda da conexão com o servidor: reconecta sozinho (espera 1 s, 2 s, 4 s… até 30 s) e reenvia,
   em ordem e sem repetir, as mensagens que chegaram durante a queda. Conexão que para de entregar
   sem fechar é dada como caída depois de 45 s sem nenhuma linha (o servidor manda heartbeat a cada 15 s).
-- Mensagem acima de 1 MB (o evento chega truncado): o CLI busca a mensagem inteira antes de reenviar.
+- O evento SSE é só o aviso de que chegou mensagem: o CLI lê as mensagens pela listagem
+  `after=<seq da última tratada>`, que as traz inteiras e em ordem (mesmo as acima de 1 MB, cujo
+  evento chega truncado, e as de rajadas simultâneas, cujos eventos saem fora de ordem). Mensagem
+  apagada antes de ser lida não é reenviada; as demais não se perdem. Precisa de um servidor com
+  `seq` e `after` (esta versão).
 - Só as mensagens que chegam depois que o `listen` começa são reenviadas.
 - Token inexistente (ou apagado durante uma queda): `Token not found` no stderr e saída 1. Ctrl+C sai com 0.
 

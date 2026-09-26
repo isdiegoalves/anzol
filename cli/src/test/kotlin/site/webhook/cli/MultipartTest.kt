@@ -20,7 +20,7 @@ class MultipartTest {
         uuid = RequestId("r"),
         method = "POST",
         url = "http://localhost:8084/t",
-        createdAt = "2026-09-26 00:00:00",
+        seq = 1,
         headers = mapOf("content-type" to listOf("multipart/form-data; boundary=$boundary")),
         request = JsonObject(fields.associate { (name, value) -> name to JsonPrimitive(value) }),
     )

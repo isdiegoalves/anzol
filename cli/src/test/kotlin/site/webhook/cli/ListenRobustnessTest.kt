@@ -1,5 +1,6 @@
 package site.webhook.cli
 
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -19,6 +20,8 @@ import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
 import site.webhook.cli.support.with
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 private val ANY_FORWARD_LINE = Regex("""\d{2}:\d{2}:\d{2} \S+ \S+ -> .*""")
 
@@ -59,7 +62,7 @@ class ListenRobustnessTest {
     }
 
     @Test
-    @DisplayName("Dado um evento truncado (> 1 MB), quando reenvia, então busca a mensagem inteira e o app local recebe o corpo todo")
+    @DisplayName("Dado um evento truncado (> 1 MB), quando reenvia, então o app local recebe o corpo todo, lido da listagem")
     fun listen_eventoTruncado_deveBuscarMensagemInteira() {
         val token = site.createToken()
         listen(token)
@@ -131,6 +134,41 @@ class ListenRobustnessTest {
         cli.interrupt()
 
         assertThat(cli.awaitExit()).isEqualTo(0)
+    }
+
+    /** Gravações simultâneas no servidor real publicam os eventos fora da ordem do índice (`seq`). */
+    @Nested
+    @DisplayName("Ordem do índice, não do SSE")
+    inner class IndexOrder {
+        @Test
+        @DisplayName("Dado eventos fora da ordem do seq, quando reenvia, então o app local recebe na ordem do seq, uma vez cada")
+        fun listen_eventosForaDeOrdem_deveReenviarNaOrdemDoSeq() {
+            val token = site.createToken()
+            listen(token)
+            val burst = (1..3).map { site.store(message(token, target = "/$it")) }
+
+            listOf(2, 0, 1).forEach { site.notify(burst[it]) }
+            site.publish(message(token, target = "/4"))
+
+            assertThat(awaitReceived(4).map { it.path }).containsExactly("/1", "/2", "/3", "/4")
+        }
+
+        @Test
+        @DisplayName(
+            "Dado o evento da mais nova antes das outras e uma queda, quando reconecta, então nenhuma se perde e a ordem é a do seq",
+        )
+        fun listen_eventoForaDeOrdemEQueda_naoDevePerderMensagem() {
+            val token = site.createToken()
+            val cli = listen(token)
+            val burst = (1..5).map { site.store(message(token, target = "/$it")) }
+
+            site.notify(burst[2])
+            outage {}
+
+            cli.awaitLine(Regex("""Reconnected; forwarding \d+ missed request\(s\)"""))
+            site.publish(message(token, target = "/6"))
+            assertThat(awaitReceived(6).map { it.path }).containsExactly("/1", "/2", "/3", "/4", "/5", "/6")
+        }
     }
 
     @Nested
@@ -212,6 +250,41 @@ class ListenRobustnessTest {
 
             cli.awaitLine(Regex(Regex.escape("Reconnected; forwarding 1 missed request(s)")))
             assertThat(awaitReceived(2).map { it.path }).containsExactly("/ultima", "/queda")
+        }
+
+        @Test
+        @DisplayName("Dado o cursor inicial apagado na queda, quando reconecta, então não reenvia as mensagens anteriores ao listen")
+        fun listen_cursorInicialApagado_naoDeveReenviarAnterioresAoListen() {
+            val token = site.createToken()
+            val before = (1..3).map { site.store(message(token, target = "/antiga-$it")) }
+            val cli = listen(token)
+
+            outage {
+                site.remove(before.last())
+                site.store(message(token, target = "/nova"))
+            }
+
+            cli.awaitLine(Regex(Regex.escape("Reconnected; forwarding 1 missed request(s)")))
+            site.publish(message(token, target = "/depois"))
+            assertThat(awaitReceived(2).map { it.path }).containsExactly("/nova", "/depois")
+        }
+
+        @Test
+        @DisplayName("Dado um DELETE no meio da recuperação paginada, quando reconecta, então não perde nenhuma das outras")
+        fun listen_deleteDuranteARecuperacao_naoDevePerderAsDemais() {
+            val token = site.createToken()
+            val cli = listen(token)
+            val stored = CopyOnWriteArrayList<JsonObject>()
+            val listings = AtomicInteger()
+            site.onList = { query ->
+                if ("after=" in query && listings.incrementAndGet() == 2) stored.take(3).forEach(site::remove)
+            }
+
+            outage { (1..45).forEach { stored += site.store(message(token, target = "/$it")) } }
+
+            cli.awaitLine(Regex(Regex.escape("Reconnected; forwarding 45 missed request(s)")))
+            assertThat(awaitReceived(45).map { it.path }).containsExactlyElementsOf((1..45).map { "/$it" })
+            assertThat(listings.get()).isGreaterThanOrEqualTo(2)
         }
 
         @Test

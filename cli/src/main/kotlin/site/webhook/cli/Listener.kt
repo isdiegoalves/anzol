@@ -13,6 +13,9 @@ private val LAST_RETRY: Duration = Duration.ofSeconds(30)
 private val IDLE_LIMIT: Duration = Duration.ofSeconds(45)
 private const val IDLE_CHECKS = 5L
 
+/** Mensagens por página na busca `after`: cada uma vem inteira, até ~1 MB. */
+private const val PAGE_SIZE = 20
+
 /** Espera entre tentativas de reconexão: 1 s, 2 s, 4 s… até 30 s; volta a 1 s ao conectar. */
 class Backoff {
     private var next = FIRST_RETRY
@@ -51,22 +54,21 @@ private class IdleWatchdog(
 }
 
 /**
- * O laço do `listen`: assina o SSE do token e reenvia cada `request.created`, um de cada vez,
- * na ordem de chegada. Em cada (re)conexão, depois de assinar, percorre a listagem `newest` até
- * a última mensagem tratada ([cursor]) e reenvia as que faltaram; o conjunto [forwarded] evita
- * repetir uma mensagem que chega pelas duas vias (listagem e SSE).
+ * O laço do `listen`: assina o SSE do token e reenvia as mensagens na ordem do índice do servidor
+ * (`seq`), um de cada vez. O SSE é só o aviso de que há mensagem nova: gravações simultâneas publicam
+ * fora da ordem do índice, então cada aviso (e cada (re)conexão, depois de assinar) busca na listagem
+ * `after=<cursor>` tudo o que veio depois da última mensagem tratada, em ordem, até a última página.
  *
- * @param cursor a mensagem mais nova do token quando o `listen` começou (nada antes dela é reenviado).
+ * @param cursor `seq` da mensagem mais nova quando o `listen` começou (nada até ela é reenviado).
  */
 class Listener(
     private val site: WebhookServer,
     private val token: TokenId,
     private val forwarder: Forwarder,
-    private var cursor: CapturedRequest?,
+    private var cursor: Long,
     private val idleLimit: Duration = IDLE_LIMIT,
     private val out: (String) -> Unit,
 ) {
-    private val forwarded = HashSet<RequestId>()
     private val backoff = Backoff()
 
     /** [onListening] roda quando a primeira assinatura está registrada; volta quando o token deixa de existir. */
@@ -77,7 +79,7 @@ class Listener(
                 val lines = site.subscribe(token) ?: return
                 lines.use { stream ->
                     backoff.reset()
-                    val missed = missed()
+                    val missed = newer()
                     if (announced) out("Reconnected; forwarding ${missed.size} missed request(s)") else onListening()
                     announced = true
                     missed.forEach(::process)
@@ -103,36 +105,28 @@ class Listener(
         }
     }
 
+    /** Evento de mensagem que o [cursor] já passou (reenviada por um aviso anterior) não busca nada. */
     private fun handle(event: SseEvent) {
         if (event.name != REQUEST_CREATED) return
-        val created = apiJson.decodeFromString<RequestCreated>(event.data)
-        if (created.request.uuid in forwarded) return
-        val message = if (created.truncated) site.find(token, created.request.uuid) else created.request
-        if (message != null) process(message)
+        if (apiJson.decodeFromString<RequestCreated>(event.data).request.seq > cursor) newer().forEach(::process)
     }
 
+    /** Reenvia e avança o cursor, também quando o app local não respondeu (a linha diz `error:`). */
     private fun process(message: CapturedRequest) {
-        if (!forwarded.add(message.uuid)) return
         out(forwarder.forward(token, message).line)
-        cursor = message
+        cursor = message.seq
     }
 
     /**
-     * Mensagens gravadas depois do [cursor], em ordem de chegada. Se o cursor saiu da listagem
-     * (limpeza automática, DELETE), para na primeira mensagem com `created_at` anterior ao dele.
+     * Mensagens com `seq` maior que o [cursor], na ordem do índice, página a página até a última.
+     * A listagem traz a mensagem inteira, inclusive a que o evento trouxe truncada.
      */
-    private fun missed(): List<CapturedRequest> {
+    private fun newer(): List<CapturedRequest> {
         val newer = mutableListOf<CapturedRequest>()
-        var page = 0
         do {
-            page++
-            val listing = site.newest(token, page) ?: break
-            val stop = listing.data.indexOfFirst { it.isAtOrBefore(cursor) }
-            newer += if (stop < 0) listing.data else listing.data.take(stop)
-        } while (stop < 0 && !listing.isLastPage && listing.data.isNotEmpty())
-        return newer.asReversed().distinctBy { it.uuid }.filterNot { it.uuid in forwarded }
+            val listing = site.after(token, newer.lastOrNull()?.seq ?: cursor, PAGE_SIZE) ?: break
+            newer += listing.data
+        } while (!listing.isLastPage && listing.data.isNotEmpty())
+        return newer
     }
-
-    private fun CapturedRequest.isAtOrBefore(cursor: CapturedRequest?): Boolean =
-        cursor != null && (uuid == cursor.uuid || createdAt < cursor.createdAt)
 }

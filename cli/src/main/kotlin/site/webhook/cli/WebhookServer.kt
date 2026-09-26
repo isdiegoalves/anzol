@@ -44,14 +44,28 @@ class WebhookServer(
     ): CapturedRequest? = found(send("GET", "/token/$token/request/$id"))?.let { apiJson.decodeFromString<CapturedRequest>(it) }
 
     /**
-     * `GET /token/{id}/requests?sorting=newest&page=n`: uma página, da mais nova para a mais
-     * antiga (ordem de chegada); `null` quando o token não existe.
+     * `GET /token/{id}/requests?sorting=newest&per_page=1`: o `seq` da mensagem mais nova, 0 sem
+     * mensagens; `null` quando o token não existe.
      */
-    fun newest(
+    fun newestSeq(token: TokenId): Long? =
+        found(send("GET", "/token/$token/requests?sorting=newest&per_page=1"))?.let {
+            apiJson
+                .decodeFromString<RequestPage>(it)
+                .data
+                .firstOrNull()
+                ?.seq ?: 0
+        }
+
+    /**
+     * `GET /token/{id}/requests?after=<seq>&per_page=n`: até [perPage] mensagens com `seq` maior que
+     * [seq], na ordem do índice; `null` quando o token não existe.
+     */
+    fun after(
         token: TokenId,
-        page: Int,
+        seq: Long,
+        perPage: Int,
     ): RequestPage? =
-        found(send("GET", "/token/$token/requests?sorting=newest&page=$page"))?.let { apiJson.decodeFromString<RequestPage>(it) }
+        found(send("GET", "/token/$token/requests?after=$seq&per_page=$perPage"))?.let { apiJson.decodeFromString<RequestPage>(it) }
 
     /**
      * Assina o SSE do token: as linhas do `text/event-stream`, já com a assinatura registrada no

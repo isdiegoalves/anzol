@@ -86,9 +86,9 @@ class Listen : CoreCliktCommand(name = "listen") {
         val http = httpClient()
         val site = WebhookServer(server, http)
         val listening = token ?: reaching(site) { site.createToken() }
-        val newest = reaching(site) { site.newest(listening, page = 1) } ?: fail("Token not found")
+        val newest = reaching(site) { site.newestSeq(listening) } ?: fail("Token not found")
         Signal.handle(Signal("INT")) { exitProcess(0) }
-        Listener(site, listening, Forwarder(forward, http), cursor = newest.data.firstOrNull()) { echo(it) }.run {
+        Listener(site, listening, Forwarder(forward, http), cursor = newest) { echo(it) }.run {
             echo("Listening on ${site.base}/$listening (forwarding to $forward)")
         }
         fail("Token not found")
