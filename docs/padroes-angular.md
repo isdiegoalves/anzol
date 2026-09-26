@@ -58,9 +58,11 @@
 
 | Regra | Fonte | Guarda |
 |---|---|---|
-| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` (criar/editar URL, configurações de redirect), `MatSelect` (dropdown da limpeza automática, plano de features), `MatSlideToggle` (formatar JSON, auto-navegar, CORS, redirect), `MatSnackBar` ("Request received", no lugar do bootstrap-notify), `MatPaginator` ou botões de página | — (substituição 1:1) | revisão |
+| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` só em Create New URL, Share read-only link, configurações de redirect e confirmações (a configuração da URL e os editores viram páginas); `MatChips` e segmentados (`MatButtonToggleGroup`) no lugar de `MatSelect` na busca e na limpeza automática; `MatSlideToggle` (Pretty, Follow new, CORS, redirect); `MatSnackBar` (avisos curtos, com a duração em cada `open()`, §7); `MatPaginator` ou botões de página | — (substituição 1:1) | revisão |
 | CDK no lugar das bibliotecas avulsas: `cdk-virtual-scroll-viewport` (lista), `Clipboard` do CDK (no lugar do `clipboard.js`/`copy-to-clipboard`) | — (substituição 1:1) | revisão |
-| Tema **só** pelo `mat.theme` (cor, tipografia, densidade), num único arquivo de estilos global | MT | revisão |
+| Tema **só** pelo `mat.theme` (cor, tipografia, densidade), num único arquivo de estilos global (`src/styles.scss`). Tema "Harbor": paletas geradas por `ng generate @angular/material:theme-color` (primária `#1D6A73`, terciária `#8E4D2C`) em `src/_theme-colors.scss`, que não se edita à mão; claro e escuro com `theme-type: color-scheme` (o Material emite `light-dark()`); alto contraste pelo mixin gerado, em `prefers-contrast: more` | MT | revisão |
+| Cor que o M3 não tem (sucesso, aviso) é *custom property* `--app-*` com `light-dark()`, no `styles.scss`, no padrão de nome dos tokens de sistema (`--app-success-container`, `--app-on-warning-container`). SCSS de componente **só** com tokens `--mat-sys-*` e `--app-*`: nada de hex, `rgb()` ou cor por nome | MT | Stylelint (`color-no-hex`, `color-named`, `function-disallowed-list` nos `.scss` de `src/app/**`; `npm run lint:styles`, etapa do `ci.sh`) |
+| Fontes auto-hospedadas em `public/fonts/` (woff2 variável, subconjunto latino, `font-display: swap`, com a licença OFL ao lado): Google Sans Flex na interface (eixo `ROND` em 100 nos títulos) e Google Sans Code em dado (`--app-code-family`). Nada de CDN: o app roda local e pode ficar offline. `preload` só da Flex | — (estudo C §1.5) | revisão |
 | Ajuste fino só via `mat.theme-overrides` ou mixins `overrides` de componente. **Nunca** estilizar classes internas (`.mat-mdc-*`) nem a estrutura do DOM dos componentes: o time do Material as trata como detalhe privado que "pode mudar a qualquer momento" | MT ("Direct Style Overrides") | revisão |
 | Um sistema de estilo só: Material + SCSS do componente; sem Tailwind nem Bootstrap junto | — (evitar dois sistemas) | revisão |
 
@@ -77,7 +79,8 @@
 - Vitest (padrão do CLI) para componentes e serviços; Playwright para E2E e contrato; skill
   `pdpj-bdd-tests`. Componentes do Material testados pelos harnesses do CDK
   (`TestbedHarnessEnvironment`), não por seletor CSS interno.
-- `ng lint` (angular-eslint 22.5.0 + typescript-eslint) e Prettier no `check`; o build falha em violação.
+- `ng lint` (angular-eslint 22.5.0 + typescript-eslint), Stylelint (`npm run lint:styles`) e
+  Prettier no `check`; o build falha em violação.
 - **Pacote inicial:** aviso em 500 kB e **erro em 550 kB** (orçamento `initial` do `angular.json`);
   `anyScript` só com aviso, em 310 kB (o maior chunk medido em 2026-09-26). O que é novo nasce em
   chunk lazy (rota com `loadComponent` ou `import()`). Nada de `MatToolbar`, `MatSnackBar`,

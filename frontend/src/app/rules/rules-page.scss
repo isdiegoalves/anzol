@@ -43,10 +43,10 @@
 .errors {
   margin: 0 0 12px;
   padding: 12px 12px 12px 32px;
-  border: 1px solid #ebccd1;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #f2dede;
-  color: #a94442;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-error);
 }
 
 .table {
@@ -55,7 +55,7 @@
 
   th {
     padding: 6px;
-    border-bottom: 2px solid #ddd;
+    border-bottom: 2px solid var(--mat-sys-outline-variant);
     text-align: left;
   }
 
@@ -65,7 +65,7 @@
   }
 
   tbody tr:nth-of-type(odd) {
-    background: #f9f9f9;
+    background: var(--mat-sys-surface-container-low);
   }
 }
 
@@ -105,8 +105,8 @@
 code {
   padding: 2px 4px;
   border-radius: 4px;
-  background: #eee;
-  color: #333;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
   word-break: break-all;
 }
 
@@ -118,7 +118,7 @@ code {
 .delete {
   @include mat.button-overrides(
     (
-      text-label-text-color: #d9534f,
+      text-label-text-color: var(--mat-sys-error),
     )
   );
 }

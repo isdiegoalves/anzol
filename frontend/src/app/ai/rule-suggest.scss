@@ -1,9 +1,9 @@
 .suggest {
   margin: 0 0 12px;
   padding: 8px 12px;
-  border: 1px solid #bce8f1;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #f4fafd;
+  background: var(--mat-sys-surface-container);
 
   summary {
     cursor: pointer;
@@ -24,22 +24,22 @@
 }
 
 .off {
-  color: #a94442;
+  color: var(--mat-sys-error);
 }
 
 .wait,
 .attempts {
-  color: #777;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 90%;
 }
 
 .errors {
   margin: 8px 0;
   padding: 8px 8px 8px 28px;
-  border: 1px solid #ebccd1;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #f2dede;
-  color: #a94442;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-error);
 }
 
 .result {

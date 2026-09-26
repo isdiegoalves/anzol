@@ -12,12 +12,12 @@ h1 {
 .url {
   padding: 2px 4px;
   border-radius: 4px;
-  background: #eee;
+  background: var(--mat-sys-surface-container-high);
   word-break: break-all;
 }
 
 .note {
-  color: #777;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 13px;
 }
 
@@ -32,5 +32,5 @@ h1 {
 }
 
 .error {
-  color: #a94442;
+  color: var(--mat-sys-error);
 }

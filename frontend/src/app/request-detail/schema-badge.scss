@@ -10,15 +10,15 @@
 
 // Cores dos alertas do app atual (success/danger do Bootstrap), como o selo de assinatura.
 .valid {
-  border: 1px solid #d6e9c6;
-  background: #dff0d8;
-  color: #3c763d;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: var(--app-success-container);
+  color: var(--app-success);
 }
 
 .invalid {
-  border: 1px solid #ebccd1;
-  background: #f2dede;
-  color: #a94442;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-error);
 }
 
 .errors {

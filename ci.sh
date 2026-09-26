@@ -72,6 +72,7 @@ backend_check() { (cd backend && ./gradlew check); }
 cli_check() { (cd cli && ./gradlew check installDist); }
 frontend_npm_ci() { (cd frontend && npm ci --no-audit --no-fund); }
 frontend_lint() { (cd frontend && npx ng lint); }
+frontend_stylelint() { (cd frontend && npm run -s lint:styles); }
 frontend_prettier() { (cd frontend && npx prettier --check .); }
 frontend_test() { (cd frontend && npx ng test --watch=false); }
 frontend_build() { (cd frontend && npx ng build); }
@@ -164,6 +165,7 @@ etapa "backend: gradlew check" backend_check
 etapa "cli: gradlew check installDist" cli_check
 etapa "frontend: npm ci" frontend_npm_ci
 etapa "frontend: ng lint" frontend_lint
+etapa "frontend: stylelint" frontend_stylelint
 etapa "frontend: prettier --check" frontend_prettier
 etapa "frontend: ng test" frontend_test
 etapa "frontend: ng build" frontend_build

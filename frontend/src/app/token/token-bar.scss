@@ -9,8 +9,8 @@
   box-sizing: border-box;
   height: 50px;
   padding: 0 16px;
-  background: #222;
-  color: #9d9d9d;
+  background: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
   font: var(--mat-sys-title-large);
   white-space: nowrap;
 }
@@ -42,7 +42,7 @@
   a {
     @include mat.button-overrides(
       (
-        text-label-text-color: #9d9d9d,
+        text-label-text-color: var(--mat-sys-inverse-on-surface),
       )
     );
   }
@@ -50,7 +50,7 @@
   a.active {
     @include mat.button-overrides(
       (
-        text-label-text-color: #fff,
+        text-label-text-color: var(--mat-sys-inverse-primary),
       )
     );
   }
@@ -65,7 +65,7 @@
   height: 34px;
   padding: 6px 12px;
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
   font: inherit;
   font-size: 14px;
@@ -76,7 +76,7 @@
 .lock {
   @include mat.button-overrides(
     (
-      text-label-text-color: #9d9d9d,
+      text-label-text-color: var(--mat-sys-inverse-on-surface),
     )
   );
 }
@@ -84,7 +84,7 @@
 .copy {
   @include mat.button-overrides(
     (
-      filled-container-color: #5cb85c,
+      filled-container-color: var(--app-success),
     )
   );
 }
@@ -92,7 +92,7 @@
 .new {
   @include mat.button-overrides(
     (
-      filled-container-color: #337ab7,
+      filled-container-color: var(--mat-sys-primary),
     )
   );
 }

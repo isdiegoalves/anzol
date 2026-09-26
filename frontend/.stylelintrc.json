@@ -1,0 +1,35 @@
+{
+  "extends": "stylelint-config-standard-scss",
+  "ignoreFiles": ["src/_theme-colors.scss"],
+  "rules": {
+    "selector-class-pattern": [
+      "^([a-z][a-z0-9]*)(-[a-z0-9]+)*$|^hljs-[a-z_]+$",
+      { "message": "Classe em kebab-case (as do highlight.js, hljs-*, como o pacote as gera)" }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/app/**/*.scss"],
+      "rules": {
+        "color-no-hex": [
+          true,
+          {
+            "message": "Cor fixa em SCSS de componente: use um token --mat-sys-* ou --app-* (docs/padroes-angular.md §5)"
+          }
+        ],
+        "function-disallowed-list": [
+          ["rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch"],
+          {
+            "message": "Cor fixa em SCSS de componente: use um token --mat-sys-* ou --app-* (docs/padroes-angular.md §5)"
+          }
+        ],
+        "color-named": [
+          "never",
+          {
+            "message": "Cor por nome em SCSS de componente: use um token --mat-sys-* ou --app-* (docs/padroes-angular.md §5)"
+          }
+        ]
+      }
+    }
+  ]
+}

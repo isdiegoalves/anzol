@@ -24,7 +24,7 @@
 
 .hint {
   margin: 0;
-  color: #777;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 13px;
 }
 
@@ -35,10 +35,10 @@
 
 .failure {
   padding: 12px;
-  border: 1px solid #ebccd1;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #f2dede;
-  color: #a94442;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-error);
 }
 
 .code {
@@ -49,6 +49,6 @@
 code {
   padding: 2px 4px;
   border-radius: 4px;
-  background: #eee;
-  color: #333;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
 }

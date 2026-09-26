@@ -1,30 +1,137 @@
-// Tema único da aplicação (docs/padroes-angular.md, §5): só `mat.theme` e mixins de overrides.
+// Tema único da aplicação (docs/padroes-angular.md, §5): só `mat.theme`, `mat.theme-overrides` e
+// cores próprias como `--app-*`. Tema "Harbor" (estudo C §1.5): semente #1D6A73, terciário #8E4D2C;
+// as paletas estão em `_theme-colors.scss`, gerado por
+//   ng generate @angular/material:theme-color --primary-color="#1D6A73" --tertiary-color="#8E4D2C"
+//     --include-high-contrast --directory=src/ --is-scss
 @use '@angular/material' as mat;
+@use './theme-colors' as harbor;
+
+// Fontes auto-hospedadas (o app roda local e pode ficar offline): woff2 variável, subconjunto
+// latino, servidas pelo backend em /fonts/*.woff2. Só a Flex tem `preload` (index.html).
+@font-face {
+  font-family: 'Google Sans Flex';
+  font-style: normal;
+  font-weight: 1 1000;
+  font-display: swap;
+  src: url('/fonts/google-sans-flex-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Google Sans Code';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('/fonts/google-sans-code-latin.woff2') format('woff2');
+}
+
+$plain-family: #{'"Google Sans Flex", system-ui, "Helvetica Neue", Arial, sans-serif'};
 
 html {
   height: 100%;
+
+  // Claro e escuro pelo sistema; o Material emite `light-dark()` com `theme-type: color-scheme`.
+  color-scheme: light dark;
+
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: harbor.$primary-palette,
+        tertiary: harbor.$tertiary-palette,
+        theme-type: color-scheme,
       ),
-      // Fonte do sistema, como o Bootstrap do app atual; sem depender de fonte externa.
       typography: (
-          plain-family: #{'"Helvetica Neue", Helvetica, Arial, sans-serif'},
-          brand-family: #{'"Helvetica Neue", Helvetica, Arial, sans-serif'},
-        ),
-      // -1: mais compacto que o padrão, sem esconder o rótulo dos campos (some a partir de -2).
-      density: -1,
+        plain-family: $plain-family,
+        brand-family: $plain-family,
+      ),
+      // Confortável (estudo C §3.6).
+      density: 0,
     )
   );
+
+  // Cores do produto que o M3 não tem, no padrão de nome dos tokens de sistema. Contraste dos
+  // pares `on-*` sobre o fundo: ≥ 7:1 (estudo C §1.5).
+  --app-success: light-dark(#2b6b45, #97d5a9);
+  --app-on-success: light-dark(#fff, #00391e);
+  --app-success-container: light-dark(#b3f1c4, #0e5230);
+  --app-on-success-container: light-dark(#0e5230, #b3f1c4);
+  --app-warning: light-dark(#7a5900, #f0c048);
+  --app-on-warning: light-dark(#fff, #402d00);
+  --app-warning-container: light-dark(#ffdf9e, #5c4300);
+  --app-on-warning-container: light-dark(#5c4300, #ffdf9e);
+  --app-code-family: #{'"Google Sans Code", ui-monospace, "SFMono-Regular", Menlo, monospace'};
+
+  @media (prefers-contrast: more) {
+    @include harbor.high-contrast-overrides(color-scheme);
+  }
 }
 
 body {
-  color-scheme: light;
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
   margin: 0;
   height: 100%;
+}
+
+// O arredondado (eixo ROND) nos títulos é a assinatura visual do tema.
+h1,
+h2,
+h3 {
+  font-variation-settings: 'ROND' 100;
+}
+
+// Tudo que é dado (URL, header, JSON, `seq`) na fonte de código.
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--app-code-family);
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
+
+// Realce do highlight.js (corpo JSON/XML do detalhe) com os tokens do tema, no lugar do tema
+// claro do pacote (`styles/github.css`), que não tinha escuro e ficava abaixo de 4,5:1 em
+// `.hljs-keyword` e `.hljs-attr`. O conteúdo entra por `innerHTML`, então as regras são globais.
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+.hljs-comment,
+.hljs-meta,
+.hljs-quote {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-built_in,
+.hljs-doctag,
+.hljs-type {
+  color: var(--mat-sys-tertiary);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-name,
+.hljs-tag,
+.hljs-selector,
+.hljs-property {
+  color: var(--mat-sys-primary);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-symbol {
+  color: var(--app-success);
+}
+
+.hljs-number,
+.hljs-variable,
+.hljs-template-variable {
+  color: var(--mat-sys-secondary);
 }

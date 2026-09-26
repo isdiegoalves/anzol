@@ -36,7 +36,7 @@
                 "input": "public"
               }
             ],
-            "styles": ["node_modules/highlight.js/styles/github.css", "src/styles.scss"]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
             "production": {

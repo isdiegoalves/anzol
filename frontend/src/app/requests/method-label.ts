@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 
-/** Cor do método como os `label-*` do Bootstrap no app atual. */
+/** Papel de cor do método, com os nomes dos `label-*` do Bootstrap do app atual (tokens do tema). */
 export function methodColor(
   method: string,
 ): 'info' | 'success' | 'danger' | 'primary' | 'warning' | 'default' {
@@ -36,27 +36,32 @@ export function methodColor(
       display: inline-block;
       padding: 0.2em 0.6em 0.3em;
       border-radius: 0.25em;
-      background: #777;
-      color: #fff;
+      background: var(--mat-sys-inverse-surface);
+      color: var(--mat-sys-inverse-on-surface);
       font-size: 75%;
       font-weight: bold;
       line-height: 1;
       vertical-align: baseline;
     }
     .info {
-      background: #5bc0de;
+      background: var(--mat-sys-primary-container);
+      color: var(--mat-sys-on-primary-container);
     }
     .success {
-      background: #5cb85c;
+      background: var(--app-success);
+      color: var(--app-on-success);
     }
     .danger {
-      background: #d9534f;
+      background: var(--mat-sys-error);
+      color: var(--mat-sys-on-error);
     }
     .primary {
-      background: #337ab7;
+      background: var(--mat-sys-primary);
+      color: var(--mat-sys-on-primary);
     }
     .warning {
-      background: #f0ad4e;
+      background: var(--app-warning);
+      color: var(--app-on-warning);
     }
   `,
 })

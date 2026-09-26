@@ -7,7 +7,7 @@
 
 .header {
   margin: 20px 20px 10px;
-  color: #999;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 11px;
   font-weight: bold;
   text-transform: uppercase;
@@ -33,16 +33,16 @@
 
   &.unread {
     font-weight: bold;
-    background: #e8e8e8;
+    background: var(--mat-sys-surface-container-highest);
   }
 
   &.base .select {
-    box-shadow: inset 4px 0 #f0ad4e;
+    box-shadow: inset 4px 0 var(--app-warning);
   }
 
   &.active .select {
-    color: #fff;
-    background: #428bca;
+    color: var(--mat-sys-on-secondary-container);
+    background: var(--mat-sys-secondary-container);
   }
 
   &:hover .delete,
@@ -57,13 +57,13 @@
   padding: 10px 20px;
   border: 0;
   background: none;
-  color: #337ab7;
+  color: var(--mat-sys-primary);
   font: inherit;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: #eee;
+    background: var(--mat-sys-surface-container-high);
   }
 }
 
@@ -75,8 +75,8 @@
   padding: 2px 5px;
   border: 0;
   border-radius: 3px;
-  background: #d9534f;
-  color: #fff;
+  background: var(--mat-sys-error);
+  color: var(--mat-sys-on-error);
   font-size: 10px;
   cursor: pointer;
 }
@@ -93,14 +93,14 @@
   margin: 0 10px 8px;
   padding: 4px 4px 4px 10px;
   border-radius: 4px;
-  background: #fcf8e3;
-  color: #8a6d3b;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
   font-size: 12px;
 }
 
 .no-match {
   padding: 0 20px;
-  color: #999;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 12px;
 }
 
@@ -115,15 +115,15 @@
   white-space: nowrap;
 
   &.valid {
-    border-color: #d6e9c6;
-    background: #dff0d8;
-    color: #3c763d;
+    border-color: var(--mat-sys-outline-variant);
+    background: var(--app-success-container);
+    color: var(--app-success);
   }
 
   &.invalid,
   &.absent {
-    border-color: #ebccd1;
-    background: #f2dede;
-    color: #a94442;
+    border-color: var(--mat-sys-outline-variant);
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-error);
   }
 }

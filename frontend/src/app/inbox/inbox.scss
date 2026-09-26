@@ -12,8 +12,8 @@
   flex: none;
   width: 16.6667%;
   min-width: 220px;
-  border-right: 1px solid #eee;
-  background: #f5f5f5;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
 }
 
 .delete-all {
@@ -24,7 +24,7 @@
   button {
     @include mat.button-overrides(
       (
-        filled-container-color: #d9534f,
+        filled-container-color: var(--mat-sys-error),
       )
     );
   }

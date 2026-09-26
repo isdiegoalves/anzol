@@ -31,24 +31,24 @@
 
 .warning {
   padding: 12px;
-  border: 1px solid #faebcc;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #fcf8e3;
-  color: #8a6d3b;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
 }
 
 .info {
   margin: 0;
   padding: 12px;
-  border: 1px solid #bce8f1;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 4px;
-  background: #d9edf7;
-  color: #31708f;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
 }
 
 .hint {
   margin: 0;
-  color: #777;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 12px;
 }
 
@@ -61,7 +61,7 @@
   th,
   td {
     padding: 3px 4px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
     text-align: left;
     vertical-align: top;
   }
@@ -71,8 +71,8 @@
   }
 
   tr.chosen {
-    background: #d9edf7;
-    box-shadow: inset 3px 0 #31708f;
+    background: var(--mat-sys-primary-container);
+    box-shadow: inset 3px 0 var(--mat-sys-primary);
     font-weight: bold;
   }
 }
@@ -86,7 +86,7 @@
   code {
     padding: 2px 4px;
     border-radius: 4px;
-    background: #eee;
+    background: var(--mat-sys-surface-container-high);
     font-family: Menlo, Consolas, monospace;
     word-break: break-all;
   }
@@ -96,6 +96,6 @@
 .pending {
   flex: 1;
   margin: 0 8px 0 0;
-  color: #a94442;
+  color: var(--mat-sys-error);
   font-size: 13px;
 }

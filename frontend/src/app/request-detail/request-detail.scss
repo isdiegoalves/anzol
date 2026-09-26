@@ -6,7 +6,7 @@
 }
 
 a {
-  color: #337ab7;
+  color: var(--mat-sys-primary);
   text-decoration: none;
 }
 
@@ -17,6 +17,6 @@ a {
 }
 
 .ai-off {
-  color: #a94442;
+  color: var(--mat-sys-error);
   font-size: 85%;
 }

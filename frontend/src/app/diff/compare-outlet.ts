@@ -23,7 +23,7 @@ import type { RequestCompare } from './request-compare';
       <p class="loading">Loading comparison&hellip;</p>
     }
   `,
-  styles: '.loading { color: #999; }',
+  styles: '.loading { color: var(--mat-sys-on-surface-variant); }',
 })
 export class CompareOutlet {
   private readonly container = inject(ViewContainerRef);

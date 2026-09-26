@@ -7,7 +7,7 @@
 
   th {
     padding: 3px;
-    border-bottom: 2px solid #ddd;
+    border-bottom: 2px solid var(--mat-sys-outline-variant);
     text-align: left;
   }
 
@@ -24,30 +24,30 @@
 
 .status {
   width: 80px;
-  color: #777;
+  color: var(--mat-sys-on-surface-variant);
   font-size: 85%;
 }
 
 .none {
-  color: #999;
+  color: var(--mat-sys-on-surface-variant);
 }
 
 code {
   padding: 2px 4px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.05);
-  color: #333;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
 }
 
 // Mesmas cores das linhas do corpo: vermelho = só em A (removido), verde = só em B (adicionado).
 .different {
-  background: #fcf8e3;
+  background: var(--app-warning-container);
 }
 
 .only-a {
-  background: #ffeef0;
+  background: var(--mat-sys-error-container);
 }
 
 .only-b {
-  background: #e6ffed;
+  background: var(--app-success-container);
 }
