@@ -26,6 +26,9 @@ enum class AddressKind(
     LINK_LOCAL("link-local address", allowable = false),
     MULTICAST("multicast address", allowable = false),
     RESERVED("broadcast/reserved address", allowable = false),
+
+    /** Faixa que o registro de uso especial da IANA marca como não globalmente alcançável (documentação, benchmark…). */
+    SPECIAL_PURPOSE("special-purpose address", allowable = false),
     SCOPED("IPv6 address with a zone", allowable = false),
     LOOPBACK("loopback address", allowable = true),
     PRIVATE("private address", allowable = true),
@@ -59,28 +62,74 @@ private class Cidr(
     }
 }
 
-/** Da mais específica para a mais larga: a primeira que contém o endereço decide. */
+/**
+ * A tabela única das faixas que não são destino público. Fonte: IANA IPv4 e IPv6 Special-Purpose Address
+ * Registry (iana.org/assignments/iana-ipv4-special-registry e iana-ipv6-special-registry): toda faixa que o
+ * registro marca como "Globally Reachable: False" está aqui. As liberáveis por `allow-private` (loopback, RFC 1918,
+ * CGNAT, ULA) são as da §1; o resto é sempre bloqueado. A primeira faixa que contém o endereço decide, então a
+ * mais específica vem antes da mais larga que a contém.
+ */
 @Suppress("MagicNumber")
 private val RANGES =
     listOf(
+        // IANA IPv4 0.0.0.0/32, "This host on this network" (RFC 1122).
         Cidr("0.0.0.0", 32, AddressKind.UNSPECIFIED),
+        // IANA IPv4 0.0.0.0/8, "This network" (RFC 791).
         Cidr("0.0.0.0", 8, AddressKind.THIS_NETWORK),
-        Cidr("169.254.0.0", 16, AddressKind.LINK_LOCAL),
-        Cidr("224.0.0.0", 4, AddressKind.MULTICAST),
-        // 240/4 é reservado e contém o broadcast 255.255.255.255.
-        Cidr("240.0.0.0", 4, AddressKind.RESERVED),
-        Cidr("127.0.0.0", 8, AddressKind.LOOPBACK),
+        // IANA IPv4 10.0.0.0/8, "Private-Use" (RFC 1918).
         Cidr("10.0.0.0", 8, AddressKind.PRIVATE),
-        Cidr("172.16.0.0", 12, AddressKind.PRIVATE),
-        Cidr("192.168.0.0", 16, AddressKind.PRIVATE),
+        // IANA IPv4 100.64.0.0/10, "Shared Address Space" (RFC 6598).
         Cidr("100.64.0.0", 10, AddressKind.SHARED),
+        // IANA IPv4 127.0.0.0/8, "Loopback" (RFC 1122).
+        Cidr("127.0.0.0", 8, AddressKind.LOOPBACK),
+        // IANA IPv4 169.254.0.0/16, "Link Local" (RFC 3927): metadados de nuvem.
+        Cidr("169.254.0.0", 16, AddressKind.LINK_LOCAL),
+        // IANA IPv4 172.16.0.0/12, "Private-Use" (RFC 1918).
+        Cidr("172.16.0.0", 12, AddressKind.PRIVATE),
+        // IANA IPv4 192.0.0.0/24, "IETF Protocol Assignments" (RFC 6890); inclui 192.0.0.192, metadado da Oracle Cloud.
+        Cidr("192.0.0.0", 24, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 192.0.2.0/24, "Documentation (TEST-NET-1)" (RFC 5737).
+        Cidr("192.0.2.0", 24, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 192.88.99.0/24, "Deprecated (6to4 Relay Anycast)" (RFC 7526).
+        Cidr("192.88.99.0", 24, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 192.168.0.0/16, "Private-Use" (RFC 1918).
+        Cidr("192.168.0.0", 16, AddressKind.PRIVATE),
+        // IANA IPv4 198.18.0.0/15, "Benchmarking" (RFC 2544).
+        Cidr("198.18.0.0", 15, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 198.51.100.0/24, "Documentation (TEST-NET-2)" (RFC 5737).
+        Cidr("198.51.100.0", 24, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 203.0.113.0/24, "Documentation (TEST-NET-3)" (RFC 5737).
+        Cidr("203.0.113.0", 24, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv4 Multicast Address Space 224.0.0.0/4 (RFC 5771); fora do registro de uso especial, bloqueado pela §1.
+        Cidr("224.0.0.0", 4, AddressKind.MULTICAST),
+        // IANA IPv4 240.0.0.0/4, "Reserved" (RFC 1112), e 255.255.255.255/32, "Limited Broadcast" (RFC 919), dentro dela.
+        Cidr("240.0.0.0", 4, AddressKind.RESERVED),
+        // IANA IPv6 ::/128, "Unspecified Address" (RFC 4291).
         Cidr("::", 128, AddressKind.UNSPECIFIED),
+        // IANA IPv6 ::1/128, "Loopback Address" (RFC 4291).
         Cidr("::1", 128, AddressKind.LOOPBACK),
-        Cidr("fe80::", 10, AddressKind.LINK_LOCAL),
-        Cidr("ff00::", 8, AddressKind.MULTICAST),
+        // IANA IPv6 ::ffff:0:0:0/96, "IPv4-IPv6 Translat." (SIIT, RFC 2765); o mapeado ::ffff:0:0/96 vale pelo IPv4 embutido.
+        Cidr("::ffff:0:0:0", 96, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 64:ff9b:1::/48, "IPv4-IPv6 Translat." de uso local (RFC 8215).
+        Cidr("64:ff9b:1::", 48, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 100::/64, "Discard-Only Address Block" (RFC 6666).
+        Cidr("100::", 64, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 2001::/23, "IETF Protocol Assignments" (RFC 2928), com Teredo 2001::/32 (RFC 4380) dentro.
+        Cidr("2001::", 23, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 2001:db8::/32, "Documentation" (RFC 3849).
+        Cidr("2001:db8::", 32, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 3fff::/20, "Documentation" (RFC 9637).
+        Cidr("3fff::", 20, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 5f00::/16, "Segment Routing (SRv6) SIDs" (RFC 9602).
+        Cidr("5f00::", 16, AddressKind.SPECIAL_PURPOSE),
+        // IANA IPv6 fc00::/7, "Unique-Local" (RFC 4193).
         Cidr("fc00::", 7, AddressKind.UNIQUE_LOCAL),
-        // site-local, obsoleto, mas ainda roteado em rede interna antiga: tratado como privado.
+        // IANA IPv6 fe80::/10, "Link-Local Unicast" (RFC 4291).
+        Cidr("fe80::", 10, AddressKind.LINK_LOCAL),
+        // Site-local fec0::/10 (RFC 3879, obsoleto, fora do registro), ainda roteado em rede interna antiga: privado.
         Cidr("fec0::", 10, AddressKind.PRIVATE),
+        // IANA IPv6 Multicast ff00::/8 (RFC 4291); fora do registro de uso especial, bloqueado pela §1.
+        Cidr("ff00::", 8, AddressKind.MULTICAST),
     )
 
 /**

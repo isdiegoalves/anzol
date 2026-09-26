@@ -5,7 +5,10 @@ services:
   app:
     build: .
     ports:
-      - "8084:8080"
+      # Só no loopback do host: com WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true (abaixo), publicar em todas as interfaces
+      # ("8084:8080") transforma o send num proxy para a LAN, para a rede do Docker (o Redis) e para o próprio Mac,
+      # aberto a qualquer um na mesma rede, sem credencial (o POST /token é aberto).
+      - "127.0.0.1:8084:8080"
     environment:
       - REDIS_HOST=redis
       # Métricas, traces e logs para o stack de observabilidade local (Alloy escutando OTLP HTTP na 4318 do

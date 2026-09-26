@@ -31,7 +31,7 @@ class OutboundStrictApiTest(
             "http://[::ffff:127.0.0.1]:{port}/",
         ],
     )
-    @DisplayName("Dado um receptor no loopback, quando envia ou reenvia, então é bloqueado e nada chega")
+    @DisplayName("Dado um receptor no loopback, quando envia ou reenvia, então é bloqueado com a mensagem genérica e nada chega")
     fun loopback_deveSerBloqueado(template: String) {
         Receiver().use { target ->
             val tokenId = api.tokenId()
@@ -43,7 +43,7 @@ class OutboundStrictApiTest(
 
             listOf(sent, replayed).forEach { result ->
                 assertThat(result["error"]["kind"].asString()).isEqualTo("blocked")
-                assertThat(result["error"]["message"].asString()).contains("WEBHOOK_OUTBOUND_ALLOW_PRIVATE")
+                assertThat(result["error"]["message"].asString()).isEqualTo(NOT_ALLOWED)
             }
             assertThat(target.received).isEmpty()
         }

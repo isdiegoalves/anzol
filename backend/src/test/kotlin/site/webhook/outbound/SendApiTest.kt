@@ -218,6 +218,73 @@ class SendApiTest(
     }
 
     @Test
+    @DisplayName("Dados 100 cabeçalhos, um de 8192 caracteres, somando menos de 64 KiB, quando envia, então saem todos")
+    fun cabecalhosNoTeto_devemSair() {
+        val target = receiver()
+        val tokenId = api.tokenId()
+        val headers =
+            (0 until MAX_SEND_HEADERS).associate {
+                "X-H$it" to
+                    if (it ==
+                        0
+                    ) {
+                        "a".repeat(MAX_SEND_HEADER_VALUE)
+                    } else {
+                        "b".repeat(500)
+                    }
+            }
+
+        val response = api.sendOut(tokenId, json("url" to target.url("/"), "headers" to headers))
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(target.received.single().header("x-h0")).hasSize(MAX_SEND_HEADER_VALUE)
+        assertThat(target.received.single().header("x-h99")).isEqualTo("b".repeat(500))
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        "101 cabeçalhos, 101, 10",
+        "valor de 8193, 1, 8193",
+        "total acima de 64 KiB, 9, 8000",
+    )
+    @DisplayName("Dados cabeçalhos acima dos tetos e um destino que passa pela política, quando envia, então 422 em headers e nada sai")
+    fun cabecalhosAcimaDoTeto_devemResponder422(
+        case: String,
+        count: Int,
+        length: Int,
+    ) {
+        val target = receiver()
+        val tokenId = api.tokenId()
+        val headers = (0 until count).associate { "X-H$it" to "a".repeat(length) }
+
+        val response = api.sendOut(tokenId, json("url" to target.url("/"), "headers" to headers))
+
+        assertThat(response.statusCode()).describedAs(case).isEqualTo(422)
+        assertThat(api.json(response).propertyNames()).containsExactly("headers")
+        assertThat(api.json(response)["headers"][0].asString()).matches("^[A-Z].*\\.$")
+        assertThat(target.received).isEmpty()
+        assertThat(api.outbound(tokenId).isEmpty).isTrue()
+    }
+
+    @Test
+    @DisplayName(
+        "Dados cabeçalhos acima dos tetos e um destino sempre bloqueado, quando envia, então 200 blocked com os cabeçalhos cortados",
+    )
+    fun cabecalhosAcimaDoTeto_destinoRecusado_deveGravarCortado() {
+        val tokenId = api.tokenId()
+        val headers = (0 until 150).associate { "X-H$it" to "a".repeat(10_000) }
+
+        val result = api.json(api.sendOut(tokenId, json("url" to "http://169.254.169.254/", "headers" to headers)))
+
+        assertThat(result["error"]["kind"].asString()).isEqualTo("blocked")
+        val kept = result["request_headers"].properties().map { (name, value) -> name to value.asString() }
+        assertThat(kept).isNotEmpty().hasSizeLessThanOrEqualTo(MAX_SEND_HEADERS)
+        assertThat(kept).allSatisfy { (_, value) -> assertThat(value).hasSize(MAX_SEND_HEADER_VALUE) }
+        assertThat(kept.sumOf { (name, value) -> name.length + value.length }).isLessThanOrEqualTo(MAX_SEND_HEADERS_TOTAL)
+        assertThat(api.outbound(tokenId)[0]).isEqualTo(result)
+    }
+
+    @Test
     @DisplayName("Dado um alvo com esquema proibido, inválido ou sempre bloqueado, quando envia, então 200 com o error.kind")
     fun send_falhaDeSaida_deveVoltarComoErro() {
         val tokenId = api.tokenId()

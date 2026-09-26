@@ -251,15 +251,124 @@ class OutboundClientTest {
             assertThat(answer.truncated).isFalse()
             assertThat(answer.body).hasSize(MAX_RESPONSE_BODY)
         }
+
+        @Test
+        @DisplayName(
+            "Dados cabeçalhos de resposta acima de 16 KiB, quando lê, então guarda os primeiros que cabem, inteiros, e marca truncated",
+        )
+        fun cabecalhosGrandes_devemSerCortadosEmOrdem() {
+            val server =
+                RawServer { socket ->
+                    socket.soTimeout = 5_000
+                    socket.getInputStream().read(ByteArray(4096))
+                    val head = StringBuilder("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n")
+                    repeat(5) { head.append("X-H$it: ").append("$it".repeat(5_000)).append("\r\n") }
+                    socket.getOutputStream().write(head.append("\r\nok").toString().toByteArray(ISO_8859_1))
+                    socket.getOutputStream().flush()
+                }.closing()
+            val client = OutboundClient(PERMISSIVE).closing()
+
+            val answer = client.exchange(get("http://127.0.0.1:${server.port}/")).answered()
+
+            // Content-Length: 2 (15) + 3 × (4 + 5000) cabem em 16 KiB; o quarto passaria.
+            assertThat(answer.headers.keys).containsExactly("content-length", "x-h0", "x-h1", "x-h2")
+            assertThat(answer.headers["x-h2"]).containsExactly("2".repeat(5_000))
+            assertThat(answer.body).isEqualTo("ok")
+            assertThat(answer.truncated).isTrue()
+        }
+
+        @Test
+        @DisplayName("Dados cabeçalhos pequenos e corpo de exatamente 64 KB, quando lê, então guarda tudo sem truncated")
+        fun cabecalhosPequenos_naoContamNoCorpo() {
+            val receiver =
+                Receiver { it.reply(200, ByteArray(MAX_RESPONSE_BODY) { 'x'.code.toByte() }, headers = mapOf("X-A" to "1")) }.closing()
+            val client = OutboundClient(PERMISSIVE).closing()
+
+            val answer = client.exchange(get(receiver.url("/"))).answered()
+
+            assertThat(answer.truncated).isFalse()
+            assertThat(answer.headers["x-a"]).containsExactly("1")
+            assertThat(answer.body).hasSize(MAX_RESPONSE_BODY)
+        }
     }
 
     @Test
-    @DisplayName("Dado nada escutando na porta, quando dispara, então dá connect")
+    @DisplayName("Dado nada escutando na porta, quando dispara com allow-private=true, então dá connect com a mensagem detalhada")
     fun portaFechada_deveDarConnect() {
         val port = ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { it.localPort }
         val client = OutboundClient(PERMISSIVE).closing()
 
-        assertThat(client.exchange(get("http://127.0.0.1:$port/")).error().kind).isEqualTo(ErrorKind.CONNECT)
+        val error = client.exchange(get("http://127.0.0.1:$port/")).error()
+
+        assertThat(error.kind).isEqualTo(ErrorKind.CONNECT)
+        assertThat(error.message).contains("127.0.0.1").isNotEqualTo(CONNECT_FAILED)
+    }
+
+    @Test
+    @DisplayName("Dado um IP público validado que recusa a conexão, quando dispara com allow-private=false, então connect sem o IP")
+    fun portaFechada_estrito_naoDeveDizerOIp() {
+        val closed = ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { it.localPort }
+        val sockets = RecordingSockets(closed)
+        val client = OutboundClient(STRICT, RebindingResolver("app.test", "93.184.216.34", "93.184.216.34"), sockets).closing()
+
+        val error = client.exchange(get("http://app.test/")).error()
+
+        assertThat(sockets.connected).hasSize(1)
+        assertThat(error).isEqualTo(OutboundError(ErrorKind.CONNECT, CONNECT_FAILED))
+    }
+
+    @Nested
+    @DisplayName("DNS dentro do prazo")
+    inner class SlowDns {
+        private fun slow(
+            name: String,
+            delay: Long,
+        ) = HostResolver { host ->
+            if (host == name) Thread.sleep(delay)
+            if (host == name || host == "app.test") listOf(InetAddress.getLoopbackAddress()) else throw UnknownHostException(host)
+        }
+
+        @Test
+        @DisplayName("Dado um nome cujo DNS demora mais que o timeout, quando dispara com allow-private=false, então timeout no prazo")
+        fun dnsLento_estrito_deveDarTimeout() {
+            val client = OutboundClient(STRICT, slow("slow.test", 3_000)).closing()
+            val started = System.nanoTime()
+
+            val error = client.exchange(get("http://slow.test/", timeout = SHORT)).error()
+
+            assertThat(error.kind).isEqualTo(ErrorKind.TIMEOUT)
+            assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(2_500))
+        }
+
+        @Test
+        @DisplayName("Dado um alias cujo DNS demora mais que o timeout, quando o alvo é localhost, então timeout no prazo")
+        fun aliasLento_deveDarTimeout() {
+            val properties = OutboundProperties(allowPrivate = true, localhostAlias = "slow.alias")
+            val client = OutboundClient(properties, slow("slow.alias", 3_000)).closing()
+            val started = System.nanoTime()
+
+            val error = client.exchange(get("http://127.0.0.1:1/", timeout = SHORT)).error()
+
+            assertThat(error.kind).isEqualTo(ErrorKind.TIMEOUT)
+            assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(2_500))
+        }
+
+        @Test
+        @DisplayName("Dado DNS e resposta que cabem no timeout cada um mas não somados, quando dispara, então timeout no prazo total")
+        fun dnsEResposta_devemSomarNoPrazo() {
+            val receiver =
+                Receiver { exchange ->
+                    Thread.sleep(700)
+                    exchange.reply(200)
+                }.closing()
+            val client = OutboundClient(PERMISSIVE, slow("app.test", 700)).closing()
+            val started = System.nanoTime()
+
+            val error = client.exchange(get("http://app.test:${receiver.port}/", timeout = SHORT)).error()
+
+            assertThat(error.kind).isEqualTo(ErrorKind.TIMEOUT)
+            assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(1_500))
+        }
     }
 
     @Test

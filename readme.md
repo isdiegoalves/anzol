@@ -33,7 +33,7 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 |---|---|---|
 | `WEBHOOK_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
 | `WEBHOOK_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
-| `WEBHOOK_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga; **deixe `false` ao publicar** |
+| `WEBHOOK_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga e por isso publica a porta só em `127.0.0.1` (`"127.0.0.1:8084:8080"`); **deixe `false` ao publicar** |
 | `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app do dono) |
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
@@ -424,7 +424,10 @@ na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexiste
 
 > **Aviso de SSRF.** Aqui o servidor abre conexão para uma URL escolhida por quem usa a API. Com
 > `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` (o `docker-compose.yml` local) ele alcança a sua máquina e a rede privada em
-> que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço público.
+> que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço público. Pelo mesmo motivo
+> o `docker-compose.yml` publica a porta só no loopback (`"127.0.0.1:8084:8080"`): publicada em todas as interfaces
+> (`"8084:8080"`) com `allow-private=true`, qualquer um na mesma rede, sem credencial, usaria o send como proxy para
+> a LAN, para a rede do Docker (o Redis) e para o seu Mac. Não troque o bind enquanto a variável estiver ligada.
 
 `POST /token/{id}/request/{requestId}/replay` reenvia uma mensagem gravada; `POST /token/{id}/send` envia uma
 requisição montada:
@@ -439,10 +442,10 @@ requisição montada:
 | Campo | Regra |
 |---|---|
 | `url` | obrigatória, URL absoluta de até 2048 caracteres (senão 422). Esquema que não é `http`/`https` sai como `error.kind=blocked` |
-| `timeout` | ms, inteiro de 1000 a 30000 (padrão 10000): prazo total do disparo (conexão, TLS e resposta) |
+| `timeout` | ms, inteiro de 1000 a 30000 (padrão 10000): prazo total do disparo (resolução do nome, conexão, TLS e resposta; DNS que não responde a tempo dá `timeout`) |
 | `keep_path` (replay) | padrão `true`: acrescenta à `url` o caminho depois do token e a query da mensagem (`/base` + `/pedidos/42?x=1`) |
 | `method` (send) | `GET`, `POST` (padrão), `PUT`, `PATCH`, `DELETE`, `HEAD` ou `OPTIONS` |
-| `headers` (send) | objeto nome → texto; nome no formato de header, valor sem CR/LF |
+| `headers` (send) | objeto nome → texto; nome no formato de header, valor sem CR/LF; até 100 headers, valor de até 8192 caracteres e nomes + valores somando até 65536 (senão 422 em `headers`, se o destino passa; destino recusado antes de sair grava o resultado recusado com os headers cortados a esses tetos) |
 | `body` (send) | texto de até 1 MiB em bytes UTF-8 (o pedido inteiro do send aceita até 2 MiB, por causa do JSON em volta) |
 | `sign` (send) | `true` assina o corpo com a `signature` da URL, com as fórmulas da [verificação](#verificação-de-assinatura) (Stripe e Slack com o timestamp de agora); sem `signature` na URL, 422 em `sign` |
 
@@ -458,10 +461,14 @@ send tira só os de conexão: `host`, `content-length`, `connection`, `transfer-
   "source_request": "…" }
 ```
 
-`body` guarda até 64 KiB da resposta (`truncated: true` além disso), decodificado como UTF-8. Redirecionamento
+`body` guarda até 64 KiB da resposta, decodificado como UTF-8, e `headers` até 16 KiB (nomes + valores; os que
+passam saem inteiros): além de qualquer um dos dois, `truncated: true`. Redirecionamento
 não é seguido: o 3xx volta como resposta, com o `Location`. Falha de saída não é erro da API: 200 com
 `{"error": {"kind", "message"}}` e sem `status`, com `kind` `blocked` (destino proibido), `dns`, `connect`,
-`timeout`, `tls` ou `invalid_url` (host, porta ou IP que não servem). Token inexistente dá 410, mensagem
+`timeout`, `tls` ou `invalid_url` (host, porta ou IP que não servem). Com `allow-private=false` (o padrão, o
+que se publica) o erro não descreve a rede: nome que não resolve e faixa bloqueada dão o mesmo `blocked` com
+`destination not allowed or not resolvable`, e o `connect` diz só `could not connect to the destination`, sem o IP;
+com `true` (uso local) saem `dns`, a faixa e a mensagem da conexão. Token inexistente dá 410, mensagem
 inexistente 404, entrada inválida 422 (nada disso sai nem entra no histórico). Mais de 30 disparos (replay e send
 somados) por minuto na mesma URL dão 429 com `Retry-After`. O segredo da `signature` nunca vai para a resposta, o
 histórico ou o log; o header assinado vai em `request_headers`.
@@ -478,6 +485,7 @@ vale o IP que os navegadores leem; IPv4 embutido em IPv6 (`::ffff:a.b.c.d`, `::a
 | Faixa | `allow-private=false` (padrão) | `allow-private=true` |
 |---|---|---|
 | `0.0.0.0/8`, `::`, link-local `169.254.0.0/16` (metadados de nuvem) e `fe80::/10`, multicast, `240.0.0.0/4` (inclui o broadcast) | bloqueado | bloqueado |
+| o resto que o [registro de uso especial da IANA](https://www.iana.org/assignments/iana-ipv4-special-registry/) ([IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/)) marca como não globalmente alcançável: `192.0.0.0/24` (inclui `192.0.0.192`, metadados da Oracle Cloud), `192.0.2.0/24`, `198.18.0.0/15`, `198.51.100.0/24`, `203.0.113.0/24`, `192.88.99.0/24`, `2001::/23` (inclui Teredo `2001::/32`), `2001:db8::/32`, `3fff::/20`, `5f00::/16`, `64:ff9b:1::/48`, `::ffff:0:0:0/96`, `100::/64` | bloqueado | bloqueado |
 | loopback `127.0.0.0/8` e `::1`, privados `10/8`, `172.16/12`, `192.168/16`, CGNAT `100.64/10`, ULA `fc00::/7`, site-local `fec0::/10` | bloqueado | liberado |
 | IPs para os quais o `localhost-alias` resolve naquele disparo (o OrbStack põe `host.docker.internal` em `0.250.250.254`) | regra da faixa | liberado (menos `0.0.0.0` e `::`) |
 | demais (públicos) | liberado | liberado |

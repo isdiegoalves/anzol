@@ -84,8 +84,27 @@ class OutboundController(
             }
         val body = input.body.toByteArray(UTF_8)
         val signed = if (input.sign && signature != null) signature.sign(body, clock.instant()) else emptyMap()
-        val outgoing = OutboundRequest(input.method, input.url, sendHeaders(input.headers, signed), body, input.timeout)
-        return request.limited(token) ?: ResponseEntity.ok(outbound.dispatch(token, OutboundKind.SEND, outgoing))
+        val overLimits = input.headers.overLimits()
+        val headers = if (overLimits == null) input.headers else input.headers.withinLimits()
+        val outgoing = OutboundRequest(input.method, input.url, sendHeaders(headers, signed), body, input.timeout)
+        return if (overLimits != null) {
+            request.oversized(token, outgoing, overLimits)
+        } else {
+            request.limited(token) ?: ResponseEntity.ok(outbound.dispatch(token, OutboundKind.SEND, outgoing))
+        }
+    }
+
+    /**
+     * Cabeçalhos acima dos tetos: se o destino passa pela política, 422 em `headers` e nada sai; se é recusado antes
+     * de sair (URL, faixa, DNS), o resultado recusado, gravado com os cabeçalhos já cortados aos tetos.
+     */
+    private fun HttpServletRequest.oversized(
+        token: Token,
+        outgoing: OutboundRequest,
+        problem: String,
+    ): ResponseEntity<Any> {
+        val refused = outbound.refusal(outgoing) ?: return invalid(mapOf("headers" to listOf(problem)))
+        return limited(token) ?: ResponseEntity.ok(outbound.record(token, OutboundKind.SEND, outgoing, refused))
     }
 
     /** O histórico da URL, o mais novo primeiro (até 50). */

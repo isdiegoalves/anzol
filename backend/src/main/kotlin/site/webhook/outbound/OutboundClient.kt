@@ -16,6 +16,7 @@ import org.apache.hc.client5.http.io.HttpClientConnectionOperator
 import org.apache.hc.client5.http.protocol.HttpClientContext
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy
 import org.apache.hc.core5.http.ClassicHttpResponse
+import org.apache.hc.core5.http.Header
 import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.http.config.Http1Config
 import org.apache.hc.core5.http.config.RegistryBuilder
@@ -30,13 +31,25 @@ import java.net.URI
 import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Duration
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.ssl.SSLException
 
 /** Corpo da resposta guardado: além disto, `truncated: true`. */
 const val MAX_RESPONSE_BODY = 64 * 1024
+
+/**
+ * Cabeçalhos da resposta guardados (nomes + valores), à parte dos 64 KiB do corpo, que o contrato fixa (corpo de
+ * exatamente 64 KiB volta inteiro): os que passam disto saem inteiros, na ordem, e o resultado fica `truncated: true`.
+ */
+const val MAX_RESPONSE_HEADER_BYTES = 16 * 1024
+
+/** Falha de conexão com `allow-private=false`: sem o IP em que tentou (a mensagem do Apache o traz). */
+const val CONNECT_FAILED = "could not connect to the destination"
 
 /** Maior `timeout` aceito (30 s): teto da conexão, do handshake TLS e de cada leitura. */
 val MAX_TIMEOUT: Duration = Duration.ofSeconds(30)
@@ -46,6 +59,10 @@ private const val MAX_RESPONSE_HEADER_LINE = 8 * 1024
 private const val MAX_RESPONSE_HEADERS = 100
 private const val MAX_CONNECTIONS = 100
 private const val MAX_CONNECTIONS_PER_ROUTE = 20
+
+/** Prazo que sobra depois do DNS abaixo do qual não vale abrir conexão (o Apache lê `Timeout` zero como sem prazo). */
+private val MIN_PHASE: Duration = Duration.ofMillis(1)
+
 private val WITH_BODY = setOf("POST", "PUT", "PATCH")
 
 /** Pedido de saída já montado (replay ou send): o motor não sabe de onde veio. */
@@ -92,42 +109,80 @@ private object NoNameResolution : DnsResolver {
  * do sistema e sem reuso de conexão: cada disparo abre a sua, no IP validado naquele disparo.
  */
 class OutboundClient(
-    properties: OutboundProperties,
+    private val properties: OutboundProperties,
     resolver: HostResolver = SYSTEM_RESOLVER,
     sockets: DetachedSocketFactory = PLAIN_SOCKETS,
 ) : AutoCloseable {
     private val policy = DestinationPolicy(properties, resolver)
     private val http = httpClient(sockets)
     private val deadlines = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
+    private val lookups = Executors.newVirtualThreadPerTaskExecutor()
 
+    /**
+     * O prazo ([OutboundRequest.timeout]) conta desde aqui: a resolução do nome (e a do alias) entra nele, e a
+     * conexão fica com o que sobrou.
+     */
     fun exchange(request: OutboundRequest): Exchange {
-        val url =
-            when (val parsed = parseTarget(request.url)) {
-                is Checked.Ok -> parsed.value
-                is Checked.Refused -> return Exchange(request.url, parsed)
+        val started = System.nanoTime()
+        val (target, checked) = destination(request)
+        val destination =
+            when (checked) {
+                is Checked.Ok -> checked.value
+                is Checked.Refused -> return Exchange(target, checked)
             }
-        return when (val destination = policy.resolve(url)) {
-            is Checked.Ok -> Exchange(destination.value.url.toString(), send(destination.value, request))
-            is Checked.Refused -> Exchange(url.toString(), destination)
+        val left = request.timeout - Duration.ofNanos(System.nanoTime() - started)
+        val answer = if (left < MIN_PHASE) Checked.Refused(timedOut(request.timeout)) else send(destination, request, left)
+        return Exchange(destination.url.toString(), answer)
+    }
+
+    /**
+     * Só a conferência do destino (URL, faixa, DNS no prazo), sem sair: a recusa, ou nula quando o destino passa.
+     * O `send` com cabeçalhos acima dos tetos usa para escolher entre o 422 e o resultado recusado.
+     */
+    fun refused(request: OutboundRequest): Exchange? {
+        val (target, checked) = destination(request)
+        return if (checked is Checked.Refused) Exchange(target, checked) else null
+    }
+
+    /** O destino validado e o alvo que o resultado mostra (a URL lida, ou a crua quando nem leu). */
+    private fun destination(request: OutboundRequest): Pair<String, Checked<Destination>> =
+        when (val parsed = parseTarget(request.url)) {
+            is Checked.Refused -> request.url to parsed
+            is Checked.Ok -> parsed.value.toString() to resolveWithin(parsed.value, request.timeout)
+        }
+
+    /** O [DestinationPolicy] numa thread virtual, com o prazo do disparo: DNS que não responde a tempo dá `timeout`. */
+    private fun resolveWithin(
+        url: TargetUrl,
+        timeout: Duration,
+    ): Checked<Destination> {
+        val lookup = lookups.submit(Callable { policy.resolve(url) })
+        return try {
+            lookup.get(timeout.toNanos(), TimeUnit.NANOSECONDS)
+        } catch (_: TimeoutException) {
+            lookup.cancel(true)
+            Checked.Refused(timedOut(timeout))
+        } catch (e: ExecutionException) {
+            throw e.cause ?: e
         }
     }
 
     /**
-     * Um disparo com prazo total: [OutboundRequest.timeout] vale para cada fase (conexão, TLS, cada leitura) e, por
-     * cima, cancela o disparo inteiro quando vence (alvo que pinga um byte por vez não segura a thread).
+     * Um disparo com o prazo que sobrou ([left]): vale para cada fase (conexão, TLS, cada leitura) e, por cima,
+     * cancela o disparo inteiro quando vence (alvo que pinga um byte por vez não segura a thread).
      */
     private fun send(
         destination: Destination,
         request: OutboundRequest,
+        left: Duration,
     ): Checked<Answer> {
         val url = destination.url
         val target = HttpHost(url.scheme, destination.address, url.host, url.port)
         val outgoing = HttpUriRequestBase(request.method, URI(url.toString()))
         request.headers.forEach { (name, value) -> outgoing.addHeader(name, value) }
         if (request.body.isNotEmpty() || request.method in WITH_BODY) outgoing.entity = ByteArrayEntity(request.body, null)
-        val timeout = Timeout.of(request.timeout)
         val context = HttpClientContext.create()
-        context.requestConfig = requestConfig(timeout)
+        context.requestConfig = requestConfig(Timeout.of(left))
         val expired = AtomicBoolean(false)
         val deadline =
             deadlines.schedule(
@@ -135,7 +190,7 @@ class OutboundClient(
                     expired.set(true)
                     outgoing.cancel()
                 },
-                request.timeout.toMillis(),
+                left.toMillis(),
                 TimeUnit.MILLISECONDS,
             )
         return try {
@@ -148,13 +203,14 @@ class OutboundClient(
                 }
             }
         } catch (e: IOException) {
-            Checked.Refused(e.toError(expired.get(), request.timeout))
+            Checked.Refused(e.toError(expired.get(), request.timeout, detailed = properties.allowPrivate))
         } finally {
             deadline.cancel(false)
         }
     }
 
     override fun close() {
+        lookups.shutdownNow()
         deadlines.shutdownNow()
         http.close(CloseMode.IMMEDIATE)
     }
@@ -173,22 +229,35 @@ private fun requestConfig(timeout: Timeout): RequestConfig =
 
 private fun ClassicHttpResponse.answer(): Answer {
     val bytes = entity?.content?.readNBytes(MAX_RESPONSE_BODY + 1) ?: ByteArray(0)
+    val all = headers
+    val kept = all.keptWithin(MAX_RESPONSE_HEADER_BYTES)
     return Answer(
         status = code,
-        headers = headers.groupBy({ it.name.lowercase() }, { it.value }),
+        headers = kept.groupBy({ it.name.lowercase() }, { it.value.orEmpty() }),
         body = String(bytes, 0, minOf(bytes.size, MAX_RESPONSE_BODY), UTF_8),
-        truncated = bytes.size > MAX_RESPONSE_BODY,
+        truncated = bytes.size > MAX_RESPONSE_BODY || kept.size < all.size,
     )
 }
 
+/** Os primeiros cabeçalhos cujos nomes e valores somados cabem em [budget] (ISO-8859-1: um caractere, um byte). */
+private fun Array<Header>.keptWithin(budget: Int): List<Header> {
+    val sizes = runningFold(0) { total, header -> total + header.name.length + header.value.orEmpty().length }.drop(1)
+    return take(sizes.count { it <= budget })
+}
+
+private fun timedOut(timeout: Duration) = OutboundError(ErrorKind.TIMEOUT, "no response within ${timeout.toMillis()} ms")
+
+/** Com [detailed] (`allow-private=true`, uso local), a mensagem do Apache; sem, a de `connect` não traz o IP. */
 private fun IOException.toError(
     expired: Boolean,
     timeout: Duration,
+    detailed: Boolean,
 ): OutboundError =
     when {
-        expired || this is InterruptedIOException -> OutboundError(ErrorKind.TIMEOUT, "no response within ${timeout.toMillis()} ms")
+        expired || this is InterruptedIOException -> timedOut(timeout)
         this is SSLException -> OutboundError(ErrorKind.TLS, message ?: "TLS handshake failed")
-        else -> OutboundError(ErrorKind.CONNECT, message ?: javaClass.simpleName)
+        detailed -> OutboundError(ErrorKind.CONNECT, message ?: javaClass.simpleName)
+        else -> OutboundError(ErrorKind.CONNECT, CONNECT_FAILED)
     }
 
 private fun httpClient(sockets: DetachedSocketFactory): CloseableHttpClient {

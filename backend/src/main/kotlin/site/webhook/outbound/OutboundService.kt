@@ -10,6 +10,7 @@ import site.webhook.token.Token
 import site.webhook.token.legacyNow
 import java.time.Clock
 import java.time.Duration
+import java.time.LocalDateTime
 import java.util.UUID
 
 @Configuration(proxyBeanMethods = false)
@@ -18,6 +19,13 @@ class OutboundConfiguration {
     @Bean
     fun outboundClient(properties: OutboundProperties): OutboundClient = OutboundClient(properties)
 }
+
+/** Um disparo que terminou (com resposta ou recusa): quando começou, o que deu e quanto levou. */
+data class Attempt(
+    val at: LocalDateTime,
+    val exchange: Exchange,
+    val duration: Duration,
+)
 
 /**
  * Um disparo de replay ou send: sai pelo motor, vira [OutboundResult], entra no histórico da URL e conta na métrica.
@@ -41,7 +49,26 @@ class OutboundService(
         val at = clock.legacyNow()
         val started = System.nanoTime()
         val exchange = client.exchange(request)
-        val duration = Duration.ofNanos(System.nanoTime() - started)
+        return record(token, kind, request, Attempt(at, exchange, Duration.ofNanos(System.nanoTime() - started)), source)
+    }
+
+    /** O destino conferido sem sair (ver [OutboundClient.refused]): a recusa, a gravar com [record], ou nula. */
+    fun refusal(request: OutboundRequest): Attempt? {
+        val at = clock.legacyNow()
+        val started = System.nanoTime()
+        val exchange = client.refused(request) ?: return null
+        return Attempt(at, exchange, Duration.ofNanos(System.nanoTime() - started))
+    }
+
+    /** Grava e conta um disparo que já terminou. */
+    fun record(
+        token: Token,
+        kind: OutboundKind,
+        request: OutboundRequest,
+        attempt: Attempt,
+        source: RequestId? = null,
+    ): OutboundResult {
+        val (at, exchange, duration) = attempt
         val answer = (exchange.answer as? Checked.Ok)?.value
         val result =
             OutboundResult(

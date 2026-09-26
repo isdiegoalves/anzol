@@ -26,6 +26,7 @@ private val NAMES =
             "mixed.test" to listOf("93.184.216.34", "10.0.0.1"),
             "public.test" to listOf("93.184.216.34"),
             "public6.test" to listOf("2606:4700::1111"),
+            "special.test" to listOf("192.0.0.192"),
         ),
     )
 
@@ -101,6 +102,27 @@ class DestinationPolicyTest {
         http://[ff02::1]/                       | blocked | blocked
         http://255.255.255.255/                 | blocked | blocked
         http://240.0.0.1/                       | blocked | blocked
+        http://192.0.0.192/                     | blocked | blocked
+        http://192.0.0.1/                       | blocked | blocked
+        http://192.0.0.255/                     | blocked | blocked
+        http://[2002:c000:c0::]/                | blocked | blocked
+        http://192.0.2.1/                       | blocked | blocked
+        http://198.18.0.1/                      | blocked | blocked
+        http://198.19.255.255/                  | blocked | blocked
+        http://198.51.100.7/                    | blocked | blocked
+        http://203.0.113.9/                     | blocked | blocked
+        http://192.88.99.1/                     | blocked | blocked
+        http://[::ffff:203.0.113.9]/            | blocked | blocked
+        http://[2001::1]/                       | blocked | blocked
+        http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/ | blocked | blocked
+        http://[2001:1ff:ffff::1]/              | blocked | blocked
+        http://[2001:db8::1]/                   | blocked | blocked
+        http://[3fff::1]/                       | blocked | blocked
+        http://[5f00::1]/                       | blocked | blocked
+        http://[64:ff9b:1::a00:1]/              | blocked | blocked
+        http://[::ffff:0:808:808]/              | blocked | blocked
+        http://[100::1]/                        | blocked | blocked
+        http://special.test/                    | blocked | blocked
         http://127.0.0.1:8080/x                 | blocked | ok
         http://2130706433/                      | blocked | ok
         http://0x7f000001/                      | blocked | ok
@@ -138,6 +160,17 @@ class DestinationPolicyTest {
         http://11.0.0.1/                        | ok      | ok
         http://192.169.0.1/                     | ok      | ok
         http://223.255.255.255/                 | ok      | ok
+        http://192.0.1.1/                       | ok      | ok
+        http://192.0.3.1/                       | ok      | ok
+        http://198.17.255.255/                  | ok      | ok
+        http://198.20.0.1/                      | ok      | ok
+        http://198.51.101.1/                    | ok      | ok
+        http://203.0.112.255/                   | ok      | ok
+        http://192.88.98.1/                     | ok      | ok
+        http://[2001:200::1]/                   | ok      | ok
+        http://[2001:db9::1]/                   | ok      | ok
+        http://[64:ff9b:2::1]/                  | ok      | ok
+        http://[100:0:0:1::1]/                  | ok      | ok
         http://[2606:4700::1111]/               | ok      | ok
         http://[::ffff:8.8.8.8]/                | ok      | ok
         http://[2002:808:808::]/                | ok      | ok
@@ -164,7 +197,7 @@ class DestinationPolicyTest {
         http://exa mple.com/                    | invalid_url | invalid_url
         /relative/path                          | invalid_url | invalid_url
         http:/                                  | invalid_url | invalid_url
-        http://nx.test/                         | dns     | dns""",
+        http://nx.test/                         | blocked | dns""",
     )
     fun faixas_dosDoisModos_bloqueiamOuLiberam(
         url: String,
@@ -198,13 +231,45 @@ class DestinationPolicyTest {
         assertThat(destination.url.toString()).isEqualTo("https://public.test:8443/a?b=1")
     }
 
-    @Test
-    @DisplayName("Dada uma recusa por faixa, quando monta a mensagem, então diz a faixa e não o IP resolvido")
-    fun recusa_mensagem_deveDizerAFaixaSemOIp() {
-        val parsed = parseTarget("http://internal.test/") as Checked.Ok
-        val refused = DestinationPolicy(STRICT, NAMES).resolve(parsed.value) as Checked.Refused
+    /** Com `allow-private=true` (uso local) a recusa diz o motivo, que a tela mostra; nunca o IP resolvido. */
+    @ParameterizedTest(name = "{0} → {1}: {2}")
+    @CsvSource(
+        delimiter = '|',
+        textBlock = """
+        http://metadata.test/  | BLOCKED | link-local address
+        http://special.test/   | BLOCKED | special-purpose address
+        http://nx.test/        | DNS     | could not resolve host nx.test""",
+    )
+    @DisplayName("Dada uma recusa com allow-private=true, quando monta a mensagem, então diz a faixa ou o DNS, sem o IP")
+    fun recusa_permissivo_deveDizerOMotivoSemOIp(
+        url: String,
+        kind: ErrorKind,
+        message: String,
+    ) {
+        val refused = DestinationPolicy(PERMISSIVE, NAMES).resolve((parseTarget(url) as Checked.Ok).value) as Checked.Refused
 
-        assertThat(refused.error.message).contains("private address", "WEBHOOK_OUTBOUND_ALLOW_PRIVATE").doesNotContain("10.1.2.3")
+        assertThat(refused.error.kind).isEqualTo(kind)
+        assertThat(refused.error.message).contains(message).doesNotContain("169.254.169.254", "192.0.0.192")
+    }
+
+    /**
+     * Com `allow-private=false` (o que se publica) a API não pode servir de oráculo da rede: nome que não resolve,
+     * faixa privada e faixa sempre bloqueada dão o mesmo erro, sem faixa nem IP.
+     */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        "http://nx.test/",
+        "http://internal.test/",
+        "http://metadata.test/",
+        "http://special.test/",
+        "http://10.0.0.1/",
+        "http://[::1]/",
+    )
+    @DisplayName("Dada uma recusa com allow-private=false, quando monta a mensagem, então DNS e faixa dão o mesmo blocked genérico")
+    fun recusa_estrito_deveSerIgualParaDnsEFaixa(url: String) {
+        val refused = DestinationPolicy(STRICT, NAMES).resolve((parseTarget(url) as Checked.Ok).value) as Checked.Refused
+
+        assertThat(refused.error).isEqualTo(OutboundError(ErrorKind.BLOCKED, NOT_ALLOWED))
     }
 
     /** O host do Docker no OrbStack: `host.docker.internal` → `0.250.250.254`, dentro de `0.0.0.0/8`. */

@@ -85,3 +85,30 @@ private fun String.uriSafe(): String =
             index += Character.charCount(codePoint)
         }
     }
+
+/** Tetos dos cabeçalhos do send (em caracteres): quantos, cada valor e a soma de nomes e valores. */
+const val MAX_SEND_HEADERS = 100
+const val MAX_SEND_HEADER_VALUE = 8 * 1024
+const val MAX_SEND_HEADERS_TOTAL = 64 * 1024
+
+/** Por que os cabeçalhos do send passam dos tetos (a mensagem do 422 em `headers`), ou nulo quando cabem. */
+fun List<Pair<String, String>>.overLimits(): String? {
+    val longest = maxOfOrNull { (_, value) -> value.length } ?: 0
+    val total = sumOf { (name, value) -> name.length + value.length }
+    return when {
+        size > MAX_SEND_HEADERS -> "The headers may not have more than $MAX_SEND_HEADERS items."
+        longest > MAX_SEND_HEADER_VALUE -> "Each header value may not be greater than $MAX_SEND_HEADER_VALUE characters."
+        total > MAX_SEND_HEADERS_TOTAL -> "The headers may not be greater than $MAX_SEND_HEADERS_TOTAL characters in total."
+        else -> null
+    }
+}
+
+/**
+ * Os cabeçalhos cortados aos tetos, para o resultado que não sai: os 100 primeiros, cada valor com até 8 KiB, e
+ * desses os primeiros cuja soma cabe em 64 KiB.
+ */
+fun List<Pair<String, String>>.withinLimits(): List<Pair<String, String>> {
+    val cut = take(MAX_SEND_HEADERS).map { (name, value) -> name to value.take(MAX_SEND_HEADER_VALUE) }
+    val sizes = cut.runningFold(0) { total, (name, value) -> total + name.length + value.length }.drop(1)
+    return cut.take(sizes.count { it <= MAX_SEND_HEADERS_TOTAL })
+}

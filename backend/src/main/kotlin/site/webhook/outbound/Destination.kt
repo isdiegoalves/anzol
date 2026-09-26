@@ -9,6 +9,12 @@ private val SCHEMES = setOf("http", "https")
 private val PORTS = 1..65_535
 private const val MAX_HOST_LENGTH = 253
 
+/**
+ * A recusa de rede com `allow-private=false` (o modo publicável): DNS que falha e faixa bloqueada dão a mesma
+ * mensagem, sem faixa nem IP, para a API não servir de oráculo da rede interna.
+ */
+const val NOT_ALLOWED = "destination not allowed or not resolvable"
+
 /** Nome de host em ASCII: rótulos de letras, dígitos, `-` e `_` (nome de serviço do Docker), com ponto final opcional. */
 private val HOST_NAME = Regex("[a-z0-9_-]+(\\.[a-z0-9_-]+)*\\.?")
 
@@ -29,11 +35,6 @@ sealed interface Checked<out T> {
         val error: OutboundError,
     ) : Checked<Nothing>
 }
-
-private fun refused(
-    kind: ErrorKind,
-    message: String,
-) = Checked.Refused(OutboundError(kind, message))
 
 /**
  * Alvo lido da URL: esquema e host em minúsculas (IPv6 sem colchetes), porta escrita ou `-1` (a do esquema) e
@@ -130,6 +131,9 @@ data class Destination(
  * Resolve o host uma vez, valida **todos** os IPs pela §1 e escolhe o primeiro: o motor conecta nele, sem
  * resolver de novo (DNS rebinding não troca o destino depois da validação).
  *
+ * Com `allow-private=false`, a recusa de DNS e a de faixa saem iguais: `blocked` com [NOT_ALLOWED]; com `true` (uso
+ * local), `dns` e `blocked` com a faixa, que a tela mostra.
+ *
  * Com `localhost-alias`, alvo cujos IPs são todos loopback (`localhost`, `127.0.0.1`, `::1` em qualquer forma) vira
  * o alias. Com `allow-private=true` e alias, os IPs para os quais o alias resolve agora contam como privados,
  * liberados mesmo em `0.0.0.0/8` (o OrbStack põe o host em `0.250.250.254`); `0.0.0.0` e `::` seguem bloqueados.
@@ -178,20 +182,26 @@ class DestinationPolicy(
         val kind = address.kind()
         val viaAlias = kind != AddressKind.UNSPECIFIED && kind != AddressKind.SCOPED && address.normalized() in hostAddresses
         val effective = if (viaAlias) AddressKind.ALIAS else kind
-        return when {
-            !effective.allowable -> {
-                OutboundError(ErrorKind.BLOCKED, "blocked: ${effective.label} (always blocked)")
-            }
+        val detailed =
+            when {
+                !effective.allowable -> {
+                    OutboundError(ErrorKind.BLOCKED, "blocked: ${effective.label} (always blocked)")
+                }
 
-            effective != AddressKind.PUBLIC && !properties.allowPrivate -> {
-                OutboundError(ErrorKind.BLOCKED, "blocked: ${effective.label} — set WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true to allow")
-            }
+                effective != AddressKind.PUBLIC && !properties.allowPrivate -> {
+                    OutboundError(ErrorKind.BLOCKED, "blocked: ${effective.label} — set WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true to allow")
+                }
 
-            else -> {
-                null
+                else -> {
+                    null
+                }
             }
-        }
+        return detailed?.let(::concealed)
     }
+
+    /** No modo publicável, a recusa de rede não diz o motivo (ver [NOT_ALLOWED]). */
+    private fun concealed(error: OutboundError): OutboundError =
+        if (properties.allowPrivate) error else OutboundError(ErrorKind.BLOCKED, NOT_ALLOWED)
 
     /** IPv6 e IPv4 escritos (em qualquer forma numérica) valem por si; nome vai ao resolvedor. */
     private fun lookup(host: String): Checked<List<InetAddress>> {
@@ -202,9 +212,11 @@ class DestinationPolicy(
                 .resolve(host)
                 .takeIf { it.isNotEmpty() }
                 ?.let { Checked.Ok(it) }
-                ?: refused(ErrorKind.DNS, "could not resolve host $host")
+                ?: unresolved(host)
         } catch (_: UnknownHostException) {
-            refused(ErrorKind.DNS, "could not resolve host $host")
+            unresolved(host)
         }
     }
+
+    private fun unresolved(host: String) = Checked.Refused(concealed(OutboundError(ErrorKind.DNS, "could not resolve host $host")))
 }
