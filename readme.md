@@ -26,6 +26,19 @@ docker compose up -d --build
 Abra <http://localhost:8084>. Os dados do Redis ficam no volume `webhooksite_redis-data` e
 sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 
+### Configuração
+
+| Variável (serviço `app`) | Padrão | O que faz |
+|---|---|---|
+| `WEBHOOK_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
+| `WEBHOOK_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
+
+O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
+webhook responde 500) em vez de apagar chaves, então nenhum token some e o que já está gravado
+continua legível. Com mensagens de ~15 KB, 1 GB guarda cerca de 60 mil; `WEBHOOK_MAX_REQUESTS` e
+`auto_cleanup` limitam cada URL. Mudar o `command` do Redis no compose recria o container, e os
+dados ficam no volume.
+
 ## API
 
 | Rota | O que faz |
