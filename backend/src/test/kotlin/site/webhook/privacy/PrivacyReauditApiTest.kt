@@ -47,6 +47,8 @@ private val READ_ONLY_GETS =
         "/token/{tokenId}/rules",
         "/token/{tokenId}/scenarios",
         "/token/{tokenId}/shares",
+        // Item 14 (B2): só lê um resumo das mensagens mais novas.
+        "/token/{tokenId}/stats",
         "/token/{tokenId}/stream",
     )
 
