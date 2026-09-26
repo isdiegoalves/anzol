@@ -1,0 +1,43 @@
+:host {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.start {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.end {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.separator {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -3px;
+    border-radius: var(--mat-sys-corner-small);
+  }
+}
+
+.grip {
+  width: 4px;
+  height: 48px;
+  border-radius: 2px;
+  background: var(--mat-sys-outline);
+}

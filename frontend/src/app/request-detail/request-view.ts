@@ -8,7 +8,7 @@ import { formatContent, highlightContent } from './format-content';
 import { RuleBadge } from './rule-badge';
 import { SchemaBadge } from './schema-badge';
 import { SignatureBadge } from './signature-badge';
-import { signatureCheck } from './signature-check';
+import { signatureCheck } from '../pipeline/signature-check';
 
 /**
  * Visualização da mensagem, sem ação nenhuma: selos, dados, headers, query, formulário e corpo

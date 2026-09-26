@@ -1,0 +1,55 @@
+import { render, screen } from '@testing-library/angular';
+import { expectNoAxeViolations } from '../../testing/axe';
+import { webhookRequest } from '../../testing/fixtures';
+import { CheckResult, checksOf } from '../pipeline/pipeline';
+import { CheckChip } from './check-chip';
+
+const [valid] = checksOf(
+  webhookRequest(1, { signature: { provider: 'stripe', valid: true, reason: null } }),
+);
+const [invalid] = checksOf(
+  webhookRequest(1, {
+    signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
+  }),
+);
+const [, , near] = checksOf(
+  webhookRequest(1, { near_miss: { id: 'r', name: 'Refund', failed: ['method: expected GET'] } }),
+);
+const [unchecked] = checksOf(webhookRequest(1, { signature: null }));
+
+describe('Dado o selo de verificação (app-check-chip)', () => {
+  it.each([
+    ['válida', valid, 'ok'],
+    ['inválida', invalid, 'bad'],
+    ['quase (near miss)', near, 'near'],
+    ['não verificada', unchecked, 'none'],
+  ] as [string, CheckResult, string][])(
+    'deve mostrar o título com o tom e passar no axe Quando a verificação está %s (mini)',
+    async (_caso, result, tone) => {
+      const { container } = await render(CheckChip, { inputs: { result } });
+
+      // `container` é o elemento do componente (o host).
+      const chip = container as HTMLElement;
+      expect(screen.getByText(result.title)).toBeTruthy();
+      expect(chip.classList).toContain(tone);
+      expect(screen.queryByText(result.detail)).toBeNull();
+      expect(chip.getAttribute('title')).toBe(result.detail);
+      await expectNoAxeViolations(container);
+    },
+  );
+
+  it('deve mostrar o título e o motivo no cartão Quando o tamanho é "card"', async () => {
+    const { container } = await render(CheckChip, { inputs: { result: invalid, size: 'card' } });
+
+    expect(screen.getByText('Signature invalid')).toBeTruthy();
+    expect(screen.getByText('signature mismatch')).toBeTruthy();
+    expect((container as HTMLElement).dataset['state']).toBe('invalid');
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve esconder o ícone do leitor de tela (o texto já diz o resultado)', async () => {
+    const { container } = await render(CheckChip, { inputs: { result: valid } });
+
+    expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  });
+});

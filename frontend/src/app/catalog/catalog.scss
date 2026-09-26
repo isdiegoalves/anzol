@@ -1,0 +1,37 @@
+.catalog {
+  padding: 16px;
+}
+
+.lead {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: 16px;
+}
+
+.column {
+  padding: 16px;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+}
+
+.row,
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.split {
+  height: 160px;
+}
+
+.pad {
+  margin: 0;
+  padding: 12px 16px;
+}

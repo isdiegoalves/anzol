@@ -1,0 +1,30 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.icon {
+  color: var(--mat-sys-primary);
+}
+
+.title {
+  margin: 0;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-title-medium);
+  font-variation-settings: 'ROND' 100;
+}
+
+.text {
+  max-width: 44ch;
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+}
+
+.actions:empty {
+  display: none;
+}

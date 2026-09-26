@@ -1,0 +1,63 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+:host(.mini) {
+  padding: 2px 8px 2px 6px;
+  font: var(--mat-sys-label-medium);
+}
+
+:host(.card) {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  font: var(--mat-sys-body-small);
+}
+
+:host(.ok) {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+:host(.bad) {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+:host(.near) {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
+:host(.none) {
+  border-color: var(--mat-sys-outline-variant);
+  background: transparent;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:host(.card) .title {
+  font: var(--mat-sys-title-small);
+}
+
+.detail {
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,5 @@
 import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
+import { CATALOG_ROUTES } from './catalog/catalog-routes';
 
 const UUID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const PAGE = /^\d+$/;
@@ -45,6 +46,8 @@ export const rulesMatcher = tabMatcher('rules');
 export const outboundMatcher = tabMatcher('outbound');
 
 export const routes: Routes = [
+  // `#/_catalog` em desenvolvimento; vazio no build de produção.
+  ...CATALOG_ROUTES,
   // Carregadas sob demanda: as abas de regras e de saída não pesam na carga inicial.
   {
     matcher: rulesMatcher,

@@ -4,6 +4,7 @@ const eslint = require('@eslint/js');
 const { defineConfig } = require('eslint/config');
 const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
+const boundaries = require('eslint-plugin-boundaries');
 
 module.exports = defineConfig([
   {
@@ -78,6 +79,156 @@ module.exports = defineConfig([
               allowTypeImports: true,
               message:
                 'Traz o Overlay ou barra do Material para o pacote inicial (docs/padroes-angular.md §7): carregue por import() ou rota lazy.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // §8 Fronteiras (Trajan): `ui/` e `pipeline/` não importam feature; feature não importa outra
+    // feature, salvo o que é público dela (stores e serviços, `*-actions` por import(), modelos).
+    // `app` (raiz), `main.ts` e `shell/` montam a tela e importam tudo.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.spec.ts', 'src/testing/**'],
+    plugins: { boundaries },
+    settings: {
+      'import/resolver': { node: { extensions: ['.ts', '.js', '.mjs'] } },
+      'boundaries/include': ['src/**/*.ts'],
+      'boundaries/elements': [
+        { type: 'shell', pattern: 'src/app/shell', partialMatch: false },
+        { type: 'ui', pattern: 'src/app/ui', partialMatch: false },
+        { type: 'pipeline', pattern: 'src/app/pipeline', partialMatch: false },
+        { type: 'catalog', pattern: 'src/app/catalog', partialMatch: false },
+        { type: 'feature', pattern: 'src/app/*', partialMatch: false, capture: ['feature'] },
+        { type: 'app', pattern: 'src/app', partialMatch: false },
+        { type: 'locale', pattern: 'src/locale', partialMatch: false },
+        { type: 'main', pattern: 'src', partialMatch: false },
+      ],
+      'boundaries/files': [
+        // Estado e serviços públicos de uma feature.
+        { category: 'store', pattern: 'src/app/*/*-store.ts' },
+        {
+          category: 'store',
+          pattern: [
+            'src/app/settings/preferences.ts',
+            'src/app/settings/redirect.ts',
+            'src/app/realtime/request-stream.ts',
+            'src/app/token/url-lock.ts',
+            'src/app/ai/ai-client.ts',
+          ],
+        },
+        // Ações carregadas por import() (diálogos e fluxos de outra feature).
+        { category: 'actions', pattern: 'src/app/*/*-actions.ts' },
+        { category: 'actions', pattern: 'src/app/rules/rule-from-request.ts' },
+        // Tipos e funções puras do domínio.
+        {
+          category: 'model',
+          pattern: [
+            'src/app/requests/webhook-request.ts',
+            'src/app/token/token.ts',
+            'src/app/rules/rule.ts',
+            'src/app/stats/stats.ts',
+            'src/app/share/share.ts',
+            'src/app/outbound/outbound.ts',
+            'src/app/search/request-filter.ts',
+            'src/app/request-detail/dates.ts',
+          ],
+        },
+        // Legado: componentes que uma feature importava de outra antes do item 14. Cada fatia que
+        // reescreve a tela tira os seus daqui (E4: detalhe, lista, busca, opções, tutorial; E7:
+        // method-label no Outbound; E8: compare-outlet). Nada novo entra nesta lista.
+        {
+          category: 'legacy',
+          pattern: [
+            'src/app/request-detail/request-detail.ts',
+            'src/app/request-detail/request-view.ts',
+            'src/app/requests/request-list.ts',
+            'src/app/requests/request-nav.ts',
+            'src/app/requests/method-label.ts',
+            'src/app/settings/options-bar.ts',
+            'src/app/tutorial/tutorial.ts',
+            'src/app/diff/compare-outlet.ts',
+            'src/app/ai/explain-panel.ts',
+            'src/app/ai/rule-suggest.ts',
+            'src/app/search/request-search.ts',
+            'src/app/share/share-dialog.ts',
+          ],
+        },
+      ],
+    },
+    rules: {
+      'boundaries/dependencies': [
+        'error',
+        {
+          default: 'disallow',
+          message:
+            '{{from.element.types}} não importa {{to.element.types}} {{to.element.captured.feature}} (docs/padroes-angular.md §8)',
+          policies: [
+            { allow: { to: { module: { origin: ['external', 'core'] } } } },
+            {
+              from: { element: { types: ['main', 'app', 'shell'] } },
+              allow: {
+                to: {
+                  element: {
+                    types: [
+                      'main',
+                      'app',
+                      'shell',
+                      'ui',
+                      'pipeline',
+                      'feature',
+                      'catalog',
+                      'locale',
+                    ],
+                  },
+                },
+              },
+            },
+            {
+              from: { element: { type: 'locale' } },
+              allow: { to: { element: { type: 'locale' } } },
+            },
+            {
+              from: { element: { type: 'ui' } },
+              allow: [
+                { to: { element: { type: 'ui' } } },
+                { to: { element: { type: 'pipeline' } }, dependency: { kind: 'type' } },
+              ],
+            },
+            {
+              from: { element: { type: 'pipeline' } },
+              allow: [
+                { to: { element: { type: 'pipeline' } } },
+                { to: { element: { type: 'feature' }, file: { categories: 'model' } } },
+              ],
+            },
+            {
+              from: { element: { type: 'catalog' } },
+              allow: [
+                { to: { element: { types: ['catalog', 'ui', 'pipeline'] } } },
+                { to: { element: { type: 'feature' }, file: { categories: 'model' } } },
+              ],
+            },
+            {
+              from: { element: { type: 'feature' } },
+              allow: [
+                { to: { element: { types: ['ui', 'pipeline', 'shell'] } } },
+                {
+                  to: {
+                    element: {
+                      type: 'feature',
+                      captured: { feature: '{{from.element.captured.feature}}' },
+                    },
+                  },
+                },
+                {
+                  to: {
+                    element: { type: 'feature' },
+                    file: { categories: ['store', 'actions', 'model', 'legacy'] },
+                  },
+                },
+              ],
             },
           ],
         },

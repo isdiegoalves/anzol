@@ -79,6 +79,16 @@
 - Vitest (padrão do CLI) para componentes e serviços; Playwright para E2E e contrato; skill
   `pdpj-bdd-tests`. Componentes do Material testados pelos harnesses do CDK
   (`TestbedHarnessEnvironment`), não por seletor CSS interno.
+- Componentes de `ui/`, `shell/` e páginas com **Angular Testing Library**
+  (`@testing-library/angular` + `@testing-library/user-event`), consultando por papel e nome
+  acessível (`getByRole('separator', { name: 'Resize list and detail' })`): o teste cobra a
+  acessibilidade junto com o comportamento. Componentes do Material continuam por harness.
+  `axe-core` em cada estado dos componentes de `ui/`, pelo helper `expectNoAxeViolations`
+  (`src/testing/axe.ts`, WCAG 2.2 A/AA; o contraste fica com o E2E, porque o jsdom não calcula
+  cor). Specs com TestBed existentes valem até o componente ser reescrito. Guarda: revisão e o
+  helper de axe.
+- Catálogo de `ui/` em `#/_catalog`, só em desenvolvimento (`fileReplacements` troca as rotas dele
+  por nenhuma no build de produção). Sem Storybook.
 - `ng lint` (angular-eslint 22.5.0 + typescript-eslint), Stylelint (`npm run lint:styles`) e
   Prettier no `check`; o build falha em violação.
 - **Pacote inicial:** aviso em 500 kB e **erro em 550 kB** (orçamento `initial` do `angular.json`);
@@ -92,11 +102,22 @@
   Angular 22: `component-class-suffix`, `directive-class-suffix`,
   `prefer-on-push-component-change-detection`, `template/no-call-expression` (ler signal é chamada).
 
-## 8. Quando entra o Trajan
+## 8. Fronteiras (Trajan)
 
-Se o plano de features trouxer várias telas novas (busca, exportação, configurações), adotar a
-separação dele entre funcionalidades isoladas e código compartilhado, cobrada com
-`eslint-plugin-boundaries`. Até lá, a organização por funcionalidade do guia oficial basta.
+A interface nova (item 14) trouxe as várias telas que a versão anterior desta seção esperava; a
+separação do Trajan entre código compartilhado e funcionalidades isoladas vira regra, cobrada pelo
+`eslint-plugin-boundaries` (`boundaries/dependencies` no `eslint.config.js`).
+
+| Pasta | O que é | Pode importar |
+|---|---|---|
+| `src/app/ui/` | Biblioteca interna, só apresentação (selo, tabela, bloco de código, split…) | `ui/`; de `pipeline/` só tipos |
+| `src/app/pipeline/` | Funções puras que derivam da mensagem o que a tela mostra (`pipelineOf`) | `pipeline/` e os modelos das features |
+| `src/app/shell/` | Rail, cabeçalho da URL, Settings e Help: monta a tela | tudo |
+| `src/app/<feature>/` | Uma funcionalidade (`inbox/`, `rules/`, `checks/`…) | a própria feature, `ui/`, `pipeline/`, `shell/` e o que é público das outras: stores e serviços (`*-store.ts`, `Preferences`, `RequestStream`…), `*-actions.ts` por `import()` e os modelos (`webhook-request.ts`, `token.ts`, `rule.ts`, `stats.ts`…) |
+| `src/app/*.ts`, `src/main.ts` | Raiz: rotas e bootstrap | tudo |
+
+Os componentes que uma feature já importava de outra antes do item 14 estão numa lista "legado" no
+`eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada novo entra nela.
 
 ## 9. Cortado na revisão (e por quê)
 

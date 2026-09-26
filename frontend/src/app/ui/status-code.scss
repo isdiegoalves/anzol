@@ -1,0 +1,31 @@
+:host {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-large);
+}
+
+.code {
+  font-family: var(--app-code-family);
+  font-weight: 700;
+}
+
+:host(.s2) {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+:host(.s4) {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
+:host(.s5),
+:host(.failed) {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}

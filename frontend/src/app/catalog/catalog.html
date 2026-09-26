@@ -1,0 +1,90 @@
+<div class="catalog">
+  <h1>ui/ catalog</h1>
+  <p class="lead">Development only. Each component of <code>src/app/ui/</code> in every state.</p>
+  <div class="columns">
+    @for (scheme of schemes; track scheme) {
+      <section class="column" [style.color-scheme]="scheme" [attr.aria-label]="scheme + ' theme'">
+        <h2>{{ scheme === 'light' ? 'Light' : 'Dark' }}</h2>
+
+        <h3>app-check-chip</h3>
+        @for (row of checks; track $index) {
+          <div class="row">
+            @for (check of row; track check.kind) {
+              <app-check-chip [result]="check" />
+            }
+          </div>
+        }
+        <div class="cards">
+          @for (check of checks[1]; track check.kind) {
+            <app-check-chip [result]="check" size="card" />
+          }
+        </div>
+
+        <h3>app-method-badge</h3>
+        <div class="row">
+          @for (method of methods; track method) {
+            <app-method-badge [method]="method" />
+          }
+        </div>
+
+        <h3>app-status-code</h3>
+        <div class="row">
+          @for (status of statuses; track status) {
+            <app-status-code [status]="status" />
+          }
+          <app-status-code [status]="null" error="Connection failed" />
+        </div>
+
+        <h3>app-live-status</h3>
+        <div class="row">
+          @for (state of liveStates; track state) {
+            <app-live-status [state]="state" />
+          }
+        </div>
+
+        <h3>app-copy-field</h3>
+        <app-copy-field
+          value="http://localhost:8084/7c1e4b52-9d0a-4f3e-b8a1-2f6d9c30e5a7"
+          [label]="'Webhook URL (' + scheme + ')'"
+        />
+
+        <h3>app-kv-table</h3>
+        <app-kv-table [label]="'Headers (' + scheme + ')'" [rows]="headers" [notes]="notes" />
+        <app-kv-table [label]="'Query (' + scheme + ')'" [rows]="[]" empty="No query string." />
+
+        <h3>app-code-view</h3>
+        <app-code-view
+          [label]="'Body with a schema error (' + scheme + ')'"
+          [text]="body"
+          [marks]="marks"
+        />
+        <app-code-view [label]="'Raw body (' + scheme + ')'" [text]="body" [pretty]="false" />
+        <app-code-view [label]="'Empty body (' + scheme + ')'" text="" />
+
+        <h3>app-empty-state</h3>
+        <app-empty-state
+          heading="No requests match the filters"
+          text="New requests that match will appear here live."
+        >
+          <button type="button">Clear filters</button>
+        </app-empty-state>
+
+        <h3>app-pane and app-split</h3>
+        <app-split
+          class="split"
+          [label]="'Resize the example (' + scheme + ')'"
+          [min]="160"
+          [max]="400"
+          [(width)]="splitWidth"
+        >
+          <app-pane splitStart [heading]="'List (' + scheme + ')'" [level]="3">
+            <p class="pad">List pane</p>
+          </app-pane>
+          <app-pane splitEnd>
+            <p class="pad">Pane without a heading</p>
+          </app-pane>
+        </app-split>
+      </section>
+    }
+  </div>
+</div>

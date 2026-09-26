@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-medium);
+}
+
+th,
+td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  width: 30%;
+  color: var(--mat-sys-on-surface-variant);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+code {
+  font-family: var(--app-code-family);
+  overflow-wrap: anywhere;
+}
+
+tr.noted {
+  box-shadow: inset 3px 0 var(--mat-sys-outline);
+}
+
+tr.ok {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+  box-shadow: inset 3px 0 var(--app-success);
+}
+
+tr.bad {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  box-shadow: inset 3px 0 var(--mat-sys-error);
+}
+
+tr.near {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  box-shadow: inset 3px 0 var(--app-warning);
+}
+
+tr.noted th {
+  color: inherit;
+}
+
+.note {
+  display: block;
+  margin-top: 4px;
+  font: var(--mat-sys-body-small);
+}
+
+.empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--mat-sys-on-surface-variant);
+}

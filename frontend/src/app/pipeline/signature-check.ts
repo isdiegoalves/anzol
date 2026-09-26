@@ -1,6 +1,6 @@
 import {
-  SignatureState,
   CapturedRequest,
+  SignatureState,
   absentHeader,
   signatureState,
 } from '../requests/webhook-request';
