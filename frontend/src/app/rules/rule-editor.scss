@@ -54,6 +54,61 @@ h4 {
   color: var(--mat-sys-on-surface-variant);
 }
 
+.fault {
+  width: 300px;
+}
+
+.fault-note {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid #faebcc;
+  border-radius: 4px;
+  background: #fcf8e3;
+  color: #8a6d3b;
+}
+
+.template {
+  margin-bottom: 4px;
+
+  .hint {
+    margin: 0;
+  }
+}
+
+.dribble {
+  margin-top: 12px;
+}
+
+.row .hint {
+  margin: 16px 0 0;
+}
+
+.helpers {
+  margin-bottom: 8px;
+
+  summary {
+    cursor: pointer;
+    color: var(--mat-sys-primary);
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    margin: 8px 0 0;
+  }
+
+  dt,
+  dd {
+    margin: 0;
+  }
+
+  code {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+}
+
 .json {
   padding-top: 12px;
 

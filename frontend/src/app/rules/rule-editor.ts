@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormArray,
@@ -26,11 +26,21 @@ import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/for
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { Rule } from './rule';
+import {
+  DELAY_MAX_MS,
+  DRIBBLE_MAX_CHUNKS,
+  FAULT_LABELS,
+  RULE_FAULTS,
+  Rule,
+  scenarioNames,
+  scenarioStates,
+} from './rule';
 import {
   BodyRow,
   BodyType,
   ConditionRow,
+  DelayType,
+  FaultOption,
   FieldRef,
   HeaderRow,
   PathMode,
@@ -67,6 +77,31 @@ const FORM_VIEW = 0;
 const JSON_VIEW = 1;
 
 const integer = Validators.pattern(/^\d+$/);
+/** Milissegundos de atraso ou de dribble: inteiro de 0 ao teto de 60 s. */
+const ms = [Validators.required, Validators.min(0), Validators.max(DELAY_MAX_MS), integer];
+
+/** Cola dos helpers de template (Anexo B), com um exemplo de cada. */
+const TEMPLATE_HELPERS: { example: string; description: string }[] = [
+  { example: '{{request.method}}', description: 'HTTP method' },
+  { example: '{{request.path}}', description: "Path after the URL's token" },
+  { example: '{{request.url}}', description: 'Full URL' },
+  { example: '{{request.query.id}}', description: 'Query parameter "id"' },
+  { example: '{{request.headers.authorization}}', description: 'Header, name in lowercase' },
+  { example: '{{request.body}}', description: 'Raw request body' },
+  { example: '{{seq}}', description: 'Sequence number of the request' },
+  {
+    example: "{{jsonPath request.body '$.id'}}",
+    description: 'Value from the JSON body (objects and lists come out as JSON)',
+  },
+  { example: '{{now}}', description: 'Current time, ISO-8601 UTC' },
+  { example: "{{now format='yyyy-MM-dd'}}", description: 'Current time, Java date pattern' },
+  { example: "{{randomValue type='UUID'}}", description: 'Random UUID' },
+  {
+    example: "{{randomValue type='ALPHANUMERIC' length=8}}",
+    description: 'Random text: ALPHANUMERIC, NUMERIC or HEX (length 16 by default)',
+  },
+  { example: "{{math seq '*' 10}}", description: "Arithmetic: '+', '-', '*', '/'" },
+];
 
 /** Erro assim que o campo fica inválido, sem esperar o blur (JSON digitado e erros do servidor). */
 const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.invalid };
@@ -122,7 +157,35 @@ export class RuleEditor {
     status: [0, [Validators.required, Validators.min(100), Validators.max(599), integer]],
     responseHeaders: this.formBuilder.array<HeaderGroup>([]),
     responseBody: [''],
+    template: [false],
+    delayType: ['none' as DelayType],
+    delayFixed: [0, ms],
+    delayMin: [0, ms],
+    delayMax: [0, [...ms, notBelowMin]],
+    delayMedian: [0, ms],
+    delaySigma: [0, [Validators.required, Validators.min(0)]],
+    dribble: [false],
+    dribbleChunks: [
+      0,
+      [Validators.required, Validators.min(1), Validators.max(DRIBBLE_MAX_CHUNKS), integer],
+    ],
+    dribbleDuration: [0, ms],
+    fault: ['none' as FaultOption],
+    scenarioName: ['', Validators.maxLength(100)],
+    requiredState: ['', Validators.maxLength(100)],
+    newState: ['', Validators.maxLength(100)],
   });
+
+  // Sugestões do cenário (`<datalist>`, que o navegador filtra pelo texto digitado): nomes e
+  // estados que as regras da URL já citam. O `MatAutocomplete` traria operadores do RxJS para a
+  // carga inicial (o `main` importa o `rxjs`), e o orçamento dela está no limite.
+  private readonly typedName = toSignal(this.form.controls.scenarioName.valueChanges, {
+    initialValue: '',
+  });
+  protected readonly nameSuggestions = computed(() => scenarioNames(this.store.rules()));
+  protected readonly stateSuggestions = computed(() =>
+    scenarioStates(this.store.rules(), this.typedName().trim()),
+  );
   protected readonly json = this.formBuilder.control('', ruleJsonValidator);
 
   protected readonly view = signal(FORM_VIEW);
@@ -152,15 +215,40 @@ export class RuleEditor {
     { value: 'jsonPath', label: 'JSONPath' },
     { value: 'equalToJson', label: 'Equal to JSON' },
   ];
+  protected readonly delayTypes: { value: DelayType; label: string }[] = [
+    { value: 'none', label: 'None' },
+    { value: 'fixed', label: 'Fixed' },
+    { value: 'uniform', label: 'Uniform (random)' },
+    { value: 'lognormal', label: 'Log-normal' },
+  ];
+  protected readonly faults: { value: FaultOption; label: string }[] = [
+    { value: 'none', label: 'None' },
+    ...RULE_FAULTS.map((fault) => ({ value: fault, label: FAULT_LABELS[fault] })),
+  ];
+  protected readonly helpers = TEMPLATE_HELPERS;
+  protected readonly delayMax = DELAY_MAX_MS;
+  protected readonly msError = `An integer between 0 and ${DELAY_MAX_MS} (ms).`;
   protected readonly showAtOnce = showAtOnce;
   protected readonly formView = FORM_VIEW;
   protected readonly jsonView = JSON_VIEW;
 
   constructor() {
-    this.form.controls.pathMode.valueChanges
+    const { pathMode, fault, delayType, dribble, scenarioName, delayMin, delayMax } =
+      this.form.controls;
+    pathMode.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncPath());
+    for (const control of [fault, delayType, dribble] as AbstractControl[]) {
+      control.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncResponse());
+    }
+    scenarioName.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncScenario());
+    delayMin.valueChanges
       .pipe(takeUntilDestroyed())
-      .subscribe(() => this.syncPath());
+      .subscribe(() => delayMax.updateValueAndValidity());
     this.loadForm(this.base);
+  }
+
+  /** Com falha escolhida, o servidor ignora status, headers, corpo, atraso e dribble. */
+  protected faulted(): boolean {
+    return this.form.controls.fault.value !== 'none';
   }
 
   protected get title(): string {
@@ -254,6 +342,46 @@ export class RuleEditor {
     value.responseHeaders.forEach((row) => responseHeaders.push(this.headerGroup(row)));
     this.form.setValue(value);
     this.syncPath();
+    this.syncResponse();
+    this.syncScenario();
+  }
+
+  /**
+   * Habilita só o que vale para a resposta escolhida: com falha, nada além da falha; sem ela, os
+   * parâmetros do tipo de atraso escolhido e os do dribble quando ligado. Controle desabilitado
+   * não conta na validade, então parâmetro escondido não bloqueia o "Save".
+   */
+  private syncResponse(): void {
+    const c = this.form.controls;
+    const faulted = this.faulted();
+    const delay = faulted ? 'none' : c.delayType.value;
+    const dribble = !faulted && c.dribble.value;
+    const enabled: [AbstractControl, boolean][] = [
+      [c.status, !faulted],
+      [c.responseHeaders, !faulted],
+      [c.responseBody, !faulted],
+      [c.template, !faulted],
+      [c.delayType, !faulted],
+      [c.dribble, !faulted],
+      [c.delayFixed, delay === 'fixed'],
+      [c.delayMin, delay === 'uniform'],
+      [c.delayMax, delay === 'uniform'],
+      [c.delayMedian, delay === 'lognormal'],
+      [c.delaySigma, delay === 'lognormal'],
+      [c.dribbleChunks, dribble],
+      [c.dribbleDuration, dribble],
+    ];
+    for (const [control, on] of enabled) {
+      setEnabled(control, on);
+    }
+  }
+
+  /** Os estados só fazem sentido com o nome do cenário. */
+  private syncScenario(): void {
+    const c = this.form.controls;
+    const named = c.scenarioName.value.trim() !== '';
+    setEnabled(c.requiredState, named);
+    setEnabled(c.newState, named);
   }
 
   private showErrors(error: unknown, index: number): void {
@@ -270,7 +398,8 @@ export class RuleEditor {
           ? locateError(key.slice(prefix.length), value)
           : null;
       const control = ref && this.control(ref);
-      if (control) {
+      // Campo desabilitado não mostra erro: a mensagem vai para o alerta do topo.
+      if (control?.enabled) {
         control.setErrors({ server: messages.join(' ') });
         control.markAsTouched();
       } else {
@@ -337,6 +466,20 @@ export class RuleEditor {
   private headerGroup(row: HeaderRow): HeaderGroup {
     return this.formBuilder.group({ name: [row.name, Validators.required], value: [row.value] });
   }
+}
+
+function setEnabled(control: AbstractControl, enabled: boolean): void {
+  if (enabled && control.disabled) {
+    control.enable({ emitEvent: false });
+  } else if (!enabled && control.enabled) {
+    control.disable({ emitEvent: false });
+  }
+}
+
+/** Máximo do atraso uniforme não pode ficar abaixo do mínimo. */
+function notBelowMin(control: AbstractControl<number>): ValidationErrors | null {
+  const min = control.parent?.get('delayMin')?.value as number | null | undefined;
+  return min !== null && min !== undefined && control.value < min ? { belowMin: true } : null;
 }
 
 function ruleJsonValidator(control: AbstractControl<string>): ValidationErrors | null {

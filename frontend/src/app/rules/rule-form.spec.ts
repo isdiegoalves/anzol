@@ -37,6 +37,24 @@ const completa: Rule = {
   },
 };
 
+/** Campos da fase B de uma regra sem template, atraso, dribble, falha nem cenário. */
+const SEM_FASE_B = {
+  template: false,
+  delayType: 'none',
+  delayFixed: 1000,
+  delayMin: 500,
+  delayMax: 2000,
+  delayMedian: 1000,
+  delaySigma: 0.5,
+  dribble: false,
+  dribbleChunks: 5,
+  dribbleDuration: 2000,
+  fault: 'none',
+  scenarioName: '',
+  requiredState: '',
+  newState: '',
+} as const;
+
 describe('Dado a conversão entre a regra e o formulário do editor', () => {
   it('deve preencher cada seção do formulário Quando a regra tem todas as condições', () => {
     const form = toFormValue(completa);
@@ -65,6 +83,7 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
       status: 201,
       responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
       responseBody: '{"ok":true}',
+      ...SEM_FASE_B,
     });
   });
 
@@ -118,6 +137,89 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
   });
 });
 
+describe('Dado template, atraso, dribble, falha e cenário no formulário (fase B)', () => {
+  const comResposta = (response: Partial<Rule['response']>, scenario: Rule['scenario'] = null) => ({
+    ...completa,
+    scenario,
+    response: { ...completa.response, ...response },
+  });
+
+  it.each([
+    ['atraso fixo', { delay: { fixed: 300 } }, { delayType: 'fixed', delayFixed: 300 }],
+    [
+      'atraso uniforme',
+      { delay: { uniform: { min: 100, max: 900 } } },
+      { delayType: 'uniform', delayMin: 100, delayMax: 900 },
+    ],
+    [
+      'atraso log-normal',
+      { delay: { lognormal: { median: 700, sigma: 0.25 } } },
+      { delayType: 'lognormal', delayMedian: 700, delaySigma: 0.25 },
+    ],
+    [
+      'template e dribble',
+      { template: true, dribble: { chunks: 10, durationMs: 3000 } },
+      { template: true, dribble: true, dribbleChunks: 10, dribbleDuration: 3000 },
+    ],
+  ])('deve preencher e devolver a mesma regra Quando ela tem %s', (_caso, resposta, campos) => {
+    const regra = comResposta(resposta);
+
+    const form = toFormValue(regra);
+
+    expect(form).toMatchObject(campos);
+    expect(fromFormValue(form, regra)).toEqual(regra);
+  });
+
+  it('deve preencher e devolver o cenário com os estados exigido e novo', () => {
+    const regra = comResposta(
+      {},
+      { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' },
+    );
+
+    const form = toFormValue(regra);
+
+    expect(form).toMatchObject({
+      scenarioName: 'Retry',
+      requiredState: 'Started',
+      newState: 'falhou-1',
+    });
+    expect(fromFormValue(form, regra)).toEqual(regra);
+  });
+
+  it('deve omitir os estados vazios e gravar cenário nulo Quando o nome fica vazio', () => {
+    const base = toFormValue(completa);
+
+    expect(
+      fromFormValue({ ...base, scenarioName: 'Retry', requiredState: ' ', newState: '' }, completa)
+        .scenario,
+    ).toEqual({ name: 'Retry' });
+    expect(
+      fromFormValue({ ...base, scenarioName: '', requiredState: 'Started' }, completa).scenario,
+    ).toBeNull();
+  });
+
+  it('deve gravar a falha e descartar atraso e dribble (ignorados pelo servidor) Quando há falha', () => {
+    const form = {
+      ...toFormValue(completa),
+      fault: 'malformed_chunk',
+      delayType: 'fixed',
+      dribble: true,
+    } as const;
+
+    const response = fromFormValue(form, completa).response;
+
+    expect(response).toMatchObject({ fault: 'malformed_chunk', delay: null, dribble: null });
+    expect(response?.status).toBe(201);
+  });
+
+  it('deve gravar atraso e dribble nulos Quando o tipo é "none" e o dribble está desligado', () => {
+    const regra = comResposta({ delay: { fixed: 1 }, dribble: { chunks: 2, durationMs: 1 } });
+    const form = { ...toFormValue(regra), delayType: 'none', dribble: false } as const;
+
+    expect(fromFormValue(form, regra).response).toMatchObject({ delay: null, dribble: null });
+  });
+});
+
 describe('Dado um erro 422 com a chave em notação de ponto', () => {
   const form = toFormValue(completa);
 
@@ -135,12 +237,32 @@ describe('Dado um erro 422 com a chave em notação de ponto', () => {
     ['response.status', { field: 'status' }],
     ['response.headers.Content-Type', { list: 'responseHeaders', index: 0, field: 'value' }],
     ['response.body', { field: 'responseBody' }],
+    ['response.template', { field: 'template' }],
+    ['response.delay.fixed', { field: 'delayFixed' }],
+    ['response.delay.uniform.min', { field: 'delayMin' }],
+    ['response.delay.uniform.max', { field: 'delayMax' }],
+    ['response.delay.lognormal.median', { field: 'delayMedian' }],
+    ['response.delay.lognormal.sigma', { field: 'delaySigma' }],
+    ['response.delay', { field: 'delayType' }],
+    ['response.dribble.chunks', { field: 'dribbleChunks' }],
+    ['response.dribble.durationMs', { field: 'dribbleDuration' }],
+    ['response.fault', { field: 'fault' }],
+    ['scenario.name', { field: 'scenarioName' }],
+    ['scenario.requiredState', { field: 'requiredState' }],
+    ['scenario.newState', { field: 'newState' }],
+    ['scenario', { field: 'scenarioName' }],
   ])('deve apontar "%s" para o campo do formulário', (chave, campo) => {
     expect(locateError(chave, form)).toEqual(campo);
   });
 
+  it('deve apontar o erro do atraso inteiro para o parâmetro do tipo escolhido', () => {
+    expect(locateError('response.delay', { ...form, delayType: 'uniform' })).toEqual({
+      field: 'delayMin',
+    });
+  });
+
   it.each([
-    ['campo sem lugar no formulário', 'response.template'],
+    ['campo sem lugar no formulário', 'response.outro'],
     ['cabeçalho que não está no formulário', 'match.headers.x-outro.regex'],
     ['condição de corpo além da lista', 'match.body.9.regex'],
   ])('não deve apontar campo Quando é %s', (_caso, chave) => {
@@ -151,6 +273,21 @@ describe('Dado um erro 422 com a chave em notação de ponto', () => {
 describe('Dado o JSON cru editado na aba "JSON"', () => {
   it('deve devolver a regra Quando o JSON é uma regra válida', () => {
     expect(parseRuleJson(JSON.stringify(completa))).toEqual({ rule: completa, errors: [] });
+  });
+
+  it('deve aceitar a regra Quando tem template, atraso no teto, dribble, falha e cenário', () => {
+    const faseB: Rule = {
+      ...completa,
+      scenario: { name: 'Retry', requiredState: 'Started', newState: null },
+      response: {
+        template: true,
+        delay: { lognormal: { median: 60000, sigma: 0.5 } },
+        dribble: { chunks: 100, durationMs: 0 },
+        fault: 'random_data_then_close',
+      },
+    };
+
+    expect(parseRuleJson(JSON.stringify(faseB)).errors).toEqual([]);
   });
 
   it.each([
@@ -183,6 +320,47 @@ describe('Dado o JSON cru editado na aba "JSON"', () => {
       'header de resposta que não é texto',
       '{"name":"a","response":{"headers":{"X":1}}}',
       /^response\.headers\.X: /,
+    ],
+    [
+      'template que não é booleano',
+      '{"name":"a","response":{"template":"sim"}}',
+      /^response\.template: /,
+    ],
+    [
+      'atraso com dois tipos',
+      '{"name":"a","response":{"delay":{"fixed":1,"uniform":{"min":1,"max":2}}}}',
+      /^response\.delay: .*exactly one of fixed, uniform, lognormal/,
+    ],
+    [
+      'atraso acima do teto de 60 s',
+      '{"name":"a","response":{"delay":{"fixed":60001}}}',
+      /^response\.delay\.fixed: .*between 0 and 60000/,
+    ],
+    [
+      'atraso uniforme com mínimo acima do máximo',
+      '{"name":"a","response":{"delay":{"uniform":{"min":900,"max":100}}}}',
+      /^response\.delay\.uniform\.max: .*at least the min/,
+    ],
+    [
+      'log-normal sem sigma',
+      '{"name":"a","response":{"delay":{"lognormal":{"median":100}}}}',
+      /^response\.delay\.lognormal\.sigma: /,
+    ],
+    [
+      'dribble com 101 pedaços',
+      '{"name":"a","response":{"dribble":{"chunks":101,"durationMs":10}}}',
+      /^response\.dribble\.chunks: .*between 1 and 100/,
+    ],
+    [
+      'falha desconhecida',
+      '{"name":"a","response":{"fault":"explode"}}',
+      /^response\.fault: .*connection_reset, empty_response, malformed_chunk, random_data_then_close/,
+    ],
+    ['cenário sem nome', '{"name":"a","scenario":{"newState":"x"}}', /^scenario\.name: .*required/],
+    [
+      'estado de cenário que não é texto',
+      '{"name":"a","scenario":{"name":"s","requiredState":1}}',
+      /^scenario\.requiredState: /,
     ],
   ])('deve apontar o erro Quando o JSON tem %s', (_caso, texto, erro) => {
     const { errors } = parseRuleJson(texto);

@@ -1,9 +1,15 @@
 import {
   BodyMatcher,
+  DELAY_MAX_MS,
+  DRIBBLE_MAX_CHUNKS,
   PathMatcher,
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
+  RULE_FAULTS,
   Rule,
+  RuleDelay,
+  RuleFault,
+  RuleScenario,
   ValueMatcher,
 } from './rule';
 
@@ -49,7 +55,39 @@ export interface RuleFormValue {
   status: number;
   responseHeaders: HeaderRow[];
   responseBody: string;
+  template: boolean;
+  /** Os parâmetros de todos os tipos ficam no formulário; só os do tipo escolhido vão na regra. */
+  delayType: DelayType;
+  delayFixed: number;
+  delayMin: number;
+  delayMax: number;
+  delayMedian: number;
+  delaySigma: number;
+  dribble: boolean;
+  dribbleChunks: number;
+  dribbleDuration: number;
+  fault: FaultOption;
+  /** Vazio = regra sem cenário. */
+  scenarioName: string;
+  /** Vazio = qualquer estado. */
+  requiredState: string;
+  /** Vazio = mantém o estado. */
+  newState: string;
 }
+
+export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
+export type FaultOption = 'none' | RuleFault;
+
+/** Valores que o editor sugere ao escolher um tipo de atraso ou ligar o dribble. */
+const PHASE_B_DEFAULTS = {
+  delayFixed: 1000,
+  delayMin: 500,
+  delayMax: 2000,
+  delayMedian: 1000,
+  delaySigma: 0.5,
+  dribbleChunks: 5,
+  dribbleDuration: 2000,
+};
 
 /** Regra nova: habilitada, prioridade e status padrão do servidor, casando qualquer mensagem. */
 export function newRule(): Rule {
@@ -82,15 +120,69 @@ export function toFormValue(rule: Rule): RuleFormValue {
       value,
     })),
     responseBody: rule.response?.body ?? '',
+    template: rule.response?.template ?? false,
+    ...delayFields(rule.response?.delay),
+    dribble: !!rule.response?.dribble,
+    dribbleChunks: rule.response?.dribble?.chunks ?? PHASE_B_DEFAULTS.dribbleChunks,
+    dribbleDuration: rule.response?.dribble?.durationMs ?? PHASE_B_DEFAULTS.dribbleDuration,
+    fault: rule.response?.fault ?? 'none',
+    scenarioName: rule.scenario?.name ?? '',
+    requiredState: rule.scenario?.requiredState ?? '',
+    newState: rule.scenario?.newState ?? '',
+  };
+}
+
+function delayFields(delay: RuleDelay | null | undefined) {
+  const fields = { delayType: 'none' as DelayType, ...PHASE_B_DEFAULTS };
+  if (!delay) {
+    return fields;
+  }
+  if ('fixed' in delay) {
+    return { ...fields, delayType: 'fixed' as const, delayFixed: delay.fixed };
+  }
+  if ('uniform' in delay) {
+    const { min, max } = delay.uniform;
+    return { ...fields, delayType: 'uniform' as const, delayMin: min, delayMax: max };
+  }
+  const { median, sigma } = delay.lognormal;
+  return { ...fields, delayType: 'lognormal' as const, delayMedian: median, delaySigma: sigma };
+}
+
+function delayOf(form: RuleFormValue): RuleDelay | null {
+  switch (form.delayType) {
+    case 'fixed':
+      return { fixed: Number(form.delayFixed) };
+    case 'uniform':
+      return { uniform: { min: Number(form.delayMin), max: Number(form.delayMax) } };
+    case 'lognormal':
+      return {
+        lognormal: { median: Number(form.delayMedian), sigma: Number(form.delaySigma) },
+      };
+    default:
+      return null;
+  }
+}
+
+/** Nome vazio = sem cenário; estado vazio fica de fora (qualquer estado / mantém o estado). */
+function scenarioOf(form: RuleFormValue): RuleScenario | null {
+  if (form.scenarioName.trim() === '') {
+    return null;
+  }
+  return {
+    name: form.scenarioName,
+    ...(form.requiredState.trim() !== '' && { requiredState: form.requiredState }),
+    ...(form.newState.trim() !== '' && { newState: form.newState }),
   };
 }
 
 /**
- * Regra com os valores do formulário por cima de `base`: o que a tela não edita (`id`,
- * `scenario`, `template`, `delay`...) segue como veio. O match sai no formato normalizado do
- * servidor, com as seções vazias em vez de ausentes.
+ * Regra com os valores do formulário por cima de `base`: o que a tela não edita (`id` e campos
+ * que ela não conhece) segue como veio. O match e a resposta saem no formato normalizado do
+ * servidor, com as seções vazias em vez de ausentes. Com falha, atraso e dribble vão nulos (o
+ * servidor os ignoraria); status, headers e corpo ficam, para a regra voltar a eles sem a falha.
  */
 export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
+  const faulted = form.fault !== 'none';
   return {
     ...base,
     name: form.name,
@@ -104,11 +196,19 @@ export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
       headers: conditionMap(form.headers),
       body: form.body.map(bodyMatcher),
     },
+    scenario: scenarioOf(form),
     response: {
       ...base.response,
       status: Number(form.status),
       headers: Object.fromEntries(form.responseHeaders.map((row) => [row.name, row.value])),
       body: form.responseBody,
+      template: form.template,
+      delay: faulted ? null : delayOf(form),
+      dribble:
+        faulted || !form.dribble
+          ? null
+          : { chunks: Number(form.dribbleChunks), durationMs: Number(form.dribbleDuration) },
+      fault: form.fault === 'none' ? null : form.fault,
     },
   };
 }
@@ -186,31 +286,58 @@ function looseJson(text: string): unknown {
   }
 }
 
-type SingleField = 'name' | 'priority' | 'methods' | 'path' | 'status' | 'responseBody';
+type SingleField = Exclude<
+  keyof RuleFormValue,
+  'enabled' | 'pathMode' | 'query' | 'headers' | 'body' | 'responseHeaders'
+>;
 type RowList = 'query' | 'headers' | 'body' | 'responseHeaders';
 type RowField = 'name' | 'value' | 'path' | 'equals';
 
 /** Campo do formulário onde um erro do servidor aparece. */
 export type FieldRef = { field: SingleField } | { list: RowList; index: number; field: RowField };
 
-const SINGLE_FIELDS: Record<string, SingleField> = {
-  name: 'name',
-  priority: 'priority',
-  'match.method': 'methods',
-  'match.path': 'path',
-  'response.status': 'status',
-  'response.body': 'responseBody',
+/** Prefixo da chave → campo; o prefixo mais longo que casa vence. */
+const SINGLE_FIELDS: [string, SingleField][] = (
+  [
+    ['name', 'name'],
+    ['priority', 'priority'],
+    ['match.method', 'methods'],
+    ['match.path', 'path'],
+    ['response.status', 'status'],
+    ['response.body', 'responseBody'],
+    ['response.template', 'template'],
+    ['response.delay.fixed', 'delayFixed'],
+    ['response.delay.uniform.min', 'delayMin'],
+    ['response.delay.uniform', 'delayMax'],
+    ['response.delay.lognormal.median', 'delayMedian'],
+    ['response.delay.lognormal', 'delaySigma'],
+    ['response.dribble.durationMs', 'dribbleDuration'],
+    ['response.dribble', 'dribbleChunks'],
+    ['response.fault', 'fault'],
+    ['scenario.requiredState', 'requiredState'],
+    ['scenario.newState', 'newState'],
+    ['scenario', 'scenarioName'],
+  ] as [string, SingleField][]
+).sort(([a], [b]) => b.length - a.length);
+
+/** Erro no atraso inteiro: vai para o parâmetro principal do tipo escolhido. */
+const DELAY_FIELDS: Record<DelayType, SingleField> = {
+  none: 'delayType',
+  fixed: 'delayFixed',
+  uniform: 'delayMin',
+  lognormal: 'delayMedian',
 };
 
 /**
  * Campo do formulário para a chave de um erro 422, já sem o índice da regra na lista
  * (`match.path.regex`, `match.headers.X-Signature.present`, `match.body.1.jsonPath.path`).
- * `null` quando o erro não tem campo no formulário (ex.: `response.template`).
+ * `null` quando o erro não tem campo no formulário.
  */
 export function locateError(key: string, form: RuleFormValue): FieldRef | null {
-  const single = Object.entries(SINGLE_FIELDS).find(
-    ([prefix]) => key === prefix || key.startsWith(`${prefix}.`),
-  );
+  if (key === 'response.delay') {
+    return { field: DELAY_FIELDS[form.delayType] };
+  }
+  const single = SINGLE_FIELDS.find(([prefix]) => key === prefix || key.startsWith(`${prefix}.`));
   if (single) {
     return { field: single[1] };
   }
@@ -290,6 +417,7 @@ export function parseRuleJson(text: string): ParsedRule {
     ...ruleFieldErrors(value),
     ...matchErrors(value['match']),
     ...responseErrors(value['response']),
+    ...scenarioErrors(value['scenario']),
   ];
   return errors.length > 0 ? { errors } : { rule: value as Rule, errors };
 }
@@ -420,6 +548,104 @@ function responseErrors(response: unknown): string[] {
   }
   if (response['body'] !== undefined && typeof response['body'] !== 'string') {
     errors.push('response.body: The body must be text.');
+  }
+  const template = response['template'];
+  if (template !== undefined && template !== null && typeof template !== 'boolean') {
+    errors.push('response.template: The template field must be true or false.');
+  }
+  errors.push(...delayErrors(response['delay']));
+  errors.push(...dribbleErrors(response['dribble']));
+  const fault = response['fault'];
+  if (fault !== undefined && fault !== null && !RULE_FAULTS.includes(fault as RuleFault)) {
+    errors.push(`response.fault: The fault must be one of ${RULE_FAULTS.join(', ')}.`);
+  }
+  return errors;
+}
+
+const MS_RANGE = `an integer between 0 and ${DELAY_MAX_MS}`;
+
+function isMs(value: unknown): boolean {
+  return Number.isInteger(value) && (value as number) >= 0 && (value as number) <= DELAY_MAX_MS;
+}
+
+function delayErrors(delay: unknown): string[] {
+  if (delay === undefined || delay === null) {
+    return [];
+  }
+  const key = 'response.delay';
+  const types = ['fixed', 'uniform', 'lognormal'];
+  if (
+    !isObject(delay) ||
+    Object.keys(delay).length !== 1 ||
+    !types.includes(Object.keys(delay)[0])
+  ) {
+    return [`${key}: The delay must have exactly one of fixed, uniform, lognormal.`];
+  }
+  if ('fixed' in delay) {
+    return isMs(delay['fixed']) ? [] : [`${key}.fixed: The delay must be ${MS_RANGE} ms.`];
+  }
+  if ('uniform' in delay) {
+    const uniform = isObject(delay['uniform']) ? delay['uniform'] : {};
+    const errors = ['min', 'max']
+      .filter((field) => !isMs(uniform[field]))
+      .map((field) => `${key}.uniform.${field}: The ${field} must be ${MS_RANGE} ms.`);
+    if (errors.length === 0 && (uniform['min'] as number) > (uniform['max'] as number)) {
+      errors.push(`${key}.uniform.max: The max must be at least the min.`);
+    }
+    return errors;
+  }
+  const lognormal = isObject(delay['lognormal']) ? delay['lognormal'] : {};
+  const errors: string[] = [];
+  if (!isMs(lognormal['median'])) {
+    errors.push(`${key}.lognormal.median: The median must be ${MS_RANGE} ms.`);
+  }
+  const sigma = lognormal['sigma'];
+  if (typeof sigma !== 'number' || sigma < 0) {
+    errors.push(`${key}.lognormal.sigma: The sigma must be a number of at least 0.`);
+  }
+  return errors;
+}
+
+function dribbleErrors(dribble: unknown): string[] {
+  if (dribble === undefined || dribble === null) {
+    return [];
+  }
+  if (!isObject(dribble)) {
+    return ['response.dribble: The dribble must be an object with chunks and durationMs.'];
+  }
+  const errors: string[] = [];
+  const chunks = dribble['chunks'];
+  const count = chunks as number;
+  if (!(Number.isInteger(chunks) && count >= 1 && count <= DRIBBLE_MAX_CHUNKS)) {
+    errors.push(
+      `response.dribble.chunks: The chunks must be an integer between 1 and ${DRIBBLE_MAX_CHUNKS}.`,
+    );
+  }
+  if (!isMs(dribble['durationMs'])) {
+    errors.push(`response.dribble.durationMs: The duration must be ${MS_RANGE} ms.`);
+  }
+  return errors;
+}
+
+function scenarioErrors(scenario: unknown): string[] {
+  if (scenario === undefined || scenario === null) {
+    return [];
+  }
+  if (!isObject(scenario)) {
+    return ['scenario: The scenario must be an object.'];
+  }
+  const errors: string[] = [];
+  const name = scenario['name'];
+  if (typeof name !== 'string' || name.trim() === '') {
+    errors.push('scenario.name: The scenario name field is required.');
+  } else if (name.length > 100) {
+    errors.push('scenario.name: The scenario name may not be greater than 100 characters.');
+  }
+  for (const field of ['requiredState', 'newState']) {
+    const state = scenario[field];
+    if (state !== undefined && state !== null && typeof state !== 'string') {
+      errors.push(`scenario.${field}: The ${field} must be text.`);
+    }
   }
   return errors;
 }

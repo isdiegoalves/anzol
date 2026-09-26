@@ -202,7 +202,23 @@
             errorOf(form.controls.status, 'The status must be an integer between 100 and 599.')
           }}</mat-error>
         </mat-form-field>
+        <mat-form-field class="fault">
+          <mat-label>Fault</mat-label>
+          <mat-select formControlName="fault" aria-label="Fault">
+            @for (fault of faults; track fault.value) {
+              <mat-option [value]="fault.value">{{ fault.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Simulate a network failure</mat-hint>
+          <mat-error>{{ errorOf(form.controls.fault, '') }}</mat-error>
+        </mat-form-field>
       </div>
+      @if (faulted()) {
+        <p class="fault-note" role="note">
+          With a fault, the status, headers, body, delay and dribble are ignored: the request is
+          recorded, then the connection fails.
+        </p>
+      }
       <h4>Headers</h4>
       <div formArrayName="responseHeaders">
         @for (row of form.controls.responseHeaders.controls; track row; let i = $index) {
@@ -229,6 +245,7 @@
               mat-button
               type="button"
               [attr.aria-label]="'Remove response header ' + (i + 1)"
+              [disabled]="faulted()"
               (click)="removeRow('responseHeaders', i)"
             >
               &#x2715;
@@ -236,7 +253,9 @@
           </div>
         }
       </div>
-      <button mat-button type="button" (click)="addResponseHeader()">Add response header</button>
+      <button mat-button type="button" [disabled]="faulted()" (click)="addResponseHeader()">
+        Add response header
+      </button>
       <mat-form-field class="full">
         <mat-label>Response body</mat-label>
         <textarea
@@ -247,6 +266,172 @@
         ></textarea>
         <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
       </mat-form-field>
+      <div class="line template">
+        <mat-slide-toggle formControlName="template">Template</mat-slide-toggle>
+        <span class="hint">Handlebars in the body and in header values</span>
+      </div>
+      <details class="helpers">
+        <summary>Template helpers</summary>
+        <dl>
+          @for (helper of helpers; track helper.example) {
+            <dt>
+              <code>{{ helper.example }}</code>
+            </dt>
+            <dd>{{ helper.description }}</dd>
+          }
+        </dl>
+      </details>
+
+      <h4>Delay</h4>
+      <div class="line row">
+        <mat-form-field>
+          <mat-label>Delay</mat-label>
+          <mat-select formControlName="delayType" aria-label="Delay">
+            @for (type of delayTypes; track type.value) {
+              <mat-option [value]="type.value">{{ type.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Before answering, up to {{ delayMax }} ms</mat-hint>
+          <mat-error>{{ errorOf(form.controls.delayType, '') }}</mat-error>
+        </mat-form-field>
+        @switch (form.controls.delayType.value) {
+          @case ('fixed') {
+            <mat-form-field class="short">
+              <mat-label>Delay (ms)</mat-label>
+              <input matInput type="number" formControlName="delayFixed" aria-label="Delay (ms)" />
+              <mat-error>{{ errorOf(form.controls.delayFixed, msError) }}</mat-error>
+            </mat-form-field>
+          }
+          @case ('uniform') {
+            <mat-form-field class="short">
+              <mat-label>Delay min (ms)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="delayMin"
+                aria-label="Delay min (ms)"
+              />
+              <mat-error>{{ errorOf(form.controls.delayMin, msError) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="short">
+              <mat-label>Delay max (ms)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="delayMax"
+                aria-label="Delay max (ms)"
+              />
+              <mat-error>{{
+                errorOf(form.controls.delayMax, 'At least the min, up to 60000 (ms).')
+              }}</mat-error>
+            </mat-form-field>
+          }
+          @case ('lognormal') {
+            <mat-form-field class="short">
+              <mat-label>Delay median (ms)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="delayMedian"
+                aria-label="Delay median (ms)"
+              />
+              <mat-error>{{ errorOf(form.controls.delayMedian, msError) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="short">
+              <mat-label>Sigma</mat-label>
+              <input
+                matInput
+                type="number"
+                step="0.1"
+                min="0"
+                formControlName="delaySigma"
+                aria-label="Sigma"
+              />
+              <mat-hint>Spread; capped at {{ delayMax }} ms</mat-hint>
+              <mat-error>{{
+                errorOf(form.controls.delaySigma, 'A number of at least 0.')
+              }}</mat-error>
+            </mat-form-field>
+          }
+        }
+      </div>
+
+      <h4>Dribble</h4>
+      <div class="line row">
+        <mat-slide-toggle class="dribble" formControlName="dribble">Dribble</mat-slide-toggle>
+        @if (form.controls.dribble.value) {
+          <mat-form-field class="short">
+            <mat-label>Chunks</mat-label>
+            <input matInput type="number" formControlName="dribbleChunks" aria-label="Chunks" />
+            <mat-error>{{
+              errorOf(form.controls.dribbleChunks, 'An integer between 1 and 100.')
+            }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="short">
+            <mat-label>Dribble duration (ms)</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="dribbleDuration"
+              aria-label="Dribble duration (ms)"
+            />
+            <mat-error>{{ errorOf(form.controls.dribbleDuration, msError) }}</mat-error>
+          </mat-form-field>
+        }
+        <span class="hint">Send the body in chunks spread evenly over the duration</span>
+      </div>
+
+      <h3>Scenario</h3>
+      <p class="hint">
+        Optional. The rule only matches while the scenario is in the required state, and moves it to
+        the new state when it answers. Every scenario starts at "Started".
+      </p>
+      <div class="line row">
+        <mat-form-field class="grow">
+          <mat-label>Scenario name</mat-label>
+          <input
+            matInput
+            formControlName="scenarioName"
+            aria-label="Scenario name"
+            maxlength="100"
+            list="scenario-names"
+          />
+          <datalist id="scenario-names">
+            @for (name of nameSuggestions(); track name) {
+              <option [value]="name"></option>
+            }
+          </datalist>
+          <mat-hint>Empty: no scenario</mat-hint>
+          <mat-error>{{ errorOf(form.controls.scenarioName, 'Up to 100 characters.') }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="grow">
+          <mat-label>Required state</mat-label>
+          <input
+            matInput
+            formControlName="requiredState"
+            aria-label="Required state"
+            list="scenario-states"
+          />
+          <mat-hint>Empty: any state</mat-hint>
+          <mat-error>{{ errorOf(form.controls.requiredState, 'Up to 100 characters.') }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="grow">
+          <mat-label>New state</mat-label>
+          <input
+            matInput
+            formControlName="newState"
+            aria-label="New state"
+            list="scenario-states"
+          />
+          <datalist id="scenario-states">
+            @for (state of stateSuggestions(); track state) {
+              <option [value]="state"></option>
+            }
+          </datalist>
+          <mat-hint>Empty: keeps the state</mat-hint>
+          <mat-error>{{ errorOf(form.controls.newState, 'Up to 100 characters.') }}</mat-error>
+        </mat-form-field>
+      </div>
     </form>
   } @else {
     <mat-form-field class="full json">

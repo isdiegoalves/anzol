@@ -1,7 +1,6 @@
 /**
- * Regra de resposta da URL, no formato de `GET/PUT /token/{id}/rules` (Anexo A da especificação
- * das regras de resposta). Campos que a tela não edita (`scenario`, `delay`, `dribble`, `fault`,
- * `template`) passam adiante como vieram.
+ * Regra de resposta da URL, no formato de `GET/PUT /token/{id}/rules` (Anexos A e B da
+ * especificação das regras de resposta). Campos que a tela não conhece passam adiante como vieram.
  */
 export interface Rule {
   id?: string;
@@ -9,9 +8,16 @@ export interface Rule {
   enabled?: boolean;
   priority?: number;
   match?: RuleMatch;
-  scenario?: unknown;
+  scenario?: RuleScenario | null;
   response?: RuleResponse;
   [field: string]: unknown;
+}
+
+/** Só casa no estado `requiredState` (ausente = qualquer); ao responder, muda para `newState`. */
+export interface RuleScenario {
+  name: string;
+  requiredState?: string | null;
+  newState?: string | null;
 }
 
 export interface RuleMatch {
@@ -42,8 +48,46 @@ export interface RuleResponse {
   status?: number;
   headers?: Record<string, string>;
   body?: string;
+  /** Corpo e valores dos headers como template Handlebars. */
+  template?: boolean;
+  delay?: RuleDelay | null;
+  dribble?: RuleDribble | null;
+  /** Com falha, status, headers, corpo, atraso e dribble são ignorados pelo servidor. */
+  fault?: RuleFault | null;
   [field: string]: unknown;
 }
+
+/** Atraso antes de responder, em ms; teto de 60 s (`DELAY_MAX_MS`). */
+export type RuleDelay =
+  | { fixed: number }
+  | { uniform: { min: number; max: number } }
+  | { lognormal: { median: number; sigma: number } };
+
+/** Corpo dividido em `chunks` pedaços, enviados em intervalos iguais ao longo de `durationMs`. */
+export interface RuleDribble {
+  chunks: number;
+  durationMs: number;
+}
+
+export const RULE_FAULTS = [
+  'connection_reset',
+  'empty_response',
+  'malformed_chunk',
+  'random_data_then_close',
+] as const;
+export type RuleFault = (typeof RULE_FAULTS)[number];
+
+export const FAULT_LABELS: Record<RuleFault, string> = {
+  connection_reset: 'Connection reset (TCP RST)',
+  empty_response: 'Empty response (close without writing)',
+  malformed_chunk: 'Malformed chunk (valid status and headers)',
+  random_data_then_close: 'Random data, then close',
+};
+
+export const DELAY_MAX_MS = 60_000;
+export const DRIBBLE_MAX_CHUNKS = 100;
+/** Estado inicial de todo cenário (como na WireMock). */
+export const SCENARIO_STARTED = 'Started';
 
 /** Regra que respondeu a mensagem (`rule` na mensagem gravada). */
 export interface RuleRef {
@@ -73,6 +117,67 @@ export function matchSummary(rule: Rule): string {
     return `${methods} ${path.prefix}*`;
   }
   return `${methods} ~ ${path.regex}`;
+}
+
+/** Indicador discreto na lista: rótulo curto e o detalhe para o título. */
+export interface RuleFlag {
+  label: 'template' | 'delay' | 'fault' | 'scenario';
+  detail: string;
+}
+
+/**
+ * Indicadores de template, atraso, falha e cenário. Com falha, template e atraso não aparecem:
+ * o servidor os ignora.
+ */
+export function ruleFlags(rule: Rule): RuleFlag[] {
+  const response = rule.response ?? {};
+  const flags: RuleFlag[] = [];
+  if (response.fault) {
+    const label = FAULT_LABELS[response.fault] ?? response.fault;
+    flags.push({ label: 'fault', detail: `Fault: ${label[0].toLowerCase()}${label.slice(1)}` });
+  } else {
+    if (response.template) {
+      flags.push({ label: 'template', detail: 'Body and header values are templates' });
+    }
+    if (response.delay) {
+      flags.push({ label: 'delay', detail: `Delay: ${describeDelay(response.delay)}` });
+    }
+  }
+  if (rule.scenario?.name) {
+    const { name, requiredState, newState } = rule.scenario;
+    flags.push({
+      label: 'scenario',
+      detail: `Scenario ${name}: ${requiredState || 'any state'} → ${newState || 'keeps the state'}`,
+    });
+  }
+  return flags;
+}
+
+function describeDelay(delay: RuleDelay): string {
+  if ('fixed' in delay) {
+    return `${delay.fixed} ms`;
+  }
+  if ('uniform' in delay) {
+    return `${delay.uniform.min}–${delay.uniform.max} ms (uniform)`;
+  }
+  return `~${delay.lognormal.median} ms (log-normal, sigma ${delay.lognormal.sigma})`;
+}
+
+/** Cenários citados pelas regras, na ordem da lista, sem repetir. */
+export function scenarioNames(rules: readonly Rule[]): string[] {
+  return unique(rules.map((rule) => rule.scenario?.name));
+}
+
+/** `Started` e os estados que as regras do cenário exigem ou definem. */
+export function scenarioStates(rules: readonly Rule[], name: string): string[] {
+  const cited = rules
+    .filter((rule) => rule.scenario?.name === name)
+    .flatMap((rule) => [rule.scenario?.requiredState, rule.scenario?.newState]);
+  return unique([SCENARIO_STARTED, ...cited]);
+}
+
+function unique(values: readonly (string | null | undefined)[]): string[] {
+  return [...new Set(values.filter((value): value is string => !!value))];
 }
 
 /**
