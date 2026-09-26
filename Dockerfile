@@ -1,52 +1,29 @@
-##############################################
-# Stage 1: Install node dependencies and run gulp
-##############################################
+# Imagem única: o Spring Boot serve a API, o webhook, o SSE e a tela Angular.
+# Todas as bases são multi-arquitetura (amd64/arm64): roda nativa no Mac com Apple Silicon.
 
-FROM node:11 as npm
+FROM node:24-slim AS frontend
+WORKDIR /src
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npx ng build
+
+FROM eclipse-temurin:25-jdk AS backend
+WORKDIR /src
+COPY backend/gradlew backend/settings.gradle.kts backend/build.gradle.kts ./
+COPY backend/gradle gradle
+RUN ./gradlew --no-daemon dependencies > /dev/null
+COPY backend/config config
+COPY backend/src/main src/main
+# O build do Angular vira recurso estático do jar (IndexController e FrontendResources).
+COPY --from=frontend /src/dist/frontend/ src/main/resources/static/
+# Os testes precisam de Docker (Testcontainers) e rodam fora da imagem: cd backend && ./gradlew check
+RUN ./gradlew --no-daemon bootJar
+
+FROM eclipse-temurin:25-jre
 WORKDIR /app
-
-COPY package.json /app
-COPY package-lock.json /app
-RUN npm install
-
-COPY resources /app/resources
-COPY gulpfile.js /app
-RUN npm run gulp
-
-##############################################
-# Stage 2: Composer, nginx and fpm
-##############################################
-
-FROM bkuhl/fpm-nginx:7.3
-WORKDIR /var/www/html
-
-# Contains laravel echo server proxy configuration
-COPY /nginx.conf /etc/nginx/conf.d
-
-USER www-data
-
-ADD --chown=www-data:www-data /composer.json /var/www/html
-ADD --chown=www-data:www-data /composer.lock /var/www/html
-
-RUN composer global require hirak/prestissimo \
-    && composer install --no-interaction --no-autoloader --no-dev --prefer-dist --no-scripts \
-    && rm -rf /home/www-data/.composer/cache
-
-ADD --chown=www-data:www-data /storage /var/www/html/storage
-ADD --chown=www-data:www-data /bootstrap /var/www/html/bootstrap
-ADD --chown=www-data:www-data /public /var/www/html/public
-ADD --chown=www-data:www-data /artisan /var/www/html
-ADD --chown=www-data:www-data /database /var/www/html/database
-ADD --chown=www-data:www-data /config /var/www/html/config
-ADD --chown=www-data:www-data /app /var/www/html/app
-
-RUN composer dump-autoload --optimize --no-dev \
-    && touch /var/www/html/database/database.sqlite \
-    && php artisan optimize \
-    && php artisan migrate
-
-ADD --chown=www-data:www-data /resources /var/www/html/resources
-COPY --chown=www-data:www-data --from=npm /app/public/css /var/www/html/public/css
-COPY --chown=www-data:www-data --from=npm /app/public/js /var/www/html/public/js
-
-USER root
+RUN useradd --system --no-create-home webhook
+COPY --from=backend /src/build/libs/backend-*.jar app.jar
+USER webhook
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

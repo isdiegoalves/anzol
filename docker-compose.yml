@@ -1,47 +1,24 @@
+# Fixa o nome do projeto (rede webhooksite_default, volume webhooksite_redis-data) seja qual for a pasta.
+name: webhooksite
+
 services:
-  webhook:
-    container_name: "webhook-site"
-    image: "webhooksite/webhook.site"
-    # Enable build for development:
-    # build:
-    #   dockerfile: Dockerfile
-    #   context: ./
-    command: php artisan queue:work --daemon --tries=3 --timeout=10
+  app:
+    build: .
     ports:
-      - "8084:80"
+      - "8084:8080"
     environment:
-      - APP_ENV=dev
-      - APP_DEBUG=true
-      - APP_URL=http://localhost:8084
-      - APP_LOG=errorlog
-      - DB_CONNECTION=sqlite
       - REDIS_HOST=redis
-      - BROADCAST_DRIVER=redis
-      - CACHE_DRIVER=redis
-      - QUEUE_DRIVER=redis
-      - ECHO_HOST_MODE=path
     depends_on:
       - redis
+    restart: unless-stopped
 
   redis:
     container_name: "webhook-redis"
-    image: "redis:alpine"
+    image: "redis:8.10.2-alpine"
+    volumes:
+      # Tokens e mensagens sobrevivem a `docker compose down` (o Redis grava o dump.rdb em /data).
+      - redis-data:/data
+    restart: unless-stopped
 
-  laravel-echo-server:
-    container_name: "laravel-echo-server"
-    image: "webhooksite/laravel-echo-server"
-    # Remove o lock deixado pelo SIGKILL do `docker stop`; senão o novo processo (mesmo PID) se acha já rodando
-    entrypoint: ["sh", "-c", "rm -f laravel-echo-server.lock && exec /opt/laravel-echo-server/entrypoint.sh laravel-echo-server start"]
-    environment:
-      - LARAVEL_ECHO_SERVER_AUTH_HOST=http://webhook
-      - LARAVEL_ECHO_SERVER_HOST=0.0.0.0
-      - LARAVEL_ECHO_SERVER_PORT=6001
-      - ECHO_REDIS_PORT=6379
-      - ECHO_REDIS_HOSTNAME=redis
-      - ECHO_PROTOCOL=http
-      - ECHO_ALLOW_CORS=true
-      - ECHO_ALLOW_ORIGIN=*
-      - ECHO_ALLOW_METHODS=*
-      - ECHO_ALLOW_HEADERS=*
-    depends_on:
-      - redis
+volumes:
+  redis-data:
