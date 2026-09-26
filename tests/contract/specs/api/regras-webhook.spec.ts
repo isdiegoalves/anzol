@@ -49,7 +49,9 @@ test.describe('regras no webhook: resposta da regra', () => {
       response: { status: 201, headers: { 'Content-Type': 'application/json', 'X-Mock': 'sim' }, body: '{"id":"pg_1","ok":true}' },
     }]);
 
-    const { res, msg } = await enviarEGuardar(request, token.uuid, '/pagamentos', json('{"valor":10}'));
+    const { res, msg } = await enviarEGuardar(request, token.uuid, '/pagamentos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, data: '{"valor":10}',
+    });
     expect(res.status()).toBe(201);
     expectContentType(res, 'application/json');
     expect(res.headers()['x-mock']).toBe('sim');
