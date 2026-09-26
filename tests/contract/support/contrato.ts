@@ -33,12 +33,12 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 export const CHAVES_TOKEN = [
   'uuid', 'ip', 'user_agent', 'default_content', 'default_status', 'default_content_type',
-  'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup', 'signature',
+  'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup', 'signature', 'schema',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
   'uuid', 'token_id', 'ip', 'hostname', 'method', 'user_agent', 'content', 'query', 'headers',
-  'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss', 'signature',
+  'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss', 'signature', 'schema',
 ].sort();
 
 export interface Token {
@@ -66,6 +66,8 @@ export interface Token {
     prefix?: string | null;
     toleranceSeconds?: number | null;
   } | null;
+  /** JSON Schema que valida o corpo de cada requisição capturada, como foi enviado; `null` = sem validação. */
+  schema: Record<string, unknown> | null;
 }
 
 export interface Mensagem {
@@ -92,6 +94,11 @@ export interface Mensagem {
   near_miss: { id: string; name: string; failed: string[] } | null;
   /** Resultado da verificação de assinatura; `null` quando a URL não tem `signature` configurada. */
   signature: { provider: string; valid: boolean; reason: string | null } | null;
+  /**
+   * Resultado da validação do corpo contra o schema da URL no momento da captura; `null` quando a
+   * URL não tinha schema. `path` é o JSON Pointer da instância; no máximo 20 erros.
+   */
+  schema: { valid: boolean; errors: Array<{ path: string; message: string }> } | null;
   request?: Record<string, unknown> | null;
 }
 

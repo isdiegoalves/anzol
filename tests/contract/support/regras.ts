@@ -32,6 +32,8 @@ export interface MatchRegra {
   body?: CondicaoCorpo[];
   /** Resultado da verificação de assinatura da URL: `absent` = header de assinatura ausente. */
   signature?: 'valid' | 'invalid' | 'absent';
+  /** Resultado da validação de schema da mensagem; sem schema configurado na URL, nenhum dos dois casa. */
+  schema?: 'valid' | 'invalid';
 }
 
 /** Atraso antes de responder, em ms; teto 60 000 (log-normal cortado no teto). */

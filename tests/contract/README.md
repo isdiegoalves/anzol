@@ -308,6 +308,61 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   requisição ausente ou que não é objeto, mensagem apagada durante a espera, `timeout` padrão (30 s) e as
   10 000 mensagens do histórico retido.
 
+- **Validação de schema por URL** (`specs/api/schema-*.spec.ts`, `specs/event/schema.spec.ts`, helpers em
+  `support/schema.ts`; §1 do plano "validacao-schema"). `schema` entrou em `CHAVES_TOKEN` e em
+  `CHAVES_MENSAGEM`, então os testes de forma de `token.spec.ts`, `mensagem.spec.ts` e
+  `assinatura-config.spec.ts` também o exigem.
+  - *Validação na captura* (`schema-validacao.spec.ts`, CA-1): corpo válido → `{valid: true, errors: []}` no
+    `GET` e na listagem, com a resposta padrão do token (schema sem regra não muda a resposta); inválido →
+    `valid: false` e `errors` = `[{path, message}]` (chaves exatas, `message` string não vazia), com o
+    conjunto de `path` conferido: `/id`, `/status`, `/itens/1/qtd`; obrigatória ausente → o `path` do objeto
+    (`""` na raiz, `/itens/0` no item); escape RFC 6901 (`a/b` → `/a~1b`, `m~n` → `/m~0n`). Array com 30 itens
+    inválidos → exatamente 20 erros, de itens distintos entre `/0` e `/29`, e o mesmo corpo de novo dá a mesma
+    lista na mesma ordem; com 5 inválidos vêm os 5. Corpo que não é JSON (texto, JSON quebrado com
+    Content-Type JSON, formulário, XML) e corpo vazio (`GET`, `POST` JSON sem bytes) → exatamente
+    `{valid: false, errors: [{path: "", message: "body is not JSON"}]}`. JSON escalar (`42`, `"42"`) é
+    validado. `schema: {}` aceita todo JSON. Draft 2020-12 por padrão (`prefixItems` sem `$schema`); `$schema`
+    draft-07 e 2019-09 valem (`items` em lista com `additionalItems: false`). URL sem schema → `schema: null`
+    para todo corpo. O resultado é o da captura: mensagem gravada antes de ligar, depois de trocar ou depois
+    de tirar o schema mantém o que tinha.
+  - *Configuração* (`schema-config.spec.ts`, CA-2): `POST` e `PUT` devolvem o schema como enviado e o `GET`
+    também; sem o campo, `null` e `PUT` sem o campo → `null` (como a `signature`); `{}` é configuração, não
+    `null`; `$ref` interno (`#/$defs/…`) aceito e usado; 60.000 bytes aceito. 422 com exatamente
+    `{"schema": ["The schema is invalid: <motivo>."]}` para: não é objeto (texto, número, lista, `true`,
+    `false`); não compila (`type` desconhecido, `required` que não é lista, `minLength` negativo,
+    `properties` que não é objeto, `pattern` com regex inválida); `$ref` remoto (`https`, `http` aninhado,
+    relativo a outro documento, `file:`). 65.537 bytes → 422 só com a chave `schema` e a forma do Laravel.
+    No `PUT`, todo 422 deixa a configuração salva como estava.
+  - *Regras e wait-for* (`schema-regras.spec.ts`, CA-3): `match.schema` `invalid` → 400 (corpo inválido,
+    texto e `GET` sem corpo), `valid` → 202, com a `rule` certa; combina em E; volta no `GET` das regras;
+    `absent`, `talvez`, `true`, `1` → 422 em `0.match.schema`. URL sem schema: nem `valid` nem `invalid`
+    casam, near miss `schema: expected <valid|invalid>, got not configured`. Com schema: `schema: expected
+    valid, got invalid (<n> errors)` com n = número de erros gravados na mensagem (1 para corpo não-JSON) e
+    `schema: expected invalid, got valid`, sozinhas quando só o schema falha. `rules/test` com `match.schema`.
+    `wait-for`: `valid`/`invalid` escolhem a mensagem do histórico; a válida que chega durante a espera
+    responde a menos de 3 s; near miss com as três frases; valor fora da lista → 422 em `match.schema`.
+  - *Evento* (`specs/event/schema.spec.ts`, CA-4): `request.schema` no evento igual ao da mensagem gravada
+    (válido, inválido com os mesmos erros, `body is not JSON`), `null` sem schema (a chave existe) e presente
+    também no evento `truncated`.
+
+  Leituras assumidas onde a §1 deixava folga: "não compila" inclui schema que viola o meta-schema do draft
+  (`type: "banana"`, `required: "id"`, `minLength: -1`), não só o que a biblioteca recusa ao carregar; `true`
+  e `false` (schemas booleanos) são "não é objeto"; `$ref` "interno" é só o que começa por `#` (relativo a
+  outro documento e `file:` também são remotos); 64 KB lido como 65.536 bytes do JSON compacto, com folga
+  para quem conta 64.000 (o teste aceito tem 60.000, o recusado 65.537); o texto do 422 de tamanho não é
+  fixado; obrigatória ausente aponta para o objeto, não para a chave que falta; os `path` são conferidos
+  como conjunto (a biblioteca pode dar mais de um erro por instância) e o texto de `message` é livre, salvo
+  `body is not JSON`; "corpo que não é JSON" é decidido pelo conteúdo, não pelo Content-Type (JSON quebrado
+  com `application/json` é não-JSON); o `n` da frase é o número de erros gravados; o evento `truncated`
+  mantém `schema`. Ficam fora: corpo JSON com Content-Type que não é JSON, `$schema` de outro draft
+  (draft-04, desconhecido), mais de 20 erros na frase do near miss, falha interna da biblioteca (não há
+  como provocá-la pela API), confirmação de que nenhuma requisição de rede sai no `$ref` e o `POST /token`
+  por formulário ou query com `schema`.
+
+  **Formato antigo:** o contrato não lê o Redis. O que a API permite está coberto (token criado sem o campo
+  lê `schema: null`; mensagem gravada antes do schema continua com `null`). A leitura de tokens e mensagens
+  gravados no Redis sem o campo (app Laravel e versões anteriores) fica com os testes do backend.
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -335,6 +390,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | `template: true`, `scenario`, `delay`, `dribble`, `fault` → 422 "not supported yet" (fase A) | Aceitos: templating, cenários com estado (`/token/{id}/scenarios`), atrasos, dribble e falhas de rede | Fase B da feature "regras de resposta" (Anexo B, 2026-09-26): simular retentativa, lentidão e rede ruim para quem envia webhooks |
 | Token e mensagem sem informação de assinatura | `signature` no token (configuração, segredo mascarado) e na mensagem (`{provider, valid, reason}` ou `null`); condição de regra `match.signature` | Feature "verificação de assinatura HMAC" (2026-09-26): dizer se a assinatura do provedor confere e por que não. `signature` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem configuração responde e grava como antes, com `signature: null` |
 | Esperar uma requisição exigia polling da listagem | `POST /token/{id}/requests/wait` (long-poll com o `match` das regras, `count`, `after`, `timeout` e `near_miss`) | Feature "wait-for" (2026-09-26): teste automatizado afirma "chegou N vezes uma requisição assim em até T" sem `sleep` e sabe por que não chegou. Rota nova; nada do que existia muda |
+| Token e mensagem sem validação do corpo | `schema` no token (JSON Schema ou `null`) e na mensagem (`{valid, errors}` ou `null`); condição `match.schema` nas regras e no `wait-for` | Feature "validação de schema por URL" (2026-09-26): saber de imediato se o payload segue o contrato e responder erro quando não segue. `schema` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem schema responde e grava como antes, com `schema: null` |
 
 ## Defeitos do legado (`bugDoLegado`)
 
