@@ -1,0 +1,119 @@
+<header class="heading">
+  <div>
+    <h1>Response rules</h1>
+    <p class="hint">
+      Rules are checked by priority (lowest first; ties in list order). The first enabled rule that
+      matches answers the request; with none, the URL answers with its default response.
+    </p>
+  </div>
+  <div class="actions">
+    <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
+    <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()">
+      New rule
+    </button>
+    <button
+      mat-stroked-button
+      type="button"
+      title="Replace all rules with the ones in a JSON file"
+      [disabled]="!loaded()"
+      (click)="file.click()"
+    >
+      Import
+    </button>
+    <input
+      #file
+      class="file"
+      type="file"
+      accept="application/json,.json"
+      aria-label="Rules JSON file"
+      [disabled]="!loaded()"
+      (change)="importRules(file)"
+    />
+    <button
+      mat-stroked-button
+      type="button"
+      title="Download the saved rules as JSON"
+      [disabled]="!loaded()"
+      (click)="exportRules()"
+    >
+      Export
+    </button>
+  </div>
+</header>
+
+@if (errors().length > 0) {
+  <ul class="errors" role="alert">
+    @for (message of errors(); track $index) {
+      <li>{{ message }}</li>
+    }
+  </ul>
+}
+
+@if (loaded()) {
+  <table class="table" aria-label="Rules">
+    <thead>
+      <tr>
+        <th class="toggle">On</th>
+        <th>Name</th>
+        <th class="number">Priority</th>
+        <th>Match</th>
+        <th class="number">Status</th>
+        <th class="row-actions"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of ordered(); track item.index; let first = $first; let last = $last) {
+        <tr
+          [attr.data-rule-id]="item.rule.id ?? item.index"
+          [class.disabled]="item.rule.enabled === false"
+        >
+          <td class="toggle">
+            <mat-slide-toggle
+              [aria-label]="'Enable rule ' + item.rule.name"
+              [checked]="item.rule.enabled ?? true"
+              (change)="setEnabled(item.index, $event.checked)"
+            />
+          </td>
+          <td class="data name">{{ item.rule.name }}</td>
+          <td class="data number">{{ item.rule.priority ?? defaultPriority }}</td>
+          <td class="data match">
+            <code>{{ summary(item.rule) }}</code>
+          </td>
+          <td class="data number">{{ item.rule.response?.status ?? defaultStatus }}</td>
+          <td class="row-actions">
+            <button
+              mat-button
+              type="button"
+              aria-label="Move up"
+              title="Move up (checked earlier)"
+              [disabled]="first"
+              (click)="moveRule($index, -1)"
+            >
+              &#8593;
+            </button>
+            <button
+              mat-button
+              type="button"
+              aria-label="Move down"
+              title="Move down (checked later)"
+              [disabled]="last"
+              (click)="moveRule($index, 1)"
+            >
+              &#8595;
+            </button>
+            <button mat-button type="button" (click)="editRule(item.index)">Edit</button>
+            <button mat-button type="button" class="delete" (click)="deleteRule(item.index)">
+              Delete
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty" colspan="6">
+            No rules yet. Every request gets the URL's default response.
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

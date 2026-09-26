@@ -1,5 +1,5 @@
 import { UrlSegment } from '@angular/router';
-import { inboxMatcher } from './app.routes';
+import { inboxMatcher, rulesMatcher } from './app.routes';
 
 const TOKEN = '3dbd68f4-8890-4f56-affb-c7c9b297e666';
 const REQUEST = '0691864a-71ef-4de5-953b-518660fe6287';
@@ -34,5 +34,22 @@ describe('Dado o casamento de rotas da tela principal', () => {
     ['página vazia', [TOKEN, REQUEST, '']],
   ])('não deve casar Quando a URL tem %s', (_caso, paths) => {
     expect(params(paths)).toBeNull();
+  });
+});
+
+describe('Dado o casamento da rota da aba de regras', () => {
+  it('deve casar e dar o token Quando a URL é /{token}/rules', () => {
+    const result = rulesMatcher(segments(TOKEN, 'rules'));
+
+    expect(result?.posParams?.['tokenId'].path).toBe(TOKEN);
+  });
+
+  it.each([
+    ['token que não é UUID', ['abc', 'rules']],
+    ['outro segundo segmento', [TOKEN, 'regras']],
+    ['só o token', [TOKEN]],
+    ['segmento a mais', [TOKEN, 'rules', 'x']],
+  ])('não deve casar Quando a URL tem %s', (_caso, paths) => {
+    expect(rulesMatcher(segments(...paths))).toBeNull();
   });
 });

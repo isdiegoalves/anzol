@@ -1,12 +1,15 @@
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
-import { Component, Injector, inject } from '@angular/core';
+import { Component, Injector, computed, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatToolbar } from '@angular/material/toolbar';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import type { TokenActions } from './token-actions';
 import { TokenStore } from './token-store';
 
-/** Barra superior: marca, links, URL do webhook com copiar, editar e criar URL. */
+/**
+ * Barra superior: marca, links, alternância "Requests"/"Rules" da URL aberta, URL do webhook
+ * com copiar, editar e criar URL.
+ */
 @Component({
   selector: 'app-token-bar',
   imports: [MatToolbar, MatButton, RouterLink, CdkCopyToClipboard],
@@ -16,6 +19,13 @@ import { TokenStore } from './token-store';
 export class TokenBar {
   protected readonly tokens = inject(TokenStore);
   private readonly injector = inject(Injector);
+  private readonly router = inject(Router);
+
+  /** Aba ativa pela rota: `/{token}/rules` é a de regras; o resto (lista, mensagem) é "Requests". */
+  protected readonly onRules = computed(() => {
+    const url = this.router.lastSuccessfulNavigation()?.finalUrl;
+    return !!url && url.root.children['primary']?.segments[1]?.path === 'rules';
+  });
 
   protected async createUrl(): Promise<void> {
     await (await this.actions()).createUrl();

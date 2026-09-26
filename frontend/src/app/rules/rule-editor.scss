@@ -1,0 +1,64 @@
+.errors {
+  margin: 0 0 12px;
+  padding: 12px 12px 12px 32px;
+  border: 1px solid #ebccd1;
+  border-radius: 4px;
+  background: #f2dede;
+  color: #a94442;
+}
+
+.rule-form {
+  padding-top: 12px;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+}
+
+.row {
+  align-items: flex-start;
+
+  button {
+    margin-top: 4px;
+  }
+}
+
+.grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.short {
+  width: 140px;
+}
+
+.full {
+  width: 100%;
+}
+
+h3 {
+  margin: 16px 0 4px;
+  font: var(--mat-sys-title-medium);
+}
+
+h4 {
+  margin: 8px 0 4px;
+  font: var(--mat-sys-title-small);
+}
+
+.hint {
+  margin: 0 0 8px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.json {
+  padding-top: 12px;
+
+  textarea {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+}

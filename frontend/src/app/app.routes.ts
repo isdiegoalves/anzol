@@ -27,7 +27,21 @@ export function inboxMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   };
 }
 
+/** `/{tokenId}/rules`: aba de regras de resposta da URL. */
+export function rulesMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  const [token, rules] = segments;
+  if (segments.length !== 2 || !UUID.test(token.path) || rules.path !== 'rules') {
+    return null;
+  }
+  return { consumed: segments, posParams: { tokenId: token } };
+}
+
 export const routes: Routes = [
+  // Carregada sob demanda: a aba de regras não pesa na carga inicial.
+  {
+    matcher: rulesMatcher,
+    loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
+  },
   { matcher: inboxMatcher, loadComponent: () => import('./inbox/inbox').then((m) => m.Inbox) },
   { path: '**', redirectTo: '' },
 ];

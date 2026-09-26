@@ -9,6 +9,24 @@
     >
     <a href="https://twitter.com/fredsted" target="_blank" rel="noopener">&#64;fredsted</a>
   </nav>
+  @if (tokens.token(); as token) {
+    <nav class="views" aria-label="Views">
+      <a
+        mat-button
+        [routerLink]="['/', token.uuid]"
+        [class.active]="!onRules()"
+        [attr.aria-current]="onRules() ? null : 'page'"
+        >Requests</a
+      >
+      <a
+        mat-button
+        [routerLink]="['/', token.uuid, 'rules']"
+        [class.active]="onRules()"
+        [attr.aria-current]="onRules() ? 'page' : null"
+        >Rules</a
+      >
+    </nav>
+  }
   <span class="spacer"></span>
   <button mat-button type="button" class="edit" (click)="editUrl()">Edit</button>
   <input

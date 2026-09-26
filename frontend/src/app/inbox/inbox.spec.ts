@@ -105,6 +105,22 @@ describe('Dado a tela principal', () => {
     expect(router.url).toBe(`/${NOVO_TOKEN}`);
   });
 
+  it('deve fechar o stream na aba de regras e recarregar a lista e reabri-lo Quando volta para "Requests"', async () => {
+    await openToken(`/${TOKEN_ID}`);
+    await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
+    const primeiro = FakeEventSource.latest();
+
+    await harness.navigateByUrl(`/${TOKEN_ID}/rules`);
+    await flush(`/token/${TOKEN_ID}/rules`, []);
+    expect(primeiro.readyState).toBe(FakeEventSource.CLOSED);
+
+    await openToken(`/${TOKEN_ID}`);
+
+    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    expect(FakeEventSource.latest().readyState).not.toBe(FakeEventSource.CLOSED);
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+  });
+
   describe('Dado o stream SSE aberto', () => {
     beforeEach(async () => {
       await openToken(`/${TOKEN_ID}`);

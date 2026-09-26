@@ -13,7 +13,8 @@ BACKEND_URL=http://localhost:8086 npx ng serve  # proxy para o backend Kotlin
 
 O proxy (`proxy.conf.mjs`) encaminha `/token/**` e `/{uuid}/**` (a URL do webhook) ao backend.
 O roteamento é em hash (`/#/{uuid}/{requestUuid}/{page}`); links antigos com `#!/` são
-reescritos para `#/` antes do bootstrap.
+reescritos para `#/` antes do bootstrap. A aba de regras de resposta é `/#/{uuid}/rules`,
+carregada sob demanda (fora do bundle inicial).
 
 `npx ng build` gera `dist/frontend/` com `index.html` e os arquivos com hash na raiz, para o
 backend servir.
@@ -29,4 +30,5 @@ BASE_URL=http://localhost:4200 npx playwright test   # E2E do checklist de parid
 
 A E2E cria e apaga as próprias URLs pela API. `e2e/tempo-real.spec.ts` (itens 7 e 13) só roda
 quando o backend responde `text/event-stream` em `/token/{id}/stream`; contra o app atual ela é
-pulada com o motivo no relatório.
+pulada com o motivo no relatório. `e2e/regras.spec.ts` precisa do backend com
+`GET|PUT /token/{id}/rules` e `rule`/`near_miss` na mensagem.

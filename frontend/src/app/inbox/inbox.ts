@@ -87,7 +87,9 @@ export class Inbox {
       await this.openSavedOrNewToken();
       return;
     }
-    if (this.requests.tokenId() !== tokenId && !(await this.loadToken(tokenId, page))) {
+    // Sem stream (Inbox recriado ao voltar da aba de regras), a lista também está velha.
+    const stale = this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
+    if (stale && !(await this.loadToken(tokenId, page))) {
       return;
     }
     const list = this.requests.requests();
