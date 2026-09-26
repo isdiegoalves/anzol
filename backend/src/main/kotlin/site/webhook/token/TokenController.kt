@@ -51,7 +51,7 @@ class TokenController(
     @GetMapping("/{tokenId:$UUID_PATTERN}")
     fun find(
         @PathVariable tokenId: TokenId,
-    ): Token = tokens.findOrGone(tokenId).forApi()
+    ): TokenView = tokens.findOrGone(tokenId).forApi()
 
     @DeleteMapping("/{tokenId:$UUID_PATTERN}")
     fun delete(

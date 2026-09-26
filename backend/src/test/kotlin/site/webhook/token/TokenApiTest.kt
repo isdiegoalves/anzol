@@ -48,6 +48,7 @@ class TokenApiTest(
             "auto_cleanup",
             "signature",
             "schema",
+            "protected",
         )
         assertThat(token["uuid"].asString()).matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}")
         assertThat(token["user_agent"].asString()).isEqualTo("teste/1.0")

@@ -11,6 +11,8 @@ import site.webhook.signature.SignatureDraft
 import site.webhook.signature.readSignature
 
 private const val PHP_TRIM = " \t\n\r\u0000\u000B"
+private const val READ_SECRET = "read_secret"
+private val READ_SECRET_LENGTH = 8..256
 private const val MAX_TIMEOUT = 10.0
 private const val DEFAULT_STATUS = 200L
 
@@ -47,7 +49,40 @@ fun LegacyInput.validateTokenSettings(): Map<String, List<String>> {
         .filterKeys { it in data && !data[it].isBlankString() }
         .mapValues { (attribute, rules) ->
             rules.filterNot { it.passes(data[attribute]) }.map { it.message(attribute.replace('_', ' ')) }
-        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"]) + schemaErrors(data["schema"])
+        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"]) + schemaErrors(data["schema"]) + readSecretErrors()
+}
+
+/**
+ * `read_secret` só no corpo (segredo na query acaba em log de proxy e no histórico do terminal): na query é 422, para
+ * que ninguém ache que protegeu a URL sem ter protegido. Texto de 8 a 256 caracteres ou `null`. A mensagem nunca
+ * repete o valor.
+ */
+private fun LegacyInput.readSecretErrors(): Map<String, List<String>> {
+    val message =
+        when {
+            READ_SECRET in query -> "The read secret must be sent in the request body."
+            READ_SECRET !in inputBag() -> null
+            else -> readSecretValueError(inputBag()[READ_SECRET])
+        }
+    return if (message == null) emptyMap() else mapOf(READ_SECRET to listOf(message))
+}
+
+private fun readSecretValueError(value: Any?): String? =
+    when {
+        value == null -> null
+        value !is String -> "The read secret must be a string."
+        value.codePointCount(0, value.length) !in READ_SECRET_LENGTH -> "The read secret must be between 8 and 256 characters."
+        else -> null
+    }
+
+/** Chamado depois da validação: ausente mantém, `null` remove, texto troca. */
+private fun LegacyInput.readSecretChange(): ReadSecretChange {
+    val body = inputBag()
+    if (READ_SECRET !in body) return ReadSecretChange.Keep
+    return when (val value = body[READ_SECRET]) {
+        is String -> ReadSecretChange.Set(value)
+        else -> ReadSecretChange.Remove
+    }
 }
 
 /** `signature` nula, ausente ou em branco não é validada (remove a assinatura). */
@@ -77,6 +112,7 @@ fun LegacyInput.toTokenSettings(): TokenSettings =
         autoCleanup = AutoCleanup.parse(get("auto_cleanup")),
         signature = signatureDraft(get("signature")),
         schema = schemaConfig(get("schema")),
+        readSecret = readSecretChange(),
     )
 
 /** Chamado depois da validação: o que não é um `signature` válido é ausência. */

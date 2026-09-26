@@ -55,6 +55,7 @@ class Arrivals(
  * Substitui a fila Redis, o `queue:work` e o laravel-echo-server: quem grava a mensagem avisa as abas
  * abertas e quem espera por ela. Os dois registros viram gauges (`webhook.sse.subscribers`, `webhook.wait.active`).
  */
+@Suppress("TooManyFunctions") // dono do estado: assinar, escutar, avisar, encerrar e contar usam os mesmos mapas
 @Component
 class RequestStream(
     private val jsonMapper: JsonMapper,
@@ -106,6 +107,15 @@ class RequestStream(
     /** A URL foi apagada: encerra quem a escuta. */
     fun end(tokenId: TokenId) {
         listeners[tokenId].orEmpty().forEach { it.offer(Arrival.Ended) }
+    }
+
+    /**
+     * O acesso à URL mudou (segredo de leitura definido, trocado ou removido): fecha as conexões SSE e encerra as
+     * esperas. Quem reconectar passa de novo pelo controle de acesso.
+     */
+    fun disconnect(tokenId: TokenId) {
+        end(tokenId)
+        subscribers.remove(tokenId).orEmpty().forEach { it.complete() }
     }
 
     fun listenerCount(tokenId: TokenId): Int = listeners[tokenId].orEmpty().size

@@ -51,7 +51,7 @@ class TokenService(
                     autoCleanup = settings.autoCleanup,
                     signature = signature,
                     schema = settings.schema,
-                ),
+                ).withReadSecret(settings.readSecret),
             )
         }
     }
@@ -59,7 +59,8 @@ class TokenService(
     /**
      * Validação antes da busca: token inexistente com dado inválido responde 422, como no app antigo.
      * Limite menor corta as mensagens excedentes na hora. Assinatura sem segredo novo mantém o atual; sem
-     * nenhum, 422.
+     * nenhum, 422. Trocar o segredo de leitura fecha o SSE e as esperas abertas: quem voltar passa de novo pelo
+     * acesso, com o segredo novo (o cookie antigo deixou de valer).
      */
     fun update(
         id: TokenId,
@@ -70,7 +71,10 @@ class TokenService(
         val current = tokens.findOrGone(id)
         val settings = input.toTokenSettings()
         return withSignature(settings.signature, current.signature) { signature ->
-            tokens.store(current.withSettings(settings, signature)).also { telemetry.cleanupRemoved(requests.trim(it).size) }
+            val updated = tokens.store(current.withSettings(settings, signature).withReadSecret(settings.readSecret))
+            telemetry.cleanupRemoved(requests.trim(updated).size)
+            if (updated.secretVersion != current.secretVersion) stream.disconnect(id)
+            updated
         }
     }
 

@@ -31,6 +31,9 @@ services:
       - WEBHOOK_AI_API_KEY=${WEBHOOK_AI_API_KEY:-}
       - WEBHOOK_AI_MODEL_JSON=NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
       - WEBHOOK_AI_MODEL_TEXT=KAT-Coder-V2.5-Dev-oQ4e-mtp
+      # Contra DNS rebinding e CSRF: Host (e Origin nos métodos que mudam estado) de /token, /share e /mcp só com
+      # estes nomes; sem porta casa qualquer porta. A captura e a tela não conferem. Vazio, nada é conferido.
+      - WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
     extra_hosts:
       # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
       - "host.docker.internal:host-gateway"

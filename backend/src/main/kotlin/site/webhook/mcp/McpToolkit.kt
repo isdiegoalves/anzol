@@ -15,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 
 private val UUID_TEXT = Regex(UUID_PATTERN)
+private const val READ_SECRET = "read_secret"
 
 /** Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). */
 class ToolArguments(
@@ -25,10 +26,16 @@ class ToolArguments(
 
     fun requestId(): RequestId? = uuid("request_id")?.let(::RequestId)
 
+    /** O segredo de leitura da URL, para as URLs protegidas; não vai para o corpo das rotas ([body]). */
+    fun readSecret(): String? = values[READ_SECRET] as? String
+
     operator fun get(name: String): Any? = values[name]
 
-    /** Os argumentos sem os UUIDs do caminho, como o corpo JSON da rota da API. */
-    fun body(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id"))
+    /** Os argumentos sem os UUIDs do caminho e sem o segredo de acesso, como o corpo JSON da rota da API. */
+    fun body(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id", READ_SECRET))
+
+    /** O corpo do `create_url`: nele `read_secret` é o segredo que a URL nova passa a exigir. */
+    fun createBody(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id"))
 
     /** Só os argumentos [names], como o corpo JSON da rota da API. */
     fun bodyOf(vararg names: String): String = jsonMapper.writeValueAsString(values.filterKeys { it in names })

@@ -19,12 +19,17 @@ data class SseEvent(
  */
 class SseClient(
     url: String,
+    headers: Map<String, String> = emptyMap(),
 ) : AutoCloseable {
     val response: HttpResponse<InputStream> =
         HttpClient
             .newHttpClient()
             .send(
-                HttpRequest.newBuilder(URI.create(url)).header("Accept", "text/event-stream").build(),
+                HttpRequest
+                    .newBuilder(URI.create(url))
+                    .header("Accept", "text/event-stream")
+                    .apply { headers.forEach { (name, value) -> header(name, value) } }
+                    .build(),
                 HttpResponse.BodyHandlers.ofInputStream(),
             )
     val events = ConcurrentLinkedQueue<SseEvent>()
@@ -43,6 +48,9 @@ class SseClient(
             }
         }
     }
+
+    /** Enquanto o servidor não fechou a conexão. */
+    fun isOpen(): Boolean = reader.isAlive
 
     override fun close() {
         response.body().close()

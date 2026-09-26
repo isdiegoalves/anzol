@@ -13,6 +13,7 @@ import site.webhook.capture.findOrNotFound
 import site.webhook.http.jsonInput
 import site.webhook.outbound.OutboundActions
 import site.webhook.outbound.OutboundStore
+import site.webhook.privacy.ProtectedUrls
 import site.webhook.rules.Parsed
 import site.webhook.rules.RuleStore
 import site.webhook.rules.parseRule
@@ -22,8 +23,6 @@ import site.webhook.rules.test
 import site.webhook.search.RequestSearch
 import site.webhook.search.parseSearch
 import site.webhook.token.TokenService
-import site.webhook.token.TokenStore
-import site.webhook.token.findOrGone
 import site.webhook.wait.RequestWaiter
 import site.webhook.wait.parseWait
 import tools.jackson.databind.json.JsonMapper
@@ -33,7 +32,9 @@ private const val MCP_USER_AGENT = "MCP"
 
 private val RULES_LANGUAGE = ClassPathResource("ai/rules-language.md").getContentAsString(Charsets.UTF_8)
 
-private const val TOKEN_ID = """"token_id": {"type": "string", "format": "uuid", "description": "UUID of the webhook URL (token)"}"""
+private const val TOKEN_ID =
+    """"token_id": {"type": "string", "format": "uuid", "description": "UUID of the webhook URL (token)"},
+    "read_secret": {"type": "string", "description": "The URL's read secret; required when the URL is protected"}"""
 private const val REQUEST_ID = """"request_id": {"type": "string", "format": "uuid", "description": "UUID of a captured request"}"""
 private const val MATCH =
     """"match": {"type": "object", "description": "Conditions of a response rule's match (method, path, query, headers, body, signature, schema); absent matches every request"}"""
@@ -47,6 +48,9 @@ private const val SETTINGS = """
     "auto_cleanup": {"type": "integer", "description": "Keep only the newest N requests: 500, 1000, 5000 or 10000"},
     "signature": {"type": "object", "description": "HMAC verification: {provider: stripe|github|shopify|slack|generic, secret, header?, algorithm?, encoding?, prefix?, toleranceSeconds?}. The secret is never returned, only masked"},
     "schema": {"description": "JSON Schema (draft 7, 2019-09 or 2020-12) the request body is validated against"}"""
+
+private const val NEW_READ_SECRET =
+    """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
 
 private fun objectSchema(
     properties: String,
@@ -73,7 +77,7 @@ class McpTools {
     @Bean
     fun urlTools(
         jsonMapper: JsonMapper,
-        tokens: TokenStore,
+        urls: ProtectedUrls,
         service: TokenService,
     ): List<SyncToolSpecification> {
         val kit = McpToolkit(jsonMapper)
@@ -83,11 +87,16 @@ class McpTools {
                     "create_url",
                     "Create a new webhook URL (token). Any HTTP request to /{uuid} on this server is then captured. " +
                         "Returns the token as POST /token does, with the signature secret masked.",
-                    objectSchema(SETTINGS),
+                    objectSchema("$SETTINGS,$NEW_READ_SECRET"),
                     readOnly = false,
                 ),
             ) { args ->
-                service.create(jsonInput(args.body().toByteArray(), jsonMapper), ip = null, userAgent = MCP_USER_AGENT).map { it.forApi() }
+                service
+                    .create(
+                        jsonInput(args.createBody().toByteArray(), jsonMapper),
+                        ip = null,
+                        userAgent = MCP_USER_AGENT,
+                    ).map { it.forApi() }
             },
             kit.tool(
                 ToolDefinition(
@@ -98,18 +107,20 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                tokens.findOrGone(id).forApi()
+                urls.open(id, args.readSecret()).forApi()
             },
             kit.tool(
                 ToolDefinition(
                     "update_url",
                     "Replace a webhook URL's settings, as PUT /token/{id}: fields left out go back to their defaults, " +
-                        "except the signature secret, which is kept when omitted.",
+                        "except the signature secret, which is kept when omitted. The URL's read secret is never changed " +
+                        "here: read_secret is only the access to a protected URL.",
                     objectSchema("$TOKEN_ID,$SETTINGS", "token_id"),
                     readOnly = false,
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                urls.open(id, args.readSecret())
                 service.update(id, jsonInput(args.body().toByteArray(), jsonMapper)).map { it.forApi() }
             },
             kit.tool(
@@ -122,6 +133,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                urls.open(id, args.readSecret())
                 service.delete(id)
                 mapOf("deleted" to true)
             },
@@ -131,7 +143,7 @@ class McpTools {
     @Bean
     fun requestTools(
         jsonMapper: JsonMapper,
-        tokens: TokenStore,
+        urls: ProtectedUrls,
         requests: RequestStore,
         listing: RequestListing,
     ): List<SyncToolSpecification> {
@@ -154,6 +166,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                urls.open(id, args.readSecret())
                 listing.list(
                     id,
                     mapOf(
@@ -175,7 +188,7 @@ class McpTools {
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
                 val requestId = args.requestId() ?: return@tool missingUuid("request_id")
-                requests.findOrNotFound(tokens.findOrGone(id), requestId)
+                requests.findOrNotFound(urls.open(id, args.readSecret()), requestId)
             },
         )
     }
@@ -183,7 +196,7 @@ class McpTools {
     @Bean
     fun searchTools(
         jsonMapper: JsonMapper,
-        tokens: TokenStore,
+        urls: ProtectedUrls,
         search: RequestSearch,
         waiter: RequestWaiter,
     ): List<SyncToolSpecification> {
@@ -207,7 +220,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                val token = tokens.findOrGone(id)
+                val token = urls.open(id, args.readSecret())
                 parseSearch(args.body()).map { search.search(token, it) }
             },
             kit.tool(
@@ -227,7 +240,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                val token = tokens.findOrGone(id)
+                val token = urls.open(id, args.readSecret())
                 parseWait(args.body()).map { waiter.wait(token, it) }
             },
         )
@@ -236,7 +249,7 @@ class McpTools {
     @Bean
     fun ruleTools(
         jsonMapper: JsonMapper,
-        tokens: TokenStore,
+        urls: ProtectedUrls,
         requests: RequestStore,
         rules: RuleStore,
     ): List<SyncToolSpecification> {
@@ -246,7 +259,7 @@ class McpTools {
                 ToolDefinition("get_rules", "Read a webhook URL's response rules.", objectSchema(TOKEN_ID, "token_id"), readOnly = true),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                rules.find(tokens.findOrGone(id).uuid)
+                rules.find(urls.open(id, args.readSecret()).uuid)
             },
             kit.tool(
                 ToolDefinition(
@@ -257,7 +270,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                val token = tokens.findOrGone(id)
+                val token = urls.open(id, args.readSecret())
                 parseRules(readJson(args.bodyOf("rules"))?.get("rules")).map { rules.store(token.uuid, it) }
             },
             kit.tool(
@@ -270,7 +283,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                val token = tokens.findOrGone(id)
+                val token = urls.open(id, args.readSecret())
                 parseRule(readJson(args.bodyOf("rule"))?.get("rule")).map { requests.test(token, it) }
             },
         )
@@ -279,7 +292,7 @@ class McpTools {
     @Bean
     fun outboundTools(
         jsonMapper: JsonMapper,
-        tokens: TokenStore,
+        urls: ProtectedUrls,
         requests: RequestStore,
         actions: OutboundActions,
         store: OutboundStore,
@@ -305,7 +318,7 @@ class McpTools {
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
                 val requestId = args.requestId() ?: return@tool missingUuid("request_id")
-                val token = tokens.findOrGone(id)
+                val token = urls.open(id, args.readSecret())
                 actions.replay(token, requests.findOrNotFound(token, requestId), args.body())
             },
             kit.tool(
@@ -328,7 +341,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                actions.send(tokens.findOrGone(id), args.body())
+                actions.send(urls.open(id, args.readSecret()), args.body())
             },
             kit.tool(
                 ToolDefinition(
@@ -339,7 +352,7 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                store.history(tokens.findOrGone(id).uuid)
+                store.history(urls.open(id, args.readSecret()).uuid)
             },
         )
     }

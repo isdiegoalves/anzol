@@ -19,5 +19,7 @@ services:
       - WEBHOOK_AI_ENABLED=true
       - WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099
       - WEBHOOK_AI_API_KEY=ci-fake
+      # Host e Origin conferidos como no compose da 8084 (o contrato de privacidade depende da lista).
+      - WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
   redis:
     container_name: webhookci-redis

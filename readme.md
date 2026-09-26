@@ -37,6 +37,7 @@ sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 | `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app do dono) |
 | `WEBHOOK_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](#mcp)). O `docker-compose.yml` liga |
 | `WEBHOOK_AI_ENABLED`, `WEBHOOK_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](#ia-local)). O `docker-compose.yml` liga, apontando para o oMLX do Mac |
+| `WEBHOOK_ALLOWED_HOSTS` | vazio | Nomes aceitos no `Host` (e no `Origin` dos métodos que mudam estado) das rotas de gestão e do `/mcp`, contra DNS rebinding e CSRF (ver [Proteção contra DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)). Vazio não confere nada. O `docker-compose.yml` e o do CI usam `localhost,127.0.0.1,[::1],host.docker.internal` |
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
 webhook responde `507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado
@@ -62,7 +63,7 @@ importação no Grafana estão em [`observability/`](observability/README.md).
 
 | Rota | O que faz |
 |---|---|
-| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`) |
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`, `read_secret`) |
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL (com as mensagens dela) |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
@@ -81,6 +82,10 @@ importação no Grafana estão em [`observability/`](observability/README.md).
 | `GET /token/{id}/outbound` | Histórico dos últimos 50 replays e sends da URL, o mais novo primeiro |
 | `POST /token/{id}/rules/suggest` | Regra de resposta a partir de uma descrição em linguagem natural, validada e **não gravada** (ver [IA local](#ia-local)) |
 | `POST /token/{id}/request/{requestId}/explain` | Explica em texto por que a assinatura, o schema e as regras deram o resultado que deram numa mensagem (ver [IA local](#ia-local)) |
+| `POST /token/{id}/unlock`, `POST /token/{id}/lock` | Desbloqueia no navegador uma URL protegida pelo segredo de leitura (cookie) e bloqueia de novo (ver [Privacidade](#privacidade)) |
+| `POST /token/{id}/request/{requestId}/share` | Link só-leitura de uma mensagem, com expiração e máscara dos valores sensíveis (ver [Links só-leitura](#links-só-leitura)) |
+| `GET /token/{id}/shares`, `DELETE /token/{id}/shares/{sid}` | Lista os links ativos da URL; revoga um |
+| `GET /share/{sid}` | O link público: a mensagem, sem credencial nenhuma |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -503,6 +508,104 @@ O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB)
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem
 exemplos das mesmas rotas.
 
+## Privacidade
+
+Quem tem o UUID de uma URL lê tudo dela. Com um **segredo de leitura**, ver e gerir a URL passa a exigir o segredo;
+**capturar continua aberto** (quem manda o webhook não tem segredo).
+
+### Segredo de leitura
+
+`read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Nunca é devolvido: o
+token ganha `"protected": true|false`. No `PUT`, **ausente mantém** o segredo (exceção deliberada à regra "campo
+ausente volta ao padrão": apagar a proteção por omissão seria perigoso), `null` remove e texto troca. Na query, 422.
+
+Sem acesso, **toda** rota `/token/{id}/...` (o token, `DELETE`, mensagens, raw, SSE, busca, wait, regras, cenários,
+saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected","protected":true}`; só `unlock` e
+`lock` respondem. A captura `/{id}/...` não muda. Acesso é um destes:
+
+- cabeçalho `X-Webhook-Secret: <segredo>` (CLI, scripts);
+- o cookie de desbloqueio (a tela).
+
+No Redis fica só o PBKDF2-HMAC-SHA256 (sal aleatório de 16 bytes, 210.000 iterações) e `secret_version`, que muda a
+cada troca; comparação em tempo constante. Acertos ficam 5 minutos em memória (o CLI não paga o PBKDF2 em toda
+chamada). **10 segredos errados por minuto por URL** (unlock, cabeçalho e MCP somados) → `429` com `Retry-After`
+até o minuto acabar, **também para o segredo certo** (senão o 429 do errado e o 200 do certo diriam qual é o certo);
+o cookie não passa por esse limite. O segredo não aparece em log, resposta, métrica nem erro. Token gravado antes do
+segredo abre como não protegido.
+
+### Cookie de desbloqueio
+
+`POST /token/{id}/unlock {"secret": "..."}` → `204` com
+`Set-Cookie: wh_access=<HMAC-SHA256(chave do servidor, id:versão)>; Path=/token/{id}; Max-Age=2592000; HttpOnly;
+SameSite=Strict` (e `Secure` quando a requisição chega em HTTPS, direto ou com `X-Forwarded-Proto: https`). Errado:
+`401 {"error":"Wrong secret"}`; sem `secret`: 422; URL sem proteção: `204` sem cookie. O cookie abre toda rota da
+URL, inclusive o SSE, sem o segredo passar pelo JavaScript. `POST /token/{id}/lock` apaga o cookie (`204`).
+
+A chave do servidor são 32 bytes aleatórios em `webhook:server-key` no Redis, criados no primeiro uso com `SET NX`
+(duas instâncias ficam com a mesma) e sem TTL: sobrevive a restart. Trocar ou remover o segredo muda a versão, então
+os cookies antigos param de valer (inclusive se o segredo for definido de novo), e as conexões SSE e esperas abertas
+da URL são fechadas: quem reconectar passa de novo pelo acesso.
+
+### CLI e MCP
+
+No CLI, `--read-secret <segredo>` (depois do subcomando, como o `--server`) ou a variável `WEBHOOK_READ_SECRET` põe o
+cabeçalho em `listen`, `replay`, `wait-for` e `rules`. URL protegida sem o segredo certo: `This URL is protected: pass
+--read-secret or set WEBHOOK_READ_SECRET` no stderr e saída 1 (2 no `wait-for`). O segredo nunca é impresso. Só ASCII
+imprimível: o cliente HTTP do Java troca os demais caracteres por `?` num cabeçalho.
+
+```bash
+WEBHOOK_READ_SECRET='meu-segredo' webhook listen --token <uuid> --forward http://localhost:3000
+webhook rules pull <uuid> --read-secret 'meu-segredo'
+```
+
+No MCP, toda ferramenta da URL aceita o argumento opcional `read_secret`; URL protegida sem ele (ou com ele errado) é
+erro de ferramenta `{"status":401,"error":"This URL is protected; pass its read_secret"}`. No `create_url`,
+`read_secret` é o segredo que a URL nova passa a exigir; no `update_url`, é só o acesso (o segredo da URL não muda por
+ali).
+
+## Links só-leitura
+
+Uma mensagem pode ser compartilhada por um link que não dá acesso a mais nada da URL (nem com ela protegida):
+
+```bash
+curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: application/json' \
+  -d '{"expires_in":"1d","redact":true}'
+# 201 {"id":"3kQ…","url":"/#/share/3kQ…","expires_at":"2026-09-27 12:00:00","redact":true}
+```
+
+- `expires_in`: `1h`, `1d`, `7d` (padrão) ou `30d`; `redact`: `true` (padrão) ou `false`. Outro valor: 422.
+- `GET /token/{id}/shares` lista os ativos; `DELETE /token/{id}/shares/{sid}` revoga (`204`; link de outra URL, 404).
+  No máximo 50 ativos por URL (422 acima).
+- `GET /share/{sid}` é público: a mensagem como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
+  `expires_at`. Expirado, revogado, de mensagem apagada, de URL apagada ou inexistente: o mesmo `404`.
+- `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
+  `set-cookie`, `x-api-key`, `x-webhook-secret` e do cabeçalho de assinatura do provedor configurado na URL, e os
+  valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` (sem diferenciar maiúsculas),
+  também dentro da `url` gravada. Os `php-auth-user`/`php-auth-pw` (o `Authorization: Basic` decodificado que a
+  mensagem grava), os campos de formulário de nome sensível e as frases do `near_miss` que citam esses valores também
+  saem mascarados. **O corpo não é mascarado.**
+
+O id são 128 bits aleatórios em base62; no Redis, `share:{sid}` com TTL igual à expiração e o índice
+`token:{uuid}:shares`, apagados junto com a URL.
+
+## Proteção contra DNS rebinding/CSRF
+
+Uma página maliciosa aberta no navegador pode tentar usar a API local: por DNS rebinding (o nome dela passa a apontar
+para `127.0.0.1`, e o navegador manda `Host: nome-do-atacante`) ou por CSRF (um formulário de outro site). Com
+`WEBHOOK_ALLOWED_HOSTS` (`webhook.allowed-hosts`, lista separada por vírgula; nome sem porta casa qualquer porta), as
+rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
+
+- `Host` fora da lista → `403 {"error":"host not allowed"}`;
+- nos métodos que mudam estado (POST, PUT, PATCH, DELETE, inclusive por `X-HTTP-Method-Override`), `Origin` presente
+  cujo host não está na lista → `403 {"error":"origin not allowed"}`. No `/mcp`, o `Origin` é conferido em todo
+  método, como o transporte Streamable HTTP exige.
+
+Cliente sem `Origin` (CLI, curl, agentes) passa pelo `Host`. A captura `/{id}/...` e os arquivos da tela não conferem
+nada. A rota é reconhecida como o Spring a casa: `/token;x=1/...` ou `/%74oken/...` também são conferidos. Lista vazia
+(o padrão do app): nada é conferido, menos o `/mcp`, que continua aceitando só `localhost`, `127.0.0.1`, `[::1]` e
+`host.docker.internal`. O `docker-compose.yml` e o do CI definem a lista; para chegar ao app por outro nome,
+acrescente-o.
+
 ## MCP
 
 Com `WEBHOOK_MCP_ENABLED=true` (ligado no `docker-compose.yml`), o app é um servidor
@@ -525,20 +628,13 @@ rota devolveria, com o segredo de assinatura mascarado. Validação, URL ou mens
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 
-Contra DNS rebinding (uma página na internet cujo nome passa a apontar para `127.0.0.1` e chama o `/mcp` do
-navegador), a rota confere, como o transporte Streamable HTTP do MCP exige:
+Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `WEBHOOK_ALLOWED_HOSTS` (ver [Proteção contra
+DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)); sem a lista, só `localhost`, `127.0.0.1`, `[::1]` e
+`host.docker.internal`. URL protegida exige o argumento `read_secret` (ver [Privacidade](#privacidade)).
 
-- `Origin`, quando vem (navegador), tem de ser de loopback (`localhost`, `127.0.0.1` ou `[::1]`, qualquer esquema e
-  porta); senão, `403 {"error":"origin not allowed"}`;
-- `Host` tem de estar em `WEBHOOK_MCP_ALLOWED_HOSTS` (`webhook.mcp.allowed-hosts`, lista separada por vírgula; padrão
-  `localhost,127.0.0.1,[::1],host.docker.internal`; nome sem porta casa qualquer porta); senão, `403 {"error":"host
-  not allowed"}`. No rebinding o `Host` chega com o nome do atacante.
-
-Cliente sem `Origin` (Claude Code, SDKs) passa pelo `Host`. Para chegar ao MCP por outro nome, acrescente-o à lista.
-
-O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs, inclusive o `send`
-para a rede local quando `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica só em `127.0.0.1`; não
-ligue o MCP num app publicado. A conferência de `Origin` e `Host` vale só para `/mcp`; o resto da API ainda não a tem.
+O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs sem segredo de
+leitura, inclusive o `send` para a rede local quando `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica
+só em `127.0.0.1`; não ligue o MCP num app publicado.
 
 ## IA local
 
@@ -816,7 +912,8 @@ Quem corta a espera é o servidor: o prazo HTTP do CLI é o `--timeout` mais 10 
 
 `--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
 `replay`, `rules` e `wait-for` (o `send` fala direto com o `--to`) e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
-`webhook rules pull <token> --server https://hooks.exemplo`.
+`webhook rules pull <token> --server https://hooks.exemplo`. URL protegida: `--read-secret`, na mesma posição, ou
+`WEBHOOK_READ_SECRET` (ver [Privacidade](#cli-e-mcp)).
 
 ### O que é reenviado
 

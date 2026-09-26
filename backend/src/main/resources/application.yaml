@@ -73,6 +73,10 @@ server:
     max-parameter-count: -1
 
 webhook:
+  # Nomes aceitos no Host (e no Origin dos métodos que mudam estado) de /token, /token/**, /share/** e /mcp, contra DNS
+  # rebinding e CSRF; sem porta casa qualquer porta. Vazio (o padrão) não confere nada, exceto no /mcp, que sem a lista
+  # continua só com o loopback e o host.docker.internal. O docker-compose.yml define a lista.
+  allowed-hosts: "${WEBHOOK_ALLOWED_HOSTS:}"
   # Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo); acima disso saem as mais antigas.
   max-requests: ${WEBHOOK_MAX_REQUESTS:10000}
   expiry: ${WEBHOOK_EXPIRY:604800}
@@ -89,8 +93,6 @@ webhook:
   # sem o LLM no ar o app sobe igual: o LLM só é chamado nas rotas de IA, que respondem 502 quando ele falha.
   mcp:
     enabled: ${WEBHOOK_MCP_ENABLED:false}
-    # Nomes aceitos no Host de /mcp (contra DNS rebinding); sem porta casa qualquer porta.
-    allowed-hosts: "${WEBHOOK_MCP_ALLOWED_HOSTS:localhost,127.0.0.1,[::1],host.docker.internal}"
   ai:
     enabled: ${WEBHOOK_AI_ENABLED:false}
     # Raiz do servidor, sem o /v1: o cliente chama {base-url}/v1/chat/completions.

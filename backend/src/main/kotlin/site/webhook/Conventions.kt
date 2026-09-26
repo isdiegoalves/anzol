@@ -30,7 +30,8 @@ value class RequestId(
     override fun toString(): String = value.toString()
 }
 
-/** Chaves de `Storage/Token.php` e `Storage/Request.php`. */
+/** Chaves de `Storage/Token.php` e `Storage/Request.php`, e as que vieram depois: todos os nomes num lugar só (§3). */
+@Suppress("TooManyFunctions")
 object RedisKeys {
     fun token(id: TokenId): String = "token:$id"
 
@@ -56,4 +57,16 @@ object RedisKeys {
 
     /** Chamadas de IA (`rules/suggest` e `explain`) na janela de um minuto (limite por URL). */
     fun aiRate(id: TokenId): String = "token:$id:ai:rate"
+
+    /** Tentativas erradas do segredo de leitura (unlock e header) na janela de um minuto (limite por URL). */
+    fun secretFailures(id: TokenId): String = "token:$id:secret:failures"
+
+    /** Links só-leitura ativos da URL: ZSET id do link → expiração em milissegundos. */
+    fun shares(id: TokenId): String = "token:$id:shares"
+
+    /** Um link só-leitura: o JSON dele, com TTL igual à expiração. */
+    fun share(id: String): String = "share:$id"
+
+    /** Chave do servidor (32 bytes em Base64) que assina o cookie de desbloqueio; criada no primeiro uso, sem TTL. */
+    const val SERVER_KEY = "webhook:server-key"
 }

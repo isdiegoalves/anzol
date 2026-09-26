@@ -167,6 +167,26 @@ class WebhookTelemetry(
             .record(duration)
     }
 
+    /** Um `unlock`: [outcome] é `ok`, `wrong` ou `limited`. Nada do segredo nem da URL. */
+    fun unlock(outcome: String) {
+        Counter
+            .builder("webhook.privacy.unlock")
+            .description("Desbloqueios de URL protegida pelo segredo de leitura, pelo resultado")
+            .tags(Tags.of("outcome", outcome))
+            .register(registry)
+            .increment()
+    }
+
+    /** Um link só-leitura: [action] é `create`, `revoke` ou `view`. Nada do link nem da URL. */
+    fun share(action: String) {
+        Counter
+            .builder("webhook.share")
+            .description("Links só-leitura de mensagem criados, revogados e abertos")
+            .tags(Tags.of("action", action))
+            .register(registry)
+            .increment()
+    }
+
     fun storageFull() = storageFull.increment()
 
     fun cleanupRemoved(count: Int) {

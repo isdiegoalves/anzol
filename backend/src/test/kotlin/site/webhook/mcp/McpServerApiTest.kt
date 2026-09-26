@@ -22,6 +22,7 @@ import java.time.Duration
 import java.util.concurrent.CompletableFuture
 
 private const val SECRET = "segredo-do-mcp-Wn4t"
+private const val READ_SECRET = "leitura-do-mcp-8Hj"
 
 /** As 14 ferramentas da §1 do plano "ia-local". */
 private val TOOLS =
@@ -159,6 +160,54 @@ class McpServerApiTest(
             val text = (result.content().single() as TextContent).text()
             assertThat(text).doesNotContain(SECRET).contains("••••" + SECRET.takeLast(4))
         }
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL criada com read_secret, quando as ferramentas vêm sem ele, com ele errado e com ele certo, então erro 401 " +
+            "legível, 401 e resultado; update_url mantém a proteção",
+    )
+    fun readSecret_urlProtegida() {
+        val created = call("create_url", mapOf("read_secret" to READ_SECRET))
+        val tokenId = created.json()["uuid"].asString()
+        api.send("POST", "/$tokenId", "pelo-mcp".toByteArray())
+
+        val without =
+            listOf("get_url", "list_requests", "get_rules", "get_outbound", "delete_url").map {
+                call(
+                    it,
+                    mapOf("token_id" to tokenId),
+                )
+            }
+        val wrong = call("get_url", mapOf("token_id" to tokenId, "read_secret" to "errado-errado"))
+        val right = call("list_requests", mapOf("token_id" to tokenId, "read_secret" to READ_SECRET))
+        val updated = call("update_url", mapOf("token_id" to tokenId, "read_secret" to READ_SECRET, "default_status" to 202))
+
+        assertThat(created.json()["protected"].asBoolean()).isTrue()
+        assertThat((created.content().single() as TextContent).text()).doesNotContain(READ_SECRET)
+        assertThat(without).allSatisfy { result ->
+            assertThat(result.isError).isTrue()
+            assertThat(result.json()["status"].asInt()).isEqualTo(401)
+            assertThat(result.json()["error"].asString()).isEqualTo("This URL is protected; pass its read_secret")
+        }
+        assertThat(wrong.json()["status"].asInt()).isEqualTo(401)
+        assertThat(right.isError).isNotEqualTo(true)
+        assertThat(right.json()["data"][0]["content"].asString()).isEqualTo("pelo-mcp")
+        assertThat(updated.json()["protected"].asBoolean()).isTrue()
+        assertThat(updated.json()["default_status"].asInt()).isEqualTo(202)
+        assertThat(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT).statusCode()).isEqualTo(401)
+    }
+
+    @Test
+    @DisplayName("Dado 10 read_secret errados, quando vem o 11º, então erro de ferramenta 429")
+    fun readSecret_limiteDeFalhas() {
+        val tokenId = call("create_url", mapOf("read_secret" to READ_SECRET)).json()["uuid"].asString()
+
+        repeat(10) { call("get_url", mapOf("token_id" to tokenId, "read_secret" to "errado-$it-errado")) }
+        val limited = call("get_url", mapOf("token_id" to tokenId, "read_secret" to READ_SECRET))
+
+        assertThat(limited.isError).isTrue()
+        assertThat(limited.json()["status"].asInt()).isEqualTo(429)
     }
 
     /** `initialize` do MCP escrito à mão, com o `Host` e o `Origin` que o `HttpClient` do JDK não deixa escolher. */
