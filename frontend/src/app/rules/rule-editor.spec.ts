@@ -202,6 +202,7 @@ describe('Dado o editor de regra', () => {
 
       expect(helpers.open).toBe(true);
       expect(helpers.textContent).toContain("{{jsonPath request.body '$.id'}}");
+      expect(helpers.textContent).toContain("even inside a quoted key ($['a(b)'], $['x?'])");
       expect(helpers.textContent).toContain("{{randomValue type='UUID'}}");
       expect(await savedResponse()).toMatchObject({ template: true });
     });

@@ -131,7 +131,7 @@ Com `"template": true`, o `body` e os valores dos `headers` da resposta são tem
 | `request.query.<nome>`, `request.headers.<nome>` | parâmetro da query e cabeçalho (nome em minúsculas; `request.headers.[content-type]` também vale) |
 | `request.body`, `seq` | corpo cru e o `seq` da mensagem gravada |
 | `{{request}}`, `{{request.query}}`, `{{request.headers}}` | mapa impresso inteiro sai como JSON (`{"x":"1"}`, na ordem de chegada), nunca no formato do Java |
-| `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON. Só caminho simples (propriedade, índice, `*`, união e fatia): busca profunda (`..`), filtro (`[?(…)]`) e função (`.length()`) dão 422 ao salvar e, se o caminho vier da requisição, deixam o trecho vazio |
+| `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON. Só caminho simples (propriedade, índice, `*`, união e fatia): busca profunda (`..`), filtro (`[?(…)]`) e função (`.length()`) dão 422 ao salvar e, se o caminho vier da requisição, deixam o trecho vazio. A recusa olha `..`, `?` e `(` em qualquer lugar do caminho, inclusive dentro de chave entre aspas: `$['a(b)']`, `$['x?']` e `$['a..b']` também dão 422 |
 | `{{now}}`, `{{now format='yyyy-MM-dd'}}` | agora em ISO-8601 UTC (em segundos) ou no padrão do `DateTimeFormatter`, em UTC |
 | `{{randomValue type='UUID'\|'ALPHANUMERIC'\|'NUMERIC'\|'HEX' length=N}}` | valor aleatório; `length` de 1 a 10000 (fora disso, 422 ao salvar), padrão 16 |
 | `{{math a '+'\|'-'\|'*'\|'/' b}}` | conta com números ou textos numéricos de até 100 dígitos na parte inteira e 100 casas decimais (operando ou resultado maior deixa o trecho vazio) |

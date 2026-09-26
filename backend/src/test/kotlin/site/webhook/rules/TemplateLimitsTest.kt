@@ -247,12 +247,14 @@ class TemplateLimitsTest {
         }
 
         @ParameterizedTest(name = "{0}")
-        @DisplayName("Dado jsonPath com busca profunda, filtro ou função, quando valida, então há erro (422 ao salvar)")
+        @DisplayName("Dado jsonPath com busca profunda, filtro ou função (mesmo em chave entre aspas), quando valida, então há erro (422)")
         @ValueSource(
             strings = [
                 "{{jsonPath request.body '$..a'}}", "{{jsonPath request.body '$.a..b'}}", "{{jsonPath request.body '$[?(@.a)]'}}",
                 "{{jsonPath request.body \"$[?(@.a =~ /(a+)+b/)]\"}}", "{{jsonPath request.body '$.a.length()'}}",
                 "{{jsonPath request.body '$.concat($.a, $.a)'}}", "{{#if seq}}{{else}}{{jsonPath request.body '$..*'}}{{/if}}",
+                "{{jsonPath request.body \"$['a(b)']\"}}", "{{jsonPath request.body \"$['x?']\"}}",
+                "{{jsonPath request.body \"$['a..b']\"}}",
             ],
         )
         fun templateError_caminhoNaoSuportado_deveHaverErro(template: String) {

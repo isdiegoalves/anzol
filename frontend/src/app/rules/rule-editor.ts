@@ -91,7 +91,9 @@ const TEMPLATE_HELPERS: { example: string; description: string }[] = [
   { example: '{{seq}}', description: 'Sequence number of the request' },
   {
     example: "{{jsonPath request.body '$.id'}}",
-    description: 'Value from the JSON body (objects and lists come out as JSON)',
+    description:
+      "Value from the JSON body (objects and lists come out as JSON). Simple paths only: '..', '?' and '(' " +
+      "are refused anywhere in the path, even inside a quoted key ($['a(b)'], $['x?'])",
   },
   { example: '{{now}}', description: 'Current time, ISO-8601 UTC' },
   { example: "{{now format='yyyy-MM-dd'}}", description: 'Current time, Java date pattern' },
