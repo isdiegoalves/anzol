@@ -267,6 +267,47 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   timestamp no futuro, header de timestamp do Slack ausente sozinho, condição `signature` numa URL sem
   configuração e `rules/test` com `match.signature`.
 
+- **Espera por requisições** (`specs/api/wait-for*.spec.ts`, helpers em `support/espera.ts`; §1 do plano
+  "wait-for"). `POST /token/{id}/requests/wait` `{match, after, count, timeout}` responde 200 com exatamente
+  `{matched, count, requests, near_miss}`; `requests` tem `count` itens em ordem crescente de `seq`, cada um
+  igual ao `GET /token/{id}/request/{id}`; `near_miss` é `{uuid, seq, failed}` ou `null`, e sempre `null` com
+  `matched=true`.
+  - *Histórico* (CA-1): mensagem gravada que casa → `matched=true` em menos de 3 s com `timeout` 20 000; sem
+    `match` e com `match: {}` casa qualquer uma (a de menor `seq`); com mais que `count` casando, as `count` de
+    menor `seq`.
+  - *Durante a espera* (CA-2): mensagem que casa enviada 1 s depois da chamada → a resposta chega a menos de
+    3 s do envio (prazo de 20 s), trazendo só ela (uma que não casa chega antes). Corrida: 15 rodadas com a
+    espera e o webhook disparados juntos (0 a 40 ms de defasagem) → todas `matched=true`; pega a mensagem
+    perdida entre assinar as novas e varrer o histórico.
+  - *`count` e `after`* (CA-3): `count` 3 e `after` = `seq` de uma que casaria → não responde depois da 1ª e
+    da 2ª (com uma que não casa no meio), responde a menos de 3 s da 3ª com as três em ordem; `after` = `seq`
+    da mais nova → `{matched: false, count: 0, requests: [], near_miss: null}`; `after` 0 = todo o histórico;
+    2 de 3 casando com `timeout` 0 → `matched=false`, `count` 2, as duas em `requests`, `near_miss` null.
+  - *Prazo e near miss* (CA-4): `timeout` 2000 sem casar → resposta entre 1950 ms e 7 s, `near_miss` = a
+    mensagem com menos condições falhando (1 falha, mesmo mais antiga que uma de 2) e só a frase do corpo;
+    `timeout` 0 responde em menos de 1,5 s; as frases são as das regras (`method … POST … PUT`,
+    `header x-signature … absent`, `body $.status … pago … pendente`, `path`, `query tipo`); empate → a mais
+    nova; mensagem que chega durante a espera e não casa também vira `near_miss`; URL vazia → `near_miss` null.
+  - *URL apagada durante a espera*: `DELETE /token/{id}` 1 s depois da chamada → 200 (não 410) a menos de 5 s
+    do `DELETE`, `matched=false`; com 1 de 2 já casada, `count` 1 e ela em `requests`.
+  - *Validação* (CA-5, `wait-for-validacao.spec.ts`): regex inválida → exatamente
+    `{"match.path.regex": ["The regex is invalid."]}`; `method` que não é lista, condição de cabeçalho sem
+    operador ou com dois, regex inválida na query ou no corpo, `body` que não é lista, `signature` fora da
+    lista, `match` texto ou número → 422 com uma chave `match…` do campo; `count` 0, 101, −1, 1.5, `"abc"`,
+    `true` → `count`; `timeout` −1, 300 001, 1.5, `"abc"`, `true` → `timeout`; `after` −1, 1.5, `"abc"`,
+    `true` → `after`. Todo 422 é JSON, `{chave: [mensagem]}` com a forma do Laravel, e volta em menos de 5 s
+    com `timeout` 20 000. Aceitos: `count` 1 e 100, `timeout` 0 e 300 000 (com histórico casando, responde
+    na hora), `after` 0. Token que nunca existiu e token apagado → 410 `Token not found` no envelope JSON.
+
+  Leituras assumidas onde a §1 deixava folga: sem sucesso, `requests` traz as que casaram (menos que
+  `count`) e `count` = quantas; "avaliadas" para o `near_miss` inclui as que chegam durante a espera; com
+  todas as avaliadas casando, `near_miss` é `null`; "bem antes do prazo" = até 3 s depois da mensagem; "perto
+  do timeout" = de `timeout` − 50 ms a `timeout` + 5 s medidos no cliente; o 422 de `match` usa a chave sem
+  prefixo de índice (`match.path.regex`), e só a regex tem mensagem exata (as outras só a forma do Laravel);
+  valor não inteiro (texto, fração, booleano) é inválido como fora dos limites. Ficam fora: corpo da
+  requisição ausente ou que não é objeto, mensagem apagada durante a espera, `timeout` padrão (30 s) e as
+  10 000 mensagens do histórico retido.
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -293,6 +334,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Toda URL responde o padrão do token; mensagem sem registro de regra | Regras de resposta por URL (`/token/{id}/rules`, `rules/test`) e `rule`/`near_miss` em toda mensagem | Feature "regras de resposta" (fase A, 2026-09-26): testar de verdade quem envia webhooks. `rule` e `near_miss` entraram em `CHAVES_MENSAGEM`, então os dois testes de forma de `mensagem.spec.ts` também as exigem; URL sem regras responde exatamente como antes |
 | `template: true`, `scenario`, `delay`, `dribble`, `fault` → 422 "not supported yet" (fase A) | Aceitos: templating, cenários com estado (`/token/{id}/scenarios`), atrasos, dribble e falhas de rede | Fase B da feature "regras de resposta" (Anexo B, 2026-09-26): simular retentativa, lentidão e rede ruim para quem envia webhooks |
 | Token e mensagem sem informação de assinatura | `signature` no token (configuração, segredo mascarado) e na mensagem (`{provider, valid, reason}` ou `null`); condição de regra `match.signature` | Feature "verificação de assinatura HMAC" (2026-09-26): dizer se a assinatura do provedor confere e por que não. `signature` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem configuração responde e grava como antes, com `signature: null` |
+| Esperar uma requisição exigia polling da listagem | `POST /token/{id}/requests/wait` (long-poll com o `match` das regras, `count`, `after`, `timeout` e `near_miss`) | Feature "wait-for" (2026-09-26): teste automatizado afirma "chegou N vezes uma requisição assim em até T" sem `sleep` e sabe por que não chegou. Rota nova; nada do que existia muda |
 
 ## Defeitos do legado (`bugDoLegado`)
 

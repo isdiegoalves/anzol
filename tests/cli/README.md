@@ -78,6 +78,11 @@ temporária do sistema, apagada ao fim de cada teste.
 | `send.test.mjs` CA-5 | `--repeat 3 --interval 300`: `{{seq}}` 1..3 no corpo e no cabeçalho, `{{uuid}}` distintos, intervalos ≥ 300 ms, três `delivered`, saída 0; com o 2º recusado (500, sem retentativa): os três saem, `#2 gave up after 1 attempt(s)`, saída 1 |
 | `send.test.mjs` não-ASCII | `--header` com valor fora do ASCII: saída ≠ 0, mensagem cita o cabeçalho, nada chega ao receptor (o cliente HTTP do JDK trocaria o caractere por `?`; decisão do dono: recusar) |
 | `send.test.mjs` segredo | toda execução com `--secret` falha se o segredo aparece em qualquer linha do stdout ou do stderr |
+| `wait-for.test.mjs` atalhos (CA-6) | conferidos pelo efeito, com `--timeout 0` sobre mensagens gravadas que só o `match` certo separa: `--method PUT --method GET --count 2` → as duas (lista, não a última); `--path /pedidos` → `/pedidos/1` e `/pedidos`, não `/x/pedidos` (prefixo); `--header "x-evento: pago" --header "X-Conta: 7"` → só a que tem os dois exatos (igualdade, nome sem caixa, em E); `--body-contains`; `--json-path '$.status'` (existe); `'$.valor=10'` casa `10`, não `"10"` (JSON); `'$.status=pago'` e `'$.status="pago"'` (texto); `'$.expr=a=b'` (corta no primeiro `=`); dois `--json-path` e `--body-contains` em E |
+| `wait-for.test.mjs` `--match` (CA-6) | `--match <json>` e `--match-file` com método e query; `--match '{"method":["POST"],"path":{"equals":"/a"}}' --path /b` → só `POST /b/2` (o atalho substitui o `path` e o `method` do `--match` fica) |
+| `wait-for.test.mjs` saída (CA-6) | stdout inteiro é um array JSON com as mensagens que casaram, cada uma igual ao `GET /token/{id}/request/{id}`; stderr `matched <n>/<count> in <ms> ms`; prazo de 1500 sem casar → saída 1, `[]`, `timed out after <ms ≥ 1400> ms: 0/1 matched`, `closest: #<seq> <uuid>` da mensagem e uma linha `  - method … POST … PUT`; 2 de 3 → saída 1, as 2 no stdout, `2/3`, sem `closest`; `--count 3` com 4 → as 3 de menor `seq`; URL vazia com `--timeout 2500` → espera ≥ 2400 ms e sai com 1 (o prazo HTTP do CLI tem folga), sem `closest` |
+| `wait-for.test.mjs` código 2 (CA-6) | sem `--token`; `--after` com `--new`; `--match` e `--match-file` que não são JSON; arquivo inexistente; `--count` 0 e 101; 422 da API (regex inválida); token inexistente; servidor fora (`--server http://127.0.0.1:9`): saída 2 com mensagem no stderr |
+| `wait-for.test.mjs` `--new` e `--after` (CA-6) | `--new --timeout 0` com só uma antiga que casa → saída 1 e `[]`; `--new` com uma nova a cada 400 ms → saída 0 com uma das novas (nunca a antiga), antes do prazo; `--after <seq da 1ª> --count 2` → 2ª e 3ª; `--after <seq da mais nova>` → saída 1 |
 
 ## Leituras da especificação assumidas
 
@@ -124,3 +129,19 @@ temporária do sistema, apagada ao fim de cada teste.
   (`Usage:`, `unexpected extra argument`, `no such subcommand`…). Esse erro de uso falha qualquer teste
   de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta webhook rules …?`, para os casos
   de erro não passarem contra um CLI sem os comandos.
+- `wait-for`: `--server` depois do subcomando; o CLI herda `WEBHOOK_SERVER` numa porta fechada. Os testes
+  exigem o app com `POST /token/{id}/requests/wait` (ver `tests/contract/README.md`).
+- `wait-for`: o resumo são linhas do stderr casadas por inteiro: `matched <n>/<count> in <ms> ms`, ou
+  `timed out after <ms> ms: <n>/<count> matched` seguida de `closest: #<seq> <uuid>` e de uma linha
+  `  - <frase>` (dois espaços) por condição, estas só quando a API devolve `near_miss`. Outras linhas no
+  stderr são livres; o stdout é só o array JSON (formatação livre).
+- `wait-for`: com o prazo esgotado, o stdout traz as que casaram (menos que `--count`, possivelmente `[]`) e
+  `<n>` é quantas; o `<ms>` do prazo é ≥ `--timeout` − 100.
+- `wait-for`: "atalho de mesma chave substitui a do `--match`" é lido por chave de topo do `match` (`path`, `method`); a
+  mistura de `--header` com `headers` do `--match`, e de `--body-contains`/`--json-path` com `body` do
+  `--match`, fica fora. `--body-contains` e `--json-path` juntos somam condições de corpo (E).
+- `wait-for`: o texto das mensagens de erro (código 2) é livre; `--count` fora de 1..100 pode ser recusado
+  pelo CLI ou pelo 422 da API. Sem o comando (ou sem uma opção dele), cada teste falha com `o CLI em …
+  recusou a linha de comando; falta \`webhook wait-for\` ou alguma opção dele (…)?`.
+- `wait-for --new`: sem sinal de "pronto" no CLI, o teste manda uma mensagem nova a cada 400 ms até o CLI
+  sair; qualquer uma delas vale, a do histórico não.
