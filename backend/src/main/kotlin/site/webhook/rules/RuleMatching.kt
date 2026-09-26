@@ -88,7 +88,8 @@ private fun Rule.scenarioFailure(states: Map<String, String>): String? {
     }
 }
 
-private fun Condition.failure(input: MatchInput): String? =
+/** A frase do `failed` quando a condição falha; `null` quando casa. */
+fun Condition.failure(input: MatchInput): String? =
     when (this) {
         is Condition.Method -> methodFailure(input.method)
         is Condition.Path -> pathFailure(matcher, input.path)

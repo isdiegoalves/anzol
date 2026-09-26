@@ -54,6 +54,7 @@ dados ficam no volume.
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) |
 | `GET`/`PUT /token/{id}/rules` | Lê ou substitui a lista de regras de resposta da URL (o `PUT` é também o import) |
 | `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
+| `POST /token/{id}/requests/wait` | Espera, com prazo, até chegarem mensagens que casam um `match` das regras (ver [Esperar por mensagens](#esperar-por-mensagens)) |
 | `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
 | `PUT /token/{id}/scenarios/{name}` | Define à mão o estado de um cenário (`{"state": "..."}`) |
 
@@ -300,6 +301,44 @@ mensagem (a verificação da época em que chegou).
 
 As regras ficam em `token:{uuid}:rules`, com o TTL da URL (renovado a cada webhook), e saem junto com
 ela no `DELETE /token/{id}`.
+
+### Esperar por mensagens
+
+Para o teste automatizado que dispara uma ação e precisa afirmar "chegou (N vezes) um webhook assim,
+em até T", sem `sleep` nem polling à mão. `POST /token/{id}/requests/wait` é um long-poll: responde
+assim que houver mensagens suficientes que casam, ou quando o prazo acaba.
+
+```json
+{ "match": { "method": ["POST"], "path": { "prefix": "/pedidos" },
+             "body": [ { "jsonPath": { "path": "$.status", "equals": "pago" } } ] },
+  "after": 1790438426238928, "count": 1, "timeout": 30000 }
+```
+
+| Campo | Regra |
+|---|---|
+| `match` | o `match` de uma regra (`method`, `path`, `query`, `headers`, `body`, `signature`; ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
+| `after` | inteiro ≥ 0: só mensagens com `seq` maior. Ausente: todo o histórico guardado e as que chegarem |
+| `count` | 1 a 100 (padrão 1): quantas mensagens que casam são necessárias |
+| `timeout` | 0 a 300000 ms (padrão 30000): quanto esperar por mensagens novas; `0` só olha o histórico |
+
+A resposta é sempre 200 quando a chamada é válida:
+
+```json
+{ "matched": false, "count": 0, "requests": [],
+  "near_miss": { "uuid": "bbe0…", "seq": 1790438428567114, "failed": ["method: expected DELETE, got POST"] } }
+```
+
+`requests` traz as `count` mensagens que casaram de menor `seq`, em ordem crescente e completas (como
+no `GET /token/{id}/request/{requestId}`); sem sucesso, as que casaram até ali. `near_miss` só aparece
+com `matched: false`: entre as mensagens avaliadas que não casaram, a de menos condições falhando
+(empate: a mais nova), com as frases do `near_miss` das regras; `null` se nenhuma foi avaliada.
+
+O servidor registra a escuta das mensagens novas antes de ler o histórico e desconta a mesma mensagem
+vista nos dois (pelo `seq`): nenhuma que chegue durante a chamada se perde. A espera ocupa só uma thread
+virtual. Apagar a URL durante a espera a encerra na hora, com o que houver (200, `matched: false` se não
+bastou). Corpo vazio vale `{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`
+(`{"match.path.regex": ["The regex is invalid."]}`), `after`, `count` e `timeout` na chave do campo e
+`wait` quando o corpo não é um objeto JSON; URL inexistente dá 410.
 
 O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB) está descrito em
 [`tests/contract/README.md`](tests/contract/README.md). A coleção `webhook-paw.paw` (Paw) tem

@@ -22,6 +22,7 @@ import site.webhook.http.validationFailure
 import site.webhook.signature.MISSING_SECRET
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureDraft
+import site.webhook.stream.RequestStream
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDateTime
@@ -53,6 +54,7 @@ class TokenController(
     private val tokens: TokenStore,
     private val requests: RequestStore,
     private val clock: Clock,
+    private val stream: RequestStream,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -89,11 +91,13 @@ class TokenController(
         @PathVariable tokenId: TokenId,
     ): Token = tokens.findOrGone(tokenId).forApi()
 
+    /** Apagar encerra as esperas do `requests/wait` na URL, com o que já tiverem. */
     @DeleteMapping("/{tokenId:$UUID_PATTERN}")
     fun delete(
         @PathVariable tokenId: TokenId,
     ): ResponseEntity<Unit> {
         tokens.delete(tokens.findOrGone(tokenId))
+        stream.end(tokenId)
         return ResponseEntity.noContent().header(HttpHeaders.CONTENT_TYPE, PHP_DEFAULT_CONTENT_TYPE).build()
     }
 
