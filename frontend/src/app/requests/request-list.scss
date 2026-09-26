@@ -36,6 +36,10 @@
     background: #e8e8e8;
   }
 
+  &.base .select {
+    box-shadow: inset 4px 0 #f0ad4e;
+  }
+
   &.active .select {
     color: #fff;
     background: #428bca;
@@ -79,6 +83,19 @@
 
 .page {
   flex: none;
+}
+
+.picking {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 0 10px 8px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 4px;
+  background: #fcf8e3;
+  color: #8a6d3b;
+  font-size: 12px;
 }
 
 .no-match {

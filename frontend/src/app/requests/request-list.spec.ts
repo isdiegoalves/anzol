@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { CompareStore } from '../diff/compare-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { RequestList } from './request-list';
@@ -141,5 +142,36 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().textContent).toContain('No requests match the filters.');
     expect(element().textContent).not.toContain('Waiting for first request...');
+  });
+
+  it('deve escolher a B em vez de abrir a mensagem Quando a lista está no "Compare with…"', async () => {
+    await load([webhookRequest(1), webhookRequest(2)]);
+    const compare = TestBed.inject(CompareStore);
+    const opened: WebhookRequest[] = [];
+    fixture.componentInstance.openRequest.subscribe((request) => opened.push(request));
+
+    compare.start(webhookRequest(1));
+    await fixture.whenStable();
+    expect(element().querySelector('.picking')?.textContent).toContain(
+      'Choose a request to compare with #00000',
+    );
+    expect(items()[0].classList.contains('base')).toBe(true);
+    items()[1].querySelector<HTMLButtonElement>('.select')?.click();
+
+    expect(opened).toEqual([]);
+    expect(compare.pair()).toEqual({ a: webhookRequest(1), b: webhookRequest(2) });
+  });
+
+  it('deve sair do modo de escolha Quando "Cancel" é clicado', async () => {
+    await load([webhookRequest(1)]);
+    const compare = TestBed.inject(CompareStore);
+    compare.start(webhookRequest(1));
+    await fixture.whenStable();
+
+    element().querySelector<HTMLButtonElement>('.picking button')?.click();
+    await fixture.whenStable();
+
+    expect(compare.picking()).toBeNull();
+    expect(element().querySelector('.picking')).toBeNull();
   });
 });

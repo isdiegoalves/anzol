@@ -1,0 +1,66 @@
+@let empty = onlyDifferences() ? 'No differences' : '(empty)';
+<section class="compare" aria-label="Compare requests">
+  <header class="heading">
+    <p class="side">
+      <span class="tag a">A</span>
+      <strong class="id-a">#{{ a().uuid.substring(0, 5) }}</strong>
+      <small>{{ localDate(a().created_at) }}</small>
+    </p>
+    <p class="side">
+      <span class="tag b">B</span>
+      <strong class="id-b">#{{ b().uuid.substring(0, 5) }}</strong>
+      <small>{{ localDate(b().created_at) }}</small>
+    </p>
+    <div class="actions">
+      <mat-slide-toggle [checked]="onlyDifferences()" (change)="onlyDifferences.set($event.checked)"
+        >Only differences</mat-slide-toggle
+      >
+      <button mat-button type="button" (click)="compare.swap()">Swap A and B</button>
+      <button mat-button type="button" (click)="compare.close()">Close</button>
+    </div>
+  </header>
+
+  <h3>Request</h3>
+  <app-field-diff label="Request" [rows]="requestLine()" [empty]="empty" />
+  <h3>Query</h3>
+  <app-field-diff label="Query" [rows]="query()" [empty]="empty" />
+  <h3>Headers</h3>
+  <app-field-diff label="Headers" [rows]="headers()" [empty]="empty" />
+
+  <h3>Body</h3>
+  @let pair = body();
+  @if (pair.truncated) {
+    <p class="warning" role="alert">
+      Body larger than 1 MB: comparing only the first 1 MB of each request.
+    </p>
+  }
+  @if (pair.json) {
+    <p class="note">JSON bodies, formatted with sorted keys.</p>
+  }
+  @if (bodyEqual() && onlyDifferences()) {
+    <p class="note">No differences</p>
+  } @else {
+    <table class="lines" aria-label="Body">
+      <tbody>
+        @for (row of bodyRows(); track $index) {
+          @if (row.kind === 'skipped') {
+            <tr class="skipped">
+              <td colspan="4">
+                &#8943; {{ row.count }} unchanged {{ row.count === 1 ? 'line' : 'lines' }}
+              </td>
+            </tr>
+          } @else {
+            <tr [class]="row.kind">
+              <td class="number">{{ row.lineA }}</td>
+              <td class="number">{{ row.lineB }}</td>
+              <td class="sign">
+                {{ row.kind === 'removed' ? '-' : row.kind === 'added' ? '+' : '' }}
+              </td>
+              <td class="text">{{ row.text }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  }
+</section>

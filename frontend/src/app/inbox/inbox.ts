@@ -7,6 +7,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
+import { CompareOutlet } from '../diff/compare-outlet';
+import { CompareStore } from '../diff/compare-store';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
@@ -28,7 +30,7 @@ export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
  */
 @Component({
   selector: 'app-inbox',
-  imports: [MatButton, RequestList, RequestNav, RequestDetail, OptionsBar, Tutorial],
+  imports: [MatButton, RequestList, RequestNav, RequestDetail, CompareOutlet, OptionsBar, Tutorial],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
 })
@@ -36,6 +38,7 @@ export class Inbox {
   protected readonly tokens = inject(TokenStore);
   protected readonly requests = inject(RequestStore);
   protected readonly preferences = inject(Preferences);
+  protected readonly compare = inject(CompareStore);
   private readonly stream = inject(RequestStream);
   private readonly redirector = inject(Redirector);
   private readonly router = inject(Router);
@@ -90,6 +93,12 @@ export class Inbox {
     return this.router.navigate(['/', request.token_id, request.uuid, page], { replaceUrl });
   }
 
+  /** Clicar na lista fecha a comparação aberta e abre a mensagem. */
+  protected openFromList(request: WebhookRequest): void {
+    this.compare.close();
+    void this.openRequest(request);
+  }
+
   protected deleteAllRequests(): void {
     void this.requests.deleteAll();
   }
@@ -126,6 +135,7 @@ export class Inbox {
   }
 
   private async fetchToken(tokenId: string, page: number): Promise<boolean> {
+    this.compare.close();
     try {
       await this.tokens.load(tokenId);
     } catch (error) {

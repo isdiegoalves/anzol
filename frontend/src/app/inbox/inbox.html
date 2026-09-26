@@ -1,5 +1,5 @@
 <aside class="sidebar">
-  <app-request-list (openRequest)="openRequest($event)" />
+  <app-request-list (openRequest)="openFromList($event)" />
   @if (requests.hasRequests()) {
     <div class="delete-all">
       <button mat-flat-button type="button" (click)="deleteAllRequests()">
@@ -12,7 +12,10 @@
   @if (!requests.hasRequests() || !preferences.hideTutorial()) {
     <app-tutorial [url]="tokens.webhookUrl()" />
   }
-  @if (requests.hasRequests()) {
+  @let pair = compare.pair();
+  @if (pair) {
+    <app-compare-outlet [a]="pair.a" [b]="pair.b" />
+  } @else if (requests.hasRequests()) {
     <div class="toolbar">
       <app-request-nav (openRequest)="openRequest($event)" />
       <app-options-bar [request]="requests.selected()" />

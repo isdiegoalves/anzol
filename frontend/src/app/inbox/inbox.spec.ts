@@ -217,4 +217,32 @@ describe('Dado a tela principal', () => {
       expect(redirect).toHaveBeenCalledWith(nova);
     });
   });
+
+  it('deve comparar a aberta com a escolhida na lista e voltar ao detalhe Quando "Compare with…" é usado', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    await vi.waitFor(() => expect(text()).toContain('Compare with'));
+    const root = harness.routeNativeElement as HTMLElement;
+    const button = (label: string) =>
+      [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+        (candidate) => candidate.textContent?.trim() === label,
+      );
+
+    button('Compare with…')?.click();
+    await harness.fixture.whenStable();
+    expect(text()).toContain(`Choose a request to compare with #${R1.uuid.substring(0, 5)}`);
+    root.querySelectorAll<HTMLButtonElement>('.item .select')[1].click();
+
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(root.querySelector('app-request-compare .id-b')?.textContent).toBe(
+        `#${R2.uuid.substring(0, 5)}`,
+      );
+    });
+    expect(root.querySelector('app-request-detail')).toBeNull();
+
+    button('Close')?.click();
+    await harness.fixture.whenStable();
+    expect(root.querySelector('app-request-compare')).toBeNull();
+    expect(root.querySelector('app-request-detail')).not.toBeNull();
+  });
 });

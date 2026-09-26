@@ -1,0 +1,53 @@
+.fields {
+  width: 100%;
+  margin-bottom: 10px;
+  border-collapse: collapse;
+  font-size: 90%;
+  table-layout: fixed;
+
+  th {
+    padding: 3px;
+    border-bottom: 2px solid #ddd;
+    text-align: left;
+  }
+
+  td {
+    padding: 3px;
+    vertical-align: top;
+    word-break: break-all;
+  }
+}
+
+.name {
+  width: 20%;
+}
+
+.status {
+  width: 80px;
+  color: #777;
+  font-size: 85%;
+}
+
+.none {
+  color: #999;
+}
+
+code {
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+// Mesmas cores das linhas do corpo: vermelho = só em A (removido), verde = só em B (adicionado).
+.different {
+  background: #fcf8e3;
+}
+
+.only-a {
+  background: #ffeef0;
+}
+
+.only-b {
+  background: #e6ffed;
+}

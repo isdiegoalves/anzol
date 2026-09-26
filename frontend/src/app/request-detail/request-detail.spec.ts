@@ -6,6 +6,7 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { CompareStore } from '../diff/compare-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
 import { TokenActions } from '../token/token-actions';
@@ -230,4 +231,13 @@ describe('Dado o detalhe de uma mensagem', () => {
       ).toHaveLength(0);
     },
   );
+
+  it('deve pôr a lista em modo de escolha com a aberta como A Quando "Compare with…" é clicado', async () => {
+    const request = webhookRequest(4);
+    await render(request);
+
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Compare with…' }))).click();
+
+    expect(TestBed.inject(CompareStore).picking()).toEqual(request);
+  });
 });

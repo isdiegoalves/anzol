@@ -7,6 +7,12 @@
 @if (store.hasRequests()) {
   <app-request-search />
 }
+@if (compare.picking(); as base) {
+  <div class="picking" role="status">
+    <span>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
+    <button mat-button type="button" (click)="compare.close()">Cancel</button>
+  </div>
+}
 @if (!store.hasRequests()) {
   <p class="waiting">
     <mat-progress-spinner mode="indeterminate" diameter="16" />
@@ -27,8 +33,9 @@
       class="item"
       [class.active]="store.selected()?.uuid === request.uuid"
       [class.unread]="isUnread(request)"
+      [class.base]="compare.picking()?.uuid === request.uuid"
     >
-      <button type="button" class="select" (click)="openRequest.emit(request)">
+      <button type="button" class="select" (click)="choose(request)">
         <app-method-label [method]="request.method" />
         #{{ request.uuid.substring(0, 5) }} {{ request.ip }}<br />
         <small>{{ localDate(request.created_at) }}</small>

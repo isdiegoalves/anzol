@@ -6,6 +6,7 @@ import {
 import { Component, computed, inject, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { CompareStore } from '../diff/compare-store';
 import { localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { TokenStore } from '../token/token-store';
@@ -13,7 +14,10 @@ import { MethodLabel } from './method-label';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
-/** Lista lateral: mensagens da URL, busca e filtros, paginação, não lidas e apagar uma. */
+/**
+ * Lista lateral: mensagens da URL, busca e filtros, paginação, não lidas e apagar uma. No
+ * "Compare with…", clicar escolhe a mensagem B em vez de abrir.
+ */
 @Component({
   selector: 'app-request-list',
   imports: [
@@ -30,6 +34,7 @@ import { WebhookRequest } from './webhook-request';
 })
 export class RequestList {
   protected readonly store = inject(RequestStore);
+  protected readonly compare = inject(CompareStore);
   private readonly tokens = inject(TokenStore);
 
   readonly openRequest = output<WebhookRequest>();
@@ -46,6 +51,14 @@ export class RequestList {
 
   protected isUnread(request: WebhookRequest): boolean {
     return this.unreadIds().has(request.uuid);
+  }
+
+  protected choose(request: WebhookRequest): void {
+    if (this.compare.picking()) {
+      this.compare.choose(request);
+    } else {
+      this.openRequest.emit(request);
+    }
   }
 
   protected deleteRequest(request: WebhookRequest): void {

@@ -4,6 +4,7 @@ import { Component, Injector, computed, inject, input } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { CompareStore } from '../diff/compare-store';
 import { MethodLabel } from '../requests/method-label';
 import { FieldValue, WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
@@ -37,6 +38,7 @@ export class RequestDetail {
   private readonly snackBar = inject(MatSnackBar);
   private readonly origin = inject(DOCUMENT).location.origin;
   private readonly injector = inject(Injector);
+  private readonly compare = inject(CompareStore);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -76,6 +78,11 @@ export class RequestDetail {
   protected copyRequestAs(format: CopyFormat): void {
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
     this.snackBar.open(`Copied request as ${format}`);
+  }
+
+  /** A lista entra em modo de escolha da mensagem B. */
+  protected compareWith(): void {
+    this.compare.start(this.request());
   }
 
   /** O editor de regras vem sob demanda (no pedaço da aba Rules), fora da carga inicial. */
