@@ -128,7 +128,7 @@ dois comandos e vem depois do subcomando: `webhook listen --server https://hooks
 | URL | `<forward>` sem a barra final + caminho depois do token + query como está na `url` gravada (o servidor grava a query com os pares em ordem alfabética) |
 | Cabeçalhos | Os gravados, cada valor da lista, **menos** `connection`, `keep-alive`, `transfer-encoding`, `te`, `trailer`, `upgrade`, `proxy-*` (valem só para a conexão original), `host` (vira o do `--forward`), `content-length` (recalculado) e `expect` |
 | Corpo | O `content` gravado, em UTF-8 |
-| Multipart | Os campos de texto gravados, remontados com o boundary do `Content-Type` gravado; arrays do PHP viram `campo[0]`, `campo[chave]` |
+| Multipart | Os campos de texto gravados, remontados com um boundary novo (que não aparece em nenhum campo) no `Content-Type` reenviado; nome escapado como o navegador faz (`"` CR LF → `%22` `%0D` `%0A`); arrays do PHP viram `campo[0]`, `campo[chave]` |
 
 ### Limitações
 
