@@ -80,6 +80,7 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
         { type: 'contains', value: 'pedido', path: '', equals: '' },
         { type: 'equalToJson', value: '{"a":1,"b":[true]}', path: '', equals: '' },
       ],
+      signature: 'any',
       status: 201,
       responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
       responseBody: '{"ok":true}',
@@ -220,6 +221,45 @@ describe('Dado template, atraso, dribble, falha e cenário no formulário (fase 
   });
 });
 
+describe('Dado a condição de assinatura no formulário', () => {
+  it.each(['valid', 'invalid', 'absent'] as const)(
+    'deve preencher e devolver a condição "%s"',
+    (condicao) => {
+      const regra: Rule = { ...completa, match: { ...completa.match, signature: condicao } };
+
+      const form = toFormValue(regra);
+
+      expect(form.signature).toBe(condicao);
+      expect(fromFormValue(form, regra)).toEqual(regra);
+    },
+  );
+
+  it('deve omitir a condição, e não gravar nula, Quando o formulário volta para "any"', () => {
+    const regra: Rule = { ...completa, match: { ...completa.match, signature: 'invalid' } };
+
+    const gravada = fromFormValue({ ...toFormValue(regra), signature: 'any' }, regra);
+
+    expect(gravada.match).toEqual(completa.match);
+    expect(gravada.match && 'signature' in gravada.match).toBe(false);
+  });
+
+  it.each([
+    ['ausente', completa],
+    ['nula', { ...completa, match: { ...completa.match, signature: null } }],
+  ])('deve começar em "any" Quando a condição é %s', (_caso, regra) => {
+    expect(toFormValue(regra).signature).toBe('any');
+  });
+
+  it.each(['valid', 'invalid', 'absent', null])(
+    'deve aceitar no JSON a condição %s',
+    (condicao) => {
+      const texto = JSON.stringify({ name: 'a', match: { signature: condicao } });
+
+      expect(parseRuleJson(texto).errors).toEqual([]);
+    },
+  );
+});
+
 describe('Dado um erro 422 com a chave em notação de ponto', () => {
   const form = toFormValue(completa);
 
@@ -234,6 +274,7 @@ describe('Dado um erro 422 com a chave em notação de ponto', () => {
     ['match.body.1.jsonPath.path', { list: 'body', index: 1, field: 'path' }],
     ['match.body.0.jsonPath.equals', { list: 'body', index: 0, field: 'equals' }],
     ['match.body.3.equalToJson', { list: 'body', index: 3, field: 'value' }],
+    ['match.signature', { field: 'signature' }],
     ['response.status', { field: 'status' }],
     ['response.headers.Content-Type', { list: 'responseHeaders', index: 0, field: 'value' }],
     ['response.body', { field: 'responseBody' }],
@@ -357,6 +398,11 @@ describe('Dado o JSON cru editado na aba "JSON"', () => {
       /^response\.fault: .*connection_reset, empty_response, malformed_chunk, random_data_then_close/,
     ],
     ['cenário sem nome', '{"name":"a","scenario":{"newState":"x"}}', /^scenario\.name: .*required/],
+    [
+      'condição de assinatura desconhecida',
+      '{"name":"a","match":{"signature":"ok"}}',
+      /^match\.signature: The selected signature is invalid\.$/,
+    ],
     [
       'estado de cenário que não é texto',
       '{"name":"a","scenario":{"name":"s","requiredState":1}}',

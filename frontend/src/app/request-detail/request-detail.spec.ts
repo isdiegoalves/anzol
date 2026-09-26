@@ -143,6 +143,23 @@ describe('Dado o detalhe de uma mensagem', () => {
     );
   });
 
+  it('deve mostrar o selo de assinatura junto do selo da regra, mesmo com "Hide Details", Quando a mensagem tem assinatura inválida', async () => {
+    TestBed.inject(Preferences).hideDetails.set(true);
+    const element = await render(
+      webhookRequest(1, {
+        rule: { id: 'r1', name: 'Recusa' },
+        signature: { provider: 'github', valid: false, reason: 'signature mismatch' },
+      }),
+    );
+
+    expect(element.querySelector('app-signature-badge')?.textContent?.trim()).toBe(
+      'Signature invalid — signature mismatch',
+    );
+    expect(element.querySelector('app-rule-badge')?.textContent).toContain(
+      'Answered by rule Recusa',
+    );
+  });
+
   it.each([
     ['com o corpo e os detalhes', {}, false],
     ['sem corpo e com "Hide Details"', { content: '' }, true],

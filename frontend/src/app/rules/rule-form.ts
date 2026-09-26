@@ -10,6 +10,8 @@ import {
   RuleDelay,
   RuleFault,
   RuleScenario,
+  SIGNATURE_CONDITIONS,
+  SignatureCondition,
   ValueMatcher,
 } from './rule';
 
@@ -52,6 +54,8 @@ export interface RuleFormValue {
   query: ConditionRow[];
   headers: ConditionRow[];
   body: BodyRow[];
+  /** `any` = sem condição (a chave fica fora do match). */
+  signature: SignatureOption;
   status: number;
   responseHeaders: HeaderRow[];
   responseBody: string;
@@ -75,6 +79,7 @@ export interface RuleFormValue {
   newState: string;
 }
 
+export type SignatureOption = 'any' | SignatureCondition;
 export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
 export type FaultOption = 'none' | RuleFault;
 
@@ -114,6 +119,7 @@ export function toFormValue(rule: Rule): RuleFormValue {
     query: conditionRows(match.query),
     headers: conditionRows(match.headers),
     body: (match.body ?? []).map(bodyRow),
+    signature: match.signature ?? 'any',
     status: rule.response?.status ?? RULE_DEFAULT_STATUS,
     responseHeaders: Object.entries(rule.response?.headers ?? {}).map(([name, value]) => ({
       name,
@@ -183,19 +189,25 @@ function scenarioOf(form: RuleFormValue): RuleScenario | null {
  */
 export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
   const faulted = form.fault !== 'none';
+  const match = {
+    ...base.match,
+    method: [...form.methods],
+    path: form.pathMode === 'any' ? null : ({ [form.pathMode]: form.path } as PathMatcher),
+    query: conditionMap(form.query),
+    headers: conditionMap(form.headers),
+    body: form.body.map(bodyMatcher),
+    signature: form.signature === 'any' ? undefined : form.signature,
+  };
+  // Sem condição de assinatura, a chave fica fora, como o servidor a devolve.
+  if (match.signature === undefined) {
+    delete match.signature;
+  }
   return {
     ...base,
     name: form.name,
     enabled: form.enabled,
     priority: Number(form.priority),
-    match: {
-      ...base.match,
-      method: [...form.methods],
-      path: form.pathMode === 'any' ? null : ({ [form.pathMode]: form.path } as PathMatcher),
-      query: conditionMap(form.query),
-      headers: conditionMap(form.headers),
-      body: form.body.map(bodyMatcher),
-    },
+    match,
     scenario: scenarioOf(form),
     response: {
       ...base.response,
@@ -303,6 +315,7 @@ const SINGLE_FIELDS: [string, SingleField][] = (
     ['priority', 'priority'],
     ['match.method', 'methods'],
     ['match.path', 'path'],
+    ['match.signature', 'signature'],
     ['response.status', 'status'],
     ['response.body', 'responseBody'],
     ['response.template', 'template'],
@@ -462,6 +475,14 @@ function matchErrors(match: unknown): string[] {
   errors.push(...conditionErrors('match.query', match['query']));
   errors.push(...conditionErrors('match.headers', match['headers']));
   errors.push(...bodyErrors(match['body']));
+  const signature = match['signature'];
+  if (
+    signature !== undefined &&
+    signature !== null &&
+    !SIGNATURE_CONDITIONS.includes(signature as SignatureCondition)
+  ) {
+    errors.push('match.signature: The selected signature is invalid.');
+  }
   return errors;
 }
 

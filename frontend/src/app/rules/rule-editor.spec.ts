@@ -294,6 +294,70 @@ describe('Dado o editor de regra', () => {
     });
   });
 
+  describe('Dado a condição "Signature" no match', () => {
+    const savedMatch = async () => {
+      await save();
+      const call = await put();
+      call.flush(call.request.body);
+      return (call.request.body as Rule[])[0].match;
+    };
+
+    it('deve oferecer Any, Valid, Invalid e Absent, começando em Any, e explicar de onde vem', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      const signature = await select('Signature');
+
+      expect(await signature.getValueText()).toBe('Any');
+      await signature.open();
+      const options = await signature.getOptions();
+      expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+        'Any',
+        'Valid',
+        'Invalid',
+        'Absent (no signature header)',
+      ]);
+      expect(await (await field('Signature')).getTextHints()).toEqual([
+        'Set up signature verification in Edit URL',
+      ]);
+    });
+
+    it('deve gravar match.signature Quando "Invalid" é escolhido', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      const signature = await select('Signature');
+      await signature.open();
+      await signature.clickOptions({ text: 'Invalid' });
+
+      expect(await savedMatch()).toEqual({ ...rule(1).match, signature: 'invalid' });
+    });
+
+    it('deve vir com a condição salva e retirá-la do match Quando volta para "Any"', async () => {
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, signature: 'valid' } })]);
+      const signature = await select('Signature');
+
+      expect(await signature.getValueText()).toBe('Valid');
+      await signature.open();
+      await signature.clickOptions({ text: 'Any' });
+
+      expect(await savedMatch()).toEqual(rule(1).match);
+    });
+
+    it('deve mostrar no campo o erro do servidor para a condição de assinatura', async () => {
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, signature: 'absent' } })]);
+
+      await save();
+      (await put()).flush(
+        { '0.match.signature': ['The selected signature is invalid.'] },
+        { status: 422, statusText: 'Unprocessable Entity' },
+      );
+
+      await vi.waitFor(async () =>
+        expect(await (await field('Signature')).getTextErrors()).toEqual([
+          'The selected signature is invalid.',
+        ]),
+      );
+    });
+  });
+
   describe('Dado a seção "Scenario"', () => {
     const outras = [
       rule(1, { scenario: { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' } }),

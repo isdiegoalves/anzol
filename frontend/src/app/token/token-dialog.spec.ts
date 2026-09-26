@@ -27,7 +27,8 @@ async function openDialog(data: TokenDialogData) {
 const input = (loader: HarnessLoader, placeholder: string) =>
   loader.getHarness(MatInputHarness.with({ placeholder }));
 
-const autoCleanup = (loader: HarnessLoader) => loader.getHarness(MatSelectHarness);
+const autoCleanup = (loader: HarnessLoader) =>
+  loader.getHarness(MatSelectHarness.with({ selector: '[formControlName=auto_cleanup]' }));
 
 const autoCleanupField = (loader: HarnessLoader) =>
   loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: 'Auto cleanup' }));
@@ -47,6 +48,7 @@ describe('Dado o diálogo "Create New URL"', () => {
       timeout: '0',
       retry_after: null,
       auto_cleanup: null,
+      signature: null,
     });
   });
 
@@ -172,6 +174,7 @@ describe('Dado o diálogo "Edit URL"', () => {
       default_content: 'ok',
       retry_after: null,
       auto_cleanup: null,
+      signature: null,
     });
   });
 
@@ -224,5 +227,317 @@ describe('Dado o diálogo "Edit URL"', () => {
 
     expect(await (await retryAfter(loader)).getValue()).toBe('');
     expect(await (await autoCleanup(loader)).getValueText()).toBe('Disabled');
+  });
+});
+
+const signatureSelect = (loader: HarnessLoader, control: string) =>
+  loader.getHarness(MatSelectHarness.with({ selector: `[formControlName=${control}]` }));
+
+const signatureInput = (loader: HarnessLoader, control: string) =>
+  loader.getHarness(MatInputHarness.with({ selector: `[formControlName=${control}]` }));
+
+const signatureField = (loader: HarnessLoader, label: string) =>
+  loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
+
+const button = (loader: HarnessLoader, text: 'Create' | 'Edit') =>
+  loader.getHarness(MatButtonHarness.with({ text }));
+
+async function chooseProvider(loader: HarnessLoader, provider: string) {
+  const select = await signatureSelect(loader, 'provider');
+  await select.open();
+  await select.clickOptions({ text: provider });
+}
+
+describe('Dado a seção "Signature verification" do diálogo "Create New URL"', () => {
+  it('deve começar em None e oferecer os cinco provedores Quando o diálogo abre', async () => {
+    const { loader } = await openDialog({ mode: 'create', token: token() });
+    const select = await signatureSelect(loader, 'provider');
+
+    expect(await select.getValueText()).toBe('None');
+    await select.open();
+    const options = await select.getOptions();
+    expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+      'None',
+      'Stripe',
+      'GitHub',
+      'Shopify',
+      'Slack',
+      'Generic',
+    ]);
+  });
+
+  it.each([
+    ['GitHub', 'Sent in X-Hub-Signature-256: sha256=<hex>; use the webhook secret'],
+    ['Shopify', "Sent in X-Shopify-Hmac-Sha256 (base64); use the app's client secret"],
+    ['Stripe', 'Sent in Stripe-Signature: t=…,v1=…; use the endpoint signing secret (whsec_…)'],
+    [
+      'Slack',
+      'Sent in X-Slack-Signature: v0=… with X-Slack-Request-Timestamp; use the signing secret',
+    ],
+    ['Generic', 'HMAC of the raw body, sent in the header you choose'],
+  ])(
+    'deve dizer onde a %s manda a assinatura Quando o provedor é escolhido',
+    async (nome, dica) => {
+      const { loader } = await openDialog({ mode: 'create', token: token() });
+
+      await chooseProvider(loader, nome);
+
+      expect(await (await signatureField(loader, 'Signature provider')).getTextHints()).toEqual([
+        dica,
+      ]);
+    },
+  );
+
+  it('deve enviar provedor e segredo, sem campos do genérico nem tolerância, Quando GitHub é escolhido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'GitHub');
+    await (await signatureInput(loader, 'secret')).setValue('s3cr3t');
+    await (await button(loader, 'Create')).click();
+
+    expect(await (await signatureInput(loader, 'secret')).getType()).toBe('password');
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ signature: { provider: 'github', secret: 's3cr3t' } }),
+    );
+  });
+
+  it.each([
+    ['vazio', ''],
+    ['acima de 256 caracteres', 'x'.repeat(257)],
+  ])('não deve permitir criar e deve explicar Quando o segredo está %s', async (_caso, segredo) => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Shopify');
+    await (await signatureInput(loader, 'secret')).setValue(segredo);
+    await (await signatureInput(loader, 'secret')).blur();
+
+    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+    expect(await (await signatureField(loader, 'Secret')).getTextErrors()).toEqual([
+      'The secret is required, up to 256 characters.',
+    ]);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Stripe', 'stripe'],
+    ['Slack', 'slack'],
+  ])(
+    'deve sugerir a tolerância de 300 s e enviá-la como número Quando %s é escolhido',
+    async (nome, provider) => {
+      const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+      await chooseProvider(loader, nome);
+      expect(await (await signatureInput(loader, 'toleranceSeconds')).getValue()).toBe('300');
+      await (await signatureInput(loader, 'toleranceSeconds')).setValue('600');
+      await (await signatureInput(loader, 'secret')).setValue('whsec_abc');
+      await (await button(loader, 'Create')).click();
+
+      expect(dialogRef.close).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signature: { provider, secret: 'whsec_abc', toleranceSeconds: 600 },
+        }),
+      );
+    },
+  );
+
+  it.each([
+    ['zero', '0'],
+    ['acima de 86400', '86401'],
+    ['fracionária', '1.5'],
+  ])('não deve permitir criar Quando a tolerância é %s', async (_caso, valor) => {
+    const { loader } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Stripe');
+    await (await signatureInput(loader, 'secret')).setValue('whsec_abc');
+    await (await signatureInput(loader, 'toleranceSeconds')).setValue(valor);
+
+    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+  });
+
+  it('deve esconder a tolerância e os campos do genérico Quando o provedor é GitHub', async () => {
+    const { loader } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'GitHub');
+
+    const hidden = await Promise.all(
+      ['toleranceSeconds', 'header', 'prefix'].map((control) =>
+        loader.getAllHarnesses(MatInputHarness.with({ selector: `[formControlName=${control}]` })),
+      ),
+    );
+    expect(hidden.map((found) => found.length)).toEqual([0, 0, 0]);
+  });
+
+  it('deve enviar header, algoritmo, encoding e prefixo Quando o genérico é preenchido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Generic');
+    expect(await (await signatureSelect(loader, 'algorithm')).getValueText()).toBe('SHA-256');
+    expect(await (await signatureSelect(loader, 'encoding')).getValueText()).toBe('Hex');
+    await (await signatureInput(loader, 'secret')).setValue('k');
+    await (await signatureInput(loader, 'header')).setValue('X-Signature');
+    const algorithm = await signatureSelect(loader, 'algorithm');
+    await algorithm.open();
+    await algorithm.clickOptions({ text: 'SHA-512' });
+    const encoding = await signatureSelect(loader, 'encoding');
+    await encoding.open();
+    await encoding.clickOptions({ text: 'Base64' });
+    await (await signatureInput(loader, 'prefix')).setValue('sha512=');
+    await (await button(loader, 'Create')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signature: {
+          provider: 'generic',
+          secret: 'k',
+          header: 'X-Signature',
+          algorithm: 'sha512',
+          encoding: 'base64',
+          prefix: 'sha512=',
+        },
+      }),
+    );
+  });
+
+  it('não deve enviar prefixo Quando o genérico fica sem prefixo', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Generic');
+    await (await signatureInput(loader, 'secret')).setValue('k');
+    await (await signatureInput(loader, 'header')).setValue('X-Signature');
+    await (await button(loader, 'Create')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signature: {
+          provider: 'generic',
+          secret: 'k',
+          header: 'X-Signature',
+          algorithm: 'sha256',
+          encoding: 'hex',
+        },
+      }),
+    );
+  });
+
+  it('não deve permitir criar e deve explicar Quando o genérico fica sem header', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'create', token: token() });
+
+    await chooseProvider(loader, 'Generic');
+    await (await signatureInput(loader, 'secret')).setValue('k');
+    await (await signatureInput(loader, 'header')).blur();
+
+    expect(await (await signatureField(loader, 'Signature header')).getTextErrors()).toEqual([
+      'The header is required.',
+    ]);
+    expect(await (await button(loader, 'Create')).isDisabled()).toBe(true);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+  });
+});
+
+describe('Dado a seção "Signature verification" do diálogo "Edit URL"', () => {
+  const comGithub = () => token({ signature: { provider: 'github', secret: '••••cdef' } });
+
+  it('deve mostrar o provedor salvo e o segredo mascarado, com o campo vazio, Quando a URL tem assinatura', async () => {
+    const { loader } = await openDialog({ mode: 'edit', token: comGithub() });
+    const secret = await signatureInput(loader, 'secret');
+
+    expect(await (await signatureSelect(loader, 'provider')).getValueText()).toBe('GitHub');
+    expect(await secret.getValue()).toBe('');
+    expect(await secret.getPlaceholder()).toBe('••••cdef');
+    expect(await (await signatureField(loader, 'Secret')).getTextHints()).toEqual([
+      'Leave blank to keep the current secret',
+    ]);
+  });
+
+  it('deve reenviar o mascarado, e não um segredo, Quando outro campo é editado e o segredo não é mexido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+
+    await (await input(loader, '200')).setValue('202');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        default_status: '202',
+        signature: { provider: 'github', secret: '••••cdef' },
+      }),
+    );
+  });
+
+  it('deve enviar o segredo novo Quando ele é digitado', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+
+    await (await signatureInput(loader, 'secret')).setValue('novo');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ signature: { provider: 'github', secret: 'novo' } }),
+    );
+  });
+
+  it('deve manter o segredo salvo, sem exigir outro, Quando só o provedor muda', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+
+    await chooseProvider(loader, 'Shopify');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ signature: { provider: 'shopify', secret: '••••cdef' } }),
+    );
+  });
+
+  it('deve enviar assinatura nula, e não omitir o campo, Quando None é escolhido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: comGithub() });
+
+    await chooseProvider(loader, 'None');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ signature: null }));
+  });
+
+  it('deve exigir o segredo Quando a URL não tinha assinatura e um provedor é escolhido', async () => {
+    const { loader, dialogRef } = await openDialog({ mode: 'edit', token: token() });
+
+    await chooseProvider(loader, 'Slack');
+
+    expect(await (await button(loader, 'Edit')).isDisabled()).toBe(true);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+  });
+
+  it('deve vir com os campos do genérico salvos e mantê-los Quando Edit é clicado', async () => {
+    const salvo = {
+      provider: 'generic' as const,
+      secret: '••••1234',
+      header: 'X-Sig',
+      algorithm: 'sha1' as const,
+      encoding: 'base64' as const,
+      prefix: 'sha1=',
+    };
+    const { loader, dialogRef } = await openDialog({
+      mode: 'edit',
+      token: token({ signature: salvo }),
+    });
+
+    expect(await (await signatureInput(loader, 'header')).getValue()).toBe('X-Sig');
+    expect(await (await signatureSelect(loader, 'algorithm')).getValueText()).toBe('SHA-1');
+    await (await button(loader, 'Edit')).click();
+
+    expect(dialogRef.close).toHaveBeenCalledWith(expect.objectContaining({ signature: salvo }));
+  });
+
+  it('deve vir com a tolerância salva Quando a URL usa Stripe', async () => {
+    const { loader } = await openDialog({
+      mode: 'edit',
+      token: token({ signature: { provider: 'stripe', secret: '••••abcd', toleranceSeconds: 60 } }),
+    });
+
+    expect(await (await signatureInput(loader, 'toleranceSeconds')).getValue()).toBe('60');
+  });
+
+  it('deve abrir em None Quando o token veio do localStorage de uma versão sem assinatura', async () => {
+    const antigo = token();
+    delete antigo.signature;
+    const { loader } = await openDialog({ mode: 'edit', token: antigo });
+
+    expect(await (await signatureSelect(loader, 'provider')).getValueText()).toBe('None');
   });
 });

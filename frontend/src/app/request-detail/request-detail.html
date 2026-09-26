@@ -1,4 +1,5 @@
 @let current = request();
+<app-signature-badge [request]="current" />
 <app-rule-badge [request]="current" />
 @if (!preferences.hideDetails()) {
   <div class="grid">

@@ -18,6 +18,11 @@ export interface Token {
    * global). Ausente no token gravado no localStorage por versões anteriores da tela.
    */
   auto_cleanup?: AutoCleanup | null;
+  /**
+   * Verificação de assinatura HMAC; `null` desliga. O `secret` vem mascarado (`••••` e os 4
+   * últimos). Ausente no token gravado no localStorage por versões anteriores da tela.
+   */
+  signature?: SignatureConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,9 +31,39 @@ export interface Token {
 export const AUTO_CLEANUP_LIMITS = [500, 1000, 5000, 10000] as const;
 export type AutoCleanup = (typeof AUTO_CLEANUP_LIMITS)[number];
 
+export const SIGNATURE_PROVIDERS = ['stripe', 'github', 'shopify', 'slack', 'generic'] as const;
+export type SignatureProvider = (typeof SIGNATURE_PROVIDERS)[number];
+
+export const SIGNATURE_PROVIDER_LABELS: Record<SignatureProvider, string> = {
+  stripe: 'Stripe',
+  github: 'GitHub',
+  shopify: 'Shopify',
+  slack: 'Slack',
+  generic: 'Generic',
+};
+
+export const SIGNATURE_ALGORITHMS = ['sha1', 'sha256', 'sha512'] as const;
+export type SignatureAlgorithm = (typeof SIGNATURE_ALGORITHMS)[number];
+export type SignatureEncoding = 'hex' | 'base64';
+
 /**
- * Campos editáveis nos diálogos criar/editar. Os de texto só vão preenchidos; `retry_after` e
- * `auto_cleanup` vão sempre, `null` quando vazios, porque o `PUT` volta ao padrão o campo ausente.
+ * Configuração da assinatura. `header`, `algorithm`, `encoding` e `prefix` só no `generic`;
+ * `toleranceSeconds` só na Stripe e no Slack. No `PUT`, `secret` ausente mantém o atual.
+ */
+export interface SignatureConfig {
+  provider: SignatureProvider;
+  secret?: string;
+  header?: string;
+  algorithm?: SignatureAlgorithm;
+  encoding?: SignatureEncoding;
+  prefix?: string;
+  toleranceSeconds?: number;
+}
+
+/**
+ * Campos editáveis nos diálogos criar/editar. Os de texto só vão preenchidos; `retry_after`,
+ * `auto_cleanup` e `signature` vão sempre, `null` quando vazios, porque o `PUT` volta ao padrão o
+ * campo ausente.
  */
 export interface TokenSettings {
   default_status?: string;
@@ -37,4 +72,5 @@ export interface TokenSettings {
   default_content?: string;
   retry_after?: string | null;
   auto_cleanup?: AutoCleanup | null;
+  signature?: SignatureConfig | null;
 }

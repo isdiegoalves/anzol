@@ -27,8 +27,14 @@ export interface RuleMatch {
   query?: Record<string, ValueMatcher>;
   headers?: Record<string, ValueMatcher>;
   body?: BodyMatcher[];
+  /** Resultado da verificação de assinatura da URL; ausente (ou `null`) = qualquer. */
+  signature?: SignatureCondition | null;
   [field: string]: unknown;
 }
+
+export const SIGNATURE_CONDITIONS = ['valid', 'invalid', 'absent'] as const;
+/** `absent` = sem o header da assinatura. */
+export type SignatureCondition = (typeof SIGNATURE_CONDITIONS)[number];
 
 /** Exatamente um dos três, sobre o caminho depois do token. */
 export type PathMatcher = { equals: string } | { prefix: string } | { regex: string };

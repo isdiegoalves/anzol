@@ -48,6 +48,7 @@ import {
   HeaderRow,
   PathMode,
   RuleFormValue,
+  SignatureOption,
   ValueOperator,
   fromFormValue,
   locateError,
@@ -164,6 +165,7 @@ export class RuleEditor {
     query: this.formBuilder.array<ConditionGroup>([]),
     headers: this.formBuilder.array<ConditionGroup>([]),
     body: this.formBuilder.array<BodyGroup>([]),
+    signature: ['any' as SignatureOption],
     status: [0, [Validators.required, Validators.min(100), Validators.max(599), integer]],
     responseHeaders: this.formBuilder.array<HeaderGroup>([]),
     responseBody: [''],
@@ -229,6 +231,12 @@ export class RuleEditor {
     { value: 'regex', label: 'Matches regex' },
     { value: 'jsonPath', label: 'JSONPath' },
     { value: 'equalToJson', label: 'Equal to JSON' },
+  ];
+  protected readonly signatureOptions: { value: SignatureOption; label: string }[] = [
+    { value: 'any', label: 'Any' },
+    { value: 'valid', label: 'Valid' },
+    { value: 'invalid', label: 'Invalid' },
+    { value: 'absent', label: 'Absent (no signature header)' },
   ];
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
     { value: 'none', label: 'None' },

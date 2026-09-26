@@ -49,6 +49,79 @@
       <mat-label>Response body</mat-label>
       <textarea matInput rows="5" formControlName="default_content"></textarea>
     </mat-form-field>
+
+    <h3 class="section">Signature verification</h3>
+    @let signature = form.controls.signature.controls;
+    @let provider = signature.provider.value;
+    <div formGroupName="signature" class="fields">
+      <mat-form-field>
+        <mat-label>Signature provider</mat-label>
+        <mat-select formControlName="provider">
+          <mat-option value="none">None</mat-option>
+          @for (option of providers; track option.value) {
+            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+        @if (provider !== 'none') {
+          <mat-hint>{{ providerHints[provider] }}</mat-hint>
+        }
+      </mat-form-field>
+      @if (provider !== 'none') {
+        <mat-form-field [floatLabel]="savedSecret ? 'always' : 'auto'">
+          <mat-label>Secret</mat-label>
+          <input
+            matInput
+            type="password"
+            autocomplete="new-password"
+            formControlName="secret"
+            [placeholder]="savedSecret ?? ''"
+          />
+          @if (savedSecret) {
+            <mat-hint>Leave blank to keep the current secret</mat-hint>
+          }
+          <mat-error>The secret is required, up to 256 characters.</mat-error>
+        </mat-form-field>
+      }
+      @if (provider === 'generic') {
+        <div class="row">
+          <mat-form-field class="grow">
+            <mat-label>Signature header</mat-label>
+            <input matInput formControlName="header" placeholder="X-Signature" />
+            <mat-error>The header is required.</mat-error>
+          </mat-form-field>
+          <mat-form-field class="grow">
+            <mat-label>Prefix</mat-label>
+            <input matInput formControlName="prefix" placeholder="sha256=" />
+            <mat-hint>Optional, before the signature</mat-hint>
+          </mat-form-field>
+        </div>
+        <div class="row">
+          <mat-form-field class="grow">
+            <mat-label>Algorithm</mat-label>
+            <mat-select formControlName="algorithm">
+              @for (algorithm of algorithms; track algorithm.value) {
+                <mat-option [value]="algorithm.value">{{ algorithm.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field class="grow">
+            <mat-label>Encoding</mat-label>
+            <mat-select formControlName="encoding">
+              <mat-option value="hex">Hex</mat-option>
+              <mat-option value="base64">Base64</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      }
+      @if (provider === 'stripe' || provider === 'slack') {
+        <mat-form-field>
+          <mat-label>Timestamp tolerance (seconds)</mat-label>
+          <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
+          <mat-hint>Older signed timestamps are rejected</mat-hint>
+          <mat-error>An integer between 1 and 86400.</mat-error>
+        </mat-form-field>
+      }
+    </div>
   </form>
 </mat-dialog-content>
 <mat-dialog-actions align="end">

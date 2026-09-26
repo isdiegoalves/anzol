@@ -1,4 +1,5 @@
 import { NearMiss, RuleRef } from '../rules/rule';
+import { SignatureProvider } from '../token/token';
 
 /** Valor de query string ou formulário: texto, ou lista/objeto quando vem de `a[]=1`. */
 export type FieldValue = string | FieldValue[] | { [name: string]: FieldValue };
@@ -20,8 +21,17 @@ export interface WebhookRequest {
   rule?: RuleRef | null;
   /** Regra mais próxima quando havia regras ativas e nenhuma casou. */
   near_miss?: NearMiss | null;
+  /** Verificação da assinatura; `null` quando a URL não verifica (ausente em mensagens antigas). */
+  signature?: SignatureResult | null;
   created_at: string;
   updated_at: string;
+}
+
+/** `reason` é `null` quando válida; senão uma frase curta (`signature mismatch`). */
+export interface SignatureResult {
+  provider: SignatureProvider;
+  valid: boolean;
+  reason: string | null;
 }
 
 /** Página de `GET /token/{id}/requests`. */

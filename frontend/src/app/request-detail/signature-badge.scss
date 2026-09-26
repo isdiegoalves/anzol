@@ -1,0 +1,18 @@
+.badge {
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+// Cores dos alertas do app atual (success/danger do Bootstrap), como o selo de regra.
+.valid {
+  border: 1px solid #d6e9c6;
+  background: #dff0d8;
+  color: #3c763d;
+}
+
+.invalid {
+  border: 1px solid #ebccd1;
+  background: #f2dede;
+  color: #a94442;
+}

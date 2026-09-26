@@ -186,6 +186,18 @@
       </div>
       <button mat-button type="button" (click)="addBodyCondition()">Add body condition</button>
 
+      <h4>Signature</h4>
+      <mat-form-field class="signature">
+        <mat-label>Signature</mat-label>
+        <mat-select formControlName="signature" aria-label="Signature">
+          @for (option of signatureOptions; track option.value) {
+            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Set up signature verification in Edit URL</mat-hint>
+        <mat-error>{{ errorOf(form.controls.signature, '') }}</mat-error>
+      </mat-form-field>
+
       <h3>Response</h3>
       <div class="line">
         <mat-form-field class="short">
