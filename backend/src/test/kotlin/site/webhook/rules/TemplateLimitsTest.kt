@@ -30,6 +30,8 @@ private val FAST = Duration.ofSeconds(2)
  * Alocação (lixo incluído) aceita para produzir 1 MiB de saída em pedaços de 1 KiB ou mais. Materializar
  * um bloco antes de escrever passa disso em várias vezes; o lixo que o Handlebars cria a cada iteração
  * (contexto, dados do `each`) não entra, porque com pedaços grandes a saída estoura em poucas iterações.
+ * Medido em 2026-09-26: os [nestedBlocks] alocam ~4 MiB com `streamingTo`; com ele desligado (blocos
+ * materializando), de 272 MiB a 1 GiB, e os cinco caem.
  */
 private const val MAX_ALLOCATED_BYTES = 64L * 1024 * 1024
 
