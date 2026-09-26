@@ -157,7 +157,13 @@ Tetos do template, conferidos ao salvar:
 | blocos aninhados e subexpressões aninhadas: 32 níveis (cada `{{else if …}}` conta um) | 422, `The template is invalid: blocks nested more than 32 levels deep (line 1, column 353).` |
 
 O template é compilado uma vez e guardado pelo texto: o webhook não recompila a regra a cada requisição,
-e salvar a regra com outro texto compila o novo.
+e salvar a regra com outro texto compila o novo. O cache guarda até 4096 templates (e até 4 Mi caracteres
+de texto somados).
+
+Regra salva antes desses tetos continua listada e casando. Quando ela responde, a mensagem continua
+gravada, a resposta é 500 com o motivo no envelope de erro de sempre
+(`{"success":false,"error":{"message":"The template is invalid: longer than 65536 characters.","id":null}}`)
+e o log do servidor registra a URL e o motivo. Para voltar a responder, salve a regra dentro dos tetos.
 
 Tetos da renderização, cobrados enquanto ela acontece (um `each` sobre os cabeçalhos do remetente não
 junta a saída inteira antes de conferir):

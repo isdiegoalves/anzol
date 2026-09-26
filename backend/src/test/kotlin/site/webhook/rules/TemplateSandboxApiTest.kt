@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.data.redis.core.StringRedisTemplate
 import site.webhook.support.ApiClient
 import site.webhook.support.ApiTest
 import site.webhook.support.JSON_BODY
@@ -28,6 +29,7 @@ private val FAST = Duration.ofSeconds(2)
 class TemplateSandboxApiTest(
     @LocalServerPort private val port: Int,
     jsonMapper: JsonMapper,
+    private val redis: StringRedisTemplate,
 ) {
     private val api = ApiClient(port, jsonMapper)
 
@@ -163,6 +165,39 @@ class TemplateSandboxApiTest(
             assertThat(api.json(response)).isEqualTo(
                 api.tree("""{"0.response.body":["The template is invalid: longer than 65536 characters."]}"""),
             )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado uma regra gravada antes dos tetos, quando o webhook chega, então grava a mensagem e responde 500 com o motivo")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            corpo acima de 64 KiB   | The template is invalid: longer than 65536 characters.
+            cabeçalho com 33 blocos | The template is invalid: blocks nested more than 32 levels deep (line 1, column 353).""",
+        )
+        fun capture_regraGravadaAntesDosTetos_deveResponder500ComOMotivo(
+            shape: String,
+            expected: String,
+        ) {
+            val tokenId = tokenWithRule("""{"template":true,"headers":{"X-Eco":"h"},"body":"b"}""")
+            val key = "token:$tokenId:rules"
+            val stored = checkNotNull(redis.opsForValue().get(key))
+            val nested = "{{#if seq}}".repeat(MAX_TEMPLATE_NESTING + 1) + "{{/if}}".repeat(MAX_TEMPLATE_NESTING + 1)
+            val beforeLimits =
+                when (shape) {
+                    "corpo acima de 64 KiB" -> stored.replace("\"body\":\"b\"", "\"body\":\"${"a".repeat(MAX_TEMPLATE_LENGTH + 1)}\"")
+                    else -> stored.replace("\"X-Eco\":\"h\"", "\"X-Eco\":\"$nested\"")
+                }
+            assertThat(beforeLimits).isNotEqualTo(stored)
+            redis.opsForValue().set(key, beforeLimits, Duration.ofHours(1))
+
+            val response = api.send("GET", "/$tokenId", headers = JSON_CLIENT)
+
+            assertThat(response.statusCode()).isEqualTo(500)
+            assertThat(api.json(response)).isEqualTo(api.tree("""{"success":false,"error":{"message":"$expected","id":null}}"""))
+            assertThat(response.headers().firstValue("X-Eco")).isEmpty()
+            assertStoredWithRule(tokenId)
+            assertThat(api.send("GET", "/token/$tokenId/rules", headers = JSON_CLIENT).statusCode()).isEqualTo(200)
         }
 
         @Test

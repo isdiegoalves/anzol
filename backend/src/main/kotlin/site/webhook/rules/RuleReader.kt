@@ -26,9 +26,13 @@ private val CHUNKS_RANGE = 1..100
 
 private val jsonReader = JsonMapper.builder().build()
 
-/** Uma regra do Anexo A: identificação, prioridade e resposta; o `match` fica com o [MatchReader]. */
+/**
+ * Uma regra do Anexo A: identificação, prioridade e resposta; o `match` fica com o [MatchReader]. Com
+ * [checkTemplates], corpo e cabeçalhos com `template: true` precisam compilar (ver [parseRules]).
+ */
 class RuleReader(
     private val violations: Violations,
+    private val checkTemplates: Boolean = true,
 ) {
     private val matchReader = MatchReader(violations)
     private val scenarioReader = ScenarioReader(violations)
@@ -108,7 +112,7 @@ class RuleReader(
         val headers = responseHeaders(node["headers"], key(key, "headers"))
         val body = node["body"].given()?.let { violations.text(it, key(key, "body")) }.orEmpty()
         val template = violations.boolean(node["template"], key(key, "template"), default = false)
-        if (template == true) validateTemplates(body, headers.orEmpty(), key)
+        if (template == true && checkTemplates) validateTemplates(body, headers.orEmpty(), key)
         val delay = timingReader.delay(node["delay"], key(key, "delay"))
         val dribble = timingReader.dribble(node["dribble"], key(key, "dribble"))
         val fault = timingReader.fault(node["fault"], key(key, "fault"))
@@ -137,7 +141,7 @@ class RuleReader(
         key: String,
     ) {
         (listOf(key(key, "body") to body) + headers.map { (name, value) -> key(key(key, "headers"), name) to value })
-            .forEach { (field, text) -> templateError(text)?.let { violations.fail(field, "The template is invalid: $it.") } }
+            .forEach { (field, text) -> templateError(text)?.let { violations.fail(field, invalidTemplateMessage(it)) } }
     }
 
     private fun status(

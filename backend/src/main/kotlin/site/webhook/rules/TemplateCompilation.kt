@@ -45,7 +45,8 @@ private const val MIN_TEMPLATE_WEIGHT = (MAX_CACHED_TEMPLATE_TEXT / MAX_CACHED_T
 /**
  * Templates compilados, pelo texto: o webhook não recompila a regra a cada requisição, e mudar a regra muda o
  * texto (a entrada antiga sai sozinha, por falta de uso). Só guarda o que passa em [MAX_TEMPLATE_LENGTH] e
- * [MAX_TEMPLATE_NESTING] e compila; o resto lança de novo a cada vez (e nunca é salvo: a validação recusa).
+ * [MAX_TEMPLATE_NESTING] e compila; o resto lança de novo a cada vez (a validação o recusa ao salvar; regra gravada
+ * antes de um teto novo responde 500 com o motivo).
  * Dois tetos, num peso só (o Caffeine não junta `maximumSize` com `maximumWeight`): o texto guardado soma até
  * [MAX_CACHED_TEMPLATE_TEXT] caracteres, e cada entrada pesa pelo menos [MIN_TEMPLATE_WEIGHT], o que limita
  * as entradas a [MAX_CACHED_TEMPLATES].

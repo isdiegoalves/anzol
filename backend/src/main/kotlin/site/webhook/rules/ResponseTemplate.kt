@@ -5,6 +5,7 @@ import com.github.jknack.handlebars.HandlebarsException
 import com.github.jknack.handlebars.Template
 import com.github.jknack.handlebars.ValueResolver
 import com.github.jknack.handlebars.context.MapValueResolver
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import site.webhook.capture.CapturedRequest
@@ -41,12 +42,20 @@ fun templateError(text: String): String? =
         template.apply(context(VALIDATION_INPUT, budget, JsonDocuments()).data(VALIDATING_DATA, true), BudgetWriter(budget))
         null
     } catch (e: HandlebarsException) {
-        val error = e.error
-        val reason = e.cause?.takeIf { it is IllegalArgumentException || it is IllegalStateException }?.message ?: error?.reason
-        if (error == null) e.message else "$reason (line ${error.line}, column ${error.column})"
+        e.reason()
     } catch (e: IllegalArgumentException) {
         e.message
     }
+
+/** A mensagem do motivo [reason] de um template recusado: a do 422 ao salvar e a do 500 de uma regra gravada antes dos tetos. */
+fun invalidTemplateMessage(reason: String?): String = "The template is invalid: $reason."
+
+/** O motivo, com linha e coluna quando o Handlebars as dá. */
+private fun HandlebarsException.reason(): String? {
+    val error = error ?: return message
+    val reason = cause?.takeIf { it is IllegalArgumentException || it is IllegalStateException }?.message ?: error.reason
+    return "$reason (line ${error.line}, column ${error.column})"
+}
 
 /** Requisição vazia da validação; `seq` 1, o primeiro que uma mensagem recebe (`length=seq` vale). */
 private val VALIDATION_INPUT =
@@ -55,13 +64,13 @@ private val VALIDATION_INPUT =
 /**
  * O texto renderizado com o contexto do Anexo B. Só mapas, números e textos chegam ao template, e só o
  * [AnnexBResolver] os lê: nada de método ou propriedade Java (`{{request.method.class}}` sai vazio).
- * Helper que falha devolve vazio no próprio trecho; template que não compila (nunca salvo) sai vazio.
+ * Helper que falha devolve vazio no próprio trecho; template que não compila lança 500 (ver [compile]).
  * Com o teto do corpo e o prazo de [MAX_RENDER_TIME] (ver [render]).
  */
 fun renderTemplate(
     text: String,
     input: TemplateInput,
-): String = compile(text).render(input, MAX_RENDERED_BODY, deadline(), JsonDocuments())
+): String = compile(text, input).render(input, MAX_RENDERED_BODY, deadline(), JsonDocuments())
 
 /**
  * A resposta pronta para o fio. Com `template` ligado, corpo e valores de cabeçalho renderizados: corpo até
@@ -81,8 +90,8 @@ fun renderTemplate(
  */
 fun RuleResponse.rendered(input: TemplateInput): RuleResponse {
     if (!template) return copy(headers = headers.mapValues { (_, value) -> value.latin1() })
-    val compiledBody = compile(body)
-    val compiledHeaders = headers.mapValues { (_, value) -> compile(value) }
+    val compiledBody = compile(body, input)
+    val compiledHeaders = headers.mapValues { (_, value) -> compile(value, input) }
     val deadline = deadline()
     val documents = JsonDocuments()
     return copy(
@@ -92,7 +101,7 @@ fun RuleResponse.rendered(input: TemplateInput): RuleResponse {
 }
 
 private fun renderHeaders(
-    templates: Map<String, Template?>,
+    templates: Map<String, Template>,
     input: TemplateInput,
     deadline: Long,
     documents: JsonDocuments,
@@ -106,28 +115,40 @@ private fun renderHeaders(
     }
 }
 
-/** O template compilado; `null` se não compila ou passa dos tetos (nunca salvo assim: a validação recusa). */
-private fun compile(text: String): Template? =
-    try {
-        compiledTemplate(text)
-    } catch (_: HandlebarsException) {
-        null
-    } catch (_: IllegalArgumentException) {
-        null
-    }
+private val log = LoggerFactory.getLogger("site.webhook.rules.ResponseTemplate")
+
+/**
+ * O template compilado. Texto que não compila ou passa dos tetos não é salvo (a validação recusa com 422),
+ * mas a regra gravada antes de um teto novo continua no Redis: a resposta dela é 500 com o motivo, no
+ * envelope de erro de sempre, e o log registra a URL (sem a query) e o motivo.
+ */
+private fun compile(
+    text: String,
+    input: TemplateInput,
+): Template {
+    val reason =
+        try {
+            return compiledTemplate(text)
+        } catch (e: HandlebarsException) {
+            e.reason()
+        } catch (e: IllegalArgumentException) {
+            e.message
+        }
+    log.warn("Regra com template inválido em {}, resposta 500: {}", input.request.url.substringBefore('?'), reason)
+    throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, invalidTemplateMessage(reason))
+}
 
 /**
  * Tetos, cobrados durante a renderização: a saída passa de [maxLength] caracteres ou o relógio passa
  * de [deadline] (`System.nanoTime()`) → para na hora e lança 500 com [TEMPLATE_TOO_LARGE] ou
  * [TEMPLATE_TOO_SLOW], que o `LegacyErrorAdvice` responde no envelope de erro de sempre.
  */
-private fun Template?.render(
+private fun Template.render(
     input: TemplateInput,
     maxLength: Int,
     deadline: Long,
     documents: JsonDocuments,
 ): String {
-    if (this == null) return ""
     val budget = RenderBudget(maxLength, deadline)
     val out = BudgetWriter(budget)
     val rendered =

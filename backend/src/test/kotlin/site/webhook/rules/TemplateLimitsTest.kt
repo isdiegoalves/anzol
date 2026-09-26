@@ -6,12 +6,15 @@ import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.function.ThrowingSupplier
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import java.lang.management.ManagementFactory
@@ -368,11 +371,28 @@ class TemplateLimitsTest {
         }
 
         @Test
-        @DisplayName("Dado um texto acima do teto guardado antes da regra nova, quando renderiza, então sai vazio sem compilar")
-        fun renderTemplate_acimaDoTeto_deveSairVazio() {
+        @DisplayName("Dado um texto acima do teto guardado antes da regra nova, quando renderiza, então recusa com 500 e o motivo")
+        fun renderTemplate_acimaDoTeto_deveRecusarComOMotivo() {
             val template = "{{#if seq}}".repeat(5_000) + "x" + "{{/if}}".repeat(5_000)
 
-            assertThat(renderTemplate(template, input())).isEmpty()
+            assertRefused("The template is invalid: longer than 65536 characters.") { renderTemplate(template, input()) }
+        }
+
+        @Test
+        @DisplayName("Dado um cabeçalho com 33 blocos guardado antes do teto, quando a regra responde, então 500 com o motivo e log")
+        @ExtendWith(OutputCaptureExtension::class)
+        fun rendered_cabecalhoAcimaDoAninhamento_deveRecusarComOMotivo(log: CapturedOutput) {
+            val depth = MAX_TEMPLATE_NESTING + 1
+            val rule = RuleResponse(headers = mapOf("X-Eco" to "{{#if seq}}".repeat(depth) + "{{/if}}".repeat(depth)), template = true)
+            val request = crowded(1).copy(url = "http://localhost/0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41/x?q=1")
+
+            assertRefused("The template is invalid: blocks nested more than 32 levels deep (line 1, column 353).") {
+                rule.rendered(input(request))
+            }
+            assertThat(log.out).contains(
+                "Regra com template inválido em http://localhost/0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41/x, resposta 500: " +
+                    "blocks nested more than 32 levels deep (line 1, column 353)",
+            )
         }
     }
 

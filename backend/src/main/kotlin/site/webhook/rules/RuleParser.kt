@@ -20,12 +20,17 @@ sealed interface Parsed<out T> {
 /**
  * A lista do `PUT /token/{id}/rules` (e a gravada no Redis). Chaves de erro a partir do índice
  * (`0.match.path.regex`); `rules` para o que é da lista inteira. Regra sem `id` ganha um UUID novo.
+ * Sem [checkTemplates] (a lista gravada), o template não é compilado aqui: regra salva antes de um teto
+ * novo continua listada, e só a resposta dela falha (500 com o motivo, ver [rendered]).
  */
-fun parseRules(tree: JsonNode?): Parsed<List<Rule>> =
+fun parseRules(
+    tree: JsonNode?,
+    checkTemplates: Boolean = true,
+): Parsed<List<Rule>> =
     when {
         tree == null || !tree.isArray -> invalid("rules", "The rules must be an array.")
         tree.size() > MAX_RULES -> invalid("rules", "The rules may not have more than $MAX_RULES items.")
-        else -> readRules(tree)
+        else -> readRules(tree, checkTemplates)
     }
 
 /** A regra única do `POST /token/{id}/rules/test`: as mesmas regras, chaves sem o índice (`match.path.regex`). */
@@ -35,9 +40,12 @@ fun parseRule(tree: JsonNode?): Parsed<Rule> {
     return violations.result { checkNotNull(rule) }
 }
 
-private fun readRules(tree: JsonNode): Parsed<List<Rule>> {
+private fun readRules(
+    tree: JsonNode,
+    checkTemplates: Boolean,
+): Parsed<List<Rule>> {
     val violations = Violations()
-    val reader = RuleReader(violations)
+    val reader = RuleReader(violations, checkTemplates)
     val rules = tree.mapIndexed { index, node -> reader.rule(node, index.toString()) }
     reader.rejectDuplicateIds(tree)
     return violations.result { rules.filterNotNull() }
