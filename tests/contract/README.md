@@ -18,7 +18,7 @@ cd tests/contract
 npm ci
 
 npx playwright test                  # tudo: api + event
-npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, reenvio, erros, limpeza, volume
+npx playwright test --project=api    # tokens, webhook, mensagens, listagem, busca, reenvio, IA/MCP, erros, limpeza, volume
 npx playwright test --project=event  # evento request.created (SSE)
 
 BASE_URL=http://localhost:8087 npx playwright test   # outra instância
@@ -32,6 +32,10 @@ npm run typecheck
 | `EVENT_ADAPTER` | `sse` | Transporte do evento; `sse` é o único (o adaptador `redis` do app Laravel saiu com ele) |
 | `CONTRATO_ALVO` | `novo` | `novo` exige o comportamento corrigido nos defeitos do legado (abaixo); `legado` os marca `test.fail`, como quando o app Laravel era o alvo |
 | `TETO_PADRAO` | `10000` | O `WEBHOOK_MAX_REQUESTS` com que o app sob teste foi iniciado (limite das URLs sem `auto_cleanup`). O contrato não descobre esse valor pela API: rodar contra um app com outro teto exige declarar aqui (ex.: app com `WEBHOOK_MAX_REQUESTS=50` e `TETO_PADRAO=50` deixa o teste do teto rápido) |
+| `CONTRATO_IA` | `falso` | `falso`: o app sob teste usa o LLM falso (`WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`); `desligada`: stack com a IA desligada, onde só rodam os testes do 503. Sem a variável e com `BASE_URL` na 8084 (ligada ao oMLX real), os testes que chamam o LLM são pulados |
+| `CONTRATO_MCP` | `ligado` | `desligado`: stack com o MCP desligado, onde só roda o teste do 404 em `/mcp` |
+| `LLM_FALSO_PORTA` | `18099` | Porta do host onde o `globalSetup` sobe o LLM falso |
+| `IA_MODELO_JSON` / `IA_MODELO_TEXTO` | os padrões da §1 | O `WEBHOOK_AI_MODEL_JSON` / `WEBHOOK_AI_MODEL_TEXT` do app sob teste, se o stack os mudou |
 
 Os testes de volume (`limpeza.spec.ts`, `volume.spec.ts`) mandam de 500 a ~10.000 webhooks por teste;
 o de volume grava ~150 MB no Redis do app sob teste e apaga tudo ao fim. Contra um app com dados
@@ -490,6 +494,71 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   URL só é observável como 410), `method` ausente no send, `keep_path` que não é booleano, alvo com query própria
   somada à da mensagem no replay e a tela (CA-5, E2E do frontend).
 
+- **IA local e MCP** (`specs/api/ia-*.spec.ts`, helpers em `support/ia.ts`, `support/mcp.ts` e `support/llm-falso.ts`;
+  §1 do plano "ia-local"). Nenhum teste fala com o oMLX: o `globalSetup` (`support/llm-falso-global.ts`) sobe no
+  host, na porta fixa 18099, um **LLM falso OpenAI-compatível** (`POST …/chat/completions`, `GET …/models`, com ou
+  sem `/v1`) que vale para todos os workers e cai no fim da execução. Porta já ocupada por outro LLM falso → é
+  reaproveitada; por outra coisa → aviso, e só os testes da IA falham. Cada teste põe um **marcador** no prompt
+  (suggest) ou no corpo da mensagem (explain) e programa para ele as respostas do falso, na ordem (esgotadas,
+  repete a última): regra (o falso obedece ao `response_format`: com a propriedade `rule` no schema, responde
+  `{rule, explanation}`; sem ela, a regra sozinha), conteúdo cru (com `reasoning_content` opcional), erro HTTP,
+  conexão fechada ou atraso. O falso guarda cada pedido (corpo, headers, início e fim) para o teste conferir o prompt.
+  O stack sob teste precisa de IA e MCP ligados e `WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`.
+  - *MCP* (`ia-mcp.spec.ts`, CA-1): cliente do SDK oficial (`@modelcontextprotocol/sdk`, Streamable HTTP em
+    `{BASE_URL}/mcp`). As 14 ferramentas da §1 listadas, com descrição e `inputSchema` de objeto, e todas menos
+    `create_url` com o argumento do UUID da URL. Fluxo: `create_url` com opções (conferidas pelo `GET /token`) →
+    `wait_for_request` esperando enquanto o webhook chega → `set_rules` (a regra aparece no `GET /rules` e responde o
+    webhook seguinte) → `test_rule` (casa a primeira mensagem e não a segunda) → `delete_url` (410 depois). Erro de
+    validação é erro de ferramenta (`isError`) com a mensagem da API: regex inválida no `set_rules` (e nada salvo),
+    `timeout` 11 no `create_url`, URL inexistente no `get_url` (`Token not found`). O segredo de assinatura não
+    aparece no resultado de `create_url` nem de `get_url`, que trazem o mascarado. Com `CONTRATO_MCP=desligado`:
+    `POST` e `GET /mcp` → 404.
+  - *Suggest* (`ia-suggest.spec.ts`, CA-2): resposta válida → 200 `{rule, explanation, attempts: 1}`, a regra igual à
+    do modelo, nada gravado (as regras existentes continuam), e a sugestão salva pelo `PUT /rules` funciona; o pedido
+    ao LLM usa `WEBHOOK_AI_MODEL_JSON`, `temperature` 0 e `response_format` `json_schema` estrito com um schema que
+    fala de `match` e `response`, e leva o prompt do dono. Uma inválida e depois válida → `attempts: 2`, e o 2º pedido
+    contém as mensagens com que o parser recusou a 1ª (as mesmas do 422 do `rules/test`). Conteúdo que não é JSON conta
+    como tentativa inválida. Três inválidas, cada uma por um motivo → 422 cujo corpo contém as mensagens da última,
+    exatamente 3 pedidos ao LLM, cada um com os erros do anterior, nada gravado. `request_id` → o corpo da mensagem
+    vai ao prompt. `prompt` ausente, vazio, número ou com 2001 caracteres → 422 em `prompt`, sem chamar o LLM; 2000
+    passa. URL inexistente → 410. LLM com 500 ou conexão fechada → 502 `{error}`. Duas chamadas simultâneas na mesma
+    URL nunca chegam juntas ao LLM. 11ª chamada no mesmo minuto → 429 com `Retry-After` de 1 a 60; outra URL segue.
+    Com `CONTRATO_IA=desligada`: 503 `{"error": "AI is not configured"}`, e webhook e listagem seguem 200.
+  - *Explain* (`ia-explain.spec.ts`, CA-3): URL com assinatura GitHub, schema, `default_status` 226 e uma regra.
+    Mensagem com assinatura errada, `id` fora do schema e near miss da regra → `explanation` é exatamente o `content`
+    do modelo (sem o `reasoning_content`); `facts` contém o motivo da assinatura, `path` e `message` de cada erro do
+    schema, o nome e as frases do near miss, o status 226, o header `x-hub-signature-256` e o início do corpo, e não
+    contém o segredo; o pedido ao LLM usa `WEBHOOK_AI_MODEL_TEXT`, leva os mesmos fatos e não leva o segredo; o corpo
+    (com uma injeção "IGNORE ALL PREVIOUS INSTRUCTIONS") vai fora da mensagem `system`, com texto antes e depois
+    dele, e o resto do prompt diz que o conteúdo é não confiável e proíbe seguir instruções dele; a mensagem gravada
+    não muda. Mensagem que casou a regra, com assinatura e schema válidos → o nome da regra e o 202 nos fatos, sem
+    `signature mismatch`; `lang: "pt-BR"` vai ao prompt. Corpo de ~10 KB → o fim não aparece nos fatos nem no pedido
+    ao LLM. LLM com 500 ou fora → 502. Mensagem inexistente → 404 `Request not found`; URL inexistente → 410. Com
+    `CONTRATO_IA=desligada`: 503.
+
+  Leituras assumidas onde a §1 deixava folga: o resultado de cada ferramenta MCP é o JSON da resposta da API (texto
+  ou `structuredContent`); os argumentos têm os nomes da API (`rules`, `rule`, `timeout`, os campos do `POST /token`)
+  e o UUID da URL vai no primeiro destes que a ferramenta declarar: `token_id`, `tokenId`, `uuid`, `url_id`, `urlId`,
+  `token`, `id`; ferramentas além das 14 são permitidas. O 422 do suggest sem regra válida só precisa conter as
+  mensagens do parser (a forma do corpo fica livre); o 502 tem a forma do 503 (`{"error": texto}`); 404 e 410 usam o
+  envelope de erro da API. Os fatos do explain são conferidos pelo conteúdo (textos e números de `facts`, em qualquer
+  chave), e fatos e prompt são comparados sem aspas nem barras invertidas (o app pode pô-los como JSON). "Delimitado"
+  quer dizer: fora da mensagem `system` e com texto antes e depois do corpo na mesma mensagem; "não confiável" quer
+  dizer: o prompt, fora o corpo, cita `untrusted` (ou "não confiável") e proíbe seguir as instruções dele. O trecho
+  do corpo tem até 4 KB mais 100 bytes de folga para uma marca de corte. O `lang` vai ao prompt como `pt-BR` ou o
+  nome do idioma. A chamada simultânea recusada pode ser 409 ou 429 (a §1 só diz "uma por vez"); o limite de 10 por
+  minuto é medido com chamadas de uma tentativa, então vale contando por chamada ou por tentativa. O LLM com erro
+  pode ser tentado de novo pelo cliente HTTP do app: o contrato não conta esses pedidos, só exige o 502 dentro do
+  prazo do teste (60 s).
+  **Fora do contrato:** o 503 (IA desligada) e o 404 em `/mcp` (MCP desligado) exigem outro stack, porque os dois são
+  ligados no app inteiro, não por URL. O `./ci.sh` sobe um stack só, com os dois ligados, então no CI esses casos ficam
+  com os testes do backend; o contrato os cobre quando roda com `CONTRATO_IA=desligada` / `CONTRATO_MCP=desligado`.
+  Também ficam fora: o timeout de leitura de 90 s (lento demais para um teste), a chave de API
+  (`WEBHOOK_AI_API_KEY`, que no CI é qualquer uma), a métrica `webhook.ai.calls` e o span (observabilidade),
+  `lang` no suggest, `request_id` inexistente no suggest, as ferramentas MCP além do fluxo do CA-1 (`update_url`,
+  `list_requests`, `search_requests`, `get_request`, `get_rules`, `replay_request`, `send_request`,
+  `get_outbound`: só o nome e o schema são exigidos) e a tela (CA-4, E2E do frontend).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -520,6 +589,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Token e mensagem sem validação do corpo | `schema` no token (JSON Schema ou `null`) e na mensagem (`{valid, errors}` ou `null`); condição `match.schema` nas regras e no `wait-for` | Feature "validação de schema por URL" (2026-09-26): saber de imediato se o payload segue o contrato e responder erro quando não segue. `schema` entrou em `CHAVES_TOKEN` e `CHAVES_MENSAGEM`; URL sem schema responde e grava como antes, com `schema: null` |
 | Achar uma mensagem exigia rolar a listagem | `POST /token/{id}/requests/search` (texto sem diferenciar maiúsculas + `match` das regras, paginado como a listagem) | Feature "busca, filtro e diff" (2026-09-26): achar a mensagem que interessa entre milhares. Rota nova; nada do que existia muda |
 | Reenviar uma mensagem ou montar uma requisição só pelo CLI, do host | `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound` (o servidor sai, com proteções contra SSRF, 30 disparos por minuto e histórico das últimas 50) | Feature "reenvio pelo servidor e envio pela tela" (2026-09-26): reenviar da tela para o app do dono e ver a resposta. Rotas novas; nada do que existia muda |
+| Nenhuma IA nem MCP | Servidor MCP em `/mcp`, `POST /token/{id}/rules/suggest` e `POST /token/{id}/request/{rid}/explain`, com o LLM local do dono (desligados por padrão) | Feature "IA local" (item 13, 2026-09-26): agentes operam o webhook.site por MCP, regra a partir de linguagem natural e diagnóstico da mensagem, sem o payload sair da máquina. Rotas novas; nada do que existia muda |
 
 ## Defeitos do legado (`bugDoLegado`)
 

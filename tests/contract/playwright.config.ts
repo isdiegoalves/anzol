@@ -4,6 +4,8 @@ const BASE_URL = process.env.BASE_URL ?? 'http://localhost:8084';
 
 export default defineConfig({
   testDir: './specs',
+  // LLM falso OpenAI-compatível da IA local (porta 18099), compartilhado pelos workers.
+  globalSetup: './support/llm-falso-global.ts',
   // O app atual roda PHP-FPM com poucos processos; mais workers só enfileiram no servidor
   // e deixam as medições de tempo (timeout do token) ruidosas.
   workers: 4,
