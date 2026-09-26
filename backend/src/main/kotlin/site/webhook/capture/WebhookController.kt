@@ -18,8 +18,11 @@ import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
 import site.webhook.rules.RuleResponse
 import site.webhook.rules.RuleStore
+import site.webhook.rules.TemplateInput
 import site.webhook.rules.decide
+import site.webhook.rules.rendered
 import site.webhook.rules.toMatchInput
+import site.webhook.rules.toTemplateRequest
 import site.webhook.stream.RequestStream
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
@@ -128,7 +131,8 @@ class WebhookController(
         stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
         when (decision) {
             is Decision.Matched -> {
-                response.writeRuleResponse(token, captured, decision.rule.response)
+                val input = TemplateInput(captured.toTemplateRequest(), stored.seq, clock.instant())
+                response.writeRuleResponse(token, captured, decision.rule.response.rendered(input))
             }
 
             is Decision.Unmatched -> {

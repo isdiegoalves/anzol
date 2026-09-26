@@ -104,14 +104,43 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.path` | um de `equals`, `prefix`, `regex`, sobre o caminho após o token, decodificado e sem a barra final (`/` quando vazio) |
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
-| `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`) |
+| `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`) |
 
 Todas as condições valem em E, e uma regra sem condições casa tudo. `regex` é a sintaxe do Java e
 precisa casar o valor inteiro (`.` atravessa linhas). JSONPath segue a
 [Jayway](https://github.com/json-path/JsonPath): `equals` aceita qualquer valor JSON, e texto casa
-também número ou booleano de mesmo texto. `scenario`, `response.template`, `delay`, `dribble` e `fault`
-fazem parte do formato, mas por enquanto só aceitam nulo (ou `false`, no `template`); outro valor dá
-422 `"... is not supported yet."`.
+também número ou booleano de mesmo texto. `scenario`, `delay`, `dribble` e `fault` fazem parte do
+formato, mas por enquanto só aceitam nulo; outro valor dá 422 `"... is not supported yet."`.
+
+#### Template
+
+Com `"template": true`, o `body` e os valores dos `headers` da resposta são templates
+[Handlebars](https://github.com/jknack/handlebars.java), sem escape HTML:
+
+```json
+{ "name": "eco", "response": { "template": true,
+  "headers": { "X-Pedido": "{{jsonPath request.body '$.id'}}" },
+  "body": "{\"id\": \"{{jsonPath request.body '$.id'}}\", \"seq\": {{seq}} }" } }
+```
+
+| No template | Valor |
+|---|---|
+| `request.method`, `request.path`, `request.url` | método, caminho após o token (como no `match.path`) e a `url` gravada |
+| `request.query.<nome>`, `request.headers.<nome>` | parâmetro da query e cabeçalho (nome em minúsculas; `request.headers.[content-type]` também vale) |
+| `request.body`, `seq` | corpo cru e o `seq` da mensagem gravada |
+| `{{jsonPath request.body '$.x'}}` | valor no corpo JSON; objeto ou lista saem como JSON |
+| `{{now}}`, `{{now format='yyyy-MM-dd'}}` | agora em ISO-8601 UTC (em segundos) ou no padrão do `DateTimeFormatter`, em UTC |
+| `{{randomValue type='UUID'\|'ALPHANUMERIC'\|'NUMERIC'\|'HEX' length=N}}` | valor aleatório; `length` de 1 a 10000, padrão 16 |
+| `{{math a '+'\|'-'\|'*'\|'/' b}}` | conta com números ou textos numéricos |
+
+Valem também os blocos `if`, `unless`, `each`, `with` e `lookup`. Não há helper que leia arquivo,
+ambiente ou rede: partials (`{{> x}}`), decorators e os demais helpers embutidos do Handlebars
+(`embedded`, `block`, `partial`, `precompile`, `i18n`, `log`...) ficam desligados, e o template só
+enxerga os valores acima (nada de propriedade ou método de objeto Java). Erro de sintaxe, helper
+desconhecido, partial ou decorator dão 422 ao salvar (`"0.response.body": ["The template is invalid: could not find helper: 'x' (line 1, column 2)."]`,
+ou a chave do cabeçalho). Falha ao executar (`jsonPath` em corpo que não é JSON, caminho ausente,
+divisão por zero) deixa só aquele trecho vazio. Como no Handlebars, `}}}` fecha `{{{`: em JSON, separe
+com espaço (`{{seq}} }`).
 
 Validação: 422 em JSON com a chave em pontos a partir do índice da lista
 (`{"0.match.path.regex": ["The regex is invalid."]}`, `{"rules": ["The rules may not have more than 100 items."]}`);

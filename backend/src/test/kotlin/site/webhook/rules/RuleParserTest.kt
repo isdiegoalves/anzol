@@ -136,7 +136,8 @@ class RuleParserTest {
             {"name":"a","response":{"headers":{"X A":"1"}}}      | 0.response.headers.X A     | The header name is invalid.
             {"name":"a","response":{"headers":{"X-A":"1\r\nX-B: 2"}}} | 0.response.headers.X-A | The header value is invalid.
             {"name":"a","response":{"body":{"a":1}}}             | 0.response.body            | The body must be a string.
-            {"name":"a","response":{"template":true}}            | 0.response.template        | The template is not supported yet.
+            {"name":"a","response":{"template":true,"body":"{{foo 'x'}}"}} | 0.response.body | The template is invalid: could not find helper: 'foo' (line 1, column 2).
+            {"name":"a","response":{"template":true,"headers":{"X-A":"{{> p}}"}}} | 0.response.headers.X-A | The template is invalid: partials are not supported.
             {"name":"a","response":{"template":"não"}}           | 0.response.template        | The template field must be true or false.
             {"name":"a","response":{"delay":{"fixed":10}}}       | 0.response.delay           | The delay is not supported yet.
             {"name":"a","response":{"dribble":{"chunks":2,"durationMs":10}}} | 0.response.dribble | The dribble is not supported yet.
@@ -166,6 +167,39 @@ class RuleParserTest {
             val rule = """{"name":"a","scenario":null,"response":{"template":false,"delay":null,"dribble":null,"fault":null}}"""
 
             assertThat(valid("[$rule]")).hasSize(1)
+        }
+    }
+
+    @Nested
+    @DisplayName("Template")
+    inner class Template {
+        @Test
+        @DisplayName("Dado template ligado com corpo e cabeçalhos válidos, quando lê, então aceita e guarda o texto como veio")
+        fun parseRules_templateValido_deveAceitar() {
+            val rule =
+                valid(
+                    """[{"name":"a","response":{"template":true,"headers":{"X-Id":"{{jsonPath request.body '$.id'}}"},""" +
+                        """"body":"{\"seq\":{{seq}} }"}}]""",
+                ).single()
+
+            assertThat(rule.response.template).isTrue()
+            assertThat(rule.response.body).isEqualTo("{\"seq\":{{seq}} }")
+            assertThat(rule.response.headers).containsEntry("X-Id", "{{jsonPath request.body '$.id'}}")
+        }
+
+        @Test
+        @DisplayName("Dado template desligado com texto que não é template válido, quando lê, então aceita: o texto sai literal")
+        fun parseRules_templateDesligado_naoDeveValidar() {
+            assertThat(valid("""[{"name":"a","response":{"body":"{{foo 'x'"}}]""")).hasSize(1)
+        }
+
+        @Test
+        @DisplayName("Dado erro de sintaxe no corpo, quando lê, então o 422 vai na chave do corpo com o motivo")
+        fun parseRules_erroDeSintaxe_deveRecusarNoCorpo() {
+            val errors = errorsOf("""[{"name":"a","response":{"template":true,"body":"{{request.method"}}]""")
+
+            assertThat(errors.keys).containsExactly("0.response.body")
+            assertThat(errors["0.response.body"]).singleElement().asString().startsWith("The template is invalid: ")
         }
     }
 

@@ -124,7 +124,7 @@ class RuleReader(
         val headers = responseHeaders(node["headers"], key(key, "headers"))
         val body = node["body"].given()?.let { violations.text(it, key(key, "body")) }.orEmpty()
         val template = violations.boolean(node["template"], key(key, "template"), default = false)
-        if (template == true) violations.fail(key(key, "template"), "The template is not supported yet.")
+        if (template == true) validateTemplates(body, headers.orEmpty(), key)
         FUTURE_RESPONSE_FIELDS.forEach { violations.notSupported(node[it], key(key, it)) }
         return if (violations.hasErrorsUnder(
                 key,
@@ -132,8 +132,18 @@ class RuleReader(
         ) {
             null
         } else {
-            RuleResponse(status = checkNotNull(status), headers = checkNotNull(headers), body = body)
+            RuleResponse(status = checkNotNull(status), headers = checkNotNull(headers), body = body, template = checkNotNull(template))
         }
+    }
+
+    /** Com `template: true`, corpo e valores de cabeçalho precisam compilar como template. */
+    private fun validateTemplates(
+        body: String,
+        headers: Map<String, String>,
+        key: String,
+    ) {
+        (listOf(key(key, "body") to body) + headers.map { (name, value) -> key(key(key, "headers"), name) to value })
+            .forEach { (field, text) -> templateError(text)?.let { violations.fail(field, "The template is invalid: $it.") } }
     }
 
     private fun status(

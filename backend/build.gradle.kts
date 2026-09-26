@@ -26,6 +26,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")
+    // Templates das regras de resposta. Sem o Nashorn: helpers em JavaScript nunca são registrados.
+    implementation("com.github.jknack:handlebars:4.5.5") {
+        exclude(group = "org.openjdk.nashorn")
+    }
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

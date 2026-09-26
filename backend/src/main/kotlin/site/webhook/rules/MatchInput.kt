@@ -24,17 +24,22 @@ class MatchInput(
     val body: String,
 ) {
     /** O corpo como JSON, lido uma vez e só se alguma condição pedir; `null` se não for JSON. */
-    val json: JsonNode? by lazy {
-        try {
-            bodyMapper.readTree(body)?.takeUnless { it.isMissingNode }
-        } catch (_: JacksonException) {
-            null
-        }
-    }
+    val json: JsonNode? by lazy { readJson(body) }
 
     /** O corpo como `Map`/`List` do Java, a forma que o JSONPath percorre. */
-    val document: Any? by lazy { json?.let { bodyMapper.treeToValue(it, Any::class.java) } }
+    val document: Any? by lazy { json?.let(::jsonDocument) }
 }
+
+/** O texto como JSON; `null` se não for JSON. */
+fun readJson(text: String): JsonNode? =
+    try {
+        bodyMapper.readTree(text)?.takeUnless { it.isMissingNode }
+    } catch (_: JacksonException) {
+        null
+    }
+
+/** A árvore como `Map`/`List` do Java, a forma que o JSONPath percorre. */
+fun jsonDocument(tree: JsonNode): Any? = bodyMapper.treeToValue(tree, Any::class.java)
 
 fun CapturedRequest.toMatchInput(): MatchInput =
     MatchInput(

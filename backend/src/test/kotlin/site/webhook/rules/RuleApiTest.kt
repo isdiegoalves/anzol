@@ -256,6 +256,64 @@ class RuleApiTest(
     }
 
     @Nested
+    @DisplayName("Webhook com template")
+    inner class Template {
+        @Test
+        @DisplayName("Dado uma regra com template, quando o webhook chega, então corpo e cabeçalhos saem com os dados da requisição")
+        fun capture_template_deveRenderizarCorpoECabecalhos() {
+            val tokenId = api.tokenId()
+            val rule =
+                """{"name":"eco","response":{"template":true,"status":201,""" +
+                    """"headers":{"Content-Type":"application/json","X-Pedido":"{{jsonPath request.body '$.id'}}"},""" +
+                    """"body":"{\"id\":\"{{jsonPath request.body '$.id'}}\",\"canal\":\"{{request.headers.x-canal}}\",""" +
+                    """\"tipo\":\"{{request.query.tipo}}\",\"path\":\"{{request.path}}\",\"seq\":{{seq}} }"}}"""
+            putRules(tokenId, "[$rule]")
+
+            val response =
+                api.send("POST", "/$tokenId/pedidos?tipo=pix", """{"id":"p-9"}""".toByteArray(), JSON_BODY + ("X-Canal" to "app"))
+
+            assertThat(response.statusCode()).isEqualTo(201)
+            assertThat(response.headers().firstValue("X-Pedido")).hasValue("p-9")
+            val seq = api.json(api.send("GET", "/token/$tokenId/requests?sorting=newest", headers = JSON_CLIENT))["data"][0]["seq"]
+            assertThat(api.json(response)).isEqualTo(
+                api.tree("""{"id":"p-9","canal":"app","tipo":"pix","path":"/pedidos","seq":$seq}"""),
+            )
+        }
+
+        @Test
+        @DisplayName("Dado uma regra sem template, quando o webhook chega, então as chaves saem literais")
+        fun capture_semTemplate_deveResponderLiteral() {
+            val tokenId = api.tokenId()
+            putRules(tokenId, """[{"name":"literal","response":{"body":"{{request.method}}"}}]""")
+
+            assertThat(api.send("GET", "/$tokenId").body()).isEqualTo("{{request.method}}")
+        }
+
+        @Test
+        @DisplayName("Dado um cabeçalho com template que traz quebra de linha do corpo, quando responde, então não nasce cabeçalho novo")
+        fun capture_cabecalhoComQuebraDeLinha_naoDeveInjetarCabecalho() {
+            val tokenId = api.tokenId()
+            putRules(tokenId, """[{"name":"eco","response":{"template":true,"headers":{"X-Eco":"{{request.body}}"}}}]""")
+
+            val response = api.send("POST", "/$tokenId", "a\r\nX-Injetado: sim".toByteArray())
+
+            assertThat(response.statusCode()).isEqualTo(200)
+            assertThat(response.headers().firstValue("X-Injetado")).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado um template inválido, quando salva, então responde 422 na chave do corpo")
+        fun put_templateInvalido_deveResponder422() {
+            val response = putRules(api.tokenId(), """[{"name":"x","response":{"template":true,"body":"{{nada 1}}"}}]""")
+
+            assertThat(response.statusCode()).isEqualTo(422)
+            assertThat(api.json(response)).isEqualTo(
+                api.tree("""{"0.response.body":["The template is invalid: could not find helper: 'nada' (line 1, column 2)."]}"""),
+            )
+        }
+    }
+
+    @Nested
     @DisplayName("POST /token/{id}/rules/test")
     inner class RulesTest {
         @Test
