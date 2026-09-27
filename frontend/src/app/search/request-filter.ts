@@ -73,7 +73,7 @@ export function searchBody(filter: RequestFilter, page: number): SearchBody {
   };
 }
 
-/** Para onde e para qual URL o comando `webhook wait-for` aponta. */
+/** Para onde e para qual URL o comando `anzol wait-for` aponta. */
 export interface WaitForTarget {
   server: string;
   tokenId: string;
@@ -82,14 +82,14 @@ export interface WaitForTarget {
 }
 
 /**
- * "Copy as webhook wait-for" (S10): o comando do CLI que espera uma mensagem com os filtros
+ * "Copy as anzol wait-for" (S10): o comando do CLI que espera uma mensagem com os filtros
  * rápidos, levados como o `match` (o mesmo da busca). O texto da busca não existe no `wait-for` e
  * fica de fora (a tela avisa). Valores entre aspas simples POSIX.
  */
 export function waitForCommand(filter: RequestFilter, target: WaitForTarget): string {
   const { match } = searchBody(filter, 1);
   const parts = [
-    'webhook wait-for',
+    'anzol wait-for',
     `--server ${shellQuote(target.server)}`,
     `--token ${target.tokenId}`,
   ];

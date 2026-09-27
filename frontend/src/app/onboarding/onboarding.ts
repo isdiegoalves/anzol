@@ -40,7 +40,7 @@ export class Onboarding {
   );
   protected readonly cli = computed(
     () =>
-      `webhook listen --server ${new URL(this.url()).origin} --forward http://localhost:3000 --token ${this.tokenId()}`,
+      `anzol listen --server ${new URL(this.url()).origin} --forward http://localhost:3000 --token ${this.tokenId()}`,
   );
 
   protected readonly sending = signal(false);

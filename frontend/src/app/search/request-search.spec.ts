@@ -135,16 +135,16 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     expect(count()).toBeUndefined();
   });
 
-  it('deve copiar o webhook wait-for só com o match e avisar que o texto ficou de fora', async () => {
+  it('deve copiar o anzol wait-for só com o match e avisar que o texto ficou de fora', async () => {
     const copy = vi.spyOn(clipboard, 'copy').mockReturnValue(true);
     await userEvent.click(chip('GET'));
     searches()[0].flush(requestPage([], { total: 0 }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'pedido');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Copy as webhook wait-for' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
 
     expect(copy).toHaveBeenCalledWith(
-      `webhook wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"method":["GET"]}'`,
+      `anzol wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"method":["GET"]}'`,
     );
     expect(
       screen
@@ -157,13 +157,13 @@ describe('Dado a busca e os filtros em chips da lista', () => {
   it('deve manter o "Copied…" Quando o debounce da busca dispara sem mudar o filtro (E11)', async () => {
     vi.spyOn(clipboard, 'copy').mockReturnValue(true);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Copy as webhook wait-for' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
     await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 100));
 
     expect(
       screen
         .getAllByRole('status')
-        .some((status) => status.textContent?.includes('Copied the webhook wait-for command.')),
+        .some((status) => status.textContent?.includes('Copied the anzol wait-for command.')),
     ).toBe(true);
     expect(searches()).toHaveLength(0);
   });

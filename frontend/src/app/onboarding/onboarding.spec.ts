@@ -47,7 +47,7 @@ describe('Dado o onboarding "Your URL is ready"', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'CLI' }));
 
     expect(screen.getByRole('tabpanel').textContent).toContain(
-      `webhook listen --server http://localhost:4200 --forward http://localhost:3000 --token ${TOKEN_ID}`,
+      `anzol listen --server http://localhost:4200 --forward http://localhost:3000 --token ${TOKEN_ID}`,
     );
   });
 

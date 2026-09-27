@@ -1572,15 +1572,15 @@ export const translations: Record<string, string> = {
   '4163272119298020373': 'Filtros',
   //  Clear filters
   '6634790566400449864': ' Limpar filtros ',
-  //  Copy as webhook wait-for
-  '8242425138341459884': ' Copiar como webhook wait-for ',
+  // Copy as anzol wait-for
+  '1673917569694962048': 'Copiar como anzol wait-for',
   // {$INTERPOLATION} of {$INTERPOLATION_1} requests
   '3473137933317204464': '{$INTERPOLATION} de {$INTERPOLATION_1} requisições',
   // Copied. The text search is not part of wait-for: only the filters went into --match.
   '8331056956976948859':
     'Copiado. A busca por texto não entra no wait-for: só os filtros foram para o --match.',
-  // Copied the webhook wait-for command.
-  '3976453925345581755': 'Comando webhook wait-for copiado.',
+  // Copied the anzol wait-for command.
+  '2357434999679102400': 'Comando anzol wait-for copiado.',
   // Redirection Settings
   '788519496287490371': 'Configurações de redirecionamento',
   //  Redirection allows you to automatically, or with a click, send incoming requests to another URL via XHR. The content will be redirected, and you can choose a static method to use.

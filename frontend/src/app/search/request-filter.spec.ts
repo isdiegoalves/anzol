@@ -60,7 +60,7 @@ describe('Dado o filtro da lista', () => {
   });
 });
 
-describe('Dado o "Copy as webhook wait-for" (S10)', () => {
+describe('Dado o "Copy as anzol wait-for" (S10)', () => {
   const target = { server: 'http://localhost:8084', tokenId: 'tok-1', protected: false };
 
   it('deve levar só o match dos filtros, sem o texto da busca', () => {
@@ -72,19 +72,19 @@ describe('Dado o "Copy as webhook wait-for" (S10)', () => {
     };
 
     expect(waitForCommand(filter, target)).toBe(
-      `webhook wait-for --server 'http://localhost:8084' --token tok-1 --match '{"method":["POST"],"signature":"invalid"}'`,
+      `anzol wait-for --server 'http://localhost:8084' --token tok-1 --match '{"method":["POST"],"signature":"invalid"}'`,
     );
   });
 
   it('deve omitir o --match Quando não há filtro rápido', () => {
     expect(waitForCommand(NO_FILTER, target)).toBe(
-      `webhook wait-for --server 'http://localhost:8084' --token tok-1`,
+      `anzol wait-for --server 'http://localhost:8084' --token tok-1`,
     );
   });
 
   it('deve ler o segredo da variável, nunca o escrever, Quando a URL é protegida', () => {
     expect(waitForCommand(NO_FILTER, { ...target, protected: true })).toBe(
-      `webhook wait-for --server 'http://localhost:8084' --token tok-1 --read-secret "$WEBHOOK_READ_SECRET"`,
+      `anzol wait-for --server 'http://localhost:8084' --token tok-1 --read-secret "$WEBHOOK_READ_SECRET"`,
     );
   });
 

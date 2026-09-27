@@ -30,7 +30,7 @@ interface Chip {
  * Busca em pílula e os filtros como chips (um clique cada, C §2.3), no lugar dos três `MatSelect`
  * (fora do pacote da Inbox): método (vários), assinatura válida/inválida/ausente e schema
  * válido/inválido (um de cada). Mapeiam 1:1 no `match` da busca. Com filtro, o contador
- * "N of M requests"; e o "Copy as webhook wait-for" com os mesmos filtros.
+ * "N of M requests"; e o "Copy as anzol wait-for" com os mesmos filtros.
  */
 @Component({
   selector: 'app-request-search',
@@ -46,7 +46,7 @@ export class RequestSearch {
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
-  /** O que o "Copy as webhook wait-for" copiou, com o aviso do texto que ficou de fora. */
+  /** O que o "Copy as anzol wait-for" copiou, com o aviso do texto que ficou de fora. */
   protected readonly copied = signal<string | null>(null);
 
   /** Rótulos dos chips (os nomes acessíveis da E4 em inglês), traduzidos na instância. */
@@ -114,7 +114,7 @@ export class RequestSearch {
     this.copied.set(
       filter.text.trim()
         ? $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`
-        : $localize`Copied the webhook wait-for command.`,
+        : $localize`Copied the anzol wait-for command.`,
     );
   }
 
