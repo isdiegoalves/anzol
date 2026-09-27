@@ -119,7 +119,10 @@ test.describe('Dado duas entregas do mesmo evento', () => {
     await expect(body(view)).toContainText(/\d+ unchanged lines?/);
     await expect(body(view)).toContainText('"status": "pending"');
     expect((await fieldRows(view, 'Headers')).every((row) => situation(row) !== 'same')).toBe(true);
-    await expect(view.getByRole('table', { name: 'Request' })).toContainText('No differences');
+    // Fidelidade ao C, fase 2 (RULES-32): a tabela "Request" vira a seção "Request line" com a nota de iguais.
+    await expect(
+      view.locator('section', { has: page.getByRole('heading', { name: 'Request line' }) }),
+    ).toContainText('method, path and query are the same');
     await screenshot(page, '02-diff-so-diferencas');
 
     await view.getByRole('button', { name: 'Swap A and B' }).click();

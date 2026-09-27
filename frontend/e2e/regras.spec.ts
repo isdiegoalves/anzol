@@ -115,7 +115,8 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
 
     await page.getByRole('link', { name: /^Inbox(, .+)?$/ }).click();
     // Item 14, E4: o selo da regra é o cartão do `group "Checks on this request"`.
-    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Pix pago/);
+    // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
+    await expect(verificacoes(page)).toContainText(/Answered by rule · 201\s*Pix pago/);
   });
 
   test('deve mostrar o erro 422 do servidor no campo Path e não fechar Quando a regex é inválida', async ({
@@ -220,7 +221,7 @@ test.describe('Dado uma URL com regras salvas', () => {
     });
 
     await page.goto(`/#/${tokenId}/${requestId}/1`);
-    await expect(verificacoes(page)).toContainText(/No rule matched\s*Closest: Pix pago/);
+    await expect(verificacoes(page)).toContainText(/No rule matched.*Closest: Pix pago/);
     const why = porque(page);
     await why.click();
 

@@ -152,10 +152,11 @@ test.describe('Dado uma URL com mais de uma página de mensagens (checklist 6)',
     await expect(detalhes(page)).toContainText(segundaPagina);
     await expect(page.getByRole('heading', { name: 'Requests (51)' })).toBeVisible();
     await expect(page.getByText('51–51 of 51', { exact: true })).toBeVisible();
-    await expect(proxima).toHaveCount(0);
+    // Fidelidade ao C, fase 2 (INBOX-16): os botões ficam sempre no rodapé, desabilitados sem página.
+    await expect(proxima).toHaveAttribute('aria-disabled', 'true');
     await anterior.click();
     await expect(page.getByText('1–51 of 51', { exact: true })).toBeVisible();
-    await expect(anterior).toHaveCount(0);
+    await expect(anterior).toHaveAttribute('aria-disabled', 'true');
     await abrirItem(page, primeira).click();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${primeira}/1$`));
 
@@ -164,7 +165,7 @@ test.describe('Dado uma URL com mais de uma página de mensagens (checklist 6)',
     await expect(page.getByText('1–50 of 51', { exact: true })).toBeVisible();
     await proxima.click();
     await expect(page.getByText('1–51 of 51', { exact: true })).toBeVisible();
-    await expect(proxima).toHaveCount(0);
+    await expect(proxima).toHaveAttribute('aria-disabled', 'true');
     // A última carregada (a da página 2), rolando a lista até o fim, no lugar do antigo "Last".
     await lista(page).hover();
     await page.mouse.wheel(0, 100_000);

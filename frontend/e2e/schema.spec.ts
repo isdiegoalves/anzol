@@ -1,14 +1,7 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
-import {
-  abrirMensagem,
-  acoes,
-  falhas,
-  marcasDeSchema,
-  porque,
-  verificacoes,
-} from './support/inbox';
+import { abrirMensagem, acoes, marcasDeSchema, porque, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
@@ -260,15 +253,19 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
 
     await openRequest(page, tokenId, invalida.headers()['x-request-id']);
     await expect(verificacoes(page)).toContainText('Schema invalid');
-    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Recusa fora do schema/);
+    // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
+    await expect(verificacoes(page)).toContainText(
+      /Answered by rule · 400\s*Recusa fora do schema/,
+    );
     await screenshot(page, '07-selo-invalido-com-regra-400');
 
     await openRequest(page, tokenId, valida.headers()['x-request-id']);
     await expect(verificacoes(page)).toContainText('Schema valid');
-    await porque(page).click();
-    await expect(
-      falhas(page).filter({ hasText: /^schema: expected invalid, got valid/ }),
-    ).toHaveCount(1);
+    // INBOX-18: com uma condição só, a frase fica no cartão e o "Why? (n)" não aparece.
+    await expect(verificacoes(page)).toContainText(
+      /Closest: Recusa fora do schema · schema: expected invalid, got valid/,
+    );
+    await expect(porque(page)).toHaveCount(0);
     await screenshot(page, '08-selo-valido-near-miss');
   });
 });

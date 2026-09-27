@@ -8,9 +8,10 @@ import { campoDeBusca, detalhes, filtro, item as itemDe, itens } from './support
 // filters" volta à lista completa. Precisa do backend com `POST /token/{id}/requests/search`.
 // Item 14, E4 (S6): os três `mat-select` viram chips no `group "Filters"` (`button[aria-pressed]`, um clique por
 // filtro, C §2.3). SUPOSIÇÕES: um chip por método presente nas mensagens da URL ("GET", "POST", "PUT"…) e os chips
-// "Signature invalid", "Signature absent" e "Schema invalid"; o contador "N of M requests" continua. Fidelidade ao C
-// (F1): a busca segue a ordem da lista, que abre com as mais novas primeiro (INBOX-01, `sorting: 'newest'`), e o
-// filtro vai para a rota (`?q=`).
+// "Signature invalid", "Signature absent" e "Schema invalid". Fidelidade ao C (F1): a busca segue a ordem da lista,
+// que abre com as mais novas primeiro (INBOX-01, `sorting: 'newest'`), e o filtro vai para a rota (`?q=`). Fase 2
+// (INBOX-10): o contador vira "N requests match · search runs on the server over all M" ("1 request matches · …" no
+// singular).
 
 const SCREENS = process.env['SCREENS_DIR'];
 const SECRET = 'segredo-da-busca';
@@ -64,7 +65,8 @@ async function openListening(page: Page, path: string, tokenId: string): Promise
 
 const items = itens;
 const item = itemDe;
-const counter = (page: Page) => page.getByText(/^\d+ of \d+ requests$/);
+const counter = (page: Page) =>
+  page.getByText(/^\d+ requests? match(es)? · search runs on the server over all \d+$/);
 
 test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
   test('deve reduzir a lista pelo texto e pelo método e voltar à lista completa com "Clear filters"', async ({
@@ -89,7 +91,9 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await expect(items(page)).toHaveCount(2);
     await expect(item(page, post)).toBeVisible();
     await expect(item(page, get)).toBeVisible();
-    await expect(counter(page)).toHaveText('2 of 3 requests');
+    await expect(counter(page)).toHaveText(
+      '2 requests match · search runs on the server over all 3',
+    );
     await screenshot(page, '01-busca-por-texto');
 
     const porMetodo = searchRequest(page, '"method"');
@@ -102,7 +106,9 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     });
     await expect(items(page)).toHaveCount(1);
     await expect(item(page, get)).toBeVisible();
-    await expect(counter(page)).toHaveText('1 of 3 requests');
+    await expect(counter(page)).toHaveText(
+      '1 request matches · search runs on the server over all 3',
+    );
 
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
@@ -160,16 +166,22 @@ test.describe('Dado um filtro ativo com a tela recebendo em tempo real', () => {
     await expect(detalhes(page)).toContainText(aberta);
     await campoDeBusca(page).fill('AMARELA');
     await expect(items(page)).toHaveCount(1);
-    await expect(counter(page)).toHaveText('1 of 2 requests');
+    await expect(counter(page)).toHaveText(
+      '1 request matches · search runs on the server over all 2',
+    );
 
     const casa = await tokens.send(tokenId, { data: 'outra casa amarela' });
 
     await expect(item(page, casa)).toBeVisible();
-    await expect(counter(page)).toHaveText('2 of 3 requests');
+    await expect(counter(page)).toHaveText(
+      '2 requests match · search runs on the server over all 3',
+    );
 
     const naoCasa = await tokens.send(tokenId, { data: 'casa verde' });
 
-    await expect(counter(page)).toHaveText('2 of 4 requests');
+    await expect(counter(page)).toHaveText(
+      '2 requests match · search runs on the server over all 4',
+    );
     await expect(item(page, naoCasa)).toHaveCount(0);
     await expect(items(page)).toHaveCount(2);
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${aberta}/1\\?q=AMARELA$`));
@@ -204,6 +216,8 @@ test.describe('Dado o chip "Signature absent" (item 14, E4, de A)', () => {
     expect((await porAusente).postDataJSON()).toMatchObject({ match: { signature: 'absent' } });
     await expect(items(page)).toHaveCount(1);
     await expect(item(page, semAssinatura)).toBeVisible();
-    await expect(counter(page)).toHaveText('1 of 3 requests');
+    await expect(counter(page)).toHaveText(
+      '1 request matches · search runs on the server over all 3',
+    );
   });
 });

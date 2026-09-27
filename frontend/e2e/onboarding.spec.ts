@@ -174,7 +174,7 @@ test.describe('Dado um filtro sem resultado', () => {
     }
     await campoDeBusca(page).fill('nada-casa-com-isto');
 
-    await expect(page.getByText('No requests match the filters.')).toBeVisible();
+    await expect(page.getByText('No requests match these filters')).toBeVisible();
     await expect(page.getByText('New requests that match will appear here live.')).toBeVisible();
   });
 });

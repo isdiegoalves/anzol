@@ -10,15 +10,7 @@ import {
   secao,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
-import {
-  abrirAba,
-  abrirItem,
-  abrirMensagem,
-  falhas,
-  item,
-  porque,
-  verificacoes,
-} from './support/inbox';
+import { abrirAba, abrirItem, abrirMensagem, item, porque, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pela tela, selo na
@@ -26,7 +18,8 @@ import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/
 // token, na mensagem e em `match.signature`. Item 13.1: selo na lista, linha do header realçada,
 // quadro dos provedores com a anatomia e o Edit que diz o que falta.
 // Item 14 (D7, CA-5): o leiaute novo mantém o que este spec cobra. E4: o selo da lista é o `app-check-chip` do
-// item (texto curto de hoje, "Sig OK", "Bad sig", "No sig"; o nome acessível do item diz "Signature …"); o selo do detalhe
+// item (fidelidade ao C, fase 2, INBOX-13: "GitHub", "Mismatch", "No signature"; o nome acessível do item diz
+// "Signature …"); o selo do detalhe
 // vira o cartão no `group "Checks on this request"` (título e, na linha seguinte, o provedor ou o motivo do
 // servidor); a tabela Headers fica na aba "Headers (n)" e a linha realçada leva a frase do veredito (a classe
 // `signature valid|invalid|absent` de hoje sai: o tom vem por ícone e texto).
@@ -146,15 +139,15 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await openRequest(page, tokenId, certa);
     await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
     await expect(abrirItem(page, certa)).toHaveAccessibleName(/\bSignature valid: GitHub\b/);
-    await expect(item(page, certa)).toContainText('Sig OK');
+    await expect(item(page, certa)).toContainText('GitHub');
     await expect(abrirItem(page, errada)).toHaveAccessibleName(
       /\bSignature invalid: signature mismatch\b/,
     );
-    await expect(item(page, errada)).toContainText('Bad sig');
+    await expect(item(page, errada)).toContainText('Mismatch');
     await expect(abrirItem(page, semAssinatura)).toHaveAccessibleName(
       /\bSignature absent: header X-Hub-Signature-256 absent\b/,
     );
-    await expect(item(page, semAssinatura)).toContainText('No sig');
+    await expect(item(page, semAssinatura)).toContainText('No signature');
     await openHeaders(page);
     const valida = headerRow(page, 'x-hub-signature-256');
     await expect(valida).toContainText('Signature valid — HMAC-SHA256 of the raw body matched');
@@ -178,8 +171,10 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     );
     await openHeaders(page);
     const ausente = page.getByRole('table', { name: 'Headers' }).locator('tbody tr').first();
-    await expect(ausente).toHaveText(
-      /^\s*x-hub-signature-256\s*\(not received\)\s*⊘? ?Signature absent — the GitHub check expects the X-Hub-Signature-256 header\s*$/,
+    // Fidelidade ao C, fase 2 (INBOX-24): a nota ganha o título "Expected header missing" e o link para Checks.
+    await expect(ausente).toContainText(/^\s*x-hub-signature-256\s*\(not received\)/);
+    await expect(ausente).toContainText(
+      'Signature absent — the GitHub check expects the X-Hub-Signature-256 header',
     );
     await screenshot(page, '03b-header-ausente');
   });
@@ -226,7 +221,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await expect(abrirItem(page, requestId)).not.toHaveAccessibleName(
       /signature (valid|invalid|absent)/i,
     );
-    await expect(item(page, requestId)).not.toContainText(/Sig OK|Bad sig|No sig/);
+    await expect(item(page, requestId)).not.toContainText(/GitHub|Mismatch|No signature/);
     await openHeaders(page);
     await expect(headerRow(page, 'x-hub-signature-256')).not.toContainText('Signature ');
   });
@@ -361,15 +356,17 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
 
     await openRequest(page, tokenId, errada.headers()['x-request-id']);
     await expect(verificacoes(page)).toContainText(/Signature invalid\s*signature mismatch/);
-    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Recusa assinatura/);
+    // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
+    await expect(verificacoes(page)).toContainText(/Answered by rule · 401\s*Recusa assinatura/);
     await screenshot(page, '06-selo-invalida-com-regra-401');
 
     await openRequest(page, tokenId, certa.headers()['x-request-id']);
     await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
-    await porque(page).click();
-    await expect(
-      falhas(page).filter({ hasText: /^signature: expected invalid, got valid/ }),
-    ).toHaveCount(1);
+    // INBOX-18: com uma condição só, a frase fica no cartão e o "Why? (n)" não aparece.
+    await expect(verificacoes(page)).toContainText(
+      /Closest: Recusa assinatura · signature: expected invalid, got valid/,
+    );
+    await expect(porque(page)).toHaveCount(0);
     await screenshot(page, '07-selo-valida-near-miss');
   });
 });
