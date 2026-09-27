@@ -60,6 +60,8 @@ describe('Dado a comparação de duas mensagens', () => {
     expect(container.querySelector('.summary')?.textContent?.trim()).toBe(
       '1 header changed, 1 only in A · 2 body lines differ',
     );
+    // Cada parte é uma palavra no texto da região (o título não cola no resumo).
+    expect(container.querySelector('.heading')?.textContent).toMatch(/^\s*Compare\s+1 header/);
     // RULES-30: A e B com o id nos cabeçalhos, sem a coluna Status; a linha que mudou diz "changed".
     const table = screen.getByRole('table', { name: 'Checks' });
     expect(
@@ -71,7 +73,10 @@ describe('Dado a comparação de duas mensagens', () => {
       within(table)
         .getAllByRole('rowheader')
         .map((header) => header.textContent?.replace(/\s+/g, ' ').trim()),
-    ).toEqual(['Signature', 'Schema changed', 'Rule']);
+    ).toEqual(['Signature', 'Schema', 'Rule']);
+    // O "changed" fica na célula da B: o nome da linha é o da verificação.
+    const schema = within(table).getByRole('rowheader', { name: 'Schema' }).closest('tr');
+    expect(schema?.querySelectorAll('td')[1].textContent).toContain('changed');
     await expectNoAxeViolations(container);
   });
 
@@ -100,7 +105,7 @@ describe('Dado a comparação de duas mensagens', () => {
     ]);
     expect(groups).toEqual([
       ['Signature', 2],
-      ['Schema changed', 2],
+      ['Schema', 2],
       ['Rule', 2],
     ]);
     await expectNoAxeViolations(container);

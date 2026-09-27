@@ -121,23 +121,15 @@ h3 {
 
   .state {
     display: block;
-    color: var(--mat-sys-on-surface-variant);
-    font: var(--mat-sys-label-small);
-  }
-
-  .changed .state {
+    margin-top: 2px;
     color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-label-small);
     font-weight: 700;
   }
 
   &.stacked th[scope='rowgroup'] {
     padding-top: 8px;
     font: var(--mat-sys-label-large);
-
-    .state {
-      display: inline;
-      margin-left: 6px;
-    }
   }
 }
 

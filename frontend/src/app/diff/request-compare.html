@@ -4,7 +4,7 @@
   <!-- RULES-28: o título com o resumo das diferenças e, embaixo, A e B em cartões. -->
   <header class="heading">
     <h1 i18n class="title">Compare</h1>
-    <span class="summary">{{ summary() }}</span>
+    <span class="summary">&ngsp;{{ summary() }}</span>
     <div class="actions">
       <mat-slide-toggle
         i18n
@@ -23,17 +23,22 @@
           side.tag === 'a' ? 'A' : 'B'
         }}</span>
         <span class="side-text">
-          <span class="line">
-            <app-method-badge [method]="side.request.method" />
-            <code class="route">{{ side.route }}</code>
+          <span class="line"
+            >&ngsp; <app-method-badge [method]="side.request.method" />&ngsp;<code class="route">{{
+              side.route
+            }}</code>
           </span>
-          <span class="line">
-            <strong [class]="'id-' + side.tag">#{{ side.request.uuid.substring(0, 5) }}</strong>
+          <span class="line"
+            >&ngsp;<strong [class]="'id-' + side.tag"
+              >#{{ side.request.uuid.substring(0, 5) }}</strong
+            >
             @if (side.event) {
               <span>&ngsp;· {{ side.event }}</span>
             }
           </span>
-          <small class="line">{{ localDate(side.request.created_at) }} · {{ side.outcome }}</small>
+          <small class="line"
+            >&ngsp;{{ localDate(side.request.created_at) }} · {{ side.outcome }}</small
+          >
         </span>
       </div>
     }
@@ -59,12 +64,15 @@
         <tbody [class.changed]="!row.same">
           <tr>
             <th scope="rowgroup" colspan="2">
-              <ng-container [ngTemplateOutlet]="checkName" [ngTemplateOutletContext]="{ row }" />
+              {{ row.label }}
             </th>
           </tr>
           <tr>
             <td><app-check-chip [result]="row.a" size="card" /></td>
-            <td><app-check-chip [result]="row.b" size="card" /></td>
+            <td>
+              <app-check-chip [result]="row.b" size="card" />
+              <ng-container [ngTemplateOutlet]="changed" [ngTemplateOutletContext]="{ row }" />
+            </td>
           </tr>
         </tbody>
       }
@@ -73,17 +81,20 @@
         @for (row of checks(); track row.kind) {
           <tr [class.changed]="!row.same">
             <th scope="row">
-              <ng-container [ngTemplateOutlet]="checkName" [ngTemplateOutletContext]="{ row }" />
+              {{ row.label }}
             </th>
             <td><app-check-chip [result]="row.a" size="card" /></td>
-            <td><app-check-chip [result]="row.b" size="card" /></td>
+            <td>
+              <app-check-chip [result]="row.b" size="card" />
+              <ng-container [ngTemplateOutlet]="changed" [ngTemplateOutletContext]="{ row }" />
+            </td>
           </tr>
         }
       </tbody>
     }
   </table>
-  <ng-template #checkName let-row="row">
-    {{ row.label }}
+  <!-- O que mudou de A para B: na célula da B, para o nome da linha ser só o da verificação. -->
+  <ng-template #changed let-row="row">
     @if (!row.same) {
       <span i18n class="state">changed</span>
     }
