@@ -1,3 +1,4 @@
+import { routeOf } from '../pipeline/pipeline';
 import { FieldValue } from '../requests/webhook-request';
 
 /** Acima disso, o diff compara só o começo do corpo (em caracteres, como o corte do SSE). */
@@ -85,14 +86,33 @@ export function bodyPair(a: string | null, b: string | null): BodyPair {
   };
 }
 
-/** Seção "Request": método e URL gravada. */
-export function compareRequestLine(
+/** Uma parte da linha da requisição (RULES-32): o método, o caminho sem o token ou a query. */
+export interface LinePart {
+  kind: 'method' | 'path' | 'query';
+  a: string;
+  b: string;
+  same: boolean;
+}
+
+/**
+ * A linha da requisição em partes (RULES-32): o método, o caminho depois do token (a URL inteira é
+ * igual nos dois lados e só faz ruído) e a query (`?a=1`, ou vazia).
+ */
+export function requestLine(
   a: { method: string; url: string },
   b: { method: string; url: string },
-): FieldRow[] {
+): LinePart[] {
+  const split = (url: string) => {
+    const route = routeOf(url);
+    const at = route.indexOf('?');
+    return at < 0 ? [route, ''] : [route.slice(0, at), route.slice(at)];
+  };
+  const [pathA, queryA] = split(a.url);
+  const [pathB, queryB] = split(b.url);
   return [
-    { name: 'Method', a: a.method, b: b.method, status: status(a.method, b.method) },
-    { name: 'URL', a: a.url, b: b.url, status: status(a.url, b.url) },
+    { kind: 'method', a: a.method, b: b.method, same: a.method === b.method },
+    { kind: 'path', a: pathA, b: pathB, same: pathA === pathB },
+    { kind: 'query', a: queryA, b: queryB, same: queryA === queryB },
   ];
 }
 

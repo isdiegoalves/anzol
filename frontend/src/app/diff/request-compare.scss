@@ -253,3 +253,26 @@ h3 {
   background: var(--mat-sys-surface-container);
   color: var(--mat-sys-on-surface-variant);
 }
+
+// RULES-31: o título que abre o ruído e o resto.
+summary {
+  cursor: pointer;
+
+  h4 {
+    display: inline;
+  }
+}
+
+// RULES-34: as linhas iguais escondidas abrem pelo botão.
+.expand {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+  }
+}

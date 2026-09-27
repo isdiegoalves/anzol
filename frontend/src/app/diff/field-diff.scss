@@ -39,17 +39,29 @@ code {
   color: var(--mat-sys-on-surface);
 }
 
-// Mesmas cores das linhas do corpo: vermelho = só em A (removido), verde = só em B (adicionado).
-.different {
+// RULES-33: só o valor que mudou fica destacado (a linha inteira tingida escondia onde olhar), com as
+// cores das linhas do corpo: vermelho = só em A (removido), verde = só em B (adicionado). O status é
+// texto, não depende da cor.
+.different .value code {
   background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
 }
 
-.only-a {
+.only-a .value code {
   background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
 }
 
-.only-b {
+.only-b .value code {
   background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+.different .status,
+.only-a .status,
+.only-b .status {
+  color: var(--mat-sys-on-surface);
+  font-weight: 700;
 }
 
 .noise {

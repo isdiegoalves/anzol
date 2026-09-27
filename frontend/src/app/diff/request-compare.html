@@ -124,47 +124,56 @@
       </p>
     </section>
     @if (report.noise.length) {
+      <!-- RULES-31: o ruído e o resto recolhidos, com a contagem no título que abre. -->
       <section class="card noise" aria-labelledby="noise-title">
-        <h4 i18n id="noise-title">
-          {report.noise.length, plural,
-            =1 {1 difference changes}
-            other {{{ report.noise.length }} differences change}
-          }
-          on every delivery
-        </h4>
-        <ul>
-          @for (item of report.noise; track item) {
-            <li>
-              <code>{{ item }}</code>
-            </li>
-          }
-        </ul>
+        <details>
+          <summary>
+            <h4 i18n id="noise-title">
+              {report.noise.length, plural,
+                =1 {1 difference changes}
+                other {{{ report.noise.length }} differences change}
+              }
+              on every delivery
+            </h4>
+          </summary>
+          <ul>
+            @for (item of report.noise; track item) {
+              <li>
+                <code>{{ item }}</code>
+              </li>
+            }
+          </ul>
+        </details>
       </section>
     }
     @if (report.other.length) {
       <section class="card other" aria-labelledby="other-title">
-        <h4 i18n id="other-title">
-          {report.other.length, plural,
-            =1 {1 other difference}
-            other {{{ report.other.length }} other differences}
-          }
-        </h4>
-        <ul>
-          @for (item of report.other; track item) {
-            <li>
-              <code>{{ item }}</code>
-            </li>
-          }
-        </ul>
+        <details>
+          <summary>
+            <h4 i18n id="other-title">
+              {report.other.length, plural,
+                =1 {1 other difference}
+                other {{{ report.other.length }} other differences}
+              }
+            </h4>
+          </summary>
+          <ul>
+            @for (item of report.other; track item) {
+              <li>
+                <code>{{ item }}</code>
+              </li>
+            }
+          </ul>
+        </details>
       </section>
     }
   </div>
 
-  <h3 i18n>Request</h3>
-  <app-field-diff label="Request" i18n-label [rows]="requestLine()" [empty]="empty" />
+  <app-request-line [parts]="line()" [same]="lineSame()" />
   <h3 i18n>Query</h3>
   <app-field-diff label="Query" i18n-label [rows]="query()" [empty]="empty" />
   <h3 i18n>Headers</h3>
+  <p class="note">{{ headersNote() }}</p>
   <app-field-diff
     label="Headers"
     i18n-label
@@ -191,9 +200,21 @@
         @for (row of bodyRows(); track $index) {
           @if (row.kind === 'skipped') {
             <tr class="skipped">
-              <td i18n colspan="4">
-                &#8943;
-                {row.count, plural, =1 {1 unchanged line} other {{{ row.count }} unchanged lines}}
+              <td colspan="4">
+                <button
+                  type="button"
+                  class="expand"
+                  [attr.aria-label]="unchangedLabel(row.count)"
+                  (click)="showOnlyDifferences(false)"
+                >
+                  <ng-container i18n
+                    >&#8943;
+                    {row.count, plural,
+                      =1 {1 unchanged line}
+                      other {{{ row.count }} unchanged lines}
+                    }</ng-container
+                  >
+                </button>
               </td>
             </tr>
           } @else {
@@ -213,17 +234,29 @@
     <table class="lines side-by-side" aria-label="Body" i18n-aria-label>
       <thead>
         <tr>
-          <th i18n scope="col" colspan="2">A</th>
-          <th i18n scope="col" colspan="2">B</th>
+          <th scope="col" colspan="2">{{ bodyColumns()[0] }}</th>
+          <th scope="col" colspan="2">{{ bodyColumns()[1] }}</th>
         </tr>
       </thead>
       <tbody>
         @for (row of sideRows(); track $index) {
           @if (row.kind === 'skipped') {
             <tr class="skipped">
-              <td i18n colspan="4">
-                &#8943;
-                {row.count, plural, =1 {1 unchanged line} other {{{ row.count }} unchanged lines}}
+              <td colspan="4">
+                <button
+                  type="button"
+                  class="expand"
+                  [attr.aria-label]="unchangedLabel(row.count)"
+                  (click)="showOnlyDifferences(false)"
+                >
+                  <ng-container i18n
+                    >&#8943;
+                    {row.count, plural,
+                      =1 {1 unchanged line}
+                      other {{{ row.count }} unchanged lines}
+                    }</ng-container
+                  >
+                </button>
               </td>
             </tr>
           } @else {

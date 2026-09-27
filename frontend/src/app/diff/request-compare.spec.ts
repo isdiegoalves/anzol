@@ -123,15 +123,19 @@ describe('Dado a comparação de duas mensagens', () => {
       'Schema /status: A valid here → B must be one of pending',
     );
     const other = screen.getByRole('region', { name: '2 other differences' });
+    // RULES-31: recolhidas por padrão (abrem pelo título); o que explica o desfecho fica à vista.
+    expect(other.querySelector('details')?.open).toBe(false);
     expect(
       within(other)
-        .getAllByRole('listitem')
+        .getAllByRole('listitem', { hidden: true })
         .map((item) => item.textContent),
     ).toEqual(['header x-only-a', 'header x-retry']);
+    expect(explains.querySelector('details')).toBeNull();
   });
 
   it('deve casar headers sem diferenciar maiúsculas e marcar diferente e ausente (A | B | Status)', async () => {
     await show();
+    await userEvent.click(screen.getByRole('switch', { name: 'Only differences' }));
 
     expect(rows('Headers')).toEqual([
       ['Content-Type', 'application/json', 'application/json', 'same'],
@@ -144,7 +148,7 @@ describe('Dado a comparação de duas mensagens', () => {
     const { container } = await show();
 
     expect(screen.getByText('JSON bodies, formatted with sorted keys.')).toBeTruthy();
-    expect(bodyLines(container).filter((line) => !line.startsWith('equal'))).toEqual([
+    expect(bodyLines(container).filter((line) => !/^(equal|skipped)/.test(line))).toEqual([
       'added changed removed | 6- "status": "pending" 6+ "status": "paid"',
     ]);
   });
@@ -153,24 +157,70 @@ describe('Dado a comparação de duas mensagens', () => {
     windowClass.set('compact');
     const { container } = await show();
 
-    expect(bodyLines(container).filter((line) => !line.startsWith('equal'))).toEqual([
+    expect(bodyLines(container).filter((line) => !/^(equal|skipped)/.test(line))).toEqual([
       'removed | 6 - "status": "pending"',
       'added | 6 + "status": "paid"',
     ]);
   });
 
-  it('deve esconder o que é igual Quando "Only differences" é ligado', async () => {
+  // RULES-29/33: abre só com as diferenças, dizendo quantos headers iguais o switch esconde.
+  it('deve abrir só com as diferenças e mostrar tudo Quando "Only differences" é desligado', async () => {
     const { container } = await show();
+    const only = screen.getByRole('switch', { name: 'Only differences' });
 
-    await userEvent.click(screen.getByRole('switch', { name: 'Only differences' }));
-
+    expect(only.getAttribute('aria-checked')).toBe('true');
     expect(rows('Headers').map((row) => row[0])).toEqual(['X-Only-A', 'X-Retry']);
-    expect(rows('Request')).toEqual([['No differences']]);
+    expect(screen.getByText('1 identical header hidden')).toBeTruthy();
     expect(bodyLines(container)).toEqual([
       'skipped | ⋯ 5 unchanged lines',
       'added changed removed | 6- "status": "pending" 6+ "status": "paid"',
       'skipped | ⋯ 1 unchanged line',
     ]);
+
+    await userEvent.click(only);
+
+    expect(rows('Headers')).toHaveLength(3);
+    expect(screen.getByText('All 3 headers')).toBeTruthy();
+    expect(bodyLines(container).some((line) => line.startsWith('skipped'))).toBe(false);
+  });
+
+  // RULES-32: a linha da requisição em chips, sem o token; a tabela "Request" sai.
+  it('deve resumir a linha da requisição em método, caminho e query', async () => {
+    const url = `http://localhost/${A.token_id}/pedidos`;
+    await show(webhookRequest(1, { url }), webhookRequest(2, { url }));
+
+    const line = screen.getByRole('heading', { name: 'Request line' }).closest('section');
+    expect(line?.textContent).toContain('method, path and query are the same');
+    expect(
+      [...(line?.querySelectorAll('li') ?? [])].map((chip) => chip.textContent?.trim()),
+    ).toEqual(['Method POST', 'Path /pedidos', 'No query']);
+    expect(line?.textContent).not.toContain(A.token_id);
+    expect(screen.queryByRole('table', { name: 'Request' })).toBeNull();
+  });
+
+  // RULES-34: o tipo do evento nas colunas do corpo e as linhas iguais abertas pelo botão.
+  it('deve pôr o tipo do evento nas colunas do corpo e mostrar as iguais pelo botão', async () => {
+    const common = '"a":1,"b":2,"c":3,"d":4,"e":5,"f":6';
+    await show(
+      webhookRequest(1, { content: `{${common},"type":"pedido.criado"}` }),
+      webhookRequest(2, { content: `{${common},"type":"pedido.pago"}` }),
+    );
+
+    const body = screen.getByRole('table', { name: 'Body' });
+    expect(
+      within(body)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent?.trim()),
+    ).toEqual(['A · pedido.criado', 'B · pedido.pago']);
+
+    await userEvent.click(
+      within(body).getByRole('button', { name: '7 unchanged lines hidden. Show them' }),
+    );
+
+    expect(
+      screen.getByRole('switch', { name: 'Only differences' }).getAttribute('aria-checked'),
+    ).toBe('false');
+    expect(body.textContent).toContain('"d": 4');
   });
 
   it('deve trocar A e B e fechar pelo CompareStore Quando os botões são clicados', async () => {
@@ -205,7 +255,7 @@ describe('Dado a comparação de duas mensagens', () => {
 
     expect(screen.queryByText(/sorted keys/)).toBeNull();
     expect(bodyLines(container)).toEqual([
-      'equal | 11 a=1',
+      'skipped | ⋯ 1 unchanged line',
       'removed | 2 - b=2',
       'added | 2 + b=3',
     ]);
@@ -234,7 +284,7 @@ describe('Dado a comparação de duas mensagens', () => {
     expect(
       within(
         screen.getByRole('region', { name: /differences? changes? on every delivery/ }),
-      ).getByRole('listitem').textContent,
+      ).getByRole('listitem', { hidden: true }).textContent,
     ).toBe('header x-github-delivery');
   });
 });

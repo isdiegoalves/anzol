@@ -442,8 +442,6 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =1 {1 other difference} other {{INTERPOLATION} other differences}}
   '4347585172986798238':
     '{VAR_PLURAL, plural, =1 {1 outra diferença} other {{INTERPOLATION} outras diferenças}}',
-  // Request
-  '6170082236603228916': 'Requisição',
   // Query
   '4109205891084963566': 'Query',
   // Headers
@@ -456,8 +454,8 @@ export const translations: Record<string, string> = {
   '7931526384003443015': 'Corpos JSON, formatados com as chaves em ordem.',
   // No differences
   '2062900783506435231': 'Nenhuma diferença',
-  //  ⋯ {$ICU}
-  '889073287300681516': ' ⋯ {$ICU} ',
+  // ⋯ {$ICU}
+  '927387446773884935': '⋯ {$ICU}',
   // {VAR_PLURAL, plural, =1 {1 unchanged line} other {{INTERPOLATION} unchanged lines}}
   '6484985239131178835':
     '{VAR_PLURAL, plural, =1 {1 linha igual} other {{INTERPOLATION} linhas iguais}}',
@@ -475,6 +473,28 @@ export const translations: Record<string, string> = {
   '6100497610627702383': '1 linha do corpo difere',
   // {$count} body lines differ
   '3312264567861571169': '{$count} linhas do corpo diferem',
+  // All {$count} headers
+  '161049480210663794': 'Todos os {$count} headers',
+  // 1 identical header hidden
+  '8059953916755911493': '1 header igual escondido',
+  // {$count} identical headers hidden
+  '2785637161823178330': '{$count} headers iguais escondidos',
+  // 1 unchanged line hidden. Show them
+  '801177145871744473': '1 linha igual escondida. Mostrar',
+  // {$count} unchanged lines hidden. Show them
+  '4286455686589260222': '{$count} linhas iguais escondidas. Mostrar',
+  // Method {$value}
+  '5084813980770254689': 'Método {$value}',
+  // Path {$value}
+  '514355960469125400': 'Caminho {$value}',
+  // No query
+  '3009536505899258472': 'Sem query',
+  // Query {$value}
+  '8229021867167958969': 'Query {$value}',
+  // Request line
+  '100085521649993870': 'Linha da requisição',
+  // method, path and query are the same
+  '4185829569096081231': 'método, caminho e query são os mesmos',
   // Delete all requests?
   '1483027337041318683': 'Apagar todas as requisições?',
   //  The {$ICU} of this URL will be deleted. This can't be undone.

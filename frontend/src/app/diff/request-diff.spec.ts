@@ -4,7 +4,7 @@ import {
   canonicalJson,
   compareHeaders,
   compareQuery,
-  compareRequestLine,
+  requestLine,
 } from './request-diff';
 
 describe('Dado o JSON canônico do diff', () => {
@@ -128,17 +128,22 @@ describe('Dado os headers das duas mensagens', () => {
   });
 });
 
-describe('Dado método e URL das duas mensagens', () => {
-  it('deve marcar o que mudou', () => {
+// RULES-32: método, caminho sem o token e query, que a URL inteira (igual nos dois lados) escondia.
+describe('Dado a linha da requisição das duas mensagens', () => {
+  it('deve separar método, caminho (sem o token) e query, e marcar o que mudou', () => {
     expect(
-      compareRequestLine(
-        { method: 'POST', url: 'http://x/t?a=1' },
-        { method: 'PUT', url: 'http://x/t?a=1' },
+      requestLine(
+        { method: 'POST', url: 'http://x/token-a/pedidos?a=1' },
+        { method: 'PUT', url: 'http://x/token-a/pedidos?a=1' },
       ),
     ).toEqual([
-      { name: 'Method', a: 'POST', b: 'PUT', status: 'different' },
-      { name: 'URL', a: 'http://x/t?a=1', b: 'http://x/t?a=1', status: 'equal' },
+      { kind: 'method', a: 'POST', b: 'PUT', same: false },
+      { kind: 'path', a: '/pedidos', b: '/pedidos', same: true },
+      { kind: 'query', a: '?a=1', b: '?a=1', same: true },
     ]);
+    expect(
+      requestLine({ method: 'GET', url: 'http://x/t' }, { method: 'GET', url: 'http://x/t' })[2],
+    ).toEqual({ kind: 'query', a: '', b: '', same: true });
   });
 });
 

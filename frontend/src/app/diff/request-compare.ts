@@ -12,7 +12,7 @@ import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
-import { bodySummary } from '../requests/request-list';
+import { bodySummary, eventType } from '../requests/request-list';
 import { RuleStatusStore } from '../requests/rule-status-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
@@ -20,15 +20,10 @@ import { CheckChip } from '../ui/check-chip';
 import { MethodBadge } from '../ui/method-badge';
 import { CompareStore } from './compare-store';
 import { FieldDiff } from './field-diff';
+import { RequestLine } from './request-line';
 import { DiffRow, diffLines, onlyDifferences, sideBySide } from './line-diff';
 import { NOISE_HEADERS, OutcomeCause, explainOutcome } from './outcome';
-import {
-  FieldRow,
-  bodyPair,
-  compareHeaders,
-  compareQuery,
-  compareRequestLine,
-} from './request-diff';
+import { FieldRow, bodyPair, compareHeaders, compareQuery, requestLine } from './request-diff';
 
 /** Uma linha da tabela "Checks": o mesmo selo nos dois lados. */
 interface CheckRow {
@@ -52,7 +47,15 @@ const CHECK_LABELS: Record<CheckResult['kind'], string> = {
  */
 @Component({
   selector: 'app-request-compare',
-  imports: [CheckChip, FieldDiff, MatButton, MatSlideToggle, MethodBadge, NgTemplateOutlet],
+  imports: [
+    CheckChip,
+    FieldDiff,
+    MatButton,
+    MatSlideToggle,
+    MethodBadge,
+    NgTemplateOutlet,
+    RequestLine,
+  ],
   templateUrl: './request-compare.html',
   styleUrl: './request-compare.scss',
 })
@@ -77,7 +80,8 @@ export class RequestCompare {
   protected readonly left = computed(() => (this.swapped() ? this.b() : this.a()));
   protected readonly right = computed(() => (this.swapped() ? this.a() : this.b()));
 
-  protected readonly onlyDifferences = signal(false);
+  /** RULES-29: abre só com as diferenças (o switch mostra tudo). */
+  protected readonly onlyDifferences = signal(true);
   protected readonly noiseHeaders: ReadonlySet<string> = new Set(NOISE_HEADERS);
   protected readonly localDate = localDate;
   protected readonly noDifferences = $localize`No differences`;
@@ -150,8 +154,32 @@ export class RequestCompare {
 
   protected readonly outcome = computed(() => explainOutcome(this.left(), this.right()));
 
-  protected readonly requestLine = computed(() =>
-    this.visible(compareRequestLine(this.left(), this.right())),
+  /** RULES-32: método, caminho sem o token e query, em chips. */
+  protected readonly line = computed(() =>
+    requestLine(this.left(), this.right()).map((part) => ({
+      ...part,
+      text: this.partText(part.kind, part.same ? part.a : `${part.a || '∅'} → ${part.b || '∅'}`),
+    })),
+  );
+  protected readonly lineSame = computed(() => this.line().every((part) => part.same));
+  /** RULES-33: o que o switch esconde nos headers, ou quantos há. */
+  protected readonly headersNote = computed(() => {
+    const all = compareHeaders(this.left().headers, this.right().headers);
+    if (!this.onlyDifferences()) {
+      return $localize`All ${all.length}:count: headers`;
+    }
+    const identical = all.filter((row) => row.status === 'equal').length;
+    return identical === 1
+      ? $localize`1 identical header hidden`
+      : $localize`${identical}:count: identical headers hidden`;
+  });
+  /** RULES-34: o tipo do evento de cada lado nas colunas do corpo. */
+  protected readonly bodyColumns = computed(() =>
+    [this.left(), this.right()].map((request, index) => {
+      const side = index === 0 ? 'A' : 'B';
+      const type = eventType(request);
+      return type ? `${side} · ${type}` : side;
+    }),
   );
   protected readonly query = computed(() =>
     this.visible(compareQuery(this.left().query, this.right().query)),
@@ -182,6 +210,23 @@ export class RequestCompare {
     this.swapped.update((swapped) => !swapped);
     this.changeDetector.detectChanges();
     this.compare.swap();
+  }
+
+  /** RULES-34: o botão das linhas iguais escondidas. */
+  protected unchangedLabel(count: number): string {
+    return count === 1
+      ? $localize`1 unchanged line hidden. Show them`
+      : $localize`${count}:count: unchanged lines hidden. Show them`;
+  }
+
+  private partText(kind: 'method' | 'path' | 'query', value: string): string {
+    if (kind === 'method') {
+      return $localize`Method ${value}:value:`;
+    }
+    if (kind === 'path') {
+      return $localize`Path ${value}:value:`;
+    }
+    return value === '' ? $localize`No query` : $localize`Query ${value}:value:`;
   }
 
   protected causeText(cause: OutcomeCause): string {

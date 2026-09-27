@@ -44,10 +44,10 @@ export const AGO_REFRESH_MS = 30_000;
 const EVENT_FIELDS = ['type', 'event', 'event_type', 'action', 'topic'] as const;
 
 /**
- * O resumo do corpo na linha 2 do item (protótipo C, INBOX-11): o tipo do evento do JSON
- * (`type`, `event`…), senão o user-agent. Corpo grande não é lido (a lista não paga o parse).
+ * O tipo do evento do JSON (`type`, `event`…), ou `null`. Corpo grande não é lido (a lista não
+ * paga o parse).
  */
-export function bodySummary(request: WebhookRequest): string {
+export function eventType(request: WebhookRequest): string | null {
   const content = request.content;
   if (content && content.length <= 100_000 && content.trimStart().startsWith('{')) {
     try {
@@ -55,14 +55,20 @@ export function bodySummary(request: WebhookRequest): string {
       const event = EVENT_FIELDS.map((field) => body[field]).find(
         (value) => typeof value === 'string' && value !== '',
       );
-      if (typeof event === 'string') {
-        return event;
-      }
+      return typeof event === 'string' ? event : null;
     } catch {
-      // Não é JSON: vale o user-agent.
+      // Não é JSON.
     }
   }
-  return request.user_agent ?? '';
+  return null;
+}
+
+/**
+ * O resumo do corpo na linha 2 do item (protótipo C, INBOX-11): o tipo do evento do JSON, senão o
+ * user-agent.
+ */
+export function bodySummary(request: WebhookRequest): string {
+  return eventType(request) ?? request.user_agent ?? '';
 }
 
 /** Altura fixa de um item (três linhas: rota, origem e data, selos), para a rolagem virtual. */
