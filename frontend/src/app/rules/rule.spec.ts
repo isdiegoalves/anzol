@@ -2,6 +2,8 @@ import {
   Rule,
   evaluationOrder,
   matchSummary,
+  moveInOrder,
+  pathWithoutToken,
   ruleFlags,
   scenarioNames,
   scenarioStates,
@@ -150,6 +152,7 @@ describe('Dado a resposta do teste da regra contra o histórico', () => {
 
     expect(resumo.tested).toBe(4);
     expect(resumo.matched).toBe(1);
+    expect(resumo.matches).toEqual([uuid(120)]);
     expect(resumo.windowFull).toBe(false);
     expect(resumo.misses).toEqual([
       { uuid: uuid(119), seq: 119, failed: ['method: expected POST, got GET'], page: 3 },
@@ -190,8 +193,56 @@ describe('Dado a resposta do teste da regra contra o histórico', () => {
     expect(summarizeHistoryTest({ matches: [], misses: [] }, 0)).toEqual({
       tested: 0,
       matched: 0,
+      matches: [],
       misses: [],
       windowFull: false,
     });
+  });
+});
+
+describe('Dado a reordenação da lista (moveInOrder)', () => {
+  const nomes = (rules: Rule[]) => rules.map((r) => `${r.name}:${r.priority ?? 5}`);
+  const SALVAS = [
+    rule({ name: 'c', priority: 9 }),
+    rule({ name: 'a', priority: 1 }),
+    rule({ name: 'b' }),
+    rule({ name: 'd', priority: 9 }),
+  ];
+
+  it.each([
+    ['um passo para cima troca as prioridades das vizinhas', 1, 0, ['b:1', 'a:5', 'c:9', 'd:9']],
+    [
+      'um passo para baixo entre prioridades iguais mantém as prioridades',
+      2,
+      3,
+      ['a:1', 'b:5', 'd:9', 'c:9'],
+    ],
+    [
+      'do fim para o começo desloca as prioridades com as posições',
+      3,
+      0,
+      ['d:1', 'a:5', 'b:9', 'c:9'],
+    ],
+    ['do começo para o fim', 0, 3, ['b:1', 'c:5', 'd:9', 'a:9']],
+  ])('deve devolver a lista na nova ordem de avaliação Quando %s', (_caso, from, to, esperado) => {
+    const lista = moveInOrder(SALVAS, from, to);
+
+    expect(nomes(lista)).toEqual(esperado);
+    expect(evaluationOrder(lista)).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('Dado um caminho de regra com o token da URL (pathWithoutToken)', () => {
+  const TOKEN = '3dbd68f4-8890-4f56-affb-c7c9b297e666';
+
+  it.each([
+    [`/${TOKEN}`, '/'],
+    [`/${TOKEN}/pagamentos`, '/pagamentos'],
+    [`/${TOKEN.toUpperCase()}/x`, '/x'],
+    ['/pagamentos', null],
+    [`/${TOKEN}extra`, null],
+    ['', null],
+  ])('deve tirar o token Quando o caminho é %s', (path, esperado) => {
+    expect(pathWithoutToken(path, TOKEN)).toBe(esperado);
   });
 });

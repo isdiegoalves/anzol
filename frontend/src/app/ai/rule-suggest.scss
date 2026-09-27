@@ -23,6 +23,14 @@
   gap: 12px;
 }
 
+.note {
+  margin: 4px 0 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
 .off {
   color: var(--mat-sys-error);
 }

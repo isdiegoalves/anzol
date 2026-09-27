@@ -1,18 +1,6 @@
-<h2 mat-dialog-title>{{ title }}</h2>
-<mat-dialog-content>
-  @if (generalErrors().length > 0) {
-    <ul class="errors" role="alert">
-      @for (message of generalErrors(); track $index) {
-        <li>{{ message }}</li>
-      }
-    </ul>
-  }
-  <app-rule-suggest
-    [tokenId]="tokenId() ?? ''"
-    [example]="data.example"
-    (suggested)="applySuggestion($event)"
-  />
+<app-pane [heading]="title()">
   <mat-button-toggle-group
+    paneActions
     class="view"
     aria-label="Editor view"
     hideSingleSelectionIndicator
@@ -24,460 +12,660 @@
     >
     <mat-button-toggle [value]="jsonView">JSON</mat-button-toggle>
   </mat-button-toggle-group>
-  @if (view() === formView) {
-    <form id="rule-form" class="rule-form" [formGroup]="form" (ngSubmit)="saveRule()">
-      <div class="line">
-        <mat-form-field class="grow">
-          <mat-label>Name</mat-label>
-          <input matInput formControlName="name" aria-label="Name" maxlength="100" />
-          <mat-error>{{ errorOf(form.controls.name, 'The name is required.') }}</mat-error>
-        </mat-form-field>
-        <mat-form-field class="short">
-          <mat-label>Priority</mat-label>
-          <input matInput type="number" min="1" formControlName="priority" aria-label="Priority" />
-          <mat-hint>Lowest first</mat-hint>
-          <mat-error>{{
-            errorOf(form.controls.priority, 'The priority must be an integer of at least 1.')
-          }}</mat-error>
-        </mat-form-field>
-        <mat-slide-toggle formControlName="enabled">Enabled</mat-slide-toggle>
-      </div>
-
-      <h3>Match</h3>
-      <p class="hint">All conditions must match. Leave a section empty to accept anything.</p>
-      <div class="line">
-        <mat-form-field>
-          <mat-label>Methods</mat-label>
-          <mat-select formControlName="methods" multiple aria-label="Methods" placeholder="Any">
-            @for (method of methods; track method) {
-              <mat-option [value]="method">{{ method }}</mat-option>
-            }
-          </mat-select>
-          <mat-error>{{ errorOf(form.controls.methods, '') }}</mat-error>
-        </mat-form-field>
-        <mat-form-field>
-          <mat-label>Path match</mat-label>
-          <mat-select formControlName="pathMode" aria-label="Path match">
-            <mat-option value="any">Any path</mat-option>
-            <mat-option value="equals">Equals</mat-option>
-            <mat-option value="prefix">Starts with</mat-option>
-            <mat-option value="regex">Matches regex</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field class="grow">
-          <mat-label>Path</mat-label>
-          <input matInput formControlName="path" aria-label="Path" placeholder="/payments" />
-          <mat-hint>After the URL's token; "" is "/"</mat-hint>
-          <mat-error>{{ errorOf(form.controls.path, 'The path is required.') }}</mat-error>
-        </mat-form-field>
-      </div>
-
-      @for (section of conditionSections; track section.list) {
-        <h4>{{ section.title }}</h4>
-        <div [formArrayName]="section.list">
-          @for (row of form.controls[section.list].controls; track row; let i = $index) {
-            <div class="line row" [formGroupName]="i">
-              <mat-form-field>
-                <mat-label>Name</mat-label>
-                <input
-                  matInput
-                  formControlName="name"
-                  [attr.aria-label]="section.label + ' ' + (i + 1) + ' name'"
-                />
-                <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Operator</mat-label>
-                <mat-select
-                  formControlName="operator"
-                  [aria-label]="section.label + ' ' + (i + 1) + ' operator'"
-                >
-                  @for (operator of valueOperators; track operator.value) {
-                    <mat-option [value]="operator.value">{{ operator.label }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              @if (row.controls.value.enabled) {
-                <mat-form-field class="grow">
-                  <mat-label>Value</mat-label>
-                  <input
-                    matInput
-                    formControlName="value"
-                    [attr.aria-label]="section.label + ' ' + (i + 1) + ' value'"
-                  />
-                  <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
-                </mat-form-field>
-              } @else {
-                <span class="grow"></span>
-              }
-              <button
-                mat-button
-                type="button"
-                [attr.aria-label]="'Remove ' + section.label.toLowerCase() + ' ' + (i + 1)"
-                (click)="removeRow(section.list, i)"
-              >
-                &#x2715;
-              </button>
-            </div>
-          }
-        </div>
-        <button mat-button type="button" (click)="addCondition(section.list)">
-          Add {{ section.label.toLowerCase() }} condition
-        </button>
-      }
-
-      <h4>Body</h4>
-      <div formArrayName="body">
-        @for (row of form.controls.body.controls; track row; let i = $index) {
-          <div class="line row" [formGroupName]="i">
-            <mat-form-field>
-              <mat-label>Condition</mat-label>
-              <mat-select formControlName="type" [aria-label]="'Body ' + (i + 1) + ' type'">
-                @for (type of bodyTypes; track type.value) {
-                  <mat-option [value]="type.value">{{ type.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            @if (row.controls.type.value === 'jsonPath') {
-              <mat-form-field class="grow">
-                <mat-label>JSONPath</mat-label>
-                <input
-                  matInput
-                  formControlName="path"
-                  placeholder="$.status"
-                  [attr.aria-label]="'Body ' + (i + 1) + ' path'"
-                />
-                <mat-error>{{ errorOf(row.controls.path, 'The JSONPath is required.') }}</mat-error>
-              </mat-form-field>
-              <mat-form-field class="grow">
-                <mat-label>Equals (JSON)</mat-label>
-                <input
-                  matInput
-                  formControlName="equals"
-                  placeholder='"paid", 10, true'
-                  [attr.aria-label]="'Body ' + (i + 1) + ' equals'"
-                />
-                <mat-hint>Empty: the path exists</mat-hint>
-                <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
-              </mat-form-field>
-            } @else {
-              <mat-form-field class="grow">
-                <mat-label>{{
-                  row.controls.type.value === 'equalToJson' ? 'JSON' : 'Text'
-                }}</mat-label>
-                <input
-                  matInput
-                  formControlName="value"
-                  [attr.aria-label]="'Body ' + (i + 1) + ' value'"
-                />
-                @if (row.controls.type.value === 'equalToJson') {
-                  <mat-hint>Key order is ignored</mat-hint>
-                }
-                <mat-error>{{
-                  errorOf(row.controls.value, 'The value must be valid JSON.')
-                }}</mat-error>
-              </mat-form-field>
-            }
-            <button
-              mat-button
-              type="button"
-              [attr.aria-label]="'Remove body ' + (i + 1)"
-              (click)="removeRow('body', i)"
-            >
-              &#x2715;
-            </button>
-          </div>
+  <div class="content">
+    @if (words(); as sentence) {
+      <p class="words">
+        <strong i18n>In plain words:</strong>&ngsp;<span class="sentence">{{ sentence }}</span>
+      </p>
+    }
+    @if (generalErrors().length > 0) {
+      <ul class="errors" role="alert">
+        @for (message of generalErrors(); track $index) {
+          <li>{{ message }}</li>
         }
-      </div>
-      <button mat-button type="button" (click)="addBodyCondition()">Add body condition</button>
+      </ul>
+    }
+    <app-rule-suggest
+      [tokenId]="tokenId() ?? ''"
+      [example]="data().example"
+      (suggested)="applySuggestion($event)"
+    />
 
-      <h4>Signature</h4>
-      <mat-form-field class="signature">
-        <mat-label>Signature</mat-label>
-        <mat-select formControlName="signature" aria-label="Signature">
-          @for (option of signatureOptions; track option.value) {
-            <mat-option [value]="option.value">{{ option.label }}</mat-option>
-          }
-        </mat-select>
-        <mat-hint>Set up signature verification in Edit URL</mat-hint>
-        <mat-error>{{ errorOf(form.controls.signature, '') }}</mat-error>
-      </mat-form-field>
-
-      <h4>Schema</h4>
-      <mat-form-field class="schema">
-        <mat-label>Schema</mat-label>
-        <mat-select formControlName="schema" aria-label="Schema">
-          @for (option of schemaOptions; track option.value) {
-            <mat-option [value]="option.value">{{ option.label }}</mat-option>
-          }
-        </mat-select>
-        <mat-hint>Set up schema validation in Edit URL</mat-hint>
-        <mat-error>{{ errorOf(form.controls.schema, '') }}</mat-error>
-      </mat-form-field>
-
-      <h3>Response</h3>
-      <div class="line">
-        <mat-form-field class="short">
-          <mat-label>Status</mat-label>
-          <input
-            matInput
-            type="number"
-            min="100"
-            max="599"
-            formControlName="status"
-            aria-label="Status"
-          />
-          <mat-error>{{
-            errorOf(form.controls.status, 'The status must be an integer between 100 and 599.')
-          }}</mat-error>
-        </mat-form-field>
-        <mat-form-field class="fault">
-          <mat-label>Fault</mat-label>
-          <mat-select formControlName="fault" aria-label="Fault">
-            @for (fault of faults; track fault.value) {
-              <mat-option [value]="fault.value">{{ fault.label }}</mat-option>
-            }
-          </mat-select>
-          <mat-hint>Simulate a network failure</mat-hint>
-          <mat-error>{{ errorOf(form.controls.fault, '') }}</mat-error>
-        </mat-form-field>
-      </div>
-      @if (faulted()) {
-        <p class="fault-note" role="note">
-          With a fault, the status, headers, body, delay and dribble are ignored: the request is
-          recorded, then the connection fails.
-        </p>
-      }
-      <h4>Headers</h4>
-      <div formArrayName="responseHeaders">
-        @for (row of form.controls.responseHeaders.controls; track row; let i = $index) {
-          <div class="line row" [formGroupName]="i">
-            <mat-form-field>
-              <mat-label>Name</mat-label>
-              <input
-                matInput
-                formControlName="name"
-                [attr.aria-label]="'Response header ' + (i + 1) + ' name'"
-              />
-              <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="grow">
-              <mat-label>Value</mat-label>
-              <input
-                matInput
-                formControlName="value"
-                [attr.aria-label]="'Response header ' + (i + 1) + ' value'"
-              />
-              <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
-            </mat-form-field>
-            <button
-              mat-button
-              type="button"
-              [attr.aria-label]="'Remove response header ' + (i + 1)"
-              [disabled]="faulted()"
-              (click)="removeRow('responseHeaders', i)"
-            >
-              &#x2715;
-            </button>
-          </div>
-        }
-      </div>
-      <button mat-button type="button" [disabled]="faulted()" (click)="addResponseHeader()">
-        Add response header
-      </button>
-      <mat-form-field class="full">
-        <mat-label>Response body</mat-label>
-        <textarea
-          matInput
-          rows="6"
-          formControlName="responseBody"
-          aria-label="Response body"
-        ></textarea>
-        <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
-      </mat-form-field>
-      <div class="line template">
-        <mat-slide-toggle formControlName="template">Template</mat-slide-toggle>
-        <span class="hint">Handlebars in the body and in header values</span>
-      </div>
-      <details class="helpers">
-        <summary>Template helpers</summary>
-        <dl>
-          @for (helper of helpers; track helper.example) {
-            <dt>
-              <code>{{ helper.example }}</code>
-            </dt>
-            <dd>{{ helper.description }}</dd>
-          }
-        </dl>
-      </details>
-
-      <h4>Delay</h4>
-      <div class="line row">
-        <mat-form-field>
-          <mat-label>Delay</mat-label>
-          <mat-select formControlName="delayType" aria-label="Delay">
-            @for (type of delayTypes; track type.value) {
-              <mat-option [value]="type.value">{{ type.label }}</mat-option>
-            }
-          </mat-select>
-          <mat-hint>Before answering; up to 60 s</mat-hint>
-          <mat-error>{{ errorOf(form.controls.delayType, '') }}</mat-error>
-        </mat-form-field>
-        @switch (form.controls.delayType.value) {
-          @case ('fixed') {
-            <mat-form-field class="ms">
-              <mat-label>Delay (ms)</mat-label>
-              <input matInput type="number" formControlName="delayFixed" aria-label="Delay (ms)" />
-              <mat-error>{{ errorOf(form.controls.delayFixed, msError) }}</mat-error>
-            </mat-form-field>
-          }
-          @case ('uniform') {
-            <mat-form-field class="ms">
-              <mat-label>Delay min (ms)</mat-label>
-              <input
-                matInput
-                type="number"
-                formControlName="delayMin"
-                aria-label="Delay min (ms)"
-              />
-              <mat-error>{{ errorOf(form.controls.delayMin, msError) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="ms">
-              <mat-label>Delay max (ms)</mat-label>
-              <input
-                matInput
-                type="number"
-                formControlName="delayMax"
-                aria-label="Delay max (ms)"
-              />
-              <mat-error>{{
-                errorOf(form.controls.delayMax, 'At least the min, up to 60000 (ms).')
-              }}</mat-error>
-            </mat-form-field>
-          }
-          @case ('lognormal') {
-            <mat-form-field class="ms">
-              <mat-label>Delay median (ms)</mat-label>
-              <input
-                matInput
-                type="number"
-                formControlName="delayMedian"
-                aria-label="Delay median (ms)"
-              />
-              <mat-error>{{ errorOf(form.controls.delayMedian, msError) }}</mat-error>
-            </mat-form-field>
-            <mat-form-field class="ms">
-              <mat-label>Sigma</mat-label>
-              <input
-                matInput
-                type="number"
-                step="0.1"
-                min="0"
-                formControlName="delaySigma"
-                aria-label="Sigma"
-              />
-              <mat-hint>Spread; capped at {{ delayMax }} ms</mat-hint>
-              <mat-error>{{
-                errorOf(form.controls.delaySigma, 'A number of at least 0.')
-              }}</mat-error>
-            </mat-form-field>
-          }
-        }
-      </div>
-
-      <h4>Dribble</h4>
-      <div class="line row">
-        <mat-slide-toggle class="dribble" formControlName="dribble">Dribble</mat-slide-toggle>
-        @if (form.controls.dribble.value) {
-          <mat-form-field class="ms">
-            <mat-label>Chunks</mat-label>
-            <input matInput type="number" formControlName="dribbleChunks" aria-label="Chunks" />
-            <mat-error>{{
-              errorOf(form.controls.dribbleChunks, 'An integer between 1 and 100.')
-            }}</mat-error>
+    @if (view() === formView) {
+      <form id="rule-form" class="rule-form" [formGroup]="form" (ngSubmit)="saveRule()">
+        <div class="line">
+          <mat-form-field class="grow">
+            <mat-label i18n>Name</mat-label>
+            <input matInput formControlName="name" aria-label="Name" maxlength="100" />
+            <mat-error>{{ errorOf(form.controls.name, 'The name is required.') }}</mat-error>
           </mat-form-field>
-          <mat-form-field class="ms">
-            <mat-label>Dribble duration (ms)</mat-label>
+          <mat-form-field class="short">
+            <mat-label i18n>Priority</mat-label>
             <input
               matInput
               type="number"
-              formControlName="dribbleDuration"
-              aria-label="Dribble duration (ms)"
+              min="1"
+              formControlName="priority"
+              aria-label="Priority"
             />
-            <mat-error>{{ errorOf(form.controls.dribbleDuration, msError) }}</mat-error>
+            <mat-hint i18n>Lowest first</mat-hint>
+            <mat-error>{{
+              errorOf(form.controls.priority, 'The priority must be an integer of at least 1.')
+            }}</mat-error>
           </mat-form-field>
-        }
-        <span class="hint">Send the body in chunks spread evenly over the duration</span>
-      </div>
+          <mat-slide-toggle formControlName="enabled" i18n>Enabled</mat-slide-toggle>
+        </div>
 
-      <h3>Scenario</h3>
-      <p class="hint">
-        Optional. The rule only matches while the scenario is in the required state, and moves it to
-        the new state when it answers. Every scenario starts at "Started".
-      </p>
-      <div class="line row">
-        <mat-form-field class="grow">
-          <mat-label>Scenario name</mat-label>
-          <input
-            matInput
-            formControlName="scenarioName"
-            aria-label="Scenario name"
-            maxlength="100"
-            list="scenario-names"
-          />
-          <datalist id="scenario-names">
-            @for (name of nameSuggestions(); track name) {
-              <option [value]="name"></option>
+        <div class="tabs" role="tablist" aria-label="Rule parts">
+          @for (item of tabs; track item.id) {
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              [id]="'rule-tab-' + item.id"
+              [attr.aria-selected]="tab() === item.id"
+              [attr.aria-controls]="'rule-panel-' + item.id"
+              [attr.tabindex]="tab() === item.id ? 0 : -1"
+              (click)="selectTab(item.id)"
+              (keydown)="moveTab($event, item.id)"
+            >
+              {{ item.label }}
+              @if (item.id === 'response') {
+                <span class="badge" aria-hidden="true">{{ responseBadge() }}</span>
+              }
+              @if (item.id === 'test' && historyTest(); as result) {
+                <span class="badge" aria-hidden="true"
+                  >{{ result.matched }} / {{ result.tested }}</span
+                >
+              }
+            </button>
+          }
+        </div>
+
+        <div
+          class="panel"
+          role="tabpanel"
+          id="rule-panel-match"
+          aria-labelledby="rule-tab-match"
+          [hidden]="tab() !== 'match'"
+        >
+          <p class="hint" i18n>
+            All conditions must match. Leave a section empty to accept anything. After a test, each
+            condition says how it did.
+          </p>
+          @if (recorded()?.inferred) {
+            <p class="hint recorded-note" i18n>
+              Some near misses were recorded before condition tracking: their conditions come from
+              the recorded phrase.
+            </p>
+          }
+          <div class="line">
+            <mat-form-field>
+              <mat-label i18n>Methods</mat-label>
+              <mat-select formControlName="methods" multiple aria-label="Methods" placeholder="Any">
+                @for (method of methods(); track method) {
+                  <mat-option [value]="method">{{ method }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ errorOf(form.controls.methods, '') }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label i18n>Path match</mat-label>
+              <mat-select formControlName="pathMode" aria-label="Path match">
+                <mat-option value="any" i18n>Any path</mat-option>
+                <mat-option value="equals" i18n>Equals</mat-option>
+                <mat-option value="prefix" i18n>Starts with</mat-option>
+                <mat-option value="regex" i18n>Matches regex</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field class="grow">
+              <mat-label i18n>Path</mat-label>
+              <input matInput formControlName="path" aria-label="Path" placeholder="/payments" />
+              <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
+              <mat-error>{{ errorOf(form.controls.path, 'The path is required.') }}</mat-error>
+            </mat-form-field>
+          </div>
+          @if (form.controls.methods.value.length > 0) {
+            <ng-container
+              [ngTemplateOutlet]="conditionFeedback"
+              [ngTemplateOutletContext]="{ $implicit: 'match.method' }"
+            />
+          }
+          @if (form.controls.pathMode.value !== 'any') {
+            <ng-container
+              [ngTemplateOutlet]="conditionFeedback"
+              [ngTemplateOutletContext]="{ $implicit: 'match.path' }"
+            />
+          }
+          @if (pathFix() !== null) {
+            <div class="path-warning" role="alert">
+              <p i18n>
+                The path includes this URL's token. Rule paths are relative to the URL (what comes
+                after /{{ tokenId() }}), so this rule never matches.
+              </p>
+              <button mat-stroked-button type="button" (click)="removeTokenFromPath()" i18n>
+                Remove the token from the path
+              </button>
+            </div>
+          }
+
+          @for (section of conditionSections; track section.list) {
+            <h3>{{ section.title }}</h3>
+            <div [formArrayName]="section.list">
+              @for (row of form.controls[section.list].controls; track row; let i = $index) {
+                <div class="line row" [formGroupName]="i">
+                  <mat-form-field>
+                    <mat-label i18n>Name</mat-label>
+                    <input
+                      matInput
+                      formControlName="name"
+                      [attr.aria-label]="section.label + ' ' + (i + 1) + ' name'"
+                    />
+                    <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
+                  </mat-form-field>
+                  <mat-form-field>
+                    <mat-label i18n>Operator</mat-label>
+                    <mat-select
+                      formControlName="operator"
+                      [aria-label]="section.label + ' ' + (i + 1) + ' operator'"
+                    >
+                      @for (operator of valueOperators; track operator.value) {
+                        <mat-option [value]="operator.value">{{ operator.label }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  @if (row.controls.value.enabled) {
+                    <mat-form-field class="grow">
+                      <mat-label i18n>Value</mat-label>
+                      <input
+                        matInput
+                        formControlName="value"
+                        [attr.aria-label]="section.label + ' ' + (i + 1) + ' value'"
+                      />
+                      <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
+                    </mat-form-field>
+                  } @else {
+                    <span class="grow"></span>
+                  }
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Remove ' + section.label.toLowerCase() + ' ' + (i + 1)"
+                    (click)="removeRow(section.list, i)"
+                  >
+                    &#x2715;
+                  </button>
+                </div>
+                <ng-container
+                  [ngTemplateOutlet]="conditionFeedback"
+                  [ngTemplateOutletContext]="{ $implicit: rowKey(section.list, row) }"
+                />
+              }
+            </div>
+            <button mat-button type="button" (click)="addCondition(section.list)">
+              Add {{ section.label.toLowerCase() }} condition
+            </button>
+          }
+
+          <h3 i18n>Body</h3>
+          <div formArrayName="body">
+            @for (row of form.controls.body.controls; track row; let i = $index) {
+              <div class="line row" [formGroupName]="i">
+                <mat-form-field>
+                  <mat-label i18n>Condition</mat-label>
+                  <mat-select formControlName="type" [aria-label]="'Body ' + (i + 1) + ' type'">
+                    @for (type of bodyTypes; track type.value) {
+                      <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                @if (row.controls.type.value === 'jsonPath') {
+                  <mat-form-field class="grow">
+                    <mat-label i18n>JSONPath</mat-label>
+                    <input
+                      matInput
+                      formControlName="path"
+                      placeholder="$.status"
+                      [attr.aria-label]="'Body ' + (i + 1) + ' path'"
+                    />
+                    <mat-error>{{
+                      errorOf(row.controls.path, 'The JSONPath is required.')
+                    }}</mat-error>
+                  </mat-form-field>
+                  <mat-form-field class="grow">
+                    <mat-label i18n>Equals (JSON)</mat-label>
+                    <input
+                      matInput
+                      formControlName="equals"
+                      placeholder='"paid", 10, true'
+                      [attr.aria-label]="'Body ' + (i + 1) + ' equals'"
+                    />
+                    <mat-hint i18n>Empty: the path exists</mat-hint>
+                    <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
+                  </mat-form-field>
+                } @else {
+                  <mat-form-field class="grow">
+                    <mat-label>{{
+                      row.controls.type.value === 'equalToJson' ? 'JSON' : 'Text'
+                    }}</mat-label>
+                    <input
+                      matInput
+                      formControlName="value"
+                      [attr.aria-label]="'Body ' + (i + 1) + ' value'"
+                    />
+                    @if (row.controls.type.value === 'equalToJson') {
+                      <mat-hint i18n>Key order is ignored</mat-hint>
+                    }
+                    <mat-error>{{
+                      errorOf(row.controls.value, 'The value must be valid JSON.')
+                    }}</mat-error>
+                  </mat-form-field>
+                }
+                <button
+                  mat-button
+                  type="button"
+                  [attr.aria-label]="'Remove body ' + (i + 1)"
+                  (click)="removeRow('body', i)"
+                >
+                  &#x2715;
+                </button>
+              </div>
+              <ng-container
+                [ngTemplateOutlet]="conditionFeedback"
+                [ngTemplateOutletContext]="{ $implicit: 'match.body.' + i }"
+              />
             }
-          </datalist>
-          <mat-hint>Empty: no scenario</mat-hint>
-          <mat-error>{{ errorOf(form.controls.scenarioName, 'Up to 100 characters.') }}</mat-error>
-        </mat-form-field>
-        <mat-form-field class="grow">
-          <mat-label>Required state</mat-label>
-          <input
-            matInput
-            formControlName="requiredState"
-            aria-label="Required state"
-            list="scenario-states"
-          />
-          <mat-hint>Empty: any state</mat-hint>
-          <mat-error>{{ errorOf(form.controls.requiredState, 'Up to 100 characters.') }}</mat-error>
-        </mat-form-field>
-        <mat-form-field class="grow">
-          <mat-label>New state</mat-label>
-          <input
-            matInput
-            formControlName="newState"
-            aria-label="New state"
-            list="scenario-states"
-          />
-          <datalist id="scenario-states">
-            @for (state of stateSuggestions(); track state) {
-              <option [value]="state"></option>
+          </div>
+          <button mat-button type="button" (click)="addBodyCondition()" i18n>
+            Add body condition
+          </button>
+
+          <h3 i18n>Signature</h3>
+          <mat-form-field class="signature">
+            <mat-label i18n>Signature</mat-label>
+            <mat-select formControlName="signature" aria-label="Signature">
+              @for (option of signatureOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint i18n>Set up signature verification in Checks</mat-hint>
+            <mat-error>{{ errorOf(form.controls.signature, '') }}</mat-error>
+          </mat-form-field>
+          @if (form.controls.signature.value !== 'any') {
+            <ng-container
+              [ngTemplateOutlet]="conditionFeedback"
+              [ngTemplateOutletContext]="{ $implicit: 'match.signature' }"
+            />
+          }
+
+          <h3 i18n>Schema</h3>
+          <mat-form-field class="schema">
+            <mat-label i18n>Schema</mat-label>
+            <mat-select formControlName="schema" aria-label="Schema">
+              @for (option of schemaOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint i18n>Set up schema validation in Checks</mat-hint>
+            <mat-error>{{ errorOf(form.controls.schema, '') }}</mat-error>
+          </mat-form-field>
+          @if (form.controls.schema.value !== 'any') {
+            <ng-container
+              [ngTemplateOutlet]="conditionFeedback"
+              [ngTemplateOutletContext]="{ $implicit: 'match.schema' }"
+            />
+          }
+        </div>
+
+        <div
+          class="panel"
+          role="tabpanel"
+          id="rule-panel-response"
+          aria-labelledby="rule-tab-response"
+          [hidden]="tab() !== 'response'"
+        >
+          <div class="line">
+            <mat-form-field class="short">
+              <mat-label i18n>Status</mat-label>
+              <input
+                matInput
+                type="number"
+                min="100"
+                max="599"
+                formControlName="status"
+                aria-label="Status"
+              />
+              <mat-error>{{
+                errorOf(form.controls.status, 'The status must be an integer between 100 and 599.')
+              }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="fault">
+              <mat-label i18n>Fault</mat-label>
+              <mat-select formControlName="fault" aria-label="Fault">
+                @for (fault of faults; track fault.value) {
+                  <mat-option [value]="fault.value">{{ fault.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint i18n>Simulate a network failure</mat-hint>
+              <mat-error>{{ errorOf(form.controls.fault, '') }}</mat-error>
+            </mat-form-field>
+          </div>
+          @if (faulted()) {
+            <p class="fault-note" role="note" i18n>
+              With a fault, the status, headers, body, delay and dribble are ignored: the request is
+              recorded, then the connection fails.
+            </p>
+          }
+          <h3 i18n>Headers</h3>
+          <div formArrayName="responseHeaders">
+            @for (row of form.controls.responseHeaders.controls; track row; let i = $index) {
+              <div class="line row" [formGroupName]="i">
+                <mat-form-field>
+                  <mat-label i18n>Name</mat-label>
+                  <input
+                    matInput
+                    formControlName="name"
+                    [attr.aria-label]="'Response header ' + (i + 1) + ' name'"
+                  />
+                  <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
+                </mat-form-field>
+                <mat-form-field class="grow">
+                  <mat-label i18n>Value</mat-label>
+                  <input
+                    matInput
+                    formControlName="value"
+                    [attr.aria-label]="'Response header ' + (i + 1) + ' value'"
+                  />
+                  <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
+                </mat-form-field>
+                <button
+                  mat-button
+                  type="button"
+                  [attr.aria-label]="'Remove response header ' + (i + 1)"
+                  [disabled]="faulted()"
+                  (click)="removeRow('responseHeaders', i)"
+                >
+                  &#x2715;
+                </button>
+              </div>
             }
-          </datalist>
-          <mat-hint>Empty: keeps the state</mat-hint>
-          <mat-error>{{ errorOf(form.controls.newState, 'Up to 100 characters.') }}</mat-error>
-        </mat-form-field>
-      </div>
-    </form>
-  } @else {
-    <mat-form-field class="full json">
-      <mat-label>Rule JSON</mat-label>
-      <textarea
-        matInput
-        rows="22"
-        aria-label="Rule JSON"
-        spellcheck="false"
-        [formControl]="json"
-        [errorStateMatcher]="showAtOnce"
-      ></textarea>
-      @for (message of jsonErrors(); track $index) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
+          </div>
+          <button
+            mat-button
+            type="button"
+            [disabled]="faulted()"
+            (click)="addResponseHeader()"
+            i18n
+          >
+            Add response header
+          </button>
+          <mat-form-field class="full">
+            <mat-label i18n>Response body</mat-label>
+            <textarea
+              matInput
+              rows="6"
+              formControlName="responseBody"
+              aria-label="Response body"
+            ></textarea>
+            <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
+          </mat-form-field>
+          <div class="line template">
+            <mat-slide-toggle formControlName="template" i18n>Template</mat-slide-toggle>
+            <span class="hint" i18n>Handlebars in the body and in header values</span>
+          </div>
+          <details class="helpers">
+            <summary i18n>Template helpers</summary>
+            <dl>
+              @for (helper of helpers; track helper.example) {
+                <dt>
+                  <code>{{ helper.example }}</code>
+                </dt>
+                <dd>{{ helper.description }}</dd>
+              }
+            </dl>
+          </details>
+
+          <h3 i18n>Delay</h3>
+          <div class="line row">
+            <mat-form-field>
+              <mat-label i18n>Delay</mat-label>
+              <mat-select formControlName="delayType" aria-label="Delay">
+                @for (type of delayTypes; track type.value) {
+                  <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint i18n>Before answering; up to 60 s</mat-hint>
+              <mat-error>{{ errorOf(form.controls.delayType, '') }}</mat-error>
+            </mat-form-field>
+            @switch (form.controls.delayType.value) {
+              @case ('fixed') {
+                <mat-form-field class="ms">
+                  <mat-label i18n>Delay (ms)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="delayFixed"
+                    aria-label="Delay (ms)"
+                  />
+                  <mat-error>{{ errorOf(form.controls.delayFixed, msError) }}</mat-error>
+                </mat-form-field>
+              }
+              @case ('uniform') {
+                <mat-form-field class="ms">
+                  <mat-label i18n>Delay min (ms)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="delayMin"
+                    aria-label="Delay min (ms)"
+                  />
+                  <mat-error>{{ errorOf(form.controls.delayMin, msError) }}</mat-error>
+                </mat-form-field>
+                <mat-form-field class="ms">
+                  <mat-label i18n>Delay max (ms)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="delayMax"
+                    aria-label="Delay max (ms)"
+                  />
+                  <mat-error>{{
+                    errorOf(form.controls.delayMax, 'At least the min, up to 60000 (ms).')
+                  }}</mat-error>
+                </mat-form-field>
+              }
+              @case ('lognormal') {
+                <mat-form-field class="ms">
+                  <mat-label i18n>Delay median (ms)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="delayMedian"
+                    aria-label="Delay median (ms)"
+                  />
+                  <mat-error>{{ errorOf(form.controls.delayMedian, msError) }}</mat-error>
+                </mat-form-field>
+                <mat-form-field class="ms">
+                  <mat-label i18n>Sigma</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    formControlName="delaySigma"
+                    aria-label="Sigma"
+                  />
+                  <mat-hint i18n>Spread; capped at {{ delayMax }} ms</mat-hint>
+                  <mat-error>{{
+                    errorOf(form.controls.delaySigma, 'A number of at least 0.')
+                  }}</mat-error>
+                </mat-form-field>
+              }
+            }
+          </div>
+
+          <h3 i18n>Dribble</h3>
+          <div class="line row">
+            <mat-slide-toggle class="dribble" formControlName="dribble" i18n
+              >Dribble</mat-slide-toggle
+            >
+            @if (form.controls.dribble.value) {
+              <mat-form-field class="ms">
+                <mat-label i18n>Chunks</mat-label>
+                <input matInput type="number" formControlName="dribbleChunks" aria-label="Chunks" />
+                <mat-error>{{
+                  errorOf(form.controls.dribbleChunks, 'An integer between 1 and 100.')
+                }}</mat-error>
+              </mat-form-field>
+              <mat-form-field class="ms">
+                <mat-label i18n>Dribble duration (ms)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  formControlName="dribbleDuration"
+                  aria-label="Dribble duration (ms)"
+                />
+                <mat-error>{{ errorOf(form.controls.dribbleDuration, msError) }}</mat-error>
+              </mat-form-field>
+            }
+            <span class="hint" i18n>Send the body in chunks spread evenly over the duration</span>
+          </div>
+        </div>
+
+        <div
+          class="panel"
+          role="tabpanel"
+          id="rule-panel-scenario"
+          aria-labelledby="rule-tab-scenario"
+          [hidden]="tab() !== 'scenario'"
+        >
+          <p class="hint" i18n>
+            Optional. The rule only matches while the scenario is in the required state, and moves
+            it to the new state when it answers. Every scenario starts at "Started". Use it for
+            "fail 3 times, then succeed".
+          </p>
+          <div class="line row">
+            <mat-form-field class="grow">
+              <mat-label i18n>Scenario name</mat-label>
+              <input
+                matInput
+                formControlName="scenarioName"
+                aria-label="Scenario name"
+                maxlength="100"
+                list="scenario-names"
+              />
+              <datalist id="scenario-names">
+                @for (name of nameSuggestions(); track name) {
+                  <option [value]="name"></option>
+                }
+              </datalist>
+              <mat-hint i18n>Empty: no scenario</mat-hint>
+              <mat-error>{{
+                errorOf(form.controls.scenarioName, 'Up to 100 characters.')
+              }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="grow">
+              <mat-label i18n>Required state</mat-label>
+              <input
+                matInput
+                formControlName="requiredState"
+                aria-label="Required state"
+                list="scenario-states"
+              />
+              <mat-hint i18n>Empty: any state</mat-hint>
+              <mat-error>{{
+                errorOf(form.controls.requiredState, 'Up to 100 characters.')
+              }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="grow">
+              <mat-label i18n>New state</mat-label>
+              <input
+                matInput
+                formControlName="newState"
+                aria-label="New state"
+                list="scenario-states"
+              />
+              <datalist id="scenario-states">
+                @for (state of stateSuggestions(); track state) {
+                  <option [value]="state"></option>
+                }
+              </datalist>
+              <mat-hint i18n>Empty: keeps the state</mat-hint>
+              <mat-error>{{ errorOf(form.controls.newState, 'Up to 100 characters.') }}</mat-error>
+            </mat-form-field>
+          </div>
+          @if (scenarioRules(); as preview) {
+            <h3 i18n>Scenario {{ preview.name }} with this rule</h3>
+            <app-scenario-diagram [name]="preview.name" [rules]="preview.rules" />
+          }
+        </div>
+
+        <div
+          class="panel"
+          role="tabpanel"
+          id="rule-panel-test"
+          aria-labelledby="rule-tab-test"
+          [hidden]="tab() !== 'test'"
+        >
+          <ng-container [ngTemplateOutlet]="testSection" />
+        </div>
+      </form>
+    } @else {
+      <mat-form-field class="full json">
+        <mat-label i18n>Rule JSON</mat-label>
+        <textarea
+          matInput
+          rows="22"
+          aria-label="Rule JSON"
+          spellcheck="false"
+          [formControl]="json"
+          [errorStateMatcher]="showAtOnce"
+        ></textarea>
+        @for (message of jsonErrors(); track $index) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+      <ng-container [ngTemplateOutlet]="testSection" />
+    }
+
+    <div class="footer">
+      <button
+        mat-stroked-button
+        type="button"
+        class="test"
+        title="Check which of the recorded requests this rule would match, without saving it"
+        [disabled]="!canTest()"
+        (click)="testAgainstHistory()"
+        i18n
+      >
+        Test against history
+      </button>
+      <button mat-button type="button" (click)="cancel()" i18n>Cancel</button>
+      <button mat-flat-button type="button" [disabled]="!canSave()" (click)="saveRule()" i18n>
+        Save
+      </button>
+    </div>
+  </div>
+</app-pane>
+
+<ng-template #conditionFeedback let-key>
+  @if (feedback(key); as text) {
+    <p class="feedback" [attr.data-condition]="key" [class.fails]="text.startsWith('Fails')">
+      {{ text }}
+    </p>
   }
+  @if (recordedMisses(key); as count) {
+    <p class="recorded" [attr.data-condition]="key" i18n>
+      Missed here by {count, plural, =1 {1 recorded request} other {{{ count }} recorded requests}}
+    </p>
+  }
+</ng-template>
+
+<ng-template #testSection>
+  <p class="hint" i18n>
+    Runs the rule as it is in the editor, unsaved, on the {{ historyWindow }} most recent requests
+    at most.
+  </p>
   @if (historyErrors().length > 0) {
     <ul class="errors history-errors" role="alert">
       @for (message of historyErrors(); track $index) {
@@ -487,19 +675,29 @@
   }
   @if (historyTest(); as result) {
     <app-history-test-panel [result]="result" [tokenId]="tokenId() ?? ''" />
+    @if (preview(); as state) {
+      <section class="preview" aria-labelledby="rule-preview-title">
+        <h3 id="rule-preview-title" i18n>With the rules before it</h3>
+        <p class="hint" i18n>
+          Based on the rule that answered at the time; ignores scenario state.
+        </p>
+        @if (state.preview; as outcome) {
+          <ul>
+            <li i18n>{{ outcome.draft }} would now get {{ answer() }} from this rule</li>
+            @for (earlier of outcome.earlier; track earlier.id) {
+              <li i18n>{{ earlier.count }} still answered by earlier rule {{ earlier.name }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="errors" role="alert" i18n>
+            Could not read the recorded requests for this preview.
+          </p>
+        }
+      </section>
+    }
+  } @else if (testing()) {
+    <p class="hint" i18n>Testing…</p>
+  } @else {
+    <p class="hint" i18n>No test yet: click "Test against history".</p>
   }
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-  <button
-    mat-stroked-button
-    type="button"
-    class="test"
-    title="Check which of the recorded requests this rule would match, without saving it"
-    [disabled]="!canTest()"
-    (click)="testAgainstHistory()"
-  >
-    Test against history
-  </button>
-  <button mat-button type="button" mat-dialog-close>Cancel</button>
-  <button mat-flat-button type="button" [disabled]="!canSave()" (click)="saveRule()">Save</button>
-</mat-dialog-actions>
+</ng-template>

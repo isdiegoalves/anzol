@@ -15,9 +15,18 @@
     @if (disabled()) {
       <mat-hint class="off">{{ offHint }}</mat-hint>
     } @else {
-      <mat-hint>The local model fills the editor; nothing is saved until you click Save.</mat-hint>
+      <mat-hint i18n
+        >Paths are relative to this URL (say /payments). Nothing is saved until you click
+        Save.</mat-hint
+      >
     }
   </mat-form-field>
+  @if (mentionsUrl()) {
+    <p class="note" i18n>
+      Your description mentions this URL. The rule's path is only what comes after /{{ tokenId() }}:
+      describe it as /payments, not as the full URL.
+    </p>
+  }
   <div class="actions">
     @if (example(); as request) {
       <mat-checkbox

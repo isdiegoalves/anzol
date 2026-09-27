@@ -3,9 +3,131 @@
 :host {
   display: block;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 10px 20px;
+}
+
+// Com uma regra aberta, lista e editor lado a lado; em janela estreita, só o editor.
+.layout.editing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+
+  // Ao lado do editor, a lista fica com o essencial: o match, os indicadores e os hits saem da
+  // vista (continuam na lista sozinha e no editor).
+  .match,
+  .flags,
+  .hits {
+    display: none;
+  }
+
+  @media (width < 1200px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .list {
+      display: none;
+    }
+  }
+}
+
+.editor {
+  position: sticky;
+  top: 0;
+}
+
+// A tabela rola sozinha no celular; `relative` segura os rótulos só para leitor de tela (absolutos)
+// dentro dela, senão eles alargam a página.
+.table-scroll {
+  position: relative;
+  overflow-x: auto;
+}
+
+.window {
+  margin: 0 0 4px;
+}
+
+.changed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+
+  p {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+.handle {
+  width: 36px;
+}
+
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: grab;
+
+  svg {
+    fill: currentcolor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
+}
+
+tr.open {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: -2px;
+}
+
+.hits {
+  white-space: nowrap;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.table .default th {
+  padding: 8px 6px;
+  border-bottom: 0;
+  text-align: left;
+  font-weight: 500;
+
+  .hint {
+    display: block;
+    margin: 0;
+    font: var(--mat-sys-body-small);
+  }
+}
+
+tfoot tr {
+  border-top: 2px solid var(--mat-sys-outline-variant);
+}
+
+// Linha arrastada (CDK): a prévia segue o ponteiro e o lugar vazio marca o destino.
+.cdk-drag-preview {
+  display: table;
+  background: var(--mat-sys-surface-container-high);
+  box-shadow: var(--mat-sys-level3);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
 }
 
 .heading {
@@ -81,9 +203,11 @@
   font-weight: 500;
 }
 
+// Regra desligada: texto em tom secundário (contraste AA), não transparência.
 .disabled .data,
-.disabled .flags {
-  opacity: 0.5;
+.disabled .flags,
+.disabled code {
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .flags {

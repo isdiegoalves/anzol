@@ -135,4 +135,19 @@ describe('Dado o "Describe the rule"', () => {
       'Set WEBHOOK_AI_* to enable',
     );
   });
+
+  it('deve lembrar que o caminho é relativo à URL e avisar Quando a descrição cita a URL inteira', async () => {
+    const element = await render();
+
+    expect(text(element.querySelector('mat-hint') as HTMLElement)).toBe(
+      'Paths are relative to this URL (say /payments). Nothing is saved until you click Save.',
+    );
+    expect(element.querySelector('.note')).toBeNull();
+    await describeRule(`POST em http://localhost:8084/${TOKEN_ID}/pagamentos responde 201`);
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.note') as HTMLElement)).toBe(
+      `Your description mentions this URL. The rule's path is only what comes after /${TOKEN_ID}: describe it as /payments, not as the full URL.`,
+    );
+  });
 });

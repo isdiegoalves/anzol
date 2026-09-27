@@ -15,14 +15,26 @@ describe('Dado o resultado do teste contra o histórico', () => {
     element.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim();
 
   it('deve dizer que não há mensagens Quando a URL ainda não recebeu nenhuma', async () => {
-    const element = await render({ tested: 0, matched: 0, misses: [], windowFull: false });
+    const element = await render({
+      tested: 0,
+      matched: 0,
+      matches: [],
+      misses: [],
+      windowFull: false,
+    });
 
     expect(text(element, '.summary')).toBe('No recorded requests to test against.');
     expect(element.querySelector('.misses')).toBeNull();
   });
 
   it('deve dizer que todas casariam, no singular, Quando a única mensagem casa', async () => {
-    const element = await render({ tested: 1, matched: 1, misses: [], windowFull: false });
+    const element = await render({
+      tested: 1,
+      matched: 1,
+      matches: [],
+      misses: [],
+      windowFull: false,
+    });
 
     expect(text(element, '.summary')).toBe('1 of 1 recorded request would match.');
     expect(element.querySelector('.misses')).toBeNull();
@@ -30,7 +42,13 @@ describe('Dado o resultado do teste contra o histórico', () => {
   });
 
   it('deve avisar que só as 500 mais recentes entraram Quando o teste cobriu 500 mensagens', async () => {
-    const element = await render({ tested: 500, matched: 500, misses: [], windowFull: true });
+    const element = await render({
+      tested: 500,
+      matched: 500,
+      matches: [],
+      misses: [],
+      windowFull: true,
+    });
 
     expect(text(element, '.window')).toBe('Only the 500 most recent requests were tested.');
   });
@@ -40,6 +58,7 @@ describe('Dado o resultado do teste contra o histórico', () => {
     const element = await render({
       tested: 3,
       matched: 1,
+      matches: [],
       misses: [
         { uuid, seq: 2, failed: ['header x-signature: absent'], page: 4 },
         { uuid: 'fedcba98-0000-4000-8000-000000000002', seq: 1, failed: ['x'], page: 4 },

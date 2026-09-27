@@ -1,7 +1,28 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { HistoryTest, Rule, RuleTestResponse, summarizeHistoryTest } from './rule';
+import { RequestPage, WebhookRequest } from '../requests/webhook-request';
+import { RuleStats, TokenStats } from '../stats/stats';
+import {
+  HISTORY_TEST_WINDOW,
+  HistoryTest,
+  Rule,
+  RuleTestResponse,
+  summarizeHistoryTest,
+} from './rule';
+
+/** Páginas de 100 que cobrem a janela de 500 do `rules/test` (S8). */
+const RECENT_PER_PAGE = 100;
+
+/**
+ * O `PUT` da lista inteira apagaria o que outra aba ou o CLI mudou desde a leitura: a lista do
+ * servidor não é mais a que a tela leu.
+ */
+export class RulesChangedError extends Error {
+  constructor() {
+    super('The rules changed elsewhere');
+  }
+}
 
 /**
  * Regras da URL aberta. A API só tem a lista inteira: `GET` lê, `PUT` substitui (e é o import).
@@ -13,11 +34,84 @@ export class RuleStore {
 
   readonly tokenId = signal<string | null>(null);
   readonly rules = signal<readonly Rule[]>([]);
+  /** Hits por regra na janela de `stats` (`null` enquanto não chegam ou se falharem). */
+  readonly hits = signal<(RuleStats & { evaluated: number }) | null>(null);
+  /** A lista como o servidor a devolveu na última leitura ou gravação. */
+  private serverList = '[]';
+  /** As mensagens da janela do `rules/test`, lidas uma vez por carga da lista. */
+  private recent: Promise<WebhookRequest[]> | null = null;
 
   async load(tokenId: string): Promise<void> {
     this.tokenId.set(tokenId);
     this.rules.set([]);
-    this.rules.set(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
+    this.recent = null;
+    this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
+  }
+
+  /** Relê os hits (`GET /stats`); sem eles, a lista só não mostra as contagens. */
+  async loadHits(tokenId: string): Promise<void> {
+    this.hits.set(null);
+    try {
+      const stats = await firstValueFrom(this.http.get<TokenStats>(`/token/${tokenId}/stats`));
+      if (this.tokenId() === tokenId && stats.rules) {
+        this.hits.set({ ...stats.rules, evaluated: stats.evaluated });
+      }
+    } catch {
+      // Servidor sem `stats` ou falha momentânea: a lista funciona sem os hits.
+    }
+  }
+
+  /**
+   * Substitui a lista só se a do servidor ainda é a que a tela leu (toggle, reordenação e apagar
+   * partem da lista mostrada); senão, não grava e lança `RulesChangedError`.
+   */
+  async saveIfUnchanged(rules: readonly Rule[]): Promise<void> {
+    const current = await this.fetchAll();
+    if (JSON.stringify(current) !== this.serverList) {
+      throw new RulesChangedError();
+    }
+    await this.save(rules);
+  }
+
+  /**
+   * As mensagens mais novas da URL, até a janela do `rules/test` (5 páginas de 100, S8), com a
+   * regra que respondeu cada uma e o near miss. Lidas uma vez por carga da lista.
+   */
+  recentRequests(): Promise<WebhookRequest[]> {
+    const tokenId = this.requireToken();
+    this.recent ??= this.fetchRecent(tokenId).catch((error: unknown) => {
+      this.recent = null;
+      throw error;
+    });
+    return this.recent;
+  }
+
+  private async fetchRecent(tokenId: string): Promise<WebhookRequest[]> {
+    const requests: WebhookRequest[] = [];
+    for (let page = 1; requests.length < HISTORY_TEST_WINDOW; page++) {
+      const result = await firstValueFrom(
+        this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+          params: { page, per_page: RECENT_PER_PAGE, sorting: 'newest' },
+        }),
+      );
+      requests.push(...result.data);
+      if (result.is_last_page || result.data.length === 0) {
+        break;
+      }
+    }
+    return requests.slice(0, HISTORY_TEST_WINDOW);
+  }
+
+  /** Uma mensagem da URL (`rules/new?from=`). */
+  fetchRequest(tokenId: string, requestId: string): Promise<WebhookRequest> {
+    return firstValueFrom(
+      this.http.get<WebhookRequest>(`/token/${tokenId}/request/${encodeURIComponent(requestId)}`),
+    );
+  }
+
+  private keep(rules: Rule[]): void {
+    this.serverList = JSON.stringify(rules);
+    this.rules.set(rules);
   }
 
   /** Lista atual do servidor (o export baixa o que está salvo, não o que a tela mostra). */
@@ -35,7 +129,7 @@ export class RuleStore {
     const previous = this.rules();
     this.rules.set(rules);
     try {
-      this.rules.set(await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), rules)));
+      this.keep(await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), rules)));
     } catch (error) {
       this.rules.set(previous);
       throw error;

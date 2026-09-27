@@ -37,48 +37,59 @@
     </ul>
   }
 
-  <table class="table" aria-label="Scenarios">
-    <thead>
-      <tr>
-        <th>Scenario</th>
-        <th>Current state</th>
-        <th class="set">Set state</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (scenario of store.scenarios(); track scenario.name) {
-        <tr [attr.data-scenario]="scenario.name">
-          <td class="data name">{{ scenario.name }}</td>
-          <td class="data">
-            <code>{{ scenario.state }}</code>
-          </td>
-          <td class="set">
-            <mat-select
-              class="state"
-              placeholder="State"
-              [aria-label]="'New state of ' + scenario.name"
-              [value]="chosen()[scenario.name]"
-              (selectionChange)="choose(scenario.name, $event.value)"
-            >
-              @for (state of options(scenario); track state) {
-                <mat-option [value]="state">{{ state }}</mat-option>
-              }
-            </mat-select>
-            <button
-              mat-button
-              type="button"
-              [disabled]="!canSet(scenario)"
-              (click)="setState(scenario)"
-            >
-              Set state
-            </button>
-          </td>
-        </tr>
-      } @empty {
+  <div class="table-scroll">
+    <table class="table" aria-label="Scenarios">
+      <thead>
         <tr>
-          <td class="empty" colspan="3">No scenario state yet.</td>
+          <th>Scenario</th>
+          <th>Current state</th>
+          <th class="set">Set state</th>
         </tr>
-      }
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        @for (scenario of store.scenarios(); track scenario.name) {
+          <tr [attr.data-scenario]="scenario.name">
+            <td class="data name">{{ scenario.name }}</td>
+            <td class="data">
+              <code>{{ scenario.state }}</code>
+            </td>
+            <td class="set">
+              <mat-select
+                class="state"
+                placeholder="State"
+                [aria-label]="'New state of ' + scenario.name"
+                [value]="chosen()[scenario.name]"
+                (selectionChange)="choose(scenario.name, $event.value)"
+              >
+                @for (state of options(scenario); track state) {
+                  <mat-option [value]="state">{{ state }}</mat-option>
+                }
+              </mat-select>
+              <button
+                mat-button
+                type="button"
+                [disabled]="!canSet(scenario)"
+                (click)="setState(scenario)"
+              >
+                Set state
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="empty" colspan="3">No scenario state yet.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @for (scenario of store.scenarios(); track scenario.name) {
+    <h3 class="diagram-title" i18n>Scenario {{ scenario.name }}</h3>
+    <app-scenario-diagram
+      [name]="scenario.name"
+      [rules]="rules.rules()"
+      [current]="scenario.state"
+    />
+  }
 </section>

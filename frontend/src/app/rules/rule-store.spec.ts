@@ -1,9 +1,9 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { TOKEN_ID } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
-import { RuleStore, validationMessages } from './rule-store';
+import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 
 describe('Dado as regras da URL aberta', () => {
   let http: HttpTestingController;
@@ -87,9 +87,91 @@ describe('Dado as regras da URL aberta', () => {
     expect(await done).toEqual({
       tested: 2,
       matched: 1,
+      matches: ['a'],
       misses: [{ uuid: 'b', seq: 1, failed: ['method: expected POST, got GET'], page: 2 }],
       windowFull: false,
     });
+  });
+
+  describe('Dado uma mudança que parte da lista mostrada (toggle, ordem, apagar)', () => {
+    it('deve gravar Quando a lista do servidor é a que a tela leu', async () => {
+      await loaded();
+
+      const done = store.saveIfUnchanged([rule(2)]);
+      http.expectOne({ method: 'GET', url }).flush([rule(1), rule(2)]);
+      await vi.waitFor(() => http.expectOne({ method: 'PUT', url }).flush([rule(2)]));
+      await done;
+
+      expect(store.rules()).toEqual([rule(2)]);
+    });
+
+    it('não deve gravar e deve avisar Quando a lista mudou em outro lugar desde a leitura', async () => {
+      await loaded();
+
+      const done = store.saveIfUnchanged([rule(2)]);
+      http.expectOne({ method: 'GET', url }).flush([rule(1), rule(2), rule(3)]);
+
+      await expect(done).rejects.toBeInstanceOf(RulesChangedError);
+      http.expectNone({ method: 'PUT', url });
+      expect(store.rules()).toEqual([rule(1), rule(2)]);
+    });
+
+    it('deve comparar com a lista que o último PUT devolveu', async () => {
+      await loaded();
+      const saved = store.save([rule(1)]);
+      http.expectOne({ method: 'PUT', url }).flush([rule(1)]);
+      await saved;
+
+      const done = store.saveIfUnchanged([]);
+      http.expectOne({ method: 'GET', url }).flush([rule(1)]);
+      await vi.waitFor(() => http.expectOne({ method: 'PUT', url }).flush([]));
+
+      await expect(done).resolves.toBeUndefined();
+    });
+  });
+
+  it('deve guardar os hits por regra da janela de stats e ficar sem eles Quando stats falha', async () => {
+    await loaded();
+
+    const done = store.loadHits(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}/stats`).flush({
+      evaluated: 7,
+      rules: { answered: [{ id: 'r1', name: 'Rule 1', count: 5 }], near_miss: [], default: 2 },
+    });
+    await done;
+    expect(store.hits()).toEqual({
+      evaluated: 7,
+      answered: [{ id: 'r1', name: 'Rule 1', count: 5 }],
+      near_miss: [],
+      default: 2,
+    });
+
+    const again = store.loadHits(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}/stats`).flush({}, { status: 404, statusText: 'x' });
+    await again;
+    expect(store.hits()).toBeNull();
+  });
+
+  it('deve ler as mensagens recentes em páginas de 100, da mais nova, até a última página, uma vez só', async () => {
+    await loaded();
+    const page = (n: number, last: boolean) =>
+      requestPage([webhookRequest(n)], { is_last_page: last });
+
+    const first = store.recentRequests();
+    const second = store.recentRequests();
+    const call1 = http.expectOne((req) => req.params.get('page') === '1');
+    expect(call1.request.params.get('per_page')).toBe('100');
+    expect(call1.request.params.get('sorting')).toBe('newest');
+    call1.flush(page(1, false));
+    await vi.waitFor(() =>
+      http.expectOne((req) => req.params.get('page') === '2').flush(page(2, true)),
+    );
+
+    expect((await first).map((request) => request.uuid)).toEqual([
+      webhookRequest(1).uuid,
+      webhookRequest(2).uuid,
+    ]);
+    expect(await second).toBe(await first);
   });
 
   it('deve repassar o erro Quando o servidor recusa a regra (422)', async () => {

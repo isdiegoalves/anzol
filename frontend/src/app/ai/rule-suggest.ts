@@ -50,6 +50,14 @@ export class RuleSuggest {
     const length = this.prompt().trim().length;
     return !this.loading() && !this.disabled() && length > 0 && length <= PROMPT_MAX_LENGTH;
   });
+  /**
+   * A descrição cita o token da URL (colaram a URL inteira): a regra sugerida tende a trazer o token
+   * no caminho, que é relativo à URL e então nunca casaria.
+   */
+  protected readonly mentionsUrl = computed(() => {
+    const tokenId = this.tokenId().toLowerCase();
+    return tokenId !== '' && this.prompt().toLowerCase().includes(tokenId);
+  });
   protected readonly maxLength = PROMPT_MAX_LENGTH;
   protected readonly waitHint = AI_WAIT_HINT;
   protected readonly offHint = AI_OFF_HINT;

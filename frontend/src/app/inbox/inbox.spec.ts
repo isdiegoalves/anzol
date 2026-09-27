@@ -140,6 +140,7 @@ describe('Dado a tela principal', () => {
 
     await harness.navigateByUrl(`/${TOKEN_ID}/rules`);
     await flush(`/token/${TOKEN_ID}/rules`, []);
+    await flush(`/token/${TOKEN_ID}/stats`, {});
     expect(primeiro.readyState).toBe(FakeEventSource.CLOSED);
 
     await openToken(`/${TOKEN_ID}`);

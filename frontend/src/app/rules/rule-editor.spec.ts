@@ -1,17 +1,17 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
+import type { Mock } from 'vitest';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatButtonToggleHarness } from '@angular/material/button-toggle/testing';
 import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
-import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { RuleEditor, RuleEditorData } from './rule-editor';
@@ -24,18 +24,16 @@ describe('Dado o editor de regra', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<RuleEditor>;
   let loader: HarnessLoader;
-  let dialogRef: { close: ReturnType<typeof vi.fn> };
-  let dialogData: RuleEditorData;
+  let closed: Mock<(saved: boolean) => void>;
 
   const open = async (data: RuleEditorData, rules: Rule[] = [rule(1)]) => {
     const store = TestBed.inject(RuleStore);
     const loaded = store.load(TOKEN_ID);
     http.expectOne(URL_REGRAS).flush(rules);
     await loaded;
-    dialogData.index = data.index;
-    dialogData.draft = data.draft;
-    dialogData.example = data.example;
     fixture = TestBed.createComponent(RuleEditor);
+    fixture.componentRef.setInput('data', data);
+    fixture.componentInstance.closed.subscribe(closed);
     loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
   };
@@ -48,18 +46,16 @@ describe('Dado o editor de regra', () => {
   const button = (text: string) => loader.getHarness(MatButtonHarness.with({ text }));
   const save = async () => (await button('Save')).click();
   const put = () => vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+  const text = (selector: string) =>
+    [...(fixture.nativeElement as HTMLElement).querySelectorAll(selector)].map((element) =>
+      element.textContent?.replace(/\s+/g, ' ').trim(),
+    );
 
   beforeEach(() => {
-    dialogRef = { close: vi.fn() };
-    dialogData = { index: null };
+    closed = vi.fn();
     TestBed.configureTestingModule({
       imports: [RuleEditor],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useFactory: () => dialogData },
-        { provide: MatDialogRef, useValue: dialogRef },
-      ],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -119,7 +115,7 @@ describe('Dado o editor de regra', () => {
       },
     ]);
     call.flush([rule(1), rule(2)]);
-    await vi.waitFor(() => expect(dialogRef.close).toHaveBeenCalledWith(true));
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledWith(true));
   });
 
   it('deve vir preenchido e trocar só a regra editada na lista Quando edita a segunda regra', async () => {
@@ -156,7 +152,7 @@ describe('Dado o editor de regra', () => {
     expect(fixture.nativeElement.querySelector('[role=alert]')?.textContent).toContain(
       'Rule 1 › name: The name has already been taken.',
     );
-    expect(dialogRef.close).not.toHaveBeenCalled();
+    expect(closed).not.toHaveBeenCalled();
   });
 
   it('deve mostrar o erro no campo da condição Quando o 422 aponta um header pelo nome', async () => {
@@ -318,7 +314,7 @@ describe('Dado o editor de regra', () => {
         'Absent (no signature header)',
       ]);
       expect(await (await field('Signature')).getTextHints()).toEqual([
-        'Set up signature verification in Edit URL',
+        'Set up signature verification in Checks',
       ]);
     });
 
@@ -383,7 +379,7 @@ describe('Dado o editor de regra', () => {
         'Invalid',
       ]);
       expect(await (await field('Schema')).getTextHints()).toEqual([
-        'Set up schema validation in Edit URL',
+        'Set up schema validation in Checks',
       ]);
     });
 
@@ -544,7 +540,7 @@ describe('Dado o editor de regra', () => {
         'Suggested in 1 attempt.',
       );
       http.expectNone({ method: 'PUT', url: URL_REGRAS });
-      expect(dialogRef.close).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
       expect(TestBed.inject(RuleStore).rules()).toEqual([rule(1)]);
     });
 
@@ -557,7 +553,7 @@ describe('Dado o editor de regra', () => {
       const call = await put();
       expect(call.request.body).toEqual([rule(1), sugerida]);
       call.flush([rule(1), { ...sugerida, id: 'r9' }]);
-      await vi.waitFor(() => expect(dialogRef.close).toHaveBeenCalledWith(true));
+      await vi.waitFor(() => expect(closed).toHaveBeenCalledWith(true));
     });
 
     it('deve manter o id da regra editada Quando a sugestão substitui uma regra salva', async () => {
@@ -722,7 +718,7 @@ describe('Dado o editor de regra', () => {
         },
       ]);
       call.flush([rule(1), rule(2), rule(3)]);
-      await vi.waitFor(() => expect(dialogRef.close).toHaveBeenCalledWith(true));
+      await vi.waitFor(() => expect(closed).toHaveBeenCalledWith(true));
     });
   });
 
@@ -731,7 +727,19 @@ describe('Dado o editor de regra', () => {
     const testCall = () =>
       vi.waitFor(() => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }));
     const countCall = () =>
-      vi.waitFor(() => http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`));
+      vi.waitFor(() =>
+        http.expectOne(
+          (req) => req.url === `/token/${TOKEN_ID}/requests` && req.params.get('per_page') === '1',
+        ),
+      );
+    /** As mensagens recentes (5 páginas de 100) que a prévia com prioridade lê (S8). */
+    const recentCall = () =>
+      vi.waitFor(() =>
+        http.expectOne(
+          (req) =>
+            req.url === `/token/${TOKEN_ID}/requests` && req.params.get('per_page') === '100',
+        ),
+      );
     const panel = (): HTMLElement | null =>
       (fixture.nativeElement as HTMLElement).querySelector('[aria-label="History test"]');
 
@@ -746,6 +754,7 @@ describe('Dado o editor de regra', () => {
         misses: [{ uuid: MISS, seq: 2, failed: ['method: expected POST, got GET', 'x: y'] }],
       });
       (await countCall()).flush({ data: [], total: 2 });
+      (await recentCall()).flush(requestPage([webhookRequest(1, { uuid: 'a', rule: null })]));
       await vi.waitFor(() => expect(panel()).not.toBeNull());
 
       expect(call.request.body).toEqual({ ...rule(1), name: 'Em edição' });
@@ -759,7 +768,7 @@ describe('Dado o editor de regra', () => {
       expect(
         [...(panel()?.querySelectorAll('.failed li') ?? [])].map((li) => li.textContent),
       ).toEqual(['method: expected POST, got GET', 'x: y']);
-      expect(dialogRef.close).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
     });
 
     it('deve mostrar o erro no editor e não fechar Quando o servidor recusa a regra (422)', async () => {
@@ -778,7 +787,7 @@ describe('Dado o editor de regra', () => {
       const alert = (fixture.nativeElement as HTMLElement).querySelector('.history-errors');
       expect(alert?.textContent?.trim()).toBe('match.path.regex: The regex is invalid.');
       expect(panel()).toBeNull();
-      expect(dialogRef.close).not.toHaveBeenCalled();
+      expect(closed).not.toHaveBeenCalled();
     });
 
     it('não deve permitir testar Quando a regra em edição é inválida', async () => {
@@ -799,6 +808,128 @@ describe('Dado o editor de regra', () => {
       await (await input('Name')).setValue('Outra');
 
       expect(panel()).toBeNull();
+    });
+
+    it('deve dizer quantas passam a ter esta resposta e quantas seguem com a regra anterior (prévia com prioridade)', async () => {
+      // A regra 1 (prioridade 1) respondeu "a"; a regra nova entra com a prioridade 5.
+      const anterior = rule(1, { priority: 1 });
+      await open({ index: null, draft: rule(9, { id: undefined, name: 'Nova', priority: 5 }) }, [
+        anterior,
+      ]);
+
+      await (await button('Test against history')).click();
+      (await testCall()).flush({
+        matches: [
+          { uuid: 'a', seq: 3 },
+          { uuid: 'b', seq: 2 },
+        ],
+        misses: [],
+      });
+      (await countCall()).flush({ data: [], total: 2 });
+      (await recentCall()).flush(
+        requestPage([
+          webhookRequest(1, { uuid: 'a', rule: { id: 'r1', name: anterior.name } }),
+          webhookRequest(2, { uuid: 'b', rule: null }),
+        ]),
+      );
+      await vi.waitFor(() => expect(text('.preview li')).toHaveLength(2));
+
+      expect(text('.preview h3')).toEqual(['With the rules before it']);
+      expect(text('.preview .hint')).toEqual([
+        'Based on the rule that answered at the time; ignores scenario state.',
+      ]);
+      expect(text('.preview li')).toEqual([
+        '1 would now get 209 from this rule',
+        '1 still answered by earlier rule Rule 1',
+      ]);
+    });
+
+    it('deve dizer em cada condição quantas falharam nela, pelas "conditions" do teste', async () => {
+      const regra = rule(1, {
+        match: {
+          method: ['POST'],
+          path: { equals: '/r1' },
+          query: {},
+          headers: { 'X-Sig': { present: true } },
+          body: [{ contains: 'a' }],
+        },
+      });
+      await open({ index: 0 }, [regra]);
+
+      await (await button('Test against history')).click();
+      (await testCall()).flush({
+        matches: [],
+        misses: [
+          {
+            uuid: 'm1',
+            seq: 2,
+            failed: ['method: x', 'header x-sig: absent'],
+            conditions: ['match.method', 'match.headers.X-Sig'],
+          },
+          { uuid: 'm2', seq: 1, failed: ['header x-sig: absent'], conditions: null },
+        ],
+      });
+      (await countCall()).flush({ data: [], total: 2 });
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      const feedback = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('.feedback'),
+      ].map((element) => [element.getAttribute('data-condition'), element.textContent?.trim()]);
+      expect(feedback).toEqual([
+        ['match.method', 'Fails on 1 of 2 tested'],
+        ['match.path', 'Passes on all 2 tested'],
+        ['match.headers.X-Sig', 'Fails on 2 of 2 tested'],
+        ['match.body.0', 'Passes on all 2 tested'],
+      ]);
+    });
+  });
+
+  describe('Dado a regra em palavras e as abas', () => {
+    it('deve descrever a regra do formulário e acompanhar a edição', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      expect(text('.words .sentence')).toEqual(['When a POST to /r1, answer 201.']);
+      await (await input('Status')).setValue('418');
+      fixture.detectChanges();
+
+      expect(text('.words .sentence')).toEqual(['When a POST to /r1, answer 418.']);
+    });
+
+    it('deve mostrar só o painel da aba escolhida, com as setas trocando de aba', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      const root = fixture.nativeElement as HTMLElement;
+      const visible = () =>
+        [...root.querySelectorAll<HTMLElement>('[role="tabpanel"]')]
+          .filter((panel) => !panel.hidden)
+          .map((panel) => panel.id);
+
+      expect(visible()).toEqual(['rule-panel-match']);
+      (root.querySelector('#rule-tab-scenario') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(visible()).toEqual(['rule-panel-scenario']);
+
+      root
+        .querySelector('#rule-tab-scenario')
+        ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      fixture.detectChanges();
+      expect(visible()).toEqual(['rule-panel-test']);
+      expect(root.querySelector('#rule-tab-test')?.getAttribute('aria-selected')).toBe('true');
+    });
+  });
+
+  describe('Dado um caminho com o token da URL (a regra nunca casaria)', () => {
+    it('deve avisar e tirar o token do caminho Quando o dono clica para corrigir', async () => {
+      await open({ index: 0 }, [
+        rule(1, { match: { path: { equals: `/${TOKEN_ID}/pagamentos` } } }),
+      ]);
+      const warning = () =>
+        (fixture.nativeElement as HTMLElement).querySelector('.path-warning[role="alert"]');
+
+      expect(warning()?.textContent).toContain("The path includes this URL's token");
+      await (await button('Remove the token from the path')).click();
+
+      expect(await (await input('Path')).getValue()).toBe('/pagamentos');
+      expect(warning()).toBeNull();
     });
   });
 });

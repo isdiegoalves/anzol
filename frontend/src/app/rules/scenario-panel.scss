@@ -81,3 +81,13 @@ code {
   padding: 16px 6px;
   color: var(--mat-sys-on-surface-variant);
 }
+
+.diagram-title {
+  margin: 16px 0 8px;
+  font: var(--mat-sys-title-small);
+}
+
+.table-scroll {
+  position: relative;
+  overflow-x: auto;
+}

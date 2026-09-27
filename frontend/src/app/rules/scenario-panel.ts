@@ -4,22 +4,24 @@ import { MatButton } from '@angular/material/button';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SCENARIO_STARTED } from './rule';
-import { validationMessages } from './rule-store';
+import { RuleStore, validationMessages } from './rule-store';
+import { ScenarioDiagram } from './scenario-diagram';
 import { Scenario, ScenarioStore } from './scenario-store';
 
 /**
- * Painel "Scenarios" da aba de regras: estado atual de cada cenário da URL, "Set state" para
- * forçar um estado e "Reset all" para voltar todos a `Started`. Os webhooks mudam os estados no
+ * Painel "Scenarios" da página Rules: estado atual de cada cenário da URL, "Set state" para
+ * forçar um estado, "Reset all" para voltar todos a `Started` e o diagrama de cada cenário. Os webhooks mudam os estados no
  * servidor sem aviso à tela: "Refresh" relê, e a aba relê depois de salvar regras.
  */
 @Component({
   selector: 'app-scenario-panel',
-  imports: [MatButton, MatSelect, MatOption],
+  imports: [MatButton, MatSelect, MatOption, ScenarioDiagram],
   templateUrl: './scenario-panel.html',
   styleUrl: './scenario-panel.scss',
 })
 export class ScenarioPanel {
   protected readonly store = inject(ScenarioStore);
+  protected readonly rules = inject(RuleStore);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly tokenId = input.required<string>();

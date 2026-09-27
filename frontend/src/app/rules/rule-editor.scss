@@ -1,3 +1,16 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+app-pane {
+  height: 100%;
+}
+
+.content {
+  padding: 0 16px 16px;
+}
+
 .errors {
   margin: 0 0 12px;
   padding: 12px 12px 12px 32px;
@@ -12,12 +25,120 @@
 }
 
 // "Test against history" à esquerda; Cancel e Save à direita.
-.test {
-  margin-right: auto;
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  .test {
+    margin-right: auto;
+  }
+}
+
+.words {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-high);
+
+  .sentence {
+    font: var(--mat-sys-body-large);
+  }
+}
+
+// Abas próprias (padrão de abas da ARIA): os painéis ficam no DOM, só escondidos, e o formulário
+// é um só.
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-small);
+  cursor: pointer;
+
+  &[aria-selected='true'] {
+    border-bottom-color: var(--mat-sys-primary);
+    color: var(--mat-sys-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+  }
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-small);
+  font-family: var(--app-code-family);
+}
+
+.panel {
+  padding-bottom: 12px;
+}
+
+// Aba escondida sem `display: none`: voltar de `none` reinicia a animação de entrada das dicas do
+// Material (opacidade), e o texto passa um instante sem contraste. `visibility: hidden` também
+// tira o painel da árvore de acessibilidade e do foco.
+.panel[hidden] {
+  display: block;
+  visibility: hidden;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.feedback,
+.recorded {
+  margin: -4px 0 8px;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.feedback.fails,
+.recorded {
+  color: var(--app-on-warning-container);
+}
+
+.path-warning {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+
+  p {
+    margin: 0 0 8px;
+  }
+}
+
+.preview {
+  margin-top: 12px;
+
+  ul {
+    margin: 0;
+  }
 }
 
 .rule-form {
-  padding-top: 12px;
+  padding-top: 4px;
 }
 
 .line {
@@ -53,12 +174,7 @@
 }
 
 h3 {
-  margin: 16px 0 4px;
-  font: var(--mat-sys-title-medium);
-}
-
-h4 {
-  margin: 8px 0 4px;
+  margin: 12px 0 4px;
   font: var(--mat-sys-title-small);
 }
 
@@ -119,7 +235,7 @@ h4 {
   }
 
   code {
-    font-family: Menlo, Consolas, monospace;
+    font-family: var(--app-code-family);
     font-size: 12px;
   }
 }
@@ -128,7 +244,7 @@ h4 {
   padding-top: 12px;
 
   textarea {
-    font-family: Menlo, Consolas, monospace;
+    font-family: var(--app-code-family);
     font-size: 12px;
   }
 }

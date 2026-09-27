@@ -1,7 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { WebhookRequest } from '../requests/webhook-request';
 import {
@@ -11,8 +8,6 @@ import {
   Rule,
   ValueMatcher,
 } from './rule';
-import { RuleEditor, RuleEditorData } from './rule-editor';
-import { RuleStore } from './rule-store';
 
 /** Acima disto (em bytes UTF-8), o corpo que não é JSON fica sem condição. */
 const BODY_EQUALS_MAX_BYTES = 10 * 1024;
@@ -81,40 +76,17 @@ function bodyConditions(content: string): BodyMatcher[] {
 }
 
 /**
- * "Create rule from this request": carregado sob demanda pelo detalhe da mensagem. Carrega as
- * regras da URL (o `PUT` substitui a lista inteira) e abre o editor com a regra pré-preenchida;
- * salvar a acrescenta no fim da lista.
+ * "Create rule from this request": carregado sob demanda pelo detalhe da mensagem. O editor é a
+ * página Rules, em `#/{token}/rules/new?from={requestId}`, que monta a regra da mensagem; salvar
+ * a acrescenta no fim da lista.
  */
 @Injectable({ providedIn: 'root' })
 export class RuleFromRequest {
-  private readonly store = inject(RuleStore);
-  private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
 
   async open(request: WebhookRequest): Promise<void> {
-    const tokenId = request.token_id;
-    try {
-      await this.store.load(tokenId);
-    } catch (error) {
-      const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.snackBar.open(`Could not load the rules (${status}).`, undefined, { duration: 1000 });
-      return;
-    }
-    this.dialog
-      .open<RuleEditor, RuleEditorData, boolean>(RuleEditor, {
-        data: { index: null, draft: ruleFromRequest(request), example: request },
-        width: '960px',
-        maxWidth: '95vw',
-      })
-      .afterClosed()
-      .subscribe((saved) => {
-        if (saved) {
-          this.snackBar
-            .open('Rule saved', 'View rules', { duration: 1000 })
-            .onAction()
-            .subscribe(() => void this.router.navigate(['/', tokenId, 'rules']));
-        }
-      });
+    await this.router.navigate(['/', request.token_id, 'rules', 'new'], {
+      queryParams: { from: request.uuid },
+    });
   }
 }

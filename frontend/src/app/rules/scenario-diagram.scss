@@ -1,0 +1,73 @@
+:host {
+  display: block;
+}
+
+.diagram {
+  margin: 0 0 8px;
+}
+
+.states {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.states li {
+  display: flex;
+  align-items: center;
+}
+
+// Seta entre os estados, na ordem em que as regras os citam.
+.states .arrow {
+  margin: 0 8px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.pill {
+  padding: 4px 12px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 16px;
+  font: var(--mat-sys-label-large);
+  font-family: var(--app-code-family);
+
+  &.current {
+    border-color: var(--mat-sys-primary);
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+    font-weight: 600;
+  }
+}
+
+.steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .state,
+  .stays {
+    font-family: var(--app-code-family);
+  }
+
+  .rule {
+    font-weight: 600;
+  }
+
+  .arrow,
+  .stays,
+  .hint {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}

@@ -1,128 +1,210 @@
-<header class="heading">
-  <div>
-    <h1>Response rules</h1>
-    <p class="hint">
-      Rules are checked by priority (lowest first; ties in list order). The first enabled rule that
-      matches answers the request; with none, the URL answers with its default response.
-    </p>
-  </div>
-  <div class="actions">
-    <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
-    <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()">
-      New rule
-    </button>
-    <button
-      mat-stroked-button
-      type="button"
-      title="Replace all rules with the ones in a JSON file"
-      [disabled]="!loaded()"
-      (click)="file.click()"
-    >
-      Import
-    </button>
-    <input
-      #file
-      class="file"
-      type="file"
-      accept="application/json,.json"
-      aria-label="Rules JSON file"
-      [disabled]="!loaded()"
-      (change)="importRules(file)"
-    />
-    <button
-      mat-stroked-button
-      type="button"
-      title="Download the saved rules as JSON"
-      [disabled]="!loaded()"
-      (click)="exportRules()"
-    >
-      Export
-    </button>
-  </div>
-</header>
-
-@if (errors().length > 0) {
-  <ul class="errors" role="alert">
-    @for (message of errors(); track $index) {
-      <li>{{ message }}</li>
-    }
-  </ul>
-}
-
-@if (loaded()) {
-  <table class="table" aria-label="Rules">
-    <thead>
-      <tr>
-        <th class="toggle">On</th>
-        <th>Name</th>
-        <th class="flags"><span class="visually-hidden">Behavior</span></th>
-        <th class="number">Priority</th>
-        <th>Match</th>
-        <th class="number">Status</th>
-        <th class="row-actions"><span class="visually-hidden">Actions</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (item of ordered(); track item.index; let first = $first; let last = $last) {
-        <tr
-          [attr.data-rule-id]="item.rule.id ?? item.index"
-          [class.disabled]="item.rule.enabled === false"
+@let editing = editor().length > 0;
+<div class="layout" [class.editing]="editing">
+  <section class="list" aria-labelledby="rules-title">
+    <header class="heading">
+      <div>
+        <h1 id="rules-title" i18n>Rules</h1>
+        <p class="hint" i18n>
+          Checked by priority, lowest first (ties in list order). The first enabled rule that
+          matches answers the request; with none, the URL answers with its default response.
+        </p>
+      </div>
+      <div class="actions">
+        <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
+        <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()" i18n>
+          New rule
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          title="Replace all rules with the ones in a JSON file"
+          [disabled]="!loaded()"
+          (click)="file.click()"
+          i18n
         >
-          <td class="toggle">
-            <mat-slide-toggle
-              [aria-label]="'Enable rule ' + item.rule.name"
-              [checked]="item.rule.enabled ?? true"
-              (change)="setEnabled(item.index, $event.checked)"
-            />
-          </td>
-          <td class="data name">{{ item.rule.name }}</td>
-          <td class="flags">
-            @for (flag of item.flags; track flag.label) {
-              <span class="flag" [title]="flag.detail">{{ flag.label }}</span>
-            }
-          </td>
-          <td class="data number">{{ item.rule.priority ?? defaultPriority }}</td>
-          <td class="data match">
-            <code>{{ summary(item.rule) }}</code>
-          </td>
-          <td class="data number">{{ item.rule.response?.status ?? defaultStatus }}</td>
-          <td class="row-actions">
-            <button
-              mat-button
-              type="button"
-              aria-label="Move up"
-              title="Move up (checked earlier)"
-              [disabled]="first"
-              (click)="moveRule($index, -1)"
-            >
-              &#8593;
-            </button>
-            <button
-              mat-button
-              type="button"
-              aria-label="Move down"
-              title="Move down (checked later)"
-              [disabled]="last"
-              (click)="moveRule($index, 1)"
-            >
-              &#8595;
-            </button>
-            <button mat-button type="button" (click)="editRule(item.index)">Edit</button>
-            <button mat-button type="button" class="delete" (click)="deleteRule(item.index)">
-              Delete
-            </button>
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td class="empty" colspan="7">
-            No rules yet. Every request gets the URL's default response.
-          </td>
-        </tr>
+          Import
+        </button>
+        <input
+          #file
+          class="file"
+          type="file"
+          accept="application/json,.json"
+          aria-label="Rules JSON file"
+          [disabled]="!loaded()"
+          (change)="importRules(file)"
+        />
+        <button
+          mat-stroked-button
+          type="button"
+          title="Download the saved rules as JSON"
+          [disabled]="!loaded()"
+          (click)="exportRules()"
+          i18n
+        >
+          Export
+        </button>
+      </div>
+    </header>
+
+    @if (errors().length > 0) {
+      <ul class="errors" role="alert">
+        @for (message of errors(); track $index) {
+          <li>{{ message }}</li>
+        }
+      </ul>
+    }
+    @if (changedElsewhere()) {
+      <div class="changed" role="alert">
+        <p i18n>
+          The rules changed elsewhere since this page read them, so nothing was saved. Reload to see
+          the current rules, then try again.
+        </p>
+        <button mat-stroked-button type="button" (click)="reload()" i18n>Reload</button>
+      </div>
+    }
+    @if (missingRule()) {
+      <p class="errors" role="alert" i18n>This rule no longer exists.</p>
+    }
+
+    @if (loaded()) {
+      @if (store.hits(); as hits) {
+        <p class="hint window" i18n>Hits over the last {{ hits.evaluated }} requests kept.</p>
       }
-    </tbody>
-  </table>
-  @if (hasScenarios()) {
-    <app-scenario-panel [tokenId]="tokenId()" />
+      <div class="table-scroll">
+        <table class="table" aria-label="Rules">
+          <thead>
+            <tr>
+              <th class="handle"><span class="visually-hidden" i18n>Reorder</span></th>
+              <th class="toggle" i18n>On</th>
+              <th i18n>Name</th>
+              <th class="flags"><span class="visually-hidden" i18n>Behavior</span></th>
+              <th class="number" i18n>Priority</th>
+              <th class="match" i18n>Match</th>
+              <th class="number" i18n>Status</th>
+              <th class="hits" i18n>Hits</th>
+              <th class="row-actions"><span class="visually-hidden" i18n>Actions</span></th>
+            </tr>
+          </thead>
+          <tbody cdkDropList cdkDropListLockAxis="y" (cdkDropListDropped)="dropRule($event)">
+            @for (item of ordered(); track item.index; let first = $first; let last = $last) {
+              <tr
+                cdkDrag
+                [cdkDragData]="item"
+                [attr.data-rule-id]="item.rule.id ?? item.index"
+                [class.disabled]="item.rule.enabled === false"
+                [class.open]="item.rule.id === ruleId()"
+              >
+                <td class="handle">
+                  <button
+                    type="button"
+                    class="grip"
+                    cdkDragHandle
+                    [attr.data-handle]="item.rule.id"
+                    [attr.aria-label]="'Reorder ' + item.rule.name"
+                    title="Drag, or use the arrow keys, to change the order"
+                    (keydown)="moveByKey($event, $index)"
+                  >
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                      <circle cx="9" cy="6" r="1.5" />
+                      <circle cx="15" cy="6" r="1.5" />
+                      <circle cx="9" cy="12" r="1.5" />
+                      <circle cx="15" cy="12" r="1.5" />
+                      <circle cx="9" cy="18" r="1.5" />
+                      <circle cx="15" cy="18" r="1.5" />
+                    </svg>
+                  </button>
+                </td>
+                <td class="toggle">
+                  <mat-slide-toggle
+                    #toggle
+                    [aria-label]="'Enable rule ' + item.rule.name"
+                    [checked]="item.rule.enabled ?? true"
+                    (change)="setEnabled(item.index, $event.checked, toggle)"
+                  />
+                </td>
+                <td class="data name">{{ item.rule.name }}</td>
+                <td class="flags">
+                  @for (flag of item.flags; track flag.label) {
+                    <span class="flag" [title]="flag.detail">{{ flag.label }}</span>
+                  }
+                </td>
+                <td class="data number">{{ item.rule.priority ?? defaultPriority }}</td>
+                <td class="data match">
+                  <code>{{ summary(item.rule) }}</code>
+                </td>
+                <td class="data number">{{ item.rule.response?.status ?? defaultStatus }}</td>
+                <td class="hits">{{ hitsOf(item.rule) }}</td>
+                <td class="row-actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Move up"
+                    title="Move up (checked earlier)"
+                    [disabled]="first"
+                    (click)="moveRule($index, -1)"
+                  >
+                    &#8593;
+                  </button>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    aria-label="Move down"
+                    title="Move down (checked later)"
+                    [disabled]="last"
+                    (click)="moveRule($index, 1)"
+                  >
+                    &#8595;
+                  </button>
+                  <button mat-button type="button" (click)="editRule(item.rule)" i18n>Edit</button>
+                  <button
+                    mat-button
+                    type="button"
+                    class="delete"
+                    (click)="deleteRule(item.index)"
+                    i18n
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="9" i18n>
+                  No rules yet. Every request gets the URL's default response.
+                </td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr class="default">
+              <td colspan="2"></td>
+              <th scope="row">
+                <span i18n>Default response</span>
+                <span class="hint" i18n>When no rule matches</span>
+              </th>
+              <td class="flags"></td>
+              <td></td>
+              <td class="match"></td>
+              <td class="number">
+                <app-status-code [status]="tokens.token()?.default_status ?? defaultStatus" />
+              </td>
+              <td class="hits">
+                @if (store.hits(); as hits) {
+                  <ng-container i18n>Answered {{ hits.default }}</ng-container>
+                }
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      @if (hasScenarios()) {
+        <app-scenario-panel [tokenId]="tokenId()" />
+      }
+    }
+  </section>
+
+  @for (data of editor(); track data.key) {
+    <app-rule-editor class="editor" [data]="data" (closed)="closeEditor($event)" />
   }
-}
+</div>

@@ -131,6 +131,8 @@ export interface HistoryMiss {
   uuid: string;
   seq: number;
   failed: string[];
+  /** A condição de cada frase de `failed` (B1); ausente em servidor anterior ao campo. */
+  conditions?: string[] | null;
   page: number;
 }
 
@@ -138,6 +140,8 @@ export interface HistoryMiss {
 export interface HistoryTest {
   tested: number;
   matched: number;
+  /** As mensagens que a regra casaria, da mais nova para a mais antiga (para a prévia, S8). */
+  matches: string[];
   misses: HistoryMiss[];
   /** O servidor só testa as 500 mensagens mais recentes. */
   windowFull: boolean;
@@ -166,6 +170,7 @@ export function summarizeHistoryTest(response: RuleTestResponse, total: number):
   return {
     tested,
     matched: response.matches.length,
+    matches: response.matches.map(({ uuid }) => uuid),
     misses: response.misses.map((miss) => ({ ...miss, page: pageOf(miss.seq) })),
     windowFull: tested >= HISTORY_TEST_WINDOW,
   };
@@ -257,4 +262,39 @@ export function evaluationOrder(rules: readonly Rule[]): number[] {
     .map((rule, index) => ({ index, priority: rule.priority ?? RULE_DEFAULT_PRIORITY }))
     .sort((a, b) => a.priority - b.priority || a.index - b.index)
     .map(({ index }) => index);
+}
+
+/**
+ * Leva a regra da posição `from` para `to` na ordem de avaliação. As prioridades ficam com as
+ * posições (a regra que passa a ocupar uma posição recebe a prioridade que estava nela), então a
+ * ordem de avaliação passa a ser a lista nova; um passo só troca as prioridades das duas vizinhas.
+ * Devolve a lista na ordem de avaliação, pronta para o `PUT`.
+ */
+export function moveInOrder(rules: readonly Rule[], from: number, to: number): Rule[] {
+  const ordered = evaluationOrder(rules).map((index) => rules[index]);
+  const priorities = ordered.map((rule) => rule.priority ?? RULE_DEFAULT_PRIORITY);
+  const [moved] = ordered.splice(from, 1);
+  ordered.splice(to, 0, moved);
+  return ordered.map((rule, position) =>
+    (rule.priority ?? RULE_DEFAULT_PRIORITY) === priorities[position]
+      ? rule
+      : { ...rule, priority: priorities[position] },
+  );
+}
+
+/**
+ * O caminho da regra é o que vem depois do token da URL: um caminho que começa com o próprio
+ * token (`/{uuid}/pagamentos`) nunca casa. Devolve o caminho sem o token, ou `null` quando não há
+ * o que corrigir.
+ */
+export function pathWithoutToken(path: string, tokenId: string): string | null {
+  const prefix = `/${tokenId}`.toLowerCase();
+  if (!tokenId || !path.toLowerCase().startsWith(prefix)) {
+    return null;
+  }
+  const rest = path.slice(prefix.length);
+  if (rest === '') {
+    return '/';
+  }
+  return rest.startsWith('/') ? rest : null;
 }

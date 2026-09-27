@@ -1,15 +1,7 @@
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
-import { rule } from '../../testing/rule-fixtures';
-import { RuleEditor } from './rule-editor';
 import { RuleFromRequest, pathAfterToken, ruleFromRequest } from './rule-from-request';
-import { RuleStore } from './rule-store';
 
 const BASE = `http://localhost:8084/${TOKEN_ID}`;
 
@@ -108,77 +100,14 @@ describe('Dado uma mensagem gravada como ponto de partida de uma regra', () => {
 });
 
 describe('Dado o botão "Create rule from this request"', () => {
-  let http: HttpTestingController;
-  let dialog: { open: ReturnType<typeof vi.fn> };
-  let snackBar: { open: ReturnType<typeof vi.fn> };
-  let router: { navigate: ReturnType<typeof vi.fn> };
-  let viewRules: ReturnType<typeof vi.fn>;
-  const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
+  it('deve abrir a página Rules com a regra nova a partir da mensagem', async () => {
+    const navigate = vi.fn().mockResolvedValue(true);
+    TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: { navigate } }] });
 
-  beforeEach(() => {
-    viewRules = vi.fn();
-    dialog = { open: vi.fn(() => ({ afterClosed: () => of(true) })) };
-    snackBar = { open: vi.fn(() => ({ onAction: () => ({ subscribe: viewRules }) })) };
-    router = { navigate: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: MatDialog, useValue: dialog },
-        { provide: MatSnackBar, useValue: snackBar },
-        { provide: Router, useValue: router },
-      ],
+    await TestBed.inject(RuleFromRequest).open(webhookRequest(1));
+
+    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
+      queryParams: { from: webhookRequest(1).uuid },
     });
-    http = TestBed.inject(HttpTestingController);
-  });
-
-  afterEach(() => http.verify());
-
-  it('deve carregar as regras da URL e abrir o editor com a regra pré-preenchida e a mensagem como exemplo Quando é clicado', async () => {
-    const request = webhookRequest(1, { url: `${BASE}/pedidos` });
-
-    const done = TestBed.inject(RuleFromRequest).open(request);
-    http.expectOne(URL_REGRAS).flush([rule(1)]);
-    await done;
-
-    expect(TestBed.inject(RuleStore).rules()).toEqual([rule(1)]);
-    expect(dialog.open).toHaveBeenCalledWith(
-      RuleEditor,
-      expect.objectContaining({
-        data: { index: null, draft: ruleFromRequest(request), example: request },
-      }),
-    );
-    expect(snackBar.open).toHaveBeenCalledWith('Rule saved', 'View rules', { duration: 1000 });
-  });
-
-  it('deve levar à aba de regras Quando "View rules" é clicado depois de salvar', async () => {
-    const done = TestBed.inject(RuleFromRequest).open(webhookRequest(1));
-    http.expectOne(URL_REGRAS).flush([]);
-    await done;
-
-    viewRules.mock.calls[0][0]();
-
-    expect(router.navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules']);
-  });
-
-  it('não deve abrir o editor Quando as regras da URL não carregam', async () => {
-    const done = TestBed.inject(RuleFromRequest).open(webhookRequest(1));
-    http.expectOne(URL_REGRAS).flush({}, { status: 410, statusText: 'Gone' });
-    await done;
-
-    expect(dialog.open).not.toHaveBeenCalled();
-    expect(snackBar.open).toHaveBeenCalledWith('Could not load the rules (410).', undefined, {
-      duration: 1000,
-    });
-  });
-
-  it('não deve avisar nada Quando o editor é cancelado', async () => {
-    dialog.open.mockReturnValue({ afterClosed: () => of(undefined) });
-
-    const done = TestBed.inject(RuleFromRequest).open(webhookRequest(1));
-    http.expectOne(URL_REGRAS).flush([]);
-    await done;
-
-    expect(snackBar.open).not.toHaveBeenCalled();
   });
 });
