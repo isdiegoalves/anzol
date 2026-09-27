@@ -9,6 +9,19 @@ import { abrirMensagem, verificacoes } from './support/inbox';
 // `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound`,
 // e de `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` no stack: o receptor roda neste processo (no host) e
 // o app, no container, o alcança por `host.docker.internal` (troque com E2E_RECEIVER_HOST).
+//
+// Item 14, E7: os diálogos Replay e Send viram o compositor da página Outbound (`region "Replay request"` e
+// `region "Send request"`, S15) e o resultado fica na mesma página, na `region "Outbound detail"` (C §2.7).
+// SUPOSIÇÕES (contrato da E7):
+// - "Replay…" no detalhe leva a `#/{token}/outbound?replay={id}`; "Send as new…" a `?send-from={id}`; o "Send" do
+//   cabeçalho da URL é um `link` (decisão do main) para `#/{token}/outbound?send=new`, com o compositor em Send;
+//   os campos mantêm os nomes de hoje;
+// - o resultado mostra o status pelo `app-status-code` ("201" e a frase), as tabelas "Response headers" e "Sent
+//   headers" e o corpo no `app-code-view` "Response body"; o erro de saída é um `alert` com o título e a orientação
+//   de hoje;
+// - sem assinatura na URL, a dica do "Sign with this URL's signature" aponta para Checks: "This URL has no signature
+//   configured. Set one up in Checks to sign." (o "Edit URL" deixou de existir na E5);
+// - o histórico continua `table "Outbound history"`.
 
 const RECEIVER_HOST = process.env['E2E_RECEIVER_HOST'] ?? 'host.docker.internal';
 const SECRET = 'segredo-do-e2e-reenvio';
@@ -57,14 +70,29 @@ async function openRequest(page: Page, tokenId: string, requestId: string) {
   await abrirMensagem(page, tokenId, requestId);
 }
 
-/** Barra da URL com o token já vindo do servidor (a assinatura está nele). */
+/** "Send" do cabeçalho da URL, com o token já vindo do servidor (a assinatura está nele): o compositor em Send. */
 async function openSend(page: Page, tokenId: string): Promise<Locator> {
   await page.goto(`/#/${tokenId}`);
   await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
     new RegExp(`/${tokenId}$`),
   );
-  await page.getByRole('button', { name: 'Send', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Send request' });
+  await page.getByRole('link', { name: 'Send', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?send=new$`));
+  const dialog = page.getByRole('region', { name: 'Send request' });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** O resultado do envio, que fica na página (não some ao fechar nada). */
+function outboundDetail(page: Page): Locator {
+  return page.getByRole('region', { name: 'Outbound detail' });
+}
+
+/** "Replay…" no detalhe: leva ao compositor de Outbound com a mensagem escolhida. */
+async function openReplay(page: Page, tokenId: string, requestId: string): Promise<Locator> {
+  await page.getByRole('button', { name: /^Replay/ }).click();
+  await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?replay=${requestId}$`));
+  const dialog = page.getByRole('region', { name: 'Replay request' });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -88,32 +116,31 @@ test.describe('Dado uma mensagem recebida', () => {
     });
     await openRequest(page, tokenId, requestId);
 
-    await page.getByRole('button', { name: /^Replay/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Replay request' });
+    const dialog = await openReplay(page, tokenId, requestId);
     await expect(dialog.getByText('Appends /pedidos?x=1 to the target')).toBeVisible();
     await dialog.getByRole('textbox', { name: 'Target URL' }).fill(`${receiver.url}/app`);
     await dialog.getByRole('button', { name: 'Replay', exact: true }).click();
 
-    await expect(dialog.locator('.status')).toHaveText('201');
-    await expect(dialog.getByRole('table', { name: 'Response headers' })).toContainText(
+    const detail = outboundDetail(page);
+    await expect(detail.getByText('201', { exact: true })).toBeVisible();
+    await expect(detail.getByRole('table', { name: 'Response headers' })).toContainText(
       'x-receptor',
     );
-    await expect(dialog.locator('pre.body')).toHaveText('{"recebido":true}');
+    await expect(detail.getByLabel('Response body', { exact: true })).toHaveText(
+      /^\{\s*"recebido":\s*true\s*\}$/,
+    );
     expect(receiver.received).toHaveLength(1);
     expect(receiver.received[0]).toEqual(
       expect.objectContaining({ method: 'POST', url: '/app/pedidos?x=1', body: '{"pedido":7}' }),
     );
     expect(receiver.received[0].headers['x-origem']).toBe('e2e');
 
-    await dialog.getByRole('button', { name: 'Close' }).click();
-    // Espera o diálogo sumir: clicar durante a animação de fechamento cai no backdrop.
-    await expect(dialog).toBeHidden();
-    await page.getByRole('button', { name: /^Replay/ }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Replay request' }).getByRole('textbox', {
-        name: 'Target URL',
-      }),
-    ).toHaveValue(`${receiver.url}/app`);
+    // O destino fica lembrado para esta URL: um novo Replay pelo detalhe já vem com ele.
+    await openRequest(page, tokenId, requestId);
+    const outra = await openReplay(page, tokenId, requestId);
+    await expect(outra.getByRole('textbox', { name: 'Target URL' })).toHaveValue(
+      `${receiver.url}/app`,
+    );
   });
 
   test('deve mostrar o bloqueio com a orientação de WEBHOOK_OUTBOUND_ALLOW_PRIVATE Quando o destino é o endereço de metadados', async ({
@@ -124,14 +151,13 @@ test.describe('Dado uma mensagem recebida', () => {
     const requestId = await tokens.send(tokenId, { data: 'x' });
     await openRequest(page, tokenId, requestId);
 
-    await page.getByRole('button', { name: /^Replay/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Replay request' });
+    const dialog = await openReplay(page, tokenId, requestId);
     await dialog
       .getByRole('textbox', { name: 'Target URL' })
       .fill('http://169.254.169.254/latest/meta-data');
     await dialog.getByRole('button', { name: 'Replay', exact: true }).click();
 
-    const alert = dialog.locator('.error[role=alert]');
+    const alert = outboundDetail(page).getByRole('alert');
     await expect(alert).toContainText('Blocked');
     await expect(alert).toContainText('WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true');
   });
@@ -150,7 +176,8 @@ test.describe('Dado uma mensagem recebida', () => {
 
     await page.getByRole('button', { name: /^Send as new/ }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Send request' });
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?send-from=${requestId}$`));
+    const dialog = page.getByRole('region', { name: 'Send request' });
     await expect(dialog.getByRole('combobox', { name: 'Method' })).toHaveText('PUT');
     await expect(dialog.getByRole('textbox', { name: 'Body' })).toHaveValue('corpo original');
     const names = await dialog
@@ -162,7 +189,7 @@ test.describe('Dado uma mensagem recebida', () => {
   });
 });
 
-test.describe('Dado o Send da barra da URL', () => {
+test.describe('Dado o Send do cabeçalho da URL', () => {
   test('deve deixar "Sign with this URL\'s signature" desligado e explicar Quando a URL não tem assinatura', async ({
     page,
     tokens,
@@ -175,7 +202,7 @@ test.describe('Dado o Send da barra da URL', () => {
       dialog.getByRole('switch', { name: "Sign with this URL's signature" }),
     ).toBeDisabled();
     await expect(
-      dialog.getByText('This URL has no signature configured. Set one up in Edit URL to sign.'),
+      dialog.getByText('This URL has no signature configured. Set one up in Checks to sign.'),
     ).toBeVisible();
   });
 
@@ -194,7 +221,7 @@ test.describe('Dado o Send da barra da URL', () => {
     await dialog.getByRole('textbox', { name: 'Body' }).fill('olá');
     await dialog.getByRole('button', { name: 'Send', exact: true }).click();
 
-    await expect(dialog.locator('.status')).toHaveText('201');
+    await expect(outboundDetail(page).getByText('201', { exact: true })).toBeVisible();
     expect(receiver.received).toEqual([
       expect.objectContaining({ method: 'PATCH', url: '/hook', body: 'olá' }),
     ]);
@@ -216,20 +243,20 @@ test.describe('Dado o Send da barra da URL', () => {
     await dialog.getByRole('switch', { name: "Sign with this URL's signature" }).click();
     await dialog.getByRole('button', { name: 'Send', exact: true }).click();
 
-    await expect(dialog.locator('.status')).toHaveText('200');
-    await expect(dialog).not.toContainText(SECRET);
-    await dialog.getByRole('button', { name: 'Close' }).click();
-    await expect(dialog).toBeHidden();
-    // Item 14, E4: o selo da mensagem que chegou é o cartão do detalhe.
-    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
-
-    await page.getByRole('link', { name: 'Outbound' }).click();
-    const detail = page.getByRole('region', { name: 'Outbound detail' });
+    const detail = outboundDetail(page);
+    await expect(detail.getByText('200', { exact: true })).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(SECRET);
     // Nome de header não diferencia maiúsculas: o servidor manda X-Hub-Signature-256.
     await expect(detail.getByRole('table', { name: 'Sent headers' })).toContainText(
       /x-hub-signature-256/i,
     );
-    await expect(page.locator('app-outbound-page')).not.toContainText(SECRET);
+
+    // A mensagem que chegou a esta mesma URL foi verificada como válida.
+    await page
+      .getByRole('navigation', { name: 'URL sections' })
+      .getByRole('link', { name: 'Inbox', exact: true })
+      .click();
+    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
   });
 });
 
@@ -260,6 +287,8 @@ test.describe('Dado a aba Outbound', () => {
     await expect(detail.getByRole('table', { name: 'Response headers' })).toContainText(
       'x-receptor',
     );
-    await expect(detail.locator('pre.body')).toHaveText('{"recebido":true}');
+    await expect(detail.getByLabel('Response body', { exact: true })).toHaveText(
+      /^\{\s*"recebido":\s*true\s*\}$/,
+    );
   });
 });

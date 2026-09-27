@@ -70,14 +70,22 @@ test.describe('Dado as preferências no localStorage (checklist 14)', () => {
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/`));
     await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Follow new' })).toBeChecked();
-    await expect(page.getByRole('switch', { name: 'Auto redirect' })).not.toBeChecked();
     await expect(page.getByRole('region', { name: 'Tutorial' })).toBeHidden();
     await expectCorpo(page, '{\n  "a": 1\n}');
+    // Item 14, E7: o redirect pelo navegador fica em Outbound › "Forward from this browser (legacy)".
+    await page
+      .getByRole('navigation', { name: 'URL sections' })
+      .getByRole('link', { name: 'Outbound', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Forward from this browser (legacy)' }).click();
+    await expect(page.getByRole('switch', { name: 'Auto redirect' })).not.toBeChecked();
     await page.getByRole('button', { name: 'Settings...' }).click();
-    await expect(page.getByLabel('Redirect to')).toHaveValue('http://destino.example');
-    await expect(page.getByLabel('Content Type')).toHaveValue('application/json');
-    await expect(page.getByLabel('Redirect Headers')).toHaveValue('x-token,referer');
-    await expect(page.getByRole('combobox', { name: 'HTTP Method' })).toContainText('PUT');
+    // Escopado: a página Outbound tem outros campos (o compositor).
+    const redirecao = page.getByRole('dialog', { name: 'Redirection Settings' });
+    await expect(redirecao.getByLabel('Redirect to')).toHaveValue('http://destino.example');
+    await expect(redirecao.getByLabel('Content Type')).toHaveValue('application/json');
+    await expect(redirecao.getByLabel('Redirect Headers')).toHaveValue('x-token,referer');
+    await expect(redirecao.getByRole('combobox', { name: 'HTTP Method' })).toContainText('PUT');
   });
 
   test('deve gravar nas mesmas chaves em JSON e manter após recarregar Quando as opções mudam', async ({

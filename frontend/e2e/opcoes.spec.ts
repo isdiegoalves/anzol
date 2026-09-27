@@ -1,4 +1,4 @@
-import { Request } from '@playwright/test';
+import { Page, Request } from '@playwright/test';
 import { abrirChecks } from './support/checks';
 import { expect, test } from './support/fixtures';
 import { readStorage, seedStorage } from './support/storage';
@@ -33,6 +33,23 @@ test.describe('Dado o toggle de CORS (checklist 9)', () => {
   });
 });
 
+/**
+ * Item 14, E7 (S13; B): Auto redirect, Settings... e Redirect Now vão para Outbound, no bloco recolhido "Forward
+ * from this browser (legacy)", com os mesmos nomes. SUPOSIÇÕES: o bloco abre por um `button` com esse nome e
+ * `aria-expanded`; "Redirect Now" reenvia a mensagem aberta na Inbox (a mais nova quando nenhuma foi aberta), como
+ * hoje.
+ */
+async function openForwardLegacy(page: Page): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'URL sections' })
+    .getByRole('link', { name: 'Outbound', exact: true })
+    .click();
+  const legado = page.getByRole('button', { name: 'Forward from this browser (legacy)' });
+  await expect(legado).toHaveAttribute('aria-expanded', 'false');
+  await legado.click();
+  await expect(legado).toHaveAttribute('aria-expanded', 'true');
+}
+
 test.describe('Dado o redirect pelo navegador (checklist 9)', () => {
   test('deve reenviar a mensagem com método, caminho, query e headers escolhidos Quando "Redirect Now" é clicado', async ({
     page,
@@ -56,6 +73,8 @@ test.describe('Dado o redirect pelo navegador (checklist 9)', () => {
       });
     });
     await page.goto(`/#/${tokenId}`);
+    await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
+    await openForwardLegacy(page);
     await expect(page.getByRole('switch', { name: 'Auto redirect' })).toBeDisabled();
 
     await page.getByRole('button', { name: 'Settings...' }).click();
