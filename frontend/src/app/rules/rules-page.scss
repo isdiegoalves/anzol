@@ -294,9 +294,9 @@ tfoot .item {
   border-block: 2px solid var(--mat-sys-primary);
 }
 
-// A ação do diagnóstico, abaixo do item ("Move before X", "Set up in Checks").
-.fix {
-  margin: 0 0 6px 6px;
+// A ação do diagnóstico, na linha logo abaixo do item ("Move before X", "Set up in Checks").
+.fix-row .fix-cell {
+  padding: 0 0 4px 6px;
 }
 
 // No celular (RULES-27), menos margem.

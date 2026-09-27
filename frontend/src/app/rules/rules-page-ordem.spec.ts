@@ -39,6 +39,8 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
   const windowClass = signal<WindowClass>('large');
   const row = (id: string) => document.querySelector(`[data-rule-id="${id}"]`) as HTMLElement;
+  /** A linha da ação do diagnóstico, logo abaixo do item (fora de td.item, que só tem o botão). */
+  const fixFor = (id: string) => document.querySelector(`[data-fix-for="${id}"]`) as HTMLElement;
   const text = (id: string, part: string) =>
     row(id).querySelector(part)?.textContent?.replace(/\s+/g, ' ').trim();
   const flags = (id: string) =>
@@ -173,10 +175,14 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         'Never answers: "Pix pago" comes first and matches everything this rule matches.',
       );
       expect(flags('r1')).toEqual([]);
+      // td.item continua só com o botão que abre o editor (o linhaDaRegra/abrirRegra do E2E).
+      expect(
+        within(row('r2').querySelector('td.item') as HTMLElement).getAllByRole('button'),
+      ).toHaveLength(1);
       await expectNoAxeViolations(container);
 
       await userEvent.click(
-        within(row('r2')).getByRole('button', { name: 'Move before Pix pago' }),
+        within(fixFor('r2')).getByRole('button', { name: 'Move before Pix pago' }),
       );
       const body = await expectGuardedPut([pix, copia]);
 
@@ -220,7 +226,7 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
 
       expect(flags('r1')).toEqual(['Never matches']);
       expect(text('r1', '.hits')).toBe('This URL does not check signatures.');
-      const link = within(row('r1')).getByRole('link', { name: 'Set up in Checks' });
+      const link = within(fixFor('r1')).getByRole('link', { name: 'Set up in Checks' });
       expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=signature`);
       await expectNoAxeViolations(container);
     });
@@ -285,7 +291,7 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       await vi.waitFor(() => expect(flags('r2')).toEqual(['Likely shadowed by A']));
       // Sem prova, a linha 3 continua com os hits; a ação fica à mão.
       expect(text('r2', '.hits')).toBe('Answered 0 of the last 12');
-      expect(within(row('r2')).getByRole('button', { name: 'Move before A' })).toBeTruthy();
+      expect(within(fixFor('r2')).getByRole('button', { name: 'Move before A' })).toBeTruthy();
     });
   });
 

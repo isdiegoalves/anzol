@@ -114,7 +114,7 @@
           [disabled]="!loaded()"
           [matMenuTriggerFor]="templateMenu"
         >
-          <span aria-hidden="true">&#9662;</span>
+          <app-icon name="down" [size]="20" />
         </button>
         <mat-menu #templateMenu="matMenu" aria-label="Rule templates" i18n-aria-label>
           @for (template of templates; track template.id) {
@@ -275,30 +275,6 @@
                         [created]="created"
                       />
                     </button>
-                    <!-- A ação do diagnóstico fica fora do botão da linha (nada interativo dentro dele). -->
-                    @if (item.diagnosis; as diagnosis) {
-                      @if (diagnosis.kind === 'never') {
-                        @if (diagnosis.cause !== 'state') {
-                          <a
-                            mat-button
-                            class="fix"
-                            [routerLink]="['/', tokenId(), 'checks']"
-                            [queryParams]="{ section: diagnosis.cause }"
-                            i18n
-                            >Set up in Checks</a
-                          >
-                        }
-                      } @else {
-                        <button
-                          mat-button
-                          type="button"
-                          class="fix"
-                          (click)="moveBefore(item, diagnosis.by)"
-                        >
-                          {{ moveBeforeLabel(diagnosis.by.name) }}
-                        </button>
-                      }
-                    }
                   </td>
                   <td class="row-actions">
                     <button
@@ -337,6 +313,33 @@
                     </button>
                   </td>
                 </tr>
+                <!--
+                  A ação do diagnóstico numa linha própria, logo abaixo do item: fora do botão da linha
+                  (nada interativo dentro dele) e fora de td.item, que tem só o botão que abre o editor.
+                -->
+                @if (item.diagnosis; as diagnosis) {
+                  @if (diagnosis.kind !== 'never' || diagnosis.cause !== 'state') {
+                    <tr class="fix-row" [attr.data-fix-for]="item.rule.id">
+                      <td colspan="2"></td>
+                      <td class="fix-cell">
+                        @if (diagnosis.kind === 'never') {
+                          <a
+                            mat-button
+                            [routerLink]="['/', tokenId(), 'checks']"
+                            [queryParams]="{ section: diagnosis.cause }"
+                            i18n
+                            >Set up in Checks</a
+                          >
+                        } @else {
+                          <button mat-button type="button" (click)="moveBefore(item, diagnosis.by)">
+                            {{ moveBeforeLabel(diagnosis.by.name) }}
+                          </button>
+                        }
+                      </td>
+                      <td></td>
+                    </tr>
+                  }
+                }
               }
             } @empty {
               <tr>

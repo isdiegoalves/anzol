@@ -27,6 +27,7 @@ import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { TokenStore } from '../token/token-store';
 import { Viewport } from '../shell/viewport';
+import { Icon } from '../ui/icon';
 import { Split } from '../ui/split';
 import {
   RULE_DEFAULT_PRIORITY,
@@ -127,6 +128,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     RouterLink,
     NgTemplateOutlet,
     Split,
+    Icon,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
