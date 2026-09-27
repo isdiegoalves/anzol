@@ -1,4 +1,4 @@
-import { Component, effect, input, model, untracked } from '@angular/core';
+import { Component, computed, effect, input, model, untracked } from '@angular/core';
 
 /** Passo das setas, em px; Home e End vão aos limites. */
 export const SPLIT_STEP = 16;
@@ -21,7 +21,7 @@ export const SPLIT_STEP = 16;
       [attr.aria-valuemin]="min()"
       [attr.aria-valuemax]="max()"
       [attr.aria-valuenow]="width()"
-      [attr.aria-valuetext]="width() + ' pixels'"
+      [attr.aria-valuetext]="valueText()"
       (keydown)="resizeByKey($event)"
       (pointerdown)="startDrag($event)"
       (pointermove)="drag($event)"
@@ -41,6 +41,7 @@ export class Split {
   readonly max = input(640);
   readonly storageKey = input<string | null>(null);
   readonly width = model(360);
+  protected readonly valueText = computed(() => $localize`${this.width()}:width: pixels`);
 
   private dragFrom: { x: number; width: number } | null = null;
 

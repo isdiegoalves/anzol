@@ -1829,6 +1829,8 @@ export const translations: Record<string, string> = {
   '313850810538580916': 'Offline',
   // Not receiving in real time; reload to try again
   '9007747183585189500': 'Sem receber em tempo real; recarregue para tentar de novo',
+  // {$width} pixels
+  '3434214639687233214': '{$width} pixels',
   // No response
   '7913570146997711091': 'Sem resposta',
 };

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { expectNoAxeViolations } from '../../testing/axe';
 import { MarkdownView } from './markdown-view';
 
 describe('Dado o texto do modelo na tela', () => {
@@ -21,6 +22,7 @@ describe('Dado o texto do modelo na tela', () => {
     ]);
     expect(element.querySelector('li code')?.textContent).toBe('X-Signature');
     expect(element.querySelector('pre code')?.textContent).toBe('sha256=abc');
+    await expectNoAxeViolations(element);
   });
 
   it('deve mostrar o HTML do modelo como texto, sem criar elementos Quando o texto tem tags e script', async () => {
