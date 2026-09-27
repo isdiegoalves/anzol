@@ -61,7 +61,9 @@ describe('Dado a comparação de duas mensagens', () => {
       '1 header changed, 1 only in A · 2 body lines differ',
     );
     // Cada parte é uma palavra no texto da região (o título não cola no resumo).
-    expect(container.querySelector('.heading')?.textContent).toMatch(/^\s*Compare\s+1 header/);
+    expect(container.querySelector('.heading')?.textContent).toMatch(
+      /^\s*Compare\s+1 header.* differ\s+Only differences/,
+    );
     // RULES-30: A e B com o id nos cabeçalhos, sem a coluna Status; a linha que mudou diz "changed".
     const table = screen.getByRole('table', { name: 'Checks' });
     expect(
