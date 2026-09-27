@@ -1,6 +1,13 @@
 import { Locator, Page, Request } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirRegras, gravarRegras, metodo, novaRegra, parte } from './support/regras';
+import {
+  abrirDetalhes,
+  abrirRegras,
+  gravarRegras,
+  metodo,
+  novaRegra,
+  parte,
+} from './support/regras';
 
 // UX de Regras, fatia F4 — teste que não some (WM-22; guia-ux §3.4; CA-7). O resultado fica quando muda o que não é
 // condição; com a condição mudada ganha "Out of date" e reroda sozinho (≥ 1 s depois da última mudança, um pedido
@@ -54,6 +61,7 @@ test.describe('Dado um resultado do teste contra o histórico (WM-22; CA-7)', ()
     const pedidos = pedidosDeTeste(page, tokenId);
 
     await regra.getByRole('textbox', { name: 'Name', exact: true }).fill('Outro nome');
+    await abrirDetalhes(page, regra);
     await regra.getByRole('spinbutton', { name: 'Priority' }).fill('3');
     await regra.getByRole('switch', { name: 'Enabled' }).click();
     await parte(regra, 'Response');
@@ -163,7 +171,10 @@ test.describe('Dado as mensagens no resultado do teste (WM-22)', () => {
 
     const item = resultado(regra).getByRole('link', { name: /^POST \/pedidos · .+/ });
     await expect(item).toBeVisible();
-    const linha = resultado(regra).getByRole('listitem').filter({ has: item });
+    // `has` pede um locator relativo ao próprio li: ancorado na região, nunca casaria.
+    const linha = resultado(regra)
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('link', { name: /^POST \/pedidos · / }) });
     await expect(linha).toContainText(corpo.slice(0, 80));
     await expect(linha).not.toContainText(corpo);
     await expect(linha).toContainText('answered 201 by Antiga at the time');

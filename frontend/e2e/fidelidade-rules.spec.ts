@@ -1,8 +1,10 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { TokenTracker, expect, test } from './support/fixtures';
 import {
+  abrirDetalhes,
   abrirRegra,
   abrirRegras,
+  acaoDoEditor,
   celular,
   editor,
   linhaDaRegra,
@@ -242,9 +244,14 @@ test.describe('Dado o editor de uma regra salva (RULES-13)', () => {
     const regra = await abrirRegra(page, 'Rejeita');
 
     await expect(regra.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Rejeita');
+    // UX de Regras, F8 (WM-41): no celular Priority e Enabled ficam no "Details" recolhido, e Discard/Delete rule no
+    // ⋮ "More actions" do cabeçalho.
+    await abrirDetalhes(page, regra);
     await expect(regra.getByRole('spinbutton', { name: 'Priority' })).toHaveValue('2');
     await expect(regra.getByRole('switch', { name: 'Enabled' })).toBeChecked();
-    await expect(regra.getByRole('button', { name: 'Discard' })).toBeVisible();
+    if (!celular(page)) {
+      await expect(regra.getByRole('button', { name: 'Discard' })).toBeVisible();
+    }
     await expect(regra.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(0);
     const salvar = regra.getByRole('button', { name: 'Save', exact: true });
     await expect(salvar).toHaveCount(1);
@@ -254,7 +261,7 @@ test.describe('Dado o editor de uma regra salva (RULES-13)', () => {
 
     await regra.getByRole('textbox', { name: 'Name', exact: true }).fill('Rejeita assinatura');
     await expect(regra.getByText('Unsaved changes')).toBeVisible();
-    await regra.getByRole('button', { name: 'Discard' }).click();
+    await acaoDoEditor(page, regra, 'Discard');
     // UX de Regras, E-04/WM-12: com alteração não salva, "Discard" pergunta antes ("Discard changes?").
     await page
       .getByRole('dialog', { name: 'Discard changes?' })
@@ -264,7 +271,7 @@ test.describe('Dado o editor de uma regra salva (RULES-13)', () => {
     expect((await getRules(request, tokenId)).map((r) => r.name)).toContain('Rejeita');
 
     const aberta = await abrirRegra(page, 'Rejeita');
-    await aberta.getByRole('button', { name: 'Delete rule' }).click();
+    await acaoDoEditor(page, aberta, 'Delete rule');
     await expect(aberta).toBeHidden();
     await expect(page.getByText('Rule deleted')).toBeVisible();
     await expect(linhaDaRegra(page, 'Rejeita')).toHaveCount(0);

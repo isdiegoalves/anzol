@@ -2,6 +2,7 @@ import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { anuncios } from './support/inbox';
 import {
+  abrirDetalhes,
   abrirRegra,
   abrirRegras,
   acaoDoEditor,
@@ -362,6 +363,7 @@ test.describe('Dado duplicar e apagar uma regra (WM-21)', () => {
     await expect(copia.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(
       'Pix pago (copy)',
     );
+    await abrirDetalhes(page, copia);
     await expect(copia.getByRole('spinbutton', { name: 'Priority' })).toHaveValue('2');
     await expect(copia.getByRole('switch', { name: 'Enabled' })).toBeChecked();
     await salvarRegra(page, copia, tokenId);

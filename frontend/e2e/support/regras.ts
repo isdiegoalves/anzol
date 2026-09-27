@@ -173,6 +173,23 @@ export async function acaoDoEditor(page: Page, regiao: Locator, nome: AcaoDoEdit
   }
 }
 
+/**
+ * F8: no celular, nome à parte, "Priority" e "Enabled" ficam no `<details>` "Details" do editor, que vem recolhido;
+ * abre-o (se ainda fechado). No desktop os campos já estão no cabeçalho.
+ */
+export async function abrirDetalhes(page: Page, regiao: Locator): Promise<void> {
+  if (!celular(page)) {
+    return;
+  }
+  const detalhes = regiao.locator('details', {
+    has: page.locator('summary', { hasText: /^\s*Details\b/ }),
+  });
+  if ((await detalhes.getAttribute('open')) === null) {
+    await detalhes.locator('summary').click();
+  }
+  await expect(regiao.getByRole('spinbutton', { name: 'Priority' })).toBeVisible();
+}
+
 /** F8: no celular, "Back to list" fecha a folha do editor; no desktop a lista já está ao lado. */
 export async function voltarALista(page: Page, regiao: Locator): Promise<void> {
   if (celular(page)) {
