@@ -1,5 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
@@ -9,6 +9,7 @@ import { CheckKind, pipelineOf } from '../pipeline/pipeline';
 import { RuleStatusStore } from '../requests/rule-status-store';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
+import { Viewport } from '../shell/viewport';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 import { CheckChip } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
@@ -21,6 +22,8 @@ import { fromNow, localDate } from './dates';
 import { detectLanguage, formatContent, highlightXml } from './format-content';
 
 /** As abas do detalhe, na ordem. */
+let nextViewId = 0;
+
 export const TABS = ['body', 'headers', 'query', 'form'] as const;
 export type Tab = (typeof TABS)[number];
 
@@ -63,6 +66,7 @@ export function sizeText(bytes: number, language: string): string {
     MatTabGroup,
     MatTabLabel,
     MethodBadge,
+    NgTemplateOutlet,
     RouterLink,
   ],
   templateUrl: './request-view.html',
@@ -72,7 +76,9 @@ export class RequestView {
   protected readonly preferences = inject(Preferences);
   private readonly ruleStatuses = inject(RuleStatusStore);
   private readonly clipboard = inject(Clipboard);
-  private readonly screenLanguage = inject(DOCUMENT).documentElement.lang || 'en';
+  private readonly document = inject(DOCUMENT);
+  private readonly viewport = inject(Viewport);
+  private readonly screenLanguage = this.document.documentElement.lang || 'en';
 
   readonly request = input.required<CapturedRequest>();
   /** URL da mensagem; `null` no link compartilhado, que não expõe a configuração da URL. */
@@ -105,6 +111,19 @@ export class RequestView {
   });
 
   /** Aba aberta; volta ao Body ao abrir outra mensagem. */
+  /** Celular (INBOX-33): as abas numa faixa própria, sem a paginação do Material. */
+  protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
+  private readonly ids = `request-view-${nextViewId++}`;
+  protected readonly panelId = `${this.ids}-panel`;
+  protected readonly tabId = (index: number) => `${this.ids}-tab-${index}`;
+  /** Os nomes das quatro abas, os mesmos do `mat-tab-group`. */
+  protected readonly tabLabels = computed(() => [
+    this.bodyTabLabel(),
+    $localize`Headers (${this.headers().length}:INTERPOLATION:)`,
+    $localize`Query (${this.query().length}:INTERPOLATION:)`,
+    $localize`Form (${this.form().length}:INTERPOLATION:)`,
+  ]);
+
   protected readonly tab = linkedSignal<string, number>({
     source: () => this.request().uuid,
     computation: () => 0,
@@ -226,6 +245,23 @@ export class RequestView {
   }
 
   /** O cartão leva à aba do que ele conferiu (assinatura → Headers, schema → Body). */
+  /** Setas, Home e End na faixa de abas: abre a aba e leva o foco a ela (WAI-ARIA, ativação automática). */
+  protected moveTab(event: KeyboardEvent): void {
+    const last = TABS.length - 1;
+    const next: Record<string, number> = {
+      ArrowRight: this.tab() === last ? 0 : this.tab() + 1,
+      ArrowLeft: this.tab() === 0 ? last : this.tab() - 1,
+      Home: 0,
+      End: last,
+    };
+    if (!(event.key in next)) {
+      return;
+    }
+    event.preventDefault();
+    this.tab.set(next[event.key]);
+    this.document.getElementById(this.tabId(next[event.key]))?.focus();
+  }
+
   protected showCheck(kind: CheckKind): void {
     const tab = TAB_OF_CHECK[kind];
     if (tab) {

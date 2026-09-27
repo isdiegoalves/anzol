@@ -13,7 +13,7 @@
 <!-- Espaço no começo de cada campo: o do leiaute (gap) não entra no texto, e os campos colariam
      ("36 Bseq 12") para o leitor de tela e a busca por texto. -->
 <div class="meta" role="group" aria-label="Request metadata" i18n-aria-label>
-  <a class="req-url" [href]="current.url">{{ current.url }}</a>
+  <a class="req-url" [href]="current.url" [title]="current.url">{{ current.url }}</a>
   <span class="req-ip">
     <app-icon name="outbound" [size]="16" /> {{ current.ip }}
     <a
@@ -102,91 +102,140 @@
       >Pretty</mat-slide-toggle
     >
   }
-  <mat-tab-group
-    animationDuration="0ms"
-    mat-stretch-tabs="false"
-    [selectedIndex]="tab()"
-    (selectedIndexChange)="tab.set($event)"
-  >
-    <mat-tab>
-      <ng-template mat-tab-label>{{ bodyTabLabel() }}</ng-template>
-      @if (!current.content) {
-        <!-- INBOX-26: sem corpo, o estado vazio (e o que o schema gravou, se a URL valida). -->
-        <app-empty-state
-          icon="none"
-          heading="No body content"
-          i18n-heading
-          [text]="emptyBodyText()"
-        />
-      } @else {
-        @if (schemaErrors() > 0) {
-          <p class="schema-note">
-            <span>{{ schemaErrorsText() }}</span>
-            @if (token() && !readonly()) {
-              &ngsp;·&ngsp;<a
-                i18n
-                [routerLink]="['/', token()?.uuid, 'checks']"
-                [queryParams]="{ section: 'schema' }"
-                >Open schema</a
-              >
-            }
-          </p>
+  <!-- No celular (INBOX-33), as quatro abas numa faixa que rola, sem as setas de paginação do
+       Material; o padrão de abas da WAI-ARIA (setas, Home, End) e um painel. -->
+  @if (compact()) {
+    <div class="strip" role="tablist" aria-label="Request parts" i18n-aria-label>
+      @for (label of tabLabels(); track $index) {
+        <button
+          type="button"
+          role="tab"
+          class="strip-tab"
+          [id]="tabId($index)"
+          [attr.aria-selected]="tab() === $index"
+          [attr.aria-controls]="panelId"
+          [attr.tabindex]="tab() === $index ? 0 : -1"
+          (click)="tab.set($index)"
+          (keydown)="moveTab($event)"
+        >
+          <span>{{ label }}</span>
+        </button>
+      }
+    </div>
+    <div class="panel" role="tabpanel" [id]="panelId" [attr.aria-labelledby]="tabId(tab())">
+      @switch (tab()) {
+        @case (0) {
+          <ng-container [ngTemplateOutlet]="bodyPanel" />
         }
-        @if (xmlHtml(); as html) {
-          <pre
-            class="xml"
-            tabindex="0"
-            aria-label="Request body"
-            i18n-aria-label
-          ><code class="hljs" [innerHTML]="html"></code></pre>
-        } @else {
-          <app-code-view
-            label="Request body"
-            i18n-label
-            [text]="current.content"
-            [language]="language() === 'json' ? 'json' : 'text'"
-            [pretty]="preferences.formatJsonEnable()"
-            [marks]="marks()"
-          />
+        @case (1) {
+          <ng-container [ngTemplateOutlet]="headersPanel" />
+        }
+        @case (2) {
+          <ng-container [ngTemplateOutlet]="queryPanel" />
+        }
+        @default {
+          <ng-container [ngTemplateOutlet]="formPanel" />
         }
       }
-    </mat-tab>
-    <mat-tab label="Headers ({{ headers().length }})" i18n-label>
-      <app-kv-table
-        label="Headers"
-        i18n-label
-        [columns]="headerColumns"
-        [rows]="headers()"
-        [notes]="headerNotes()"
-        empty="No headers."
-        i18n-empty
-      />
-    </mat-tab>
-    <mat-tab label="Query ({{ query().length }})" i18n-label>
-      @if (query().length > 0) {
-        <app-kv-table label="Query strings" i18n-label [rows]="query()" />
-      } @else {
-        <app-empty-state
-          icon="none"
-          heading="No query string"
-          i18n-heading
-          text="Parameters after ? in the URL appear here."
-          i18n-text
-        />
-      }
-    </mat-tab>
-    <mat-tab label="Form ({{ form().length }})" i18n-label>
-      @if (form().length > 0) {
-        <app-kv-table label="Form values" i18n-label [rows]="form()" />
-      } @else {
-        <app-empty-state
-          icon="none"
-          heading="No form values"
-          i18n-heading
-          text="application/x-www-form-urlencoded and multipart/form-data bodies appear here."
-          i18n-text
-        />
-      }
-    </mat-tab>
-  </mat-tab-group>
+    </div>
+  } @else {
+    <mat-tab-group
+      animationDuration="0ms"
+      mat-stretch-tabs="false"
+      [selectedIndex]="tab()"
+      (selectedIndexChange)="tab.set($event)"
+    >
+      <mat-tab>
+        <ng-template mat-tab-label>{{ bodyTabLabel() }}</ng-template>
+        <ng-container [ngTemplateOutlet]="bodyPanel" />
+      </mat-tab>
+      <mat-tab label="Headers ({{ headers().length }})" i18n-label>
+        <ng-container [ngTemplateOutlet]="headersPanel" />
+      </mat-tab>
+      <mat-tab label="Query ({{ query().length }})" i18n-label>
+        <ng-container [ngTemplateOutlet]="queryPanel" />
+      </mat-tab>
+      <mat-tab label="Form ({{ form().length }})" i18n-label>
+        <ng-container [ngTemplateOutlet]="formPanel" />
+      </mat-tab>
+    </mat-tab-group>
+  }
 </div>
+
+<ng-template #bodyPanel>
+  @if (!current.content) {
+    <!-- INBOX-26: sem corpo, o estado vazio (e o que o schema gravou, se a URL valida). -->
+    <app-empty-state icon="none" heading="No body content" i18n-heading [text]="emptyBodyText()" />
+  } @else {
+    @if (schemaErrors() > 0) {
+      <p class="schema-note">
+        <span>{{ schemaErrorsText() }}</span>
+        @if (token() && !readonly()) {
+          &ngsp;·&ngsp;<a
+            i18n
+            [routerLink]="['/', token()?.uuid, 'checks']"
+            [queryParams]="{ section: 'schema' }"
+            >Open schema</a
+          >
+        }
+      </p>
+    }
+    @if (xmlHtml(); as html) {
+      <pre
+        class="xml"
+        tabindex="0"
+        aria-label="Request body"
+        i18n-aria-label
+      ><code class="hljs" [innerHTML]="html"></code></pre>
+    } @else {
+      <app-code-view
+        label="Request body"
+        i18n-label
+        [text]="current.content"
+        [language]="language() === 'json' ? 'json' : 'text'"
+        [pretty]="preferences.formatJsonEnable()"
+        [marks]="marks()"
+      />
+    }
+  }
+</ng-template>
+
+<ng-template #headersPanel>
+  <app-kv-table
+    label="Headers"
+    i18n-label
+    [columns]="headerColumns"
+    [rows]="headers()"
+    [notes]="headerNotes()"
+    empty="No headers."
+    i18n-empty
+  />
+</ng-template>
+
+<ng-template #queryPanel>
+  @if (query().length > 0) {
+    <app-kv-table label="Query strings" i18n-label [rows]="query()" />
+  } @else {
+    <app-empty-state
+      icon="none"
+      heading="No query string"
+      i18n-heading
+      text="Parameters after ? in the URL appear here."
+      i18n-text
+    />
+  }
+</ng-template>
+
+<ng-template #formPanel>
+  @if (form().length > 0) {
+    <app-kv-table label="Form values" i18n-label [rows]="form()" />
+  } @else {
+    <app-empty-state
+      icon="none"
+      heading="No form values"
+      i18n-heading
+      text="application/x-www-form-urlencoded and multipart/form-data bodies appear here."
+      i18n-text
+    />
+  }
+</ng-template>

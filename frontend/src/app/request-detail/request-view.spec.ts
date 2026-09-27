@@ -1,4 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
@@ -6,11 +7,14 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { Token } from '../token/token';
 import { RuleStatusStore } from '../requests/rule-status-store';
 import { RequestView, sizeText } from './request-view';
 
 describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', () => {
+  /** Janela larga por padrão; o jsdom não tem `matchMedia`. */
+  const windowClass = signal<WindowClass>('large');
   const show = (
     request: CapturedRequest,
     url: Token | null = token(),
@@ -19,7 +23,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
   ) =>
     render(RequestView, {
       inputs: { request, token: url, readonly },
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: Viewport, useValue: { windowClass } }],
       configureTestBed: (testBed) => testBed.inject(Preferences).formatJsonEnable.set(pretty),
     });
 
@@ -35,7 +39,10 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     await userEvent.click(screen.getByRole('tab', { name }));
   };
 
-  afterEach(() => localStorage.clear());
+  afterEach(() => {
+    localStorage.clear();
+    windowClass.set('large');
+  });
 
   it('deve mostrar método e rota e a linha de metadados (URL, host, data, tamanho, seq, ID), e passar no axe', async () => {
     const request = {
@@ -101,6 +108,40 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     expect(rows('Query strings')).toEqual(['x 1', 'y (empty)', 'arr ["a"]']);
     await openTab(/Form/);
     expect(rows('Form values')).toEqual(['f1 v1', 'f2 (empty)']);
+  });
+
+  // INBOX-33: no celular, as quatro abas numa faixa que rola, sem as setas de paginação do Material,
+  // com o teclado das abas (setas, Home, End) e o painel ligado à aba aberta.
+  it('deve mostrar as quatro abas numa faixa própria, com o teclado das abas, Quando a janela é compacta', async () => {
+    windowClass.set('compact');
+    const { container } = await show(
+      webhookRequest(1, {
+        headers: { accept: ['a'], host: ['h'] },
+        query: { x: '1' },
+        request: { f1: 'v1' },
+      }),
+    );
+
+    expect(container.querySelector('mat-tab-group')).toBeNull();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent?.trim())).toEqual([
+      'Body · 7 B',
+      'Headers (2)',
+      'Query (1)',
+      'Form (1)',
+    ]);
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(tabs[0].id);
+
+    tabs[0].focus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(rows('Headers')).toEqual(['accept a', 'host h']);
+    await userEvent.keyboard('{End}');
+    expect(rows('Form values')).toEqual(['f1 v1']);
+    await userEvent.keyboard('{Home}');
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe(tabs[0].id);
+    await expectNoAxeViolations(container);
   });
 
   // INBOX-26: as abas vazias no padrão dos estados vazios.

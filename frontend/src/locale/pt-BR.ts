@@ -2122,4 +2122,6 @@ export const translations: Record<string, string> = {
   '5850464247858785304': 'schema válido',
   // schema invalid
   '2600812382397698771': 'schema inválido',
+  // Request parts
+  '6662098247758340763': 'Partes da requisição',
 };

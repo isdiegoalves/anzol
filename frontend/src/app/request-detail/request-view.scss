@@ -139,6 +139,20 @@ button.check {
     position: static;
     margin-bottom: 4px;
   }
+
+  // INBOX-33: os metadados em poucas linhas, tudo à vista (trava 3): a URL numa linha só (o link e
+  // o title têm ela inteira) e o resto no tamanho do corpo pequeno.
+  .meta {
+    gap: 2px 10px;
+    font: var(--mat-sys-body-small);
+
+    .req-url {
+      overflow: hidden;
+      overflow-wrap: normal;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 }
 
 .xml {
@@ -153,4 +167,38 @@ button.check {
     outline: 3px solid var(--mat-sys-primary);
     outline-offset: 2px;
   }
+}
+
+// A faixa das abas no celular (INBOX-33): as quatro rolam na horizontal, sem setas.
+.strip {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  scrollbar-width: none;
+}
+
+.strip-tab {
+  flex: none;
+  height: 48px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-small);
+  cursor: pointer;
+
+  &[aria-selected='true'] {
+    border-bottom-color: var(--mat-sys-primary);
+    color: var(--mat-sys-primary);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -3px;
+  }
+}
+
+.panel {
+  padding-top: 8px;
 }

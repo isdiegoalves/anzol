@@ -88,7 +88,9 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
 
     // Só o interruptor Pretty (papel switch), que muda a vista e não a mensagem.
     expect(
-      [...page().querySelectorAll('button')].filter((b) => b.getAttribute('role') !== 'switch'),
+      [...page().querySelectorAll('button')].filter(
+        (b) => !['switch', 'tab'].includes(b.getAttribute('role') ?? ''),
+      ),
     ).toHaveLength(0);
     const labels = [...page().querySelectorAll('a, [role="button"], [role="menuitem"]')].map(
       (el) => el.textContent?.trim() ?? '',
