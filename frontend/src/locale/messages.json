@@ -98,6 +98,7 @@
     "5849679101981511442": " Validates the JSON body of each request; leave empty to turn off ",
     "4937042507750664347": "Generate from a message",
     "8344561646705861323": " Pick a JSON request; the schema is inferred from its body. ",
+    "6170082236603228916": "Request",
     "1389905508423715434": "Generate schema",
     "662249624956915255": "No request with a JSON body yet.",
     "2288182186106794766": "Loading requests…",

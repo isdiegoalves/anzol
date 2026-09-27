@@ -402,6 +402,13 @@ export class SignatureCard {
     return pendingLabels(this.fields());
   }
 
+  /** Com uma assinatura salva e nada editado, a barra diz como mantê-la (CHECKS-13). */
+  protected savedNotice(): SaveNotice | null {
+    return this.saved()
+      ? { text: $localize`Saved. Leave the secret blank to keep it.`, error: false }
+      : null;
+  }
+
   protected discard(): void {
     this.reset(this.saved());
   }
@@ -437,12 +444,7 @@ export class SignatureCard {
       this.base.set(token);
       this.saved.set(token.signature ?? null);
       this.reset(this.saved());
-      this.notice.set({
-        text: this.saved()
-          ? $localize`Saved. Leave the secret blank to keep it.`
-          : $localize`Saved.`,
-        error: false,
-      });
+      this.notice.set(this.savedNotice() ?? { text: $localize`Saved.`, error: false });
     } catch (error) {
       const messages = fieldErrors(error, 'signature.secret');
       if (messages.length > 0) {

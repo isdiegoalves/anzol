@@ -333,6 +333,23 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
         screen.getByRole('button', { name: 'Discard' }).hasAttribute('mat-stroked-button'),
       ).toBe(true);
     });
+
+    it('CHECKS-13: deve dizer "Saved." ao abrir uma assinatura salva, sumir na edição e voltar no Discard', async () => {
+      await renderCard(SignatureCard, SALVA);
+      const saved = 'Saved. Leave the secret blank to keep it.';
+
+      expect(screen.getByRole('status').textContent?.trim()).toBe(saved);
+      await userEvent.click(provider('Slack'));
+      expect(screen.queryByText(saved)).toBeNull();
+      await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      expect(screen.getByRole('status').textContent?.trim()).toBe(saved);
+    });
+
+    it('CHECKS-13: não deve dizer "Saved." Quando a URL não verifica', async () => {
+      await renderCard(SignatureCard, token());
+
+      expect(screen.queryByText(/^Saved\./)).toBeNull();
+    });
   });
 });
 

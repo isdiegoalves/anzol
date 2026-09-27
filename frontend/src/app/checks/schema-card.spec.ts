@@ -148,7 +148,7 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
         ]),
       );
 
-    const source = await screen.findByRole('combobox', { name: 'Generate from a message' });
+    const source = await screen.findByRole('combobox', { name: 'Request' });
     expect(source.textContent).toContain(`#${webhookRequest(2).uuid.slice(0, 5)}`);
     await userEvent.click(source);
     expect(
@@ -206,7 +206,7 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
 
     const panel = await vi.waitFor(() => container.querySelector('.generate.panel') as HTMLElement);
     expect(panel.querySelectorAll('mat-label')).toHaveLength(0);
-    const source = await within(panel).findByRole('combobox', { name: /^Generate from a message/ });
+    const source = await within(panel).findByRole('combobox', { name: 'Request' });
     expect(source.textContent).toContain(
       `#${webhookRequest(1).uuid.slice(0, 5)} payment_intent.succeeded`,
     );

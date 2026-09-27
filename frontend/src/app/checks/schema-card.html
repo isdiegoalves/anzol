@@ -76,7 +76,8 @@
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-select
               formControlName="source"
-              aria-labelledby="schema-source-title"
+              aria-label="Request"
+              i18n-aria-label="Seletor da mensagem de onde o schema é gerado"
               aria-describedby="schema-source-pick schema-source-help"
             >
               @for (request of requests; track request.uuid) {

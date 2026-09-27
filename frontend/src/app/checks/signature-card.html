@@ -255,7 +255,7 @@
   [summary]="pending()"
   [pendingLabels]="pendingLabels()"
   [attempted]="attempted()"
-  [notice]="form.dirty && !notice()?.error ? null : notice()"
+  [notice]="form.dirty && !notice()?.error ? null : (notice() ?? savedNotice())"
   (reload)="reloadCard()"
   (save)="saveSignature()"
 >
