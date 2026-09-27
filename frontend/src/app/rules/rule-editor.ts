@@ -34,6 +34,7 @@ import { RouterLink } from '@angular/router';
 import { WebhookRequest } from '../requests/webhook-request';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Viewport } from '../shell/viewport';
 import { HistoryTestPanel } from './history-test-panel';
 import { PriorityPreview, priorityPreview } from './priority-preview';
 import {
@@ -187,8 +188,13 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
 export class RuleEditor {
   private readonly store = inject(RuleStore);
   private readonly tokens = inject(TokenStore);
+  private readonly viewport = inject(Viewport);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
+  /** Largura grande: os helpers de template vêm abertos (RULES-23). */
+  protected readonly wide = computed(() =>
+    ['large', 'extra-large'].includes(this.viewport.windowClass()),
+  );
   /** A regra a editar; a página recria o editor quando ela muda. */
   readonly data = input.required<RuleEditorData>();
   /** Fecha o editor: `true` depois de salvar, `false` no Discard. */
@@ -363,7 +369,7 @@ export class RuleEditor {
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
     { value: 'none', label: $localize`None` },
     { value: 'fixed', label: $localize`Fixed` },
-    { value: 'uniform', label: $localize`Uniform (random)` },
+    { value: 'uniform', label: $localize`Uniform` },
     { value: 'lognormal', label: $localize`Log-normal` },
   ];
   protected readonly faults: { value: FaultOption; label: string }[] = [

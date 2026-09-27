@@ -235,12 +235,21 @@ h3 {
   width: 300px;
 }
 
-.template {
-  margin-bottom: 4px;
+// Rótulo do corpo com o Template ao lado, acima do campo (RULES-23).
+.body-head {
+  margin: 8px 0 4px;
+
+  h3 {
+    margin: 0;
+  }
 
   .hint {
     margin: 0;
   }
+}
+
+.delay .hint {
+  margin: 4px 0 0;
 }
 
 .dribble {

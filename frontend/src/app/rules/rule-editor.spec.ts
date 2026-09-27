@@ -226,12 +226,46 @@ describe('Dado o editor de regra', () => {
       await harness.open();
       await harness.clickOptions({ text: option });
     };
+    /** O atraso é um segmentado (`radiogroup "Delay"`, RULES-23). */
+    const delay = async (option: string) => {
+      const group = await loader.getHarness(
+        MatButtonToggleGroupHarness.with({ selector: '[aria-label="Delay"]' }),
+      );
+      const [toggle] = await group.getToggles({ text: option });
+      await toggle.check();
+    };
+    const delayGroup = () =>
+      loader.getHarness(MatButtonToggleGroupHarness.with({ selector: '[aria-label="Delay"]' }));
     const savedResponse = async () => {
       await save();
       const call = await put();
       call.flush(call.request.body);
       return (call.request.body as Rule[])[0].response;
     };
+
+    it('deve ter o atraso em segmentado, as dicas à vista e o Template na linha do rótulo do corpo (RULES-23)', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      const toggles = await (await delayGroup()).getToggles();
+      expect(await Promise.all(toggles.map((t) => t.getText()))).toEqual([
+        'None',
+        'Fixed',
+        'Uniform',
+        'Log-normal',
+      ]);
+      expect(await toggles[0].isChecked()).toBe(true);
+      const painel = root().querySelector('#rule-panel-response') as HTMLElement;
+      expect(painel.textContent).toContain('Before answering; up to 60 s.');
+      expect(painel.textContent).toContain('Send the body in chunks over time');
+      expect(painel.querySelector('.fault-note')).not.toBeNull();
+      // O switch Template fica no cabeçalho do corpo, antes do campo.
+      const cabecalho = painel.querySelector('.body-head') as HTMLElement;
+      expect(cabecalho.textContent).toContain('Template');
+      expect(
+        cabecalho.compareDocumentPosition(painel.querySelector('textarea') as Node) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
 
     it('deve gravar template: true e mostrar a cola dos helpers Quando o toggle "Template" é ligado', async () => {
       await open({ index: 0 }, [rule(1)]);
@@ -250,7 +284,7 @@ describe('Dado o editor de regra', () => {
     it('deve gravar o atraso uniforme com mínimo e máximo Quando o tipo "Uniform" é escolhido', async () => {
       await open({ index: 0 }, [rule(1)]);
 
-      await choose('Delay', 'Uniform (random)');
+      await delay('Uniform');
       await (await input('Delay min (ms)')).setValue('100');
       await (await input('Delay max (ms)')).setValue('900');
 
@@ -265,7 +299,7 @@ describe('Dado o editor de regra', () => {
       async (tipo, campo, valor, erro) => {
         await open({ index: 0 }, [rule(1)]);
 
-        await choose('Delay', tipo);
+        await delay(tipo);
         await (await input(campo)).setValue(valor);
         await (await input(campo)).blur();
 
@@ -277,7 +311,7 @@ describe('Dado o editor de regra', () => {
     it('não deve permitir salvar Quando o mínimo do atraso uniforme passa do máximo', async () => {
       await open({ index: 0 }, [rule(1)]);
 
-      await choose('Delay', 'Uniform (random)');
+      await delay('Uniform');
       await (await input('Delay min (ms)')).setValue('900');
       await (await input('Delay max (ms)')).setValue('100');
       await (await input('Delay max (ms)')).blur();
@@ -308,12 +342,15 @@ describe('Dado o editor de regra', () => {
       for (const label of ['Status', 'Response body']) {
         expect(await (await input(label)).isDisabled()).toBe(true);
       }
-      expect(await (await select('Delay')).isDisabled()).toBe(true);
+      expect(await (await delayGroup()).isDisabled()).toBe(true);
       expect(await (await toggle('Template')).isDisabled()).toBe(true);
       expect(await (await toggle('Dribble')).isDisabled()).toBe(true);
-      expect(fixture.nativeElement.querySelector('.fault-note')?.textContent).toContain(
+      // A dica fica sempre à vista (RULES-23); com a falha escolhida, vira aviso.
+      const dica = fixture.nativeElement.querySelector('.fault-note') as HTMLElement;
+      expect(dica.textContent).toContain(
         'the status, headers, body, delay and dribble are ignored',
       );
+      expect(dica.classList).toContain('notice');
       expect(await savedResponse()).toMatchObject({
         status: 201,
         fault: 'connection_reset',
@@ -328,7 +365,7 @@ describe('Dado o editor de regra', () => {
       await choose('Fault', 'None');
 
       expect(await (await input('Status')).isDisabled()).toBe(false);
-      expect(fixture.nativeElement.querySelector('.fault-note')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.fault-note')?.classList).not.toContain('notice');
     });
   });
 

@@ -1149,8 +1149,6 @@ export const translations: Record<string, string> = {
   '917630306877755063': 'Helpers de template',
   // Delay
   '1418101411356139094': 'Atraso',
-  // Before answering; up to 60 s
-  '8308321026273336632': 'Antes de responder; até 60 s',
   // Delay (ms)
   '8009699707499085537': 'Atraso (ms)',
   // Delay min (ms)
@@ -1169,8 +1167,6 @@ export const translations: Record<string, string> = {
   '7220858327592433788': 'Pedaços',
   // Dribble duration (ms)
   '6865995082922078305': 'Duração do conta-gotas (ms)',
-  // Send the body in chunks spread evenly over the duration
-  '7814961949316902186': 'Manda o corpo em pedaços espalhados por igual ao longo da duração',
   //  Optional. The rule only matches while the scenario is in the required state, and moves it to the new state when it answers. Every scenario starts at "Started". Use it for "fail 3 times, then succeed".
   '4047257826264828822':
     ' Opcional. A regra só casa enquanto o cenário está no estado exigido e o leva para o estado novo quando responde. Todo cenário começa em "Started". Use para "falhar 3 vezes, depois dar certo". ',
@@ -1268,8 +1264,6 @@ export const translations: Record<string, string> = {
   '2577169615394187504': 'É igual ao JSON',
   // Fixed
   '4108478337308251505': 'Fixo',
-  // Uniform (random)
-  '2482237160502701032': 'Uniforme (aleatório)',
   // Log-normal
   '3761080073073715220': 'Log-normal',
   // An integer between 0 and {$PH} (ms).
@@ -2116,4 +2110,10 @@ export const translations: Record<string, string> = {
     ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2} ',
   //  {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
   '7611102451634570418': ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra ',
+  // Before answering; up to 60 s.
+  '9000665470264003000': 'Antes de responder; até 60 s.',
+  // Send the body in chunks over time
+  '9054680744614346306': 'Enviar o corpo em pedaços ao longo do tempo',
+  // Uniform
+  '8809095087586023378': 'Uniforme',
 };

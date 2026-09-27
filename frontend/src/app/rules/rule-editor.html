@@ -437,12 +437,10 @@
               <mat-error>{{ errorOf(form.controls.fault, '') }}</mat-error>
             </mat-form-field>
           </div>
-          @if (faulted()) {
-            <p class="notice fault-note" role="note" i18n>
-              With a fault, the status, headers, body, delay and dribble are ignored: the request is
-              recorded, then the connection fails.
-            </p>
-          }
+          <p class="hint fault-note" role="note" [class.notice]="faulted()" i18n>
+            With a fault, the status, headers, body, delay and dribble are ignored: the request is
+            recorded, then the connection fails.
+          </p>
           <h3 i18n>Headers</h3>
           <div formArrayName="responseHeaders">
             @for (row of form.controls.responseHeaders.controls; track row; let i = $index) {
@@ -486,6 +484,11 @@
           >
             Add response header
           </button>
+          <div class="line body-head">
+            <h3 i18n>Body</h3>
+            <mat-slide-toggle formControlName="template" i18n>Template</mat-slide-toggle>
+            <span class="hint" i18n>Handlebars in the body and in header values</span>
+          </div>
           <mat-form-field class="full">
             <mat-label i18n>Response body</mat-label>
             <textarea
@@ -497,11 +500,8 @@
             ></textarea>
             <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
           </mat-form-field>
-          <div class="line template">
-            <mat-slide-toggle formControlName="template" i18n>Template</mat-slide-toggle>
-            <span class="hint" i18n>Handlebars in the body and in header values</span>
-          </div>
-          <details class="helpers">
+          <!-- Os helpers continuam num <details>; na largura grande, vêm abertos. -->
+          <details class="helpers" [open]="wide()">
             <summary i18n>Template helpers</summary>
             <dl>
               @for (helper of helpers; track helper.example) {
@@ -515,16 +515,19 @@
 
           <h3 i18n>Delay</h3>
           <div class="line row">
-            <mat-form-field>
-              <mat-label i18n>Delay</mat-label>
-              <mat-select formControlName="delayType" aria-label="Delay" i18n-aria-label>
+            <div class="delay">
+              <mat-button-toggle-group
+                formControlName="delayType"
+                aria-label="Delay"
+                i18n-aria-label
+                hideSingleSelectionIndicator
+              >
                 @for (type of delayTypes; track type.value) {
-                  <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                  <mat-button-toggle [value]="type.value">{{ type.label }}</mat-button-toggle>
                 }
-              </mat-select>
-              <mat-hint i18n>Before answering; up to 60 s</mat-hint>
-              <mat-error>{{ errorOf(form.controls.delayType, '') }}</mat-error>
-            </mat-form-field>
+              </mat-button-toggle-group>
+              <p class="hint" i18n>Before answering; up to 60 s.</p>
+            </div>
             @switch (form.controls.delayType.value) {
               @case ('fixed') {
                 <mat-form-field class="ms">
@@ -622,7 +625,7 @@
                 <mat-error>{{ errorOf(form.controls.dribbleDuration, msError) }}</mat-error>
               </mat-form-field>
             }
-            <span class="hint" i18n>Send the body in chunks spread evenly over the duration</span>
+            <span class="hint" i18n>Send the body in chunks over time</span>
           </div>
         </div>
 
