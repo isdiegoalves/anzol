@@ -242,11 +242,13 @@ describe('Dado a página Rules', () => {
       expect(screen.getByText('Hits over the last 12 requests kept.')).toBeTruthy();
     });
 
-    it('deve dizer que ainda não há requisições em vez de "the last 0" (WM-29, AT-42)', async () => {
+    // WM-29 troca só o "0 de 0" da linha de cada regra ("No requests yet"); a frase da janela fica a
+    // da fidelidade (fidelidade-rules-2), inclusive sem mensagens.
+    it('deve manter "Hits over the last N requests kept." Quando a URL ainda não tem mensagens', async () => {
       await open([rule(1)], {}, stats({}, 0));
 
       expect(document.querySelector('.hint.window')?.textContent).toBe(
-        'No requests yet: the hits start with the first one.',
+        'Hits over the last 0 requests kept.',
       );
     });
 

@@ -2539,9 +2539,6 @@ export const translations: Record<string, string> = {
   '8324244046177042506': 'Detalhes (Prioridade {$priority} · Ligada)',
   // Details (Priority {$priority} · Off)
   '9118935933745823731': 'Detalhes (Prioridade {$priority} · Desligada)',
-  // {VAR_PLURAL, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {INTERPOLATION} requests kept.}}
-  '1357560753461228101':
-    '{VAR_PLURAL, plural, =0 {Ainda sem requisições: os acertos começam com a primeira.} =1 {Acertos na última requisição guardada.} other {Acertos nas últimas {INTERPOLATION} requisições guardadas.}}',
   // Out of date
   '9161462110331438114': 'Desatualizado',
   // Test again
@@ -2728,4 +2725,9 @@ export const translations: Record<string, string> = {
     'Diga o que deve responder; se este servidor tiver IA configurada, ela rascunha a regra.',
   // {$matched} of {$total}
   '5481673356259336453': '{$matched} de {$total}',
+  // Hits over the last {$ICU}.
+  '8274610231537942565': 'Acertos {$ICU}.',
+  // {VAR_PLURAL, plural, =1 {1 request kept} other {{INTERPOLATION} requests kept}}
+  '7371048342128462743':
+    '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
 };
