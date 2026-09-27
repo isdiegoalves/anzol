@@ -20,8 +20,16 @@
 <form class="fields" [formGroup]="form" (ngSubmit)="saveResponse()">
   <div class="row status-line">
     <mat-form-field appearance="outline">
-      <mat-label i18n>Default status code</mat-label>
-      <input matInput formControlName="default_status" inputmode="numeric" placeholder="200" />
+      <!-- "Status" cabe na coluna curta (protótipo C); o nome acessível segue completo. -->
+      <mat-label i18n="Rótulo curto do status padrão da resposta">Status</mat-label>
+      <input
+        matInput
+        formControlName="default_status"
+        inputmode="numeric"
+        placeholder="200"
+        aria-label="Default status code"
+        i18n-aria-label
+      />
       <mat-error i18n>The default status must be an integer.</mat-error>
     </mat-form-field>
     <mat-form-field appearance="outline">

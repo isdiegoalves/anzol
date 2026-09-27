@@ -203,4 +203,12 @@ describe('Dado o cartão "Response" de Checks', () => {
     expect(within(row).getByRole('switch', { name: 'Enable CORS' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Response body' }).getAttribute('rows')).toBe('2');
   });
+
+  it('CHECKS-21: deve rotular o status como "Status", que cabe na coluna curta, com o nome acessível completo', async () => {
+    await renderCard(ResponseCard, SALVA);
+
+    const status = box('Default status code');
+    const label = status.closest('mat-form-field')?.querySelector('mat-label');
+    expect(label?.textContent?.trim()).toBe('Status');
+  });
 });
