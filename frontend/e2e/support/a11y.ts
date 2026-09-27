@@ -49,6 +49,13 @@ export async function expectSemViolacoesGraves(page: Page, contexto: string): Pr
           animacao.playState !== 'running' || animacao.effect?.getTiming().iterations === Infinity,
       ),
   );
+  // O snackbar do Material começa com opacidade 0 (antes da classe de entrada) e só depois anima até 1; nesse meio o
+  // `getAnimations()` pode estar vazio. Espera todo snackbar na tela estar opaco (os que saem somem do DOM).
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('.mat-mdc-snack-bar-container')].every(
+      (snackbar) => getComputedStyle(snackbar).opacity === '1',
+    ),
+  );
   const { violations } = await (await axe(page)).analyze();
   const graves = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
