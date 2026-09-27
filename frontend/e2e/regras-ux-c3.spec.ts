@@ -1,5 +1,6 @@
+import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirMensagem, item, verificacoes } from './support/inbox';
+import { abrirMensagem, item, mostrarLista, verificacoes } from './support/inbox';
 import { gravarRegras } from './support/regras';
 
 // UX de Regras, tela de C3 — o status realmente respondido (E-06; guia-ux §3.10; CA-9 no selo). O selo da lista da
@@ -10,6 +11,13 @@ import { gravarRegras } from './support/regras';
 // - SUPOSIÇÃO: a mensagem antiga é simulada tirando `response` na rota (o app atual sempre grava).
 
 const TUDO = { name: 'Tudo o resto', priority: 9, response: { status: 404 } };
+
+/** Abre a mensagem e mostra a lista da Entrada (a 390 px, um painel por vez: volta à lista pelo detalhe). */
+async function abrirLista(page: Page, tokenId: string, id: string): Promise<void> {
+  await abrirMensagem(page, tokenId, id);
+  await mostrarLista(page);
+  await expect(item(page, id)).toBeVisible();
+}
 
 test.describe('Dado uma mensagem respondida por regra que mudou depois (E-06; CA-9)', () => {
   test('deve mostrar o status gravado, e não o status atual da regra', async ({
@@ -25,6 +33,7 @@ test.describe('Dado uma mensagem respondida por regra que mudou depois (E-06; CA
     await abrirMensagem(page, tokenId, id);
 
     await expect(verificacoes(page)).toContainText(/Answered by rule · 404\s*Tudo o resto/);
+    await mostrarLista(page);
     await expect(item(page, id)).toContainText('404 · Tudo o resto');
     await expect(item(page, id)).not.toContainText('418');
   });
@@ -40,7 +49,7 @@ test.describe('Dado uma mensagem respondida por uma falha de rede (E-06)', () =>
     await expect.poll(async () => (await tokens.listed(tokenId)).length).toBe(1);
     const [{ uuid }] = await tokens.listed(tokenId);
 
-    await abrirMensagem(page, tokenId, uuid);
+    await abrirLista(page, tokenId, uuid);
 
     await expect(item(page, uuid)).toContainText('Fault · Reset de conexão');
   });
@@ -67,7 +76,7 @@ test.describe('Dado uma mensagem antiga, gravada sem a resposta (E-06)', () => {
       await rota.fulfill({ response: resposta, json: corpo });
     });
 
-    await abrirMensagem(page, tokenId, id);
+    await abrirLista(page, tokenId, id);
 
     await expect(item(page, id)).toContainText('Rule: Tudo o resto');
     await expect(item(page, id)).not.toContainText('404');

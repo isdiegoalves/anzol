@@ -1,5 +1,5 @@
 import { expect, test } from './support/fixtures';
-import { abrirMensagem, item, verificacoes } from './support/inbox';
+import { abrirMensagem, item, mostrarLista, verificacoes } from './support/inbox';
 import {
   abrirRegra,
   abrirRegras,
@@ -58,8 +58,8 @@ test.describe('Dado uma mensagem respondida por regra (WM-10; CA-9)', () => {
     await abrirMensagem(page, tokenId, id);
 
     await expect(verificacoes(page).getByRole('link', { name: 'Pix pago' })).toBeVisible();
-    // A 390 px a Entrada mostra um painel por vez: volta à lista (sem mensagem na rota) antes de olhar o item.
-    await page.goto(`/#/${tokenId}`);
+    // A 390 px a Entrada mostra um painel por vez: volta à lista antes de olhar o item.
+    await mostrarLista(page);
     await expect(item(page, id)).toContainText('Pix pago');
     await expect(item(page, id).getByRole('link')).toHaveCount(0);
   });

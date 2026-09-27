@@ -173,3 +173,18 @@ export function filtro(page: Page, nome: string): Locator {
 export function anuncios(page: Page): Locator {
   return page.locator('[aria-live="polite"], [aria-live="assertive"]');
 }
+
+/**
+ * Mostra a lista da Entrada com uma mensagem aberta. Abaixo de 840 px a Entrada mostra um painel por vez e a rota
+ * `#/{token}` reabre a mensagem selecionada: volta pelo `button "Back to requests"` do detalhe. Na largura grande a
+ * lista já está ao lado.
+ */
+export async function mostrarLista(page: Page): Promise<void> {
+  if ((page.viewportSize()?.width ?? 1400) < 840) {
+    await page
+      .getByRole('region', { name: 'Request detail' })
+      .getByRole('button', { name: 'Back to requests' })
+      .click();
+  }
+  await expect(lista(page)).toBeVisible();
+}
