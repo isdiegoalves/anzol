@@ -26,9 +26,13 @@ describe('Dado a comparação de duas mensagens', () => {
   const windowClass = signal<WindowClass>('large');
   const compare = { swap: vi.fn(), close: vi.fn() };
 
-  const show = (a: WebhookRequest = A, b: WebhookRequest = B) =>
+  const show = (
+    a: WebhookRequest = A,
+    b: WebhookRequest = B,
+    ruleStatuses: ReadonlyMap<string, number> = new Map(),
+  ) =>
     render(RequestCompare, {
-      inputs: { a, b },
+      inputs: { a, b, ruleStatuses },
       providers: [
         { provide: Viewport, useValue: { windowClass } },
         { provide: CompareStore, useValue: compare },
@@ -51,17 +55,53 @@ describe('Dado a comparação de duas mensagens', () => {
 
     expect(container.querySelector('.id-a')?.textContent).toBe(`#${A.uuid.substring(0, 5)}`);
     expect(container.querySelector('.id-b')?.textContent).toBe(`#${B.uuid.substring(0, 5)}`);
-    const checks = within(screen.getByRole('table', { name: 'Checks' }))
-      .getAllByRole('row')
-      .slice(1)
-      .map((row) => [
-        row.querySelector('th')?.textContent?.trim(),
-        row.querySelector('.status')?.textContent?.trim(),
-      ]);
-    expect(checks).toEqual([
-      ['Signature', 'same'],
-      ['Schema', 'changed'],
-      ['Rule', 'same'],
+    // RULES-28: o título, o resumo das diferenças e A e B em cartões.
+    expect(screen.getByRole('heading', { name: 'Compare' })).toBeTruthy();
+    expect(container.querySelector('.summary')?.textContent?.trim()).toBe(
+      '1 header changed, 1 only in A · 2 body lines differ',
+    );
+    // RULES-30: A e B com o id nos cabeçalhos, sem a coluna Status; a linha que mudou diz "changed".
+    const table = screen.getByRole('table', { name: 'Checks' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent?.trim()),
+    ).toEqual(['Check', `A · #${A.uuid.substring(0, 5)}`, `B · #${B.uuid.substring(0, 5)}`]);
+    expect(
+      within(table)
+        .getAllByRole('rowheader')
+        .map((header) => header.textContent?.replace(/\s+/g, ' ').trim()),
+    ).toEqual(['Signature', 'Schema changed', 'Rule']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve dizer o status da resposta no selo da regra que respondeu (RULES-30)', async () => {
+    const rule = { id: 'r1', name: 'Pagamento' };
+    await show(A, webhookRequest(2, { rule }), new Map([['r1', 201]]));
+
+    const table = screen.getByRole('table', { name: 'Checks' });
+    expect(table.textContent).toContain('201 · Pagamento');
+  });
+
+  // RULES-36: a 390 px, uma linha por lado em vez de três colunas espremidas.
+  it('deve empilhar a tabela Checks, com A e B lado a lado embaixo de cada verificação, Quando a janela é compacta', async () => {
+    windowClass.set('compact');
+    const { container } = await show();
+
+    const table = screen.getByRole('table', { name: 'Checks' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent?.trim()),
+    ).toEqual([`A · #${A.uuid.substring(0, 5)}`, `B · #${B.uuid.substring(0, 5)}`]);
+    const groups = [...table.querySelectorAll('tbody')].map((group) => [
+      group.querySelector('th[scope="rowgroup"]')?.textContent?.replace(/\s+/g, ' ').trim(),
+      group.querySelectorAll('td').length,
+    ]);
+    expect(groups).toEqual([
+      ['Signature', 2],
+      ['Schema changed', 2],
+      ['Rule', 2],
     ]);
     await expectNoAxeViolations(container);
   });

@@ -1,21 +1,10 @@
 @let empty = onlyDifferences() ? noDifferences : emptyValue;
 @let report = outcome();
 <section class="compare" aria-label="Compare requests" i18n-aria-label>
+  <!-- RULES-28: o título com o resumo das diferenças e, embaixo, A e B em cartões. -->
   <header class="heading">
-    <div class="side">
-      <span i18n class="tag a">A</span>
-      <app-method-badge [method]="left().method" />
-      <strong class="id-a">#{{ left().uuid.substring(0, 5) }}</strong>
-      <code class="route">{{ routeA() }}</code>
-      <small>{{ localDate(left().created_at) }}</small>
-    </div>
-    <div class="side">
-      <span i18n class="tag b">B</span>
-      <app-method-badge [method]="right().method" />
-      <strong class="id-b">#{{ right().uuid.substring(0, 5) }}</strong>
-      <code class="route">{{ routeB() }}</code>
-      <small>{{ localDate(right().created_at) }}</small>
-    </div>
+    <h1 i18n class="title">Compare</h1>
+    <span class="summary">{{ summary() }}</span>
     <div class="actions">
       <mat-slide-toggle
         i18n
@@ -27,28 +16,78 @@
       <button i18n mat-button type="button" (click)="compare.close()">Close</button>
     </div>
   </header>
+  <div class="cards">
+    @for (side of sides(); track side.tag) {
+      <div class="card-side">
+        <span class="tag" [class.a]="side.tag === 'a'" [class.b]="side.tag === 'b'">{{
+          side.tag === 'a' ? 'A' : 'B'
+        }}</span>
+        <span class="side-text">
+          <span class="line">
+            <app-method-badge [method]="side.request.method" />
+            <code class="route">{{ side.route }}</code>
+          </span>
+          <span class="line">
+            <strong [class]="'id-' + side.tag">#{{ side.request.uuid.substring(0, 5) }}</strong>
+            @if (side.event) {
+              <span>&ngsp;· {{ side.event }}</span>
+            }
+          </span>
+          <small class="line">{{ localDate(side.request.created_at) }} · {{ side.outcome }}</small>
+        </span>
+      </div>
+    }
+  </div>
 
   <h3 i18n>Checks</h3>
-  <table class="checks" aria-label="Checks" i18n-aria-label>
+  @let idA = left().uuid.substring(0, 5);
+  @let idB = right().uuid.substring(0, 5);
+  <!-- RULES-30: os ids nos cabeçalhos, sem a coluna Status (a linha que mudou diz "changed"); no
+       compacto (RULES-36), A e B lado a lado embaixo de cada verificação. -->
+  <table class="checks" [class.stacked]="stacked()" aria-label="Checks" i18n-aria-label>
     <thead>
       <tr>
-        <th i18n scope="col">Check</th>
-        <th i18n scope="col">A</th>
-        <th i18n scope="col">B</th>
-        <th i18n scope="col">Status</th>
+        @if (!stacked()) {
+          <th i18n scope="col">Check</th>
+        }
+        <th i18n scope="col">A · #{{ idA }}</th>
+        <th i18n scope="col">B · #{{ idB }}</th>
       </tr>
     </thead>
-    <tbody>
+    @if (stacked()) {
       @for (row of checks(); track row.kind) {
-        <tr [class.changed]="!row.same">
-          <th scope="row">{{ row.label }}</th>
-          <td><app-check-chip [result]="row.a" size="card" /></td>
-          <td><app-check-chip [result]="row.b" size="card" /></td>
-          <td class="status">{{ row.same ? 'same' : 'changed' }}</td>
-        </tr>
+        <tbody [class.changed]="!row.same">
+          <tr>
+            <th scope="rowgroup" colspan="2">
+              <ng-container [ngTemplateOutlet]="checkName" [ngTemplateOutletContext]="{ row }" />
+            </th>
+          </tr>
+          <tr>
+            <td><app-check-chip [result]="row.a" size="card" /></td>
+            <td><app-check-chip [result]="row.b" size="card" /></td>
+          </tr>
+        </tbody>
       }
-    </tbody>
+    } @else {
+      <tbody>
+        @for (row of checks(); track row.kind) {
+          <tr [class.changed]="!row.same">
+            <th scope="row">
+              <ng-container [ngTemplateOutlet]="checkName" [ngTemplateOutletContext]="{ row }" />
+            </th>
+            <td><app-check-chip [result]="row.a" size="card" /></td>
+            <td><app-check-chip [result]="row.b" size="card" /></td>
+          </tr>
+        }
+      </tbody>
+    }
   </table>
+  <ng-template #checkName let-row="row">
+    {{ row.label }}
+    @if (!row.same) {
+      <span i18n class="state">changed</span>
+    }
+  </ng-template>
 
   <div class="outcome">
     <section class="card explains" aria-labelledby="explains-title">

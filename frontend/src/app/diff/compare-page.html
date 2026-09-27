@@ -16,12 +16,12 @@
             <app-request-list (openRequest)="chooseB($event)" />
           </section>
           <div splitEnd class="pane compare-pane">
-            <app-request-compare [a]="current.a" [b]="current.b" />
+            <app-request-compare [a]="current.a" [b]="current.b" [ruleStatuses]="ruleStatuses()" />
           </div>
         </app-split>
       } @else {
         <div class="pane compare-pane">
-          <app-request-compare [a]="current.a" [b]="current.b" />
+          <app-request-compare [a]="current.a" [b]="current.b" [ruleStatuses]="ruleStatuses()" />
         </div>
       }
     }

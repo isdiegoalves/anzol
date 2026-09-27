@@ -128,4 +128,48 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     expect(page().querySelector('.id-a')?.textContent).toBe(`#${R2.uuid.substring(0, 5)}`);
     http.expectNone(`/token/${TOKEN_ID}/request/${R1.uuid}`);
   });
+
+  it('deve pôr o status da regra que respondeu no selo dela, pelas regras da URL (RULES-30)', async () => {
+    const answered = webhookRequest(2, { rule: { id: 'r1', name: 'Lado A' } });
+    await open(R1.uuid, answered.uuid);
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
+    await flush(`/token/${TOKEN_ID}/request/${answered.uuid}`, answered);
+    await flush(`/token/${TOKEN_ID}/rules`, [
+      { id: 'r1', name: 'Lado A', response: { status: 201 } },
+    ]);
+
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('table[aria-label="Checks"]')?.textContent).toContain(
+        '201 · Lado A',
+      );
+    });
+  });
+
+  // RULES-35: a lista diz o modo, sem a busca; o Esc sai do Compare para a A na Inbox.
+  it('deve avisar o modo Compare na lista, sem a busca, e sair pelo Esc', async () => {
+    await open();
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
+    await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, R2);
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().querySelector('app-request-compare')).not.toBeNull();
+    });
+
+    const band = [...page().querySelectorAll('[role="status"]')].find((status) =>
+      status.textContent?.includes('Compare mode.'),
+    );
+    expect(band?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Compare mode. Click a request to make it B. Press Esc to leave.',
+    );
+    expect(page().querySelector('[role="search"]')).toBeNull();
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    const router = TestBed.inject(Router);
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    // A Inbox abre de novo a URL.
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2, R3]));
+  });
 });

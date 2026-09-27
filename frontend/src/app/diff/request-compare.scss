@@ -7,31 +7,66 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 24px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  gap: 4px 16px;
 }
 
-.side {
+.title {
+  margin: 0;
+  font: var(--mat-sys-headline-small);
+  font-variation-settings: 'ROND' 100;
+}
+
+.summary {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.card-side {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 12px;
   min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+
+  .side-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
   small {
     color: var(--mat-sys-on-surface-variant);
   }
 }
 
-.route {
-  overflow-wrap: anywhere;
-}
-
+// A e B: as mesmas cores das etiquetas da lista.
 .tag {
-  padding: 1px 6px;
-  border-radius: var(--mat-sys-corner-extra-small);
-  font: var(--mat-sys-label-medium);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font: var(--mat-sys-label-large);
   font-weight: 700;
 
   &.a {
@@ -64,12 +99,8 @@ h3 {
   border-collapse: collapse;
   table-layout: fixed;
 
-  th:first-child {
-    width: 5.5em;
-  }
-
-  th:last-child {
-    width: 4.5em;
+  &:not(.stacked) thead th:first-child {
+    width: 7em;
   }
 
   th,
@@ -88,14 +119,25 @@ h3 {
     width: 100%;
   }
 
-  .status {
+  .state {
+    display: block;
     color: var(--mat-sys-on-surface-variant);
-    white-space: nowrap;
+    font: var(--mat-sys-label-small);
   }
 
-  tr.changed .status {
+  .changed .state {
     color: var(--mat-sys-on-surface);
     font-weight: 700;
+  }
+
+  &.stacked th[scope='rowgroup'] {
+    padding-top: 8px;
+    font: var(--mat-sys-label-large);
+
+    .state {
+      display: inline;
+      margin-left: 6px;
+    }
   }
 }
 

@@ -418,6 +418,10 @@ export const translations: Record<string, string> = {
   '7819314041543176992': 'Fechar',
   // Check
   '9041078670559726454': 'Verificação',
+  // A · #{$INTERPOLATION}
+  '3262879677051471024': 'A · #{$INTERPOLATION}',
+  // B · #{$INTERPOLATION}
+  '8885631539604473064': 'B · #{$INTERPOLATION}',
   //  {$ICU} the outcome
   '5249381234972735720': ' {$ICU} o desfecho ',
   // {VAR_PLURAL, plural, =1 {1 change explains} other {{INTERPOLATION} changes explain}}
@@ -459,6 +463,18 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {1 linha igual} other {{INTERPOLATION} linhas iguais}}',
   // (empty)
   '6137649443564269922': '(vazio)',
+  // 1 header changed
+  '1140143385049406339': '1 header mudou',
+  // {$count} headers changed
+  '134294534637953691': '{$count} headers mudaram',
+  // {$count} only in A
+  '5422991404718192476': '{$count} só na A',
+  // {$count} only in B
+  '4454745045518893008': '{$count} só na B',
+  // 1 body line differs
+  '6100497610627702383': '1 linha do corpo difere',
+  // {$count} body lines differ
+  '3312264567861571169': '{$count} linhas do corpo diferem',
   // Delete all requests?
   '1483027337041318683': 'Apagar todas as requisições?',
   //  The {$ICU} of this URL will be deleted. This can't be undone.
@@ -989,6 +1005,9 @@ export const translations: Record<string, string> = {
   '4108680511513605373': 'Condições de {$rule} que falharam',
   // Choose a request to compare with #{$INTERPOLATION}
   '7859832298764837459': 'Escolha uma requisição para comparar com a #{$INTERPOLATION}',
+  // {$START_TAG_STRONG}Compare mode.{$CLOSE_TAG_STRONG} Click a request to make it {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Press {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} to leave.
+  '5983805913245337057':
+    '{$START_TAG_STRONG}Modo de comparação.{$CLOSE_TAG_STRONG} Clique numa requisição para ela ser a {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Aperte {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} para sair. ',
   // {VAR_PLURAL, plural, =1 {1 new request} other {{INTERPOLATION} new requests}}
   '2738823000442264367':
     '{VAR_PLURAL, plural, =1 {1 requisição nova} other {{INTERPOLATION} requisições novas}}',
