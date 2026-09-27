@@ -12,6 +12,7 @@ import {
   novaRegra,
   parte,
   salvarRegra,
+  snackbar,
   voltarALista,
 } from './support/regras';
 
@@ -208,7 +209,7 @@ test.describe('Dado uma regra que outra anterior sempre responde (E-01, WM-09; C
     );
     await lista(page).getByRole('button', { name: 'Move before Pagamentos' }).click();
 
-    await expect(page.getByText('Moved before Pagamentos · priorities updated')).toBeVisible();
+    await expect(snackbar(page, 'Moved before Pagamentos · priorities updated')).toBeVisible();
     await expect(selo(page, 'Acme', /Shadowed/)).toHaveCount(0);
     await expect
       .poll(async () => (await lerRegras(request, tokenId)).map((r) => r.name))
@@ -382,7 +383,7 @@ test.describe('Dado duplicar e apagar uma regra (WM-21)', () => {
     await mais.click();
     await expect(page.getByRole('menuitem', { name: 'Duplicate', exact: true })).toBeVisible();
     await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
-    await expect(page.getByText('Rule deleted')).toBeVisible();
+    await expect(snackbar(page, 'Rule deleted')).toBeVisible();
     await expect
       .poll(async () => (await lerRegras(request, tokenId)).map((r) => r.name))
       .toEqual(['Pix pago']);

@@ -11,6 +11,7 @@ import {
   linhaDaRegra,
   metodo,
   parte,
+  snackbar,
 } from './support/regras';
 
 // UX de Regras, fatia F6 — cenários: assistente de sequência (WM-32, E-09, WM-33; guia-ux §3.6; CA-8). O modelo "Fail
@@ -184,7 +185,7 @@ test.describe('Dado um cenário na lista e no editor (WM-33, E-09)', () => {
 
     await grupo.getByRole('button', { name: 'Reset scenario' }).click();
 
-    await expect(page.getByText('Scenario entrega set to Started')).toBeVisible();
+    await expect(snackbar(page, 'Scenario entrega set to Started')).toBeVisible();
     await expect(grupo).toContainText('state: Started');
     expect((await request.post(`/${tokenId}/entrega`)).status()).toBe(503);
   });

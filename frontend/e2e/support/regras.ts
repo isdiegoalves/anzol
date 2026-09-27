@@ -181,6 +181,14 @@ export async function voltarALista(page: Page, regiao: Locator): Promise<void> {
   }
 }
 
+/**
+ * O snackbar do Material com o texto. Pelo contêiner, e não por `getByText`: o texto do snackbar pode estar também no
+ * LiveAnnouncer da CDK (dois elementos, violação do modo estrito).
+ */
+export function snackbar(page: Page, texto: string | RegExp): Locator {
+  return page.locator('.mat-mdc-snack-bar-container', { hasText: texto });
+}
+
 /** Um diálogo (MatDialog) pelo título. */
 export function dialogo(page: Page, nome: string | RegExp): Locator {
   return page.getByRole('dialog', { name: nome });

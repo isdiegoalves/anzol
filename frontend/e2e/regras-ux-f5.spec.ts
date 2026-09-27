@@ -1,7 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem } from './support/inbox';
-import { dialogo, editor, gravarRegras, lerRegras, parte } from './support/regras';
+import { dialogo, editor, gravarRegras, lerRegras, parte, snackbar } from './support/regras';
 
 // UX de Regras, fatia F5 — criar regra da mensagem sem superajustar (WM-31, E-03, WM-28; guia-ux §3.5; CA-6).
 // "Create rule from this request" abre a folha com as condições em caixas (id, datas e UUIDs desmarcados), a
@@ -92,7 +92,7 @@ test.describe('Dado uma mensagem JSON e "Create rule from this request" (WM-31; 
 
     await expect(folha).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules`));
-    await expect(page.getByText('Rule saved')).toBeVisible();
+    await expect(snackbar(page, 'Rule saved')).toBeVisible();
     const regras = await lerRegras(request, tokenId);
     expect(regras.map((r) => r.name)).toEqual(['POST /pagamentos', 'Tudo o resto']);
     expect(regras[0]).toMatchObject({

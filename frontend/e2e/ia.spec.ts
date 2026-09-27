@@ -3,7 +3,7 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
 import { seedStorage } from './support/storage';
-import { abrirRegras, novaRegra, parte } from './support/regras';
+import { abrirRegras, novaRegra, parte, snackbar } from './support/regras';
 
 // IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
 // mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
@@ -290,7 +290,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await dialog.getByRole('button', { name: 'Suggest' }).click();
     await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
     await expect(status).toHaveValue('201');
-    await expect(page.getByText('Suggestion applied')).toBeVisible();
+    await expect(snackbar(page, 'Suggestion applied')).toBeVisible();
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await expect(status).toHaveValue('200');
     expect(await rulesOf(request, tokenId)).toEqual([]);

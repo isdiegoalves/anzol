@@ -3,8 +3,8 @@ import { expect, test } from './support/fixtures';
 import {
   abrirRegra,
   abrirRegras,
-  aceitarSaida,
   acaoDoEditor,
+  aceitarSaida,
   alertaDeRascunho,
   alertaParaCorrigir,
   arquivoDeRegras,
@@ -18,6 +18,7 @@ import {
   memoriaDaAba,
   novaRegra,
   parte,
+  snackbar,
 } from './support/regras';
 
 // UX de Regras, fatia F1 — proteção (WM-12, E-04, WM-37, WM-19, WM-13; guia-ux §3.1; CA-3 e CA-4 no que é da tela).
@@ -339,7 +340,7 @@ test.describe('Dado as ações em massa (WM-37: confirmação com o nome do que 
 
     await page.getByRole('button', { name: 'Turn all rules off' }).click();
     await pergunta.getByRole('button', { name: 'Turn off', exact: true }).click();
-    await expect(page.getByText('2 rules turned off')).toBeVisible();
+    await expect(snackbar(page, '2 rules turned off')).toBeVisible();
     await expect
       .poll(async () => (await lerRegras(request, tokenId)).map((r) => r['enabled']))
       .toEqual([false, false]);
@@ -424,7 +425,7 @@ test.describe('Dado o import de um arquivo de regras (WM-19; CA-4)', () => {
 
     await janela.getByRole('radio', { name: 'Replace the 3 saved rules' }).check();
     await janela.getByRole('button', { name: 'Replace', exact: true }).click();
-    await expect(page.getByText('Imported 3 rules')).toBeVisible();
+    await expect(snackbar(page, 'Imported 3 rules')).toBeVisible();
     await expect
       .poll(async () => (await lerRegras(request, tokenId)).map((r) => r.name))
       .toEqual(['A', 'B', 'D']);
@@ -541,7 +542,7 @@ test.describe('Dado os atalhos do editor (WM-13)', () => {
     await corpo.press('ControlOrMeta+s');
 
     await expect(regra).toBeHidden();
-    await expect(page.getByText('Rule saved')).toBeVisible();
+    await expect(snackbar(page, 'Rule saved')).toBeVisible();
     expect(await lerRegras(request, tokenId)).toEqual([
       expect.objectContaining({
         name: 'Atalho',

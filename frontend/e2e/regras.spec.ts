@@ -145,7 +145,12 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Regex quebrada');
     await parte(dialog, 'Match');
-    await choose(page, dialog.getByRole('combobox', { name: 'Path match' }), 'Matches regex');
+    // UX de Regras, WM-43: o rótulo diz que a regex casa o valor inteiro.
+    await choose(
+      page,
+      dialog.getByRole('combobox', { name: 'Path match' }),
+      'Matches regex (whole value)',
+    );
     await dialog.getByRole('textbox', { name: 'Path', exact: true }).fill('([a-z');
     await dialog.getByRole('button', { name: 'Save' }).click();
 
