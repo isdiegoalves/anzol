@@ -12,6 +12,7 @@ import {
   novaRegra,
   parte,
   salvarRegra,
+  voltarALista,
 } from './support/regras';
 
 // UX de Regras, fatia F2 — ordem e diagnóstico na lista (E-01, WM-08, WM-09, E-11, WM-30, WM-29, WM-20, WM-21,
@@ -274,6 +275,7 @@ test.describe('Dado uma regra que outra anterior sempre responde (E-01, WM-09; C
     const regra = await abrirRegra(page, 'Acme');
     await regra.getByRole('button', { name: 'Test against history' }).click();
     await expect(regra.getByRole('status', { name: 'History test' })).toBeVisible();
+    await voltarALista(page, regra);
 
     await expect(selo(page, 'Acme', 'Likely shadowed by Pagamentos')).toBeVisible();
   });
