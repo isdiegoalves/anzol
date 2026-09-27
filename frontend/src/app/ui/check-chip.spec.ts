@@ -60,4 +60,32 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
 
     expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
+
+  // INBOX-28: no selo da lista, o ícone diz a verificação (escudo, chaves, raio); o tom fica na cor
+  // e no texto. O cartão do detalhe segue com o ícone do tom (o círculo do "ok").
+  const firstShape = (container: Element) =>
+    container.querySelector('svg path')?.getAttribute('d') ?? '';
+  const results = checksOf(
+    webhookRequest(1, {
+      signature: { provider: 'stripe', valid: true, reason: null },
+      schema: { valid: true, errors: [] },
+      rule: { id: 'r', name: 'Pix' },
+    }),
+  );
+
+  it.each([
+    ['assinatura (escudo)', 0, 'M20 13c0 5'],
+    ['schema (chaves)', 1, 'M8 3H7'],
+    ['regra (raio)', 2, 'M4 14a1'],
+  ] as const)('deve mostrar o ícone da %s no selo mini', async (_caso, index, shape) => {
+    const { container } = await render(CheckChip, { inputs: { result: results[index] } });
+
+    expect(firstShape(container)).toMatch(new RegExp(`^${shape}`));
+  });
+
+  it('deve manter o ícone do tom no cartão', async () => {
+    const { container } = await render(CheckChip, { inputs: { result: valid, size: 'card' } });
+
+    expect(container.querySelector('svg circle')).not.toBeNull();
+  });
 });

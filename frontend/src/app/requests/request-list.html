@@ -93,13 +93,16 @@
             <!-- INBOX-32: o celular esconde o IP (a linha fica com o resumo, o #id e os selos). -->
             <span class="ip">{{ item.request.ip }} ·&ngsp;</span>
             <span class="id">#{{ item.request.uuid.substring(0, 5) }}</span>
+            <!-- Os selos: na linha 3 (posição absoluta no item) ou, com itens de duas linhas, no fim
+                 desta, encolhendo junto com o resumo. O veredito inteiro fica no title e no nome do
+                 item (aria-label). -->
+            <span class="seals" aria-hidden="true">
+              @for (seal of item.seals; track seal.kind) {
+                <app-check-chip [result]="seal" />
+              }
+            </span>
           </span>
         </button>
-        <span class="seals" aria-hidden="true">
-          @for (seal of item.seals; track seal.kind) {
-            <app-check-chip [result]="seal" />
-          }
-        </span>
         <button
           type="button"
           class="delete"

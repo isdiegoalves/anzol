@@ -506,4 +506,20 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(line?.getAttribute('aria-hidden')).toBe('true');
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (2)');
   });
+
+  // Celular a 390 e 320 px (trava 5): os selos dividem a linha do resumo, dentro do item, e encolhem
+  // com o resumo; o veredito inteiro fica no title do selo e no nome do item.
+  it('deve pôr os selos na linha do resumo, dentro do botão do item', async () => {
+    await load([
+      webhookRequest(1, {
+        signature: { provider: 'github', valid: false, reason: 'signature mismatch' },
+      }),
+    ]);
+
+    const seal = items()[0].querySelector('.select .meta .seals app-check-chip');
+    expect(seal?.getAttribute('title')).toBe('Signature invalid: signature mismatch');
+    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
+      'Signature invalid: signature mismatch',
+    );
+  });
 });

@@ -174,12 +174,14 @@
 
 .route {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   font-family: var(--app-code-family);
   text-overflow: ellipsis;
 }
 
 .ago {
+  flex: none;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }
@@ -195,7 +197,7 @@
 // O resumo (um user-agent de navegador passa de 900 px) é o que cede: corta com reticências antes
 // do IP e do #id, que ficam sempre à vista (trava 2).
 .summary {
-  flex: 0 1 auto;
+  flex: 0 1000 auto;
   min-width: 0;
   overflow: hidden;
   font-family: var(--app-code-family);
@@ -216,7 +218,6 @@
   display: flex;
   gap: 4px;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .delete {
@@ -266,14 +267,18 @@
     padding-block: 6px;
   }
 
-  .meta {
-    max-width: 60%;
-  }
-
+  // Os selos no fim da linha do resumo, sem sair do item a 320 px (trava 5): o resumo cede
+  // primeiro, depois o texto dos selos (reticências; o veredito fica no title).
   .seals {
-    bottom: 6px;
-    left: auto;
-    max-width: calc(40% - 56px);
+    position: static;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+
+    app-check-chip {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
   }
 }
 
