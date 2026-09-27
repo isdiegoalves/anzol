@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anzol.fullname" . }}
+  labels:
+    {{- include "anzol.labels" (dict "ctx" . "component" "app") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "anzol.selectorLabels" (dict "ctx" . "component" "app") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

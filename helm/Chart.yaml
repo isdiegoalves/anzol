@@ -1,8 +1,9 @@
-name: anzol
-description: A generated Helm Chart for Anzol
-version: 0.0.1
 apiVersion: v2
+name: anzol
+description: Anzol (URL que grava e mostra em tempo real toda requisição HTTP recebida) com o Redis que o guarda
+type: application
+version: 0.1.0
 keywords:
   - anzol
-sources:
-home:
+  - webhook
+home: https://github.com/isdiegoalves/anzol

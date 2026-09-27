@@ -1,0 +1,17 @@
+{{- if not .Values.redis.external.host }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anzol.redisName" . }}
+  labels:
+    {{- include "anzol.labels" (dict "ctx" . "component" "redis") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "anzol.selectorLabels" (dict "ctx" . "component" "redis") | nindent 4 }}
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+{{- end }}

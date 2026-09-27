@@ -1,0 +1,38 @@
+Anzol instalado: {{ include "anzol.fullname" . }} ({{ .Values.image.repository }}:{{ .Values.image.tag }}), Redis em {{ .Values.redis.external.host | default (printf "%s (StatefulSet do chart, PVC de %s)" (include "anzol.redisName" .) .Values.redis.persistence.size) }}.
+
+Acesso
+{{- if .Values.ingress.enabled }}
+{{- $tls := list }}
+{{- range .Values.ingress.tls }}{{ $tls = concat $tls .hosts }}{{ end }}
+{{- range .Values.ingress.hosts }}
+  {{ if has . $tls }}https{{ else }}http{{ end }}://{{ . }}/
+{{- end }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "anzol.fullname" . }} 8090:{{ .Values.service.port }}
+  e abra http://localhost:8090/
+{{- end }}
+
+Nomes aceitos (WEBHOOK_ALLOWED_HOSTS): {{ include "anzol.allowedHosts" . }}
+  O navegador só usa a API (criar URL, ler mensagens) por um nome desta lista; por outro, a tela abre mas a API
+  responde 403 {"error":"host not allowed"} ou {"error":"origin not allowed"}. Os hosts do Ingress entram sozinhos;
+  outro nome (um LoadBalancer, um DNS a mais) vai em webhook.allowedHosts.
+{{- if has "*" .Values.webhook.allowedHosts }}
+
+ATENÇÃO: "*" em webhook.allowedHosts desliga a proteção contra DNS rebinding e CSRF da API: qualquer página
+aberta no navegador passa a usá-la.
+{{- end }}
+{{- if .Values.webhook.outbound.allowPrivate }}
+
+ATENÇÃO: webhook.outbound.allowPrivate=true deixa o replay e o send saírem para a rede do cluster (o Redis, a API
+do Kubernetes, qualquer Service), sem credencial. Só com o app fora do alcance de terceiros.
+{{- end }}
+{{- if .Values.webhook.mcp.enabled }}
+
+ATENÇÃO: o MCP em /mcp está ligado e não tem autenticação: quem alcança o app opera todas as URLs sem segredo de
+leitura. Não ligue com o app publicado.
+{{- end }}
+{{- if and .Values.webhook.ai.enabled (not (include "anzol.aiSecretName" .)) }}
+
+IA ligada sem chave: os pedidos a {{ .Values.webhook.ai.baseUrl }} saem sem Authorization. Para mandar a chave, use
+webhook.ai.existingSecret ou --set-string webhook.ai.apiKey=... na instalação.
+{{- end }}
