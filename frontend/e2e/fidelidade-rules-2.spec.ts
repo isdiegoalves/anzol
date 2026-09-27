@@ -254,7 +254,10 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
       .getByRole('region', { name: 'Signature', exact: true })
       .getByRole('link', { name: /signature mismatch/ })
       .click();
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}\\?signature=invalid$`));
+    // Na janela larga a Inbox abre a primeira mensagem que casa, e o filtro segue na rota.
+    await expect(page).toHaveURL(
+      new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?signature=invalid$`),
+    );
   });
 
   test('deve dizer "the newest 500 of N kept" Quando a URL guarda mais que a janela', async ({

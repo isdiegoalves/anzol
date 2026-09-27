@@ -202,7 +202,10 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
 
       await link.click();
 
-      await expect(page).toHaveURL(new RegExp(`#/${tokenId}\\?${parametro}$`));
+      // Na janela larga a Inbox abre a primeira mensagem que casa, e o filtro segue na rota.
+      await expect(page).toHaveURL(
+        new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?${parametro}$`),
+      );
       await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', 'true');
       await expect(itens(page)).toHaveCount(1);
     });

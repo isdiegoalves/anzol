@@ -57,11 +57,25 @@ function mascarasDaLista(page: Page): Locator[] {
   return [page.locator('.item .id'), page.locator('.item .meta')];
 }
 
+/**
+ * No compacto, os metadados da mensagem (mascarados) quebram em mais ou menos linhas conforme a largura do UUID, do
+ * IP e da data, e a altura deles empurrava o resto da tela entre uma execução e outra. Só na foto, a altura fica fixa.
+ */
+const ALTURA_FIXA_DOS_METADADOS = `
+  @media (width < 600px) {
+    [role='group'][aria-label='Request metadata'] {
+      height: 144px !important;
+      overflow: hidden !important;
+    }
+  }
+`;
+
 async function fotografar(page: Page, nome: string, mascaras: Locator[] = []): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
   await expect(page).toHaveScreenshot(`${nome}.png`, {
     mask: [...mascarasComuns(page), ...mascaras],
     maxDiffPixelRatio: 0.002,
+    style: ALTURA_FIXA_DOS_METADADOS,
   });
 }
 

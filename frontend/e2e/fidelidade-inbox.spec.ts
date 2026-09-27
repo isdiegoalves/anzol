@@ -305,6 +305,64 @@ test.describe('Dado filtros na rota da Inbox', () => {
   });
 });
 
+/**
+ * INBOX-19 (checagem de layout): a `toolbar "Request actions"` não rola nem corta botão em nenhuma largura. A 1400 e a
+ * 1600 px as ações quebram de linha; a 390 px ficam Replay, Create rule e Copy payload, e o resto (Copy As inclusive)
+ * vai para o menu "More" do detalhe (trava 5).
+ */
+test.describe('Dado a barra de ações do detalhe (INBOX-19, layout)', () => {
+  for (const viewport of [
+    { width: 1400, height: 900 },
+    { width: 1600, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`não deve rolar nem cortar botão a ${viewport.width} px`, async ({ page, tokens }) => {
+      await page.setViewportSize(viewport);
+      const tokenId = await tokens.create();
+      const requestId = await tokens.send(tokenId, {
+        headers: { 'Content-Type': 'application/json' },
+        data: '{"id":1}',
+      });
+      await seedStorage(page, {});
+      await abrirMensagem(page, tokenId, requestId);
+
+      const barra = acoes(page);
+      await expect(barra.getByRole('button', { name: 'Copy payload' })).toBeVisible();
+      const medida = await barra.evaluate((el) => {
+        const caixa = el.getBoundingClientRect();
+        const botoes = [...el.querySelectorAll('button')].filter(
+          (b) => (b as HTMLElement).offsetParent !== null,
+        );
+        return {
+          scrollWidth: el.scrollWidth,
+          clientWidth: el.clientWidth,
+          cortados: botoes
+            .filter((b) => {
+              const r = b.getBoundingClientRect();
+              return (
+                r.left < caixa.left - 1 ||
+                r.right > caixa.right + 1 ||
+                b.scrollWidth > b.clientWidth + 1
+              );
+            })
+            .map((b) => b.textContent?.trim()),
+        };
+      });
+      expect(medida.scrollWidth, 'a barra não rola').toBeLessThanOrEqual(medida.clientWidth);
+      expect(medida.cortados, 'nenhum botão cortado').toEqual([]);
+
+      if (viewport.width < 600) {
+        await expect(barra.getByRole('button', { name: 'Copy As' })).toHaveCount(0);
+        await page.getByRole('button', { name: 'More', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Copy As' }).click();
+        for (const formato of ['curl', 'HAR']) {
+          await expect(page.getByRole('menuitem', { name: formato, exact: true })).toBeVisible();
+        }
+      }
+    });
+  }
+});
+
 test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
