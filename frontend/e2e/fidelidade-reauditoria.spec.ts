@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { abrirChecks } from './support/checks';
 import { expect, test } from './support/fixtures';
-import { abrirItem, abrirMensagem, acoes, item, itens } from './support/inbox';
+import { abrirItem, abrirMensagem, acoes, item, itens, lista } from './support/inbox';
 import { abrirRegras, editor, linhaDaRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
@@ -68,9 +68,7 @@ test.describe('Dado a lista da Inbox no celular', () => {
       await page.goto(`/#/${tokenId}`);
       await expect(itens(page)).toHaveCount(2);
 
-      // Medido no documento: os itens estão na lista virtual do CDK.
-      const medidas = await page.evaluate(() => {
-        const regiao = document;
+      const medidas = await lista(page).evaluate((regiao) => {
         const rola = (e: Element) => e.scrollWidth > e.clientWidth + 1;
         const viewport = regiao.querySelector('cdk-virtual-scroll-viewport');
         const quantos = regiao.querySelectorAll('.item').length;
