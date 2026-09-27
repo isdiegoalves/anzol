@@ -68,8 +68,11 @@
 }
 
 // Item de três linhas; o botão da linha cobre o item inteiro (os selos ficam por cima, sem clique).
+// `contain: inline-size`: o conteúdo não alarga o item; sem isso, a lista virtual cresce até a
+// largura da linha mais longa, e as reticências nunca aparecem.
 .item {
   position: relative;
+  contain: inline-size;
   box-sizing: border-box;
   height: 84px;
   padding: 2px 8px;
@@ -189,17 +192,18 @@
   font: var(--mat-sys-label-small);
 }
 
+// O resumo (um user-agent de navegador passa de 900 px) é o que cede: corta com reticências antes
+// do IP e do #id, que ficam sempre à vista (trava 2).
 .summary {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   font-family: var(--app-code-family);
   text-overflow: ellipsis;
 }
 
-// O resumo, o IP e o #id: com o painel estreito, cortam com reticências em vez de transbordar.
 .meta {
-  display: block;
-  min-width: 0;
-  text-overflow: ellipsis;
+  gap: 4px;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }

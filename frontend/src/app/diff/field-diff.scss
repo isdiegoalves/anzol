@@ -16,6 +16,12 @@
     vertical-align: top;
     word-break: break-all;
   }
+
+  // A nota do ruído quebra só entre palavras ("· changes every event"), nunca no meio de uma.
+  .status {
+    word-break: normal;
+    overflow-wrap: normal;
+  }
 }
 
 .name {
@@ -23,7 +29,7 @@
 }
 
 .status {
-  width: 80px;
+  width: 7em;
   color: var(--mat-sys-on-surface-variant);
   font-size: 85%;
 }
