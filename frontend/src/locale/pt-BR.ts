@@ -1442,8 +1442,6 @@ export const translations: Record<string, string> = {
   '5721589179245249262': 'Reordenar',
   // Drag, or use the arrow keys, to change the order
   '6085721866820141077': 'Arraste, ou use as setas do teclado, para mudar a ordem',
-  // Enable rule {$INTERPOLATION}
-  '5435142594205571808': 'Ligar a regra {$INTERPOLATION}',
   // Move up
   '8502065112576581103': 'Subir',
   // Move up (checked earlier)
@@ -2493,4 +2491,6 @@ export const translations: Record<string, string> = {
   '2017205740176414848': 'Voltar à requisição',
   // No rule leads to state "{$state}" — probably a typo.
   '3523141136168498829': 'Nenhuma regra leva ao estado "{$state}" — provável erro de digitação.',
+  // Enable rule {$rule}
+  '4770561319318769665': 'Ligar a regra {$rule}',
 };

@@ -85,6 +85,16 @@ html.compact {
   );
 }
 
+// ↑, ↓ e ⋮ de cada regra na lista de Regras: alvo de toque de 44 px (F8, WM-41), mesmo com a
+// densidade compacta; o botão de ícone do M3 mede 40.
+.rule-row-actions {
+  @include mat.icon-button-overrides(
+    (
+      state-layer-size: 44px,
+    )
+  );
+}
+
 body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);

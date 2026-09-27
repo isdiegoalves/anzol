@@ -19,7 +19,6 @@ import {
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
@@ -67,6 +66,7 @@ import { RuleEditor, RuleEditorData } from './rule-editor';
 import { newRule } from './rule-form';
 import { CREATED_HIGHLIGHT_MS, RuleIntents } from './rule-intents';
 import { RuleItem, RulePosition } from './rule-item';
+import { RuleSwitch } from './rule-switch';
 import { RuleListEmpty } from './rule-list-empty';
 import { RuleListFilter } from './rule-list-filter';
 import { ruleFromRequest } from './rule-from-request';
@@ -126,7 +126,6 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
   imports: [
     MatButton,
     MatIconButton,
-    MatSlideToggle,
     RouterLink,
     NgTemplateOutlet,
     Split,
@@ -142,6 +141,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     RuleItem,
     RuleListEmpty,
     RuleListFilter,
+    RuleSwitch,
     ScenarioGroup,
   ],
   templateUrl: './rules-page.html',
@@ -183,6 +183,7 @@ export class RulesPage {
 
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly reorderLabel = (name: string) => $localize`Reorder ${name}:rule:`;
+  protected readonly enableLabel = (name: string) => $localize`Enable rule ${name}:rule:`;
   protected readonly loaded = signal(false);
   /** Erros do último load, save ou import, uma frase por linha. */
   protected readonly errors = signal<readonly string[]>([]);
@@ -756,18 +757,14 @@ export class RulesPage {
     void this.router.navigate(['/', this.tokenId(), 'rules']);
   }
 
-  protected async setEnabled(
-    index: number,
-    enabled: boolean,
-    toggle: MatSlideToggle,
-  ): Promise<void> {
+  protected async setEnabled(index: number, enabled: boolean, toggle: RuleSwitch): Promise<void> {
     const id = this.store.rules()[index]?.id;
     const saved = await this.saveUnchanged(
       this.store.rules().map((rule, i) => (i === index ? { ...rule, enabled } : rule)),
     );
     if (!saved) {
       // A lista não mudou: o switch volta ao que está salvo.
-      toggle.checked = !enabled;
+      toggle.revert();
     } else if (id) {
       this.turnedOff.update((ids) => {
         const next = new Set(ids);

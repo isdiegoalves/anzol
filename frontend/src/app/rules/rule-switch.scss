@@ -1,0 +1,77 @@
+:host {
+  display: inline-flex;
+}
+
+// O botão é o alvo (52 × 44); o trilho do M3 (52 × 32) fica no meio.
+.switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: var(--mat-sys-corner-full);
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+}
+
+.track {
+  position: relative;
+  box-sizing: border-box;
+  width: 52px;
+  height: 32px;
+  border: 2px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-surface-container-highest);
+  transition: background-color 100ms linear;
+}
+
+.handle {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mat-sys-outline);
+  transform: translateY(-50%);
+  transition:
+    left 100ms linear,
+    width 100ms linear,
+    height 100ms linear;
+}
+
+.switch[aria-checked='true'] {
+  .track {
+    border-color: var(--mat-sys-primary);
+    background: var(--mat-sys-primary);
+  }
+
+  .handle {
+    left: 22px;
+    width: 24px;
+    height: 24px;
+    background: var(--mat-sys-on-primary);
+  }
+}
+
+.switch:hover .handle {
+  background: var(--mat-sys-on-surface-variant);
+}
+
+.switch[aria-checked='true']:hover .handle {
+  background: var(--mat-sys-primary-container);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .handle {
+    transition: none;
+  }
+}

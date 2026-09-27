@@ -33,6 +33,26 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.rules()).toEqual([rule(1), rule(2)]);
   });
 
+  it('deve guardar o último teste da regra salva e mantê-lo ao reler a mesma URL (Likely shadowed)', async () => {
+    await loaded();
+    const test = store.testRule(rule(1));
+    http.expectOne({ method: 'POST', url: `${url}/test` }).flush({
+      matches: [{ uuid: 'm1', seq: 2 }],
+      misses: [],
+    });
+    http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`).flush({ total: 1 });
+    await test;
+    expect(store.tested().get('r1')?.matches).toEqual(['m1']);
+
+    await loaded();
+    expect(store.tested().get('r1')?.matches).toEqual(['m1']);
+
+    const outra = store.load('outra-url');
+    http.expectOne('/token/outra-url/rules').flush([]);
+    await outra;
+    expect(store.tested().size).toBe(0);
+  });
+
   it('deve enviar a lista inteira no PUT e ficar com a lista que o servidor devolve Quando salva', async () => {
     await loaded();
     const nova = { ...rule(3), id: undefined };

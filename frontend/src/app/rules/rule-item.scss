@@ -54,12 +54,19 @@
 
 // Indicador discreto de template, atraso, falha e cenário; o detalhe fica no título.
 .flag {
+  max-width: 100%;
   padding: 0 6px;
+  overflow: hidden;
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 8px;
   color: var(--mat-sys-on-surface-variant);
   font-size: 11px;
   line-height: 18px;
+
+  // "Shadowed by {nome comprido}" não alarga a lista (a 320 px, F8): reticências, e o nome inteiro
+  // fica no título.
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .off {

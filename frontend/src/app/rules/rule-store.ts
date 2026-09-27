@@ -66,10 +66,13 @@ export class RuleStore {
   );
 
   async load(tokenId: string): Promise<void> {
+    if (tokenId !== this.tokenId()) {
+      // O teste da regra vale para esta URL: "Back to list" relê a lista da mesma URL e o mantém.
+      this.tested.set(new Map());
+    }
     this.tokenId.set(tokenId);
     this.rules.set([]);
     this.recent = null;
-    this.tested.set(new Map());
     this.latest = null;
     this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
   }

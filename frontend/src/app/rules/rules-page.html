@@ -247,12 +247,11 @@
                     </button>
                   </td>
                   <td class="toggle">
-                    <mat-slide-toggle
+                    <app-rule-switch
                       #toggle
-                      aria-label="Enable rule {{ item.rule.name }}"
-                      i18n-aria-label
+                      [label]="enableLabel(item.rule.name)"
                       [checked]="item.rule.enabled ?? true"
-                      (change)="setEnabled(item.index, $event.checked, toggle)"
+                      (changed)="setEnabled(item.index, $event, toggle)"
                     />
                   </td>
                   <td class="item">
@@ -294,7 +293,7 @@
                       />
                     </button>
                   </td>
-                  <td class="row-actions">
+                  <td class="row-actions rule-row-actions">
                     <button
                       mat-icon-button
                       type="button"
