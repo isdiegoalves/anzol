@@ -2577,4 +2577,40 @@ export const translations: Record<string, string> = {
   '9109980654677406198': 'Não foi possível renderizar: {$INTERPOLATION}',
   // Rendered body
   '1729320846134795312': 'Corpo renderizado',
+  // Test a variation
+  '7841897472094892053': 'Testar uma variação',
+  // Conditions
+  '2079395509894825886': 'Condições',
+  // Add response header
+  '8911476744078832650': 'Adicionar cabeçalho da resposta',
+  // Counting…
+  '4347220840936880702': 'Contando…',
+  // Too specific: only this request would match (of the last 500).
+  '7655690352868609824': 'Específica demais: só esta requisição casaria (das últimas 500).',
+  // Loosen
+  '4327816279085003575': 'Afrouxar',
+  // Open in editor
+  '7079548184775636186': 'Abrir no editor',
+  // Method {$method}
+  '3095120692025332648': 'Método {$method}',
+  // Path {$path}
+  '3786537193063354848': 'Caminho {$path}',
+  // Query {$name} = {$value}
+  '1702566577371003724': 'Query {$name} = {$value}',
+  // Header {$name} = {$value}
+  '5108907827292708180': 'Cabeçalho {$name} = {$value}',
+  // Body {$path} = {$value}
+  '6348613277266986519': 'Corpo {$path} = {$value}',
+  // Body equals the text (10 KiB max)
+  '3412030411320376891': 'Corpo igual ao texto (até 10 KiB)',
+  // looks like an id
+  '6547458834284057072': 'parece um id',
+  // timestamp
+  '496260205220116434': 'data-hora',
+  // UUID
+  '7716208024960184784': 'UUID',
+  // {$count} of the last {$window} requests would match
+  '7375431196650714596': '{$count} das últimas {$window} requisições casariam',
+  // The rules changed elsewhere; open Rules and try again.
+  '3321906449955825761': 'As regras mudaram em outro lugar; abra Regras e tente de novo.',
 };

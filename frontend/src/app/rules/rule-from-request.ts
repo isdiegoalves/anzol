@@ -1,6 +1,7 @@
-import { WebhookRequest } from '../requests/webhook-request';
+import { FieldValue, WebhookRequest } from '../requests/webhook-request';
 import {
   BodyMatcher,
+  PathMatcher,
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   Rule,
@@ -11,25 +12,174 @@ import {
 const BODY_EQUALS_MAX_BYTES = 10 * 1024;
 const NAME_MAX_LENGTH = 100;
 
+/** Por que a caixa vem desmarcada: o valor muda a cada entrega (WM-31, CA-6). */
+export type VolatileHint = 'id' | 'timestamp' | 'uuid';
+
 /**
- * Regra que casa a mensagem (Anexo C): método, caminho exato, cada parâmetro da query igual e o
- * corpo (JSON igual, ou texto igual até 10 KiB); sem headers. Responde 200 com corpo vazio.
+ * Uma condição que a regra pode ter a partir da mensagem (a folha "Create rule from this request"):
+ * uma caixa (`Method POST`, `Body $.status = "pago"`), marcada ou não por padrão.
  */
-export function ruleFromRequest(request: WebhookRequest): Rule {
+export interface RuleCandidate {
+  key: string;
+  kind: 'method' | 'path' | 'query' | 'header' | 'body' | 'bodyText';
+  /** O valor como aparece na caixa (texto na query e no cabeçalho, literal JSON no corpo). */
+  display: string;
+  /** Nome do campo (query, cabeçalho) ou o JSONPath (`$.status`). */
+  field: string;
+  value: unknown;
+  checked: boolean;
+  hint: VolatileHint | null;
+}
+
+/** A resposta que a folha monta ao lado das condições. */
+export interface CandidateResponse {
+  status: number;
+  body: string;
+  headers: Record<string, string>;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Parece mudar a cada entrega? Nome de id (`id`, `*_id`, `*Id`), de data (`*time*`, `*date*`,
+ * `created*`, `updated*`, `*_at`, `*At`), valor UUID ou epoch (10 ou 13 dígitos).
+ */
+export function volatileHint(name: string, value: unknown): VolatileHint | null {
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  if (UUID.test(text)) {
+    return 'uuid';
+  }
+  if (name === 'id' || /_id$/i.test(name) || /[a-z]Id$/.test(name)) {
+    return 'id';
+  }
+  if (
+    /time|date|created|updated/i.test(name) ||
+    /(^|_)at$/i.test(name) ||
+    /[a-z]At$/.test(name) ||
+    /^\d{10}(\d{3})?$/.test(text)
+  ) {
+    return 'timestamp';
+  }
+  return null;
+}
+
+function fieldText(value: FieldValue | undefined): string {
+  return typeof value === 'string' ? value : JSON.stringify(value ?? '');
+}
+
+function childPath(key: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? `$.${key}` : `$['${key}']`;
+}
+
+/**
+ * As condições que a mensagem sugere (WM-31): método e caminho marcados; cada query e cada campo
+ * de primeiro nível do corpo JSON, marcados salvo o que parece id, data ou UUID; os cabeçalhos,
+ * desmarcados; corpo que não é objeto JSON, "igual ao texto" desmarcado (até 10 KiB).
+ */
+export function ruleCandidates(request: WebhookRequest): RuleCandidate[] {
   const path = pathAfterToken(request.url, request.token_id);
+  const candidates: RuleCandidate[] = [
+    candidate('method', request.method, request.method, request.method, true, null),
+    candidate('path', path, path, path, true, null),
+  ];
+  for (const [name, raw] of Object.entries(request.query ?? {})) {
+    const value = fieldText(raw);
+    const hint = volatileHint(name, value);
+    candidates.push(candidate('query', name, value, value, hint === null, hint));
+  }
+  for (const [name, values] of Object.entries(request.headers ?? {})) {
+    const value = values.join(', ');
+    candidates.push(candidate('header', name, value, value, false, null));
+  }
+  candidates.push(...bodyCandidates(request.content ?? ''));
+  return candidates;
+}
+
+function candidate(
+  kind: RuleCandidate['kind'],
+  field: string,
+  display: string,
+  value: unknown,
+  checked: boolean,
+  hint: VolatileHint | null,
+): RuleCandidate {
+  return { key: `${kind}:${field}`, kind, display, field, value, checked, hint };
+}
+
+function bodyCandidates(content: string): RuleCandidate[] {
+  let json: unknown;
+  try {
+    json = JSON.parse(content);
+  } catch {
+    json = undefined;
+  }
+  if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
+    return Object.entries(json).map(([key, value]) => {
+      const hint = volatileHint(key, value);
+      return candidate('body', childPath(key), JSON.stringify(value), value, hint === null, hint);
+    });
+  }
+  if (content === '' || new TextEncoder().encode(content).length > BODY_EQUALS_MAX_BYTES) {
+    return [];
+  }
+  return [candidate('bodyText', 'text', content, content, false, null)];
+}
+
+/** A regra com as condições marcadas e a resposta da folha; o caminho igual ou "começa com". */
+export function ruleFromCandidates(
+  request: WebhookRequest,
+  candidates: readonly RuleCandidate[],
+  pathMode: 'equals' | 'prefix',
+  response: CandidateResponse,
+): Rule {
+  const chosen = candidates.filter(({ checked }) => checked);
+  const path = pathAfterToken(request.url, request.token_id);
+  const query: Record<string, ValueMatcher> = {};
+  const headers: Record<string, ValueMatcher> = {};
+  const body: BodyMatcher[] = [];
+  let method: string[] = [];
+  let pathMatcher: PathMatcher | null = null;
+  for (const item of chosen) {
+    switch (item.kind) {
+      case 'method':
+        method = [request.method];
+        break;
+      case 'path':
+        pathMatcher = pathMode === 'prefix' ? { prefix: path } : { equals: path };
+        break;
+      case 'query':
+        query[item.field] = { equals: String(item.value) };
+        break;
+      case 'header':
+        headers[item.field] = { equals: String(item.value) };
+        break;
+      case 'body':
+        body.push({ jsonPath: { path: item.field, equals: item.value } });
+        break;
+      case 'bodyText':
+        body.push({ equals: String(item.value) });
+        break;
+    }
+  }
   return {
     name: `${request.method} ${path}`.slice(0, NAME_MAX_LENGTH),
     enabled: true,
     priority: RULE_DEFAULT_PRIORITY,
-    match: {
-      method: [request.method],
-      path: { equals: path },
-      query: queryConditions(request.query),
-      headers: {},
-      body: bodyConditions(request.content ?? ''),
-    },
-    response: { status: RULE_DEFAULT_STATUS, headers: {}, body: '' },
+    match: { method, path: pathMatcher, query, headers, body },
+    response: { status: response.status, headers: response.headers, body: response.body },
   };
+}
+
+/**
+ * Regra que casa a mensagem sem superajustar (WM-31, CA-6): as condições que `ruleCandidates`
+ * marca por padrão, caminho igual, resposta 200 vazia.
+ */
+export function ruleFromRequest(request: WebhookRequest): Rule {
+  return ruleFromCandidates(request, ruleCandidates(request), 'equals', {
+    status: RULE_DEFAULT_STATUS,
+    body: '',
+    headers: {},
+  });
 }
 
 /**
@@ -49,26 +199,4 @@ export function pathAfterToken(url: string, tokenId: string): string {
     // Escape inválido: o servidor também deixa o caminho como chegou.
   }
   return path || '/';
-}
-
-/** Valor que não é texto (`a[]=1`, `o[k]=v`) é comparado como o JSON dele, como no servidor. */
-function queryConditions(query: WebhookRequest['query']): Record<string, ValueMatcher> {
-  return Object.fromEntries(
-    Object.entries(query ?? {}).map(([name, value]) => [
-      name,
-      { equals: typeof value === 'string' ? value : JSON.stringify(value) },
-    ]),
-  );
-}
-
-function bodyConditions(content: string): BodyMatcher[] {
-  try {
-    const json: unknown = JSON.parse(content);
-    // Texto JSON (`"x"`) vai como o texto do JSON: o servidor lê texto como o JSON que ele contém.
-    return [{ equalToJson: typeof json === 'string' ? content : json }];
-  } catch {
-    return new TextEncoder().encode(content).length <= BODY_EQUALS_MAX_BYTES
-      ? [{ equals: content }]
-      : [];
-  }
 }

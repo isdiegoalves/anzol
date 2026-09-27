@@ -810,7 +810,7 @@ describe('Dado o editor de regra', () => {
           method: 'POST',
           url: `http://localhost:8084/${TOKEN_ID}/pedidos?tipo=pix`,
           query: { tipo: 'pix' },
-          content: '{"id":42}',
+          content: '{"id":42,"status":"pago"}',
         }),
       );
 
@@ -824,8 +824,11 @@ describe('Dado o editor de regra', () => {
       expect(await (await input('Query 1 name')).getValue()).toBe('tipo');
       expect(await (await select('Query 1 operator')).getValueText()).toBe('equals');
       expect(await (await input('Query 1 value')).getValue()).toBe('pix');
-      expect(await (await select('Body 1 type')).getValueText()).toBe('Equal to JSON');
-      expect(await (await input('Body 1 value')).getValue()).toBe('{"id":42}');
+      // WM-31: o id fica de fora; o campo estável vira JSONPath igual.
+      expect(await (await select('Body 1 type')).getValueText()).toBe('JSONPath');
+      expect(await (await input('Body 1 path')).getValue()).toBe('$.status');
+      expect(await (await input('Body 1 equals')).getValue()).toBe('"pago"');
+      expect(root().querySelector('[aria-label="Body 2 type"]')).toBeNull();
       expect(await (await input('Status')).getValue()).toBe('200');
       expect(await (await input('Response body')).getValue()).toBe('');
     });
@@ -848,7 +851,7 @@ describe('Dado o editor de regra', () => {
             path: { equals: '/pedidos' },
             query: { tipo: { equals: 'pix' } },
             headers: {},
-            body: [{ equalToJson: { id: 42 } }],
+            body: [{ jsonPath: { path: '$.status', equals: 'pago' } }],
           },
           scenario: null,
           response: {

@@ -186,6 +186,15 @@ describe('Dado a página Outbound', () => {
     expect(names).toEqual(['content-type', 'x-origem']);
   });
 
+  it('deve apontar o Send para a própria URL e caminho da mensagem Quando ?to=self (WM-28)', async () => {
+    await open(`?send-from=${PEDIDO.uuid}&to=self`);
+
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    expect((within(send).getByRole('textbox', { name: 'URL' }) as HTMLInputElement).value).toBe(
+      PEDIDO.url,
+    );
+  });
+
   it('deve disparar pelo servidor com a assinatura Quando ?send=signed e a URL assina', async () => {
     await open('?send=signed', {
       url: token({ signature: { provider: 'github', secret: '••••1234' } }),

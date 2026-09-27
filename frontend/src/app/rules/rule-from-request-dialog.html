@@ -1,0 +1,130 @@
+<h2 mat-dialog-title i18n>Create rule from this request</h2>
+<form class="sheet" [formGroup]="form" (ngSubmit)="create()">
+  <mat-dialog-content class="columns">
+    <section class="conditions" aria-labelledby="create-rule-conditions">
+      <h3 id="create-rule-conditions" i18n>Conditions</h3>
+      <ul class="boxes">
+        @for (candidate of candidates(); track candidate.key) {
+          <li>
+            <mat-checkbox
+              [checked]="candidate.checked"
+              (change)="toggle(candidate.key, $event.checked)"
+              >{{ label(candidate) }}</mat-checkbox
+            >
+            @if (hint(candidate); as why) {
+              <span class="why">({{ why }})</span>
+            }
+            @if (candidate.kind === 'path') {
+              <mat-radio-group
+                class="path-mode"
+                aria-label="Path match"
+                i18n-aria-label
+                [value]="pathMode()"
+                (change)="pathMode.set($event.value)"
+              >
+                <mat-radio-button value="equals" i18n>Equals</mat-radio-button>
+                <mat-radio-button value="prefix" i18n>Starts with</mat-radio-button>
+              </mat-radio-group>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+    <section class="response" aria-labelledby="create-rule-response">
+      <h3 id="create-rule-response" i18n>Response</h3>
+      <mat-form-field class="status">
+        <mat-label i18n>Status</mat-label>
+        <input
+          matInput
+          type="number"
+          min="100"
+          max="599"
+          formControlName="status"
+          aria-label="Status"
+          i18n-aria-label
+        />
+        <mat-error i18n>The status must be an integer between 100 and 599.</mat-error>
+      </mat-form-field>
+      <mat-form-field class="full">
+        <mat-label i18n>Body</mat-label>
+        <textarea
+          matInput
+          rows="4"
+          formControlName="body"
+          aria-label="Body"
+          i18n-aria-label
+        ></textarea>
+      </mat-form-field>
+      <div formArrayName="headers">
+        @for (row of form.controls.headers.controls; track row; let i = $index) {
+          <div class="header" [formGroupName]="i">
+            <mat-form-field>
+              <mat-label i18n>Name</mat-label>
+              <input matInput formControlName="name" [attr.aria-label]="headerLabels(i + 1).name" />
+            </mat-form-field>
+            <mat-form-field class="grow">
+              <mat-label i18n>Value</mat-label>
+              <input
+                matInput
+                formControlName="value"
+                [attr.aria-label]="headerLabels(i + 1).value"
+              />
+            </mat-form-field>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="headerLabels(i + 1).remove"
+              (click)="removeHeader(i)"
+            >
+              &#x2715;
+            </button>
+          </div>
+        }
+      </div>
+      <div class="tools">
+        <button mat-button type="button" (click)="addHeader()" i18n>Add response header</button>
+        @if (suggestJson()) {
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="addHeader('Content-Type', 'application/json')"
+            i18n
+          >
+            Add Content-Type: application/json
+          </button>
+        }
+      </div>
+    </section>
+  </mat-dialog-content>
+  <div class="footer">
+    <p class="count" role="status">
+      @if (count(); as n) {
+        {{ countText(n) }}
+      } @else if (count() === 0) {
+        {{ countText(0) }}
+      } @else {
+        <ng-container i18n>Counting…</ng-container>
+      }
+    </p>
+    @if (tooSpecific()) {
+      <div class="warning" role="note">
+        <p i18n>Too specific: only this request would match (of the last 500).</p>
+        <button mat-stroked-button type="button" (click)="loosen()" i18n>Loosen</button>
+      </div>
+    }
+    @if (errors().length > 0) {
+      <div role="alert">
+        <ul class="errors">
+          @for (message of errors(); track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+  <mat-dialog-actions align="end" class="actions">
+    <button mat-button type="button" [mat-dialog-close]="null" i18n>Cancel</button>
+    <button mat-stroked-button type="button" (click)="openInEditor()" i18n>Open in editor</button>
+    <button mat-flat-button type="submit" [attr.aria-busy]="saving()" i18n>Create rule</button>
+  </mat-dialog-actions>
+</form>

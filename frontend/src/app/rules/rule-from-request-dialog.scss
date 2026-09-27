@@ -1,0 +1,105 @@
+.sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px 24px;
+}
+
+h3 {
+  margin: 0 0 8px;
+  font: var(--mat-sys-title-small);
+}
+
+.boxes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 8px;
+    overflow-wrap: anywhere;
+  }
+}
+
+.why {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.path-mode {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: 40px;
+}
+
+.status {
+  width: 140px;
+}
+
+.full {
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+
+  .grow {
+    flex: 1;
+  }
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.footer {
+  padding: 0 24px;
+}
+
+.count {
+  margin: 8px 0;
+  font: var(--mat-sys-title-small);
+}
+
+.warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+
+  p {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+.errors {
+  margin: 8px 0;
+  color: var(--mat-sys-error);
+}
+
+// No celular, a folha ocupa a tela e os botões vão um por linha, o principal embaixo.
+@media (width < 600px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}

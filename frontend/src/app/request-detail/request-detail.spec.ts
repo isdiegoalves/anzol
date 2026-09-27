@@ -55,6 +55,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ).toEqual([
       'Replay…',
       'Send as new…',
+      'Test a variation',
       'Compare',
       'Create rule',
       'Create schema',
@@ -127,6 +128,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     // A 390 px, o Copy As não cabe na linha: vai ao "More", com os formatos no submenu (trava 5).
     expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
       'Send as new…',
+      'Test a variation',
       'Compare with…',
       'Create schema from this request',
       'Copy As',
@@ -184,7 +186,22 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(within(cartoes).getByRole('button', { name: 'Why not rule…?' })).toBeTruthy();
   });
 
-  it('deve abrir a página Rules com a regra nova a partir da mensagem Quando "Create rule from this request" é clicado', async () => {
+  it('deve abrir a folha "Create rule from this request" de Regras com a mensagem (WM-31)', async () => {
+    const request = webhookRequest(3);
+    const { fixture } = await show(request);
+    const open = vi
+      .spyOn(fixture.debugElement.injector.get(MatDialog), 'open')
+      .mockReturnValue({} as never);
+
+    await userEvent.click(action('Create rule from this request'));
+
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
+    const [component, config] = open.mock.calls[0];
+    expect(String((component as { name?: string }).name)).toContain('RuleFromRequestDialog');
+    expect(config).toMatchObject({ data: request });
+  });
+
+  it('deve abrir o Send da mensagem apontado para a própria URL Quando "Test a variation" (WM-28)', async () => {
     const request = webhookRequest(3);
     // O Router de verdade: o cartão da regra tem link (WM-10), e o RouterLink precisa dele.
     const { fixture } = await show(request);
@@ -192,10 +209,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
       .mockResolvedValue(true);
 
-    await userEvent.click(action('Create rule from this request'));
+    await userEvent.click(within(toolbar()).getByRole('button', { name: 'Test a variation' }));
 
-    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
-      queryParams: { from: request.uuid },
+    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'outbound'], {
+      queryParams: { 'send-from': request.uuid, to: 'self' },
     });
   });
 

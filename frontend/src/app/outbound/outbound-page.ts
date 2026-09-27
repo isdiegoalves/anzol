@@ -259,7 +259,10 @@ export class OutboundPage {
       (await this.store.request(token.uuid, id).catch(() => null));
     if (sendFrom) {
       const request = await find(sendFrom);
-      this.draft.set(request && draftFromRequest(request, rememberedTarget(token.uuid)));
+      // "Test a variation" (WM-28): o destino é a própria URL, com o caminho e a query da mensagem.
+      const target =
+        query.get('to') === 'self' && request ? request.url : rememberedTarget(token.uuid);
+      this.draft.set(request && draftFromRequest(request, target));
       this.signing.set(false);
       this.mode.set('send');
     } else if (send !== null || query.has('send-from')) {

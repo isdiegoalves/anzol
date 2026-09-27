@@ -271,6 +271,17 @@ export class RuleStore {
   }
 
   /**
+   * Quantas das mensagens recentes de uma URL a regra casaria, sem carregar a lista dela (a folha
+   * "Create rule from this request" abre na Inbox, WM-31).
+   */
+  async countMatches(tokenId: string, rule: Rule): Promise<number> {
+    const response = await firstValueFrom(
+      this.http.post<RuleTestResponse>(`${this.url(tokenId)}/test`, rule),
+    );
+    return response.matches.length;
+  }
+
+  /**
    * "Preview response" (C4): o `rules/test` com `render=3`, a resposta renderizada das até 3
    * mensagens mais novas que a regra casa. Só sob pedido; o rerun nunca pede render.
    */

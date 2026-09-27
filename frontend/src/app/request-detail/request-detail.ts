@@ -178,12 +178,13 @@ export class RequestDetail {
     this.compare.start(this.request());
   }
 
-  /** O editor de regras é a página Rules, que monta a regra a partir da mensagem (`?from=`). */
-  protected createRule(): void {
-    const request = this.request();
-    void this.router.navigate(['/', request.token_id, 'rules', 'new'], {
-      queryParams: { from: request.uuid },
-    });
+  /**
+   * "Create rule from this request" (WM-31): a folha de Regras com as condições sugeridas e a
+   * contagem, que vem sob demanda (pedaço do `rule-actions`); grava ou leva ao editor.
+   */
+  protected async createRule(): Promise<void> {
+    const { openCreateRuleDialog } = await import('../rules/rule-actions');
+    openCreateRuleDialog(this.injector, this.request());
   }
 
   /**
@@ -220,6 +221,14 @@ export class RequestDetail {
   /** Outbound com o Send já preenchido com método, headers e corpo desta mensagem (E7). */
   protected async sendAsNew(): Promise<void> {
     await this.openOutbound('send-from');
+  }
+
+  /** "Test a variation" (WM-28): o Send da mensagem apontado para a própria URL e caminho. */
+  protected async testVariation(): Promise<void> {
+    const request = this.request();
+    await this.router.navigate(['/', request.token_id, 'outbound'], {
+      queryParams: { 'send-from': request.uuid, to: 'self' },
+    });
   }
 
   private async openOutbound(param: 'replay' | 'send-from'): Promise<void> {
