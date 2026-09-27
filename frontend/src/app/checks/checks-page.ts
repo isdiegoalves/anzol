@@ -19,14 +19,19 @@ import { ResponseCard } from './response-card';
 import { SchemaCard } from './schema-card';
 import { SignatureCard } from './signature-card';
 
-/** Seções da página, na ordem do "On this page" (`?section=`). */
-const SECTIONS = [
-  { id: 'signature', label: 'Signature', icon: 'checks' },
-  { id: 'schema', label: 'Schema', icon: 'braces' },
-  { id: 'response', label: 'Response', icon: 'reply' },
-  { id: 'privacy', label: 'Privacy', icon: 'lock' },
-  { id: 'health', label: 'Health', icon: 'activity' },
-] as const;
+/**
+ * Seções da página, na ordem do "On this page" (`?section=`). Função, e não constante do módulo,
+ * para o `$localize` rodar depois de a tradução carregar.
+ */
+export function checksSections() {
+  return [
+    { id: 'signature', label: $localize`Signature`, icon: 'checks' },
+    { id: 'schema', label: $localize`Schema`, icon: 'braces' },
+    { id: 'response', label: $localize`Response`, icon: 'reply' },
+    { id: 'privacy', label: $localize`Privacy`, icon: 'lock' },
+    { id: 'health', label: $localize`Health`, icon: 'activity' },
+  ] as const;
+}
 
 /**
  * Checks (`#/{token}/checks`): o que a URL confere em cada mensagem e como responde, no lugar do
@@ -49,7 +54,7 @@ export class ChecksPage {
   /** Parâmetro da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
 
-  protected readonly sections = SECTIONS;
+  protected readonly sections = checksSections();
   protected readonly section = computed(() => this.query()?.get('section') ?? null);
   protected readonly schemaFrom = computed(() => this.query()?.get('schema-from') ?? null);
   /** URL carregada do servidor para esta rota; `null` enquanto carrega. */

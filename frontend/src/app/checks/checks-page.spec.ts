@@ -1,14 +1,16 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import { checksMatcher } from '../app.routes';
 import { Preferences } from '../settings/preferences';
-import { ChecksPage } from './checks-page';
+import { ChecksPage, checksSections } from './checks-page';
 
 describe('Dado a página Checks', () => {
   let http: HttpTestingController;
@@ -98,5 +100,21 @@ describe('Dado a página Checks', () => {
     await harness.fixture.whenStable();
 
     await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/request/${webhookRequest(9).uuid}`));
+  });
+});
+
+describe('Dado os atalhos "On this page" de Checks', () => {
+  afterEach(() => clearTranslations());
+
+  it('deve traduzir os rótulos Quando a tela está em pt-BR', () => {
+    loadTranslations(translations);
+
+    expect(checksSections().map((section) => section.label)).toEqual([
+      'Assinatura',
+      'Schema',
+      'Resposta',
+      'Privacidade',
+      'Saúde',
+    ]);
   });
 });
