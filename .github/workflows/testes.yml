@@ -1,0 +1,62 @@
+# Testes rápidos a cada push e pull request: backend, CLI e frontend. Contrato, E2E e regressão visual
+# continuam no ./ci.sh local (as baselines visuais são gravadas em arm64 e não batem num runner amd64).
+name: testes
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      # Os testes sobem Redis por Testcontainers; o runner já tem Docker.
+      - run: ./gradlew check
+        working-directory: backend
+
+  cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew check installDist
+        working-directory: cli
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx ng lint
+      - run: npm run -s lint:styles
+      - name: i18n extraído (messages.json igual ao do ng extract-i18n)
+        run: npx ng extract-i18n && git diff --exit-code src/locale/messages.json
+      - run: npx prettier --check .
+      - run: npx ng test --watch=false
+      - run: npx ng build
