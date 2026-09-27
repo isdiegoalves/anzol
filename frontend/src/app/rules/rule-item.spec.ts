@@ -35,6 +35,8 @@ describe('Dado um item da lista de regras com indicadores (RULES-11)', () => {
       'delay',
     ]);
     expect(getComputedStyle(title).flexWrap).toBe('wrap');
+    // O nome inteiro não entra na largura mínima da célula: a lista de 440 px não alarga.
+    expect(getComputedStyle(title).getPropertyValue('contain')).toBe('inline-size');
     expect(container.querySelector('.line1 > .status')).not.toBeNull();
   });
 });

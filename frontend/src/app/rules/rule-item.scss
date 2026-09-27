@@ -11,8 +11,10 @@
 }
 
 // Nome e indicadores (RULES-11): o nome fica numa linha, com reticências; sem espaço, os
-// indicadores descem para baixo dele em vez de espremê-lo.
+// indicadores descem para baixo dele em vez de espremê-lo. `contain: inline-size` tira o nome
+// inteiro da largura mínima da célula da tabela, que senão alargaria a lista de 440 px.
 .title {
+  contain: inline-size;
   display: flex;
   flex: 1 1 0;
   flex-wrap: wrap;
