@@ -14,7 +14,7 @@ import { ChecksStore } from './checks-store';
 export interface HealthItem {
   label: string;
   count: number;
-  /** Query da Inbox já filtrada (`?signature=invalid`, `?signature=absent`, `?schema=invalid`). */
+  /** Query da Inbox já filtrada pelo motivo exato (`?signatureReason=`) ou pelo caminho (`?schemaPath=`, M1). */
   filter: Record<string, string>;
   /** Largura da barra, proporcional ao maior da lista (`"50%"`). */
   share: string;
@@ -27,9 +27,6 @@ function items(
   const max = Math.max(1, ...list.map((item) => item.count));
   return list.map((item) => ({ ...item, share: `${Math.round((item.count / max) * 100)}%` }));
 }
-
-/** O header ausente é "Signature absent" na Inbox; o resto, "Signature invalid". */
-const ABSENT = /^header \S+ absent$/;
 
 /** Uma linha do Health: quantas passaram, quantas não, e os motivos mais comuns. */
 export interface HealthLine {
@@ -79,7 +76,8 @@ export class HealthCard {
             stats.reasons.map(({ reason, count }) => ({
               label: reason,
               count,
-              filter: { signature: ABSENT.test(reason) ? 'absent' : 'invalid' },
+              // M1: a Entrada pelo motivo exato, e não só por inválida/ausente.
+              filter: { signatureReason: reason },
             })),
           ),
         )
@@ -97,7 +95,8 @@ export class HealthCard {
             stats.paths.map(({ path, count }) => ({
               label: path === '' ? $localize`(root)` : path,
               count,
-              filter: { schema: 'invalid' },
+              // M1: pelo caminho do erro (JSON Pointer; '' é a raiz), e não por qualquer inválida.
+              filter: { schemaPath: path },
             })),
           ),
         )

@@ -2750,4 +2750,21 @@ export const translations: Record<string, string> = {
   '2553373886817327991': 'Ver tradução',
   // Show original
   '4635704663136718774': 'Ver original',
+  // Remove this filter
+  '784681343382270982': 'Tirar este filtro',
+  // Signature: {$reason}
+  '5171983317885817952': 'Assinatura: {$reason}',
+  // Schema error at: {$path}
+  '5939149798368501337': 'Erro de schema em: {$path}',
+  // the text search
+  '3155831626610695456': 'a busca por texto',
+  // the answered-by filter
+  '6630855973617381492': 'o filtro por desfecho',
+  // the signature reason
+  '8992241665092471762': 'o motivo da assinatura',
+  // the schema error path
+  '2288461845927882528': 'o caminho do erro de schema',
+  // Copied. wait-for only reads --match, so these filters were left out: {$filters}.
+  '5715478624325180190':
+    'Copiado. O wait-for só lê o --match, então estes filtros ficaram de fora: {$filters}.',
 };

@@ -27,6 +27,29 @@
         {{ chip.label }}
       </button>
     }
+    <!-- M1: o motivo exato e o caminho do schema (o "Show in Inbox" do Health), tirados pelo ✕. -->
+    @if (reasonChip(); as label) {
+      <button
+        type="button"
+        class="chip exact"
+        aria-pressed="true"
+        [attr.title]="removeHint"
+        (click)="clearExact('signatureReason')"
+      >
+        {{ label }} <span aria-hidden="true">✕</span>
+      </button>
+    }
+    @if (pathChip(); as label) {
+      <button
+        type="button"
+        class="chip exact"
+        aria-pressed="true"
+        [attr.title]="removeHint"
+        (click)="clearExact('schemaPath')"
+      >
+        {{ label }} <span aria-hidden="true">✕</span>
+      </button>
+    }
     <!-- C2: pelo desfecho (uma regra escolhida no menu, ou a resposta padrão), um por vez. -->
     @if (answeredBy(); as label) {
       <button type="button" class="chip" aria-pressed="true" (click)="setOutcome(null)">

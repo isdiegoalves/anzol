@@ -17,6 +17,7 @@ import {
   RequestFilter,
   SchemaFilter,
   SignatureFilter,
+  outsideWaitFor,
   sameFilter,
   waitForCommand,
 } from './request-filter';
@@ -63,6 +64,18 @@ export class RequestSearch {
     return outcome?.type === 'rule'
       ? $localize`:filter chip|Active filter, messages the rule answered:Answered by: ${outcome.name}:name:`
       : null;
+  });
+  protected readonly removeHint = $localize`Remove this filter`;
+  /** M1: o motivo exato e o caminho do schema, vindos do Health, como chips que se tiram. */
+  protected readonly reasonChip = computed(() => {
+    const reason = this.store.filter().signatureReason;
+    return reason == null ? null : $localize`Signature: ${reason}:reason:`;
+  });
+  protected readonly pathChip = computed(() => {
+    const path = this.store.filter().schemaPath;
+    return path == null
+      ? null
+      : $localize`Schema error at: ${path === '' ? $localize`(root)` : path}:path:`;
   });
   protected readonly nearMissOf = computed(() => {
     const outcome = this.outcome();
@@ -162,6 +175,11 @@ export class RequestSearch {
     }
   }
 
+  /** Tira o motivo exato ou o caminho do schema (o ✕ do chip). */
+  protected clearExact(field: 'signatureReason' | 'schemaPath'): void {
+    this.apply({ [field]: null });
+  }
+
   /** Um desfecho por vez; `null` tira o filtro. */
   protected setOutcome(outcome: OutcomeFilter | null): void {
     this.apply({ outcome });
@@ -197,11 +215,7 @@ export class RequestSearch {
         protected: token.protected === true,
       }),
     );
-    this.copied.set(
-      filter.text.trim()
-        ? $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`
-        : $localize`Copied the anzol wait-for command.`,
-    );
+    this.copied.set(copiedMessage(outsideWaitFor(filter)));
   }
 
   /** O "Copied…" só sai quando o filtro muda de fato (o debounce da busca reaplica o mesmo). */
@@ -212,4 +226,26 @@ export class RequestSearch {
     }
     void this.store.applyFilter(next);
   }
+}
+
+/**
+ * O aviso do "Copy as anzol wait-for": o comando só leva o `match`, então diz o que ficou de fora
+ * (o texto, o desfecho, o motivo exato e o caminho do schema, M1), para não sugerir um filtro que o
+ * wait-for não entende.
+ */
+function copiedMessage(outside: ReturnType<typeof outsideWaitFor>): string {
+  if (outside.length === 0) {
+    return $localize`Copied the anzol wait-for command.`;
+  }
+  if (outside.length === 1 && outside[0] === 'text') {
+    return $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`;
+  }
+  const names = {
+    text: $localize`the text search`,
+    outcome: $localize`the answered-by filter`,
+    reason: $localize`the signature reason`,
+    path: $localize`the schema error path`,
+  };
+  const left = outside.map((part) => names[part]).join(', ');
+  return $localize`Copied. wait-for only reads --match, so these filters were left out: ${left}:filters:.`;
 }

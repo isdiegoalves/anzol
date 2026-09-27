@@ -100,6 +100,9 @@ export class Inbox {
   readonly outcome = input<string>();
   readonly rule = input<string>();
   readonly ruleName = input<string>();
+  /** M1: o motivo exato de assinatura e o caminho do erro de schema (`?signatureReason=&schemaPath=`). */
+  readonly signatureReason = input<string>();
+  readonly schemaPath = input<string>();
   private readonly routeFilter = computed(() =>
     filterFromParams({
       signature: this.signature(),
@@ -109,6 +112,8 @@ export class Inbox {
       outcome: this.outcome(),
       rule: this.rule(),
       ruleName: this.ruleName(),
+      signatureReason: this.signatureReason(),
+      schemaPath: this.schemaPath(),
     }),
   );
 

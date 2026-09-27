@@ -9,6 +9,7 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { ScreenState } from '../shell/screen-state';
+import { NO_FILTER } from './request-filter';
 import { RequestSearch, SEARCH_DEBOUNCE_MS } from './request-search';
 
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
@@ -217,6 +218,61 @@ describe('Dado a busca e os filtros em chips da lista', () => {
         .some((status) => status.textContent?.includes('The text search is not part of wait-for')),
     ).toBe(true);
     await vi.waitFor(() => searches()[0].flush(requestPage([], { total: 0 })));
+  });
+
+  // M1: o motivo exato e o caminho vêm do Health; a Entrada os mostra como chips que se tiram.
+  it('deve mostrar o motivo exato e o caminho do schema como chips removíveis (M1)', async () => {
+    const applied = store.applyFilter({
+      ...NO_FILTER,
+      signatureReason: 'signature mismatch',
+      schemaPath: '',
+    });
+    searches()[0].flush(requestPage([], { total: 0 }));
+    await applied;
+
+    const motivo = await screen.findByRole('button', { name: /^Signature: signature mismatch/ });
+    expect(motivo.getAttribute('aria-pressed')).toBe('true');
+    expect(
+      screen
+        .getByRole('button', { name: /^Schema error at: \(root\)/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getByRole('status').textContent).toContain('0 requests match');
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(motivo);
+    const [search] = searches();
+    expect(search.request.body).toMatchObject({ schema_path: '' });
+    expect(search.request.body).not.toHaveProperty('signature_reason');
+    search.flush(requestPage([], { total: 0 }));
+    expect(store.filter().signatureReason ?? null).toBeNull();
+  });
+
+  it('deve copiar o wait-for sem o motivo e o caminho, e dizer que ficaram de fora (M1)', async () => {
+    const copy = vi.spyOn(clipboard, 'copy').mockReturnValue(true);
+    const applied = store.applyFilter({
+      ...NO_FILTER,
+      signature: 'invalid',
+      signatureReason: 'signature mismatch',
+      schemaPath: '/valor',
+    });
+    searches()[0].flush(requestPage([], { total: 0 }));
+    await applied;
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
+
+    expect(copy).toHaveBeenCalledWith(
+      `anzol wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"signature":"invalid"}'`,
+    );
+    expect(
+      screen
+        .getAllByRole('status')
+        .some(
+          (status) =>
+            status.textContent?.trim() ===
+            'Copied. wait-for only reads --match, so these filters were left out: the signature reason, the schema error path.',
+        ),
+    ).toBe(true);
   });
 
   it('deve manter o "Copied…" Quando o debounce da busca dispara sem mudar o filtro (E11)', async () => {

@@ -147,6 +147,31 @@ describe('Dado a tela principal', () => {
     expect(store.matched()).toBe(1);
   });
 
+  // M1: o "Show in Inbox" do Health traz o motivo exato ou o caminho do erro de schema.
+  it('deve abrir filtrada pelo motivo exato e pelo caminho do schema da rota (M1)', async () => {
+    await harness.navigateByUrl(
+      `/${TOKEN_ID}?signatureReason=timestamp%20outside%20tolerance&schemaPath=`,
+    );
+    await flush(`/token/${TOKEN_ID}`, token());
+
+    const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
+    expect(search.request.body).toMatchObject({
+      match: {},
+      signature_reason: 'timestamp outside tolerance',
+      schema_path: '',
+    });
+    search.flush(requestPage([R1], { total: 1 }));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+
+    const store = TestBed.inject(RequestStore);
+    await vi.waitFor(() =>
+      expect(store.filter()).toMatchObject({
+        signatureReason: 'timestamp outside tolerance',
+        schemaPath: '',
+      }),
+    );
+  });
+
   it('deve abrir a mensagem do link Quando o link traz token, mensagem e página', async () => {
     await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
 

@@ -94,6 +94,18 @@ describe('Dado o cartão "Health" de Checks', () => {
     );
   });
 
+  it('M1: deve levar o erro na raiz do corpo à Inbox com o caminho vazio', async () => {
+    const { http } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(
+      stats({
+        schema: { valid: 0, invalid: 2, unchecked: 0, paths: [{ path: '', count: 2 }] },
+      }),
+    );
+
+    const raiz = await screen.findByRole('link', { name: /\(root\)/ });
+    expect(raiz.getAttribute('href')).toBe(`/${TOKEN_ID}?schemaPath=`);
+  });
+
   it('CHECKS-17: deve levar cada motivo e caminho à Inbox filtrada, com a barra proporcional ao maior', async () => {
     const { http, container } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(
@@ -102,14 +114,15 @@ describe('Dado o cartão "Health" de Checks', () => {
       }),
     );
 
+    // M1: pelo motivo exato e pelo caminho do erro, e não mais só por inválida.
     const mismatch = await screen.findByRole('link', { name: /signature mismatch/ });
-    expect(mismatch.getAttribute('href')).toBe(`/${TOKEN_ID}?signature=invalid`);
+    expect(mismatch.getAttribute('href')).toBe(`/${TOKEN_ID}?signatureReason=signature%20mismatch`);
     expect(mismatch.textContent).toContain('Show in Inbox');
     expect(
       screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
-    ).toBe(`/${TOKEN_ID}?signature=absent`);
+    ).toBe(`/${TOKEN_ID}?signatureReason=header%20stripe-signature%20absent`);
     expect(screen.getByRole('link', { name: /\/id/ }).getAttribute('href')).toBe(
-      `/${TOKEN_ID}?schema=invalid`,
+      `/${TOKEN_ID}?schemaPath=%2Fid`,
     );
     const bars = [...container.querySelectorAll('.reasons .share')] as HTMLElement[];
     expect(bars.map((bar) => bar.style.width)).toEqual(['100%', '50%', '100%']);
