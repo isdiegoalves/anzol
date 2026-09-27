@@ -226,3 +226,49 @@ test.describe('Dado o campo Timeout apagado no cartão Response', () => {
     expect(await tokens.read(tokenId)).toMatchObject({ timeout: 0 });
   });
 });
+
+// Reauditoria CA-12 sobre 35ba5f2: os parâmetros de rota `?schema-from=` (E5) e `?replay=` (E7) são o id de uma
+// mensagem desta URL; um valor com `../` não pode levar a tela a ler fora de `/token/{id}/` (por exemplo o link
+// só-leitura de outra URL, `/share/{sid}`) nem preencher a página com dados de outra URL.
+test.describe('Dado ?schema-from= e ?replay= com um caminho relativo (../) no lugar do id', () => {
+  test('não deve ler fora de /token/{id}/ nem mostrar dados de outra URL', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const minha = await tokens.create();
+    const outra = await tokens.create();
+    const daOutra = await tokens.send(outra, {
+      headers: { 'Content-Type': 'application/json' },
+      data: '{"campo_da_outra":"valor-da-outra-url"}',
+    });
+    const link = await request.post(`/token/${outra}/request/${daOutra}/share`, {
+      data: { expires_in: '1h', redact: false },
+    });
+    expect([200, 201]).toContain(link.status());
+    const { id: sid } = (await link.json()) as { id: string };
+    const foraDaUrl: string[] = [];
+    page.on('request', (sent) => {
+      const caminho = new URL(sent.url()).pathname;
+      const leitura = ['fetch', 'xhr', 'eventsource'].includes(sent.resourceType());
+      if (leitura && !caminho.startsWith(`/token/${minha}`)) {
+        foraDaUrl.push(`${sent.method()} ${caminho}`);
+      }
+    });
+    const travessia = encodeURIComponent(`../../../share/${sid}`);
+    await seedStorage(page, {});
+
+    await page.goto(`/#/${minha}/checks?schema-from=${travessia}`);
+    const schema = secao(page, 'Schema validation');
+    await expect(schema).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect
+      .soft(schema.getByRole('textbox', { name: 'JSON Schema' }))
+      .not.toHaveValue(/campo_da_outra/);
+
+    await page.goto(`/#/${minha}/outbound?replay=${travessia}`);
+    await page.waitForLoadState('networkidle');
+    await expect.soft(page.locator('body')).not.toContainText('valor-da-outra-url');
+    expect(foraDaUrl, 'a tela só lê em /token/{id}/ desta URL').toEqual([]);
+  });
+});

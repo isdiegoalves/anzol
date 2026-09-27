@@ -156,3 +156,124 @@ test.describe('Dado uma regra apagada e outra aba que acrescenta B antes do Undo
     }
   });
 });
+
+// Reauditoria CA-12 sobre 35ba5f2: o que acontece depois do "Reload" do aviso de conflito.
+// SUPOSIÇÃO (segue a implementação da E6): a regra aberta no editor que sumiu do servidor (a lista foi reimportada
+// com ids novos) é avisada pelo `alert` "This rule no longer exists"; salvar então a insere como nova, uma vez só.
+
+/** Clica em Save e espera o desfecho: o editor fechar (gravou) ou um `alert` aparecer. */
+async function salvarEditor(page: Page, regiao: Locator): Promise<void> {
+  await regiao.getByRole('button', { name: 'Save', exact: true }).click();
+  await Promise.race([
+    regiao.waitFor({ state: 'hidden' }),
+    page
+      .getByRole('alert')
+      .filter({ hasText: /changed elsewhere|no longer exists/ })
+      .waitFor(),
+  ]);
+}
+
+test.describe('Dado o aviso "changed elsewhere" no editor, o Reload e um novo Save', () => {
+  test('não deve duplicar a regra editada Quando outra aba reimportou a lista com ids novos', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const [a, b] = await putRules(request, tokenId, [regra('A'), regra('B')]);
+    const edicao = await abrir(page, tokenId, `/${String(b['id'])}`, 'Edit rule B');
+    await edicao.getByRole('textbox', { name: 'Name', exact: true }).fill('B2');
+    // Import em outra aba: as mesmas regras sem id; o servidor dá ids novos.
+    const semId = (r: Regra): Regra =>
+      Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'id'));
+    await putRules(request, tokenId, [semId(a), semId(b)]);
+    await salvarEditor(page, edicao);
+    await expect(conflito(page)).toBeVisible();
+    await conflito(page).getByRole('button', { name: 'Reload' }).click();
+    await expect(conflito(page)).toHaveCount(0);
+    await page.waitForLoadState('networkidle');
+    // O aviso de que a regra aberta sumiu da lista, se houver, já está na tela antes do segundo Save.
+    const avisou = await page
+      .getByRole('alert')
+      .filter({ hasText: 'no longer exists' })
+      .isVisible();
+
+    const gravou = await gravarEsperando(page, tokenId, () =>
+      edicao.getByRole('button', { name: 'Save', exact: true }).click(),
+    );
+
+    expect(gravou?.status(), 'o segundo Save grava').toBe(200);
+    await expect(edicao).toBeHidden();
+    const depois = await nomes(request, tokenId);
+    expect(
+      depois.filter((nome) => nome === 'B2'),
+      'B2 uma vez só',
+    ).toHaveLength(1);
+    // Com o aviso, B2 entra como nova e B (reimportada) fica intacta; sem ele, B vira B2.
+    expect(depois).toEqual(avisou ? ['A', 'B', 'B2'] : ['A', 'B2']);
+  });
+
+  test('deve manter a prioridade 1 que outra aba deu à regra em edição', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const [a, b] = await putRules(request, tokenId, [regra('A'), regra('B')]);
+    const edicao = await abrir(page, tokenId, `/${String(b['id'])}`, 'Edit rule B');
+    await edicao.getByRole('textbox', { name: 'Name', exact: true }).fill('B2');
+    await putRules(request, tokenId, [{ ...b, priority: 1 }, a]);
+    await salvarEditor(page, edicao);
+    await expect(conflito(page)).toBeVisible();
+    await conflito(page).getByRole('button', { name: 'Reload' }).click();
+
+    await salvarEditor(page, edicao);
+
+    const depois = ((await (await request.get(`/token/${tokenId}/rules`)).json()) as Regra[]).map(
+      (r) => [r['name'], r['priority']],
+    );
+    expect(depois).toEqual([
+      ['B2', 1],
+      ['A', 5],
+    ]);
+  });
+});
+
+test.describe('Dado uma regra apagada, outra aba que acrescenta B, o aviso e o Reload antes do Undo', () => {
+  test('deve devolver a regra apagada e manter B Quando "Undo" é clicado depois do Reload', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await putRules(request, tokenId, [regra('A'), regra('X')]);
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}/rules`);
+    const tabela = page.getByRole('table', { name: 'Rules' });
+    const linhaX = tabela.locator('tbody tr[data-rule-id]', { hasText: 'X' });
+    await expect(linhaX).toBeVisible();
+    await page.waitForLoadState('networkidle');
+
+    const apagou = await gravarEsperando(page, tokenId, () =>
+      linhaX.getByRole('button', { name: 'Delete', exact: true }).click(),
+    );
+    expect(apagou?.status()).toBe(200);
+    const undo = page.getByRole('button', { name: 'Undo', exact: true });
+    await expect(undo).toBeVisible();
+    await putRules(request, tokenId, [
+      ...((await (await request.get(`/token/${tokenId}/rules`)).json()) as Regra[]),
+      regra('B'),
+    ]);
+    await page.getByRole('switch', { name: 'Enable rule A' }).click();
+    await expect(conflito(page)).toBeVisible();
+    await conflito(page).getByRole('button', { name: 'Reload' }).click();
+    await expect(tabela.locator('td.name', { hasText: 'B' })).toBeVisible();
+
+    const desfez = await gravarEsperando(page, tokenId, () => undo.click());
+
+    expect(desfez?.status(), 'o Undo grava').toBe(200);
+    const depois = await nomes(request, tokenId);
+    expect(depois, 'B continua e X volta').toEqual(expect.arrayContaining(['A', 'B', 'X']));
+    expect(depois).toHaveLength(3);
+  });
+});
