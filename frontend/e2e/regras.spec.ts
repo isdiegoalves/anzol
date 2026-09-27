@@ -2,9 +2,12 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './support/fixtures';
 import { falhas, porque, verificacoes } from './support/inbox';
+import { novaRegra, parte } from './support/regras';
 
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
+// Item 14, E6: o editor sai do diálogo e vira a `region "New rule"` ao lado da lista, com as abas Match, Response,
+// Scenario e Test (SUPOSIÇÕES em `support/regras.ts`); salvar volta à lista.
 
 const PIX = {
   name: 'Pix pago',
@@ -58,9 +61,9 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await openRules(page, tokenId);
     await expect(page.getByText('No rules yet')).toBeVisible();
 
-    await page.getByRole('button', { name: 'New rule' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Pix pago');
+    await parte(dialog, 'Match');
     await choose(page, dialog.getByRole('combobox', { name: 'Methods' }), 'POST');
     await page.keyboard.press('Escape');
     await choose(page, dialog.getByRole('combobox', { name: 'Path match' }), 'Equals');
@@ -72,14 +75,20 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await choose(page, dialog.getByRole('combobox', { name: 'Body 1 type' }), 'JSONPath');
     await dialog.getByRole('textbox', { name: 'Body 1 path' }).fill('$.status');
     await dialog.getByRole('textbox', { name: 'Body 1 equals' }).fill('"pago"');
+    await parte(dialog, 'Response');
     await dialog.getByRole('spinbutton', { name: 'Status' }).fill('201');
     await dialog.getByRole('button', { name: 'Add response header' }).click();
     await dialog.getByRole('textbox', { name: 'Response header 1 name' }).fill('Content-Type');
     await dialog.getByRole('textbox', { name: 'Response header 1 value' }).fill('application/json');
     await dialog.getByRole('textbox', { name: 'Response body' }).fill('{"ok":true}');
+    // A regra em palavras (C §2.5) acompanha o que foi preenchido.
+    await expect(
+      dialog.getByText(/^In plain words: When a POST to \/pagamentos\b.*answer 201\.$/),
+    ).toBeVisible();
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
     await expect(page.getByText('Rule saved')).toBeVisible();
     expect(await ruleRows(page)).toEqual([['Pix pago', '5', 'POST /pagamentos', '201']]);
     expect(await getRules(request, tokenId)).toEqual([
@@ -114,9 +123,9 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     const tokenId = await tokens.create();
     await openRules(page, tokenId);
 
-    await page.getByRole('button', { name: 'New rule' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Regex quebrada');
+    await parte(dialog, 'Match');
     await choose(page, dialog.getByRole('combobox', { name: 'Path match' }), 'Matches regex');
     await dialog.getByRole('textbox', { name: 'Path', exact: true }).fill('([a-z');
     await dialog.getByRole('button', { name: 'Save' }).click();
@@ -134,8 +143,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     const tokenId = await tokens.create();
     await openRules(page, tokenId);
 
-    await page.getByRole('button', { name: 'New rule' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = await novaRegra(page);
     await dialog.getByRole('radio', { name: 'JSON' }).click();
     const json = dialog.getByRole('textbox', { name: 'Rule JSON' });
     await json.fill('{"name": ""}');

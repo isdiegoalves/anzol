@@ -1,9 +1,13 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { novaRegra, parte } from './support/regras';
 
 // Regras de resposta, fase B (CA-5, CA-6, CA-7 e CA-10 no que é da tela): template, atraso e
 // falha pelo editor, cenário "falha 3×, depois 200" criado pela tela e o painel de cenários.
 // Precisa do backend com os campos da fase B e `GET|PUT|DELETE /token/{id}/scenarios`.
+// Item 14, E6: o editor vira a `region "New rule"` com as abas (resposta, atraso e falha em "Response"; cenário em
+// "Scenario"); o painel de cenários ganha o diagrama de cada cenário. SUPOSIÇÕES em `support/regras.ts` e mais: o
+// diagrama é um `img` com o nome "{cenário}: Started, then {estado}, then …" (o atual marcado "(current)").
 
 async function choose(page: Page, select: Locator, option: string) {
   await select.click();
@@ -19,11 +23,11 @@ async function getRules(api: APIRequestContext, tokenId: string) {
   return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Record<string, unknown>[];
 }
 
-/** Abre o editor de regra nova e preenche o nome; devolve o diálogo. */
+/** Abre o editor de regra nova, preenche o nome e vai à aba Response; devolve o editor. */
 async function newRule(page: Page, name: string): Promise<Locator> {
-  await page.getByRole('button', { name: 'New rule' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New rule' });
+  const dialog = await novaRegra(page);
   await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+  await parte(dialog, 'Response');
   return dialog;
 }
 
@@ -48,6 +52,7 @@ async function scenarioStep(
     await dialog.getByRole('textbox', { name: 'Response header 1 name' }).fill('Retry-After');
     await dialog.getByRole('textbox', { name: 'Response header 1 value' }).fill(step.retryAfter);
   }
+  await parte(dialog, 'Scenario');
   await dialog.getByRole('combobox', { name: 'Scenario name' }).fill('Retry');
   await dialog.getByRole('combobox', { name: 'Required state' }).fill(step.required);
   if (step.next) {
@@ -197,6 +202,11 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
     await expect(
       page.locator('tr', { hasText: 'Falha 2' }).locator('.flag', { hasText: 'scenario' }),
     ).toHaveAttribute('title', 'Scenario Retry: falhou-1 → falhou-2');
+    await expect(
+      page.getByRole('img', {
+        name: /^Retry: Started( \(current\))?, then falhou-1, then falhou-2, then falhou-3\b/,
+      }),
+    ).toBeVisible();
 
     const statuses: number[] = [];
     for (let i = 0; i < 5; i++) {

@@ -19,6 +19,7 @@ import {
   porque,
   verificacoes,
 } from './support/inbox';
+import { abrirRegras, novaRegra, parte, salvarRegra } from './support/regras';
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pela tela, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
@@ -336,20 +337,19 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
     tokens,
   }) => {
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
-    await page.goto(`/#/${tokenId}/rules`);
-    await expect(page.getByRole('table', { name: 'Rules' })).toBeVisible();
+    // Item 14, E6: o editor é a `region "New rule"` com as abas Match e Response (`support/regras.ts`).
+    await abrirRegras(page, tokenId);
 
-    await page.getByRole('button', { name: 'New rule' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Recusa assinatura');
+    await parte(dialog, 'Match');
     await choose(page, dialog.getByRole('combobox', { name: 'Signature' }), 'Invalid');
-    await dialog.getByRole('spinbutton', { name: 'Status' }).fill('401');
-    await dialog.getByRole('textbox', { name: 'Response body' }).fill('{"error":"bad signature"}');
     await dialog.getByRole('button', { name: 'Add body condition' }).scrollIntoViewIfNeeded();
     await screenshot(page, '05-editor-condicao-signature');
-    await dialog.getByRole('button', { name: 'Save' }).click();
-    await expect(dialog).toBeHidden();
-    await expect(page.getByText('Rule saved')).toBeVisible();
+    await parte(dialog, 'Response');
+    await dialog.getByRole('spinbutton', { name: 'Status' }).fill('401');
+    await dialog.getByRole('textbox', { name: 'Response body' }).fill('{"error":"bad signature"}');
+    await salvarRegra(page, dialog, tokenId);
 
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({

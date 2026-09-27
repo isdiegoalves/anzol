@@ -2,6 +2,7 @@ import { Server, createServer } from 'node:http';
 import { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
+import { abrirRegras, novaRegra, parte } from './support/regras';
 
 // IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
 // mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
@@ -119,11 +120,14 @@ async function rulesOf(api: APIRequestContext, tokenId: string) {
   return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Record<string, unknown>[];
 }
 
+/**
+ * Item 14, E6: o editor vira a `region "New rule"` (SUPOSIÇÕES em `support/regras.ts`); o Suggest fica no topo dele,
+ * com os mesmos nomes, e a regra sugerida volta à aba Match. SUPOSIÇÃO: caminho sugerido com o UUID da URL gera o
+ * `alert` "The path includes this URL's token…" com `button "Remove the token from the path"`.
+ */
 async function newRuleDialog(page: Page, tokenId: string) {
-  await page.goto(`/#/${tokenId}/rules`);
-  await expect(page.getByRole('table', { name: 'Rules' })).toBeVisible();
-  await page.getByRole('button', { name: 'New rule' }).click();
-  return page.getByRole('dialog', { name: 'New rule' });
+  await abrirRegras(page, tokenId);
+  return novaRegra(page);
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
@@ -154,6 +158,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await expect(dialog.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue(
       '/pagamentos',
     );
+    await parte(dialog, 'Response');
     await expect(dialog.getByRole('spinbutton', { name: 'Status' })).toHaveValue('429');
     await expect(dialog.getByRole('textbox', { name: 'Response header 1 name' })).toHaveValue(
       'Retry-After',
@@ -188,7 +193,8 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     });
     await openRequest(page, tokenId, requestId);
     await page.getByRole('button', { name: 'Create rule from this request' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = page.getByRole('region', { name: 'New rule', exact: true });
+    await expect(dialog).toBeVisible();
     llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });
 
     await dialog.getByRole('checkbox', { name: /Use the open request as example/ }).check();
@@ -224,6 +230,33 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('');
     expect(llm.received).toHaveLength(3);
     expect(await rulesOf(request, tokenId)).toEqual([]);
+  });
+
+  test('deve avisar e tirar o token do caminho Quando a regra sugerida traz o UUID da URL no path', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+    llm.program({
+      content: suggestion(
+        { ...RULE_429, match: { path: { equals: `/${tokenId}/pagamentos` } } },
+        'Uses the full URL.',
+      ),
+    });
+
+    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('429 em pagamentos');
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+
+    const aviso = dialog
+      .getByRole('alert')
+      .filter({ hasText: "The path includes this URL's token" });
+    await expect(aviso).toBeVisible();
+    await aviso.getByRole('button', { name: 'Remove the token from the path' }).click();
+    await expect(dialog.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue(
+      '/pagamentos',
+    );
+    await expect(aviso).toHaveCount(0);
   });
 
   test('deve dizer que o modelo não respondeu Quando o LLM falha (502)', async ({

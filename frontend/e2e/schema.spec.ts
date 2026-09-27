@@ -9,6 +9,7 @@ import {
   porque,
   verificacoes,
 } from './support/inbox';
+import { abrirRegras, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Validação de schema por URL (CA-5, o que é da tela): configurar pela tela, selo na
@@ -223,18 +224,20 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     tokens,
   }) => {
     const tokenId = await tokens.create({ schema: PEDIDO });
-    await page.goto(`/#/${tokenId}/rules`);
-    await expect(page.getByRole('table', { name: 'Rules' })).toBeVisible();
+    // Item 14, E6: o editor é a `region "New rule"` com as abas (`support/regras.ts`). SUPOSIÇÃO: a dica da
+    // condição Schema aponta para Checks ("Set up schema validation in Checks"): o "Edit URL" saiu na E5.
+    await abrirRegras(page, tokenId);
 
-    await page.getByRole('button', { name: 'New rule' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Recusa fora do schema');
+    await parte(dialog, 'Match');
     await expect(dialog.getByRole('combobox', { name: 'Schema' })).toHaveText('Any');
     await choose(page, dialog.getByRole('combobox', { name: 'Schema' }), 'Invalid');
+    await dialog.getByText('Set up schema validation in Checks').scrollIntoViewIfNeeded();
+    await screenshot(page, '06-editor-condicao-schema');
+    await parte(dialog, 'Response');
     await dialog.getByRole('spinbutton', { name: 'Status' }).fill('400');
     await dialog.getByRole('textbox', { name: 'Response body' }).fill('{"error":"bad payload"}');
-    await dialog.getByText('Set up schema validation in Edit URL').scrollIntoViewIfNeeded();
-    await screenshot(page, '06-editor-condicao-schema');
 
     await dialog.getByRole('radio', { name: 'JSON' }).click();
     const regra = JSON.parse(
@@ -243,9 +246,7 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     expect(regra.match['schema']).toBe('invalid');
     await dialog.getByRole('radio', { name: 'Form' }).click();
 
-    await dialog.getByRole('button', { name: 'Save' }).click();
-    await expect(dialog).toBeHidden();
-    await expect(page.getByText('Rule saved')).toBeVisible();
+    await salvarRegra(page, dialog, tokenId);
 
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({

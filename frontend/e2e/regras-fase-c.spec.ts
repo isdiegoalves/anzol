@@ -1,10 +1,14 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { detalhes } from './support/inbox';
+import { parte } from './support/regras';
 
 // Regras de resposta, fase C (CA-10 no que é da tela, Anexo C): "Create rule from this request"
 // no detalhe da mensagem e "Test against history" no editor. Precisa do backend com
 // `POST /token/{id}/rules/test`.
+// Item 14, E6: "Create rule from this request" leva a `#/{token}/rules/new?from={id}`, com o editor (`region "New
+// rule"`) preenchido; "Test against history" fica no rodapé e abre a aba Test; salvar volta à lista (o aviso "View
+// rules" deixa de existir). SUPOSIÇÕES em `support/regras.ts`.
 
 const SCREENS = process.env['SCREENS_DIR'];
 
@@ -31,7 +35,8 @@ async function createRuleFrom(
     await screenshot(page, shot);
   }
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  const dialog = page.getByRole('dialog', { name: 'New rule' });
+  await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules/new\\?from=${requestId}$`));
+  const dialog = page.getByRole('region', { name: 'New rule', exact: true });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -39,10 +44,11 @@ async function createRuleFrom(
 const textbox = (dialog: Locator, name: string) =>
   dialog.getByRole('textbox', { name, exact: true });
 
-/** Salva e espera o aviso; o editor fecha e a mensagem continua aberta. */
+/** Salva e espera o aviso; o editor fecha e a página volta à lista de regras. */
 async function saveRule(page: Page, dialog: Locator) {
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/\/rules$/);
   await expect(page.getByText('Rule saved')).toBeVisible();
 }
 
@@ -74,6 +80,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveText('Equal to JSON');
     await expect(textbox(dialog, 'Body 1 value')).toHaveValue('{"id":42,"itens":[1,2]}');
     await expect(textbox(dialog, 'Header 1 name')).toHaveCount(0);
+    await parte(dialog, 'Response');
     await expect(dialog.getByRole('spinbutton', { name: 'Status' })).toHaveValue('200');
     await expect(textbox(dialog, 'Response body')).toHaveValue('');
     await screenshot(page, '02-editor-preenchido-json');
@@ -131,6 +138,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     await expect(textbox(dialog, 'Body 1 value')).toHaveValue('nome=Ana&idade=30');
     await expect(textbox(dialog, 'Query 1 name')).toHaveCount(0);
     await screenshot(page, '03-editor-preenchido-formulario');
+    await parte(dialog, 'Response');
     await textbox(dialog, 'Response body').fill('form-ok');
     await saveRule(page, dialog);
 
@@ -146,7 +154,8 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     expect(lista.data[0].rule?.name).toBe('POST /form');
   });
 
-  test('deve levar à aba de regras com a regra nova Quando "View rules" é clicado no aviso', async ({
+  // Item 14, E6 — cenário trocado: o editor já está na página de regras; salvar volta à lista (sem "View rules").
+  test('deve voltar à lista de regras com a regra nova Quando o editor aberto pela mensagem salva', async ({
     page,
     tokens,
   }) => {
@@ -155,7 +164,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
 
     const dialog = await createRuleFrom(page, tokenId, requestId);
     await dialog.getByRole('button', { name: 'Save' }).click();
-    await page.getByRole('button', { name: 'View rules' }).click();
+    await expect(page.getByRole('button', { name: 'View rules' })).toHaveCount(0);
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
     await expect(
@@ -180,6 +189,10 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     const dialog = await createRuleFrom(page, tokenId, casa, '01-detalhe-com-botao');
     await dialog.getByRole('button', { name: 'Test against history' }).click();
 
+    await expect(dialog.getByRole('tab', { name: 'Test', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     const result = dialog.getByRole('status', { name: 'History test' });
     await expect(result.locator('.summary')).toHaveText('1 of 2 recorded requests would match.');
     await expect(result.getByRole('heading', { name: 'Would not match (1)' })).toBeVisible();
@@ -217,6 +230,7 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     await expect(result.locator('.misses')).toHaveCount(0);
     expect(await getRules(request, tokenId)).toEqual([]);
 
+    await parte(dialog, 'Match');
     await textbox(dialog, 'Path').fill('/zzz');
     await expect(result).toHaveCount(0);
   });
