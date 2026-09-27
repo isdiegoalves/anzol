@@ -1468,8 +1468,6 @@ export const translations: Record<string, string> = {
   '2207764482815871800': 'Descer',
   // Move down (checked later)
   '7059595352322663003': 'Descer (conferida depois)',
-  // Edit
-  '7585826646011739428': 'Editar',
   //  No rules yet. Every request gets the URL's default response.
   '4356305880738650678': ' Nenhuma regra ainda. Toda requisição recebe a resposta padrão da URL. ',
   // When no rule matches
@@ -2070,8 +2068,6 @@ export const translations: Record<string, string> = {
   '1891269785782569214': 'Regra não salva, como está no editor · estado do cenário não considerado',
   // Would match ({$INTERPOLATION})
   '8648422323386277627': 'Casariam ({$INTERPOLATION})',
-  // seq {$INTERPOLATION}
-  '5546473895597574498': 'seq {$INTERPOLATION}',
   //  Closest first
   '6966871819784814657': ' Mais próximas primeiro ',
   // fault
@@ -2106,10 +2102,6 @@ export const translations: Record<string, string> = {
   '9054680744614346306': 'Enviar o corpo em pedaços ao longo do tempo',
   // Uniform
   '8809095087586023378': 'Uniforme',
-  // Window
-  '6718069813936046169': 'Janela',
-  // Last {$INTERPOLATION}
-  '394634218099291067': 'Últimas {$INTERPOLATION}',
   // the newest {$evaluated} of {$total} kept
   '4303907595329868490': 'as {$evaluated} mais novas de {$total} guardadas',
   // of the {$total} kept
@@ -2122,4 +2114,6 @@ export const translations: Record<string, string> = {
   // Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.
   '9138032896822434594':
     'Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL.',
+  // Request
+  '6170082236603228916': 'Requisição',
 };
