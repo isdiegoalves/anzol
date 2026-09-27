@@ -1188,8 +1188,6 @@ export const translations: Record<string, string> = {
   '8152379597441096069': 'Estado novo',
   // Empty: keeps the state
   '4039102480098358947': 'Vazio: mantém o estado',
-  // Scenario {$INTERPOLATION} with this rule
-  '7720850937080278289': 'Cenário {$INTERPOLATION} com esta regra',
   // Rule JSON
   '9084383820735529436': 'JSON da regra',
   // Check which of the recorded requests this rule would match, without saving it
@@ -2103,4 +2101,20 @@ export const translations: Record<string, string> = {
   '5546473895597574498': 'seq {$INTERPOLATION}',
   //  Closest first
   '6966871819784814657': ' Mais próximas primeiro ',
+  // fault
+  '380949171996294505': 'falha',
+  // then {$INTERPOLATION} while in {$INTERPOLATION_1}
+  '3177195542514149033': 'depois {$INTERPOLATION} enquanto em {$INTERPOLATION_1}',
+  // Scenarios on this URL
+  '1428341111551699472': 'Cenários desta URL',
+  //  Reset all to Started
+  '3626015837035842959': ' Voltar tudo a Started ',
+  //  Set
+  '2671827835175438409': ' Definir ',
+  // No rule uses a scenario yet.
+  '6705416959153781388': 'Nenhuma regra usa cenário ainda.',
+  // Set state of {$scenario}
+  '8617520222597264220': 'Definir o estado de {$scenario}',
+  // Could not update the scenarios.
+  '8669551583001532577': 'Não foi possível atualizar os cenários.',
 };

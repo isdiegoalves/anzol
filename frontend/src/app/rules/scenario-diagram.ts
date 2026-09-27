@@ -29,6 +29,11 @@ export function scenarioSteps(rules: readonly Rule[], name: string): ScenarioSte
     });
 }
 
+/** O que a regra responde, curto: o status, ou "fault" com falha de rede. */
+function answerOf(step: ScenarioStep): string {
+  return step.status === null ? $localize`fault` : String(step.status);
+}
+
 /** "entrega: Started, then falhou 1 (current), then entregue". */
 export function scenarioSummary(
   name: string,
@@ -50,34 +55,45 @@ export function scenarioSummary(
   template: `
     <figure class="diagram" role="img" [attr.aria-label]="summary()">
       <ol class="states">
-        @for (state of states(); track state; let first = $first) {
+        @for (state of states(); track state; let i = $index) {
           <li>
-            @if (!first) {
-              <span class="arrow">→</span>
+            @if (i > 0) {
+              <span class="arrow">
+                @if (edges()[i - 1]; as edge) {
+                  <span class="edge">{{ edge }}</span>
+                }
+                →</span
+              >
             }
             <span class="pill" [class.current]="state === current()">{{ state }}</span>
           </li>
         }
       </ol>
-    </figure>
-    <ul class="steps">
-      @for (step of steps(); track $index) {
-        <li>
-          <span class="state">{{ step.from }}</span
-          >&ngsp; <span class="arrow" aria-hidden="true">→</span>&ngsp;
-          <span class="rule">{{ step.rule }}</span
-          >&ngsp; <app-status-code [status]="step.status" error="Network fault" i18n-error />&ngsp;
-          <span class="arrow" aria-hidden="true">→</span>&ngsp;
-          @if (step.stays) {
-            <span class="stays" i18n>stays in {{ step.to }}</span>
-          } @else {
-            <span class="state">{{ step.to }}</span>
-          }
-        </li>
-      } @empty {
-        <li class="hint" i18n>No enabled rule uses this scenario yet.</li>
+      @for (step of staying(); track $index) {
+        <p class="stays" i18n>then {{ step.answer }} while in {{ step.to }}</p>
       }
-    </ul>
+    </figure>
+    @if (showSteps()) {
+      <ul class="steps">
+        @for (step of steps(); track $index) {
+          <li>
+            <span class="state">{{ step.from }}</span
+            >&ngsp; <span class="arrow" aria-hidden="true">→</span>&ngsp;
+            <span class="rule">{{ step.rule }}</span
+            >&ngsp;
+            <app-status-code [status]="step.status" error="Network fault" i18n-error />&ngsp;
+            <span class="arrow" aria-hidden="true">→</span>&ngsp;
+            @if (step.stays) {
+              <span class="stays" i18n>stays in {{ step.to }}</span>
+            } @else {
+              <span class="state">{{ step.to }}</span>
+            }
+          </li>
+        } @empty {
+          <li class="hint" i18n>No enabled rule uses this scenario yet.</li>
+        }
+      </ul>
+    }
   `,
   styleUrl: './scenario-diagram.scss',
 })
@@ -86,6 +102,8 @@ export class ScenarioDiagram {
   readonly rules = input.required<readonly Rule[]>();
   /** Estado atual no servidor (`GET /scenarios`); `null` quando não se sabe. */
   readonly current = input<string | null>(null);
+  /** A lista de transições por extenso, embaixo do diagrama (o painel da lista a mostra). */
+  readonly showSteps = input(true);
 
   protected readonly states = computed(() => {
     const cited = scenarioStates(this.rules(), this.name());
@@ -93,6 +111,23 @@ export class ScenarioDiagram {
     return current && !cited.includes(current) ? [...cited, current] : cited;
   });
   protected readonly steps = computed(() => scenarioSteps(this.rules(), this.name()));
+  /** O status entre cada par de estados seguidos: o da regra que leva de um ao outro (RULES-24). */
+  protected readonly edges = computed(() => {
+    const states = this.states();
+    const steps = this.steps();
+    return states.slice(1).map((state, i) => {
+      const step = steps.find(
+        ({ from, to, stays }) => !stays && from === states[i] && to === state,
+      );
+      return step ? answerOf(step) : null;
+    });
+  });
+  /** As regras que respondem sem mudar o estado: "then 200 while in entregue". */
+  protected readonly staying = computed(() =>
+    this.steps()
+      .filter(({ stays }) => stays)
+      .map((step) => ({ to: step.to, answer: answerOf(step) })),
+  );
   protected readonly summary = computed(() =>
     scenarioSummary(this.name(), this.states(), this.current()),
   );

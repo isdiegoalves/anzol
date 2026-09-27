@@ -69,4 +69,19 @@ describe('Dado o diagrama de um cenário', () => {
     ]);
     await expectNoAxeViolations(container);
   });
+
+  it('deve pôr o status de cada transição entre os pills e dizer o que responde sem mudar de estado (RULES-24)', async () => {
+    const { container } = await render(ScenarioDiagram, {
+      inputs: { name: 'entrega', rules: ENTREGA, current: 'falhou 1', showSteps: false },
+    });
+
+    const figura = screen.getByRole('img');
+    expect([...figura.querySelectorAll('.edge')].map((edge) => edge.textContent?.trim())).toEqual([
+      '503',
+      '503',
+    ]);
+    expect(figura.querySelector('.stays')?.textContent?.trim()).toBe('then 200 while in entregue');
+    expect(container.querySelector('.steps')).toBeNull();
+    await expectNoAxeViolations(container);
+  });
 });

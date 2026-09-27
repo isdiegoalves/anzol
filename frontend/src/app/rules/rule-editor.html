@@ -674,9 +674,8 @@
               <mat-error>{{ errorOf(form.controls.newState, messages.upTo100) }}</mat-error>
             </mat-form-field>
           </div>
-          @if (scenarioRules(); as preview) {
-            <h3 i18n>Scenario {{ preview.name }} with this rule</h3>
-            <app-scenario-diagram [name]="preview.name" [rules]="preview.rules" />
+          @if (tab() === 'scenario') {
+            <app-scenario-states [tokenId]="tokenId() ?? ''" [rules]="draftRules()" />
           }
         </div>
 

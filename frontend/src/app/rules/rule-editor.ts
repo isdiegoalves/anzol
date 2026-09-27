@@ -76,7 +76,7 @@ import { EditorTab, RuleTabs } from './rule-tabs';
 import { AgainstHistory } from './against-history';
 import { ConditionResult, ConditionResultChip } from './condition-result';
 import { ruleInWords } from './rule-words';
-import { ScenarioDiagram } from './scenario-diagram';
+import { ScenarioStates } from './scenario-states';
 
 export interface RuleEditorData {
   /** Posição da regra na lista salva; `null` para uma regra nova (entra no fim). */
@@ -179,7 +179,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     HistoryTestPanel,
     RuleSuggest,
     NgTemplateOutlet,
-    ScenarioDiagram,
+    ScenarioStates,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',
@@ -308,16 +308,14 @@ export class RuleEditor {
       ? { tested: result.tested, tally: tallyConditions(result.misses, this.editedRule()) }
       : null;
   });
-  /** As regras do cenário digitado, com este rascunho no lugar dele (diagrama da aba Scenario). */
-  protected readonly scenarioRules = computed(() => {
+  /** As regras da URL com este rascunho no lugar dele (diagramas da aba Scenario). */
+  protected readonly draftRules = computed(() => {
     this.edits();
-    const name = this.typedName().trim();
-    if (!name || this.view() !== FORM_VIEW) {
-      return null;
-    }
     const rules = [...this.store.rules()];
-    rules[this.currentIndex() ?? rules.length] = this.formRule();
-    return { name, rules };
+    if (this.view() === FORM_VIEW) {
+      rules[this.currentIndex() ?? rules.length] = this.formRule();
+    }
+    return rules;
   });
   protected readonly historyWindow = HISTORY_TEST_WINDOW;
   /** Selos das abas: o status da resposta e, depois de um teste, "casam / testadas". */

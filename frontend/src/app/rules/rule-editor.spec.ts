@@ -956,6 +956,12 @@ describe('Dado o editor de regra', () => {
       (root.querySelector('#rule-tab-scenario') as HTMLElement).click();
       fixture.detectChanges();
       expect(visible()).toEqual(['rule-panel-scenario']);
+      // A aba Scenario lê os estados dos cenários da URL (RULES-24).
+      (
+        await vi.waitFor(() =>
+          http.expectOne({ method: 'GET', url: `/token/${TOKEN_ID}/scenarios` }),
+        )
+      ).flush([]);
 
       root
         .querySelector('#rule-tab-scenario')

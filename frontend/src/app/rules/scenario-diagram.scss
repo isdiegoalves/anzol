@@ -34,10 +34,11 @@
   font: var(--mat-sys-label-large);
   font-family: var(--app-code-family);
 
+  // O estado atual, preenchido em terciário (C, RULES-24).
   &.current {
-    border-color: var(--mat-sys-primary);
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
+    border-color: var(--mat-sys-tertiary);
+    background: var(--mat-sys-tertiary);
+    color: var(--mat-sys-on-tertiary);
     font-weight: 600;
   }
 }
@@ -70,4 +71,21 @@
   .hint {
     color: var(--mat-sys-on-surface-variant);
   }
+}
+
+// O status da regra que leva de um estado ao outro, na seta (RULES-24).
+.edge {
+  margin-right: 4px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-small);
+  font-family: var(--app-code-family);
+}
+
+.stays {
+  margin: 6px 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
 }
