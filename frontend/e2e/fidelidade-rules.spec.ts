@@ -104,7 +104,18 @@ test.describe('Dado a lista de regras (RULES-01/02/03/04)', () => {
     await expect(pix.locator('.name')).toHaveText('Pix pago');
     await expect(pix.locator('app-status-code.status')).toContainText('201');
     await expect(pix.locator('.match')).toHaveText('POST /pagamentos · signature valid');
-    await expect(pix.locator('.hits')).toHaveText(/^Answered 0 of the last \d+/);
+    // UX de Regras, E-11 (guia §3.2): a regra exige assinatura numa URL que não verifica; a linha 3 diz por que ela
+    // nunca casa, no lugar dos acertos. Os acertos seguem cobertos na "Sucesso" abaixo e no RULES-07.
+    await expect(pix.locator('.flag', { hasText: 'Never matches' })).toBeVisible();
+    await expect(
+      page
+        .getByRole('table', { name: 'Rules' })
+        .getByText('This URL does not check signatures.')
+        .first(),
+    ).toBeVisible();
+    await expect(linhaDaRegra(page, 'Sucesso').locator('.hits')).toContainText(
+      /Answered 0 of the last \d+/,
+    );
     await expect(linhaDaRegra(page, 'Rejeita').locator('.match')).toHaveText(
       'signature invalid · schema invalid',
     );

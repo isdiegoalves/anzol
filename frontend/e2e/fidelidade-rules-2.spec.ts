@@ -90,9 +90,10 @@ test.describe('Dado o cabeçalho e as linhas da lista de regras (RULES-06/08)', 
     const contador = page.getByText('4 · 3 on', { exact: true });
     await expect(contador).toBeVisible();
     expect(await mesmaLinha(titulo, contador)).toBe(true);
+    // UX de Regras, guia §1 (WM-08): a frase do modelo mental substitui a "Checked by priority…".
     await expect(
       page.getByText(
-        /^Checked by priority, lowest first\. The first enabled rule that matches answers; if none does, the URL['’]s default response does\.$/,
+        /^Rules are checked in this order\. The first one that matches answers\. A catch-all rule answers whatever is left; the URL['’]s default response answers when no rule does\.$/,
       ),
     ).toBeVisible();
     // UX de Regras, WM-19 (guia §3.1): "Import" e "Export" voltam a ter rótulo visível (deixam de ser só ícone).
