@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+
+.axis {
+  stroke: var(--mat-sys-outline-variant);
+  stroke-width: 1;
+}
+
+.bar {
+  fill: var(--mat-sys-primary);
+
+  &:hover {
+    fill: var(--mat-sys-tertiary);
+  }
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}

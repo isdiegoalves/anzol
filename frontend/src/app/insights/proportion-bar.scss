@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-high);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .count {
+    font-weight: 600;
+  }
+
+  .share {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+// Papel de cor de cada fatia (sempre com o rótulo ao lado).
+rect.ok {
+  fill: var(--app-success);
+}
+
+rect.bad {
+  fill: var(--mat-sys-error);
+}
+
+rect.near {
+  fill: var(--app-warning);
+}
+
+rect.none {
+  fill: var(--mat-sys-outline);
+}
+
+rect.primary {
+  fill: var(--mat-sys-primary);
+}
+
+.swatch.ok {
+  background: var(--app-success);
+}
+
+.swatch.bad {
+  background: var(--mat-sys-error);
+}
+
+.swatch.near {
+  background: var(--app-warning);
+}
+
+.swatch.none {
+  background: var(--mat-sys-outline);
+}
+
+.swatch.primary {
+  background: var(--mat-sys-primary);
+}

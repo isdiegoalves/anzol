@@ -1,0 +1,208 @@
+<header class="heading">
+  <div>
+    <h1 i18n>Insights</h1>
+    <p class="hint" i18n>
+      How this URL is doing, counted by the server over the most recent requests it keeps. Latency
+      and errors of the whole instance are in Grafana.
+    </p>
+  </div>
+  <div class="actions">
+    <button mat-stroked-button type="button" [disabled]="store.loading()" (click)="refresh()" i18n>
+      Refresh
+    </button>
+    <a mat-stroked-button [href]="grafanaUrl" target="_blank" rel="noopener" i18n
+      >Open in Grafana</a
+    >
+  </div>
+</header>
+
+@if (store.error(); as error) {
+  <p class="errors" role="alert">{{ error }}</p>
+}
+
+@if (stats(); as stats) {
+  <div class="grid">
+    <app-pane class="summary wide" heading="Summary">
+      <div class="body">
+        <dl class="kpis">
+          <div class="kpi">
+            <dt i18n>Requests</dt>
+            &ngsp;
+            <dd>
+              <span class="value">{{ stats.evaluated }}</span
+              >&ngsp;<span class="of" i18n>of the last {{ stats.window }} kept</span>
+            </dd>
+            &ngsp;
+          </div>
+          @if (stats.evaluated > 0) {
+            @for (kpi of kpis(); track kpi.label) {
+              <div class="kpi">
+                <dt>{{ kpi.label }}</dt>
+                &ngsp;
+                <dd>
+                  <span class="value">{{ kpi.count }}</span
+                  >&ngsp;<span class="of" i18n
+                    >{{ percent(kpi.count, stats.evaluated) }} of these requests</span
+                  >
+                </dd>
+                &ngsp;
+              </div>
+            }
+          }
+        </dl>
+        @if (stats.evaluated > 0) {
+          <p class="window" i18n>
+            The {{ stats.evaluated }} most recent of the {{ stats.total }} requests this URL keeps,
+            from {{ stats.oldest_at }} to {{ stats.newest_at }} UTC.
+          </p>
+          <p class="methods"><span i18n>Methods:</span>&ngsp;{{ methodsText(stats.methods) }}</p>
+        } @else {
+          <app-empty-state
+            icon="insights"
+            heading="No requests yet"
+            text="Send a request to this URL and its numbers show up here."
+          />
+        }
+      </div>
+    </app-pane>
+
+    @if (stats.evaluated > 0) {
+      <app-pane class="wide" heading="Requests per hour">
+        <div class="body">
+          <app-hourly-chart [bars]="hourly()" />
+          <details class="data" open>
+            <summary i18n>Data table</summary>
+            <div class="table-scroll">
+              <table class="table" aria-label="Requests per hour data">
+                <thead>
+                  <tr>
+                    <th i18n>Hour (UTC)</th>
+                    <th class="number" i18n>Requests</th>
+                    <th i18n>Methods</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (bar of hourly(); track bar.hour) {
+                    <tr>
+                      <td>{{ bar.hour }}</td>
+                      <td class="number">{{ bar.count }}</td>
+                      <td>{{ methodsText(bar.methods) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      </app-pane>
+
+      <app-pane heading="Signature">
+        <div class="body">
+          <app-proportion-bar label="Signature" [parts]="signature()" />
+          @if (stats.signature.reasons.length > 0) {
+            <table class="table" aria-label="Signature failure reasons">
+              <thead>
+                <tr>
+                  <th i18n>Reason</th>
+                  <th class="number" i18n>Requests</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (reason of stats.signature.reasons; track reason.reason) {
+                  <tr>
+                    <td>
+                      <code>{{ reason.reason }}</code>
+                    </td>
+                    <td class="number">{{ reason.count }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </app-pane>
+
+      <app-pane heading="Schema">
+        <div class="body">
+          <app-proportion-bar label="Schema" [parts]="schema()" />
+          @if (stats.schema.paths.length > 0) {
+            <table class="table" aria-label="Schema error paths">
+              <thead>
+                <tr>
+                  <th i18n>Path</th>
+                  <th class="number" i18n>Requests</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (path of stats.schema.paths; track path.path) {
+                  <tr>
+                    <td>
+                      <code>{{ path.path === '' ? '(root)' : path.path }}</code>
+                    </td>
+                    <td class="number">{{ path.count }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </app-pane>
+
+      <app-pane class="wide" heading="Rules">
+        <div class="body">
+          <table class="table" aria-label="Who answered">
+            <thead>
+              <tr>
+                <th i18n>Answered by</th>
+                <th class="number" i18n>Requests</th>
+                <th class="number" i18n>Share</th>
+                <th class="bar-cell"><span class="visually-hidden" i18n>Bar</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (part of answered(); track part.label) {
+                <tr [class.default]="part.tone === 'none'">
+                  <td>{{ part.label }}</td>
+                  <td class="number">{{ part.count }}</td>
+                  <td class="number">{{ percent(part.count, stats.evaluated) }}</td>
+                  <td class="bar-cell">
+                    <svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+                      <rect
+                        [class]="part.tone"
+                        rx="1"
+                        height="8"
+                        [attr.width]="(part.count / maxAnswered()) * 100"
+                      />
+                    </svg>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (stats.rules.near_miss.length > 0) {
+            <table class="table" aria-label="Near misses">
+              <thead>
+                <tr>
+                  <th i18n>Closest rule when none matched</th>
+                  <th class="number" i18n>Requests</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (rule of stats.rules.near_miss; track rule.id) {
+                  <tr>
+                    <td>
+                      <a [routerLink]="['/', tokenId(), 'rules', rule.id]">{{ rule.name }}</a>
+                    </td>
+                    <td class="number">{{ rule.count }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </app-pane>
+    }
+  </div>
+} @else if (store.loading()) {
+  <p class="hint" role="status" i18n>Counting the requests…</p>
+}
