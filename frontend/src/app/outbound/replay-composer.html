@@ -21,9 +21,10 @@
     @if (stale(); as stale) {
       <div class="warning" role="status">
         <p>
-          The {{ stale.provider }} signature on this request is {{ age(stale.age) }} old, more than
-          the {{ stale.tolerance }} s tolerance: a receiver that checks the timestamp will reject
-          the replay.
+          The {{ stale.provider }} signature in this request is older than the tolerance ({{
+            stale.tolerance
+          }}
+          s): the receiver will likely reject the replay. It was signed {{ age(stale.age) }} ago.
         </p>
         @if (signer(); as provider) {
           <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>

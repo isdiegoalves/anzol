@@ -18,6 +18,7 @@ import {
   apiDate,
   draftFromRequest,
   outboundErrorText,
+  resignedDraft,
 } from './outbound';
 import { OutboundResultView } from './outbound-result-view';
 import { OutboundStore } from './outbound-store';
@@ -124,7 +125,7 @@ export class OutboundPage {
   protected resign(request: WebhookRequest): void {
     const token = this.token();
     if (token) {
-      this.draft.set(draftFromRequest(request, rememberedTarget(token.uuid)));
+      this.draft.set(resignedDraft(request, rememberedTarget(token.uuid), token));
       this.signing.set(true);
       this.mode.set('send');
       this.composerKey.update((key) => key + 1);

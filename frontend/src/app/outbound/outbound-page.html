@@ -21,39 +21,54 @@
         <span class="hint" i18n>last 50 sent by the server, newest first</span>
       </h2>
       @if (loaded()) {
-        <ul class="items" aria-label="Outbound history">
-          @for (item of store.history(); track item.id) {
-            @let error = item.error ? errorTitle(item.error).title : null;
-            <li>
-              <button
-                type="button"
-                class="item"
+        <table class="table" aria-label="Outbound history">
+          <thead>
+            <tr>
+              <th scope="col" i18n>Status</th>
+              <th scope="col" i18n>Target</th>
+              <th scope="col" class="numeric" i18n>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of store.history(); track item.id) {
+              @let error = item.error ? errorTitle(item.error).title : null;
+              @let here = item.id === selected()?.id;
+              <tr
+                tabindex="0"
                 [attr.data-outbound-id]="item.id"
-                [class.selected]="item.id === selected()?.id"
-                [attr.aria-current]="item.id === selected()?.id ? 'true' : null"
+                [class.selected]="here"
+                [attr.aria-selected]="here"
                 (click)="select(item.id)"
+                (keydown.enter)="select(item.id)"
+                (keydown.space)="select(item.id); $event.preventDefault()"
               >
-                <span class="line">
-                  <app-status-code [status]="item.status ?? null" [error]="error" />
-                  <app-method-badge [method]="item.method" />
-                  <span class="spacer"></span>
-                  <span class="meta" [title]="date(item.at)"
-                    >{{ item.duration_ms }} ms · {{ when(item.at) }}</span
-                  >
-                </span>
-                <span class="target">{{ item.target }}</span>
-                <span class="meta">
-                  {{ item.kind === 'replay' ? 'Replay' : 'Send' }}
-                  @if (item.source_request; as source) {
-                    · #{{ source.slice(0, 5) }}
-                  }
-                </span>
-              </button>
-            </li>
-          } @empty {
-            <li class="empty" i18n>Nothing sent yet. Replay a request or send a new one.</li>
-          }
-        </ul>
+                <td><app-status-code [status]="item.status ?? null" [error]="error" /></td>
+                <td>
+                  <span class="line">
+                    <app-method-badge [method]="item.method" />
+                    <span class="meta">
+                      {{ item.kind === 'replay' ? 'Replay' : 'Send' }}
+                      @if (item.source_request; as source) {
+                        · #{{ source.slice(0, 5) }}
+                      }
+                    </span>
+                  </span>
+                  <span class="target">{{ item.target }}</span>
+                </td>
+                <td class="numeric">
+                  {{ item.duration_ms }} ms
+                  <span class="meta" [title]="date(item.at)">{{ when(item.at) }}</span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="empty" colspan="3" i18n>
+                  Nothing sent yet. Replay a request or send a new one.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       } @else if (!loadError()) {
         <p class="hint" i18n>Loading…</p>
       }

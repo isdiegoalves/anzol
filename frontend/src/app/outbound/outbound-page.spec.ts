@@ -66,7 +66,7 @@ describe('Dado a página Outbound', () => {
     http.expectOne(RECENT).flush(requestPage(recent));
     http.expectOne(HISTORY).flush(history);
     await vi.waitFor(() =>
-      expect(screen.getByRole('list', { name: 'Outbound history' })).toBeTruthy(),
+      expect(screen.getByRole('table', { name: 'Outbound history' })).toBeTruthy(),
     );
     await harness.fixture.whenStable();
     return harness;
@@ -75,12 +75,12 @@ describe('Dado a página Outbound', () => {
   it('deve listar o histórico, abrir o mais novo no detalhe e passar no axe', async () => {
     const harness = await open();
 
-    const items = within(screen.getByRole('list', { name: 'Outbound history' })).getAllByRole(
-      'button',
-    );
+    const items = [
+      ...screen.getByRole('table', { name: 'Outbound history' }).querySelectorAll('tbody tr'),
+    ] as HTMLElement[];
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain('/app/pedidos?n=2');
-    expect(items[0].getAttribute('aria-current')).toBe('true');
+    expect(items[0].getAttribute('aria-selected')).toBe('true');
     const detail = screen.getByRole('region', { name: 'Outbound detail' });
     expect(within(detail).getByRole('table', { name: 'Response headers' }).textContent).toContain(
       'x-app',
@@ -131,7 +131,7 @@ describe('Dado a página Outbound', () => {
 
     const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(within(composer).getByRole('status').textContent).toMatch(
-      /The Stripe signature on this request is 60 min old, more than the 300 s tolerance/,
+      /The Stripe signature in this request is older than the tolerance \(300 s\): the receiver will likely reject the replay\. It was signed 60 min ago\./,
     );
     await userEvent.click(
       within(composer).getByRole('button', { name: 'Send as new with a fresh signature' }),
@@ -146,6 +146,10 @@ describe('Dado a página Outbound', () => {
     expect((within(send).getByRole('textbox', { name: 'Body' }) as HTMLTextAreaElement).value).toBe(
       '{"id":"evt_1"}',
     );
+    const names = within(send)
+      .getAllByRole('textbox', { name: /^Header \d+ name$/ })
+      .map((input) => (input as HTMLInputElement).value);
+    expect(names).toEqual(['content-type']);
   });
 
   it('não deve avisar Quando a mensagem não traz assinatura com horário', async () => {

@@ -193,6 +193,31 @@ const HOP_HEADERS = new Set([
   'x-real-ip',
 ]);
 
+/** Headers que carregam uma assinatura de provedor (e o horário que o Slack assina junto). */
+const SIGNATURE_HEADERS = new Set([
+  'stripe-signature',
+  'x-hub-signature-256',
+  'x-shopify-hmac-sha256',
+  'x-slack-signature',
+  'x-slack-request-timestamp',
+]);
+
+/**
+ * "Send as new with a fresh signature": a mensagem como no "Send as new…", sem os headers da
+ * assinatura velha (o de provedor e, no genérico, o da URL); o servidor põe os novos ao assinar.
+ */
+export function resignedDraft(request: WebhookRequest, url: string, token: Token): SendDraft {
+  const generic = token.signature?.header?.toLowerCase();
+  const draft = draftFromRequest(request, url);
+  return {
+    ...draft,
+    headers: draft.headers.filter(([name]) => {
+      const lower = name.toLowerCase();
+      return !SIGNATURE_HEADERS.has(lower) && lower !== generic;
+    }),
+  };
+}
+
 /** "Send as new…": método, headers (sem os de conexão) e corpo da mensagem; a URL é o alvo. */
 export function draftFromRequest(request: WebhookRequest, url: string): SendDraft {
   const method = request.method.toUpperCase();
