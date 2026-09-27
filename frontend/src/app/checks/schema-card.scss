@@ -27,6 +27,7 @@
 // `textarea` numerada de 12 linhas (~262 px): ela rola, e os números a acompanham (CHECKS-15).
 .editor {
   display: flex;
+  height: 262px;
   overflow: hidden;
   border: 1px solid var(--mat-sys-outline);
   border-radius: 12px;
@@ -62,7 +63,7 @@ textarea {
 textarea {
   flex: 1;
   min-width: 0;
-  resize: vertical;
+  resize: none;
   border: 0;
   outline: none;
   background: transparent;
