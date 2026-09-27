@@ -70,7 +70,9 @@
 
 | Regra | Fonte | Guarda |
 |---|---|---|
-| Diálogos criar/editar URL com Reactive Forms tipados e a mesma validação do servidor (`timeout` 0–10) | MA cap. 4 | revisão |
+| Formulários da URL (cartões de Checks e o diálogo Create New URL) com Reactive Forms tipados e a mesma validação do servidor (`timeout` 0–10, `retry_after`, segredo de 8 a 256) | MA cap. 4 | revisão |
+| Botão de salvar **nunca** `disabled`: o que falta fica num `status` ("To save, fill in: …"); clicar marca os campos, foca o primeiro e passa o resumo a `alert` (S12 do item 14) | WCAG 3.3.1/3.3.2; GOV.UK Design System | revisão |
+| Escrita na API de gestão só por `HttpClient` com corpo JSON, da própria origem: nada de `<form method="post">` nativo, `_method` ou `application/x-www-form-urlencoded` (item 12 recusa). Como o `PUT /token/{id}` volta ao padrão o campo ausente, cada cartão manda a configuração salva inteira com a sua parte trocada (`savedSettings`) | — (item 12; CA-11 do item 14) | revisão e o E2E de CA-11 |
 | `strict` e `strictTemplates` ligados | BP | `tsconfig.json` (o build falha) |
 | Sem `any`; `unknown` quando o tipo é incerto (ex.: corpo JSON da mensagem) | BP | `@typescript-eslint/no-explicit-any` |
 

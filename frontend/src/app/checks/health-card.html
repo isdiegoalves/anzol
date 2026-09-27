@@ -1,0 +1,81 @@
+@let current = stats();
+<header class="card-head">
+  <h2 id="health-title" i18n>Health</h2>
+  <span class="spacer"></span>
+  <button mat-button type="button" [disabled]="loading()" (click)="refresh()" i18n>Refresh</button>
+</header>
+<div class="segmented">
+  <span class="segmented-label" id="health-window-label" i18n>Window</span>
+  <mat-button-toggle-group
+    aria-labelledby="health-window-label"
+    hideSingleSelectionIndicator
+    [value]="window()"
+    (change)="chooseWindow($event.value)"
+  >
+    @for (size of windows; track size) {
+      <mat-button-toggle [value]="size">Last {{ size }}</mat-button-toggle>
+    }
+  </mat-button-toggle-group>
+</div>
+
+<div class="body" aria-live="polite">
+  @if (failure(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  } @else if (current) {
+    @if (current.evaluated === 0) {
+      <p class="hint" i18n>No requests yet: the numbers appear as requests arrive.</p>
+    } @else {
+      <p class="hint">
+        From the result recorded on each of the last {{ current.evaluated }} requests (of
+        {{ current.total }} kept).
+      </p>
+      @for (part of metrics(); track part.title) {
+        @if (part.data; as data) {
+          <div class="metric">
+            <div class="metric-head">
+              <h3>{{ part.title }}</h3>
+              @if (data.percent) {
+                <span class="percent">{{ data.percent }}</span>
+                <span class="hint" i18n>valid</span>
+              } @else {
+                <span class="hint" i18n>not checked in this window</span>
+              }
+            </div>
+            @if (data.percent) {
+              <div
+                class="bar"
+                role="img"
+                [attr.aria-label]="data.valid + ' valid, ' + data.invalid + ' invalid'"
+              >
+                <span class="ok" [style.flex-grow]="data.valid"></span>
+                <span class="bad" [style.flex-grow]="data.invalid"></span>
+              </div>
+              <p class="counts">
+                <span><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span>
+                <span
+                  ><span class="dot bad" aria-hidden="true"></span>{{ data.invalid }} invalid</span
+                >
+                @if (data.unchecked > 0) {
+                  <span>{{ data.unchecked }} not checked</span>
+                }
+              </p>
+            }
+            @if (data.failed.length > 0) {
+              <h4>{{ part.why }}</h4>
+              <ul class="reasons">
+                @for (item of data.failed; track item.label) {
+                  <li>
+                    <code>{{ item.label }}</code>
+                    <span class="count">{{ item.count }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      }
+    }
+  } @else {
+    <p class="hint" i18n>Loading…</p>
+  }
+</div>

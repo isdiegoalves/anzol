@@ -1,223 +1,110 @@
-<h2 mat-dialog-title>{{ data.mode === 'create' ? 'Create New URL' : 'Edit URL' }}</h2>
+<h2 mat-dialog-title i18n>Create New URL</h2>
 <mat-dialog-content>
   @if (data.token === null) {
-    <p class="warning" role="alert">
+    <p class="warning" role="alert" i18n>
       This URL could not be found. It might have been automatically deleted.<br />
       Please create a new URL.
     </p>
   }
-  @if (data.mode === 'create') {
-    <p>
-      You have the ability to customize how your URL will respond by changing the status code,
-      content-type header and the content.
-    </p>
-  }
-  <form id="token-form" class="fields" [formGroup]="form" (ngSubmit)="saveSettings()">
-    <mat-form-field>
-      <mat-label>Default status code</mat-label>
-      <input matInput formControlName="default_status" placeholder="200" />
-      <mat-error>The default status must be an integer.</mat-error>
-    </mat-form-field>
-    <mat-form-field>
-      <mat-label>Content Type</mat-label>
-      <input matInput formControlName="default_content_type" placeholder="text/plain" />
-    </mat-form-field>
-    <mat-form-field>
-      <mat-label>Timeout before response</mat-label>
-      <input matInput type="number" min="0" max="10" formControlName="timeout" placeholder="0" />
-      <mat-error>The timeout must be an integer between 0 and 10.</mat-error>
-    </mat-form-field>
-    <mat-form-field>
-      <mat-label>Retry-After</mat-label>
-      <input matInput formControlName="retry_after" placeholder="120" />
-      <mat-hint>Seconds or HTTP-date; useful with 429, 503 or 3xx</mat-hint>
-      <mat-error>The retry after must be a number of seconds or an HTTP date.</mat-error>
-    </mat-form-field>
-    <mat-form-field>
-      <mat-label>Auto cleanup</mat-label>
-      <mat-select formControlName="auto_cleanup" canSelectNullableOptions>
-        <mat-option [value]="null">Disabled</mat-option>
-        @for (limit of autoCleanupLimits; track limit) {
-          <mat-option [value]="limit">{{ limit }}</mat-option>
-        }
-      </mat-select>
-      @if (form.controls.auto_cleanup.value; as limit) {
-        <mat-hint>Keeps the {{ limit }} most recent requests</mat-hint>
-      }
-    </mat-form-field>
-    <mat-form-field>
-      <mat-label>Response body</mat-label>
-      <textarea matInput rows="5" formControlName="default_content"></textarea>
-    </mat-form-field>
-
-    <h3 class="section">Signature verification</h3>
-    @let signature = form.controls.signature.controls;
-    @let provider = signature.provider.value;
-    <div formGroupName="signature" class="fields">
-      <mat-form-field>
-        <mat-label>Signature provider</mat-label>
-        <mat-select formControlName="provider">
-          <mat-option value="none">None</mat-option>
-          @for (option of providers; track option.value) {
-            <mat-option [value]="option.value">{{ option.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <table class="providers" aria-label="Signature providers">
-        <thead>
-          <tr>
-            <th scope="col">Provider</th>
-            <th scope="col">Signature arrives in</th>
-            <th scope="col">What is signed</th>
-            <th scope="col">Secret to paste</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of providerGuide; track row.provider) {
-            <tr
-              [class.chosen]="row.provider === provider"
-              [attr.aria-current]="row.provider === provider ? 'true' : null"
-            >
-              <th scope="row">{{ row.label }}</th>
-              <td>{{ row.arrives }}</td>
-              <td>{{ row.signed }}</td>
-              <td>{{ row.secret }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-      @if (provider !== 'none') {
-        <div class="anatomy">
-          Expected header:
-          @for (line of anatomy(); track line) {
-            <code>{{ line }}</code>
-          }
-        </div>
-      }
-      @if (provider === 'generic') {
-        <div class="row">
-          <mat-form-field class="grow">
-            <mat-label>Signature header</mat-label>
-            <input matInput formControlName="header" placeholder="X-Signature" />
-            <mat-error>The header is required.</mat-error>
-          </mat-form-field>
-          <mat-form-field class="grow">
-            <mat-label>Prefix</mat-label>
-            <input matInput formControlName="prefix" placeholder="sha256=" />
-            <mat-hint>Optional, before the signature</mat-hint>
-          </mat-form-field>
-        </div>
-      }
-      @if (provider !== 'none') {
-        @let keeps = keepsSecret();
-        @if (savedProvider && savedProvider !== provider) {
-          <p class="warning" role="status">
-            The saved {{ providerLabels[savedProvider] }} secret is not reused for
-            {{ providerLabels[provider] }}: paste the {{ providerLabels[provider] }} secret.
-          </p>
-        }
-        <mat-form-field [floatLabel]="keeps ? 'always' : 'auto'">
-          <mat-label>Secret</mat-label>
+  <p class="lead" i18n>
+    The new URL answers 200 with an empty body until you change it. Signature, schema and the rest
+    are in Checks.
+  </p>
+  <form id="token-form" class="fields" [formGroup]="form" (ngSubmit)="createUrl()">
+    <button
+      mat-button
+      type="button"
+      class="disclosure"
+      aria-controls="token-form-response"
+      [attr.aria-expanded]="customizing()"
+      (click)="customizing.set(!customizing())"
+    >
+      <span class="chevron" [class.open]="customizing()" aria-hidden="true">›</span>
+      <ng-container i18n>Customize response</ng-container>
+    </button>
+    <div id="token-form-response" class="fields">
+      @if (customizing()) {
+        <mat-form-field>
+          <mat-label i18n>Default status code</mat-label>
+          <input matInput formControlName="default_status" inputmode="numeric" placeholder="200" />
+          <mat-error i18n>The default status must be an integer.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label i18n>Content Type</mat-label>
+          <input matInput formControlName="default_content_type" placeholder="text/plain" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label i18n>Timeout before response</mat-label>
           <input
             matInput
-            type="password"
-            autocomplete="new-password"
-            formControlName="secret"
-            [placeholder]="keeps ? (savedSecret ?? '') : ''"
+            type="number"
+            min="0"
+            max="10"
+            formControlName="timeout"
+            placeholder="0"
           />
-          @if (keeps) {
-            <mat-hint>Leave blank to keep the current secret</mat-hint>
-          }
-          <mat-error>The secret is required, up to 256 characters.</mat-error>
+          <mat-error i18n>The timeout must be an integer between 0 and 10.</mat-error>
         </mat-form-field>
-      }
-      @if (provider === 'generic') {
-        <div class="row">
-          <mat-form-field class="grow">
-            <mat-label>Algorithm</mat-label>
-            <mat-select formControlName="algorithm">
-              @for (algorithm of algorithms; track algorithm.value) {
-                <mat-option [value]="algorithm.value">{{ algorithm.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field class="grow">
-            <mat-label>Encoding</mat-label>
-            <mat-select formControlName="encoding">
-              <mat-option value="hex">Hex</mat-option>
-              <mat-option value="base64">Base64</mat-option>
-            </mat-select>
-          </mat-form-field>
+        <mat-form-field>
+          <mat-label i18n>Retry-After</mat-label>
+          <input matInput formControlName="retry_after" placeholder="120" />
+          <mat-hint i18n>Seconds or HTTP-date; useful with 429, 503 or 3xx</mat-hint>
+          <mat-error i18n>The retry after must be a number of seconds or an HTTP date.</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label i18n>Response body</mat-label>
+          <textarea matInput rows="4" formControlName="default_content"></textarea>
+        </mat-form-field>
+        <div class="segmented">
+          <span class="segmented-label" id="token-form-cleanup-label" i18n>Auto cleanup</span>
+          <mat-button-toggle-group
+            formControlName="auto_cleanup"
+            aria-labelledby="token-form-cleanup-label"
+            hideSingleSelectionIndicator
+          >
+            <mat-button-toggle value="off" i18n>Disabled</mat-button-toggle>
+            @for (option of limits; track option) {
+              <mat-button-toggle [value]="option">{{ option }}</mat-button-toggle>
+            }
+          </mat-button-toggle-group>
+          @if (cleanupLimit(); as limit) {
+            <p class="hint">Keeps the {{ limit }} most recent requests</p>
+          }
         </div>
       }
-      @if (provider === 'stripe' || provider === 'slack') {
-        <mat-form-field>
-          <mat-label>Timestamp tolerance (seconds)</mat-label>
-          <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
-          <mat-hint>Older signed timestamps are rejected</mat-hint>
-          <mat-error>An integer between 1 and 86400.</mat-error>
-        </mat-form-field>
-      }
     </div>
 
-    <h3 class="section">Schema validation</h3>
-    @let schema = form.controls.schema;
-    <mat-form-field>
-      <mat-label>JSON Schema</mat-label>
-      <textarea matInput rows="8" class="code" formControlName="schema"></textarea>
-      <mat-hint>Validates the JSON body of each request; leave empty to turn off</mat-hint>
-      <mat-error>{{ schema.errors?.['json'] ?? schema.errors?.['server'] }}</mat-error>
-    </mat-form-field>
-    <div class="clear">
-      <button mat-button type="button" [disabled]="schema.value === ''" (click)="clearSchema()">
-        Clear schema
-      </button>
-    </div>
-
-    <h3 class="section">Privacy</h3>
     @let privacy = form.controls.privacy.controls;
     <div formGroupName="privacy" class="fields">
-      <mat-slide-toggle formControlName="required">
-        Require a secret to view this URL
-      </mat-slide-toggle>
-      <p class="hint">
+      <mat-slide-toggle formControlName="required" i18n
+        >Require a secret to view this URL</mat-slide-toggle
+      >
+      <p class="hint" i18n>
         Requests, rules and history open only with the secret. Sending webhooks to the URL keeps
         working without it.
       </p>
-      @if (data.mode === 'edit') {
-        <p class="hint">Changing the secret revokes existing read-only links.</p>
-      }
       @if (privacy.required.value) {
-        @if (wasProtected) {
-          <p class="info" role="status">
-            This URL is protected. Leave the fields blank to keep the current secret.
-          </p>
-        }
         <mat-form-field>
-          <mat-label>{{ secretLabel }}</mat-label>
+          <mat-label i18n>Secret to view</mat-label>
           <input
             matInput
             type="password"
             autocomplete="new-password"
             formControlName="read_secret"
           />
-          <mat-hint>8 to 256 characters</mat-hint>
-          <mat-error>The secret must have 8 to 256 characters.</mat-error>
+          <mat-hint i18n>8 to 256 characters</mat-hint>
+          <mat-error i18n>The secret must have 8 to 256 characters.</mat-error>
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Confirm secret</mat-label>
+          <mat-label i18n>Confirm secret</mat-label>
           <input
             matInput
             type="password"
             autocomplete="new-password"
             formControlName="read_secret_confirm"
           />
-          <mat-error>The secrets do not match.</mat-error>
+          <mat-error i18n>The secrets do not match.</mat-error>
         </mat-form-field>
-      } @else if (wasProtected) {
-        <p class="warning" role="status">
-          Saving removes the secret: anyone with the URL will see its requests.
-        </p>
       }
     </div>
   </form>
@@ -227,13 +114,14 @@
   @if (summary) {
     <p id="token-form-pending" class="pending" role="alert">{{ summary }}</p>
   }
+  <button mat-button type="button" mat-dialog-close i18n>Cancel</button>
   <button
     mat-flat-button
     type="submit"
     form="token-form"
-    [disabled]="saving()"
     [attr.aria-describedby]="summary ? 'token-form-pending' : null"
+    i18n
   >
-    {{ data.mode === 'create' ? 'Create' : 'Edit' }}
+    Create
   </button>
 </mat-dialog-actions>

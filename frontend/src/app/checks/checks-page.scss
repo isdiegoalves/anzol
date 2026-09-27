@@ -1,0 +1,80 @@
+.page {
+  box-sizing: border-box;
+  max-width: 1600px;
+  padding: 16px 24px 32px;
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 8px 0 4px;
+  font: var(--mat-sys-headline-small);
+  font-variation-settings: 'ROND' 100;
+}
+
+.lead,
+.loading {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jump-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+
+  &[aria-current] {
+    border-color: transparent;
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+}
+
+// Duas colunas a partir de 1200 px (Signature e Schema; Health, Response e Privacy); uma abaixo.
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+
+  @media (width >= 1200px) {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (width < 600px) {
+  .page {
+    padding: 8px 8px 24px;
+  }
+}

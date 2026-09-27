@@ -1,0 +1,102 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { AbstractControl, ValidationErrors } from '@angular/forms';
+import { JsonSchema, Token, TokenSettings } from '../token/token';
+
+/**
+ * A configuração salva da URL no formato do `PUT /token/{id}`. O `PUT` volta ao padrão todo campo
+ * ausente (menos `signature.secret` e `read_secret`), então cada cartão de Checks manda isto com
+ * a sua parte trocada (CA-11): salvar o schema não pode apagar a assinatura nem a resposta.
+ * O segredo da assinatura vai mascarado, como o servidor o devolve: o servidor reconhece a máscara
+ * e mantém o salvo. `read_secret` não vai: ausente mantém o atual.
+ */
+export function savedSettings(token: Token): TokenSettings {
+  return {
+    default_status: String(token.default_status),
+    default_content_type: token.default_content_type,
+    timeout: String(token.timeout),
+    default_content: token.default_content,
+    retry_after: token.retry_after == null ? null : String(token.retry_after),
+    auto_cleanup: token.auto_cleanup ?? null,
+    signature: token.signature ?? null,
+    schema: token.schema ?? null,
+  };
+}
+
+/** Corpo do `PUT` de um cartão: a configuração salva com as mudanças dele por cima. */
+export function withChanges(token: Token, changes: TokenSettings): TokenSettings {
+  return { ...savedSettings(token), ...changes };
+}
+
+/** Ligar a limpeza automática, ou reduzir o limite, faz o servidor cortar as mais antigas. */
+export function cutsRequests(before: Token, after: Token): boolean {
+  const limit = after.auto_cleanup ?? null;
+  const previous = before.auto_cleanup ?? null;
+  return limit !== null && (previous === null || limit < previous);
+}
+
+/** Mensagens do 422 de um campo (`{"schema": [...]}`); vazio para qualquer outro erro. */
+export function fieldErrors(error: unknown, ...fields: string[]): readonly string[] {
+  if (error instanceof HttpErrorResponse && error.status === 422) {
+    const body = (error.error ?? {}) as Record<string, unknown>;
+    return fields.flatMap((field) => {
+      const messages = body[field];
+      return Array.isArray(messages) ? messages.map(String) : [];
+    });
+  }
+  return [];
+}
+
+/** Erro do `PUT` como o app atual o dizia: os 422 juntos, ou o status HTTP. */
+export function updateError(error: unknown): string {
+  if (error instanceof HttpErrorResponse && error.status === 422) {
+    const messages = Object.values((error.error ?? {}) as Record<string, string[]>).flat();
+    return `Error updating token: ${messages.join(', ')}`;
+  }
+  const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
+  return `Error updating token (${status})`;
+}
+
+/** O schema salvo, ou o sugerido, indentado para editar à mão. */
+export function schemaText(schema: JsonSchema | null | undefined): string {
+  return schema ? JSON.stringify(schema, null, 2) : '';
+}
+
+/** Vazio desliga a validação; senão, precisa ser um objeto JSON (o servidor compila o resto). */
+export function schemaValidator(control: AbstractControl<string>): ValidationErrors | null {
+  const text = control.value.trim();
+  if (text === '') {
+    return null;
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    return { json: `Invalid JSON: ${(error as Error).message}` };
+  }
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? null
+    : { json: 'The schema must be a JSON object.' };
+}
+
+/** Valor do campo do schema para o `PUT`: vazio é `null` (desliga). */
+export function schemaOf(text: string): JsonSchema | null {
+  return text.trim() === '' ? null : (JSON.parse(text) as JsonSchema);
+}
+
+/** Campo pendente de um formulário: o controle, o nome no formulário e o rótulo na tela. */
+export type PendingField = readonly [control: AbstractControl, name: string, label: string];
+
+/**
+ * "To save, fill in: Signature header, Secret; fix: Retry-After"; vazio quando nada falta. Os
+ * obrigatórios vazios vão em "fill in", os preenchidos errado em "fix".
+ */
+export function pendingSummary(fields: readonly PendingField[]): string {
+  const problems = fields.filter(([control]) => control.invalid);
+  const missing = problems.filter(([control]) => control.hasError('required'));
+  const invalid = problems.filter(([control]) => !control.hasError('required'));
+  const parts = [
+    ...(missing.length > 0 ? [`fill in: ${missing.map(([, , label]) => label).join(', ')}`] : []),
+    ...(invalid.length > 0 ? [`fix: ${invalid.map(([, , label]) => label).join(', ')}`] : []),
+  ];
+  return parts.length > 0 ? `To save, ${parts.join('; ')}` : '';
+}

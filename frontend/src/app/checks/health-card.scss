@@ -1,0 +1,93 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.metric-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.percent {
+  margin-left: auto;
+  font: var(--mat-sys-headline-small);
+  font-variation-settings: 'ROND' 100;
+}
+
+// Barra válidas/inválidas: as duas partes também se distinguem pela posição e pelos números.
+.bar {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-surface-container-high);
+}
+
+.ok {
+  background: var(--app-success);
+}
+
+.bad {
+  background: var(--mat-sys-error);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font: var(--mat-sys-body-small);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+h4 {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+  text-transform: uppercase;
+}
+
+.reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    font: var(--mat-sys-body-small);
+  }
+
+  code {
+    font-family: var(--app-code-family);
+    overflow-wrap: anywhere;
+  }
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-sys-error);
+}

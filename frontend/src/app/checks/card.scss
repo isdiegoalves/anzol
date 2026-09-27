@@ -1,0 +1,90 @@
+// Cartão de Checks (Signature, Schema, Response, Privacy, Health): superfície, cabeçalho e textos.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 20px 20px;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  scroll-margin-top: 16px;
+}
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-large);
+    font-variation-settings: 'ROND' 100;
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.state {
+  padding: 2px 10px;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+
+  &.on {
+    background: var(--app-success-container);
+    color: var(--app-on-success-container);
+  }
+
+  &.draft {
+    background: var(--app-warning-container);
+    color: var(--app-on-warning-container);
+  }
+}
+
+h3 {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.hint {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.banner {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-body-medium);
+
+  &.info {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.segmented {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.segmented-label {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+}

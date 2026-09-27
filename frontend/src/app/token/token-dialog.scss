@@ -3,30 +3,45 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 8px;
+
+  &:empty {
+    display: none;
+  }
 }
 
-.section {
-  margin: 8px 0 0;
-  font-size: 16px;
+.lead {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
 }
 
-.row {
+.disclosure {
+  align-self: flex-start;
+}
+
+.chevron {
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 150ms;
+
+  &.open {
+    transform: rotate(90deg);
+  }
+}
+
+.segmented {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.grow {
-  flex: 1;
+.segmented-label {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
 }
 
-.code {
-  font-family: Menlo, Consolas, monospace;
-  font-size: 12px;
-}
-
-.clear {
-  display: flex;
-  justify-content: flex-end;
+mat-button-toggle-group {
+  flex-wrap: wrap;
+  align-self: flex-start;
 }
 
 .warning {
@@ -37,62 +52,13 @@
   color: var(--app-on-warning-container);
 }
 
-.info {
-  margin: 0;
-  padding: 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
-}
-
 .hint {
   margin: 0;
   color: var(--mat-sys-on-surface-variant);
   font-size: 12px;
 }
 
-// Quadro fixo dos provedores: o escolhido em destaque (negrito, fundo e barra, não só a cor).
-.providers {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-
-  th,
-  td {
-    padding: 3px 4px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
-    text-align: left;
-    vertical-align: top;
-  }
-
-  thead th {
-    border-bottom-width: 2px;
-  }
-
-  tr.chosen {
-    background: var(--mat-sys-primary-container);
-    box-shadow: inset 3px 0 var(--mat-sys-primary);
-    font-weight: bold;
-  }
-}
-
-.anatomy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-
-  code {
-    padding: 2px 4px;
-    border-radius: 4px;
-    background: var(--mat-sys-surface-container-high);
-    font-family: Menlo, Consolas, monospace;
-    word-break: break-all;
-  }
-}
-
-// Resumo do que falta, ao lado do botão, depois de tentar salvar.
+// Resumo do que falta, ao lado do botão, depois de tentar criar.
 .pending {
   flex: 1;
   margin: 0 8px 0 0;

@@ -1,0 +1,101 @@
+@let control = form.controls.schema;
+@let savedSchema = saved();
+@let message = error();
+<header class="card-head">
+  <h2 id="schema-title" i18n>Schema validation</h2>
+  @if (savedSchema) {
+    <span class="state on" i18n>On</span>
+  } @else {
+    <span class="state" i18n>Off</span>
+  }
+  @if (control.dirty) {
+    <span class="state draft" i18n>Unsaved</span>
+  }
+  <span class="spacer"></span>
+  <button mat-button type="button" [disabled]="control.value === ''" (click)="clearSchema()" i18n>
+    Clear schema
+  </button>
+</header>
+
+@if (inferred(); as note) {
+  <p class="banner" [class.info]="!note.error" role="status">{{ note.text }}</p>
+}
+
+<div class="layout" [formGroup]="form">
+  <div class="editor-column">
+    <div class="editor-head">
+      <label for="schema-text" i18n>JSON Schema</label>
+      <span class="hint">{{ size() }} of 64 KB</span>
+    </div>
+    <div class="editor" [class.invalid]="message">
+      <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
+      <textarea
+        #textarea
+        id="schema-text"
+        formControlName="schema"
+        rows="16"
+        wrap="off"
+        spellcheck="false"
+        [attr.aria-invalid]="message ? 'true' : null"
+        [attr.aria-describedby]="
+          message ? 'schema-text-help schema-text-error' : 'schema-text-help'
+        "
+        (scroll)="syncGutter(textarea, gutter)"
+      ></textarea>
+    </div>
+    @if (message) {
+      <p id="schema-text-error" class="error">{{ message }}</p>
+    }
+    <p id="schema-text-help" class="hint" i18n>
+      Validates the JSON body of each request; leave empty to turn off
+    </p>
+  </div>
+
+  <div class="side">
+    <div class="generate">
+      <label for="schema-source" class="generate-title" i18n>Generate from a message</label>
+      @if (recent(); as requests) {
+        @if (requests.length > 0) {
+          <select id="schema-source" formControlName="source" aria-describedby="schema-source-help">
+            @for (request of requests; track request.uuid) {
+              <option [value]="request.uuid">{{ label(request) }}</option>
+            }
+          </select>
+          <button mat-stroked-button type="button" (click)="generate()" i18n>
+            Generate schema
+          </button>
+        } @else {
+          <p class="hint" i18n>No request with a JSON body yet.</p>
+        }
+      } @else {
+        <p class="hint" i18n>Loading requests…</p>
+      }
+      <p id="schema-source-help" class="hint" i18n>
+        The schema is inferred from the body of a recent JSON request. Every key present becomes
+        required; integers become integer. Review before saving.
+      </p>
+    </div>
+    <ul class="rules">
+      <li i18n>Dialect 2020-12, or 2019-09 / draft-07 by <code>$schema</code>.</li>
+      <li i18n>Only internal <code>$ref</code> (<code>#/$defs/…</code>); nothing is fetched.</li>
+      <li i18n>
+        Validates the body as JSON whatever the Content-Type. Up to 20 errors are kept per request.
+      </li>
+      <li i18n>Changing the schema doesn't re-check requests already received.</li>
+    </ul>
+  </div>
+</div>
+
+<app-save-bar
+  name="schema"
+  label="Save schema"
+  i18n-label
+  [summary]="pending()"
+  [attempted]="attempted()"
+  [notice]="notice()"
+  (save)="saveSchema()"
+>
+  @if (control.dirty) {
+    <button mat-button type="button" (click)="discard()" i18n>Discard</button>
+  }
+</app-save-bar>

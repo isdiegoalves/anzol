@@ -14,14 +14,11 @@ import { TokenActions } from '../token/token-actions';
 import { UrlHeader } from './url-header';
 
 describe('Dado o cabeçalho da URL aberta', () => {
-  let actions: { lockUrl: ReturnType<typeof vi.fn>; editUrl: ReturnType<typeof vi.fn> };
+  let actions: { lockUrl: ReturnType<typeof vi.fn> };
   let send: ReturnType<typeof vi.fn>;
 
   const renderWith = (url: Token | null) => {
-    actions = {
-      lockUrl: vi.fn().mockResolvedValue(undefined),
-      editUrl: vi.fn().mockResolvedValue(undefined),
-    };
+    actions = { lockUrl: vi.fn().mockResolvedValue(undefined) };
     send = vi.fn();
     return render(UrlHeader, {
       providers: [
@@ -49,14 +46,21 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve abrir o Send e o Edit de hoje Quando os botões são clicados', async () => {
+  it('deve abrir o Send de hoje Quando o botão é clicado', async () => {
     await renderWith(token());
 
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith());
-    await vi.waitFor(() => expect(actions.editUrl).toHaveBeenCalledWith());
+  });
+
+  it('deve levar a Checks pelo "Edit" (o antigo Edit URL)', async () => {
+    await renderWith(token());
+
+    expect(screen.getByRole('link', { name: 'Edit' })).toHaveProperty(
+      'href',
+      expect.stringMatching(new RegExp(`/${TOKEN_ID}/checks$`)),
+    );
   });
 
   it('deve mostrar "Lock" e trancar a URL Quando ela é protegida', async () => {

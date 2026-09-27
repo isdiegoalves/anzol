@@ -1,0 +1,90 @@
+@let limit = cleanupLimit();
+<header class="card-head">
+  <h2 id="response-title" i18n>Response</h2>
+  @if (form.dirty) {
+    <span class="state draft" i18n>Unsaved</span>
+  }
+</header>
+<p class="hint" i18n>What this URL answers when no rule matches.</p>
+
+<form class="fields" [formGroup]="form" (ngSubmit)="saveResponse()">
+  <div class="row">
+    <mat-form-field>
+      <mat-label i18n>Default status code</mat-label>
+      <input matInput formControlName="default_status" inputmode="numeric" placeholder="200" />
+      <mat-error i18n>The default status must be an integer.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label i18n>Content Type</mat-label>
+      <input matInput formControlName="default_content_type" placeholder="text/plain" />
+    </mat-form-field>
+  </div>
+  <mat-form-field>
+    <mat-label i18n>Response body</mat-label>
+    <textarea matInput rows="4" class="code" formControlName="default_content"></textarea>
+  </mat-form-field>
+  <div class="row">
+    <mat-form-field>
+      <mat-label i18n>Timeout before response</mat-label>
+      <input matInput type="number" min="0" max="10" formControlName="timeout" placeholder="0" />
+      <mat-hint i18n>Seconds, 0 to 10</mat-hint>
+      <mat-error i18n>The timeout must be an integer between 0 and 10.</mat-error>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label i18n>Retry-After</mat-label>
+      <input matInput formControlName="retry_after" placeholder="120" />
+      <mat-hint i18n>Seconds or HTTP-date; useful with 429, 503 or 3xx. Off when empty.</mat-hint>
+      <mat-error i18n>The retry after must be a number of seconds or an HTTP date.</mat-error>
+    </mat-form-field>
+  </div>
+  <div class="segmented">
+    <span class="segmented-label" id="response-cleanup-label" i18n>Auto cleanup</span>
+    <mat-button-toggle-group
+      formControlName="auto_cleanup"
+      aria-labelledby="response-cleanup-label"
+      aria-describedby="response-cleanup-help"
+      hideSingleSelectionIndicator
+    >
+      <mat-button-toggle value="off" i18n>Disabled</mat-button-toggle>
+      @for (option of limits; track option) {
+        <mat-button-toggle [value]="option">{{ option }}</mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+    <p id="response-cleanup-help" class="hint">
+      @if (limit) {
+        Keeps the {{ limit }} most recent requests; the oldest goes when a new one arrives. The URL
+        never stops receiving.
+      } @else {
+        <ng-container i18n>No per-URL limit: the server's global limit applies.</ng-container>
+      }
+    </p>
+  </div>
+</form>
+
+<div class="cors">
+  <mat-slide-toggle
+    [checked]="tokens.token()?.cors ?? false"
+    [disabled]="togglingCors()"
+    aria-describedby="response-cors-help"
+    (change)="toggleCors()"
+    i18n
+    >Enable CORS</mat-slide-toggle
+  >
+  <p id="response-cors-help" class="hint" i18n>
+    Adds CORS headers so a browser page can call this URL. Applies right away.
+  </p>
+</div>
+
+<app-save-bar
+  name="response"
+  label="Save response"
+  i18n-label
+  [summary]="pending()"
+  [attempted]="attempted()"
+  [notice]="notice()"
+  (save)="saveResponse()"
+>
+  @if (form.dirty) {
+    <button mat-button type="button" (click)="discard()" i18n>Discard</button>
+  }
+</app-save-bar>

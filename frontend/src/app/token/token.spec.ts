@@ -1,5 +1,5 @@
 import { FormControl } from '@angular/forms';
-import { isRetryAfter, retryAfterValidator } from './retry-after';
+import { isRetryAfter, retryAfterValidator } from './token';
 
 describe('Dado o valor do campo Retry-After (RFC 9110 §10.2.3)', () => {
   it.each([

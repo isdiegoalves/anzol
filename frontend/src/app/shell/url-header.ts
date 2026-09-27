@@ -1,7 +1,6 @@
 import { Component, Injector, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RequestStream } from '../realtime/request-stream';
-import type { TokenActions } from '../token/token-actions';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { CopyField } from '../ui/copy-field';
@@ -11,8 +10,8 @@ import { LiveState, LiveStatus } from '../ui/live-status';
 /**
  * Cabeçalho fixo da URL aberta, em todo destino: o campo com Copy, o chip do tempo real (só com o
  * stream aberto, isto é, na Inbox), os chips de assinatura e schema que levam a Checks, e as ações
- * da URL. "Edit" e "Send" ainda abrem os diálogos de hoje (até as fatias E5 e E7); "Lock" só com a
- * URL protegida.
+ * da URL. "Edit" leva a Checks (o antigo Edit URL, S2); "Send" ainda abre o diálogo de hoje (até a
+ * fatia E7); "Lock" só com a URL protegida.
  */
 @Component({
   selector: 'app-url-header',
@@ -42,21 +41,13 @@ export class UrlHeader {
   protected readonly lockable = computed(() => this.tokens.token()?.protected === true);
 
   protected async lockUrl(): Promise<void> {
-    await (await this.actions()).lockUrl();
-  }
-
-  protected async editUrl(): Promise<void> {
-    await (await this.actions()).editUrl();
+    const { TokenActions } = await import('../token/token-actions');
+    await this.injector.get(TokenActions).lockUrl();
   }
 
   /** O diálogo Send vem sob demanda (no pedaço do `outbound-actions`). */
   protected async sendRequest(): Promise<void> {
     const { OutboundActions } = await import('../outbound/outbound-actions');
     this.injector.get(OutboundActions).send();
-  }
-
-  private async actions(): Promise<TokenActions> {
-    const { TokenActions } = await import('../token/token-actions');
-    return this.injector.get(TokenActions);
   }
 }

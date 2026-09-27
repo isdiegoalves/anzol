@@ -1,4 +1,4 @@
-import { JsonSchema } from './token';
+import { JsonSchema } from '../token/token';
 
 const DRAFT_2020_12 = 'https://json-schema.org/draft/2020-12/schema';
 

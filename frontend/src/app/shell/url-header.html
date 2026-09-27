@@ -40,8 +40,8 @@
         <app-icon name="lock" [size]="18" />Lock
       </button>
     }
-    <button type="button" class="action" (click)="editUrl()">
+    <a class="action" [routerLink]="['/', token.uuid, 'checks']" title="Edit URL: open Checks">
       <app-icon name="settings" [size]="18" />Edit
-    </button>
+    </a>
   </div>
 }

@@ -1,3 +1,5 @@
+import type { AbstractControl, ValidationErrors } from '@angular/forms';
+
 /** URL de webhook, como a API devolve em `GET /token/{id}` (e como o app atual grava no localStorage). */
 export interface Token {
   uuid: string;
@@ -74,9 +76,9 @@ export interface SignatureConfig {
 export type JsonSchema = Record<string, unknown>;
 
 /**
- * Campos editáveis nos diálogos criar/editar. Os de texto só vão preenchidos; `retry_after`,
- * `auto_cleanup`, `signature` e `schema` vão sempre, `null` quando vazios, porque o `PUT` volta ao
- * padrão o campo ausente. `read_secret` é a exceção (ver o campo).
+ * Corpo do `POST`/`PUT /token`. No `PUT`, campo ausente volta ao padrão: Checks manda sempre a
+ * configuração inteira (`savedSettings`), com a parte do cartão trocada. `read_secret` é a exceção
+ * (ver o campo).
  */
 export interface TokenSettings {
   default_status?: string;
@@ -92,4 +94,47 @@ export interface TokenSettings {
    * outros campos) e `null` tira a proteção.
    */
   read_secret?: string | null;
+}
+
+const SECONDS = /^\d+$/;
+/** O servidor guarda os segundos num `Long`: acima disso, 422. */
+const MAX_SECONDS = 9223372036854775807n;
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const IMF_FIXDATE = new RegExp(
+  `^(${DAYS.join('|')}), (\\d{2}) (${MONTHS.join('|')}) (\\d{4}) (\\d{2}):(\\d{2}):(\\d{2}) GMT$`,
+);
+
+/**
+ * `Retry-After = HTTP-date / delay-seconds` (RFC 9110 §10.2.3), como o servidor valida:
+ * segundos (só dígitos, até o `Long`) ou data no formato IMF-fixdate, que precisa existir e ter
+ * o dia da semana certo. Formatos obsoletos (RFC 850, asctime) e espaço em volta são recusados.
+ */
+export function isRetryAfter(value: string): boolean {
+  if (SECONDS.test(value)) {
+    return BigInt(value) <= MAX_SECONDS;
+  }
+  const match = IMF_FIXDATE.exec(value);
+  if (!match) {
+    return false;
+  }
+  const [, day, date, month, year, hour, minute, second] = match;
+  const parsed = new Date(Date.UTC(+year, MONTHS.indexOf(month), +date, +hour, +minute, +second));
+  return (
+    parsed.getUTCFullYear() === +year &&
+    parsed.getUTCMonth() === MONTHS.indexOf(month) &&
+    parsed.getUTCDate() === +date &&
+    parsed.getUTCHours() === +hour &&
+    parsed.getUTCMinutes() === +minute &&
+    parsed.getUTCSeconds() === +second &&
+    parsed.getUTCDay() === DAYS.indexOf(day)
+  );
+}
+
+/**
+ * Validador do campo Retry-After (Create New URL e Checks › Response): vazio desliga o header;
+ * preenchido, precisa ser um `Retry-After` válido.
+ */
+export function retryAfterValidator(control: AbstractControl<string>): ValidationErrors | null {
+  return control.value === '' || isRetryAfter(control.value) ? null : { retryAfter: true };
 }
