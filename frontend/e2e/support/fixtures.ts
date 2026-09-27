@@ -1,4 +1,5 @@
 import { APIRequestContext, Page, test as base, expect } from '@playwright/test';
+import { expectSemViolacoesGraves } from './a11y';
 
 export interface TokenFields {
   default_status?: string;
@@ -101,12 +102,27 @@ export function tokenInUrl(page: Page): string {
   return match[1];
 }
 
-export const test = base.extend<{ tokens: TokenTracker }>({
+export const test = base.extend<{ tokens: TokenTracker; axeNoFim: boolean; axeAutomatico: void }>({
   tokens: async ({ request }, use) => {
     const tracker = new TokenTracker(request);
     await use(tracker);
     await tracker.cleanup();
   },
+  /** Item 14, E11 (CA-2): o axe roda no fim de todo teste que passou; `test.use({ axeNoFim: false })` desliga. */
+  axeNoFim: [true, { option: true }],
+  // Depende de `tokens` para rodar antes da limpeza (apagar a URL mudaria a tela).
+  axeAutomatico: [
+    async ({ page, axeNoFim, tokens }, use, testInfo) => {
+      void tokens;
+      await use();
+      const passou = testInfo.status === testInfo.expectedStatus && testInfo.status === 'passed';
+      const naTela = !page.isClosed() && page.url().startsWith('http');
+      if (axeNoFim && passou && naTela) {
+        await expectSemViolacoesGraves(page, `fim de "${testInfo.titlePath.slice(1).join(' › ')}"`);
+      }
+    },
+    { auto: true },
+  ],
 });
 
 export { expect };
