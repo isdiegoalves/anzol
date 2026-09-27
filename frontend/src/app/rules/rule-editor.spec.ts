@@ -1160,6 +1160,21 @@ describe('Dado o editor de regra', () => {
       ]);
     });
 
+    // R2-L5: com tudo de um lado só, a barra cheia parecia progresso; sem proporção, sem barra.
+    it('não deve mostrar a barra da prévia Quando nenhuma casada seguiria com a regra anterior', async () => {
+      await open({ index: null, draft: rule(9, { id: undefined, name: 'Nova', priority: 5 }) }, [
+        rule(1, { priority: 1 }),
+      ]);
+
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [{ uuid: 'b', seq: 2 }], misses: [] });
+      (await countCall()).flush({ data: [], total: 1 });
+      (await recentCall()).flush(requestPage([webhookRequest(2, { uuid: 'b', rule: null })]));
+      await vi.waitFor(() => expect(text('.preview li')).toHaveLength(1));
+
+      expect(root().querySelector('.preview .proportion')).toBeNull();
+    });
+
     it('deve dizer em cada condição quantas falharam nela, pelas "conditions" do teste', async () => {
       const regra = rule(1, {
         match: {

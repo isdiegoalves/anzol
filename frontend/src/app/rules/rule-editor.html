@@ -903,7 +903,8 @@
           @if (state.preview; as outcome) {
             <!-- Proporção de relance (RULES-21): esta regra | as anteriores; o texto abaixo diz os números. -->
             @let total = outcome.draft + earlierCount(outcome);
-            @if (total > 0) {
+            <!-- R2-L5: só com os dois lados; com um só, a barra cheia parecia progresso. -->
+            @if (outcome.draft > 0 && earlierCount(outcome) > 0) {
               <div class="proportion" aria-hidden="true">
                 <span class="mine" [style.width.%]="(outcome.draft / total) * 100"></span>
                 <span
