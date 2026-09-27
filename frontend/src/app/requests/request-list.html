@@ -18,7 +18,7 @@
   <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />
 } @else if (!store.hasRequests()) {
   <p class="waiting">
-    <mat-progress-spinner mode="indeterminate" diameter="16" />
+    <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
     <span i18n>Waiting for first request...</span>
   </p>
 } @else {

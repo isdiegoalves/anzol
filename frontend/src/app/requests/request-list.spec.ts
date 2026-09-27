@@ -56,6 +56,7 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().textContent).toContain('Requests (0)');
     expect(element().textContent).toContain('Waiting for first request...');
+    await expectNoAxeViolations(element());
   });
 
   it('deve mostrar o esqueleto, e não "Waiting for first request...", Quando a lista carrega (E10)', async () => {
