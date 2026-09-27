@@ -5,6 +5,14 @@ import { abrirMensagem, detalhes, item } from './support/inbox';
 // Diff entre duas mensagens (CA-6): "Compare with…" na mensagem aberta, escolha na lista, headers
 // por nome sem diferenciar maiúsculas, corpo JSON canônico por linha, "Only differences", trocar
 // A e B, fechar e o aviso de corpo acima de 1 MB. Não precisa do `requests/search`.
+//
+// Item 14, E8: o Compare vira rota (`#/{token}/compare/{a}/{b}`, com link compartilhável) e o corpo fica lado a
+// lado (C §2.4). SUPOSIÇÕES (contrato da E8; o resto em compare-rota.spec.ts):
+// - escolher a B na lista leva à rota; "Swap A and B" troca a ordem na rota; "Close" volta à Inbox com a A aberta;
+// - a `table "Headers"` tem as colunas "Name", "A", "B" e "Status" e a situação por linha ("Same", "Changed", "Only
+//   in A", "Only in B"; conferida sem caixa);
+// - a `table "Body"` fica lado a lado (colunas A e B); com "Only differences", os trechos iguais recolhem numa linha
+//   "⋯ N unchanged lines".
 
 const SCREENS = process.env['SCREENS_DIR'];
 
@@ -31,23 +39,31 @@ async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
     `Choose a request to compare with #${a.substring(0, 5)}`,
   );
   await item(page, b).getByRole('button').first().click();
+  await expect(page).toHaveURL(new RegExp(`#/[^/]+/compare/${a}/${b}$`));
   const view = page.getByRole('region', { name: 'Compare requests' });
   await expect(view).toBeVisible();
   return view;
 }
 
-/** Linhas da tabela `label` como [nome, A, B, situação]. */
+/** A situação de um header na comparação ("same", "changed", "only in a", "only in b"). */
+function situation(row: string[] | undefined): string | undefined {
+  return row?.[3]?.toLowerCase();
+}
+
+/** Linhas da tabela `label` como [nome, A, B, situação] (o nome pode vir em `th`). */
 async function fieldRows(view: Locator, label: string): Promise<string[][]> {
   return view
     .getByRole('table', { name: label })
     .locator('tbody tr')
     .evaluateAll((rows) =>
-      rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.innerText.trim())),
+      rows.map((row) =>
+        [...row.querySelectorAll('th, td')].map((cell) => (cell as HTMLElement).innerText.trim()),
+      ),
     );
 }
 
-function bodyRows(view: Locator, kind: 'added' | 'removed' | 'equal' | 'skipped'): Locator {
-  return view.getByRole('table', { name: 'Body' }).locator(`tr.${kind}`);
+function body(view: Locator): Locator {
+  return view.getByRole('table', { name: 'Body' });
 }
 
 test.describe('Dado duas entregas do mesmo evento', () => {
@@ -74,48 +90,43 @@ test.describe('Dado duas entregas do mesmo evento', () => {
 
     const view = await compareWith(page, a, b);
 
-    await expect(view.locator('.id-a')).toHaveText(`#${a.substring(0, 5)}`);
-    await expect(view.locator('.id-b')).toHaveText(`#${b.substring(0, 5)}`);
+    const tabela = view.getByRole('table', { name: 'Headers' });
+    for (const coluna of ['Name', 'A', 'B', 'Status']) {
+      await expect(tabela.getByRole('columnheader', { name: coluna, exact: true })).toBeVisible();
+    }
+    const soDiferencas = view.getByRole('switch', { name: 'Only differences' });
+    await soDiferencas.setChecked(false);
     const headers = await fieldRows(view, 'Headers');
-    expect(headers.find(([name]) => /^x-retry$/i.test(name))?.slice(1)).toEqual([
-      '1',
-      '2',
-      'changed',
-    ]);
-    expect(headers.find(([name]) => /^x-only-a$/i.test(name))?.slice(1)).toEqual([
-      'a',
-      '',
-      'only in A',
-    ]);
-    expect(headers.find(([name]) => /^x-only-b$/i.test(name))?.slice(1)).toEqual([
-      '',
-      'b',
-      'only in B',
-    ]);
-    expect(headers.find(([name]) => /^content-type$/i.test(name))?.[3]).toBe('same');
+    const x = (name: RegExp) => headers.find(([nome]) => name.test(nome));
+    expect(x(/^x-retry$/i)?.slice(1, 3)).toEqual(['1', '2']);
+    expect(situation(x(/^x-retry$/i))).toBe('changed');
+    expect(x(/^x-only-a$/i)?.slice(1, 3)).toEqual(['a', '']);
+    expect(situation(x(/^x-only-a$/i))).toBe('only in a');
+    expect(x(/^x-only-b$/i)?.slice(1, 3)).toEqual(['', 'b']);
+    expect(situation(x(/^x-only-b$/i))).toBe('only in b');
+    expect(situation(x(/^content-type$/i))).toBe('same');
     expect(headers.filter(([name]) => /^x-retry$/i.test(name))).toHaveLength(1);
 
     await expect(view.getByText('JSON bodies, formatted with sorted keys.')).toBeVisible();
-    await expect(bodyRows(view, 'removed')).toHaveText([/-\s*"status": "pending"$/]);
-    await expect(bodyRows(view, 'added')).toHaveText([/\+\s*"status": "paid"$/]);
+    await expect(body(view)).toContainText('"status": "pending"');
+    await expect(body(view)).toContainText('"status": "paid"');
+    await expect(body(view)).toContainText('"sku": "A1"');
     await screenshot(page, '01-diff-completo');
 
-    await view.getByRole('switch', { name: 'Only differences' }).click();
+    await soDiferencas.setChecked(true);
 
-    await expect(bodyRows(view, 'equal')).toHaveCount(0);
-    await expect(bodyRows(view, 'skipped')).not.toHaveCount(0);
-    await expect(bodyRows(view, 'removed')).toHaveCount(1);
-    expect(
-      (await fieldRows(view, 'Headers')).every(([, , , situation]) => situation !== 'same'),
-    ).toBe(true);
+    await expect(body(view)).not.toContainText('"sku": "A1"');
+    await expect(body(view)).toContainText(/\d+ unchanged lines?/);
+    await expect(body(view)).toContainText('"status": "pending"');
+    expect((await fieldRows(view, 'Headers')).every((row) => situation(row) !== 'same')).toBe(true);
     await expect(view.getByRole('table', { name: 'Request' })).toContainText('No differences');
     await screenshot(page, '02-diff-so-diferencas');
 
     await view.getByRole('button', { name: 'Swap A and B' }).click();
 
-    await expect(view.locator('.id-a')).toHaveText(`#${b.substring(0, 5)}`);
-    await expect(bodyRows(view, 'removed')).toHaveText([/-\s*"status": "paid"$/]);
-    await expect(bodyRows(view, 'added')).toHaveText([/\+\s*"status": "pending"$/]);
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/compare/${b}/${a}$`));
+    const trocados = await fieldRows(view, 'Headers');
+    expect(trocados.find(([nome]) => /^x-retry$/i.test(nome))?.slice(1, 3)).toEqual(['2', '1']);
 
     await view.getByRole('button', { name: 'Close' }).click();
     await expect(view).toBeHidden();
@@ -143,7 +154,7 @@ test.describe('Dado duas entregas do mesmo evento', () => {
     await expect(view.getByRole('alert')).toHaveText(
       'Body larger than 1 MB: comparing only the first 1 MB of each request.',
     );
-    await expect(view.getByRole('table', { name: 'Body' })).not.toContainText('fim');
+    await expect(body(view)).not.toContainText('fim');
   });
 
   test('deve sair do modo de escolha sem comparar Quando "Cancel" é clicado', async ({
