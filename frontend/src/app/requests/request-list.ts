@@ -6,6 +6,7 @@ import {
 import {
   Component,
   DestroyRef,
+  ElementRef,
   Injector,
   afterNextRender,
   computed,
@@ -128,6 +129,7 @@ export class RequestList {
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly windowClass = inject(Viewport).windowClass;
   private readonly viewport = viewChild(CdkVirtualScrollViewport);
 
@@ -244,6 +246,25 @@ export class RequestList {
       this.newBelow.update((count) => count + 1);
     }
     return inView;
+  }
+
+  /** Põe o foco no item aberto (a volta do detalhe em tela cheia), rolando até ele. */
+  focusSelected(): void {
+    const index = this.store.selectedIndex();
+    if (index < 0) {
+      return;
+    }
+    this.viewport()?.scrollToIndex(index);
+    // A lista virtual desenha os itens alguns quadros depois de medir o viewport.
+    const tryFocus = (left: number) => {
+      const button = this.host.querySelector<HTMLElement>('.item .select[aria-current="true"]');
+      if (button) {
+        button.focus();
+      } else if (left > 0) {
+        this.timers.add(setTimeout(() => tryFocus(left - 1), 20));
+      }
+    };
+    afterNextRender(() => tryFocus(10), { injector: this.injector });
   }
 
   /** A pílula: vai à ponta das novas (o topo, com a mais nova primeiro). */

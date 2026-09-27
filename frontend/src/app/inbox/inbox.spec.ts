@@ -495,6 +495,13 @@ describe('Dado a tela principal', () => {
     await harness.fixture.whenStable();
     expect(root.querySelector('app-request-list')).not.toBeNull();
     expect(screen.detailFullscreen()).toBe(false);
+    // O foco volta ao item de onde se saiu (não cai no body).
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(root.querySelector('.item .select[aria-current="true"]')),
+    );
+    expect(document.activeElement?.getAttribute('aria-label')).toContain(
+      `#${R2.uuid.substring(0, 5)}`,
+    );
   });
 
   it('deve mostrar a lista com a primeira mensagem Quando ela chega numa URL vazia na janela estreita (E11)', async () => {

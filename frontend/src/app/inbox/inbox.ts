@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
+  afterNextRender,
   Injector,
   computed,
   effect,
@@ -253,8 +254,10 @@ export class Inbox {
     void this.openRequest(request);
   }
 
+  /** Volta à lista com o foco no item de onde se saiu (sem ele, o foco cairia no body). */
   protected backToList(): void {
     this.showDetail.set(false);
+    afterNextRender(() => this.list()?.focusSelected(), { injector: this.injector });
   }
 
   /** Confirma antes: a confirmação (e o `MatDialog`) vêm sob demanda. */
