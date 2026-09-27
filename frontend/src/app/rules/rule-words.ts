@@ -135,6 +135,112 @@ function delayWords(delay: RuleDelay): string {
   return $localize`about ${delay.lognormal.median}:median: ms`;
 }
 
+/**
+ * Linha 2 da regra na lista (C, RULES-02): todas as condições, curtas e separadas por " · ", e o
+ * que muda a resposta no tempo (atraso ou falha): `POST /pagamentos · $.status = "pago" ·
+ * signature valid · delay 300 ms`. Sem condição, "any request".
+ */
+export function matchLine(rule: Rule): string {
+  const match = rule.match ?? {};
+  const methods = match.method ?? [];
+  const path = match.path;
+  const parts: string[] = [];
+  if (path && 'equals' in path) {
+    parts.push(methods.length ? `${methods.join(', ')} ${path.equals}` : path.equals);
+  } else {
+    if (methods.length) {
+      parts.push(methods.join(', '));
+    }
+    if (path && 'prefix' in path) {
+      parts.push($localize`path starts with ${path.prefix}:prefix:`);
+    } else if (path) {
+      parts.push($localize`path matches ${path.regex}:regex:`);
+    }
+  }
+  parts.push(
+    ...Object.entries(match.query ?? {}).map(([name, m]) =>
+      shortValue($localize`query ${name}:name:`, m),
+    ),
+    ...Object.entries(match.headers ?? {}).map(([name, m]) =>
+      shortValue($localize`header ${name}:name:`, m),
+    ),
+    ...(match.body ?? []).map(shortBody),
+  );
+  if (match.signature) {
+    parts.push($localize`signature ${match.signature}:state:`);
+  }
+  if (match.schema) {
+    parts.push($localize`schema ${match.schema}:state:`);
+  }
+  if (parts.length === 0) {
+    parts.push($localize`any request`);
+  }
+  const timing = responseTiming(rule);
+  return [...parts, ...(timing ? [timing] : [])].join(' · ');
+}
+
+/**
+ * A transição de uma regra de cenário (linha 3 da lista, RULES-07): `Started → falhou 1`; sem
+ * estado novo, só o estado em que ela responde. `null` fora de cenário.
+ */
+export function scenarioTransition(rule: Rule): string | null {
+  const scenario = rule.scenario;
+  if (!scenario?.name) {
+    return null;
+  }
+  const from = scenario.requiredState || $localize`any state`;
+  return scenario.newState ? `${from} → ${scenario.newState}` : from;
+}
+
+function shortValue(target: string, matcher: ValueMatcher): string {
+  if ('present' in matcher) {
+    return matcher.present ? $localize`${target}:target: present` : $localize`no ${target}:target:`;
+  }
+  if ('equals' in matcher) {
+    return `${target} = ${quoted(matcher.equals)}`;
+  }
+  if ('contains' in matcher) {
+    return $localize`${target}:target: contains ${quoted(matcher.contains)}:value:`;
+  }
+  return `${target} ~ ${matcher.regex}`;
+}
+
+function shortBody(matcher: BodyMatcher): string {
+  if ('jsonPath' in matcher) {
+    const { path, equals } = matcher.jsonPath;
+    return equals === undefined
+      ? $localize`${path}:path: present`
+      : `${path} = ${cut(JSON.stringify(equals))}`;
+  }
+  if ('equalToJson' in matcher) {
+    return $localize`body = JSON`;
+  }
+  if ('equals' in matcher) {
+    return $localize`body = ${quoted(matcher.equals)}:value:`;
+  }
+  if ('contains' in matcher) {
+    return $localize`body contains ${quoted(matcher.contains)}:value:`;
+  }
+  return $localize`body ~ ${matcher.regex}:regex:`;
+}
+
+/** Falha de rede (que manda sobre o resto) ou atraso da resposta; `null` sem nenhum dos dois. */
+function responseTiming(rule: Rule): string | null {
+  const response = rule.response ?? {};
+  if (response.fault) {
+    const label = FAULT_LABELS[response.fault] ?? response.fault;
+    const fault = `${label[0].toLowerCase()}${label.slice(1)}`;
+    return $localize`fault: ${fault}:fault:`;
+  }
+  const delay = response.delay;
+  if (!delay) {
+    return null;
+  }
+  return 'lognormal' in delay
+    ? $localize`lognormal delay, median ${delay.lognormal.median}:median: ms`
+    : $localize`delay ${delayWords(delay)}:delay:`;
+}
+
 function quoted(text: string): string {
   return cut(`"${text}"`);
 }

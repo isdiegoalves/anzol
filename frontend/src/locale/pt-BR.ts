@@ -1501,12 +1501,6 @@ export const translations: Record<string, string> = {
   '6904943491245640212': 'Tabela de regras',
   // Reorder
   '5721589179245249262': 'Reordenar',
-  // Behavior
-  '7779249123661446825': 'Comportamento',
-  // Hits
-  '4793456052173041220': 'Acertos',
-  // Actions
-  '3193976279273491157': 'Ações',
   // Drag, or use the arrow keys, to change the order
   '6085721866820141077': 'Arraste, ou use as setas do teclado, para mudar a ordem',
   // Enable rule {$INTERPOLATION}
@@ -1521,22 +1515,16 @@ export const translations: Record<string, string> = {
   '7059595352322663003': 'Descer (conferida depois)',
   // Edit
   '7585826646011739428': 'Editar',
-  //  Delete
-  '6660925946511264619': ' Apagar ',
   //  No rules yet. Every request gets the URL's default response.
   '4356305880738650678': ' Nenhuma regra ainda. Toda requisição recebe a resposta padrão da URL. ',
   // When no rule matches
   '1971050335506975022': 'Quando nenhuma regra casa',
-  // Answered {$INTERPOLATION}
-  '510967272684994108': 'Respondeu {$INTERPOLATION}',
   // Reorder {$rule}
   '7851725313429979857': 'Reordenar {$rule}',
   //  · 1 near miss
   '6079555798105880101': ' · 1 quase acerto',
   //  · {$count} near misses
   '4310678172376392590': ' · {$count} quase acertos',
-  // Answered {$answered}{$nearMisses}
-  '5761756633808174113': 'Respondeu {$answered}{$nearMisses}',
   // Rule saved
   '6780557385928670316': 'Regra salva',
   // {$rule} moved to position {$position} of {$count}
@@ -2044,4 +2032,56 @@ export const translations: Record<string, string> = {
   //  The {$INTERPOLATION} signature in this request is older than the tolerance ({$INTERPOLATION_1} s): the receiver will likely reject the replay. It was signed {$INTERPOLATION_2} ago ({$INTERPOLATION_3}).
   '179855389406776803':
     ' A assinatura {$INTERPOLATION} desta requisição é mais antiga que a tolerância ({$INTERPOLATION_1} s): o destino provavelmente vai recusar o reenvio. Ela foi assinada há {$INTERPOLATION_2} ({$INTERPOLATION_3}). ',
+  // Rule name
+  '8014521341313741580': 'Nome da regra',
+  // Unsaved changes
+  '6721990731116033031': 'Alterações não salvas',
+  // Delete rule
+  '4754052462239552170': 'Apagar regra',
+  // Answered {$answered} of the last {$window}{$nearMisses}
+  '842590195454025618': 'Respondeu {$answered} das últimas {$window}{$nearMisses}',
+  // {$seconds} s delay
+  '6629307616548746858': 'atraso de {$seconds} s',
+  // no delay
+  '1834062188646222394': 'sem atraso',
+  // path starts with {$prefix}
+  '1715239868738025527': 'caminho começa com {$prefix}',
+  // path matches {$regex}
+  '5810002288823785088': 'caminho casa com {$regex}',
+  // signature {$state}
+  '690333166882199346': 'assinatura {$state}',
+  // schema {$state}
+  '3093972816524349303': 'schema {$state}',
+  // any request
+  '3670253094280446538': 'qualquer requisição',
+  // {$target} contains {$value}
+  '5477821780168442986': '{$target} contém {$value}',
+  // body = JSON
+  '6878238939551544688': 'corpo = JSON',
+  // body = {$value}
+  '2538706247232815013': 'corpo = {$value}',
+  // body contains {$value}
+  '5916210482965604209': 'corpo contém {$value}',
+  // body ~ {$regex}
+  '426427422302801536': 'corpo ~ {$regex}',
+  // fault: {$fault}
+  '2242014359194309244': 'falha: {$fault}',
+  // lognormal delay, median {$median} ms
+  '8885647612294526854': 'atraso log-normal, mediana {$median} ms',
+  // delay {$delay}
+  '8028499000481447692': 'atraso {$delay}',
+  // Resize rule list and editor
+  '3606807096802832930': 'Redimensionar a lista de regras e o editor',
+  // Rule
+  '8462130792607498110': 'Regra',
+  // Order
+  '220550782947016929': 'Ordem',
+  // Scenario "{$INTERPOLATION}"
+  '8653788004349694466': 'Cenário "{$INTERPOLATION}"',
+  // state: {$INTERPOLATION}
+  '2109895373996309615': 'estado: {$INTERPOLATION}',
+  // P{$INTERPOLATION}
+  '748057184661191470': 'P{$INTERPOLATION}',
+  // Answered {$answered}
+  '1718242002612993810': 'Respondeu {$answered}',
 };

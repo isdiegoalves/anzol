@@ -31,7 +31,6 @@ import { merge } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { RuleSuggest } from './rule-suggest';
 import { WebhookRequest } from '../requests/webhook-request';
-import { Pane } from '../ui/pane';
 import { HistoryTestPanel } from './history-test-panel';
 import { PriorityPreview, priorityPreview } from './priority-preview';
 import {
@@ -69,6 +68,7 @@ import {
   toFormValue,
 } from './rule-form';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
+import { RuleEditorHeader } from './rule-editor-header';
 import { ruleInWords } from './rule-words';
 import { ScenarioDiagram } from './scenario-diagram';
 
@@ -97,6 +97,7 @@ type HeaderGroup = FormGroup<{ name: FormControl<string>; value: FormControl<str
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 const FORM_VIEW = 0;
 const JSON_VIEW = 1;
+let nextEditorId = 0;
 
 /** Abas do editor em modo formulário (C §2.4). */
 export type EditorTab = 'match' | 'response' | 'scenario' | 'test';
@@ -162,7 +163,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
   selector: 'app-rule-editor',
   imports: [
     ReactiveFormsModule,
-    Pane,
+    RuleEditorHeader,
     MatFormField,
     MatLabel,
     MatHint,
@@ -188,8 +189,17 @@ export class RuleEditor {
 
   /** A regra a editar; a página recria o editor quando ela muda. */
   readonly data = input.required<RuleEditorData>();
-  /** Fecha o editor: `true` depois de salvar, `false` no Cancel. */
+  /** Fecha o editor: `true` depois de salvar, `false` no Discard. */
   readonly closed = output<boolean>();
+  /** "Delete rule": a página apaga a regra salva (com Undo) e fecha o editor. */
+  readonly deleteRequested = output<string>();
+  protected readonly headingId = `rule-editor-heading-${nextEditorId++}`;
+  /** Algo mudou desde a abertura (formulário, JSON ou sugestão aplicada): "Unsaved changes". */
+  protected readonly unsaved = computed(() => {
+    this.edits();
+    return this.form.dirty || this.json.dirty || this.suggestionApplied();
+  });
+  private readonly suggestionApplied = signal(false);
 
   /** Regra de partida: o que o formulário não edita (`id`, `scenario`...) sai dela. */
   private base: Rule = newRule();
@@ -503,6 +513,18 @@ export class RuleEditor {
     this.closed.emit(false);
   }
 
+  /** Só uma regra salva, que ainda está na lista, pode ser apagada daqui. */
+  protected canDelete(): boolean {
+    return this.editingId() !== undefined && !this.missingFromList();
+  }
+
+  protected deleteRule(): void {
+    const id = this.editingId();
+    if (id !== undefined) {
+      this.deleteRequested.emit(id);
+    }
+  }
+
   /** Tira o token da URL do começo do caminho (o caminho da regra é relativo à URL). */
   protected removeTokenFromPath(): void {
     const fixed = this.pathFix();
@@ -620,6 +642,7 @@ export class RuleEditor {
    * regra salva, ela fica com o `id` dessa regra.
    */
   protected applySuggestion(rule: Rule): void {
+    this.suggestionApplied.set(true);
     const id = this.editingId();
     this.base = id === undefined ? rule : { ...rule, id };
     this.generalErrors.set([]);

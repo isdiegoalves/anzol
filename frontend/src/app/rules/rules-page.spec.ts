@@ -1,6 +1,7 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
@@ -12,6 +13,7 @@ import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { TokenStats } from '../stats/stats';
 import { Rule } from './rule';
 import { ruleFromRequest } from './rule-from-request';
@@ -29,10 +31,16 @@ describe('Dado a página Rules', () => {
   let http: HttpTestingController;
   let navigate: ReturnType<typeof vi.spyOn>;
 
+  const windowClass = signal<WindowClass>('large');
+  /** Nome, prioridade ("P1"), match e status de cada linha (o item de 3 linhas do C, RULES-01). */
   const rows = () =>
     [...document.querySelectorAll('tbody tr[data-rule-id]')].map((row) =>
-      [...row.querySelectorAll('td.data')].map((cell) => cell.textContent?.trim()),
+      ['.name', '.priority', '.match', '.status .code'].map((part) =>
+        row.querySelector(part)?.textContent?.trim(),
+      ),
     );
+  /** O botão da linha, que abre o editor (RULES-01/04). */
+  const openButton = (id: string) => row(id).querySelector('td.item button') as HTMLButtonElement;
   const row = (id: string) => document.querySelector(`[data-rule-id="${id}"]`) as HTMLElement;
   const renderPage = async (
     inputs: { ruleId?: string; from?: string } = {},
@@ -40,7 +48,12 @@ describe('Dado a página Rules', () => {
   ) => {
     const result = await render(RulesPage, {
       inputs: { tokenId: TOKEN_ID, ...inputs },
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: Viewport, useValue: { windowClass } },
+      ],
       configureTestBed: () => {
         TestBed.inject(Preferences).token.set(token());
         configure?.();
@@ -74,6 +87,7 @@ describe('Dado a página Rules', () => {
   };
 
   afterEach(() => {
+    windowClass.set('large');
     http.verify();
     localStorage.clear();
     vi.restoreAllMocks();
@@ -101,15 +115,25 @@ describe('Dado a página Rules', () => {
     );
 
     expect(rows()).toEqual([
-      ['Pix', '1', 'GET, HEAD /api*', '202'],
-      ['Rule 1', '5', 'POST /r1', '201'],
+      ['Pix', 'P1', 'GET, HEAD · path starts with /api', '202'],
+      ['Rule 1', 'P5', 'POST /r1', '201'],
     ]);
-    expect(row('r2').querySelector('.hits')?.textContent?.trim()).toBe('Answered 41');
-    expect(row('r1').querySelector('.hits')?.textContent?.trim()).toBe(
-      'Answered 0 · 3 near misses',
+    expect(row('r2').querySelector('.hits')?.textContent?.trim()).toBe(
+      'Answered 41 of the last 128',
     );
+    expect(row('r1').querySelector('.hits')?.textContent?.trim()).toBe(
+      'Answered 0 of the last 128 · 3 near misses',
+    );
+    // Sem botões Edit/Delete na linha: a linha inteira abre o editor (RULES-04).
+    expect(within(row('r1')).queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(within(row('r1')).queryByRole('button', { name: 'Delete' })).toBeNull();
+    expect(within(row('r1')).getByRole('button', { name: 'Rule 1' })).toBe(openButton('r1'));
+    // A resposta padrão é um link para Checks › Response, com o tipo e o atraso (RULES-09).
     const padrao = document.querySelector('tfoot tr') as HTMLElement;
-    expect(within(padrao).getByRole('rowheader').textContent).toContain('Default response');
+    const link = within(padrao).getByRole('link', { name: 'Default response' });
+    expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=response`);
+    expect(padrao.textContent).toContain('When no rule matches · text/plain · no delay');
+    expect(padrao.querySelector('.status .code')?.textContent?.trim()).toBe('200');
     expect(padrao.querySelector('.hits')?.textContent?.trim()).toBe('Answered 84');
     expect(screen.getByText('Hits over the last 128 requests kept.')).toBeTruthy();
     // A tabela que rola de lado recebe foco pelo teclado (axe scrollable-region-focusable, E11).
@@ -273,8 +297,8 @@ describe('Dado a página Rules', () => {
       http.expectNone({ method: 'GET', url: URL_REGRAS });
     });
 
-    it('deve salvar sem a regra e oferecer desfazer Quando "Delete" é clicado', async () => {
-      await open([rule(1), rule(2)]);
+    it('deve salvar sem a regra, voltar à lista e oferecer desfazer Quando "Delete rule" é clicado no editor', async () => {
+      await open([rule(1), rule(2)], { ruleId: 'r1' });
       const desfazer = new Subject<void>();
       const snack = vi
         .spyOn(TestBed.inject(MatSnackBar), 'open')
@@ -282,24 +306,25 @@ describe('Dado a página Rules', () => {
           MatSnackBar['open']
         >);
 
-      await userEvent.click(within(row('r1')).getByRole('button', { name: 'Delete' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Delete rule' }));
       await expectGuardedPut([rule(1), rule(2)], [rule(2)]);
       await vi.waitFor(() =>
         expect(snack).toHaveBeenCalledWith('Rule deleted', 'Undo', { duration: 5000 }),
       );
+      expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
 
       desfazer.next();
       await expectGuardedPut([rule(2)], [rule(1), rule(2)]);
     });
 
     it('não deve desfazer o Delete e deve avisar Quando a lista mudou em outro lugar depois de apagar', async () => {
-      await open([rule(1), rule(2)]);
+      await open([rule(1), rule(2)], { ruleId: 'r1' });
       const desfazer = new Subject<void>();
       const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open').mockReturnValue({
         onAction: () => desfazer,
       } as unknown as ReturnType<MatSnackBar['open']>);
 
-      await userEvent.click(within(row('r1')).getByRole('button', { name: 'Delete' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Delete rule' }));
       await expectGuardedPut([rule(1), rule(2)], [rule(2)]);
       await vi.waitFor(() => expect(snack).toHaveBeenCalled());
       desfazer.next();
@@ -311,14 +336,14 @@ describe('Dado a página Rules', () => {
       http.expectNone({ method: 'PUT', url: URL_REGRAS });
     });
     it('deve devolver só a regra apagada, sem apagar a de outra aba, Quando o Undo vem depois de um Reload', async () => {
-      await open([rule(1), rule(2)]);
+      await open([rule(1), rule(2)], { ruleId: 'r2' });
       const desfazer = new Subject<void>();
       const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open').mockReturnValue({
         onAction: () => desfazer,
       } as unknown as ReturnType<MatSnackBar['open']>);
 
       // Apaga a regra 2; outra aba acrescenta a 3; o toggle avisa e a lista é relida.
-      await userEvent.click(within(row('r2')).getByRole('button', { name: 'Delete' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Delete rule' }));
       await expectGuardedPut([rule(1), rule(2)], [rule(1)]);
       await vi.waitFor(() => expect(snack).toHaveBeenCalled());
       await userEvent.click(screen.getByRole('switch', { name: 'Enable rule Rule 1' }));
@@ -338,11 +363,11 @@ describe('Dado a página Rules', () => {
   });
 
   describe('Dado o editor aberto pela rota', () => {
-    it('deve levar a rules/new Quando "New rule" é clicado e a rules/{id} Quando "Edit" é clicado', async () => {
+    it('deve levar a rules/new Quando "New rule" é clicado e a rules/{id} Quando a linha é clicada', async () => {
       await open([rule(1)]);
 
       await userEvent.click(screen.getByRole('button', { name: 'New rule' }));
-      await userEvent.click(within(row('r1')).getByRole('button', { name: 'Edit' }));
+      await userEvent.click(openButton('r1'));
 
       expect(navigate.mock.calls).toEqual([
         [['/', TOKEN_ID, 'rules', 'new']],
@@ -362,16 +387,34 @@ describe('Dado a página Rules', () => {
           .getAllByRole('tab')
           .map((tab) => tab.textContent?.trim().split(/\s/)[0]),
       ).toEqual(['Match', 'Response', 'Scenario', 'Test']);
-      expect(row('r2').classList).toContain('open');
+      expect(openButton('r2').getAttribute('aria-current')).toBe('true');
+      expect(openButton('r1').hasAttribute('aria-current')).toBe(false);
+      // Lista e editor lado a lado com a divisória do app-split (RULES-10/11): a lista mostra tudo.
+      expect(screen.getByRole('separator', { name: 'Resize rule list and editor' })).toBeTruthy();
+      expect(row('r1').querySelector('.match')?.textContent?.trim()).toBe('POST /r1');
       await expectNoAxeViolations(container);
     });
 
-    it('deve deixar só o aviso do editor Quando a regra aberta sai da lista (apagada ao lado)', async () => {
-      await open([rule(1), rule(2)], { ruleId: 'r2' });
-      await screen.findByRole('region', { name: 'Edit rule Rule 2' });
+    it('deve mostrar só o editor, sem a lista, Quando a janela é estreita', async () => {
+      windowClass.set('expanded');
+      await renderPage({ ruleId: 'r1' });
+      http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]);
+      await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
 
-      await userEvent.click(within(row('r2')).getByRole('button', { name: 'Delete' }));
-      await expectGuardedPut([rule(1), rule(2)], [rule(1)]);
+      await screen.findByRole('region', { name: 'Edit rule Rule 1' });
+      expect(screen.queryByRole('table', { name: 'Rules' })).toBeNull();
+      expect(screen.queryByRole('separator')).toBeNull();
+    });
+
+    it('deve deixar só o aviso do editor Quando a regra aberta sai da lista (apagada em outra aba)', async () => {
+      await open([rule(1), rule(2)], { ruleId: 'r2' });
+      const editor = await screen.findByRole('region', { name: 'Edit rule Rule 2' });
+
+      // O Save acha a lista mudada; o Reload do editor traz a lista sem a regra 2.
+      await userEvent.click(within(editor).getByRole('button', { name: 'Save' }));
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
+      await userEvent.click(await within(editor).findByRole('button', { name: 'Reload' }));
+      http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]);
 
       await vi.waitFor(() =>
         expect(screen.getAllByRole('alert').map((alert) => alert.textContent?.trim())).toEqual([
@@ -427,7 +470,7 @@ describe('Dado a página Rules', () => {
       const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
       const editor = await screen.findByRole('region', { name: 'New rule' });
 
-      await userEvent.click(within(editor).getByRole('button', { name: 'Cancel' }));
+      await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
       expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
       expect(snack).not.toHaveBeenCalled();
 
@@ -497,7 +540,7 @@ describe('Dado a página Rules', () => {
         ['delay', 'Delay: 250 ms'],
       ]);
       expect(flags('r3')).toEqual([['fault', 'Fault: empty response (close without writing)']]);
-      expect(rows()[0]).toEqual(['Rule 1', '5', 'POST /r1', '200']);
+      expect(rows()[0]).toEqual(['Rule 1', 'P5', 'POST /r1 · delay 250 ms', '200']);
     });
 
     it('não deve pedir os cenários nem mostrar o painel Quando nenhuma regra usa cenário', async () => {
@@ -519,6 +562,24 @@ describe('Dado a página Rules', () => {
       await expectGuardedPut([rule(1), comCenario], [{ ...rule(1), enabled: false }, comCenario]);
 
       await flushScenarios();
+    });
+
+    it('deve agrupar as regras do cenário sob um cabeçalho com o estado atual e dizer a transição (RULES-07)', async () => {
+      await open([rule(1), comCenario]);
+      await flushScenarios();
+
+      const grupo = document.querySelector('tbody tr.scenario-group') as HTMLElement;
+      await vi.waitFor(() =>
+        expect(grupo.querySelector('.state')?.textContent?.trim()).toBe('state: falhou-1'),
+      );
+      expect(grupo.querySelector('th[scope="rowgroup"]')?.textContent).toContain(
+        'Scenario "Retry"',
+      );
+      // O cabeçalho vem logo antes da regra do cenário.
+      expect(grupo.nextElementSibling?.getAttribute('data-rule-id')).toBe('r2');
+      expect(row('r2').querySelector('.hits')?.textContent?.trim()).toBe(
+        'Started → falhou-1 · Answered 0 of the last 12',
+      );
     });
   });
 

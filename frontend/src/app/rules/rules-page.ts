@@ -18,22 +18,27 @@ import {
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { TokenStore } from '../token/token-store';
-import { StatusCode } from '../ui/status-code';
+import { Viewport } from '../shell/viewport';
+import { Split } from '../ui/split';
 import {
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   Rule,
   RuleFlag,
   evaluationOrder,
-  matchSummary,
   moveInOrder,
   ruleFlags,
 } from './rule';
+import { defaultResponseDetail, hitsLine, listRows } from './rule-list';
+import { matchLine, scenarioTransition } from './rule-words';
+import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
+import { RuleItem } from './rule-item';
 import { ruleFromRequest } from './rule-from-request';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 import { ScenarioPanel } from './scenario-panel';
@@ -43,6 +48,10 @@ interface OrderedRule {
   rule: Rule;
   index: number;
   flags: RuleFlag[];
+  /** Linha 2 do item (RULES-02). */
+  match: string;
+  /** Transição do cenário, na frente dos hits (RULES-07); `null` fora de cenário. */
+  transition: string | null;
 }
 
 /** O editor aberto pela rota: a regra (ou a nova) e a chave que o recria quando ela muda. */
@@ -64,12 +73,15 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     MatButton,
     MatIconButton,
     MatSlideToggle,
+    RouterLink,
+    NgTemplateOutlet,
+    Split,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
-    StatusCode,
     ScenarioPanel,
     RuleEditor,
+    RuleItem,
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
@@ -84,6 +96,8 @@ export class RulesPage {
   private readonly announcer = inject(LiveAnnouncer);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly viewport = inject(Viewport);
+  protected readonly scenarios = inject(ScenarioStore);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -107,8 +121,18 @@ export class RulesPage {
       rule: rules[index],
       index,
       flags: ruleFlags(rules[index]),
+      match: matchLine(rules[index]),
+      transition: scenarioTransition(rules[index]),
     }));
   });
+  /** As linhas da tabela: as regras e o cabeçalho de cada sequência de um cenário (RULES-07). */
+  protected readonly rows = computed(() => listRows(this.ordered()));
+  /** Lista e editor lado a lado a partir de 1200 px; abaixo, só o editor (RULES-10). */
+  protected readonly twoPanes = computed(() =>
+    ['large', 'extra-large'].includes(this.viewport.windowClass()),
+  );
+  /** Largura da lista ao lado do editor (C: 440 px), guardada em `rulesListWidth`. */
+  protected readonly listWidth = signal(440);
   protected readonly hasScenarios = computed(() =>
     this.store.rules().some((rule) => !!rule.scenario?.name),
   );
@@ -167,7 +191,6 @@ export class RulesPage {
     );
   });
 
-  protected readonly summary = matchSummary;
   protected readonly defaultPriority = RULE_DEFAULT_PRIORITY;
   protected readonly defaultStatus = RULE_DEFAULT_STATUS;
 
@@ -182,21 +205,43 @@ export class RulesPage {
     });
   }
 
-  /** Hits da regra na janela de `stats`: "Answered 41 · 3 near misses". */
-  protected hitsOf(rule: Rule): string | null {
+  /**
+   * Linha 3 da regra (RULES-01): "Answered 41 of the last 200 · 3 near misses", com a transição do
+   * cenário na frente; sem os hits de `stats`, só a transição.
+   */
+  protected hitsOf(item: OrderedRule): string | null {
     const hits = this.store.hits();
     if (!hits) {
-      return null;
+      return item.transition;
     }
-    const answered = hits.answered.find(({ id }) => id === rule.id)?.count ?? 0;
-    const near = hits.near_miss.find(({ id }) => id === rule.id)?.count ?? 0;
-    const nearText =
-      near === 0
-        ? ''
-        : near === 1
-          ? $localize` · 1 near miss`
-          : $localize` · ${near}:count: near misses`;
-    return $localize`Answered ${answered}:answered:${nearText}:nearMisses:`;
+    const answered = hits.answered.find(({ id }) => id === item.rule.id)?.count ?? 0;
+    const near = hits.near_miss.find(({ id }) => id === item.rule.id)?.count ?? 0;
+    return hitsLine(answered, near, hits.evaluated, item.transition);
+  }
+
+  /** Estado atual do cenário (`GET /scenarios`), para o chip do cabeçalho do grupo. */
+  protected stateOf(scenario: string): string | null {
+    return this.scenarios.scenarios().find(({ name }) => name === scenario)?.state ?? null;
+  }
+
+  /** Detalhe da resposta padrão: tipo do corpo e atraso da URL (RULES-09). */
+  protected defaultDetail(): string {
+    const token = this.tokens.token();
+    return defaultResponseDetail(token?.default_content_type ?? null, token?.timeout ?? 0);
+  }
+
+  /** Linha 3 da resposta padrão: quantas ela respondeu na janela. */
+  protected defaultHits(): string | null {
+    const hits = this.store.hits();
+    return hits ? $localize`Answered ${hits.default}:answered:` : null;
+  }
+
+  /** "Delete rule" no editor: apaga a regra (com Undo) e volta à lista. */
+  protected async deleteFromEditor(id: string): Promise<void> {
+    const index = this.store.rules().findIndex((rule) => rule.id === id);
+    if (index >= 0 && (await this.deleteRule(index))) {
+      void this.router.navigate(['/', this.tokenId(), 'rules']);
+    }
   }
 
   protected newRule(): void {
@@ -279,15 +324,16 @@ export class RulesPage {
     }
   }
 
-  protected async deleteRule(index: number): Promise<void> {
+  private async deleteRule(index: number): Promise<boolean> {
     const deleted = this.store.rules()[index];
     if (!(await this.saveUnchanged(this.store.rules().filter((_, i) => i !== index)))) {
-      return;
+      return false;
     }
     this.snackBar
       .open($localize`Rule deleted`, $localize`Undo`, { duration: 5000 })
       .onAction()
       .subscribe(() => void this.undoDelete(deleted, index));
+    return true;
   }
 
   /**

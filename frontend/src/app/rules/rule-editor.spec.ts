@@ -1069,4 +1069,51 @@ describe('Dado o editor de regra', () => {
       ]);
     });
   });
+
+  describe('Dado o cabeçalho do editor (RULES-13)', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const buttonsNamed = (name: string) =>
+      [...root().querySelectorAll('button')].filter(
+        (element) => element.textContent?.trim() === name,
+      );
+
+    it('deve trazer nome, prioridade, Enabled, Discard e um Save só no topo', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      const header = root().querySelector('.editor-header') as HTMLElement;
+      expect(header.querySelector('input[aria-label="Name"]')).not.toBeNull();
+      expect(header.querySelector('input[aria-label="Priority"]')).not.toBeNull();
+      expect(header.textContent).toContain('Enabled');
+      expect(buttonsNamed('Save')).toHaveLength(1);
+      expect(header.contains(buttonsNamed('Save')[0])).toBe(true);
+      expect(buttonsNamed('Cancel')).toHaveLength(0);
+      await (await button('Discard')).click();
+      expect(closed).toHaveBeenCalledWith(false);
+    });
+
+    it('deve mostrar "Unsaved changes" só depois de uma edição', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      expect(text('.unsaved')).toEqual([]);
+
+      await (await input('Name')).setValue('Outro nome');
+      fixture.detectChanges();
+
+      expect(text('.unsaved')).toEqual(['Unsaved changes']);
+    });
+
+    it('deve pedir para apagar a regra salva pelo "Delete rule", e não o oferecer numa regra nova', async () => {
+      const deleted = vi.fn();
+      await open({ index: 0 }, [rule(1)]);
+      fixture.componentInstance.deleteRequested.subscribe(deleted);
+
+      await (
+        await loader.getHarness(MatButtonHarness.with({ selector: '[aria-label="Delete rule"]' }))
+      ).click();
+
+      expect(deleted).toHaveBeenCalledWith('r1');
+      fixture.componentRef.setInput('data', { index: null });
+      fixture.detectChanges();
+      expect(root().querySelector('[aria-label="Delete rule"]')).toBeNull();
+    });
+  });
 });

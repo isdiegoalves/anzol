@@ -1,18 +1,20 @@
-<app-pane [heading]="title()">
-  <mat-button-toggle-group
-    paneActions
-    class="view"
-    aria-label="Editor view"
-    i18n-aria-label
-    hideSingleSelectionIndicator
-    [value]="view()"
-    (change)="switchView($event.value)"
-  >
-    <mat-button-toggle i18n [value]="formView" [disabled]="view() === jsonView && json.invalid"
-      >Form</mat-button-toggle
-    >
-    <mat-button-toggle i18n [value]="jsonView">JSON</mat-button-toggle>
-  </mat-button-toggle-group>
+<section class="editor" role="region" [attr.aria-labelledby]="headingId">
+  <h2 class="visually-hidden" [id]="headingId">{{ title() }}</h2>
+  <app-rule-editor-header
+    [title]="title()"
+    [name]="form.controls.name"
+    [priority]="form.controls.priority"
+    [enabled]="form.controls.enabled"
+    [fields]="view() === formView"
+    [nameError]="errorOf(form.controls.name, messages.nameRequired)"
+    [priorityError]="errorOf(form.controls.priority, messages.priority)"
+    [unsaved]="unsaved()"
+    [canDelete]="canDelete()"
+    [canSave]="canSave()"
+    (deleteRule)="deleteRule()"
+    (discard)="cancel()"
+    (save)="saveRule()"
+  />
   <div class="content">
     @if (words(); as sentence) {
       <p class="words">
@@ -20,7 +22,7 @@
       </p>
     }
     @if (changedElsewhere()) {
-      <div class="changed" role="alert">
+      <div class="notice changed" role="alert">
         <p i18n>
           The rules changed elsewhere since this page read them, so nothing was saved. Reload the
           rules, then save again: your changes stay in the editor.
@@ -29,7 +31,7 @@
       </div>
     }
     @if (missingFromList()) {
-      <p class="missing" role="alert" i18n>
+      <p class="notice missing" role="alert" i18n>
         This rule no longer exists in the list; Save adds it as a new rule.
       </p>
     }
@@ -50,58 +52,34 @@
 
     @if (view() === formView) {
       <form id="rule-form" class="rule-form" [formGroup]="form" (ngSubmit)="saveRule()">
-        <div class="line">
-          <mat-form-field class="grow">
-            <mat-label i18n>Name</mat-label>
-            <input
-              matInput
-              formControlName="name"
-              aria-label="Name"
-              i18n-aria-label
-              maxlength="100"
-            />
-            <mat-error>{{ errorOf(form.controls.name, messages.nameRequired) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field class="short">
-            <mat-label i18n>Priority</mat-label>
-            <input
-              matInput
-              type="number"
-              min="1"
-              formControlName="priority"
-              aria-label="Priority"
-              i18n-aria-label
-            />
-            <mat-hint i18n>Lowest first</mat-hint>
-            <mat-error>{{ errorOf(form.controls.priority, messages.priority) }}</mat-error>
-          </mat-form-field>
-          <mat-slide-toggle formControlName="enabled" i18n>Enabled</mat-slide-toggle>
-        </div>
-
-        <div class="tabs" role="tablist" aria-label="Rule parts" i18n-aria-label>
-          @for (item of tabs; track item.id) {
-            <button
-              type="button"
-              role="tab"
-              class="tab"
-              [id]="'rule-tab-' + item.id"
-              [attr.aria-selected]="tab() === item.id"
-              [attr.aria-controls]="'rule-panel-' + item.id"
-              [attr.tabindex]="tab() === item.id ? 0 : -1"
-              (click)="selectTab(item.id)"
-              (keydown)="moveTab($event, item.id)"
-            >
-              {{ item.label }}
-              @if (item.id === 'response') {
-                <span class="badge" aria-hidden="true">{{ responseBadge() }}</span>
-              }
-              @if (item.id === 'test' && historyTest(); as result) {
-                <span class="badge" aria-hidden="true"
-                  >{{ result.matched }} / {{ result.tested }}</span
-                >
-              }
-            </button>
-          }
+        <div class="tabbar">
+          <div class="tabs" role="tablist" aria-label="Rule parts" i18n-aria-label>
+            @for (item of tabs; track item.id) {
+              <button
+                type="button"
+                role="tab"
+                class="tab"
+                [id]="'rule-tab-' + item.id"
+                [attr.aria-selected]="tab() === item.id"
+                [attr.aria-controls]="'rule-panel-' + item.id"
+                [attr.tabindex]="tab() === item.id ? 0 : -1"
+                (click)="selectTab(item.id)"
+                (keydown)="moveTab($event, item.id)"
+              >
+                {{ item.label }}
+                @if (item.id === 'response') {
+                  <span class="badge" aria-hidden="true">{{ responseBadge() }}</span>
+                }
+                @if (item.id === 'test' && historyTest(); as result) {
+                  <span class="badge" aria-hidden="true"
+                    >{{ result.matched }} / {{ result.tested }}</span
+                  >
+                }
+              </button>
+            }
+          </div>
+          <span class="spacer"></span>
+          <ng-container [ngTemplateOutlet]="barActions" />
         </div>
 
         <div
@@ -174,7 +152,7 @@
             />
           }
           @if (pathFix() !== null) {
-            <div class="path-warning" role="alert">
+            <div class="notice path-warning" role="alert">
               <p i18n>
                 The path includes this URL's token. Rule paths are relative to the URL (what comes
                 after /{{ tokenId() }}), so this rule never matches.
@@ -388,7 +366,7 @@
             </mat-form-field>
           </div>
           @if (faulted()) {
-            <p class="fault-note" role="note" i18n>
+            <p class="notice fault-note" role="note" i18n>
               With a fault, the status, headers, body, delay and dribble are ignored: the request is
               recorded, then the connection fails.
             </p>
@@ -654,6 +632,10 @@
         </div>
       </form>
     } @else {
+      <div class="tabbar">
+        <span class="spacer"></span>
+        <ng-container [ngTemplateOutlet]="barActions" />
+      </div>
       <mat-form-field class="full json">
         <mat-label i18n>Rule JSON</mat-label>
         <textarea
@@ -671,27 +653,36 @@
       </mat-form-field>
       <ng-container [ngTemplateOutlet]="testSection" />
     }
-
-    <div class="footer">
-      <button
-        mat-stroked-button
-        type="button"
-        class="test"
-        title="Check which of the recorded requests this rule would match, without saving it"
-        i18n-title
-        [disabled]="!canTest()"
-        (click)="testAgainstHistory()"
-        i18n
-      >
-        Test against history
-      </button>
-      <button mat-button type="button" (click)="cancel()" i18n>Cancel</button>
-      <button mat-flat-button type="button" [disabled]="!canSave()" (click)="saveRule()" i18n>
-        Save
-      </button>
-    </div>
   </div>
-</app-pane>
+</section>
+
+<ng-template #barActions>
+  <button
+    mat-stroked-button
+    type="button"
+    class="test"
+    title="Check which of the recorded requests this rule would match, without saving it"
+    i18n-title
+    [disabled]="!canTest()"
+    (click)="testAgainstHistory()"
+    i18n
+  >
+    Test against history
+  </button>
+  <mat-button-toggle-group
+    class="view"
+    aria-label="Editor view"
+    i18n-aria-label
+    hideSingleSelectionIndicator
+    [value]="view()"
+    (change)="switchView($event.value)"
+  >
+    <mat-button-toggle i18n [value]="formView" [disabled]="view() === jsonView && json.invalid"
+      >Form</mat-button-toggle
+    >
+    <mat-button-toggle i18n [value]="jsonView">JSON</mat-button-toggle>
+  </mat-button-toggle-group>
+</ng-template>
 
 <ng-template #conditionFeedback let-key>
   @if (feedback(key); as result) {
@@ -729,7 +720,7 @@
           Based on the rule that answered at the time; ignores scenario state.
         </p>
         @if (ruleOff()) {
-          <p class="off" i18n>This rule is off; turn it on to answer.</p>
+          <p class="notice off" i18n>This rule is off; turn it on to answer.</p>
         }
         @if (state.preview; as outcome) {
           <ul>

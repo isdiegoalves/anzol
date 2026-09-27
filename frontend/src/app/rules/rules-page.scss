@@ -1,41 +1,55 @@
-@use '@angular/material' as mat;
-
 :host {
-  display: block;
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 10px 20px;
 }
 
-// Com uma regra aberta, lista e editor lado a lado; em janela estreita, só o editor.
-.layout.editing {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+// Lista e editor lado a lado (C, RULES-10): a página fica na altura do shell e cada painel rola
+// sozinho. Em tela baixa (menos de ~700 px, ou zoom de 200 %), a página volta a rolar inteira,
+// para nenhum painel esconder conteúdo (trava 6).
+.split {
+  flex: 1;
+  gap: 4px;
+}
 
-  // Ao lado do editor, a lista fica com o essencial: o match, os indicadores e os hits saem da
-  // vista (continuam na lista sozinha e no editor).
-  .match,
-  .flags,
-  .hits {
-    display: none;
+.list-pane,
+.editor-pane {
+  min-width: 0;
+}
+
+@media (height >= 700px) {
+  :host:has(.split) {
+    overflow: hidden;
   }
 
-  @media (width < 1200px) {
-    grid-template-columns: minmax(0, 1fr);
+  .split {
+    min-height: 0;
+  }
 
-    .list {
-      display: none;
-    }
+  .list-pane,
+  .editor-pane {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .list-pane {
+    padding-right: 4px;
   }
 }
 
+.editor-pane.single {
+  display: flex;
+  flex-direction: column;
+}
+
 .editor {
-  position: sticky;
-  top: 0;
+  display: block;
+  min-height: 100%;
 }
 
 // A tabela rola sozinha no celular; `relative` segura os rótulos só para leitor de tela (absolutos)
@@ -71,70 +85,6 @@
   }
 }
 
-.handle {
-  width: 36px;
-}
-
-.grip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--mat-sys-on-surface-variant);
-  cursor: grab;
-
-  svg {
-    fill: currentcolor;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-  }
-}
-
-tr.open {
-  outline: 2px solid var(--mat-sys-primary);
-  outline-offset: -2px;
-}
-
-.hits {
-  white-space: nowrap;
-  color: var(--mat-sys-on-surface-variant);
-}
-
-.table .default th {
-  padding: 8px 6px;
-  border-bottom: 0;
-  text-align: left;
-  font-weight: 500;
-
-  .hint {
-    display: block;
-    margin: 0;
-    font: var(--mat-sys-body-small);
-  }
-}
-
-tfoot tr {
-  border-top: 2px solid var(--mat-sys-outline-variant);
-}
-
-// Linha arrastada (CDK): a prévia segue o ponteiro e o lugar vazio marca o destino.
-.cdk-drag-preview {
-  display: table;
-  background: var(--mat-sys-surface-container-high);
-  box-shadow: var(--mat-sys-level3);
-}
-
-.cdk-drag-placeholder {
-  opacity: 0.3;
-}
-
 .heading {
   display: flex;
   flex-wrap: wrap;
@@ -155,6 +105,7 @@ tfoot tr {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -165,6 +116,7 @@ tfoot tr {
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .errors {
@@ -176,67 +128,119 @@ tfoot tr {
   color: var(--mat-sys-error);
 }
 
+// Cada linha da tabela é o item de 3 linhas do C (RULES-01): alça, switch, o botão que ocupa o
+// resto e abre o editor, e as setas.
 .table {
   width: 100%;
-  border-collapse: collapse;
-
-  th {
-    padding: 6px;
-    border-bottom: 2px solid var(--mat-sys-outline-variant);
-    text-align: left;
-  }
+  border-collapse: separate;
+  border-spacing: 0 4px;
 
   td {
-    padding: 2px 6px;
+    padding: 0 2px;
     vertical-align: middle;
   }
 
-  tbody tr:nth-of-type(odd) {
+  tbody tr[data-rule-id] > td:first-child {
+    border-radius: var(--mat-sys-corner-medium) 0 0 var(--mat-sys-corner-medium);
+  }
+
+  tbody tr[data-rule-id] > td:last-child {
+    border-radius: 0 var(--mat-sys-corner-medium) var(--mat-sys-corner-medium) 0;
+  }
+
+  tbody tr[data-rule-id] > td {
     background: var(--mat-sys-surface-container-low);
+  }
+
+  tbody tr.open > td {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
   }
 }
 
-.number {
-  width: 70px;
+.handle {
+  width: 44px;
+}
+
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: grab;
+
+  svg {
+    fill: currentcolor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
 }
 
 .toggle {
-  width: 60px;
+  width: 56px;
 }
 
-.name {
-  font-weight: 500;
+.item {
+  width: 100%;
+  min-width: 0;
 }
 
-// Regra desligada: texto em tom secundário (contraste AA), não transparência.
-.disabled .data,
-.disabled .flags,
-.disabled code {
+// O botão (ou o link da resposta padrão) com as três linhas do item.
+.open-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: var(--mat-sys-corner-small);
+  background: transparent;
+  color: inherit;
+  font: var(--mat-sys-body-medium);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -3px;
+  }
+}
+
+// Cabeçalho de uma sequência de regras do mesmo cenário (RULES-07).
+.scenario-group th {
+  padding: 8px 8px 2px;
+  text-align: left;
+  font: var(--mat-sys-label-large);
   color: var(--mat-sys-on-surface-variant);
+
+  .state {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+    font-family: var(--app-code-family);
+  }
 }
 
-.flags {
-  white-space: nowrap;
-}
-
-// Indicador discreto de template, atraso, falha e cenário; o detalhe fica no título.
-.flag {
-  margin-right: 4px;
-  padding: 0 6px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 11px;
-  line-height: 18px;
-  cursor: default;
-}
-
-code {
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: var(--mat-sys-surface-container-high);
-  color: var(--mat-sys-on-surface);
-  word-break: break-all;
+// A resposta padrão, fixa no fim, leva a Checks › Response (RULES-09).
+tfoot .item {
+  border-top: 1px solid var(--mat-sys-outline-variant);
 }
 
 .row-actions {
@@ -244,15 +248,29 @@ code {
   text-align: right;
 }
 
-.delete {
-  @include mat.button-overrides(
-    (
-      text-label-text-color: var(--mat-sys-error),
-    )
-  );
-}
-
 .empty {
   padding: 16px 6px;
   color: var(--mat-sys-on-surface-variant);
+}
+
+// Linha arrastada (CDK): a prévia segue o ponteiro e o lugar vazio marca o destino.
+.cdk-drag-preview {
+  display: table;
+  background: var(--mat-sys-surface-container-high);
+  box-shadow: var(--mat-sys-level3);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+// No celular (RULES-27), o item de 3 linhas cabe em 390 px sem rolagem: margem e setas menores.
+@media (width < 600px) {
+  :host {
+    padding: 8px;
+  }
+
+  .row-actions button {
+    display: flex;
+  }
 }

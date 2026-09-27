@@ -3,12 +3,47 @@
   min-width: 0;
 }
 
-app-pane {
+// Superfície do editor (a do `app-pane`), com o cabeçalho de ações do C no topo (RULES-13).
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   height: 100%;
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+}
+
+.visually-hidden {
+  position: absolute;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .content {
-  padding: 0 16px 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 16px;
+}
+
+// Abas à esquerda; "Test against history" e Form/JSON à direita.
+.tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  .spacer {
+    flex: 1;
+  }
+
+  .tabs {
+    margin: 0;
+    border-bottom: 0;
+  }
 }
 
 .errors {
@@ -22,19 +57,6 @@ app-pane {
 
 .history-errors {
   margin: 12px 0 0;
-}
-
-// "Test against history" à esquerda; Cancel e Save à direita.
-.footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--mat-sys-outline-variant);
-
-  .test {
-    margin-right: auto;
-  }
 }
 
 .words {
@@ -117,28 +139,12 @@ app-pane {
   color: var(--app-on-warning-container);
 }
 
-.path-warning {
-  margin: 0 0 12px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
-
-  p {
-    margin: 0 0 8px;
-  }
-}
-
 .preview {
   margin-top: 12px;
 
   ul {
     margin: 0;
   }
-}
-
-.rule-form {
-  padding-top: 4px;
 }
 
 .line {
@@ -187,15 +193,6 @@ h3 {
 .signature,
 .schema {
   width: 300px;
-}
-
-.fault-note {
-  margin: 0 0 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
 }
 
 .template {
@@ -249,14 +246,17 @@ h3 {
   }
 }
 
-.changed,
-.missing,
-.preview .off {
+// Avisos (lista mudada, regra fora da lista, caminho com o token, falha, regra desligada).
+.notice {
   margin: 0 0 12px;
   padding: 8px 12px;
   border-radius: 4px;
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
+
+  p {
+    margin: 0 0 8px;
+  }
 }
 
 .changed {

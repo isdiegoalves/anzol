@@ -1,0 +1,68 @@
+:host {
+  display: contents;
+}
+
+// O status fica sempre à direita da linha 1, como no C; o nome é que quebra.
+.line1 {
+  display: flex;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.priority,
+.flag,
+.off,
+.status {
+  flex: none;
+}
+
+.priority,
+.off {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.priority {
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-medium);
+  font-family: var(--app-code-family);
+}
+
+.name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font: var(--mat-sys-title-small);
+  overflow-wrap: anywhere;
+}
+
+// Indicador discreto de template, atraso, falha e cenário; o detalhe fica no título.
+.flag {
+  padding: 0 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.off {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-small);
+}
+
+.line2,
+.line3 {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.line2 {
+  font-family: var(--app-code-family);
+  overflow-wrap: anywhere;
+}

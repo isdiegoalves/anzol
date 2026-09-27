@@ -1,0 +1,50 @@
+import { Component, input, output } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { Icon } from '../ui/icon';
+
+let nextHeaderId = 0;
+
+/**
+ * Cabeçalho do editor de regra (C, RULES-13): o nome inline, "Unsaved changes", a prioridade, o
+ * Enabled, "Delete rule", Discard e Save, sempre à vista no topo. Os controles são os do formulário
+ * do editor; na visão JSON, só o título e as ações.
+ */
+@Component({
+  selector: 'app-rule-editor-header',
+  imports: [
+    ReactiveFormsModule,
+    MatFormField,
+    MatLabel,
+    MatError,
+    MatInput,
+    MatSlideToggle,
+    MatButton,
+    MatIconButton,
+    Icon,
+  ],
+  templateUrl: './rule-editor-header.html',
+  styleUrl: './rule-editor-header.scss',
+})
+export class RuleEditorHeader {
+  readonly title = input.required<string>();
+  readonly name = input.required<FormControl<string>>();
+  readonly priority = input.required<FormControl<number>>();
+  readonly enabled = input.required<FormControl<boolean>>();
+  /** Visão Form: nome, prioridade e Enabled editáveis aqui; na JSON, só o título. */
+  readonly fields = input(true);
+  readonly nameError = input('');
+  readonly priorityError = input('');
+  readonly unsaved = input(false);
+  readonly canDelete = input(false);
+  readonly canSave = input(false);
+
+  readonly deleteRule = output<void>();
+  readonly discard = output<void>();
+  readonly save = output<void>();
+
+  protected readonly errorId = `rule-name-error-${nextHeaderId++}`;
+}

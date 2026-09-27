@@ -1,0 +1,68 @@
+:host {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: block;
+}
+
+// Nome, rascunho, prioridade, Enabled, Delete, Discard e Save: sempre à vista no topo.
+.editor-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-large) var(--mat-sys-corner-large) 0 0;
+  background: var(--mat-sys-surface-container-lowest);
+
+  .spacer {
+    flex: 1;
+  }
+
+  .delete {
+    color: var(--mat-sys-error);
+  }
+}
+
+.name-field {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px dashed var(--mat-sys-outline);
+  background: transparent;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-title-large);
+  font-size: 22px;
+
+  &:focus-visible {
+    outline: none;
+    border-bottom: 2px solid var(--mat-sys-primary);
+  }
+}
+
+.field-error {
+  margin: 4px 0 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+.unsaved {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-label-large);
+}
+
+.priority {
+  width: 96px;
+}
