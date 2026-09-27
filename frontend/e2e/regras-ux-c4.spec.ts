@@ -1,6 +1,6 @@
 import { Locator, Page, Request } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirRegras, gravarRegras, novaRegra, parte } from './support/regras';
+import { abrirRegras, novaRegra, parte } from './support/regras';
 
 // UX de Regras, tela de C4 — "Preview response" (E-05; guia-ux §3.10 e §3.4; CA-10 na parte da tela). Na aba Test,
 // `button "Preview response"` (habilitado com ≥ 1 "Would match"; senão com a dica "Nothing would match yet") chama
