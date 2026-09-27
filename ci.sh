@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # CI local: roda o que um pipeline rodaria. Unidade, lint e build de backend, cli e frontend; depois
-# contrato, E2E da tela e aceite do CLI contra um stack isolado (projeto compose `webhookci`, porta
+# contrato, E2E da tela, regressão visual e aceite do CLI contra um stack isolado (projeto compose `webhookci`, porta
 # 8088, Redis e volume próprios), que é derrubado no fim com `down -v`, mesmo com falha ou Ctrl+C.
 # Uma etapa que falha não interrompe as seguintes; o resumo mostra o quadro inteiro e a saída é
 # diferente de 0 se alguma falhou ou não rodou.
@@ -118,6 +118,13 @@ e2e_frontend() {
   (cd frontend && npx playwright install chromium && BASE_URL="$URL" npx playwright test)
 }
 
+# Regressão visual (item 14, E11) na imagem Docker do Playwright da versão instalada: os pixels só batem com a mesma
+# fonte e o mesmo rasterizador. O container chega ao stack por host.docker.internal (na lista de WEBHOOK_ALLOWED_HOSTS).
+# Baselines em frontend/e2e/visual.spec.ts-snapshots; para regravar: (cd frontend && ./e2e-visual.sh <URL> -u).
+regressao_visual() {
+  (cd frontend && ./e2e-visual.sh "$URL")
+}
+
 aceite_cli() {
   (cd tests/cli && WEBHOOK_SERVER="$URL" WEBHOOK_CLI=cli/build/install/webhook/bin/webhook node --test)
 }
@@ -175,11 +182,17 @@ etapa "frontend: prettier --check" frontend_prettier
 etapa "frontend: ng test" frontend_test
 etapa "frontend: ng build" frontend_build
 
-INTEGRACAO=("contrato (tests/contract)" "E2E da tela (frontend/e2e)" "aceite do CLI (tests/cli)")
+INTEGRACAO=(
+  "contrato (tests/contract)"
+  "E2E da tela (frontend/e2e)"
+  "regressão visual (Docker Playwright)"
+  "aceite do CLI (tests/cli)"
+)
 if etapa "stack isolado: build e subida" subir_stack; then
   etapa "${INTEGRACAO[0]}" contrato
   etapa "${INTEGRACAO[1]}" e2e_frontend
-  etapa "${INTEGRACAO[2]}" aceite_cli
+  etapa "${INTEGRACAO[2]}" regressao_visual
+  etapa "${INTEGRACAO[3]}" aceite_cli
 else
   for nome in "${INTEGRACAO[@]}"; do registrar "$nome" "NÃO RODOU" -; done
 fi
