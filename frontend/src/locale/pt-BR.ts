@@ -1749,8 +1749,8 @@ export const translations: Record<string, string> = {
   '8985871462726005345': 'Anzol',
   // Search requests (/)
   '5478414183275041974': 'Buscar requisições (/)',
-  // URL actions: send, new URL, delete
-  '1141858573109229972': 'Ações da URL: enviar, nova URL, apagar',
+  // More actions
+  '117068237894470695': 'Mais ações',
   // Send, new URL, delete URL, settings and help
   '6801798798110034903': 'Enviar, nova URL, apagar a URL, configurações e ajuda',
   // New URL (N)

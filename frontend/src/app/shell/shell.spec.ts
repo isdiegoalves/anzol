@@ -126,9 +126,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     fixture.debugElement.injector.get(UrlLock).lock(TOKEN_ID);
     await fixture.whenStable();
 
-    await user.click(
-      screen.getByRole('button', { name: 'URL actions: send, new URL, delete', hidden: true }),
-    );
+    await user.click(screen.getByRole('button', { name: 'More actions', hidden: true }));
 
     expect(
       screen.getAllByRole('menuitem', { hidden: true }).map((item) => item.textContent?.trim()),
@@ -195,9 +193,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await renderAt(`/${TOKEN_ID}`);
 
     // A barra do topo só aparece abaixo de 600 px (media query, que o jsdom não aplica).
-    await user.click(
-      screen.getByRole('button', { name: 'URL actions: send, new URL, delete', hidden: true }),
-    );
+    await user.click(screen.getByRole('button', { name: 'More actions', hidden: true }));
 
     expect(
       screen.getAllByRole('menuitem', { hidden: true }).map((item) => item.textContent?.trim()),
