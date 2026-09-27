@@ -142,6 +142,8 @@ type BodyGroup = FormGroup<{
 type HeaderGroup = FormGroup<{ name: FormControl<string>; value: FormControl<string> }>;
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+/** O `maxlength` do nome no cabeçalho (e o limite do servidor). */
+const RULE_NAME_MAX = 100;
 const FORM_VIEW = 0;
 const JSON_VIEW = 1;
 let nextEditorId = 0;
@@ -482,8 +484,18 @@ export class RuleEditor {
   protected readonly formView = FORM_VIEW;
   protected readonly jsonView = JSON_VIEW;
 
+  /**
+   * M1 (guia §2 J4): o nome segue as condições ("POST /pagamentos") enquanto a pessoa não o
+   * escreve. Liga quando a regra abre sem nome; desliga no primeiro valor digitado.
+   */
+  private autoName = false;
+
   constructor() {
     const { fault, delayType, dribble, scenarioName, delayMin, delayMax } = this.form.controls;
+    // A sugestão entra sem evento: toda emissão do nome é da pessoa (ou do loadForm, que reavalia).
+    this.form.controls.name.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => (this.autoName = false));
     for (const control of [fault, delayType, dribble] as AbstractControl[]) {
       control.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncResponse());
     }
@@ -494,6 +506,7 @@ export class RuleEditor {
     merge(this.form.valueChanges, this.json.valueChanges)
       .pipe(takeUntilDestroyed())
       .subscribe(() => {
+        this.suggestName();
         this.edits.update((n) => n + 1);
         this.rerunIfConditionsChanged();
         this.draftOffer.set(null);
@@ -1475,6 +1488,22 @@ export class RuleEditor {
     this.form.setValue(value);
     this.syncResponse();
     this.syncScenario();
+    this.autoName = !value.name.trim();
+  }
+
+  /** O nome sugerido pelas condições, enquanto ele é automático (M1). */
+  private suggestName(): void {
+    const { name, methods, path } = this.form.controls;
+    if (!this.autoName) {
+      return;
+    }
+    const suggestion = [methods.value.join(', '), path.value.trim()]
+      .filter(Boolean)
+      .join(' ')
+      .slice(0, RULE_NAME_MAX);
+    if (suggestion !== name.value) {
+      name.setValue(suggestion, { emitEvent: false });
+    }
   }
 
   /**

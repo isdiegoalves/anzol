@@ -188,6 +188,41 @@ describe('Dado o editor de regra', () => {
     await vi.waitFor(() => expect(closed).toHaveBeenCalledWith(true));
   });
 
+  // M1 (guia §2 J4): o nome nasce das condições ("POST /pagamentos") enquanto não é tocado.
+  it('deve sugerir o nome pelo método e caminho e salvar com ele Quando o nome não foi tocado', async () => {
+    await open({ index: null });
+
+    await clickMethod('POST');
+    await (await input('Path')).setValue('/pagamentos');
+    expect(await (await input('Name')).getValue()).toBe('POST /pagamentos');
+    await clickMethod('PUT');
+    expect(await (await input('Name')).getValue()).toBe('POST, PUT /pagamentos');
+    await save();
+
+    const call = await put();
+    expect((call.request.body as Rule[])[1].name).toBe('POST, PUT /pagamentos');
+    call.flush([rule(1), rule(2)]);
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledWith(true));
+  });
+
+  it('não deve trocar o nome escrito pela pessoa Quando as condições mudam depois', async () => {
+    await open({ index: null });
+
+    await clickMethod('POST');
+    await (await input('Name')).setValue('Pix pago');
+    await (await input('Path')).setValue('/pagamentos');
+
+    expect(await (await input('Name')).getValue()).toBe('Pix pago');
+  });
+
+  it('não deve sugerir nome na regra salva nem no rascunho que já tem nome', async () => {
+    await open({ index: 0 }, [rule(1, { name: 'Original' })]);
+
+    await (await input('Path')).setValue('/outra');
+
+    expect(await (await input('Name')).getValue()).toBe('Original');
+  });
+
   it('deve vir preenchido e trocar só a regra editada na lista Quando edita a segunda regra', async () => {
     await open({ index: 1 }, [rule(1), rule(2)]);
 
