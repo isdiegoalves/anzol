@@ -1,7 +1,0 @@
-@if (request().signature; as signature) {
-  @if (signature.valid) {
-    <p class="badge valid">Signature valid — {{ labels[signature.provider] }}</p>
-  } @else {
-    <p class="badge invalid">Signature invalid — {{ signature.reason }}</p>
-  }
-}

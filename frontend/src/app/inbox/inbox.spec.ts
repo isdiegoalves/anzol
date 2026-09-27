@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
@@ -13,6 +14,8 @@ import { Preferences } from '../settings/preferences';
 import { RequestStore } from '../requests/request-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Redirector } from '../settings/redirect';
+import { RequestList } from '../requests/request-list';
+import { Viewport, WindowClass } from '../shell/viewport';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
 const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
@@ -39,14 +42,21 @@ describe('Dado a tela principal', () => {
   };
   const text = () => (harness.routeNativeElement as HTMLElement).textContent ?? '';
 
+  /** Janela larga (lista e detalhe lado a lado); o jsdom não tem `matchMedia`. */
+  const windowClass = signal<WindowClass>('large');
+
   beforeEach(async () => {
     FakeEventSource.instances = [];
     vi.stubGlobal('EventSource', FakeEventSource);
+    // O jsdom não rola: a lista virtual pede `scrollTo` ao ir para o fim.
+    Element.prototype.scrollTo ??= () => undefined;
+    windowClass.set('large');
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes, withComponentInputBinding()),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -147,7 +157,23 @@ describe('Dado a tela principal', () => {
       );
     });
 
-    it('deve listar, contar como não lida no título e avisar Quando chega request.created', async () => {
+    it('deve listar e contar como não lida no título, sem aviso, Quando chega request.created com o fim da lista à vista', async () => {
+      const nova = webhookRequest(3);
+
+      FakeEventSource.latest().emit('request.created', {
+        request: nova,
+        total: 3,
+        truncated: false,
+      });
+
+      await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Webhook.site'));
+      expect(text()).toContain('Requests (3)');
+      expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
+      expect(snack).not.toHaveBeenCalledWith('Request received', 'View', expect.anything());
+    });
+
+    it('deve avisar "Request received" com "View" (4 s) e abrir a nova no "View" Quando ela chega fora da vista', async () => {
+      vi.spyOn(RequestList.prototype, 'receive').mockReturnValue(false);
       const nova = webhookRequest(3);
 
       FakeEventSource.latest().emit('request.created', {
@@ -157,11 +183,10 @@ describe('Dado a tela principal', () => {
       });
 
       await vi.waitFor(() =>
-        expect(snack).toHaveBeenCalledWith('Request received', undefined, { duration: 1000 }),
+        expect(snack).toHaveBeenCalledWith('Request received', 'View', { duration: 4000 }),
       );
-      await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Webhook.site'));
-      expect(text()).toContain('Requests (3)');
-      expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
+      snack.mock.results.at(-1)?.value.dismissWithAction();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
     });
 
     it('deve tirar as cortadas e abrir a mais próxima Quando a mensagem aberta sai pela limpeza automática', async () => {
@@ -194,7 +219,7 @@ describe('Dado a tela principal', () => {
       const call = await flush(`/token/${TOKEN_ID}/request/${cortada.uuid}`, webhookRequest(3));
       expect(call.request.method).toBe('GET');
       await vi.waitFor(() =>
-        expect(snack).toHaveBeenCalledWith('Request received', undefined, { duration: 1000 }),
+        expect(TestBed.inject(RequestStore).requests().at(-1)).toEqual(webhookRequest(3)),
       );
     });
 
@@ -210,7 +235,11 @@ describe('Dado a tela principal', () => {
       FakeEventSource.latest().emit('request.created', { request: R3, total: 3, truncated: false });
       FakeEventSource.latest().emit('request.created', { request: R4, total: 4, truncated: false });
 
-      await vi.waitFor(() => expect(snack).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(snack.mock.calls.filter(([message]) => message === 'Request received')).toHaveLength(
+          2,
+        ),
+      );
       expect(store.requests()).toEqual([R2]);
       expect(store.total()).toBe(4);
       const call = await flush(searchUrl, requestPage([R2, R4], { total: 2 }));
@@ -265,5 +294,59 @@ describe('Dado a tela principal', () => {
     await harness.fixture.whenStable();
     expect(root.querySelector('app-request-compare')).toBeNull();
     expect(root.querySelector('app-request-detail')).not.toBeNull();
+  });
+
+  it('deve abrir a mais antiga com J e a mais nova com K, e não com o foco num campo', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    await vi.waitFor(() => expect(text()).toContain(R1.uuid));
+    const press = (key: string, target: EventTarget = document.body) =>
+      target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+
+    press('k');
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    press('j');
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+
+    const input = document.body.appendChild(document.createElement('input'));
+    press('k', input);
+    input.remove();
+    await harness.fixture.whenStable();
+    expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+  });
+
+  it('deve mostrar um painel por vez e o detalhe em tela cheia com "Back to requests" Quando a janela é estreita', async () => {
+    windowClass.set('compact');
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(root.querySelectorAll('.item .select')).toHaveLength(2);
+    });
+    expect(root.querySelector('app-request-detail')).toBeNull();
+
+    root.querySelectorAll<HTMLButtonElement>('.item .select')[1].click();
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(root.querySelector('app-request-detail')).not.toBeNull();
+    });
+    expect(root.querySelector('app-request-list')).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('button[aria-label="Back to requests"]')?.click();
+    await harness.fixture.whenStable();
+    expect(root.querySelector('app-request-list')).not.toBeNull();
+  });
+
+  it('deve guardar o "Follow new" na chave de hoje (autoNavEnable)', async () => {
+    await openToken(`/${TOKEN_ID}`);
+    const root = harness.routeNativeElement as HTMLElement;
+    const follow = await vi.waitFor(() => {
+      const found = root.querySelector<HTMLButtonElement>('button[role="switch"]');
+      expect(found?.closest('mat-slide-toggle')?.textContent).toContain('Follow new');
+      return found as HTMLButtonElement;
+    });
+
+    follow.click();
+
+    expect(localStorage.getItem('autoNavEnable')).toBe('true');
   });
 });

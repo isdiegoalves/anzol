@@ -9,25 +9,33 @@ import {
   inject,
   input,
   linkedSignal,
+  output,
   viewChild,
 } from '@angular/core';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
+import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Token } from '../token/token';
-import { COPY_FORMATS, CopyFormat, convertRequest } from './copy-as';
+import { Icon } from '../ui/icon';
+import type { CopyFormat } from './copy-as';
 import { RequestView } from './request-view';
 
+/** Os formatos do "Copy As" (o conversor vem sob demanda, no primeiro uso). */
+const COPY_FORMATS: readonly CopyFormat[] = ['curl', 'HAR'];
+
 /**
- * Detalhe da mensagem: a visualização (`RequestView`) com as ações da URL — permalink, copiar,
- * reenviar, comparar, compartilhar, explicar, criar regra e schema.
+ * Detalhe da mensagem na Inbox: a visualização (`RequestView`) com as ações — Newer/Older e o menu
+ * "More" (Permalink, Raw content) no cabeçalho; embaixo dos cartões, a barra "Request actions"
+ * agrupada por intenção (reenviar e comparar; criar regra e schema; copiar; compartilhar e
+ * explicar). Cada ação que leva a outra página ainda abre o fluxo de hoje até a fatia dela.
  */
 @Component({
   selector: 'app-request-detail',
-  imports: [MatButton, MatMenu, MatMenuItem, MatMenuTrigger, RequestView],
+  imports: [Icon, MatButton, MatIconButton, MatMenu, MatMenuItem, MatMenuTrigger, RequestView],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',
 })
@@ -37,22 +45,34 @@ export class RequestDetail {
   private readonly origin = inject(DOCUMENT).location.origin;
   private readonly injector = inject(Injector);
   private readonly compare = inject(CompareStore);
+  private readonly requests = inject(RequestStore);
   protected readonly ai = inject(AiClient);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
   readonly page = input.required<number>();
+  /** Newer/Older: a mensagem a abrir (a lista vai da mais antiga para a mais nova). */
+  readonly openRequest = output<WebhookRequest>();
 
   /** Painel do "Explain" aberto; fecha ao abrir outra mensagem. */
   protected readonly explaining = linkedSignal({
     source: () => this.request().uuid,
     computation: () => false,
   });
-  /** Onde o painel entra. Criado à mão: o `@defer` e o `NgComponentOutlet` pesariam na carga inicial. */
+  /** Onde o painel entra, criado à mão (o painel vem num pedaço à parte). */
   private readonly explainHost = viewChild.required('explainHost', { read: ViewContainerRef });
   protected readonly aiOffHint = AI_OFF_HINT;
 
   protected readonly formats = COPY_FORMATS;
+
+  private readonly index = computed(() =>
+    this.requests.requests().findIndex((request) => request.uuid === this.request().uuid),
+  );
+  protected readonly hasNewer = computed(() => {
+    const index = this.index();
+    return index >= 0 && index < this.requests.requests().length - 1;
+  });
+  protected readonly hasOlder = computed(() => this.index() > 0);
 
   constructor() {
     // Fechar (ou abrir outra mensagem) tira o painel.
@@ -72,13 +92,35 @@ export class RequestDetail {
   /** "Create schema from this request" só aparece quando há o que inferir. */
   protected readonly jsonBody = computed(() => isJson(this.request().content));
 
-  /** Corpo exatamente como chegou, mesmo com "Format JSON/XML" ligado na tela. */
+  /** A mensagem seguinte (mais nova); na última carregada, busca a próxima página, como antes. */
+  showNewer(): void {
+    const list = this.requests.requests();
+    const next = this.index() + 1;
+    const request = list[next];
+    if (request) {
+      this.openRequest.emit(request);
+      if (next === list.length - 1 && this.requests.hasNextPage()) {
+        void this.requests.loadNextPage();
+      }
+    }
+  }
+
+  showOlder(): void {
+    const request = this.requests.requests()[this.index() - 1];
+    if (request) {
+      this.openRequest.emit(request);
+    }
+  }
+
+  /** Corpo exatamente como chegou, mesmo com o Pretty ligado. */
   protected copyPayload(): void {
     this.clipboard.copy(this.request().content ?? '');
     this.snackBar.open('Copied payload', undefined, { duration: 1000 });
   }
 
-  protected copyRequestAs(format: CopyFormat): void {
+  /** O conversor (curl, HAR) vem sob demanda: não pesa no pedaço da Inbox. */
+  protected async copyRequestAs(format: CopyFormat): Promise<void> {
+    const { convertRequest } = await import('./copy-as');
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
     this.snackBar.open(`Copied request as ${format}`, undefined, { duration: 1000 });
   }

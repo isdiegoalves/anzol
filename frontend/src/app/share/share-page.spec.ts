@@ -12,6 +12,7 @@ const SHARE_ID = 'k3Jd9QpX2mZr7Lw0aBcDeF';
 function shared(overrides: Partial<SharedRequest> = {}): SharedRequest {
   return {
     ...webhookRequest(1, {
+      url: 'http://localhost:8084/[redacted]/pagar',
       headers: { authorization: ['[redacted]'], 'content-type': ['application/json'] },
       query: { api_key: '[redacted]', page: '2' },
       content: '{"cartao":"4111"}',
@@ -34,8 +35,15 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
   const text = () => page().textContent?.replace(/\s+/g, ' ') ?? '';
   const rows = (table: string) =>
     [...page().querySelectorAll(`table[aria-label="${table}"] tbody tr`)].map((row) =>
-      [...row.querySelectorAll('td')].map((cell) => cell.textContent?.trim()).join(' '),
+      [...row.querySelectorAll('th, td')].map((cell) => cell.textContent?.trim()).join(' '),
     );
+  /** As abas do detalhe só desenham a aberta. */
+  const openTab = async (label: RegExp) => {
+    [...page().querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => label.test(tab.textContent ?? ''))
+      ?.click();
+    await harness.fixture.whenStable();
+  };
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -62,23 +70,37 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
 
   it('deve mostrar a faixa com a validade e a mensagem como chegou, mascarada, Quando o link vale', async () => {
     await openShare((url) => http.expectOne(url).flush(shared()));
+    await harness.fixture.whenStable();
 
     expect(page().querySelector('.banner')?.textContent?.trim()).toMatch(
       /^Shared read-only link · expires Oct 3, 2099 \d+:\d\d [AP]M \(in \d+ years\)$/,
     );
-    expect(rows('Headers')).toEqual(['authorization [redacted]', 'content-type application/json']);
-    expect(rows('Query strings')).toEqual(['api_key [redacted]', 'page 2']);
     expect(page().querySelector('pre')?.textContent).toBe('{"cartao":"4111"}');
+    await openTab(/^Headers/);
+    expect(rows('Headers')).toEqual(['authorization [redacted]', 'content-type application/json']);
+    await openTab(/^Query/);
+    expect(rows('Query strings')).toEqual(['api_key [redacted]', 'page 2']);
   });
 
   it('não deve ter nenhum botão nem ação que escreva Quando o link vale', async () => {
     await openShare((url) => http.expectOne(url).flush(shared()));
 
-    expect(page().querySelectorAll('button')).toHaveLength(0);
+    // Só o interruptor Pretty (papel switch), que muda a vista e não a mensagem.
+    expect(
+      [...page().querySelectorAll('button')].filter((b) => b.getAttribute('role') !== 'switch'),
+    ).toHaveLength(0);
     const labels = [...page().querySelectorAll('a, [role="button"], [role="menuitem"]')].map(
       (el) => el.textContent?.trim() ?? '',
     );
     expect(labels.filter((label) => WRITING_ACTIONS.test(label))).toEqual([]);
+  });
+
+  it('deve tirar a rota da url com [redacted], sem usar token_id (S22)', async () => {
+    const semToken = shared();
+    delete semToken.token_id;
+    await openShare((url) => http.expectOne(url).flush(semToken));
+
+    expect(page().querySelector('h2')?.textContent).toBe('/pagar');
   });
 
   it('não deve chamar nenhuma rota da URL (/token/…) Quando o link é aberto', async () => {

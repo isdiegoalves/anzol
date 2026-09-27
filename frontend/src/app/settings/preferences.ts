@@ -20,8 +20,6 @@ export class Preferences {
   readonly autoNavEnable = this.persisted('autoNavEnable', false);
   readonly hideTutorial = this.persisted('hideTutorial', false);
   readonly unread = this.persisted<readonly string[]>('unread', []);
-  /** "Hide Details" não é persistido no app atual. */
-  readonly hideDetails = signal(false);
 
   /**
    * Signal que grava na hora (não num `effect`, que roda depois: recarregar logo após mudar

@@ -1,25 +1,68 @@
-<aside class="sidebar">
-  <app-request-list (openRequest)="openFromList($event)" />
-  @if (requests.hasRequests()) {
-    <div class="delete-all">
-      <button mat-flat-button type="button" (click)="deleteAllRequests()">
-        Delete all requests
+<main class="inbox" aria-label="Inbox">
+  @if (twoPanes()) {
+    <app-split
+      class="split"
+      label="Resize list and detail"
+      storageKey="inboxListWidth"
+      [min]="300"
+      [max]="640"
+      [(width)]="listWidth"
+    >
+      <section splitStart class="pane list-pane" aria-label="Request list">
+        <ng-container [ngTemplateOutlet]="listPane" />
+      </section>
+      <section splitEnd class="pane detail-pane" aria-label="Request detail">
+        <ng-container [ngTemplateOutlet]="detailPane" />
+      </section>
+    </app-split>
+  } @else if (showDetail() && requests.selected()) {
+    <section class="pane detail-pane" aria-label="Request detail">
+      <button mat-icon-button type="button" aria-label="Back to requests" (click)="backToList()">
+        <app-icon name="back" />
       </button>
-    </div>
+      <ng-container [ngTemplateOutlet]="detailPane" />
+    </section>
+  } @else {
+    <section class="pane list-pane" aria-label="Request list">
+      <ng-container [ngTemplateOutlet]="listPane" />
+    </section>
   }
-</aside>
-<main class="main">
+</main>
+
+<ng-template #listPane>
+  <app-request-list (openRequest)="openFromList($event)">
+    <div class="list-tools" listTools>
+      <mat-slide-toggle
+        title="Open each new request as it arrives"
+        [checked]="preferences.autoNavEnable()"
+        (change)="preferences.autoNavEnable.set($event.checked)"
+        >Follow new</mat-slide-toggle
+      >
+      @if (requests.hasRequests()) {
+        <button
+          mat-icon-button
+          type="button"
+          aria-label="Delete all requests"
+          title="Delete all requests"
+          (click)="deleteAllRequests()"
+        >
+          <app-icon name="trash" />
+        </button>
+      }
+    </div>
+    <!-- Bloco provisório (item 14): o CORS vai para Checks na E5, o redirect para Outbound na E7. -->
+    <app-options-bar class="legacy-options" listOptions [request]="requests.selected()" />
+  </app-request-list>
+</ng-template>
+
+<ng-template #detailPane>
   @if (!requests.hasRequests() || !preferences.hideTutorial()) {
     <app-tutorial [url]="tokens.webhookUrl()" />
   }
   @let pair = compare.pair();
   @if (pair) {
     <app-compare-outlet [a]="pair.a" [b]="pair.b" />
-  } @else if (requests.hasRequests()) {
-    <div class="toolbar">
-      <app-request-nav (openRequest)="openRequest($event)" />
-      <app-options-bar [request]="requests.selected()" />
-    </div>
+  } @else {
     @let request = requests.selected();
     @let token = tokens.token();
     @if (request && token) {
@@ -27,7 +70,8 @@
         [request]="request"
         [token]="token"
         [page]="requests.pageOf(request.uuid)"
+        (openRequest)="openRequest($event)"
       />
     }
   }
-</main>
+</ng-template>

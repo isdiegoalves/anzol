@@ -3,28 +3,53 @@ import {
   CdkVirtualForOf,
   CdkVirtualScrollViewport,
 } from '@angular/cdk/scrolling';
-import { Component, computed, inject, output } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
+import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
-import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import { TokenStore } from '../token/token-store';
-import { MethodLabel } from './method-label';
+import { CheckChip } from '../ui/check-chip';
+import { EmptyState } from '../ui/empty-state';
+import { Icon } from '../ui/icon';
+import { MethodBadge } from '../ui/method-badge';
 import { RequestStore } from './request-store';
-import { SignatureResult, SignatureState, WebhookRequest, signatureState } from './webhook-request';
+import { WebhookRequest } from './webhook-request';
 
-/** Texto curto do selo na lista: ícone e palavra, nunca só a cor. */
-const SEAL_TEXT: Record<SignatureState, string> = {
-  valid: '✓ Sig OK',
-  invalid: '✕ Bad sig',
-  absent: '⊘ No sig',
-};
+/** Altura fixa de um item (três linhas: rota, origem e data, selos), para a rolagem virtual. */
+export const ITEM_HEIGHT = 84;
+/** Quanto tempo a mensagem que acabou de chegar fica destacada. */
+export const FRESH_MS = 3000;
+/** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
+export const UNDO_MS = 4000;
+
+/** O que a linha mostra de uma mensagem. */
+interface ItemView {
+  request: WebhookRequest;
+  route: string;
+  /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
+  seals: CheckResult[];
+  label: string;
+}
 
 /**
- * Lista lateral: mensagens da URL, busca e filtros, paginação, não lidas e apagar uma. No
- * "Compare with…", clicar escolhe a mensagem B em vez de abrir.
+ * Lista da Inbox: itens de três linhas (método, `#id` e rota; origem e data; selos de assinatura,
+ * schema e regra), busca e filtros, rodapé "1–50 of N" com as páginas, não lidas, a lixeira com
+ * "Undo" e a pílula das novas que chegaram fora da vista. No "Compare with…", clicar escolhe a B.
  */
 @Component({
   selector: 'app-request-list',
@@ -32,9 +57,12 @@ const SEAL_TEXT: Record<SignatureState, string> = {
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
+    CheckChip,
+    EmptyState,
+    Icon,
     MatButton,
     MatProgressSpinner,
-    MethodLabel,
+    MethodBadge,
     RequestSearch,
   ],
   templateUrl: './request-list.html',
@@ -44,9 +72,12 @@ export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly tokens = inject(TokenStore);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly injector = inject(Injector);
+  private readonly viewport = viewChild(CdkVirtualScrollViewport);
 
   readonly openRequest = output<WebhookRequest>();
-  protected readonly localDate = localDate;
+  protected readonly itemHeight = ITEM_HEIGHT;
 
   /** Limite da limpeza automática da URL aberta, mostrado ao lado do total. */
   protected readonly limit = computed(() => this.tokens.token()?.auto_cleanup ?? null);
@@ -56,6 +87,21 @@ export class RequestList {
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));
+
+  protected readonly items = computed<ItemView[]>(() =>
+    this.store.requests().map((request) => this.itemOf(request)),
+  );
+
+  /** Mensagens novas que chegaram abaixo da vista (a pílula "N new requests"). */
+  readonly newBelow = signal(0);
+  /** As que acabaram de chegar, destacadas por alguns segundos. */
+  protected readonly fresh = signal<ReadonlySet<string>>(new Set());
+
+  private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.timers.forEach(clearTimeout));
+  }
 
   protected isUnread(request: WebhookRequest): boolean {
     return this.unreadIds().has(request.uuid);
@@ -69,21 +115,92 @@ export class RequestList {
     }
   }
 
-  /** Selo da verificação; o `aria-label` diz por extenso o que o selo resume. */
-  protected signatureSeal(signature: SignatureResult) {
-    const state = signatureState(signature);
-    const label =
-      state === 'valid'
-        ? `Signature valid — ${SIGNATURE_PROVIDER_LABELS[signature.provider]}`
-        : `Signature ${state} — ${signature.reason}`;
-    return { state, label, text: SEAL_TEXT[state] };
+  /**
+   * Uma mensagem chegou (já está no fim da lista): fica destacada e, se o fim da lista estava à
+   * vista, a lista acompanha; senão conta na pílula. Devolve se a nova ficou à vista.
+   */
+  receive(request: WebhookRequest): boolean {
+    this.fresh.update((fresh) => new Set([...fresh, request.uuid]));
+    this.later(
+      () => this.fresh.update((fresh) => new Set([...fresh].filter((id) => id !== request.uuid))),
+      FRESH_MS,
+    );
+    const inView = this.isAtEnd();
+    if (inView) {
+      afterNextRender(() => this.scrollToEnd(), { injector: this.injector });
+    } else {
+      this.newBelow.update((count) => count + 1);
+    }
+    return inView;
   }
 
+  /** A pílula: vai ao fim da lista, onde estão as novas. */
+  showNew(): void {
+    this.newBelow.set(0);
+    this.scrollToEnd();
+  }
+
+  /** Leva a lista até a mensagem (a aberta pelo "Follow new" ou pelo "View" do aviso). */
+  scrollTo(requestId: string): void {
+    const index = this.store.requests().findIndex((request) => request.uuid === requestId);
+    if (index >= 0) {
+      afterNextRender(() => this.viewport()?.scrollToIndex(index), { injector: this.injector });
+    }
+  }
+
+  protected scrolled(): void {
+    if (this.newBelow() > 0 && this.isAtEnd()) {
+      this.newBelow.set(0);
+    }
+  }
+
+  /** Tira da lista na hora; apaga no servidor quando o aviso some sem "Undo". */
   protected deleteRequest(request: WebhookRequest): void {
-    void this.store.deleteRequest(request);
+    const notice = this.snackBar.open('Request deleted', 'Undo', { duration: UNDO_MS });
+    const undo = firstValueFrom(notice.afterDismissed()).then(
+      ({ dismissedByAction }) => dismissedByAction,
+    );
+    void this.store.deleteRequest(request, undo);
   }
 
-  protected trackByUuid(_index: number, request: WebhookRequest): string {
-    return request.uuid;
+  protected trackByUuid(_index: number, item: ItemView): string {
+    return item.request.uuid;
   }
+
+  /** O fim da lista está à vista (ou a lista cabe inteira). */
+  private isAtEnd(): boolean {
+    const viewport = this.viewport();
+    return !viewport || viewport.measureScrollOffset('bottom') < ITEM_HEIGHT * 1.5;
+  }
+
+  private later(fn: () => void, ms: number): void {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      fn();
+    }, ms);
+    this.timers.add(timer);
+  }
+
+  private scrollToEnd(): void {
+    const viewport = this.viewport();
+    viewport?.scrollToIndex(this.store.requests().length - 1);
+  }
+
+  private itemOf(request: WebhookRequest): ItemView {
+    const pipeline = pipelineOf(request);
+    const seals = [pipeline.signature, pipeline.schema, pipeline.rule].filter(
+      (check) => check.tone !== 'none',
+    );
+    const label = [
+      `${request.method} ${pipeline.route}`,
+      `#${request.uuid.substring(0, 5)}`,
+      `from ${request.ip}`,
+      localDate(request.created_at),
+      ...seals.map((seal) => `${seal.title}: ${seal.detail}`),
+      ...(this.isUnread(request) ? ['unread'] : []),
+    ].join(', ');
+    return { request, route: pipeline.route, seals, label };
+  }
+
+  protected readonly localDate = localDate;
 }

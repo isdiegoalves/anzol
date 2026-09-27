@@ -67,7 +67,6 @@ describe('Dado o localStorage vazio (primeiro acesso)', () => {
     expect(preferences.redirectMethod()).toBe('');
     expect(preferences.redirectUrl()).toBeNull();
     expect(preferences.unread()).toEqual([]);
-    expect(preferences.hideDetails()).toBe(false);
   });
 });
 

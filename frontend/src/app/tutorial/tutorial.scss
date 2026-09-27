@@ -11,9 +11,9 @@
     border-top: 1px solid var(--mat-sys-outline-variant);
   }
 
+  // Sublinhado: link no meio do texto não pode depender só da cor (WCAG 1.4.1).
   a {
     color: var(--mat-sys-primary);
-    text-decoration: none;
   }
 }
 
@@ -23,10 +23,9 @@
   right: 10px;
   border: 0;
   background: none;
-  color: var(--mat-sys-on-surface);
+  color: var(--mat-sys-on-surface-variant);
   font-size: 21px;
   font-weight: bold;
-  opacity: 0.2;
   cursor: pointer;
 }
 

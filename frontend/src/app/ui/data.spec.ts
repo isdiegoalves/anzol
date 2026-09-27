@@ -42,6 +42,22 @@ describe('Dado a tabela nome → valor (app-kv-table)', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('deve mostrar o valor em partes, uma por linha, Quando a nota as traz', async () => {
+    const notes = new Map([
+      [
+        'stripe-signature',
+        { tone: 'ok' as const, text: '✓ valid', parts: ['t=1790438525', 'v1=5257a8'] },
+      ],
+    ]);
+    const { container } = await render(KvTable, { inputs: { label: 'Headers', rows, notes } });
+
+    const row = screen.getByRole('rowheader', { name: 'stripe-signature' }).closest('tr');
+    expect(
+      [...(row?.querySelectorAll('.parts code') ?? [])].map((part) => part.textContent),
+    ).toEqual(['t=1790438525', 'v1=5257a8']);
+    await expectNoAxeViolations(container);
+  });
+
   it('deve dizer a frase de vazio, sem tabela, Quando não há linhas', async () => {
     const { container } = await render(KvTable, {
       inputs: { label: 'Query', rows: [], empty: 'No query string.' },
@@ -63,6 +79,21 @@ describe('Dado as linhas do bloco de código (codeLines)', () => {
     expect(lines.map((line) => lineText(line.tokens))).toEqual(
       JSON.stringify(JSON.parse(text), null, 2).split('\n'),
     );
+  });
+
+  it('deve escrever número grande, escape e chave repetida como chegaram (sem o JSON.parse)', () => {
+    const lines = codeLines('{"a":12345678901234567890,"s":"\\u00e9\\/","a":1.50}', {
+      json: true,
+      pretty: true,
+    });
+
+    expect(lines.map((line) => lineText(line.tokens))).toEqual([
+      '{',
+      '  "a": 12345678901234567890,',
+      '  "s": "\\u00e9\\/",',
+      '  "a": 1.50',
+      '}',
+    ]);
   });
 
   it('deve marcar a linha do JSON Pointer, subir ao pai quando o caminho não existe e escapar "/"', () => {

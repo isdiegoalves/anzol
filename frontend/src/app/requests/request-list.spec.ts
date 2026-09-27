@@ -1,11 +1,13 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
-import { RequestList } from './request-list';
+import { ITEM_HEIGHT, RequestList, UNDO_MS } from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -32,6 +34,8 @@ describe('Dado a lista lateral de mensagens', () => {
     });
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(RequestStore);
+    // O jsdom não rola: a lista virtual pede `scrollTo` ao ir para o fim.
+    Element.prototype.scrollTo ??= () => undefined;
     fixture = TestBed.createComponent(RequestList);
     // A lista virtual só desenha o que cabe na altura do viewport.
     element().style.height = '600px';
@@ -50,8 +54,10 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().textContent).toContain('Waiting for first request...');
   });
 
-  it('deve mostrar método, início do UUID e IP e destacar a não lida Quando há mensagens', async () => {
-    await load([webhookRequest(1, { method: 'GET' })]);
+  it('deve mostrar método, início do UUID, rota, IP e data e destacar a não lida Quando há mensagens', async () => {
+    await load([
+      webhookRequest(1, { method: 'GET', url: `http://localhost:8084/${TOKEN_ID}/a?b=1` }),
+    ]);
     store.append(webhookRequest(2), 2);
     await fixture.whenStable();
 
@@ -60,44 +66,46 @@ describe('Dado a lista lateral de mensagens', () => {
         item.querySelector('.select')?.textContent?.replace(/\s+/g, ' ').trim(),
       ),
     ).toEqual([
-      expect.stringMatching(/^GET #00000 192\.168\.0\.1[A-Z][a-z]{2} \d/),
-      expect.stringMatching(/^POST #00000 192\.168\.0\.1[A-Z][a-z]{2} \d/),
+      expect.stringMatching(/^GET #00000 \/a\?b=1 192\.168\.0\.1 · [A-Z][a-z]{2} \d/),
+      expect.stringMatching(/^POST #00000 \/ 192\.168\.0\.1 · [A-Z][a-z]{2} \d/),
     ]);
     expect(items().map((item) => item.classList.contains('unread'))).toEqual([false, true]);
+    expect(items()[1].querySelector('.select')?.getAttribute('aria-label')).toMatch(/, unread$/);
   });
 
   it.each([
     [
       'válida',
       { provider: 'github', valid: true, reason: null },
-      'valid',
-      '✓ Sig OK',
-      'Signature valid — GitHub',
+      'ok',
+      'Sig OK',
+      'Signature valid: GitHub',
     ],
     [
       'inválida',
       { provider: 'stripe', valid: false, reason: 'signature mismatch' },
-      'invalid',
-      '✕ Bad sig',
-      'Signature invalid — signature mismatch',
+      'bad',
+      'Bad sig',
+      'Signature invalid: signature mismatch',
     ],
     [
       'ausente',
       { provider: 'github', valid: false, reason: 'header X-Hub-Signature-256 absent' },
-      'absent',
-      '⊘ No sig',
-      'Signature absent — header X-Hub-Signature-256 absent',
+      'bad',
+      'No sig',
+      'Signature absent: header X-Hub-Signature-256 absent',
     ],
   ] as const)(
-    'deve mostrar o selo com ícone, texto curto e o veredito completo no aria-label Quando a assinatura é %s',
-    async (_caso, signature, state, texto, rotulo) => {
+    'deve mostrar o selo com ícone e texto, e o veredito completo no nome do item, Quando a assinatura é %s',
+    async (_caso, signature, tone, texto, rotulo) => {
       await load([webhookRequest(1, { signature })]);
 
-      const seal = items()[0].querySelector('.select [role=img]');
+      const seal = items()[0].querySelector('.seals app-check-chip');
 
       expect(seal?.textContent?.trim()).toBe(texto);
-      expect(seal?.getAttribute('aria-label')).toBe(rotulo);
-      expect(seal?.classList).toContain(state);
+      expect(seal?.getAttribute('title')).toBe(rotulo);
+      expect(seal?.classList).toContain(tone);
+      expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(rotulo);
     },
   );
 
@@ -107,7 +115,23 @@ describe('Dado a lista lateral de mensagens', () => {
   ])('não deve mostrar selo de assinatura Quando ela é %s', async (_caso, campos) => {
     await load([webhookRequest(1, campos)]);
 
-    expect(items()[0].querySelector('[role=img]')).toBeNull();
+    expect(items()[0].querySelector('.seals app-check-chip')).toBeNull();
+  });
+
+  it('deve mostrar os selos de schema e de regra ao lado do de assinatura', async () => {
+    await load([
+      webhookRequest(1, {
+        signature: { provider: 'github', valid: true, reason: null },
+        schema: { valid: false, errors: [{ path: '/id', message: 'must be integer' }] },
+        near_miss: { id: 'r', name: 'Só GET', failed: ['method: expected GET, got POST'] },
+      }),
+    ]);
+
+    expect(
+      [...items()[0].querySelectorAll('.seals app-check-chip')].map((chip) =>
+        chip.textContent?.trim(),
+      ),
+    ).toEqual(['Sig OK', 'Bad schema', 'Near miss']);
   });
 
   it('deve emitir a mensagem clicada Quando o usuário clica nela', async () => {
@@ -120,17 +144,50 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(opened).toEqual([webhookRequest(1)]);
   });
 
-  it('deve apagar pela API e tirar da lista Quando o X é clicado', async () => {
+  it('deve tirar da lista na hora e apagar pela API Quando a lixeira é clicada e o aviso some sem Undo', async () => {
     await load([webhookRequest(1), webhookRequest(2)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
 
     items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
-    http
-      .expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}` })
-      .flush({});
     await fixture.whenStable();
-
     expect(items()).toHaveLength(1);
     expect(element().textContent).toContain('Requests (1)');
+    expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', { duration: UNDO_MS });
+    http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
+
+    open.mock.results[0].value.dismiss();
+    await vi.waitFor(() =>
+      http
+        .expectOne({
+          method: 'DELETE',
+          url: `/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`,
+        })
+        .flush({}),
+    );
+  });
+
+  it('deve devolver a mensagem sem apagar Quando o Undo é clicado', async () => {
+    await load([webhookRequest(1), webhookRequest(2)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+    items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+    open.mock.results[0].value.dismissWithAction();
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(items()).toHaveLength(2);
+    });
+
+    http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
+    expect(element().textContent).toContain('Requests (2)');
+  });
+
+  it('deve ter a lixeira com o nome "Delete request {uuid}" e passar no axe', async () => {
+    await load([webhookRequest(1)]);
+
+    expect(items()[0].querySelector('.delete')?.getAttribute('aria-label')).toBe(
+      `Delete request ${webhookRequest(1).uuid}`,
+    );
+    await expectNoAxeViolations(element());
   });
 
   it('deve mostrar total e limite no cabeçalho Quando a URL tem limpeza automática', async () => {
@@ -159,11 +216,31 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items().length).toBeLessThan(40);
   });
 
-  it('deve oferecer "Next page" Quando a API diz que não é a última página', async () => {
+  it('deve oferecer "Next page" e dizer a faixa no rodapé Quando a API diz que não é a última página', async () => {
     await load([webhookRequest(1)], 60, false);
 
     expect(element().textContent).toContain('Next page');
-    expect(element().textContent).not.toContain('Previous Page');
+    expect(element().textContent).not.toContain('Previous page');
+    expect(element().querySelector('.range')?.textContent).toBe('1–1 of 60');
+  });
+
+  it('deve mostrar a pílula das novas e a destacar Quando chega mensagem com o fim da lista fora da vista', async () => {
+    const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
+    await load(vinte);
+    const list = fixture.componentInstance;
+    const viewport = element().querySelector('cdk-virtual-scroll-viewport') as HTMLElement;
+    Object.defineProperty(viewport, 'scrollHeight', { value: 20 * ITEM_HEIGHT });
+    Object.defineProperty(viewport, 'clientHeight', { value: 3 * ITEM_HEIGHT });
+
+    const nova = webhookRequest(21);
+    store.append(nova, 21);
+    expect(list.receive(nova)).toBe(false);
+    await fixture.whenStable();
+
+    expect(element().querySelector('.new-pill')?.textContent?.trim()).toBe('1 new request');
+    list.showNew();
+    await fixture.whenStable();
+    expect(element().querySelector('.new-pill')).toBeNull();
   });
 
   it('deve mostrar a busca acima da lista Quando a URL tem mensagens', async () => {

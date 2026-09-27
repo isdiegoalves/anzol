@@ -42,7 +42,7 @@ export class Hotkeys {
       actions.close();
       return;
     }
-    if (!actions.enabled() || event.ctrlKey || event.altKey || event.metaKey || typing(event)) {
+    if (!actions.enabled() || event.ctrlKey || event.altKey || event.metaKey || isTyping(event)) {
       return;
     }
     const key = event.key.toLowerCase();
@@ -69,7 +69,7 @@ export class Hotkeys {
 }
 
 /** Foco num campo de texto, lista de opções ou área editável: a tecla é do usuário. */
-function typing(event: KeyboardEvent): boolean {
+export function isTyping(event: KeyboardEvent): boolean {
   const target = event.target as HTMLElement | null;
   if (!target) {
     return false;

@@ -11,6 +11,9 @@ import {
 import { Preferences } from '../settings/preferences';
 import { RequestPage, WebhookRequest } from './webhook-request';
 
+/** Mensagens por página da listagem (e da busca). */
+const REQUESTS_PER_PAGE = 50;
+
 /** Uma página da API já carregada na lista lateral. */
 interface LoadedPage {
   page: number;
@@ -224,18 +227,58 @@ export class RequestStore {
     return this.nearestToSelected(before);
   }
 
-  async deleteRequest(request: WebhookRequest): Promise<void> {
-    const listed = this.requests().some((r) => r.uuid === request.uuid);
+  /**
+   * Tira a mensagem da lista na hora. Com `undo` (o "Undo" do aviso), só apaga no servidor se ele
+   * resolver `false`; com `true`, a mensagem volta ao mesmo lugar e nada é apagado. Devolve se
+   * apagou.
+   */
+  async deleteRequest(request: WebhookRequest, undo?: Promise<boolean>): Promise<boolean> {
+    const pageIndex = this.pages().findIndex((page) =>
+      page.data.some((r) => r.uuid === request.uuid),
+    );
+    const position = this.pages()[pageIndex]?.data.findIndex((r) => r.uuid === request.uuid) ?? -1;
+    const listed = pageIndex >= 0;
+    const counted = listed && this.filtering();
     this.pages.update((pages) =>
       pages.map((page) => ({ ...page, data: page.data.filter((r) => r.uuid !== request.uuid) })),
     );
     this.total.update((total) => total - 1);
-    if (listed && this.filtering()) {
+    if (counted) {
       this.matched.update((matched) => matched - 1);
     }
     this.markAsRead(request.uuid);
+    if (undo && (await undo)) {
+      this.pages.update((pages) =>
+        pages.map((page, index) =>
+          index === pageIndex
+            ? {
+                ...page,
+                data: [...page.data.slice(0, position), request, ...page.data.slice(position)],
+              }
+            : page,
+        ),
+      );
+      this.total.update((total) => total + 1);
+      if (counted) {
+        this.matched.update((matched) => matched + 1);
+      }
+      return false;
+    }
     await firstValueFrom(this.http.delete(`/token/${request.token_id}/request/${request.uuid}`));
+    return true;
   }
+
+  /** Posição do que está carregado, para o rodapé "1–50 of N" (N com filtro é o que casa). */
+  readonly range = computed(() => {
+    const count = this.requests().length;
+    const first = this.pages()[0]?.page ?? 1;
+    const from = count === 0 ? 0 : (first - 1) * REQUESTS_PER_PAGE + 1;
+    return {
+      from,
+      to: count === 0 ? 0 : from + count - 1,
+      of: this.filtering() ? this.matched() : this.total(),
+    };
+  });
 
   async deleteAll(): Promise<void> {
     const tokenId = this.tokenId();

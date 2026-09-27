@@ -37,14 +37,13 @@ describe('Dado a barra de opções acima do detalhe', () => {
     localStorage.clear();
   });
 
-  it.each([
-    ['Format JSON/XML', 'formatJsonEnable'],
-    ['Auto Navigate', 'autoNavEnable'],
-    ['Hide Details', 'hideDetails'],
-  ] as const)('deve ligar a preferência Quando "%s" é ligado', async (label, chave) => {
-    await (await toggle(label)).toggle();
+  it('deve ter só o redirect e o CORS (o resto foi para Pretty, Follow new e as abas)', async () => {
+    const toggles = await loader.getAllHarnesses(MatSlideToggleHarness);
 
-    expect(preferences[chave]()).toBe(true);
+    expect(await Promise.all(toggles.map((item) => item.getLabelText()))).toEqual([
+      'Auto redirect',
+      'Enable CORS BETA',
+    ]);
   });
 
   it('deve desabilitar redirect automático e "Redirect Now" Quando não há URL de redirect', async () => {

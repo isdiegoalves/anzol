@@ -19,24 +19,31 @@ const [unchecked] = checksOf(webhookRequest(1, { signature: null }));
 
 describe('Dado o selo de verificação (app-check-chip)', () => {
   it.each([
-    ['válida', valid, 'ok'],
-    ['inválida', invalid, 'bad'],
-    ['quase (near miss)', near, 'near'],
-    ['não verificada', unchecked, 'none'],
-  ] as [string, CheckResult, string][])(
-    'deve mostrar o título com o tom e passar no axe Quando a verificação está %s (mini)',
-    async (_caso, result, tone) => {
+    ['válida', valid, 'ok', 'Sig OK'],
+    ['inválida', invalid, 'bad', 'Bad sig'],
+    ['quase (near miss)', near, 'near', 'Near miss'],
+    ['não verificada', unchecked, 'none', 'No sig check'],
+  ] as [string, CheckResult, string, string][])(
+    'deve mostrar o texto curto com o tom, e o título e o motivo no title, Quando a verificação está %s (mini)',
+    async (_caso, result, tone, short) => {
       const { container } = await render(CheckChip, { inputs: { result } });
 
       // `container` é o elemento do componente (o host).
       const chip = container as HTMLElement;
-      expect(screen.getByText(result.title)).toBeTruthy();
+      expect(chip.textContent?.trim()).toBe(short);
       expect(chip.classList).toContain(tone);
       expect(screen.queryByText(result.detail)).toBeNull();
-      expect(chip.getAttribute('title')).toBe(result.detail);
+      expect(chip.getAttribute('title')).toBe(`${result.title}: ${result.detail}`);
       await expectNoAxeViolations(container);
     },
   );
+
+  it('deve mostrar o nome da regra que respondeu no selo mini', async () => {
+    const [, , answered] = checksOf(webhookRequest(1, { rule: { id: 'r', name: 'Pix pago' } }));
+    const { container } = await render(CheckChip, { inputs: { result: answered } });
+
+    expect(container.textContent?.trim()).toBe('Pix pago');
+  });
 
   it('deve mostrar o título e o motivo no cartão Quando o tamanho é "card"', async () => {
     const { container } = await render(CheckChip, { inputs: { result: invalid, size: 'card' } });

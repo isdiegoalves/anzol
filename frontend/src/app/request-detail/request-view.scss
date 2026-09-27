@@ -1,90 +1,129 @@
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 0 30px;
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
-.table {
-  width: 100%;
-  margin-bottom: 10px;
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.route {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: var(--mat-sys-title-large);
+  font-family: var(--app-code-family);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.meta {
   border-collapse: collapse;
-  font-size: 90%;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
 
   th {
-    padding: 3px;
-    border-bottom: 2px solid var(--mat-sys-outline-variant);
+    padding: 2px 16px 2px 0;
+    font-weight: 500;
     text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
   }
 
   td {
-    padding: 3px;
-    vertical-align: top;
-    word-break: break-all;
+    padding: 2px 0;
+    color: var(--mat-sys-on-surface);
+    overflow-wrap: anywhere;
   }
 
-  tbody tr:nth-of-type(odd) {
-    background: var(--mat-sys-surface-container-low);
+  .req-id {
+    font-family: var(--app-code-family);
   }
 
-  // Linha do header de assinatura: fundo e borda do selo, e a frase do veredito embaixo do valor.
-  tbody tr.signature {
-    background: var(--mat-sys-error-container);
-    box-shadow: inset 3px 0 var(--mat-sys-error);
-    color: var(--mat-sys-error);
-
-    &.valid {
-      background: var(--app-success-container);
-      box-shadow: inset 3px 0 var(--app-success);
-      color: var(--app-success);
-    }
+  .whois {
+    margin-left: 4px;
+    font: var(--mat-sys-body-small);
   }
-}
-
-.verdict {
-  margin: 4px 0 0;
-  word-break: normal;
-}
-
-.name {
-  width: 25%;
-}
-
-.heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.small {
-  font-size: 85%;
 }
 
 a {
   color: var(--mat-sys-primary);
-  text-decoration: none;
 }
 
-code {
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: var(--mat-sys-surface-container-high);
-  color: var(--mat-sys-on-surface);
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
 }
 
-.content {
-  padding: 9.5px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
-  background: var(--mat-sys-surface-container-low);
-  white-space: pre-wrap;
-  word-break: break-all;
+.check {
+  display: flex;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--mat-sys-corner-medium);
+  background: transparent;
+  font: inherit;
+  text-align: left;
 
-  code {
-    padding: 0;
-    background: none;
+  app-check-chip {
+    flex: 1;
   }
 }
 
-.no-content {
-  color: var(--mat-sys-outline);
+button.check {
+  cursor: pointer;
+
+  &:hover app-check-chip {
+    filter: brightness(0.97);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+.why {
+  margin-top: -4px;
+}
+
+.failed {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  font: var(--mat-sys-body-medium);
+  font-family: var(--app-code-family);
+}
+
+.tabs {
+  min-width: 0;
+}
+
+.body-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+}
+
+.xml {
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container-low);
+  white-space: pre;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
 }

@@ -6,6 +6,9 @@ const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 const boundaries = require('eslint-plugin-boundaries');
 
+/** As pastas da Inbox (§8 do padrão): importam umas das outras. */
+const INBOX_PARTS = '{inbox,requests,request-detail,search}';
+
 module.exports = defineConfig([
   {
     files: ['src/**/*.ts'],
@@ -138,22 +141,19 @@ module.exports = defineConfig([
           ],
         },
         // Legado: componentes que uma feature importava de outra antes do item 14. Cada fatia que
-        // reescreve a tela tira os seus daqui (E4: detalhe, lista, busca, opções, tutorial; E7:
-        // method-label no Outbound; E8: compare-outlet). Nada novo entra nesta lista.
+        // reescreve a tela tira os seus daqui (E5/E7: options-bar, o bloco provisório da Inbox;
+        // E7: method-label no Outbound; E8: compare-outlet; E10: tutorial). request-view fica: é o
+        // detalhe só-leitura que a página do link (share/) usa. Nada novo entra nesta lista.
         {
           category: 'legacy',
           pattern: [
-            'src/app/request-detail/request-detail.ts',
             'src/app/request-detail/request-view.ts',
-            'src/app/requests/request-list.ts',
-            'src/app/requests/request-nav.ts',
             'src/app/requests/method-label.ts',
             'src/app/settings/options-bar.ts',
             'src/app/tutorial/tutorial.ts',
             'src/app/diff/compare-outlet.ts',
             'src/app/ai/explain-panel.ts',
             'src/app/ai/rule-suggest.ts',
-            'src/app/search/request-search.ts',
             'src/app/share/share-dialog.ts',
           ],
         },
@@ -231,6 +231,12 @@ module.exports = defineConfig([
                   },
                 },
               ],
+            },
+            {
+              // A Inbox (item 14, E4) é feita de quatro pastas que se compõem: a página (inbox/),
+              // a lista (requests/), o detalhe (request-detail/) e a busca (search/).
+              from: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } },
+              allow: { to: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } } },
             },
           ],
         },

@@ -22,17 +22,19 @@ const INDENT = '  ';
 
 /**
  * Linhas do texto para o `app-code-view`. JSON válido sai formatado (2 espaços, como o
- * `JSON.stringify`) com realce próprio, sem o highlight.js; cada marca cai na linha onde começa o
- * valor do seu JSON Pointer (subindo ao pai quando o caminho não existe, como `required`). Texto que
- * não é JSON, ou com `pretty` desligado, sai como veio, com as marcas na primeira linha.
+ * `JSON.stringify`) com realce próprio, sem o highlight.js, e com cada valor escrito como chegou:
+ * número maior que 2^53, escape de texto e chave repetida não mudam. Cada marca cai na linha onde
+ * começa o valor do seu JSON Pointer (subindo ao pai quando o caminho não existe, como
+ * `required`). Texto que não é JSON, ou com `pretty` desligado, sai como veio, com as marcas na
+ * primeira linha.
  */
 export function codeLines(
   text: string,
   options: { json: boolean; pretty: boolean; marks?: readonly CodeMark[] },
 ): CodeLine[] {
   const marks = options.marks ?? [];
-  const parsed = options.json && options.pretty ? parseJson(text) : NOT_JSON;
-  if (parsed === NOT_JSON) {
+  const tree = options.json && options.pretty ? parseRaw(text) : null;
+  if (!tree) {
     const lines = text
       .split('\n')
       .map((line): CodeLine => ({ tokens: [{ kind: 'text', text: line }], marks: [] }));
@@ -40,20 +42,98 @@ export function codeLines(
     return lines;
   }
   const writer = new JsonWriter();
-  writer.value(parsed, '', 0, '');
+  writer.value(tree, '', 0, '');
   for (const mark of marks) {
     writer.lines[writer.lineOf(mark.pointer)].marks.push(mark.message);
   }
   return writer.lines;
 }
 
-const NOT_JSON = Symbol('not json');
+interface RawEntry {
+  rawKey: string;
+  key: string;
+  value: RawNode;
+}
 
-function parseJson(text: string): unknown {
+/** JSON lido sem converter os valores: cada folha guarda o texto como veio. */
+type RawNode =
+  | { type: 'object'; entries: RawEntry[] }
+  | { type: 'array'; items: RawNode[] }
+  | { type: 'scalar'; kind: 'string' | 'number' | 'literal'; raw: string };
+
+/** Árvore do JSON, ou `null` quando o texto não é JSON (quem decide é o `JSON.parse`). */
+function parseRaw(text: string): RawNode | null {
   try {
-    return JSON.parse(text);
+    JSON.parse(text);
   } catch {
-    return NOT_JSON;
+    return null;
+  }
+  return new RawReader(text).value();
+}
+
+/** Leitor de JSON já validado: só separa as partes, sem conferir a gramática de novo. */
+class RawReader {
+  private at = 0;
+
+  constructor(private readonly text: string) {}
+
+  value(): RawNode {
+    this.space();
+    const char = this.text[this.at];
+    if (char === '{') {
+      const entries: RawEntry[] = [];
+      this.list('}', () => {
+        const rawKey = this.string();
+        this.space();
+        this.at++; // ':'
+        entries.push({ rawKey, key: JSON.parse(rawKey) as string, value: this.value() });
+      });
+      return { type: 'object', entries };
+    }
+    if (char === '[') {
+      const items: RawNode[] = [];
+      this.list(']', () => items.push(this.value()));
+      return { type: 'array', items };
+    }
+    if (char === '"') {
+      return { type: 'scalar', kind: 'string', raw: this.string() };
+    }
+    const start = this.at;
+    while (this.at < this.text.length && !/[\s,\]}]/.test(this.text[this.at])) {
+      this.at++;
+    }
+    const raw = this.text.slice(start, this.at);
+    return { type: 'scalar', kind: /^[-\d]/.test(raw) ? 'number' : 'literal', raw };
+  }
+
+  /** Itens separados por vírgula até `close`, começando no caractere que abre. */
+  private list(close: string, item: () => void): void {
+    this.at++;
+    this.space();
+    while (this.text[this.at] !== close) {
+      this.space();
+      item();
+      this.space();
+      if (this.text[this.at] === ',') {
+        this.at++;
+      }
+      this.space();
+    }
+    this.at++;
+  }
+
+  private string(): string {
+    const start = this.at++;
+    while (this.text[this.at] !== '"') {
+      this.at += this.text[this.at] === '\\' ? 2 : 1;
+    }
+    return this.text.slice(start, ++this.at);
+  }
+
+  private space(): void {
+    while (/\s/.test(this.text[this.at] ?? '')) {
+      this.at++;
+    }
   }
 }
 
@@ -75,41 +155,43 @@ class JsonWriter {
   }
 
   /** Escreve o valor começando na linha atual (depois de `prefix`, ex.: a chave). */
-  value(
-    value: unknown,
-    pointer: string,
-    depth: number,
-    suffix: string,
-    prefix: CodeToken[] = [],
-  ): void {
+  value(node: RawNode, pointer: string, depth: number, suffix: string, prefix: CodeToken[] = []) {
     const indent = INDENT.repeat(depth);
     const lead: CodeToken[] = [{ kind: 'text', text: indent }, ...prefix];
-    this.pointerLines.set(pointer, this.lines.length);
-    if (Array.isArray(value) || (value !== null && typeof value === 'object')) {
-      const entries: [string, unknown][] = Array.isArray(value)
-        ? value.map((item, index) => [String(index), item])
-        : Object.entries(value as Record<string, unknown>);
-      const [open, close] = Array.isArray(value) ? ['[', ']'] : ['{', '}'];
-      if (entries.length === 0) {
-        this.push([...lead, punct(open + close + suffix)]);
-        return;
-      }
-      this.push([...lead, punct(open)]);
-      entries.forEach(([key, item], index) => {
-        const comma = index < entries.length - 1 ? ',' : '';
-        const childPointer = `${pointer}/${pointerSegment(key)}`;
-        const keyTokens: CodeToken[] = Array.isArray(value)
-          ? []
-          : [
-              { kind: 'key', text: JSON.stringify(key) },
-              { kind: 'punct', text: ': ' },
-            ];
-        this.value(item, childPointer, depth + 1, comma, keyTokens);
-      });
-      this.push([{ kind: 'text', text: indent }, punct(close + suffix)]);
+    if (!this.pointerLines.has(pointer)) {
+      this.pointerLines.set(pointer, this.lines.length);
+    }
+    if (node.type === 'scalar') {
+      this.push([...lead, { kind: node.kind, text: node.raw }, ...(suffix ? [punct(suffix)] : [])]);
       return;
     }
-    this.push([...lead, scalar(value), ...(suffix ? [punct(suffix)] : [])]);
+    const children =
+      node.type === 'array'
+        ? node.items.map((item, index) => ({
+            key: String(index),
+            keyTokens: [] as CodeToken[],
+            value: item,
+          }))
+        : node.entries.map((entry) => ({
+            key: entry.key,
+            keyTokens: [
+              { kind: 'key', text: entry.rawKey },
+              { kind: 'punct', text: ': ' },
+            ] as CodeToken[],
+            value: entry.value,
+          }));
+    const [open, close] = node.type === 'array' ? ['[', ']'] : ['{', '}'];
+    if (children.length === 0) {
+      this.push([...lead, punct(open + close + suffix)]);
+      return;
+    }
+    this.push([...lead, punct(open)]);
+    children.forEach((child, index) => {
+      const comma = index < children.length - 1 ? ',' : '';
+      const childPointer = `${pointer}/${pointerSegment(child.key)}`;
+      this.value(child.value, childPointer, depth + 1, comma, child.keyTokens);
+    });
+    this.push([{ kind: 'text', text: indent }, punct(close + suffix)]);
   }
 
   private push(tokens: CodeToken[]): void {
@@ -119,14 +201,4 @@ class JsonWriter {
 
 function punct(text: string): CodeToken {
   return { kind: 'punct', text };
-}
-
-function scalar(value: unknown): CodeToken {
-  if (typeof value === 'string') {
-    return { kind: 'string', text: JSON.stringify(value) };
-  }
-  if (typeof value === 'number') {
-    return { kind: 'number', text: JSON.stringify(value) };
-  }
-  return { kind: 'literal', text: JSON.stringify(value) };
 }

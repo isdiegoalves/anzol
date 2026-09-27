@@ -65,6 +65,15 @@ const ICONS = {
   ],
   none: [circle(12, 12, 10), path('M8 12h8')],
   close: [path('M18 6 6 18'), path('m6 6 12 12')],
+  up: [path('m18 15-6-6-6 6')],
+  down: [path('m6 9 6 6 6-6')],
+  back: [path('m12 19-7-7 7-7'), path('M19 12H5')],
+  more: [circle(12, 5, 1), circle(12, 12, 1), circle(12, 19, 1)],
+  trash: [
+    path('M3 6h18'),
+    path('M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6'),
+    path('M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2'),
+  ],
 } satisfies Record<string, Shape[]>;
 
 export type IconName = keyof typeof ICONS;

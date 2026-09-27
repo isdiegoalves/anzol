@@ -1,47 +1,77 @@
-import { Component, inject, linkedSignal } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { DOCUMENT } from '@angular/common';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
-import { MatInput } from '@angular/material/input';
-import { MatOption, MatSelect } from '@angular/material/select';
 import { debounceTime } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
+import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import {
   FILTER_METHODS,
   NO_FILTER,
   RequestFilter,
   SchemaFilter,
   SignatureFilter,
+  waitForCommand,
 } from './request-filter';
 
 /** Espera depois da última tecla antes de buscar. */
 export const SEARCH_DEBOUNCE_MS = 300;
 
-/** Busca por texto e filtros rápidos acima da lista, com o contador "N of M requests". */
+/** Um chip do grupo "Filters": o nome acessível é o texto, o estado é o `aria-pressed`. */
+interface Chip {
+  label: string;
+  pressed: boolean;
+  toggle: () => void;
+}
+
+/**
+ * Busca em pílula e os filtros como chips (um clique cada, C §2.3), no lugar dos três `MatSelect`
+ * (fora do pacote da Inbox): método (vários), assinatura válida/inválida/ausente e schema
+ * válido/inválido (um de cada). Mapeiam 1:1 no `match` da busca. Com filtro, o contador
+ * "N of M requests"; e o "Copy as webhook wait-for" com os mesmos filtros.
+ */
 @Component({
   selector: 'app-request-search',
-  imports: [MatButton, MatFormField, MatInput, MatLabel, MatOption, MatSelect],
+  imports: [Icon],
   templateUrl: './request-search.html',
   styleUrl: './request-search.scss',
 })
 export class RequestSearch {
   protected readonly store = inject(RequestStore);
-
-  protected readonly methods = FILTER_METHODS;
-  /** As opções das condições "Signature" e "Schema" do editor de regras (sem "Absent"). */
-  protected readonly signatureOptions: { value: SignatureFilter; label: string }[] = [
-    { value: 'any', label: 'Any' },
-    { value: 'valid', label: 'Valid' },
-    { value: 'invalid', label: 'Invalid' },
-  ];
-  protected readonly schemaOptions: { value: SchemaFilter; label: string }[] = [
-    { value: 'any', label: 'Any' },
-    { value: 'valid', label: 'Valid' },
-    { value: 'invalid', label: 'Invalid' },
-  ];
+  private readonly tokens = inject(TokenStore);
+  private readonly clipboard = inject(Clipboard);
+  private readonly origin = inject(DOCUMENT).location.origin;
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
+  /** O que o "Copy as webhook wait-for" copiou, com o aviso do texto que ficou de fora. */
+  protected readonly copied = signal<string | null>(null);
+
+  protected readonly chips = computed<Chip[]>(() => {
+    const filter = this.store.filter();
+    const methods = FILTER_METHODS.map((method) => ({
+      label: method,
+      pressed: filter.methods.includes(method),
+      toggle: () =>
+        this.apply({
+          methods: filter.methods.includes(method)
+            ? filter.methods.filter((chosen) => chosen !== method)
+            : [...filter.methods, method],
+        }),
+    }));
+    const signatures = (['valid', 'invalid', 'absent'] as SignatureFilter[]).map((value) => ({
+      label: `Signature ${value}`,
+      pressed: filter.signature === value,
+      toggle: () => this.apply({ signature: filter.signature === value ? 'any' : value }),
+    }));
+    const schemas = (['valid', 'invalid'] as SchemaFilter[]).map((value) => ({
+      label: `Schema ${value}`,
+      pressed: filter.schema === value,
+      toggle: () => this.apply({ schema: filter.schema === value ? 'any' : value }),
+    }));
+    return [...methods, ...signatures, ...schemas];
+  });
 
   constructor() {
     toObservable(this.draft)
@@ -49,24 +79,35 @@ export class RequestSearch {
       .subscribe((text) => this.apply({ text }));
   }
 
-  protected setMethods(methods: string[]): void {
-    this.apply({ methods });
-  }
-
-  protected setSignature(signature: SignatureFilter): void {
-    this.apply({ signature });
-  }
-
-  protected setSchema(schema: SchemaFilter): void {
-    this.apply({ schema });
-  }
-
   protected clearFilters(): void {
     this.draft.set('');
+    this.copied.set(null);
     void this.store.applyFilter(NO_FILTER);
   }
 
+  /** S10: só o `match` vai para o comando; com a URL protegida, o segredo vem da variável. */
+  protected copyWaitFor(): void {
+    const token = this.tokens.token();
+    if (!token) {
+      return;
+    }
+    const filter = { ...this.store.filter(), text: this.draft() };
+    this.clipboard.copy(
+      waitForCommand(filter, {
+        server: this.origin,
+        tokenId: token.uuid,
+        protected: token.protected === true,
+      }),
+    );
+    this.copied.set(
+      filter.text.trim()
+        ? 'Copied. The text search is not part of wait-for: only the filters went into --match.'
+        : 'Copied the webhook wait-for command.',
+    );
+  }
+
   private apply(change: Partial<RequestFilter>): void {
+    this.copied.set(null);
     void this.store.applyFilter({ ...this.store.filter(), ...change });
   }
 }

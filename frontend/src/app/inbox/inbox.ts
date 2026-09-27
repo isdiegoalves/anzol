@@ -1,8 +1,21 @@
-import { DOCUMENT } from '@angular/common';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  Injector,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -12,26 +25,48 @@ import { CompareStore } from '../diff/compare-store';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
-import { RequestNav } from '../requests/request-nav';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { OptionsBar } from '../settings/options-bar';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
+import { isTyping } from '../shell/hotkeys';
+import { ShellSettings } from '../shell/shell-settings';
+import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
 import { isProtectedError } from '../token/url-lock';
 import { Tutorial } from '../tutorial/tutorial';
+import { Icon } from '../ui/icon';
+import { Split } from '../ui/split';
 
 /** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
 export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
+/** Chegadas somadas num anúncio só para o leitor de tela (WCAG 4.1.3, sem inundar). */
+export const ANNOUNCE_EVERY_MS = 5000;
+/** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
+export const RECEIVED_NOTICE_MS = 4000;
 
 /**
- * Tela principal. A rota (`/`, `/{tokenId}`, `/{tokenId}/{requestId}/{page}`) é a fonte da
- * verdade: clicar numa mensagem navega, e a navegação abre a mensagem.
+ * Inbox: lista e detalhe lado a lado com a divisória redimensionável (a partir de 840 px); abaixo,
+ * um painel por vez, com o detalhe em tela cheia. A rota (`/`, `/{tokenId}`,
+ * `/{tokenId}/{requestId}/{page}`) é a fonte da verdade: clicar numa mensagem navega, e a navegação
+ * abre a mensagem. Tempo real: a nova fica destacada; fora da vista, a pílula e o aviso; "Follow
+ * new" abre cada uma que chega; o leitor de tela ouve as chegadas somadas a cada 5 s.
  */
 @Component({
   selector: 'app-inbox',
-  imports: [MatButton, RequestList, RequestNav, RequestDetail, CompareOutlet, OptionsBar, Tutorial],
+  imports: [
+    CompareOutlet,
+    Icon,
+    MatIconButton,
+    MatSlideToggle,
+    NgTemplateOutlet,
+    OptionsBar,
+    RequestDetail,
+    RequestList,
+    Split,
+    Tutorial,
+  ],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
 })
@@ -44,17 +79,34 @@ export class Inbox {
   private readonly redirector = inject(Redirector);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly announcer = inject(LiveAnnouncer);
   private readonly title = inject(Title);
   private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
+  private readonly settings = inject(ShellSettings);
+  private readonly viewport = inject(Viewport);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
   readonly requestId = input<string>();
   readonly page = input<string>();
 
+  private readonly list = viewChild(RequestList);
+  private readonly detail = viewChild(RequestDetail);
+
+  /** Lista e detalhe lado a lado (classes expandida em diante); abaixo, um painel por vez. */
+  protected readonly twoPanes = computed(() =>
+    ['expanded', 'large', 'extra-large'].includes(this.viewport.windowClass()),
+  );
+  /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
+  protected readonly showDetail = signal(false);
+  protected readonly listWidth = signal(380);
+
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
+  private arrivals = 0;
+  private announceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     effect(() => {
@@ -87,6 +139,16 @@ export class Inbox {
           void this.openRequest(replacement, true);
         }
       });
+
+    // J e K: a mensagem mais antiga e a mais nova (C §3.2), fora dos campos e se ligados.
+    const keys = (event: KeyboardEvent) => this.navigateByKey(event);
+    this.document.addEventListener('keydown', keys);
+    inject(DestroyRef).onDestroy(() => {
+      this.document.removeEventListener('keydown', keys);
+      if (this.announceTimer) {
+        clearTimeout(this.announceTimer);
+      }
+    });
   }
 
   protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
@@ -94,14 +156,46 @@ export class Inbox {
     return this.router.navigate(['/', request.token_id, request.uuid, page], { replaceUrl });
   }
 
-  /** Clicar na lista fecha a comparação aberta e abre a mensagem. */
+  /** Clicar na lista fecha a comparação aberta e abre a mensagem (em tela cheia, no celular). */
   protected openFromList(request: WebhookRequest): void {
     this.compare.close();
+    this.showDetail.set(true);
     void this.openRequest(request);
   }
 
-  protected deleteAllRequests(): void {
-    void this.requests.deleteAll();
+  protected backToList(): void {
+    this.showDetail.set(false);
+  }
+
+  /** Confirma antes: a confirmação (e o `MatDialog`) vêm sob demanda. */
+  protected async deleteAllRequests(): Promise<void> {
+    const { confirmDeleteAll } = await import('./confirm-delete-all');
+    if (await confirmDeleteAll(this.injector, this.requests.total())) {
+      await this.requests.deleteAll();
+    }
+  }
+
+  private navigateByKey(event: KeyboardEvent): void {
+    const key = event.key.toLowerCase();
+    if (
+      (key !== 'j' && key !== 'k') ||
+      !this.settings.shortcuts() ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      isTyping(event)
+    ) {
+      return;
+    }
+    const detail = this.detail();
+    if (detail) {
+      event.preventDefault();
+      if (key === 'j') {
+        detail.showOlder();
+      } else {
+        detail.showNewer();
+      }
+    }
   }
 
   private async openRoute(
@@ -113,7 +207,7 @@ export class Inbox {
       await this.openSavedOrNewToken();
       return;
     }
-    // Sem stream (Inbox recriado ao voltar da aba de regras), a lista também está velha.
+    // Sem stream (Inbox recriado ao voltar de outro destino), a lista também está velha.
     const stale = this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
     if (stale && !(await this.loadToken(tokenId, page))) {
       return;
@@ -188,7 +282,7 @@ export class Inbox {
       // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
       this.requests.countArrival(complete, total, removed);
       this.searchRefresh.next();
-      this.notify(complete);
+      this.notify(complete, false);
       return;
     }
     // A limpeza automática pode ter cortado a mensagem aberta: abre a mais próxima que ficou.
@@ -199,16 +293,52 @@ export class Inbox {
     } else if (!this.requests.selected()) {
       await this.openRequest(list[0]);
     }
+    const inView = this.list()?.receive(complete) ?? true;
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       await this.openRequest(list[list.length - 1]);
+      this.list()?.scrollTo(complete.uuid);
+      this.notify(complete, true);
+      return;
     }
-    this.notify(complete);
+    this.notify(complete, inView);
   }
 
-  private notify(request: WebhookRequest): void {
+  /**
+   * O redirect pelo navegador (se ligado), o anúncio somado e, com a nova fora da vista, o aviso
+   * "Request received" com "View".
+   */
+  private notify(request: WebhookRequest, inView: boolean): void {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(request);
     }
-    this.snackBar.open('Request received', undefined, { duration: 1000 });
+    this.announceArrival();
+    if (!inView) {
+      this.snackBar
+        .open('Request received', 'View', { duration: RECEIVED_NOTICE_MS })
+        .onAction()
+        .subscribe(() => void this.viewNewest());
+    }
+  }
+
+  private async viewNewest(): Promise<void> {
+    const newest = this.requests.requests().at(-1);
+    if (newest) {
+      this.list()?.showNew();
+      this.showDetail.set(true);
+      await this.openRequest(newest);
+    }
+  }
+
+  private announceArrival(): void {
+    this.arrivals++;
+    this.announceTimer ??= setTimeout(() => {
+      const count = this.arrivals;
+      this.arrivals = 0;
+      this.announceTimer = null;
+      void this.announcer.announce(
+        `${count} new ${count === 1 ? 'request' : 'requests'} received`,
+        'polite',
+      );
+    }, ANNOUNCE_EVERY_MS);
   }
 }

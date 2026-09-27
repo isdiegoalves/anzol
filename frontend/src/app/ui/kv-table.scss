@@ -55,6 +55,12 @@ tr.noted th {
   color: inherit;
 }
 
+.parts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .note {
   display: block;
   margin-top: 4px;

@@ -1,62 +1,42 @@
 <div class="search" role="search" aria-label="Filter requests">
-  <mat-form-field class="text" subscriptSizing="dynamic">
-    <mat-label>Search</mat-label>
+  <label class="pill">
+    <app-icon name="search" [size]="18" />
     <input
       #box
-      matInput
-      type="search"
+      class="text"
+      type="text"
+      name="search"
+      aria-label="Search"
+      placeholder="Search path, headers, body"
       maxlength="200"
       autocomplete="off"
+      enterkeyhint="search"
+      title="Search (/)"
       [value]="draft()"
       (input)="draft.set(box.value)"
     />
-  </mat-form-field>
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>Method</mat-label>
-    <mat-select
-      multiple
-      aria-label="Method"
-      [value]="store.filter().methods"
-      (selectionChange)="setMethods($event.value)"
+  </label>
+  <div class="chips" role="group" aria-label="Filters">
+    @for (chip of chips(); track chip.label) {
+      <button type="button" class="chip" [attr.aria-pressed]="chip.pressed" (click)="chip.toggle()">
+        {{ chip.label }}
+      </button>
+    }
+  </div>
+  <div class="row">
+    <button
+      type="button"
+      class="link"
+      [disabled]="!store.filtering() && draft() === ''"
+      (click)="clearFilters()"
     >
-      @for (method of methods; track method) {
-        <mat-option [value]="method">{{ method }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>Signature</mat-label>
-    <mat-select
-      aria-label="Signature"
-      [value]="store.filter().signature"
-      (selectionChange)="setSignature($event.value)"
-    >
-      @for (option of signatureOptions; track option.value) {
-        <mat-option [value]="option.value">{{ option.label }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>Schema</mat-label>
-    <mat-select
-      aria-label="Schema"
-      [value]="store.filter().schema"
-      (selectionChange)="setSchema($event.value)"
-    >
-      @for (option of schemaOptions; track option.value) {
-        <mat-option [value]="option.value">{{ option.label }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-  <button
-    mat-button
-    type="button"
-    class="clear"
-    [disabled]="!store.filtering() && draft() === ''"
-    (click)="clearFilters()"
-  >
-    Clear filters
-  </button>
+      Clear filters
+    </button>
+    <button type="button" class="link" (click)="copyWaitFor()">Copy as webhook wait-for</button>
+  </div>
+  @if (copied(); as message) {
+    <p class="note" role="status">{{ message }}</p>
+  }
   @if (store.filtering()) {
     <p class="count" role="status">{{ store.matched() }} of {{ store.total() }} requests</p>
   }

@@ -128,7 +128,7 @@ export class Shell {
   }
 
   private focusSearch(): void {
-    document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+    document.querySelector<HTMLInputElement>('[role="search"] input')?.focus();
   }
 
   /** Abre a folha no lugar da anterior; ao fechar, o foco volta para quem a abriu. */

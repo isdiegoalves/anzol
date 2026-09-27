@@ -1,12 +1,17 @@
-<h2
-  class="header"
-  [attr.title]="limit() ? 'Auto cleanup keeps the ' + limit() + ' most recent requests' : null"
->
-  Requests ({{ count() }})
-</h2>
+<div class="head">
+  <h2
+    class="header"
+    [attr.title]="limit() ? 'Auto cleanup keeps the ' + limit() + ' most recent requests' : null"
+  >
+    Requests ({{ count() }})
+  </h2>
+  <span class="spacer"></span>
+  <ng-content select="[listTools]" />
+</div>
+<ng-content select="[listOptions]" />
 <!-- Com filtro ativo fica à vista mesmo com a URL vazia, para dar como limpar o filtro. -->
 @if (store.hasRequests() || store.filtering()) {
-  <app-request-search />
+  <app-request-search class="search" />
 }
 @if (compare.picking(); as base) {
   <div class="picking" role="status">
@@ -20,49 +25,75 @@
     Waiting for first request...
   </p>
 } @else {
-  @if (store.hasPreviousPage()) {
-    <button mat-button type="button" class="page" (click)="store.loadPreviousPage()">
-      Previous Page
-    </button>
-  }
   @if (store.requests().length === 0) {
-    <p class="no-match">No requests match the filters.</p>
+    <app-empty-state
+      icon="search"
+      heading="No requests match the filters."
+      text="New requests that match will appear here live."
+    />
   }
-  <cdk-virtual-scroll-viewport itemSize="60" class="viewport">
-    <div
-      *cdkVirtualFor="let request of store.requests(); trackBy: trackByUuid"
-      class="item"
-      [class.active]="store.selected()?.uuid === request.uuid"
-      [class.unread]="isUnread(request)"
-      [class.base]="compare.picking()?.uuid === request.uuid"
+  <div class="list">
+    <cdk-virtual-scroll-viewport
+      class="viewport"
+      [itemSize]="itemHeight"
+      (scrolledIndexChange)="scrolled()"
     >
-      <button type="button" class="select" (click)="choose(request)">
-        <app-method-label [method]="request.method" />
-        #{{ request.uuid.substring(0, 5) }} {{ request.ip }}<br />
-        <small>{{ localDate(request.created_at) }}</small>
-        @if (request.signature; as signature) {
-          @let seal = signatureSeal(signature);
-          <span
-            role="img"
-            class="signature"
-            [class]="seal.state"
-            [attr.aria-label]="seal.label"
-            [attr.title]="seal.label"
-            >{{ seal.text }}</span
-          >
-        }
-      </button>
-      <button
-        type="button"
-        class="delete"
-        [attr.aria-label]="'Delete request ' + request.uuid"
-        (click)="deleteRequest(request)"
+      <div
+        *cdkVirtualFor="let item of items(); trackBy: trackByUuid"
+        class="item"
+        [class.active]="store.selected()?.uuid === item.request.uuid"
+        [class.unread]="isUnread(item.request)"
+        [class.base]="compare.picking()?.uuid === item.request.uuid"
+        [class.fresh]="fresh().has(item.request.uuid)"
       >
-        X
+        <button
+          type="button"
+          class="select"
+          [attr.aria-label]="item.label"
+          [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
+          (click)="choose(item.request)"
+        >
+          <span class="line route-line">
+            <app-method-badge [method]="item.request.method" />
+            <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
+            <span class="id"> #{{ item.request.uuid.substring(0, 5) }}</span>
+            <span class="route"> {{ item.route }}</span>
+          </span>
+          <span class="line meta">
+            {{ item.request.ip }} · <small>{{ localDate(item.request.created_at) }}</small>
+          </span>
+        </button>
+        <span class="seals" aria-hidden="true">
+          @for (seal of item.seals; track seal.kind) {
+            <app-check-chip [result]="seal" />
+          }
+        </span>
+        <button
+          type="button"
+          class="delete"
+          title="Delete"
+          [attr.aria-label]="'Delete request ' + item.request.uuid"
+          (click)="deleteRequest(item.request)"
+        >
+          <app-icon name="trash" [size]="18" />
+        </button>
+      </div>
+    </cdk-virtual-scroll-viewport>
+    @if (newBelow() > 0) {
+      <button type="button" class="new-pill" (click)="showNew()">
+        <app-icon name="down" [size]="18" />
+        {{ newBelow() }} new {{ newBelow() === 1 ? 'request' : 'requests' }}
       </button>
-    </div>
-  </cdk-virtual-scroll-viewport>
-  @if (store.hasNextPage()) {
-    <button mat-button type="button" class="page" (click)="store.loadNextPage()">Next page</button>
-  }
+    }
+  </div>
+  @let range = store.range();
+  <footer class="footer">
+    @if (store.hasPreviousPage()) {
+      <button mat-button type="button" (click)="store.loadPreviousPage()">Previous page</button>
+    }
+    <span class="range">{{ range.from }}–{{ range.to }} of {{ range.of }}</span>
+    @if (store.hasNextPage()) {
+      <button mat-button type="button" (click)="store.loadNextPage()">Next page</button>
+    }
+  </footer>
 }

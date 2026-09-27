@@ -86,6 +86,45 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.selected()?.uuid).toBe(webhookRequest(1).uuid);
     });
 
+    it('deve devolver a mensagem ao mesmo lugar, sem apagar no servidor, Quando o Undo vem', async () => {
+      const antes = store.requests();
+
+      const deleted = store.deleteRequest(webhookRequest(1), Promise.resolve(true));
+      expect(store.requests()).toHaveLength(1);
+      expect(store.total()).toBe(2);
+
+      expect(await deleted).toBe(false);
+      http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
+      expect(store.requests()).toEqual(antes);
+      expect(store.total()).toBe(3);
+    });
+
+    it('deve apagar no servidor Quando o aviso some sem Undo', async () => {
+      let semUndo!: (undo: boolean) => void;
+      const deleted = store.deleteRequest(
+        webhookRequest(2),
+        new Promise((resolve) => (semUndo = resolve)),
+      );
+      http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(2).uuid}`);
+
+      semUndo(false);
+      await vi.waitFor(() =>
+        http
+          .expectOne({
+            method: 'DELETE',
+            url: `/token/${TOKEN_ID}/request/${webhookRequest(2).uuid}`,
+          })
+          .flush({}),
+      );
+
+      expect(await deleted).toBe(true);
+      expect(store.requests().map((request) => request.uuid)).toEqual([webhookRequest(1).uuid]);
+    });
+
+    it('deve dizer a faixa carregada no rodapé ("1–2 of 3")', () => {
+      expect(store.range()).toEqual({ from: 1, to: 2, of: 3 });
+    });
+
     it('deve zerar lista, seleção e não lidas Quando todas são apagadas', async () => {
       store.append(webhookRequest(9), 4);
       store.select(webhookRequest(2).uuid);

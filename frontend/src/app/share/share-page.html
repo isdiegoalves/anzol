@@ -5,7 +5,7 @@
       <p class="banner" role="status">
         Shared read-only link · expires {{ expires(current.request) }}
       </p>
-      <app-request-view [request]="current.request" />
+      <app-request-view [request]="current.request" [readonly]="true" />
     }
     @case ('missing') {
       <section class="missing">

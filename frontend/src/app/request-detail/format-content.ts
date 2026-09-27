@@ -1,21 +1,41 @@
-import hljs from 'highlight.js/lib/core';
-import json from 'highlight.js/lib/languages/json';
-import xml from 'highlight.js/lib/languages/xml';
-
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('xml', xml);
-
-const LANGUAGES = ['json', 'xml'];
+/** Como o corpo é mostrado: JSON pelo `app-code-view`, XML/HTML com o highlight.js sob demanda. */
+export type BodyLanguage = 'json' | 'xml' | 'text';
 
 /**
- * Formata o corpo como o "Format JSON/XML" do app atual: detecta a linguagem pelo destaque de
- * sintaxe e reindenta JSON (2 espaços) ou XML. Qualquer outra coisa volta como veio.
+ * Detecta a linguagem do corpo sem o highlight.js (fora do pacote da Inbox): JSON pelo
+ * `JSON.parse`; XML ou HTML por começar com `<` e o `DOMParser` ler sem erro (ou ser um documento
+ * HTML); o resto é texto.
+ */
+export function detectLanguage(content: string | null): BodyLanguage {
+  const text = content?.trim() ?? '';
+  if (text === '') {
+    return 'text';
+  }
+  try {
+    JSON.parse(text);
+    return 'json';
+  } catch {
+    // não é JSON
+  }
+  if (!text.startsWith('<') || !text.endsWith('>')) {
+    return 'text';
+  }
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length === 0) {
+    return 'xml';
+  }
+  return /^<(!doctype\s+html|html)[\s>]/i.test(text) ? 'xml' : 'text';
+}
+
+/**
+ * Formata o corpo como o "Format JSON/XML" do app atual: reindenta JSON (2 espaços) ou XML.
+ * Qualquer outra coisa volta como veio.
  */
 export function formatContent(content: string | null): string {
   if (!content) {
     return '';
   }
-  switch (hljs.highlightAuto(content, LANGUAGES).language) {
+  switch (detectLanguage(content)) {
     case 'json':
       return prettyJson(content);
     case 'xml':
@@ -25,9 +45,19 @@ export function formatContent(content: string | null): string {
   }
 }
 
-/** HTML com destaque de sintaxe (o highlight.js escapa o texto). */
-export function highlightContent(content: string): string {
-  return hljs.highlightAuto(content, LANGUAGES).value;
+/**
+ * HTML com destaque de sintaxe de XML/HTML (o highlight.js escapa o texto). O highlight.js vem por
+ * `import()`, num pedaço à parte: só quem abre um corpo XML o baixa.
+ */
+export async function highlightXml(content: string): Promise<string> {
+  const [{ default: hljs }, { default: xml }] = await Promise.all([
+    import('highlight.js/lib/core'),
+    import('highlight.js/lib/languages/xml'),
+  ]);
+  if (!hljs.getLanguage('xml')) {
+    hljs.registerLanguage('xml', xml);
+  }
+  return hljs.highlight(content, { language: 'xml' }).value;
 }
 
 /**

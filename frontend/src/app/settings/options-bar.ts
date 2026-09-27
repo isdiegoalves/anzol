@@ -9,7 +9,12 @@ import { TokenStore } from '../token/token-store';
 import { Preferences } from './preferences';
 import { Redirector } from './redirect';
 
-/** Opções acima do detalhe: redirect, CORS, formatar JSON/XML, auto-navegar, ocultar detalhes. */
+/**
+ * Bloco provisório no cabeçalho da lista da Inbox (item 14, E4): o redirect pelo navegador e o
+ * CORS, até terem lugar em Outbound › Forward (legacy) (E7) e Checks › Response (E5), que o
+ * removem. "Format JSON/XML" virou o Pretty do corpo, "Auto Navigate" o Follow new da lista, e
+ * "Hide Details" saiu (as abas do detalhe fazem o papel).
+ */
 @Component({
   selector: 'app-options-bar',
   imports: [MatSlideToggle, MatButton],

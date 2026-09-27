@@ -1,22 +1,35 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.nav {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  font-size: 11px;
+  gap: 4px 12px;
 }
 
-a {
-  color: var(--mat-sys-primary);
-  text-decoration: none;
-}
-
-.content-actions {
+// Um grupo por intenção (Gestalt de proximidade): reenviar e comparar; criar; copiar; compartilhar.
+.group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  gap: 2px;
+
+  & + .group {
+    padding-left: 12px;
+    border-left: 1px solid var(--mat-sys-outline-variant);
+  }
 }
 
 .ai-off {
   color: var(--mat-sys-error);
-  font-size: 85%;
+  font: var(--mat-sys-body-small);
 }

@@ -50,8 +50,15 @@
 }
 
 .title {
+  overflow: hidden;
   font-weight: 700;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+:host(.mini) {
+  flex: none;
+  max-width: 160px;
 }
 
 :host(.card) .title {

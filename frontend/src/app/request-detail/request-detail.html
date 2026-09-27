@@ -1,46 +1,85 @@
 @let current = request();
 <app-request-view [request]="current" [token]="token()">
-  <span class="actions" detailsActions>
-    <a [href]="permalink()">Permalink</a>
-    <a target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
-    <button mat-button type="button" class="copy-as" [matMenuTriggerFor]="copyMenu">
-      Copy As &#9662;
+  <div class="nav" viewNav>
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Newer"
+      title="Newer (K)"
+      [disabled]="!hasNewer()"
+      (click)="showNewer()"
+    >
+      <app-icon name="up" />
     </button>
-    <mat-menu #copyMenu="matMenu">
-      @for (format of formats; track format) {
-        <button mat-menu-item type="button" (click)="copyRequestAs(format)">
-          {{ format }}
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="Older"
+      title="Older (J)"
+      [disabled]="!hasOlder()"
+      (click)="showOlder()"
+    >
+      <app-icon name="down" />
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="More"
+      title="Permalink, Raw content"
+      [matMenuTriggerFor]="moreMenu"
+    >
+      <app-icon name="more" />
+    </button>
+    <mat-menu #moreMenu="matMenu">
+      <a mat-menu-item [href]="permalink()">Permalink</a>
+      <a mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+    </mat-menu>
+  </div>
+
+  <div class="actions" role="toolbar" aria-label="Request actions" viewActions>
+    <div class="group">
+      <button mat-flat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
+      <button mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
+      <button mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+    </div>
+    <div class="group">
+      <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
+      @if (jsonBody()) {
+        <button mat-button type="button" (click)="createSchema()">
+          Create schema from this request
         </button>
       }
-    </mat-menu>
-  </span>
-
-  <div class="content-actions">
-    <button mat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
-    <button mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
-    <button mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
-    <button mat-button type="button" (click)="shareRequest()">Share read-only link&hellip;</button>
-    <button
-      mat-button
-      type="button"
-      title="Ask the local model why signature, schema and rules gave this result"
-      [disabled]="ai.disabled() && !explaining()"
-      (click)="toggleExplain()"
-    >
-      {{ explaining() ? 'Hide explanation' : 'Explain' }}
-    </button>
-    @if (ai.disabled()) {
-      <span class="ai-off">{{ aiOffHint }}</span>
-    }
-    <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
-    @if (jsonBody()) {
-      <button mat-button type="button" (click)="createSchema()">
-        Create schema from this request
+    </div>
+    <div class="group">
+      @if (current.content) {
+        <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
+      }
+      <button mat-button type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
+      <mat-menu #copyMenu="matMenu">
+        @for (format of formats; track format) {
+          <button mat-menu-item type="button" (click)="copyRequestAs(format)">
+            {{ format }}
+          </button>
+        }
+      </mat-menu>
+    </div>
+    <div class="group">
+      <button mat-button type="button" (click)="shareRequest()">
+        Share read-only link&hellip;
       </button>
-    }
-    @if (current.content) {
-      <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
-    }
+      <button
+        mat-button
+        type="button"
+        title="Ask the local model why signature, schema and rules gave this result"
+        [disabled]="ai.disabled() && !explaining()"
+        (click)="toggleExplain()"
+      >
+        {{ explaining() ? 'Hide explanation' : 'Explain' }}
+      </button>
+      @if (ai.disabled()) {
+        <span class="ai-off">{{ aiOffHint }}</span>
+      }
+    </div>
   </div>
   <ng-container #explainHost />
 </app-request-view>

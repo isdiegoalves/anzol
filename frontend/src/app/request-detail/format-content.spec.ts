@@ -1,4 +1,10 @@
-import { formatContent, highlightContent, prettyJson, prettyXml } from './format-content';
+import {
+  detectLanguage,
+  formatContent,
+  highlightXml,
+  prettyJson,
+  prettyXml,
+} from './format-content';
 
 describe('Dado o corpo de uma mensagem com "Format JSON/XML" ligado', () => {
   it('deve indentar com 2 espaços e preservar número maior que 2^53 Quando o corpo é JSON', () => {
@@ -51,12 +57,26 @@ describe('Dado o reindentador de XML', () => {
   });
 });
 
-describe('Dado o destaque de sintaxe', () => {
-  it('deve escapar o HTML do corpo Quando o conteúdo tem tags', () => {
-    expect(highlightContent('<script>x</script>')).not.toContain('<script>');
+describe('Dado a detecção da linguagem do corpo (sem highlight.js)', () => {
+  it.each([
+    ['JSON', '{"a":1}', 'json'],
+    ['número JSON', ' 42 ', 'json'],
+    ['XML', '<a><b>1</b></a>', 'xml'],
+    ['XML com prólogo', '<?xml version="1.0"?><r/>', 'xml'],
+    ['HTML que não é XML', '<!DOCTYPE html><html><body><br></body></html>', 'xml'],
+    ['texto com < solto', '<não é xml', 'text'],
+    ['formulário', 'f1=v1&f2=', 'text'],
+    ['vazio', '', 'text'],
+  ])('deve dizer a linguagem Quando o corpo é %s', (_caso, corpo, esperado) => {
+    expect(detectLanguage(corpo)).toBe(esperado);
   });
+});
 
-  it('deve marcar as chaves do JSON Quando o conteúdo é JSON', () => {
-    expect(highlightContent('{"a": 1}')).toContain('<span class="hljs-attr">&quot;a&quot;</span>');
+describe('Dado o destaque de XML (highlight.js sob demanda)', () => {
+  it('deve escapar o HTML do corpo e marcar as tags', async () => {
+    const html = await highlightXml('<script>x</script>');
+
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('<span class="hljs-name">script</span>');
   });
 });

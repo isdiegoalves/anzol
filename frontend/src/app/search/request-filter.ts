@@ -3,8 +3,8 @@ import type { RuleMatch, SchemaCondition, SignatureCondition } from '../rules/ru
 /** Métodos oferecidos no filtro rápido "Method". */
 export const FILTER_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
-/** `absent` fica de fora do filtro rápido (o `match` aceita; a §1 pede Any/Valid/Invalid). */
-export type SignatureFilter = 'any' | Exclude<SignatureCondition, 'absent'>;
+/** Os três resultados da assinatura, como o `match.signature` das regras (item 14: com `absent`). */
+export type SignatureFilter = 'any' | SignatureCondition;
 export type SchemaFilter = 'any' | SchemaCondition;
 
 /** Filtro da lista lateral: texto e filtros rápidos. Fica só na tela, não vai para a rota. */
@@ -71,4 +71,37 @@ export function searchBody(filter: RequestFilter, page: number): SearchBody {
     page,
     per_page: SEARCH_PER_PAGE,
   };
+}
+
+/** Para onde e para qual URL o comando `webhook wait-for` aponta. */
+export interface WaitForTarget {
+  server: string;
+  tokenId: string;
+  /** URL protegida: o comando lê o segredo da variável, nunca o leva escrito. */
+  protected: boolean;
+}
+
+/**
+ * "Copy as webhook wait-for" (S10): o comando do CLI que espera uma mensagem com os filtros
+ * rápidos, levados como o `match` (o mesmo da busca). O texto da busca não existe no `wait-for` e
+ * fica de fora (a tela avisa). Valores entre aspas simples POSIX.
+ */
+export function waitForCommand(filter: RequestFilter, target: WaitForTarget): string {
+  const { match } = searchBody(filter, 1);
+  const parts = [
+    'webhook wait-for',
+    `--server ${shellQuote(target.server)}`,
+    `--token ${target.tokenId}`,
+  ];
+  if (Object.keys(match).length > 0) {
+    parts.push(`--match ${shellQuote(JSON.stringify(match))}`);
+  }
+  if (target.protected) {
+    parts.push('--read-secret "$WEBHOOK_READ_SECRET"');
+  }
+  return parts.join(' ');
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }

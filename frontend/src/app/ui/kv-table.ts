@@ -10,11 +10,14 @@ export interface KvRow {
 export interface KvNote {
   tone: 'ok' | 'bad' | 'near';
   text: string;
+  /** O valor em partes, uma por linha (o header de assinatura: `t=…`, `v1=…`). */
+  parts?: readonly string[];
 }
 
 /**
  * Tabela nome → valor (Headers, Query, Form, headers do Outbound). `notes` realça linhas pelo nome,
- * com a frase embaixo do valor; o nome acessível da tabela vem de `label`.
+ * com a frase embaixo do valor (e o valor em partes, se a nota as trouxer); o nome acessível da
+ * tabela vem de `label`.
  */
 @Component({
   selector: 'app-kv-table',
@@ -27,7 +30,15 @@ export interface KvNote {
             <tr [class]="note ? 'noted ' + note.tone : ''">
               <th scope="row">{{ row.name }}</th>
               <td>
-                <code>{{ row.value === '' ? '(empty)' : row.value }}</code>
+                @if (note?.parts; as parts) {
+                  <span class="parts">
+                    @for (part of parts; track $index) {
+                      <code>{{ part }}</code>
+                    }
+                  </span>
+                } @else {
+                  <code>{{ row.value === '' ? '(empty)' : row.value }}</code>
+                }
                 @if (note) {
                   <span class="note">{{ note.text }}</span>
                 }

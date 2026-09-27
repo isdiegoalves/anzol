@@ -58,7 +58,7 @@
 
 | Regra | Fonte | Guarda |
 |---|---|---|
-| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` só em Create New URL, Share read-only link, configurações de redirect e confirmações (a configuração da URL e os editores viram páginas); `MatChips` e segmentados (`MatButtonToggleGroup`) no lugar de `MatSelect` na busca e na limpeza automática; `MatSlideToggle` (Pretty, Follow new, CORS, redirect); `MatSnackBar` (avisos curtos, com a duração em cada `open()`, §7); `MatPaginator` ou botões de página | — (substituição 1:1) | revisão |
+| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` só em Create New URL, Share read-only link, configurações de redirect e confirmações (a configuração da URL e os editores viram páginas); filtros da busca como chips de alternância (`button` com `aria-pressed`, no grupo "Filters") e segmentados (`MatButtonToggleGroup`) na limpeza automática, no lugar de `MatSelect`; `MatSlideToggle` (Pretty, Follow new, CORS, redirect); `MatSnackBar` (avisos curtos, com a duração em cada `open()`, §7); `MatPaginator` ou botões de página | — (substituição 1:1) | revisão |
 | CDK no lugar das bibliotecas avulsas: `cdk-virtual-scroll-viewport` (lista), `Clipboard` do CDK (no lugar do `clipboard.js`/`copy-to-clipboard`) | — (substituição 1:1) | revisão |
 | Tema **só** pelo `mat.theme` (cor, tipografia, densidade), num único arquivo de estilos global (`src/styles.scss`). Tema "Harbor": paletas geradas por `ng generate @angular/material:theme-color` (primária `#1D6A73`, terciária `#8E4D2C`) em `src/_theme-colors.scss`, que não se edita à mão; claro e escuro com `theme-type: color-scheme` (o Material emite `light-dark()`); alto contraste pelo mixin gerado, em `prefers-contrast: more` | MT | revisão |
 | Cor que o M3 não tem (sucesso, aviso) é *custom property* `--app-*` com `light-dark()`, no `styles.scss`, no padrão de nome dos tokens de sistema (`--app-success-container`, `--app-on-warning-container`). SCSS de componente **só** com tokens `--mat-sys-*` e `--app-*`: nada de hex, `rgb()` ou cor por nome | MT | Stylelint (`color-no-hex`, `color-named`, `function-disallowed-list` nos `.scss` de `src/app/**`; `npm run lint:styles`, etapa do `ci.sh`) |
@@ -116,8 +116,11 @@ separação do Trajan entre código compartilhado e funcionalidades isoladas vir
 | `src/app/<feature>/` | Uma funcionalidade (`inbox/`, `rules/`, `checks/`…) | a própria feature, `ui/`, `pipeline/`, `shell/` e o que é público das outras: stores e serviços (`*-store.ts`, `Preferences`, `RequestStream`…), `*-actions.ts` por `import()` e os modelos (`webhook-request.ts`, `token.ts`, `rule.ts`, `stats.ts`…) |
 | `src/app/*.ts`, `src/main.ts` | Raiz: rotas e bootstrap | tudo |
 
-Os componentes que uma feature já importava de outra antes do item 14 estão numa lista "legado" no
-`eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada novo entra nela.
+A Inbox é feita de quatro pastas que se compõem e se importam entre si: a página (`inbox/`), a
+lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`) (`INBOX_PARTS` no
+`eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
+numa lista "legado" no `eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada
+novo entra nela.
 
 ## 9. Cortado na revisão (e por quê)
 

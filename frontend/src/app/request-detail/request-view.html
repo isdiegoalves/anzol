@@ -1,138 +1,127 @@
 @let current = request();
-<app-signature-badge [request]="current" />
-<app-schema-badge [request]="current" />
-<app-rule-badge [request]="current" />
-@if (!preferences.hideDetails()) {
-  <div class="grid">
-    <table class="table" aria-label="Request Details">
-      <thead>
-        <tr>
-          <th colspan="2">
-            <div class="heading">
-              Request Details
-              <ng-content select="[detailsActions]" />
-            </div>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="name">URL</td>
-          <td class="req-url">
-            <app-method-label [method]="current.method" />&nbsp;<a [href]="current.url">{{
-              current.url
-            }}</a>
-          </td>
-        </tr>
-        <tr>
-          <td class="name">Host</td>
-          <td class="req-ip">
-            {{ current.ip }}
-            <a
-              class="small"
-              target="_blank"
-              rel="noopener"
-              [href]="'https://who.is/whois-ip/ip-address/' + current.ip"
-              >whois</a
-            >
-          </td>
-        </tr>
-        <tr>
-          <td class="name">Date</td>
-          <td class="req-date" [title]="current.created_at + ' UTC'">
-            {{ localDate(current.created_at) }} ({{ fromNow(current.created_at) }})
-          </td>
-        </tr>
-        <tr>
-          <td class="name">ID</td>
-          <td class="req-id">{{ current.uuid }}</td>
-        </tr>
-      </tbody>
-    </table>
+@let flow = pipeline();
+<header class="head">
+  <app-method-badge [method]="current.method" />
+  <h2 class="route" [title]="flow.route">{{ flow.route }}</h2>
+  <span class="spacer"></span>
+  <ng-content select="[viewNav]" />
+</header>
 
-    <table class="table headers" aria-label="Headers">
-      <thead>
-        <tr>
-          <th colspan="2">Headers</th>
-        </tr>
-      </thead>
-      <tbody>
-        @let check = signature();
-        @if (check?.missing; as missing) {
-          <tr class="signature absent">
-            <td class="name">{{ missing.name }}</td>
-            <td>
-              <code>(not received)</code>
-              <p class="verdict">{{ missing.note }}</p>
-            </td>
-          </tr>
-        }
-        @for (header of entries(current.headers); track header[0]) {
-          @let verdict = check?.rows.get(header[0]);
-          <tr [class]="verdict ? 'signature ' + check?.state : ''">
-            <td class="name">{{ header[0] }}</td>
-            <td>
-              @for (value of current.headers[header[0]]; track $index; let last = $last) {
-                <code>{{ value === '' ? '(empty)' : value }}{{ last ? '' : ', ' }}</code>
-              }
-              @if (verdict) {
-                <p class="verdict">{{ verdict }}</p>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+<table class="meta" aria-label="Request Details">
+  <tbody>
+    <tr>
+      <th scope="row">URL</th>
+      <td class="req-url">
+        <a [href]="current.url">{{ current.url }}</a>
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">Host</th>
+      <td class="req-ip">
+        {{ current.ip }}
+        <a
+          class="whois"
+          target="_blank"
+          rel="noopener"
+          [href]="'https://who.is/whois-ip/ip-address/' + current.ip"
+          >whois</a
+        >
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">Date</th>
+      <td class="req-date" [title]="current.created_at + ' UTC'">
+        {{ localDate(current.created_at) }} ({{ fromNow(current.created_at) }})
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">ID</th>
+      <td class="req-id">{{ current.uuid }}</td>
+    </tr>
+  </tbody>
+</table>
 
-    <table class="table query" aria-label="Query strings">
-      <thead>
-        <tr>
-          <th colspan="2">Query strings</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (field of entries(current.query); track field[0]) {
-          <tr>
-            <td class="name">{{ field[0] }}</td>
-            <td>
-              <code>{{ field[1] === '' ? '(empty)' : field[1] }}</code>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td class="small">(empty)</td>
-          </tr>
-        }
-      </tbody>
-    </table>
+<div class="checks" role="group" aria-label="Checks on this request">
+  @for (check of checks(); track check.kind) {
+    @if (!readonly() && hasTarget(check.kind)) {
+      <button type="button" class="check" (click)="showCheck(check.kind)">
+        <app-check-chip [result]="check" size="card" />
+      </button>
+    } @else {
+      <div class="check">
+        <app-check-chip [result]="check" size="card" />
+      </div>
+    }
+  }
+</div>
 
-    <table class="table form" aria-label="Form values">
-      <thead>
-        <tr>
-          <th colspan="2">Form values</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (field of entries(current.request); track field[0]) {
-          <tr>
-            <td class="name">{{ field[0] }}</td>
-            <td>
-              <code>{{ field[1] === '' ? '(empty)' : field[1] }}</code>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td class="small">(empty)</td>
-          </tr>
+@if (current.near_miss; as nearMiss) {
+  <div class="why">
+    @if (!readonly()) {
+      <button mat-button type="button" [attr.aria-expanded]="whyOpen()" (click)="toggleWhy()">
+        Why? ({{ nearMiss.failed.length }})
+      </button>
+    }
+    @if (readonly() || whyOpen()) {
+      <ul class="failed" [attr.aria-label]="'Conditions of ' + nearMiss.name + ' that failed'">
+        @for (reason of nearMiss.failed; track $index) {
+          <li>{{ reason }}</li>
         }
-      </tbody>
-    </table>
+      </ul>
+    }
   </div>
 }
 
+<ng-content select="[viewActions]" />
 <ng-content />
-@if (current.content) {
-  <pre class="content"><code class="hljs" [innerHTML]="body()"></code></pre>
-} @else {
-  <p class="no-content">(no body content)</p>
-}
+
+<mat-tab-group
+  class="tabs"
+  animationDuration="0ms"
+  mat-stretch-tabs="false"
+  [selectedIndex]="tab()"
+  (selectedIndexChange)="tab.set($event)"
+>
+  <mat-tab label="Body">
+    <div class="body-bar">
+      <mat-slide-toggle
+        title="Formats valid JSON and XML bodies; off shows the body exactly as it arrived"
+        [checked]="preferences.formatJsonEnable()"
+        (change)="preferences.formatJsonEnable.set($event.checked)"
+        >Pretty</mat-slide-toggle
+      >
+    </div>
+    @if (xmlHtml(); as html) {
+      <pre
+        class="xml"
+        tabindex="0"
+        aria-label="Request body"
+      ><code class="hljs" [innerHTML]="html"></code></pre>
+    } @else {
+      <app-code-view
+        label="Request body"
+        [text]="current.content ?? ''"
+        [language]="language() === 'json' ? 'json' : 'text'"
+        [pretty]="preferences.formatJsonEnable()"
+        [marks]="marks()"
+      />
+    }
+  </mat-tab>
+  <mat-tab [label]="'Headers (' + headers().length + ')'">
+    <app-kv-table label="Headers" [rows]="headers()" [notes]="headerNotes()" empty="No headers." />
+  </mat-tab>
+  <mat-tab [label]="'Query (' + query().length + ')'">
+    <app-kv-table
+      label="Query strings"
+      [rows]="query()"
+      empty="No query string. Parameters after ? in the URL appear here."
+    />
+  </mat-tab>
+  <mat-tab [label]="'Form (' + form().length + ')'">
+    <app-kv-table
+      label="Form values"
+      [rows]="form()"
+      empty="No form fields. application/x-www-form-urlencoded and multipart/form-data bodies appear here."
+    />
+  </mat-tab>
+</mat-tab-group>
