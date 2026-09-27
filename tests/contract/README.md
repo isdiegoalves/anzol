@@ -656,6 +656,67 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `webhook.privacy.unlock` e `webhook.share` e "nenhum segredo em log" (observabilidade), `read_secret` no
   `create_url` do MCP e a tela (CA-5, E2E do frontend).
 
+- **UX de Regras: contrato novo** (C1–C5 e E-07, aprovados pelo dono em 2026-09-27; fonte única no
+  `api-contrato.md` da iniciativa). Escritos antes do backend; helpers em `support/regras.ts` e `support/busca.ts`.
+  - *Trace* (`regras-trace.spec.ts`, C1): `GET /token/{id}/request/{rid}/rules/trace` → exatamente `{request,
+    responded_by, rules}`, cada regra com exatamente `{id, name, enabled, position, matches, failed, conditions}`.
+    Com a pega-tudo respondendo, as regras que não casaram trazem as frases e chaves que o `rules/test` dá para a mesma
+    regra e mensagem; sem regra respondendo, a do `near_miss` traz exatamente o `failed`/`conditions` gravados. Ordem
+    de avaliação: `position` 1..N por `priority` (empate pela lista), desligadas no fim com `position: null` e
+    `matches` ignorando `enabled`. Regras trocadas depois da mensagem: o trace usa as atuais e `responded_by` segue
+    citando a que respondeu. Sem regras → `rules: []`. Cenário contra o estado atual (a frase `scenario …: expected
+    state "Started", got "feito"`), sem transicionar nem gravar mensagem. Assinatura e schema pelo resultado gravado
+    (o `PUT /token` troca segredo e schema e o trace não muda). 410 para token inexistente ou apagado; 404 com o corpo
+    do `GET /request/{rid}` para mensagem inexistente, de outra URL ou apagada; 401 da URL protegida.
+  - *Busca por desfecho* (`busca-desfecho.spec.ts`, C2): `outcome` `rule`, `near_miss` e `default` com a lista exata
+    em ordem `oldest`, em E com `match` e `text`, paginado com `total` do filtrado, e achando pelo id de uma regra já
+    tirada da lista. 422 em `outcome.type` (ausente, `null`, desconhecido, `RULE`, número) e `outcome.rule` (ausente,
+    vazio, não-UUID, número, booleano, presente com `default`); `outcome` que não é objeto → 422 numa chave `outcome…`.
+    Sem `outcome`, a busca é igual à listagem.
+  - *Resposta gravada* (`regras-resposta-gravada.spec.ts`, `specs/event/resposta-gravada.spec.ts`, C3): `response`
+    entrou em `CHAVES_MENSAGEM` (os testes de forma de `mensagem.spec.ts`, `assinatura-config.spec.ts` e
+    `privacidade-share.spec.ts` passam a exigi-la). Exatamente `{status}` com o status respondido: `default_status`,
+    status pelo caminho (`/404`, `/500`), 429 com `Retry-After`, a regra (inclusive em `/404`), near miss (a resposta
+    padrão) e regra com atraso; exatamente `{fault}` nas quatro falhas de rede. Igual no `GET`, na listagem, na busca, no
+    link só-leitura (com e sem `redact`) e no evento SSE, inclusive o cortado.
+  - *Render* (`regras-render.spec.ts`, C4): sem `render`, `rules/test` devolve exatamente `{matches, misses}`; com
+    `render=1..3`, mais `rendered` com as N mais novas de `matches`, da mais nova para a mais antiga (menos se há menos;
+    `[]` sem nenhuma), cada uma exatamente `{uuid, status, headers, body}` renderizada pelo motor do webhook (cabeçalho
+    comparado sem caixa no nome), literal com `template: false`, status 200 e corpo vazio sem `response`, helper que
+    falha vazio, `now` perto do relógio e `seq` inteiro não anterior ao da mensagem, `{uuid, fault}` com falha, sem
+    atraso nem dribble (3 respostas de 5 s em menos de 3 s), sem gravar mensagem, salvar a regra ou mudar o cenário.
+    `render` 0, 4, −1, 1.5, `abc`, `true` e 20 dígitos → 422 com a chave `render`.
+  - *Helper `hmac`* (`regras-hmac.spec.ts`, C5): o HMAC esperado vem de `node:crypto` com o segredo configurado pelo
+    `PUT /token/{id}`; padrão sha256/hex; os seis pares de `algorithm` × `encoding` e cada um sozinho; texto literal,
+    `request.method`, subexpressão `jsonPath` e cabeçalho da resposta; segredo trocado assina com o novo, removido ou
+    nunca configurado deixa o trecho vazio. `md5`, algoritmo desconhecido, `base32` e encoding vazio → 422 em
+    `0.response.body` com `line 2` e `column N` ao salvar e ao testar, enquanto o mesmo lugar com um valor válido passa.
+    O segredo não aparece na resposta, nos cabeçalhos, nas regras, no 422 nem no `rendered`, que traz o HMAC.
+  - *Diferença antes de gravar* (`ia-mcp-diff.spec.ts`, E-07; o `--dry-run` do CLI está em `tests/cli`): `diff_rules`
+    listada com o argumento `rules` de mesma forma do `set_rules`; exatamente `{equal, changed, removed, added}`; igual,
+    `response.status`, `name` + `priority`, removida, nova sem `id` e nova com `id` que a URL não tem; nada gravado; a
+    lista do `GET` reenviada → tudo igual; `[]` → todas removidas; URL sem regras → todas novas; `match.path`,
+    `response.headers` e `enabled` apontados em `fields`; regra com os padrões omitidos igual à salva; regex inválida →
+    erro com `The regex is invalid.`; URL inexistente → `Token not found`; URL protegida → erro que cita `protected`
+    sem `read_secret`, o diff com ele.
+
+  Leituras assumidas onde o api-contrato deixava folga (marcadas `// SUPOSIÇÃO:` nas specs): as chaves de
+  `conditions` são as do near miss (`match.headers.X-Tenant`), não as do exemplo (`headers.x-tenant`), e são
+  conferidas contra a própria API; a regra que casa no trace tem `failed` e `conditions` vazios; a ordem entre as
+  desligadas é livre; `response` do status pelo caminho é o status respondido; o 429 grava só `{status: 429}`; o evento
+  cortado mantém `response`; a ordem de `rendered` é a da mais nova para a mais antiga; `rendered: []` sem matches;
+  "`seq` de agora" só exige um inteiro não anterior ao da mensagem; `hmac` assina o texto em UTF-8 e um número como o
+  template o escreveria; `outcome.type` compara com caixa e `null` vale como ausente; a ordem das listas e de `fields` do
+  `diff_rules` é livre, `name` de uma regra renomeada pode ser o salvo ou o proposto, a profundidade de `fields` em ramo
+  aninhado é livre, a comparação é depois dos padrões, a lista inválida é recusada como no `set_rules` e a URL protegida
+  exige `read_secret` como as outras ferramentas. **Fora do contrato:** a entrada `{"error": "timeout"}` do render (os
+  tetos do template não deixam um render chegar a 1 s pela API; fica com os testes do backend), a mudança de ordem da
+  lista no `diff_rules` (o api-contrato compara por `id`) e o `outcome: null`.
+
+  **Formato antigo:** mensagem gravada antes de C3 não tem `response` (ou tem `null`) e continua abrindo. Nenhuma rota
+  da API grava mensagem sem passar pela captura e o contrato não escreve no Redis, então essa leitura fica com os
+  testes do backend.
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -690,6 +751,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Quem tem o UUID lê e gere a URL; token sem `protected`; qualquer `Host` e `Origin` na API | `read_secret` opcional por URL: sem acesso, toda rota `/token/{id}/**` (fora `unlock`/`lock`) dá 401 `{"error":"This URL is protected","protected":true}`; `protected` no token; links só-leitura de uma mensagem (`/share/{sid}`); com `webhook.allowed-hosts` definido, `Host` fora da lista → 403 nas rotas de gestão e `Origin` fora da lista → 403 nos métodos que mudam estado | Item 12, "privacidade e segurança" (2026-09-26): pré-requisito para publicar. URL sem `read_secret` responde como antes. `protected` entrou em `CHAVES_TOKEN` (e no tipo `Token`), então os quatro testes que comparam as chaves do token passam a exigi-lo: `token.spec.ts` "sem campos: 201 com os padrões e exatamente as chaves do token", `schema-config.spec.ts` "POST com schema: 201 devolve o schema como enviado, e o GET também" e os dois de `assinatura-config.spec.ts` ("POST com signature: GET devolve o provedor e o segredo mascarado…" e "token com signature null; mensagem com signature null…"). Nenhum outro teste antigo mudou: nenhum manda `Host` fora da lista a uma rota de gestão nem `Origin` a um método de gestão (os `Host` e `Origin` estranhos dos testes antigos vão para a captura) |
 | Link só-leitura com a mensagem inteira (`token_id` e a `url` com o UUID da URL); `redact` mascarava só a lista fixa de headers; trocar o segredo mantinha os links | Link sem `token_id` e com `[redacted]` no lugar do UUID da `url`, com ou sem `redact`; `redact` também mascara headers de nome com `token`, `key`, `secret`, `password` ou `auth`; definir, trocar ou remover o segredo revoga todos os links da URL | Correções da refutação do item 12 (fatia 05, decisões do dono, 2026-09-26): o link entregava o UUID da URL (quem o tem enviava à URL e, numa URL aberta, lia tudo), credenciais em header próprio escapavam da máscara e trocar o segredo não cortava quem tinha link. Mudou só `privacidade-share.spec.ts`: "numa URL protegida: cria com os padrões…", o teste de forma da máscara (`x-auth-token` e `x-api-keys` passaram de comuns a mascarados; entraram `x-client-secret`, `x-db-password`, `x-authenticated-user`, `x-monkey` e o comum `x-tok`) e "redact false…" passaram a comparar com a mensagem sem o UUID da URL; o `lerLinkOk` local exige as chaves da mensagem menos `token_id`; dois testes novos (o link não entrega a URL; trocar o segredo revoga) |
 | Resposta da captura sem `Content-Security-Policy` | Toda resposta da captura (padrão da URL, regra, `malformed_chunk`) com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, acrescentado depois dos cabeçalhos da regra (um CSP da regra se soma, não o tira) | Reauditoria do item 12 (decisão N2 do dono, 2026-09-26): a captura serve pelo mesmo endereço da tela, e um HTML com script respondido por uma URL rodava na origem da tela (lia o `localStorage` e chamava a API com o cookie). Teste novo: `privacidade-captura-sandbox.spec.ts`. Nenhum teste antigo mudou: nenhum trava o conjunto de cabeçalhos da captura (os de CORS usam `toMatchObject`, que aceita cabeçalhos a mais; o de `malformed_chunk` só confere a forma de cada linha). Na mesma rodada, sem teste de contrato novo (cobertos pelos testes do backend): o link público troca o UUID da URL no JSON inteiro (cabeçalhos, query, `request`, corpo), também com maiúsculas e `%hh`; o link guarda a `secret_version` e só abre com a atual; corpo de formulário sem `Origin` e com o cookie `wh_access` → 403 `form not allowed`; `redact` também mascara headers de nome com `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (nenhum teste de contrato tinha header com esses nomes) |
+| Mensagem sem o que foi respondido; regras sem trace, sem prévia da resposta nem diferença antes de gravar; busca sem filtro por desfecho | `response` (`{status}` ou `{fault}`) em toda mensagem nova; `GET …/request/{rid}/rules/trace`; `outcome` na busca; `render=1..3` no `rules/test`; helper `hmac` com o segredo da URL; ferramenta MCP `diff_rules` e `anzol rules push --dry-run` | UX de Regras (C1–C5 e E-07, decisão do dono de 2026-09-27): explicar cada resposta e avisar o erro antes dele acontecer. Tudo aditivo, menos a chave `response`, que entrou em `CHAVES_MENSAGEM` (mudaram só os testes de forma que já comparavam as chaves: `mensagem.spec.ts`, `assinatura-config.spec.ts` e `privacidade-share.spec.ts`, pela constante). Sem o campo novo pedido, toda resposta é a de antes |
 
 ## Defeitos do legado (`bugDoLegado`)
 
