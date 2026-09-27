@@ -44,6 +44,7 @@
 | `[class.x]`/`[style.x]` em vez de `ngClass`/`ngStyle` (ex.: cor do método HTTP na lista) | EG, BP | `template/prefer-class-binding`, `template/prefer-style-binding` |
 | Sinal lido com `()`; sem `!` e sem `any` no template | BP | `no-uncalled-signals`, `template/no-non-null-assertion`, `template/no-any` |
 | `type` em todo botão, `label` ligado ao campo nos diálogos, teclado em tudo que é clicável | qualidade | `template/button-has-type`, `template/label-has-associated-control`, `template/click-events-have-key-events` |
+| `role="alert"` (ou `status`) num contêiner em volta da `<ul>`, nunca na própria lista (tira a semântica dos `<li>`). Bloco que rola sem nada focável dentro (tabela larga, `<pre>`) recebe `tabindex="0"`, com `role="region"` e nome quando não é um `<pre>` nomeado, e contorno no foco | WCAG 1.3.1, 2.1.1 | axe (`listitem`, `scrollable-region-focusable`) no Vitest e no E2E |
 
 ## 4. Estado, serviços e injeção
 
@@ -58,9 +59,9 @@
 
 | Regra | Fonte | Guarda |
 |---|---|---|
-| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` só em Create New URL, Share read-only link, configurações de redirect e confirmações (a configuração da URL e os editores viram páginas); filtros da busca como chips de alternância (`button` com `aria-pressed`, no grupo "Filters") e segmentados (`MatButtonToggleGroup`) na limpeza automática, no lugar de `MatSelect`; `MatSlideToggle` (Pretty, Follow new, CORS, redirect); `MatSnackBar` (avisos curtos, com a duração em cada `open()`, §7); `MatPaginator` ou botões de página | — (substituição 1:1) | revisão |
+| Componentes do Material no lugar do Bootstrap/jQuery atuais: `MatDialog` só em Create New URL, Share read-only link, configurações de redirect e confirmações (a configuração da URL e os editores viram páginas); filtros da busca como chips de alternância (`button` com `aria-pressed`, no grupo "Filters") e segmentados (`MatButtonToggleGroup`) na limpeza automática, no lugar de `MatSelect`; `MatSlideToggle` (Pretty, Follow new, CORS, redirect); `MatSnackBar` (avisos curtos, com a duração em cada `open()`, §7); botões "Previous page"/"Next page" no rodapé da lista, sem `MatPaginator` | — (substituição 1:1) | revisão |
 | CDK no lugar das bibliotecas avulsas: `cdk-virtual-scroll-viewport` (lista), `Clipboard` do CDK (no lugar do `clipboard.js`/`copy-to-clipboard`) | — (substituição 1:1) | revisão |
-| Tema **só** pelo `mat.theme` (cor, tipografia, densidade), num único arquivo de estilos global (`src/styles.scss`). Tema "Harbor": paletas geradas por `ng generate @angular/material:theme-color` (primária `#1D6A73`, terciária `#8E4D2C`) em `src/_theme-colors.scss`, que não se edita à mão; claro e escuro com `theme-type: color-scheme` (o Material emite `light-dark()`); alto contraste pelo mixin gerado, em `prefers-contrast: more` | MT | revisão |
+| Tema **só** pelo `mat.theme` (cor, tipografia, densidade), num único arquivo de estilos global (`src/styles.scss`). Tema "Harbor": paletas geradas por `ng generate @angular/material:theme-color` (primária `#1D6A73`, terciária `#8E4D2C`) em `src/_theme-colors.scss`, que não se edita à mão; claro e escuro com `theme-type: color-scheme` (o Material emite `light-dark()`); alto contraste pelo mixin gerado, em `prefers-contrast: more`. Tema e densidade de Settings são atributo e classe no `<html>` (`data-theme`, `compact` com `mat.theme((density: -2))`), não um segundo tema | MT | revisão |
 | Cor que o M3 não tem (sucesso, aviso) é *custom property* `--app-*` com `light-dark()`, no `styles.scss`, no padrão de nome dos tokens de sistema (`--app-success-container`, `--app-on-warning-container`). SCSS de componente **só** com tokens `--mat-sys-*` e `--app-*`: nada de hex, `rgb()` ou cor por nome | MT | Stylelint (`color-no-hex`, `color-named`, `function-disallowed-list` nos `.scss` de `src/app/**`; `npm run lint:styles`, etapa do `ci.sh`) |
 | Fontes auto-hospedadas em `public/fonts/` (woff2 variável, subconjunto latino, `font-display: swap`, com a licença OFL ao lado): Google Sans Flex na interface (eixo `ROND` em 100 nos títulos) e Google Sans Code em dado (`--app-code-family`). Nada de CDN: o app roda local e pode ficar offline. `preload` só da Flex | — (estudo C §1.5) | revisão |
 | Ajuste fino só via `mat.theme-overrides` ou mixins `overrides` de componente. **Nunca** estilizar classes internas (`.mat-mdc-*`) nem a estrutura do DOM dos componentes: o time do Material as trata como detalhe privado que "pode mudar a qualquer momento" | MT ("Direct Style Overrides") | revisão |
@@ -89,6 +90,10 @@
   (`src/testing/axe.ts`, WCAG 2.2 A/AA; o contraste fica com o E2E, porque o jsdom não calcula
   cor). Specs com TestBed existentes valem até o componente ser reescrito. Guarda: revisão e o
   helper de axe.
+- E2E (Playwright) nos projetos `ui` (1400×900) e `mobile` (390×844, os specs da lista `MOBILE`
+  do `playwright.config.ts`), com axe WCAG 2.2 A/AA no fim de cada spec; regressão visual
+  (`VISUAL=1`, `e2e-visual.sh`) na imagem Docker do Playwright, para os pixels baterem entre
+  máquinas. Mudança visual de propósito regrava as baselines no mesmo commit.
 - Catálogo de `ui/` em `#/_catalog`, só em desenvolvimento (`fileReplacements` troca as rotas dele
   por nenhuma no build de produção). Sem Storybook.
 - `ng lint` (angular-eslint 22.5.0 + typescript-eslint), Stylelint (`npm run lint:styles`) e
