@@ -20,21 +20,29 @@ export class RequestStream {
   private readonly state = signal<StreamStatus>('idle');
   readonly status = this.state.asReadonly();
 
-  /** Abre o `EventSource` ao assinar e o fecha ao cancelar a assinatura. */
-  connect(tokenId: string): Observable<RequestCreated> {
+  /**
+   * Abre o `EventSource` ao assinar e o fecha ao cancelar a assinatura. `quiet`: a assinatura não
+   * mexe no `status` (o "Live" do cabeçalho é o da Inbox); a tela de Regras só relê os hits (WM-38).
+   */
+  connect(tokenId: string, { quiet = false } = {}): Observable<RequestCreated> {
     return new Observable<RequestCreated>((subscriber) => {
       const source = new EventSource(`/token/${tokenId}/stream`);
-      this.state.set('connecting');
-      source.onopen = () => this.state.set('open');
+      const set = (status: StreamStatus) => {
+        if (!quiet) {
+          this.state.set(status);
+        }
+      };
+      set('connecting');
+      source.onopen = () => set('open');
       // O EventSource reconecta sozinho; só fica 'closed' quando o servidor recusa (ex.: 404).
       source.onerror = () =>
-        this.state.set(source.readyState === EventSource.CLOSED ? 'closed' : 'reconnecting');
+        set(source.readyState === EventSource.CLOSED ? 'closed' : 'reconnecting');
       source.addEventListener('request.created', (event: MessageEvent<string>) =>
         subscriber.next(JSON.parse(event.data) as RequestCreated),
       );
       return () => {
         source.close();
-        this.state.set('idle');
+        set('idle');
       };
     });
   }

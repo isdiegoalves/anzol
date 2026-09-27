@@ -16,13 +16,16 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
+import { map, switchMap, throttleTime } from 'rxjs';
 import { AiClient } from '../ai/ai-client';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { TokenStore } from '../token/token-store';
@@ -105,6 +108,9 @@ interface OrderedRule {
  */
 type EditorState = RuleEditorData & { key: string };
 
+/** Intervalo mínimo entre duas releituras ao vivo (WM-38). */
+const LIVE_REFRESH_MS = 5000;
+
 /** A mensagem de `rules/new?from=`: carregando, lida, ou a leitura falhou. */
 type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookRequest | null };
 
@@ -140,6 +146,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
+  host: { '(document:visibilitychange)': 'refreshIfStale()' },
 })
 export class RulesPage {
   protected readonly store = inject(RuleStore);
@@ -152,9 +159,13 @@ export class RulesPage {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly viewport = inject(Viewport);
+  private readonly stream = inject(RequestStream);
+  private readonly route = inject(ActivatedRoute);
   protected readonly scenarios = inject(ScenarioStore);
   private readonly intents = inject(RuleIntents);
   protected readonly ai = inject(AiClient);
+  /** Chegou mensagem com a aba em segundo plano: relê ao voltar (WM-38). */
+  private liveStale = false;
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -162,6 +173,13 @@ export class RulesPage {
   readonly ruleId = input<string>();
   /** `rules/new?from={requestId}`: a regra nova parte da mensagem. */
   readonly from = input<string>();
+  /**
+   * `rules/{id}?from-request={requestId}`: a regra foi aberta pelo cartão de uma mensagem (WM-10).
+   * Pela rota, e não por `input()`: o nome do parâmetro tem hífen.
+   */
+  protected readonly fromRequestId = toSignal(
+    this.route.queryParamMap.pipe(map((params) => params.get('from-request'))),
+  );
 
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly reorderLabel = (name: string) => $localize`Reorder ${name}:rule:`;
@@ -416,7 +434,38 @@ export class RulesPage {
         }
       }
     });
+    // Regras ao vivo (WM-38): a cada mensagem nova, no máximo uma releitura a cada 5 s (a
+    // última vence), só com a aba à vista; o editor aberto não é tocado.
+    toObservable(this.tokenId)
+      .pipe(
+        switchMap((tokenId) =>
+          this.stream.connect(tokenId, { quiet: true }).pipe(
+            throttleTime(LIVE_REFRESH_MS, undefined, { leading: false, trailing: true }),
+            map(() => tokenId),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((tokenId) => this.refreshLive(tokenId));
     afterRenderEffect(() => this.moveFocus());
+  }
+
+  /** Relê os hits e os estados dos cenários, ou marca para reler quando a aba voltar. */
+  private refreshLive(tokenId: string): void {
+    if (this.document.hidden) {
+      this.liveStale = true;
+      return;
+    }
+    this.liveStale = false;
+    void this.store.refreshHits(tokenId);
+    this.refreshScenarios();
+  }
+
+  /** A aba voltou do segundo plano: relê se chegou mensagem enquanto ela estava escondida. */
+  protected refreshIfStale(): void {
+    if (this.liveStale && !this.document.hidden) {
+      this.refreshLive(this.tokenId());
+    }
   }
 
   /**
@@ -684,6 +733,11 @@ export class RulesPage {
       this.store.pendingFocus.set('editor');
       void this.router.navigate(['/', this.tokenId(), 'rules', rule.id]);
     }
+  }
+
+  /** "Back to request": volta à mensagem de onde se veio, aberta no detalhe (WM-10). */
+  protected backToRequest(requestId: string): void {
+    void this.router.navigate(['/', this.tokenId(), requestId, 1]);
   }
 
   protected closeEditor(saved: boolean): void {

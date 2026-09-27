@@ -61,7 +61,12 @@
       </button>
     } @else {
       <div class="check">
-        <app-check-chip [result]="check" size="card" />
+        <app-check-chip
+          [result]="check"
+          size="card"
+          [link]="check.kind === 'rule' ? ruleLink() : null"
+          [extra]="check.kind === 'rule' ? defaultLink() : null"
+        />
       </div>
     }
   }

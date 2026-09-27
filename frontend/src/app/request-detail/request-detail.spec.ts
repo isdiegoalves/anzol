@@ -177,9 +177,12 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
   });
 
   it('deve abrir a página Rules com a regra nova a partir da mensagem Quando "Create rule from this request" é clicado', async () => {
-    const navigate = vi.fn().mockResolvedValue(true);
     const request = webhookRequest(3);
-    await show(request, [{ provide: Router, useValue: { navigate } }]);
+    // O Router de verdade: o cartão da regra tem link (WM-10), e o RouterLink precisa dele.
+    const { fixture } = await show(request);
+    const navigate = vi
+      .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
+      .mockResolvedValue(true);
 
     await userEvent.click(action('Create rule from this request'));
 

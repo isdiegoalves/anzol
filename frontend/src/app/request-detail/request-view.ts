@@ -11,7 +11,7 @@ import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport } from '../shell/viewport';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
-import { CheckChip } from '../ui/check-chip';
+import { CheckChip, ChipLink } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
 import { CodeMark } from '../ui/code-lines';
@@ -108,6 +108,45 @@ export class RequestView {
   protected readonly checks = computed(() => {
     const { signature, schema, rule } = this.pipeline();
     return [signature, schema, rule];
+  });
+  /**
+   * WM-10: no cartão da regra, o nome da que respondeu (ou da mais próxima) leva a ela, com a
+   * mensagem para o "Back to request"; "Default response" leva a Checks › Response. Não na página
+   * do link só-leitura (sem `token_id`).
+   */
+  protected readonly ruleLink = computed<ChipLink | null>(() => {
+    const { token_id: tokenId, uuid } = this.request();
+    const rule = this.pipeline().rule;
+    if (this.readonly() || !tokenId) {
+      return null;
+    }
+    if (rule.ref) {
+      const toRule: ChipLink = {
+        part: 'detail',
+        text: rule.ref.name,
+        commands: ['/', tokenId, 'rules', rule.ref.id],
+        queryParams: { 'from-request': uuid },
+      };
+      return toRule;
+    }
+    const toChecks: ChipLink = {
+      part: 'title',
+      text: rule.title,
+      commands: ['/', tokenId, 'checks'],
+      queryParams: { section: 'response' },
+    };
+    return rule.state === 'default' ? toChecks : null;
+  });
+  /** Near miss: quem respondeu foi a resposta padrão, e ela também leva a Checks › Response. */
+  protected readonly defaultLink = computed(() => {
+    const tokenId = this.request().token_id;
+    return !this.readonly() && tokenId && this.pipeline().rule.state === 'near-miss'
+      ? {
+          text: $localize`Default response`,
+          commands: ['/', tokenId, 'checks'],
+          queryParams: { section: 'response' },
+        }
+      : null;
   });
 
   /** Aba aberta; volta ao Body ao abrir outra mensagem. */

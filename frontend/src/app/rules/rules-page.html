@@ -27,7 +27,20 @@
       (closed)="closeEditor($event)"
       (deleteRequested)="deleteFromEditor($event)"
       (duplicateRequested)="duplicateFromEditor($event)"
-    />
+    >
+      @if (fromRequestId(); as requestId) {
+        <button
+          editorTop
+          mat-button
+          type="button"
+          class="back-to-request"
+          (click)="backToRequest(requestId)"
+        >
+          <app-icon name="back" [size]="18" />
+          <ng-container i18n>Back to request</ng-container>
+        </button>
+      }
+    </app-rule-editor>
   }
 </ng-template>
 

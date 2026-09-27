@@ -2489,4 +2489,8 @@ export const translations: Record<string, string> = {
   // Empty: any path. After the URL's token.
   '2285437227648346581': 'Vazio: qualquer caminho. Depois do token da URL.',
   '3108651526003208577': 'Qualquer caminho',
+  // Back to request
+  '2017205740176414848': 'Voltar à requisição',
+  // No rule leads to state "{$state}" — probably a typo.
+  '3523141136168498829': 'Nenhuma regra leva ao estado "{$state}" — provável erro de digitação.',
 };

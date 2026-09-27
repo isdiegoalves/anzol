@@ -35,6 +35,21 @@ describe('Dado o stream SSE de uma URL', () => {
     expect(stream.status()).toBe('open');
   });
 
+  it('não deve mexer no estado do cabeçalho ("Live") Quando quem assina é a tela de Regras (quiet)', () => {
+    const received: RequestCreated[] = [];
+    const subscription = stream
+      .connect(TOKEN_ID, { quiet: true })
+      .subscribe((event) => received.push(event));
+    FakeEventSource.latest().open();
+    FakeEventSource.latest().emit('request.created', { request: webhookRequest(1), total: 1 });
+
+    expect(stream.status()).toBe('idle');
+    expect(received).toHaveLength(1);
+    subscription.unsubscribe();
+    expect(FakeEventSource.latest().readyState).toBe(FakeEventSource.CLOSED);
+    expect(stream.status()).toBe('idle');
+  });
+
   it('deve entregar cada request.created, sem perder o segundo, Quando dois chegam juntos', () => {
     const received: RequestCreated[] = [];
     subscriptions.add(stream.connect(TOKEN_ID).subscribe((event) => received.push(event)));

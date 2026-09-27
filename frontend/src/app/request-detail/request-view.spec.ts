@@ -282,6 +282,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       await render(RequestView, {
         inputs: { request: webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } }), token: token() },
         providers: [
+          provideRouter([]),
           {
             provide: RuleStatusStore,
             useValue: { statusOf: (id: string) => (id === 'r1' ? 201 : undefined) },
@@ -292,6 +293,50 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       expect(cards()).toContain('Answered by rule · 201');
     });
 
+    // WM-10: o nome da regra no cartão leva a ela, com a mensagem para voltar.
+    it('deve fazer do nome da regra que respondeu um link para ela, com a mensagem de origem', async () => {
+      const request = webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } });
+      const { container } = await show(request);
+
+      const link = screen.getByRole('link', { name: 'Pix' });
+      expect(link.getAttribute('href')).toBe(
+        `/${request.token_id}/rules/r1?from-request=${request.uuid}`,
+      );
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve fazer do nome da mais próxima um link, e do "Default response" um link para Checks', async () => {
+      const near = webhookRequest(1, {
+        near_miss: { id: 'r2', name: 'Só GET', failed: ['method: expected GET, got POST'] },
+      });
+      const { rerender } = await show(near);
+      expect(screen.getByRole('link', { name: 'Só GET' }).getAttribute('href')).toContain(
+        `/rules/r2?from-request=${near.uuid}`,
+      );
+      // Quem respondeu foi a resposta padrão: ela também é link, no cartão do near miss.
+      expect(screen.getByRole('link', { name: 'Default response' }).getAttribute('href')).toBe(
+        `/${near.token_id}/checks?section=response`,
+      );
+
+      await rerender({
+        inputs: { request: webhookRequest(2, { rule: null, near_miss: null }) },
+        partialUpdate: true,
+      });
+      expect(screen.getByRole('link', { name: 'Default response' }).getAttribute('href')).toBe(
+        `/${near.token_id}/checks?section=response`,
+      );
+    });
+
+    it('não deve ter link no cartão da regra na página do link só-leitura', async () => {
+      await show(
+        webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, token_id: undefined }),
+        null,
+        true,
+      );
+
+      expect(screen.queryByRole('link', { name: 'Pix' })).toBeNull();
+    });
+
     it('deve pôr a condição no cartão, sem "Why? (n)", Quando só uma falhou', async () => {
       await show(
         webhookRequest(1, {
@@ -299,7 +344,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         }),
       );
 
-      expect(screen.getByText('Closest: Só GET · method: expected GET, got POST')).toBeTruthy();
+      expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
+        'Closest: Só GET · method: expected GET, got POST',
+      );
       expect(screen.queryByRole('button', { name: /^Why\?/ })).toBeNull();
     });
 
@@ -468,7 +515,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('/pedidos?x=1');
       expect(screen.queryAllByRole('button')).toEqual([]);
       // Uma condição só: a frase vai no cartão da regra (INBOX-18).
-      expect(screen.getByText('Closest: Só GET · method: expected GET, got POST')).toBeTruthy();
+      expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
+        'Closest: Só GET · method: expected GET, got POST',
+      );
       expect(screen.getByText('Signature invalid')).toBeTruthy();
       await expectNoAxeViolations(container);
     });

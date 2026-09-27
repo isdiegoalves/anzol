@@ -34,6 +34,8 @@ export interface CheckResult {
    * "Stale timestamp", "2 schema errors", "201 · Pix".
    */
   short: string;
+  /** A regra que o resultado cita (a que respondeu, ou a mais próxima): o link no cartão (WM-10). */
+  ref?: { id: string; name: string };
 }
 
 /** O que a tela deriva de uma mensagem para mostrar a verificação dela. */
@@ -249,10 +251,11 @@ function ruleResult(
           : $localize`Answered by rule · ${status}:status:`,
       detail: name,
       short: status === undefined ? name : `${status} · ${name}`,
+      ref: { id, name },
     };
   }
   if (request.near_miss) {
-    const { name, failed } = request.near_miss;
+    const { id, name, failed } = request.near_miss;
     return {
       kind,
       state: 'near-miss',
@@ -264,6 +267,7 @@ function ruleResult(
           ? $localize`Closest: ${name}:rule: · ${failed[0]}:condition:`
           : $localize`Closest: ${name}:rule: (${failed.length}:count: conditions failed)`,
       short: $localize`Near miss`,
+      ref: { id, name },
     };
   }
   return {

@@ -69,3 +69,19 @@
 .detail {
   overflow-wrap: anywhere;
 }
+
+// O nome da regra (ou "Default response") leva a ela (WM-10): sublinhado, na cor do tom; o link a
+// mais (o "Default response" do near miss) numa linha própria.
+.extra {
+  align-self: flex-start;
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 1px;
+  }
+}

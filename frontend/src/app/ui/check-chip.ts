@@ -1,6 +1,18 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { CheckResult } from '../pipeline/pipeline';
 import { Icon, IconName } from './icon';
+
+/**
+ * Link no cartão (WM-10): `text` é o trecho que vira link — o título inteiro ou, no motivo, o
+ * nome da regra.
+ */
+export interface ChipLink {
+  part: 'title' | 'detail';
+  text: string;
+  commands: readonly string[];
+  queryParams?: Record<string, string>;
+}
 
 /**
  * O resultado de uma verificação (assinatura, schema ou regra) no mesmo componente em toda tela:
@@ -9,7 +21,7 @@ import { Icon, IconName } from './icon';
  */
 @Component({
   selector: 'app-check-chip',
-  imports: [Icon],
+  imports: [Icon, RouterLink],
   template: `
     <app-icon
       [name]="size() === 'card' ? result().tone : kindIcons[result().kind]"
@@ -17,8 +29,33 @@ import { Icon, IconName } from './icon';
     />
     <span class="text">
       @if (size() === 'card') {
-        <span class="title">{{ result().title }}</span>
-        <span class="detail">{{ result().detail }}</span>
+        @let target = link();
+        @if (target?.part === 'title') {
+          <a
+            class="title link"
+            [routerLink]="target?.commands"
+            [queryParams]="target?.queryParams"
+            >{{ result().title }}</a
+          >
+        } @else {
+          <span class="title">{{ result().title }}</span>
+        }
+        @if (detailParts(); as parts) {
+          <span class="detail"
+            >{{ parts[0]
+            }}<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{
+              parts[1]
+            }}</a
+            >{{ parts[2] }}</span
+          >
+        } @else {
+          <span class="detail">{{ result().detail }}</span>
+        }
+        @if (extra(); as more) {
+          <a class="extra link" [routerLink]="more.commands" [queryParams]="more.queryParams">{{
+            more.text
+          }}</a>
+        }
       } @else {
         <span class="title">{{ result().short }}</span>
       }
@@ -41,4 +78,18 @@ export class CheckChip {
   };
   readonly result = input.required<CheckResult>();
   readonly size = input<'mini' | 'card'>('mini');
+  /** Só no cartão, e fora de botão: o selo da lista fica dentro do botão do item (axe). */
+  readonly link = input<ChipLink | null>(null);
+  /** Um link a mais, numa linha embaixo do motivo (o "Default response" do near miss, WM-10). */
+  readonly extra = input<Omit<ChipLink, 'part'> | null>(null);
+
+  /** O motivo partido em volta do trecho que vira link: antes, o link, depois. */
+  protected readonly detailParts = computed(() => {
+    const link = this.link();
+    const detail = this.result().detail;
+    const at = link?.part === 'detail' ? detail.indexOf(link.text) : -1;
+    return link && at >= 0
+      ? [detail.slice(0, at), link.text, detail.slice(at + link.text.length)]
+      : null;
+  });
 }

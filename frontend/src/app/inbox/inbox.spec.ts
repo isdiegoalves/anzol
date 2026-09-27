@@ -243,10 +243,14 @@ describe('Dado a tela principal', () => {
     await flush(`/token/${TOKEN_ID}/rules`, []);
     await flush(`/token/${TOKEN_ID}/stats`, {});
     expect(primeiro.readyState).toBe(FakeEventSource.CLOSED);
+    // Regras abre o próprio stream (WM-38, a lista ao vivo), que fecha ao sair.
+    const regras = FakeEventSource.latest();
+    expect(regras).not.toBe(primeiro);
 
     await openToken(`/${TOKEN_ID}`);
 
-    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(3));
+    expect(regras.readyState).toBe(FakeEventSource.CLOSED);
     expect(FakeEventSource.latest().readyState).not.toBe(FakeEventSource.CLOSED);
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
   });

@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { Subject } from 'rxjs';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { FakeEventSource } from '../../testing/fake-event-source';
 import { rule } from '../../testing/rule-fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
@@ -94,6 +95,9 @@ describe('Dado a página Rules', () => {
     expect(call.request.body).toEqual(lista);
     call.flush(lista);
   };
+
+  // A página assina o SSE da URL (WM-38); o jsdom não tem EventSource.
+  beforeEach(() => vi.stubGlobal('EventSource', FakeEventSource));
 
   afterEach(() => {
     windowClass.set('large');

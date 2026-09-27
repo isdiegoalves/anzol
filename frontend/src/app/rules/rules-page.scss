@@ -52,6 +52,11 @@
   min-height: 100%;
 }
 
+// "Back to request" (WM-10) acima do editor, sem esticar na coluna.
+.back-to-request {
+  align-self: flex-start;
+}
+
 // A tabela rola sozinha se ainda assim não couber; `relative` segura os rótulos só para leitor de
 // tela (absolutos) dentro dela, senão eles alargam a página. É o contêiner `rule-list`: o item
 // estreito (setas empilhadas, status embaixo do nome) vale pela largura da lista, no celular e

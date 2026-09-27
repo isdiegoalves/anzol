@@ -17,6 +17,8 @@
     (save)="saveRule()"
   />
   <div class="content">
+    <!-- O que a página põe no topo do editor ("Back to request", WM-10). -->
+    <ng-content select="[editorTop]" />
     @if (blockedMessage(); as message) {
       <p class="notice blocked" role="alert">{{ message }}</p>
     }

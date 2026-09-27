@@ -4,11 +4,13 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { FakeEventSource } from '../../testing/fake-event-source';
 import { rule } from '../../testing/rule-fixtures';
 import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
@@ -60,8 +62,9 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         { provide: Viewport, useValue: { windowClass } },
       ],
       configureTestBed: () => {
-        TestBed.inject(Preferences).token.set({ ...token(), ...tokenOverrides });
+        // Antes de qualquer inject: o configure pode trocar um provider (ActivatedRoute).
         configure?.();
+        TestBed.inject(Preferences).token.set({ ...token(), ...tokenOverrides });
       },
     });
     http = TestBed.inject(HttpTestingController);
@@ -95,6 +98,9 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
     call.flush(body);
     return body;
   };
+
+  // A página assina o SSE da URL (WM-38); o jsdom não tem EventSource.
+  beforeEach(() => vi.stubGlobal('EventSource', FakeEventSource));
 
   afterEach(() => {
     windowClass.set('large');
@@ -582,6 +588,30 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       );
 
       expect(await screen.findByRole('dialog', { name: 'Sequence' })).toBeTruthy();
+    });
+  });
+
+  describe('Dado a regra aberta pelo cartão de uma mensagem (WM-10)', () => {
+    it('deve oferecer "Back to request", que volta à mensagem', async () => {
+      await open([rule(1)], {
+        inputs: { ruleId: 'r1' },
+        configure: () =>
+          TestBed.overrideProvider(ActivatedRoute, {
+            useValue: { queryParamMap: of(convertToParamMap({ 'from-request': 'm1' })) },
+          }),
+      });
+      await screen.findByRole('region', { name: 'Edit rule Rule 1' });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Back to request' }));
+
+      expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'm1', 1]);
+    });
+
+    it('não deve oferecer "Back to request" Quando a regra não veio de uma mensagem', async () => {
+      await open([rule(1)], { inputs: { ruleId: 'r1' } });
+      await screen.findByRole('region', { name: 'Edit rule Rule 1' });
+
+      expect(screen.queryByRole('button', { name: 'Back to request' })).toBeNull();
     });
   });
 
