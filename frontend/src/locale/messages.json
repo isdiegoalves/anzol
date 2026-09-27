@@ -898,7 +898,7 @@
     "9005906866026590725": "Accept everything, fail N times, 429, echo the body…",
     "4862606005298451734": "Create from the latest request",
     "2471562936211935700": "Method, path and the fields you pick from it.",
-    "8246194912012154410": "Say what should answer; the local AI drafts the rule.",
+    "5244421226679972779": "Say what should answer; if this server has AI set up, it drafts the rule.",
     "2879450285645799843": "Filter rules",
     "3519224739628110563": " No hits ",
     "4914428896389458402": " Off ",

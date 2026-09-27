@@ -2194,8 +2194,6 @@ export const translations: Record<string, string> = {
   '4862606005298451734': 'Criar da última requisição',
   // Method, path and the fields you pick from it.
   '2471562936211935700': 'Método, caminho e os campos que você escolher dela.',
-  // Say what should answer; the local AI drafts the rule.
-  '8246194912012154410': 'Diga o que deve responder; a IA local rascunha a regra.',
   // Filter rules
   '2879450285645799843': 'Filtrar regras',
   //  No hits
@@ -2725,4 +2723,7 @@ export const translations: Record<string, string> = {
   '3614190978895842984': 'corpo {$path}',
   // query {$name}
   '7767340803089953733': 'query {$name}',
+  // Say what should answer; if this server has AI set up, it drafts the rule.
+  '5244421226679972779':
+    'Diga o que deve responder; se este servidor tiver IA configurada, ela rascunha a regra.',
 };

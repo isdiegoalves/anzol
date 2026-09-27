@@ -52,7 +52,7 @@ export class RuleStore {
    * fechar, o item da regra (`rule: null`, "New rule"). Fica aqui porque `rules` e `rules/{id}`
    * são rotas diferentes (outra instância da página).
    */
-  readonly pendingFocus = signal<'editor' | { rule: string | null } | null>(null);
+  readonly pendingFocus = signal<'editor' | 'suggest' | { rule: string | null } | null>(null);
   /** Hits por regra na janela de `stats` (`null` enquanto não chegam ou se falharem). */
   readonly hits = signal<(RuleStats & { evaluated: number }) | null>(null);
   /** A lista como o servidor a devolveu na última leitura ou gravação. */

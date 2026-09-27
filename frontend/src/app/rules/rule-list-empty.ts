@@ -69,5 +69,9 @@ export class RuleListEmpty {
 
   protected readonly id = `rule-list-empty-${nextId++}`;
   protected readonly aiOffHint = AI_OFF_HINT;
-  protected readonly describeHint = $localize`Say what should answer; the local AI drafts the rule.`;
+  /**
+   * A tela só sabe que a IA está desligada depois do primeiro 503 do servidor (M5): até lá, o
+   * cartão não promete o rascunho, diz de quem ele depende.
+   */
+  protected readonly describeHint = $localize`Say what should answer; if this server has AI set up, it drafts the rule.`;
 }

@@ -1,3 +1,4 @@
+import { newRule } from './rule-form';
 import { RequestStore } from '../requests/request-store';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
@@ -590,6 +591,30 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
 
       expect(await screen.findByRole('dialog', { name: 'Sequence' })).toBeTruthy();
     });
+
+    // M6: o item do menu que abriu o assistente some; o foco vai à primeira regra criada.
+    it('deve levar o foco à primeira regra criada Quando "Create 3 rules" grava', async () => {
+      await open([rule(1)]);
+
+      await userEvent.click(screen.getByRole('button', { name: 'New rule from template' }));
+      await userEvent.click(
+        await screen.findByRole('menuitem', { name: 'Fail N times, then accept' }),
+      );
+      const dialog = await screen.findByRole('dialog', { name: 'Sequence' });
+      await userEvent.type(within(dialog).getByRole('textbox', { name: 'Path' }), '/entrega');
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Create 3 rules' }));
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+      put.flush((put.request.body as Rule[]).map((r, i) => ({ ...r, id: r.id ?? `n${i}` })));
+
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(row('n1').querySelector('td.item button')),
+      );
+      // A lista agora tem cenário: a página lê os estados.
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'GET', url: `/token/${TOKEN_ID}/scenarios` }).flush([]),
+      );
+    });
   });
 
   describe('Dado a regra aberta pelo cartão de uma mensagem (WM-10)', () => {
@@ -671,6 +696,41 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(JSON.parse(localStorage.getItem('rulesSeenAt') ?? '{}')[TOKEN_ID]).not.toBe(
         '2000-01-01T00:00:00.000Z',
       );
+    });
+  });
+
+  describe('Dado o cartão "Describe it in words" (M5)', () => {
+    it('deve abrir o editor com o Describe aberto e o foco no que se escreve, não no Nome', async () => {
+      await open([], {
+        inputs: { ruleId: 'new' },
+        configure: () => {
+          TestBed.inject(RuleIntents).request({ draft: newRule(), openSuggest: true });
+          TestBed.inject(RuleStore).pendingFocus.set('suggest');
+        },
+      });
+
+      const editor = await screen.findByRole('region', { name: 'New rule' });
+      const prompt = await within(editor).findByRole('textbox', { name: 'Describe the rule' });
+      await vi.waitFor(() => expect(document.activeElement).toBe(prompt));
+    });
+
+    it('não deve prometer o rascunho da IA antes de saber se ela está ligada', async () => {
+      await open([]);
+      await vi.waitFor(() =>
+        http
+          .expectOne((req) => req.url === URL_MENSAGENS && req.params.get('per_page') === '1')
+          .flush({ data: [], total: 0, is_last_page: true }),
+      );
+
+      const cartao = await screen.findByRole('button', { name: 'Describe it in words' });
+      expect(cartao.getAttribute('aria-describedby')).toBeTruthy();
+      expect(
+        document.getElementById(cartao.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toBe('Say what should answer; if this server has AI set up, it drafts the rule.');
+
+      await userEvent.click(cartao);
+      expect(TestBed.inject(RuleStore).pendingFocus()).toBe('suggest');
+      expect(TestBed.inject(RuleIntents).pending()?.openSuggest).toBe(true);
     });
   });
 

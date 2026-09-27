@@ -7,6 +7,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  afterEveryRender,
   afterRenderEffect,
   computed,
   effect,
@@ -456,6 +457,13 @@ export class RulesPage {
       )
       .subscribe((tokenId) => this.refreshLive(tokenId));
     afterRenderEffect(() => this.moveFocus());
+    // O "Describe the rule" vem por import(): o campo aparece num render que não muda o sinal do
+    // foco, então a espera por ele olha cada render (e só enquanto ela está pendente).
+    afterEveryRender(() => {
+      if (untracked(() => this.store.pendingFocus()) === 'suggest') {
+        this.moveFocus();
+      }
+    });
   }
 
   /** Relê os hits e os estados dos cenários, ou marca para reler quando a aba voltar. */
@@ -525,18 +533,21 @@ export class RulesPage {
   private moveFocus(): void {
     const target = this.store.pendingFocus();
     const editing = this.editor().length > 0;
+    const inEditor = target === 'editor' || target === 'suggest';
     // Antes da carga, a lista não tem as linhas e "New rule" está desabilitado.
-    if (!target || !this.loaded() || editing !== (target === 'editor')) {
+    if (!target || !this.loaded() || editing !== inEditor) {
       return;
     }
     const element =
       target === 'editor'
         ? this.host.querySelector<HTMLElement>('app-rule-editor .name-input')
-        : ((target.rule &&
-            this.host.querySelector<HTMLElement>(
-              `[data-rule-id="${CSS.escape(target.rule)}"] .open-rule`,
-            )) ??
-          this.host.querySelector<HTMLElement>('.new-rule'));
+        : target === 'suggest'
+          ? this.host.querySelector<HTMLElement>('app-rule-editor app-rule-suggest textarea')
+          : ((target.rule &&
+              this.host.querySelector<HTMLElement>(
+                `[data-rule-id="${CSS.escape(target.rule)}"] .open-rule`,
+              )) ??
+            this.host.querySelector<HTMLElement>('.new-rule'));
     if (element) {
       element.focus();
       this.store.pendingFocus.set(null);
@@ -646,8 +657,8 @@ export class RulesPage {
     this.openNew();
   }
 
-  private openNew(queryParams?: { from: string }): void {
-    this.store.pendingFocus.set('editor');
+  private openNew(queryParams?: { from: string }, focus: 'editor' | 'suggest' = 'editor'): void {
+    this.store.pendingFocus.set(focus);
     const path = ['/', this.tokenId(), 'rules', 'new'];
     void (queryParams ? this.router.navigate(path, { queryParams }) : this.router.navigate(path));
   }
@@ -659,14 +670,25 @@ export class RulesPage {
       this.openNew();
     } else {
       // "Fail N times, then accept": o assistente grava as regras e a lista as destaca (F6).
-      void openSequence(this.injector);
+      void this.createSequence();
     }
+  }
+
+  /**
+   * Depois de "Create {n} rules" o foco vai à primeira regra criada (o item do menu que abriu o
+   * assistente já não existe; sem isso ele cairia no `body`, M6); cancelado, ao "New rule".
+   */
+  private async createSequence(): Promise<void> {
+    const created = await openSequence(this.injector);
+    const first = created ? this.intents.created()?.ids[0] : undefined;
+    this.store.pendingFocus.set({ rule: first ?? null });
   }
 
   /** "Describe it in words" (WM-02): a regra nova com o Describe aberto só desta vez. */
   protected describeInWords(): void {
     this.intents.request({ draft: newRule(), openSuggest: true });
-    this.openNew();
+    // O foco vai ao que se escreve, e não ao Nome (M5).
+    this.openNew(undefined, 'suggest');
   }
 
   /** "Create from the latest request" (WM-02): o mesmo caminho do "Create rule" da mensagem. */
