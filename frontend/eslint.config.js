@@ -11,6 +11,7 @@ const boundaries = require('eslint-plugin-boundaries');
  * padrão do angular-eslint mais os do Material, do CDK e dos componentes de `ui/` desta tela.
  */
 const I18N_IGNORED_ATTRIBUTES = [
+  'aria-keyshortcuts',
   'autocomplete',
   'charset',
   'class',

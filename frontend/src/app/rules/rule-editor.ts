@@ -1,6 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -23,6 +27,7 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { ErrorStateMatcher } from '@angular/material/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
@@ -31,6 +36,7 @@ import { merge } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { RuleSuggest } from './rule-suggest';
 import { RouterLink } from '@angular/router';
+import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import { TokenStore } from '../token/token-store';
@@ -78,6 +84,9 @@ import { AgainstHistory } from './against-history';
 import { ConditionResult, ConditionResultChip } from './condition-result';
 import { ruleWordSegments } from './rule-words';
 import { ScenarioPanel } from './scenario-panel';
+import { confirmDiscard } from './rule-dialogs';
+import { RuleDraft, RuleDrafts, withoutSecrets } from './rule-draft';
+import { InvalidField, invalidFields } from './rule-validation';
 
 export interface RuleEditorData {
   /** Posição da regra na lista salva; `null` para uma regra nova (entra no fim). */
@@ -86,7 +95,20 @@ export interface RuleEditorData {
   draft?: Rule;
   /** Mensagem aberta: o "Describe the rule" pode mandá-la ao modelo como exemplo. */
   example?: WebhookRequest;
+  /** Regra nova: posição na lista salva onde ela entra (antes da pega-tudo, depois da original). */
+  insertAt?: number;
+  /** Regra nova colocada antes da pega-tudo: o nome dela, para o aviso no topo do editor. */
+  placedBefore?: string;
+  /** Abre o "Describe the rule" já expandido (só desta vez; RULES-16 o mantém recolhido). */
+  openSuggest?: boolean;
 }
+
+/** O que o clique em Save ou em Test achou inválido. */
+type Blocked = 'save' | 'test';
+
+/** Campo inválido focável, em ordem de tela: controles com o erro e os segmentados. */
+const INVALID_CONTROL =
+  'input.ng-invalid, textarea.ng-invalid, mat-select.ng-invalid, mat-button-toggle-group.ng-invalid button';
 
 type ConditionGroup = FormGroup<{
   name: FormControl<string>;
@@ -184,9 +206,17 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',
+  host: {
+    '(document:keydown)': 'handleShortcut($event)',
+    '(window:beforeunload)': 'warnBeforeUnload($event)',
+  },
 })
 export class RuleEditor {
   private readonly store = inject(RuleStore);
+  private readonly drafts = inject(RuleDrafts);
+  private readonly dialog = inject(MatDialog);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly tokens = inject(TokenStore);
   private readonly viewport = inject(Viewport);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -201,6 +231,8 @@ export class RuleEditor {
   readonly closed = output<boolean>();
   /** "Delete rule": a página apaga a regra salva (com Undo) e fecha o editor. */
   readonly deleteRequested = output<string>();
+  /** "Duplicate rule": a regra como está no editor; a página abre a cópia como regra nova. */
+  readonly duplicateRequested = output<Rule>();
   protected readonly headingId = `rule-editor-heading-${nextEditorId++}`;
   /** Algo mudou desde a abertura (formulário, JSON ou sugestão aplicada): "Unsaved changes". */
   protected readonly unsaved = computed(() => {
@@ -278,6 +310,27 @@ export class RuleEditor {
   /** Muda a cada edição do formulário ou do JSON: recalcula a frase e o aviso do caminho. */
   private readonly edits = signal(0);
   protected readonly saving = signal(false);
+  /** O último Save ou Test achou o formulário inválido: o resumo fica até ele voltar a valer. */
+  private readonly blocked = signal<Blocked | null>(null);
+  /** "To save, fix: Path (required), Status (100–599)", enquanto houver o que corrigir. */
+  protected readonly blockedMessage = computed(() => {
+    const kind = this.blocked();
+    this.edits();
+    const fields = kind ? this.currentInvalid().map(({ label }) => label) : [];
+    if (fields.length === 0) {
+      return null;
+    }
+    const list = fields.join(', ');
+    return kind === 'save'
+      ? $localize`To save, fix: ${list}:fields:`
+      : $localize`To test, fix: ${list}:fields:`;
+  });
+  /** Rascunho desta regra guardado na aba, oferecido ao abrir (E-04); some ao editar. */
+  protected readonly draftOffer = signal<RuleDraft | null>(null);
+  /** Saída já confirmada (ou salva): nada mais pergunta nem grava rascunho. */
+  private leaving = false;
+  private confirming: Promise<boolean> | null = null;
+  private draftTimer: ReturnType<typeof setTimeout> | undefined;
   /** O último Save achou a lista do servidor diferente da lida: nada foi gravado. */
   protected readonly changedElsewhere = signal(false);
   /** Erros do servidor sem campo no formulário (ou de outras regras da lista). */
@@ -412,7 +465,25 @@ export class RuleEditor {
       .subscribe(() => {
         this.edits.update((n) => n + 1);
         this.clearHistoryTest();
+        this.draftOffer.set(null);
+        this.scheduleDraft();
       });
+    // Erros do servidor mudam a validade sem mudar o valor: o resumo do Save acompanha.
+    merge(this.form.statusChanges, this.json.statusChanges)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        this.edits.update((n) => n + 1);
+        if (this.editedValid()) {
+          this.blocked.set(null);
+        }
+      });
+    inject(DestroyRef).onDestroy(() => {
+      // A aba fechou (ou a URL trancou) no meio do debounce: o rascunho sai agora.
+      if (this.draftTimer !== undefined) {
+        clearTimeout(this.draftTimer);
+        this.writeDraft();
+      }
+    });
     effect(() => {
       const data = this.data();
       untracked(() => this.start(data));
@@ -439,6 +510,134 @@ export class RuleEditor {
     this.loadForm(this.base);
     this.edits.update((n) => n + 1);
     this.editing.set(saved ?? null);
+    this.offerDraft(saved?.id);
+  }
+
+  /** O rascunho desta regra na aba, se ele difere do que abriu (senão, não há o que restaurar). */
+  private offerDraft(ruleId: string | undefined): void {
+    const tokenId = this.tokenId();
+    const draft = tokenId ? this.drafts.load(tokenId, ruleId) : null;
+    const same =
+      !!draft && JSON.stringify(draft.rule) === JSON.stringify(withoutSecrets(this.base).rule);
+    if (same && tokenId) {
+      this.drafts.clear(tokenId, ruleId);
+    }
+    this.draftOffer.set(draft && !same ? draft : null);
+  }
+
+  /** "3 minutes ago", para "You have a draft from 3 minutes ago." */
+  protected draftAge(draft: RuleDraft): string {
+    return fromNow(new Date(draft.savedAt).toISOString().slice(0, 19).replace('T', ' '));
+  }
+
+  /** "Restore draft": o rascunho volta como alteração não salva, e o foco vai ao nome. */
+  protected restoreDraft(): void {
+    const draft = this.draftOffer();
+    if (!draft) {
+      return;
+    }
+    const id = this.editingId();
+    this.base = id === undefined ? draft.rule : { ...draft.rule, id };
+    this.loadForm(this.base);
+    this.form.markAsDirty();
+    if (this.view() === JSON_VIEW) {
+      this.json.setValue(JSON.stringify(this.formRule(), null, 2));
+      this.json.markAsDirty();
+    }
+    this.draftOffer.set(null);
+    this.edits.update((n) => n + 1);
+    const target = this.view() === JSON_VIEW ? '.json textarea' : '.name-input';
+    afterNextRender(() => this.host.querySelector<HTMLElement>(target)?.focus(), {
+      injector: this.injector,
+    });
+  }
+
+  /** "Discard draft": o rascunho sai da aba. */
+  protected discardDraft(): void {
+    const tokenId = this.tokenId();
+    if (tokenId) {
+      this.drafts.clear(tokenId, this.editingId());
+    }
+    this.draftOffer.set(null);
+  }
+
+  /** Grava o rascunho 300 ms depois da última mudança, só com alterações não salvas. */
+  private scheduleDraft(): void {
+    clearTimeout(this.draftTimer);
+    this.draftTimer = undefined;
+    if (this.leaving || !this.unsaved()) {
+      return;
+    }
+    this.draftTimer = setTimeout(() => {
+      this.draftTimer = undefined;
+      this.writeDraft();
+    }, 300);
+  }
+
+  private writeDraft(): void {
+    const tokenId = this.tokenId();
+    const rule = this.editedRule();
+    if (tokenId && rule && !this.leaving) {
+      this.drafts.save(tokenId, this.editingId(), rule);
+    }
+  }
+
+  /**
+   * Saída do editor (outra regra, rail, rota, Discard, Esc): sem alterações, sai; com elas,
+   * "Discard changes?" decide. Descartar de propósito apaga o rascunho da aba.
+   */
+  confirmLeave(): Promise<boolean> {
+    if (this.leaving || !this.unsaved()) {
+      return Promise.resolve(true);
+    }
+    const name = this.form.controls.name.value.trim() || $localize`New rule`;
+    this.confirming ??= confirmDiscard(this.injector, name).then((discard) => {
+      this.confirming = null;
+      if (discard) {
+        this.leave();
+      }
+      return discard;
+    });
+    return this.confirming;
+  }
+
+  /** Daqui em diante o editor fecha: sem pergunta, e o rascunho sai da aba. */
+  private leave(): void {
+    this.leaving = true;
+    clearTimeout(this.draftTimer);
+    this.draftTimer = undefined;
+    const tokenId = this.tokenId();
+    if (tokenId) {
+      this.drafts.clear(tokenId, this.editingId());
+    }
+  }
+
+  /**
+   * Atalhos do editor (WM-13), com o foco em qualquer campo: Ctrl/Cmd+S salva, Ctrl/Cmd+Enter
+   * testa, Esc fecha. Com um diálogo aberto, nada; o Esc que já fechou uma folha, um diálogo ou
+   * uma lista de opções (evento tratado) não fecha o editor.
+   */
+  protected handleShortcut(event: KeyboardEvent): void {
+    if (this.dialog.openDialogs.length > 0) {
+      return;
+    }
+    const modifier = event.ctrlKey || event.metaKey;
+    if (modifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      void this.saveRule();
+    } else if (modifier && event.key === 'Enter') {
+      event.preventDefault();
+      void this.testAgainstHistory();
+    } else if (event.key === 'Escape' && !modifier && !event.defaultPrevented) {
+      void this.cancel();
+    }
+  }
+
+  /** Fechar ou recarregar a aba com alterações não salvas: o navegador pergunta. */
+  protected warnBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.leaving && this.unsaved()) {
+      event.preventDefault();
+    }
   }
 
   /**
@@ -504,8 +703,19 @@ export class RuleEditor {
     return this.editedRule()?.enabled === false;
   }
 
-  protected cancel(): void {
-    this.closed.emit(false);
+  /** Discard e Esc: pergunta antes de perder alterações. */
+  protected async cancel(): Promise<void> {
+    if (await this.confirmLeave()) {
+      this.closed.emit(false);
+    }
+  }
+
+  /** "Duplicate rule": a cópia parte da regra como está no editor. */
+  protected duplicateRule(): void {
+    const rule = this.editedRule();
+    if (rule) {
+      this.duplicateRequested.emit(rule);
+    }
   }
 
   /** Só uma regra salva, que ainda está na lista, pode ser apagada daqui. */
@@ -588,10 +798,11 @@ export class RuleEditor {
   protected toggleMethod(method: string): void {
     const control = this.form.controls.methods;
     const current = control.value;
+    // Sujo antes do valor: quem ouve a mudança (o rascunho) já a vê como alteração.
+    control.markAsDirty();
     control.setValue(
       current.includes(method) ? current.filter((m) => m !== method) : [...current, method],
     );
-    control.markAsDirty();
   }
 
   /** De onde vem o resultado da assinatura: o provedor da URL, ou "not set up". */
@@ -675,18 +886,59 @@ export class RuleEditor {
     }
   }
 
-  protected canSave(): boolean {
-    return !this.saving() && this.editedValid();
+  /** Os botões de testar dos painéis só esperam o teste em curso; inválido, o clique explica. */
+  protected canTest(): boolean {
+    return !this.testing();
   }
 
-  protected canTest(): boolean {
-    return !this.testing() && this.editedValid();
+  /**
+   * Save ou Test com o formulário inválido (WM-12): os erros aparecem, a aba do primeiro campo
+   * inválido abre, o foco vai a ele e o resumo "To save, fix: …" fica abaixo do cabeçalho.
+   */
+  private block(kind: Blocked): void {
+    this.form.markAllAsTouched();
+    this.json.markAsTouched();
+    this.blocked.set(kind);
+    this.edits.update((n) => n + 1);
+    const first = this.currentInvalid()[0];
+    if (first?.tab) {
+      this.tab.set(first.tab);
+    }
+    afterNextRender(() => this.focusInvalid(first), { injector: this.injector });
+  }
+
+  private focusInvalid(first: InvalidField | undefined): void {
+    let target: HTMLElement | null | undefined;
+    if (this.view() === JSON_VIEW) {
+      target = this.host.querySelector<HTMLElement>('.json textarea');
+    } else {
+      const scope = first?.tab
+        ? this.host.querySelector(`#rule-panel-${first.tab}`)
+        : this.host.querySelector('app-rule-editor-header');
+      target =
+        scope?.querySelector<HTMLElement>(INVALID_CONTROL) ??
+        scope?.querySelector<HTMLElement>('.chips button');
+    }
+    target?.focus();
+  }
+
+  /** Campos inválidos da visão aberta; no JSON, a primeira frase da validação dele. */
+  private currentInvalid(): InvalidField[] {
+    if (this.view() === JSON_VIEW) {
+      const [error] = this.jsonErrors();
+      return this.json.invalid ? [{ tab: null, label: `${$localize`Rule JSON`} (${error})` }] : [];
+    }
+    return invalidFields(this.form);
   }
 
   /** `rules/test` com a regra como está no editor (formulário ou JSON), sem salvar. */
   protected async testAgainstHistory(): Promise<void> {
-    const rule = this.canTest() ? this.editedRule() : undefined;
+    if (this.testing()) {
+      return;
+    }
+    const rule = this.editedValid() ? this.editedRule() : undefined;
     if (!rule) {
+      this.block('test');
       return;
     }
     this.clearHistoryTest();
@@ -759,19 +1011,30 @@ export class RuleEditor {
   }
 
   protected async saveRule(): Promise<void> {
-    const rule = this.canSave() ? this.editedRule() : undefined;
+    if (this.saving()) {
+      return;
+    }
+    const rule = this.editedValid() ? this.editedRule() : undefined;
     if (!rule) {
+      this.block('save');
       return;
     }
     const rules = [...this.store.rules()];
-    const index = this.currentIndex() ?? rules.length;
-    // Regra que saiu da lista em outro lugar volta como nova: o id velho não é reaproveitado.
-    rules[index] = this.missingFromList() ? withoutId(rule) : rule;
+    let index = this.currentIndex();
+    if (index === null) {
+      // Regra nova, ou a que saiu da lista em outro lugar (volta como nova, sem o id velho): na
+      // posição que a página escolheu (antes da pega-tudo, depois da original), senão no fim.
+      index = Math.min(this.data().insertAt ?? rules.length, rules.length);
+      rules.splice(index, 0, this.missingFromList() ? withoutId(rule) : rule);
+    } else {
+      rules[index] = rule;
+    }
     this.saving.set(true);
     this.generalErrors.set([]);
     this.changedElsewhere.set(false);
     try {
       await this.store.saveIfUnchanged(rules);
+      this.leave();
       this.closed.emit(true);
     } catch (error) {
       if (error instanceof RulesChangedError) {

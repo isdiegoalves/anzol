@@ -14,6 +14,7 @@ import {
   input,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
@@ -176,6 +177,7 @@ export class RulesPage {
     return state ? [state] : [];
   });
   private openEditor: EditorState | null = null;
+  private readonly editorView = viewChild(RuleEditor);
   /**
    * A rota aponta para uma regra que não está na lista e nenhum editor está aberto (com o editor
    * aberto, o aviso é o dele: "Save adds it as a new rule").
@@ -211,6 +213,14 @@ export class RulesPage {
       untracked(() => void this.loadFrom(tokenId, ruleId === 'new' ? from : undefined));
     });
     afterRenderEffect(() => this.moveFocus());
+  }
+
+  /**
+   * Guarda de rascunho da rota (`canDeactivate`, E-04): outra regra, "New rule", o rail ou a volta
+   * do navegador passam pela pergunta do editor quando há alterações não salvas.
+   */
+  canLeave(): Promise<boolean> {
+    return this.editorView()?.confirmLeave() ?? Promise.resolve(true);
   }
 
   /** Leva o foco ao destino pendente, depois do render em que ele aparece. */

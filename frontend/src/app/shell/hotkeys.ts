@@ -13,8 +13,8 @@ export interface HotkeyActions {
   help(): void;
   /** /: foco na busca, se a página tiver. */
   search(): void;
-  /** Esc: fecha a folha aberta. */
-  close(): void;
+  /** Esc: fecha a folha aberta; `true` quando havia uma (o Esc não serve a mais ninguém). */
+  close(): boolean;
   /** Liga/desliga os atalhos de uma tecla (Settings). O Esc vale sempre. */
   enabled(): boolean;
 }
@@ -39,7 +39,10 @@ export class Hotkeys {
 
   private handle(event: KeyboardEvent, actions: HotkeyActions): void {
     if (event.key === 'Escape') {
-      actions.close();
+      // Fechou a folha: o evento sai tratado, e o editor de regra não fecha junto (WM-13).
+      if (actions.close()) {
+        event.preventDefault();
+      }
       return;
     }
     if (!actions.enabled() || event.ctrlKey || event.altKey || event.metaKey || isTyping(event)) {

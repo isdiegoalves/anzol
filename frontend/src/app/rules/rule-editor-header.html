@@ -46,6 +46,17 @@
     <button
       mat-icon-button
       type="button"
+      aria-label="Duplicate rule"
+      i18n-aria-label
+      title="Duplicate rule"
+      i18n-title
+      (click)="duplicateRule.emit()"
+    >
+      <app-icon name="copy" [size]="20" />
+    </button>
+    <button
+      mat-icon-button
+      type="button"
       class="delete"
       aria-label="Delete rule"
       i18n-aria-label
@@ -57,7 +68,17 @@
     </button>
   }
   <button mat-button type="button" (click)="discard.emit()" i18n>Discard</button>
-  <button mat-flat-button type="button" [disabled]="!canSave()" (click)="save.emit()" i18n>
+  <!-- Nunca desabilitado (WM-12): inválido, o clique diz o que corrigir. -->
+  <button
+    mat-flat-button
+    type="button"
+    title="Save · Ctrl+S"
+    i18n-title
+    aria-keyshortcuts="Control+S Meta+S"
+    [attr.aria-busy]="saving()"
+    (click)="save.emit()"
+    i18n
+  >
     Save
   </button>
 </header>

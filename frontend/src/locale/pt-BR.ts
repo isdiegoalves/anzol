@@ -1182,8 +1182,6 @@ export const translations: Record<string, string> = {
   '4039102480098358947': 'Vazio: mantém o estado',
   // Rule JSON
   '9084383820735529436': 'JSON da regra',
-  // Check which of the recorded requests this rule would match, without saving it
-  '2308625564938613918': 'Ver quais das requisições gravadas esta regra casaria, sem salvá-la',
   //  Test against history
   '8194247567496147362': ' Testar contra o histórico ',
   //  Save
@@ -2124,4 +2122,45 @@ export const translations: Record<string, string> = {
   '2600812382397698771': 'schema inválido',
   // Request parts
   '6662098247758340763': 'Partes da requisição',
+  // Discard changes?
+  '3936342611104784665': 'Descartar as alterações?',
+  // "{$name}" has unsaved changes.
+  '7163658526230808830': '"{$name}" tem alterações não salvas.',
+  // Keep editing
+  '8981392061253349616': 'Continuar editando',
+  // Duplicate rule
+  '6522449937996210007': 'Duplicar regra',
+  // Save · Ctrl+S
+  '3611292774072398130': 'Salvar · Ctrl+S',
+  // You have a draft from {$INTERPOLATION}.
+  '7011260492722296430': 'Você tem um rascunho de {$INTERPOLATION}.',
+  // Sensitive header values were not kept.
+  '1035245266472532859': 'Valores de cabeçalhos sensíveis não foram guardados.',
+  //  Restore draft
+  '7645461215340851755': ' Restaurar rascunho ',
+  // Discard draft
+  '3994785510011227477': 'Descartar rascunho',
+  // Placed before "{$INTERPOLATION}" so it can answer (same priority, earlier in the list).
+  '1122072330668859379':
+    'Colocada antes de "{$INTERPOLATION}" para poder responder (mesma prioridade, antes na lista).',
+  // Test against history · Ctrl+Enter
+  '8085145350439017761': 'Testar contra o histórico · Ctrl+Enter',
+  // To save, fix: {$fields}
+  '5436604255318318239': 'Para salvar, corrija: {$fields}',
+  // To test, fix: {$fields}
+  '4033769259283366536': 'Para testar, corrija: {$fields}',
+  // 0–{$max} ms
+  '6076492520631458917': '0–{$max} ms',
+  // at least 1
+  '4245312397963019202': 'no mínimo 1',
+  // at least 0
+  '4206476819442328517': 'no mínimo 0',
+  // required
+  '1555721751742522708': 'obrigatório',
+  // invalid JSON
+  '989772344596348865': 'JSON inválido',
+  // up to 100 characters
+  '4109185880787660547': 'até 100 caracteres',
+  // at least the min
+  '243500472496876097': 'pelo menos o mínimo',
 };

@@ -52,7 +52,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
     newUrl: Mock<() => void>;
     help: Mock<() => void>;
     search: Mock<() => void>;
-    close: Mock<() => void>;
+    close: Mock<() => boolean>;
     enabled: Mock<() => boolean>;
   };
   let now = 1000;
@@ -65,6 +65,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
     const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
     Object.defineProperty(event, 'timeStamp', { value: (now += 100) });
     target.dispatchEvent(event);
+    return event;
   };
 
   beforeEach(() => {
@@ -74,7 +75,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
       newUrl: vi.fn(),
       help: vi.fn(),
       search: vi.fn(),
-      close: vi.fn(),
+      close: vi.fn(() => false),
       enabled: vi.fn(() => true),
     };
     const destroy: (() => void)[] = [];
@@ -143,6 +144,14 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
 
     expect(actions.goTo).not.toHaveBeenCalled();
     expect(actions.close).toHaveBeenCalled();
+  });
+
+  it('deve marcar o Esc como tratado só Quando ele fechou uma folha (o editor de regra não fecha junto)', () => {
+    expect(press('Escape').defaultPrevented).toBe(false);
+
+    actions.close.mockReturnValue(true);
+
+    expect(press('Escape').defaultPrevented).toBe(true);
   });
 });
 

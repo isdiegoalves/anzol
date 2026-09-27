@@ -118,7 +118,11 @@ export class Shell {
         newUrl: () => void this.createUrl(),
         help: () => this.sheet.set('help'),
         search: () => this.openSearch(),
-        close: () => this.sheet.set(null),
+        close: () => {
+          const open = this.sheet() !== null;
+          this.sheet.set(null);
+          return open;
+        },
         enabled: () => this.settings.shortcuts(),
       },
       inject(DestroyRef),

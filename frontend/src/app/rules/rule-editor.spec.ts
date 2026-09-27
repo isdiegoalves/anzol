@@ -89,6 +89,9 @@ describe('Dado o editor de regra', () => {
     (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush(onServer);
     return vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
   };
+  /** O resumo "To save, fix: …" abaixo do cabeçalho (WM-12); `null` sem ele. */
+  const blockedText = () =>
+    root().querySelector('.blocked[role="alert"]')?.textContent?.trim() ?? null;
   const text = (selector: string) =>
     [...(fixture.nativeElement as HTMLElement).querySelectorAll(selector)].map((element) =>
       element.textContent?.replace(/\s+/g, ' ').trim(),
@@ -209,14 +212,17 @@ describe('Dado o editor de regra', () => {
     );
   });
 
-  it('não deve permitir salvar Quando o nome está vazio ou o status está fora de 100–599', async () => {
+  it('não deve salvar e deve dizer o que corrigir Quando o nome está vazio ou o status está fora de 100–599 (WM-12)', async () => {
     await open({ index: null });
 
-    expect(await (await button('Save')).isDisabled()).toBe(true);
-    await (await input('Name')).setValue('ok');
     expect(await (await button('Save')).isDisabled()).toBe(false);
+    await save();
+    expect(blockedText()).toBe('To save, fix: Name (required)');
+    await (await input('Name')).setValue('ok');
     await (await input('Status')).setValue('600');
-    expect(await (await button('Save')).isDisabled()).toBe(true);
+    await save();
+    expect(blockedText()).toBe('To save, fix: Status (100–599)');
+    expect(closed).not.toHaveBeenCalled();
   });
 
   describe('Dado template, atraso, dribble e falha na resposta', () => {
@@ -295,7 +301,7 @@ describe('Dado o editor de regra', () => {
       ['Fixed', 'Delay (ms)', '60001', 'An integer between 0 and 60000 (ms).'],
       ['Log-normal', 'Delay median (ms)', '-1', 'An integer between 0 and 60000 (ms).'],
     ])(
-      'não deve permitir salvar e deve explicar Quando o atraso %s passa do teto de 60 s ou é negativo',
+      'não deve salvar e deve explicar Quando o atraso %s passa do teto de 60 s ou é negativo',
       async (tipo, campo, valor, erro) => {
         await open({ index: 0 }, [rule(1)]);
 
@@ -303,12 +309,14 @@ describe('Dado o editor de regra', () => {
         await (await input(campo)).setValue(valor);
         await (await input(campo)).blur();
 
-        expect(await (await button('Save')).isDisabled()).toBe(true);
+        await save();
+
+        expect(blockedText()).toBe(`To save, fix: ${campo} (0–60000 ms)`);
         expect(await (await field(campo)).getTextErrors()).toEqual([erro]);
       },
     );
 
-    it('não deve permitir salvar Quando o mínimo do atraso uniforme passa do máximo', async () => {
+    it('não deve salvar Quando o mínimo do atraso uniforme passa do máximo', async () => {
       await open({ index: 0 }, [rule(1)]);
 
       await delay('Uniform');
@@ -316,7 +324,9 @@ describe('Dado o editor de regra', () => {
       await (await input('Delay max (ms)')).setValue('100');
       await (await input('Delay max (ms)')).blur();
 
-      expect(await (await button('Save')).isDisabled()).toBe(true);
+      await save();
+
+      expect(blockedText()).toBe('To save, fix: Delay max (ms) (at least the min)');
       expect(await (await field('Delay max (ms)')).getTextErrors()).toEqual([
         'At least the min, up to 60000 (ms).',
       ]);
@@ -327,8 +337,11 @@ describe('Dado o editor de regra', () => {
 
       await (await toggle('Dribble')).check();
       await (await input('Chunks')).setValue('101');
-      expect(await (await button('Save')).isDisabled()).toBe(true);
+      await save();
+      expect(blockedText()).toBe('To save, fix: Chunks (1–100)');
       await (await input('Chunks')).setValue('10');
+      // Válido de novo, o resumo sai.
+      expect(blockedText()).toBeNull();
       await (await input('Dribble duration (ms)')).setValue('3000');
 
       expect(await savedResponse()).toMatchObject({ dribble: { chunks: 10, durationMs: 3000 } });
@@ -711,7 +724,7 @@ describe('Dado o editor de regra', () => {
       call.flush([crua]);
     });
 
-    it('deve explicar o erro, bloquear o Save e a volta ao formulário Quando o JSON é inválido', async () => {
+    it('deve explicar o erro, não salvar e bloquear a volta ao formulário Quando o JSON é inválido', async () => {
       await open({ index: 0 }, [rule(1)]);
 
       await (await view('JSON')).check();
@@ -720,7 +733,11 @@ describe('Dado o editor de regra', () => {
       expect(await (await field('Rule JSON')).getTextErrors()).toEqual([
         'name: The name field is required.',
       ]);
-      expect(await (await button('Save')).isDisabled()).toBe(true);
+      await save();
+      expect(blockedText()).toBe('To save, fix: Rule JSON (name: The name field is required.)');
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(root().querySelector('.json textarea')),
+      );
       expect(await (await view('Form')).isDisabled()).toBe(true);
     });
 
@@ -865,12 +882,18 @@ describe('Dado o editor de regra', () => {
       expect(closed).not.toHaveBeenCalled();
     });
 
-    it('não deve permitir testar Quando a regra em edição é inválida', async () => {
+    it('não deve testar e deve dizer o que corrigir Quando a regra em edição é inválida (WM-12)', async () => {
       await open({ index: 0 }, [rule(1)]);
 
       await (await input('Name')).setValue('');
+      const testar = await button('Test against history');
+      expect(await testar.isDisabled()).toBe(false);
+      await testar.click();
 
-      expect(await (await button('Test against history')).isDisabled()).toBe(true);
+      expect(blockedText()).toBe('To test, fix: Name (required)');
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(root().querySelector('.name-input')),
+      );
     });
 
     it('deve apagar o resultado Quando a regra muda depois do teste', async () => {

@@ -10,12 +10,32 @@
     [priorityError]="errorOf(form.controls.priority, messages.priority)"
     [unsaved]="unsaved()"
     [canDelete]="canDelete()"
-    [canSave]="canSave()"
+    [saving]="saving()"
     (deleteRule)="deleteRule()"
+    (duplicateRule)="duplicateRule()"
     (discard)="cancel()"
     (save)="saveRule()"
   />
   <div class="content">
+    @if (blockedMessage(); as message) {
+      <p class="notice blocked" role="alert">{{ message }}</p>
+    }
+    @if (draftOffer(); as draft) {
+      <div class="notice draft" role="alert">
+        <p i18n>You have a draft from {{ draftAge(draft) }}.</p>
+        @if (draft.omitted) {
+          <p i18n>Sensitive header values were not kept.</p>
+        }
+        <button mat-stroked-button type="button" (click)="restoreDraft()" i18n>
+          Restore draft
+        </button>
+        <button mat-button type="button" (click)="discardDraft()" i18n>Discard draft</button>
+      </div>
+    }
+    @if (data().index === null && data().placedBefore; as catchAll) {
+      <!-- prettier-ignore -->
+      <p class="notice placed" role="note" i18n>Placed before "{{ catchAll }}" so it can answer (same priority, earlier in the list).</p>
+    }
     @if (words(); as segments) {
       <!-- A regra em palavras (C, RULES-15): método e status em destaque, o caminho como código. -->
       <p class="words" role="group" aria-label="Rule in plain words" i18n-aria-label>
@@ -60,6 +80,7 @@
     <app-rule-suggest
       [tokenId]="tokenId() ?? ''"
       [example]="data().example"
+      [open]="data().openSuggest ?? false"
       (suggested)="applySuggestion($event)"
     />
 
@@ -735,9 +756,10 @@
     mat-stroked-button
     type="button"
     class="test"
-    title="Check which of the recorded requests this rule would match, without saving it"
+    title="Test against history · Ctrl+Enter"
     i18n-title
-    [disabled]="!canTest()"
+    aria-keyshortcuts="Control+Enter Meta+Enter"
+    [attr.aria-busy]="testing()"
     (click)="testAgainstHistory()"
     i18n
   >

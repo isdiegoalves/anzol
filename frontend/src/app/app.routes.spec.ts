@@ -6,6 +6,7 @@ import {
   insightsMatcher,
   outboundMatcher,
   ruleMatcher,
+  routes,
   rulesMatcher,
 } from './app.routes';
 
@@ -112,5 +113,22 @@ describe('Dado as rotas novas da interface (item 14)', () => {
     });
     expect(compareMatcher(segments(TOKEN, 'compare', REQUEST, 'x'))).toBeNull();
     expect(compareMatcher(segments(TOKEN, 'compare', REQUEST))).toBeNull();
+  });
+});
+
+describe('Dado a saída de Regras com alterações não salvas (E-04)', () => {
+  it.each([
+    ['a lista', rulesMatcher],
+    ['a regra aberta', ruleMatcher],
+  ])('deve perguntar à página antes de sair d%s', async (_caso, matcher) => {
+    const guard = routes.find((route) => route.matcher === matcher)?.canDeactivate?.[0] as (
+      page: unknown,
+    ) => Promise<boolean>;
+    const canLeave = vi.fn(() => Promise.resolve(false));
+
+    const result = await guard({ canLeave });
+
+    expect(canLeave).toHaveBeenCalled();
+    expect(result).toBe(false);
   });
 });

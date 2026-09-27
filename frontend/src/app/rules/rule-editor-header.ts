@@ -39,10 +39,13 @@ export class RuleEditorHeader {
   readonly nameError = input('');
   readonly priorityError = input('');
   readonly unsaved = input(false);
+  /** Regra salva: "Delete rule" e "Duplicate rule". */
   readonly canDelete = input(false);
-  readonly canSave = input(false);
+  /** O `PUT` está em curso; o Save continua habilitado (WM-12) e diz que está ocupado. */
+  readonly saving = input(false);
 
   readonly deleteRule = output<void>();
+  readonly duplicateRule = output<void>();
   readonly discard = output<void>();
   readonly save = output<void>();
 

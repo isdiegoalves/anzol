@@ -1,4 +1,4 @@
-import { Routes, UrlMatchResult, UrlSegment } from '@angular/router';
+import { CanDeactivateFn, Routes, UrlMatchResult, UrlSegment } from '@angular/router';
 import { CATALOG_ROUTES } from './catalog/catalog-routes';
 
 const UUID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
@@ -72,6 +72,13 @@ export function compareMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   return valid ? { consumed: segments, posParams: { tokenId: token, a, b } } : null;
 }
 
+/** Página que pergunta antes de sair (Rules com alterações não salvas no editor, E-04). */
+interface LeaveGuarded {
+  canLeave(): Promise<boolean>;
+}
+
+const askBeforeLeaving: CanDeactivateFn<LeaveGuarded> = (page) => page.canLeave();
+
 /**
  * Todas as rotas da interface nova (§1 do plano do item 14), declaradas na E3: as fatias seguintes
  * trocam as páginas, não esta lista. Todo destino é carregado sob demanda.
@@ -82,10 +89,12 @@ export const routes: Routes = [
   {
     matcher: rulesMatcher,
     loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
+    canDeactivate: [askBeforeLeaving],
   },
   {
     matcher: ruleMatcher,
     loadComponent: () => import('./rules/rules-page').then((m) => m.RulesPage),
+    canDeactivate: [askBeforeLeaving],
   },
   {
     matcher: outboundMatcher,

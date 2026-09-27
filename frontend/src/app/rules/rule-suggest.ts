@@ -44,6 +44,8 @@ export class RuleSuggest {
   readonly tokenId = input.required<string>();
   /** Mensagem aberta, oferecida como exemplo ao modelo. */
   readonly example = input<WebhookRequest>();
+  /** Vem aberto (o cartão "Describe it in words" da lista vazia); senão, recolhido (RULES-16). */
+  readonly open = input(false);
   readonly suggested = output<Rule>();
 
   protected readonly prompt = signal('');

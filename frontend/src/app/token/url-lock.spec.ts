@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { TOKEN_ID } from '../../testing/fixtures';
-import { UrlLock, urlLockInterceptor } from './url-lock';
+import { UrlLock, urlDraftKey, urlLockInterceptor } from './url-lock';
 
 const PROTEGIDA = { error: 'This URL is protected', protected: true };
 const NAO_AUTORIZADO = { status: 401, statusText: 'Unauthorized' };
@@ -64,5 +64,18 @@ describe('Dado o interceptador das chamadas da URL', () => {
     await call('GET', `/token/${TOKEN_ID}`, {});
 
     expect(lock.tokenId()).toBeNull();
+  });
+
+  it('deve apagar os rascunhos da URL (e só os dela) Quando a URL tranca (E-04)', () => {
+    sessionStorage.setItem(urlDraftKey(TOKEN_ID, 'rule:r1'), '{}');
+    sessionStorage.setItem(urlDraftKey(TOKEN_ID, 'rule:new'), '{}');
+    sessionStorage.setItem(urlDraftKey('outra', 'rule:r1'), '{}');
+
+    lock.lock(TOKEN_ID);
+
+    expect(sessionStorage.getItem(urlDraftKey(TOKEN_ID, 'rule:r1'))).toBeNull();
+    expect(sessionStorage.getItem(urlDraftKey(TOKEN_ID, 'rule:new'))).toBeNull();
+    expect(sessionStorage.getItem(urlDraftKey('outra', 'rule:r1'))).toBe('{}');
+    sessionStorage.clear();
   });
 });

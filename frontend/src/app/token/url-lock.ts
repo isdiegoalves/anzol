@@ -13,11 +13,35 @@ export class UrlLock {
   readonly tokenId = this.locked.asReadonly();
 
   lock(tokenId: string): void {
+    clearUrlDrafts(tokenId);
     this.locked.set(tokenId);
   }
 
   release(): void {
     this.locked.set(null);
+  }
+}
+
+/** Prefixo dos rascunhos de uma URL na `sessionStorage` (regras em edição, E-04). */
+function draftPrefix(tokenId: string): string {
+  return `draft:${tokenId}:`;
+}
+
+/** Chave de um rascunho da URL; trancar a URL apaga todos eles. */
+export function urlDraftKey(tokenId: string, name: string): string {
+  return `${draftPrefix(tokenId)}${name}`;
+}
+
+/** Trancar a URL leva junto o que se escreveu nela e não foi salvo. */
+function clearUrlDrafts(tokenId: string): void {
+  try {
+    const prefix = draftPrefix(tokenId);
+    const keys = Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i));
+    keys
+      .filter((key) => key?.startsWith(prefix))
+      .forEach((key) => sessionStorage.removeItem(key ?? ''));
+  } catch {
+    // Sem storage, sem rascunhos.
   }
 }
 
