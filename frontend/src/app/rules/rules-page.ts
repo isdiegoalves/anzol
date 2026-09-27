@@ -33,6 +33,7 @@ import {
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   Rule,
+  SCENARIO_STARTED,
   RuleFlag,
   evaluationOrder,
   moveInOrder,
@@ -56,6 +57,8 @@ import {
   wouldBeShadowed,
 } from './rule-list';
 import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
+import { ScenarioGroup } from './scenario-group';
+import { openSequence } from './scenario-sequence';
 import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { newRule } from './rule-form';
@@ -100,12 +103,7 @@ interface OrderedRule {
  * nova vem com o lugar onde entra na lista (antes da pega-tudo, ou logo após a original ao
  * duplicar) e, do estado vazio, com o Describe aberto.
  */
-type EditorState = RuleEditorData & {
-  key: string;
-  insertAt?: number;
-  placedBefore?: string;
-  openSuggest?: boolean;
-};
+type EditorState = RuleEditorData & { key: string };
 
 /** A mensagem de `rules/new?from=`: carregando, lida, ou a leitura falhou. */
 type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookRequest | null };
@@ -138,6 +136,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     RuleItem,
     RuleListEmpty,
     RuleListFilter,
+    ScenarioGroup,
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
@@ -263,7 +262,9 @@ export class RulesPage {
   protected readonly createdIds = signal<ReadonlySet<string>>(new Set());
   /** A mensagem mais nova da URL, para o cartão "Create from the latest request" (WM-02). */
   protected readonly latest = signal<WebhookRequest | null>(null);
-  protected readonly templates = ruleTemplates().filter((template) => !('sequence' in template));
+  protected readonly templates = ruleTemplates();
+  /** "Reset scenario" de um grupo em andamento. */
+  protected readonly resetting = signal(false);
   /** Lista e editor lado a lado a partir de 1200 px; abaixo, só o editor (RULES-10). */
   protected readonly twoPanes = computed(() =>
     ['large', 'extra-large'].includes(this.viewport.windowClass()),
@@ -520,6 +521,44 @@ export class RulesPage {
     return this.scenarios.scenarios().find(({ name }) => name === scenario)?.state ?? null;
   }
 
+  /**
+   * Estado sem saída (WM-33): nenhuma regra ligada do cenário responde no estado de agora (nem
+   * uma sem estado exigido). Devolve para onde cai a próxima requisição: a pega-tudo ou a resposta
+   * padrão; `null` quando alguma regra responde.
+   */
+  protected terminalOf(scenario: string): string | null {
+    const state = this.stateOf(scenario);
+    const answers = this.store
+      .rules()
+      .some(
+        (rule) =>
+          rule.enabled !== false &&
+          rule.scenario?.name === scenario &&
+          (!rule.scenario.requiredState || rule.scenario.requiredState === state),
+      );
+    if (!state || answers) {
+      return null;
+    }
+    return this.catchAll()?.name ?? $localize`the default response`;
+  }
+
+  /** "Reset scenario" (WM-33): só este cenário volta a Started. */
+  protected async resetScenario(scenario: string): Promise<void> {
+    this.resetting.set(true);
+    try {
+      await this.scenarios.setState(scenario, SCENARIO_STARTED);
+      this.snackBar.open(
+        $localize`Scenario ${scenario}:scenario: set to ${SCENARIO_STARTED}:state:`,
+        undefined,
+        { duration: 1000 },
+      );
+    } catch (error) {
+      this.errors.set(validationMessages(error));
+    } finally {
+      this.resetting.set(false);
+    }
+  }
+
   /** Detalhe da resposta padrão: tipo do corpo e atraso da URL (RULES-09). */
   protected defaultDetail(): string {
     const token = this.tokens.token();
@@ -561,6 +600,9 @@ export class RulesPage {
     if ('draft' in template) {
       this.intents.request({ draft: template.draft });
       this.openNew();
+    } else {
+      // "Fail N times, then accept": o assistente grava as regras e a lista as destaca (F6).
+      void openSequence(this.injector);
     }
   }
 
@@ -583,8 +625,8 @@ export class RulesPage {
    * "Duplicate" (WM-21): regra nova com a cópia sem id, "{name} (copy)", ligada e com a mesma
    * prioridade; ao salvar, entra logo após a original.
    */
-  protected duplicate(rule: Rule): void {
-    const index = this.store.rules().findIndex((saved) => saved.id === rule.id);
+  protected duplicate(rule: Rule, originalId = rule.id): void {
+    const index = this.store.rules().findIndex((saved) => saved.id === originalId);
     const copy: Rule = { ...rule };
     delete copy.id;
     const suffix = $localize`:name of a duplicated rule, after the original name: (copy)`;
@@ -597,6 +639,11 @@ export class RulesPage {
       insertAt: index < 0 ? this.store.rules().length : index + 1,
     });
     this.openNew();
+  }
+
+  /** "Duplicate rule" no editor: a cópia parte da regra como está no formulário. */
+  protected duplicateFromEditor(rule: Rule): void {
+    this.duplicate(rule, this.ruleId());
   }
 
   /** "Delete" no ⋮ da linha: o mesmo apagar do editor, com Undo. */
@@ -649,7 +696,7 @@ export class RulesPage {
       const created = this.store
         .rules()
         .flatMap((rule) => (rule.id && !this.idsBeforeNew.has(rule.id) ? [rule.id] : []));
-      this.intents.markCreated(created, false);
+      this.intents.markCreated(created);
     }
     this.store.pendingFocus.set({ rule: ruleId && ruleId !== 'new' ? ruleId : null });
     void this.router.navigate(['/', this.tokenId(), 'rules']);

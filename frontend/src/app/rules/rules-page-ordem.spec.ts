@@ -153,6 +153,28 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(
         (within(editor).getByRole('spinbutton', { name: 'Priority' }) as HTMLInputElement).value,
       ).toBe('9');
+      expect(within(editor).getByRole('note').textContent?.trim()).toBe(
+        'Placed before "Tudo o resto" so it can answer (same priority, earlier in the list).',
+      );
+
+      // Salvar grava a regra nova logo antes da pega-tudo, sem mexer nas vizinhas.
+      await userEvent.type(within(editor).getByRole('textbox', { name: 'Name' }), 'Nova');
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      await userEvent.click(within(editor).getByRole('button', { name: 'Save' }));
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1, { priority: 1 }), tudo]),
+      );
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+      const body = put.request.body as Rule[];
+      expect(body.map((r) => [r.name, r.priority])).toEqual([
+        ['Rule 1', 1],
+        ['Nova', 9],
+        ['Tudo o resto', 9],
+      ]);
+      // O servidor dá o id da nova: a lista a destaca e anuncia, como no lote (WM-35).
+      put.flush(body.map((r) => ({ ...r, id: r.id ?? 'nova' })));
+      await vi.waitFor(() => expect(announce).toHaveBeenCalledWith('1 rule created'));
+      expect(TestBed.inject(RuleIntents).created()?.ids).toEqual(['nova']);
     });
 
     it('deve abrir a regra nova no fim, com P5, Quando não há pega-tudo ligada', async () => {
@@ -390,6 +412,19 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(pedido?.draft.id).toBeUndefined();
     });
 
+    it('deve duplicar pelo "Duplicate rule" do editor: a cópia do formulário, logo após a original', async () => {
+      await open([rule(1), rule(2)], { inputs: { ruleId: 'r1' } });
+      const editor = await screen.findByRole('region', { name: 'Edit rule Rule 1' });
+
+      await userEvent.click(within(editor).getByRole('button', { name: 'Duplicate rule' }));
+
+      expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new']);
+      const pedido = TestBed.inject(RuleIntents).pending();
+      expect(pedido?.insertAt).toBe(1);
+      expect(pedido?.draft).toMatchObject({ name: 'Rule 1 (copy)', enabled: true });
+      expect(pedido?.draft.id).toBeUndefined();
+    });
+
     it('deve abrir o editor da regra nova com a cópia pedida', async () => {
       await open([rule(1)], {
         inputs: { ruleId: 'new' },
@@ -429,6 +464,7 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         'Accept everything (200)',
         'Unavailable (503)',
         'Reject invalid signature (401)',
+        'Fail N times, then accept',
         '429 with Retry-After',
         'Echo the body (template)',
         'Delay 30 s',
@@ -458,6 +494,74 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
 
       await vi.advanceTimersByTimeAsync(5000);
       await vi.waitFor(() => expect(row('r2').classList).not.toContain('just-created'));
+    });
+  });
+
+  describe('Dado os cenários na lista (WM-32, WM-33)', () => {
+    const URL_CENARIOS = `/token/${TOKEN_ID}/scenarios`;
+    const entrega = (n: number, requiredState: string, newState?: string) =>
+      rule(n, {
+        name: `entrega ${n}`,
+        match: { method: ['POST'], path: { equals: '/entrega' }, query: {}, headers: {}, body: [] },
+        scenario: { name: 'entrega', requiredState, ...(newState && { newState }) },
+      });
+    const group = () => document.querySelector('tbody tr.scenario-group') as HTMLElement;
+    const flushState = (state: string) =>
+      vi.waitFor(() =>
+        http
+          .expectOne({ method: 'GET', url: URL_CENARIOS })
+          .flush([{ name: 'entrega', state, states: ['Started', 'x'] }]),
+      );
+
+    it('deve avisar do estado terminal e dizer para onde cai a próxima requisição', async () => {
+      const tudo = com(9, {}, { name: 'Tudo o resto', priority: 9 });
+      const { container } = await open([entrega(1, 'Started', 'entregue'), tudo]);
+      await flushState('entregue');
+
+      await vi.waitFor(() =>
+        expect(within(group()).getByRole('note').textContent?.trim()).toBe(
+          'No enabled rule answers in state "entregue"; the next request falls to Tudo o resto.',
+        ),
+      );
+      await expectNoAxeViolations(container);
+    });
+
+    it('não deve avisar Quando uma regra ligada do cenário responde no estado de agora', async () => {
+      await open([entrega(1, 'Started', 'x'), entrega(2, 'x')]);
+      await flushState('x');
+
+      await vi.waitFor(() => expect(group().textContent).toContain('state: x'));
+      expect(within(group()).queryByRole('note')).toBeNull();
+    });
+
+    it('deve dizer "the default response" sem pega-tudo e voltar só este cenário a Started', async () => {
+      await open([entrega(1, 'Started', 'fim')]);
+      await flushState('fim');
+      await vi.waitFor(() =>
+        expect(within(group()).getByRole('note').textContent).toContain(
+          'the next request falls to the default response.',
+        ),
+      );
+
+      await userEvent.click(within(group()).getByRole('button', { name: 'Reset scenario' }));
+      const put = await vi.waitFor(() =>
+        http.expectOne({ method: 'PUT', url: `${URL_CENARIOS}/entrega` }),
+      );
+      expect(put.request.body).toEqual({ state: 'Started' });
+      put.flush({});
+      await flushState('Started');
+      await vi.waitFor(() => expect(within(group()).queryByRole('note')).toBeNull());
+    });
+
+    it('deve abrir o assistente "Sequence" pelo modelo "Fail N times, then accept"', async () => {
+      await open([rule(1)]);
+
+      await userEvent.click(screen.getByRole('button', { name: 'New rule from template' }));
+      await userEvent.click(
+        await screen.findByRole('menuitem', { name: 'Fail N times, then accept' }),
+      );
+
+      expect(await screen.findByRole('dialog', { name: 'Sequence' })).toBeTruthy();
     });
   });
 

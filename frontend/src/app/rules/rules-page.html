@@ -26,7 +26,7 @@
       [data]="data"
       (closed)="closeEditor($event)"
       (deleteRequested)="deleteFromEditor($event)"
-      (duplicateRequested)="duplicate($event)"
+      (duplicateRequested)="duplicateFromEditor($event)"
     />
   }
 </ng-template>
@@ -190,10 +190,13 @@
               @if (row.kind === 'group') {
                 <tr class="scenario-group">
                   <th scope="rowgroup" colspan="4">
-                    <span class="scenario-name" i18n>Scenario "{{ row.scenario }}"</span>
-                    @if (stateOf(row.scenario); as state) {
-                      <span class="state" i18n>state: {{ state }}</span>
-                    }
+                    <app-scenario-group
+                      [name]="row.scenario"
+                      [state]="stateOf(row.scenario)"
+                      [terminal]="terminalOf(row.scenario)"
+                      [busy]="resetting()"
+                      (resetRequested)="resetScenario(row.scenario)"
+                    />
                   </th>
                 </tr>
               } @else {

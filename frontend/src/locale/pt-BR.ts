@@ -2436,4 +2436,54 @@ export const translations: Record<string, string> = {
   '5027396356958677874': 'outras configurações da resposta alteradas',
   //  Never matches: this URL does not check signatures.
   '7927255546748147807': ' Nunca casa: esta URL não verifica assinaturas. ',
+  // the default response
+  '8189510642712303845': 'a resposta padrão',
+  // Rules of this scenario
+  '5535406424806016209': 'Regras deste cenário',
+  //  Reset scenario
+  '6086569093846860422': ' Voltar a Started ',
+  // No enabled rule answers in state "{$state}"; the next request falls to {$next}.
+  '733143069025237422':
+    'Nenhuma regra ligada responde no estado "{$state}"; a próxima requisição cai em {$next}.',
+  // Create chained scenario rules: one response N times, then another that stays
+  '2312528688059824949':
+    'Criar regras de cenário encadeadas: uma resposta N vezes, depois outra que fica',
+  //  Sequence…
+  '2957039154454210559': ' Sequência… ',
+  // Sequence
+  '3071361935587815300': 'Sequência',
+  //  Scenario rules chained with the same conditions: answer one response a few times, then another that stays. For "fail 2 times, then accept".
+  '3688995182435416377':
+    ' Regras de cenário encadeadas com as mesmas condições: responder uma resposta algumas vezes, depois outra que fica. Para "falhar 2 vezes e depois aceitar". ',
+  // When
+  '3198123723060667787': 'Quando',
+  // Matches regex (whole value)
+  '6268471435166560344': 'Casa com regex (valor inteiro)',
+  // First response
+  '180890281978183006': 'Primeira resposta',
+  // Times
+  '5421076199587087589': 'Vezes',
+  // Final response (stays)
+  '1073939249427332423': 'Resposta final (fica)',
+  // Preview
+  '1295614462098694869': 'Prévia',
+  // Create {$count} rules
+  '2791776533478758946': 'Criar {$count} regras',
+  // {$count} rules will be created
+  '3178933165331553930': '{$count} regras serão criadas',
+  // {$state} (stays)
+  '6047408236667940055': '{$state} (fica)',
+  // Joins the existing scenario "{$name}"
+  '5685225146017975482': 'Entra no cenário existente "{$name}"',
+  // To create, fix: {$fields}
+  '5597568351688685915': 'Para criar, corrija: {$fields}',
+  // The rules changed elsewhere since this page read them, so nothing was saved. Reload to see the current rules, then try again.
+  '8698042377833318988':
+    'As regras mudaram em outro lugar desde que esta página as leu, então nada foi salvo. Recarregue para ver as regras atuais e tente de novo.',
+  // First status (100–599)
+  '3043969212334318627': 'Status da primeira resposta (100–599)',
+  // Times (1–20)
+  '6008475733454314598': 'Vezes (1–20)',
+  // Final status (100–599)
+  '496817270242983918': 'Status da resposta final (100–599)',
 };

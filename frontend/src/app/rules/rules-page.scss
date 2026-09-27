@@ -254,15 +254,6 @@
   text-align: left;
   font: var(--mat-sys-label-large);
   color: var(--mat-sys-on-surface-variant);
-
-  .state {
-    margin-left: 8px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
-    font-family: var(--app-code-family);
-  }
 }
 
 // A resposta padrão, fixa no fim, leva a Checks › Response (RULES-09).
