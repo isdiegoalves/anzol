@@ -1,7 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
-import { RuleFromRequest, pathAfterToken, ruleFromRequest } from './rule-from-request';
+import { pathAfterToken, ruleFromRequest } from './rule-from-request';
 
 const BASE = `http://localhost:8084/${TOKEN_ID}`;
 
@@ -96,18 +94,5 @@ describe('Dado uma mensagem gravada como ponto de partida de uma regra', () => {
     expect(regra.name).toHaveLength(100);
     expect(regra.name.startsWith('POST /xxx')).toBe(true);
     expect(regra.match?.path).toEqual({ equals: `/${'x'.repeat(200)}` });
-  });
-});
-
-describe('Dado o botão "Create rule from this request"', () => {
-  it('deve abrir a página Rules com a regra nova a partir da mensagem', async () => {
-    const navigate = vi.fn().mockResolvedValue(true);
-    TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: { navigate } }] });
-
-    await TestBed.inject(RuleFromRequest).open(webhookRequest(1));
-
-    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
-      queryParams: { from: webhookRequest(1).uuid },
-    });
   });
 });

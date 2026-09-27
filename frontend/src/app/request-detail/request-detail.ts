@@ -48,6 +48,7 @@ export class RequestDetail {
   private readonly router = inject(Router);
   private readonly compare = inject(CompareStore);
   private readonly requests = inject(RequestStore);
+  private readonly router = inject(Router);
   protected readonly ai = inject(AiClient);
 
   readonly request = input.required<WebhookRequest>();
@@ -132,10 +133,12 @@ export class RequestDetail {
     this.compare.start(this.request());
   }
 
-  /** O editor de regras vem sob demanda (no pedaço da aba Rules), fora da carga inicial. */
-  protected async createRule(): Promise<void> {
-    const { RuleFromRequest } = await import('../rules/rule-from-request');
-    await this.injector.get(RuleFromRequest).open(this.request());
+  /** O editor de regras é a página Rules, que monta a regra a partir da mensagem (`?from=`). */
+  protected createRule(): void {
+    const request = this.request();
+    void this.router.navigate(['/', request.token_id, 'rules', 'new'], {
+      queryParams: { from: request.uuid },
+    });
   }
 
   /**

@@ -1,5 +1,3 @@
-import { Injectable, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { WebhookRequest } from '../requests/webhook-request';
 import {
   BodyMatcher,
@@ -72,21 +70,5 @@ function bodyConditions(content: string): BodyMatcher[] {
     return new TextEncoder().encode(content).length <= BODY_EQUALS_MAX_BYTES
       ? [{ equals: content }]
       : [];
-  }
-}
-
-/**
- * "Create rule from this request": carregado sob demanda pelo detalhe da mensagem. O editor é a
- * página Rules, em `#/{token}/rules/new?from={requestId}`, que monta a regra da mensagem; salvar
- * a acrescenta no fim da lista.
- */
-@Injectable({ providedIn: 'root' })
-export class RuleFromRequest {
-  private readonly router = inject(Router);
-
-  async open(request: WebhookRequest): Promise<void> {
-    await this.router.navigate(['/', request.token_id, 'rules', 'new'], {
-      queryParams: { from: request.uuid },
-    });
   }
 }

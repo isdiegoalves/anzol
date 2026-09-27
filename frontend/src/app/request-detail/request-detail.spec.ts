@@ -6,6 +6,7 @@ import { Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -13,7 +14,6 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
-import { RuleFromRequest } from '../rules/rule-from-request';
 import { ShareDialog } from '../share/share-dialog';
 import { Router } from '@angular/router';
 import { RequestDetail } from './request-detail';
@@ -109,14 +109,16 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(within(toolbar()).queryByRole('button', { name: 'Copy payload' })).toBeNull();
   });
 
-  it('deve abrir o editor de regra a partir da mensagem Quando "Create rule from this request" é clicado', async () => {
-    const open = vi.fn().mockResolvedValue(undefined);
+  it('deve abrir a página Rules com a regra nova a partir da mensagem Quando "Create rule from this request" é clicado', async () => {
+    const navigate = vi.fn().mockResolvedValue(true);
     const request = webhookRequest(3);
-    await show(request, [{ provide: RuleFromRequest, useValue: { open } }]);
+    await show(request, [{ provide: Router, useValue: { navigate } }]);
 
     await userEvent.click(action('Create rule from this request'));
 
-    await vi.waitFor(() => expect(open).toHaveBeenCalledWith(request));
+    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
+      queryParams: { from: request.uuid },
+    });
   });
 
   it('deve abrir Checks › Schema com a mensagem Quando "Create schema from this request" é clicado', async () => {
