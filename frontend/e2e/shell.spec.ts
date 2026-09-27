@@ -13,10 +13,10 @@ import {
 } from './support/shell';
 import { seedStorage } from './support/storage';
 
-// Item 14, E3: o shell da interface nova. Rail com cinco destinos (barra inferior abaixo de 600 px, rail expandido
-// a partir de 1600 px), cabeçalho fixo da URL (campo, Copy, chip Live, Lock), FAB "New URL", Help com o About, os
-// atalhos globais, e a integração com o desbloqueio e com a página do link só-leitura. Nomes da §1 do plano
-// ("Nomes acessíveis"); os assumidos estão marcados em `support/shell.ts`.
+// Item 14, E3: o shell da interface nova. Rail com cinco destinos (barra inferior abaixo de 600 px, rail compacto de
+// 96 px em qualquer largura acima), cabeçalho fixo da URL (campo, Copy, chip Live, Lock), FAB "New URL", Help com o
+// About, os atalhos globais, e a integração com o desbloqueio e com a página do link só-leitura. Nomes da §1 do
+// plano ("Nomes acessíveis"); os assumidos estão marcados em `support/shell.ts`.
 
 const SEGREDO = 'segredo-do-shell';
 
@@ -115,7 +115,7 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
     }
   });
 
-  test('deve usar o rail a partir de 600 px e a barra inferior abaixo, e expandir o rail a partir de 1600 px', async ({
+  test('deve usar o rail a partir de 600 px e a barra inferior abaixo, com o rail sempre compacto', async ({
     page,
     tokens,
   }) => {
@@ -137,20 +137,41 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
     const rail = await caixa();
     expect(rail.x, 'rail encostado à esquerda').toBeLessThanOrEqual(1);
     expect(rail.height, 'rail na vertical').toBeGreaterThan(rail.width);
-
-    await page.setViewportSize({ width: 1400, height: 900 });
-    const compacto = await caixa();
-    await page.setViewportSize({ width: 1600, height: 900 });
-    const expandido = await caixa();
-    expect(expandido.x).toBeLessThanOrEqual(1);
-    expect(
-      expandido.width,
-      'rail expandido (M3) mais largo que o de 1400 px',
-    ).toBeGreaterThanOrEqual(compacto.width + 40);
-    for (const nome of DESTINOS) {
-      await expect(destino(page, nome)).toBeVisible();
-    }
   });
+
+  // Decisão do dono (2026-09-27): o rail fica como no protótipo C em qualquer largura a partir de 600 px — compacto,
+  // 96 px, ícone com o rótulo pequeno embaixo; sai o rail expandido (≥ 1600 px) da §1.
+  for (const largura of [600, 1400, 1600, 1920]) {
+    test(`deve manter o rail compacto de 96 px, com o rótulo embaixo do ícone, a ${largura} px`, async ({
+      page,
+      tokens,
+    }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await page.goto(`/#/${await tokens.create()}`);
+      await expect(secoes(page)).toBeVisible();
+
+      const rail = (await secoes(page).boundingBox())!;
+      expect(rail.x, 'rail encostado à esquerda').toBeLessThanOrEqual(1);
+      expect.soft(Math.round(rail.width), 'rail de 96 px').toBe(96);
+      for (const nome of DESTINOS) {
+        const link = destino(page, nome);
+        const icone = (await link.locator('svg').first().boundingBox())!;
+        const rotulo = (await link.getByText(nome, { exact: true }).boundingBox())!;
+        expect
+          .soft(rotulo.y, `${nome}: rótulo embaixo do ícone`)
+          .toBeGreaterThanOrEqual(icone.y + icone.height - 1);
+      }
+      // O FAB e a marca ficam só com o ícone; o nome acessível não muda.
+      await expect(novaUrl(page)).toBeVisible();
+      await expect.soft(novaUrl(page).getByText('New URL', { exact: true })).toBeHidden();
+      expect
+        .soft((await novaUrl(page).boundingBox())!.width, 'FAB só com o ícone')
+        .toBeLessThanOrEqual(96);
+      const marca = page.getByRole('link', { name: 'Webhook Tester', exact: true });
+      await expect(marca).toBeVisible();
+      await expect.soft(marca.getByText('Webhook Tester', { exact: true })).toBeHidden();
+    });
+  }
 });
 
 test.describe('Dado o cabeçalho fixo da URL', () => {
