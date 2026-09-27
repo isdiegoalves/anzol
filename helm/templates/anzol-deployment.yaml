@@ -2,20 +2,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: webhook-site
-  name: webhook-site
+    app: anzol
+  name: anzol
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: webhook-site
+      app: anzol
   template:
     metadata:
       labels:
-        app: webhook-site
+        app: anzol
     spec:
       containers:
-        - name: webhook-site
+        - name: anzol
           args:
             - php
             - artisan
@@ -44,7 +44,7 @@ spec:
               value: redis
             - name: REDIS_HOST
               value: redis:6379
-          image: webhooksite/webhook.site
+          image: ghcr.io/isdiegoalves/anzol
           ports:
             - containerPort: 80
               protocol: TCP
