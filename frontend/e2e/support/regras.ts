@@ -200,10 +200,14 @@ export async function voltarALista(page: Page, regiao: Locator): Promise<void> {
 
 /**
  * O snackbar do Material com o texto. Pelo contêiner, e não por `getByText`: o texto do snackbar pode estar também no
- * LiveAnnouncer da CDK (dois elementos, violação do modo estrito).
+ * LiveAnnouncer da CDK (dois elementos, violação do modo estrito). Fora o que está saindo: o anterior, com o mesmo
+ * texto, fica no DOM durante a animação de saída (`[mat-exit]`, `.mat-snack-bar-container-exit`).
  */
 export function snackbar(page: Page, texto: string | RegExp): Locator {
-  return page.locator('.mat-mdc-snack-bar-container', { hasText: texto });
+  return page.locator(
+    '.mat-mdc-snack-bar-container:not([mat-exit]):not(.mat-snack-bar-container-exit)',
+    { hasText: texto },
+  );
 }
 
 /** Um diálogo (MatDialog) pelo título. */

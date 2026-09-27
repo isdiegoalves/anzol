@@ -79,6 +79,8 @@ async function fotografar(page: Page, nome: string, mascaras: Locator[] = []): P
 
 interface Tela {
   nome: string;
+  /** Só nestas classes (padrão: todas). */
+  classes?: readonly (typeof CLASSES)[number]['nome'][];
   abrir(page: Page, tokens: TokenTracker): Promise<Locator[]>;
 }
 
@@ -142,6 +144,61 @@ const TELAS: Tela[] = [
       await seedStorage(page, {});
       await page.goto(`/#/${tokenId}/rules/${id}`);
       await expect(page.getByRole('region', { name: 'Edit rule Pix pago' })).toBeVisible();
+      return [];
+    },
+  },
+  {
+    // UX de Regras, F8 (WM-41): a lista de regras no celular, com os selos de diagnóstico da F2 (pega-tudo, sombra,
+    // nunca casa, desligada) e o grupo de cenário; as 3 linhas, a alça, o interruptor, ↑/↓ e o ⋮ por item.
+    nome: 'rules-lista',
+    classes: ['compacta'],
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create();
+      const pix = {
+        method: ['POST'],
+        path: { equals: '/pagamentos' },
+        headers: { 'X-Tenant': { equals: 'acme' } },
+      };
+      const response = await page.request.put(`/token/${tokenId}/rules`, {
+        data: [
+          {
+            name: 'Assinatura inválida',
+            priority: 1,
+            match: { signature: 'invalid' },
+            response: { status: 401 },
+          },
+          { name: 'Pix pago', priority: 2, match: pix, response: { status: 201 } },
+          { name: 'Pix pago (copy)', priority: 2, match: pix, response: { status: 201 } },
+          {
+            name: 'entrega 1/2',
+            priority: 3,
+            match: { path: { equals: '/entrega' } },
+            scenario: { name: 'entrega', requiredState: 'Started', newState: 'entrega 2' },
+            response: { status: 503 },
+          },
+          {
+            name: 'entrega 2/2',
+            priority: 3,
+            match: { path: { equals: '/entrega' } },
+            scenario: { name: 'entrega', requiredState: 'entrega 2' },
+            response: { status: 200 },
+          },
+          {
+            name: 'Reset de conexão',
+            priority: 4,
+            enabled: false,
+            response: { fault: 'connection_reset' },
+          },
+          { name: 'Tudo o resto', priority: 9, response: { status: 404 } },
+        ],
+      });
+      expect(response.status()).toBe(200);
+      await seedStorage(page, {});
+      await page.goto(`/#/${tokenId}/rules`);
+      const tabela = page.getByRole('table', { name: 'Rules' });
+      await expect(tabela).toContainText('Tudo o resto');
+      // O cabeçalho da página ocupa a primeira tela a 390 px: a foto começa na lista.
+      await tabela.evaluate((el) => el.scrollIntoView({ block: 'start' }));
       return [];
     },
   },
@@ -236,7 +293,7 @@ for (const colorScheme of TEMAS) {
     test.describe(`Dado o tema ${colorScheme} na classe ${classe.nome}`, () => {
       test.use({ colorScheme, viewport: classe.viewport });
 
-      for (const tela of TELAS) {
+      for (const tela of TELAS.filter((t) => !t.classes || t.classes.includes(classe.nome))) {
         test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens }) => {
           await page.clock.setFixedTime(relogio());
           const mascaras = await tela.abrir(page, tokens);
