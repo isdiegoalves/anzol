@@ -174,6 +174,21 @@ describe('Dado o editor de condições e resposta', () => {
       expect(root().querySelector('.unsaved')).not.toBeNull();
     });
 
+    // Revisão visual (1400 px): o ✕ quebra de linha junto do último campo, nunca sozinho.
+    it.each([
+      ['Add body field (JSONPath)', 'Body 1 equals', 'Remove body 1'],
+      ['Add header condition', 'Header 1 value', 'Remove header 1'],
+      ['Add query condition', 'Query 1 value', 'Remove query 1'],
+    ])('deve manter o ✕ no mesmo bloco do último campo (%s)', async (chip, campo, remover) => {
+      await open();
+      await (await button(chip)).click();
+
+      const ultimo = root().querySelector(`input[aria-label="${campo}"]`);
+      const x = root().querySelector(`button[aria-label="${remover}"]`);
+      expect(x?.parentElement?.classList.contains('last')).toBe(true);
+      expect(x?.parentElement?.contains(ultimo)).toBe(true);
+    });
+
     it('deve dizer se a regex cobre o valor da mensagem e trocar por "contém"', async () => {
       await open();
       await (await button('Add header condition')).click();

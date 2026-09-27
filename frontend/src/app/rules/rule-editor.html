@@ -48,7 +48,7 @@
               <strong>{{ segment.text }}</strong>
             }
             @case ('code') {
-              <code>{{ segment.text }}</code>
+              <code class="mono">{{ segment.text }}</code>
             }
             @default {
               <span>{{ segment.text }}</span>
@@ -235,27 +235,30 @@
                             }
                           </mat-select>
                         </mat-form-field>
-                        @if (row.controls.value.enabled) {
-                          <mat-form-field class="grow">
-                            <mat-label i18n>Value</mat-label>
-                            <input
-                              matInput
-                              formControlName="value"
-                              [attr.aria-label]="conditionLabels(section.list, i + 1).value"
-                            />
-                            <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
-                          </mat-form-field>
-                        } @else {
-                          <span class="grow"></span>
-                        }
-                        <button
-                          mat-button
-                          type="button"
-                          [attr.aria-label]="conditionLabels(section.list, i + 1).remove"
-                          (click)="removeRow(section.list, i)"
-                        >
-                          &#x2715;
-                        </button>
+                        <!-- O ✕ quebra de linha junto do último campo, nunca sozinho. -->
+                        <div class="last">
+                          @if (row.controls.value.enabled) {
+                            <mat-form-field class="grow">
+                              <mat-label i18n>Value</mat-label>
+                              <input
+                                matInput
+                                formControlName="value"
+                                [attr.aria-label]="conditionLabels(section.list, i + 1).value"
+                              />
+                              <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
+                            </mat-form-field>
+                          } @else {
+                            <span class="grow"></span>
+                          }
+                          <button
+                            mat-button
+                            type="button"
+                            [attr.aria-label]="conditionLabels(section.list, i + 1).remove"
+                            (click)="removeRow(section.list, i)"
+                          >
+                            &#x2715;
+                          </button>
+                        </div>
                         <app-condition-result
                           [key]="rowKey(section.list, row)"
                           [result]="result(rowKey(section.list, row), true)"
@@ -309,54 +312,60 @@
                             errorOf(row.controls.path, messages.jsonPathRequired)
                           }}</mat-error>
                         </mat-form-field>
-                        <mat-form-field class="grow">
-                          <mat-label i18n>Equals (JSON)</mat-label>
-                          <input
-                            matInput
-                            class="mono"
-                            formControlName="equals"
-                            placeholder='"paid", 10, true'
-                            i18n-placeholder
-                            [attr.aria-label]="bodyLabels(i + 1).equals"
-                          />
-                          @if (readAsText(row.controls.equals.value); as read) {
-                            <mat-hint>{{ read }}</mat-hint>
-                          } @else {
-                            <mat-hint i18n>Empty: the path exists</mat-hint>
-                          }
-                          <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
-                        </mat-form-field>
+                      }
+                      <div class="last">
+                        @if (row.controls.type.value === 'jsonPath') {
+                          <mat-form-field class="grow">
+                            <mat-label i18n>Equals (JSON)</mat-label>
+                            <input
+                              matInput
+                              class="mono"
+                              formControlName="equals"
+                              placeholder='"paid", 10, true'
+                              i18n-placeholder
+                              [attr.aria-label]="bodyLabels(i + 1).equals"
+                            />
+                            @if (readAsText(row.controls.equals.value); as read) {
+                              <mat-hint>{{ read }}</mat-hint>
+                            } @else {
+                              <mat-hint i18n>Empty: the path exists</mat-hint>
+                            }
+                            <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
+                          </mat-form-field>
+                        } @else {
+                          <mat-form-field class="grow">
+                            @if (row.controls.type.value === 'equalToJson') {
+                              <mat-label i18n>JSON</mat-label>
+                            } @else {
+                              <mat-label i18n>Text</mat-label>
+                            }
+                            <input
+                              matInput
+                              formControlName="value"
+                              [attr.aria-label]="bodyLabels(i + 1).value"
+                            />
+                            @if (row.controls.type.value === 'equalToJson') {
+                              <mat-hint i18n>Key order is ignored</mat-hint>
+                            }
+                            <mat-error>{{
+                              errorOf(row.controls.value, messages.validJson)
+                            }}</mat-error>
+                          </mat-form-field>
+                        }
+                        <button
+                          mat-button
+                          type="button"
+                          [attr.aria-label]="bodyLabels(i + 1).remove"
+                          (click)="removeRow('body', i)"
+                        >
+                          &#x2715;
+                        </button>
+                      </div>
+                      @if (row.controls.type.value === 'jsonPath') {
                         @if (exampleAtPath(row.controls.path.value); as found) {
                           <p class="tester hint" [title]="approxTitle">{{ found }}</p>
                         }
-                      } @else {
-                        <mat-form-field class="grow">
-                          @if (row.controls.type.value === 'equalToJson') {
-                            <mat-label i18n>JSON</mat-label>
-                          } @else {
-                            <mat-label i18n>Text</mat-label>
-                          }
-                          <input
-                            matInput
-                            formControlName="value"
-                            [attr.aria-label]="bodyLabels(i + 1).value"
-                          />
-                          @if (row.controls.type.value === 'equalToJson') {
-                            <mat-hint i18n>Key order is ignored</mat-hint>
-                          }
-                          <mat-error>{{
-                            errorOf(row.controls.value, messages.validJson)
-                          }}</mat-error>
-                        </mat-form-field>
                       }
-                      <button
-                        mat-button
-                        type="button"
-                        [attr.aria-label]="bodyLabels(i + 1).remove"
-                        (click)="removeRow('body', i)"
-                      >
-                        &#x2715;
-                      </button>
                       <app-condition-result
                         [key]="'match.body.' + i"
                         [result]="result('match.body.' + i, true)"

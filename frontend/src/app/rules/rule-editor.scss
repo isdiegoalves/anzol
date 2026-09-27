@@ -85,7 +85,6 @@
   font: var(--mat-sys-body-large);
 
   code {
-    font-family: var(--app-code-family);
     overflow-wrap: anywhere;
   }
 }
@@ -189,7 +188,8 @@
   font-family: var(--app-code-family);
 }
 
-.preview {
+.preview,
+.dribble {
   margin-top: 12px;
 
   ul {
@@ -231,6 +231,14 @@
 .grow {
   flex: 1;
   min-width: 200px;
+}
+
+// O último campo da condição e o ✕ quebram de linha juntos: o ✕ nunca fica sozinho embaixo.
+.last {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .short {
@@ -280,10 +288,6 @@ h3 {
 
 .delay .hint {
   margin: 4px 0 0;
-}
-
-.dribble {
-  margin-top: 12px;
 }
 
 .row .hint {
