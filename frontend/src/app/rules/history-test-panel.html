@@ -60,35 +60,38 @@
             Closest first
           </button>
         </div>
-        <ul class="misses">
-          @for (miss of misses(); track miss.uuid) {
-            <li [class.near]="miss.failed.length === 1">
-              <a
-                target="_blank"
-                rel="noopener"
-                title="Open the request in a new tab"
-                i18n-title
-                [href]="link(miss.uuid, miss.page)"
-                [attr.aria-label]="openLabel(miss.uuid)"
-                >#{{ miss.uuid.substring(0, 5) }}</a
-              >&ngsp;
-              @if (when(miss.uuid); as time) {
-                <span class="when">{{ time }}</span
+        <!-- Sem nenhuma que falhe, fica só o título com (0), sem lista vazia. -->
+        @if (current.misses.length > 0) {
+          <ul class="misses">
+            @for (miss of misses(); track miss.uuid) {
+              <li [class.near]="miss.failed.length === 1">
+                <a
+                  target="_blank"
+                  rel="noopener"
+                  title="Open the request in a new tab"
+                  i18n-title
+                  [href]="link(miss.uuid, miss.page)"
+                  [attr.aria-label]="openLabel(miss.uuid)"
+                  >#{{ miss.uuid.substring(0, 5) }}</a
                 >&ngsp;
-              }
-              <span class="count" i18n>{miss.failed.length, plural,
-                =1 {1 condition}
-                other {{{ miss.failed.length }} conditions}
-              }</span
-              >&ngsp;
-              <ul class="failed">
-                @for (reason of miss.failed; track $index) {
-                  <li>{{ reason }}</li>
+                @if (when(miss.uuid); as time) {
+                  <span class="when">{{ time }}</span
+                  >&ngsp;
                 }
-              </ul>
-            </li>
-          }
-        </ul>
+                <span class="count" i18n>{miss.failed.length, plural,
+                  =1 {1 condition}
+                  other {{{ miss.failed.length }} conditions}
+                }</span
+                >&ngsp;
+                <ul class="failed">
+                  @for (reason of miss.failed; track $index) {
+                    <li>{{ reason }}</li>
+                  }
+                </ul>
+              </li>
+            }
+          </ul>
+        }
       </section>
     </div>
   }

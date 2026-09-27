@@ -84,6 +84,14 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     expect(lista().map(([label]) => label)).toEqual([`Open request ${B}`, `Open request ${C}`]);
   });
 
+  it('deve manter o título "Would not match (0)" sem lista vazia Quando todas casariam', async () => {
+    await show({ ...RESULTADO, tested: 1, misses: [] });
+
+    const status = screen.getByRole('status', { name: 'History test' });
+    expect(within(status).getByRole('heading', { name: 'Would not match (0)' })).toBeTruthy();
+    expect(status.querySelector('.misses')).toBeNull();
+  });
+
   it('deve dizer que não há mensagens Quando a URL ainda não recebeu nenhuma', async () => {
     await show({ ...RESULTADO, tested: 0, matched: 0, matches: [], matchList: [], misses: [] });
 
