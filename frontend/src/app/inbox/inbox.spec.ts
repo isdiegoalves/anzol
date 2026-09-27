@@ -241,6 +241,38 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
   });
 
+  it('deve reabrir a mensagem que estava aberta Quando volta à Inbox de outro destino', async () => {
+    await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
+    await vi.waitFor(() => expect(text()).toContain(R2.uuid));
+
+    await harness.navigateByUrl(`/${TOKEN_ID}/rules`);
+    await flush(`/token/${TOKEN_ID}/rules`, []);
+    await flush(`/token/${TOKEN_ID}/stats`, {});
+    await openToken(`/${TOKEN_ID}`);
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+  });
+
+  // A limpeza reduzida em Checks corta sem evento: na volta, a aberta pode ter saído.
+  it('deve abrir a mais antiga que ficou Quando a mensagem aberta foi cortada enquanto a Inbox estava fechada', async () => {
+    const R0 = webhookRequest(10);
+    await openToken(`/${TOKEN_ID}/${R0.uuid}/1`);
+    await flush(`/token/${TOKEN_ID}/request/${R0.uuid}`, R0);
+    await vi.waitFor(() => expect(text()).toContain(R0.uuid));
+
+    await harness.navigateByUrl(`/${TOKEN_ID}/rules`);
+    await flush(`/token/${TOKEN_ID}/rules`, []);
+    await flush(`/token/${TOKEN_ID}/stats`, {});
+    await openToken(`/${TOKEN_ID}`);
+    await flush(
+      `/token/${TOKEN_ID}/request/${R0.uuid}`,
+      {},
+      { status: 404, statusText: 'Not Found' },
+    );
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+  });
+
   describe('Dado o stream SSE aberto', () => {
     beforeEach(async () => {
       await openToken(`/${TOKEN_ID}`);

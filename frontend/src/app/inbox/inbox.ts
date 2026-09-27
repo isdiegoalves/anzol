@@ -283,6 +283,11 @@ export class Inbox {
       await this.openSavedOrNewToken();
       return;
     }
+    // Voltando à Inbox sem mensagem na rota (o rail, a marca): a que estava aberta nesta URL.
+    const previous =
+      requestId === undefined && this.requests.tokenId() === tokenId
+        ? this.requests.selected()
+        : undefined;
     // Sem stream (Inbox recriado ao voltar de outro destino), a lista também está velha.
     const stale = this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
     if (stale && !(await this.loadToken(tokenId, page))) {
@@ -298,11 +303,29 @@ export class Inbox {
       if (requestId === this.requests.newest()?.uuid) {
         this.list()?.clearNew();
       }
+    } else if (previous) {
+      // A limpeza reduzida em Checks corta sem evento: se ela saiu, a mais antiga que ficou.
+      const again =
+        list.find((request) => request.uuid === previous.uuid) ??
+        (await this.fetchKept(tokenId, previous.uuid)) ??
+        (await this.requests.oldestKept());
+      if (again) {
+        await this.openRequest(again, true);
+      }
     } else {
       const opened = requestId !== undefined && (await this.openOutsideList(tokenId, requestId));
       if (!opened && list.length > 0) {
         await this.openRequest(list[0], true);
       }
+    }
+  }
+
+  /** A mensagem pela API; `undefined` se ela sumiu (404: cortada ou apagada). */
+  private async fetchKept(tokenId: string, requestId: string): Promise<WebhookRequest | undefined> {
+    try {
+      return await this.requests.fetchOne(tokenId, requestId);
+    } catch {
+      return undefined;
     }
   }
 
@@ -313,10 +336,8 @@ export class Inbox {
    * abriu alguma.
    */
   private async openOutsideList(tokenId: string, requestId: string): Promise<boolean> {
-    let request: WebhookRequest;
-    try {
-      request = await this.requests.fetchOne(tokenId, requestId);
-    } catch {
+    const request = await this.fetchKept(tokenId, requestId);
+    if (!request) {
       const oldest = await this.requests.oldestKept();
       return oldest !== undefined && this.openRequest(oldest, true);
     }
