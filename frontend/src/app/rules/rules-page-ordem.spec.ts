@@ -526,6 +526,26 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       await expectNoAxeViolations(container);
     });
 
+    it('deve avisar Quando só uma regra desligada responderia no estado de agora', async () => {
+      await open([entrega(1, 'Started', 'x'), { ...entrega(2, 'x'), enabled: false }]);
+      await flushState('x');
+
+      await vi.waitFor(() => expect(within(group()).getByRole('note')).toBeTruthy());
+    });
+
+    it('não deve avisar Quando uma regra ligada do cenário responde em qualquer estado', async () => {
+      const qualquer = rule(3, {
+        name: 'qualquer',
+        match: { method: ['GET'], path: null, query: {}, headers: {}, body: [] },
+        scenario: { name: 'entrega' },
+      });
+      await open([entrega(1, 'Started', 'x'), qualquer]);
+      await flushState('x');
+
+      await vi.waitFor(() => expect(group().textContent).toContain('state: x'));
+      expect(within(group()).queryByRole('note')).toBeNull();
+    });
+
     it('não deve avisar Quando uma regra ligada do cenário responde no estado de agora', async () => {
       await open([entrega(1, 'Started', 'x'), entrega(2, 'x')]);
       await flushState('x');
