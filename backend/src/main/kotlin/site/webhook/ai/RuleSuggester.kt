@@ -136,7 +136,7 @@ class RuleSuggester(
 
     private fun system(lang: String): String =
         """
-        |You write one webhook.site response rule from the owner's description.
+        |You write one Anzol response rule from the owner's description.
         |Answer with a JSON object {"rule": <the rule>, "explanation": <text>}; the explanation says in one or two short
         |sentences what the rule does, written in the language with BCP 47 tag "$lang".
         |Use only the fields below. Leave out every optional field the description does not need.

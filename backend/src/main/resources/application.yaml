@@ -110,10 +110,10 @@ spring.ai.mcp.server:
   enabled: ${webhook.mcp.enabled}
   protocol: STREAMABLE
   type: SYNC
-  name: webhook-site
+  name: anzol
   version: 1.0.0
   instructions: >-
-    Operates webhook.site: create webhook URLs (tokens), read and wait for the requests they capture, set response
+    Operates Anzol: create webhook URLs (tokens), read and wait for the requests they capture, set response
     rules, and replay or send requests through the server. Every tool takes the URL by its UUID (token_id); the
     webhook itself is any HTTP request to /{token_id} on this server.
   # Ferramentas registradas à mão (site.webhook.mcp), com o schema e os erros da API: sem varredura de anotações.

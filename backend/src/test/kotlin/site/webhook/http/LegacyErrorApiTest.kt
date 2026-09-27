@@ -39,7 +39,7 @@ class LegacyErrorApiTest(
 
         assertThat(response.status).isEqualTo(405)
         assertThat(response.headers["content-type"]).isEqualTo(PHP_DEFAULT_CONTENT_TYPE.replace(" ", ""))
-        assertThat(response.body).contains("<h1>Error</h1>")
+        assertThat(response.body).contains("<h1>Error</h1>", "Back to Anzol")
     }
 
     @ParameterizedTest(name = "{0} /error")

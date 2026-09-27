@@ -70,6 +70,13 @@ class McpServerApiTest(
     private fun CallToolResult.json(): JsonNode = jsonMapper.readTree((content().single() as TextContent).text())
 
     @Test
+    @DisplayName("Dado o servidor ligado, quando o cliente se conecta, então o servidor se apresenta como anzol")
+    fun initialize_deveApresentarOAnzol() {
+        assertThat(client.serverInfo.name()).isEqualTo("anzol")
+        assertThat(client.serverInstructions).startsWith("Operates Anzol:")
+    }
+
+    @Test
     @DisplayName("Dado o servidor ligado, quando o cliente lista as ferramentas, então vêm as 14, com descrição e schema de objeto")
     fun listTools_deveListarAs14() {
         val tools = client.listTools().tools()

@@ -73,7 +73,7 @@ private fun errorPage(
     val escaped = HtmlUtils.htmlEscape(message)
     val title = if (status.value() == HttpStatus.GONE.value()) "Error: $escaped" else "$status"
     return "<!DOCTYPE html>\n<html>\n<head>\n    <title>$title</title>\n</head>\n<body>\n" +
-        "<h1>Error</h1>\n<p class=\"lead\">$escaped</p>\n<p><a href=\"/\">Back to webhook.site &rarr;</a></p>\n</body>\n</html>\n"
+        "<h1>Error</h1>\n<p class=\"lead\">$escaped</p>\n<p><a href=\"/\">Back to Anzol &rarr;</a></p>\n</body>\n</html>\n"
 }
 
 /**

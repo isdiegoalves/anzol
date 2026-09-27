@@ -1,4 +1,4 @@
-webhook.site response rules. A webhook URL receives HTTP requests at /{token}/{path}; a rule chooses the response.
+Anzol response rules. A webhook URL receives HTTP requests at /{token}/{path}; a rule chooses the response.
 The first enabled rule whose conditions all match (lowest priority first) answers with its response.
 
 Rule fields:
