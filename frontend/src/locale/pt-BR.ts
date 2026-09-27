@@ -396,6 +396,11 @@ export const translations: Record<string, string> = {
   // The {$PH} changed elsewhere since this page read it. Reload to see it before saving.
   '5228449922962488381':
     'Mudou em outro lugar desde que esta página leu a URL: {$PH}. Recarregue para ver antes de salvar.',
+  // unknown
+  '4097761430561209267': 'desconhecido',
+  // The URL was saved, but this page could not unlock it with the new secret ({$status}). Unlock it with the new secret to keep working.
+  '6652188843367116863':
+    'A URL foi salva, mas esta página não conseguiu destrancá-la com o segredo novo ({$status}). Destranque-a com o segredo novo para continuar.',
   // Compare
   '2572999724448976084': 'Comparar',
   // Resize list and comparison
@@ -1025,6 +1030,8 @@ export const translations: Record<string, string> = {
   //  The rules changed elsewhere since this page read them, so nothing was saved. Reload the rules, then save again: your changes stay in the editor.
   '7694925179236514276':
     ' As regras mudaram em outro lugar desde que esta página as leu, então nada foi salvo. Recarregue as regras e salve de novo: suas alterações continuam no editor. ',
+  //  This rule no longer exists in the list; Save adds it as a new rule.
+  '5274355215251337018': ' Esta regra não está mais na lista; Salvar a adiciona como regra nova. ',
   // Priority
   '2734022681675842051': 'Prioridade',
   // Lowest first
@@ -1577,8 +1584,6 @@ export const translations: Record<string, string> = {
   '6779109023100559816': 'Segredo errado. Tente de novo.',
   // Could not unlock the URL ({$status}).
   '4820442917323397437': 'Não foi possível destrancar a URL ({$status}).',
-  // unknown
-  '4097761430561209267': 'desconhecido',
   // Sig OK
   '7709366885165414988': 'Assin. OK',
   // Bad sig

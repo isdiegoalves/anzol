@@ -152,11 +152,10 @@ export function saveErrorNotice(error: unknown): { text: string; error: true; re
     return { text: changedElsewhereText(error.fields as string[]), error: true, reload: true };
   }
   if (error instanceof Error && error.name === 'UnlockFailed') {
-    const status = 'status' in error && error.status !== null ? String(error.status) : 'unknown';
+    const status =
+      'status' in error && error.status !== null ? String(error.status) : $localize`unknown`;
     return {
-      text:
-        `The URL was saved, but this page could not unlock it with the new secret (${status}). ` +
-        'Unlock it with the new secret to keep working.',
+      text: $localize`The URL was saved, but this page could not unlock it with the new secret (${status}:status:). Unlock it with the new secret to keep working.`,
       error: true,
       reload: false,
     };
