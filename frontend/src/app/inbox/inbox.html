@@ -31,6 +31,7 @@
       class="pane list-pane"
       aria-label="Request list"
       i18n-aria-label
+      [class.waiting]="!requests.hasRequests() && !requests.loading()"
       [attr.aria-busy]="requests.loading() || null"
     >
       <ng-container [ngTemplateOutlet]="listPane" />

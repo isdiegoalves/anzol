@@ -32,9 +32,14 @@
   padding-top: 12px;
   overflow: auto;
 
-  // Um painel por vez, URL vazia: o onboarding embaixo da lista.
+  // Um painel por vez, URL vazia: o onboarding embaixo da lista, que fica na altura do que mostra
+  // (se encolhesse, o "Waiting for first request..." passaria por baixo do painel).
   app-onboarding {
     padding: 16px;
+  }
+
+  &.waiting app-request-list {
+    flex: none;
   }
 }
 

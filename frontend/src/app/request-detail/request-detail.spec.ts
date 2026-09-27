@@ -121,13 +121,15 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       within(toolbar())
         .getAllByRole('button')
         .map((button) => button.textContent?.trim()),
-    ).toEqual(['Replay…', 'Create rule', 'Copy payload', 'Copy As']);
+    ).toEqual(['Replay…', 'Create rule', 'Copy payload']);
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
     await more.open();
+    // A 390 px, o Copy As não cabe na linha: vai ao "More", com os formatos no submenu (trava 5).
     expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
       'Send as new…',
       'Compare with…',
       'Create schema from this request',
+      'Copy As',
       'Share read-only link…',
       'Explain',
       'Permalink',

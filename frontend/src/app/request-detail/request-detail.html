@@ -49,6 +49,7 @@
             Create schema from this request
           </button>
         }
+        <button i18n mat-menu-item type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
         <button i18n mat-menu-item type="button" (click)="shareRequest()">
           Share read-only link&hellip;
         </button>
@@ -119,9 +120,11 @@
           <app-icon name="clipboard" [size]="18" /><ng-container i18n>Copy payload</ng-container>
         </button>
       }
-      <button mat-button type="button" [matMenuTriggerFor]="copyMenu">
-        <app-icon name="copy" [size]="18" /><ng-container i18n>Copy As</ng-container>
-      </button>
+      @if (!compact()) {
+        <button mat-button type="button" [matMenuTriggerFor]="copyMenu">
+          <app-icon name="copy" [size]="18" /><ng-container i18n>Copy As</ng-container>
+        </button>
+      }
       <mat-menu #copyMenu="matMenu">
         @for (format of formats; track format) {
           <button mat-menu-item type="button" (click)="copyRequestAs(format)">

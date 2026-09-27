@@ -9,28 +9,21 @@
   gap: 2px;
 }
 
-// INBOX-19: as ações numa linha só; o que não cabe rola na horizontal (como no celular).
+// INBOX-19: as ações quebram botão a botão (nenhum fica cortado); os grupos por intenção
+// (reenviar e comparar; criar; copiar; compartilhar) se separam pelo espaço.
 .actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  gap: 4px;
 }
 
-// Um grupo por intenção (Gestalt de proximidade): reenviar e comparar; criar; copiar; compartilhar.
 .group {
-  display: flex;
-  flex: none;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 2px;
+  display: contents;
+}
 
-  & + .group {
-    padding-left: 12px;
-    border-left: 1px solid var(--mat-sys-outline-variant);
-  }
+.group + .group > :first-child {
+  margin-left: 12px;
 }
 
 // Ícone e rótulo nas ações (INBOX-19).
@@ -43,23 +36,18 @@
   font: var(--mat-sys-body-small);
 }
 
-// Celular (INBOX-33): as ações principais numa linha que rola, sem os divisores dos grupos.
+// Celular (INBOX-33, trava 5): Replay, Create rule e Copy payload numa linha, sem os ícones para
+// caberem a 390 px; o resto está no "More".
 @media (width < 600px) {
   .actions {
     flex-wrap: nowrap;
-    margin: 0 -12px;
-    padding: 4px 12px;
-    overflow-x: auto;
-    scrollbar-width: none;
   }
 
-  .group {
-    flex: none;
-    flex-wrap: nowrap;
+  .actions app-icon {
+    display: none;
+  }
 
-    & + .group {
-      padding-left: 0;
-      border-left: 0;
-    }
+  .group + .group > :first-child {
+    margin-left: 0;
   }
 }

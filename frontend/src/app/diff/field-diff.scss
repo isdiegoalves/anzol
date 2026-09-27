@@ -64,7 +64,8 @@ code {
   font-weight: 700;
 }
 
+// "· changes every event" quebra dentro da coluna Status, em vez de sair cortado pela borda.
 .noise {
+  display: block;
   color: var(--mat-sys-on-surface-variant);
-  white-space: nowrap;
 }

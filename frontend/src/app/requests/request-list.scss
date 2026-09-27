@@ -195,7 +195,11 @@
   text-overflow: ellipsis;
 }
 
+// O resumo, o IP e o #id: com o painel estreito, cortam com reticências em vez de transbordar.
 .meta {
+  display: block;
+  min-width: 0;
+  text-overflow: ellipsis;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }
@@ -291,6 +295,10 @@
 
   .order-line {
     display: inline;
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--mat-sys-on-surface-variant);
     font: var(--mat-sys-label-large);
   }
