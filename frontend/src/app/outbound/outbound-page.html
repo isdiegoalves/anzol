@@ -138,7 +138,7 @@
                 [requests]="list"
                 [initial]="replayId()"
                 (picked)="replayId.set($event)"
-                (sent)="showResult($event)"
+                (sent)="showSent($event)"
                 (resign)="resign($event)"
               />
             } @else {
@@ -146,7 +146,7 @@
                 [token]="current"
                 [draft]="draft()"
                 [sign]="signing()"
-                (sent)="showResult($event)"
+                (sent)="showSent($event)"
               />
             }
           }

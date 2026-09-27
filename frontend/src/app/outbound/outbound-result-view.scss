@@ -23,6 +23,11 @@ p {
   margin: 0;
   font: var(--mat-sys-title-medium);
   font-variation-settings: 'ROND' 100;
+
+  // Recebe o foco pelo código depois de um Replay ou Send; o anel fica para o teclado.
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
 }
 
 .big-status {

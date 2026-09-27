@@ -1,7 +1,7 @@
 @let current = result();
 @let failure = error();
 <div class="head">
-  <h2 class="title" i18n>Result</h2>
+  <h2 class="title" tabindex="-1" i18n>Result</h2>
   <span [class]="'big-status ' + family()">{{ current.status ?? failure?.title }}</span>
   <span class="meta">
     <strong i18n>{{ current.duration_ms }} ms</strong>

@@ -1,7 +1,18 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -68,6 +79,8 @@ export class OutboundPage {
   private readonly tokens = inject(TokenStore);
   private readonly inbox = inject(RequestStore);
   private readonly viewport = inject(Viewport);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly injector = inject(Injector);
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
@@ -161,6 +174,18 @@ export class OutboundPage {
   protected showResult(result: OutboundResult): void {
     this.actionError.set(null);
     this.selectedId.set(result.id);
+  }
+
+  /**
+   * Resultado de um Replay ou Send do compositor: o botão ficou desabilitado no envio e o foco
+   * cairia no body, então ele vai ao título do resultado.
+   */
+  protected showSent(result: OutboundResult): void {
+    this.showResult(result);
+    afterNextRender(
+      () => this.host.querySelector<HTMLElement>('.detail app-outbound-result-view h2')?.focus(),
+      { injector: this.injector },
+    );
   }
 
   /** "Run again": o mesmo replay ou send; o resultado novo entra no topo e fica aberto. */

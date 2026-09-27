@@ -128,6 +128,14 @@ describe('Dado a página Outbound', () => {
         ),
       ).toBeTruthy(),
     );
+    // O botão fica desabilitado no envio: o foco vai ao resultado, e não ao body.
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(screen.getByRole('region', { name: 'Outbound detail' })).getByRole('heading', {
+          name: 'Result',
+        }),
+      ),
+    );
   });
 
   it('deve avisar da assinatura velha e abrir o Send assinado Quando "Send as new with a fresh signature" é clicado', async () => {
@@ -197,6 +205,13 @@ describe('Dado a página Outbound', () => {
       sign: true,
     });
     call.flush(outboundResult(4, { kind: 'send' }));
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(screen.getByRole('region', { name: 'Outbound detail' })).getByRole('heading', {
+          name: 'Result',
+        }),
+      ),
+    );
   });
 
   it('deve deixar a assinatura desligada e apontar Checks Quando a URL não assina', async () => {
