@@ -152,6 +152,14 @@ button.check {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    // Com o corpo pequeno, o "whois" ainda precisa de um alvo de 24 px (WCAG 2.5.8).
+    .whois {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding-inline: 4px;
+    }
   }
 }
 
