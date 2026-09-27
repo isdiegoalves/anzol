@@ -8,10 +8,12 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.data.redis.core.StringRedisTemplate
 import site.webhook.support.ApiClient
 import site.webhook.support.ApiTest
+import site.webhook.support.JSON_BODY
 import site.webhook.support.JSON_CLIENT
 import site.webhook.support.WHOLE_HASH_COMMANDS
 import site.webhook.support.commandCalls
 import site.webhook.support.resetCommandStats
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.time.Instant
@@ -195,6 +197,107 @@ class RequestIndexApiTest(
             uuids(tokenId, "sorting=newest")
 
             assertThat(redis.commandCalls().filterKeys { it in WHOLE_HASH_COMMANDS }).isEmpty()
+        }
+    }
+
+    /**
+     * Mensagens antigas do mesmo segundo (o app Laravel gravava `created_at` em segundos): 150 na hash sem índice, em
+     * grupos de 7 por segundo, para o lote de 100 do wait-for cair no meio de um grupo. Nenhuma pode ser pulada.
+     */
+    @Nested
+    @DisplayName("Hash antiga com várias mensagens no mesmo segundo")
+    inner class SameSecond {
+        private val tokenId = UUID.randomUUID().toString()
+        private val total = 150
+        private val perSecond = 7
+
+        /** Os uuids semeados, do segundo mais antigo para o mais novo (dentro do segundo, a ordem é do backfill). */
+        private fun seed(): List<String> {
+            redis.opsForValue().set("token:$tokenId", legacyToken(tokenId), Duration.ofSeconds(EXPIRY_SECONDS))
+            val ids = List(total) { UUID.randomUUID().toString() }
+            val start = Instant.parse("2026-01-01T00:00:00Z")
+            hash.putAll(
+                hashKey(tokenId),
+                ids
+                    .mapIndexed { i, id ->
+                        val createdAt =
+                            start
+                                .plusSeconds((i / perSecond).toLong())
+                                .toString()
+                                .replace("T", " ")
+                                .removeSuffix("Z")
+                        id to legacyMessage(tokenId, id, createdAt)
+                    }.toMap(),
+            )
+            return ids
+        }
+
+        private fun listed(query: String): JsonNode = api.json(api.send("GET", "/token/$tokenId/requests?$query", headers = JSON_CLIENT))
+
+        private fun wait(body: String): JsonNode =
+            api.json(api.send("POST", "/token/$tokenId/requests/wait", body.toByteArray(), JSON_BODY))
+
+        @Test
+        @DisplayName("Dado mensagens antigas do mesmo segundo, quando o índice é montado, então cada uma ganha um seq próprio")
+        fun backfill_mesmoSegundo_deveDarSeqDistintos() {
+            val ids = seed()
+
+            val page = listed("per_page=$total")["data"].toList()
+
+            assertThat(page.map { it["uuid"].asString() }).containsExactlyInAnyOrderElementsOf(ids)
+            assertThat(page.map { it["seq"].asLong() }.toSet()).hasSize(total)
+            assertThat(page.map { it["created_at"].asString() }).isSorted()
+        }
+
+        @Test
+        @DisplayName("Dado mensagens antigas do mesmo segundo, quando lista com after de cada uma, então vêm exatamente as seguintes")
+        fun after_mesmoSegundo_naoDevePularIrmas() {
+            seed()
+            val ordered = listed("per_page=$total")["data"].toList().map { it["uuid"].asString() to it["seq"].asLong() }
+
+            ordered.forEachIndexed { i, (_, seq) ->
+                val next = listed("after=$seq&per_page=$total")["data"].toList().map { it["uuid"].asString() }
+                assertThat(next).describedAs("after da %sª", i + 1).containsExactlyElementsOf(ordered.drop(i + 1).map { it.first })
+            }
+        }
+
+        @Test
+        @DisplayName(
+            "Dado 150 mensagens antigas em grupos do mesmo segundo, quando o wait-for pede 100 e depois o resto, então vêm todas, " +
+                "sem pular nem repetir",
+        )
+        fun wait_mesmoSegundo_deveDevolverTodas() {
+            seed()
+            val ordered = listed("per_page=$total")["data"].toList().map { it["uuid"].asString() }
+
+            val first = wait("""{"count":100,"timeout":0}""")
+            val last = first["requests"].last()["seq"].asLong()
+            val rest = wait("""{"after":$last,"count":100,"timeout":0}""")
+
+            val all = (first["requests"].toList() + rest["requests"].toList()).map { it["uuid"].asString() }
+            assertThat(first["count"].asInt()).isEqualTo(100)
+            assertThat(rest["count"].asInt()).isEqualTo(total - 100)
+            assertThat(all).containsExactlyElementsOf(ordered)
+        }
+
+        @Test
+        @DisplayName(
+            "Dado um índice já montado com seq repetido e uma mensagem antiga fora dele no mesmo segundo, quando o backfill a põe, " +
+                "então os seq antigos não mudam e ela ganha um seq livre",
+        )
+        fun backfill_indiceExistente_naoDeveMudarSeqAntigos() {
+            redis.opsForValue().set("token:$tokenId", legacyToken(tokenId), Duration.ofSeconds(EXPIRY_SECONDS))
+            val indexed = List(3) { UUID.randomUUID().toString() }
+            val extra = UUID.randomUUID().toString()
+            hash.putAll(hashKey(tokenId), (indexed + extra).associateWith { legacyMessage(tokenId, it, "2026-01-01 00:00:00") })
+            val second = Instant.parse("2026-01-01T00:00:00Z").epochSecond * 1_000_000.0
+            indexed.forEach { zset.add(indexKey(tokenId), it, second) }
+            zset.add(indexKey(tokenId), UUID.randomUUID().toString().also { hash.put(hashKey(tokenId), it, "") }, second + 1)
+
+            listed("per_page=10")
+
+            assertThat(indexed.map { zset.score(indexKey(tokenId), it) }).containsOnly(second)
+            assertThat(zset.score(indexKey(tokenId), extra)).isNotIn(second, second + 1)
         }
     }
 

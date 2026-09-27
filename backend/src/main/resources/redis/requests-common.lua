@@ -30,14 +30,40 @@ local function score(value)
   return string.format('%.0f', value)
 end
 
+-- Os scores já usados no índice dentro do segundo que começa em `base` (µs), como conjunto.
+local function takenIn(base)
+  local taken = {}
+  local entries = redis.call('ZRANGEBYSCORE', index, score(base), score(base + 999999), 'WITHSCORES')
+  for i = 2, #entries, 2 do taken[score(tonumber(entries[i]))] = true end
+  return taken
+end
+
 -- Backfill preguiçoso: a hash tem uuid que o índice não tem (mensagens gravadas antes do índice
 -- existir). Custa HLEN + ZCARD quando está coerente; só relê a hash quando falta alguém.
+-- O created_at antigo é em segundos: as do mesmo segundo ganham base + 0, 1, 2… (pela ordem do uuid),
+-- pulando os scores que o índice já tem nesse segundo. Assim o seq é único também nelas, e quem já
+-- estava no índice não muda de score nem de ordem.
 local function backfill()
   if redis.call('HLEN', messages) <= redis.call('ZCARD', index) then return end
+  local missing = {}
   for _, id in ipairs(redis.call('HKEYS', messages)) do
     if not redis.call('ZSCORE', index, id) then
-      redis.call('ZADD', index, score(legacyScore(redis.call('HGET', messages, id))), id)
+      missing[#missing + 1] = { id = id, base = legacyScore(redis.call('HGET', messages, id)) }
     end
+  end
+  table.sort(missing, function(a, b)
+    if a.base ~= b.base then return a.base < b.base end
+    return a.id < b.id
+  end)
+  local base, taken, next
+  for _, entry in ipairs(missing) do
+    if entry.base ~= base then
+      base, taken, next = entry.base, takenIn(entry.base), entry.base
+    end
+    while taken[score(next)] do next = next + 1 end
+    redis.call('ZADD', index, score(next), entry.id)
+    taken[score(next)] = true
+    next = next + 1
   end
   local ttl = redis.call('PTTL', messages)
   if ttl > 0 then redis.call('PEXPIRE', index, ttl) end
