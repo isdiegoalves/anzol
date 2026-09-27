@@ -207,15 +207,19 @@ test.describe('Dado uma URL protegida aberta nesta tela, com um rascunho em outr
   });
 });
 
-test.describe('Dado o campo Timeout apagado no cartão Response', () => {
+// Fidelidade ao C, fase 2 (CHECKS-21): o timeout vira slider de 0 a 10 e nunca fica vazio; o caso "timeout
+// apagado" vira "slider levado a 0".
+test.describe('Dado o slider Timeout levado a 0 no cartão Response', () => {
   test('deve salvar timeout 0, e não null, com resposta 200', async ({ page, tokens }) => {
     const tokenId = await tokens.create({ timeout: '3' });
     await seedStorage(page, {});
     const resposta = await abrirChecks(page, tokenId, 'Response');
-    const timeout = resposta.getByLabel('Timeout before response');
+    const timeout = resposta.getByRole('slider', { name: 'Timeout before response' });
     await expect(timeout).toHaveValue('3');
 
-    await timeout.fill('');
+    await timeout.focus();
+    await page.keyboard.press('Home');
+    await expect(timeout).toHaveValue('0');
     const put = await salvarEsperando(page, resposta, 'Save response', tokenId);
 
     expect(put, 'o Save manda o PUT').not.toBeNull();

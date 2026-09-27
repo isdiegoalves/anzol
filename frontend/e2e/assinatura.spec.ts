@@ -115,8 +115,9 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await expect(providers).toHaveCount(6);
     await expect(checkedProvider(dialog)).toHaveAccessibleName(/^None\b/);
     await escolherProvedor(dialog, 'GitHub');
+    // Fidelidade ao C, fase 2 (CHECKS-09): formato do header, fórmula e segredo curto do protótipo.
     await expect(checkedProvider(dialog)).toHaveText(
-      /^\s*GitHub\s*X-Hub-Signature-256\s*Raw body, HMAC-SHA256, hex\s*The webhook's secret\s*$/,
+      /^\s*GitHub\s*X-Hub-Signature-256: sha256=<hex>\s*HMAC-SHA256\(secret, raw body\) → hex\s*The webhook Secret field\s*$/,
     );
     await expect(anatomy(dialog)).toHaveText(
       'Expected header: X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>',
@@ -255,16 +256,21 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
 
     await save.click();
 
-    await expect(pendenteAlerta(dialog)).toHaveText('To save, fill in: Signature header, Secret');
+    // Fidelidade ao C, fase 2 (CHECKS-13): depois do clique, o alerta conta os campos.
+    await expect(pendenteAlerta(dialog)).toHaveText(
+      '2 fields need attention: Signature header, Secret',
+    );
     await expect(header).toBeFocused();
     await expect(dialog.getByText('The header is required.')).toBeVisible();
     await expect(dialog.getByText('The secret is required, up to 256 characters.')).toBeVisible();
-    await expect(save).toHaveAccessibleDescription('To save, fill in: Signature header, Secret');
+    await expect(save).toHaveAccessibleDescription(
+      '2 fields need attention: Signature header, Secret',
+    );
     expect(puts).toEqual([]);
     await screenshot(page, '09-generico-o-que-falta');
 
     await header.fill('X-Signature');
-    await expect(resumo(dialog)).toHaveText('To save, fill in: Secret');
+    await expect(resumo(dialog)).toHaveText('1 field needs attention: Secret');
     await dialog.getByRole('textbox', { name: 'Prefix' }).fill('sha256=');
     await expect(anatomy(dialog)).toHaveText(
       'Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>',
@@ -298,7 +304,9 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
 
     await escolherProvedor(dialog, 'Shopify');
 
-    await expect(dialog.getByRole('status').filter({ hasText: 'is not reused' })).toHaveText(
+    // Fidelidade ao C, fase 2 (CHECKS-10): o aviso ganha "Unsaved: switching from … Requests already received keep
+    // the result they got on arrival." e mantém a instrução (S11).
+    await expect(dialog.getByRole('status').filter({ hasText: 'is not reused' })).toContainText(
       'The saved GitHub secret is not reused for Shopify: paste the Shopify secret.',
     );
     await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute('required', '');
@@ -307,7 +315,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
       MASKED,
     );
     await dialog.getByRole('button', { name: 'Save signature', exact: true }).click();
-    await expect(pendenteAlerta(dialog)).toHaveText('To save, fill in: Secret');
+    await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: Secret');
     await expect(dialog.getByLabel('Secret', { exact: true })).toBeFocused();
     await screenshot(page, '10-troca-de-provedor');
     await dialog.getByLabel('Secret', { exact: true }).fill('shpss_novo');

@@ -16,10 +16,12 @@ import { compacto, maisAcoes } from './support/shell';
 // cartão: os outros campos não voltam ao padrão nem levam o que foi digitado e não salvo), Health por
 // `GET /token/{id}/stats`, "Generate from a message", "Send a signed test", o "Edit" do cabeçalho levando a Checks,
 // `?section=` e o axe no Generic pendente (CA-2). SUPOSIÇÕES em `support/checks.ts` e mais:
-// - Health: `radiogroup "Window"` com os radios "50", "200" (padrão) e "500" (S20), que vão no `?window=` do
+// - Health: `combobox "Window"` com "Last 50", "Last 200" (padrão) e "Last 500" (S20; fidelidade ao C, fase 2,
+//   CHECKS-18: antes `radiogroup "Window"`), que vão no `?window=` do
 //   `stats`; a assinatura aparece como "{válidas} of {verificadas} valid" (verificadas = valid + invalid + absent)
 //   e os motivos (`signature.reasons`) como itens de lista "{motivo} … {quantidade}";
-// - Schema: `combobox "Generate from a message"` com as mensagens JSON recentes (opção com `#` e os 5 primeiros
+// - Schema: `combobox "Request"` (fidelidade ao C, fase 2, CHECKS-16: antes "Generate from a message") com as
+//   mensagens JSON recentes (opção com `#` e os 5 primeiros
 //   caracteres do UUID) e o `button "Generate schema"`, que preenche o "JSON Schema" sem salvar;
 // - Signature: "Send a signed test" (link ou botão) leva a `#/{token}/outbound?send=signed`;
 // - o "Edit URL" do menu ⋮ da URL (fidelidade ao C; antes um `link "Edit"`) leva a `#/{token}/checks` (sem diálogo "Edit
@@ -137,8 +139,8 @@ test.describe('Dado o cartão Health de uma URL com mensagens verificadas', () =
     const health = await abrirChecks(page, tokenId, 'Health');
     await padrao;
 
-    const janela = health.getByRole('radiogroup', { name: 'Window' });
-    await expect(janela.getByRole('radio', { name: '200', exact: true })).toBeChecked();
+    const janela = health.getByRole('combobox', { name: 'Window' });
+    await expect(janela).toContainText('Last 200');
     await expect(health).toContainText('2 of 4 valid');
     await expect(
       health.getByRole('listitem').filter({ hasText: 'signature mismatch' }),
@@ -148,9 +150,11 @@ test.describe('Dado o cartão Health de uma URL com mensagens verificadas', () =
     ).toContainText('1');
 
     const cinquenta = pedido('50');
-    await janela.getByRole('radio', { name: '50', exact: true }).click();
+    await janela.click();
+    await page.getByRole('option', { name: 'Last 50', exact: true }).click();
     await cinquenta;
-    await expect(janela.getByRole('radio', { name: '50', exact: true })).toBeChecked();
+    // "Last 50" sem casar com "Last 500".
+    await expect(janela).toContainText(/Last 50(?!0)/);
   });
 });
 
@@ -166,7 +170,7 @@ test.describe('Dado o cartão Schema validation', () => {
     });
     const schema = await abrirChecks(page, tokenId, 'Schema validation');
 
-    await schema.getByRole('combobox', { name: 'Generate from a message' }).click();
+    await schema.getByRole('combobox', { name: 'Request', exact: true }).click();
     await page.getByRole('option', { name: new RegExp(`#${exemplo.substring(0, 5)}`) }).click();
     await schema.getByRole('button', { name: 'Generate schema' }).click();
 
@@ -230,7 +234,7 @@ test.describe('Dado o cartão Signature verification', () => {
     await expect(save).toHaveAccessibleDescription('To save, fill in: Signature header, Secret');
     await save.click();
     await expect(pendenteAlerta(assinatura)).toHaveText(
-      'To save, fill in: Signature header, Secret',
+      '2 fields need attention: Signature header, Secret',
     );
     await expect(assinatura.getByRole('textbox', { name: 'Signature header' })).toBeFocused();
   });

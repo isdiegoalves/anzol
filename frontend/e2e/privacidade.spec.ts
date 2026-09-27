@@ -79,7 +79,9 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
     await dialog.getByLabel('Confirm secret', { exact: true }).fill('outro');
     await dialog.getByRole('button', { name: 'Create' }).click();
 
-    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: Secret to view, Confirm secret');
+    await expect(pendenteAlerta(dialog)).toHaveText(
+      '2 fields need attention: Secret to view, Confirm secret',
+    );
     await expect(dialog.getByText('The secret must have 8 to 256 characters.')).toBeVisible();
     await expect(dialog.getByText('The secrets do not match.')).toBeVisible();
   });

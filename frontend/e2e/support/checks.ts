@@ -2,6 +2,9 @@ import { Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
 
 /**
+ * Fidelidade ao C, fase 2 (CHECKS-13): antes do Save, o `status` continua "To save, fill in: …" / "To save, fix: …";
+ * depois do clique, o `alert` conta os campos: "N fields need attention: …" ("1 field needs attention: …").
+ *
  * Checks da interface nova (item 14, E5): a configuração da URL sai do diálogo "Edit URL" e vira a página
  * `#/{token}/checks`, com um cartão (`region`) por assunto e um Save com nome único em cada um (§1, "Nomes
  * acessíveis"; §3 item 4). O que a §1 não fixa está marcado SUPOSIÇÃO e é o contrato que a E5 segue.
@@ -70,17 +73,19 @@ export function pendente(regiao: Locator): Locator {
   return regiao.getByRole('status').filter({ hasText: /^To save, (fill in|fix):/ });
 }
 
-/** O mesmo resumo depois de clicar no Save com o que falta (`alert`). */
+const ATENCAO = /^\d+ fields? needs? attention:/;
+
+/** O resumo do que falta depois de clicar no Save (`alert` "N fields need attention: …", CHECKS-13). */
 export function pendenteAlerta(regiao: Locator): Locator {
-  return regiao.getByRole('alert').filter({ hasText: /^To save, (fill in|fix):/ });
+  return regiao.getByRole('alert').filter({ hasText: ATENCAO });
 }
 
 /** O resumo do que falta, em `status` ou `alert` (o texto muda conforme os campos são preenchidos). */
 export function resumo(regiao: Locator): Locator {
   return regiao
     .getByRole('status')
-    .or(regiao.getByRole('alert'))
-    .filter({ hasText: /^To save, (fill in|fix):/ });
+    .filter({ hasText: /^To save, (fill in|fix):/ })
+    .or(regiao.getByRole('alert').filter({ hasText: ATENCAO }));
 }
 
 /** Escolhe o provedor na tabela que é também o seletor. */

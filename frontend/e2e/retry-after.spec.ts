@@ -46,7 +46,7 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
       await dialog.getByLabel('Default status code').click();
       await dialog.getByRole('button', { name: 'Create' }).click();
 
-      await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: Retry-After');
+      await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: Retry-After');
       await expect(dialog.getByLabel('Retry-After')).toBeFocused();
       await expect(
         dialog.getByText('The retry after must be a number of seconds or an HTTP date.'),

@@ -83,7 +83,7 @@ test.describe('Dado o cartão "Schema validation" de Checks', () => {
     await field.blur();
     await expect(dialog.getByText(/^Invalid JSON: /)).toBeVisible();
     await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
-    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: JSON Schema');
+    await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: JSON Schema');
     await expect(field).toBeFocused();
     await field.fill(JSON.stringify(PEDIDO, null, 2));
     await field.scrollIntoViewIfNeeded();
@@ -136,7 +136,7 @@ test.describe('Dado o cartão "Schema validation" de Checks', () => {
     await expect(dialog.getByText(/^The schema is invalid: /)).toBeVisible();
     await expect(field).toHaveValue('{"$ref": "https://exemplo.com/pedido.json"}');
     await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
-    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: JSON Schema');
+    await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: JSON Schema');
     await field.scrollIntoViewIfNeeded();
     await screenshot(page, '04-edit-url-erro-do-servidor');
     expect(await tokens.read(tokenId)).toMatchObject({ schema: PEDIDO });
