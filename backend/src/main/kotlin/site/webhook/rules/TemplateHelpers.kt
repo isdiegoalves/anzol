@@ -8,6 +8,10 @@ import com.github.jknack.handlebars.helper.IfHelper
 import com.github.jknack.handlebars.helper.LookupHelper
 import com.github.jknack.handlebars.helper.UnlessHelper
 import com.github.jknack.handlebars.helper.WithHelper
+import site.webhook.signature.HmacAlgorithm
+import site.webhook.signature.SignatureConfig
+import site.webhook.signature.SignatureEncoding
+import site.webhook.signature.hmacOf
 import java.math.BigDecimal
 import java.math.MathContext
 import java.time.DateTimeException
@@ -20,6 +24,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 internal const val NOW_DATA = "site.webhook.now"
 internal const val VALIDATING_DATA = "site.webhook.validating"
+internal const val SIGNING_DATA = "site.webhook.signing"
 private const val DEFAULT_RANDOM_LENGTH = 16
 private val RANDOM_LENGTH = 1..10_000
 
@@ -38,7 +43,7 @@ private val RANDOM_ALPHABETS =
 private val ISO_SECONDS: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
 
 /**
- * Os únicos helpers: os de lógica do Handlebars (sem E/S) e os quatro do Anexo B. Ficam de fora os
+ * Os únicos helpers: os de lógica do Handlebars (sem E/S), os quatro do Anexo B e o `hmac` (segredo da URL). Ficam de fora os
  * embutidos que leem arquivo ou classpath (`embedded`, `partial`, `block`, `precompile`, `i18n`,
  * `i18nJs`), o `log` (escreve no log do servidor) e o `helperMissing` (sem ele,
  * helper desconhecido é erro de compilação, o que dá o 422 ao salvar). Nenhum helper em JavaScript
@@ -58,6 +63,7 @@ internal val HELPERS: Map<String, Helper<*>> =
                 randomValue(options.hash<Any?>("type"), options.hash<Any?>("length"), validating = options.validating())
             },
         "math" to withParams("math", 3) { left, options -> math(left, options.param<Any?>(0), options.param<Any?>(1)) },
+        "hmac" to withParams("hmac", 1) { value, options -> hmac(value, options) },
     )
 
 /**
@@ -136,6 +142,30 @@ private fun formatNow(
             }
         }
     }
+
+/**
+ * `{{hmac valor algorithm="sha256" encoding="hex"}}`: o HMAC do valor (texto ou número) com o segredo de verificação de
+ * assinatura da URL ([SIGNING_DATA]). Algoritmo ou codificação fora dos aceitos: na validação recusa o template (422);
+ * ao responder, o trecho sai vazio, como sai sem segredo configurado ou com valor que não é texto.
+ */
+private fun hmac(
+    value: Any?,
+    options: Options,
+): String {
+    val algorithmId = (options.hash<Any?>("algorithm") ?: HmacAlgorithm.SHA256.id).toString()
+    val encodingId = (options.hash<Any?>("encoding") ?: SignatureEncoding.HEX.id).toString()
+    val algorithm = HmacAlgorithm.entries.firstOrNull { it.id == algorithmId }
+    val encoding = SignatureEncoding.entries.firstOrNull { it.id == encodingId }
+    val validating = options.validating()
+    require(algorithm != null || !validating) { "hmac algorithm must be one of ${HmacAlgorithm.entries.joinToString(", ") { it.id }}" }
+    require(encoding != null || !validating) { "hmac encoding must be one of ${SignatureEncoding.entries.joinToString(", ") { it.id }}" }
+    val signing = options.data<SignatureConfig?>(SIGNING_DATA)
+    val text = value.takeIf { it is String || it is Number }?.toString()
+    return when {
+        signing == null || algorithm == null || encoding == null || text == null -> ""
+        else -> signing.hmacOf(text, algorithm, encoding)
+    }
+}
 
 /** `length` que não é inteiro de 1 a 10000: na validação recusa o template (422); ao responder, o trecho sai vazio. */
 private fun randomValue(

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import site.webhook.capture.CapturedRequest
+import site.webhook.signature.SignatureConfig
 import java.time.Instant
 
 /** O que o template enxerga da requisição (Anexo B): `request.*`; cabeçalhos com nome em minúsculas. */
@@ -21,18 +22,23 @@ data class TemplateRequest(
     val body: String,
 )
 
-/** Contexto de uma renderização: a requisição, o `seq` da mensagem gravada e o instante do `{{now}}`. */
+/**
+ * Contexto de uma renderização: a requisição, o `seq` da mensagem gravada, o instante do `{{now}}` e a verificação de
+ * assinatura da URL ([signing]), cujo segredo o `{{hmac}}` usa sem nunca expor (nula: o `{{hmac}}` sai vazio).
+ */
 data class TemplateInput(
     val request: TemplateRequest,
     val seq: Long,
     val now: Instant,
+    val signing: SignatureConfig? = null,
 )
 
 /**
  * `null` quando o texto é um template válido; senão o motivo, com linha e coluna. Recusa texto acima de
  * [MAX_TEMPLATE_LENGTH] e blocos ou subexpressões aninhados além de [MAX_TEMPLATE_NESTING]. Além de compilar,
  * renderiza uma vez em modo de validação (os dois ramos de cada bloco), que recusa helper sem os
- * parâmetros que exige, `randomValue` com `length` fora de 1..10000 e `jsonPath` com caminho não suportado,
+ * parâmetros que exige, `randomValue` com `length` fora de 1..10000, `jsonPath` com caminho não suportado e `hmac`
+ * com algoritmo ou codificação fora dos aceitos,
  * com os mesmos tetos da resposta.
  */
 fun templateError(text: String): String? =
@@ -214,6 +220,7 @@ private fun context(
         .data(NOW_DATA, input.now)
         .data(BUDGET_DATA, budget)
         .data(DOCUMENTS_DATA, documents)
+        .data(SIGNING_DATA, input.signing)
 }
 
 fun CapturedRequest.toTemplateRequest(): TemplateRequest {

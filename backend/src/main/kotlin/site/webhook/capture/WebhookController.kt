@@ -197,7 +197,7 @@ class WebhookController(
         stopwatch: CaptureStopwatch,
     ): Int {
         answer.delay?.let { stopwatch.sleep(Duration.ofMillis(it.millis())) }
-        val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant())
+        val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant(), token.signature)
         val rendered = answer.rendered(input)
         response.writeRuleResponse(token, captured, rendered, stopwatch)
         return rendered.status

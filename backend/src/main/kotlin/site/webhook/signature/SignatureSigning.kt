@@ -46,6 +46,16 @@ private fun SignatureConfig.signed(
     body: ByteArray,
 ): Map<String, String> = mapOf(scheme.header to scheme.prefix.orEmpty() + scheme.encoding.encode(hmac(scheme.algorithm, body)))
 
+/**
+ * O HMAC de [value] (UTF-8) com o segredo da URL, codificado: o helper `hmac` das respostas de regra. Só a assinatura
+ * sai, nunca o segredo.
+ */
+fun SignatureConfig.hmacOf(
+    value: String,
+    algorithm: HmacAlgorithm,
+    encoding: SignatureEncoding,
+): String = encoding.encode(hmac(algorithm, value.toByteArray(UTF_8)))
+
 private fun SignatureEncoding.encode(bytes: ByteArray): String =
     when (this) {
         SignatureEncoding.HEX -> HexFormat.of().formatHex(bytes)

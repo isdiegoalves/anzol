@@ -10,6 +10,9 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import site.webhook.signature.Secret
+import site.webhook.signature.SignatureConfig
+import site.webhook.signature.SignatureProvider
 import tools.jackson.databind.json.JsonMapper
 import java.lang.reflect.Modifier
 import java.time.Instant
@@ -24,10 +27,22 @@ private val REMETENTE =
         body = """{"v":"{{seq}}","t":"{{{request.body}}}"}""",
     )
 
+/** Segredo de assinatura da URL no sandbox: nenhuma sonda pode imprimi-lo (só o `{{hmac}}` o usa). */
+private const val SANDBOX_SECRET = "segredo-do-sandbox"
+
 private fun sandboxRender(
     template: String,
     request: TemplateRequest = REMETENTE,
-): String = renderTemplate(template, TemplateInput(request, seq = 42, now = Instant.parse("2026-09-26T13:45:07Z")))
+): String =
+    renderTemplate(
+        template,
+        TemplateInput(
+            request,
+            seq = 42,
+            now = Instant.parse("2026-09-26T13:45:07Z"),
+            signing = SignatureConfig(SignatureProvider.GitHub, Secret(SANDBOX_SECRET)),
+        ),
+    )
 
 /**
  * Chaves que o Handlebars e este app guardam nos dados da renderização: as constantes `String` públicas
@@ -37,7 +52,7 @@ private fun sandboxRender(
 private fun internalDataKeys(): List<String> =
     Context::class.java.fields
         .filter { Modifier.isStatic(it.modifiers) && it.type == String::class.java }
-        .map { it.get(null) as String } + listOf(NOW_DATA, VALIDATING_DATA, BUDGET_DATA, DOCUMENTS_DATA)
+        .map { it.get(null) as String } + listOf(NOW_DATA, VALIDATING_DATA, BUDGET_DATA, DOCUMENTS_DATA, SIGNING_DATA)
 
 /** A única chave dos dados da renderização que o template pode ler: o próprio contexto do Anexo B. */
 private const val READABLE_DATA_KEY = "root"
@@ -126,6 +141,7 @@ class TemplateSandboxTest {
         ) {
             assertThat(templateError(template)).describedAs("a sonda precisa compilar para provar algo").isNull()
             assertThat(sandboxRender(template)).describedAs("dado %s", key).isEmpty()
+            assertThat(sandboxRender("$template{{request}}{{hmac [$key]}}")).doesNotContain(SANDBOX_SECRET)
         }
 
         @ParameterizedTest(name = "{0}: {1}")

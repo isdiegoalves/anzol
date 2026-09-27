@@ -23,6 +23,9 @@ Rule fields:
   - template: boolean, default false. When true, body and header values are Handlebars templates:
     {{request.method}}, {{request.path}}, {{request.query.<name>}}, {{request.headers.<lowercase name>}},
     {{request.body}}, {{seq}}, {{jsonPath request.body '$.id'}}, {{now}}, {{randomValue type='UUID'}}.
+    {{hmac request.body algorithm="sha256" encoding="hex"}} signs a value with the signature verification secret
+    configured on the URL (algorithm: sha1, sha256 or sha512; encoding: hex or base64; both optional). Without a
+    configured secret it outputs nothing. Use it to sign callbacks, e.g. {"X-Signature": "sha256={{hmac request.body}}"}.
   - delay: {"fixed": ms} or {"uniform": {"min": ms, "max": ms}} or {"lognormal": {"median": ms, "sigma": s}}; max 60000 ms.
   - dribble: {"chunks": 1..100, "durationMs": 0..60000} sends the body in pieces.
   - fault: "connection_reset", "empty_response", "malformed_chunk" or "random_data_then_close" breaks the connection
