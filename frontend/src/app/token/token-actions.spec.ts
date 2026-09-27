@@ -6,7 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
 import { from } from 'rxjs';
 import type { MockInstance } from 'vitest';
-import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { TokenSettings } from './token';
 import { TokenActions, createError } from './token-actions';
@@ -125,16 +125,6 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
     expect(create.request.body).toEqual({ read_secret: 'segredo-longo' });
     expect(unlock.request.body).toEqual({ secret: 'segredo-longo' });
     expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID]);
-  });
-
-  it('deve abrir Checks com o schema da mensagem Quando "Create schema from this request" é clicado', async () => {
-    const request = webhookRequest(1, { content: '{"id": 7}' });
-
-    await TestBed.inject(TokenActions).createSchemaFrom(request);
-
-    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'checks'], {
-      queryParams: { 'schema-from': request.uuid },
-    });
   });
 
   it('deve apagar o acesso, trancar a tela e avisar Quando Lock é clicado', async () => {

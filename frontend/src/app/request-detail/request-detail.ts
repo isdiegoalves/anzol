@@ -158,10 +158,9 @@ export class RequestDetail {
     this.explaining.set(true);
   }
 
-  /** Os diálogos de saída vêm sob demanda (no pedaço do `outbound-actions`). */
+  /** Outbound com o Replay desta mensagem (E7). */
   protected async replayRequest(): Promise<void> {
-    const { OutboundActions } = await import('../outbound/outbound-actions');
-    this.injector.get(OutboundActions).replay(this.request());
+    await this.openOutbound('replay');
   }
 
   /** O diálogo do link só-leitura vem sob demanda (pedaço do `share-dialog`). */
@@ -170,10 +169,16 @@ export class RequestDetail {
     openShareDialog(this.injector, this.request());
   }
 
-  /** O Send da URL, já preenchido com método, headers e corpo da mensagem. */
+  /** Outbound com o Send já preenchido com método, headers e corpo desta mensagem (E7). */
   protected async sendAsNew(): Promise<void> {
-    const { OutboundActions } = await import('../outbound/outbound-actions');
-    this.injector.get(OutboundActions).send(this.request());
+    await this.openOutbound('send-from');
+  }
+
+  private async openOutbound(param: 'replay' | 'send-from'): Promise<void> {
+    const request = this.request();
+    await this.router.navigate(['/', request.token_id, 'outbound'], {
+      queryParams: { [param]: request.uuid },
+    });
   }
 
   /** Checks › Schema com o schema inferido desta mensagem, para revisar e salvar (E5). */

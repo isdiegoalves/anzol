@@ -148,8 +148,6 @@ module.exports = defineConfig([
           category: 'legacy',
           pattern: [
             'src/app/request-detail/request-view.ts',
-            'src/app/requests/method-label.ts',
-            'src/app/settings/options-bar.ts',
             'src/app/tutorial/tutorial.ts',
             'src/app/diff/compare-outlet.ts',
             'src/app/ai/explain-panel.ts',

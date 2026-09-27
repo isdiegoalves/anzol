@@ -5,7 +5,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
-import { WebhookRequest } from '../requests/webhook-request';
 import { TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
@@ -40,16 +39,6 @@ export class TokenActions {
       await this.access.lock(token.uuid);
       this.snackBar.open('URL locked', undefined, { duration: 4000 });
     }
-  }
-
-  /**
-   * "Create schema from this request": Checks › Schema com o schema inferido do corpo, para revisar
-   * e salvar (`?schema-from=`).
-   */
-  async createSchemaFrom(request: WebhookRequest): Promise<void> {
-    await this.router.navigate(['/', request.token_id, 'checks'], {
-      queryParams: { 'schema-from': request.uuid },
-    });
   }
 
   /**

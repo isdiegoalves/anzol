@@ -27,7 +27,6 @@ import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
-import { OptionsBar } from '../settings/options-bar';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { isTyping } from '../shell/hotkeys';
@@ -61,7 +60,6 @@ export const RECEIVED_NOTICE_MS = 4000;
     MatIconButton,
     MatSlideToggle,
     NgTemplateOutlet,
-    OptionsBar,
     RequestDetail,
     RequestList,
     Split,

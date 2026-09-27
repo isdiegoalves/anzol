@@ -11,7 +11,6 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
-import { OutboundActions } from '../outbound/outbound-actions';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
@@ -163,15 +162,21 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
   it.each([
     ['Replay…', 'replay'],
-    ['Send as new…', 'send'],
-  ] as const)('deve abrir o fluxo de saída de hoje Quando "%s" é clicado', async (name, which) => {
-    const actions = { replay: vi.fn(), send: vi.fn() };
+    ['Send as new…', 'send-from'],
+  ] as const)('deve abrir Outbound com a mensagem Quando "%s" é clicado', async (name, param) => {
     const request = webhookRequest(5);
-    await show(request, [{ provide: OutboundActions, useValue: actions }]);
+    const { fixture } = await show(request);
+    const navigate = vi
+      .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
+      .mockResolvedValue(true);
 
     await userEvent.click(action(name));
 
-    await vi.waitFor(() => expect(actions[which]).toHaveBeenCalledWith(request));
+    await vi.waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'outbound'], {
+        queryParams: { [param]: request.uuid },
+      }),
+    );
   });
 
   it('deve abrir o diálogo do link só-leitura Quando "Share read-only link…" é clicado', async () => {
