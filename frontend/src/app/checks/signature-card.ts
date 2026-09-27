@@ -24,7 +24,7 @@ import {
 import { TokenStore } from '../token/token-store';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, fieldErrors, pendingSummary, updateError } from './url-settings';
+import { PendingField, fieldErrors, pendingSummary, saveErrorNotice } from './url-settings';
 
 type ProviderOption = SignatureProvider | 'none';
 
@@ -164,6 +164,8 @@ export class SignatureCard {
   /** A configuração salva: base do "SAVED", do segredo mantido e do Discard. */
   protected readonly saved = signal<SignatureConfig | null>(this.tokens.token()?.signature ?? null);
   protected readonly form = this.signatureForm(this.saved());
+  /** A URL como este cartão a leu: o save confere se a assinatura mudou lá fora. */
+  private readonly base = signal(this.tokens.token());
   protected readonly saving = signal(false);
   protected readonly attempted = signal(false);
   protected readonly notice = signal<SaveNotice | null>(null);
@@ -252,6 +254,18 @@ export class SignatureCard {
     this.reset(this.saved());
   }
 
+  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
+  protected async reloadCard(): Promise<void> {
+    const base = this.base();
+    if (base) {
+      const token = await this.checks.reload(base.uuid);
+      this.base.set(token);
+      this.saved.set(token.signature ?? null);
+      this.reset(this.saved());
+      this.notice.set(null);
+    }
+  }
+
   protected async saveSignature(): Promise<void> {
     if (this.saving()) {
       return;
@@ -261,9 +275,14 @@ export class SignatureCard {
       this.showPending();
       return;
     }
+    const base = this.base();
+    if (!base) {
+      return;
+    }
     this.saving.set(true);
     try {
-      const token: Token = await this.checks.save({ signature: this.signatureOf() });
+      const token: Token = await this.checks.save({ signature: this.signatureOf() }, base);
+      this.base.set(token);
       this.saved.set(token.signature ?? null);
       this.reset(this.saved());
       this.notice.set({ text: 'Saved.', error: false });
@@ -273,7 +292,7 @@ export class SignatureCard {
         this.form.controls.secret.setErrors({ server: messages.join(' ') });
         this.showPending();
       } else {
-        this.notice.set({ text: updateError(error), error: true });
+        this.notice.set(saveErrorNotice(error));
       }
     } finally {
       this.saving.set(false);

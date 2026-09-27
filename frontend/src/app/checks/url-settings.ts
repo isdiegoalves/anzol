@@ -100,3 +100,50 @@ export function pendingSummary(fields: readonly PendingField[]): string {
   ];
   return parts.length > 0 ? `To save, ${parts.join('; ')}` : '';
 }
+
+/** Rótulo de cada campo do `PUT` na tela, para a frase de "changed elsewhere". */
+const FIELD_LABELS: Record<keyof TokenSettings, string> = {
+  default_status: 'default status code',
+  default_content_type: 'content type',
+  timeout: 'timeout',
+  default_content: 'response body',
+  retry_after: 'Retry-After',
+  auto_cleanup: 'auto cleanup',
+  signature: 'signature',
+  schema: 'schema',
+  read_secret: 'privacy',
+};
+
+/**
+ * Campos que o cartão manda (`changes`) e que mudaram no servidor (`fresh`) desde que o cartão leu a
+ * URL (`base`). O segredo de leitura não volta na API: compara-se o `protected`.
+ */
+export function changedFields(
+  base: Token,
+  fresh: Token,
+  changes: TokenSettings,
+): (keyof TokenSettings)[] {
+  const before = savedSettings(base);
+  const now = savedSettings(fresh);
+  return (Object.keys(changes) as (keyof TokenSettings)[]).filter((field) =>
+    field === 'read_secret'
+      ? (base.protected ?? false) !== (fresh.protected ?? false)
+      : JSON.stringify(before[field] ?? null) !== JSON.stringify(now[field] ?? null),
+  );
+}
+
+/** "The schema changed elsewhere since this page read it. Reload to see it before saving." */
+export function changedElsewhereText(fields: readonly string[]): string {
+  const labels = fields.map((field) => FIELD_LABELS[field as keyof TokenSettings] ?? field);
+  const list =
+    labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0];
+  return `The ${list} changed elsewhere since this page read it. Reload to see it before saving.`;
+}
+
+/** O aviso do cartão para o erro do `save`: "changed elsewhere" (com Reload) ou o erro do `PUT`. */
+export function saveErrorNotice(error: unknown): { text: string; error: true; reload: boolean } {
+  if (error instanceof Error && 'fields' in error && Array.isArray(error.fields)) {
+    return { text: changedElsewhereText(error.fields as string[]), error: true, reload: true };
+  }
+  return { text: updateError(error), error: true, reload: false };
+}

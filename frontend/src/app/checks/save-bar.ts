@@ -5,6 +5,8 @@ import { MatButton } from '@angular/material/button';
 export interface SaveNotice {
   text: string;
   error: boolean;
+  /** Mostra "Reload" (a URL mudou em outro lugar). */
+  reload?: boolean;
 }
 
 /**
@@ -37,6 +39,9 @@ export interface SaveNotice {
       }
     </div>
     <div class="actions">
+      @if (result?.reload) {
+        <button mat-stroked-button type="button" (click)="reload.emit()" i18n>Reload</button>
+      }
       <ng-content />
       <button
         mat-flat-button
@@ -59,4 +64,5 @@ export class SaveBar {
   readonly attempted = input(false);
   readonly notice = input<SaveNotice | null>(null);
   readonly save = output<void>();
+  readonly reload = output<void>();
 }

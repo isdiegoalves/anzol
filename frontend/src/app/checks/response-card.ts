@@ -9,7 +9,7 @@ import { AUTO_CLEANUP_LIMITS, AutoCleanup, Token, retryAfterValidator } from '..
 import { TokenStore } from '../token/token-store';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, pendingSummary, updateError } from './url-settings';
+import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
 
 const INTEGER = /^[+-]?\d+$/;
 /** Valor do segmentado "Auto cleanup": `off` desliga (vai `null`). */
@@ -58,6 +58,8 @@ export class ResponseCard {
   protected readonly saving = signal(false);
   protected readonly notice = signal<SaveNotice | null>(null);
   protected readonly togglingCors = signal(false);
+  /** A URL como este cartão a leu: o save confere se o campo dele mudou lá fora. */
+  private readonly base = signal(this.tokens.token());
 
   constructor() {
     this.reset(this.tokens.token());
@@ -73,7 +75,18 @@ export class ResponseCard {
   }
 
   protected discard(): void {
-    this.reset(this.tokens.token());
+    this.reset(this.base());
+  }
+
+  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
+  protected async reloadCard(): Promise<void> {
+    const base = this.base();
+    if (base) {
+      const token = await this.checks.reload(base.uuid);
+      this.base.set(token);
+      this.reset(token);
+      this.notice.set(null);
+    }
   }
 
   protected async toggleCors(): Promise<void> {
@@ -92,22 +105,31 @@ export class ResponseCard {
       return;
     }
     const value = this.form.getRawValue();
+    const base = this.base();
+    if (!base) {
+      return;
+    }
     this.saving.set(true);
     try {
-      const token = await this.checks.save({
-        default_status: value.default_status,
-        // Em branco é o padrão do servidor, como o campo ausente no app atual.
-        default_content_type: value.default_content_type || 'text/plain',
-        timeout: value.timeout === '' ? '0' : value.timeout,
-        default_content: value.default_content,
-        retry_after: value.retry_after || null,
-        auto_cleanup:
-          value.auto_cleanup === 'off' ? null : (Number(value.auto_cleanup) as AutoCleanup),
-      });
+      const token = await this.checks.save(
+        {
+          default_status: value.default_status,
+          // Em branco é o padrão do servidor, como o campo ausente no app atual.
+          default_content_type: value.default_content_type || 'text/plain',
+          // O campo numérico apagado vem `null`: vazio é 0, como no Create (e o servidor recusa null).
+          timeout: value.timeout == null || value.timeout === '' ? '0' : String(value.timeout),
+          default_content: value.default_content,
+          retry_after: value.retry_after || null,
+          auto_cleanup:
+            value.auto_cleanup === 'off' ? null : (Number(value.auto_cleanup) as AutoCleanup),
+        },
+        base,
+      );
+      this.base.set(token);
       this.reset(token);
       this.notice.set({ text: 'Saved.', error: false });
     } catch (error) {
-      this.notice.set({ text: updateError(error), error: true });
+      this.notice.set(saveErrorNotice(error));
     } finally {
       this.saving.set(false);
     }

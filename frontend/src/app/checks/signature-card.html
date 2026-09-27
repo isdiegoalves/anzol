@@ -203,6 +203,7 @@
   [summary]="pending()"
   [attempted]="attempted()"
   [notice]="notice()"
+  (reload)="reloadCard()"
   (save)="saveSignature()"
 >
   @if (savedConfig && !form.dirty) {

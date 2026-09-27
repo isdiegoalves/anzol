@@ -9,7 +9,7 @@ import { TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, pendingSummary, updateError } from './url-settings';
+import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
 
 /** Tamanho do segredo de leitura que o servidor aceita. */
 const READ_SECRET_MIN = 8;
@@ -45,6 +45,8 @@ export class PrivacyCard {
 
   /** A URL salva já exige segredo: campo em branco mantém o atual. */
   protected readonly wasProtected = signal(this.tokens.token()?.protected === true);
+  /** A URL como este cartão a leu: o save confere se a proteção mudou lá fora. */
+  private readonly base = signal(this.tokens.token());
   protected readonly form = this.formBuilder.group({
     required: [this.wasProtected()],
     read_secret: [''],
@@ -78,6 +80,18 @@ export class PrivacyCard {
     this.reset();
   }
 
+  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
+  protected async reloadCard(): Promise<void> {
+    const base = this.base();
+    if (base) {
+      const token = await this.checks.reload(base.uuid);
+      this.base.set(token);
+      this.wasProtected.set(token.protected === true);
+      this.reset();
+      this.notice.set(null);
+    }
+  }
+
   protected async savePrivacy(): Promise<void> {
     if (this.saving()) {
       return;
@@ -87,14 +101,19 @@ export class PrivacyCard {
       this.showPending();
       return;
     }
+    const base = this.base();
+    if (!base) {
+      return;
+    }
     this.saving.set(true);
     try {
-      const token = await this.checks.save(this.readSecret());
+      const token = await this.checks.save(this.readSecret(), base);
+      this.base.set(token);
       this.wasProtected.set(token.protected === true);
       this.reset();
       this.notice.set({ text: 'Saved.', error: false });
     } catch (error) {
-      this.notice.set({ text: updateError(error), error: true });
+      this.notice.set(saveErrorNotice(error));
     } finally {
       this.saving.set(false);
     }

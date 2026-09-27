@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { expectPut, renderCard } from '../../testing/checks';
+import { expectGet, expectPut, renderCard } from '../../testing/checks';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { ResponseCard } from './response-card';
@@ -96,6 +96,34 @@ describe('Dado o cartão "Response" de Checks', () => {
       http.expectNone((sent) => sent.method === 'PUT');
     },
   );
+
+  it('deve mandar timeout 0, e não nulo (422), Quando o campo do timeout é apagado', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+
+    await userEvent.clear(screen.getByRole('spinbutton', { name: 'Timeout before response' }));
+    await userEvent.click(save());
+
+    const put = await expectPut(http);
+    expect(put.request.body.timeout).toBe('0');
+    put.flush(SALVA);
+  });
+
+  it('deve avisar "changed elsewhere", sem sobrescrever, e recarregar pelo Reload Quando o status mudou lá fora', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+
+    await userEvent.clear(box('Default status code'));
+    await userEvent.type(box('Default status code'), '201');
+    await userEvent.click(save());
+    (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toMatch(/changed elsewhere/),
+    );
+    http.expectNone((sent) => sent.method === 'PUT');
+    await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
+    await vi.waitFor(() => expect(box('Default status code').value).toBe('404'));
+  });
 
   it('deve ligar o CORS na hora, sem Save, Quando o switch é clicado', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);

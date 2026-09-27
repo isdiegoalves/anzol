@@ -82,6 +82,7 @@
   [summary]="pending()"
   [attempted]="attempted()"
   [notice]="notice()"
+  (reload)="reloadCard()"
   (save)="saveResponse()"
 >
   @if (form.dirty) {

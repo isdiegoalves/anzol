@@ -31,9 +31,24 @@ export async function renderCard<T>(
   return { ...result, http: TestBed.inject(HttpTestingController) };
 }
 
-/** O `PUT /token/{id}` que o Save mandou. */
-export function expectPut(http: HttpTestingController): Promise<TestRequest> {
+/** A releitura `GET /token/{id}` que o Save faz antes do `PUT`. */
+export function expectGet(http: HttpTestingController): Promise<TestRequest> {
   return vi.waitFor(() =>
-    http.expectOne((sent) => sent.method === 'PUT' && sent.url === `/token/${TOKEN_ID}`),
+    http.expectOne((sent) => sent.method === 'GET' && sent.url === `/token/${TOKEN_ID}`),
   );
+}
+
+/**
+ * O `PUT /token/{id}` que o Save mandou. A releitura de antes do `PUT` responde a URL como a tela a
+ * tem (nada mudou em outro lugar).
+ */
+export function expectPut(http: HttpTestingController): Promise<TestRequest> {
+  return vi.waitFor(() => {
+    for (const read of http.match(
+      (sent) => sent.method === 'GET' && sent.url === `/token/${TOKEN_ID}`,
+    )) {
+      read.flush(TestBed.inject(Preferences).token());
+    }
+    return http.expectOne((sent) => sent.method === 'PUT' && sent.url === `/token/${TOKEN_ID}`);
+  });
 }

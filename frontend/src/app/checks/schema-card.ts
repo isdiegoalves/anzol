@@ -17,7 +17,7 @@ import {
   schemaOf,
   schemaText,
   schemaValidator,
-  updateError,
+  saveErrorNotice,
 } from './url-settings';
 
 /**
@@ -44,6 +44,8 @@ export class SchemaCard {
   readonly schemaFrom = input<string | null>(null);
 
   protected readonly saved = signal<JsonSchema | null>(this.tokens.token()?.schema ?? null);
+  /** A URL como este cartão a leu: o save confere se o schema mudou lá fora. */
+  private readonly base = signal(this.tokens.token());
   protected readonly form = this.formBuilder.group({
     schema: [schemaText(this.saved()), schemaValidator],
     source: [''],
@@ -106,6 +108,18 @@ export class SchemaCard {
     this.setDraft('');
   }
 
+  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
+  protected async reloadCard(): Promise<void> {
+    const base = this.base();
+    if (base) {
+      const token = await this.checks.reload(base.uuid);
+      this.base.set(token);
+      this.saved.set(token.schema ?? null);
+      this.discard();
+      this.notice.set(null);
+    }
+  }
+
   protected discard(): void {
     this.form.controls.schema.reset(schemaText(this.saved()));
     this.attempted.set(false);
@@ -134,9 +148,14 @@ export class SchemaCard {
       this.showPending();
       return;
     }
+    const base = this.base();
+    if (!base) {
+      return;
+    }
     this.saving.set(true);
     try {
-      const token: Token = await this.checks.save({ schema: schemaOf(control.value) });
+      const token: Token = await this.checks.save({ schema: schemaOf(control.value) }, base);
+      this.base.set(token);
       this.saved.set(token.schema ?? null);
       control.reset(schemaText(this.saved()));
       this.attempted.set(false);
@@ -148,7 +167,7 @@ export class SchemaCard {
         control.setErrors({ server: messages.join(' ') });
         control.markAsTouched();
       } else {
-        this.notice.set({ text: updateError(error), error: true });
+        this.notice.set(saveErrorNotice(error));
       }
     } finally {
       this.saving.set(false);

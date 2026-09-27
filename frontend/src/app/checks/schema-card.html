@@ -96,6 +96,7 @@
   [summary]="pending()"
   [attempted]="attempted()"
   [notice]="notice()"
+  (reload)="reloadCard()"
   (save)="saveSchema()"
 >
   @if (control.dirty) {

@@ -7,8 +7,9 @@ import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { TokenStats } from '../stats/stats';
 import { Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
-import { cutsRequests, withChanges } from './url-settings';
+import { changedFields, cutsRequests, withChanges } from './url-settings';
 
 /**
  * Chamadas da página Checks. Toda escrita vai por `HttpClient` com corpo JSON, da própria origem
@@ -19,29 +20,41 @@ export class ChecksStore {
   private readonly http = inject(HttpClient);
   private readonly tokens = inject(TokenStore);
   private readonly urlLock = inject(UrlLock);
+  private readonly preferences = inject(Preferences);
   private readonly requests = inject(RequestStore);
   private readonly snackBar = inject(MatSnackBar);
 
   /**
-   * Salva um cartão: a configuração salva da URL com as mudanças do cartão por cima (CA-11). Com
-   * segredo de leitura novo, destranca já com ele (o `PUT` não dá o cookie de acesso e a troca
-   * invalida o anterior). Com a limpeza reduzida, a lista da Inbox vem de novo do servidor (o corte
-   * não gera evento). Erro volta para o cartão.
+   * Salva um cartão (CA-11). `base` é a URL como o cartão a leu. Antes do `PUT`, relê a URL no
+   * servidor: outra aba, o CLI ou o MCP podem ter gravado nesse meio-tempo. O corpo é a URL relida
+   * com as mudanças do cartão por cima, então o que o cartão não edita segue como está no servidor.
+   * Se um campo do próprio cartão mudou lá fora, não sobrescreve: `ChangedElsewhere`.
+   * Com segredo de leitura novo, destranca com ele antes de publicar a URL salva: publicar dispara
+   * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. Com a limpeza
+   * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
    */
-  async save(changes: TokenSettings): Promise<Token> {
-    const before = this.tokens.token();
-    if (!before) {
-      throw new Error('No URL open');
+  async save(changes: TokenSettings, base: Token): Promise<Token> {
+    const url = `/token/${base.uuid}`;
+    const fresh = await firstValueFrom(this.http.get<Token>(url));
+    const changed = changedFields(base, fresh, changes);
+    if (changed.length > 0) {
+      throw new ChangedElsewhere(changed);
     }
-    const updated = await this.tokens.update(before.uuid, withChanges(before, changes));
+    const updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
     if (typeof changes.read_secret === 'string') {
-      await this.unlock(before.uuid, changes.read_secret);
+      await this.unlock(base.uuid, changes.read_secret);
     }
-    if (cutsRequests(before, updated) && this.requests.tokenId() === before.uuid) {
+    this.preferences.token.set(updated);
+    if (cutsRequests(fresh, updated) && this.requests.tokenId() === base.uuid) {
       await this.requests.reload();
     }
     this.snackBar.open('URL updated!', undefined, { duration: 4000 });
     return updated;
+  }
+
+  /** "Reload" depois de `ChangedElsewhere`: a URL como está no servidor. */
+  reload(tokenId: string): Promise<Token> {
+    return this.tokens.load(tokenId);
   }
 
   /** Grava o cookie de acesso com o segredo novo (como o `UrlAccess.unlock` da tela de desbloqueio). */
@@ -101,5 +114,12 @@ export function jsonBody(request: WebhookRequest): { value: unknown } | null {
     return { value: JSON.parse(request.content) as unknown };
   } catch {
     return null;
+  }
+}
+
+/** Um campo do cartão mudou no servidor desde que o cartão o leu (outra aba, CLI, MCP). */
+export class ChangedElsewhere extends Error {
+  constructor(readonly fields: readonly string[]) {
+    super(`Changed elsewhere: ${fields.join(', ')}`);
   }
 }
