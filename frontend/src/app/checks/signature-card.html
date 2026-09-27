@@ -105,12 +105,7 @@
   <div class="setup">
     <div class="explain">
       <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
-      <div class="anatomy">
-        <span class="anatomy-label" i18n>Expected header: </span>
-        @for (line of anatomy(); track $index) {
-          <code>{{ line }}</code>
-        }
-      </div>
+      <p class="anatomy" [textContent]="anatomyText()"></p>
       <ul class="legend">
         @for (note of legend[chosen]; track note) {
           <li>{{ note }}</li>

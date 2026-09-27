@@ -133,18 +133,13 @@
 }
 
 .anatomy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font: var(--mat-sys-body-small);
-
-  code {
-    padding: 6px 8px;
-    border-radius: var(--mat-sys-corner-small);
-    background: var(--mat-sys-surface-container-high);
-    font-family: var(--app-code-family);
-    word-break: break-all;
-  }
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-high);
+  font: 12px / 1.6 var(--app-code-family);
+  white-space: pre-line;
+  word-break: break-all;
 }
 
 .legend {

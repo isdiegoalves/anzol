@@ -34,6 +34,7 @@ export class ChecksStore {
    * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
    */
   async save(changes: TokenSettings, base: Token): Promise<Token> {
+    this.snackBar.dismiss();
     const url = `/token/${base.uuid}`;
     const fresh = await firstValueFrom(this.http.get<Token>(url));
     const changed = changedFields(base, fresh, changes);

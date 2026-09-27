@@ -242,6 +242,11 @@ export class SignatureCard {
     return [`${c.header.value || '<header>'}: ${c.prefix.value}<${c.encoding.value} of ${hmac}>`];
   }
 
+  /** A linha "Expected header:" com o header do provedor escolhido (texto corrido, uma linha por header). */
+  protected anatomyText(): string {
+    return `Expected header: ${this.anatomy().join('\n')}`;
+  }
+
   protected guideOf(provider: ProviderOption) {
     return this.providers.find((row) => row.provider === provider) ?? null;
   }
