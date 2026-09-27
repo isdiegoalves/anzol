@@ -31,15 +31,7 @@ import {
  */
 @Component({
   selector: 'app-schema-card',
-  imports: [
-    Icon,
-    ReactiveFormsModule,
-    MatButton,
-    MatFormField,
-    MatOption,
-    MatSelect,
-    SaveBar,
-  ],
+  imports: [Icon, ReactiveFormsModule, MatButton, MatFormField, MatOption, MatSelect, SaveBar],
   templateUrl: './schema-card.html',
   styleUrls: ['./card.scss', './schema-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'schema-title' },
