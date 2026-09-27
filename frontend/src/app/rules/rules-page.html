@@ -34,27 +34,33 @@
   <section class="list" aria-labelledby="rules-title">
     <header class="heading">
       <div>
-        <h1 id="rules-title" i18n>Rules</h1>
+        <div class="title">
+          <h1 id="rules-title" i18n>Rules</h1>
+          @if (loaded()) {
+            <span class="count" i18n>{{ store.rules().length }} · {{ enabledCount() }} on</span>
+          }
+        </div>
         <p class="hint" i18n>
-          Checked by priority, lowest first (ties in list order). The first enabled rule that
-          matches answers the request; with none, the URL answers with its default response.
+          Checked by priority, lowest first. The first enabled rule that matches answers; if none
+          does, the URL's default response does.
         </p>
       </div>
       <div class="actions">
-        <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
-        <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()" i18n>
-          New rule
-        </button>
         <button
-          mat-stroked-button
+          mat-icon-button
           type="button"
-          title="Replace all rules with the ones in a JSON file"
+          aria-label="Import"
+          i18n-aria-label
+          title="Import: replace all rules with the ones in a JSON file"
           i18n-title
           [disabled]="!loaded()"
           (click)="file.click()"
-          i18n
         >
-          Import
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="line-icon">
+            <path d="M12 15V3" />
+            <path d="m7 8 5-5 5 5" />
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          </svg>
         </button>
         <input
           #file
@@ -67,15 +73,24 @@
           (change)="importRules(file)"
         />
         <button
-          mat-stroked-button
+          mat-icon-button
           type="button"
-          title="Download the saved rules as JSON"
+          aria-label="Export"
+          i18n-aria-label
+          title="Export: download the saved rules as JSON"
           i18n-title
           [disabled]="!loaded()"
           (click)="exportRules()"
-          i18n
         >
-          Export
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="line-icon">
+            <path d="M12 3v12" />
+            <path d="m7 10 5 5 5-5" />
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          </svg>
+        </button>
+        <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
+        <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()" i18n>
+          New rule
         </button>
       </div>
     </header>

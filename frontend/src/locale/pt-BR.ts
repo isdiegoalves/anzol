@@ -1450,21 +1450,10 @@ export const translations: Record<string, string> = {
   '4607248102861950784': 'qualquer estado',
   // keeps the state
   '5422596717510972238': 'mantém o estado',
-  //  Checked by priority, lowest first (ties in list order). The first enabled rule that matches answers the request; with none, the URL answers with its default response.
-  '4665377075231924686':
-    ' Conferidas por prioridade, a menor primeiro (empate na ordem da lista). A primeira regra ligada que casa responde a requisição; sem nenhuma, a URL responde com a resposta padrão. ',
   //  New rule
   '9165932520457161115': ' Nova regra ',
-  // Replace all rules with the ones in a JSON file
-  '4173945230632532972': 'Trocar todas as regras pelas de um arquivo JSON',
-  //  Import
-  '727310260821422069': ' Importar ',
   // Rules JSON file
   '619699644984878010': 'Arquivo JSON de regras',
-  // Download the saved rules as JSON
-  '8556016147397832585': 'Baixar as regras salvas em JSON',
-  //  Export
-  '4375214631223740583': ' Exportar ',
   //  The rules changed elsewhere since this page read them, so nothing was saved. Reload to see the current rules, then try again.
   '5676955896221894273':
     ' As regras mudaram em outro lugar desde que esta página as leu, então nada foi salvo. Recarregue para ver as regras atuais e tente de novo. ',
@@ -2107,4 +2096,21 @@ export const translations: Record<string, string> = {
   '3626015837035842959': ' Voltar tudo a Started ',
   // not validated
   '6369481998239960406': 'não validado',
+  // OFF
+  '3129001544428431323': 'DESLIGADA',
+  // {$INTERPOLATION} · {$INTERPOLATION_1} on
+  '3968264942277486357': '{$INTERPOLATION} · {$INTERPOLATION_1} ligadas',
+  //  Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.
+  '1150843568729669655':
+    ' Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL. ',
+  // Import
+  '1071721880474488785': 'Importar',
+  // Import: replace all rules with the ones in a JSON file
+  '770758667285644039': 'Importar: trocar todas as regras pelas de um arquivo JSON',
+  // Export
+  '7462301153729425254': 'Exportar',
+  // Export: download the saved rules as JSON
+  '3347999324731452812': 'Exportar: baixar as regras salvas em JSON',
+  // Not checked while off
+  '7978723831900223519': 'Não avaliada enquanto desligada',
 };

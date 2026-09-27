@@ -106,7 +106,28 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+// "Rules" e o contador "9 · 8 on" na mesma linha (RULES-06).
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.count {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-title-small);
+}
+
+.line-icon {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .file,

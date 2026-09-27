@@ -130,6 +130,10 @@ export class RulesPage {
   );
   /** Largura da lista ao lado do editor (C: 440 px), guardada em `rulesListWidth`. */
   protected readonly listWidth = signal(440);
+  /** Quantas regras estão ligadas ("9 · 8 on" ao lado do h1, RULES-06). */
+  protected readonly enabledCount = computed(
+    () => this.store.rules().filter((rule) => rule.enabled !== false).length,
+  );
   protected readonly hasScenarios = computed(() =>
     this.store.rules().some((rule) => !!rule.scenario?.name),
   );
@@ -212,6 +216,10 @@ export class RulesPage {
    * cenário na frente; sem os hits de `stats`, só a transição.
    */
   protected hitsOf(item: OrderedRule): string | null {
+    if (item.rule.enabled === false) {
+      // Desligada, a regra não é avaliada: "Answered 0" sugeriria que ela roda e não casa (RULES-08).
+      return $localize`Not checked while off`;
+    }
     const hits = this.store.hits();
     if (!hits) {
       return item.transition;

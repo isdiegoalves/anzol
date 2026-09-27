@@ -23,7 +23,7 @@ import { RuleFlag } from './rule';
       }
       <span class="spacer"></span>
       @if (off()) {
-        <span class="off" i18n>Off</span>
+        <span class="off" i18n>OFF</span>
       }
       <app-status-code class="status" [status]="status()" error="Fault" i18n-error />
     </span>

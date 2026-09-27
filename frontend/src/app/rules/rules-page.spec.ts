@@ -205,6 +205,32 @@ describe('Dado a página Rules', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
+  describe('Dado o cabeçalho e a regra desligada (RULES-06/08)', () => {
+    it('deve contar as ligadas ao lado do h1, com a frase curta e Import/Export só com ícone', async () => {
+      await open([rule(1), rule(2, { enabled: false }), rule(3)]);
+
+      const titulo = screen.getByRole('heading', { name: 'Rules', level: 1 });
+      expect(titulo.parentElement?.querySelector('.count')?.textContent?.trim()).toBe('3 · 2 on');
+      expect(document.querySelector('.heading .hint')?.textContent?.trim()).toBe(
+        "Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.",
+      );
+      for (const name of ['Import', 'Export']) {
+        const botao = screen.getByRole('button', { name });
+        expect(botao.getAttribute('title')).toMatch(/\S/);
+        expect(botao.textContent?.trim()).toBe('');
+      }
+      expect(screen.getByText('Hits over the last 12 requests kept.')).toBeTruthy();
+    });
+
+    it('deve marcar a regra desligada com OFF e dizer que ela não é avaliada no lugar dos hits', async () => {
+      await open([rule(1), rule(2, { enabled: false })]);
+
+      expect(row('r2').querySelector('.off')?.textContent?.trim()).toBe('OFF');
+      expect(row('r2').querySelector('.hits')?.textContent?.trim()).toBe('Not checked while off');
+      expect(row('r1').querySelector('.off')).toBeNull();
+    });
+  });
+
   describe('Dado uma mudança que parte da lista (toggle, ordem, apagar)', () => {
     it('deve salvar a lista inteira com a regra desligada Quando o toggle é desligado', async () => {
       await open([rule(1), rule(2)]);
