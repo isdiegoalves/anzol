@@ -719,6 +719,57 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   da API grava mensagem sem passar pela captura e o contrato não escreve no Redis, então essa leitura fica com os
   testes do backend.
 
+- **Decisões do Anzol** (M1 e T1–T4, "siga as recomendações" do dono em 2026-09-27; desenho em
+  `.docs-arquivo/decisoes-anzol/api.md`). Escritos antes do backend.
+  - *Busca pelo motivo exato* (`busca-motivo.spec.ts`, M1): `signature_reason` e `schema_path` no topo da busca, fora
+    de `match`.
+    - `signature_reason` é o `reason` inválido sem o parêntese final (`timestamp outside tolerance` acha as de 412 s e as
+      de 900 s; com o parêntese no valor, também). Também cobre `signature mismatch`, `malformed header`, `header
+      Stripe-Signature absent` e `header X-Hub-Signature-256 absent`. É exato: trecho, outra caixa ou espaço dobrado não
+      acham. URL sem assinatura não acha nada.
+    - `schema_path` é JSON Pointer exato: `/id`, `/status`, `""` para a raiz, `/itens/1/qtd`, `/a~1b` e `/m~0n`. Prefixo
+      ou outra grafia não acham; URL sem schema não acha nada.
+    - Os dois combinam em E entre si e com `text`, `match` e `outcome`, com paginação sobre o filtrado. `null` vale como
+      ausente e sem os campos a busca é igual à listagem. O `count` de cada `reasons[]` e `paths[]` do `/stats` é o
+      `total` da busca.
+    - 422 em `signature_reason` (número, booleano, lista, objeto, vazio, 201 caracteres) e em `schema_path` (tipo
+      errado, `id`, `$.valor`, `$`, `/a~2`, `/a~`, 1001 caracteres). São aceitos `""`, `/`, `/a~0b~1c` e 999
+      caracteres.
+  - *ReDoS* (`redos.spec.ts`, T1): `((a+)*)+$` contra `a`×30 + `!` e `(.*a){12}` contra `a`×40 + `!`. O `(a+)+$`
+    clássico não serve, porque o JDK 25 o resolve em milissegundos.
+    - Salvar a regra e o schema é aceito como hoje.
+    - Webhook, `rules/test` sobre 10 mensagens, trace, busca sobre 10 mensagens e wait-for com `timeout: 0` respondem em
+      menos de 5 s, medidos no cliente.
+    - A condição conta como não casou: a regra seguinte responde, ou a resposta padrão. A frase `<alvo>: … timed out`
+      vem na chave de sempre (`match.query.q`, `match.headers.X-A`, `match.body.0`, `path`, `query q`).
+    - Na busca, a mensagem que casa sem estourar continua achada.
+    - `pattern` de schema que estoura grava `valid: false` com o erro em `/nome` e `timed out`; o mesmo `pattern` com
+      valor comum valida.
+  - *UUID em outras codificações no link* (`privacidade-share-codificacoes.spec.ts`, T2): corpo, cabeçalho e query com
+    o UUID da URL em escape JSON (`-`), sem hífens em qualquer caixa e em base64/base64url. O base64 cobre
+    minúsculas, maiúsculas, com e sem hífens, nos 3 alinhamentos e dentro de um JWT. Nenhuma forma sai no link, com e
+    sem `redact`, e o resto do corpo fica. Outro UUID nas mesmas formas fica byte a byte.
+  - *CSP nos erros da captura* (`privacidade-captura-sandbox-erros.spec.ts`, T3): saem com o CSP sandbox, sem
+    `allow-same-origin`:
+    - 410 de URL inexistente em seis métodos, cliente comum e JSON, com e sem caminho;
+    - 410 de URL apagada;
+    - 413 de corpo acima de 1 MiB;
+    - 400 de cabeçalho acima de 8 KB;
+    - 500 do template acima dos tetos.
+  - *Mesmo segundo* (`wait-for-mesmo-segundo.spec.ts`, T4): **guarda de regressão, verde hoje**. Rajada de 150 com
+    `seq` único e crescente dentro do mesmo `created_at`. A listagem `after` no meio de um segundo traz exatamente as
+    seguintes. O wait-for com `count` 100 e depois 50, atravessando o lote de 100, não pula nem repete, e o mesmo vale
+    com `after` no meio de um segundo.
+
+  Leituras assumidas e o que fica fora estão no `api.md`. Fora do contrato:
+  - o 507, que exige o Redis no `maxmemory`;
+  - o valor exato do teto de custo da regex;
+  - a ferramenta MCP `search_requests` com os campos novos;
+  - codificações encadeadas do UUID (`%252d`, base64 de base64);
+  - o `seq` repetido das mensagens gravadas antes do índice (app Laravel), que é o defeito real do T4: `legacyScore`
+    dá o mesmo score a mensagens do mesmo segundo. Não se semeia pela API e fica com o teste do backend, com o Redis em
+    container.
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
