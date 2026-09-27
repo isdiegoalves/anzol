@@ -2,7 +2,7 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './support/fixtures';
 import { falhas, porque, verificacoes } from './support/inbox';
-import { novaRegra, parte } from './support/regras';
+import { linhasDasRegras, metodo, novaRegra, parte } from './support/regras';
 
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
@@ -31,14 +31,17 @@ async function getRules(api: APIRequestContext, tokenId: string) {
   return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Record<string, unknown>[];
 }
 
-/** Linhas da tabela de regras: nome, prioridade, match e status. */
-const ruleRows = (page: Page) =>
-  page
-    .getByRole('table', { name: 'Rules' })
-    .locator('tbody tr[data-rule-id]')
-    .evaluateAll((trs) =>
-      trs.map((tr) => [...tr.querySelectorAll('td.data')].map((td) => td.textContent?.trim())),
-    );
+/**
+ * Linhas da tabela de regras: nome, prioridade, match e status. Fidelidade ao C (item 14.1, RULES-01/02): a linha vira
+ * o item de 3 linhas (`support/regras.ts`) e o match traz todas as condições.
+ */
+const ruleRows = linhasDasRegras;
+const LINHA_PIX = [
+  'Pix pago',
+  '5',
+  'POST /pagamentos · header X-Signature present · $.status = "pago"',
+  '201',
+];
 
 async function choose(page: Page, select: Locator, option: string) {
   await select.click();
@@ -64,8 +67,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Pix pago');
     await parte(dialog, 'Match');
-    await choose(page, dialog.getByRole('combobox', { name: 'Methods' }), 'POST');
-    await page.keyboard.press('Escape');
+    await metodo(dialog, 'POST');
     await choose(page, dialog.getByRole('combobox', { name: 'Path match' }), 'Equals');
     await dialog.getByRole('textbox', { name: 'Path', exact: true }).fill('/pagamentos');
     await dialog.getByRole('button', { name: 'Add header condition' }).click();
@@ -90,7 +92,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
     await expect(page.getByText('Rule saved')).toBeVisible();
-    expect(await ruleRows(page)).toEqual([['Pix pago', '5', 'POST /pagamentos', '201']]);
+    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({
         name: 'Pix pago',
@@ -153,7 +155,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();
-    expect(await ruleRows(page)).toEqual([['Pix pago', '5', 'POST /pagamentos', '201']]);
+    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({ name: 'Pix pago' }),
     ]);
@@ -267,8 +269,8 @@ test.describe('Dado o export e o import de regras', () => {
 
     await expect(page.getByText('Imported 2 rules')).toBeVisible();
     expect(await ruleRows(page)).toEqual([
-      ['Pix pago', '5', 'POST /pagamentos', '201'],
-      ['Tudo', '5', 'ANY (any path)', '200'],
+      LINHA_PIX,
+      ['Tudo', '5', expect.stringMatching(/^any request/i), '200'],
     ]);
     expect(await getRules(request, destino)).toEqual(exportado);
   });
@@ -289,7 +291,7 @@ test.describe('Dado o export e o import de regras', () => {
     });
 
     await expect(page.getByRole('alert')).toContainText('Rule 1 › match.path.regex:');
-    expect(await ruleRows(page)).toEqual([['Pix pago', '5', 'POST /pagamentos', '201']]);
+    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toHaveLength(1);
   });
 });

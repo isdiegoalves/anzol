@@ -3,6 +3,9 @@ import { expect, test } from './support/fixtures';
 import { detalhes } from './support/inbox';
 import { parte } from './support/regras';
 
+// Fidelidade ao C (item 14.1, F3): Methods vira `group "Methods"` de chips (RULES-17) e o resumo do teste diz "N of
+// the M most recent requests would match" (RULES-20).
+
 // Regras de resposta, fase C (CA-10 no que é da tela, Anexo C): "Create rule from this request"
 // no detalhe da mensagem e "Test against history" no editor. Precisa do backend com
 // `POST /token/{id}/rules/test`.
@@ -72,7 +75,11 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
 
     const dialog = await createRuleFrom(page, tokenId, requestId);
     await expect(textbox(dialog, 'Name')).toHaveValue('POST /pedidos');
-    await expect(dialog.getByRole('combobox', { name: 'Methods' })).toHaveText('POST');
+    await expect(
+      dialog
+        .getByRole('group', { name: 'Methods' })
+        .getByRole('button', { name: 'POST', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(dialog.getByRole('combobox', { name: 'Path match' })).toHaveText('Equals');
     await expect(textbox(dialog, 'Path')).toHaveValue('/pedidos');
     await expect(textbox(dialog, 'Query 1 name')).toHaveValue('tipo');
@@ -168,7 +175,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
     await expect(
-      page.getByRole('table', { name: 'Rules' }).locator('td.name', { hasText: 'PUT /itens/7' }),
+      page.getByRole('table', { name: 'Rules' }).locator('.name', { hasText: 'PUT /itens/7' }),
     ).toBeVisible();
   });
 });
@@ -194,7 +201,9 @@ test.describe('Dado o botão "Test against history" no editor', () => {
       'true',
     );
     const result = dialog.getByRole('status', { name: 'History test' });
-    await expect(result.locator('.summary')).toHaveText('1 of 2 recorded requests would match.');
+    await expect(result.locator('.summary')).toHaveText(
+      /^1 of the 2 most recent requests would match\.?$/,
+    );
     await expect(result.getByRole('heading', { name: 'Would not match (1)' })).toBeVisible();
     const falhas = result.locator('.failed li');
     await expect(falhas).toContainText([
@@ -226,7 +235,9 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     await dialog.getByRole('button', { name: 'Test against history' }).click();
 
     const result = dialog.getByRole('status', { name: 'History test' });
-    await expect(result.locator('.summary')).toHaveText('2 of 2 recorded requests would match.');
+    await expect(result.locator('.summary')).toHaveText(
+      /^2 of the 2 most recent requests would match\.?$/,
+    );
     await expect(result.locator('.misses')).toHaveCount(0);
     expect(await getRules(request, tokenId)).toEqual([]);
 

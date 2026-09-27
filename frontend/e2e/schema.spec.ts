@@ -9,7 +9,7 @@ import {
   porque,
   verificacoes,
 } from './support/inbox';
-import { abrirRegras, novaRegra, parte, salvarRegra } from './support/regras';
+import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Validação de schema por URL (CA-5, o que é da tela): configurar pela tela, selo na
@@ -45,11 +45,6 @@ async function screenshot(page: Page, name: string) {
 
 function json(body: string): Webhook {
   return { headers: { 'Content-Type': 'application/json' }, data: body };
-}
-
-async function choose(page: Page, select: Locator, option: string) {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
 }
 
 /**
@@ -231,9 +226,12 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Recusa fora do schema');
     await parte(dialog, 'Match');
-    await expect(dialog.getByRole('combobox', { name: 'Schema' })).toHaveText('Any');
-    await choose(page, dialog.getByRole('combobox', { name: 'Schema' }), 'Invalid');
-    await dialog.getByText('Set up schema validation in Checks').scrollIntoViewIfNeeded();
+    // Fidelidade ao C (item 14.1, RULES-17): Schema vira segmentado (`radiogroup "Schema"`), com o link para Checks.
+    await expect(
+      dialog.getByRole('radiogroup', { name: 'Schema' }).getByRole('radio', { name: 'Any' }),
+    ).toBeChecked();
+    await condicao(dialog, 'Schema', 'Invalid');
+    await dialog.getByRole('radiogroup', { name: 'Schema' }).scrollIntoViewIfNeeded();
     await screenshot(page, '06-editor-condicao-schema');
     await parte(dialog, 'Response');
     await dialog.getByRole('spinbutton', { name: 'Status' }).fill('400');

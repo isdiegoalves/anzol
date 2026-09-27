@@ -36,7 +36,7 @@ async function saveRule(page: Page, dialog: Locator, name: string) {
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toBeHidden();
   await expect(
-    page.getByRole('table', { name: 'Rules' }).locator('td.name', { hasText: name }),
+    page.getByRole('table', { name: 'Rules' }).locator('.name', { hasText: name }),
   ).toBeVisible();
 }
 

@@ -1,6 +1,6 @@
 import { APIRequestContext, Locator, Page, Response } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { editor } from './support/regras';
+import { editor, linhaDaRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Item 14, E6 — refutação independente (CA-12), transformada em spec. `PUT /token/{id}/rules` troca a lista
@@ -57,6 +57,15 @@ async function abrir(
   return regiao;
 }
 
+/**
+ * Fidelidade ao C (item 14.1, RULES-04): o "Delete" sai da linha e vai para o editor ("Delete rule"); a linha inteira
+ * abre o editor.
+ */
+async function apagarPeloEditor(page: Page, nome: string): Promise<void> {
+  await linhaDaRegra(page, nome).locator('td.item').getByRole('button').click();
+  await editor(page, `Edit rule ${nome}`).getByRole('button', { name: 'Delete rule' }).click();
+}
+
 /** Clica e espera o `PUT /rules` responder ou o aviso de conflito aparecer. */
 async function gravarEsperando(page: Page, tokenId: string, clicar: () => Promise<void>) {
   const put = page.waitForResponse(
@@ -91,7 +100,7 @@ test.describe('Dado outra aba que acrescenta a regra B com o editor aberto', () 
     await expect(conflito(page)).toBeVisible();
     await conflito(page).getByRole('button', { name: 'Reload' }).click();
     await expect(
-      page.getByRole('table', { name: 'Rules' }).locator('td.name', { hasText: 'B' }),
+      page.getByRole('table', { name: 'Rules' }).locator('.name', { hasText: 'B' }),
     ).toBeVisible();
   });
 
@@ -125,15 +134,11 @@ test.describe('Dado uma regra apagada e outra aba que acrescenta B antes do Undo
     await putRules(request, tokenId, [regra('A'), regra('X')]);
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}/rules`);
-    const linhaX = page
-      .getByRole('table', { name: 'Rules' })
-      .locator('tbody tr[data-rule-id]', { hasText: 'X' });
+    const linhaX = linhaDaRegra(page, 'X');
     await expect(linhaX).toBeVisible();
     await page.waitForLoadState('networkidle');
 
-    const apagou = await gravarEsperando(page, tokenId, () =>
-      linhaX.getByRole('button', { name: 'Delete', exact: true }).click(),
-    );
+    const apagou = await gravarEsperando(page, tokenId, () => apagarPeloEditor(page, 'X'));
     expect(apagou?.status()).toBe(200);
     await expect(page.getByText('Rule deleted')).toBeVisible();
     expect(await nomes(request, tokenId)).toEqual(['A']);
@@ -250,13 +255,11 @@ test.describe('Dado uma regra apagada, outra aba que acrescenta B, o aviso e o R
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}/rules`);
     const tabela = page.getByRole('table', { name: 'Rules' });
-    const linhaX = tabela.locator('tbody tr[data-rule-id]', { hasText: 'X' });
+    const linhaX = linhaDaRegra(page, 'X');
     await expect(linhaX).toBeVisible();
     await page.waitForLoadState('networkidle');
 
-    const apagou = await gravarEsperando(page, tokenId, () =>
-      linhaX.getByRole('button', { name: 'Delete', exact: true }).click(),
-    );
+    const apagou = await gravarEsperando(page, tokenId, () => apagarPeloEditor(page, 'X'));
     expect(apagou?.status()).toBe(200);
     const undo = page.getByRole('button', { name: 'Undo', exact: true });
     await expect(undo).toBeVisible();
@@ -267,7 +270,7 @@ test.describe('Dado uma regra apagada, outra aba que acrescenta B, o aviso e o R
     await page.getByRole('switch', { name: 'Enable rule A' }).click();
     await expect(conflito(page)).toBeVisible();
     await conflito(page).getByRole('button', { name: 'Reload' }).click();
-    await expect(tabela.locator('td.name', { hasText: 'B' })).toBeVisible();
+    await expect(tabela.locator('.name', { hasText: 'B' })).toBeVisible();
 
     const desfez = await gravarEsperando(page, tokenId, () => undo.click());
 

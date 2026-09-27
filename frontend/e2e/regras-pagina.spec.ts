@@ -11,9 +11,9 @@ import { abrirRegras, editor, novaRegra, parte } from './support/regras';
 // - Test: `section` com o heading "With the rules before it", o texto "Based on the rule that answered at the
 //   time; ignores scenario state." e itens "N would now get {status} from this rule" / "N still answered by
 //   earlier rule {nome}";
-// - Match: `.feedback[data-condition="match.method"|"match.path"|…]` com "Fails on N of M tested" / "Passes on all
-//   M tested" depois de um teste; `.recorded[data-condition=…]` com "Missed here by N recorded requests" a partir
-//   das mensagens gravadas com `near_miss` desta regra;
+// - Match: `.feedback[data-condition="match.method"|"match.path"|…]` com "Fails on N/M" / "Passes N/M" depois de
+//   um teste (fidelidade ao C, RULES-18); `.recorded[data-condition=…]` com "Missed here by N recorded
+//   requests" a partir das mensagens gravadas com `near_miss` desta regra;
 // - `#/{token}/rules/{id}` abre a `region "Edit rule {nome}"`.
 
 async function putRules(api: APIRequestContext, tokenId: string, rules: object[]) {
@@ -102,12 +102,11 @@ test.describe('Dado uma regra salva com mensagens que chegaram perto (near miss)
     await expect(regra.getByRole('status', { name: 'History test' })).toBeVisible();
     await parte(regra, 'Match');
 
+    // Fidelidade ao C (item 14.1, RULES-18): um chip por condição, "Fails on N/M" ou "Passes N/M".
     await expect(regra.locator('.feedback[data-condition="match.method"]')).toHaveText(
-      'Fails on 2 of 3 tested',
+      'Fails on 2/3',
     );
-    await expect(regra.locator('.feedback[data-condition="match.path"]')).toHaveText(
-      'Passes on all 3 tested',
-    );
+    await expect(regra.locator('.feedback[data-condition="match.path"]')).toHaveText('Passes 3/3');
   });
 
   test('deve mostrar os hits de cada regra e da resposta padrão, fixa no fim da lista', async ({
@@ -125,11 +124,11 @@ test.describe('Dado uma regra salva com mensagens que chegaram perto (near miss)
 
     const tabela = page.getByRole('table', { name: 'Rules' });
     const linha = tabela.locator('tbody tr[data-rule-id]', { hasText: 'Pix' });
-    await expect(linha.locator('td.hits')).toContainText('Answered 1');
-    await expect(linha.locator('td.hits')).toContainText(/2 near miss(es)?/);
+    await expect(linha.locator('.hits')).toContainText('Answered 1');
+    await expect(linha.locator('.hits')).toContainText(/2 near miss(es)?/);
     const padrao = tabela.locator('tfoot tr');
     await expect(padrao).toContainText('Default response');
-    await expect(padrao.locator('td.hits')).toContainText('Answered 2');
+    await expect(padrao.locator('.hits')).toContainText('Answered 2');
     await expect(page.getByText(/^Hits over the last 3 requests kept\.$/)).toBeVisible();
   });
 
@@ -193,7 +192,7 @@ test.describe('Dado duas regras na lista', () => {
     ]);
     await aviso.getByRole('button', { name: 'Reload' }).click();
     await expect(
-      page.getByRole('table', { name: 'Rules' }).locator('td.name', { hasText: 'Outra' }),
+      page.getByRole('table', { name: 'Rules' }).locator('.name', { hasText: 'Outra' }),
     ).toBeVisible();
   });
 });

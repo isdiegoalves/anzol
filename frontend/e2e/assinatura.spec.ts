@@ -19,7 +19,7 @@ import {
   porque,
   verificacoes,
 } from './support/inbox';
-import { abrirRegras, novaRegra, parte, salvarRegra } from './support/regras';
+import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pela tela, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
@@ -69,11 +69,6 @@ function headerRow(page: Page, name: string): Locator {
 /** A aba "Headers (n)" do detalhe, onde fica a tabela. */
 async function openHeaders(page: Page) {
   await abrirAba(page, 'Headers');
-}
-
-async function choose(page: Page, select: Locator, option: string) {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
 }
 
 /**
@@ -343,7 +338,8 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
     const dialog = await novaRegra(page);
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Recusa assinatura');
     await parte(dialog, 'Match');
-    await choose(page, dialog.getByRole('combobox', { name: 'Signature' }), 'Invalid');
+    // Fidelidade ao C (item 14.1, RULES-17): Signature vira segmentado (`radiogroup "Signature"`).
+    await condicao(dialog, 'Signature', 'Invalid');
     await dialog.getByRole('button', { name: 'Add body condition' }).scrollIntoViewIfNeeded();
     await screenshot(page, '05-editor-condicao-signature');
     await parte(dialog, 'Response');
