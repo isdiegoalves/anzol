@@ -40,9 +40,9 @@
             <span class="count" i18n>{{ store.rules().length }} · {{ enabledCount() }} on</span>
           }
         </div>
-        <!-- Numa linha só: sem espaço nas pontas, o texto é o que se lê. -->
+        <!-- A frase do modelo mental (guia §1). Numa linha só: sem espaço nas pontas. -->
         <!-- prettier-ignore -->
-        <p class="hint" i18n>Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.</p>
+        <p class="hint" i18n>Rules are checked in this order. The first one that matches answers. A catch-all rule answers whatever is left; the URL's default response answers when no rule does.</p>
       </div>
       <div class="actions">
         @if (enabledCount() > 0) {
@@ -102,6 +102,27 @@
         >
           New rule
         </button>
+        <!-- Os modelos (WM-11): o mesmo menu abre do cartão "Start from a template". -->
+        <button
+          mat-flat-button
+          type="button"
+          class="new-from-template"
+          aria-label="New rule from template"
+          i18n-aria-label
+          title="New rule from template"
+          i18n-title
+          [disabled]="!loaded()"
+          [matMenuTriggerFor]="templateMenu"
+        >
+          <span aria-hidden="true">&#9662;</span>
+        </button>
+        <mat-menu #templateMenu="matMenu" aria-label="Rule templates" i18n-aria-label>
+          @for (template of templates; track template.id) {
+            <button mat-menu-item type="button" (click)="useTemplate(template)">
+              {{ template.label }}
+            </button>
+          }
+        </mat-menu>
       </div>
     </header>
 
@@ -133,6 +154,19 @@
         <!-- prettier-ignore -->
         <p class="hint window" i18n>Hits over the last {hits.evaluated, plural, =1 {1 request kept} other {{{ hits.evaluated }} requests kept}}.</p>
       }
+      @if (catchAll(); as catchAll) {
+        <!-- WM-30: com uma pega-tudo ligada, o near miss deixa de ser gravado. -->
+        <!-- prettier-ignore -->
+        <p class="changed catch-all" role="note" i18n>"{{ catchAll.name }}" answers whatever is left. While it is on, messages don't keep why the other rules didn't match — use "Why not rule…?" on a message.</p>
+      }
+      @if (store.rules().length > 0) {
+        <app-rule-list-filter
+          [(filter)]="filter"
+          [hitsLoaded]="!!store.hits()"
+          [shown]="shown().length"
+          [total]="ordered().length"
+        />
+      }
       <div class="table-scroll" tabindex="0" role="region" aria-label="Rule table" i18n-aria-label>
         <!-- A tabela continua (trava RULES-01); cada linha é o item de 3 linhas do C. -->
         <table class="table" aria-label="Rules" i18n-aria-label>
@@ -144,7 +178,13 @@
               <th i18n>Order</th>
             </tr>
           </thead>
-          <tbody cdkDropList cdkDropListLockAxis="y" (cdkDropListDropped)="dropRule($event)">
+          <!-- Filtrando, a lista mostra só parte da ordem: arrastar mudaria a posição errada. -->
+          <tbody
+            cdkDropList
+            cdkDropListLockAxis="y"
+            [cdkDropListDisabled]="filtering()"
+            (cdkDropListDropped)="dropRule($event)"
+          >
             @for (row of rows(); track row.kind === 'rule' ? row.item.index : row.key) {
               @if (row.kind === 'group') {
                 <tr class="scenario-group">
@@ -157,14 +197,16 @@
                 </tr>
               } @else {
                 @let item = row.item;
-                @let position = row.position;
+                @let position = item.order;
                 @let open = !!item.rule.id && item.rule.id === ruleId();
+                @let created = !!item.rule.id && createdIds().has(item.rule.id);
                 <tr
                   cdkDrag
                   [cdkDragData]="item"
                   [attr.data-rule-id]="item.rule.id ?? item.index"
                   [class.disabled]="item.rule.enabled === false"
                   [class.open]="open"
+                  [class.just-created]="created"
                 >
                   <td class="handle">
                     <button
@@ -203,7 +245,13 @@
                       [attr.aria-current]="open ? 'true' : null"
                       [attr.aria-labelledby]="'rule-' + item.index + '-name'"
                       [attr.aria-describedby]="
-                        'rule-' + item.index + '-match rule-' + item.index + '-hits'
+                        'rule-' +
+                        item.index +
+                        '-position rule-' +
+                        item.index +
+                        '-match rule-' +
+                        item.index +
+                        '-hits'
                       "
                       (click)="editRule(item.rule)"
                     >
@@ -211,8 +259,11 @@
                         [baseId]="'rule-' + item.index"
                         [name]="item.rule.name"
                         [priority]="item.rule.priority ?? defaultPriority"
+                        [priorityTitle]="priorityTitleOf(item.rule)"
+                        [position]="item.position"
                         [flags]="item.flags"
                         [off]="item.rule.enabled === false"
+                        [offTitle]="item.offTitle"
                         [status]="
                           item.rule.response?.fault
                             ? null
@@ -220,8 +271,34 @@
                         "
                         [detail]="item.match"
                         [hits]="hitsOf(item)"
+                        [warn]="!!item.diagnosis && item.diagnosis.kind !== 'likely'"
+                        [created]="created"
                       />
                     </button>
+                    <!-- A ação do diagnóstico fica fora do botão da linha (nada interativo dentro dele). -->
+                    @if (item.diagnosis; as diagnosis) {
+                      @if (diagnosis.kind === 'never') {
+                        @if (diagnosis.cause !== 'state') {
+                          <a
+                            mat-button
+                            class="fix"
+                            [routerLink]="['/', tokenId(), 'checks']"
+                            [queryParams]="{ section: diagnosis.cause }"
+                            i18n
+                            >Set up in Checks</a
+                          >
+                        }
+                      } @else {
+                        <button
+                          mat-button
+                          type="button"
+                          class="fix"
+                          (click)="moveBefore(item, diagnosis.by)"
+                        >
+                          {{ moveBeforeLabel(diagnosis.by.name) }}
+                        </button>
+                      }
+                    }
                   </td>
                   <td class="row-actions">
                     <button
@@ -248,13 +325,37 @@
                     >
                       &#8595;
                     </button>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      class="more"
+                      [attr.aria-label]="moreActionsLabel(item.rule.name)"
+                      [matMenuTriggerFor]="rowMenu"
+                      [matMenuTriggerData]="{ item }"
+                    >
+                      &#8942;
+                    </button>
                   </td>
                 </tr>
               }
             } @empty {
               <tr>
-                <td class="empty" colspan="4" i18n>
-                  No rules yet. Every request gets the URL's default response.
+                <td class="empty" colspan="4">
+                  @if (filtering()) {
+                    @if (filter().text.trim(); as text) {
+                      <p i18n>No rule matches "{{ text }}".</p>
+                    } @else {
+                      <p i18n>No rule matches the filter.</p>
+                    }
+                  } @else {
+                    <app-rule-list-empty
+                      [templates]="templateMenu"
+                      [aiDisabled]="ai.disabled()"
+                      [hasRequests]="!!latest()"
+                      (describe)="describeInWords()"
+                      (fromLatest)="createFromLatest()"
+                    />
+                  }
                 </td>
               </tr>
             }
@@ -285,6 +386,15 @@
           </tfoot>
         </table>
       </div>
+      <!-- O ⋮ de cada linha (WM-21, F8): só Duplicar e Apagar; ↑/↓ ficam à vista (RULES-05). -->
+      <mat-menu #rowMenu="matMenu">
+        <ng-template matMenuContent let-item="item">
+          <button mat-menu-item type="button" (click)="duplicate(item.rule)" i18n>Duplicate</button>
+          <button mat-menu-item type="button" (click)="deleteFromList(item.index)" i18n>
+            Delete
+          </button>
+        </ng-template>
+      </mat-menu>
     }
   </section>
 </ng-template>

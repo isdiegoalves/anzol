@@ -289,6 +289,16 @@ tfoot .item {
   opacity: 0.3;
 }
 
+// Recém-criada (WM-35): borda na linha, além do selo "New" do item.
+.table tbody tr.just-created > td {
+  border-block: 2px solid var(--mat-sys-primary);
+}
+
+// A ação do diagnóstico, abaixo do item ("Move before X", "Set up in Checks").
+.fix {
+  margin: 0 0 6px 6px;
+}
+
 // No celular (RULES-27), menos margem.
 @media (width < 600px) {
   :host {

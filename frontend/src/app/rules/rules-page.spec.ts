@@ -22,6 +22,7 @@ import { RulesPage } from './rules-page';
 
 const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
 const URL_STATS = `/token/${TOKEN_ID}/stats`;
+const URL_MENSAGENS = `/token/${TOKEN_ID}/requests`;
 
 /** `stats` com os hits por regra; o resto não importa para a lista. */
 function stats(rules: Partial<TokenStats['rules']> = {}, evaluated = 12): Partial<TokenStats> {
@@ -76,6 +77,13 @@ describe('Dado a página Rules', () => {
     await screen.findByRole('table', { name: 'Rules' });
     return result;
   };
+  /** Lista vazia: a página lê a mensagem mais nova (o cartão "Create from the latest request"). */
+  const flushLatest = (data: unknown[]) =>
+    vi.waitFor(() =>
+      http
+        .expectOne((req) => req.url === URL_MENSAGENS && req.params.get('per_page') === '1')
+        .flush({ data, total: data.length, is_last_page: true }),
+    );
   /** O `PUT` das mudanças que partem da lista lê antes a do servidor (`saveIfUnchanged`). */
   const expectGuardedPut = async (server: Rule[], lista: Rule[]) => {
     await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush(server));
@@ -149,7 +157,8 @@ describe('Dado a página Rules', () => {
     await vi.waitFor(() => http.expectOne(URL_STATS).flush({}, { status: 500, statusText: 'x' }));
     await screen.findByRole('table', { name: 'Rules' });
 
-    expect(row('r1').querySelector('.hits')?.textContent?.trim()).toBe('');
+    // Sem os hits, a linha 3 diz que eles não vieram, e não "Answered 0" (guia §3.2, estados).
+    expect(row('r1').querySelector('.hits')?.textContent?.trim()).toBe('Hits unavailable');
   });
 
   it('deve dizer a janela no singular Quando a URL guarda só uma requisição', async () => {
@@ -160,6 +169,7 @@ describe('Dado a página Rules', () => {
 
   it('deve explicar que não há regras Quando a lista está vazia', async () => {
     await open([]);
+    await flushLatest([]);
 
     expect(screen.getByText(/No rules yet/)).toBeTruthy();
     expect(rows()).toEqual([]);
@@ -175,6 +185,7 @@ describe('Dado a página Rules', () => {
     http.expectOne(URL_REGRAS).flush([]);
     http.expectOne(`/token/${TOKEN_ID}`).flush(token());
     await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
+    await flushLatest([]);
 
     expect(TestBed.inject(Preferences).token()?.uuid).toBe(TOKEN_ID);
   });
@@ -213,7 +224,7 @@ describe('Dado a página Rules', () => {
       expect(titulo.parentElement?.querySelector('.count')?.textContent?.trim()).toBe('3 · 2 on');
       // Sem espaço nas pontas: o texto é casado inteiro (RULES-06).
       expect(document.querySelector('.heading .hint')?.textContent).toBe(
-        "Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.",
+        "Rules are checked in this order. The first one that matches answers. A catch-all rule answers whatever is left; the URL's default response answers when no rule does.",
       );
       for (const name of ['Import', 'Export']) {
         const botao = screen.getByRole('button', { name });
@@ -640,10 +651,10 @@ describe('Dado a página Rules', () => {
       ]);
 
       expect(flags('r1')).toEqual([
-        ['template', 'Body and header values are templates'],
-        ['delay', 'Delay: 250 ms'],
+        ['Template', 'Body and header values are templates'],
+        ['Delay', 'Delay: 250 ms'],
       ]);
-      expect(flags('r3')).toEqual([['fault', 'Fault: empty response (close without writing)']]);
+      expect(flags('r3')).toEqual([['Fault', 'Fault: empty response (close without writing)']]);
       expect(rows()[0]).toEqual(['Rule 1', 'P5', 'POST /r1 · delay 250 ms', '200']);
     });
 

@@ -78,6 +78,37 @@
   overflow-wrap: anywhere;
 }
 
+// Posição efetiva ao lado do "P5" (E-01): "#3" em mono, sem fundo, para não competir com o P.
+.position {
+  flex: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+  font-family: var(--app-code-family);
+}
+
+// Diagnóstico (nunca casa, sombreada): o selo no tom de aviso; a causa na linha 3 em destaque.
+.flag-never,
+.flag-shadowed,
+.flag-likely {
+  border-color: transparent;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
+.hits.warn {
+  color: var(--mat-sys-on-surface);
+}
+
+// Recém-criada (WM-35): o selo além da borda da linha (não só cor).
+.created {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font: var(--mat-sys-label-small);
+}
+
 // Lista estreita (celular, ou ao lado do editor): sem espaço, o status desce para baixo do nome
 // em vez de alargar a linha.
 @container rule-list (width < 600px) {

@@ -1466,8 +1466,6 @@ export const translations: Record<string, string> = {
   '2207764482815871800': 'Descer',
   // Move down (checked later)
   '7059595352322663003': 'Descer (conferida depois)',
-  //  No rules yet. Every request gets the URL's default response.
-  '4356305880738650678': ' Nenhuma regra ainda. Toda requisição recebe a resposta padrão da URL. ',
   // When no rule matches
   '1971050335506975022': 'Quando nenhuma regra casa',
   // Reorder {$rule}
@@ -2101,9 +2099,6 @@ export const translations: Record<string, string> = {
     '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2}',
   // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
   '8758745832004953313': '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra',
-  // Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.
-  '9138032896822434594':
-    'Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL.',
   // Request
   '6170082236603228916': 'Requisição',
   // signature valid
@@ -2215,4 +2210,142 @@ export const translations: Record<string, string> = {
   '4627306994793137545': 'Volta {$count} cenários a {$state}: {$names}.',
   // Reset
   '7808756054397155068': 'Voltar a Started',
+  // 1 rule created
+  '8111803652865274694': '1 regra criada',
+  // {$count} rules created
+  '4181024584311100471': '{$count} regras criadas',
+  // New
+  '5280218112746407598': 'Nova',
+  // No rules yet. Every request gets the URL's default response.
+  '1203691831002489713': 'Nenhuma regra ainda. Toda requisição recebe a resposta padrão da URL.',
+  // Describe it in words
+  '2864935487876308676': 'Descrever em palavras',
+  // Start from a template
+  '7386303229223377554': 'Começar de um modelo',
+  // Accept everything, fail N times, 429, echo the body…
+  '9005906866026590725': 'Aceitar tudo, falhar N vezes, 429, ecoar o corpo…',
+  // Create from the latest request
+  '4862606005298451734': 'Criar da última requisição',
+  // Method, path and the fields you pick from it.
+  '2471562936211935700': 'Método, caminho e os campos que você escolher dela.',
+  // Say what should answer; the local AI drafts the rule.
+  '8246194912012154410': 'Diga o que deve responder; a IA local rascunha a regra.',
+  // Filter rules
+  '2879450285645799843': 'Filtrar regras',
+  //  No hits
+  '3519224739628110563': ' Sem acertos ',
+  //  Off
+  '4914428896389458402': ' Desligadas ',
+  // Hits not loaded yet
+  '4026223932393559589': 'Acertos ainda não carregados',
+  // {$shown} of 1 rule
+  '78782951837747861': '{$shown} de 1 regra',
+  // {$shown} of {$total} rules
+  '4839048077174252619': '{$shown} de {$total} regras',
+  // Not in the order while off
+  '2226922472797566277': 'Fora da ordem enquanto desligada',
+  // Position {$position} of {$total}
+  '4510795111832032521': 'Posição {$position} de {$total}',
+  // Priority {$priority} · lower answers first; ties keep the list order
+  '7530667603237720364':
+    'Prioridade {$priority} · menor responde antes; empate vale a ordem da lista',
+  // Same priority as {$names}; the list order decides.
+  '3447396849691130292': 'Mesma prioridade de {$names}; a ordem da lista decide.',
+  // Checked top to bottom; the first match answers.
+  '4935813545954456448': 'Conferidas de cima para baixo; a primeira que casa responde.',
+  // Catch-all
+  '4636283119343202334': 'Pega-tudo',
+  // Never matches
+  '973330275832372822': 'Nunca casa',
+  // Probably: the state can be set by hand
+  '8749435059008581854': 'Provável: o estado pode ser definido à mão',
+  // Shadowed by {$name}
+  '8628775128285537893': 'Sombreada por {$name}',
+  // Likely shadowed by {$name}
+  '5710380685735464393': 'Provável sombra de {$name}',
+  // No enabled rule leads to state "{$state}" — probably a typo.
+  '8179108278723638687':
+    'Nenhuma regra ligada leva ao estado "{$state}" — provável erro de digitação.',
+  // This URL does not check signatures.
+  '4227215750366821731': 'Esta URL não verifica assinaturas.',
+  // This URL has no schema.
+  '5410902376993536149': 'Esta URL não tem schema.',
+  // Never answers: "{$name}" comes first and matches everything this rule matches.
+  '6250291666996673480': 'Nunca responde: "{$name}" vem antes e casa tudo o que esta regra casa.',
+  // In the last test, every request it would match was answered by "{$name}", which comes first.
+  '2826914424459712815':
+    'No último teste, toda requisição que ela casaria foi respondida por "{$name}", que vem antes.',
+  // Would be shadowed by {$name} if turned on
+  '6711857965293516944': 'Ficaria sombreada por {$name} se ligada',
+  // Off · what it answered now goes to the next matching rule, or the default response.
+  '3837117238298835306':
+    'Desligada · o que ela respondia passa para a próxima regra que casar, ou para a resposta padrão.',
+  // Accept everything (200)
+  '3292124381288468940': 'Aceitar tudo (200)',
+  // Accept all
+  '8083493007965546479': 'Aceitar tudo',
+  // Unavailable (503)
+  '3625955200239056082': 'Indisponível (503)',
+  // Unavailable
+  '5643561794785412000': 'Indisponível',
+  // Reject invalid signature (401)
+  '3425401109636224115': 'Rejeitar assinatura inválida (401)',
+  // Invalid signature
+  '4580307664295277933': 'Assinatura inválida',
+  // Fail N times, then accept
+  '8425594347645137535': 'Falhar N vezes e depois aceitar',
+  // 429 with Retry-After
+  '9080920292284316815': '429 com Retry-After',
+  // Rate limited
+  '2592013088082732998': 'Limite de taxa',
+  // Echo the body (template)
+  '7203220197738494455': 'Ecoar o corpo (template)',
+  // Echo
+  '4793466030773017910': 'Eco',
+  // Delay 30 s
+  '6101128022523346557': 'Demorar 30 s',
+  // Slow
+  '6080928629553303128': 'Lenta',
+  // Drop the connection
+  '4583422923504382124': 'Derrubar a conexão',
+  // Dropped
+  '5273750484998241238': 'Conexão derrubada',
+  // Fault
+  '3287623397123391336': 'Falha de rede',
+  // Template
+  '8559760479505620412': 'Modelo',
+  // Delay
+  '175111390716806412': 'Atraso',
+  // Scenario
+  '2652985951636638800': 'Cenário',
+  // Rules are checked in this order. The first one that matches answers. A catch-all rule answers whatever is left; the URL's default response answers when no rule does.
+  '5908097950043593699':
+    'As regras são conferidas nesta ordem. A primeira que casa responde. Uma regra pega-tudo responde o que sobrar; a resposta padrão da URL responde quando nenhuma regra casa.',
+  // New rule from template
+  '2817826205300978148': 'Nova regra a partir de modelo',
+  // Rule templates
+  '6992886022976183186': 'Modelos de regra',
+  // "{$INTERPOLATION}" answers whatever is left. While it is on, messages don't keep why the other rules didn't match — use "Why not rule…?" on a message.
+  '6695659366602667770':
+    '"{$INTERPOLATION}" responde o que sobrar. Enquanto estiver ligada, as mensagens não guardam por que as outras regras não casaram — use "Por que não a regra…?" numa mensagem.',
+  // Set up in Checks
+  '2992367576258621195': 'Configurar em Verificações',
+  // No rule matches "{$INTERPOLATION}".
+  '6563400618459673943': 'Nenhuma regra corresponde a "{$INTERPOLATION}".',
+  // No rule matches the filter.
+  '2848213093498153538': 'Nenhuma regra corresponde ao filtro.',
+  // Duplicate
+  '6621329748219109148': 'Duplicar',
+  //  Delete
+  '6660925946511264619': ' Apagar ',
+  // Hits unavailable
+  '8408130486231768977': 'Acertos indisponíveis',
+  //  (copy)
+  '994379331389938192': ' (cópia)',
+  // Moved before {$name} · priorities updated
+  '9202216842897341715': 'Movida para antes de {$name} · prioridades atualizadas',
+  // Move before {$name}
+  '5546546439788139494': 'Mover para antes de {$name}',
+  // More actions for {$name}
+  '8729238051828358887': 'Mais ações para {$name}',
 };

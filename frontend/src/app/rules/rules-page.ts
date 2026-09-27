@@ -17,10 +17,12 @@ import {
   viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
+import { AiClient } from '../ai/ai-client';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { TokenStore } from '../token/token-store';
@@ -35,30 +37,76 @@ import {
   moveInOrder,
   ruleFlags,
 } from './rule';
-import { defaultResponseDetail, hitsLine, listRows } from './rule-list';
+import {
+  NO_FILTER,
+  RuleFilter,
+  catchAllFlag,
+  defaultResponseDetail,
+  diagnosisFlag,
+  diagnosisLine,
+  hitsLine,
+  isFiltering,
+  listRows,
+  offLine,
+  orderTitle,
+  passesFilter,
+  positionLabel,
+  priorityTitle,
+  wouldBeShadowed,
+} from './rule-list';
 import { matchLine, scenarioTransition } from './rule-words';
 import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
-import { RuleItem } from './rule-item';
+import { newRule } from './rule-form';
+import { CREATED_HIGHLIGHT_MS, RuleIntents } from './rule-intents';
+import { RuleItem, RulePosition } from './rule-item';
+import { RuleListEmpty } from './rule-list-empty';
+import { RuleListFilter } from './rule-list-filter';
 import { ruleFromRequest } from './rule-from-request';
 import { chooseImport } from './import-rules-dialog';
 import { confirmAction } from './rule-dialogs';
 import { diffRules, mergeRules } from './rule-diff';
+import {
+  Diagnosis,
+  catchAllPlacement,
+  diagnose,
+  isCatchAll,
+  sameMatch,
+  shadowedBy,
+} from './rule-shadow';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
+import { RuleTemplate, ruleTemplates } from './rule-templates';
 
 /** Regra na posição em que o servidor a avalia, com o índice dela na lista salva. */
 interface OrderedRule {
   rule: Rule;
   index: number;
+  /** Posição na ordem de avaliação, entre todas (a das setas e da alça), a partir de 0. */
+  order: number;
+  /** "#3" entre as ligadas, com o nome e o título (E-01). */
+  position: RulePosition;
   flags: RuleFlag[];
   /** Linha 2 do item (RULES-02). */
   match: string;
   /** Transição do cenário, na frente dos hits (RULES-07); `null` fora de cenário. */
   transition: string | null;
+  /** Nunca casa, sombreada ou provável sombra (E-01, E-11); só nas ligadas. */
+  diagnosis: Diagnosis | null;
+  /** Desligada: a regra que a sombrearia se ligada (título do "OFF"). */
+  offTitle: string | null;
 }
 
-/** O editor aberto pela rota: a regra (ou a nova) e a chave que o recria quando ela muda. */
-type EditorState = RuleEditorData & { key: string };
+/**
+ * O editor aberto pela rota: a regra (ou a nova) e a chave que o recria quando ela muda. A regra
+ * nova vem com o lugar onde entra na lista (antes da pega-tudo, ou logo após a original ao
+ * duplicar) e, do estado vazio, com o Describe aberto.
+ */
+type EditorState = RuleEditorData & {
+  key: string;
+  insertAt?: number;
+  placedBefore?: string;
+  openSuggest?: boolean;
+};
 
 /** A mensagem de `rules/new?from=`: carregando, lida, ou a leitura falhou. */
 type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookRequest | null };
@@ -82,8 +130,14 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
+    MatMenu,
+    MatMenuContent,
+    MatMenuItem,
+    MatMenuTrigger,
     RuleEditor,
     RuleItem,
+    RuleListEmpty,
+    RuleListFilter,
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
@@ -100,6 +154,8 @@ export class RulesPage {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly viewport = inject(Viewport);
   protected readonly scenarios = inject(ScenarioStore);
+  private readonly intents = inject(RuleIntents);
+  protected readonly ai = inject(AiClient);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -117,18 +173,97 @@ export class RulesPage {
   protected readonly changedElsewhere = this.store.changedElsewhere;
   private readonly fromRequest = signal<FromRequest>({ state: 'done', request: null });
 
+  /** Mensagem → regra que a respondeu, na janela recente (evidência da sombra provável). */
+  private readonly answered = signal<ReadonlyMap<string, string | null>>(new Map());
+  /** Diagnóstico por índice da lista salva: nunca casa, sombreada, provável sombra. */
+  private readonly diagnoses = computed(() => {
+    const rules = this.store.rules();
+    const token = this.tokens.token();
+    const tested = new Map<string, readonly string[]>();
+    for (const [id, test] of this.store.tested()) {
+      const saved = rules.find((rule) => rule.id === id);
+      if (saved && sameMatch(saved.match, test.match)) {
+        tested.set(id, test.matches);
+      }
+    }
+    return diagnose(
+      rules,
+      // Sem a URL carregada, a configuração é desconhecida: nada de "Never matches".
+      token?.uuid === this.tokenId() ? token : {},
+      this.scenarios.scenarios(),
+      { tested, answered: this.answered() },
+    );
+  });
+
   protected readonly ordered = computed<OrderedRule[]>(() => {
     const rules = this.store.rules();
-    return evaluationOrder(rules).map((index) => ({
-      rule: rules[index],
-      index,
-      flags: ruleFlags(rules[index]),
-      match: matchLine(rules[index]),
-      transition: scenarioTransition(rules[index]),
-    }));
+    const diagnoses = this.diagnoses();
+    const shadowed = shadowedBy(rules);
+    const enabled = evaluationOrder(rules).filter((index) => rules[index].enabled !== false);
+    const total = enabled.length;
+    return evaluationOrder(rules).map((index, order) => {
+      const rule = rules[index];
+      const on = rule.enabled !== false;
+      const priority = rule.priority ?? RULE_DEFAULT_PRIORITY;
+      const value = on ? enabled.indexOf(index) + 1 : null;
+      const ties = enabled
+        .filter((other) => other !== index)
+        .map((other) => rules[other])
+        .filter((other) => (other.priority ?? RULE_DEFAULT_PRIORITY) === priority)
+        .map((other) => other.name);
+      const diagnosis = diagnoses.get(index) ?? null;
+      const by = on ? undefined : shadowed.get(index);
+      return {
+        rule,
+        index,
+        order,
+        position: {
+          value,
+          label: positionLabel(value, total),
+          title: on ? orderTitle(ties) : positionLabel(null, total),
+        },
+        flags: [
+          ...ruleFlags(rule),
+          ...(isCatchAll(rule) ? [catchAllFlag()] : []),
+          ...(diagnosis ? [diagnosisFlag(diagnosis)] : []),
+        ],
+        match: matchLine(rule),
+        transition: scenarioTransition(rule),
+        diagnosis,
+        offTitle: by ? wouldBeShadowed(by) : null,
+      };
+    });
+  });
+  /** Filtro da lista (WM-03). */
+  protected readonly filter = signal<RuleFilter>(NO_FILTER);
+  protected readonly filtering = computed(() => isFiltering(this.filter()));
+  /** As regras que passam no filtro, ainda na ordem de avaliação. */
+  protected readonly shown = computed(() => {
+    const filter = this.filter();
+    const hits = this.store.hits();
+    return this.ordered().filter((item) =>
+      passesFilter(
+        item,
+        filter,
+        hits ? (hits.answered.find(({ id }) => id === item.rule.id)?.count ?? 0) : null,
+      ),
+    );
   });
   /** As linhas da tabela: as regras e o cabeçalho de cada sequência de um cenário (RULES-07). */
-  protected readonly rows = computed(() => listRows(this.ordered()));
+  protected readonly rows = computed(() => listRows(this.shown()));
+  /** A primeira pega-tudo ligada: o aviso de que as mensagens deixam de guardar o "por quê" (WM-30). */
+  protected readonly catchAll = computed(
+    () =>
+      this.ordered().find((item) => item.rule.enabled !== false && isCatchAll(item.rule))?.rule ??
+      null,
+  );
+  /** Regras desligadas nesta visita: a linha 3 diz para onde vai o que elas respondiam (WM-20). */
+  private readonly turnedOff = signal<ReadonlySet<string>>(new Set());
+  /** Regras recém-criadas, destacadas por 5 s (WM-35). */
+  protected readonly createdIds = signal<ReadonlySet<string>>(new Set());
+  /** A mensagem mais nova da URL, para o cartão "Create from the latest request" (WM-02). */
+  protected readonly latest = signal<WebhookRequest | null>(null);
+  protected readonly templates = ruleTemplates().filter((template) => !('sequence' in template));
   /** Lista e editor lado a lado a partir de 1200 px; abaixo, só o editor (RULES-10). */
   protected readonly twoPanes = computed(() =>
     ['large', 'extra-large'].includes(this.viewport.windowClass()),
@@ -156,7 +291,8 @@ export class RulesPage {
     }
     const open = this.requests.selected();
     const opened = open?.token_id === this.tokenId() ? open : undefined;
-    const key = ruleId === 'new' ? `new:${this.from() ?? ''}` : ruleId;
+    const intent = ruleId === 'new' ? this.intents.pending() : null;
+    const key = ruleId === 'new' ? `new:${this.from() ?? ''}:${intent?.serial ?? 0}` : ruleId;
     const kept = untracked(() => this.openEditor);
     if (kept?.key === key) {
       // Mesmo editor: o mesmo objeto, para o editor não recarregar o formulário.
@@ -169,9 +305,16 @@ export class RulesPage {
       state = {
         key,
         index: null,
-        ...(request && { draft: ruleFromRequest(request) }),
+        ...untracked(() =>
+          this.newRulePlacement(
+            intent?.draft ?? (request && ruleFromRequest(request)),
+            intent?.insertAt,
+          ),
+        ),
+        ...(intent?.openSuggest && { openSuggest: true }),
         ...(example && { example }),
       };
+      this.idsBeforeNew = new Set(untracked(() => this.store.rules()).map((rule) => rule.id));
     } else {
       const index = untracked(() => this.store.rules().findIndex((rule) => rule.id === ruleId));
       state = index < 0 ? null : { key, index, ...(opened && { example: opened }) };
@@ -181,6 +324,31 @@ export class RulesPage {
   });
   private openEditor: EditorState | null = null;
   private readonly editorView = viewChild(RuleEditor);
+  /** Os ids da lista quando o editor da regra nova abriu: o que sobrar ao salvar é a criada. */
+  private idsBeforeNew = new Set<string | undefined>();
+
+  /**
+   * Onde a regra nova entra (E-01): com uma pega-tudo ligada, antes dela e com a prioridade dela
+   * (empate, vale a ordem da lista), sem mexer nas vizinhas; sem pega-tudo, no fim com P5. Quem
+   * pediu com um lugar (duplicar: logo após a original) fica com o lugar pedido.
+   */
+  private newRulePlacement(
+    draft: Rule | undefined,
+    insertAt: number | undefined,
+  ): Pick<EditorState, 'draft' | 'insertAt' | 'placedBefore'> {
+    if (insertAt !== undefined) {
+      return { ...(draft && { draft }), insertAt };
+    }
+    const placement = catchAllPlacement(this.store.rules());
+    if (!placement) {
+      return draft ? { draft } : {};
+    }
+    return {
+      draft: { ...(draft ?? newRule()), priority: placement.priority },
+      insertAt: placement.index,
+      placedBefore: placement.before,
+    };
+  }
   /**
    * A rota aponta para uma regra que não está na lista e nenhum editor está aberto (com o editor
    * aberto, o aviso é o dele: "Save adds it as a new rule").
@@ -215,6 +383,36 @@ export class RulesPage {
       const [tokenId, ruleId, from] = [this.tokenId(), this.ruleId(), this.from()];
       untracked(() => void this.loadFrom(tokenId, ruleId === 'new' ? from : undefined));
     });
+    // Fora do editor da regra nova, o pedido (modelo, duplicar) já foi usado ou abandonado.
+    effect(() => {
+      if (this.ruleId() !== 'new') {
+        untracked(() => this.intents.clear());
+      }
+    });
+    // Sombra provável (E-01): só depois de um teste, com quem respondeu as mensagens da janela.
+    effect(() => {
+      if (this.store.tested().size > 0) {
+        untracked(() => void this.loadAnswered());
+      }
+    });
+    // Lista vazia, sem editor: o cartão "Create from the latest request" só com mensagens (WM-02).
+    effect(() => {
+      if (this.loaded() && this.store.rules().length === 0 && this.editor().length === 0) {
+        const tokenId = this.tokenId();
+        untracked(() => void this.loadLatest(tokenId));
+      }
+    });
+    effect((onCleanup) => {
+      const created = this.intents.created();
+      if (created && this.loaded()) {
+        const left = created.at + CREATED_HIGHLIGHT_MS - Date.now();
+        if (left > 0) {
+          untracked(() => this.highlight(created.ids));
+          const timer = setTimeout(() => this.createdIds.set(new Set()), left);
+          onCleanup(() => clearTimeout(timer));
+        }
+      }
+    });
     afterRenderEffect(() => this.moveFocus());
   }
 
@@ -224,6 +422,43 @@ export class RulesPage {
    */
   canLeave(): Promise<boolean> {
     return this.editorView()?.confirmLeave() ?? Promise.resolve(true);
+  }
+
+  /** Destaca as regras recém-criadas (borda e o selo "New") e rola até a primeira (WM-35). */
+  private highlight(ids: readonly string[]): void {
+    this.createdIds.set(new Set(ids));
+    afterNextRender(
+      () =>
+        this.host
+          .querySelector<HTMLElement>(`[data-rule-id="${CSS.escape(ids[0])}"]`)
+          ?.scrollIntoView?.({ block: 'nearest' }),
+      { injector: this.injector },
+    );
+  }
+
+  private async loadAnswered(): Promise<void> {
+    try {
+      const recent = await this.store.recentRequests();
+      this.answered.set(new Map(recent.map((request) => [request.uuid, request.rule?.id ?? null])));
+    } catch {
+      // Sem as mensagens, não há evidência: nada de "Likely shadowed".
+    }
+  }
+
+  /** A mais nova da Entrada já carregada desta URL (sem filtro), senão uma leitura de 1 mensagem. */
+  private async loadLatest(tokenId: string): Promise<void> {
+    if (this.requests.tokenId() === tokenId && !this.requests.filtering()) {
+      this.latest.set(this.requests.newest() ?? null);
+      return;
+    }
+    try {
+      const latest = await this.store.latestRequest(tokenId);
+      if (this.tokenId() === tokenId) {
+        this.latest.set(latest);
+      }
+    } catch {
+      this.latest.set(null);
+    }
   }
 
   /** Leva o foco ao destino pendente, depois do render em que ele aparece. */
@@ -255,11 +490,16 @@ export class RulesPage {
   protected hitsOf(item: OrderedRule): string | null {
     if (item.rule.enabled === false) {
       // Desligada, a regra não é avaliada: "Answered 0" sugeriria que ela roda e não casa (RULES-08).
-      return $localize`Not checked while off`;
+      return offLine(!!item.rule.id && this.turnedOff().has(item.rule.id));
+    }
+    if (item.diagnosis && item.diagnosis.kind !== 'likely') {
+      // Nunca casa ou sombreada: a causa no lugar dos hits, que seriam sempre zero.
+      return diagnosisLine(item.diagnosis);
     }
     const hits = this.store.hits();
     if (!hits) {
-      return item.transition;
+      const unavailable = this.store.hitsFailed() ? $localize`Hits unavailable` : null;
+      return [item.transition, unavailable].filter((part) => part !== null).join(' · ') || null;
     }
     const answered = hits.answered.find(({ id }) => id === item.rule.id)?.count ?? 0;
     const near = hits.near_miss.find(({ id }) => id === item.rule.id)?.count ?? 0;
@@ -287,7 +527,12 @@ export class RulesPage {
   /** Linha 3 da resposta padrão: quantas ela respondeu na janela. */
   protected defaultHits(): string | null {
     const hits = this.store.hits();
-    return hits ? $localize`Answered ${hits.default}:answered:` : null;
+    if (!hits) {
+      return this.store.hitsFailed() ? $localize`Hits unavailable` : null;
+    }
+    return hits.evaluated === 0
+      ? $localize`No requests yet`
+      : $localize`Answered ${hits.default}:answered:`;
   }
 
   /** "Delete rule" no editor: apaga a regra (com Undo) e volta à lista. */
@@ -299,8 +544,90 @@ export class RulesPage {
   }
 
   protected newRule(): void {
+    this.intents.clear();
+    this.openNew();
+  }
+
+  private openNew(queryParams?: { from: string }): void {
     this.store.pendingFocus.set('editor');
-    void this.router.navigate(['/', this.tokenId(), 'rules', 'new']);
+    const path = ['/', this.tokenId(), 'rules', 'new'];
+    void (queryParams ? this.router.navigate(path, { queryParams }) : this.router.navigate(path));
+  }
+
+  /** Um modelo do menu "Rule templates" (WM-11): rascunho não salvo, com o nome sugerido. */
+  protected useTemplate(template: RuleTemplate): void {
+    if ('draft' in template) {
+      this.intents.request({ draft: template.draft });
+      this.openNew();
+    }
+  }
+
+  /** "Describe it in words" (WM-02): a regra nova com o Describe aberto só desta vez. */
+  protected describeInWords(): void {
+    this.intents.request({ draft: newRule(), openSuggest: true });
+    this.openNew();
+  }
+
+  /** "Create from the latest request" (WM-02): o mesmo caminho do "Create rule" da mensagem. */
+  protected createFromLatest(): void {
+    const latest = this.latest();
+    if (latest) {
+      this.intents.clear();
+      this.openNew({ from: latest.uuid });
+    }
+  }
+
+  /**
+   * "Duplicate" (WM-21): regra nova com a cópia sem id, "{name} (copy)", ligada e com a mesma
+   * prioridade; ao salvar, entra logo após a original.
+   */
+  protected duplicate(rule: Rule): void {
+    const index = this.store.rules().findIndex((saved) => saved.id === rule.id);
+    const copy: Rule = { ...rule };
+    delete copy.id;
+    const suffix = $localize`:name of a duplicated rule, after the original name: (copy)`;
+    this.intents.request({
+      draft: {
+        ...copy,
+        name: `${rule.name.slice(0, 100 - suffix.length)}${suffix}`,
+        enabled: true,
+      },
+      insertAt: index < 0 ? this.store.rules().length : index + 1,
+    });
+    this.openNew();
+  }
+
+  /** "Delete" no ⋮ da linha: o mesmo apagar do editor, com Undo. */
+  protected deleteFromList(index: number): void {
+    void this.deleteRule(index);
+  }
+
+  /**
+   * "Move before {name}" (E-01): leva a regra sombreada para antes da que a sombreia; as
+   * prioridades seguem as posições (`moveInOrder`), então as vizinhas mudam, e o aviso diz isso.
+   */
+  protected async moveBefore(item: OrderedRule, by: Rule): Promise<void> {
+    const to = this.ordered().findIndex((other) => other.rule.id === by.id);
+    if (to < 0 || to >= item.order) {
+      return;
+    }
+    if (await this.saveUnchanged(moveInOrder(this.store.rules(), item.order, to))) {
+      this.snackBar.open($localize`Moved before ${by.name}:name: · priorities updated`, undefined, {
+        duration: 4000,
+      });
+    }
+  }
+
+  protected priorityTitleOf(rule: Rule): string {
+    return priorityTitle(rule.priority ?? RULE_DEFAULT_PRIORITY);
+  }
+
+  protected moveBeforeLabel(name: string): string {
+    return $localize`Move before ${name}:name:`;
+  }
+
+  protected moreActionsLabel(name: string): string {
+    return $localize`More actions for ${name}:name:`;
   }
 
   protected editRule(rule: Rule): void {
@@ -316,6 +643,12 @@ export class RulesPage {
       this.refreshScenarios();
     }
     const ruleId = this.ruleId();
+    if (saved && ruleId === 'new') {
+      const created = this.store
+        .rules()
+        .flatMap((rule) => (rule.id && !this.idsBeforeNew.has(rule.id) ? [rule.id] : []));
+      this.intents.markCreated(created, false);
+    }
     this.store.pendingFocus.set({ rule: ruleId && ruleId !== 'new' ? ruleId : null });
     void this.router.navigate(['/', this.tokenId(), 'rules']);
   }
@@ -325,12 +658,23 @@ export class RulesPage {
     enabled: boolean,
     toggle: MatSlideToggle,
   ): Promise<void> {
+    const id = this.store.rules()[index]?.id;
     const saved = await this.saveUnchanged(
       this.store.rules().map((rule, i) => (i === index ? { ...rule, enabled } : rule)),
     );
     if (!saved) {
       // A lista não mudou: o switch volta ao que está salvo.
       toggle.checked = !enabled;
+    } else if (id) {
+      this.turnedOff.update((ids) => {
+        const next = new Set(ids);
+        if (enabled) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
     }
   }
 
