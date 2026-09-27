@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.springframework.core.io.ClassPathResource
 import site.webhook.signature.Secret
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureProvider
@@ -89,6 +90,19 @@ class HmacHelperTest {
         reason: String,
     ) {
         assertThat(templateError(template)).isEqualTo(reason)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado a linguagem das regras da IA e do MCP, quando descreve o hmac, então avisa que quem edita ou testa regras usa o " +
+            "segredo e recomenda read_secret",
+    )
+    fun rulesLanguage_hmac_deveAvisarDoOraculoERecomendarReadSecret() {
+        val language = ClassPathResource("ai/rules-language.md").getContentAsString(Charsets.UTF_8)
+
+        assertThat(language).contains("{{hmac request.body")
+        assertThat(language).contains("anyone who can edit or test rules on the URL can get any value signed with")
+        assertThat(language).contains("read_secret")
     }
 
     @Test
