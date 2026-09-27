@@ -70,6 +70,10 @@ describe('Dado o cartão "Response" de Checks', () => {
     });
     put.flush({ ...SALVA, default_status: 201, retry_after: null, auto_cleanup: null });
     await vi.waitFor(() => expect(screen.getByRole('status').textContent?.trim()).toBe('Saved.'));
+
+    // Editar de novo tira o "Saved." velho: ele só vale para o que foi salvo.
+    await userEvent.type(box('Response body'), '!');
+    expect(screen.queryByText('Saved.')).toBeNull();
   });
 
   it.each([

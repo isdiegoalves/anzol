@@ -7,7 +7,7 @@ import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { JsonSchema, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
-import { ChecksStore, jsonBody } from './checks-store';
+import { ChecksStore, isRequestId, jsonBody } from './checks-store';
 import { inferSchema } from './infer-schema';
 import { SaveBar, SaveNotice } from './save-bar';
 import {
@@ -71,7 +71,7 @@ export class SchemaCard {
     }
     effect(() => {
       const requestId = this.schemaFrom();
-      if (requestId && tokenId) {
+      if (isRequestId(requestId) && tokenId) {
         untracked(() => void this.inferFrom(tokenId, requestId));
       }
     });

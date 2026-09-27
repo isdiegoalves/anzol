@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
@@ -43,7 +43,12 @@ export class ChecksStore {
     }
     const updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
     if (typeof changes.read_secret === 'string') {
-      await this.unlock(base.uuid, changes.read_secret);
+      try {
+        await this.unlock(base.uuid, changes.read_secret);
+      } catch (error) {
+        // A URL já foi salva: o erro diz isso, e não "Error updating token".
+        throw new UnlockFailed(error instanceof HttpErrorResponse ? error.status : null);
+      }
     }
     this.preferences.token.set(updated);
     if (cutsRequests(fresh, updated) && this.requests.tokenId() === base.uuid) {
@@ -88,8 +93,16 @@ export class ChecksStore {
     );
   }
 
+  /** Uma mensagem da URL; id que não é UUID nem vai ao servidor (`?schema-from=../../share/x`). */
   request(tokenId: string, requestId: string): Promise<WebhookRequest> {
-    return firstValueFrom(this.http.get<WebhookRequest>(`/token/${tokenId}/request/${requestId}`));
+    if (!isRequestId(requestId)) {
+      return Promise.reject(new Error(`Not a request id: ${requestId}`));
+    }
+    return firstValueFrom(
+      this.http.get<WebhookRequest>(
+        `/token/${encodeURIComponent(tokenId)}/request/${encodeURIComponent(requestId)}`,
+      ),
+    );
   }
 
   /** Mensagens da primeira página com corpo JSON: as que geram um schema. */
@@ -123,4 +136,20 @@ export class ChangedElsewhere extends Error {
   constructor(readonly fields: readonly string[]) {
     super(`Changed elsewhere: ${fields.join(', ')}`);
   }
+}
+
+/** O `PUT` com o segredo novo foi aceito, mas o `unlock` com ele falhou (ex.: 429). */
+export class UnlockFailed extends Error {
+  override readonly name = 'UnlockFailed';
+
+  constructor(readonly status: number | null) {
+    super(`Saved, but unlock failed (${status ?? 'unknown'})`);
+  }
+}
+
+/** Id de mensagem: UUID, como na rota (`app.routes.ts`). Outro texto vindo da URL é ignorado. */
+const REQUEST_ID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
+
+export function isRequestId(value: string | null | undefined): value is string {
+  return typeof value === 'string' && REQUEST_ID.test(value);
 }

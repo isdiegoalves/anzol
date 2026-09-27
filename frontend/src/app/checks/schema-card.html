@@ -95,7 +95,7 @@
   i18n-label
   [summary]="pending()"
   [attempted]="attempted()"
-  [notice]="notice()"
+  [notice]="control.dirty && !notice()?.error ? null : notice()"
   (reload)="reloadCard()"
   (save)="saveSchema()"
 >

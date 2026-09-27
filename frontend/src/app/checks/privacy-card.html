@@ -58,7 +58,7 @@
   i18n-label
   [summary]="pending()"
   [attempted]="attempted()"
-  [notice]="notice()"
+  [notice]="form.dirty && !notice()?.error ? null : notice()"
   (reload)="reloadCard()"
   (save)="savePrivacy()"
 >

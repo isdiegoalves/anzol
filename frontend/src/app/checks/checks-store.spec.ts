@@ -12,6 +12,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
 import { ChangedElsewhere, ChecksStore, jsonBody } from './checks-store';
+import { saveErrorNotice } from './url-settings';
 
 /** Responde a releitura com a URL da tela e devolve o `PUT` que vem depois. */
 async function expectPutAfterRead(http: HttpTestingController): Promise<TestRequest> {
@@ -194,6 +195,74 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     unlock.flush(null, NO_CONTENT);
     await saved;
     expect(TestBed.inject(Preferences).token()?.protected).toBe(true);
+  });
+});
+
+describe('Dado o segredo de leitura trocado e o unlock recusado depois do PUT', () => {
+  let http: HttpTestingController;
+  const URL = `/token/${TOKEN_ID}`;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve dizer que a URL foi salva e que é preciso desbloquear com o segredo novo Quando o unlock volta 429', async () => {
+    const lida = token({ protected: false });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ read_secret: 'segredo-novo' }, lida);
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      lida,
+    );
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL))).flush(
+      token({ protected: true }),
+    );
+    (await vi.waitFor(() => http.expectOne(`${URL}/unlock`))).flush(
+      { error: 'Too many attempts' },
+      { status: 429, statusText: 'Too Many Requests' },
+    );
+
+    const erro = await saved.catch((e: unknown) => e);
+    expect(saveErrorNotice(erro).text).toBe(
+      'The URL was saved, but this page could not unlock it with the new secret (429). ' +
+        'Unlock it with the new secret to keep working.',
+    );
+    expect(saveErrorNotice(erro).text).not.toMatch(/^Error updating token/);
+  });
+});
+
+describe('Dado o id de mensagem que vem da rota (?schema-from=)', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('deve recusar sem chamar o servidor Quando o id não é um UUID (path traversal)', async () => {
+    await expect(
+      TestBed.inject(ChecksStore).request(TOKEN_ID, '../../../share/abc'),
+    ).rejects.toThrow();
+    http.expectNone(() => true);
+  });
+
+  it('deve buscar a mensagem Quando o id é um UUID', async () => {
+    const pedido = webhookRequest(1);
+    const lido = TestBed.inject(ChecksStore).request(TOKEN_ID, pedido.uuid);
+    http.expectOne(`/token/${TOKEN_ID}/request/${pedido.uuid}`).flush(pedido);
+    expect(await lido).toEqual(pedido);
   });
 });
 

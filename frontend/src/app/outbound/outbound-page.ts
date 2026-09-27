@@ -21,7 +21,7 @@ import {
   resignedDraft,
 } from './outbound';
 import { OutboundResultView } from './outbound-result-view';
-import { OutboundStore } from './outbound-store';
+import { OutboundStore, isRequestId } from './outbound-store';
 import { ReplayComposer } from './replay-composer';
 import { rememberedTarget } from './replay-target';
 import { SendComposer } from './send-composer';
@@ -168,8 +168,8 @@ export class OutboundPage {
     token: Token,
     requests: readonly WebhookRequest[],
   ): Promise<void> {
-    const replay = query.get('replay');
-    const sendFrom = query.get('send-from');
+    const replay = valid(query.get('replay'));
+    const sendFrom = valid(query.get('send-from'));
     const send = query.get('send');
     const find = async (id: string) =>
       requests.find((request) => request.uuid === id) ??
@@ -179,7 +179,7 @@ export class OutboundPage {
       this.draft.set(request && draftFromRequest(request, rememberedTarget(token.uuid)));
       this.signing.set(false);
       this.mode.set('send');
-    } else if (send !== null) {
+    } else if (send !== null || query.has('send-from')) {
       this.draft.set(null);
       this.signing.set(send === 'signed');
       this.mode.set('send');
@@ -195,4 +195,9 @@ export class OutboundPage {
     }
     this.composerKey.update((key) => key + 1);
   }
+}
+
+/** O id de mensagem da rota, ou `null` quando não é um UUID (o parâmetro é ignorado). */
+function valid(id: string | null): string | null {
+  return isRequestId(id) ? id : null;
 }

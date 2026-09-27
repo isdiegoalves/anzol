@@ -228,6 +228,17 @@ describe('Dado a página Outbound', () => {
     expect(redirect).toHaveBeenCalledWith(PEDIDO);
   });
 
+  it.each(['replay', 'send-from'])(
+    'deve ignorar ?%s= que não é um UUID, sem chamar o servidor (path traversal)',
+    async (param) => {
+      await open(`?${param}=..%2F..%2F..%2Fshare%2Fabc`);
+      await new Promise((resolve) => setTimeout(resolve));
+
+      http.expectNone((sent) => sent.url.includes('share'));
+      http.expectNone((sent) => sent.url.includes('/request/'));
+    },
+  );
+
   it('deve dizer que a URL não existe mais Quando o histórico responde 410', async () => {
     const harness = await RouterTestingHarness.create();
     void harness.navigateByUrl(`/${TOKEN_ID}/outbound`);

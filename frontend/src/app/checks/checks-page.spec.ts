@@ -5,7 +5,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { screen } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID, requestPage, token } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { checksMatcher } from '../app.routes';
 import { Preferences } from '../settings/preferences';
 import { ChecksPage } from './checks-page';
@@ -73,10 +73,12 @@ describe('Dado a página Checks', () => {
   });
 
   it('deve passar a mensagem ao Schema Quando a rota traz ?schema-from=', async () => {
-    const { harness, load } = await open(`/${TOKEN_ID}/checks?schema-from=abc`);
+    const { harness, load } = await open(
+      `/${TOKEN_ID}/checks?schema-from=${webhookRequest(9).uuid}`,
+    );
     load.flush(token());
     await harness.fixture.whenStable();
 
-    await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/request/abc`));
+    await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/request/${webhookRequest(9).uuid}`));
   });
 });

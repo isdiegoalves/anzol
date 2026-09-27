@@ -123,6 +123,18 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     http.expectNone((sent) => sent.method === 'PUT');
   });
 
+  it('deve ignorar ?schema-from= que não é um UUID, sem chamar o servidor (path traversal)', async () => {
+    const { http } = await renderCard(SchemaCard, token(), {
+      inputs: { schemaFrom: '../../../share/abc' },
+    });
+    http.expectOne(RECENTES).flush(requestPage([]));
+
+    await new Promise((resolve) => setTimeout(resolve));
+    http.expectNone(() => true);
+    expect(screen.queryByText(/^Inferred from request/)).toBeNull();
+    expect(screen.queryByText('Could not load that request.')).toBeNull();
+  });
+
   it('deve gerar da mensagem JSON escolhida Quando "Generate schema" é clicado', async () => {
     const { http } = await renderCard(SchemaCard, token());
     http
