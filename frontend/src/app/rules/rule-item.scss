@@ -78,8 +78,9 @@
   overflow-wrap: anywhere;
 }
 
-// No celular (RULES-27), o status desce para baixo do nome em vez de alargar a linha.
-@media (width < 600px) {
+// Lista estreita (celular, ou ao lado do editor): sem espaço, o status desce para baixo do nome
+// em vez de alargar a linha.
+@container rule-list (width < 600px) {
   .line1 {
     flex-wrap: wrap;
   }

@@ -52,11 +52,14 @@
   min-height: 100%;
 }
 
-// A tabela rola sozinha no celular; `relative` segura os rótulos só para leitor de tela (absolutos)
-// dentro dela, senão eles alargam a página.
+// A tabela rola sozinha se ainda assim não couber; `relative` segura os rótulos só para leitor de
+// tela (absolutos) dentro dela, senão eles alargam a página. É o contêiner `rule-list`: o item
+// estreito (setas empilhadas, status embaixo do nome) vale pela largura da lista, no celular e
+// ao lado do editor (440 px, até 320 px).
 .table-scroll {
   position: relative;
   overflow-x: auto;
+  container: rule-list / inline-size;
 
   &:focus-visible {
     outline: 3px solid var(--mat-sys-primary);
@@ -286,12 +289,16 @@ tfoot .item {
   opacity: 0.3;
 }
 
-// No celular (RULES-27), o item de 3 linhas cabe em 390 px sem rolagem: margem e setas menores.
+// No celular (RULES-27), menos margem.
 @media (width < 600px) {
   :host {
     padding: 8px;
   }
+}
 
+// Lista estreita (celular, ou ao lado do editor): Move up e Move down empilhados, para o item de 3
+// linhas caber sem rolagem lateral e as setas ficarem à vista.
+@container rule-list (width < 600px) {
   .row-actions button {
     display: flex;
   }
