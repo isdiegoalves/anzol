@@ -120,6 +120,25 @@ export interface NearMiss extends RuleRef {
 export const RULE_DEFAULT_PRIORITY = 5;
 export const RULE_DEFAULT_STATUS = 200;
 
+/**
+ * `GET /token/{id}/request/{rid}/rules/trace` (C1): quem respondeu (o que a mensagem gravou) e cada
+ * regra de agora, na ordem de avaliação (as desligadas no fim, `position: null`), com as frases do
+ * near miss de cada uma.
+ */
+export interface RuleTrace {
+  request: string;
+  responded_by: RuleRef | null;
+  rules: {
+    id: string;
+    name: string;
+    enabled: boolean;
+    position: number | null;
+    matches: boolean;
+    failed: string[];
+    conditions: string[];
+  }[];
+}
+
 /** Resposta de `POST /token/{id}/rules/test`, da mensagem mais nova para a mais antiga. */
 export interface RuleTestResponse {
   matches: { uuid: string; seq: number }[];

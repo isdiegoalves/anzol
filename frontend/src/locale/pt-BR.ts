@@ -2495,4 +2495,36 @@ export const translations: Record<string, string> = {
   '4770561319318769665': 'Ligar a regra {$rule}',
   // Rule: {$rule}
   '4152048553367390961': 'Regra: {$rule}',
+  // Loading the rules…
+  '376406299257554731': 'Carregando as regras…',
+  // This URL has no rules.
+  '3925454944770620440': 'Esta URL não tem regras.',
+  // Rule trace
+  '8227783643264448580': 'Avaliação das regras',
+  // Checking the rules…
+  '4231066785775524429': 'Conferindo as regras…',
+  // (off)
+  '287155608094834469': '(desligada)',
+  // Scenario state as of now.
+  '8990065265892574385': 'Estado do cenário de agora.',
+  // {$name} (off)
+  '7123563499146636497': '{$name} (desligada)',
+  // Answered by: {$name}
+  '5135446671104824410': 'Respondida por: {$name}',
+  // did not match: {$conditions}
+  '8263309055675122129': 'não casou: {$conditions}',
+  // would match, but it is off
+  '2127508777159107346': 'casaria, mas está desligada',
+  // matches now
+  '7676470987513502147': 'casa agora',
+  // matched · answered
+  '8918857376217466112': 'casou · respondeu',
+  // matched, but an earlier rule answered
+  '2839748771603961803': 'casou, mas uma regra anterior respondeu',
+  // This request no longer exists.
+  '1262408562080601275': 'Esta requisição não existe mais.',
+  // Could not check the rules ({$status}).
+  '6880150177600715185': 'Não foi possível conferir as regras ({$status}).',
+  // Why not rule…?
+  '3835773417306108672': 'Por que não a regra…?',
 };

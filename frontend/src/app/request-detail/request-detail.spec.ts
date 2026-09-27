@@ -176,6 +176,14 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(within(toolbar()).queryByRole('button', { name: 'Copy payload' })).toBeNull();
   });
 
+  // C1: o "Why not rule…?" fica no grupo dos cartões, junto do cartão da regra.
+  it('deve oferecer "Why not rule…?" junto dos cartões de verificação', async () => {
+    await show(webhookRequest(3));
+
+    const cartoes = screen.getByRole('group', { name: 'Checks on this request' });
+    expect(within(cartoes).getByRole('button', { name: 'Why not rule…?' })).toBeTruthy();
+  });
+
   it('deve abrir a página Rules com a regra nova a partir da mensagem Quando "Create rule from this request" é clicado', async () => {
     const request = webhookRequest(3);
     // O Router de verdade: o cartão da regra tem link (WM-10), e o RouterLink precisa dele.

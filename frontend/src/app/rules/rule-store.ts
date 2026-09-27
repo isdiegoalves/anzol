@@ -9,6 +9,7 @@ import {
   Rule,
   RuleMatch,
   RuleTestResponse,
+  RuleTrace,
   summarizeHistoryTest,
 } from './rule';
 
@@ -173,6 +174,23 @@ export class RuleStore {
       .then((page) => page.data[0] ?? null)
       .catch(() => null);
     return this.latest;
+  }
+
+  /**
+   * As regras da URL sem mexer na lista da página de Regras (o "Why not rule…?" do detalhe da
+   * mensagem, C1).
+   */
+  listRules(tokenId: string): Promise<Rule[]> {
+    return firstValueFrom(this.http.get<Rule[]>(this.url(tokenId)));
+  }
+
+  /** C1: as regras de agora avaliadas contra a mensagem gravada, sem gravar nada. */
+  trace(tokenId: string, requestId: string): Promise<RuleTrace> {
+    return firstValueFrom(
+      this.http.get<RuleTrace>(
+        `/token/${tokenId}/request/${encodeURIComponent(requestId)}/rules/trace`,
+      ),
+    );
   }
 
   /** Uma mensagem da URL (`rules/new?from=`). */

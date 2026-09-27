@@ -1,0 +1,58 @@
+<!-- prettier-ignore -->
+<button mat-button type="button" class="why-not" [matMenuTriggerFor]="rulesMenu" (menuOpened)="loadRules()" i18n>Why not rule…?</button>
+<mat-menu #rulesMenu="matMenu" aria-label="Rules" i18n-aria-label>
+  @if (rules() === null) {
+    <button mat-menu-item type="button" disabled i18n>Loading the rules…</button>
+  } @else {
+    @for (entry of menu(); track entry.rule.id ?? $index) {
+      <button mat-menu-item type="button" (click)="choose(entry.rule)">{{ entry.label }}</button>
+    } @empty {
+      <button mat-menu-item type="button" disabled i18n>This URL has no rules.</button>
+    }
+  }
+</mat-menu>
+
+@if (state(); as current) {
+  <section
+    class="trace"
+    role="region"
+    [attr.aria-labelledby]="titleId"
+    [attr.aria-busy]="current.kind === 'loading'"
+  >
+    <h3 class="title" [id]="titleId" i18n>Rule trace</h3>
+    @switch (current.kind) {
+      @case ('loading') {
+        <p class="hint" i18n>Checking the rules…</p>
+      }
+      @case ('error') {
+        <div role="alert">
+          <p class="error">{{ current.message }}</p>
+        </div>
+      }
+      @default {
+        <p class="answered">{{ answeredBy() }}</p>
+        <ol class="rules">
+          @for (item of items(); track item.id) {
+            <li [class.chosen]="item.chosen" [class.off]="item.off">
+              @if (item.position !== null) {
+                <span class="position">#{{ item.position }}&ngsp;</span>
+              }
+              <a
+                [routerLink]="['/', tokenId(), 'rules', item.id]"
+                [queryParams]="{ 'from-request': request().uuid }"
+                >{{ item.name }}</a
+              >
+              @if (item.off) {
+                <span>&ngsp;<ng-container i18n="rule turned off">(off)</ng-container></span>
+              }
+              <span class="verdict">&ngsp;— {{ item.verdict }}</span>
+            </li>
+          }
+        </ol>
+        @if (current.chosen.scenario?.name) {
+          <p class="hint" i18n>Scenario state as of now.</p>
+        }
+      }
+    }
+  </section>
+}

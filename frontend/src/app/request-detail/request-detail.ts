@@ -26,6 +26,7 @@ import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
+import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
 
 /** Os formatos do "Copy As" (o conversor vem sob demanda, no primeiro uso). */
@@ -49,6 +50,7 @@ const COPY_FORMATS: readonly CopyFormat[] = ['curl', 'HAR'];
     MatMenuTrigger,
     NgTemplateOutlet,
     RequestView,
+    RuleTracePanel,
   ],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',
