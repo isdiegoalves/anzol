@@ -17,11 +17,12 @@ import { RuleFlag } from './rule';
           >P{{ priority() }}</span
         >
       }
-      <span class="name" [id]="baseId() + '-name'">{{ name() }}</span>
-      @for (flag of flags(); track flag.label) {
-        <span class="flag" [title]="flag.detail">{{ flag.label }}</span>
-      }
-      <span class="spacer"></span>
+      <span class="title">
+        <span class="name" [id]="baseId() + '-name'" [title]="name()">{{ name() }}</span>
+        @for (flag of flags(); track flag.label) {
+          <span class="flag" [title]="flag.detail">{{ flag.label }}</span>
+        }
+      </span>
       @if (off()) {
         <span class="off" i18n>OFF</span>
       }

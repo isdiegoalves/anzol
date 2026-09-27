@@ -2,7 +2,7 @@
   display: contents;
 }
 
-// O status fica sempre à direita da linha 1, como no C; o nome é que quebra.
+// O status fica sempre à direita da linha 1, como no C.
 .line1 {
   display: flex;
   align-items: center;
@@ -10,8 +10,15 @@
   min-width: 0;
 }
 
-.spacer {
-  flex: 1;
+// Nome e indicadores (RULES-11): o nome fica numa linha, com reticências; sem espaço, os
+// indicadores descem para baixo dele em vez de espremê-lo.
+.title {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 6rem;
 }
 
 .priority,
@@ -35,10 +42,12 @@
 }
 
 .name {
-  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   font: var(--mat-sys-title-small);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 // Indicador discreto de template, atraso, falha e cenário; o detalhe fica no título.
