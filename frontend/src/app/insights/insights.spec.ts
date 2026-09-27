@@ -5,7 +5,9 @@ import {
   hourlyBars,
   hourlySummary,
   methodsText,
+  keptText,
   percent,
+  reasonFilter,
   schemaParts,
   signatureParts,
 } from './insights';
@@ -39,6 +41,31 @@ describe('Dado as horas com mensagem do stats (hourlyBars)', () => {
       'Requests per hour, 3 hours from 2026-09-26 12:00:00 to 2026-09-26 14:00:00 UTC; ' +
         'peak 12 at 2026-09-26 14:00:00 UTC',
     );
+  });
+});
+
+describe('Dado quantas mensagens a URL guarda e a janela (keptText, RULES-39)', () => {
+  it.each([
+    [16, 16, 500, 'of the 16 kept'],
+    [0, 0, 500, 'of the 0 kept'],
+    [500, 1291, 500, 'the newest 500 of 1291 kept'],
+    [50, 128, 50, 'the newest 50 of 128 kept'],
+  ])(
+    'deve dizer %i avaliadas de %i guardadas na janela de %i',
+    (evaluated, total, window, text) => {
+      expect(keptText(evaluated, total, window)).toBe(text);
+    },
+  );
+});
+
+describe('Dado um motivo de assinatura (reasonFilter, RULES-38)', () => {
+  it.each([
+    ['signature mismatch', 'invalid'],
+    ['timestamp outside tolerance', 'invalid'],
+    ['header X-Hub-Signature-256 absent', 'absent'],
+    ['header stripe-signature absent', 'absent'],
+  ])('deve filtrar a Inbox pelo estado certo Quando o motivo é %s', (reason, state) => {
+    expect(reasonFilter(reason)).toBe(state);
   });
 });
 

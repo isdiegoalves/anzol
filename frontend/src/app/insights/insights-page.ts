@@ -1,7 +1,8 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, computed, effect, inject, input, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { TokenStore } from '../token/token-store';
 import { EmptyState } from '../ui/empty-state';
 import { Pane } from '../ui/pane';
@@ -9,12 +10,15 @@ import { HourlyChart } from './hourly-chart';
 import {
   answeredParts,
   hourlyBars,
+  keptText,
   methodsText,
   percent,
+  reasonFilter,
   schemaParts,
   signatureParts,
 } from './insights';
 import { InsightsStore } from './insights-store';
+import { STATS_MAX_WINDOW, STATS_WINDOWS } from '../stats/stats';
 import { ProportionBar } from './proportion-bar';
 
 /** Porta do Grafana do stack de observabilidade local (`observability/README.md`). */
@@ -29,7 +33,16 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
  */
 @Component({
   selector: 'app-insights-page',
-  imports: [MatButton, RouterLink, EmptyState, Pane, HourlyChart, ProportionBar],
+  imports: [
+    MatButton,
+    MatSelect,
+    MatOption,
+    RouterLink,
+    EmptyState,
+    Pane,
+    HourlyChart,
+    ProportionBar,
+  ],
   templateUrl: './insights-page.html',
   styleUrl: './insights-page.scss',
   // Sem polling: os números são recalculados quando a aba volta a ficar visível.
@@ -82,6 +95,11 @@ export class InsightsPage {
   );
   protected readonly grafanaUrl = `${this.document.location.protocol}//${this.document.location.hostname}:${GRAFANA_PORT}${GRAFANA_DASHBOARD}`;
   protected readonly percent = percent;
+  protected readonly keptText = keptText;
+  protected readonly reasonFilter = reasonFilter;
+  /** Janela do resumo (RULES-38): as mesmas de Health, com 500 (a de E9) por padrão. */
+  protected readonly windows = STATS_WINDOWS;
+  protected readonly window = signal<number>(STATS_MAX_WINDOW);
   protected readonly rootLabel = $localize`(root)`;
   protected readonly methodsText = methodsText;
 
@@ -92,9 +110,14 @@ export class InsightsPage {
         if (this.tokens.token()?.uuid !== tokenId) {
           this.tokens.load(tokenId).catch(() => undefined);
         }
-        void this.store.load(tokenId);
+        void this.store.load(tokenId, this.window());
       });
     });
+  }
+
+  protected chooseWindow(window: number): void {
+    this.window.set(window);
+    this.refresh();
   }
 
   protected refreshIfVisible(): void {
@@ -104,6 +127,6 @@ export class InsightsPage {
   }
 
   protected refresh(): void {
-    void this.store.load(this.tokenId());
+    void this.store.load(this.tokenId(), this.window());
   }
 }

@@ -174,3 +174,8 @@ app-pane {
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+// Janela do resumo (RULES-38), ao lado de Refresh e do Grafana.
+.window-select {
+  width: 128px;
+}

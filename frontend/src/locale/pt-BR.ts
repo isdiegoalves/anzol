@@ -490,8 +490,6 @@ export const translations: Record<string, string> = {
   '4739818603756173797': 'Resumo',
   // Requests
   '2398407606701767789': 'Requisições',
-  // of the last {$INTERPOLATION} kept
-  '4244338787514857588': 'das últimas {$INTERPOLATION} guardadas',
   // {$INTERPOLATION} of these requests
   '5474134307332322819': '{$INTERPOLATION} destas requisições',
   //  The {$INTERPOLATION} most recent of the {$INTERPOLATION_1} requests this URL keeps, from {$INTERPOLATION_2} to {$INTERPOLATION_3} UTC.
@@ -2116,4 +2114,12 @@ export const translations: Record<string, string> = {
   '9054680744614346306': 'Enviar o corpo em pedaços ao longo do tempo',
   // Uniform
   '8809095087586023378': 'Uniforme',
+  // Window
+  '6718069813936046169': 'Janela',
+  // Last {$INTERPOLATION}
+  '394634218099291067': 'Últimas {$INTERPOLATION}',
+  // the newest {$evaluated} of {$total} kept
+  '4303907595329868490': 'as {$evaluated} mais novas de {$total} guardadas',
+  // of the {$total} kept
+  '6960211955108263369': 'das {$total} guardadas',
 };

@@ -109,3 +109,19 @@ export function hourlySummary(bars: readonly HourBar[]): string {
     ? $localize`Requests per hour, 1 hour from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`
     : $localize`Requests per hour, ${bars.length}:count: hours from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`;
 }
+
+/**
+ * Quantas mensagens o resumo cobre (RULES-39): "of the 16 kept" quando a janela cobre tudo o que a
+ * URL guarda, e "the newest 500 of 1291 kept" quando não cobre. A janela continua explícita (E9) sem
+ * sugerir que faltam mensagens.
+ */
+export function keptText(evaluated: number, total: number, window: number): string {
+  return total > window
+    ? $localize`the newest ${evaluated}:evaluated: of ${total}:total: kept`
+    : $localize`of the ${total}:total: kept`;
+}
+
+/** Que filtro de assinatura da Inbox mostra as mensagens de um motivo (RULES-38). */
+export function reasonFilter(reason: string): 'invalid' | 'absent' {
+  return /^header \S+ absent$/.test(reason) ? 'absent' : 'invalid';
+}

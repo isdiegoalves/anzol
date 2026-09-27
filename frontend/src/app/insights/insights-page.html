@@ -7,6 +7,17 @@
     </p>
   </div>
   <div class="actions">
+    <mat-select
+      class="window-select"
+      aria-label="Window"
+      i18n-aria-label
+      [value]="window()"
+      (selectionChange)="chooseWindow($event.value)"
+    >
+      @for (size of windows; track size) {
+        <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
+      }
+    </mat-select>
     <button mat-stroked-button type="button" [disabled]="store.loading()" (click)="refresh()" i18n>
       Refresh
     </button>
@@ -30,7 +41,9 @@
             &ngsp;
             <dd>
               <span class="value">{{ stats.evaluated }}</span
-              >&ngsp;<span class="of" i18n>of the last {{ stats.window }} kept</span>
+              >&ngsp;<span class="of">{{
+                keptText(stats.evaluated, stats.total, stats.window)
+              }}</span>
             </dd>
             &ngsp;
           </div>
@@ -119,7 +132,11 @@
                 @for (reason of stats.signature.reasons; track reason.reason) {
                   <tr>
                     <td>
-                      <code>{{ reason.reason }}</code>
+                      <a
+                        [routerLink]="['/', tokenId()]"
+                        [queryParams]="{ signature: reasonFilter(reason.reason) }"
+                        ><code>{{ reason.reason }}</code></a
+                      >
                     </td>
                     <td class="number">{{ reason.count }}</td>
                   </tr>
@@ -145,7 +162,9 @@
                 @for (path of stats.schema.paths; track path.path) {
                   <tr>
                     <td>
-                      <code>{{ path.path === '' ? rootLabel : path.path }}</code>
+                      <a [routerLink]="['/', tokenId()]" [queryParams]="{ schema: 'invalid' }"
+                        ><code>{{ path.path === '' ? rootLabel : path.path }}</code></a
+                      >
                     </td>
                     <td class="number">{{ path.count }}</td>
                   </tr>

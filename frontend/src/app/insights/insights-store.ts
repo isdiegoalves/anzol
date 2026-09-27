@@ -17,7 +17,7 @@ export class InsightsStore {
   readonly error = signal<string | null>(null);
   private tokenId: string | null = null;
 
-  async load(tokenId: string): Promise<void> {
+  async load(tokenId: string, window: number = STATS_MAX_WINDOW): Promise<void> {
     if (tokenId !== this.tokenId) {
       this.stats.set(null);
     }
@@ -27,7 +27,7 @@ export class InsightsStore {
     try {
       const stats = await firstValueFrom(
         this.http.get<TokenStats>(`/token/${tokenId}/stats`, {
-          params: { window: STATS_MAX_WINDOW },
+          params: { window },
         }),
       );
       if (this.tokenId === tokenId) {

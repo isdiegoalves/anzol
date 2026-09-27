@@ -2,6 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -44,7 +46,7 @@ describe('Dado a página Insights', () => {
     const { container } = await open(tokenStats());
 
     const summary = region('Summary');
-    expect(summary.textContent).toContain('128 of the last 500 kept');
+    expect(summary.textContent).toContain('128 of the 128 kept');
     expect(summary.textContent?.replace(/\s+/g, ' ')).toContain(
       'The 128 most recent of the 128 requests this URL keeps, from 2026-09-25 09:13:44 to 2026-09-26 14:02:07 UTC.',
     );
@@ -54,7 +56,7 @@ describe('Dado a página Insights', () => {
         .join(' '),
     );
     expect(kpis).toEqual([
-      'Requests 128 of the last 500 kept',
+      'Requests 128 of the 128 kept',
       'Answered by a rule 44 34% of these requests',
       'Default response 84 66% of these requests',
       'Near misses 2 2% of these requests',
@@ -83,6 +85,15 @@ describe('Dado a página Insights', () => {
       within(region('Signature')).getByRole('table', { name: 'Signature failure reasons' })
         .textContent,
     ).toContain('signature mismatch');
+    // Cada motivo e cada caminho levam à Inbox filtrada (RULES-38), como o Health de Checks.
+    expect(
+      within(region('Signature'))
+        .getByRole('link', { name: 'signature mismatch' })
+        .getAttribute('href'),
+    ).toBe(`/${TOKEN_ID}?signature=invalid`);
+    expect(
+      within(region('Schema')).getByRole('link', { name: '/amount' }).getAttribute('href'),
+    ).toBe(`/${TOKEN_ID}?schema=invalid`);
     expect(within(region('Schema')).getByRole('img').getAttribute('aria-label')).toBe(
       'Schema: Valid 100 (78%), Invalid 20 (16%), Not checked 8 (6%)',
     );
@@ -112,9 +123,7 @@ describe('Dado a página Insights', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     http.expectOne((req) => req.url === URL_STATS).flush(tokenStats({ evaluated: 3 }));
 
-    await vi.waitFor(() =>
-      expect(region('Summary').textContent).toContain('3 of the last 500 kept'),
-    );
+    await vi.waitFor(() => expect(region('Summary').textContent).toContain('3 of the 128 kept'));
   });
 
   it('deve mostrar a janela e dizer que não há mensagens, sem os gráficos, Quando a URL está vazia', async () => {
@@ -128,9 +137,34 @@ describe('Dado a página Insights', () => {
       }),
     );
 
-    expect(region('Summary').textContent).toContain('0 of the last 500 kept');
+    expect(region('Summary').textContent).toContain('0 of the 0 kept');
     expect(within(region('Summary')).getByText('No requests yet')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Requests per hour' })).toBeNull();
+  });
+
+  it('deve reler com a janela escolhida em "Window" (Last 50/200/500, padrão 500) e dizer as mais novas', async () => {
+    const { fixture } = await open(tokenStats({ total: 1291, evaluated: 500 }));
+    expect(region('Summary').textContent).toContain('the newest 500 of 1291 kept');
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+
+    const janela = await loader.getHarness(
+      MatSelectHarness.with({ selector: '[aria-label="Window"]' }),
+    );
+    expect(await janela.getValueText()).toBe('Last 500');
+    await janela.open();
+    expect(await Promise.all((await janela.getOptions()).map((o) => o.getText()))).toEqual([
+      'Last 50',
+      'Last 200',
+      'Last 500',
+    ]);
+    await janela.clickOptions({ text: 'Last 50' });
+
+    const call = await vi.waitFor(() => http.expectOne((req) => req.url === URL_STATS));
+    expect(call.request.params.get('window')).toBe('50');
+    call.flush(tokenStats({ total: 1291, evaluated: 50, window: 50 }));
+    await vi.waitFor(() =>
+      expect(region('Summary').textContent).toContain('the newest 50 of 1291 kept'),
+    );
   });
 
   it('deve avisar Quando a URL não existe mais (410)', async () => {
