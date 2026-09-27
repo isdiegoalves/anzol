@@ -12,8 +12,8 @@ export type RequestSorting = 'newest' | 'oldest';
 
 /**
  * Filtro da lista lateral: texto e filtros rápidos. Vai também para a query da rota da Inbox
- * (`?signature=&schema=&methods=&q=`, ver `filterFromParams`), para o link ser compartilhável e o
- * "Show in Inbox" do Health abrir filtrado.
+ * (`?signature=&schema=&methods=&q=`, e `signatureReason=`/`schemaPath=` do M1, ver
+ * `filterFromParams`), para o link ser compartilhável e o "Show in Inbox" do Health abrir filtrado.
  */
 export interface RequestFilter {
   text: string;
@@ -22,6 +22,13 @@ export interface RequestFilter {
   schema: SchemaFilter;
   /** Desfecho da mensagem (C2): respondida por uma regra, quase acerto dela, ou resposta padrão. */
   outcome?: OutcomeFilter | null;
+  /**
+   * M1: o motivo exato de assinatura inválida, como o Health mostra (sem o parêntese final); `null`
+   * ou ausente, sem este filtro.
+   */
+  signatureReason?: string | null;
+  /** M1: o caminho (JSON Pointer) de um erro de schema; `''` é a raiz. `null` ou ausente, sem ele. */
+  schemaPath?: string | null;
 }
 
 /** O `outcome` da busca, com o nome da regra para o chip ("Answered by: Pix"). */
@@ -39,6 +46,8 @@ export interface FilterParams {
   outcome?: string | null;
   rule?: string | null;
   ruleName?: string | null;
+  signatureReason?: string | null;
+  schemaPath?: string | null;
 }
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
@@ -54,13 +63,30 @@ export function filterFromParams(params: FilterParams): RequestFilter {
   const wanted = (params.methods ?? '').split(',').map((method) => method.trim().toUpperCase());
   const methods = FILTER_METHODS.filter((method) => wanted.includes(method));
   const outcome = outcomeFromParams(params);
+  // Os tetos do servidor (422 acima): o motivo vazio não filtra nada; o caminho vazio é a raiz.
+  const reason = params.signatureReason?.slice(0, REASON_MAX) || null;
+  const path =
+    params.schemaPath != null &&
+    isPointer(params.schemaPath) &&
+    params.schemaPath.length <= PATH_MAX
+      ? params.schemaPath
+      : null;
   return {
     text: (params.q ?? '').slice(0, 200),
     methods,
     signature,
     schema,
     ...(outcome && { outcome }),
+    ...(reason !== null && { signatureReason: reason }),
+    ...(path !== null && { schemaPath: path }),
   };
+}
+
+const REASON_MAX = 200;
+const PATH_MAX = 1000;
+/** JSON Pointer: vazio (a raiz), ou `/` no começo e `~` só como `~0`/`~1` (a busca recusa o resto). */
+function isPointer(path: string): boolean {
+  return path === '' || (path.startsWith('/') && !/~(?![01])/.test(path));
 }
 
 const UUID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
@@ -88,6 +114,8 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     outcome: filter.outcome?.type ?? null,
     rule: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.rule : null,
     ruleName: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.name : null,
+    signatureReason: filter.signatureReason ?? null,
+    schemaPath: filter.schemaPath ?? null,
   };
 }
 
@@ -99,6 +127,8 @@ export interface SearchBody {
   text?: string;
   match: RuleMatch;
   outcome?: { type: OutcomeFilter['type']; rule?: string };
+  signature_reason?: string;
+  schema_path?: string;
   sorting: RequestSorting;
   page: number;
   per_page: number;
@@ -110,7 +140,9 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.methods.length > 0 ||
     filter.signature !== 'any' ||
     filter.schema !== 'any' ||
-    !!filter.outcome
+    !!filter.outcome ||
+    filter.signatureReason != null ||
+    filter.schemaPath != null
   );
 }
 
@@ -121,7 +153,9 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     a.schema === b.schema &&
     a.methods.length === b.methods.length &&
     a.methods.every((method) => b.methods.includes(method)) &&
-    sameOutcome(a.outcome ?? null, b.outcome ?? null)
+    sameOutcome(a.outcome ?? null, b.outcome ?? null) &&
+    (a.signatureReason ?? null) === (b.signatureReason ?? null) &&
+    (a.schemaPath ?? null) === (b.schemaPath ?? null)
   );
 }
 
@@ -157,6 +191,8 @@ export function searchBody(
   return {
     ...(text && { text }),
     match,
+    ...(filter.signatureReason != null && { signature_reason: filter.signatureReason }),
+    ...(filter.schemaPath != null && { schema_path: filter.schemaPath }),
     ...(outcome && {
       outcome:
         outcome.type === 'default'
@@ -167,6 +203,19 @@ export function searchBody(
     page,
     per_page: SEARCH_PER_PAGE,
   };
+}
+
+/**
+ * O que o filtro tem e o `wait-for` não entende (ele só lê o `match`): o texto, o desfecho (C2) e o
+ * motivo e o caminho do M1. O comando sai sem eles, e a tela diz quais ficaram de fora.
+ */
+export function outsideWaitFor(filter: RequestFilter): ('text' | 'outcome' | 'reason' | 'path')[] {
+  return [
+    ...(filter.text.trim() ? (['text'] as const) : []),
+    ...(filter.outcome ? (['outcome'] as const) : []),
+    ...(filter.signatureReason != null ? (['reason'] as const) : []),
+    ...(filter.schemaPath != null ? (['path'] as const) : []),
+  ];
 }
 
 /** Para onde e para qual URL o comando `anzol wait-for` aponta. */

@@ -1,4 +1,5 @@
 import {
+  outsideWaitFor,
   filterFromParams,
   filterToParams,
   NO_FILTER,
@@ -122,6 +123,8 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       outcome: null,
       rule: null,
       ruleName: null,
+      signatureReason: null,
+      schemaPath: null,
     });
     expect(filterToParams(NO_FILTER)).toEqual({
       signature: null,
@@ -131,6 +134,8 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       outcome: null,
       rule: null,
       ruleName: null,
+      signatureReason: null,
+      schemaPath: null,
     });
   });
 });
@@ -179,5 +184,85 @@ describe('Dado o filtro por desfecho (C2, WM-27)', () => {
     // Tipo desconhecido ou regra que não é UUID: sem desfecho.
     expect(filterFromParams({ outcome: 'rule', rule: 'x' })).toEqual(NO_FILTER);
     expect(filterFromParams({ outcome: 'talvez' })).toEqual(NO_FILTER);
+  });
+});
+
+describe('Dado o filtro pelo motivo exato (M1)', () => {
+  const motivo = { ...NO_FILTER, signatureReason: 'timestamp outside tolerance' };
+  const raiz = { ...NO_FILTER, schemaPath: '' };
+
+  it('deve ativar o filtro e ir na busca no topo do corpo, fora do match', () => {
+    expect(isFilterActive(motivo)).toBe(true);
+    expect(isFilterActive(raiz)).toBe(true);
+    expect(searchBody({ ...motivo, schemaPath: '/valor' }, 1)).toEqual({
+      match: {},
+      signature_reason: 'timestamp outside tolerance',
+      schema_path: '/valor',
+      sorting: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+    // A raiz ('') é um caminho, e vai; ausente, nada.
+    expect(searchBody(raiz, 1).schema_path).toBe('');
+    expect(searchBody(NO_FILTER, 1)).not.toHaveProperty('schema_path');
+    expect(searchBody(NO_FILTER, 1)).not.toHaveProperty('signature_reason');
+  });
+
+  it('deve comparar o motivo e o caminho, com a raiz diferente de nenhum', () => {
+    expect(sameFilter(motivo, { ...motivo })).toBe(true);
+    expect(sameFilter(motivo, NO_FILTER)).toBe(false);
+    expect(sameFilter(raiz, NO_FILTER)).toBe(false);
+    expect(sameFilter(raiz, { ...NO_FILTER, schemaPath: '/a' })).toBe(false);
+  });
+
+  it('deve ir e voltar pela rota, com a raiz como parâmetro vazio', () => {
+    expect(filterToParams(motivo)).toMatchObject({
+      signatureReason: 'timestamp outside tolerance',
+      schemaPath: null,
+    });
+    expect(filterToParams(raiz)).toMatchObject({ signatureReason: null, schemaPath: '' });
+    expect(filterFromParams({ signatureReason: 'signature mismatch', schemaPath: '' })).toEqual({
+      ...NO_FILTER,
+      signatureReason: 'signature mismatch',
+      schemaPath: '',
+    });
+  });
+
+  it.each([
+    ['$.valor', 'JSONPath'],
+    ['valor', 'sem / no começo'],
+    ['/a~2', '~ sem 0 ou 1'],
+    [`/${'x'.repeat(1000)}`, 'mais de 1000 caracteres'],
+  ])('deve ignorar o caminho %s da rota (%s), que a busca recusaria', (schemaPath) => {
+    expect(filterFromParams({ schemaPath })).toEqual(NO_FILTER);
+  });
+
+  it('deve aceitar os escapes ~0 e ~1 e ignorar o motivo vazio', () => {
+    expect(filterFromParams({ schemaPath: '/a~0b/c~1d' }).schemaPath).toBe('/a~0b/c~1d');
+    expect(filterFromParams({ signatureReason: '' })).toEqual(NO_FILTER);
+    expect(filterFromParams({ signatureReason: 'x'.repeat(300) }).signatureReason).toHaveLength(
+      200,
+    );
+  });
+
+  it('não deve levar ao wait-for o que ele não entende, e dizer o quê', () => {
+    const tudo = {
+      ...NO_FILTER,
+      text: 'abc',
+      methods: ['POST'],
+      signature: 'invalid' as const,
+      outcome: { type: 'default' as const },
+      signatureReason: 'signature mismatch',
+      schemaPath: '',
+    };
+    const command = waitForCommand(tudo, { server: 'http://x', tokenId: 't', protected: false });
+
+    expect(command).toBe(
+      `anzol wait-for --server 'http://x' --token t --match '{"method":["POST"],"signature":"invalid"}'`,
+    );
+    expect(command).not.toContain('signature_reason');
+    expect(command).not.toContain('schema_path');
+    expect(outsideWaitFor(tudo)).toEqual(['text', 'outcome', 'reason', 'path']);
+    expect(outsideWaitFor({ ...NO_FILTER, methods: ['GET'] })).toEqual([]);
   });
 });
