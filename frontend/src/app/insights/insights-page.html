@@ -74,7 +74,13 @@
           <app-hourly-chart [bars]="hourly()" />
           <details class="data" open>
             <summary i18n>Data table</summary>
-            <div class="table-scroll">
+            <div
+              class="table-scroll"
+              tabindex="0"
+              role="region"
+              aria-label="Hourly data"
+              i18n-aria-label
+            >
               <table class="table" aria-label="Requests per hour data" i18n-aria-label>
                 <thead>
                   <tr>

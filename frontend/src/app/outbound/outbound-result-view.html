@@ -35,7 +35,9 @@
     <p class="truncated" role="note" i18n>Truncated: only the first 64 KB of the body is shown.</p>
   }
   @if (current.body) {
-    <pre class="body" aria-label="Response body" i18n-aria-label>{{ current.body }}</pre>
+    <pre class="body" tabindex="0" aria-label="Response body" i18n-aria-label>{{
+      current.body
+    }}</pre>
   } @else {
     <p class="small" i18n>(no body content)</p>
   }

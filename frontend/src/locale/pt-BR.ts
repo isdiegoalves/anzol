@@ -530,6 +530,8 @@ export const translations: Record<string, string> = {
   '1853040955264579548': 'Requisições por hora',
   // Data table
   '8269518462221334396': 'Tabela de dados',
+  // Hourly data
+  '7800763927527128894': 'Dados por hora',
   // Requests per hour data
   '1916612874706188972': 'Dados das requisições por hora',
   // Hour (UTC)
@@ -1460,6 +1462,8 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =1 {1 request kept} other {{INTERPOLATION} requests kept}}
   '7371048342128462743':
     '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
+  // Rule table
+  '6904943491245640212': 'Tabela de regras',
   // Reorder
   '5721589179245249262': 'Reordenar',
   // Behavior
@@ -1531,6 +1535,8 @@ export const translations: Record<string, string> = {
   '4116228028354126363': 'Voltar todos os cenários para Started',
   //  Reset all
   '4760846516919742648': ' Reiniciar todos ',
+  // Scenario table
+  '3720212523757594428': 'Tabela de cenários',
   // Current state
   '4849277051965761197': 'Estado atual',
   // Set state

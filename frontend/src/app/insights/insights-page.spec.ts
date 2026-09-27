@@ -95,6 +95,9 @@ describe('Dado a página Insights', () => {
     expect(rules.getByRole('link', { name: 'Refund queued' }).getAttribute('href')).toBe(
       `/${TOKEN_ID}/rules/a`,
     );
+    // A tabela que rola de lado recebe foco pelo teclado (axe scrollable-region-focusable, E11).
+    const rolagem = screen.getByRole('region', { name: 'Hourly data' });
+    expect(rolagem.getAttribute('tabindex')).toBe('0');
     await expectNoAxeViolations(container);
   });
 

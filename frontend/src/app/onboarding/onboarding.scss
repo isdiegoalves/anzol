@@ -107,7 +107,6 @@ p {
   // Parágrafo, não <pre>: o detalhe da mensagem já tem o <pre> do corpo.
   margin: 0;
   padding: 12px;
-  overflow-x: auto;
   border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-high);
   font-family: var(--app-code-family);

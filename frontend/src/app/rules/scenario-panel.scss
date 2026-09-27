@@ -90,4 +90,9 @@ code {
 .table-scroll {
   position: relative;
   overflow-x: auto;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
 }

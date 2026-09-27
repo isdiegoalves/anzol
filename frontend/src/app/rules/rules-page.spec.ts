@@ -112,6 +112,9 @@ describe('Dado a página Rules', () => {
     expect(within(padrao).getByRole('rowheader').textContent).toContain('Default response');
     expect(padrao.querySelector('.hits')?.textContent?.trim()).toBe('Answered 84');
     expect(screen.getByText('Hits over the last 128 requests kept.')).toBeTruthy();
+    // A tabela que rola de lado recebe foco pelo teclado (axe scrollable-region-focusable, E11).
+    const rolagem = screen.getByRole('region', { name: 'Rule table' });
+    expect(rolagem.getAttribute('tabindex')).toBe('0');
     await expectNoAxeViolations(container);
   });
 

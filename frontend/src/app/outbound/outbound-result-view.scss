@@ -63,4 +63,9 @@ p {
   font: 12px / 1.5 var(--app-code-family);
   white-space: pre-wrap;
   word-break: break-all;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
 }
