@@ -1,6 +1,7 @@
 // Leiaute pelas *window size classes* do M3, em media queries (a troca acontece junto com o
-// redimensionamento, sem esperar a detecção de mudanças): rail de 96 px; rail expandido de 232 px a
-// partir de 1600 px; abaixo de 600 px, barra no topo e destinos na barra inferior.
+// redimensionamento, sem esperar a detecção de mudanças): a partir de 600 px, o rail compacto do
+// protótipo C (96 px, ícone com o rótulo pequeno embaixo, FAB só com o ícone) em qualquer largura;
+// abaixo de 600 px, barra no topo e destinos na barra inferior.
 :host {
   display: flex;
   height: 100%;
@@ -24,7 +25,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   width: 48px;
   height: 48px;
   border-radius: var(--mat-sys-corner-large);
@@ -33,16 +33,10 @@
   text-decoration: none;
 }
 
-.brand-name,
-.fab-text {
-  display: none;
-}
-
 .fab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   box-sizing: border-box;
   width: 56px;
   height: 56px;
@@ -52,7 +46,6 @@
   background: var(--mat-sys-tertiary-container);
   color: var(--mat-sys-on-tertiary-container);
   box-shadow: var(--mat-sys-level1);
-  font: var(--mat-sys-label-large);
   cursor: pointer;
 }
 
@@ -160,65 +153,6 @@
   overflow: auto;
   border-radius: var(--mat-sys-corner-large) 0 0;
   background: var(--mat-sys-surface-container-lowest);
-}
-
-// Rail expandido (M3 expressivo): rótulos ao lado, FAB estendido.
-@media (width >= 1600px) {
-  :host {
-    .rail {
-      align-items: stretch;
-      width: 232px;
-    }
-
-    .brand,
-    .fab,
-    .destination {
-      margin-right: 12px;
-      margin-left: 12px;
-    }
-
-    .brand {
-      justify-content: flex-start;
-      width: auto;
-      padding: 0 14px;
-      font: var(--mat-sys-title-medium);
-      font-variation-settings: 'ROND' 100;
-    }
-
-    .brand-name,
-    .fab-text {
-      display: inline;
-    }
-
-    .fab {
-      justify-content: flex-start;
-      width: auto;
-      padding: 0 20px 0 16px;
-    }
-
-    .destinations {
-      align-items: stretch;
-    }
-
-    .destination {
-      flex-direction: row;
-      gap: 12px;
-      width: auto;
-      min-height: 48px;
-      padding: 0 16px 0 0;
-      border-radius: var(--mat-sys-corner-full);
-    }
-
-    .destination.current {
-      background: var(--mat-sys-secondary-container);
-      color: var(--mat-sys-on-secondary-container);
-    }
-
-    .tool {
-      align-self: flex-start;
-      margin-left: 12px;
-    }
-  }
 }
 
 // Compacto (< 600 px): barra no topo com a marca, o FAB, Settings e Help; os destinos na barra
