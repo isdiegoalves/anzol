@@ -645,9 +645,6 @@ export const translations: Record<string, string> = {
     'Não foi possível mandar a requisição de teste. Confira se o servidor está rodando e tente de novo.',
   // Forward from this browser (legacy)
   '8326407502356428266': 'Encaminhar deste navegador (legado)',
-  //  Sends requests to another URL with an XHR from this browser, as the old Redirect did. The target must allow the call (CORS). Prefer Replay: the server sends it, with no CORS.
-  '417687800573390249':
-    ' Manda as requisições para outra URL com um XHR deste navegador, como o antigo Redirect. O destino precisa permitir a chamada (CORS). Prefira o Reenvio: quem manda é o servidor, sem CORS. ',
   // Redirect incoming requests to another URL via XHR
   '7176278684155559271': 'Redirecionar as requisições que chegam para outra URL via XHR',
   // Auto redirect
@@ -665,13 +662,6 @@ export const translations: Record<string, string> = {
   '5467183237088986772': 'Um número inteiro de segundos, de {$PH} a {$PH_1}.',
   // Outbound
   '7205455315796592956': 'Saída',
-  //  Replays of received requests and new sends, made by the server and recorded here. 30 sends per minute per URL.
-  '5078016477839828998':
-    ' Reenvios de requisições recebidas e envios novos, feitos pelo servidor e gravados aqui. 30 envios por minuto por URL. ',
-  // History
-  '186236568870281953': 'Histórico',
-  // last 50 sent by the server, newest first
-  '5025742512486566690': 'os últimos 50 mandados pelo servidor, do mais novo para o mais antigo',
   // Outbound history
   '3130007560143918363': 'Histórico de saída',
   // Target
@@ -700,8 +690,6 @@ export const translations: Record<string, string> = {
   '6361434880449118285': 'Não foi possível carregar o histórico de saída ({$PH}).',
   // Sent to {$INTERPOLATION}
   '7211375425009983382': 'Enviada para {$INTERPOLATION}',
-  // Nothing reached the target, so there is no response.
-  '8367072816890592301': 'Nada chegou ao destino, então não há resposta.',
   // Response headers
   '2382279394038645925': 'Cabeçalhos da resposta',
   // (none)
@@ -752,17 +740,11 @@ export const translations: Record<string, string> = {
   '4007560768149428011': '{$count} dias',
   // Replay request
   '2154379236049810566': 'Reenviar requisição',
-  //  The server sends a received request again (method, headers and body as received) to the target and records the answer below.
-  '5321057605054159399':
-    ' O servidor manda de novo uma requisição recebida (método, cabeçalhos e corpo como chegaram) para o destino e grava a resposta abaixo.\n',
   // No request to replay yet: send one to this URL first.
   '4241869674120211654':
     'Nenhuma requisição para reenviar ainda: mande uma para esta URL primeiro.',
   // Request to replay
   '6616065411331496250': 'Requisição a reenviar',
-  //  The {$INTERPOLATION} signature in this request is older than the tolerance ({$INTERPOLATION_1} s): the receiver will likely reject the replay. It was signed {$INTERPOLATION_2} ago.
-  '1168151816784834819':
-    ' A assinatura {$INTERPOLATION} desta requisição é mais antiga que a tolerância ({$INTERPOLATION_1} s): o destino provavelmente vai recusar o reenvio. Ela foi assinada há {$INTERPOLATION_2}. ',
   //  Send as new with a fresh signature
   '4517896460686144570': ' Mandar como nova, com assinatura nova ',
   // Signs the same method, headers and body again as {$INTERPOLATION}.
@@ -785,9 +767,6 @@ export const translations: Record<string, string> = {
   '7606672167560356784': 'Enviando…',
   // Send request
   '736940570258467336': 'Mandar requisição',
-  // The server sends this request to the target and records the answer below.
-  '8905588064976035738':
-    'O servidor manda esta requisição para o destino e grava a resposta abaixo.',
   // Method
   '8864288285279476751': 'Método',
   // URL
@@ -2047,4 +2026,22 @@ export const translations: Record<string, string> = {
   //  Every key present becomes required; integers become integer. Review before saving.
   '8146939615938260524':
     ' Toda chave presente vira obrigatória; inteiros viram integer. Revise antes de salvar. ',
+  //  Sends requests to another URL with an XHR from this browser, as the old Redirect did. The target must allow the call (CORS). Prefer Replay (the server sends it, with no CORS) or {$START_TAG_CODE}anzol listen{$CLOSE_TAG_CODE} on your machine.
+  '5233543101749253123':
+    ' Manda as requisições para outra URL com um XHR deste navegador, como o antigo Redirect. O destino precisa permitir a chamada (CORS). Prefira o Reenvio (quem manda é o servidor, sem CORS) ou o {$START_TAG_CODE}anzol listen{$CLOSE_TAG_CODE} na sua máquina. ',
+  // last 50 sent by the server
+  '6199054697071433153': 'os últimos 50 mandados pelo servidor',
+  // Refresh history
+  '4912403083664375741': 'Atualizar histórico',
+  //  Replays of received requests and new sends, newest first. 30 sends per minute per URL.
+  '643997531098809619':
+    ' Reenvios de requisições recebidas e envios novos, do mais novo para o mais antigo. 30 envios por minuto por URL. ',
+  // The server sends it and records the answer below.
+  '593047702260873933': 'O servidor manda e grava a resposta abaixo.',
+  //  Nothing reached the target, so there is no response. The sent headers are below.
+  '1571395589030646298':
+    ' Nada chegou ao destino, então não há resposta. Os cabeçalhos enviados estão abaixo. ',
+  //  The {$INTERPOLATION} signature in this request is older than the tolerance ({$INTERPOLATION_1} s): the receiver will likely reject the replay. It was signed {$INTERPOLATION_2} ago ({$INTERPOLATION_3}).
+  '179855389406776803':
+    ' A assinatura {$INTERPOLATION} desta requisição é mais antiga que a tolerância ({$INTERPOLATION_1} s): o destino provavelmente vai recusar o reenvio. Ela foi assinada há {$INTERPOLATION_2} ({$INTERPOLATION_3}). ',
 };

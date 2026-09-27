@@ -14,17 +14,24 @@
   padding: 16px 24px 24px;
 }
 
-.heading {
+// O título da página fica no cartão do histórico, com o Refresh em ícone (OUTBOUND-02).
+.history-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px 24px;
+  align-items: center;
+  gap: 4px 10px;
+}
 
-  h1 {
-    margin: 8px 0 4px;
-    font: var(--mat-sys-headline-small);
-    font-variation-settings: 'ROND' 100;
+.spacer {
+  flex: 1;
+}
+
+// O segmentado Replay | Send largo, com o check no escolhido (OUTBOUND-04).
+.kind {
+  min-width: 240px;
+
+  mat-button-toggle {
+    flex: 1;
   }
 }
 

@@ -109,7 +109,8 @@ export function outboundErrorText(error: OutboundError): ErrorText {
   const known = ERROR_TEXTS[error.kind as OutboundErrorKind];
   return {
     title: known?.title ?? error.kind,
-    detail: error.message,
+    // O servidor às vezes repete o tipo no começo ("blocked: link-local address"): sai (OUTBOUND-10).
+    detail: error.message.replace(new RegExp(`^${error.kind}:\\s*`, 'i'), ''),
     hint: known?.hint ?? '',
   };
 }
@@ -267,6 +268,8 @@ export interface StaleSignature {
   age: number;
   /** Tolerância que vale: a da URL, se ela verifica esse provedor; senão a padrão (300 s). */
   tolerance: number;
+  /** O horário assinado como chegou ("t=1790438402", "X-Slack-Request-Timestamp: 1790438402"). */
+  signed: string;
 }
 
 /**
@@ -293,8 +296,10 @@ export function staleSignature(
   const config = token?.signature?.provider === signed.provider ? token.signature : null;
   const tolerance = config?.toleranceSeconds ?? DEFAULT_TOLERANCE_S;
   const age = Math.floor(now / 1000) - signed.at;
+  const shown =
+    signed.provider === 'stripe' ? `t=${signed.at}` : `X-Slack-Request-Timestamp: ${signed.at}`;
   return age > tolerance
-    ? { provider: SIGNATURE_PROVIDER_LABELS[signed.provider], age, tolerance }
+    ? { provider: SIGNATURE_PROVIDER_LABELS[signed.provider], age, tolerance, signed: shown }
     : null;
 }
 

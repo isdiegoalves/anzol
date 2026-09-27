@@ -137,7 +137,7 @@ describe('Dado a página Outbound', () => {
 
     const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(within(composer).getByRole('status').textContent).toMatch(
-      /The Stripe signature in this request is older than the tolerance \(300 s\): the receiver will likely reject the replay\. It was signed 60 min ago\./,
+      /The Stripe signature in this request is older than the tolerance \(300 s\): the receiver will likely reject the replay\. It was signed 60 min ago \(t=\d+\)\./,
     );
     await userEvent.click(
       within(composer).getByRole('button', { name: 'Send as new with a fresh signature' }),
@@ -274,7 +274,7 @@ describe('Dado a página Outbound', () => {
       const start = separator.previousElementSibling;
       expect(start?.querySelector('table[aria-label="Outbound history"]')).toBeTruthy();
       const end = separator.nextElementSibling;
-      expect(end?.querySelector('[aria-label="New request"]')).toBeTruthy();
+      expect(end?.querySelector('[aria-labelledby="outbound-new-title"]')).toBeTruthy();
       expect(end?.querySelector('[aria-label="Outbound detail"]')).toBeTruthy();
     });
 
@@ -406,6 +406,81 @@ describe('Dado a página Outbound', () => {
           .getByRole('button', { name: /^Request to replay: / })
           .getAttribute('aria-label'),
       ).toBe(`Request to replay: #${VELHA.uuid.slice(0, 5)}, POST /. Change`);
+    });
+
+    describe('Dado as decisões do dono (F2 fase 2)', () => {
+      it('OUTBOUND-02 e 12: deve pôr o título e o Refresh em ícone no cartão do histórico, com a frase curta', async () => {
+        await open();
+
+        const title = screen.getByRole('heading', { level: 1, name: 'Outbound' });
+        expect(title.classList.contains('page-title')).toBe(true);
+        const card = title.closest('.history') as HTMLElement;
+        expect(card.querySelector('table[aria-label="Outbound history"]')).toBeTruthy();
+        const refresh = within(card).getByRole('button', { name: 'Refresh history' });
+        expect(refresh.textContent?.trim()).toBe('');
+        expect(card.textContent).toContain(
+          'Replays of received requests and new sends, newest first. 30 sends per minute per URL.',
+        );
+        expect(screen.queryByRole('heading', { name: /last 50/ })).toBeNull();
+
+        await userEvent.click(refresh);
+        http.expectOne(RECENT).flush(requestPage([PEDIDO]));
+        http.expectOne(HISTORY).flush([]);
+      });
+
+      it('OUTBOUND-04: deve ter o h2 "New request" com o segmentado e manter as regiões', async () => {
+        await open(`?replay=${PEDIDO.uuid}`);
+
+        const composer = screen.getByRole('region', { name: 'New request' });
+        expect(
+          within(composer).getByRole('heading', { level: 2, name: 'New request' }),
+        ).toBeTruthy();
+        expect(composer.textContent).toContain('The server sends it and records the answer below.');
+        expect(await screen.findByRole('region', { name: 'Replay request' })).toBeTruthy();
+      });
+
+      it('OUTBOUND-06: deve mostrar o t= lido no aviso de assinatura velha', async () => {
+        await open(`?replay=${VELHA.uuid}`, {
+          url: token({
+            signature: { provider: 'stripe', secret: '••••1234', toleranceSeconds: 300 },
+          }),
+        });
+
+        const composer = await screen.findByRole('region', { name: 'Replay request' });
+        expect(within(composer).getByRole('status').textContent).toMatch(/\(t=\d+\)/);
+      });
+
+      it('OUTBOUND-10: deve pôr o ícone de aviso no erro de saída e dizer que os headers enviados estão embaixo', async () => {
+        await open('', {
+          history: [
+            outboundResult(9, {
+              status: null,
+              headers: null,
+              body: null,
+              error: { kind: 'blocked', message: 'blocked: link-local address (always blocked)' },
+            }),
+          ],
+        });
+
+        const alert = within(detail()).getByRole('alert');
+        expect(alert.querySelector('app-icon')).toBeTruthy();
+        expect(alert.textContent).toContain('Blocked: link-local address (always blocked)');
+        expect(alert.textContent).toContain(
+          'Nothing reached the target, so there is no response. The sent headers are below.',
+        );
+      });
+
+      it('OUTBOUND-11: deve sugerir o anzol listen no Forward legado', async () => {
+        await open();
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Forward from this browser (legacy)' }),
+        );
+
+        expect(
+          screen.getByRole('region', { name: 'Forward from this browser (legacy)' }).textContent,
+        ).toContain('anzol listen');
+      });
     });
   });
 });

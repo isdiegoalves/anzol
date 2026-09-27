@@ -268,3 +268,13 @@ code {
   color: var(--mat-sys-error);
   font: var(--mat-sys-body-small);
 }
+
+// O h2 da região ("Replay request", "Send request") dá o nome a ela e fica fora da vista: o título
+// visível é o "New request" do cartão (OUTBOUND-04).
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

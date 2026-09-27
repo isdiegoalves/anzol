@@ -1,10 +1,5 @@
 @let current = chosen();
-<h2 id="replay-title" class="composer-title" i18n>Replay request</h2>
-<p class="hint" i18n>
-  The server sends a received request again (method, headers and body as received) to the target and
-  records the answer below.
-</p>
-
+<h2 id="replay-title" class="visually-hidden" i18n>Replay request</h2>
 @if (requests().length === 0) {
   <p class="hint" i18n>No request to replay yet: send one to this URL first.</p>
 } @else {
@@ -92,7 +87,9 @@
           The {{ stale.provider }} signature in this request is older than the tolerance ({{
             stale.tolerance
           }}
-          s): the receiver will likely reject the replay. It was signed {{ age(stale.age) }} ago.
+          s): the receiver will likely reject the replay. It was signed {{ age(stale.age) }} ago ({{
+            stale.signed
+          }}).
         </p>
         @if (signer(); as provider) {
           <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>

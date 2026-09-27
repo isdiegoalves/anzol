@@ -31,7 +31,8 @@ import { Redirector } from '../settings/redirect';
       @if (open()) {
         <p class="hint" i18n>
           Sends requests to another URL with an XHR from this browser, as the old Redirect did. The
-          target must allow the call (CORS). Prefer Replay: the server sends it, with no CORS.
+          target must allow the call (CORS). Prefer Replay (the server sends it, with no CORS) or
+          <code>anzol listen</code> on your machine.
         </p>
         <div class="row">
           <mat-slide-toggle

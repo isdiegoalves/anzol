@@ -1,6 +1,7 @@
 import { Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { localDate } from '../request-detail/dates';
+import { Icon } from '../ui/icon';
 import { KvRow, KvTable } from '../ui/kv-table';
 import { MethodBadge } from '../ui/method-badge';
 import { OutboundResult, apiDate, headerEntries, outboundErrorText } from './outbound';
@@ -18,7 +19,7 @@ const TABS: readonly Tab[] = ['body', 'response', 'sent'];
  */
 @Component({
   selector: 'app-outbound-result-view',
-  imports: [KvTable, MatButton, MethodBadge],
+  imports: [Icon, KvTable, MatButton, MethodBadge],
   templateUrl: './outbound-result-view.html',
   styleUrl: './outbound-result-view.scss',
 })

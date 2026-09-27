@@ -1,15 +1,4 @@
 <main class="page">
-  <header class="heading">
-    <div>
-      <h1 i18n>Outbound</h1>
-      <p class="hint" i18n>
-        Replays of received requests and new sends, made by the server and recorded here. 30 sends
-        per minute per URL.
-      </p>
-    </div>
-    <button mat-stroked-button type="button" (click)="refresh()" i18n>Refresh</button>
-  </header>
-
   @if (loadError(); as message) {
     <p class="errors" role="alert">{{ message }}</p>
   }
@@ -40,11 +29,24 @@
 </main>
 
 <ng-template #history>
-  <section class="history card" aria-labelledby="outbound-history-title">
-    <h2 id="outbound-history-title" class="section-title">
-      <ng-container i18n>History</ng-container>
-      <span class="hint" i18n>last 50 sent by the server, newest first</span>
-    </h2>
+  <section class="history card" aria-labelledby="outbound-title">
+    <div class="history-head">
+      <h1 id="outbound-title" class="page-title" i18n>Outbound</h1>
+      <span class="hint" i18n>last 50 sent by the server</span>
+      <span class="spacer"></span>
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Refresh history"
+        i18n-aria-label
+        (click)="refresh()"
+      >
+        <app-icon name="refresh" [size]="20" />
+      </button>
+    </div>
+    <p class="hint" i18n>
+      Replays of received requests and new sends, newest first. 30 sends per minute per URL.
+    </p>
     @if (loaded()) {
       <table class="table" aria-label="Outbound history" i18n-aria-label>
         <thead>
@@ -108,12 +110,13 @@
 
 <ng-template #work>
   <div class="work card">
-    <section class="composer" aria-label="New request" i18n-aria-label>
+    <section class="composer" aria-labelledby="outbound-new-title">
       <div class="mode">
+        <h2 id="outbound-new-title" class="section-title" i18n>New request</h2>
         <mat-button-toggle-group
+          class="kind"
           aria-label="Kind of request"
           i18n-aria-label
-          hideSingleSelectionIndicator
           [value]="mode()"
           (change)="chooseMode($event.value)"
         >
@@ -124,6 +127,7 @@
             >Send</mat-button-toggle
           >
         </mat-button-toggle-group>
+        <span class="hint" i18n>The server sends it and records the answer below.</span>
       </div>
       @if (token(); as current) {
         @if (requests(); as list) {

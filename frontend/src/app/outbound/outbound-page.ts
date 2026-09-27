@@ -3,7 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, ParamMap } from '@angular/router';
@@ -50,7 +50,7 @@ type Mode = 'replay' | 'send';
     NgTemplateOutlet,
     Icon,
     Split,
-    MatButton,
+    MatIconButton,
     MatButtonToggle,
     MatButtonToggleGroup,
     MethodBadge,

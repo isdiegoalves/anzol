@@ -163,6 +163,7 @@ describe('Dado a assinatura com horário de uma mensagem a reenviar', () => {
       provider: 'Stripe',
       age: 301,
       tolerance: 300,
+      signed: `t=${segundos - 301}`,
     });
   });
 
@@ -184,6 +185,7 @@ describe('Dado a assinatura com horário de uma mensagem a reenviar', () => {
       provider: 'Slack',
       age: 61,
       tolerance: 60,
+      signed: `X-Slack-Request-Timestamp: ${segundos - 61}`,
     });
   });
 
@@ -244,5 +246,19 @@ describe('Dado o "Sign with this URL\'s signature" do Send (OUTBOUND-07)', () =>
     expect(
       signedHeaderHint({ provider: 'generic', secret: 'x', header: 'X-Sig', prefix: 'v1=' }),
     ).toBe('X-Sig: v1=…');
+  });
+});
+
+describe('Dado o erro de saída com o tipo repetido na mensagem (OUTBOUND-10)', () => {
+  it.each([
+    [
+      'blocked',
+      'blocked: link-local address (always blocked)',
+      'link-local address (always blocked)',
+    ],
+    ['timeout', 'Timeout: no answer in 10 s', 'no answer in 10 s'],
+    ['connect', 'Connection refused', 'Connection refused'],
+  ])('deve tirar o "%s:" do começo do detalhe', (kind, message, detail) => {
+    expect(outboundErrorText({ kind, message }).detail).toBe(detail);
   });
 });

@@ -34,14 +34,19 @@
 }
 @if (failure) {
   <div class="error" role="alert">
-    <p>
-      <strong>{{ failure.title }}</strong
-      >{{ failure.detail ? ': ' + failure.detail : '' }}
-    </p>
-    @if (failure.hint) {
-      <p class="hint">{{ failure.hint }}</p>
-    }
-    <p class="hint" i18n>Nothing reached the target, so there is no response.</p>
+    <app-icon name="near" [size]="20" />
+    <div class="error-text">
+      <p>
+        <strong>{{ failure.title }}</strong
+        >{{ failure.detail ? ': ' + failure.detail : '' }}
+      </p>
+      @if (failure.hint) {
+        <p class="hint">{{ failure.hint }}</p>
+      }
+      <p class="hint" i18n>
+        Nothing reached the target, so there is no response. The sent headers are below.
+      </p>
+    </div>
   </div>
   <h3 class="part" i18n>Sent headers</h3>
   <app-kv-table
