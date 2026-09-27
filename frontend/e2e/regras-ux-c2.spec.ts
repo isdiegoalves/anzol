@@ -2,6 +2,7 @@ import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { itens, lista } from './support/inbox';
 import { abrirRegras, gravarRegras, linhaDaRegra } from './support/regras';
+import { estadoAoVivo } from './support/shell';
 
 // UX de Regras, tela de C2 — filtros por desfecho na Entrada e ponto no rail (WM-27, WM-01; guia-ux §3.10; CA-9 na
 // parte da Entrada filtrada). Os chips "Answered by rule…", "Near miss of…" e "Default response" no `group
@@ -136,6 +137,9 @@ test.describe('Dado mensagens sem regra desde a última visita a Regras (WM-01)'
     await abrirEntrada(page, tokenId);
     const regras = page.getByRole('link', { name: /^Rules\b/ });
     await expect(regras).toHaveAccessibleName('Rules');
+    // A Entrada só abre o tempo real depois de a lista carregar: a mensagem sai depois do "Live", senão chega no
+    // meio e não entra na conta (intermitente).
+    await expect(estadoAoVivo(page)).toContainText('Live');
 
     await tokens.send(tokenId, { method: 'GET', path: '/pagamentos' });
 
