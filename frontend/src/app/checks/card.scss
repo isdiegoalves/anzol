@@ -72,6 +72,12 @@
   font: var(--mat-sys-label-medium);
 
   &.on {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    box-sizing: border-box;
+    border-radius: 8px;
     background: var(--app-success-container);
     color: var(--app-on-success-container);
   }

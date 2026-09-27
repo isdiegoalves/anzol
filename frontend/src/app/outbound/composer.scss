@@ -133,9 +133,19 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+
+  app-method-badge {
+    flex: none;
+  }
 
   code {
+    overflow: hidden;
+    padding: 0;
+    background: none;
     font-family: var(--app-code-family);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -144,6 +154,7 @@ code {
 }
 
 .sends-to code {
+  margin: 0 4px;
   padding: 0;
   background: none;
   overflow-wrap: anywhere;
@@ -152,7 +163,7 @@ code {
 // Send (OUTBOUND-07): método, URL, timeout e o botão numa linha; headers e corpo lado a lado.
 .send-line {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 110px auto;
+  grid-template-columns: 124px minmax(0, 1fr) 110px auto;
   gap: 4px 12px;
   align-items: start;
 
@@ -162,7 +173,7 @@ code {
   }
 
   @media (width < 1200px) {
-    grid-template-columns: 110px minmax(0, 1fr);
+    grid-template-columns: 124px minmax(0, 1fr);
   }
 }
 
