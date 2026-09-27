@@ -14,6 +14,7 @@ import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
 import { neverMatches } from './rule-shadow';
+import { SCENARIO_NOTICE_MS } from './scenario-notice';
 import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
 import { openSequence } from './scenario-sequence';
@@ -109,7 +110,7 @@ export class ScenarioPanel {
         $localize`Scenario ${scenario.name}:scenario: set to ${state}:state:`,
         undefined,
         {
-          duration: 1000,
+          duration: SCENARIO_NOTICE_MS,
         },
       );
     }
@@ -133,7 +134,7 @@ export class ScenarioPanel {
     if (confirmed && (await this.run(() => this.store.resetAll()))) {
       this.chosen.set({});
       this.snackBar.open($localize`Scenarios reset to ${SCENARIO_STARTED}:state:`, undefined, {
-        duration: 1000,
+        duration: SCENARIO_NOTICE_MS,
       });
     }
   }

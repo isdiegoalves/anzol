@@ -576,9 +576,14 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         http.expectOne({ method: 'PUT', url: `${URL_CENARIOS}/entrega` }),
       );
       expect(put.request.body).toEqual({ state: 'Started' });
+      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
       put.flush({});
       await flushState('Started');
       await vi.waitFor(() => expect(within(group()).queryByRole('note')).toBeNull());
+      // L4: o aviso fica à vista tempo bastante para ser lido.
+      expect(snack).toHaveBeenCalledWith('Scenario entrega set to Started', undefined, {
+        duration: 4000,
+      });
     });
 
     it('deve abrir o assistente "Sequence" pelo modelo "Fail N times, then accept"', async () => {
@@ -589,7 +594,11 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         await screen.findByRole('menuitem', { name: 'Fail N times, then accept' }),
       );
 
-      expect(await screen.findByRole('dialog', { name: 'Sequence' })).toBeTruthy();
+      const dialog = await screen.findByRole('dialog', { name: 'Sequence' });
+      // L8: o foco começa no caminho, e não no chip GET.
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(within(dialog).getByRole('textbox', { name: 'Path' })),
+      );
     });
 
     // M6: o item do menu que abriu o assistente some; o foco vai à primeira regra criada.

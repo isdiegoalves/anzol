@@ -127,7 +127,7 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
     await flushGet([retry('falhou-2')]);
     await vi.waitFor(() => expect(rows()).toEqual([['Retry', 'falhou-2']]));
     expect(snack).toHaveBeenCalledWith('Scenario Retry set to falhou-2', undefined, {
-      duration: 1000,
+      duration: 4000,
     });
   });
 

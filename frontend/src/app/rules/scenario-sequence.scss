@@ -117,10 +117,11 @@
   color: var(--mat-sys-on-error-container);
 }
 
-// No celular, os botões ocupam a largura, o que cria embaixo (guia §3.1).
+// No celular, os botões ocupam a largura, um por linha, na ordem dos outros diálogos de Regras:
+// Cancel em cima e o que cria por último, embaixo (guia §3.1, `rule-dialogs.ts`).
 @media (width < 600px) {
   .actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }

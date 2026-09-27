@@ -305,7 +305,8 @@ export async function openSequence(injector: Injector, data: SequenceData = {}):
       data,
       width: 'min(640px, calc(100vw - 32px))',
       maxWidth: '100vw',
-      autoFocus: 'first-tabbable',
+      // O caminho, e não o chip GET: é por ele que quase todo assistente começa (L8).
+      autoFocus: '#sequence-path',
     });
   return (await firstValueFrom(ref.afterClosed())) === true;
 }

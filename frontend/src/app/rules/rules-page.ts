@@ -62,6 +62,7 @@ import {
 } from './rule-list';
 import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
 import { RulesSeen } from './rules-seen';
+import { SCENARIO_NOTICE_MS } from './scenario-notice';
 import { ScenarioGroup } from './scenario-group';
 import { openSequence } from './scenario-sequence';
 import { ScenarioStore } from './scenario-store';
@@ -618,7 +619,7 @@ export class RulesPage {
       this.snackBar.open(
         $localize`Scenario ${scenario}:scenario: set to ${SCENARIO_STARTED}:state:`,
         undefined,
-        { duration: 1000 },
+        { duration: SCENARIO_NOTICE_MS },
       );
     } catch (error) {
       this.errors.set(validationMessages(error));

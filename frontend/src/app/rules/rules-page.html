@@ -105,38 +105,41 @@
           </svg>
           <ng-container i18n>Export</ng-container>
         </button>
-        <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
-        <button
-          mat-flat-button
-          type="button"
-          class="new-rule"
-          [disabled]="!loaded()"
-          (click)="newRule()"
-          i18n
-        >
-          New rule
-        </button>
-        <!-- Os modelos (WM-11): o mesmo menu abre do cartão "Start from a template". -->
-        <button
-          mat-flat-button
-          type="button"
-          class="new-from-template"
-          aria-label="New rule from template"
-          i18n-aria-label
-          title="New rule from template"
-          i18n-title
-          [disabled]="!loaded()"
-          [matMenuTriggerFor]="templateMenu"
-        >
-          <app-icon name="down" [size]="20" />
-        </button>
-        <mat-menu #templateMenu="matMenu" aria-label="Rule templates" i18n-aria-label>
-          @for (template of templates; track template.id) {
-            <button mat-menu-item type="button" (click)="useTemplate(template)">
-              {{ template.label }}
-            </button>
-          }
-        </mat-menu>
+        <!-- "New rule" e o ▾ dos modelos juntos: no celular, a linha toda (guia §3.2). -->
+        <div class="new-group">
+          <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
+          <button
+            mat-flat-button
+            type="button"
+            class="new-rule"
+            [disabled]="!loaded()"
+            (click)="newRule()"
+            i18n
+          >
+            New rule
+          </button>
+          <!-- Os modelos (WM-11): o mesmo menu abre do cartão "Start from a template". -->
+          <button
+            mat-flat-button
+            type="button"
+            class="new-from-template"
+            aria-label="New rule from template"
+            i18n-aria-label
+            title="New rule from template"
+            i18n-title
+            [disabled]="!loaded()"
+            [matMenuTriggerFor]="templateMenu"
+          >
+            <app-icon name="down" [size]="20" />
+          </button>
+          <mat-menu #templateMenu="matMenu" aria-label="Rule templates" i18n-aria-label>
+            @for (template of templates; track template.id) {
+              <button mat-menu-item type="button" (click)="useTemplate(template)">
+                {{ template.label }}
+              </button>
+            }
+          </mat-menu>
+        </div>
       </div>
     </header>
 

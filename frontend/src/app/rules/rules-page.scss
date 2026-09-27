@@ -299,10 +299,24 @@ tfoot .item {
   padding: 0 0 4px 6px;
 }
 
-// No celular (RULES-27), menos margem.
+// "New rule" e o ▾ dos modelos, lado a lado.
+.new-group {
+  display: flex;
+  gap: 8px;
+}
+
+// No celular (RULES-27), menos margem; "New rule" e o ▾ na linha toda (guia §3.2).
 @media (width < 600px) {
   :host {
     padding: 8px;
+  }
+
+  .new-group {
+    flex: 1 1 100%;
+  }
+
+  .new-rule {
+    flex: 1;
   }
 }
 
