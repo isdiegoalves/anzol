@@ -423,7 +423,7 @@ test.describe('Dado a aba Test (RULES-20)', () => {
     request,
     tokens,
   }) => {
-    const { regra, casa, perto1, perto2, longe } = await pixContraHistorico(page, request, tokens);
+    const { regra } = await pixContraHistorico(page, request, tokens);
     await regra.getByRole('button', { name: 'Test against history' }).click();
 
     const resultado = regra.getByRole('status', { name: 'History test' });
@@ -431,7 +431,8 @@ test.describe('Dado a aba Test (RULES-20)', () => {
       /^1 of the 4 most recent requests would match\.?$/,
     );
     await expect(resultado.getByRole('heading', { name: 'Would match (1)' })).toBeVisible();
-    await expect(resultado.getByRole('link', { name: `Open request ${casa}` })).toBeVisible();
+    // UX de Regras, WM-22 (guia §3.4): cada mensagem é `link "{method} {path} · {time}"`, sem o "#id".
+    await expect(resultado.getByRole('link', { name: /^POST \/pagamentos · .+/ })).toBeVisible();
     await expect(resultado.getByRole('heading', { name: 'Would not match (3)' })).toBeVisible();
 
     const maisPerto = resultado.getByRole('button', { name: 'Closest first' });
@@ -439,11 +440,11 @@ test.describe('Dado a aba Test (RULES-20)', () => {
     // Uma linha por mensagem que não casa (`.misses > li`); as frases que falharam ficam no `ul.failed` dela.
     const naoCasam = resultado.locator('.misses > li');
     await expect(naoCasam).toHaveCount(3);
-    await expect(naoCasam.last()).toContainText(`#${longe.substring(0, 5)}`);
+    await expect(naoCasam.last()).toContainText('GET /outro');
     await expect(naoCasam.last()).toContainText('2 conditions');
     await expect(naoCasam.last()).not.toHaveClass(/\bnear\b/);
-    for (const id of [perto1, perto2]) {
-      const linha = naoCasam.filter({ hasText: `#${id.substring(0, 5)}` });
+    for (const rota of ['GET /pagamentos', 'POST /outro']) {
+      const linha = naoCasam.filter({ hasText: rota });
       await expect(linha).toContainText(/1 condition\b/);
       await expect(linha).toHaveClass(/\bnear\b/);
     }

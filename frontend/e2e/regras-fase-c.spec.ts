@@ -212,14 +212,20 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     ]);
     await screenshot(page, '04-teste-contra-historico');
 
-    const link = result.getByRole('link', { name: `Open request ${naoCasa}` });
-    await expect(link).toHaveText(`#${naoCasa.substring(0, 5)}`);
-    const [aba] = await Promise.all([page.waitForEvent('popup'), link.click()]);
-    await expect(detalhes(aba)).toContainText(naoCasa);
+    // UX de Regras, WM-22 (guia §3.4): o item é `link "{method} {path} · {time}"` e abre a mensagem ao lado, numa
+    // `region "Request {id}"` dentro de Regras, em vez de uma aba nova.
+    const link = result.getByRole('link', { name: /^GET \/outra · .+/ });
+    await link.click();
+    const aberta = page.getByRole('region', {
+      name: new RegExp(`^Request #?(${naoCasa}|${naoCasa.substring(0, 5)})`),
+    });
+    await expect(aberta).toContainText(naoCasa);
     await expect(dialog).toBeVisible();
   });
 
-  test('deve testar a regra como está no editor, sem salvar, e apagar o resultado Quando a regra muda', async ({
+  // UX de Regras, WM-22 (guia §3.4; CA-7): o resultado deixa de sumir quando a condição muda; fica marcado "Out of
+  // date" e reroda sozinho.
+  test('deve testar a regra como está no editor, sem salvar, e rerodar o teste Quando a condição muda', async ({
     page,
     request,
     tokens,
@@ -243,7 +249,11 @@ test.describe('Dado o botão "Test against history" no editor', () => {
 
     await parte(dialog, 'Match');
     await textbox(dialog, 'Path').fill('/zzz');
-    await expect(result).toHaveCount(0);
+    await parte(dialog, 'Test');
+    await expect(result.locator('.summary')).toHaveText(
+      /^0 of the 2 most recent requests would match\.?$/,
+    );
+    await expect(result.getByText('Out of date', { exact: true })).toHaveCount(0);
   });
 });
 
