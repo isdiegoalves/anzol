@@ -26,22 +26,27 @@
   <div class="editor-column">
     <div class="editor-head">
       <label for="schema-text" i18n>JSON Schema</label>
-      <span i18n class="hint">{{ size() }} of 64 KB</span>
+      <span class="hint"
+        ><ng-container i18n>{{ size() }} of 64 KB</ng-container> ·
+        @if (validJson()) {
+          <ng-container i18n>valid</ng-container>
+        } @else {
+          <ng-container i18n>invalid</ng-container>
+        }
+      </span>
     </div>
-    <div class="editor" [class.invalid]="message">
-      <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
+    <div class="editor scroll" [class.invalid]="message">
+      <pre class="gutter" aria-hidden="true">{{ lineNumbers() }}</pre>
       <textarea
-        #textarea
         id="schema-text"
         formControlName="schema"
-        rows="16"
+        [rows]="rows()"
         wrap="off"
         spellcheck="false"
         [attr.aria-invalid]="message ? 'true' : null"
         [attr.aria-describedby]="
           message ? 'schema-text-help schema-text-error' : 'schema-text-help'
         "
-        (scroll)="syncGutter(textarea, gutter)"
       ></textarea>
     </div>
     @if (message) {

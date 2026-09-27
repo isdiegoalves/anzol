@@ -170,4 +170,26 @@ describe('Dado o cartão "Response" de Checks', () => {
     await vi.waitFor(() => expect(TestBed.inject(Preferences).token()?.cors).toBe(true));
     http.expectNone(`/token/${TOKEN_ID}`);
   });
+
+  it('CHECKS-20: deve dizer quantas regras ligadas respondem antes, com link para Rules', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush([
+      { id: 'a', name: 'A', enabled: true },
+      { id: 'b', name: 'B', enabled: true },
+      { id: 'c', name: 'C', enabled: false },
+    ]);
+
+    const link = await screen.findByRole('link', { name: '2 rules answer first' });
+    expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/rules`);
+    expect(screen.getByText(/^When no rule matches/)).toBeTruthy();
+  });
+
+  it('CHECKS-20: deve dizer "1 rule answers first" no singular', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush([{ id: 'a', name: 'A' }]);
+
+    expect(await screen.findByRole('link', { name: '1 rule answers first' })).toBeTruthy();
+  });
 });

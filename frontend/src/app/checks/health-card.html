@@ -68,8 +68,18 @@
               <ul class="reasons">
                 @for (item of data.failed; track item.label) {
                   <li>
-                    <code>{{ item.label }}</code>
-                    <span class="count">{{ item.count }}</span>
+                    <a
+                      class="reason"
+                      [routerLink]="['/', tokens.token()?.uuid]"
+                      [queryParams]="item.filter"
+                      title="Show in Inbox"
+                      i18n-title
+                      ><code>{{ item.label }}</code
+                      ><span class="count">{{ item.count }}</span></a
+                    >
+                    <span class="track" aria-hidden="true"
+                      ><span class="share" [style.width]="item.share"></span
+                    ></span>
                   </li>
                 }
               </ul>
@@ -77,6 +87,11 @@
           </div>
         }
       }
+    }
+    @if (current.evaluated > 0) {
+      <p class="hint" i18n>
+        From the result recorded on each request. Click a line to see those requests in the Inbox.
+      </p>
     }
   } @else {
     <p class="hint" i18n>Loading…</p>

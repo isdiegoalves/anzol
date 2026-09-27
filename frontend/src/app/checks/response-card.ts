@@ -5,6 +5,7 @@ import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { RouterLink } from '@angular/router';
 import { AUTO_CLEANUP_LIMITS, AutoCleanup, Token, retryAfterValidator } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -26,6 +27,7 @@ type CleanupOption = 'off' | `${AutoCleanup}`;
   imports: [
     Icon,
     ReactiveFormsModule,
+    RouterLink,
     MatButton,
     MatButtonToggle,
     MatButtonToggleGroup,
@@ -63,8 +65,20 @@ export class ResponseCard {
   /** A URL como este cartão a leu: o save confere se o campo dele mudou lá fora. */
   private readonly base = signal(this.tokens.token());
 
+  /** Regras ligadas, que respondem antes da resposta padrão; `null` enquanto carrega (ou sem acesso). */
+  protected readonly activeRules = signal<number | null>(null);
+
   constructor() {
     this.reset(this.tokens.token());
+    const tokenId = this.tokens.token()?.uuid;
+    if (tokenId) {
+      this.checks
+        .rules(tokenId)
+        .then((rules) =>
+          this.activeRules.set(rules.filter((rule) => rule.enabled !== false).length),
+        )
+        .catch(() => this.activeRules.set(null));
+    }
   }
 
   protected pending(): string {

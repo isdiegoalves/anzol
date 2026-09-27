@@ -24,12 +24,15 @@
   }
 }
 
-// `textarea` numerada: o número de linha fica ao lado, sem quebra de linha, rolando junto.
+// `textarea` numerada: o número de linha fica ao lado, sem quebra de linha; o editor tem altura
+// limitada e rola por inteiro, números e texto juntos (a textarea cresce com o schema).
 .editor {
   display: flex;
-  overflow: hidden;
+  align-items: flex-start;
+  max-height: 262px;
+  overflow: auto;
   border: 1px solid var(--mat-sys-outline);
-  border-radius: var(--mat-sys-corner-small);
+  border-radius: 12px;
   background: var(--mat-sys-surface-container-lowest);
 
   &:focus-within {
@@ -51,8 +54,8 @@ textarea {
 
 .gutter {
   flex: none;
+  align-self: stretch;
   min-width: 2ch;
-  overflow: hidden;
   background: var(--mat-sys-surface-container);
   color: var(--mat-sys-on-surface-variant);
   text-align: right;
@@ -62,7 +65,8 @@ textarea {
 textarea {
   flex: 1;
   min-width: 0;
-  resize: vertical;
+  overflow: hidden;
+  resize: none;
   border: 0;
   outline: none;
   background: transparent;

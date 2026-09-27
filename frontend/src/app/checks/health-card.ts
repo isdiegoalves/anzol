@@ -2,16 +2,38 @@ import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { RouterLink } from '@angular/router';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 
+/** Um motivo (ou caminho) que falha, com o filtro da Inbox que mostra essas mensagens. */
+export interface HealthItem {
+  label: string;
+  count: number;
+  /** Query da Inbox já filtrada (`?signature=invalid`, `?signature=absent`, `?schema=invalid`). */
+  filter: Record<string, string>;
+  /** Largura da barra, proporcional ao maior da lista (`"50%"`). */
+  share: string;
+}
+
+/** Linhas com a barra proporcional ao maior valor da lista. */
+function items(
+  list: { label: string; count: number; filter: Record<string, string> }[],
+): HealthItem[] {
+  const max = Math.max(1, ...list.map((item) => item.count));
+  return list.map((item) => ({ ...item, share: `${Math.round((item.count / max) * 100)}%` }));
+}
+
+/** O header ausente é "Signature absent" na Inbox; o resto, "Signature invalid". */
+const ABSENT = /^header \S+ absent$/;
+
 /** Uma linha do Health: quantas passaram, quantas não, e os motivos mais comuns. */
 export interface HealthLine {
   valid: number;
-  failed: { label: string; count: number }[];
+  failed: HealthItem[];
   /** Inválidas + ausentes (assinatura) ou inválidas (schema). */
   invalid: number;
   /** Mensagens sem resultado (a URL não verificava quando chegaram). */
@@ -30,13 +52,13 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  */
 @Component({
   selector: 'app-health-card',
-  imports: [Icon, MatButton, MatButtonToggle, MatButtonToggleGroup],
+  imports: [Icon, RouterLink, MatButton, MatButtonToggle, MatButtonToggleGroup],
   templateUrl: './health-card.html',
   styleUrls: ['./card.scss', './health-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'health-title' },
 })
 export class HealthCard {
-  private readonly tokens = inject(TokenStore);
+  protected readonly tokens = inject(TokenStore);
   private readonly checks = inject(ChecksStore);
 
   protected readonly windows = STATS_WINDOWS;
@@ -52,7 +74,13 @@ export class HealthCard {
           stats.valid,
           stats.invalid + stats.absent,
           stats.unchecked,
-          stats.reasons.map(({ reason, count }) => ({ label: reason, count })),
+          items(
+            stats.reasons.map(({ reason, count }) => ({
+              label: reason,
+              count,
+              filter: { signature: ABSENT.test(reason) ? 'absent' : 'invalid' },
+            })),
+          ),
         )
       : null;
   });
@@ -64,10 +92,13 @@ export class HealthCard {
           stats.valid,
           stats.invalid,
           stats.unchecked,
-          stats.paths.map(({ path, count }) => ({
-            label: path === '' ? $localize`(root)` : path,
-            count,
-          })),
+          items(
+            stats.paths.map(({ path, count }) => ({
+              label: path === '' ? $localize`(root)` : path,
+              count,
+              filter: { schema: 'invalid' },
+            })),
+          ),
         )
       : null;
   });

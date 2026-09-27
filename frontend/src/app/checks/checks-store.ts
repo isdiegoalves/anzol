@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
+import { Rule } from '../rules/rule';
 import { TokenStats } from '../stats/stats';
 import { Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
@@ -105,6 +106,11 @@ export class ChecksStore {
     } catch {
       this.snackBar.open($localize`Could not toggle CORS.`, undefined, { duration: 10000 });
     }
+  }
+
+  /** As regras da URL (a lista inteira, como o `GET /token/{id}/rules` devolve). */
+  rules(tokenId: string): Promise<Rule[]> {
+    return firstValueFrom(this.http.get<Rule[]>(`/token/${encodeURIComponent(tokenId)}/rules`));
   }
 
   stats(tokenId: string, window: number): Promise<TokenStats> {

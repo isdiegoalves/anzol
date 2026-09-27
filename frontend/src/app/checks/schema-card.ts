@@ -28,6 +28,9 @@ import {
  * `?schema-from={requestId}`, "Create schema from this request"), o campo já vem com o schema
  * inferido daquela mensagem, sem salvar.
  */
+/** Linhas mínimas da textarea do schema. */
+const MIN_ROWS = 12;
+
 @Component({
   selector: 'app-schema-card',
   imports: [
@@ -105,8 +108,17 @@ export class SchemaCard {
     return (control.errors?.['json'] ?? control.errors?.['server']) as string;
   }
 
-  protected syncGutter(textarea: HTMLTextAreaElement, gutter: HTMLElement): void {
-    gutter.scrollTop = textarea.scrollTop;
+  /**
+   * Uma linha da textarea por linha do schema (no mínimo 12): ela não rola sozinha, e o editor rola
+   * com os números junto, até ~262 px de altura (CHECKS-15).
+   */
+  protected rows(): number {
+    return Math.max(MIN_ROWS, this.form.controls.schema.value.split('\n').length);
+  }
+
+  /** "· valid" ao lado do tamanho: JSON objeto (ou vazio, que desliga). */
+  protected validJson(): boolean {
+    return !this.form.controls.schema.hasError('json');
   }
 
   protected pending(): string {

@@ -157,4 +157,18 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
 
     expect(JSON.parse(field().value)).toMatchObject({ properties: { ok: { type: 'boolean' } } });
   });
+
+  it('CHECKS-15: deve dizer "· valid" ou "· invalid" ao lado do tamanho e dar à textarea uma linha por linha', async () => {
+    const { http, container } = await renderCard(SchemaCard, token({ schema: SCHEMA }));
+    http.expectOne(RECENTES).flush(requestPage([]));
+
+    const meta = () => container.querySelector('.editor-head .hint')?.textContent?.trim();
+    expect(meta()).toMatch(/^\d+ B of 64 KB · valid$/);
+    expect(field().rows).toBe(Math.max(12, JSON.stringify(SCHEMA, null, 2).split('\n').length));
+    expect(container.querySelector('.editor')?.classList.contains('scroll')).toBe(true);
+
+    await userEvent.clear(field());
+    await userEvent.type(field(), '{{"type": ');
+    expect(meta()).toMatch(/· invalid$/);
+  });
 });

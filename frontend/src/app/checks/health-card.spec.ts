@@ -92,4 +92,30 @@ describe('Dado o cartão "Health" de Checks', () => {
       ),
     );
   });
+
+  it('CHECKS-17: deve levar cada motivo e caminho à Inbox filtrada, com a barra proporcional ao maior', async () => {
+    const { http, container } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(
+      stats({
+        schema: { valid: 1, invalid: 4, unchecked: 0, paths: [{ path: '/id', count: 4 }] },
+      }),
+    );
+
+    const mismatch = await screen.findByRole('link', { name: /signature mismatch/ });
+    expect(mismatch.getAttribute('href')).toBe(`/${TOKEN_ID}?signature=invalid`);
+    expect(mismatch.getAttribute('title')).toBe('Show in Inbox');
+    expect(
+      screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
+    ).toBe(`/${TOKEN_ID}?signature=absent`);
+    expect(screen.getByRole('link', { name: /\/id/ }).getAttribute('href')).toBe(
+      `/${TOKEN_ID}?schema=invalid`,
+    );
+    const bars = [...container.querySelectorAll('.reasons .share')] as HTMLElement[];
+    expect(bars.map((bar) => bar.style.width)).toEqual(['100%', '50%', '100%']);
+    expect(
+      screen.getByText(
+        'From the result recorded on each request. Click a line to see those requests in the Inbox.',
+      ),
+    ).toBeTruthy();
+  });
 });

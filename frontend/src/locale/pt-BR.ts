@@ -130,8 +130,6 @@ export const translations: Record<string, string> = {
   '3319622416410005872': 'Salvo.',
   // Response
   '6552449600024516046': 'Resposta',
-  // What this URL answers when no rule matches.
-  '1874398810904103126': 'O que esta URL responde quando nenhuma regra casa.',
   // Default status code
   '9027737825562981193': 'Status padrão',
   // The default status must be an integer.
@@ -1992,4 +1990,16 @@ export const translations: Record<string, string> = {
   '8710897513934450078': 'Texto opcional antes da assinatura, tirado antes de comparar.',
   // HMAC-{$algorithm} of the raw body in {$encoding}.
   '7311316083823946136': 'HMAC-{$algorithm} do corpo bruto em {$encoding}.',
+  // Show in Inbox
+  '2774826830441714180': 'Mostrar na Entrada',
+  //  From the result recorded on each request. Click a line to see those requests in the Inbox.
+  '629890697824617560':
+    ' Do resultado gravado em cada requisição. Clique numa linha para ver essas requisições na Entrada. ',
+  // {VAR_PLURAL, plural, =1 {1 rule answers first} other {{INTERPOLATION} rules answer first}}
+  '8423644983548581328':
+    '{VAR_PLURAL, plural, =1 {1 regra responde antes} other {{INTERPOLATION} regras respondem antes}}',
+  // valid
+  '3878543995923799007': 'válido',
+  // invalid
+  '7640664565182744014': 'inválido',
 };

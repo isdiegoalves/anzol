@@ -6,7 +6,16 @@
     <span class="state draft" i18n>Unsaved</span>
   }
 </header>
-<p class="hint" i18n>What this URL answers when no rule matches.</p>
+<p class="hint">
+  <ng-container i18n>When no rule matches</ng-container>
+  @if (activeRules(); as count) {
+    ·
+    <a [routerLink]="['/', tokens.token()?.uuid, 'rules']" i18n>{count, plural,
+      =1 {1 rule answers first}
+      other {{{ count }} rules answer first}
+    }</a>
+  }
+</p>
 
 <form class="fields" [formGroup]="form" (ngSubmit)="saveResponse()">
   <div class="row">
