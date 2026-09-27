@@ -165,7 +165,7 @@ describe('Dado a tela principal', () => {
         truncated: false,
       });
 
-      await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Webhook.site'));
+      await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Anzol'));
       expect(text()).toContain('Requests (3)');
       expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
       expect(snack).not.toHaveBeenCalledWith('Request received', 'View', expect.anything());

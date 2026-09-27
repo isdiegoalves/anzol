@@ -10,7 +10,7 @@ import { Icon } from '../ui/icon';
 export function testPayload(now: Date = new Date()): string {
   return JSON.stringify({
     event: 'test',
-    message: 'Hello from Webhook Tester',
+    message: 'Hello from Anzol',
     sent_at: now.toISOString(),
   });
 }

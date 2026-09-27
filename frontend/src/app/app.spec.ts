@@ -98,7 +98,7 @@ describe('Dado a página do link só-leitura', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.textContent).toContain('página da URL');
-    expect(element.querySelector('a.brand')?.textContent).toContain('Webhook Tester');
+    expect(element.querySelector('a.brand')?.textContent).toContain('Anzol');
     expect(element.querySelectorAll('button')).toHaveLength(0);
     expect(element.querySelector('nav')).toBeNull();
     expect(element.querySelector('input')).toBeNull();

@@ -38,7 +38,7 @@ export function toHar(request: WebhookRequest, token: Token): string {
   return JSON.stringify({
     log: {
       version: '1.2',
-      creator: { name: 'Webhook.site', version: '1.0' },
+      creator: { name: 'Anzol', version: '1.0' },
       entries: [
         {
           startedDateTime: request.created_at,

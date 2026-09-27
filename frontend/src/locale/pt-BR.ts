@@ -30,8 +30,8 @@ export const translations: Record<string, string> = {
   // Too many AI calls for this URL (up to 10 per minute, one at a time). Try again {$PH}.
   '5181484920451887627':
     'Chamadas demais à IA nesta URL (até 10 por minuto, uma de cada vez). Tente de novo {$PH}.',
-  // {$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Webhook Tester
-  '7500871767052433189': '{$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Webhook Tester',
+  // {$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Anzol
+  '106404287535044299': '{$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Anzol',
   // Checks
   '86770805401291669': 'Verificações',
   //  What this URL verifies on every request, how healthy that is, and how it answers.
@@ -1675,8 +1675,8 @@ export const translations: Record<string, string> = {
   '119407959208203761': 'Desligue os atalhos de uma tecla em Configurações.',
   // About
   '1726363342938046830': 'Sobre',
-  // Webhook Tester, open source under the MIT license.
-  '3602266787484365903': 'Webhook Tester, código aberto sob a licença MIT.',
+  // Anzol, open source under the MIT license.
+  '5695241118696703046': 'Anzol, código aberto sob a licença MIT.',
   // G then I, R, C, O, N
   '7040474656175352156': 'G e depois I, R, C, O, N',
   // Go to Inbox, Rules, Checks, Outbound, Insights
@@ -1716,8 +1716,8 @@ export const translations: Record<string, string> = {
   '597360384236921330': 'Confortável',
   // Compact
   '4046649033157042513': 'Compacta',
-  // Webhook Tester
-  '2957376006879781545': 'Webhook Tester',
+  // Anzol
+  '8985871462726005345': 'Anzol',
   // New URL (N)
   '131281839817929607': 'Nova URL (N)',
   // URL sections

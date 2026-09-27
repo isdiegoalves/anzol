@@ -116,7 +116,7 @@ export class Inbox {
   constructor() {
     effect(() => {
       const unread = this.requests.unread().length;
-      this.title.setTitle(unread > 0 ? `(${unread}) Webhook.site` : 'Webhook.site');
+      this.title.setTitle(unread > 0 ? `(${unread}) Anzol` : 'Anzol');
     });
 
     effect(() => {

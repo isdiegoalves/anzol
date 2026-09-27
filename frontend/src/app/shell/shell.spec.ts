@@ -200,7 +200,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       within(help)
         .getAllByRole('link')
         .map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
-    ).toEqual([['GitHub', 'https://github.com/isdiegoalves']]);
+    ).toEqual([['GitHub', 'https://github.com/isdiegoalves/anzol']]);
     await expectNoAxeViolations(container);
 
     await user.keyboard('{Escape}');

@@ -97,7 +97,7 @@ describe('Dado o onboarding "Your URL is ready"', () => {
   it('deve montar o corpo de teste como JSON', () => {
     expect(JSON.parse(testPayload(new Date('2026-09-26T12:00:00Z')))).toEqual({
       event: 'test',
-      message: 'Hello from Webhook Tester',
+      message: 'Hello from Anzol',
       sent_at: '2026-09-26T12:00:00.000Z',
     });
   });
