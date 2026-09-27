@@ -151,6 +151,10 @@ describe('Dado a página Insights', () => {
       MatSelectHarness.with({ selector: '[aria-label="Window"]' }),
     );
     expect(await janela.getValueText()).toBe('Last 500');
+    // Campo contornado, como a janela do Health de Checks, junto de Refresh e do Grafana.
+    const campo = document.querySelector('[aria-label="Window"]')?.closest('mat-form-field');
+    expect(campo?.classList).toContain('mat-form-field-appearance-outline');
+    expect(campo?.parentElement?.classList).toContain('actions');
     await janela.open();
     expect(await Promise.all((await janela.getOptions()).map((o) => o.getText()))).toEqual([
       'Last 50',

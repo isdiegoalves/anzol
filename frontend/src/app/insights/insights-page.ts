@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { MatFormField } from '@angular/material/form-field';
 import { RouterLink } from '@angular/router';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { TokenStore } from '../token/token-store';
@@ -35,6 +36,7 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
   selector: 'app-insights-page',
   imports: [
     MatButton,
+    MatFormField,
     MatSelect,
     MatOption,
     RouterLink,

@@ -7,6 +7,8 @@
   padding: 10px 20px 24px;
 }
 
+// Título e frase à esquerda (a frase quebra ali dentro); a janela, Refresh e o Grafana à direita,
+// na linha do título, como no Health de Checks. Sem espaço, as ações descem inteiras.
 .heading {
   display: flex;
   flex-wrap: wrap;
@@ -25,9 +27,15 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
+.heading > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -173,7 +181,7 @@ app-pane {
   clip-path: inset(50%);
 }
 
-// Janela do resumo (RULES-38), ao lado de Refresh e do Grafana.
+// Janela do resumo (RULES-38), ao lado de Refresh e do Grafana: campo contornado como o do Health.
 .window-select {
-  width: 128px;
+  width: 130px;
 }

@@ -7,17 +7,18 @@
     </p>
   </div>
   <div class="actions">
-    <mat-select
-      class="window-select"
-      aria-label="Window"
-      i18n-aria-label
-      [value]="window()"
-      (selectionChange)="chooseWindow($event.value)"
-    >
-      @for (size of windows; track size) {
-        <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
-      }
-    </mat-select>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="window-select">
+      <mat-select
+        aria-label="Window"
+        i18n-aria-label
+        [value]="window()"
+        (selectionChange)="chooseWindow($event.value)"
+      >
+        @for (size of windows; track size) {
+          <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
     <button mat-stroked-button type="button" [disabled]="store.loading()" (click)="refresh()" i18n>
       Refresh
     </button>
