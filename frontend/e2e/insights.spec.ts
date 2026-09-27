@@ -6,8 +6,9 @@ import { TokenTracker, Webhook, expect, test } from './support/fixtures';
 // Item 14, E9: Insights (`#/{token}/insights`) a partir de `GET /token/{id}/stats` (B2): KPIs com a janela
 // explícita, gráficos em SVG com tabela de dados alternativa (S19) e o link para o Grafana. SUPOSIÇÕES (combinadas
 // com a fatia):
-// - h1 "Insights"; `region "Summary"` com os KPIs e a frase "{evaluated} of the last 500 kept" (janela fixa de 500,
-//   a do `stats` sem `window`);
+// - h1 "Insights"; `region "Summary"` com os KPIs e a frase "{evaluated} of the {evaluated} kept" quando a URL guarda
+//   menos que a janela (fidelidade ao C, fase 2, RULES-39; antes "{evaluated} of the last 500 kept"), na janela
+//   padrão de 500;
 // - `region "Requests per hour"` com o gráfico (`img` com nome acessível) e a `table "Requests per hour data"`,
 //   com uma coluna "Requests";
 // - `region "Signature"` com os motivos (`signature.reasons`), `region "Schema"` com os caminhos
@@ -72,7 +73,7 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     await abrirInsights(page, tokenId);
 
     await expect(page.getByRole('region', { name: 'Summary' })).toContainText(
-      /\b4 of the last 500 kept\b/,
+      /\b4 of the 4 kept\b/,
     );
     const porHora = page.getByRole('region', { name: 'Requests per hour' });
     await expect(porHora.getByRole('img')).toHaveAccessibleName(/\S/);
@@ -123,7 +124,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         const tokenId = await urlComMensagens(tokens, request);
         await abrirInsights(page, tokenId);
         await expect(page.getByRole('region', { name: 'Summary' })).toContainText(
-          'of the last 500 kept',
+          /\b4 of the 4 kept\b/,
         );
         await expectSemViolacoesGraves(page, `Insights, ${colorScheme}, ${viewport.width} px`);
       });

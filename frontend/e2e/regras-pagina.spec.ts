@@ -71,7 +71,8 @@ test.describe('Dado o teste contra o histórico de uma regra nova (S8)', () => {
       'Based on the rule that answered at the time; ignores scenario state.',
     );
     await expect(previa.getByRole('listitem')).toHaveText([
-      /^1 would now get 202 from this rule$/,
+      // Fidelidade ao C, fase 2 (RULES-21): a /y recebeu a resposta padrão, e a prévia diz qual.
+      /^1 would now get 202 from this rule instead of the default 200$/,
       /^1 still answered by earlier rule Primeira$/,
     ]);
     expect(await getRules(request, tokenId)).toHaveLength(1);

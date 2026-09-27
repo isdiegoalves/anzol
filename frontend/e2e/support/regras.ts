@@ -16,7 +16,8 @@ import { expect } from './fixtures';
  *   history" seleciona a aba Test; "Save" continua desabilitado com o formulário inválido;
  * - SUPOSIÇÃO: salvar volta a `#/{token}/rules` (a região some) com o snackbar "Rule saved"; o aviso "View rules"
  *   deixa de existir; "Create rule from this request" leva a `#/{token}/rules/new?from={id}`;
- * - SUPOSIÇÃO: a regra "em palavras" é o parágrafo "In plain words: When …";
+ * - SUPOSIÇÃO: a regra "em palavras" é o parágrafo `aria-label="Rule in plain words"` ("When …", sem o rótulo "In
+ *   plain words:"; fidelidade ao C, fase 2, RULES-15);
  * - SUPOSIÇÃO: conflito de leitura (a lista mudou no servidor desde a leitura) → `alert` "The rules changed elsewhere
  *   …" com `button "Reload"`, sem salvar.
  */

@@ -1,6 +1,6 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { novaRegra, parte } from './support/regras';
+import { abrirRegra, novaRegra, parte } from './support/regras';
 
 // Regras de resposta, fase B (CA-5, CA-6, CA-7 e CA-10 no que é da tela): template, atraso e
 // falha pelo editor, cenário "falha 3×, depois 200" criado pela tela e o painel de cenários.
@@ -8,6 +8,9 @@ import { novaRegra, parte } from './support/regras';
 // Item 14, E6: o editor vira a `region "New rule"` com as abas (resposta, atraso e falha em "Response"; cenário em
 // "Scenario"); o painel de cenários ganha o diagrama de cada cenário. SUPOSIÇÕES em `support/regras.ts` e mais: o
 // diagrama é um `img` com o nome "{cenário}: Started, then {estado}, then …" (o atual marcado "(current)").
+// Fidelidade ao C, fase 2: o painel de cenários sai de baixo da lista e vai para a aba Scenario do editor, na seção
+// "Scenarios on this URL", com os mesmos nomes (RULES-12); o atraso vira `radiogroup "Delay"` (RULES-23); os
+// "Template helpers" podem vir abertos na largura grande.
 
 async function choose(page: Page, select: Locator, option: string) {
   await select.click();
@@ -40,6 +43,17 @@ async function saveRule(page: Page, dialog: Locator, name: string) {
   ).toBeVisible();
 }
 
+/** Abre a regra salva `nome` na aba Scenario e devolve a seção "Scenarios on this URL" (RULES-12). */
+async function abrirCenarios(page: Page, nome: string): Promise<Locator> {
+  const regra = await abrirRegra(page, nome);
+  await parte(regra, 'Scenario');
+  const secao = regra.locator('section', {
+    has: page.getByRole('heading', { name: 'Scenarios on this URL' }),
+  });
+  await expect(secao).toBeVisible();
+  return secao;
+}
+
 /** Passo do cenário: exige `required`, vai para `next` e responde `status`. */
 async function scenarioStep(
   page: Page,
@@ -53,10 +67,11 @@ async function scenarioStep(
     await dialog.getByRole('textbox', { name: 'Response header 1 value' }).fill(step.retryAfter);
   }
   await parte(dialog, 'Scenario');
-  await dialog.getByRole('combobox', { name: 'Scenario name' }).fill('Retry');
-  await dialog.getByRole('combobox', { name: 'Required state' }).fill(step.required);
+  await dialog.getByRole('combobox', { name: 'Scenario name', exact: true }).fill('Retry');
+  await dialog.getByRole('combobox', { name: 'Required state', exact: true }).fill(step.required);
   if (step.next) {
-    await dialog.getByRole('combobox', { name: 'New state' }).fill(step.next);
+    // Exato: o painel de cenários, agora na aba Scenario (RULES-12), tem o "New state of {cenário}".
+    await dialog.getByRole('combobox', { name: 'New state', exact: true }).fill(step.next);
   }
   await saveRule(page, dialog, step.name);
 }
@@ -80,8 +95,11 @@ test.describe('Dado o editor de regras com template, atraso e falha', () => {
       .getByRole('textbox', { name: 'Response body' })
       .fill(`{"id": {{jsonPath request.body '$.id'}}, "tipo": "{{request.query.tipo}}"}`);
     await dialog.getByRole('switch', { name: 'Template' }).click();
-    await dialog.getByText('Template helpers').click();
-    await expect(dialog.getByText("{{jsonPath request.body '$.id'}}")).toBeVisible();
+    const ajuda = dialog.getByText("{{jsonPath request.body '$.id'}}");
+    if (!(await ajuda.isVisible())) {
+      await dialog.getByText('Template helpers').click();
+    }
+    await expect(ajuda).toBeVisible();
     await saveRule(page, dialog, 'Eco do pedido');
 
     await expect(
@@ -105,7 +123,10 @@ test.describe('Dado o editor de regras com template, atraso e falha', () => {
     await openRules(page, tokenId);
 
     const dialog = await newRule(page, 'Lenta');
-    await choose(page, dialog.getByRole('combobox', { name: 'Delay' }), 'Fixed');
+    await dialog
+      .getByRole('radiogroup', { name: 'Delay' })
+      .getByRole('radio', { name: 'Fixed' })
+      .click();
     const delay = dialog.getByRole('spinbutton', { name: 'Delay (ms)' });
     await delay.fill('60001');
     await delay.blur();
@@ -143,10 +164,9 @@ test.describe('Dado o editor de regras com template, atraso e falha', () => {
       'the status, headers, body, delay and dribble are ignored',
     );
     await expect(dialog.getByRole('spinbutton', { name: 'Status' })).toBeDisabled();
-    await expect(dialog.getByRole('combobox', { name: 'Delay' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    await expect(
+      dialog.getByRole('radiogroup', { name: 'Delay' }).getByRole('radio', { name: 'Fixed' }),
+    ).toBeDisabled();
     await saveRule(page, dialog, 'Cai');
 
     expect(await getRules(request, tokenId)).toEqual([
@@ -182,8 +202,12 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
       status: '503',
       retryAfter: '1',
     });
-    const panel = page.getByRole('table', { name: 'Scenarios' });
-    await expect(panel.locator('tr[data-scenario="Retry"]')).toContainText('Started');
+    // Nada abaixo da lista: o painel fica na aba Scenario do editor (RULES-12).
+    await expect(page.getByRole('table', { name: 'Scenarios' })).toHaveCount(0);
+    let cenarios = await abrirCenarios(page, 'Falha 1');
+    await expect(
+      cenarios.getByRole('table', { name: 'Scenarios' }).locator('tr[data-scenario="Retry"]'),
+    ).toContainText('Started');
     await scenarioStep(page, {
       name: 'Falha 2',
       required: 'falhou-1',
@@ -202,8 +226,9 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
     await expect(
       page.locator('tr', { hasText: 'Falha 2' }).locator('.flag', { hasText: 'scenario' }),
     ).toHaveAttribute('title', 'Scenario Retry: falhou-1 → falhou-2');
+    cenarios = await abrirCenarios(page, 'Falha 2');
     await expect(
-      page.getByRole('img', {
+      cenarios.getByRole('img', {
         name: /^Retry: Started( \(current\))?, then falhou-1, then falhou-2, then falhou-3\b/,
       }),
     ).toBeVisible();
@@ -218,9 +243,10 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
     }
     expect(statuses).toEqual([503, 503, 503, 200, 200]);
 
-    const row = panel.locator('tr[data-scenario="Retry"]');
-    const panelButton = (name: string) =>
-      page.locator('app-scenario-panel').getByRole('button', { name });
+    const row = cenarios
+      .getByRole('table', { name: 'Scenarios' })
+      .locator('tr[data-scenario="Retry"]');
+    const panelButton = (name: string) => cenarios.getByRole('button', { name });
     await panelButton('Refresh').click();
     await expect(row.locator('td.data').nth(1)).toHaveText('falhou-3');
 

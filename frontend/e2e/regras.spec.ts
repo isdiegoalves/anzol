@@ -83,10 +83,11 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await dialog.getByRole('textbox', { name: 'Response header 1 name' }).fill('Content-Type');
     await dialog.getByRole('textbox', { name: 'Response header 1 value' }).fill('application/json');
     await dialog.getByRole('textbox', { name: 'Response body' }).fill('{"ok":true}');
-    // A regra em palavras (C §2.5) acompanha o que foi preenchido.
-    await expect(
-      dialog.getByText(/^In plain words: When a POST to \/pagamentos\b.*answer 201\.$/),
-    ).toBeVisible();
+    // A regra em palavras (C §2.5) acompanha o que foi preenchido. Fidelidade ao C, fase 2 (RULES-15): o parágrafo
+    // "Rule in plain words", sem o rótulo "In plain words:".
+    await expect(dialog.getByLabel('Rule in plain words')).toHaveText(
+      /^When a POST to \/pagamentos\b.*answer 201\.$/,
+    );
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();

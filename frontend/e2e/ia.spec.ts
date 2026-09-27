@@ -1,5 +1,5 @@
 import { Server, createServer } from 'node:http';
-import { APIRequestContext, Page } from '@playwright/test';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
 import { seedStorage } from './support/storage';
@@ -126,6 +126,18 @@ async function rulesOf(api: APIRequestContext, tokenId: string) {
  * com os mesmos nomes, e a regra sugerida volta à aba Match. SUPOSIÇÃO: caminho sugerido com o UUID da URL gera o
  * `alert` "The path includes this URL's token…" com `button "Remove the token from the path"`.
  */
+/**
+ * Fidelidade ao C, fase 2 (RULES-16): o "Describe the rule" vem recolhido; abre pelo título antes de usar. Devolve o
+ * campo.
+ */
+async function descrever(dialog: Locator): Promise<Locator> {
+  const campo = dialog.getByRole('textbox', { name: 'Describe the rule' });
+  await expect(campo).toBeHidden();
+  await dialog.getByText('Describe the rule', { exact: true }).click();
+  await expect(campo).toBeVisible();
+  return campo;
+}
+
 async function newRuleDialog(page: Page, tokenId: string) {
   await abrirRegras(page, tokenId);
   return novaRegra(page);
@@ -149,7 +161,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
       content: suggestion(RULE_429, 'Answers **429** to `POST /pagamentos`.'),
     });
 
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill(prompt);
+    await (await descrever(dialog)).fill(prompt);
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     await expect(dialog.getByRole('status').filter({ hasText: 'up to ~30 s' })).toBeVisible();
@@ -199,7 +211,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });
 
     await dialog.getByRole('checkbox', { name: /Use the open request as example/ }).check();
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('Igual a esta mensagem');
+    await (await descrever(dialog)).fill('Igual a esta mensagem');
     const [call] = await Promise.all([
       page.waitForRequest((r) => r.url().endsWith(`/token/${tokenId}/rules/suggest`)),
       dialog.getByRole('button', { name: 'Suggest' }).click(),
@@ -222,7 +234,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     const invalid = suggestion({ ...RULE_429, response: { status: 999 } }, 'wrong');
     llm.program({ content: invalid }, { content: invalid }, { content: invalid });
 
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('status impossível');
+    await (await descrever(dialog)).fill('status impossível');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     const alert = dialog.getByRole('alert', { name: 'Suggestion errors' });
@@ -246,7 +258,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
       ),
     });
 
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('429 em pagamentos');
+    await (await descrever(dialog)).fill('429 em pagamentos');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     const aviso = dialog
@@ -268,7 +280,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     const dialog = await newRuleDialog(page, tokenId);
     llm.program({ status: 500, content: 'model crashed' });
 
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('qualquer regra');
+    await (await descrever(dialog)).fill('qualquer regra');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     await expect(dialog.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
@@ -375,7 +387,7 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     const tokenId = await tokens.create();
     const dialog = await newRuleDialog(page, tokenId);
 
-    await dialog.getByRole('textbox', { name: 'Describe the rule' }).fill('qualquer');
+    await (await descrever(dialog)).fill('qualquer');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     await expect(dialog.getByRole('alert', { name: 'Suggestion errors' })).toContainText(

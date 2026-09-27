@@ -24,11 +24,13 @@ import { abrirRegra, abrirRegras, editor, linhaDaRegra, novaRegra, parte } from 
 //   grande + "of the M most recent would match", "Closest misses" (#id e "1 condition"), "Test again" e "All
 //   results" (vai à aba Test);
 // - RULES-20: na aba Test, `heading "Would match (N)"` com `link "Open request {uuid}"`; `heading "Would not match
-//   (N)"` com `button "Closest first"` (aria-pressed, ligado por padrão), "N condition(s)" por mensagem e a classe
-//   `.near` na mensagem com uma condição falha;
-// - RULES-24: a aba Scenario tem a seção com o heading "Scenarios on this URL", "Refresh", "Reset all to Started",
-//   o diagrama `img` "{cenário}: Started, then falhou-1 (current)…", "then {status} while in {estado}" para a
-//   regra que não muda o estado, e `combobox "Set state of {cenário}"` + `button "Set"`;
+//   (N)"` com `button "Closest first"` (aria-pressed, ligado por padrão) e uma linha `.misses > li` por mensagem, com
+//   "N condition(s)", a classe `.near` quando só uma condição falha e as frases no `ul.failed`;
+// - RULES-24: a aba Scenario tem a seção com o heading "Scenarios on this URL", "Refresh", "Reset all" (o texto pode
+//   ser "Reset all to Started"), o diagrama `img` "{cenário}: Started, then falhou-1 (current)…", "then {status}
+//   while in {estado}" para a regra que não muda o estado, e, na linha do cenário da `table "Scenarios"`, o
+//   `combobox "New state of {cenário}"` e o `button "Set state"` (fase 2, RULES-12: os nomes do regras-fase-b; antes
+//   `combobox "Set state of {cenário}"` + `button "Set"`);
 // - RULES-27 (390 px): a lista cabe na largura sem rolagem horizontal interna.
 
 async function putRules(api: APIRequestContext, tokenId: string, rules: object[]): Promise<void> {
@@ -405,7 +407,8 @@ test.describe('Dado a aba Test (RULES-20)', () => {
 
     const maisPerto = resultado.getByRole('button', { name: 'Closest first' });
     await expect(maisPerto).toHaveAttribute('aria-pressed', 'true');
-    const naoCasam = resultado.locator('.failed li');
+    // Uma linha por mensagem que não casa (`.misses > li`); as frases que falharam ficam no `ul.failed` dela.
+    const naoCasam = resultado.locator('.misses > li');
     await expect(naoCasam).toHaveCount(3);
     await expect(naoCasam.last()).toContainText(`#${longe.substring(0, 5)}`);
     await expect(naoCasam.last()).toContainText('2 conditions');
@@ -433,20 +436,23 @@ test.describe('Dado a aba Scenario de uma regra de cenário (RULES-24)', () => {
       has: page.getByRole('heading', { name: 'Scenarios on this URL' }),
     });
     await expect(secao.getByRole('button', { name: 'Refresh' })).toBeVisible();
-    await expect(secao.getByRole('button', { name: 'Reset all to Started' })).toBeVisible();
+    await expect(secao.getByRole('button', { name: /^Reset all\b/ })).toBeVisible();
     await expect(
       secao.getByRole('img', { name: /^entrega: Started, then falhou-1 \(current\)/ }),
     ).toBeVisible();
     await expect(secao).toContainText('then 200 while in falhou-1');
 
-    await secao.getByRole('combobox', { name: 'Set state of entrega' }).click();
+    const linha = secao
+      .getByRole('table', { name: 'Scenarios' })
+      .locator('tr[data-scenario="entrega"]');
+    await secao.getByRole('combobox', { name: 'New state of entrega' }).click();
     await page.getByRole('option', { name: 'Started', exact: true }).click();
     await Promise.all([
       page.waitForResponse(
         (r) =>
           r.request().method() === 'PUT' && r.url().endsWith(`/token/${tokenId}/scenarios/entrega`),
       ),
-      secao.getByRole('button', { name: 'Set', exact: true }).click(),
+      linha.getByRole('button', { name: 'Set state' }).click(),
     ]);
     await expect(secao.getByRole('img', { name: /^entrega: Started \(current\)/ })).toBeVisible();
     expect((await request.post(`/${tokenId}/entrega`)).status()).toBe(503);
