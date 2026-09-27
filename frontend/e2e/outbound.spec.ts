@@ -60,7 +60,9 @@ test.describe('Dado o link direto para o compositor', () => {
     });
 
     const replay = await openReplay(page, tokenId, requestId);
-    await expect(replay.getByText('Appends /pedidos?x=1 to the target')).toBeVisible();
+    // Fidelidade ao C (OUTBOUND-05): "Sends to" com a URL efetiva (antes, "Appends /pedidos?x=1 to the target").
+    await replay.getByRole('textbox', { name: 'Target URL' }).fill('http://destino.example/app');
+    await expect(replay.getByText('Sends to http://destino.example/app/pedidos?x=1')).toBeVisible();
 
     await page.goto(`/#/${tokenId}/outbound?send-from=${requestId}`);
     const send = page.getByRole('region', { name: 'Send request' });

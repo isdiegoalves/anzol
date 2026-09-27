@@ -88,6 +88,18 @@ function outboundDetail(page: Page): Locator {
   return page.getByRole('region', { name: 'Outbound detail' });
 }
 
+/**
+ * Fidelidade ao C (item 14.1, OUTBOUND-09): o resultado ganha as abas "Response body", "Response headers (n)" e "Sent
+ * headers (n)"; a tabela fica na aba dela.
+ */
+async function parteDoResultado(
+  detail: Locator,
+  nome: 'Response headers' | 'Sent headers',
+): Promise<Locator> {
+  await detail.getByRole('tab', { name: new RegExp(`^${nome} \\(\\d+\\)$`) }).click();
+  return detail.getByRole('table', { name: nome });
+}
+
 /** "Replay…" no detalhe: leva ao compositor de Outbound com a mensagem escolhida. */
 async function openReplay(page: Page, tokenId: string, requestId: string): Promise<Locator> {
   await page.getByRole('button', { name: /^Replay/ }).click();
@@ -117,18 +129,17 @@ test.describe('Dado uma mensagem recebida', () => {
     await openRequest(page, tokenId, requestId);
 
     const dialog = await openReplay(page, tokenId, requestId);
-    await expect(dialog.getByText('Appends /pedidos?x=1 to the target')).toBeVisible();
     await dialog.getByRole('textbox', { name: 'Target URL' }).fill(`${receiver.url}/app`);
+    // Fidelidade ao C (OUTBOUND-05): a URL efetiva escrita por extenso (antes, "Appends /pedidos?x=1 to the target").
+    await expect(dialog.getByText(`Sends to ${receiver.url}/app/pedidos?x=1`)).toBeVisible();
     await dialog.getByRole('button', { name: 'Replay', exact: true }).click();
 
     const detail = outboundDetail(page);
     await expect(detail.getByText('201', { exact: true })).toBeVisible();
-    await expect(detail.getByRole('table', { name: 'Response headers' })).toContainText(
-      'x-receptor',
-    );
     await expect(detail.getByLabel('Response body', { exact: true })).toHaveText(
       /^\{\s*"recebido":\s*true\s*\}$/,
     );
+    await expect(await parteDoResultado(detail, 'Response headers')).toContainText('x-receptor');
     expect(receiver.received).toHaveLength(1);
     expect(receiver.received[0]).toEqual(
       expect.objectContaining({ method: 'POST', url: '/app/pedidos?x=1', body: '{"pedido":7}' }),
@@ -247,7 +258,7 @@ test.describe('Dado o Send do cabeçalho da URL', () => {
     await expect(detail.getByText('200', { exact: true })).toBeVisible();
     await expect(page.locator('body')).not.toContainText(SECRET);
     // Nome de header não diferencia maiúsculas: o servidor manda X-Hub-Signature-256.
-    await expect(detail.getByRole('table', { name: 'Sent headers' })).toContainText(
+    await expect(await parteDoResultado(detail, 'Sent headers')).toContainText(
       /x-hub-signature-256/i,
     );
 
@@ -283,12 +294,10 @@ test.describe('Dado a aba Outbound', () => {
     await expect(rows.first()).toContainText('Replay');
     await expect(rows.first()).toContainText(/\d+ ms/);
     const detail = page.getByRole('region', { name: 'Outbound detail' });
-    await expect(detail.getByRole('table', { name: 'Sent headers' })).toBeVisible();
-    await expect(detail.getByRole('table', { name: 'Response headers' })).toContainText(
-      'x-receptor',
-    );
     await expect(detail.getByLabel('Response body', { exact: true })).toHaveText(
       /^\{\s*"recebido":\s*true\s*\}$/,
     );
+    await expect(await parteDoResultado(detail, 'Sent headers')).toBeVisible();
+    await expect(await parteDoResultado(detail, 'Response headers')).toContainText('x-receptor');
   });
 });
