@@ -73,7 +73,10 @@
 // O nome da regra (ou "Default response") leva a ela (WM-10): sublinhado, na cor do tom; o link a
 // mais (o "Default response" do near miss) numa linha própria.
 .extra {
+  display: inline-flex;
   align-self: flex-start;
+  align-items: center;
+  min-height: 24px;
 }
 
 .link {
