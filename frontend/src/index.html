@@ -9,7 +9,14 @@
       name="description"
       content="Instantly test, bin and log webhooks and HTTP requests with this handy tool that shows requests to a unique URL in realtime."
     />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- O anzol da marca (ui/icon.ts, "hook"): SVG inline (o backend só serve *.js, *.css e *.ico
+         na raiz) e o favicon.ico gerado dele, de reserva, com 16, 32 e 48 px. -->
+    <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231D6A73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='15' cy='4' r='2'/><path d='M15 6v9a5 5 0 0 1-10 0v-3'/><path d='m5 12 3 3'/></svg>"
+    />
     <meta name="color-scheme" content="light dark" />
     <link
       rel="preload"

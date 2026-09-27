@@ -5,6 +5,7 @@ import { CheckChip } from '../ui/check-chip';
 import { CodeView } from '../ui/code-view';
 import { CopyField } from '../ui/copy-field';
 import { EmptyState } from '../ui/empty-state';
+import { ICON_NAMES, Icon } from '../ui/icon';
 import { KvTable } from '../ui/kv-table';
 import { LiveState, LiveStatus } from '../ui/live-status';
 import { MarkdownView } from '../ui/markdown-view';
@@ -26,6 +27,7 @@ import { StatusCode } from '../ui/status-code';
     CodeView,
     CopyField,
     EmptyState,
+    Icon,
     KvTable,
     LiveStatus,
     MarkdownView,
@@ -42,6 +44,7 @@ export class Catalog {
   protected readonly schemes = ['light', 'dark'] as const;
   protected readonly checks = webhookRequestExamples().map((request) => checksOf(request));
   protected readonly methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+  protected readonly icons = ICON_NAMES;
   protected readonly markdown =
     '**Signature invalid**: the HMAC did not match.\n\n- Check the `secret`\n- Compare the raw body';
   protected readonly statuses = [200, 302, 404, 422, 503];

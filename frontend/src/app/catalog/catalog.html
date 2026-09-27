@@ -73,6 +73,15 @@
         <app-skeleton-list [count]="3" [itemHeight]="84" />
         <app-skeleton-list [count]="2" [itemHeight]="60" />
 
+        <h3>app-icon</h3>
+        <ul class="icons">
+          @for (name of icons; track name) {
+            <li>
+              <app-icon [name]="name" [size]="24" /><code>{{ name }}</code>
+            </li>
+          }
+        </ul>
+
         <h3>app-markdown</h3>
         <app-markdown [text]="markdown" />
 

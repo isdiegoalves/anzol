@@ -18,7 +18,7 @@ import { Icon } from './ui/icon';
   template: `
     @if (sharing()) {
       <header class="brand-bar">
-        <a class="brand" routerLink="/" i18n><app-icon name="anchor" [size]="22" />Anzol</a>
+        <a class="brand" routerLink="/" i18n><app-icon name="hook" [size]="22" />Anzol</a>
       </header>
       <router-outlet />
     } @else {

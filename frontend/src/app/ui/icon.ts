@@ -13,7 +13,8 @@ const circle = (cx: number, cy: number, r: number): Shape => ({ tag: 'circle', c
  * offline, sem fonte de ícones de CDN, e a `MatIcon` com ligaduras pediria uma fonte a mais.
  */
 const ICONS = {
-  anchor: [path('M12 22V8'), path('M5 12H2a10 10 0 0 0 20 0h-3'), circle(12, 5, 3)],
+  // A marca Anzol: olhal no topo, haste, curva em J e a farpa na ponta (desenho próprio).
+  hook: [circle(15, 4, 2), path('M15 6v9a5 5 0 0 1-10 0v-3'), path('m5 12 3 3')],
   inbox: [
     path('M22 12h-6l-2 3h-4l-2-3H2'),
     path(
@@ -77,6 +78,8 @@ const ICONS = {
 } satisfies Record<string, Shape[]>;
 
 export type IconName = keyof typeof ICONS;
+/** Todos os ícones, na ordem do mapa (o catálogo mostra cada um). */
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
 
 /** Ícone decorativo (`aria-hidden`): o nome acessível fica no texto ou no botão em volta. */
 @Component({
