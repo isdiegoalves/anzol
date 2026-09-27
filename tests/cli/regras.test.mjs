@@ -268,3 +268,114 @@ describe('anzol rules push', () => {
     assert.deepEqual(await lerRegras(token), antes, 'as regras salvas ficam intactas');
   });
 });
+
+// UX de Regras, E-07 (`.docs-arquivo/regras-ux/api-contrato.md`): `anzol rules push --dry-run <arquivo>` imprime o
+// mesmo resumo da ferramenta MCP `diff_rules` (iguais, alteradas com os campos, removidas e novas, comparando por
+// `id`), não grava e sai 0. Sem `--dry-run`, o push de sempre (os testes acima).
+//
+// SUPOSIÇÃO: o token continua sendo o primeiro argumento do push (o api-contrato escreve só `push --dry-run
+// <arquivo>`), e `--dry-run` vai antes do arquivo, como lá.
+
+function pushDryRun(token, arquivo) {
+  return rodar(['rules', 'push', token, '--dry-run', arquivo, '--server', SERVIDOR]);
+}
+
+/**
+ * Confere o resumo do `--dry-run`. SUPOSIÇÃO: o formato do resumo não é fixado. Vale o JSON do `diff_rules` no stdout
+ * (`{equal, changed, removed, added}`), conferido item a item; ou texto em que cada regra alterada aparece numa linha
+ * com o nome ou o id e o campo (uma linha por campo, ou todos na mesma), e cada removida e cada nova numa linha com o
+ * nome ou o id; a regra igual não aparece numa linha com um campo alterado.
+ */
+function conferirResumo(r, esperado) {
+  let json;
+  try {
+    json = JSON.parse(r.stdout);
+  } catch {
+    json = undefined;
+  }
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
+    assert.deepEqual(Object.keys(json).sort(), ['added', 'changed', 'equal', 'removed'], `resumo em JSON\n${r.cli.descricao()}`);
+    assert.deepEqual([...json.equal].sort(), esperado.equal.map((e) => e.id).sort(), 'equal');
+    const alteradas = (lista) => lista.map((c) => `${c.id} ${[...c.fields].sort().join(',')}`).sort();
+    assert.deepEqual(alteradas(json.changed), alteradas(esperado.changed), 'changed');
+    assert.deepEqual(json.removed.map((x) => x.id).sort(), esperado.removed.map((x) => x.id).sort(), 'removed');
+    assert.deepEqual(json.added.map((x) => x.name).sort(), esperado.added.map((x) => x.name).sort(), 'added');
+    return;
+  }
+  const linhas = `${r.stdout}\n${r.stderr}`.split('\n');
+  const cita = (linha, regra) => linha.includes(regra.name) || (regra.id !== undefined && linha.includes(regra.id));
+  for (const c of esperado.changed) {
+    for (const campo of c.fields) {
+      assert.ok(linhas.some((l) => cita(l, c) && l.includes(campo)), `nenhuma linha cita ${c.name} com o campo ${campo}\n${r.cli.descricao()}`);
+    }
+  }
+  for (const x of [...esperado.removed, ...esperado.added]) {
+    assert.ok(linhas.some((l) => cita(l, x)), `nenhuma linha cita ${x.name}\n${r.cli.descricao()}`);
+  }
+  const campos = esperado.changed.flatMap((c) => c.fields);
+  for (const e of esperado.equal) {
+    assert.ok(!linhas.some((l) => cita(l, e) && campos.some((campo) => l.includes(campo))), `a regra igual ${e.name} aparece como alterada\n${r.cli.descricao()}`);
+  }
+}
+
+describe('anzol rules push --dry-run', () => {
+  test('imprime iguais, alteradas com os campos, removidas e novas; não grava; saída 0', { timeout: 60_000 }, async () => {
+    const token = await criarToken();
+    const [igual, status, prioridade, sai] = await gravarRegras(token, [
+      { name: 'regra-igual', priority: 2, match: { method: ['POST'] }, response: { status: 201 } },
+      { name: 'regra-status', response: { status: 200 } },
+      { name: 'regra-prioridade', priority: 3 },
+      { name: 'regra-sai' },
+    ]);
+    const antes = await lerRegras(token);
+    const arquivo = path.join(pastaTemporaria(), 'proposta.json');
+    fs.writeFileSync(arquivo, JSON.stringify([
+      igual,
+      { ...status, response: { ...status.response, status: 503 } },
+      { ...prioridade, priority: 4 },
+      { name: 'regra-nova' },
+    ], null, 2));
+
+    const r = await pushDryRun(token, arquivo);
+    assert.equal(r.codigo, 0, `código de saída\n${r.cli.descricao()}`);
+    assert.deepEqual(r.cli.linhasQueCasam(/Pushed/), [], 'o --dry-run não diz que gravou');
+    assert.deepEqual(await lerRegras(token), antes, 'o --dry-run não grava');
+    conferirResumo(r, {
+      equal: [{ id: igual.id, name: 'regra-igual' }],
+      changed: [
+        { id: status.id, name: 'regra-status', fields: ['response.status'] },
+        { id: prioridade.id, name: 'regra-prioridade', fields: ['priority'] },
+      ],
+      removed: [{ id: sai.id, name: 'regra-sai' }],
+      added: [{ name: 'regra-nova' }],
+    });
+  });
+
+  test('o arquivo do pull, sem mudança: nada alterado, removido ou novo; saída 0', { timeout: 60_000 }, async () => {
+    const token = await criarToken();
+    await gravarRegras(token, REGRAS_RICAS);
+    const antes = await lerRegras(token);
+    const arquivo = path.join(pastaTemporaria(), 'regras.json');
+    const p = await pull(token, '--file', arquivo);
+    assert.equal(p.codigo, 0, `pull\n${p.cli.descricao()}`);
+
+    const r = await pushDryRun(token, arquivo);
+    assert.equal(r.codigo, 0, `código de saída\n${r.cli.descricao()}`);
+    assert.deepEqual(r.cli.linhasQueCasam(/Pushed/), []);
+    assert.deepEqual(await lerRegras(token), antes);
+    conferirResumo(r, { equal: antes.map(({ id, name }) => ({ id, name })), changed: [], removed: [], added: [] });
+  });
+
+  test('token inexistente → "Token not found" no stderr e saída 1; não cria o token', { timeout: 60_000 }, async () => {
+    // SUPOSIÇÃO: o erro de token é o do push de hoje; o api-contrato só fixa a saída 0 do caso que funciona.
+    const token = randomUUID();
+    assert.equal(await statusDoToken(token), 410, 'pré-condição: o token não existe');
+    const arquivo = path.join(pastaTemporaria(), 'regras.json');
+    fs.writeFileSync(arquivo, JSON.stringify(REGRAS_RICAS));
+
+    const r = await pushDryRun(token, arquivo);
+    assert.match(r.stderr, /Token not found/, `stderr\n${r.cli.descricao()}`);
+    assert.equal(r.codigo, 1, `código de saída\n${r.cli.descricao()}`);
+    assert.equal(await statusDoToken(token), 410, 'o --dry-run não cria o token');
+  });
+});

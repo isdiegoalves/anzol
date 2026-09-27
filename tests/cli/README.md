@@ -72,6 +72,7 @@ temporária do sistema, apagada ao fim de cada teste.
 | `regras.test.mjs` ida e volta | pull `--file` → a lista do servidor é esvaziada → push do arquivo → pull `--file`: os dois arquivos são idênticos byte a byte e o `GET` volta ao original, com os mesmos `id`s (regras com todos os campos das fases A e B) |
 | `regras.test.mjs` 422 | push com regras inválidas (3 chaves): saída 1, sem `Pushed`, cada par chave/mensagem do 422 que a API dá para o mesmo arquivo numa linha do stderr, regras salvas intactas |
 | `regras.test.mjs` erros | token inexistente → `Token not found` no stderr e saída 1 (pull e push; o push não cria o token); arquivo inexistente e JSON inválido → saída 1, mensagem no stderr, regras intactas |
+| `regras.test.mjs` `--dry-run` (UX de Regras, E-07) | `rules push <token> --dry-run <arquivo>` com uma regra igual, duas alteradas (`response.status`, `priority`), uma removida e uma nova: saída 0, sem `Pushed`, regras intactas, e o resumo do `diff_rules` (JSON conferido item a item, ou texto com cada alterada numa linha com o campo e cada removida e nova citada); o arquivo do `pull` sem mudança → tudo igual; token inexistente → `Token not found` e saída 1, sem criar o token |
 | `send.test.mjs` CA-1 | `send --method PUT` com query, 4 `--header` e `--data`: chega método, caminho+query, cabeçalhos e o corpo byte a byte com `{{uuid}}` (igual no cabeçalho e no corpo), `{{now}}` ISO-8601 UTC e `{{timestamp}}` na janela do envio, `{{seq}}` = 1, `{{random 1\|16\|256}}` alfanuméricos, `{{{{` → `{{`; `--data-file` com UTF-8 e CRLF, POST por padrão; linhas `#1 attempt 1/1 -> 201 (…)` e `#1 delivered after 1 attempt(s)`, saída 0 |
 | `send.test.mjs` CA-2 | stripe, github, shopify, slack e generic (padrões sha256/hex; sha512/base64/`hmac=`; sha1/hex): o receptor confere a assinatura com `node:crypto` sobre os bytes recebidos (timestamps a ≤ 5 s da chegada); prova cruzada: URL da 8084 com a mesma `signature` grava `{provider, valid: true, reason: null}` |
 | `send.test.mjs` CA-3 | 503, 503, 200 com `--retries 3 --initial-delay 1100` (exponencial padrão): linhas `1/4 -> 503 …, retrying in 1100 ms`, `2/4 … 2200 ms`, `3/4 -> 200`, `delivered after 3`, saída 0; intervalos medidos no receptor entre −30 e +2500 ms da espera; corpo e `Idempotency-Key: {{uuid}}` idênticos nas 3; Stripe reassinado com `t` crescente e sempre válido. Fixo (400, 400); exponencial com teto (300, 500, 500), 4 × 503 → `gave up after 4`, saída 1 |
@@ -112,6 +113,11 @@ temporária do sistema, apagada ao fim de cada teste.
 - `Pushed <n> rule(s)` casada por inteiro, no stdout ou no stderr; `n` = regras gravadas.
 - 422 do push: cada par chave/mensagem numa mesma linha do stderr (ex.: `1.match.path.regex: The regex is
   invalid.`), em qualquer formato; as chaves e mensagens esperadas vêm da própria API.
+- `rules push --dry-run` (E-07): o token segue como primeiro argumento (o api-contrato escreve só `push --dry-run
+  <arquivo>`) e `--dry-run` vai antes do arquivo. "O mesmo resumo" do `diff_rules` não tem formato fixado: vale o
+  JSON `{equal, changed, removed, added}` no stdout ou texto em que cada alterada aparece numa linha com o nome ou o
+  `id` e o campo, e cada removida e cada nova numa linha com o nome ou o `id` (a igual não aparece numa linha com um
+  campo alterado). Token inexistente responde como o push de hoje.
 - `send`: `--to` é o alvo; não usa `--server` nem `WEBHOOK_SERVER`. Linhas casadas por inteiro, no stdout
   ou no stderr; `HH:mm:ss` é a hora local e o `(<ms> ms)` da tentativa não é conferido. Outras linhas
   são livres, mas toda linha com ` attempt ` ou ` attempt(s)` tem de seguir o formato da §1.
