@@ -132,6 +132,21 @@ test.describe('Dado uma regra salva com mensagens que chegaram perto (near miss)
     await expect(padrao.locator('td.hits')).toContainText('Answered 2');
     await expect(page.getByText(/^Hits over the last 3 requests kept\.$/)).toBeVisible();
   });
+
+  // Item 14, E11: a janela dos hits no singular quando há uma mensagem só (plural ICU).
+  test('deve dizer "request" no singular Quando a janela tem uma mensagem só', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await putRules(request, tokenId, [PIX]);
+    await tokens.send(tokenId, { method: 'POST', path: '/pagamentos' });
+
+    await abrirRegras(page, tokenId);
+
+    await expect(page.getByText(/^Hits over the last 1 request kept\.$/)).toBeVisible();
+  });
 });
 
 test.describe('Dado duas regras na lista', () => {
