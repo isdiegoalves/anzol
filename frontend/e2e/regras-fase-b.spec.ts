@@ -1,6 +1,6 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirRegra, novaRegra, parte } from './support/regras';
+import { abrirRegra, editor, novaRegra, parte, voltarALista } from './support/regras';
 
 // Regras de resposta, fase B (CA-5, CA-6, CA-7 e CA-10 no que é da tela): template, atraso e
 // falha pelo editor, cenário "falha 3×, depois 200" criado pela tela e o painel de cenários.
@@ -215,6 +215,8 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
     await expect(
       cenarios.getByRole('table', { name: 'Scenarios' }).locator('tr[data-scenario="Retry"]'),
     ).toContainText('Started');
+    // UX de Regras, F8: no celular o editor é folha de tela cheia; "Back to list" antes da próxima regra nova.
+    await voltarALista(page, editor(page, 'Edit rule Falha 1'));
     await scenarioStep(page, {
       name: 'Falha 2',
       required: 'falhou-1',

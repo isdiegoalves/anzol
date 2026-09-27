@@ -18,7 +18,8 @@ const visual = process.env['VISUAL'] === '1';
 
 /**
  * Specs que também rodam no celular: shell (barra inferior, desbloqueio e link só-leitura), URL e link, tema,
- * onboarding, detalhe, apagar e copiar, Checks e Insights. Ficam de fora as que supõem lista e detalhe lado a lado
+ * onboarding, detalhe, apagar e copiar, Checks e Insights, e as de Regras (UX de Regras, F8/CA-11: `regras*` e
+ * `fidelidade-rules*`, com o que é só de desktop marcado no próprio teste). Ficam de fora as que supõem lista e detalhe lado a lado
  * (lista, i18n, privacidade): abaixo de 840 px a Inbox mostra um painel por vez, e o shell.spec já cobre o
  * desbloqueio e o link só-leitura a 390 px.
  */
@@ -32,6 +33,8 @@ const MOBILE = [
   'copiar-como',
   'checks',
   'insights',
+  'regras[^/]*',
+  'fidelidade-rules[^/]*',
 ].map((nome) => new RegExp(`/${nome}\\.spec\\.ts$`));
 
 export default defineConfig({

@@ -1,6 +1,14 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { TokenTracker, expect, test } from './support/fixtures';
-import { abrirRegra, abrirRegras, editor, linhaDaRegra, novaRegra, parte } from './support/regras';
+import {
+  abrirRegra,
+  abrirRegras,
+  celular,
+  editor,
+  linhaDaRegra,
+  novaRegra,
+  parte,
+} from './support/regras';
 
 // Item 14.1, fatia F3 (fidelidade ao protótipo C): Rules. Cada teste cobre um item de
 // `.docs-arquivo/fidelidade-prototipo/desvios.json` (decisão "corrigir") e respeita as Travas do 00-STATUS (trava 8:
@@ -113,6 +121,10 @@ test.describe('Dado a lista de regras (RULES-01/02/03/04)', () => {
 
     await botaoDaRegra(page, 'Pix pago').click();
     await expect(editor(page, 'Edit rule Pix pago')).toBeVisible();
+    // UX de Regras, F8: no celular o editor é folha de tela cheia e a lista (com o aria-current) fica por baixo.
+    if (celular(page)) {
+      return;
+    }
     await expect(botaoDaRegra(page, 'Pix pago')).toHaveAttribute('aria-current', 'true');
     await expect(botaoDaRegra(page, 'Rejeita')).not.toHaveAttribute('aria-current', 'true');
   });
@@ -175,6 +187,7 @@ test.describe('Dado uma regra aberta ao lado da lista (RULES-10/11)', () => {
     request,
     tokens,
   }) => {
+    test.skip(celular(page), 'desktop: lista e editor lado a lado (F8)');
     const tokenId = await urlComRegras(request, tokens);
     await abrirRegras(page, tokenId);
     await abrirRegra(page, 'Pix pago');

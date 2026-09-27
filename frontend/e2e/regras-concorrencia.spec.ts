@@ -1,6 +1,6 @@
 import { APIRequestContext, Locator, Page, Response } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { editor, linhaDaRegra } from './support/regras';
+import { celular, editor, linhaDaRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Item 14, E6 — refutação independente (CA-12), transformada em spec. `PUT /token/{id}/rules` troca a lista
@@ -50,9 +50,12 @@ async function abrir(
 ): Promise<Locator> {
   await seedStorage(page, {});
   await page.goto(`/#/${tokenId}/rules${rota}`);
-  await expect(page.getByRole('table', { name: 'Rules' })).toContainText('A');
   const regiao = editor(page, nomeDoEditor as 'New rule');
   await expect(regiao).toBeVisible();
+  // UX de Regras, F8: no celular a lista fica atrás da folha do editor; a espera pela rede basta.
+  if (!celular(page)) {
+    await expect(page.getByRole('table', { name: 'Rules' })).toContainText('A');
+  }
   await page.waitForLoadState('networkidle');
   return regiao;
 }
@@ -99,6 +102,12 @@ test.describe('Dado outra aba que acrescenta a regra B com o editor aberto', () 
     expect(await nomes(request, tokenId), 'a regra B da outra aba continua').toEqual(['A', 'B']);
     await expect(conflito(page)).toBeVisible();
     await conflito(page).getByRole('button', { name: 'Reload' }).click();
+    // UX de Regras, F8: no celular a lista fica fora da tela enquanto a folha do editor segue aberta; lá basta o aviso
+    // sumir depois do Reload.
+    if (celular(page)) {
+      await expect(conflito(page)).toHaveCount(0);
+      return;
+    }
     await expect(
       page.getByRole('table', { name: 'Rules' }).locator('.name', { hasText: 'B' }),
     ).toBeVisible();

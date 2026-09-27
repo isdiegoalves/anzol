@@ -1,8 +1,9 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './support/fixtures';
-import { falhas, porque, verificacoes } from './support/inbox';
+import { falhas, itens, porque, verificacoes } from './support/inbox';
 import {
+  celular,
   importar,
   importarSubstituindo,
   linhasDasRegras,
@@ -122,6 +123,13 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     expect(await webhook.text()).toBe('{"ok":true}');
 
     await page.getByRole('link', { name: /^Inbox(, .+)?$/ }).click();
+    // Abaixo de 840 px a Inbox mostra um painel por vez: abre a mensagem pela lista.
+    if (celular(page)) {
+      await itens(page)
+        .first()
+        .getByRole('button', { name: /^POST / })
+        .click();
+    }
     // Item 14, E4: o selo da regra é o cartão do `group "Checks on this request"`.
     // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
     await expect(verificacoes(page)).toContainText(/Answered by rule · 201\s*Pix pago/);
@@ -143,7 +151,10 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
 
     await expect(dialog.locator('mat-error')).toContainText(/regex/i);
     await expect(dialog).toBeVisible();
-    await expect(page.getByText('No rules yet')).toBeVisible();
+    // UX de Regras, F8: no celular a lista vazia fica atrás da folha do editor.
+    if (!celular(page)) {
+      await expect(page.getByText('No rules yet')).toBeVisible();
+    }
   });
 
   test('deve salvar a regra escrita na visão JSON Quando o JSON é válido', async ({
