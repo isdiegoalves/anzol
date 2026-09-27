@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/angular';
+import { provideRouter } from '@angular/router';
+import { render, screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
@@ -32,9 +33,33 @@ const ENTREGA: Rule[] = [
 describe('Dado as regras de um cenário (scenarioSteps)', () => {
   it('deve dar uma transição por regra ligada do cenário, na ordem da lista', () => {
     expect(scenarioSteps(ENTREGA, 'entrega')).toEqual([
-      { rule: 'falha 1', status: 503, from: 'Started', to: 'falhou 1', stays: false },
-      { rule: 'falha 2', status: 503, from: 'falhou 1', to: 'entregue', stays: false },
-      { rule: 'ok', status: 200, from: 'entregue', to: 'entregue', stays: true },
+      {
+        rule: 'falha 1',
+        id: 'r1',
+        request: 'POST /r1',
+        status: 503,
+        from: 'Started',
+        to: 'falhou 1',
+        stays: false,
+      },
+      {
+        rule: 'falha 2',
+        id: 'r2',
+        request: 'POST /r2',
+        status: 503,
+        from: 'falhou 1',
+        to: 'entregue',
+        stays: false,
+      },
+      {
+        rule: 'ok',
+        id: 'r3',
+        request: 'POST /r3',
+        status: 200,
+        from: 'entregue',
+        to: 'entregue',
+        stays: true,
+      },
     ]);
   });
 
@@ -45,7 +70,15 @@ describe('Dado as regras de um cenário (scenarioSteps)', () => {
     });
 
     expect(scenarioSteps([regra], 'x')).toEqual([
-      { rule: 'Rule 9', status: null, from: 'any state', to: 'y', stays: false },
+      {
+        rule: 'Rule 9',
+        id: 'r9',
+        request: 'POST /r9',
+        status: null,
+        from: 'any state',
+        to: 'y',
+        stays: false,
+      },
     ]);
   });
 });
@@ -57,7 +90,9 @@ describe('Dado o diagrama de um cenário', () => {
     });
 
     expect(
-      screen.getByRole('img', { name: 'entrega: Started, then falhou 1 (current), then entregue' }),
+      screen.getByRole('img', {
+        name: 'entrega: Started, then falhou 1 (current), then entregue',
+      }),
     ).toBeTruthy();
     const steps = [...container.querySelectorAll('.steps li')].map((li) =>
       li.textContent?.replace(/\s+/g, ' ').trim(),
@@ -76,12 +111,59 @@ describe('Dado o diagrama de um cenário', () => {
     });
 
     const figura = screen.getByRole('img');
+    // E-09: a seta diz o que casa e o que responde.
     expect([...figura.querySelectorAll('.edge')].map((edge) => edge.textContent?.trim())).toEqual([
-      '503',
-      '503',
+      'POST /r1 → 503',
+      'POST /r2 → 503',
     ]);
     expect(figura.querySelector('.stays')?.textContent?.trim()).toBe('then 200 while in entregue');
     expect(container.querySelector('.steps')).toBeNull();
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('Dado o diagrama na aba Scenario, com a URL (E-09)', () => {
+  it('deve pôr um link por seta para a regra, fora da imagem do diagrama', async () => {
+    const { container } = await render(ScenarioDiagram, {
+      inputs: {
+        name: 'entrega',
+        rules: ENTREGA,
+        current: 'Started',
+        tokenId: 'tk',
+        showSteps: false,
+      },
+      providers: [provideRouter([])],
+    });
+
+    const links = screen.getByRole('list', { name: 'Rules of this scenario' });
+    const link = within(links).getByRole('link', { name: 'POST /r1 → 503' });
+    expect(link.getAttribute('href')).toBe('/tk/rules/r1');
+    expect(
+      within(links)
+        .getAllByRole('link')
+        .map((a) => a.textContent?.trim()),
+    ).toEqual(['POST /r1 → 503', 'POST /r2 → 503', 'POST /r3 → 200']);
+    expect(screen.getByRole('img').querySelector('a')).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve piscar o estado atual uma vez Quando ele muda', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container, rerender } = await render(ScenarioDiagram, {
+      inputs: { name: 'entrega', rules: ENTREGA, current: 'Started' },
+    });
+    expect(container.querySelector('.pill.changed')).toBeNull();
+
+    await rerender({
+      inputs: { name: 'entrega', rules: ENTREGA, current: 'falhou 1' },
+      partialUpdate: true,
+    });
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.pill.changed')?.textContent?.trim()).toBe('falhou 1'),
+    );
+    await vi.advanceTimersByTimeAsync(1300);
+    await vi.waitFor(() => expect(container.querySelector('.pill.changed')).toBeNull());
+    vi.useRealTimers();
   });
 });

@@ -84,6 +84,47 @@
   font-family: var(--app-code-family);
 }
 
+// Os links das setas (E-09), numa linha que quebra, com alvo de 24 px.
+.edge-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font: var(--mat-sys-body-small);
+  font-family: var(--app-code-family);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    color: var(--mat-sys-primary);
+  }
+}
+
+// O estado atual acabou de mudar: pisca uma vez (E-09), sem movimento se o sistema pede menos.
+.pill.changed {
+  animation: state-changed 1.2s ease-out 1;
+}
+
+@keyframes state-changed {
+  0%,
+  60% {
+    box-shadow: 0 0 0 4px var(--mat-sys-tertiary-container);
+  }
+
+  100% {
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill.changed {
+    animation: none;
+  }
+}
+
 .stays {
   margin: 6px 0 0;
   font: var(--mat-sys-body-small);

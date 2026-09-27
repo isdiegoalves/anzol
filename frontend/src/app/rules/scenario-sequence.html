@@ -1,0 +1,144 @@
+<h2 mat-dialog-title i18n>Sequence</h2>
+<mat-dialog-content>
+  <p class="hint" i18n>
+    Scenario rules chained with the same conditions: answer one response a few times, then another
+    that stays. For "fail 2 times, then accept".
+  </p>
+
+  <fieldset class="block">
+    <legend i18n>When</legend>
+    <div class="methods" role="group" aria-label="Methods" i18n-aria-label>
+      @for (method of allMethods; track method) {
+        <button
+          type="button"
+          class="method"
+          [attr.aria-pressed]="methods().includes(method)"
+          (click)="toggleMethod(method)"
+        >
+          {{ method }}
+        </button>
+      }
+    </div>
+    <div class="row">
+      <mat-form-field class="path" subscriptSizing="dynamic">
+        <mat-label i18n>Path</mat-label>
+        <input
+          matInput
+          id="sequence-path"
+          [value]="path()"
+          [disabled]="pathMode() === 'any'"
+          (input)="path.set(value($event))"
+        />
+      </mat-form-field>
+      <mat-form-field class="mode" subscriptSizing="dynamic">
+        <mat-label i18n>Path match</mat-label>
+        <mat-select [value]="pathMode()" (valueChange)="pathMode.set($event)">
+          <mat-option value="any" i18n>Any path</mat-option>
+          <mat-option value="equals" i18n>Equals</mat-option>
+          <mat-option value="prefix" i18n>Starts with</mat-option>
+          <mat-option
+            value="regex"
+            i18n="path match option in the Sequence dialog|Matches regex (whole value)"
+            >Matches regex (whole value)</mat-option
+          >
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </fieldset>
+
+  <fieldset class="block">
+    <legend i18n>First response</legend>
+    <div class="row">
+      <mat-form-field class="status" subscriptSizing="dynamic">
+        <mat-label i18n>Status</mat-label>
+        <input
+          matInput
+          id="sequence-first-status"
+          type="number"
+          min="100"
+          max="599"
+          [value]="firstStatus()"
+          (input)="firstStatus.set(value($event))"
+        />
+      </mat-form-field>
+      <mat-form-field class="body" subscriptSizing="dynamic">
+        <mat-label i18n>Body</mat-label>
+        <input matInput [value]="firstBody()" (input)="firstBody.set(value($event))" />
+      </mat-form-field>
+      <mat-form-field class="times" subscriptSizing="dynamic">
+        <mat-label i18n>Times</mat-label>
+        <input
+          matInput
+          id="sequence-times"
+          type="number"
+          min="1"
+          max="20"
+          [value]="times()"
+          (input)="times.set(value($event))"
+        />
+      </mat-form-field>
+    </div>
+  </fieldset>
+
+  <fieldset class="block">
+    <legend i18n>Final response (stays)</legend>
+    <div class="row">
+      <mat-form-field class="status" subscriptSizing="dynamic">
+        <mat-label i18n>Status</mat-label>
+        <input
+          matInput
+          id="sequence-final-status"
+          type="number"
+          min="100"
+          max="599"
+          [value]="finalStatus()"
+          (input)="finalStatus.set(value($event))"
+        />
+      </mat-form-field>
+      <mat-form-field class="body" subscriptSizing="dynamic">
+        <mat-label i18n>Body</mat-label>
+        <input matInput [value]="finalBody()" (input)="finalBody.set(value($event))" />
+      </mat-form-field>
+    </div>
+  </fieldset>
+
+  <mat-form-field class="scenario" subscriptSizing="dynamic">
+    <mat-label i18n>Scenario name</mat-label>
+    <input
+      matInput
+      id="sequence-scenario"
+      maxlength="94"
+      [value]="scenario()"
+      (input)="scenario.set(value($event))"
+    />
+  </mat-form-field>
+  @if (joins()) {
+    <p class="joins">{{ joinsText() }}</p>
+  }
+
+  <section class="preview" aria-labelledby="sequence-preview-title">
+    <h3 id="sequence-preview-title" i18n>Preview</h3>
+    <p class="count">{{ previewTitle() }}</p>
+    <ol>
+      @for (line of preview(); track $index) {
+        <li>{{ line }}</li>
+      }
+    </ol>
+  </section>
+
+  @if (errors().length > 0) {
+    <div role="alert">
+      <ul class="errors">
+        @for (message of errors(); track $index) {
+          <li>{{ message }}</li>
+        }
+      </ul>
+    </div>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end" class="actions">
+  <button mat-button type="button" [mat-dialog-close]="false" i18n>Cancel</button>
+  <button mat-flat-button type="button" [attr.aria-busy]="saving()" (click)="create()">
+    {{ createLabel() }}
+  </button>
+</mat-dialog-actions>

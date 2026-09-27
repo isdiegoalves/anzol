@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
@@ -51,7 +52,8 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ScenarioPanel],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      // As setas do diagrama são links para as regras (E-09).
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
   });

@@ -1,0 +1,119 @@
+.hint {
+  margin: 0 0 12px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.block {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+
+  legend {
+    margin: 0 0 6px;
+    padding: 0;
+    font: var(--mat-sys-title-small);
+  }
+}
+
+// Campos lado a lado; no celular, empilham (sem rolagem lateral).
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.path,
+.body {
+  flex: 1 1 200px;
+}
+
+.mode {
+  flex: 0 1 200px;
+}
+
+.status,
+.times {
+  flex: 0 0 110px;
+}
+
+.scenario {
+  width: 100%;
+}
+
+// Método por chips, como no editor: `aria-pressed` marca o escolhido.
+.methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.method {
+  min-width: 48px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+  font-family: var(--app-code-family);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: transparent;
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -1px;
+  }
+}
+
+.joins {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.preview {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container);
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-small);
+  }
+
+  .count {
+    margin: 2px 0 4px;
+  }
+
+  ol {
+    margin: 0;
+    padding-left: 20px;
+    font-family: var(--app-code-family);
+    overflow-wrap: anywhere;
+  }
+}
+
+.errors {
+  margin: 12px 0 0;
+  padding: 8px 12px 8px 28px;
+  border-radius: 4px;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+// No celular, os botões ocupam a largura, o que cria embaixo (guia §3.1).
+@media (width < 600px) {
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+}

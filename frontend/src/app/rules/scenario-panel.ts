@@ -15,6 +15,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
 import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
+import { openSequence } from './scenario-sequence';
 import { Scenario, ScenarioStore } from './scenario-store';
 
 /**
@@ -57,6 +58,11 @@ export class ScenarioPanel {
       const tokenId = this.tokenId();
       untracked(() => void this.run(() => this.store.load(tokenId)));
     });
+  }
+
+  /** "Sequence…" (WM-32): o assistente grava as regras encadeadas; a lista as destaca. */
+  protected openSequence(): void {
+    void openSequence(this.injector);
   }
 
   /** Relê os estados. */

@@ -1,0 +1,25 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.state {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font-family: var(--app-code-family);
+}
+
+// Estado sem saída (WM-33): o aviso ocupa a linha de baixo, no tom de aviso.
+.terminal {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-body-small);
+}

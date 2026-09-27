@@ -8,6 +8,17 @@
       </p>
     </div>
     <div class="actions">
+      <!-- WM-32: "falhar N vezes e depois aceitar" num assistente, em vez de N+1 regras à mão. -->
+      <button
+        mat-stroked-button
+        type="button"
+        title="Create chained scenario rules: one response N times, then another that stays"
+        i18n-title
+        (click)="openSequence()"
+        i18n
+      >
+        Sequence…
+      </button>
       <button
         i18n
         mat-stroked-button
@@ -100,6 +111,7 @@
       [rules]="rules()"
       [current]="scenario.state"
       [showSteps]="false"
+      [tokenId]="tokenId()"
     />
   }
 </section>
