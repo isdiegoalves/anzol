@@ -81,7 +81,9 @@ export class ChecksStore {
   /** Mensagens da primeira página com corpo JSON: as que geram um schema. */
   async recentJson(tokenId: string): Promise<WebhookRequest[]> {
     const page = await firstValueFrom(
-      this.http.get<RequestPage>(`/token/${tokenId}/requests`, { params: { page: 1 } }),
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: 1, sorting: 'newest' },
+      }),
     );
     return page.data.filter((request) => jsonBody(request) !== null);
   }

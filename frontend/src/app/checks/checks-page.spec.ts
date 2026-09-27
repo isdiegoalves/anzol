@@ -44,7 +44,9 @@ describe('Dado a página Checks', () => {
     expect(screen.queryByRole('region', { name: 'Response' })).toBeNull();
     load.flush(token({ default_status: 201 }));
     await harness.fixture.whenStable();
-    const recent = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests?page=1`));
+    const recent = await vi.waitFor(() =>
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`),
+    );
     recent.flush(requestPage([]));
     http
       .expectOne(`/token/${TOKEN_ID}/stats?window=200`)

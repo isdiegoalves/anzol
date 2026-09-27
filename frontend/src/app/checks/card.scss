@@ -5,8 +5,9 @@
   gap: 16px;
   min-width: 0;
   padding: 16px 20px 20px;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-lowest);
+  background: var(--mat-sys-surface-container-low);
   color: var(--mat-sys-on-surface);
   scroll-margin-top: 16px;
 }

@@ -7,7 +7,7 @@ import { SchemaCard } from './schema-card';
 
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const SCHEMA = { type: 'object', required: ['id'] };
-const RECENTES = `/token/${TOKEN_ID}/requests?page=1`;
+const RECENTES = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
 
 const field = () => screen.getByRole('textbox', { name: 'JSON Schema' }) as HTMLTextAreaElement;
 const save = () => screen.getByRole('button', { name: 'Save schema' });
