@@ -362,7 +362,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
       await userEvent.click(screen.getByRole('button', { name: 'Why? (2)' }));
 
-      expect(screen.getAllByRole('listitem').map((item) => item.textContent?.trim())).toEqual([
+      expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
         'method: expected GET, got POST',
         'header x-a: absent',
       ]);
@@ -391,7 +391,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         await userEvent.click(screen.getByRole('button', { name: 'Por quê? (2)' }));
         const items = () => screen.getAllByRole('listitem');
 
-        expect(items().map((item) => item.textContent?.trim())).toEqual([
+        expect(items().map((item) => item.textContent)).toEqual([
           'método: esperava GET, veio POST',
           'frobnicate: unknown',
         ]);
@@ -403,7 +403,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         await userEvent.click(original);
 
         expect(original.getAttribute('aria-pressed')).toBe('true');
-        expect(items()[0].textContent?.trim()).toBe('method: expected GET, got POST');
+        expect(items()[0].textContent).toBe('method: expected GET, got POST');
         await expectNoAxeViolations(container);
       });
 

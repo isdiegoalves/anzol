@@ -86,9 +86,8 @@
     @if (readonly() || whyOpen()) {
       <ul class="failed" [attr.aria-label]="conditionsLabel(nearMiss.name)">
         @for (reason of whyPhrases(); track $index) {
-          <li [attr.title]="originalTitle(reason)">
-            {{ showOriginal() ? reason.original : reason.text }}
-          </li>
+          @let shown = showOriginal() ? reason.original : reason.text;
+          <li [attr.title]="originalTitle(reason)">{{ shown }}</li>
         }
       </ul>
       <!-- WM-05: as frases do servidor na língua da tela; o original à mão. -->

@@ -1,5 +1,5 @@
 @let current = result();
-<section class="history" aria-label="History test" i18n-aria-label role="status">
+<div class="history" aria-label="History test" i18n-aria-label role="status">
   @if (current.tested === 0) {
     <p i18n class="summary">No recorded requests to test against.</p>
   } @else {
@@ -100,9 +100,8 @@
                 >&ngsp;
                 <ul class="failed">
                   @for (reason of phrases(miss.failed); track $index) {
-                    <li [attr.title]="originalTitle(reason)">
-                      {{ showOriginal() ? reason.original : reason.text }}
-                    </li>
+                    @let shown = showOriginal() ? reason.original : reason.text;
+                    <li [attr.title]="originalTitle(reason)">{{ shown }}</li>
                   }
                 </ul>
               </li>
@@ -112,7 +111,7 @@
       </section>
     </div>
   }
-</section>
+</div>
 
 <!-- Uma mensagem do resultado: o link (abre ao lado), o trecho do corpo e quem respondeu na época. -->
 <ng-template #item let-uuid="uuid" let-page="page">

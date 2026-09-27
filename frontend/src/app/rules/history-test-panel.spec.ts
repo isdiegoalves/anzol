@@ -33,6 +33,13 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   ) => render(HistoryTestPanel, { inputs: { result, tokenId: TOKEN_ID, requests, ...extra } });
   const clean = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
 
+  // A prévia "With the rules before it" entra projetada logo abaixo do contador (WM-22): o painel não é
+  // um `section`, para que a única seção com aquele título seja a da prévia (S8).
+  it('não deve ser uma seção que engloba a prévia projetada', async () => {
+    await show(RESULTADO);
+    expect(screen.getByRole('status', { name: 'History test' }).tagName).toBe('DIV');
+  });
+
   it('deve dizer quantas das mais recentes casariam, com a nota e o "Test again"', async () => {
     const { container, fixture } = await show(RESULTADO);
     const again = vi.fn();
