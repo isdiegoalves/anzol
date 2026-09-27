@@ -12,6 +12,7 @@ import {
   RequestFilter,
   SchemaFilter,
   SignatureFilter,
+  sameFilter,
   waitForCommand,
 } from './request-filter';
 
@@ -117,8 +118,12 @@ export class RequestSearch {
     );
   }
 
+  /** O "Copied…" só sai quando o filtro muda de fato (o debounce da busca reaplica o mesmo). */
   private apply(change: Partial<RequestFilter>): void {
-    this.copied.set(null);
-    void this.store.applyFilter({ ...this.store.filter(), ...change });
+    const next = { ...this.store.filter(), ...change };
+    if (!sameFilter(next, this.store.filter())) {
+      this.copied.set(null);
+    }
+    void this.store.applyFilter(next);
   }
 }

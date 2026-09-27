@@ -7,7 +7,7 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
-import { RequestSearch } from './request-search';
+import { RequestSearch, SEARCH_DEBOUNCE_MS } from './request-search';
 
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
 
@@ -152,5 +152,19 @@ describe('Dado a busca e os filtros em chips da lista', () => {
         .some((status) => status.textContent?.includes('The text search is not part of wait-for')),
     ).toBe(true);
     await vi.waitFor(() => searches()[0].flush(requestPage([], { total: 0 })));
+  });
+
+  it('deve manter o "Copied…" Quando o debounce da busca dispara sem mudar o filtro (E11)', async () => {
+    vi.spyOn(clipboard, 'copy').mockReturnValue(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as webhook wait-for' }));
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 100));
+
+    expect(
+      screen
+        .getAllByRole('status')
+        .some((status) => status.textContent?.includes('Copied the webhook wait-for command.')),
+    ).toBe(true);
+    expect(searches()).toHaveLength(0);
   });
 });
