@@ -32,6 +32,8 @@ export interface CapturedRequest {
   schema?: SchemaResult | null;
   created_at: string;
   updated_at: string;
+  /** Ordem de gravação na URL; ausente em mensagens gravadas antes dele. */
+  seq?: number | null;
 }
 
 /** Mensagem recebida pela URL, no formato da API (`Storage/Request.php` no app atual), lida pelo dono. */

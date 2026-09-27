@@ -24,7 +24,7 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   const open = async (a = R1.uuid, b = R2.uuid) => {
     await harness.navigateByUrl(`/${TOKEN_ID}/compare/${a}/${b}`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1`, requestPage([R1, R2, R3]));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2, R3]));
   };
 
   beforeEach(async () => {

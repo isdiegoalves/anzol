@@ -7,40 +7,46 @@
   <ng-content select="[viewNav]" />
 </header>
 
-<table class="meta" aria-label="Request Details" i18n-aria-label>
-  <tbody>
-    <tr>
-      <th i18n scope="row">URL</th>
-      <td class="req-url">
-        <a [href]="current.url">{{ current.url }}</a>
-      </td>
-    </tr>
-    <tr>
-      <th i18n scope="row">Host</th>
-      <td class="req-ip">
-        {{ current.ip }}
-        <a
-          i18n
-          class="whois"
-          target="_blank"
-          rel="noopener"
-          [href]="'https://who.is/whois-ip/ip-address/' + current.ip"
-          >whois</a
-        >
-      </td>
-    </tr>
-    <tr>
-      <th i18n scope="row">Date</th>
-      <td class="req-date" [title]="current.created_at + ' UTC'">
-        {{ localDate(current.created_at) }} ({{ fromNow(current.created_at) }})
-      </td>
-    </tr>
-    <tr>
-      <th i18n scope="row">ID</th>
-      <td class="req-id">{{ current.uuid }}</td>
-    </tr>
-  </tbody>
-</table>
+<!-- Linha de metadados do protótipo C (INBOX-17, trava 3): URL, host com whois, data absoluta e
+     relativa, tamanho, seq e o ID completo com "Copy request ID". -->
+<div class="meta" role="group" aria-label="Request metadata" i18n-aria-label>
+  <a class="req-url" [href]="current.url">{{ current.url }}</a>
+  <span class="req-ip">
+    <app-icon name="outbound" [size]="16" />{{ current.ip }}
+    <a
+      i18n
+      class="whois"
+      target="_blank"
+      rel="noopener"
+      [href]="'https://who.is/whois-ip/ip-address/' + current.ip"
+      >whois</a
+    >
+  </span>
+  <span class="req-date" [title]="current.created_at + ' UTC'"
+    >{{ localDate(current.created_at) }} · {{ fromNow(current.created_at) }}</span
+  >
+  <span class="req-size">{{ size() }}</span>
+  @if (current.seq) {
+    <span class="req-seq" i18n>seq {{ current.seq }}</span>
+  }
+  <span class="req-id"
+    ><ng-container i18n>id</ng-container> <code>{{ current.uuid }}</code>
+    <!-- A página do link só-leitura não tem botões (E3). -->
+    @if (!readonly()) {
+      <button
+        type="button"
+        class="copy-id"
+        aria-label="Copy request ID"
+        i18n-aria-label
+        title="Copy request ID"
+        i18n-title
+        (click)="copyId()"
+      >
+        <app-icon name="copy" [size]="16" />
+      </button>
+    }
+  </span>
+</div>
 
 <div class="checks" role="group" aria-label="Checks on this request" i18n-aria-label>
   @for (check of checks(); track check.kind) {

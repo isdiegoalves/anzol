@@ -70,11 +70,20 @@ export class RequestDetail {
   private readonly index = computed(() =>
     this.requests.requests().findIndex((request) => request.uuid === this.request().uuid),
   );
-  protected readonly hasNewer = computed(() => {
+  /**
+   * Passo na lista até a vizinha mais nova (+1) ou mais antiga: com a mais nova no topo (INBOX-01),
+   * a mais nova fica acima (índice menor).
+   */
+  private step(newer: boolean): number {
+    return newer === this.requests.newestFirst() ? -1 : 1;
+  }
+  private neighbour(newer: boolean): number {
     const index = this.index();
-    return index >= 0 && index < this.requests.requests().length - 1;
-  });
-  protected readonly hasOlder = computed(() => this.index() > 0);
+    const next = index + this.step(newer);
+    return index >= 0 && next >= 0 && next < this.requests.requests().length ? next : -1;
+  }
+  protected readonly hasNewer = computed(() => this.neighbour(true) >= 0);
+  protected readonly hasOlder = computed(() => this.neighbour(false) >= 0);
 
   constructor() {
     // Fechar (ou abrir outra mensagem) tira o painel.
@@ -94,23 +103,26 @@ export class RequestDetail {
   /** "Create schema from this request" só aparece quando há o que inferir. */
   protected readonly jsonBody = computed(() => isJson(this.request().content));
 
-  /** A mensagem seguinte (mais nova); na última carregada, busca a próxima página, como antes. */
+  /** A vizinha mais nova (K). */
   showNewer(): void {
-    const list = this.requests.requests();
-    const next = this.index() + 1;
-    const request = list[next];
-    if (request) {
-      this.openRequest.emit(request);
-      if (next === list.length - 1 && this.requests.hasNextPage()) {
-        void this.requests.loadNextPage();
-      }
-    }
+    this.showNeighbour(true);
   }
 
+  /** A vizinha mais antiga (J). */
   showOlder(): void {
-    const request = this.requests.requests()[this.index() - 1];
-    if (request) {
-      this.openRequest.emit(request);
+    this.showNeighbour(false);
+  }
+
+  /** Abre a vizinha; ao chegar na última carregada, busca a página seguinte, como antes. */
+  private showNeighbour(newer: boolean): void {
+    const list = this.requests.requests();
+    const next = this.neighbour(newer);
+    if (next < 0) {
+      return;
+    }
+    this.openRequest.emit(list[next]);
+    if (next === list.length - 1 && this.requests.hasNextPage()) {
+      void this.requests.loadNextPage();
     }
   }
 

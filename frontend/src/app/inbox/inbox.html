@@ -86,9 +86,6 @@
 </ng-template>
 
 <ng-template #detailPane>
-  @if ((!requests.hasRequests() || !preferences.hideTutorial()) && !requests.loading()) {
-    <ng-container [ngTemplateOutlet]="onboarding" />
-  }
   @let request = requests.selected();
   @let token = tokens.token();
   @if (request && token) {
@@ -98,5 +95,10 @@
       [page]="requests.pageOf(request.uuid)"
       (openRequest)="openRequest($event)"
     />
+  }
+  <!-- INBOX-06: o detalhe começa no topo; com mensagens, o onboarding (até o Close, hideTutorial)
+       fica abaixo dele. Na URL vazia, é ele o painel. -->
+  @if ((!requests.hasRequests() || !preferences.hideTutorial()) && !requests.loading()) {
+    <ng-container [ngTemplateOutlet]="onboarding" />
   }
 </ng-template>

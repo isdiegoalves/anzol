@@ -20,10 +20,31 @@
     />
   </label>
   <div class="chips" role="group" aria-label="Filters" i18n-aria-label>
-    @for (chip of chips(); track chip.label) {
+    @for (chip of chips().main; track chip.label) {
       <button type="button" class="chip" [attr.aria-pressed]="chip.pressed" (click)="chip.toggle()">
         {{ chip.label }}
       </button>
+    }
+    <button
+      i18n
+      type="button"
+      class="chip more"
+      [attr.aria-expanded]="moreOpen()"
+      (click)="moreOpen.set(!moreOpen())"
+    >
+      More filters
+    </button>
+    @for (chip of chips().more; track chip.label) {
+      @if (moreOpen() || chip.pressed) {
+        <button
+          type="button"
+          class="chip"
+          [attr.aria-pressed]="chip.pressed"
+          (click)="chip.toggle()"
+        >
+          {{ chip.label }}
+        </button>
+      }
     }
   </div>
   <div class="row">

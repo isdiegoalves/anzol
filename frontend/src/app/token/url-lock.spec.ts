@@ -37,7 +37,7 @@ describe('Dado o interceptador das chamadas da URL', () => {
 
   it.each([
     ['o token', `/token/${TOKEN_ID}`],
-    ['as mensagens', `/token/${TOKEN_ID}/requests?page=1`],
+    ['as mensagens', `/token/${TOKEN_ID}/requests?page=1&sorting=newest`],
     ['as regras', `/token/${TOKEN_ID}/rules`],
     ['os links compartilhados', `/token/${TOKEN_ID}/shares`],
   ])('deve trancar a tela na URL Quando %s volta 401 protegida', async (_caso, url) => {

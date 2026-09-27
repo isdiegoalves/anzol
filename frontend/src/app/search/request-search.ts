@@ -7,7 +7,6 @@ import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import {
-  FILTER_METHODS,
   NO_FILTER,
   RequestFilter,
   SchemaFilter,
@@ -60,9 +59,13 @@ export class RequestSearch {
     invalid: $localize`Schema invalid`,
   };
 
-  protected readonly chips = computed<Chip[]>(() => {
+  /**
+   * Os chips na ordem do protótipo C (INBOX-09): os principais à vista e os demais atrás de "More
+   * filters" (trava 4: nenhum filtro some). Um chip escondido que está ligado continua à vista.
+   */
+  protected readonly chips = computed<{ main: Chip[]; more: Chip[] }>(() => {
     const filter = this.store.filter();
-    const methods = FILTER_METHODS.map((method) => ({
+    const method = (method: string): Chip => ({
       label: method,
       pressed: filter.methods.includes(method),
       toggle: () =>
@@ -71,18 +74,33 @@ export class RequestSearch {
             ? filter.methods.filter((chosen) => chosen !== method)
             : [...filter.methods, method],
         }),
-    }));
-    const signatures = (['valid', 'invalid', 'absent'] as const).map((value) => ({
+    });
+    const signature = (value: 'valid' | 'invalid' | 'absent'): Chip => ({
       label: this.signatureLabels[value],
       pressed: filter.signature === value,
       toggle: () => this.apply({ signature: filter.signature === value ? 'any' : value }),
-    }));
-    const schemas = (['valid', 'invalid'] as const).map((value) => ({
+    });
+    const schema = (value: 'valid' | 'invalid'): Chip => ({
       label: this.schemaLabels[value],
       pressed: filter.schema === value,
       toggle: () => this.apply({ schema: filter.schema === value ? 'any' : value }),
-    }));
-    return [...methods, ...signatures, ...schemas];
+    });
+    return {
+      main: [
+        method('POST'),
+        method('GET'),
+        method('PUT'),
+        signature('invalid'),
+        signature('absent'),
+        schema('invalid'),
+      ],
+      more: [method('PATCH'), method('DELETE'), signature('valid'), schema('valid')],
+    };
+  });
+  /** "More filters" aberto; nasce aberto quando um dos filtros de lá está ligado (um link, a rota). */
+  protected readonly moreOpen = linkedSignal<boolean, boolean>({
+    source: () => this.chips().more.some((chip) => chip.pressed),
+    computation: (pressedMore, previous) => pressedMore || (previous?.value ?? false),
   });
 
   constructor() {

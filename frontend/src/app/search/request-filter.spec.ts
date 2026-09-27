@@ -1,4 +1,6 @@
 import {
+  filterFromParams,
+  filterToParams,
   NO_FILTER,
   isFilterActive,
   sameFilter,
@@ -38,7 +40,7 @@ describe('Dado o filtro da lista', () => {
     ).toEqual({
       text: 'pedido-42',
       match: { method: ['POST', 'PUT'], signature: 'invalid', schema: 'valid' },
-      sorting: 'oldest',
+      sorting: 'newest',
       page: 3,
       per_page: 50,
     });
@@ -47,7 +49,7 @@ describe('Dado o filtro da lista', () => {
   it('deve deixar o texto e as condições fora Quando não estão ligados', () => {
     expect(searchBody({ ...NO_FILTER, methods: ['GET'] }, 1)).toEqual({
       match: { method: ['GET'] },
-      sorting: 'oldest',
+      sorting: 'newest',
       page: 1,
       per_page: 50,
     });
@@ -92,5 +94,32 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
     expect(waitForCommand(NO_FILTER, { ...target, server: "http://a'b" })).toContain(
       `--server 'http://a'\\''b'`,
     );
+  });
+});
+
+describe('Dado os filtros na query da rota da Inbox', () => {
+  it('deve ler assinatura, schema, métodos e texto', () => {
+    expect(
+      filterFromParams({ signature: 'invalid', schema: 'valid', methods: 'POST,get', q: 'abc' }),
+    ).toEqual({ text: 'abc', methods: ['GET', 'POST'], signature: 'invalid', schema: 'valid' });
+  });
+
+  it('deve ignorar o valor que a tela não conhece, parâmetro a parâmetro', () => {
+    expect(
+      filterFromParams({ signature: 'talvez', schema: 'x', methods: 'POST,FOO', q: null }),
+    ).toEqual({ text: '', methods: ['POST'], signature: 'any', schema: 'any' });
+    expect(filterFromParams({})).toEqual(NO_FILTER);
+  });
+
+  it('deve levar à rota só o que está ligado', () => {
+    expect(
+      filterToParams({ text: 'abc', methods: ['POST'], signature: 'absent', schema: 'any' }),
+    ).toEqual({ signature: 'absent', schema: null, methods: 'POST', q: 'abc' });
+    expect(filterToParams(NO_FILTER)).toEqual({
+      signature: null,
+      schema: null,
+      methods: null,
+      q: null,
+    });
   });
 });

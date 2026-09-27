@@ -68,6 +68,16 @@ describe('Dado o localStorage vazio (primeiro acesso)', () => {
     expect(preferences.redirectUrl()).toBeNull();
     expect(preferences.unread()).toEqual([]);
   });
+
+  it('deve nascer com o JSON formatado ("Pretty") Quando a chave formatJsonEnable não existe (INBOX-22)', () => {
+    expect(TestBed.inject(Preferences).formatJsonEnable()).toBe(true);
+  });
+
+  it('deve respeitar a escolha salva de ver o corpo cru (trava 9)', () => {
+    localStorage.setItem('formatJsonEnable', 'false');
+
+    expect(TestBed.inject(Preferences).formatJsonEnable()).toBe(false);
+  });
 });
 
 describe('Dado a leitura de uma chave', () => {

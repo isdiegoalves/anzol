@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { within } from '@testing-library/angular';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -11,7 +12,13 @@ import { CompareStore } from '../diff/compare-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
-import { ITEM_HEIGHT, ITEM_HEIGHT_COMPACT, RequestList, UNDO_MS } from './request-list';
+import {
+  ITEM_HEIGHT,
+  ITEM_HEIGHT_COMPACT,
+  RequestList,
+  UNDO_MS,
+  bodySummary,
+} from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -25,7 +32,7 @@ describe('Dado a lista lateral de mensagens', () => {
   const load = async (data: WebhookRequest[], total = data.length, isLast = true) => {
     const loaded = store.load(TOKEN_ID);
     http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1`)
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
       .flush(requestPage(data, { total, is_last_page: isLast }));
     await loaded;
     await fixture.whenStable();
@@ -67,7 +74,9 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().textContent).not.toContain('Waiting for first request...');
     expect(items()).toHaveLength(0);
 
-    http.expectOne(`/token/${TOKEN_ID}/requests?page=1`).flush(requestPage([webhookRequest(1)]));
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1)]));
     await loaded;
     await fixture.whenStable();
     expect(element().querySelector('.skeleton')).toBeNull();
@@ -84,23 +93,61 @@ describe('Dado a lista lateral de mensagens', () => {
     ).toBe(ITEM_HEIGHT_COMPACT);
   });
 
-  it('deve mostrar método, início do UUID, rota, IP e data e destacar a não lida Quando há mensagens', async () => {
+  it('deve mostrar a mais nova no topo, com método, rota e tempo relativo, e o resumo, o IP e o #id embaixo (INBOX-01/11)', async () => {
     await load([
       webhookRequest(1, { method: 'GET', url: `http://localhost:8084/${TOKEN_ID}/a?b=1` }),
     ]);
-    store.append(webhookRequest(2), 2);
+    store.append(
+      webhookRequest(2, {
+        content: '{"type":"payment_intent.succeeded"}',
+        user_agent: 'Stripe/1.0',
+      }),
+      2,
+    );
     await fixture.whenStable();
 
-    expect(
-      items().map((item) =>
-        item.querySelector('.select')?.textContent?.replace(/\s+/g, ' ').trim(),
-      ),
-    ).toEqual([
-      expect.stringMatching(/^GET #00000 \/a\?b=1 192\.168\.0\.1 · [A-Z][a-z]{2} \d/),
-      expect.stringMatching(/^POST #00000 \/ 192\.168\.0\.1 · [A-Z][a-z]{2} \d/),
+    const text = (selector: string) =>
+      items().map((item) => item.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim());
+    expect(text('.route-line')).toEqual([
+      expect.stringMatching(/^POST \/ .+ ago$/),
+      expect.stringMatching(/^GET \/a\?b=1 .+ ago$/),
     ]);
-    expect(items().map((item) => item.classList.contains('unread'))).toEqual([false, true]);
-    expect(items()[1].querySelector('.select')?.getAttribute('aria-label')).toMatch(/, unread$/);
+    expect(text('.meta')).toEqual([
+      'payment_intent.succeeded · 192.168.0.1 · #00000',
+      `${webhookRequest(1).user_agent} · 192.168.0.1 · #00000`,
+    ]);
+    // A data absoluta fica fora da linha: no title do tempo relativo e no nome do item (trava 2).
+    expect(items()[0].textContent).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(items()[0].querySelector('.ago')?.getAttribute('title')).toMatch(/^[A-Z][a-z]{2} \d/);
+    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
+      /#00000.*[A-Z][a-z]{2} \d{1,2}, \d{4}.*, unread$/,
+    );
+    expect(items().map((item) => item.classList.contains('unread'))).toEqual([true, false]);
+  });
+
+  it.each([
+    ['o type do JSON', '{"type":"charge.failed"}', 'charge.failed'],
+    ['o event do JSON', '{"event":"push","type":7}', 'push'],
+    ['o user-agent sem JSON', 'texto', 'curl/8'],
+  ])('deve resumir o corpo pelo %s', (_caso, content, summary) => {
+    expect(bodySummary(webhookRequest(1, { content, user_agent: 'curl/8' }))).toBe(summary);
+  });
+
+  it('deve inverter a ordem pelo botão do cabeçalho', async () => {
+    await load([webhookRequest(2), webhookRequest(1)]);
+    const order = within(element()).getByRole('button', {
+      name: 'Sorted newest first. Change order',
+    });
+
+    order.click();
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=oldest`)
+      .flush(requestPage([webhookRequest(1), webhookRequest(2)]));
+    await vi.waitFor(() =>
+      expect(
+        within(element()).getByRole('button', { name: 'Sorted oldest first. Change order' }),
+      ).toBeTruthy(),
+    );
   });
 
   it.each([
@@ -261,21 +308,25 @@ describe('Dado a lista lateral de mensagens', () => {
     const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))
       .componentInstance as CdkVirtualScrollViewport;
     vi.spyOn(viewport, 'getViewportSize').mockReturnValue(3 * ITEM_HEIGHT);
-    const top = vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(0);
+    // A mais nova no topo (INBOX-01): as novas entram em cima; rolado para baixo, ficam fora da vista.
+    const top = vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(10 * ITEM_HEIGHT);
 
     const nova = webhookRequest(21);
     store.append(nova, 21);
     expect(list.receive(nova)).toBe(false);
     await fixture.whenStable();
-    expect(element().querySelector('.new-pill')?.textContent?.trim()).toBe('1 new request');
-    expect(items().some((item) => item.classList.contains('fresh'))).toBe(false);
+    expect(element().querySelector('.new-pill')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '↑1 new request',
+    );
 
-    top.mockReturnValue(18 * ITEM_HEIGHT);
+    top.mockReturnValue(0);
     const outra = webhookRequest(22);
     store.append(outra, 22);
     expect(list.receive(outra)).toBe(true);
     await fixture.whenStable();
-    expect(element().querySelector('.new-pill')?.textContent?.trim()).toBe('2 new requests');
+    expect(element().querySelector('.new-pill')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '↑2 new requests',
+    );
 
     list.showNew();
     await fixture.whenStable();
@@ -291,7 +342,7 @@ describe('Dado a lista lateral de mensagens', () => {
     await fixture.whenStable();
 
     expect(element().querySelector('.new-pill')).toBeNull();
-    expect(items()[1].classList.contains('fresh')).toBe(true);
+    expect(items()[0].classList.contains('fresh')).toBe(true);
   });
 
   it('deve mostrar a busca acima da lista Quando a URL tem mensagens', async () => {

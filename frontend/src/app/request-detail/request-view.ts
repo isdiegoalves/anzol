@@ -1,3 +1,5 @@
+import { Clipboard } from '@angular/cdk/clipboard';
+import { DOCUMENT } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
@@ -7,6 +9,7 @@ import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
 import { CheckChip } from '../ui/check-chip';
+import { Icon } from '../ui/icon';
 import { CodeMark } from '../ui/code-lines';
 import { CodeView } from '../ui/code-view';
 import { KvNote, KvRow, KvTable } from '../ui/kv-table';
@@ -28,11 +31,27 @@ const TAB_OF_CHECK: Partial<Record<CheckKind, Tab>> = { signature: 'headers', sc
  * resto (o painel do Explain) logo depois. Em `readonly` (página do link só-leitura) nada é
  * clicável além das abas e do Pretty: a rota sai da `url` com `[redacted]`, sem `token_id`.
  */
+/** "36 B", "1.5 KB", "3.0 MB": o tamanho do corpo no número do idioma da tela. */
+export function sizeText(bytes: number, language: string): string {
+  const number = new Intl.NumberFormat(language, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${number.format(bytes / 1024)} KB`;
+  }
+  return `${number.format(bytes / (1024 * 1024))} MB`;
+}
+
 @Component({
   selector: 'app-request-view',
   imports: [
     CheckChip,
     CodeView,
+    Icon,
     KvTable,
     MatButton,
     MatSlideToggle,
@@ -45,6 +64,8 @@ const TAB_OF_CHECK: Partial<Record<CheckKind, Tab>> = { signature: 'headers', sc
 })
 export class RequestView {
   protected readonly preferences = inject(Preferences);
+  private readonly clipboard = inject(Clipboard);
+  private readonly screenLanguage = inject(DOCUMENT).documentElement.lang || 'en';
 
   readonly request = input.required<CapturedRequest>();
   /** URL da mensagem; `null` no link compartilhado, que não expõe a configuração da URL. */
@@ -53,6 +74,14 @@ export class RequestView {
 
   protected readonly localDate = localDate;
   protected readonly fromNow = fromNow;
+  /** Tamanho do corpo como chegou (bytes do UTF-8), na linha de metadados. */
+  protected readonly size = computed(() =>
+    sizeText(new TextEncoder().encode(this.request().content ?? '').length, this.screenLanguage),
+  );
+
+  protected copyId(): void {
+    this.clipboard.copy(this.request().uuid);
+  }
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly conditionsLabel = (rule: string) =>
     $localize`Conditions of ${rule}:rule: that failed`;

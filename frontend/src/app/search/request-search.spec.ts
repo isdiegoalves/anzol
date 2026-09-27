@@ -33,7 +33,7 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     });
     const loaded = store.load(TOKEN_ID);
     http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1`)
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
       .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
     await loaded;
     await view.fixture.whenStable();
@@ -52,19 +52,21 @@ describe('Dado a busca e os filtros em chips da lista', () => {
       within(container)
         .getAllByRole('button', { pressed: false })
         .map((button) => button.textContent?.trim()),
-    ).toEqual([
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'Signature valid',
-      'Signature invalid',
-      'Signature absent',
-      'Schema valid',
-      'Schema invalid',
-    ]);
+    ).toEqual(['POST', 'GET', 'PUT', 'Signature invalid', 'Signature absent', 'Schema invalid']);
     await expectNoAxeViolations(container);
+  });
+
+  it('deve mostrar os demais filtros em "More filters", sem perder nenhum (INBOX-09, trava 4)', async () => {
+    const more = screen.getByRole('button', { name: 'More filters' });
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'PATCH' })).toBeNull();
+
+    await userEvent.click(more);
+
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    for (const name of ['PATCH', 'DELETE', 'Signature valid', 'Schema valid']) {
+      expect(chip(name).getAttribute('aria-pressed')).toBe('false');
+    }
   });
 
   it('deve buscar uma vez só, depois da pausa na digitação Quando o texto é digitado', async () => {
@@ -87,6 +89,7 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     searches()[0].flush(requestPage([], { total: 0 }));
     await userEvent.click(chip('Signature absent'));
     searches()[0].flush(requestPage([], { total: 0 }));
+    await userEvent.click(screen.getByRole('button', { name: 'More filters' }));
     await userEvent.click(chip('Schema valid'));
     const [last] = searches();
 
@@ -100,6 +103,7 @@ describe('Dado a busca e os filtros em chips da lista', () => {
   });
 
   it('deve deixar um só resultado de assinatura e desligar no segundo clique', async () => {
+    await userEvent.click(screen.getByRole('button', { name: 'More filters' }));
     await userEvent.click(chip('Signature valid'));
     searches()[0].flush(requestPage([], { total: 0 }));
     await userEvent.click(chip('Signature invalid'));
@@ -109,7 +113,7 @@ describe('Dado a busca e os filtros em chips da lista', () => {
 
     await userEvent.click(chip('Signature invalid'));
     http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1`)
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
       .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
 
     await vi.waitFor(() => expect(store.filtering()).toBe(false));
@@ -123,7 +127,7 @@ describe('Dado a busca e os filtros em chips da lista', () => {
 
     await userEvent.click(clear);
     http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1`)
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
       .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
     await new Promise((resolve) => setTimeout(resolve, 350));
 

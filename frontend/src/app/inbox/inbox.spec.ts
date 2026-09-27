@@ -38,7 +38,7 @@ describe('Dado a tela principal', () => {
   const openToken = async (url: string) => {
     await harness.navigateByUrl(url);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1`, requestPage([R1, R2]));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
   };
   const text = () => (harness.routeNativeElement as HTMLElement).textContent ?? '';
 
@@ -88,8 +88,32 @@ describe('Dado a tela principal', () => {
     expect(call.request.method).toBe('POST');
     await vi.waitFor(() => expect(router.url).toBe(`/${NOVO_TOKEN}`));
     await flush(`/token/${NOVO_TOKEN}`, token({ uuid: NOVO_TOKEN }));
-    await flush(`/token/${NOVO_TOKEN}/requests?page=1`, requestPage([]));
+    await flush(`/token/${NOVO_TOKEN}/requests?page=1&sorting=newest`, requestPage([]));
     await vi.waitFor(() => expect(text()).toContain('Waiting for first request...'));
+  });
+
+  it('deve abrir filtrada pela query da rota, com o total da URL (filtros na rota)', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid&methods=POST,FOO&q=abc`);
+    await flush(`/token/${TOKEN_ID}`, token());
+
+    const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
+    expect(search.request.body).toMatchObject({
+      text: 'abc',
+      match: { method: ['POST'], signature: 'invalid' },
+      sorting: 'newest',
+    });
+    search.flush(requestPage([R1], { total: 1 }));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+
+    const store = TestBed.inject(RequestStore);
+    await vi.waitFor(() => expect(store.total()).toBe(2));
+    expect(store.filter()).toEqual({
+      text: 'abc',
+      methods: ['POST'],
+      signature: 'invalid',
+      schema: 'any',
+    });
+    expect(store.matched()).toBe(1);
   });
 
   it('deve abrir a mensagem do link Quando o link traz token, mensagem e página', async () => {
@@ -107,7 +131,7 @@ describe('Dado a tela principal', () => {
     await flush(`/token/${TOKEN_ID}`, { success: false }, { status: 410, statusText: 'Gone' });
     await flush('/token', token({ uuid: NOVO_TOKEN }));
     await flush(`/token/${NOVO_TOKEN}`, token({ uuid: NOVO_TOKEN }));
-    await flush(`/token/${NOVO_TOKEN}/requests?page=1`, requestPage([]));
+    await flush(`/token/${NOVO_TOKEN}/requests?page=1&sorting=newest`, requestPage([]));
 
     await vi.waitFor(() => expect(text()).toContain(`The URL ${TOKEN_ID} doesn't exist anymore`));
     expect(router.url).toBe(`/${NOVO_TOKEN}`);
@@ -125,7 +149,7 @@ describe('Dado a tela principal', () => {
     await new Promise((resolve) => setTimeout(resolve));
 
     http.expectNone('/token');
-    http.expectNone(`/token/${TOKEN_ID}/requests?page=1`);
+    http.expectNone(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`);
     expect(snack).not.toHaveBeenCalled();
     expect(FakeEventSource.instances).toHaveLength(0);
     expect(router.url).toBe(`/${TOKEN_ID}`);
@@ -201,7 +225,8 @@ describe('Dado a tela principal', () => {
 
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
       const store = TestBed.inject(RequestStore);
-      expect(store.requests().map((request) => request.uuid)).toEqual([R2.uuid, nova.uuid]);
+      // A mais nova no topo (INBOX-01): a nova entra antes das que ficaram.
+      expect(store.requests().map((request) => request.uuid)).toEqual([nova.uuid, R2.uuid]);
       expect(store.selected()?.uuid).toBe(R2.uuid);
       expect(text()).toContain('Requests (2)');
     });
@@ -218,7 +243,7 @@ describe('Dado a tela principal', () => {
       const call = await flush(`/token/${TOKEN_ID}/request/${cortada.uuid}`, webhookRequest(3));
       expect(call.request.method).toBe('GET');
       await vi.waitFor(() =>
-        expect(TestBed.inject(RequestStore).requests().at(-1)).toEqual(webhookRequest(3)),
+        expect(TestBed.inject(RequestStore).newest()).toEqual(webhookRequest(3)),
       );
     });
 
@@ -245,7 +270,8 @@ describe('Dado a tela principal', () => {
       expect(call.request.body).toMatchObject({ text: 'pedido', page: 1 });
       await vi.waitFor(() => expect(store.requests()).toEqual([R2, R4]));
       expect(store.matched()).toBe(2);
-      expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+      // A busca vai para a rota (link compartilhável) e a aberta continua.
+      expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?q=pedido`);
       expect(store.selected()).toEqual(R1);
     });
 
@@ -298,7 +324,7 @@ describe('Dado a tela principal', () => {
     button('Close')?.click();
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1`, requestPage([R1, R2]));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
       expect(root().querySelector('app-request-detail')).not.toBeNull();
@@ -311,9 +337,10 @@ describe('Dado a tela principal', () => {
     const press = (key: string, target: EventTarget = document.body) =>
       target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
 
-    press('k');
-    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    // A lista vem da API com a mais nova primeiro (R1 no topo): J desce para a mais antiga.
     press('j');
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    press('k');
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
 
     const input = document.body.appendChild(document.createElement('input'));
@@ -349,7 +376,7 @@ describe('Dado a tela principal', () => {
     windowClass.set('compact');
     await harness.navigateByUrl(`/${TOKEN_ID}`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1`, requestPage([]));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([]));
     await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
     const root = harness.routeNativeElement as HTMLElement;
 

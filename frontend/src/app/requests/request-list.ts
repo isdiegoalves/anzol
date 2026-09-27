@@ -20,7 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
-import { localDate } from '../request-detail/dates';
+import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
 import { TokenStore } from '../token/token-store';
@@ -29,8 +29,36 @@ import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
 import { SkeletonList } from '../ui/skeleton-list';
+import { NewPill } from './new-pill';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
+
+/** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
+export const AGO_REFRESH_MS = 30_000;
+/** Campos do JSON que dizem o tipo do evento, na ordem em que os provedores costumam usar. */
+const EVENT_FIELDS = ['type', 'event', 'event_type', 'action', 'topic'] as const;
+
+/**
+ * O resumo do corpo na linha 2 do item (protótipo C, INBOX-11): o tipo do evento do JSON
+ * (`type`, `event`…), senão o user-agent. Corpo grande não é lido (a lista não paga o parse).
+ */
+export function bodySummary(request: WebhookRequest): string {
+  const content = request.content;
+  if (content && content.length <= 100_000 && content.trimStart().startsWith('{')) {
+    try {
+      const body = JSON.parse(content) as Record<string, unknown>;
+      const event = EVENT_FIELDS.map((field) => body[field]).find(
+        (value) => typeof value === 'string' && value !== '',
+      );
+      if (typeof event === 'string') {
+        return event;
+      }
+    } catch {
+      // Não é JSON: vale o user-agent.
+    }
+  }
+  return request.user_agent ?? '';
+}
 
 /** Altura fixa de um item (três linhas: rota, origem e data, selos), para a rolagem virtual. */
 export const ITEM_HEIGHT = 84;
@@ -45,6 +73,10 @@ export const UNDO_MS = 4000;
 interface ItemView {
   request: WebhookRequest;
   route: string;
+  /** Tempo relativo ("a few seconds ago"), na linha 1. */
+  ago: string;
+  /** Resumo do corpo na linha 2 (INBOX-11). */
+  summary: string;
   /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
   seals: CheckResult[];
   label: string;
@@ -67,6 +99,7 @@ interface ItemView {
     MatButton,
     MatProgressSpinner,
     MethodBadge,
+    NewPill,
     RequestSearch,
     SkeletonList,
   ],
@@ -103,8 +136,17 @@ export class RequestList {
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));
 
-  protected readonly items = computed<ItemView[]>(() =>
-    this.store.requests().map((request) => this.itemOf(request)),
+  /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
+  private readonly now = signal(Date.now());
+  protected readonly items = computed<ItemView[]>(() => {
+    const now = this.now();
+    return this.store.requests().map((request) => this.itemOf(request, now));
+  });
+  /** O botão de ordem do cabeçalho (INBOX-01): diz a ordem atual e que troca. */
+  protected readonly orderLabel = computed(() =>
+    this.store.newestFirst()
+      ? $localize`Sorted newest first. Change order`
+      : $localize`Sorted oldest first. Change order`,
   );
 
   /** Mensagens novas que chegaram abaixo da vista (a pílula "N new requests"). */
@@ -115,7 +157,16 @@ export class RequestList {
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.timers.forEach(clearTimeout));
+    const clock = setInterval(() => this.now.set(Date.now()), AGO_REFRESH_MS);
+    inject(DestroyRef).onDestroy(() => {
+      this.timers.forEach(clearTimeout);
+      clearInterval(clock);
+    });
+  }
+
+  protected changeOrder(): void {
+    this.newBelow.set(0);
+    void this.store.toggleSorting();
   }
 
   protected isUnread(request: WebhookRequest): boolean {
@@ -131,9 +182,9 @@ export class RequestList {
   }
 
   /**
-   * Uma mensagem chegou (já está no fim da lista): fica destacada; se o fim da lista estava à
-   * vista, a lista acompanha. Se a tela não a abriu (`opened`), ela conta na pílula das novas.
-   * Devolve se a nova ficou à vista na lista.
+   * Uma mensagem chegou (já está na ponta das novas: o topo, com a mais nova primeiro): fica
+   * destacada; se essa ponta estava à vista, a lista acompanha; se não, a vista fica onde estava.
+   * Se a tela não a abriu (`opened`), ela conta na pílula das novas. Devolve se a nova ficou à vista.
    */
   receive(request: WebhookRequest, opened = false): boolean {
     this.fresh.update((fresh) => new Set([...fresh, request.uuid]));
@@ -141,9 +192,16 @@ export class RequestList {
       () => this.fresh.update((fresh) => new Set([...fresh].filter((id) => id !== request.uuid))),
       FRESH_MS,
     );
-    const inView = this.wasAtEnd();
+    const inView = this.store.newestFirst() ? this.wasAtTop() : this.wasAtEnd();
     if (inView) {
-      afterNextRender(() => this.scrollToEnd(), { injector: this.injector });
+      afterNextRender(() => this.scrollToNewest(), { injector: this.injector });
+    } else if (this.store.newestFirst()) {
+      // A nova entrou acima: sem compensar, a vista desceria um item.
+      const viewport = this.viewport();
+      const offset = viewport?.measureScrollOffset('top') ?? 0;
+      afterNextRender(() => viewport?.scrollToOffset(offset + this.itemHeight()), {
+        injector: this.injector,
+      });
     }
     if (!opened) {
       this.newBelow.update((count) => count + 1);
@@ -151,10 +209,10 @@ export class RequestList {
     return inView;
   }
 
-  /** A pílula: vai ao fim da lista, onde estão as novas. */
+  /** A pílula: vai à ponta das novas (o topo, com a mais nova primeiro). */
   showNew(): void {
     this.newBelow.set(0);
-    this.scrollToEnd();
+    this.scrollToNewest();
   }
 
   /** A mais nova foi aberta: a pílula não tem mais o que mostrar. */
@@ -209,12 +267,21 @@ export class RequestList {
     this.timers.add(timer);
   }
 
-  private scrollToEnd(): void {
+  private scrollToNewest(): void {
     const viewport = this.viewport();
-    viewport?.scrollToIndex(this.store.requests().length - 1);
+    viewport?.scrollToIndex(this.store.newestFirst() ? 0 : this.store.requests().length - 1);
   }
 
-  private itemOf(request: WebhookRequest): ItemView {
+  /** O topo estava à vista (com a mais nova primeiro, é onde as novas entram). */
+  private wasAtTop(): boolean {
+    const viewport = this.viewport();
+    if (!viewport || viewport.getViewportSize() === 0) {
+      return true;
+    }
+    return viewport.measureScrollOffset('top') <= this.itemHeight() / 2;
+  }
+
+  private itemOf(request: WebhookRequest, now: number): ItemView {
     const pipeline = pipelineOf(request);
     const seals = [pipeline.signature, pipeline.schema, pipeline.rule].filter(
       (check) => check.tone !== 'none',
@@ -228,7 +295,14 @@ export class RequestList {
       ...(this.isUnread(request) ? [$localize`unread`] : []),
       ...this.compareRole(request),
     ].join(', ');
-    return { request, route: pipeline.route, seals, label };
+    return {
+      request,
+      route: pipeline.route,
+      ago: fromNow(request.created_at, now),
+      summary: bodySummary(request),
+      seals,
+      label,
+    };
   }
 
   protected readonly localDate = localDate;

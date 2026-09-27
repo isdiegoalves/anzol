@@ -7,7 +7,14 @@ export const FILTER_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
 export type SignatureFilter = 'any' | SignatureCondition;
 export type SchemaFilter = 'any' | SchemaCondition;
 
-/** Filtro da lista lateral: texto e filtros rápidos. Fica só na tela, não vai para a rota. */
+/** Ordem da lista e da busca: `newest` (a mais nova primeiro, o padrão) ou `oldest`. */
+export type RequestSorting = 'newest' | 'oldest';
+
+/**
+ * Filtro da lista lateral: texto e filtros rápidos. Vai também para a query da rota da Inbox
+ * (`?signature=&schema=&methods=&q=`, ver `filterFromParams`), para o link ser compartilhável e o
+ * "Show in Inbox" do Health abrir filtrado.
+ */
 export interface RequestFilter {
   text: string;
   methods: readonly string[];
@@ -17,6 +24,39 @@ export interface RequestFilter {
 
 export const NO_FILTER: RequestFilter = { text: '', methods: [], signature: 'any', schema: 'any' };
 
+/** Os parâmetros da rota da Inbox que viram filtro. */
+export interface FilterParams {
+  signature?: string | null;
+  schema?: string | null;
+  methods?: string | null;
+  q?: string | null;
+}
+
+const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
+const SCHEMA_VALUES: readonly SchemaCondition[] = ['valid', 'invalid'];
+
+/**
+ * O filtro da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). Valor que
+ * a tela não conhece é ignorado, parâmetro a parâmetro (um método estranho sai da lista).
+ */
+export function filterFromParams(params: FilterParams): RequestFilter {
+  const signature = SIGNATURE_VALUES.find((value) => value === params.signature) ?? 'any';
+  const schema = SCHEMA_VALUES.find((value) => value === params.schema) ?? 'any';
+  const wanted = (params.methods ?? '').split(',').map((method) => method.trim().toUpperCase());
+  const methods = FILTER_METHODS.filter((method) => wanted.includes(method));
+  return { text: (params.q ?? '').slice(0, 200), methods, signature, schema };
+}
+
+/** A query da rota para o filtro: só o que está ligado (`null` tira o parâmetro). */
+export function filterToParams(filter: RequestFilter): Record<keyof FilterParams, string | null> {
+  return {
+    signature: filter.signature === 'any' ? null : filter.signature,
+    schema: filter.schema === 'any' ? null : filter.schema,
+    methods: filter.methods.length > 0 ? filter.methods.join(',') : null,
+    q: filter.text.trim() ? filter.text : null,
+  };
+}
+
 /** Mensagens por página da busca: a mesma página da lista sem filtro. */
 export const SEARCH_PER_PAGE = 50;
 
@@ -24,7 +64,7 @@ export const SEARCH_PER_PAGE = 50;
 export interface SearchBody {
   text?: string;
   match: RuleMatch;
-  sorting: 'oldest';
+  sorting: RequestSorting;
   page: number;
   per_page: number;
 }
@@ -52,7 +92,11 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
  * Filtro → corpo da busca. Os filtros rápidos viram o `match` das regras; ordem `oldest`, a
  * mesma da lista sem filtro (a mensagem nova entra no fim).
  */
-export function searchBody(filter: RequestFilter, page: number): SearchBody {
+export function searchBody(
+  filter: RequestFilter,
+  page: number,
+  sorting: RequestSorting = 'newest',
+): SearchBody {
   const text = filter.text.trim();
   const match: RuleMatch = {};
   if (filter.methods.length > 0) {
@@ -67,7 +111,7 @@ export function searchBody(filter: RequestFilter, page: number): SearchBody {
   return {
     ...(text && { text }),
     match,
-    sorting: 'oldest',
+    sorting,
     page,
     per_page: SEARCH_PER_PAGE,
   };

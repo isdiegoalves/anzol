@@ -197,9 +197,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     );
   });
 
-  describe('Dado Newer e Older (a lista vai da mais antiga para a mais nova)', () => {
+  describe('Dado Newer e Older (a lista vai da mais nova, no topo, para a mais antiga; INBOX-01)', () => {
     it('deve abrir a vizinha e desabilitar na ponta', async () => {
-      const [a, b, c] = [1, 2, 3].map((n) => webhookRequest(n));
+      // c é a mais nova (no topo da lista), a a mais antiga.
+      const [c, b, a] = [3, 2, 1].map((n) => webhookRequest(n));
       const opened: WebhookRequest[] = [];
       const view = await render(RequestDetail, {
         inputs: { request: b, token: token(), page: 1 },
@@ -210,8 +211,8 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
           const loaded = store.load(TOKEN_ID);
           testBed
             .inject(HttpTestingController)
-            .expectOne(`/token/${TOKEN_ID}/requests?page=1`)
-            .flush(requestPage([a, b, c]));
+            .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+            .flush(requestPage([c, b, a]));
           return loaded;
         },
       });

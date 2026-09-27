@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   NO_FILTER,
   RequestFilter,
+  RequestSorting,
   isFilterActive,
   sameFilter,
   searchBody,
@@ -41,6 +42,12 @@ export class RequestStore {
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
+  /**
+   * Ordem da lista (INBOX-01, protótipo C): a mais nova no topo por padrão, como o `sorting=newest`
+   * da API; o botão do cabeçalho inverte. A página 1 é sempre a da ponta de cima.
+   */
+  readonly sorting = signal<RequestSorting>('newest');
+  readonly newestFirst = computed(() => this.sorting() === 'newest');
   /** Token cuja lista está carregada. */
   readonly tokenId = signal<string | null>(null);
   /** Mensagens da URL, com ou sem filtro (o "M" de "N of M requests"). */
@@ -55,6 +62,10 @@ export class RequestStore {
   /** A URL tem mensagens, mesmo quando nenhuma casa com o filtro. */
   readonly hasRequests = computed(
     () => this.requests().length > 0 || (this.filtering() && this.total() > 0),
+  );
+  /** A mais nova carregada: o topo, com a mais nova primeiro; o fim, na ordem inversa. */
+  readonly newest = computed(() =>
+    this.newestFirst() ? this.requests()[0] : this.requests().at(-1),
   );
   readonly hasPreviousPage = computed(() => (this.pages()[0]?.page ?? 1) > 1);
   readonly hasNextPage = computed(() => this.requests().length > 0 && !this.lastPageReached());
@@ -74,10 +85,13 @@ export class RequestStore {
     return selected ? this.requests().indexOf(selected) : -1;
   });
 
-  /** Carrega a URL sem filtro: o filtro não passa de uma URL para outra. */
-  async load(tokenId: string, page = 1): Promise<void> {
+  /**
+   * Carrega a URL, sem filtro ou com o da rota (`?signature=…&q=…`): o filtro da tela não passa
+   * de uma URL para outra.
+   */
+  async load(tokenId: string, page = 1, filter: RequestFilter = NO_FILTER): Promise<void> {
     this.generation++;
-    this.activeFilter.set(NO_FILTER);
+    this.activeFilter.set(filter);
     this.loading.set(true);
     try {
       const result = await this.fetchPage(tokenId, page);
@@ -85,8 +99,11 @@ export class RequestStore {
       this.selection.set(undefined);
       this.pages.set([{ page: result.current_page, data: result.data }]);
       this.lastPageReached.set(result.is_last_page);
-      this.total.set(result.total);
-      this.matched.set(0);
+      this.countPage(result);
+      if (this.filtering()) {
+        // Aberta já filtrada (link com a busca): o total da URL vem da listagem sem filtro.
+        this.total.set((await this.fetchList(tokenId, 1)).total);
+      }
     } finally {
       this.loading.set(false);
     }
@@ -173,8 +190,15 @@ export class RequestStore {
     this.markAsRead(requestId);
   }
 
+  /** Inverte a ordem e relê a primeira página, com a mensagem aberta mantida. */
+  async toggleSorting(): Promise<void> {
+    this.sorting.update((sorting) => (sorting === 'newest' ? 'oldest' : 'newest'));
+    await this.reload();
+  }
+
   /**
-   * Mensagem nova chegando em tempo real: entra no fim da lista e fica como não lida. As que a
+   * Mensagem nova chegando em tempo real: entra na ponta das novas (o topo, com a mais nova
+   * primeiro; o fim, na ordem inversa) e fica como não lida. As que a
    * limpeza automática cortou (`removed`) saem da lista e das não lidas. Se a mensagem aberta
    * saiu, devolve a mais próxima que ficou, para a tela abri-la.
    */
@@ -190,6 +214,10 @@ export class RequestStore {
         ...page,
         data: page.data.filter((r) => !cut.has(r.uuid)),
       }));
+      if (this.newestFirst()) {
+        const first = kept[0] ?? { page: 1, data: [] };
+        return [{ ...first, data: [request, ...first.data] }, ...kept.slice(1)];
+      }
       const last = kept.at(-1) ?? { page: 1, data: [] };
       return [...kept.slice(0, -1), { ...last, data: [...last.data, request] }];
     });
@@ -347,14 +375,16 @@ export class RequestStore {
     return firstValueFrom(
       this.http.post<RequestPage>(
         `/token/${tokenId}/requests/search`,
-        searchBody(this.activeFilter(), page),
+        searchBody(this.activeFilter(), page, this.sorting()),
       ),
     );
   }
 
   private fetchList(tokenId: string, page: number): Promise<RequestPage> {
     return firstValueFrom(
-      this.http.get<RequestPage>(`/token/${tokenId}/requests`, { params: { page } }),
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page, sorting: this.sorting() },
+      }),
     );
   }
 }

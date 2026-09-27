@@ -14,7 +14,7 @@ describe('Dado o RequestStore da URL aberta', () => {
   let store: RequestStore;
 
   const respond = async (action: Promise<void>, page: number, body: RequestPage) => {
-    http.expectOne(`${listUrl}?page=${page}`).flush(body);
+    http.expectOne(`${listUrl}?page=${page}&sorting=oldest`).flush(body);
     await action;
   };
 
@@ -24,6 +24,9 @@ describe('Dado o RequestStore da URL aberta', () => {
     });
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(RequestStore);
+    // Os casos abaixo são da ordem da API (a mais antiga primeiro); a ordem padrão da tela, a mais
+    // nova primeiro (INBOX-01), tem os seus no fim.
+    store.sorting.set('oldest');
   });
 
   afterEach(() => {
@@ -184,7 +187,7 @@ describe('Dado o RequestStore da URL aberta', () => {
       store.select(R3.uuid);
 
       const reloaded = store.reload();
-      http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3, R4], { total: 2 }));
+      http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3, R4], { total: 2 }));
 
       expect(await reloaded).toBeUndefined();
       expect(store.requests()).toEqual([R3, R4]);
@@ -196,7 +199,7 @@ describe('Dado o RequestStore da URL aberta', () => {
       store.select(R1.uuid);
 
       const reloaded = store.reload();
-      http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3, R4], { total: 2 }));
+      http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3, R4], { total: 2 }));
 
       expect(await reloaded).toEqual(R3);
     });
@@ -356,12 +359,46 @@ describe('Dado o RequestStore da URL aberta', () => {
 
       const reloaded = store.reload();
       search().flush(requestPage([R3], { total: 1 }));
-      await vi.waitFor(() => http.expectOne(`${listUrl}?page=1`).flush(requestPage([R3])));
+      await vi.waitFor(() =>
+        http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3])),
+      );
       await reloaded;
 
       expect(store.requests()).toEqual([R3]);
       expect(store.matched()).toBe(1);
       expect(store.total()).toBe(1);
+    });
+  });
+
+  describe('Dado a ordem padrão, a mais nova no topo (INBOX-01)', () => {
+    beforeEach(() => store.sorting.set('newest'));
+
+    it('deve pedir sorting=newest e pôr a nova no topo Quando chega em tempo real', async () => {
+      const loaded = store.load(TOKEN_ID, 1);
+      http
+        .expectOne(`${listUrl}?page=1&sorting=newest`)
+        .flush(requestPage([webhookRequest(2), webhookRequest(1)], { total: 2 }));
+      await loaded;
+
+      store.append(webhookRequest(3), 3);
+
+      expect(store.requests().map((r) => r.uuid)).toEqual(
+        [3, 2, 1].map((n) => webhookRequest(n).uuid),
+      );
+      expect(store.newest()?.uuid).toBe(webhookRequest(3).uuid);
+    });
+
+    it('deve inverter e reler a primeira página Quando a ordem é trocada', async () => {
+      const loaded = store.load(TOKEN_ID, 1);
+      http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([webhookRequest(2)]));
+      await loaded;
+
+      const toggled = store.toggleSorting();
+      http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([webhookRequest(1)]));
+      await toggled;
+
+      expect(store.newestFirst()).toBe(false);
+      expect(store.requests().map((r) => r.uuid)).toEqual([webhookRequest(1).uuid]);
     });
   });
 });

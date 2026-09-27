@@ -16,7 +16,11 @@ export class Preferences {
   readonly redirectHeaders = this.persisted<string | null>('redirectHeaders', null);
   readonly redirectMethod = this.persisted<string | null>('redirectMethod', '');
   readonly token = this.persisted<Token | null>('token', null);
-  readonly formatJsonEnable = this.persisted('formatJsonEnable', false);
+  /**
+   * "Pretty": ligado no primeiro acesso (INBOX-22, protótipo C); a escolha gravada pelo app atual ou
+   * por esta tela continua valendo (trava 9).
+   */
+  readonly formatJsonEnable = this.persisted('formatJsonEnable', true);
   readonly autoNavEnable = this.persisted('autoNavEnable', false);
   readonly hideTutorial = this.persisted('hideTutorial', false);
   readonly unread = this.persisted<readonly string[]>('unread', []);

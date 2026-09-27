@@ -26,6 +26,7 @@ import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
+import { filterFromParams, filterToParams, sameFilter } from '../search/request-filter';
 import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
@@ -86,6 +87,19 @@ export class Inbox {
   readonly tokenId = input<string>();
   readonly requestId = input<string>();
   readonly page = input<string>();
+  /** Filtros da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). */
+  readonly signature = input<string>();
+  readonly schema = input<string>();
+  readonly methods = input<string>();
+  readonly q = input<string>();
+  private readonly routeFilter = computed(() =>
+    filterFromParams({
+      signature: this.signature(),
+      schema: this.schema(),
+      methods: this.methods(),
+      q: this.q(),
+    }),
+  );
 
   private readonly list = viewChild(RequestList);
   private readonly detail = viewChild(RequestDetail);
@@ -126,6 +140,29 @@ export class Inbox {
       untracked(() => void this.openRoute(tokenId, requestId, page));
     });
 
+    // Filtros na rota: a query muda (um link, o "Show in Inbox" do Health) → a lista filtra; a busca
+    // muda na tela → a query acompanha (replaceUrl), para o link ser compartilhável.
+    effect(() => {
+      const filter = this.routeFilter();
+      untracked(() => {
+        if (this.listReady()) {
+          void this.requests.applyFilter(filter);
+        }
+      });
+    });
+    effect(() => {
+      const filter = this.requests.filter();
+      untracked(() => {
+        if (this.listReady() && !sameFilter(filter, this.routeFilter())) {
+          void this.router.navigate([], {
+            queryParams: filterToParams(filter),
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
+        }
+      });
+    });
+
     toObservable(this.streamTokenId)
       .pipe(
         switchMap((tokenId) => (tokenId ? this.stream.connect(tokenId) : EMPTY)),
@@ -163,7 +200,11 @@ export class Inbox {
   protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
     this.chosenByScreen = replaceUrl ? request.uuid : null;
     const page = this.requests.pageOf(request.uuid);
-    return this.router.navigate(['/', request.token_id, request.uuid, page], { replaceUrl });
+    // O filtro da rota fica: abrir uma mensagem não desfaz a busca.
+    return this.router.navigate(['/', request.token_id, request.uuid, page], {
+      replaceUrl,
+      queryParamsHandling: 'preserve',
+    });
   }
 
   /** Clicar na lista fecha a comparação aberta e abre a mensagem (em tela cheia, no celular). */
@@ -229,12 +270,18 @@ export class Inbox {
       if (requestId !== this.chosenByScreen) {
         this.showDetail.set(true);
       }
-      if (requestId === list.at(-1)?.uuid) {
+      if (requestId === this.requests.newest()?.uuid) {
         this.list()?.clearNew();
       }
     } else if (list.length > 0) {
       await this.openRequest(list[0], true);
     }
+  }
+
+  /** A lista da URL da rota já está carregada (os filtros da rota e da tela podem conversar). */
+  private listReady(): boolean {
+    const tokenId = this.tokenId();
+    return !!tokenId && this.loading === null && this.requests.tokenId() === tokenId;
   }
 
   /** Várias navegações seguidas para o mesmo token esperam a mesma carga. */
@@ -258,7 +305,7 @@ export class Inbox {
       return false;
     }
     try {
-      await this.requests.load(tokenId, page);
+      await this.requests.load(tokenId, page, untracked(this.routeFilter));
     } catch (error) {
       if (!isProtectedError(error)) {
         this.snackBar.open($localize`Requests not found - invalid ID`, undefined, {
@@ -317,7 +364,7 @@ export class Inbox {
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       this.list()?.receive(complete, true);
-      await this.openRequest(list[list.length - 1]);
+      await this.openRequest(complete);
       this.list()?.scrollTo(complete.uuid);
       this.notify(complete, true);
       return;
@@ -346,7 +393,7 @@ export class Inbox {
   }
 
   private async viewNewest(): Promise<void> {
-    const newest = this.requests.requests().at(-1);
+    const newest = this.requests.newest();
     if (newest) {
       this.list()?.showNew();
       this.showDetail.set(true);

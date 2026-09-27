@@ -1,6 +1,15 @@
 <div class="head">
   <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
   <span class="spacer"></span>
+  <button
+    type="button"
+    class="order"
+    [attr.aria-label]="orderLabel()"
+    [attr.title]="orderLabel()"
+    (click)="changeOrder()"
+  >
+    <app-icon name="sort" [size]="20" />
+  </button>
   <ng-content select="[listTools]" />
 </div>
 <!-- Com filtro ativo fica à vista mesmo com a URL vazia, para dar como limpar o filtro. -->
@@ -50,6 +59,8 @@
           [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
           (click)="choose(item.request)"
         >
+          <!-- Linha 1 (protótipo C, INBOX-11): método, caminho, NEW e o tempo relativo. A data absoluta
+               fica no title e no nome acessível; o #id, na linha 2 (trava 2). -->
           <span class="line route-line">
             @if (compare.pair(); as pair) {
               @if (pair.a.uuid === item.request.uuid) {
@@ -60,11 +71,19 @@
             }
             <app-method-badge [method]="item.request.method" />
             <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
-            <span class="id"> #{{ item.request.uuid.substring(0, 5) }}</span>
             <span class="route"> {{ item.route }}</span>
+            @if (fresh().has(item.request.uuid)) {
+              <span class="new" i18n>NEW</span>
+            }
+            <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
           </span>
+          <!-- Linha 2: o resumo do corpo (type/event do JSON, senão o user-agent), o IP e o #id. -->
           <span class="line meta">
-            {{ item.request.ip }} · <small>{{ localDate(item.request.created_at) }}</small>
+            @if (item.summary) {
+              <span class="summary">{{ item.summary }}</span> ·
+            }
+            {{ item.request.ip }} ·
+            <span class="id">#{{ item.request.uuid.substring(0, 5) }}</span>
           </span>
         </button>
         <span class="seals" aria-hidden="true">
@@ -85,13 +104,7 @@
       </div>
     </cdk-virtual-scroll-viewport>
     @if (newBelow() > 0) {
-      <button type="button" class="new-pill" (click)="showNew()">
-        <app-icon name="down" [size]="18" />
-        <span i18n>{newBelow(), plural,
-          =1 {1 new request}
-          other {{{ newBelow() }} new requests}
-        }</span>
-      </button>
+      <app-new-pill [count]="newBelow()" [up]="store.newestFirst()" (show)="showNew()" />
     }
   </div>
   @let range = store.range();

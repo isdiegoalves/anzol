@@ -42,7 +42,9 @@ describe('Dado o salvar de um cartão de Checks', () => {
 
   const loadList = async () => {
     const loaded = TestBed.inject(RequestStore).load(TOKEN_ID);
-    http.expectOne(`/token/${TOKEN_ID}/requests?page=1`).flush(requestPage([R1, R2]));
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([R1, R2]));
     await loaded;
   };
 
@@ -75,7 +77,9 @@ describe('Dado o salvar de um cartão de Checks', () => {
       TestBed.inject(Preferences).token()!,
     );
     (await expectPutAfterRead(http)).flush(token({ auto_cleanup: 1000 }));
-    const reload = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests?page=1`));
+    const reload = await vi.waitFor(() =>
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`),
+    );
     reload.flush(requestPage([R2], { total: 1 }));
     await saved;
 
@@ -93,7 +97,7 @@ describe('Dado o salvar de um cartão de Checks', () => {
     (await expectPutAfterRead(http)).flush(token());
     await saved;
 
-    http.expectNone(`/token/${TOKEN_ID}/requests?page=1`);
+    http.expectNone(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`);
   });
 
   it('deve destrancar com o segredo novo Quando o segredo de leitura muda', async () => {

@@ -67,6 +67,7 @@ const ICONS = {
   none: [circle(12, 12, 10), path('M8 12h8')],
   close: [path('M18 6 6 18'), path('m6 6 12 12')],
   up: [path('m18 15-6-6-6 6')],
+  sort: [path('m3 16 4 4 4-4'), path('M7 20V4'), path('m21 8-4-4-4 4'), path('M17 4v16')],
   down: [path('m6 9 6 6 6-6')],
   back: [path('m12 19-7-7 7-7'), path('M19 12H5')],
   more: [circle(12, 5, 1), circle(12, 12, 1), circle(12, 19, 1)],

@@ -945,16 +945,16 @@ export const translations: Record<string, string> = {
   '1866256676598500016': 'Payload copiado',
   // Copied request as {$format}
   '8558510828715744209': 'Requisição copiada como {$format}',
-  // Request Details
-  '5471200873438312944': 'Detalhes da requisição',
-  // Host
-  '6641024648411549335': 'Host',
+  // Request metadata
+  '3858711441550962202': 'Metadados da requisição',
   // whois
   '624450861476020640': 'whois',
-  // Date
-  '3973931101896534797': 'Data',
-  // ID
-  '8040881171107393560': 'ID',
+  // seq {$INTERPOLATION}
+  '5546473895597574498': 'seq {$INTERPOLATION}',
+  // id
+  '3625859417927520024': 'id',
+  // Copy request ID
+  '5610553773809638119': 'Copiar o ID da requisição',
   // Checks on this request
   '5193673240667591740': 'Verificações desta requisição',
   //  Why? ({$INTERPOLATION})
@@ -985,6 +985,9 @@ export const translations: Record<string, string> = {
     'Sem campos de formulário. Corpos application/x-www-form-urlencoded e multipart/form-data aparecem aqui.',
   // Conditions of {$rule} that failed
   '4108680511513605373': 'Condições de {$rule} que falharam',
+  // {VAR_PLURAL, plural, =1 {1 new request} other {{INTERPOLATION} new requests}}
+  '2738823000442264367':
+    '{VAR_PLURAL, plural, =1 {1 requisição nova} other {{INTERPOLATION} requisições novas}}',
   // Requests ({$INTERPOLATION})
   '6985457637811548682': 'Requisições ({$INTERPOLATION})',
   // Choose a request to compare with #{$INTERPOLATION}
@@ -995,11 +998,10 @@ export const translations: Record<string, string> = {
   '3761920443584035784': 'Nenhuma requisição casa com os filtros.',
   // New requests that match will appear here live.
   '153307474085686822': 'As requisições novas que casarem aparecem aqui ao vivo.',
+  // NEW
+  '1147828071904789728': 'NOVA',
   // Delete
   '7022070615528435141': 'Apagar',
-  // {VAR_PLURAL, plural, =1 {1 new request} other {{INTERPOLATION} new requests}}
-  '2738823000442264367':
-    '{VAR_PLURAL, plural, =1 {1 requisição nova} other {{INTERPOLATION} requisições novas}}',
   //  Previous page
   '6239996843795186926': ' Página anterior ',
   // {$INTERPOLATION}–{$INTERPOLATION_1} of {$INTERPOLATION_2}
@@ -1010,6 +1012,10 @@ export const translations: Record<string, string> = {
   '3157148606438158546': 'Apagar a requisição {$uuid}',
   // Auto cleanup keeps the {$limit} most recent requests
   '8310868561287074437': 'A limpeza automática guarda as {$limit} requisições mais recentes',
+  // Sorted newest first. Change order
+  '6929323867588234142': 'Mais novas primeiro. Trocar a ordem',
+  // Sorted oldest first. Change order
+  '7247208851153160942': 'Mais antigas primeiro. Trocar a ordem',
   // Request deleted
   '7911214812003933414': 'Requisição apagada',
   // Undo
@@ -1570,6 +1576,8 @@ export const translations: Record<string, string> = {
   '3185098119447169060': 'Buscar (/)',
   // Filters
   '4163272119298020373': 'Filtros',
+  //  More filters
+  '1642449050488603077': ' Mais filtros ',
   //  Clear filters
   '6634790566400449864': ' Limpar filtros ',
   // Copy as anzol wait-for

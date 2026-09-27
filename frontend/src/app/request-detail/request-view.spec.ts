@@ -1,3 +1,4 @@
+import { Clipboard } from '@angular/cdk/clipboard';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -5,7 +6,7 @@ import { token, webhookRequest } from '../../testing/fixtures';
 import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
-import { RequestView } from './request-view';
+import { RequestView, sizeText } from './request-view';
 
 describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', () => {
   const show = (
@@ -35,22 +36,47 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
   afterEach(() => localStorage.clear());
 
-  it('deve mostrar método e rota, URL, host, data e ID, e passar no axe', async () => {
-    const request = webhookRequest(1, {
-      method: 'PUT',
-      url: 'http://localhost:8084/3dbd68f4-8890-4f56-affb-c7c9b297e666/pedidos/7?x=1',
-    });
-    const { container } = await show(request);
+  it('deve mostrar método e rota e a linha de metadados (URL, host, data, tamanho, seq, ID), e passar no axe', async () => {
+    const request = {
+      ...webhookRequest(1, {
+        method: 'PUT',
+        url: 'http://localhost:8084/3dbd68f4-8890-4f56-affb-c7c9b297e666/pedidos/7?x=1',
+        content: '{"a":1}',
+      }),
+      seq: 179,
+    };
+    const { container, fixture } = await show(request);
+    const copy = vi
+      .spyOn(fixture.debugElement.injector.get(Clipboard), 'copy')
+      .mockReturnValue(true);
 
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('/pedidos/7?x=1');
     expect(container.querySelector('app-method-badge')?.textContent).toBe('PUT');
-    expect(rows('Request Details')).toEqual([
-      `URL ${request.url}`,
-      'Host 192.168.0.1 whois',
-      expect.stringMatching(/^Date [A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM) \(.+ ago\)$/),
-      `ID ${request.uuid}`,
-    ]);
+    // INBOX-17 (trava 3): a tabela vira a linha do protótipo C, com tudo o que ela tinha à vista.
+    expect(screen.queryByRole('table', { name: 'Request Details' })).toBeNull();
+    const meta = screen.getByRole('group', { name: 'Request metadata' });
+    expect(within(meta).getByRole('link', { name: request.url }).getAttribute('href')).toBe(
+      request.url,
+    );
+    expect(within(meta).getByRole('link', { name: 'whois' })).toBeTruthy();
+    const text = meta.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(text).toContain('192.168.0.1');
+    expect(text).toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM) · .+ ago/);
+    expect(text).toContain('7 B');
+    expect(text).toContain('seq 179');
+    expect(text).toContain(request.uuid);
+    await userEvent.click(within(meta).getByRole('button', { name: 'Copy request ID' }));
+    expect(copy).toHaveBeenCalledWith(request.uuid);
     await expectNoAxeViolations(container);
+  });
+
+  it.each([
+    [0, '0 B'],
+    [1023, '1023 B'],
+    [1536, '1.5 KB'],
+    [3 * 1024 * 1024, '3.0 MB'],
+  ])('deve dizer o tamanho do corpo de %i bytes como %s', (bytes, text) => {
+    expect(sizeText(bytes, 'en')).toBe(text);
   });
 
   it('deve mostrar as abas Body, Headers (n), Query (n) e Form (n), com o Body aberto', async () => {

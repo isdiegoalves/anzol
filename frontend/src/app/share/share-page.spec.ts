@@ -75,7 +75,8 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
     expect(page().querySelector('.banner')?.textContent?.trim()).toMatch(
       /^Shared read-only link · expires Oct 3, 2099 \d+:\d\d [AP]M \(in \d+ years\)$/,
     );
-    expect(page().querySelector('pre')?.textContent).toBe('{"cartao":"4111"}');
+    // "Pretty" nasce ligado (INBOX-22): o JSON aparece formatado.
+    expect(page().querySelector('pre')?.textContent).toBe('{  "cartao": "4111"}');
     await openTab(/^Headers/);
     expect(rows('Headers')).toEqual(['authorization [redacted]', 'content-type application/json']);
     await openTab(/^Query/);
