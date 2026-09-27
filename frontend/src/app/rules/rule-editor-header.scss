@@ -95,6 +95,9 @@
     display: contents;
   }
 
+  // R2-L1: "Back to list" e ⋮ com 44 px de alvo de toque, como os da lista (guia §4).
+  --mat-icon-button-state-layer-size: 44px;
+
   // A 320 px, voltar + nome + Save + ⋮ cabem numa linha: o nome encolhe primeiro.
   .name-field {
     flex: 1 1 72px;
