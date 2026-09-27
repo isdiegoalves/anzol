@@ -311,7 +311,9 @@ export class Inbox {
     if (replacement) {
       await this.openRequest(replacement, true);
     } else if (!this.requests.selected()) {
-      await this.openRequest(list[0]);
+      // A primeira de uma Inbox vazia é a tela que abre (como a primeira ao abrir a URL): no celular
+      // a lista fica à frente, e quem mandou (o "Send a test request") a vê chegar.
+      await this.openRequest(list[0], true);
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       this.list()?.receive(complete, true);

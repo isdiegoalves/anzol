@@ -345,6 +345,27 @@ describe('Dado a tela principal', () => {
     expect(root.querySelector('app-request-list')).not.toBeNull();
   });
 
+  it('deve mostrar a lista com a primeira mensagem Quando ela chega numa URL vazia na janela estreita (E11)', async () => {
+    windowClass.set('compact');
+    await harness.navigateByUrl(`/${TOKEN_ID}`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1`, requestPage([]));
+    await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
+    const root = harness.routeNativeElement as HTMLElement;
+
+    FakeEventSource.latest().emit('request.created', { request: R1, total: 1, truncated: false });
+
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+    });
+    await harness.fixture.whenStable();
+    // Quem mandou a primeira (o "Send a test request") a vê chegar na lista, sem trocar de tela.
+    expect(root.querySelector('app-request-list')).not.toBeNull();
+    expect(text()).toContain('Requests (1)');
+    expect(root.querySelector('app-request-detail')).toBeNull();
+  });
+
   it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {
     windowClass.set('compact');
     await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
