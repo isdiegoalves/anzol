@@ -72,3 +72,21 @@ tr.noted th {
   padding: 12px;
   color: var(--mat-sys-on-surface-variant);
 }
+
+thead th {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+  text-align: left;
+}
+
+.note-title {
+  display: block;
+  margin-top: 4px;
+  font: var(--mat-sys-label-large);
+}
+
+.note-link {
+  display: inline-block;
+  margin-top: 2px;
+  font: var(--mat-sys-body-small);
+}

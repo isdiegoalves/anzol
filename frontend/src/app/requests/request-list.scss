@@ -72,7 +72,7 @@
   position: relative;
   box-sizing: border-box;
   height: 84px;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  padding: 2px 8px;
 
   &.unread .route-line {
     font-weight: 700;
@@ -82,11 +82,11 @@
     content: '';
     position: absolute;
     top: 14px;
-    left: 6px;
+    left: 12px;
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--mat-sys-tertiary);
+    background: var(--mat-sys-primary);
   }
 
   &.active .select {
@@ -106,10 +106,6 @@
     box-shadow: inset 4px 0 var(--mat-sys-primary);
   }
 
-  &.fresh .select {
-    box-shadow: inset 4px 0 var(--mat-sys-tertiary);
-  }
-
   &:hover .delete,
   &:focus-within .delete {
     opacity: 1;
@@ -125,6 +121,7 @@
   height: 100%;
   padding: 8px 48px 30px 16px;
   border: 0;
+  border-radius: var(--mat-sys-corner-medium);
   background: none;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
@@ -205,9 +202,9 @@
 
 .seals {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  left: 16px;
+  right: 16px;
+  bottom: 10px;
+  left: 24px;
   display: flex;
   gap: 4px;
   overflow: hidden;
@@ -216,8 +213,8 @@
 
 .delete {
   position: absolute;
-  top: 8px;
-  right: 4px;
+  top: 10px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -249,12 +246,6 @@
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .item.fresh .select {
-    transition: box-shadow 0.3s;
-  }
-}
-
 // Densidade compacta (S17, C §3.6): itens de 60 px; os selos sobem para a direita da linha da
 // origem, que corta antes deles.
 :host(.compact) {
@@ -278,7 +269,12 @@
   }
 }
 
-// Celular (INBOX-31): o cabeçalho numa linha só, para a lista começar perto do topo.
+.order-line {
+  display: none;
+}
+
+// Celular: o cabeçalho numa linha só (INBOX-31), com a linha "N requests · newest first" no lugar
+// visível do heading (INBOX-34); itens sem o IP e sem o selo de schema válido (INBOX-32).
 @media (width < 600px) {
   .head {
     flex-wrap: nowrap;
@@ -286,6 +282,21 @@
   }
 
   .header {
-    font: var(--mat-sys-title-small);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .order-line {
+    display: inline;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-large);
+  }
+
+  .ip,
+  app-check-chip[data-kind='schema'][data-state='valid'] {
+    display: none;
   }
 }

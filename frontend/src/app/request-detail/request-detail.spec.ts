@@ -55,15 +55,40 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ).toEqual([
       'Replay…',
       'Send as new…',
+      'Compare',
+      'Create rule',
+      'Create schema',
+      'Copy payload',
+      'Copy As',
+      'Share',
+      'Explain',
+    ]);
+    // INBOX-19: o rótulo curto é o começo do nome acessível de hoje (WCAG 2.5.3).
+    for (const name of [
       'Compare with…',
       'Create rule from this request',
       'Create schema from this request',
-      'Copy payload',
-      'Copy As',
       'Share read-only link…',
-      'Explain',
-    ]);
+    ]) {
+      expect(action(name)).toBeTruthy();
+    }
     await expectNoAxeViolations(container);
+  });
+
+  // INBOX-20: apagar a aberta sem voltar à lista, com o Undo de hoje.
+  it('deve apagar a mensagem aberta pelo "Delete request" do menu "More", com o Undo', async () => {
+    const request = webhookRequest(1);
+    const { loader, fixture } = await show(request);
+    const remove = vi
+      .spyOn(fixture.debugElement.injector.get(RequestStore), 'deleteRequest')
+      .mockResolvedValue(true);
+    const open = vi.spyOn(fixture.debugElement.injector.get(MatSnackBar), 'open');
+
+    const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+    await more.clickItem({ text: 'Delete request' });
+
+    expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', { duration: 4000 });
+    expect(remove).toHaveBeenCalledWith(request, expect.any(Promise));
   });
 
   it('deve levar Permalink (com a página) e Raw content no menu "More"', async () => {
@@ -77,6 +102,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(await Promise.all(items.map((item) => item.getText()))).toEqual([
       'Permalink',
       'Raw content',
+      'Delete request',
     ]);
     const links = [...document.querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')];
     expect(links.map((link) => link.href)).toEqual([
@@ -95,7 +121,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       within(toolbar())
         .getAllByRole('button')
         .map((button) => button.textContent?.trim()),
-    ).toEqual(['Replay…', 'Create rule from this request', 'Copy payload', 'Copy As']);
+    ).toEqual(['Replay…', 'Create rule', 'Copy payload', 'Copy As']);
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
     await more.open();
     expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
@@ -106,6 +132,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       'Explain',
       'Permalink',
       'Raw content',
+      'Delete request',
     ]);
     await expectNoAxeViolations(container);
 

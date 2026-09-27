@@ -67,7 +67,9 @@
   }
 </div>
 
-@if (current.near_miss; as nearMiss) {
+<!-- INBOX-18: com uma condição só, a frase dela já está no cartão da regra. -->
+@let nearMiss = current.near_miss;
+@if (nearMiss && nearMiss.failed.length > 1) {
   <div class="why">
     @if (!readonly()) {
       <button i18n mat-button type="button" [attr.aria-expanded]="whyOpen()" (click)="toggleWhy()">
@@ -87,68 +89,104 @@
 <ng-content select="[viewActions]" />
 <ng-content />
 
-<mat-tab-group
-  class="tabs"
-  animationDuration="0ms"
-  mat-stretch-tabs="false"
-  [selectedIndex]="tab()"
-  (selectedIndexChange)="tab.set($event)"
->
-  <mat-tab label="Body" i18n-label>
-    <div class="body-bar">
-      <mat-slide-toggle
-        i18n
-        title="Formats valid JSON and XML bodies; off shows the body exactly as it arrived"
-        i18n-title
-        [checked]="preferences.formatJsonEnable()"
-        (change)="preferences.formatJsonEnable.set($event.checked)"
-        >Pretty</mat-slide-toggle
-      >
-    </div>
-    @if (xmlHtml(); as html) {
-      <pre
-        class="xml"
-        tabindex="0"
-        aria-label="Request body"
-        i18n-aria-label
-      ><code class="hljs" [innerHTML]="html"></code></pre>
-    } @else {
-      <app-code-view
-        label="Request body"
+<!-- INBOX-21: o Pretty na linha das abas (só com o Body aberto) e o tamanho no nome do Body. -->
+<div class="tabs">
+  @if (tab() === 0 && current.content) {
+    <mat-slide-toggle
+      i18n
+      class="pretty"
+      title="Formats valid JSON and XML bodies; off shows the body exactly as it arrived"
+      i18n-title
+      [checked]="preferences.formatJsonEnable()"
+      (change)="preferences.formatJsonEnable.set($event.checked)"
+      >Pretty</mat-slide-toggle
+    >
+  }
+  <mat-tab-group
+    animationDuration="0ms"
+    mat-stretch-tabs="false"
+    [selectedIndex]="tab()"
+    (selectedIndexChange)="tab.set($event)"
+  >
+    <mat-tab>
+      <ng-template mat-tab-label>{{ bodyTabLabel() }}</ng-template>
+      @if (!current.content) {
+        <!-- INBOX-26: sem corpo, o estado vazio (e o que o schema gravou, se a URL valida). -->
+        <app-empty-state
+          icon="none"
+          heading="No body content"
+          i18n-heading
+          [text]="emptyBodyText()"
+        />
+      } @else {
+        @if (schemaErrors() > 0) {
+          <p class="schema-note">
+            {{ schemaErrorsText() }} ·
+            @if (token() && !readonly()) {
+              <a
+                i18n
+                [routerLink]="['/', token()?.uuid, 'checks']"
+                [queryParams]="{ section: 'schema' }"
+                >Open schema</a
+              >
+            }
+          </p>
+        }
+        @if (xmlHtml(); as html) {
+          <pre
+            class="xml"
+            tabindex="0"
+            aria-label="Request body"
+            i18n-aria-label
+          ><code class="hljs" [innerHTML]="html"></code></pre>
+        } @else {
+          <app-code-view
+            label="Request body"
+            i18n-label
+            [text]="current.content"
+            [language]="language() === 'json' ? 'json' : 'text'"
+            [pretty]="preferences.formatJsonEnable()"
+            [marks]="marks()"
+          />
+        }
+      }
+    </mat-tab>
+    <mat-tab label="Headers ({{ headers().length }})" i18n-label>
+      <app-kv-table
+        label="Headers"
         i18n-label
-        [text]="current.content ?? ''"
-        [language]="language() === 'json' ? 'json' : 'text'"
-        [pretty]="preferences.formatJsonEnable()"
-        [marks]="marks()"
+        [columns]="headerColumns"
+        [rows]="headers()"
+        [notes]="headerNotes()"
+        empty="No headers."
+        i18n-empty
       />
-    }
-  </mat-tab>
-  <mat-tab label="Headers ({{ headers().length }})" i18n-label>
-    <app-kv-table
-      label="Headers"
-      i18n-label
-      [rows]="headers()"
-      [notes]="headerNotes()"
-      empty="No headers."
-      i18n-empty
-    />
-  </mat-tab>
-  <mat-tab label="Query ({{ query().length }})" i18n-label>
-    <app-kv-table
-      label="Query strings"
-      i18n-label
-      [rows]="query()"
-      empty="No query string. Parameters after ? in the URL appear here."
-      i18n-empty
-    />
-  </mat-tab>
-  <mat-tab label="Form ({{ form().length }})" i18n-label>
-    <app-kv-table
-      label="Form values"
-      i18n-label
-      [rows]="form()"
-      empty="No form fields. application/x-www-form-urlencoded and multipart/form-data bodies appear here."
-      i18n-empty
-    />
-  </mat-tab>
-</mat-tab-group>
+    </mat-tab>
+    <mat-tab label="Query ({{ query().length }})" i18n-label>
+      @if (query().length > 0) {
+        <app-kv-table label="Query strings" i18n-label [rows]="query()" />
+      } @else {
+        <app-empty-state
+          icon="none"
+          heading="No query string"
+          i18n-heading
+          text="Parameters after ? in the URL appear here."
+          i18n-text
+        />
+      }
+    </mat-tab>
+    <mat-tab label="Form ({{ form().length }})" i18n-label>
+      @if (form().length > 0) {
+        <app-kv-table label="Form values" i18n-label [rows]="form()" />
+      } @else {
+        <app-empty-state
+          icon="none"
+          heading="No form values"
+          i18n-heading
+          text="application/x-www-form-urlencoded and multipart/form-data bodies appear here."
+          i18n-text
+        />
+      }
+    </mat-tab>
+  </mat-tab-group>
+</div>

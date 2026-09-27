@@ -1,11 +1,13 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { token, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { RequestView, sizeText } from './request-view';
 
 describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', () => {
@@ -17,18 +19,17 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
   ) =>
     render(RequestView, {
       inputs: { request, token: url, readonly },
+      providers: [provideRouter([])],
       configureTestBed: (testBed) => testBed.inject(Preferences).formatJsonEnable.set(pretty),
     });
 
   /** Linhas de uma tabela: as células (cabeçalho da linha e valor) separadas por espaço. */
   const rows = (name: string) =>
-    within(screen.getByRole('table', { name }))
-      .getAllByRole('row')
-      .map((row) =>
-        [...row.querySelectorAll('th, td')]
-          .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim())
-          .join(' '),
-      );
+    [...screen.getByRole('table', { name }).querySelectorAll('tbody tr')].map((row) =>
+      [...row.querySelectorAll('th, td')]
+        .map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim())
+        .join(' '),
+    );
 
   const openTab = async (name: RegExp) => {
     await userEvent.click(screen.getByRole('tab', { name }));
@@ -88,13 +89,11 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       }),
     );
 
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
-      'Body',
-      'Headers (2)',
-      'Query (3)',
-      'Form (2)',
-    ]);
-    expect(screen.getByRole('tab', { name: 'Body' }).getAttribute('aria-selected')).toBe('true');
+    // INBOX-21: a aba Body diz o tamanho do corpo antes do clique.
+    expect(
+      screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()),
+    ).toEqual(['Body · 7 B', 'Headers (2)', 'Query (3)', 'Form (2)']);
+    expect(screen.getByRole('tab', { name: /^Body\b/ }).getAttribute('aria-selected')).toBe('true');
 
     await openTab(/Headers/);
     expect(rows('Headers')).toEqual(['accept a, (empty)', 'host h']);
@@ -104,12 +103,15 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     expect(rows('Form values')).toEqual(['f1 v1', 'f2 (empty)']);
   });
 
+  // INBOX-26: as abas vazias no padrão dos estados vazios.
   it('deve explicar a aba vazia Quando não há query nem formulário', async () => {
-    await show(webhookRequest(1, { query: null }));
+    await show(webhookRequest(1, { query: null, request: null }));
 
     await openTab(/Query/);
-    expect(screen.getByText(/^No query string\./)).toBeTruthy();
+    expect(screen.getByText('No query string')).toBeTruthy();
     expect(screen.queryByRole('table', { name: 'Query strings' })).toBeNull();
+    await openTab(/Form/);
+    expect(screen.getByText('No form values')).toBeTruthy();
   });
 
   describe('Dado o corpo', () => {
@@ -139,10 +141,18 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       expect(localStorage.getItem('formatJsonEnable')).toBe('false');
     });
 
-    it('deve dizer que não há corpo Quando o corpo é vazio', async () => {
-      await show(webhookRequest(1, { content: '' }));
+    // INBOX-21/26: "empty" na aba e o estado vazio no lugar do bloco de código.
+    it('deve dizer que não há corpo, com o método, Quando o corpo é vazio', async () => {
+      const { container } = await show(
+        webhookRequest(1, { method: 'GET', content: '', schema: { valid: false, errors: [] } }),
+      );
 
-      expect(screen.getByText('(no body content)')).toBeTruthy();
+      expect(screen.getByRole('tab', { name: /^Body\b/ }).textContent).toContain('empty');
+      expect(screen.getByText('No body content')).toBeTruthy();
+      expect(screen.getByText(/^A GET with an empty body\./).textContent).toContain(
+        'The schema check records it as “body is not JSON”.',
+      );
+      expect(container.querySelector('app-code-view')).toBeNull();
     });
 
     it('deve formatar e realçar XML pelo highlight.js sob demanda Quando o Pretty está ligado', async () => {
@@ -221,7 +231,35 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         'true',
       );
       await userEvent.click(screen.getByRole('button', { name: /^Schema valid/ }));
-      expect(screen.getByRole('tab', { name: 'Body' }).getAttribute('aria-selected')).toBe('true');
+      expect(screen.getByRole('tab', { name: /^Body\b/ }).getAttribute('aria-selected')).toBe(
+        'true',
+      );
+    });
+
+    // INBOX-18: o status da regra que respondeu no título; uma condição só vai direto no cartão.
+    it('deve dizer o status da regra que respondeu no título do cartão', async () => {
+      await render(RequestView, {
+        inputs: { request: webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } }), token: token() },
+        providers: [
+          {
+            provide: RuleStatusStore,
+            useValue: { statusOf: (id: string) => (id === 'r1' ? 201 : undefined) },
+          },
+        ],
+      });
+
+      expect(cards()).toContain('Answered by rule · 201');
+    });
+
+    it('deve pôr a condição no cartão, sem "Why? (n)", Quando só uma falhou', async () => {
+      await show(
+        webhookRequest(1, {
+          near_miss: { id: 'r2', name: 'Só GET', failed: ['method: expected GET, got POST'] },
+        }),
+      );
+
+      expect(screen.getByText('Closest: Só GET · method: expected GET, got POST')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Why\?/ })).toBeNull();
     });
 
     it('deve mostrar as condições que falharam com "Why? (n)" Quando nenhuma regra casou', async () => {
@@ -243,6 +281,30 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         'header x-a: absent',
       ]);
     });
+  });
+
+  // INBOX-23: os erros de schema avisados acima do corpo, com o link para o schema da URL.
+  it('deve avisar acima do corpo quantos erros de schema estão marcados, com "Open schema"', async () => {
+    await show(
+      webhookRequest(1, {
+        content: '{"id":"x","nome":1}',
+        schema: {
+          valid: false,
+          errors: [
+            { path: '/id', message: 'must be integer' },
+            { path: '/nome', message: 'must be string' },
+          ],
+        },
+      }),
+    );
+
+    const note = screen.getByText(/schema errors marked below/);
+    expect(note.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '2 schema errors marked below · Open schema',
+    );
+    expect(within(note).getByRole('link', { name: 'Open schema' }).getAttribute('href')).toBe(
+      `/${TOKEN_ID}/checks?section=schema`,
+    );
   });
 
   describe('Dado a linha do header de assinatura na aba Headers', () => {
@@ -296,6 +358,33 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       },
     );
 
+    // INBOX-24: o cabeçalho das colunas, o título da nota e o link para Checks › Signature.
+    it('deve ter "Name" e "Value (as recorded)" e dar título e link à nota da assinatura', async () => {
+      const { container } = await show(
+        webhookRequest(1, {
+          signature: { provider: 'github', valid: true, reason: null },
+          headers: { 'x-hub-signature-256': ['sha256=abc'] },
+        }),
+      );
+
+      await openTab(/Headers/);
+
+      const table = screen.getByRole('table', { name: 'Headers' });
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((header) => header.textContent?.trim()),
+      ).toEqual(['Name', 'Value (as recorded)']);
+      const row = container.querySelector('tr.noted') as HTMLElement;
+      expect(row.querySelector('.note-title')?.textContent).toBe('Verified signature header');
+      expect(
+        within(row)
+          .getByRole('link', { name: 'How GitHub signatures are checked' })
+          .getAttribute('href'),
+      ).toBe(`/${TOKEN_ID}/checks?section=signature`);
+      await expectNoAxeViolations(container);
+    });
+
     it('deve pôr no topo a linha "(not received)" Quando a assinatura veio sem o header', async () => {
       const { container } = await show(
         webhookRequest(1, {
@@ -310,7 +399,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       await openTab(/Headers/);
 
       expect(rows('Headers')[0]).toMatch(
-        /^x-hub-signature-256 \(not received\) ?⊘ Signature absent/,
+        /^x-hub-signature-256 \(not received\) ?Expected header missing ?⊘ Signature absent/,
       );
       expect(noted(container)).toHaveLength(1);
       expect(screen.getByRole('tab', { name: 'Headers (2)' })).toBeTruthy();
@@ -335,7 +424,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
       expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('/pedidos?x=1');
       expect(screen.queryAllByRole('button')).toEqual([]);
-      expect(screen.getByText('method: expected GET, got POST')).toBeTruthy();
+      // Uma condição só: a frase vai no cartão da regra (INBOX-18).
+      expect(screen.getByText('Closest: Só GET · method: expected GET, got POST')).toBeTruthy();
       expect(screen.getByText('Signature invalid')).toBeTruthy();
       await expectNoAxeViolations(container);
     });

@@ -98,6 +98,16 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(preferences.unread()).toEqual([]));
   });
 
+  it('deve ler as regras da URL Quando uma mensagem da lista foi respondida por regra (INBOX-13)', async () => {
+    const answered = webhookRequest(7, { rule: { id: 'r1', name: 'Pix' } });
+    await harness.navigateByUrl(`/${TOKEN_ID}`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([answered, R1]));
+
+    await flush(`/token/${TOKEN_ID}/rules`, [{ id: 'r1', name: 'Pix', response: { status: 201 } }]);
+    await vi.waitFor(() => expect(text()).toContain('201 · Pix'));
+  });
+
   it('deve criar uma URL nova e ir para ela Quando a raiz é aberta sem token salvo', async () => {
     await harness.navigateByUrl('/');
 
@@ -293,7 +303,11 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Anzol'));
       expect(text()).toContain('Requests (3)');
       expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
-      expect(snack).not.toHaveBeenCalledWith('Request received', 'View', expect.anything());
+      expect(snack).not.toHaveBeenCalledWith(
+        expect.stringMatching(/^Request received/),
+        'View',
+        expect.anything(),
+      );
     });
 
     it('deve avisar "Request received" com "View" (4 s) e abrir a nova no "View" Quando ela chega fora da vista', async () => {
@@ -307,7 +321,8 @@ describe('Dado a tela principal', () => {
       });
 
       await vi.waitFor(() =>
-        expect(snack).toHaveBeenCalledWith('Request received', 'View', { duration: 4000 }),
+        // INBOX-15: o aviso diz o método e a rota da que chegou.
+        expect(snack).toHaveBeenCalledWith('Request received · POST /', 'View', { duration: 4000 }),
       );
       snack.mock.results.at(-1)?.value.dismissWithAction();
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
@@ -361,9 +376,9 @@ describe('Dado a tela principal', () => {
       FakeEventSource.latest().emit('request.created', { request: R4, total: 4, truncated: false });
 
       await vi.waitFor(() =>
-        expect(snack.mock.calls.filter(([message]) => message === 'Request received')).toHaveLength(
-          2,
-        ),
+        expect(
+          snack.mock.calls.filter(([message]) => message.startsWith('Request received')),
+        ).toHaveLength(2),
       );
       expect(store.requests()).toEqual([R2]);
       expect(store.total()).toBe(4);
@@ -396,14 +411,17 @@ describe('Dado a tela principal', () => {
 
   it('deve abrir a página do Compare pela rota, com A e B marcadas na lista, e voltar à A Quando "Compare with…" é usado', async () => {
     await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
-    await vi.waitFor(() => expect(text()).toContain('Compare with'));
     const root = () => harness.routeNativeElement as HTMLElement;
     const button = (label: string) =>
       [...root().querySelectorAll<HTMLButtonElement>('button')].find(
         (candidate) => candidate.textContent?.trim() === label,
       );
+    // INBOX-19: o rótulo visível é "Compare"; o nome acessível, "Compare with…".
+    const compareWith = () =>
+      root().querySelector<HTMLButtonElement>('button[aria-label="Compare with…"]');
+    await vi.waitFor(() => expect(compareWith()).not.toBeNull());
 
-    button('Compare with…')?.click();
+    compareWith()?.click();
     await harness.fixture.whenStable();
     expect(text()).toContain(`Choose a request to compare with #${R1.uuid.substring(0, 5)}`);
     root().querySelectorAll<HTMLButtonElement>('.item .select')[1].click();

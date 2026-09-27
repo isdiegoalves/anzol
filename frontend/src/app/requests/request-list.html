@@ -1,5 +1,7 @@
 <div class="head">
   <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
+  <!-- INBOX-34: no celular, a linha visível do protótipo; o heading fica no documento (S15). -->
+  <span class="order-line" aria-hidden="true">{{ orderLine() }}</span>
   <!-- INBOX-07: as não lidas ao lado do heading, fora dele (S15). -->
   @if (unreadCount() > 0) {
     <span class="unread-count" i18n>{unreadCount(), plural,
@@ -88,7 +90,8 @@
             @if (item.summary) {
               <span class="summary">{{ item.summary }}</span> ·
             }
-            {{ item.request.ip }} ·
+            <!-- INBOX-32: o celular esconde o IP (a linha fica com o resumo, o #id e os selos). -->
+            <span class="ip">{{ item.request.ip }} ·&ngsp;</span>
             <span class="id">#{{ item.request.uuid.substring(0, 5) }}</span>
           </span>
         </button>

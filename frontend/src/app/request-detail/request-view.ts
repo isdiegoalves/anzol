@@ -3,12 +3,15 @@ import { DOCUMENT } from '@angular/common';
 import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { MatTab, MatTabGroup } from '@angular/material/tabs';
+import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
+import { RouterLink } from '@angular/router';
 import { CheckKind, pipelineOf } from '../pipeline/pipeline';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
-import { Token } from '../token/token';
+import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 import { CheckChip } from '../ui/check-chip';
+import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
 import { CodeMark } from '../ui/code-lines';
 import { CodeView } from '../ui/code-view';
@@ -51,19 +54,23 @@ export function sizeText(bytes: number, language: string): string {
   imports: [
     CheckChip,
     CodeView,
+    EmptyState,
     Icon,
     KvTable,
     MatButton,
     MatSlideToggle,
     MatTab,
     MatTabGroup,
+    MatTabLabel,
     MethodBadge,
+    RouterLink,
   ],
   templateUrl: './request-view.html',
   styleUrl: './request-view.scss',
 })
 export class RequestView {
   protected readonly preferences = inject(Preferences);
+  private readonly ruleStatuses = inject(RuleStatusStore);
   private readonly clipboard = inject(Clipboard);
   private readonly screenLanguage = inject(DOCUMENT).documentElement.lang || 'en';
 
@@ -86,7 +93,12 @@ export class RequestView {
   protected readonly conditionsLabel = (rule: string) =>
     $localize`Conditions of ${rule}:rule: that failed`;
 
-  protected readonly pipeline = computed(() => pipelineOf(this.request(), { token: this.token() }));
+  protected readonly pipeline = computed(() =>
+    pipelineOf(this.request(), {
+      token: this.token(),
+      ruleStatus: (id) => this.ruleStatuses.statusOf(id),
+    }),
+  );
   protected readonly checks = computed(() => {
     const { signature, schema, rule } = this.pipeline();
     return [signature, schema, rule];
@@ -121,12 +133,38 @@ export class RequestView {
       return notes;
     }
     const tone = check.state === 'valid' ? 'ok' : 'bad';
+    // INBOX-24: o título da nota e o link para Checks › Signature (fora da página só-leitura).
+    const token = this.token();
+    const provider = this.request().signature?.provider;
+    const label = provider ? SIGNATURE_PROVIDER_LABELS[provider] : '';
+    const link =
+      token && !this.readonly()
+        ? {
+            text: $localize`How ${label}:provider: signatures are checked`,
+            commands: ['/', token.uuid, 'checks'],
+            section: 'signature',
+          }
+        : undefined;
     if (check.missing) {
-      notes.set(check.missing.name, { tone: 'bad', text: check.missing.note });
+      notes.set(check.missing.name, {
+        tone: 'bad',
+        text: check.missing.note,
+        title: $localize`Expected header missing`,
+        link,
+      });
     }
     for (const [name, text] of check.rows) {
       const value = this.request().headers[name]?.join(', ') ?? '';
-      notes.set(name, { tone, text, parts: value.split(',').map((part) => part.trim()) });
+      notes.set(name, {
+        tone,
+        text,
+        parts: value.split(',').map((part) => part.trim()),
+        title:
+          check.state === 'valid'
+            ? $localize`Verified signature header`
+            : $localize`Signature header that failed`,
+        link,
+      });
     }
     return notes;
   });
@@ -135,6 +173,32 @@ export class RequestView {
   protected readonly form = computed(() => rowsOf(this.request().request));
 
   protected readonly language = computed(() => detectLanguage(this.request().content));
+
+  /** "Body · 36 B" ou "Body · empty": o tamanho antes do clique (INBOX-21). */
+  protected readonly bodyTabLabel = computed(
+    () => `${$localize`Body`} · ${this.request().content ? this.size() : $localize`empty`}`,
+  );
+  /** O estado vazio do corpo (INBOX-26): o método e, com schema, o que a verificação gravou. */
+  protected readonly emptyBodyText = computed(() => {
+    const request = this.request();
+    const text = $localize`A ${request.method}:method: with an empty body.`;
+    return request.schema
+      ? `${text} ${$localize`The schema check records it as “body is not JSON”.`}`
+      : text;
+  });
+  /** "2 schema errors marked below" (INBOX-23). */
+  protected readonly schemaErrorsText = computed(() =>
+    this.schemaErrors() === 1
+      ? $localize`1 schema error marked below`
+      : $localize`${this.schemaErrors()}:count: schema errors marked below`,
+  );
+  /** Cabeçalho das colunas da aba Headers (INBOX-24): o valor é o que chegou, sem mudança. */
+  protected readonly headerColumns = [$localize`Name`, $localize`Value (as recorded)`] as const;
+  /** Quantos erros de schema estão marcados no corpo (a nota acima dele, INBOX-23). */
+  protected readonly schemaErrors = computed(() => {
+    const schema = this.request().schema;
+    return schema?.valid === false ? schema.errors.length : 0;
+  });
 
   /** Erros de schema como marcas na linha do JSON (ou na primeira, se o corpo não é JSON). */
   protected readonly marks = computed<CodeMark[]>(() => {

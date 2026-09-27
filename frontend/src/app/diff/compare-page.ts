@@ -13,9 +13,8 @@ import { DOCUMENT } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { CapturedRequest, WebhookRequest } from '../requests/webhook-request';
-import { RULE_DEFAULT_STATUS } from '../rules/rule';
-import { RuleStore } from '../rules/rule-store';
 import { isTyping } from '../shell/hotkeys';
 import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
@@ -48,7 +47,7 @@ export class ComparePage {
   private readonly requests = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
-  private readonly rules = inject(RuleStore);
+  private readonly rules = inject(RuleStatusStore);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -60,17 +59,6 @@ export class ComparePage {
     ['expanded', 'large', 'extra-large'].includes(this.viewport.windowClass()),
   );
   protected readonly listWidth = signal(340);
-  /** O status de cada regra da URL (o selo da regra que respondeu diz "201 · nome", RULES-30). */
-  protected readonly ruleStatuses = computed(
-    () =>
-      new Map(
-        this.rules
-          .rules()
-          .filter((rule) => rule.id !== undefined)
-          .map((rule) => [rule.id ?? '', rule.response?.status ?? RULE_DEFAULT_STATUS]),
-      ),
-  );
-
   constructor() {
     effect(() => {
       const [tokenId, a, b] = [this.tokenId(), this.a(), this.b()];
@@ -128,9 +116,8 @@ export class ComparePage {
         this.compare.show(requestA, requestB);
         this.state.set({ kind: 'loaded', a: requestA, b: requestB });
         // As regras só importam quando uma delas respondeu (o selo leva o status).
-        if ((requestA.rule || requestB.rule) && this.rules.tokenId() !== tokenId) {
-          this.rules.load(tokenId).catch(() => undefined);
-        }
+        const ids = [requestA.rule?.id, requestB.rule?.id].filter((id) => id !== undefined);
+        void this.rules.ensure(tokenId, ids);
       }
     } catch (error) {
       if (isProtectedError(error)) {

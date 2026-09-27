@@ -13,6 +13,7 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
 import { bodySummary } from '../requests/request-list';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
 import { CheckChip } from '../ui/check-chip';
@@ -59,14 +60,10 @@ export class RequestCompare {
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly ruleStatuses = inject(RuleStatusStore);
 
   readonly a = input.required<WebhookRequest>();
   readonly b = input.required<WebhookRequest>();
-  /**
-   * O status de cada regra da URL, pelo id (RULES-30: "201 · Pagamento" no selo da regra). A
-   * mensagem guarda só a regra que respondeu, não o status: vale o da regra hoje.
-   */
-  readonly ruleStatuses = input<ReadonlyMap<string, number>>(new Map());
 
   /**
    * "Swap A and B" troca na tela no mesmo evento do clique, antes da rota nova chegar; quando ela
@@ -114,7 +111,8 @@ export class RequestCompare {
   protected readonly checks = computed<CheckRow[]>(() => {
     const [a, b] = [pipelineOf(this.left()), pipelineOf(this.right())];
     const withStatus = (result: CheckResult, request: WebhookRequest): CheckResult => {
-      const status = request.rule ? this.ruleStatuses().get(request.rule.id) : undefined;
+      // RULES-30: "201 · Pagamento" no selo da regra (o status da regra hoje, `RuleStatusStore`).
+      const status = request.rule ? this.ruleStatuses.statusOf(request.rule.id) : undefined;
       return result.kind === 'rule' && status !== undefined
         ? { ...result, detail: `${status} · ${result.detail}` }
         : result;

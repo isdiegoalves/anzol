@@ -21,10 +21,12 @@ import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
+import { routeOf } from '../pipeline/pipeline';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { filterFromParams, filterToParams, sameFilter } from '../search/request-filter';
 import { Onboarding } from '../onboarding/onboarding';
@@ -84,6 +86,7 @@ export class Inbox {
   private readonly settings = inject(ShellSettings);
   private readonly viewport = inject(Viewport);
   private readonly screen = inject(ScreenState);
+  private readonly ruleStatuses = inject(RuleStatusStore);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -138,6 +141,17 @@ export class Inbox {
         !this.twoPanes() && this.showDetail() && !!this.requests.selected(),
       ),
     );
+
+    // O status das regras que responderam, para os selos e o cartão (INBOX-13/18).
+    effect(() => {
+      const tokenId = this.requests.tokenId();
+      const ids = this.requests
+        .requests()
+        .flatMap((request) => (request.rule ? [request.rule.id] : []));
+      if (tokenId) {
+        untracked(() => void this.ruleStatuses.ensure(tokenId, [...new Set(ids)]));
+      }
+    });
 
     effect(() => {
       const unread = this.requests.unread().length;
@@ -468,8 +482,16 @@ export class Inbox {
     }
     this.announceArrival();
     if (!inView) {
+      // INBOX-15: o método e a rota, para decidir se vale abrir sem sair do que está fazendo.
+      const route = routeOf(request.url);
       this.snackBar
-        .open($localize`Request received`, $localize`View`, { duration: RECEIVED_NOTICE_MS })
+        .open(
+          $localize`Request received · ${request.method}:method: ${route}:route:`,
+          $localize`View`,
+          {
+            duration: RECEIVED_NOTICE_MS,
+          },
+        )
         .onAction()
         .subscribe(() => void this.viewNewest());
     }

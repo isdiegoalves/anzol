@@ -63,32 +63,65 @@
       }
       <a i18n mat-menu-item [href]="permalink()">Permalink</a>
       <a i18n mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+      <!-- INBOX-20: apagar a aberta sem voltar à lista, com o Undo de hoje. -->
+      <button i18n mat-menu-item type="button" (click)="deleteRequest()">Delete request</button>
     </mat-menu>
   </div>
 
+  <!-- INBOX-19: rótulos curtos com ícone; o visível é o começo do nome acessível (WCAG 2.5.3). -->
   <div class="actions" role="toolbar" aria-label="Request actions" i18n-aria-label viewActions>
     <div class="group">
-      <button i18n mat-flat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
+      <button mat-flat-button type="button" (click)="replayRequest()">
+        <app-icon name="replay" [size]="18" /><ng-container i18n>Replay&hellip;</ng-container>
+      </button>
       @if (!compact()) {
-        <button i18n mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
-        <button i18n mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+        <button mat-button type="button" (click)="sendAsNew()">
+          <app-icon name="outbound" [size]="18" /><ng-container i18n
+            >Send as new&hellip;</ng-container
+          >
+        </button>
+        <button
+          mat-button
+          type="button"
+          aria-label="Compare with…"
+          i18n-aria-label
+          (click)="compareWith()"
+        >
+          <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
+        </button>
       }
     </div>
     <div class="group">
-      <button i18n mat-button type="button" (click)="createRule()">
-        Create rule from this request
+      <button
+        mat-button
+        type="button"
+        aria-label="Create rule from this request"
+        i18n-aria-label
+        (click)="createRule()"
+      >
+        <app-icon name="bolt" [size]="18" /><ng-container i18n>Create rule</ng-container>
       </button>
       @if (jsonBody() && !compact()) {
-        <button i18n mat-button type="button" (click)="createSchema()">
-          Create schema from this request
+        <button
+          mat-button
+          type="button"
+          aria-label="Create schema from this request"
+          i18n-aria-label
+          (click)="createSchema()"
+        >
+          <app-icon name="braces" [size]="18" /><ng-container i18n>Create schema</ng-container>
         </button>
       }
     </div>
     <div class="group">
       @if (current.content) {
-        <button i18n mat-button type="button" (click)="copyPayload()">Copy payload</button>
+        <button mat-button type="button" (click)="copyPayload()">
+          <app-icon name="clipboard" [size]="18" /><ng-container i18n>Copy payload</ng-container>
+        </button>
       }
-      <button i18n mat-button type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
+      <button mat-button type="button" [matMenuTriggerFor]="copyMenu">
+        <app-icon name="copy" [size]="18" /><ng-container i18n>Copy As</ng-container>
+      </button>
       <mat-menu #copyMenu="matMenu">
         @for (format of formats; track format) {
           <button mat-menu-item type="button" (click)="copyRequestAs(format)">
@@ -99,8 +132,14 @@
     </div>
     @if (!compact()) {
       <div class="group">
-        <button i18n mat-button type="button" (click)="shareRequest()">
-          Share read-only link&hellip;
+        <button
+          mat-button
+          type="button"
+          aria-label="Share read-only link…"
+          i18n-aria-label
+          (click)="shareRequest()"
+        >
+          <ng-container i18n>Share</ng-container>
         </button>
         <button
           mat-button

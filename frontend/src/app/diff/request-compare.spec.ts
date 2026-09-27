@@ -5,6 +5,7 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { RuleStatusStore } from '../requests/rule-status-store';
 import { CompareStore } from './compare-store';
 import { BODY_LIMIT } from './request-diff';
 import { RequestCompare } from './request-compare';
@@ -32,8 +33,9 @@ describe('Dado a comparação de duas mensagens', () => {
     ruleStatuses: ReadonlyMap<string, number> = new Map(),
   ) =>
     render(RequestCompare, {
-      inputs: { a, b, ruleStatuses },
+      inputs: { a, b },
       providers: [
+        { provide: RuleStatusStore, useValue: { statusOf: (id: string) => ruleStatuses.get(id) } },
         { provide: Viewport, useValue: { windowClass } },
         { provide: CompareStore, useValue: compare },
       ],

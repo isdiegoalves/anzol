@@ -502,8 +502,8 @@ export const translations: Record<string, string> = {
   '4161463875721849613': 'Voltar para as requisições',
   // Requests not found - invalid ID
   '582157911944558273': 'Requisições não encontradas: ID inválido',
-  // Request received
-  '316809620611964190': 'Requisição recebida',
+  // Request received · {$method} {$route}
+  '2886253525048467023': 'Requisição recebida · {$method} {$route}',
   // View
   '2509141182388535183': 'Ver',
   // 1 new request arrived
@@ -860,36 +860,62 @@ export const translations: Record<string, string> = {
   '6994060993358423028': 'Recebida antes da verificação de assinatura',
   // This URL did not verify signatures
   '6681545142694176643': 'Esta URL não verificava assinaturas',
+  // No sig check
+  '1452553253655993268': 'Assin. não verificada',
+  // {$provider} · signed {$age} s before arrival
+  '7349423146264372879': '{$provider} · assinada {$age} s antes da chegada',
   // Signature absent
   '72442362552594738': 'Sem assinatura',
+  // No signature
+  '8999642303165983441': 'Sem assinatura',
   // Signature invalid
   '76465393282813109': 'Assinatura inválida',
+  // Stale timestamp
+  '8763408669913941457': 'Timestamp velho',
+  // Mismatch
+  '416100071486197374': 'Não confere',
   // Schema not checked
   '4721988887675549777': 'Schema não verificado',
   // Received before schema checks
   '5954772629795460019': 'Recebida antes da validação de schema',
   // This URL did not validate a schema
   '1483233087671679475': 'Esta URL não validava schema',
+  // No schema
+  '2979028920132715625': 'Sem schema',
   // Schema valid
   '7523410928276947334': 'Schema válido',
   // Body matches the schema
   '5053804502712579661': 'O corpo casa com o schema',
+  // Body matches the schema · {$dialect}
+  '6840631379395488212': 'O corpo segue o schema · {$dialect}',
   //  (+{$count} more)
   '8644129603938562559': ' (+{$count} outros)',
   // Body does not match the schema
   '2481944308641860792': 'O corpo não casa com o schema',
+  // Not JSON
+  '779390171048412717': 'Não é JSON',
+  // 1 schema error
+  '631248410066292885': '1 erro de schema',
+  // {$count} schema errors
+  '7486164292966200940': '{$count} erros de schema',
   // Answered by rule
   '2958936185065128502': 'Respondida por regra',
+  // Answered by rule · {$status}
+  '9088845257789269247': 'Respondida por regra · {$status}',
   // No rule matched
   '5200969779460711724': 'Nenhuma regra casou',
-  // Closest: {$rule} (1 condition failed)
-  '6793082424009922918': 'Mais perto: {$rule} (1 condição falhou)',
+  // Closest: {$rule} · {$condition}
+  '2994867950786199670': 'Mais perto: {$rule} · {$condition}',
   // Closest: {$rule} ({$count} conditions failed)
   '445548468782510116': 'Mais perto: {$rule} ({$count} condições falharam)',
+  // Near miss
+  '9202118846510819044': 'Quase acerto',
   // Received before rules
   '2479848593142434231': 'Recebida antes das regras',
   // No rule answered
   '2294482763688392758': 'Nenhuma regra respondeu',
+  // Default
+  '5607669932062416162': 'Padrão',
   // Timestamp signed with the body
   '5284952865465031727': 'Timestamp assinado junto com o corpo',
   // HMAC-SHA256 of "{t}.{raw body}"
@@ -940,18 +966,28 @@ export const translations: Record<string, string> = {
   '2390582664692406528': 'Link permanente',
   // Raw content
   '3723644126381088769': 'Conteúdo bruto',
+  // Delete request
+  '2212258879276588888': 'Apagar requisição',
   // Request actions
   '5248427223647753150': 'Ações da requisição',
   // Replay…
   '8675553612970232351': 'Reenviar…',
   // Compare with…
   '5187370181515015220': 'Comparar com…',
-  //  Create rule from this request
-  '4983464855217910618': ' Criar regra a partir desta requisição ',
+  // Create rule from this request
+  '4819705089003049508': 'Criar regra a partir desta requisição',
+  // Create rule
+  '5830995200961336312': 'Criar regra',
+  // Create schema from this request
+  '8719459080795725470': 'Criar schema a partir desta requisição',
+  // Create schema
+  '7492676639710188677': 'Criar schema',
   // Copy payload
   '324655176291010387': 'Copiar payload',
   // Copy As
   '6540883201841879405': 'Copiar como',
+  // Share read-only link…
+  '7056354008020030259': 'Compartilhar link só-leitura…',
   // Ask the local model why signature, schema and rules gave this result
   '4209809529690937932':
     'Perguntar ao modelo local por que assinatura, schema e regras deram este resultado',
@@ -959,6 +995,10 @@ export const translations: Record<string, string> = {
   '2380217756304706466': 'Esconder a explicação',
   // Explain
   '5922533565893373062': 'Explicar',
+  // Request deleted
+  '7911214812003933414': 'Requisição apagada',
+  // Undo
+  '5775346636203685655': 'Desfazer',
   // Copied payload
   '1866256676598500016': 'Payload copiado',
   // Copied request as {$format}
@@ -982,6 +1022,10 @@ export const translations: Record<string, string> = {
     'Formata corpos JSON e XML válidos; desligado, mostra o corpo exatamente como chegou',
   // Pretty
   '2602198438310504962': 'Formatado',
+  // No body content
+  '911147064956157771': 'Sem corpo',
+  // Open schema
+  '2546084952125981783': 'Abrir o schema',
   // Request body
   '6732843978314953948': 'Corpo da requisição',
   // Headers ({$INTERPOLATION})
@@ -992,17 +1036,41 @@ export const translations: Record<string, string> = {
   '593668899509113301': 'Query ({$INTERPOLATION})',
   // Query strings
   '6780509634548819431': 'Query string',
-  // No query string. Parameters after ? in the URL appear here.
-  '2026921191683056336': 'Sem query string. Os parâmetros depois do ? na URL aparecem aqui.',
+  // No query string
+  '4133497478706925850': 'Sem query string',
+  // Parameters after ? in the URL appear here.
+  '6328876829288703': 'Os parâmetros depois do ? na URL aparecem aqui.',
   // Form ({$INTERPOLATION})
   '7304771475900020108': 'Formulário ({$INTERPOLATION})',
   // Form values
   '2362395621208028574': 'Campos do formulário',
-  // No form fields. application/x-www-form-urlencoded and multipart/form-data bodies appear here.
-  '3221801829951737172':
-    'Sem campos de formulário. Corpos application/x-www-form-urlencoded e multipart/form-data aparecem aqui.',
+  // No form values
+  '1005962049366257741': 'Sem campos de formulário',
+  // application/x-www-form-urlencoded and multipart/form-data bodies appear here.
+  '7249477555815672854':
+    'Corpos application/x-www-form-urlencoded e multipart/form-data aparecem aqui.',
   // Conditions of {$rule} that failed
   '4108680511513605373': 'Condições de {$rule} que falharam',
+  // How {$provider} signatures are checked
+  '737535544950548874': 'Como as assinaturas da {$provider} são verificadas',
+  // Expected header missing
+  '2634815491241139025': 'O header esperado não veio',
+  // Verified signature header
+  '5712554145310947269': 'Header de assinatura verificado',
+  // Signature header that failed
+  '7132097022712850256': 'Header de assinatura que falhou',
+  // empty
+  '273835844989646128': 'vazio',
+  // A {$method} with an empty body.
+  '8147108938803901483': 'Um {$method} com o corpo vazio.',
+  // The schema check records it as “body is not JSON”.
+  '6171544939703367597': 'A verificação de schema grava “body is not JSON”.',
+  // 1 schema error marked below
+  '3671450292753098891': '1 erro de schema marcado abaixo',
+  // {$count} schema errors marked below
+  '9096323329082120149': '{$count} erros de schema marcados abaixo',
+  // Value (as recorded)
+  '8620213625102478787': 'Valor (como chegou)',
   // Choose a request to compare with #{$INTERPOLATION}
   '7859832298764837459': 'Escolha uma requisição para comparar com a #{$INTERPOLATION}',
   // {$START_TAG_STRONG}Compare mode.{$CLOSE_TAG_STRONG} Click a request to make it {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Press {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} to leave.
@@ -1033,6 +1101,14 @@ export const translations: Record<string, string> = {
   '1147828071904789728': 'NOVA',
   // Delete
   '7022070615528435141': 'Apagar',
+  // 1 request
+  '5460014314878732908': '1 requisição',
+  // {$count} requests
+  '6147271671367032360': '{$count} requisições',
+  // {$count} · newest first
+  '6035936701993604722': '{$count} · mais novas primeiro',
+  // {$count} · oldest first
+  '2188654793312603120': '{$count} · mais antigas primeiro',
   // Delete request {$uuid}
   '3157148606438158546': 'Apagar a requisição {$uuid}',
   // Auto cleanup keeps the {$limit} most recent requests
@@ -1041,10 +1117,6 @@ export const translations: Record<string, string> = {
   '6929323867588234142': 'Mais novas primeiro. Trocar a ordem',
   // Sorted oldest first. Change order
   '7247208851153160942': 'Mais antigas primeiro. Trocar a ordem',
-  // Request deleted
-  '7911214812003933414': 'Requisição apagada',
-  // Undo
-  '5775346636203685655': 'Desfazer',
   // from {$ip}
   '1068133721354916856': 'de {$ip}',
   // unread
@@ -1796,10 +1868,6 @@ export const translations: Record<string, string> = {
   '5707574018885283160': 'Editar a URL, abrir em nova aba, copiar o comando do CLI, apagar a URL',
   // Signature verification: {$provider}. Open Checks
   '7448920973178183690': 'Verificação de assinatura: {$provider}. Abrir Verificações',
-  // 1 request
-  '5460014314878732908': '1 requisição',
-  // {$count} requests
-  '6147271671367032360': '{$count} requisições',
   // {$stored}, auto cleanup keeps the {$limit} most recent
   '1886402781235704922': '{$stored}, a limpeza automática guarda as {$limit} mais recentes',
   // Delete this URL?
@@ -1865,26 +1933,6 @@ export const translations: Record<string, string> = {
   '6779109023100559816': 'Segredo errado. Tente de novo.',
   // Could not unlock the URL ({$status}).
   '4820442917323397437': 'Não foi possível destrancar a URL ({$status}).',
-  // Sig OK
-  '7709366885165414988': 'Assin. OK',
-  // Bad sig
-  '4318990170575290137': 'Assin. inválida',
-  // Stale sig
-  '7455607456356352234': 'Assin. vencida',
-  // No sig
-  '2796523424883731234': 'Sem assin.',
-  // No sig check
-  '1452553253655993268': 'Assin. não verificada',
-  // Schema OK
-  '3948747748560373564': 'Schema OK',
-  // Bad schema
-  '1896282437920326782': 'Schema inválido',
-  // No schema
-  '2979028920132715625': 'Sem schema',
-  // Near miss
-  '9202118846510819044': 'Quase acerto',
-  // Default
-  '5607669932062416162': 'Padrão',
   // Copy
   '4323470180912194028': 'Copiar',
   // Nothing here.

@@ -25,6 +25,7 @@ import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
+import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
 import { CheckChip } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
@@ -34,6 +35,7 @@ import { SkeletonList } from '../ui/skeleton-list';
 import { NewPill } from './new-pill';
 import { NO_FILTER } from '../search/request-filter';
 import { RequestStore } from './request-store';
+import { RuleStatusStore } from './rule-status-store';
 import { WebhookRequest } from './webhook-request';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
@@ -110,21 +112,38 @@ interface ItemView {
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
-  host: { '[class.compact]': "settings.density() === 'compact'" },
+  host: { '[class.compact]': 'twoLineItems()' },
 })
 export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly tokens = inject(TokenStore);
+  private readonly ruleStatuses = inject(RuleStatusStore);
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
+  private readonly windowClass = inject(Viewport).windowClass;
   private readonly viewport = viewChild(CdkVirtualScrollViewport);
 
   readonly openRequest = output<WebhookRequest>();
-  protected readonly itemHeight = computed(() =>
-    this.settings.density() === 'compact' ? ITEM_HEIGHT_COMPACT : ITEM_HEIGHT,
+  /**
+   * Itens de duas linhas, com os selos na linha da origem: a densidade compacta (S17) e o celular
+   * (INBOX-32), onde o dobro de mensagens cabe na tela.
+   */
+  protected readonly twoLineItems = computed(
+    () => this.settings.density() === 'compact' || this.windowClass() === 'compact',
   );
+  protected readonly itemHeight = computed(() =>
+    this.twoLineItems() ? ITEM_HEIGHT_COMPACT : ITEM_HEIGHT,
+  );
+  /** A linha visível do celular (INBOX-34): "57 requests · newest first". */
+  protected readonly orderLine = computed(() => {
+    const total = this.store.total();
+    const count = total === 1 ? $localize`1 request` : $localize`${total}:count: requests`;
+    return this.store.newestFirst()
+      ? $localize`${count}:count: · newest first`
+      : $localize`${count}:count: · oldest first`;
+  });
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly deleteLabel = (uuid: string) => $localize`Delete request ${uuid}:uuid:`;
 
@@ -294,7 +313,9 @@ export class RequestList {
   }
 
   private itemOf(request: WebhookRequest, now: number): ItemView {
-    const pipeline = pipelineOf(request);
+    const pipeline = pipelineOf(request, {
+      ruleStatus: (id) => this.ruleStatuses.statusOf(id),
+    });
     const seals = [pipeline.signature, pipeline.schema, pipeline.rule].filter(
       (check) => check.tone !== 'none',
     );

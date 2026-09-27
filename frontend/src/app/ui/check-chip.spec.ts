@@ -19,8 +19,9 @@ const [unchecked] = checksOf(webhookRequest(1, { signature: null }));
 
 describe('Dado o selo de verificação (app-check-chip)', () => {
   it.each([
-    ['válida', valid, 'ok', 'Sig OK'],
-    ['inválida', invalid, 'bad', 'Bad sig'],
+    // INBOX-13: o provedor na válida, o motivo curto na inválida.
+    ['válida', valid, 'ok', 'Stripe'],
+    ['inválida', invalid, 'bad', 'Mismatch'],
     ['quase (near miss)', near, 'near', 'Near miss'],
     ['não verificada', unchecked, 'none', 'No sig check'],
   ] as [string, CheckResult, string, string][])(
@@ -32,7 +33,7 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
       const chip = container as HTMLElement;
       expect(chip.textContent?.trim()).toBe(short);
       expect(chip.classList).toContain(tone);
-      expect(screen.queryByText(result.detail)).toBeNull();
+      expect(chip.querySelector('.detail')).toBeNull();
       expect(chip.getAttribute('title')).toBe(`${result.title}: ${result.detail}`);
       await expectNoAxeViolations(container);
     },

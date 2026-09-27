@@ -142,12 +142,15 @@ describe('Dado a regra que respondeu a mensagem', () => {
     expect(brief(pipelineOf(request).rule)).toEqual(esperado);
   });
 
-  it('deve contar "1 condition" no singular Quando só uma condição falhou (near miss sem conditions, formato antigo)', () => {
+  it('deve pôr a condição no cartão Quando só uma falhou (near miss sem conditions, formato antigo)', () => {
     const request = webhookRequest(1, {
       near_miss: { id: 'r2', name: 'Só GET', failed: ['method: expected GET, got POST'] },
     });
 
-    expect(pipelineOf(request).rule.detail).toBe('Closest: Só GET (1 condition failed)');
+    // INBOX-18: com uma condição só, a frase dela vai no cartão (o "Why? (n)" sai).
+    expect(pipelineOf(request).rule.detail).toBe(
+      'Closest: Só GET · method: expected GET, got POST',
+    );
   });
 });
 
@@ -225,5 +228,84 @@ describe('Dado a URL da mensagem com assinatura genérica', () => {
     expect([...(pipelineOf(request, { token: url }).signatureHeaders?.rows.keys() ?? [])]).toEqual([
       'x-sig',
     ]);
+  });
+});
+
+// Fase 2 (INBOX-13): o selo da lista diz o que houve em poucas palavras; INBOX-18: o cartão do
+// detalhe diz o status da regra, o dialeto do schema e a idade da assinatura Stripe.
+describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () => {
+  const short = (request: CapturedRequest, kind: 'signature' | 'schema' | 'rule') =>
+    pipelineOf(request, { ruleStatus: (id) => (id === 'r1' ? 201 : undefined) })[kind].short;
+
+  it.each([
+    [{ provider: 'github', valid: true, reason: null }, 'GitHub'],
+    [{ provider: 'github', valid: false, reason: 'signature mismatch' }, 'Mismatch'],
+    [
+      { provider: 'stripe', valid: false, reason: 'timestamp outside tolerance (412 s)' },
+      'Stale timestamp',
+    ],
+    [
+      { provider: 'github', valid: false, reason: 'header X-Hub-Signature-256 absent' },
+      'No signature',
+    ],
+  ] as const)('deve dizer %j como "%s" na assinatura', (signature, esperado) => {
+    expect(short(webhookRequest(1, { signature: { ...signature } }), 'signature')).toBe(esperado);
+  });
+
+  it.each([
+    [{ valid: true, errors: [] }, 'Schema'],
+    [{ valid: false, errors: [{ path: '/a', message: 'x' }] }, '1 schema error'],
+    [
+      {
+        valid: false,
+        errors: [
+          { path: '', message: 'must have required property id' },
+          { path: '', message: 'must have required property nome' },
+        ],
+      },
+      '2 schema errors',
+    ],
+    [{ valid: false, errors: [{ path: '', message: 'body is not JSON' }] }, 'Not JSON'],
+  ] as const)('deve dizer %j como "%s" no schema', (schema, esperado) => {
+    const request = webhookRequest(1, {
+      schema: { valid: schema.valid, errors: [...schema.errors] },
+    });
+    expect(short(request, 'schema')).toBe(esperado);
+  });
+
+  it('deve dizer o status da regra que respondeu no selo e no título do cartão', () => {
+    const request = webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } });
+    const rule = pipelineOf(request, { ruleStatus: () => 201 }).rule;
+
+    expect([rule.title, rule.detail, rule.short]).toEqual([
+      'Answered by rule · 201',
+      'Pix',
+      '201 · Pix',
+    ]);
+    expect(pipelineOf(request).rule.short).toBe('Pix');
+    expect(
+      short(webhookRequest(2, { near_miss: { id: 'r2', name: 'x', failed: ['a', 'b'] } }), 'rule'),
+    ).toBe('Near miss');
+  });
+
+  it('deve dizer o dialeto do $schema da URL no cartão do schema válido', () => {
+    const request = webhookRequest(1, { schema: { valid: true, errors: [] } });
+    const url = token({
+      schema: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+    });
+
+    expect(pipelineOf(request, { token: url }).schema.detail).toBe(
+      'Body matches the schema · 2020-12',
+    );
+  });
+
+  it('deve dizer quantos segundos antes da chegada a assinatura Stripe foi feita', () => {
+    const request = webhookRequest(1, {
+      created_at: '2026-09-27 10:00:05',
+      headers: { 'stripe-signature': [`t=${Date.UTC(2026, 8, 27, 10, 0, 0) / 1000},v1=abc`] },
+      signature: { provider: 'stripe', valid: true, reason: null },
+    });
+
+    expect(pipelineOf(request).signature.detail).toBe('Stripe · signed 5 s before arrival');
   });
 });

@@ -16,8 +16,10 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
+import { UNDO_MS } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
@@ -78,6 +80,17 @@ export class RequestDetail {
   protected readonly aiOffHint = AI_OFF_HINT;
 
   protected readonly formats = COPY_FORMATS;
+
+  /** INBOX-20: o "Delete request" do "More", com o Undo da lixeira da lista. */
+  protected deleteRequest(): void {
+    const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
+      duration: UNDO_MS,
+    });
+    const undo = firstValueFrom(notice.afterDismissed()).then(
+      ({ dismissedByAction }) => dismissedByAction,
+    );
+    void this.requests.deleteRequest(this.request(), undo);
+  }
   /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
 

@@ -29,6 +29,11 @@ export interface CheckResult {
   title: string;
   /** Segunda linha: o provedor, o motivo do servidor, o primeiro erro, a regra. */
   detail: string;
+  /**
+   * O selo da lista (INBOX-13), em poucas palavras que dizem o que houve: "GitHub", "Mismatch",
+   * "Stale timestamp", "2 schema errors", "201 · Pix".
+   */
+  short: string;
 }
 
 /** O que a tela deriva de uma mensagem para mostrar a verificação dela. */
@@ -46,6 +51,11 @@ export interface RequestPipeline {
 /** O que mais a tela sabe além da mensagem. O link só-leitura não tem a URL. */
 export interface PipelineContext {
   token?: Token | null;
+  /**
+   * O status da resposta de uma regra, pelo id. A mensagem guarda só a regra que respondeu: vale o
+   * da regra hoje (INBOX-13/18).
+   */
+  ruleStatus?: (ruleId: string) => number | undefined;
 }
 
 /**
@@ -60,9 +70,9 @@ export function pipelineOf(
   return {
     method: request.method,
     route: routeOf(request.url),
-    signature: signatureResult(request.signature),
-    schema: schemaResult(request),
-    rule: ruleResult(request),
+    signature: signatureResult(request),
+    schema: schemaResult(request, context.token ?? null),
+    rule: ruleResult(request, context.ruleStatus),
     signatureHeaders: signatureCheck(request, context.token ?? null),
   };
 }
@@ -91,8 +101,9 @@ function splitOnce(text: string, separator: string): [string, string?] {
 
 const STALE_REASON = /^timestamp outside tolerance/;
 
-function signatureResult(signature: SignatureResult | null | undefined): CheckResult {
+function signatureResult(request: CapturedRequest): CheckResult {
   const kind = 'signature';
+  const signature: SignatureResult | null | undefined = request.signature;
   if (!signature) {
     return {
       kind,
@@ -103,16 +114,22 @@ function signatureResult(signature: SignatureResult | null | undefined): CheckRe
         signature === undefined
           ? $localize`Received before signature checks`
           : $localize`This URL did not verify signatures`,
+      short: $localize`No sig check`,
     };
   }
   const provider = SIGNATURE_PROVIDER_LABELS[signature.provider] ?? signature.provider;
   if (signature.valid) {
+    const age = stripeAge(request);
     return {
       kind,
       state: 'valid',
       tone: 'ok',
       title: $localize`Signature valid`,
-      detail: provider,
+      detail:
+        age === null
+          ? provider
+          : $localize`${provider}:provider: · signed ${age}:age: s before arrival`,
+      short: provider,
     };
   }
   const reason = signature.reason ?? 'signature invalid';
@@ -123,18 +140,48 @@ function signatureResult(signature: SignatureResult | null | undefined): CheckRe
       tone: 'bad',
       title: $localize`Signature absent`,
       detail: reason,
+      short: $localize`No signature`,
     };
   }
+  const stale = STALE_REASON.test(reason);
   return {
     kind,
-    state: STALE_REASON.test(reason) ? 'stale' : 'invalid',
+    state: stale ? 'stale' : 'invalid',
     tone: 'bad',
     title: $localize`Signature invalid`,
     detail: reason,
+    short: stale ? $localize`Stale timestamp` : $localize`Mismatch`,
   };
 }
 
-function schemaResult(request: CapturedRequest): CheckResult {
+/**
+ * Stripe: segundos entre o `t=` do `Stripe-Signature` e a chegada (INBOX-18), só com dados
+ * gravados. `null` fora da Stripe ou sem o `t=`.
+ */
+function stripeAge(request: CapturedRequest): number | null {
+  if (request.signature?.provider !== 'stripe') {
+    return null;
+  }
+  const name = Object.keys(request.headers).find((key) => key.toLowerCase() === 'stripe-signature');
+  const signed = /(?:^|,)\s*t=(\d+)/.exec(name ? (request.headers[name][0] ?? '') : '');
+  if (!signed) {
+    return null;
+  }
+  const arrival = new Date(`${request.created_at.replace(' ', 'T')}Z`).getTime() / 1000;
+  return Math.max(0, Math.round(arrival - Number(signed[1])));
+}
+
+/** O dialeto do `$schema` da URL ("2020-12", "draft-07"), no cartão do schema (INBOX-18). */
+function schemaDialect(token: Token | null): string | null {
+  const uri = token?.schema?.['$schema'];
+  const match = typeof uri === 'string' ? /draft[/-](\d{4}-\d{2}|\d+)/.exec(uri) : null;
+  if (!match) {
+    return null;
+  }
+  return /^\d{4}-/.test(match[1]) ? match[1] : `draft-${match[1].padStart(2, '0')}`;
+}
+
+function schemaResult(request: CapturedRequest, token: Token | null): CheckResult {
   const kind = 'schema';
   const schema = request.schema;
   if (!schema) {
@@ -147,15 +194,21 @@ function schemaResult(request: CapturedRequest): CheckResult {
         schema === undefined
           ? $localize`Received before schema checks`
           : $localize`This URL did not validate a schema`,
+      short: $localize`No schema`,
     };
   }
   if (schema.valid) {
+    const dialect = schemaDialect(token);
     return {
       kind,
       state: 'valid',
       tone: 'ok',
       title: $localize`Schema valid`,
-      detail: $localize`Body matches the schema`,
+      detail:
+        dialect === null
+          ? $localize`Body matches the schema`
+          : $localize`Body matches the schema · ${dialect}:dialect:`,
+      short: $localize`Schema`,
     };
   }
   const [first] = schema.errors;
@@ -163,31 +216,54 @@ function schemaResult(request: CapturedRequest): CheckResult {
   const detail = first
     ? `${first.path || $localize`(root)`} ${first.message}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
     : $localize`Body does not match the schema`;
-  return { kind, state: 'invalid', tone: 'bad', title: $localize`Schema invalid`, detail };
+  const notJson = count === 1 && /not JSON/i.test(first?.message ?? '');
+  return {
+    kind,
+    state: 'invalid',
+    tone: 'bad',
+    title: $localize`Schema invalid`,
+    detail,
+    short: notJson
+      ? $localize`Not JSON`
+      : count === 1
+        ? $localize`1 schema error`
+        : $localize`${count}:count: schema errors`,
+  };
 }
 
-function ruleResult(request: CapturedRequest): CheckResult {
+function ruleResult(
+  request: CapturedRequest,
+  ruleStatus: PipelineContext['ruleStatus'],
+): CheckResult {
   const kind = 'rule';
   if (request.rule) {
+    const { id, name } = request.rule;
+    const status = ruleStatus?.(id);
     return {
       kind,
       state: 'answered',
       tone: 'ok',
-      title: $localize`Answered by rule`,
-      detail: request.rule.name,
+      title:
+        status === undefined
+          ? $localize`Answered by rule`
+          : $localize`Answered by rule · ${status}:status:`,
+      detail: name,
+      short: status === undefined ? name : `${status} · ${name}`,
     };
   }
   if (request.near_miss) {
-    const failed = request.near_miss.failed.length;
+    const { name, failed } = request.near_miss;
     return {
       kind,
       state: 'near-miss',
       tone: 'near',
       title: $localize`No rule matched`,
+      // INBOX-18: com uma condição só, a frase dela vai no cartão (sem o "Why? (n)").
       detail:
-        failed === 1
-          ? $localize`Closest: ${request.near_miss.name}:rule: (1 condition failed)`
-          : $localize`Closest: ${request.near_miss.name}:rule: (${failed}:count: conditions failed)`,
+        failed.length === 1
+          ? $localize`Closest: ${name}:rule: · ${failed[0]}:condition:`
+          : $localize`Closest: ${name}:rule: (${failed.length}:count: conditions failed)`,
+      short: $localize`Near miss`,
     };
   }
   return {
@@ -197,5 +273,6 @@ function ruleResult(request: CapturedRequest): CheckResult {
     title: $localize`Default response`,
     detail:
       request.rule === undefined ? $localize`Received before rules` : $localize`No rule answered`,
+    short: $localize`Default`,
   };
 }

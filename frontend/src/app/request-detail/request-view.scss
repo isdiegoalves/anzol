@@ -115,14 +115,30 @@ button.check {
   font-family: var(--app-code-family);
 }
 
+// O Pretty na linha das abas (INBOX-21); no compacto, as abas ocupam a linha e ele desce.
 .tabs {
+  position: relative;
   min-width: 0;
 }
 
-.body-bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 0;
+.pretty {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 0;
+}
+
+.schema-note {
+  margin: 8px 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+@media (width < 600px) {
+  .pretty {
+    position: static;
+    margin-bottom: 4px;
+  }
 }
 
 .xml {

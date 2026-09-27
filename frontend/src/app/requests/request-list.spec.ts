@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { within } from '@testing-library/angular';
@@ -12,6 +13,7 @@ import { CompareStore } from '../diff/compare-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
+import { Viewport, WindowClass } from '../shell/viewport';
 import {
   ITEM_HEIGHT,
   ITEM_HEIGHT_COMPACT,
@@ -20,9 +22,12 @@ import {
   bodySummary,
 } from './request-list';
 import { RequestStore } from './request-store';
+import { RuleStatusStore } from './rule-status-store';
 import { WebhookRequest } from './webhook-request';
 
 describe('Dado a lista lateral de mensagens', () => {
+  /** Janela larga por padrão; o jsdom não tem `matchMedia`. */
+  const windowClass = signal<WindowClass>('large');
   let fixture: ComponentFixture<RequestList>;
   let http: HttpTestingController;
   let store: RequestStore;
@@ -39,9 +44,14 @@ describe('Dado a lista lateral de mensagens', () => {
   };
 
   beforeEach(async () => {
+    windowClass.set('large');
     TestBed.configureTestingModule({
       imports: [RequestList],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(RequestStore);
@@ -155,21 +165,21 @@ describe('Dado a lista lateral de mensagens', () => {
       'válida',
       { provider: 'github', valid: true, reason: null },
       'ok',
-      'Sig OK',
+      'GitHub',
       'Signature valid: GitHub',
     ],
     [
       'inválida',
       { provider: 'stripe', valid: false, reason: 'signature mismatch' },
       'bad',
-      'Bad sig',
+      'Mismatch',
       'Signature invalid: signature mismatch',
     ],
     [
       'ausente',
       { provider: 'github', valid: false, reason: 'header X-Hub-Signature-256 absent' },
       'bad',
-      'No sig',
+      'No signature',
       'Signature absent: header X-Hub-Signature-256 absent',
     ],
   ] as const)(
@@ -208,7 +218,7 @@ describe('Dado a lista lateral de mensagens', () => {
       [...items()[0].querySelectorAll('.seals app-check-chip')].map((chip) =>
         chip.textContent?.trim(),
       ),
-    ).toEqual(['Sig OK', 'Bad schema', 'Near miss']);
+    ).toEqual(['GitHub', '1 schema error', 'Near miss']);
   });
 
   it('deve emitir a mensagem clicada Quando o usuário clica nela', async () => {
@@ -466,5 +476,34 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(compare.picking()).toBeNull();
     expect(element().querySelector('app-compare-band .band')).toBeNull();
+  });
+
+  // INBOX-13: o selo da regra que respondeu diz o status dela ("201 · Pix").
+  it('deve dizer o status e o nome da regra que respondeu no selo', async () => {
+    const statuses = TestBed.inject(RuleStatusStore);
+    const ensured = statuses.ensure(TOKEN_ID, ['r1']);
+    http
+      .expectOne(`/token/${TOKEN_ID}/rules`)
+      .flush([{ id: 'r1', name: 'Pix', response: { status: 201 } }]);
+    await ensured;
+
+    await load([webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } })]);
+
+    const seal = items()[0].querySelector('.seals app-check-chip[data-kind="rule"]');
+    expect(seal?.textContent?.trim()).toBe('201 · Pix');
+  });
+
+  // INBOX-32/34: no celular, itens de duas linhas (os selos sobem, como na densidade compacta), sem
+  // o IP, e a linha "N requests · newest first" no lugar visível do heading, que fica no documento.
+  it('deve usar o item de duas linhas, sem o IP, e dizer a contagem e a ordem Quando a janela é compacta', async () => {
+    windowClass.set('compact');
+    await load([webhookRequest(1), webhookRequest(2)]);
+
+    expect(element().classList).toContain('compact');
+    expect(items()[0].querySelector('.meta .ip')?.textContent).toContain(webhookRequest(1).ip);
+    const line = element().querySelector('.order-line');
+    expect(line?.textContent?.trim()).toBe('2 requests · newest first');
+    expect(line?.getAttribute('aria-hidden')).toBe('true');
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (2)');
   });
 });
