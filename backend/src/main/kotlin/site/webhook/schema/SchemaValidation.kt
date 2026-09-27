@@ -39,8 +39,15 @@ data class SchemaResult(
 fun SchemaConfig.validate(body: String): SchemaResult {
     val instance = readJson(body) ?: return invalid(SchemaError("", NOT_JSON))
     return try {
-        val errors = compile().validate(instance).take(MAX_SCHEMA_ERRORS)
-        SchemaResult(valid = errors.isEmpty(), errors = errors.map { SchemaError(it.instanceLocation.toString(), it.message) })
+        val (errors, timedOut) = withPatternTimeouts { compile().validate(instance).take(MAX_SCHEMA_ERRORS) }
+        SchemaResult(
+            valid = errors.isEmpty(),
+            errors =
+                errors.map { error ->
+                    val message = if (error.isTimedOutPattern(timedOut)) PATTERN_TIMED_OUT else error.message
+                    SchemaError(error.instanceLocation.toString(), message)
+                },
+        )
     } catch (e: RuntimeException) {
         invalid(SchemaError("", e.reason()))
     } catch (_: StackOverflowError) {

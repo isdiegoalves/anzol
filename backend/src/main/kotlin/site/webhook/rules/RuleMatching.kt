@@ -122,9 +122,7 @@ private fun pathFailure(
         }
 
         is PathMatcher.Matches -> {
-            "path: expected to match ${quote(
-                matcher.regex.pattern,
-            )}, $got".takeUnless { matcher.regex.matches(actual) }
+            matcher.regex.matchFailure("path", actual, got)
         }
     }
 }
@@ -158,9 +156,7 @@ private fun valueFailure(
         }
 
         is FieldMatcher.Matches -> {
-            "$target: expected to match ${quote(
-                matcher.regex.pattern,
-            )}, $got".takeUnless { matcher.regex.matches(actual) }
+            matcher.regex.matchFailure(target, actual, got)
         }
 
         is FieldMatcher.Present -> {
@@ -185,7 +181,7 @@ private fun bodyFailure(
         }
 
         is BodyMatcher.Matches -> {
-            "body: expected to match ${quote(matcher.regex.pattern)}".takeUnless { matcher.regex.matches(input.body) }
+            matcher.regex.matchFailure("body", input.body, got = null)
         }
 
         is BodyMatcher.JsonPathMatch -> {

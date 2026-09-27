@@ -37,13 +37,18 @@ private val schemaMapper: JsonMapper = JsonMapper.builder().build()
 
 /**
  * O validador compartilhado: mensagens em inglês (a biblioteca traduz pelo `Locale` padrão), caminhos em JSON
- * Pointer e o carregador preso aos meta-schemas oficiais.
+ * Pointer, o carregador preso aos meta-schemas oficiais e as regex com teto de custo ([TimedRegularExpressionFactory]).
  */
 private val registry: SchemaRegistry =
     SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12) { builder ->
         builder
-            .schemaRegistryConfig(SchemaRegistryConfig.builder().locale(Locale.ENGLISH).build())
-            .schemaLoader { loader -> loader.allow { iri -> META_SCHEMA_IRI.matches(iri.toString()) } }
+            .schemaRegistryConfig(
+                SchemaRegistryConfig
+                    .builder()
+                    .locale(Locale.ENGLISH)
+                    .regularExpressionFactory(TimedRegularExpressionFactory)
+                    .build(),
+            ).schemaLoader { loader -> loader.allow { iri -> META_SCHEMA_IRI.matches(iri.toString()) } }
     }
 
 /**
