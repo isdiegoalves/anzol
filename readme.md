@@ -26,7 +26,7 @@ e o Spring Boot serve a API e a tela na mesma porta.
 docker compose up -d --build
 ```
 
-Abra <http://localhost:8084>. Os dados do Redis ficam no volume `webhooksite_redis-data` e
+Abra <http://localhost:8084>. Os dados do Redis ficam no volume `anzol_redis-data` e
 sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
 
 ### Configuração
@@ -1092,7 +1092,7 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
    `frontend` → `npm ci`, `ng lint`, `prettier --check .`, `ng test --watch=false`, `ng build`.
 2. **Stack isolado:** `docker compose -p webhookci` com o override `docker-compose.ci.yml` sobe o
    app na porta 8088, com Redis `webhookci-redis` e volume `webhookci_redis-data` próprios. O app da
-   8084 e o Redis `webhook-redis` (dados reais) não são tocados.
+   8084 e o Redis `anzol-redis` (dados reais) não são tocados.
 3. **Integração contra a 8088:** contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E da tela
    (`frontend/e2e`) e aceite do CLI (`tests/cli`, com o CLI do passo 1).
 4. **Fim:** `down -v` do stack isolado (containers, rede, volume e imagem do app), também em falha ou

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Webhook.site reescrito sem mudança de comportamento: backend em `backend/` (Kotlin + Spring Boot),
+Anzol (antes Webhook.site), reescrito sem mudança de comportamento: backend em `backend/` (Kotlin + Spring Boot),
 tela em `frontend/` (Angular), servidos juntos pela imagem do `Dockerfile` da raiz.
 
 - Kotlin em `backend/`: siga `docs/padroes-kotlin.md`. A mudança fecha com `cd backend && ./gradlew check`

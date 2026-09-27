@@ -1,5 +1,5 @@
-# Fixa o nome do projeto (rede webhooksite_default, volume webhooksite_redis-data) seja qual for a pasta.
-name: webhooksite
+# Fixa o nome do projeto (rede anzol_default, volume anzol_redis-data) seja qual for a pasta.
+name: anzol
 
 services:
   app:
@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
 
   redis:
-    container_name: "webhook-redis"
+    container_name: "anzol-redis"
     image: "redis:8.10.2-alpine"
     # Teto de memória: cheio, o Redis recusa gravação (o webhook responde 507) em vez de despejar
     # chaves; nenhum token some. O que já está gravado continua legível. A limpeza por URL
