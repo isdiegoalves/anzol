@@ -14,7 +14,14 @@ import { seedStorage } from './support/storage';
 // máquina de quem roda) ficam sob máscara.
 
 const SECRET = 'segredo-visual';
-const RELOGIO = new Date('2026-09-26T12:00:00Z');
+/**
+ * O relógio do navegador fica parado um minuto à frente do início do teste: as mensagens, criadas logo em seguida,
+ * aparecem sempre como "a minute ago" (entre 45 e 89 s). Com uma data fixa, o tempo relativo ("in 18 hours") mudava
+ * com o dia em que o teste roda. As datas e horas absolutas continuam mascaradas.
+ */
+function relogio(): Date {
+  return new Date(Date.now() + 60_000);
+}
 
 const TEMAS = ['light', 'dark'] as const;
 const CLASSES = [
@@ -231,7 +238,7 @@ for (const colorScheme of TEMAS) {
 
       for (const tela of TELAS) {
         test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens }) => {
-          await page.clock.setFixedTime(RELOGIO);
+          await page.clock.setFixedTime(relogio());
           const mascaras = await tela.abrir(page, tokens);
           await fotografar(page, `${tela.nome}-${colorScheme}-${classe.nome}`, mascaras);
         });
