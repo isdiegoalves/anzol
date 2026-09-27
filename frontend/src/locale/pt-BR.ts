@@ -528,7 +528,7 @@ export const translations: Record<string, string> = {
   // Answered by
   '6717755805798873217': 'Respondida por',
   // Share
-  '7419704019640008953': 'Parcela',
+  '7419704019640008953': 'Compartilhar',
   // Bar
   '6587679027921703718': 'Barra',
   // Near misses

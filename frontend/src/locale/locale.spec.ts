@@ -77,6 +77,22 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
     expect(different).toEqual([]);
   });
 
+  // Os verbos das ações são verbos: "Share" do detalhe é "Compartilhar" (e não "Parcela").
+  it.each([
+    ['Share', 'Compartilhar'],
+    ['Copy', 'Copiar'],
+    ['Copy payload', 'Copiar payload'],
+    ['Copy As', 'Copiar como'],
+    ['Explain', 'Explicar'],
+  ])('deve traduzir a ação "%s" como "%s"', (source, expected) => {
+    const ids = Object.entries(messages)
+      .filter(([, text]) => text === source)
+      .map(([id]) => id);
+
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.map((id) => translations[id])).toEqual(ids.map(() => expected));
+  });
+
   it('não deve guardar traduções de mensagens que saíram da tela', () => {
     expect(Object.keys(translations).filter((id) => !(id in messages))).toEqual([]);
   });
