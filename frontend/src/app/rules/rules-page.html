@@ -87,6 +87,7 @@
           accept="application/json,.json"
           aria-label="Rules JSON file"
           i18n-aria-label
+          tabindex="-1"
           [disabled]="!loaded()"
           (change)="importRules(file)"
         />
@@ -297,6 +298,7 @@
                             ? null
                             : (item.rule.response?.status ?? defaultStatus)
                         "
+                        [fault]="faultShort(item.rule)"
                         [detail]="item.match"
                         [created]="created"
                       />

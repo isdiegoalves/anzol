@@ -33,6 +33,7 @@ import { Viewport } from '../shell/viewport';
 import { Icon } from '../ui/icon';
 import { Split } from '../ui/split';
 import {
+  FAULT_SHORT_LABELS,
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   Rule,
@@ -745,6 +746,12 @@ export class RulesPage {
         duration: 4000,
       });
     }
+  }
+
+  /** O tipo da falha no lugar do status (L11); `null` sem falha. */
+  protected faultShort(rule: Rule): string | null {
+    const fault = rule.response?.fault;
+    return fault ? (FAULT_SHORT_LABELS[fault] ?? fault) : null;
   }
 
   protected priorityTitleOf(rule: Rule): string {

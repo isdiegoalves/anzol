@@ -30,6 +30,37 @@ describe('Dado a mensagem de exemplo do editor (WM-16, E-12)', () => {
     ]);
   });
 
+  // L6: os x-* primeiro, os de transporte (host, content-length, accept…) por último.
+  it('deve pôr os cabeçalhos próprios primeiro e os de transporte no fim', () => {
+    const chegada = webhookRequest(1, {
+      headers: {
+        'content-length': ['42'],
+        host: ['localhost'],
+        'content-type': ['application/json'],
+        accept: ['*/*'],
+        'x-tenant': ['acme'],
+        'user-agent': ['curl/8'],
+        connection: ['close'],
+        'accept-encoding': ['gzip'],
+        'x-request-id': ['r1'],
+      },
+      query: null,
+      content: '',
+    });
+
+    expect(exampleFields(chegada).map(({ path }) => path)).toEqual([
+      'x-tenant',
+      'x-request-id',
+      'content-type',
+      'content-length',
+      'host',
+      'accept',
+      'user-agent',
+      'connection',
+      'accept-encoding',
+    ]);
+  });
+
   it('deve parar em 60 campos e em 4 níveis do corpo', () => {
     const muitos = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`k${i}`, i]));
     const fundo = { a: { b: { c: { d: { e: 1 } } } } };

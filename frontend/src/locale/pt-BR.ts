@@ -2737,4 +2737,12 @@ export const translations: Record<string, string> = {
   '3602575198958243443': '{VAR_PLURAL, plural, =1 {1 apagada} other {{INTERPOLATION} apagadas}}',
   // {VAR_PLURAL, plural, other {{INTERPOLATION} new}}
   '2018068437367180273': '{VAR_PLURAL, plural, =1 {1 nova} other {{INTERPOLATION} novas}}',
+  // TCP RST
+  '4127614586149668823': 'TCP RST',
+  // Empty response
+  '4641971412692797273': 'Resposta vazia',
+  // Malformed chunk
+  '83176253600131737': 'Chunk malformado',
+  // Random data
+  '1501759568592515471': 'Dados aleatórios',
 };

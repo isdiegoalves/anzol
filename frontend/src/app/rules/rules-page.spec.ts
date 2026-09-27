@@ -679,6 +679,10 @@ describe('Dado a página Rules', () => {
       ]);
       expect(flags('r3')).toEqual([['Fault', 'Fault: empty response (close without writing)']]);
       expect(rows()[0]).toEqual(['Rule 1', 'P5', 'POST /r1 · delay 250 ms', '200']);
+      // L11: o selo já diz "Fault"; o lugar do status mostra o tipo, e não um segundo "Fault".
+      expect(document.querySelector('tr[data-rule-id="r3"] .status')?.textContent?.trim()).toBe(
+        'Empty response',
+      );
     });
 
     it('não deve pedir os cenários nem mostrar o painel Quando nenhuma regra usa cenário', async () => {
@@ -761,6 +765,16 @@ describe('Dado a página Rules', () => {
       input.dispatchEvent(new Event('change'));
     };
     const alertText = () => document.querySelector('[role=alert]')?.textContent ?? '';
+
+    // L3: o input de arquivo escondido não é parada do Tab; o "Import" já o aciona.
+    it('deve ir do "Import" direto ao "Export" pelo Tab', async () => {
+      await open([rule(1)]);
+
+      screen.getByRole('button', { name: 'Import' }).focus();
+      await userEvent.tab();
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Export' }));
+    });
 
     it('deve baixar o JSON do GET /rules com o nome da URL Quando "Export" é clicado', async () => {
       await open([rule(1)]);

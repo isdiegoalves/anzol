@@ -53,7 +53,7 @@ export interface RulePosition {
       @if (off()) {
         <span class="off" [attr.title]="offTitle()" i18n>OFF</span>
       }
-      <app-status-code class="status" [status]="status()" error="Fault" i18n-error />
+      <app-status-code class="status" [status]="status()" [error]="fault() ?? faultText" />
     </span>
     <span class="line2 match" [id]="baseId() + '-match'">{{ detail() }}</span>
     @if (hits() !== null) {
@@ -75,6 +75,9 @@ export class RuleItem {
   readonly offTitle = input<string | null>(null);
   /** `null` com falha de rede no lugar da resposta. */
   readonly status = input<number | null>(null);
+  /** O tipo da falha no lugar do status (L11: o selo já diz "Fault"). */
+  readonly fault = input<string | null>(null);
+  protected readonly faultText = $localize`Fault`;
   readonly detail = input('');
   readonly hits = input<string | null>(null);
   /** A linha 3 é a causa de um diagnóstico (nunca casa, sombreada), e não os hits. */

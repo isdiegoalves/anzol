@@ -95,6 +95,14 @@ export const FAULT_LABELS: Record<RuleFault, string> = {
   random_data_then_close: $localize`Random data, then close`,
 };
 
+/** O tipo da falha em poucas palavras, no lugar do status na lista (L11). */
+export const FAULT_SHORT_LABELS: Record<RuleFault, string> = {
+  connection_reset: $localize`:fault kind, short:TCP RST`,
+  empty_response: $localize`:fault kind, short:Empty response`,
+  malformed_chunk: $localize`:fault kind, short:Malformed chunk`,
+  random_data_then_close: $localize`:fault kind, short:Random data`,
+};
+
 export const DELAY_MAX_MS = 60_000;
 export const DRIBBLE_MAX_CHUNKS = 100;
 /** Estado inicial de todo cenário (como na WireMock). */
