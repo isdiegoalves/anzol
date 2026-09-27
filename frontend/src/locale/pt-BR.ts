@@ -1093,18 +1093,12 @@ export const translations: Record<string, string> = {
   '3184700926171002527': 'Qualquer',
   // Path match
   '6229203245897643271': 'Casamento do caminho',
-  // Any path
-  '3108651526003208577': 'Qualquer caminho',
   // Equals
   '6424246633820870206': 'É igual a',
   // Starts with
   '8863611568205528132': 'Começa com',
-  // Matches regex
-  '1660683262139231443': 'Casa com a regex',
   // /payments
   '7235421195392282299': '/payments',
-  // After the URL's token; "" is "/"
-  '7875631797502906881': 'Depois do token da URL; "" é "/"',
   //  The path includes this URL's token. Rule paths are relative to the URL (what comes after /{$INTERPOLATION}), so this rule never matches.
   '5932563079024737539':
     ' O caminho inclui o token desta URL. Os caminhos das regras são relativos à URL (o que vem depois de /{$INTERPOLATION}), então esta regra nunca casa. ',
@@ -1240,16 +1234,10 @@ export const translations: Record<string, string> = {
   '7797929411085924471': "Aritmética: '+', '-', '*', '/'",
   // New rule
   '609790514962379936': 'Nova regra',
-  // Add query condition
-  '2822509143046858985': 'Adicionar condição de query',
-  // Add header condition
-  '2420128804747895988': 'Adicionar condição de cabeçalho',
   // equals
   '3697582909018473071': 'é igual a',
   // contains
   '326106955650253946': 'contém',
-  // matches regex
-  '3599663444722178290': 'casa com a regex',
   // is present
   '9159433559441189171': 'está presente',
   // is absent
@@ -1268,8 +1256,6 @@ export const translations: Record<string, string> = {
   '2251827586065267500': 'O nome é obrigatório.',
   // The priority must be an integer of at least 1.
   '2207428802465937153': 'A prioridade precisa ser um número inteiro de pelo menos 1.',
-  // The path is required.
-  '2667481719713596528': 'O caminho é obrigatório.',
   // The JSONPath is required.
   '5946675482642489113': 'O JSONPath é obrigatório.',
   // The value must be valid JSON.
@@ -2348,4 +2334,106 @@ export const translations: Record<string, string> = {
   '5546546439788139494': 'Mover para antes de {$name}',
   // More actions for {$name}
   '8729238051828358887': 'Mais ações para {$name}',
+  // Not valid JSON: line {$INTERPOLATION}
+  '4806967465749791118': 'JSON inválido: linha {$INTERPOLATION}',
+  // Format JSON
+  '7727411307313638815': 'Formatar JSON',
+  //  Add Content-Type: application/json
+  '3016847253917011809': ' Adicionar Content-Type: application/json ',
+  // Value from the JSON body. Simple paths only ($.a.b[0]).
+  '5309509505649925809': 'Valor do corpo JSON. Só caminhos simples ($.a.b[0]).',
+  // HMAC of a value with the URL's signature secret (sha256, hex by default)
+  '928348241778222891':
+    'HMAC de um valor com o segredo de assinatura da URL (sha256, hex por padrão)',
+  // Insert {$helper}
+  '5789766334463883938': 'Inserir {$helper}',
+  // Use the URL's default content type ({$type})
+  '2428483083374671654': 'Usar o content-type padrão da URL ({$type})',
+  // Use contains
+  '6936085676556518513': 'Usar "contém"',
+  // Can't check here — test against history.
+  '5814477858291137311': 'Não dá para conferir aqui — teste contra o histórico.',
+  // Checked in the browser against the example request; the server decides (Test against history).
+  '8474311635979109501':
+    'Conferido no navegador contra a requisição de exemplo; quem decide é o servidor (Testar contra o histórico).',
+  // Matches "{$value}" · approx.
+  '5800604626736257828': 'Casa "{$value}" · aproximado',
+  // Doesn't match "{$value}" — a regex must cover the whole value.
+  '258208735216943759': 'Não casa "{$value}" — a regex precisa cobrir o valor inteiro.',
+  // Matches regex (whole value)
+  '869703986535961805': 'Casa com regex (valor inteiro)',
+  // Empty: any path. After the URL's token.
+  '7263162362549580026': 'Vazio: qualquer caminho. Depois do token da URL.',
+  //  Add body field (JSONPath)
+  '4394009986034316686': ' Adicionar campo do corpo (JSONPath) ',
+  //  Add header condition
+  '4433328523263320245': ' Adicionar condição de cabeçalho ',
+  //  Add query condition
+  '5090794539046267445': ' Adicionar condição de query ',
+  //  Require invalid signature
+  '4867317813871861421': ' Exigir assinatura inválida ',
+  // Never matches: this URL has no schema.
+  '3211926513376260686': 'Nunca casa: esta URL não tem schema.',
+  // To go back to the form, fix: {$INTERPOLATION}
+  '8101346880063119588': 'Para voltar ao formulário, corrija: {$INTERPOLATION}',
+  // matches regex (whole value)
+  '8416180482197619105': 'casa com regex (valor inteiro)',
+  // In this request: {$value} · approx.
+  '7054898019530027341': 'Nesta requisição: {$value} · aproximado',
+  // Not in this request · approx.
+  '3294585082886741399': 'Não está nesta requisição · aproximado',
+  // Read as JSON
+  '5139151961807640573': 'Lido como JSON',
+  // Read as number {$value}
+  '4365958862567833997': 'Lido como número {$value}',
+  // Read as text "{$value}"
+  '6207110056463736572': 'Lido como texto "{$value}"',
+  // Suggestion applied
+  '8392756175069451017': 'Sugestão aplicada',
+  // From this request
+  '4725489339357598023': 'Desta requisição',
+  // Filter fields
+  '3146169635583212418': 'Filtrar campos',
+  // No field matches the filter.
+  '6891630005770047513': 'Nenhum campo corresponde ao filtro.',
+  // Send a test request to this URL to pick fields from it.
+  '8914673232790370642': 'Mande uma requisição de teste para esta URL para escolher campos dela.',
+  // Use {$path}: {$value}
+  '7537697903847209598': 'Usar {$path}: {$value}',
+  // The suggestion is the same as the rule in the editor.
+  '1189830175344405965': 'A sugestão é igual à regra do editor.',
+  // Dismiss
+  '1536087519743707362': 'Descartar',
+  //  Apply conditions only
+  '5999023799827095398': ' Aplicar só as condições ',
+  // Apply all
+  '3091293284187618147': 'Aplicar tudo',
+  // present
+  '955347580366498573': 'presente',
+  // absent
+  '9014505645678586424': 'ausente',
+  // any path
+  '7757231910273596539': 'qualquer caminho',
+  // any
+  '2296681895307893686': 'qualquer',
+  // method {$from} → {$to}
+  '6021203730821305308': 'método {$from} → {$to}',
+  // path {$from} → {$to}
+  '6576801711635600805': 'caminho {$from} → {$to}',
+  // body conditions changed
+  '8016074541223761152': 'condições do corpo alteradas',
+  // signature
+  '6157864740955181402': 'assinatura',
+  // schema
+  '7808181091236621835': 'schema',
+  // status {$from} → {$to}
+  '2692246892597644818': 'status {$from} → {$to}',
+  // + response header {$name} = {$value}
+  '6722844627728109849': '+ cabeçalho da resposta {$name} = {$value}',
+  // body changed
+  '3596087248925302431': 'corpo alterado',
+  // other response settings changed
+  '5027396356958677874': 'outras configurações da resposta alteradas',
+  //  Never matches: this URL does not check signatures.
+  '7927255546748147807': ' Nunca casa: esta URL não verifica assinaturas. ',
 };

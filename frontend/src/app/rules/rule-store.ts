@@ -53,6 +53,7 @@ export class RuleStore {
   private serverList = '[]';
   /** As mensagens da janela do `rules/test`, lidas uma vez por carga da lista. */
   private recent: Promise<WebhookRequest[]> | null = null;
+  private latest: Promise<WebhookRequest | null> | null = null;
 
   /** A leitura dos hits falhou (ou o servidor não os tem): "Hits unavailable" na lista. */
   readonly hitsFailed = signal(false);
@@ -69,6 +70,7 @@ export class RuleStore {
     this.rules.set([]);
     this.recent = null;
     this.tested.set(new Map());
+    this.latest = null;
     this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
   }
 
@@ -152,6 +154,22 @@ export class RuleStore {
       }
     }
     return requests.slice(0, HISTORY_TEST_WINDOW);
+  }
+
+  /**
+   * A mensagem mais nova da URL (o exemplo do editor, WM-16), ou `null` sem nenhuma. Uma leitura
+   * por carga da lista; falha vira "sem exemplo".
+   */
+  exampleRequest(): Promise<WebhookRequest | null> {
+    const tokenId = this.requireToken();
+    this.latest ??= firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: 1, per_page: 1, sorting: 'newest' },
+      }),
+    )
+      .then((page) => page.data[0] ?? null)
+      .catch(() => null);
+    return this.latest;
   }
 
   /** Uma mensagem da URL (`rules/new?from=`). */

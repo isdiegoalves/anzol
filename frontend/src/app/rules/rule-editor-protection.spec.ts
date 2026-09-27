@@ -1,4 +1,5 @@
-import { provideHttpClient } from '@angular/common/http';
+import { WebhookRequest } from '../requests/webhook-request';
+import { HttpRequest, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
@@ -6,11 +7,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
-import { MatSelectHarness } from '@angular/material/select/testing';
 import { provideRouter } from '@angular/router';
 import type { Mock } from 'vitest';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { RuleDrafts } from './rule-draft';
@@ -25,6 +25,13 @@ const DRAFT_NEW = `draft:${TOKEN_ID}:rule:new`;
  * Proteção do editor (F1): Save e Test nunca desabilitados (WM-12), a guarda de rascunho em toda
  * saída e o rascunho da aba (E-04), os atalhos (WM-13) e a posição da regra nova (E-01, WM-21).
  */
+
+/** `GET /requests` da mensagem mais nova (o exemplo do editor, WM-16). */
+const isLatestRequest = (req: HttpRequest<unknown>) =>
+  req.url.endsWith('/requests') &&
+  req.params.get('sorting') === 'newest' &&
+  req.params.get('per_page') === '1';
+
 describe('Dado o editor de regra com alterações', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<RuleEditor>;
@@ -33,7 +40,11 @@ describe('Dado o editor de regra com alterações', () => {
   let closed: Mock<(saved: boolean) => void>;
   let onServer: Rule[] = [];
 
-  const open = async (data: RuleEditorData, rules: Rule[] = [rule(1)]) => {
+  const open = async (
+    data: RuleEditorData,
+    rules: Rule[] = [rule(1)],
+    latest: WebhookRequest[] = [],
+  ) => {
     onServer = rules;
     const store = TestBed.inject(RuleStore);
     const loaded = store.load(TOKEN_ID);
@@ -44,6 +55,11 @@ describe('Dado o editor de regra com alterações', () => {
     fixture.componentInstance.closed.subscribe(closed);
     loader = TestbedHarnessEnvironment.loader(fixture);
     page = TestbedHarnessEnvironment.documentRootLoader(fixture);
+    await fixture.whenStable();
+    // A mensagem de exemplo (WM-16): a mais nova da URL, quando o editor não recebeu uma.
+    for (const call of http.match(isLatestRequest)) {
+      call.flush(requestPage(latest));
+    }
     await fixture.whenStable();
   };
   const root = () => fixture.nativeElement as HTMLElement;
@@ -58,7 +74,9 @@ describe('Dado o editor de regra com alterações', () => {
   };
   const dialog = () => page.getHarnessOrNull(MatDialogHarness);
   const dialogButton = async (text: string) =>
-    (await page.getHarness(MatDialogHarness)).getHarness(MatButtonHarness.with({ text }));
+    (await vi.waitFor(() => page.getHarness(MatDialogHarness))).getHarness(
+      MatButtonHarness.with({ text }),
+    );
   const key = async (init: KeyboardEventInit, target: EventTarget = document.body) => {
     const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
     target.dispatchEvent(event);
@@ -81,22 +99,19 @@ describe('Dado o editor de regra com alterações', () => {
   describe('Dado o Save e o Test sempre habilitados (WM-12)', () => {
     it('deve abrir a aba do primeiro campo inválido, levar o foco a ele e resumir o que falta', async () => {
       await open({ index: 0 });
-      const pathMode = await loader.getHarness(
-        MatSelectHarness.with({ selector: '[aria-label="Path match"]' }),
-      );
-      await pathMode.open();
-      await pathMode.clickOptions({ text: 'Starts with' });
-      await (await input('Path')).setValue('');
+      await (await button('Add body field (JSONPath)')).click();
       await (await input('Status')).setValue('99');
       (root().querySelector('#rule-tab-test') as HTMLElement).click();
       await fixture.whenStable();
 
       await (await button('Save')).click();
 
-      expect(blockedText()).toBe('To save, fix: Path (required), Status (100–599)');
+      expect(blockedText()).toBe('To save, fix: Body 1 path (required), Status (100–599)');
       expect(root().querySelector('#rule-tab-match')?.getAttribute('aria-selected')).toBe('true');
       await vi.waitFor(() =>
-        expect(document.activeElement).toBe(root().querySelector('input[aria-label="Path"]')),
+        expect(document.activeElement).toBe(
+          root().querySelector('input[aria-label="Body 1 path"]'),
+        ),
       );
       await expectNoAxeViolations(root());
     });
@@ -132,7 +147,7 @@ describe('Dado o editor de regra com alterações', () => {
 
       await (await button('Discard')).click();
 
-      const confirm = await page.getHarness(MatDialogHarness);
+      const confirm = await vi.waitFor(() => page.getHarness(MatDialogHarness));
       expect(await confirm.getTitleText()).toBe('Discard changes?');
       expect(await confirm.getContentText()).toBe('"Rule 1" has unsaved changes.');
       await vi.waitFor(() =>
@@ -322,7 +337,7 @@ describe('Dado o editor de regra com alterações', () => {
       await open({ index: 0 });
       await (await input('Name')).setValue('Mudou');
       await (await button('Discard')).click();
-      await page.getHarness(MatDialogHarness);
+      await vi.waitFor(() => page.getHarness(MatDialogHarness));
 
       await key({ key: 's', ctrlKey: true });
 

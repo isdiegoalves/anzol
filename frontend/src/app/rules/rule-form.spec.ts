@@ -97,7 +97,7 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
     const form: RuleFormValue = {
       ...toFormValue(completa),
       methods: [],
-      pathMode: 'any',
+      path: '',
       query: [],
       headers: [],
       body: [],
@@ -132,7 +132,8 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
       enabled: true,
       priority: 5,
       methods: [],
-      pathMode: 'any',
+      pathMode: 'equals',
+      path: '',
       status: 200,
       responseBody: '',
     });

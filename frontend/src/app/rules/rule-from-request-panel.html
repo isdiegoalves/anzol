@@ -1,0 +1,36 @@
+<section class="panel" role="region" [attr.aria-labelledby]="titleId">
+  <h3 [id]="titleId" i18n>From this request</h3>
+  @if (request()) {
+    <p class="origin">{{ origin() }}</p>
+    <input
+      class="filter"
+      type="search"
+      aria-label="Filter fields"
+      i18n-aria-label
+      placeholder="Filter fields"
+      i18n-placeholder
+      [value]="filter()"
+      (input)="filterFields($event)"
+    />
+    @for (group of groups(); track group.kind) {
+      <h4>{{ group.title }}</h4>
+      <div class="fields">
+        @for (field of group.fields; track field.kind + field.path) {
+          <button
+            type="button"
+            class="field"
+            [attr.aria-label]="useLabel(field)"
+            [title]="useLabel(field)"
+            (click)="picked.emit(field)"
+          >
+            <span class="path">{{ field.path }}:</span> {{ field.display }}
+          </button>
+        }
+      </div>
+    } @empty {
+      <p class="hint" i18n>No field matches the filter.</p>
+    }
+  } @else {
+    <p class="hint" i18n>Send a test request to this URL to pick fields from it.</p>
+  }
+</section>

@@ -1,0 +1,49 @@
+@if (errorLine(); as line) {
+  <p class="note" role="note" i18n>Not valid JSON: line {{ line }}</p>
+}
+@if (!disabled() && (canFormat() || suggestJson())) {
+  <div class="tools">
+    @if (canFormat()) {
+      <button mat-stroked-button type="button" (click)="format()" i18n>Format JSON</button>
+    }
+    @if (suggestJson()) {
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="addHeader.emit({ name: 'Content-Type', value: 'application/json' })"
+        i18n
+      >
+        Add Content-Type: application/json
+      </button>
+      @if (otherDefault(); as type) {
+        <button
+          mat-button
+          type="button"
+          (click)="addHeader.emit({ name: 'Content-Type', value: type })"
+        >
+          {{ useDefaultLabel(type) }}
+        </button>
+      }
+    }
+  </div>
+}
+<!-- Os helpers num <details>; na largura grande, vêm abertos. Cada um entra no cursor do corpo. -->
+<details class="helpers" [open]="helpersOpen()">
+  <summary i18n>Template helpers</summary>
+  <dl>
+    @for (helper of helpers; track helper.name) {
+      <dt>
+        <button
+          type="button"
+          class="insert"
+          [disabled]="disabled()"
+          [attr.aria-label]="insertLabel(helper)"
+          (click)="insert.emit(helper.snippet)"
+        >
+          <code>{{ helper.snippet }}</code>
+        </button>
+      </dt>
+      <dd>{{ helper.description }}</dd>
+    }
+  </dl>
+</details>

@@ -1,4 +1,5 @@
-import { provideHttpClient } from '@angular/common/http';
+import { WebhookRequest } from '../requests/webhook-request';
+import { HttpRequest, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
 import type { Mock } from 'vitest';
@@ -26,6 +27,12 @@ import { RuleStore } from './rule-store';
 
 const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
 
+/** `GET /requests` da mensagem mais nova (o exemplo do editor, WM-16). */
+const isLatestRequest = (req: HttpRequest<unknown>) =>
+  req.url.endsWith('/requests') &&
+  req.params.get('sorting') === 'newest' &&
+  req.params.get('per_page') === '1';
+
 describe('Dado o editor de regra', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<RuleEditor>;
@@ -34,7 +41,11 @@ describe('Dado o editor de regra', () => {
 
   /** A lista que o servidor tem: a guarda do Save a relê antes do `PUT`. */
   let onServer: Rule[] = [];
-  const open = async (data: RuleEditorData, rules: Rule[] = [rule(1)]) => {
+  const open = async (
+    data: RuleEditorData,
+    rules: Rule[] = [rule(1)],
+    latest: WebhookRequest[] = [],
+  ) => {
     onServer = rules;
     const store = TestBed.inject(RuleStore);
     const loaded = store.load(TOKEN_ID);
@@ -44,6 +55,11 @@ describe('Dado o editor de regra', () => {
     fixture.componentRef.setInput('data', data);
     fixture.componentInstance.closed.subscribe(closed);
     loader = TestbedHarnessEnvironment.loader(fixture);
+    await fixture.whenStable();
+    // A mensagem de exemplo (WM-16): a mais nova da URL, quando o editor não recebeu uma.
+    for (const call of http.match(isLatestRequest)) {
+      call.flush(requestPage(latest));
+    }
     await fixture.whenStable();
   };
   const input = (label: string) =>
@@ -282,8 +298,11 @@ describe('Dado o editor de regra', () => {
 
       expect(helpers.open).toBe(true);
       expect(helpers.textContent).toContain("{{jsonPath request.body '$.id'}}");
-      expect(helpers.textContent).toContain("even inside a quoted key ($['a(b)'], $['x?'])");
+      expect(helpers.textContent).toContain(
+        'Value from the JSON body. Simple paths only ($.a.b[0]).',
+      );
       expect(helpers.textContent).toContain("{{randomValue type='UUID'}}");
+      expect(helpers.textContent).toContain('{{hmac request.body}}');
       expect(await savedResponse()).toMatchObject({ template: true });
     });
 
@@ -606,11 +625,14 @@ describe('Dado o editor de regra', () => {
       match: { ...rule(9).match, path: { equals: '/pagamentos' } },
       response: { ...rule(9).response, status: 429, headers: { 'Retry-After': '5' } },
     };
+    const applyAll = async () => (await vi.waitFor(() => button('Apply all'))).click();
     const suggest = async (texto = 'Responda 429 com Retry-After 5 para POST em /pagamentos') => {
       await (await input('Describe the rule')).setValue(texto);
       await (await button('Suggest')).click();
       const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: URL_SUGGEST }));
       call.flush({ rule: sugerida, explanation: 'Responde **429**.', attempts: 1 });
+      // E-13: a proposta só entra no editor com "Apply all".
+      await applyAll();
       await vi.waitFor(async () =>
         expect(await (await input('Name')).getValue()).toBe(sugerida.name),
       );
@@ -668,6 +690,7 @@ describe('Dado o editor de regra', () => {
         explanation: '',
         attempts: 3,
       });
+      await applyAll();
 
       await vi.waitFor(async () =>
         expect(JSON.parse(await (await input('Rule JSON')).getValue())).toEqual(
@@ -688,6 +711,7 @@ describe('Dado o editor de regra', () => {
       const call = await vi.waitFor(() => http.expectOne(URL_SUGGEST));
       expect(call.request.body).toEqual(expect.objectContaining({ request_id: example.uuid }));
       call.flush({ rule: sugerida, explanation: '', attempts: 1 });
+      await applyAll();
       await vi.waitFor(async () =>
         expect(await (await input('Name')).getValue()).toBe(sugerida.name),
       );
@@ -738,7 +762,15 @@ describe('Dado o editor de regra', () => {
       await vi.waitFor(() =>
         expect(document.activeElement).toBe(root().querySelector('.json textarea')),
       );
-      expect(await (await view('Form')).isDisabled()).toBe(true);
+      // WM-04: "Form" nunca desabilitado; o clique fica no JSON e diz o que corrigir.
+      const form = await view('Form');
+      expect(await form.isDisabled()).toBe(false);
+      await form.check();
+      expect(text('[role="alert"]')).toContain(
+        'To go back to the form, fix: name: The name field is required.',
+      );
+      expect(await (await view('JSON')).isChecked()).toBe(true);
+      expect(await (await json()).getValue()).toBe('{"name": ""}');
     });
 
     it('deve levar o JSON editado ao formulário Quando volta para a aba "Form"', async () => {

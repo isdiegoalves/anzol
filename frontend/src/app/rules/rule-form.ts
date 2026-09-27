@@ -23,7 +23,8 @@ import {
 export const TEXT_OPERATORS = ['equals', 'contains', 'regex'] as const;
 export type TextOperator = (typeof TEXT_OPERATORS)[number];
 export type ValueOperator = TextOperator | 'present' | 'absent';
-export type PathMode = 'any' | TextOperator | 'prefix';
+/** Como o caminho casa; com o caminho vazio, qualquer um casa (WM-14). */
+export type PathMode = 'equals' | 'prefix' | 'regex';
 export type BodyType = TextOperator | 'jsonPath' | 'equalToJson';
 
 export interface ConditionRow {
@@ -113,14 +114,15 @@ export function newRule(): Rule {
 export function toFormValue(rule: Rule): RuleFormValue {
   const match = rule.match ?? {};
   const path = match.path ?? null;
-  const pathMode = path ? (Object.keys(path)[0] as PathMode) : 'any';
+  const pathMode = path ? (Object.keys(path)[0] as PathMode) : 'equals';
   return {
     name: rule.name ?? '',
     enabled: rule.enabled ?? true,
     priority: rule.priority ?? RULE_DEFAULT_PRIORITY,
     methods: [...(match.method ?? [])],
     pathMode,
-    path: path ? Object.values(path)[0] : '',
+    // `equals ""` é a raiz, como "/"; vazio no formulário passou a ser qualquer caminho.
+    path: path ? Object.values(path)[0] || (pathMode === 'equals' ? '/' : '') : '',
     query: conditionRows(match.query),
     headers: conditionRows(match.headers),
     body: (match.body ?? []).map(bodyRow),
@@ -198,7 +200,8 @@ export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
   const match = {
     ...base.match,
     method: [...form.methods],
-    path: form.pathMode === 'any' ? null : ({ [form.pathMode]: form.path } as PathMatcher),
+    // Caminho vazio = qualquer caminho (WM-14): o modo só vale com texto.
+    path: form.path === '' ? null : ({ [form.pathMode]: form.path } as PathMatcher),
     query: conditionMap(form.query),
     headers: conditionMap(form.headers),
     body: form.body.map(bodyMatcher),

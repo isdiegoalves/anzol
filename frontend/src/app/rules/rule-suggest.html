@@ -57,13 +57,32 @@
     </div>
   }
   @if (result(); as suggestion) {
-    <div class="result" role="status" aria-label="Suggestion" i18n-aria-label>
+    <!-- Proposta, não substituição (E-13): nada muda no editor até "Apply". -->
+    <section class="result" role="region" aria-label="Suggestion" i18n-aria-label>
       <p i18n class="attempts">
         Suggested in
         {suggestion.attempts, plural, =1 {1 attempt} other {{{ suggestion.attempts }} attempts}}.
         Review the rule below and click Save to keep it.
       </p>
+      @if (pending()) {
+        @if (changes().length > 0) {
+          <ul class="changes">
+            @for (change of changes(); track $index) {
+              <li>{{ change }}</li>
+            }
+          </ul>
+        } @else {
+          <p i18n>The suggestion is the same as the rule in the editor.</p>
+        }
+        <div class="actions">
+          <button mat-button type="button" (click)="dismiss()" i18n>Dismiss</button>
+          <button mat-stroked-button type="button" (click)="apply(true)" i18n>
+            Apply conditions only
+          </button>
+          <button mat-flat-button type="button" (click)="apply(false)" i18n>Apply all</button>
+        </div>
+      }
       <app-markdown [text]="suggestion.explanation" />
-    </div>
+    </section>
   }
 </details>

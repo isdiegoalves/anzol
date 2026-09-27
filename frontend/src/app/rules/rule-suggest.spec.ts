@@ -10,9 +10,8 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
-import { Rule } from './rule';
 import { AI_WAIT_HINT } from '../ai/ai-client';
-import { RuleSuggest } from './rule-suggest';
+import { RuleSuggest, SuggestionApply } from './rule-suggest';
 
 const URL_SUGGEST = `/token/${TOKEN_ID}/rules/suggest`;
 
@@ -20,14 +19,14 @@ describe('Dado o "Describe the rule"', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<RuleSuggest>;
   let loader: HarnessLoader;
-  let suggested: Rule[];
+  let suggested: SuggestionApply[];
 
   const render = async (example?: WebhookRequest) => {
     fixture = TestBed.createComponent(RuleSuggest);
     fixture.componentRef.setInput('tokenId', TOKEN_ID);
     fixture.componentRef.setInput('example', example);
     suggested = [];
-    fixture.componentInstance.suggested.subscribe((value) => suggested.push(value));
+    fixture.componentInstance.applied.subscribe((value) => suggested.push(value));
     loader = TestbedHarnessEnvironment.loader(fixture);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
@@ -83,12 +82,48 @@ describe('Dado o "Describe the rule"', () => {
     expect(await (await suggestButton()).isDisabled()).toBe(true);
 
     call.flush({ rule: rule(7), explanation: 'Responde **429**.', attempts: 2 });
-    await vi.waitFor(() => expect(suggested).toEqual([rule(7)]));
-    await fixture.whenStable();
+    await vi.waitFor(() =>
+      expect(element.querySelector('[role="region"][aria-label="Suggestion"]')).not.toBeNull(),
+    );
     expect(element.querySelector('.wait')).toBeNull();
     const result = element.querySelector('[aria-label="Suggestion"]') as HTMLElement;
     expect(text(result)).toContain('Suggested in 2 attempts.');
     expect(result.querySelector('strong')?.textContent).toBe('429');
+    // E-13: a proposta só entra quando o dono aplica.
+    expect(suggested).toEqual([]);
+    await expectNoAxeViolations(element);
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Apply all' }))).click();
+    expect(suggested).toEqual([{ rule: rule(7), conditionsOnly: false }]);
+    expect(result.querySelector('.changes')).toBeNull();
+    expect(text(result)).toContain('Suggested in 2 attempts.');
+  });
+
+  it('deve listar o que muda na regra do editor, aplicar só as condições ou descartar (E-13)', async () => {
+    const element = await render();
+    fixture.componentRef.setInput('current', rule(1));
+    const proposta = rule(1, {
+      match: { ...rule(1).match, headers: { 'x-tenant': { equals: 'acme' } } },
+      response: { ...rule(1).response, status: 429, body: '{}' },
+    });
+    await describeRule('429 para acme');
+    await (await suggestButton()).click();
+    (await post()).flush({ rule: proposta, explanation: '', attempts: 1 });
+
+    await vi.waitFor(() => expect(element.querySelector('.changes')).not.toBeNull());
+    expect(
+      [...element.querySelectorAll('.changes li')].map((li) => text(li as HTMLElement)),
+    ).toEqual(['+ header x-tenant = acme', 'status 201 → 429', 'body changed']);
+    await (
+      await loader.getHarness(MatButtonHarness.with({ text: 'Apply conditions only' }))
+    ).click();
+    expect(suggested).toEqual([{ rule: proposta, conditionsOnly: true }]);
+
+    await (await suggestButton()).click();
+    (await post()).flush({ rule: proposta, explanation: '', attempts: 1 });
+    await vi.waitFor(() => expect(element.querySelector('.changes')).not.toBeNull());
+    await (await loader.getHarness(MatButtonHarness.with({ text: 'Dismiss' }))).click();
+    expect(element.querySelector('[aria-label="Suggestion"]')).toBeNull();
+    expect(suggested).toHaveLength(1);
   });
 
   it('deve mandar o id da mensagem aberta Quando "use the open request as example" está marcado', async () => {
@@ -103,7 +138,10 @@ describe('Dado o "Describe the rule"', () => {
       expect.objectContaining({ prompt: 'igual a esta', request_id: example.uuid }),
     );
     call.flush({ rule: rule(1), explanation: '', attempts: 1 });
-    await vi.waitFor(() => expect(suggested).toHaveLength(1));
+    await (
+      await vi.waitFor(() => loader.getHarness(MatButtonHarness.with({ text: 'Apply all' })))
+    ).click();
+    expect(suggested).toHaveLength(1);
   });
 
   it('deve não oferecer o exemplo Quando não há mensagem aberta', async () => {

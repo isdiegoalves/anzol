@@ -81,7 +81,8 @@
       [tokenId]="tokenId() ?? ''"
       [example]="data().example"
       [open]="data().openSuggest ?? false"
-      (suggested)="applySuggestion($event)"
+      [current]="currentRule()"
+      (applied)="applySuggestion($event)"
     />
 
     @if (view() === formView) {
@@ -148,10 +149,9 @@
                         aria-label="Path match"
                         i18n-aria-label
                       >
-                        <mat-option value="any" i18n>Any path</mat-option>
                         <mat-option value="equals" i18n>Equals</mat-option>
                         <mat-option value="prefix" i18n>Starts with</mat-option>
-                        <mat-option value="regex" i18n>Matches regex</mat-option>
+                        <mat-option value="regex" i18n>Matches regex (whole value)</mat-option>
                       </mat-select>
                     </mat-form-field>
                     <mat-form-field class="grow">
@@ -165,12 +165,17 @@
                         placeholder="/payments"
                         i18n-placeholder
                       />
-                      <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
-                      <mat-error>{{
-                        errorOf(form.controls.path, messages.pathRequired)
-                      }}</mat-error>
+                      <mat-hint i18n>Empty: any path. After the URL's token.</mat-hint>
+                      <mat-error>{{ errorOf(form.controls.path, '') }}</mat-error>
                     </mat-form-field>
                   </div>
+                  @if (form.controls.pathMode.value === 'regex') {
+                    <app-rule-condition-hint
+                      [pattern]="form.controls.path.value"
+                      [value]="examplePathValue()"
+                      [canUseContains]="false"
+                    />
+                  }
                   @if (pathFix() !== null) {
                     <div class="notice path-warning" role="alert">
                       <p i18n>
@@ -185,7 +190,7 @@
                 </div>
                 <app-condition-result
                   [key]="'match.path'"
-                  [result]="result('match.path', form.controls.pathMode.value !== 'any')"
+                  [result]="result('match.path', form.controls.path.value !== '')"
                   [recorded]="recordedMisses('match.path')"
                 />
               </div>
@@ -194,7 +199,11 @@
                 @let rows = form.controls[section.list].controls;
                 <div class="cond">
                   <h3>{{ section.title }}</h3>
-                  <div class="controls" [formArrayName]="section.list">
+                  <div
+                    class="controls"
+                    [formArrayName]="section.list"
+                    [attr.data-list]="section.list"
+                  >
                     @for (row of rows; track row; let i = $index) {
                       <div class="line row" [formGroupName]="i">
                         <mat-form-field>
@@ -245,11 +254,16 @@
                           [result]="result(rowKey(section.list, row), true)"
                           [recorded]="recordedMisses(rowKey(section.list, row))"
                         />
+                        @if (row.controls.operator.value === 'regex') {
+                          <app-rule-condition-hint
+                            class="tester"
+                            [pattern]="row.controls.value.value"
+                            [value]="exampleValue(section.list, row.controls.name.value)"
+                            (useContains)="useContains(row.controls.operator)"
+                          />
+                        }
                       </div>
                     }
-                    <button mat-button type="button" (click)="addCondition(section.list)">
-                      {{ section.add }}
-                    </button>
                   </div>
                   @if (rows.length === 0) {
                     <app-condition-result
@@ -262,7 +276,7 @@
 
               <div class="cond">
                 <h3 i18n>Body</h3>
-                <div class="controls" formArrayName="body">
+                <div class="controls" formArrayName="body" [attr.data-list]="'body'">
                   @for (row of form.controls.body.controls; track row; let i = $index) {
                     <div class="line row" [formGroupName]="i">
                       <mat-form-field>
@@ -298,9 +312,16 @@
                             i18n-placeholder
                             [attr.aria-label]="bodyLabels(i + 1).equals"
                           />
-                          <mat-hint i18n>Empty: the path exists</mat-hint>
+                          @if (readAsText(row.controls.equals.value); as read) {
+                            <mat-hint>{{ read }}</mat-hint>
+                          } @else {
+                            <mat-hint i18n>Empty: the path exists</mat-hint>
+                          }
                           <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
                         </mat-form-field>
+                        @if (exampleAtPath(row.controls.path.value); as found) {
+                          <p class="tester hint" [title]="approxTitle">{{ found }}</p>
+                        }
                       } @else {
                         <mat-form-field class="grow">
                           @if (row.controls.type.value === 'equalToJson') {
@@ -334,11 +355,16 @@
                         [result]="result('match.body.' + i, true)"
                         [recorded]="recordedMisses('match.body.' + i)"
                       />
+                      @if (row.controls.type.value === 'regex') {
+                        <app-rule-condition-hint
+                          class="tester"
+                          [pattern]="row.controls.value.value"
+                          [value]="example()?.content ?? null"
+                          (useContains)="useContains(row.controls.type)"
+                        />
+                      }
                     </div>
                   }
-                  <button mat-button type="button" (click)="addBodyCondition()" i18n>
-                    Add body condition
-                  </button>
                 </div>
                 @if (form.controls.body.length === 0) {
                   <app-condition-result
@@ -346,6 +372,25 @@
                     [result]="result('match.body', false)"
                   />
                 }
+              </div>
+
+              <!-- Chips de adicionar (WM-14): cada um abre a condição com o operador mais comum. -->
+              <div class="add-conditions">
+                <button mat-stroked-button type="button" (click)="addBodyField()" i18n>
+                  Add body field (JSONPath)
+                </button>
+                <button mat-stroked-button type="button" (click)="addCondition('headers')" i18n>
+                  Add header condition
+                </button>
+                <button mat-stroked-button type="button" (click)="addCondition('query')" i18n>
+                  Add query condition
+                </button>
+                <button mat-stroked-button type="button" (click)="addBodyCondition()" i18n>
+                  Add body condition
+                </button>
+                <button mat-stroked-button type="button" (click)="requireInvalidSignature()" i18n>
+                  Require invalid signature
+                </button>
               </div>
 
               <div class="cond">
@@ -371,6 +416,11 @@
                       >Set up in Checks</a
                     >
                   </p>
+                  @if (neverMatches('signature')) {
+                    <p class="notice" role="note" i18n>
+                      Never matches: this URL does not check signatures.
+                    </p>
+                  }
                   @if (serverError(form.controls.signature); as error) {
                     <p class="field-error" [attr.data-for]="'signature'">{{ error }}</p>
                   }
@@ -405,6 +455,9 @@
                       >Set up in Checks</a
                     >
                   </p>
+                  @if (neverMatches('schema')) {
+                    <p class="notice" role="note" i18n>Never matches: this URL has no schema.</p>
+                  }
                   @if (serverError(form.controls.schema); as error) {
                     <p class="field-error" [attr.data-for]="'schema'">{{ error }}</p>
                   }
@@ -416,13 +469,16 @@
                 />
               </div>
             </div>
-            <app-against-history
-              class="against"
-              [result]="historyTest()"
-              [canTest]="canTest()"
-              (testAgain)="testAgainstHistory()"
-              (allResults)="selectTab('test')"
-            />
+            <div class="side">
+              <app-rule-from-request-panel [request]="example()" (picked)="useField($event)" />
+              <app-against-history
+                class="against"
+                [result]="historyTest()"
+                [canTest]="canTest()"
+                (testAgain)="testAgainstHistory()"
+                (allResults)="selectTab('test')"
+              />
+            </div>
           </div>
         </div>
 
@@ -500,7 +556,7 @@
             mat-button
             type="button"
             [disabled]="faulted()"
-            (click)="addResponseHeader()"
+            (click)="addResponseHeader({ name: '', value: '' })"
             i18n
           >
             Add response header
@@ -521,18 +577,22 @@
             ></textarea>
             <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
           </mat-form-field>
-          <!-- Os helpers continuam num <details>; na largura grande, vêm abertos. -->
-          <details class="helpers" [open]="wide()">
-            <summary i18n>Template helpers</summary>
-            <dl>
-              @for (helper of helpers; track helper.example) {
-                <dt>
-                  <code>{{ helper.example }}</code>
-                </dt>
-                <dd>{{ helper.description }}</dd>
-              }
-            </dl>
-          </details>
+          <app-rule-body-tools
+            [body]="form.controls.responseBody.value"
+            [template]="form.controls.template.value"
+            [hasContentType]="hasContentType()"
+            [defaultType]="defaultContentType()"
+            [helpersOpen]="wide()"
+            [disabled]="faulted()"
+            (formatted)="setBody($event)"
+            (addHeader)="addResponseHeader($event)"
+            (insert)="insertIntoBody($event)"
+          />
+          <app-rule-from-request-panel
+            class="from-request"
+            [request]="example()"
+            (picked)="insertField($event)"
+          />
 
           <h3 i18n>Delay</h3>
           <div class="line row">
@@ -731,6 +791,9 @@
         <span class="spacer"></span>
         <ng-container [ngTemplateOutlet]="barActions" />
       </div>
+      @if (backToFormError(); as error) {
+        <p class="notice" role="alert" i18n>To go back to the form, fix: {{ error }}</p>
+      }
       <mat-form-field class="full json">
         <mat-label i18n>Rule JSON</mat-label>
         <textarea
@@ -765,17 +828,17 @@
   >
     Test against history
   </button>
+  <!-- "Form" nunca desabilitado (WM-04): com o JSON inválido, o clique diz o que corrigir. -->
   <mat-button-toggle-group
+    #viewGroup="matButtonToggleGroup"
     class="view"
     aria-label="Editor view"
     i18n-aria-label
     hideSingleSelectionIndicator
     [value]="view()"
-    (change)="switchView($event.value)"
+    (change)="switchView($event.value, viewGroup)"
   >
-    <mat-button-toggle i18n [value]="formView" [disabled]="view() === jsonView && json.invalid"
-      >Form</mat-button-toggle
-    >
+    <mat-button-toggle i18n [value]="formView">Form</mat-button-toggle>
     <mat-button-toggle i18n [value]="jsonView">JSON</mat-button-toggle>
   </mat-button-toggle-group>
 </ng-template>

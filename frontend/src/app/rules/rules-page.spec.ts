@@ -97,6 +97,10 @@ describe('Dado a página Rules', () => {
 
   afterEach(() => {
     windowClass.set('large');
+    // O editor aberto lê a mensagem mais nova como exemplo (WM-16, F3): não é assunto da lista.
+    http.match(
+      (req) => req.params.get('sorting') === 'newest' && req.params.get('per_page') === '1',
+    );
     http.verify();
     localStorage.clear();
     vi.restoreAllMocks();

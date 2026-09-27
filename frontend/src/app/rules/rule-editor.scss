@@ -260,30 +260,29 @@ h3 {
   margin: 16px 0 0;
 }
 
-.helpers {
-  margin-bottom: 8px;
+// Coluna da aba Match: "From this request" e "Against history" empilhados.
+.side {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
 
-  summary {
-    cursor: pointer;
-    color: var(--mat-sys-primary);
-  }
+// Chips de adicionar condição (WM-14) e o testador que fica sob a linha (E-12).
+.add-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
 
-  dl {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 4px 16px;
-    margin: 8px 0 0;
-  }
+.tester {
+  flex-basis: 100%;
+  margin: -12px 0 8px;
+}
 
-  dt,
-  dd {
-    margin: 0;
-  }
-
-  code {
-    font-family: var(--app-code-family);
-    font-size: 12px;
-  }
+.from-request {
+  display: block;
+  margin-bottom: 12px;
 }
 
 .json {

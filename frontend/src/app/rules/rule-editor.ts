@@ -27,14 +27,14 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { ErrorStateMatcher } from '@angular/material/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { merge } from 'rxjs';
-import { NgTemplateOutlet } from '@angular/common';
-import { RuleSuggest } from './rule-suggest';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { RuleSuggest, SuggestionApply } from './rule-suggest';
 import { RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
@@ -79,12 +79,22 @@ import {
 } from './rule-form';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 import { RuleEditorHeader } from './rule-editor-header';
+import { RuleBodyTools } from './rule-body-tools';
+import { RuleConditionHint } from './rule-condition-hint';
+import {
+  ExampleField,
+  exampleHeader,
+  examplePath,
+  exampleQuery,
+  readAs,
+  valueAtPath,
+} from './rule-example';
+import { RuleFromRequestPanel } from './rule-from-request-panel';
 import { EditorTab, RuleTabs } from './rule-tabs';
 import { AgainstHistory } from './against-history';
 import { ConditionResult, ConditionResultChip } from './condition-result';
 import { ruleWordSegments } from './rule-words';
 import { ScenarioPanel } from './scenario-panel';
-import { confirmDiscard } from './rule-dialogs';
 import { RuleDraft, RuleDrafts, withoutSecrets } from './rule-draft';
 import { InvalidField, invalidFields } from './rule-validation';
 
@@ -138,37 +148,6 @@ const integer = Validators.pattern(/^\d+$/);
 /** Milissegundos de atraso ou de dribble: inteiro de 0 ao teto de 60 s. */
 const ms = [Validators.required, Validators.min(0), Validators.max(DELAY_MAX_MS), integer];
 
-/** Cola dos helpers de template (Anexo B), com um exemplo de cada. */
-const TEMPLATE_HELPERS: { example: string; description: string }[] = [
-  { example: '{{request.method}}', description: $localize`HTTP method` },
-  { example: '{{request.path}}', description: $localize`Path after the URL's token` },
-  { example: '{{request.url}}', description: $localize`Full URL` },
-  { example: '{{request.query.id}}', description: $localize`Query parameter "id"` },
-  {
-    example: '{{request.headers.authorization}}',
-    description: $localize`Header, name in lowercase`,
-  },
-  { example: '{{request.body}}', description: $localize`Raw request body` },
-  { example: '{{seq}}', description: $localize`Sequence number of the request` },
-  {
-    example: "{{jsonPath request.body '$.id'}}",
-    description:
-      "Value from the JSON body (objects and lists come out as JSON). Simple paths only: '..', '?' and '(' " +
-      "are refused anywhere in the path, even inside a quoted key ($['a(b)'], $['x?'])",
-  },
-  { example: '{{now}}', description: $localize`Current time, ISO-8601 UTC` },
-  {
-    example: "{{now format='yyyy-MM-dd'}}",
-    description: $localize`Current time, Java date pattern`,
-  },
-  { example: "{{randomValue type='UUID'}}", description: $localize`Random UUID` },
-  {
-    example: "{{randomValue type='ALPHANUMERIC' length=8}}",
-    description: $localize`Random text: ALPHANUMERIC, NUMERIC or HEX (length 16 by default)`,
-  },
-  { example: "{{math seq '*' 10}}", description: $localize`Arithmetic: '+', '-', '*', '/'` },
-];
-
 /** Erro assim que o campo fica inválido, sem esperar o blur (JSON digitado e erros do servidor). */
 const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.invalid };
 
@@ -203,6 +182,9 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     RuleSuggest,
     NgTemplateOutlet,
     ScenarioPanel,
+    RuleFromRequestPanel,
+    RuleConditionHint,
+    RuleBodyTools,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',
@@ -214,9 +196,10 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
 export class RuleEditor {
   private readonly store = inject(RuleStore);
   private readonly drafts = inject(RuleDrafts);
-  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly document = inject(DOCUMENT);
   private readonly tokens = inject(TokenStore);
   private readonly viewport = inject(Viewport);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -264,8 +247,9 @@ export class RuleEditor {
     enabled: [true],
     priority: [0, [Validators.required, Validators.min(1), integer]],
     methods: [[] as string[]],
-    pathMode: ['any' as PathMode],
-    path: ['', Validators.required],
+    pathMode: ['equals' as PathMode],
+    // Vazio = qualquer caminho (WM-14).
+    path: [''],
     query: this.formBuilder.array<ConditionGroup>([]),
     headers: this.formBuilder.array<ConditionGroup>([]),
     body: this.formBuilder.array<BodyGroup>([]),
@@ -306,6 +290,14 @@ export class RuleEditor {
   protected readonly json = this.formBuilder.control('', ruleJsonValidator);
 
   protected readonly view = signal(FORM_VIEW);
+  /** "Form" clicado com o JSON inválido (WM-04): o primeiro erro, para "To go back to the form, fix:". */
+  protected readonly backToFormError = signal<string | null>(null);
+  /**
+   * Mensagem de exemplo (WM-16, E-12): a de `?from=` ou a aberta na Inbox, senão a mais nova da
+   * URL; `null` sem nenhuma.
+   */
+  protected readonly example = signal<WebhookRequest | null>(null);
+  protected readonly approxTitle = $localize`Checked in the browser against the example request; the server decides (Test against history).`;
   protected readonly tab = signal<EditorTab>('match');
   /** Muda a cada edição do formulário ou do JSON: recalcula a frase e o aviso do caminho. */
   private readonly edits = signal(0);
@@ -346,6 +338,12 @@ export class RuleEditor {
   protected readonly tokenId = this.store.tokenId;
 
   /** A regra "em palavras", da visão aberta, em pedaços com destaque; `null` com o JSON inválido. */
+  /** A regra da visão aberta, a cada edição (a lista de mudanças da sugestão, E-13). */
+  protected readonly currentRule = computed(() => {
+    this.edits();
+    this.view();
+    return this.editedRule();
+  });
   protected readonly words = computed(() => {
     this.edits();
     this.view();
@@ -356,7 +354,7 @@ export class RuleEditor {
   protected readonly pathFix = computed(() => {
     this.edits();
     const { pathMode, path } = this.form.controls;
-    return this.view() === FORM_VIEW && pathMode.value !== 'any'
+    return this.view() === FORM_VIEW && path.value !== '' && pathMode.value !== 'regex'
       ? pathWithoutToken(path.value, this.tokenId() ?? '')
       : null;
   });
@@ -391,20 +389,20 @@ export class RuleEditor {
     return fault.value !== 'none' ? 'fault' : String(status.value ?? RULE_DEFAULT_STATUS);
   });
   protected readonly conditionSections = [
-    { list: 'query', title: $localize`Query`, add: $localize`Add query condition` },
-    { list: 'headers', title: $localize`Headers`, add: $localize`Add header condition` },
+    { list: 'query', title: $localize`Query` },
+    { list: 'headers', title: $localize`Headers` },
   ] as const;
   protected readonly valueOperators: { value: ValueOperator; label: string }[] = [
     { value: 'equals', label: $localize`equals` },
     { value: 'contains', label: $localize`contains` },
-    { value: 'regex', label: $localize`matches regex` },
+    { value: 'regex', label: $localize`matches regex (whole value)` },
     { value: 'present', label: $localize`is present` },
     { value: 'absent', label: $localize`is absent` },
   ];
   protected readonly bodyTypes: { value: BodyType; label: string }[] = [
     { value: 'equals', label: $localize`Equals` },
     { value: 'contains', label: $localize`Contains` },
-    { value: 'regex', label: $localize`Matches regex` },
+    { value: 'regex', label: $localize`Matches regex (whole value)` },
     { value: 'jsonPath', label: 'JSONPath' },
     { value: 'equalToJson', label: $localize`Equal to JSON` },
   ];
@@ -429,14 +427,12 @@ export class RuleEditor {
     { value: 'none', label: $localize`None` },
     ...RULE_FAULTS.map((fault) => ({ value: fault, label: FAULT_LABELS[fault] })),
   ];
-  protected readonly helpers = TEMPLATE_HELPERS;
   protected readonly delayMax = DELAY_MAX_MS;
   protected readonly msError = $localize`An integer between 0 and ${DELAY_MAX_MS} (ms).`;
   /** Mensagens de validação quando o servidor não mandou a dele (`errorOf`). */
   protected readonly messages = {
     nameRequired: $localize`The name is required.`,
     priority: $localize`The priority must be an integer of at least 1.`,
-    pathRequired: $localize`The path is required.`,
     jsonPathRequired: $localize`The JSONPath is required.`,
     validJson: $localize`The value must be valid JSON.`,
     status: $localize`The status must be an integer between 100 and 599.`,
@@ -450,9 +446,7 @@ export class RuleEditor {
   protected readonly jsonView = JSON_VIEW;
 
   constructor() {
-    const { pathMode, fault, delayType, dribble, scenarioName, delayMin, delayMax } =
-      this.form.controls;
-    pathMode.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncPath());
+    const { fault, delayType, dribble, scenarioName, delayMin, delayMax } = this.form.controls;
     for (const control of [fault, delayType, dribble] as AbstractControl[]) {
       control.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncResponse());
     }
@@ -511,6 +505,14 @@ export class RuleEditor {
     this.edits.update((n) => n + 1);
     this.editing.set(saved ?? null);
     this.offerDraft(saved?.id);
+    this.example.set(data.example ?? null);
+    if (!data.example) {
+      void this.store.exampleRequest().then((request) => {
+        if (this.data() === data) {
+          this.example.set(request);
+        }
+      });
+    }
   }
 
   /** O rascunho desta regra na aba, se ele difere do que abriu (senão, não há o que restaurar). */
@@ -593,13 +595,16 @@ export class RuleEditor {
     // A regra salva pelo nome salvo (o da lista); a nova, pelo que já tem no campo.
     const name =
       this.editing()?.name || this.form.controls.name.value.trim() || $localize`New rule`;
-    this.confirming ??= confirmDiscard(this.injector, name).then((discard) => {
-      this.confirming = null;
-      if (discard) {
-        this.leave();
-      }
-      return discard;
-    });
+    // O diálogo (e o MatDialog) vêm sob demanda: ficam fora do pedaço de Regras.
+    this.confirming ??= import('./rule-dialogs')
+      .then(({ confirmDiscard }) => confirmDiscard(this.injector, name))
+      .then((discard) => {
+        this.confirming = null;
+        if (discard) {
+          this.leave();
+        }
+        return discard;
+      });
     return this.confirming;
   }
 
@@ -620,7 +625,7 @@ export class RuleEditor {
    * uma lista de opções (evento tratado) não fecha o editor.
    */
   protected handleShortcut(event: KeyboardEvent): void {
-    if (this.dialog.openDialogs.length > 0) {
+    if (this.document.querySelector('mat-dialog-container')) {
       return;
     }
     const modifier = event.ctrlKey || event.metaKey;
@@ -814,6 +819,18 @@ export class RuleEditor {
   }
 
   /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */
+  /**
+   * A condição exige assinatura (ou schema) e a URL não verifica: a regra nunca casa (E-11, J3).
+   * Com a URL ainda não lida, nada se afirma.
+   */
+  protected neverMatches(kind: 'signature' | 'schema'): boolean {
+    const token = this.tokens.token();
+    if (!token || this.form.controls[kind].value === 'any') {
+      return false;
+    }
+    return kind === 'signature' ? !token.signature?.provider : !token.schema;
+  }
+
   protected schemaOrigin(): string {
     return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not validated`;
   }
@@ -841,14 +858,30 @@ export class RuleEditor {
     this.form.controls[list].push(this.conditionGroup({ name: '', operator: 'equals', value: '' }));
   }
 
+  /** "Add body field (JSONPath)": a condição mais comum do corpo (WM-14). */
+  protected addBodyField(): void {
+    this.form.controls.body.push(
+      this.bodyGroup({ type: 'jsonPath', value: '', path: '', equals: '' }),
+    );
+  }
+
+  /** "Require invalid signature": o segmentado da assinatura vai para Invalid. */
+  protected requireInvalidSignature(): void {
+    const signature = this.form.controls.signature;
+    signature.markAsDirty();
+    signature.setValue('invalid');
+  }
+
   protected addBodyCondition(): void {
     this.form.controls.body.push(
       this.bodyGroup({ type: 'contains', value: '', path: '', equals: '' }),
     );
   }
 
-  protected addResponseHeader(): void {
-    this.form.controls.responseHeaders.push(this.headerGroup({ name: '', value: '' }));
+  protected addResponseHeader(header: HeaderRow): void {
+    const headers = this.form.controls.responseHeaders;
+    headers.markAsDirty();
+    headers.push(this.headerGroup(header));
   }
 
   protected removeRow(list: 'query' | 'headers' | 'body' | 'responseHeaders', index: number): void {
@@ -859,30 +892,201 @@ export class RuleEditor {
    * Formulário → JSON mostra a regra montada; JSON → formulário leva o JSON editado (o botão
    * "Form" fica desabilitado enquanto o JSON é inválido).
    */
-  protected switchView(index: number): void {
+  protected switchView(index: number, group: MatButtonToggleGroup): void {
+    this.backToFormError.set(null);
     if (index === JSON_VIEW) {
       this.json.setValue(JSON.stringify(this.formRule(), null, 2));
     } else {
-      const { rule } = parseRuleJson(this.json.value);
-      if (rule) {
-        this.base = rule;
-        this.loadForm(rule);
+      const { rule, errors } = parseRuleJson(this.json.value);
+      if (!rule) {
+        // "Form" nunca desabilitado (WM-04): fica no JSON e diz o que corrigir.
+        group.value = JSON_VIEW;
+        this.backToFormError.set(errors[0] ?? null);
+        afterNextRender(() => this.host.querySelector<HTMLElement>('.json textarea')?.focus(), {
+          injector: this.injector,
+        });
+        return;
       }
+      this.base = rule;
+      this.loadForm(rule);
     }
     this.view.set(index);
+  }
+
+  /** O valor da mensagem de exemplo no cabeçalho ou na query da condição (testador, E-12). */
+  protected exampleValue(list: 'query' | 'headers', name: string): string | null {
+    const request = this.example();
+    if (!request || name.trim() === '') {
+      return null;
+    }
+    return list === 'headers' ? exampleHeader(request, name) : exampleQuery(request, name);
+  }
+
+  protected examplePathValue(): string | null {
+    const request = this.example();
+    return request ? examplePath(request) : null;
+  }
+
+  /** O que o JSONPath simples acha no corpo da mensagem de exemplo; `null` sem o que dizer. */
+  protected exampleAtPath(path: string): string | null {
+    const request = this.example();
+    if (!request || path.trim() === '') {
+      return null;
+    }
+    const found = valueAtPath(request.content ?? '', path);
+    if (found.kind === 'unsupported') {
+      return $localize`Can't check here — test against history.`;
+    }
+    return found.kind === 'found'
+      ? $localize`In this request: ${JSON.stringify(found.value)}:value: · approx.`
+      : $localize`Not in this request · approx.`;
+  }
+
+  /** Como o "Equals (JSON)" leu o texto ("Read as number 10"); `null` vazio. */
+  protected readAsText(input: string): string | null {
+    const read = readAs(input);
+    if (!read) {
+      return null;
+    }
+    if (read.kind === 'json') {
+      return $localize`Read as JSON`;
+    }
+    return read.kind === 'number'
+      ? $localize`Read as number ${read.text}:value:`
+      : $localize`Read as text "${read.text}:value:"`;
+  }
+
+  /** "Use contains": a regex que não cobre o valor inteiro vira "contém", com o mesmo texto. */
+  protected useContains(operator: AbstractControl): void {
+    operator.markAsDirty();
+    operator.setValue('contains');
+  }
+
+  /**
+   * Campo de "From this request" na aba Match: vira a condição (cabeçalho ou query igual, JSONPath
+   * igual) com o valor da mensagem; um segundo clique não duplica, só leva o foco à existente.
+   */
+  protected useField(field: ExampleField): void {
+    if (field.kind === 'body') {
+      const rows = this.form.controls.body.controls;
+      let index = rows.findIndex(
+        (row) => row.controls.type.value === 'jsonPath' && row.controls.path.value === field.path,
+      );
+      if (index < 0) {
+        this.form.controls.body.markAsDirty();
+        this.form.controls.body.push(
+          this.bodyGroup({
+            type: 'jsonPath',
+            value: '',
+            path: field.path,
+            equals: JSON.stringify(field.value),
+          }),
+        );
+        index = rows.length - 1;
+      }
+      this.focusRow('body', index, 'equals');
+      return;
+    }
+    const list = field.kind === 'header' ? 'headers' : 'query';
+    const same = (name: string) =>
+      list === 'headers' ? name.toLowerCase() === field.path.toLowerCase() : name === field.path;
+    const rows = this.form.controls[list].controls;
+    let index = rows.findIndex((row) => same(row.controls.name.value));
+    if (index < 0) {
+      this.form.controls[list].markAsDirty();
+      this.form.controls[list].push(
+        this.conditionGroup({ name: field.path, operator: 'equals', value: String(field.value) }),
+      );
+      index = rows.length - 1;
+    }
+    this.focusRow(list, index, 'value');
+  }
+
+  /** Foco no campo de uma linha de condição, depois do render em que ela aparece. */
+  private focusRow(list: 'query' | 'headers' | 'body', index: number, field: string): void {
+    afterNextRender(
+      () => {
+        const rows = this.host.querySelectorAll(`#rule-panel-match [data-list="${list}"] .row`);
+        rows.item(index)?.querySelector<HTMLElement>(`[formcontrolname="${field}"]`)?.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /** Campo de "From this request" na aba Response: o helper dele no cursor do corpo. */
+  protected insertField(field: ExampleField): void {
+    const snippet = {
+      header: `{{request.headers.${field.path}}}`,
+      query: `{{request.query.${field.path}}}`,
+      body: `{{jsonPath request.body '${field.path}'}}`,
+    }[field.kind];
+    this.insertIntoBody(snippet);
+  }
+
+  /** Insere no cursor do corpo da resposta (ou no fim), e o cursor fica depois do trecho. */
+  protected insertIntoBody(snippet: string): void {
+    const control = this.form.controls.responseBody;
+    if (control.disabled) {
+      return;
+    }
+    const area = this.host.querySelector<HTMLTextAreaElement>(
+      '#rule-panel-response textarea[formcontrolname="responseBody"]',
+    );
+    const text = control.value;
+    const start = area?.selectionStart ?? text.length;
+    const end = area?.selectionEnd ?? start;
+    control.markAsDirty();
+    control.setValue(text.slice(0, start) + snippet + text.slice(end));
+    const caret = start + snippet.length;
+    afterNextRender(
+      () => {
+        area?.focus();
+        area?.setSelectionRange(caret, caret);
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /** "Format JSON". */
+  protected setBody(text: string): void {
+    const control = this.form.controls.responseBody;
+    control.markAsDirty();
+    control.setValue(text);
+  }
+
+  /** A resposta já declara Content-Type (a sugestão some). */
+  protected hasContentType(): boolean {
+    return this.form.controls.responseHeaders.controls.some(
+      (row) => row.controls.name.value.trim().toLowerCase() === 'content-type',
+    );
+  }
+
+  /** O content type padrão da URL (Checks › Response). */
+  protected defaultContentType(): string | null {
+    return this.tokens.token()?.default_content_type ?? null;
   }
 
   /**
    * A regra do "Describe the rule" entra no editor (na visão aberta) sem salvar. Editando uma
    * regra salva, ela fica com o `id` dessa regra.
    */
-  protected applySuggestion(rule: Rule): void {
-    this.suggestionApplied.set(true);
+  protected applySuggestion({ rule, conditionsOnly }: SuggestionApply): void {
+    const previous = this.editedRule() ?? this.base;
     const id = this.editingId();
-    this.base = id === undefined ? rule : { ...rule, id };
+    const next = conditionsOnly ? { ...previous, match: rule.match } : rule;
+    this.replaceRule(id === undefined ? next : { ...next, id });
+    this.snackBar
+      .open($localize`Suggestion applied`, $localize`Undo`, { duration: 5000 })
+      .onAction()
+      .subscribe(() => this.replaceRule(previous));
+  }
+
+  /** A regra inteira no editor (na visão aberta), como alteração não salva. */
+  private replaceRule(rule: Rule): void {
+    this.suggestionApplied.set(true);
+    this.base = rule;
     this.generalErrors.set([]);
-    this.loadForm(this.base);
-    this.tab.set('match');
+    this.loadForm(rule);
     if (this.view() === JSON_VIEW) {
       this.json.setValue(JSON.stringify(this.formRule(), null, 2));
     }
@@ -1101,7 +1305,6 @@ export class RuleEditor {
     value.body.forEach((row) => body.push(this.bodyGroup(row)));
     value.responseHeaders.forEach((row) => responseHeaders.push(this.headerGroup(row)));
     this.form.setValue(value);
-    this.syncPath();
     this.syncResponse();
     this.syncScenario();
   }
@@ -1179,15 +1382,6 @@ export class RuleEditor {
     const row = this.form.controls[ref.list].at(ref.index) as FormGroup | undefined;
     const control = row?.get(ref.field);
     return control?.enabled ? control : (row?.get('name') ?? control ?? null);
-  }
-
-  private syncPath(): void {
-    const path = this.form.controls.path;
-    if (this.form.controls.pathMode.value === 'any') {
-      path.disable({ emitEvent: false });
-    } else {
-      path.enable({ emitEvent: false });
-    }
   }
 
   private conditionGroup(row: ConditionRow): ConditionGroup {

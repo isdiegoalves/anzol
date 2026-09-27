@@ -1,0 +1,62 @@
+.note {
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-body-small);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.helpers {
+  margin-bottom: 8px;
+
+  summary {
+    min-height: 24px;
+    cursor: pointer;
+    color: var(--mat-sys-primary);
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    align-items: center;
+    margin: 8px 0 0;
+  }
+
+  dt,
+  dd {
+    margin: 0;
+  }
+}
+
+.insert {
+  min-height: 24px;
+  padding: 2px 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 4px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  text-align: start;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--mat-sys-surface-container-high);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
+
+  code {
+    font-family: var(--app-code-family);
+    font-size: 12px;
+  }
+}
