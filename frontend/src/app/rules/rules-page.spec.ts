@@ -242,6 +242,14 @@ describe('Dado a página Rules', () => {
       expect(screen.getByText('Hits over the last 12 requests kept.')).toBeTruthy();
     });
 
+    it('deve dizer que ainda não há requisições em vez de "the last 0" (WM-29, AT-42)', async () => {
+      await open([rule(1)], {}, stats({}, 0));
+
+      expect(document.querySelector('.hint.window')?.textContent).toBe(
+        'No requests yet: the hits start with the first one.',
+      );
+    });
+
     it('deve marcar a regra desligada com OFF e dizer que ela não é avaliada no lugar dos hits', async () => {
       await open([rule(1), rule(2, { enabled: false })]);
 
@@ -556,11 +564,12 @@ describe('Dado a página Rules', () => {
     });
 
     it.each([
-      ['lado a lado', 'large' as WindowClass],
-      ['só o editor', 'expanded' as WindowClass],
+      ['lado a lado', 'large' as WindowClass, 'Discard'],
+      // F8: na folha do editor, a saída é o "Back to list" do cabeçalho.
+      ['só o editor', 'expanded' as WindowClass, 'Back to list'],
     ])(
       'deve devolver o foco ao item da regra Quando o editor é descartado (%s)',
-      async (_, janela) => {
+      async (_, janela, saida) => {
         windowClass.set(janela);
         // Na janela estreita, a lista só aparece de novo quando o editor fecha.
         const { fixture } = await renderPage({ ruleId: 'r2' });
@@ -568,8 +577,8 @@ describe('Dado a página Rules', () => {
         await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
         const editor = await screen.findByRole('region', { name: 'Edit rule Rule 2' });
 
-        await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
-        expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
+        await userEvent.click(within(editor).getByRole('button', { name: saida }));
+        await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']));
         await routeTo(fixture, undefined, [rule(1), rule(2)]);
 
         await vi.waitFor(() => expect(document.activeElement).toBe(openButton('r2')));

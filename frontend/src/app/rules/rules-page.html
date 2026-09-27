@@ -166,7 +166,7 @@
       @if (store.hits(); as hits) {
         <!-- Sem espaço nas pontas da frase (o i18n guarda o espaço do template). -->
         <!-- prettier-ignore -->
-        <p class="hint window" i18n>Hits over the last {hits.evaluated, plural, =1 {1 request kept} other {{{ hits.evaluated }} requests kept}}.</p>
+        <p class="hint window" i18n>{hits.evaluated, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {{ hits.evaluated }} requests kept.}}</p>
       }
       @if (unruled(); as notice) {
         <!-- WM-01: o que chegou sem regra desde a última visita, com a Entrada já filtrada. -->

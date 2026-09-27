@@ -1431,11 +1431,6 @@ export const translations: Record<string, string> = {
     ' As regras mudaram em outro lugar desde que esta página as leu, então nada foi salvo. Recarregue para ver as regras atuais e tente de novo. ',
   // This rule no longer exists.
   '7016076853172263386': 'Esta regra não existe mais.',
-  // Hits over the last {$ICU}.
-  '8274610231537942565': 'Acertos {$ICU}.',
-  // {VAR_PLURAL, plural, =1 {1 request kept} other {{INTERPOLATION} requests kept}}
-  '7371048342128462743':
-    '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
   // Rule table
   '6904943491245640212': 'Tabela de regras',
   // Reorder
@@ -2545,4 +2540,15 @@ export const translations: Record<string, string> = {
   '8651699805099577856': '{$destination} · {$count} requisições sem regra',
   // Answered by: {$name}
   '7987311005276722867': 'Respondidas por: {$name}',
+  // Back to list
+  '4176542659011926633': 'Voltar à lista',
+  //  Duplicate rule
+  '8393825377641601981': ' Duplicar regra ',
+  // Details (Priority {$priority} · Enabled)
+  '8324244046177042506': 'Detalhes (Prioridade {$priority} · Ligada)',
+  // Details (Priority {$priority} · Off)
+  '9118935933745823731': 'Detalhes (Prioridade {$priority} · Desligada)',
+  // {VAR_PLURAL, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {INTERPOLATION} requests kept.}}
+  '1357560753461228101':
+    '{VAR_PLURAL, plural, =0 {Ainda sem requisições: os acertos começam com a primeira.} =1 {Acertos na última requisição guardada.} other {Acertos nas últimas {INTERPOLATION} requisições guardadas.}}',
 };

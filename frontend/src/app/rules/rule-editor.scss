@@ -3,6 +3,24 @@
   min-width: 0;
 }
 
+// Abaixo de 1200 px, o editor é uma folha de tela cheia (F8): o cabeçalho fica e o conteúdo rola.
+// A classe dobrada vence o `min-height: 100%` que a página dá ao editor (o fixo mede pela tela).
+:host(.sheet.sheet) {
+  position: fixed;
+  z-index: 3;
+  inset: 0;
+  min-height: 0;
+
+  // No celular, a barra de destinos do shell (80 px, embaixo) continua à vista e tocável.
+  @media (width < 600px) {
+    bottom: 80px;
+  }
+
+  .editor {
+    border-radius: 0;
+  }
+}
+
 // Superfície do editor (a do `app-pane`), com o cabeçalho de ações do C no topo (RULES-13).
 .editor {
   display: flex;
@@ -16,6 +34,9 @@
 
 .visually-hidden {
   position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
 }
@@ -65,6 +86,7 @@
 
   code {
     font-family: var(--app-code-family);
+    overflow-wrap: anywhere;
   }
 }
 

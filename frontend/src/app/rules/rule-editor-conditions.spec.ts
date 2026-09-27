@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { HttpRequest, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
@@ -102,7 +104,13 @@ describe('Dado o editor de condições e resposta', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [RuleEditor],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        // Largura grande: o cabeçalho com todos os botões (abaixo de 1200 px é a folha, F8).
+        { provide: Viewport, useValue: { windowClass: signal<WindowClass>('large') } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });

@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { WebhookRequest } from '../requests/webhook-request';
 import { HttpRequest, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -117,7 +119,13 @@ describe('Dado o editor de regra', () => {
     closed = vi.fn();
     TestBed.configureTestingModule({
       imports: [RuleEditor],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        // Largura grande: o cabeçalho com todos os botões (abaixo de 1200 px é a folha, F8).
+        { provide: Viewport, useValue: { windowClass: signal<WindowClass>('large') } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -294,8 +302,8 @@ describe('Dado o editor de regra', () => {
 
       await (await toggle('Template')).check();
       const helpers = fixture.nativeElement.querySelector('details.helpers') as HTMLDetailsElement;
-      helpers.querySelector('summary')?.click();
 
+      // Largura grande: a cola vem aberta (RULES-23).
       expect(helpers.open).toBe(true);
       expect(helpers.textContent).toContain("{{jsonPath request.body '$.id'}}");
       expect(helpers.textContent).toContain(

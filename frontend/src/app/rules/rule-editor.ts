@@ -191,6 +191,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
   host: {
     '(document:keydown)': 'handleShortcut($event)',
     '(window:beforeunload)': 'warnBeforeUnload($event)',
+    '[class.sheet]': '!wide()',
   },
 })
 export class RuleEditor {

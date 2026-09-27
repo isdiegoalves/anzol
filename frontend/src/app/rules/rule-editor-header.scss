@@ -66,3 +66,39 @@
 .priority {
   width: 96px;
 }
+
+// Folha do celular (F8): voltar, nome, Save e ⋮ numa linha; Details embaixo.
+.compact {
+  gap: 4px 8px;
+  padding: 8px 12px;
+  border-radius: 0;
+
+  .name-field {
+    flex: 1 1 120px;
+  }
+
+  .name-input {
+    font-size: 18px;
+  }
+}
+
+.details {
+  flex-basis: 100%;
+
+  summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    cursor: pointer;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-large);
+  }
+}
+
+.details-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-bottom: 8px;
+}

@@ -1,9 +1,19 @@
+:host {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+// Uma linha só (F8): no celular a faixa rola para o lado em vez de quebrar.
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .tab {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -24,6 +34,10 @@
   &:focus-visible {
     outline: 2px solid var(--mat-sys-primary);
     outline-offset: -2px;
+  }
+
+  @media (width < 600px) {
+    padding: 0 12px;
   }
 }
 

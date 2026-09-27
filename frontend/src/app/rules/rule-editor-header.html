@@ -1,4 +1,19 @@
-<header class="editor-header">
+<header class="editor-header" [class.compact]="compact()">
+  @if (compact()) {
+    <!-- Celular (F8): a folha do editor volta à lista pela mesma guarda do Discard. -->
+    <button
+      mat-icon-button
+      type="button"
+      class="back"
+      aria-label="Back to list"
+      i18n-aria-label
+      title="Back to list"
+      i18n-title
+      (click)="discard.emit()"
+    >
+      <app-icon name="back" [size]="20" />
+    </button>
+  }
   @if (fields()) {
     @let nameInvalid = name().invalid && name().touched;
     <div class="name-field">
@@ -24,50 +39,38 @@
   @if (unsaved()) {
     <span class="unsaved" i18n>Unsaved changes</span>
   }
-  @if (fields()) {
-    <mat-form-field class="priority" subscriptSizing="dynamic">
-      <mat-label i18n>Priority</mat-label>
-      <input
-        matInput
-        type="number"
-        min="1"
-        [formControl]="priority()"
-        aria-label="Priority"
-        i18n-aria-label
-        title="Lowest first"
-        i18n-title
-      />
-      <mat-error>{{ priorityError() }}</mat-error>
-    </mat-form-field>
-    <mat-slide-toggle [formControl]="enabled()" i18n>Enabled</mat-slide-toggle>
+  @if (fields() && !compact()) {
+    <ng-container [ngTemplateOutlet]="details" />
   }
   <span class="spacer"></span>
-  @if (canDelete()) {
-    <button
-      mat-icon-button
-      type="button"
-      aria-label="Duplicate rule"
-      i18n-aria-label
-      title="Duplicate rule"
-      i18n-title
-      (click)="duplicateRule.emit()"
-    >
-      <app-icon name="copy" [size]="20" />
-    </button>
-    <button
-      mat-icon-button
-      type="button"
-      class="delete"
-      aria-label="Delete rule"
-      i18n-aria-label
-      title="Delete rule"
-      i18n-title
-      (click)="deleteRule.emit()"
-    >
-      <app-icon name="trash" [size]="20" />
-    </button>
+  @if (!compact()) {
+    @if (canDelete()) {
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Duplicate rule"
+        i18n-aria-label
+        title="Duplicate rule"
+        i18n-title
+        (click)="duplicateRule.emit()"
+      >
+        <app-icon name="copy" [size]="20" />
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        class="delete"
+        aria-label="Delete rule"
+        i18n-aria-label
+        title="Delete rule"
+        i18n-title
+        (click)="deleteRule.emit()"
+      >
+        <app-icon name="trash" [size]="20" />
+      </button>
+    }
+    <button mat-button type="button" (click)="discard.emit()" i18n>Discard</button>
   }
-  <button mat-button type="button" (click)="discard.emit()" i18n>Discard</button>
   <!-- Nunca desabilitado (WM-12): inválido, o clique diz o que corrigir. -->
   <button
     mat-flat-button
@@ -81,4 +84,51 @@
   >
     Save
   </button>
+  @if (compact()) {
+    <button
+      mat-icon-button
+      type="button"
+      aria-label="More actions"
+      i18n-aria-label
+      title="More actions"
+      i18n-title
+      [matMenuTriggerFor]="actions"
+    >
+      <app-icon name="more" [size]="20" />
+    </button>
+    <mat-menu #actions="matMenu">
+      @if (canDelete()) {
+        <button mat-menu-item type="button" (click)="duplicateRule.emit()" i18n>
+          Duplicate rule
+        </button>
+        <button mat-menu-item type="button" (click)="deleteRule.emit()" i18n>Delete rule</button>
+      }
+      <button mat-menu-item type="button" (click)="discard.emit()" i18n>Discard</button>
+    </mat-menu>
+    @if (fields()) {
+      <!-- Prioridade e Enabled recolhidos: a primeira tela mostra a frase e a condição. -->
+      <details class="details">
+        <summary>{{ detailsSummary() }}</summary>
+        <div class="details-body"><ng-container [ngTemplateOutlet]="details" /></div>
+      </details>
+    }
+  }
 </header>
+
+<ng-template #details>
+  <mat-form-field class="priority" subscriptSizing="dynamic">
+    <mat-label i18n>Priority</mat-label>
+    <input
+      matInput
+      type="number"
+      min="1"
+      [formControl]="priority()"
+      aria-label="Priority"
+      i18n-aria-label
+      title="Lowest first"
+      i18n-title
+    />
+    <mat-error>{{ priorityError() }}</mat-error>
+  </mat-form-field>
+  <mat-slide-toggle [formControl]="enabled()" i18n>Enabled</mat-slide-toggle>
+</ng-template>

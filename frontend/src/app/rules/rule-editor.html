@@ -4,6 +4,7 @@
     [title]="title()"
     [name]="form.controls.name"
     [priority]="form.controls.priority"
+    [compact]="!wide()"
     [enabled]="form.controls.enabled"
     [fields]="view() === formView"
     [nameError]="errorOf(form.controls.name, messages.nameRequired)"
