@@ -1,5 +1,6 @@
 package site.webhook.rules
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -21,6 +22,8 @@ import site.webhook.token.findOrGone
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import java.time.Clock
+import java.time.Instant
 
 /** Quantas mensagens, das mais recentes, o `rules/test` avalia. */
 private const val TEST_WINDOW = 500L
@@ -38,28 +41,61 @@ data class TestMiss(
     val conditions: List<String>,
 )
 
-/** Resposta do `rules/test`, da mensagem mais nova para a mais antiga. */
+/**
+ * Resposta do `rules/test`, da mensagem mais nova para a mais antiga. [rendered] só com `render=N` (sem ele, a chave
+ * nem aparece): a resposta da regra para as N primeiras de [matches].
+ */
 data class RuleTestResult(
     val matches: List<TestMatch>,
     val misses: List<TestMiss>,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val rendered: List<RenderedResponse>? = null,
 )
 
-/** A regra (salva ou não) contra as [TEST_WINDOW] mensagens gravadas mais recentes; `enabled` não conta. */
+/** Pedido de render do `rules/test`: quantas mensagens ([count]) e o instante do `{{now}}`. */
+data class RenderRequest(
+    val count: Int,
+    val now: Instant,
+)
+
+/**
+ * A regra (salva ou não) contra as [TEST_WINDOW] mensagens gravadas mais recentes; `enabled` não conta. Com [render],
+ * renderiza a resposta dela para as primeiras de `matches`, com o `seq` da mensagem mais nova da janela.
+ */
 fun RequestStore.test(
     token: Token,
     rule: Rule,
+    render: RenderRequest? = null,
 ): RuleTestResult {
-    val evaluated =
-        page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST).map { message ->
-            Triple(message.uuid, checkNotNull(message.seq), rule.failures(message.toMatchInput()))
-        }
+    val messages = page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST)
+    val evaluated = messages.map { message -> message to rule.failures(message.toMatchInput()) }
+    val matched = evaluated.filter { (_, failed) -> failed.isEmpty() }.map { (message) -> message }
     return RuleTestResult(
-        matches = evaluated.filter { it.third.isEmpty() }.map { (uuid, seq) -> TestMatch(uuid, seq) },
+        matches = matched.map { TestMatch(it.uuid, checkNotNull(it.seq)) },
         misses =
             evaluated
-                .filter { it.third.isNotEmpty() }
-                .map { (uuid, seq, failed) -> TestMiss(uuid, seq, failed.map { it.phrase }, failed.map { it.condition }) },
+                .filter { (_, failed) -> failed.isNotEmpty() }
+                .map { (message, failed) ->
+                    TestMiss(message.uuid, checkNotNull(message.seq), failed.map { it.phrase }, failed.map { it.condition })
+                },
+        rendered =
+            render?.let {
+                val seq = messages.firstOrNull()?.seq ?: 0
+                rule.response.renderFor(matched.take(it.count), seq, it.now, token.signature)
+            },
     )
+}
+
+private val INVALID_RENDER = "The render must be an integer between ${RENDER_RANGE.first} and ${RENDER_RANGE.last}."
+
+/** `render` da query: ausente é `null`; senão, inteiro de [RENDER_RANGE] ou o erro na chave `render`. */
+private fun renderCount(value: Any?): Parsed<Int?> {
+    val count = (value as? String)?.toIntOrNull()
+    return when {
+        value == null -> Parsed.Valid(null)
+        count != null && count in RENDER_RANGE -> Parsed.Valid(count)
+        else -> Parsed.Invalid(mapOf("render" to listOf(INVALID_RENDER)))
+    }
 }
 
 /**
@@ -73,6 +109,7 @@ class RuleController(
     private val rules: RuleStore,
     private val requests: RequestStore,
     private val jsonMapper: JsonMapper,
+    private val clock: Clock,
 ) {
     @GetMapping
     fun all(
@@ -92,19 +129,28 @@ class RuleController(
         }
     }
 
-    /** Uma regra (salva ou não) contra as mensagens gravadas mais recentes; `enabled` não conta. */
+    /**
+     * Uma regra (salva ou não) contra as mensagens gravadas mais recentes; `enabled` não conta. Com `?render=N` (1 a 3),
+     * a resposta que ela daria às N mais novas que casam. Os erros da regra e do `render` saem juntos no 422.
+     */
     @PostMapping("/test")
     fun test(
         @PathVariable tokenId: TokenId,
         request: HttpServletRequest,
     ): ResponseEntity<Any> {
         val token = tokens.findOrGone(tokenId)
-        val rule =
-            when (val parsed = parseRule(request.jsonBody())) {
-                is Parsed.Valid -> parsed.value
-                is Parsed.Invalid -> return unprocessable(parsed.errors)
+        val parsed = parseRule(request.jsonBody())
+        val render = renderCount(request.legacyInput().query["render"])
+        return when {
+            parsed is Parsed.Valid && render is Parsed.Valid -> {
+                val count = render.value
+                ResponseEntity.ok(requests.test(token, parsed.value, count?.let { RenderRequest(it, clock.instant()) }))
             }
-        return ResponseEntity.ok(requests.test(token, rule))
+
+            else -> {
+                unprocessable(parsed.errorsOrEmpty() + render.errorsOrEmpty())
+            }
+        }
     }
 
     /** O corpo cru como JSON; `null` quando não é JSON. */
@@ -113,6 +159,12 @@ class RuleController(
             jsonMapper.readTree(legacyInput().body)
         } catch (_: JacksonException) {
             null
+        }
+
+    private fun Parsed<*>.errorsOrEmpty(): Map<String, List<String>> =
+        when (this) {
+            is Parsed.Valid -> emptyMap()
+            is Parsed.Invalid -> errors
         }
 
     private fun unprocessable(errors: Map<String, List<String>>): ResponseEntity<Any> =

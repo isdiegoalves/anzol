@@ -93,12 +93,18 @@ fun renderTemplate(
  *
  * Cada caractere fora do ISO-8859-1 (acima de U+00FF, inclusive U+2028 e U+2029; um par substituto conta
  * como um) vira `?`: o Tomcat descartaria o cabeçalho inteiro, sem aviso.
+ *
+ * [until] (`System.nanoTime()`) é um prazo dividido com outras renderizações (o `rules/test?render=N`); nulo, o
+ * prazo é o de [MAX_RENDER_TIME] contado depois de compilar.
  */
-fun RuleResponse.rendered(input: TemplateInput): RuleResponse {
+fun RuleResponse.rendered(
+    input: TemplateInput,
+    until: Long? = null,
+): RuleResponse {
     if (!template) return copy(headers = headers.mapValues { (_, value) -> value.asHeaderValue() })
     val compiledBody = compile(body, input)
     val compiledHeaders = headers.mapValues { (_, value) -> compile(value, input) }
-    val deadline = deadline()
+    val deadline = until ?: deadline()
     val documents = JsonDocuments()
     return copy(
         body = compiledBody.render(input, MAX_RENDERED_BODY, deadline, documents),
