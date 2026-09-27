@@ -69,11 +69,13 @@
       @if (signature; as provider) {
         Signs the body as {{ provider }} does; the secret stays on the server
       } @else {
-        <ng-container i18n>This URL has no signature configured. Set one up in</ng-container>
-        <a [routerLink]="['/', token().uuid, 'checks']" [queryParams]="{ section: 'signature' }"
-          >Checks</a
+        <span i18n
+          >This URL has no signature configured. Set one up in
+          <a [routerLink]="['/', token().uuid, 'checks']" [queryParams]="{ section: 'signature' }"
+            >Checks</a
+          >
+          to sign.</span
         >
-        <ng-container i18n>to sign.</ng-container>
       }
     </span>
   </div>

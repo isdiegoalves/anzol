@@ -21,13 +21,19 @@ export interface SaveNotice {
     @let alerting = attempted() && summary() !== '';
     @let result = notice();
     <div class="notes">
-      <p class="note" role="status" [id]="alerting ? null : pendingId">
-        {{ alerting ? '' : summary() || (result && !result.error ? result.text : '') }}
-      </p>
+      <p
+        class="note"
+        role="status"
+        [id]="alerting ? null : pendingId"
+        [textContent]="alerting ? '' : summary() || (result && !result.error ? result.text : '')"
+      ></p>
       @if (alerting || result?.error) {
-        <p class="note error" role="alert" [id]="alerting ? pendingId : null">
-          {{ alerting ? summary() : result?.text }}
-        </p>
+        <p
+          class="note error"
+          role="alert"
+          [id]="alerting ? pendingId : null"
+          [textContent]="alerting ? summary() : (result?.text ?? '')"
+        ></p>
       }
     </div>
     <div class="actions">

@@ -36,7 +36,7 @@
               <h3>{{ part.title }}</h3>
               @if (data.percent) {
                 <span class="percent">{{ data.percent }}</span>
-                <span class="hint" i18n>valid</span>
+                <span class="hint">{{ data.valid }} of {{ data.valid + data.invalid }} valid</span>
               } @else {
                 <span class="hint" i18n>not checked in this window</span>
               }
