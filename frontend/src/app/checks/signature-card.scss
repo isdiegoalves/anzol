@@ -42,7 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow-x: auto;
+  container-type: inline-size;
 }
 
 .provider-row {
@@ -125,6 +125,26 @@
   code {
     font-family: var(--app-code-family);
     overflow-wrap: anywhere;
+  }
+}
+
+// Cartão estreito (celular): sem o cabeçalho da tabela, as três colunas de texto empilham embaixo
+// do nome do provedor, em vez de a tabela rolar de lado dentro do cartão.
+@container (width < 520px) {
+  .provider-head {
+    display: none;
+  }
+
+  .provider-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 4px 12px;
+    min-width: 0;
+  }
+
+  .about {
+    grid-column: 2;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 }
 
