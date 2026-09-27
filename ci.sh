@@ -126,7 +126,7 @@ regressao_visual() {
 }
 
 aceite_cli() {
-  (cd tests/cli && WEBHOOK_SERVER="$URL" WEBHOOK_CLI=cli/build/install/webhook/bin/webhook node --test)
+  (cd tests/cli && WEBHOOK_SERVER="$URL" WEBHOOK_CLI=cli/build/install/anzol/bin/anzol node --test)
 }
 
 # --- Resumo ---------------------------------------------------------------------------------------
