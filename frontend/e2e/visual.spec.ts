@@ -152,8 +152,9 @@ const TELAS: Tela[] = [
       await tokens.send(tokenId, github('outro-segredo', '{"id":3}'));
       await seedStorage(page, {});
       await page.goto(`/#/${tokenId}/insights`);
+      // Fidelidade ao C, fase 2 (RULES-39): "N of the N kept" quando a URL guarda menos que a janela.
       await expect(page.getByRole('region', { name: 'Summary' })).toContainText(
-        'of the last 500 kept',
+        /\b3 of the 3 kept\b/,
       );
       // O gráfico e a tabela por hora dependem da hora em que o teste roda.
       return [page.getByRole('region', { name: 'Requests per hour' })];
@@ -163,7 +164,9 @@ const TELAS: Tela[] = [
     nome: 'compare',
     async abrir(page, tokens) {
       const tokenId = await tokens.create();
-      const json = { 'Content-Type': 'application/json' };
+      // User-agent curto: o resumo do cartão A/B ("#xxxxx · {user-agent}", fidelidade ao C) quebrava a linha conforme a
+      // largura dos dígitos do UUID, e a foto mudava de uma execução para outra.
+      const json = { 'Content-Type': 'application/json', 'User-Agent': 'anzol-visual' };
       const a = await tokens.send(tokenId, {
         headers: { ...json, 'X-Retry': '1' },
         data: '{"id":42,"status":"pending"}',
@@ -176,7 +179,9 @@ const TELAS: Tela[] = [
       await page.goto(`/#/${tokenId}/compare/${a}/${b}`);
       const view = page.getByRole('region', { name: 'Compare requests' });
       await expect(view).toBeVisible();
-      return [];
+      // As linhas do "#xxxxx · …" e da data nos cartões A/B (fidelidade ao C, RULES-28) têm a largura do texto: a
+      // máscara do texto mudaria de tamanho com os dígitos do UUID. A linha inteira (flex, largura cheia) é estável.
+      return [view.locator('.card-side .line:nth-child(n+2)')];
     },
   },
   {
