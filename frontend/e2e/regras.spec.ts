@@ -101,7 +101,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await expect(dialog).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
     await expect(page.getByText('Rule saved')).toBeVisible();
-    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
+    await expect.poll(() => ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({
         name: 'Pix pago',
@@ -185,7 +185,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();
-    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
+    await expect.poll(() => ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toEqual([
       expect.objectContaining({ name: 'Pix pago' }),
     ]);
@@ -299,10 +299,9 @@ test.describe('Dado o export e o import de regras', () => {
     await importarSubstituindo(page, caminho);
 
     await expect(page.getByText('Imported 2 rules')).toBeVisible();
-    expect(await ruleRows(page)).toEqual([
-      LINHA_PIX,
-      ['Tudo', '5', expect.stringMatching(/^any request/i), '200'],
-    ]);
+    await expect
+      .poll(() => ruleRows(page))
+      .toEqual([LINHA_PIX, ['Tudo', '5', expect.stringMatching(/^any request/i), '200']]);
     expect(await getRules(request, destino)).toEqual(exportado);
   });
 
@@ -325,7 +324,7 @@ test.describe('Dado o export e o import de regras', () => {
     await janela.getByRole('button', { name: 'Replace', exact: true }).click();
 
     await expect(page.getByRole('alert')).toContainText('Rule 1 › match.path.regex:');
-    expect(await ruleRows(page)).toEqual([LINHA_PIX]);
+    await expect.poll(() => ruleRows(page)).toEqual([LINHA_PIX]);
     expect(await getRules(request, tokenId)).toHaveLength(1);
   });
 });
