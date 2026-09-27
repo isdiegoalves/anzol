@@ -27,6 +27,12 @@ private val REFERENCE_KEYWORDS = setOf("\$ref", "\$dynamicRef", "\$recursiveRef"
 /** Os meta-schemas oficiais vêm do classpath da biblioteca; nada mais é carregado, de lugar nenhum. */
 private val META_SCHEMA_IRI = Regex("https?://json-schema\\.org/.*")
 
+/**
+ * O IRI base do documento. Sem base, a biblioteca recusa `$id` relativo (`"$id":"stripe-event"` não vira IRI
+ * absoluto); com esta, vira `urn:webhook-site:stripe-event`. É um URN: não há de onde buscá-lo.
+ */
+private val DOCUMENT_BASE = SchemaLocation.of("urn:webhook-site:schema")
+
 private val schemaMapper: JsonMapper = JsonMapper.builder().build()
 
 /**
@@ -51,7 +57,7 @@ data class SchemaConfig(
     fun toJson(): JsonNode = document
 
     /** O validador do documento; lança [SchemaException] (ou outra falha da biblioteca) se não compilar. */
-    fun compile(): Schema = registry.getSchema(document).also { it.initializeValidators() }
+    fun compile(): Schema = registry.getSchema(DOCUMENT_BASE, document).also { it.initializeValidators() }
 
     companion object {
         @JvmStatic

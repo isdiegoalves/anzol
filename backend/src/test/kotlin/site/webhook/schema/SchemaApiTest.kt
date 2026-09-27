@@ -13,6 +13,7 @@ import site.webhook.support.ApiClient
 import site.webhook.support.ApiTest
 import site.webhook.support.JSON_BODY
 import site.webhook.support.JSON_CLIENT
+import site.webhook.support.Receiver
 import site.webhook.support.SseClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -85,6 +86,50 @@ class SchemaApiTest(
 
             assertThat(edited["schema"]).isEqualTo(api.tree("""{"type":"array"}"""))
             assertThat(post(tokenId, "[]")["schema"]["valid"].asBoolean()).isTrue()
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado um schema com \$id, quando edita, então salva o documento como veio e a URL valida por ele")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = $$"""
+            {"$id":"stripe-event","type":"object","required":["id"]}
+            {"$id":"https://example.com/x.json","type":"object","required":["id"]}
+            {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"stripe-event","type":"object","required":["id"]}
+            {"$id":"stripe-event","$defs":{"n":{"$id":"n","type":"integer"}},"required":["id"],"properties":{"id":{"$ref":"#/$defs/n"}}}
+            {"$id":"stripe-event","$defs":{"n":{"$anchor":"n","type":"integer"}},"required":["id"],"properties":{"id":{"$ref":"#n"}}}""",
+        )
+        fun update_schemaComId_deveSalvar(schema: String) {
+            val tokenId = api.tokenId()
+
+            val response = put(tokenId, """{"schema":$schema}""")
+
+            assertThat(response.statusCode()).describedAs(response.body()).isEqualTo(200)
+            assertThat(read(tokenId)["schema"]).isEqualTo(api.tree(schema))
+            assertThat(post(tokenId, """{"id":1}""")["schema"]["valid"].asBoolean()).isTrue()
+            assertThat(post(tokenId, "{}")["schema"]["valid"].asBoolean()).isFalse()
+        }
+
+        @Test
+        @DisplayName("Dado \$id que apontam para um servidor, quando salva e valida, então nada é buscado na rede")
+        fun update_idDeServidor_naoDeveBuscarNaRede() {
+            Receiver().use { server ->
+                val schema =
+                    $$"""
+                    {"$id":"$${server.url("/root.json")}","required":["id"],"properties":{"id":{"$ref":"#/$defs/id"}},
+                     "$defs":{"id":{"$id":"$${server.url("/id.json")}","$ref":"#/$defs/n","$defs":{"n":{"type":"integer"}}}}}
+                    """.trimIndent()
+                val tokenId = api.tokenId()
+
+                val response = put(tokenId, """{"schema":$schema}""")
+                val valid = post(tokenId, """{"id":1}""")
+                val invalid = post(tokenId, """{"id":"x"}""")
+
+                assertThat(response.statusCode()).describedAs(response.body()).isEqualTo(200)
+                assertThat(valid["schema"]["valid"].asBoolean()).isTrue()
+                assertThat(invalid["schema"]["valid"].asBoolean()).isFalse()
+                assertThat(server.received).isEmpty()
+            }
         }
 
         @ParameterizedTest(name = "{0}")
