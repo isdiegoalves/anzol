@@ -88,7 +88,14 @@
           </svg>
         </button>
         <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
-        <button mat-flat-button type="button" [disabled]="!loaded()" (click)="newRule()" i18n>
+        <button
+          mat-flat-button
+          type="button"
+          class="new-rule"
+          [disabled]="!loaded()"
+          (click)="newRule()"
+          i18n
+        >
           New rule
         </button>
       </div>

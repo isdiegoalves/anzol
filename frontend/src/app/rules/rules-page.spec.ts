@@ -503,6 +503,53 @@ describe('Dado a página Rules', () => {
       },
     );
 
+    it('deve levar o foco ao nome no topo do editor Quando a regra é aberta com Enter na lista', async () => {
+      const { fixture } = await open([rule(1), rule(2)]);
+
+      openButton('r2').focus();
+      await userEvent.keyboard('{Enter}');
+      expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules', 'r2']);
+      fixture.componentRef.setInput('ruleId', 'r2');
+
+      const editor = await screen.findByRole('region', { name: 'Edit rule Rule 2' });
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(within(editor).getByRole('textbox', { name: 'Name' })),
+      );
+    });
+
+    it.each([
+      ['lado a lado', 'large' as WindowClass],
+      ['só o editor', 'expanded' as WindowClass],
+    ])(
+      'deve devolver o foco ao item da regra Quando o editor é descartado (%s)',
+      async (_, janela) => {
+        windowClass.set(janela);
+        // Na janela estreita, a lista só aparece de novo quando o editor fecha.
+        const { fixture } = await renderPage({ ruleId: 'r2' });
+        http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1), rule(2)]);
+        await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
+        const editor = await screen.findByRole('region', { name: 'Edit rule Rule 2' });
+
+        await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
+        expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
+        fixture.componentRef.setInput('ruleId', undefined);
+
+        await vi.waitFor(() => expect(document.activeElement).toBe(openButton('r2')));
+      },
+    );
+
+    it('deve devolver o foco a "New rule" Quando a regra nova é descartada', async () => {
+      const { fixture } = await open([rule(1)], { ruleId: 'new' });
+      const editor = await screen.findByRole('region', { name: 'New rule' });
+
+      await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
+      fixture.componentRef.setInput('ruleId', undefined);
+
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New rule' })),
+      );
+    });
+
     it('deve voltar à lista e avisar Quando a regra é salva, e só voltar Quando é cancelada', async () => {
       await open([rule(1)], { ruleId: 'new' });
       const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');

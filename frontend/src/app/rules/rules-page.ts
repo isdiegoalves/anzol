@@ -7,6 +7,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  afterRenderEffect,
   computed,
   effect,
   inject,
@@ -176,6 +177,11 @@ export class RulesPage {
   });
   private openEditor: EditorState | null = null;
   /**
+   * Para onde vai o foco quando a rota do editor muda (a lista e o editor são recriados): ao
+   * abrir, o nome no topo do editor; ao fechar, o item da regra (ou "New rule").
+   */
+  private readonly pendingFocus = signal<'editor' | { rule: string | null } | null>(null);
+  /**
    * A rota aponta para uma regra que não está na lista e nenhum editor está aberto (com o editor
    * aberto, o aviso é o dele: "Save adds it as a new rule").
    */
@@ -209,6 +215,28 @@ export class RulesPage {
       const [tokenId, ruleId, from] = [this.tokenId(), this.ruleId(), this.from()];
       untracked(() => void this.loadFrom(tokenId, ruleId === 'new' ? from : undefined));
     });
+    afterRenderEffect(() => this.moveFocus());
+  }
+
+  /** Leva o foco ao destino pendente, depois do render em que ele aparece. */
+  private moveFocus(): void {
+    const target = this.pendingFocus();
+    const editing = this.editor().length > 0;
+    if (!target || editing !== (target === 'editor')) {
+      return;
+    }
+    const element =
+      target === 'editor'
+        ? this.host.querySelector<HTMLElement>('app-rule-editor .name-input')
+        : ((target.rule &&
+            this.host.querySelector<HTMLElement>(
+              `[data-rule-id="${CSS.escape(target.rule)}"] .open-rule`,
+            )) ??
+          this.host.querySelector<HTMLElement>('.new-rule'));
+    if (element) {
+      element.focus();
+      this.pendingFocus.set(null);
+    }
   }
 
   /**
@@ -262,11 +290,13 @@ export class RulesPage {
   }
 
   protected newRule(): void {
+    this.pendingFocus.set('editor');
     void this.router.navigate(['/', this.tokenId(), 'rules', 'new']);
   }
 
   protected editRule(rule: Rule): void {
     if (rule.id) {
+      this.pendingFocus.set('editor');
       void this.router.navigate(['/', this.tokenId(), 'rules', rule.id]);
     }
   }
@@ -276,6 +306,8 @@ export class RulesPage {
       this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
       this.refreshScenarios();
     }
+    const ruleId = this.ruleId();
+    this.pendingFocus.set({ rule: ruleId && ruleId !== 'new' ? ruleId : null });
     void this.router.navigate(['/', this.tokenId(), 'rules']);
   }
 
