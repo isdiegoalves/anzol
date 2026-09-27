@@ -10,7 +10,7 @@ import { iniciarProxy } from './support/proxy.mjs';
 afterEach(limparTudo);
 after(limparTudo);
 
-describe('webhook listen: queda da conexão com o servidor', () => {
+describe('anzol listen: queda da conexão com o servidor', () => {
   test('CA-5: reconecta e reenvia as mensagens da janela, em ordem, sem duplicar', { timeout: 150_000 }, async () => {
     const token = await criarToken();
     const proxy = await iniciarProxy(SERVIDOR);

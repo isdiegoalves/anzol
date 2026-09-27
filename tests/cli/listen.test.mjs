@@ -11,7 +11,7 @@ import { buscarMensagem, caminhoGravado, criarToken, enviarCru, statusDoToken } 
 afterEach(limparTudo);
 after(limparTudo);
 
-describe('webhook listen', () => {
+describe('anzol listen', () => {
   test('CA-1: sem --token cria URL nova; o POST chega ao app local como gravado e a linha traz status e ms', { timeout: 90_000 }, async () => {
     const app = await iniciarCapturador({ status: 201, atraso: 250 });
     const forward = `${app.url}/base`;

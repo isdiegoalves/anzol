@@ -9,7 +9,7 @@ import { iniciarCli } from './support/cli.mjs';
 import { aoFinal, limparTudo } from './support/limpeza.mjs';
 import { buscarMensagem, criarToken, enviarCru } from './support/servidor.mjs';
 
-// Aceite do `webhook wait-for` (CA-6, §1 do plano "wait-for"): o CLI espera, com prazo, até o servidor
+// Aceite do `anzol wait-for` (CA-6, §1 do plano "wait-for"): o CLI espera, com prazo, até o servidor
 // ter `--count` mensagens que casam o `match` montado pelos atalhos e/ou pelo `--match`. stdout = JSON
 // das mensagens que casaram (um array); stderr = resumo; saída 0 casou, 1 prazo acabou, 2 uso inválido,
 // 422, token inexistente ou servidor fora. Os atalhos são conferidos pelo efeito: mensagens gravadas
@@ -34,7 +34,7 @@ const LINHA_CLOSEST = new RegExp(`^closest: #(\\d+) (${UUID.source})$`);
 const LINHA_FRASE = /^ {2}- (.+)$/;
 
 /**
- * Roda `webhook wait-for <args> --server <servidor>` até o fim e devolve código, stdout, stderr e o
+ * Roda `anzol wait-for <args> --server <servidor>` até o fim e devolve código, stdout, stderr e o
  * tempo de parede. Erro de uso por comando/opção inexistente vira falha com mensagem clara.
  */
 async function waitFor(args, { servidor = SERVIDOR, prazo = 60_000 } = {}) {
@@ -53,7 +53,7 @@ async function waitFor(args, { servidor = SERVIDOR, prazo = 60_000 } = {}) {
   const fluxo = (f) => cli.linhas.filter((l) => l.fluxo === f).map((l) => l.texto);
   const r = { cli, codigo, ms, stdout: fluxo('stdout').join('\n'), stderr: fluxo('stderr') };
   if (SEM_COMANDO.test(r.stderr.join('\n'))) {
-    throw new Error(`o CLI em ${CLI} recusou a linha de comando; falta \`webhook wait-for\` ou alguma opção dele (${args.filter((a) => a.startsWith('--')).join(' ')})?\n${cli.descricao()}`);
+    throw new Error(`o CLI em ${CLI} recusou a linha de comando; falta \`anzol wait-for\` ou alguma opção dele (${args.filter((a) => a.startsWith('--')).join(' ')})?\n${cli.descricao()}`);
   }
   return r;
 }
@@ -119,7 +119,7 @@ function pastaTemporaria() {
   return dir;
 }
 
-describe('webhook wait-for: atalhos montam o match', () => {
+describe('anzol wait-for: atalhos montam o match', () => {
   test('--method é lista: casa qualquer um dos métodos, em ordem de seq', { timeout: 60_000 }, async () => {
     const token = await criarToken();
     await enviar(token, '/m', { metodo: 'POST' });
@@ -211,7 +211,7 @@ describe('webhook wait-for: atalhos montam o match', () => {
   });
 });
 
-describe('webhook wait-for: --match e --match-file', () => {
+describe('anzol wait-for: --match e --match-file', () => {
   const MATCH = { method: ['POST'], query: { tipo: { equals: 'pix' } } };
 
   async function gravarTres(token) {
@@ -247,7 +247,7 @@ describe('webhook wait-for: --match e --match-file', () => {
   });
 });
 
-describe('webhook wait-for: saída e códigos', () => {
+describe('anzol wait-for: saída e códigos', () => {
   test('prazo sem casar → saída 1, stdout [], resumo com closest e uma linha por condição falhada', { timeout: 60_000 }, async () => {
     const token = await criarToken();
     const perto = await enviar(token, '/pagamentos', { metodo: 'PUT' });
@@ -323,7 +323,7 @@ describe('webhook wait-for: saída e códigos', () => {
   });
 });
 
-describe('webhook wait-for: --new e --after', () => {
+describe('anzol wait-for: --new e --after', () => {
   test('--new ignora o histórico: só com a antiga, --timeout 0 → saída 1 e stdout []', { timeout: 60_000 }, async () => {
     const token = await criarToken();
     await enviar(token, '/evento');

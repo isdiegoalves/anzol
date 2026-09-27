@@ -1,5 +1,5 @@
 /**
- * Cliente do app webhook.site real: API de tokens e mensagens, webhook por HTTP cru (controle
+ * Cliente do app Anzol real: API de tokens e mensagens, webhook por HTTP cru (controle
  * total de cabeçalhos: repetidos, underscore, hop-by-hop, chunked) e assinatura do SSE.
  */
 import net from 'node:net';
@@ -19,7 +19,7 @@ export async function verificarServidor() {
   try {
     await fetch(`${SERVIDOR}/token/00000000-0000-0000-0000-000000000000`, { headers: JSON_ACCEPT });
   } catch (e) {
-    throw new Error(`servidor webhook.site não responde em ${SERVIDOR} (${e.cause?.code ?? e.message}); suba com \`docker compose up -d\` ou aponte WEBHOOK_SERVER`);
+    throw new Error(`servidor Anzol não responde em ${SERVIDOR} (${e.cause?.code ?? e.message}); suba com \`docker compose up -d\` ou aponte WEBHOOK_SERVER`);
   }
   verificado = true;
 }

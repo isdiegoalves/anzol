@@ -42,7 +42,7 @@ function conferirOrdem(app, esperados, { opcionais = [], contexto = '' } = {}) {
   assert.deepEqual(recebidos, esperados.filter((c) => recebidos.includes(c)), `reenvio fora da ordem de seq\n${detalhe()}`);
 }
 
-describe('webhook listen: ordem de seq, sem perda, com gravação concorrente', () => {
+describe('anzol listen: ordem de seq, sem perda, com gravação concorrente', () => {
   test('CA-10: rajada de 60 (30 em paralelo) e queda logo depois de um evento: todas chegam uma vez, em ordem de seq', { timeout: 180_000 }, async () => {
     const token = await criarToken();
     const entregues = []; // uuids que o SSE entregou ao CLI antes do corte

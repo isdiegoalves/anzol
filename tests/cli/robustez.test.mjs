@@ -22,7 +22,7 @@ function corpoGrande() {
   return linhas.join('');
 }
 
-describe('webhook listen: robustez', () => {
+describe('anzol listen: robustez', () => {
   test('CA-3: mensagem > 1 MB (evento truncado) chega ao app local com o corpo inteiro', { timeout: 90_000 }, async () => {
     const token = await criarToken();
     const eventos = await assinarEventos(token);

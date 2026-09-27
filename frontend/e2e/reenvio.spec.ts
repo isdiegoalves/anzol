@@ -233,7 +233,7 @@ test.describe('Dado o Send do cabeçalho da URL', () => {
     tokens,
   }) => {
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
-    // O próprio webhook.site verifica: o alvo é esta URL, vista do container.
+    // O próprio Anzol verifica: o alvo é esta URL, vista do container.
     const port = new URL(test.info().project.use.baseURL ?? '').port || '80';
     const target = `http://${RECEIVER_HOST}:${port}/${tokenId}/assinado`;
     const dialog = await openSend(page, tokenId);

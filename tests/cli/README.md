@@ -19,11 +19,11 @@ nome); use o glob acima ou rode de dentro da pasta.
 
 | Variável | Padrão | Uso |
 |---|---|---|
-| `WEBHOOK_CLI` | `cli/build/install/webhook/bin/webhook` (relativo à raiz do repo) | Script do CLI sob teste |
+| `WEBHOOK_CLI` | `cli/build/install/anzol/bin/anzol` (relativo à raiz do repo) | Script do CLI sob teste |
 | `WEBHOOK_SERVER` | `http://localhost:8084` | App real (só `http://`); também herdado pelo CLI |
 
 Sem o CLI, cada teste falha com `CLI não encontrado em …; rode ./gradlew installDist`; sem o app,
-com `servidor webhook.site não responde em …`.
+com `servidor Anzol não responde em …`.
 
 Cada teste cria os próprios tokens e os apaga ao fim, passe ou falhe (`DELETE /token/{id}/request`
 e depois `DELETE /token/{id}`), inclusive a URL que o `listen` sem `--token` cria: todo uuid que esse
@@ -89,7 +89,7 @@ temporária do sistema, apagada ao fim de cada teste.
 
 ## Leituras da especificação assumidas
 
-- `--server` vem depois do subcomando (`webhook listen --server … --forward …`).
+- `--server` vem depois do subcomando (`anzol listen --server … --forward …`).
 - `Listening on …` só aparece com a assinatura do SSE pronta: o teste manda o webhook logo depois.
 - Linhas casadas por inteiro (`^…$`), sem prefixo. Em `<caminho?query>` vale qualquer texto sem
   espaço que termine no caminho após o token + query gravada (o CLI pode imprimir o token ou a URL
@@ -103,7 +103,7 @@ temporária do sistema, apagada ao fim de cada teste.
   se chegarem, é uma vez e no lugar delas na ordem de `seq`. A recuperação precisa passar por
   `GET /token/{id}/requests` (é onde o proxy apaga).
 - CA-13: o cursor apagado não conta como perdido: `Reconnected; forwarding 1 missed request(s)`.
-- `rules pull|push`: `--server` depois dos argumentos (`webhook rules pull <token> --server …`, a ordem
+- `rules pull|push`: `--server` depois dos argumentos (`anzol rules pull <token> --server …`, a ordem
   do Anexo C). O CLI herda `WEBHOOK_SERVER` apontando para uma porta fechada (`127.0.0.1:9`): só o
   `--server` leva ao app.
 - `rules pull` "formatado" = JSON com uma linha por campo e recuo; o conteúdo é comparado como JSON
@@ -127,10 +127,10 @@ temporária do sistema, apagada ao fim de cada teste.
   desiste não interrompe os seguintes; o código de saída é 1 se algum desistiu. `--repeat`/`--interval`
   espaçam o início dos envios em ≥ `--interval`.
 - `send`: sem o comando (ou sem uma opção dele), cada teste falha com `o CLI em … recusou a linha de comando
-  (erro de uso); falta \`webhook send\` ou alguma opção dele?`.
+  (erro de uso); falta \`anzol send\` ou alguma opção dele?`.
 - Arquivo inexistente e JSON inválido: a mensagem é livre, mas não pode ser erro de uso do CLI
   (`Usage:`, `unexpected extra argument`, `no such subcommand`…). Esse erro de uso falha qualquer teste
-  de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta webhook rules …?`, para os casos
+  de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta anzol rules …?`, para os casos
   de erro não passarem contra um CLI sem os comandos.
 - `wait-for`: `--server` depois do subcomando; o CLI herda `WEBHOOK_SERVER` numa porta fechada. Os testes
   exigem o app com `POST /token/{id}/requests/wait` (ver `tests/contract/README.md`).
@@ -145,12 +145,12 @@ temporária do sistema, apagada ao fim de cada teste.
   `--match`, fica fora. `--body-contains` e `--json-path` juntos somam condições de corpo (E).
 - `wait-for`: o texto das mensagens de erro (código 2) é livre; `--count` fora de 1..100 pode ser recusado
   pelo CLI ou pelo 422 da API. Sem o comando (ou sem uma opção dele), cada teste falha com `o CLI em …
-  recusou a linha de comando; falta \`webhook wait-for\` ou alguma opção dele (…)?`.
+  recusou a linha de comando; falta \`anzol wait-for\` ou alguma opção dele (…)?`.
 - `wait-for --new`: sem sinal de "pronto" no CLI, o teste manda uma mensagem nova a cada 400 ms até o CLI
   sair; qualquer uma delas vale, a do histórico não.
 - Segredo de leitura (item 12): "opção global" é lida como a opção aceita por `listen`, `replay`, `wait-for`,
   `rules pull` e `rules push` depois do subcomando e dos argumentos, na posição do `--server`
-  (`webhook listen --server … --read-secret …`); o CLI que só a aceite antes do subcomando falha com `falta
+  (`anzol listen --server … --read-secret …`); o CLI que só a aceite antes do subcomando falha com `falta
   --read-secret (depois do subcomando)`. Os testes exigem o app com o item 12 (ver `tests/contract/README.md`).
 - Sem o segredo, ou com ele errado, a mensagem e o código de saída são livres, desde que o código não seja 0 e nada
   seja entregue: a §1 não fixa a mensagem do CLI para o 401.

@@ -50,13 +50,13 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
     await expect(abrirItem(page, ids[2])).toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[1])).not.toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[0])).toHaveAttribute('aria-current', /.+/);
-    await expect(page).toHaveTitle('(1) Webhook.site');
+    await expect(page).toHaveTitle('(1) Anzol');
 
     await abrirItem(page, ids[2]).click();
 
     await expect(abrirItem(page, ids[2])).not.toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[2])).toHaveAttribute('aria-current', /.+/);
-    await expect(page).toHaveTitle('Webhook.site');
+    await expect(page).toHaveTitle('Anzol');
     expect((await readStorage(page))['unread']).toBe('[]');
   });
 

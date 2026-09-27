@@ -4,9 +4,9 @@ import path from 'node:path';
 export const RAIZ = path.resolve(import.meta.dirname, '..', '..', '..');
 
 /** Script do CLI sob teste; relativo à raiz do repositório quando não absoluto. */
-export const CLI = path.resolve(RAIZ, process.env.WEBHOOK_CLI ?? 'cli/build/install/webhook/bin/webhook');
+export const CLI = path.resolve(RAIZ, process.env.WEBHOOK_CLI ?? 'cli/build/install/anzol/bin/anzol');
 
-/** App webhook.site real (só HTTP). Sem barra final: é assim que o CLI a recebe em --server. */
+/** App Anzol real (só HTTP). Sem barra final: é assim que o CLI a recebe em --server. */
 export const SERVIDOR = (process.env.WEBHOOK_SERVER ?? 'http://localhost:8084').replace(/\/+$/, '');
 
 export const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;

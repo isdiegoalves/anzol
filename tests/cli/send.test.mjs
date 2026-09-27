@@ -11,7 +11,7 @@ import { iniciarCli } from './support/cli.mjs';
 import { aoFinal, limparTudo } from './support/limpeza.mjs';
 import { maisNovas, registrarToken, verificarServidor } from './support/servidor.mjs';
 
-// Aceite do `webhook send` (simulador de provedor, §1 do plano "simulador-provedor"). O CLI dispara
+// Aceite do `anzol send` (simulador de provedor, §1 do plano "simulador-provedor"). O CLI dispara
 // contra um receptor local (o capturador), que confere método, cabeçalhos, corpo, placeholders,
 // assinatura (com `node:crypto`) e o intervalo entre tentativas; a prova cruzada da assinatura manda
 // para uma URL da 8084 com a mesma `signature` configurada.
@@ -54,7 +54,7 @@ function lerTentativa(texto) {
   };
 }
 
-/** Inicia `webhook send <args>`. */
+/** Inicia `anzol send <args>`. */
 function iniciarSend(args) {
   return iniciarCli(['send', ...args]);
 }
@@ -62,7 +62,7 @@ function iniciarSend(args) {
 /** Erro de uso do CLI (comando ou opção que não existe) vira falha com mensagem clara. */
 function recusarErroDeUso(cli) {
   if (ERRO_DE_USO.test(cli.linhas.map((l) => l.texto).join('\n'))) {
-    throw new Error(`o CLI em ${CLI} recusou a linha de comando (erro de uso); falta \`webhook send\` ou alguma opção dele?\n${cli.descricao()}`);
+    throw new Error(`o CLI em ${CLI} recusou a linha de comando (erro de uso); falta \`anzol send\` ou alguma opção dele?\n${cli.descricao()}`);
   }
 }
 
@@ -231,7 +231,7 @@ async function criarTokenAssinado(config) {
 /** Corpo com não-ASCII e placeholder: a assinatura tem de cobrir os bytes já resolvidos. */
 const CORPO_ASSINADO = '{"id":"{{uuid}}","evento":"pagamento.aprovado","valor":"R$ 10,00 ✓","seq":{{seq}}}';
 
-describe('webhook send', () => {
+describe('anzol send', () => {
   test('CA-1: método, cabeçalhos, corpo e placeholders chegam resolvidos; linha da tentativa e saída 0', { timeout: 90_000 }, async () => {
     const app = await iniciarCapturador({ status: 201 });
     const modelo = '{"id":"{{uuid}}","agora":"{{now}}","ts":{{timestamp}},"seq":{{seq}},"r1":"{{random 1}}","r16":"{{random 16}}","r256":"{{random 256}}","lit":"{{{{uuid}}","dois":"{{{{","texto":"olá ✓"}';
@@ -305,7 +305,7 @@ describe('webhook send', () => {
 
   describe('CA-2: assinatura por provedor', () => {
     for (const p of PROVEDORES) {
-      test(`${p.nome}: confere no receptor com node:crypto e o webhook.site grava valid: true`, { timeout: 90_000 }, async () => {
+      test(`${p.nome}: confere no receptor com node:crypto e o Anzol grava valid: true`, { timeout: 90_000 }, async () => {
         const app = await iniciarCapturador();
         const local = await send(['--to', `${app.url}/assinado`, ...p.args, '--secret', SEGREDO, '--header', 'Content-Type: application/json', '--data', CORPO_ASSINADO]);
         assert.equal(local.codigo, 0, `código de saída\n${local.cli.descricao()}`);
@@ -314,7 +314,7 @@ describe('webhook send', () => {
         assert.match(rec.corpo.toString('utf8'), new RegExp(`^\\{"id":"${UUID.source}","evento":"pagamento\\.aprovado","valor":"R\\$ 10,00 ✓","seq":1\\}$`, 'i'));
         p.verificar(rec);
 
-        // Prova cruzada: o próprio webhook.site verifica a mesma assinatura.
+        // Prova cruzada: o próprio Anzol verifica a mesma assinatura.
         const token = await criarTokenAssinado(p.config);
         const remoto = await send(['--to', `${SERVIDOR}/${token}/evento`, ...p.args, '--secret', SEGREDO, '--header', 'Content-Type: application/json', '--data', CORPO_ASSINADO]);
         assert.deepEqual(resumo(remoto.tentativas), [tentativa(1, 1, 1, 200)], remoto.cli.descricao());

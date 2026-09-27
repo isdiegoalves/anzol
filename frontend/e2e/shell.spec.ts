@@ -167,9 +167,9 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
       expect
         .soft((await novaUrl(page).boundingBox())!.width, 'FAB só com o ícone')
         .toBeLessThanOrEqual(96);
-      const marca = page.getByRole('link', { name: 'Webhook Tester', exact: true });
+      const marca = page.getByRole('link', { name: 'Anzol', exact: true });
       await expect(marca).toBeVisible();
-      await expect.soft(marca.getByText('Webhook Tester', { exact: true })).toBeHidden();
+      await expect.soft(marca.getByText('Anzol', { exact: true })).toBeHidden();
     });
   }
 });
@@ -320,10 +320,12 @@ test.describe('Dado o Help do rail', () => {
     await ajuda(page).click();
 
     const ajudaAberta = page.getByRole('dialog', { name: 'Help' });
+    // O produto se chama Anzol (decisão do dono, 2026-09-27): o repositório é isdiegoalves/anzol.
     await expect(ajudaAberta.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
       'href',
-      'https://github.com/isdiegoalves',
+      'https://github.com/isdiegoalves/anzol',
     );
+    await expect(ajudaAberta).toContainText('Anzol, open source under the MIT license.');
     await expect(page.getByRole('link', { name: 'Donate' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: '@fredsted' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Github Page' })).toHaveCount(0);

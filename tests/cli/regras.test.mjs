@@ -121,7 +121,7 @@ function falhouComMensagem(r, oque) {
   assert.ok(r.stderr.trim().length > 0, `${oque}: sem mensagem no stderr\n${r.cli.descricao()}`);
 }
 
-describe('webhook rules pull', () => {
+describe('anzol rules pull', () => {
   test('pull sem --file: stdout é o JSON formatado igual ao GET /token/{id}/rules; saída 0', { timeout: 60_000 }, async () => {
     const token = await criarToken();
     await gravarRegras(token, REGRAS_RICAS);
@@ -159,7 +159,7 @@ describe('webhook rules pull', () => {
   });
 });
 
-describe('webhook rules push', () => {
+describe('anzol rules push', () => {
   test('push de um arquivo: "Pushed <n> rule(s)", saída 0, e o GET devolve as regras com id', { timeout: 60_000 }, async () => {
     const token = await criarToken();
     await gravarRegras(token, [{ name: 'antiga', priority: 2 }]);

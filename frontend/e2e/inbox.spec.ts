@@ -26,8 +26,9 @@ import { seedStorage } from './support/storage';
 // - a divisória é o `app-split` da E2 com o nome "Resize list and detail", lembrada entre recargas;
 // - apagar uma mensagem mostra o snackbar "Request deleted" com o botão "Undo"; o DELETE só vai à API quando o
 //   snackbar fecha sem "Undo";
-// - na `search`, o `button "Copy as webhook wait-for"` copia
-//   `webhook wait-for --server '<origem>' --token <uuid> --match '<o match da busca em JSON>'` e confirma num
+// - na `search`, o `button "Copy as webhook wait-for"` copia (o CLI se chama `anzol`: o nome do botão pode
+//   dizer "anzol wait-for")
+//   `anzol wait-for --server '<origem>' --token <uuid> --match '<o match da busca em JSON>'` e confirma num
 //   `status` que começa por "Copied"; com texto na busca, a confirmação avisa "The text search is not part of
 //   wait-for"; com a URL protegida, o comando leva `--read-secret "$WEBHOOK_READ_SECRET"` (nunca o segredo);
 // - abaixo de 840 px aparece um painel por vez; o link permanente da mensagem abre o detalhe, com "Back to
@@ -63,7 +64,9 @@ function confirmacao(page: Page): Locator {
 }
 
 async function copiarWaitFor(page: Page): Promise<string> {
-  await busca(page).getByRole('button', { name: 'Copy as webhook wait-for' }).click();
+  await busca(page)
+    .getByRole('button', { name: /^Copy as (webhook|anzol) wait-for$/ })
+    .click();
   await expect(confirmacao(page)).toBeVisible();
   return page.evaluate(() => navigator.clipboard.readText());
 }
@@ -142,7 +145,7 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     const { match } = (await busca2).postDataJSON() as { match: unknown };
     const comando = await copiarWaitFor(page);
 
-    expect(comando).toMatch(/^webhook wait-for /);
+    expect(comando).toMatch(/^anzol wait-for /);
     expect(comando).toContain(`--token ${tokenId}`);
     expect(comando).toMatch(new RegExp(`--server '?${origem.replace(/[.]/g, '\\.')}'?`));
     expect(matchDe(comando)).toEqual(match);

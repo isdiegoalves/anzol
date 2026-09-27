@@ -20,7 +20,7 @@ function essencia(rec) {
   };
 }
 
-describe('webhook replay', () => {
+describe('anzol replay', () => {
   test('CA-6: replay reenvia uma mensagem gravada igual ao listen', { timeout: 90_000 }, async () => {
     const token = await criarToken();
     const app = await iniciarCapturador({ status: 202 });

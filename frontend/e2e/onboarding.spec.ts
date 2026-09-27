@@ -13,7 +13,7 @@ import { readStorage, seedStorage } from './support/storage';
 // SUPOSIÇÕES (contrato da E10):
 // - o onboarding é a `region "Your URL is ready"`: mostra a URL da webhook, um `button "Copy URL"` (pt-BR "Copiar
 //   URL"; decisão do main: o "Copy" do cabeçalho segue único na tela) e o `link "Open in new tab"`; `tab` "cURL" (comando `curl` com a URL), "From a provider" (Stripe, GitHub, Shopify e Slack, com um link
-//   para Checks) e "CLI" (`webhook listen … --token {uuid}`); e três links para o que a URL sabe fazer, que levam a
+//   para Checks) e "CLI" (`anzol listen … --token {uuid}`, o CLI se chama `anzol`); e três links para o que a URL sabe fazer, que levam a
 //   `#/{token}/rules`, `#/{token}/checks` e `#/{token}/outbound`;
 // - "Send a test request" (`button`) manda `POST` com `Content-Type: application/json` e um corpo JSON;
 // - URL inexistente: como hoje, a tela cria outra e vai para ela, mas explica no onboarding da nova (e não num
@@ -86,7 +86,7 @@ test.describe('Dado uma URL nova, sem mensagens', () => {
       pronta.getByRole('tabpanel').locator(`a[href*="/${tokenId}/checks"]`).first(),
     ).toBeVisible();
     await pronta.getByRole('tab', { name: 'CLI', exact: true }).click();
-    await expect(pronta.getByRole('tabpanel')).toContainText('webhook listen');
+    await expect(pronta.getByRole('tabpanel')).toContainText('anzol listen');
     await expect(pronta.getByRole('tabpanel')).toContainText(`--token ${tokenId}`);
 
     for (const destino of ['rules', 'checks', 'outbound']) {
