@@ -171,7 +171,7 @@
       </div>
       <div class="pair">
         @if (chosen === 'generic') {
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label i18n>Signature header</mat-label>
             <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
             <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
@@ -179,7 +179,11 @@
           </mat-form-field>
         }
         @let keeps = keepsSecret();
-        <mat-form-field appearance="outline" [floatLabel]="keeps ? 'always' : 'auto'">
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          [floatLabel]="keeps ? 'always' : 'auto'"
+        >
           <mat-label i18n>Secret</mat-label>
           <input
             matInput
@@ -199,10 +203,20 @@
             }
           </mat-error>
         </mat-form-field>
+        @if (chosen === 'stripe' || chosen === 'slack') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label i18n>Timestamp tolerance (seconds)</mat-label>
+            <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
+            <mat-hint i18n
+              >1 to 86400. Older or future timestamps are rejected (replay protection).</mat-hint
+            >
+            <mat-error i18n>An integer between 1 and 86400.</mat-error>
+          </mat-form-field>
+        }
       </div>
       @if (chosen === 'generic') {
         <div class="triple">
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label i18n>Prefix</mat-label>
             <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
             <mat-hint i18n>Optional, before the signature</mat-hint>
@@ -233,16 +247,6 @@
             </mat-button-toggle-group>
           </div>
         </div>
-      }
-      @if (chosen === 'stripe' || chosen === 'slack') {
-        <mat-form-field appearance="outline" class="tolerance">
-          <mat-label i18n>Timestamp tolerance (seconds)</mat-label>
-          <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
-          <mat-hint i18n
-            >1 to 86400. Older or future timestamps are rejected (replay protection).</mat-hint
-          >
-          <mat-error i18n>An integer between 1 and 86400.</mat-error>
-        </mat-form-field>
       }
     </form>
   </div>

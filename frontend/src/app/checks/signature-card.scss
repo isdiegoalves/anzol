@@ -210,7 +210,8 @@
 }
 
 // Formulário do provedor (CHECKS-12): título "{Provider} settings" com "* required", campos em
-// grade (header e segredo lado a lado; prefixo, algoritmo e codificação numa linha).
+// grade (header e segredo lado a lado, ou segredo e tolerância; prefixo, algoritmo e codificação numa
+// linha). O subscrito dinâmico deixa a ajuda quebrar linha sem cobrir o rótulo do campo de baixo.
 .settings-head {
   display: flex;
   align-items: baseline;
@@ -221,7 +222,7 @@
 .triple {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 12px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -234,9 +235,4 @@
   .triple {
     grid-template-columns: minmax(0, 1fr);
   }
-}
-
-.tolerance {
-  width: 220px;
-  max-width: 100%;
 }

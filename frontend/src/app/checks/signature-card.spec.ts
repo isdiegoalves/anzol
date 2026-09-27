@@ -345,6 +345,27 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       expect(screen.getByRole('status').textContent?.trim()).toBe(saved);
     });
 
+    it('deve pôr a tolerância ao lado do Secret e deixar as ajudas crescerem sem cobrir o campo de baixo (Stripe)', async () => {
+      const { container } = await renderCard(
+        SignatureCard,
+        token({ signature: { provider: 'stripe', secret: '••••1234', toleranceSeconds: 300 } }),
+      );
+
+      const tolerance = screen.getByRole('spinbutton', { name: 'Timestamp tolerance (seconds)' });
+      const secret = container.querySelector('input[formcontrolname="secret"]') as HTMLElement;
+      const grid = tolerance.closest('.pair');
+      expect(grid).toBeTruthy();
+      expect(secret.closest('.pair')).toBe(grid);
+      const fields = [...container.querySelectorAll('form.fields mat-form-field')];
+      expect(fields.length).toBeGreaterThan(0);
+      for (const field of fields) {
+        expect(
+          field.querySelector('.mat-mdc-form-field-subscript-dynamic-size'),
+          field.textContent ?? '',
+        ).toBeTruthy();
+      }
+    });
+
     it('CHECKS-13: não deve dizer "Saved." Quando a URL não verifica', async () => {
       await renderCard(SignatureCard, token());
 
