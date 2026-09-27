@@ -43,6 +43,8 @@ private val READ_ONLY_GETS =
         "/token/{tokenId}/outbound",
         "/token/{tokenId}/request/{requestId}",
         "/token/{tokenId}/request/{requestId}/raw",
+        // C1 das Regras (aprovado pelo dono): só avalia as regras atuais contra a mensagem, sem gravar nem mudar cenário.
+        "/token/{tokenId}/request/{requestId}/rules/trace",
         "/token/{tokenId}/requests",
         "/token/{tokenId}/rules",
         "/token/{tokenId}/scenarios",

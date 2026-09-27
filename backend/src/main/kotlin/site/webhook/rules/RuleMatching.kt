@@ -74,11 +74,7 @@ fun List<Rule>.decide(
     input: MatchInput,
     states: Map<String, String> = emptyMap(),
 ): Decision {
-    val evaluated =
-        filter { it.enabled }.sortedBy { it.priority }.map {
-            it to
-                it.failures(input) + listOfNotNull(it.scenarioFailure(states))
-        }
+    val evaluated = evaluationOrder().map { it to it.failures(input, states) }
     val matched = evaluated.firstOrNull { (_, failed) -> failed.isEmpty() }
     if (matched != null) return Decision.Matched(matched.first)
     val closest = evaluated.minByOrNull { (_, failed) -> failed.size }
@@ -87,18 +83,11 @@ fun List<Rule>.decide(
     )
 }
 
+/** As regras ativas na ordem em que a escolha as avalia: pela menor prioridade, empate pela ordem na lista. */
+fun List<Rule>.evaluationOrder(): List<Rule> = filter { it.enabled }.sortedBy { it.priority }
+
 /** Nomes dos cenários de que a escolha entre as regras ativas depende. */
 fun List<Rule>.activeScenarios(): List<String> = filter { it.enabled }.mapNotNull { it.scenario?.name }.distinct()
-
-private fun Rule.scenarioFailure(states: Map<String, String>): Failure? {
-    val name = scenario?.name
-    val required = scenario?.requiredState
-    val current = states[name] ?: STARTED
-    return when {
-        name == null || required == null || current == required -> null
-        else -> Failure(SCENARIO_CONDITION, "scenario $name: expected state ${quote(required)}, got ${quote(current)}")
-    }
-}
 
 /** A frase do `failed` quando a condição falha; `null` quando casa. */
 fun Condition.failure(input: MatchInput): String? =

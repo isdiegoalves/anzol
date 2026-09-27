@@ -26,3 +26,22 @@ fun List<Condition>.failures(input: MatchInput): List<Failure> =
 
 /** As condições da regra que falharam; vazia quando a regra casa (sem olhar `enabled`). */
 fun Rule.failures(input: MatchInput): List<Failure> = match.conditions().failures(input)
+
+/**
+ * As condições da regra que falharam e, por último, a do cenário contra [states] (ausente = [STARTED]); vazia quando a
+ * regra casa (sem olhar `enabled`). As frases e chaves do near miss.
+ */
+fun Rule.failures(
+    input: MatchInput,
+    states: Map<String, String>,
+): List<Failure> = failures(input) + listOfNotNull(scenarioFailure(states))
+
+private fun Rule.scenarioFailure(states: Map<String, String>): Failure? {
+    val name = scenario?.name
+    val required = scenario?.requiredState
+    val current = states[name] ?: STARTED
+    return when {
+        name == null || required == null || current == required -> null
+        else -> Failure(SCENARIO_CONDITION, "scenario $name: expected state ${quote(required)}, got ${quote(current)}")
+    }
+}
