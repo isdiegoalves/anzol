@@ -60,6 +60,12 @@ const ICONS = {
   reply: [path('m15 10 5 5-5 5'), path('M4 4v7a4 4 0 0 0 4 4h12')],
   info: [circle(12, 12, 10), path('M12 16v-4'), path('M12 8h.01')],
   check: [path('M20 6 9 17l-5-5')],
+  refresh: [
+    path('M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8'),
+    path('M21 3v5h-5'),
+    path('M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16'),
+    path('M8 16H3v5'),
+  ],
   lock: [
     { tag: 'rect', x: 3, y: 11, width: 18, height: 11, rx: 2 },
     path('M7 11V7a5 5 0 0 1 10 0v4'),

@@ -5,6 +5,7 @@ import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatSlider, MatSliderThumb } from '@angular/material/slider';
 import { RouterLink } from '@angular/router';
 import { AUTO_CLEANUP_LIMITS, AutoCleanup, Token, retryAfterValidator } from '../token/token';
 import { TokenStore } from '../token/token-store';
@@ -37,6 +38,8 @@ type CleanupOption = 'off' | `${AutoCleanup}`;
     MatInput,
     MatLabel,
     MatSlideToggle,
+    MatSlider,
+    MatSliderThumb,
     SaveBar,
   ],
   templateUrl: './response-card.html',
@@ -53,7 +56,7 @@ export class ResponseCard {
   protected readonly form = this.formBuilder.group({
     default_status: ['', [Validators.required, Validators.pattern(INTEGER)]],
     default_content_type: [''],
-    timeout: ['', [Validators.pattern(INTEGER), Validators.min(0), Validators.max(10)]],
+    timeout: [0 as number | null],
     default_content: [''],
     retry_after: ['', retryAfterValidator],
     auto_cleanup: ['off' as CleanupOption],
@@ -88,6 +91,9 @@ export class ResponseCard {
   protected pendingLabels(): string[] {
     return pendingLabels(this.fields());
   }
+
+  /** Leitura do slider para o leitor de tela: "2 seconds" (CHECKS-21). */
+  protected readonly seconds = (value: number): string => $localize`${value}:seconds: seconds`;
 
   protected cleanupLimit(): string | null {
     const value = this.form.controls.auto_cleanup.value;
@@ -137,7 +143,7 @@ export class ResponseCard {
           // Em branco é o padrão do servidor, como o campo ausente no app atual.
           default_content_type: value.default_content_type || 'text/plain',
           // O campo numérico apagado vem `null`: vazio é 0, como no Create (e o servidor recusa null).
-          timeout: value.timeout == null || value.timeout === '' ? '0' : String(value.timeout),
+          timeout: String(value.timeout ?? 0),
           default_content: value.default_content,
           retry_after: value.retry_after || null,
           auto_cleanup:
@@ -160,7 +166,7 @@ export class ResponseCard {
     this.form.reset({
       default_status: String(token?.default_status ?? 200),
       default_content_type: token?.default_content_type ?? '',
-      timeout: String(token?.timeout ?? 0),
+      timeout: token?.timeout ?? 0,
       default_content: token?.default_content ?? '',
       retry_after: String(token?.retry_after ?? ''),
       auto_cleanup: token?.auto_cleanup ? (String(token.auto_cleanup) as CleanupOption) : 'off',

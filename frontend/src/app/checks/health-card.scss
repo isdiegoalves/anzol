@@ -20,17 +20,31 @@
 
 .percent {
   margin-left: auto;
-  font: var(--mat-sys-headline-small);
+  font: var(--mat-sys-headline-medium);
+  font-size: 32px;
+  font-weight: 600;
   font-variation-settings: 'ROND' 100;
 }
 
+// A janela compacta ao lado do título (CHECKS-18): 50, 200 ou 500 (S20).
+.window {
+  width: 130px;
+}
+
 // Barra válidas/inválidas: as duas partes também se distinguem pela posição e pelos números.
+// Barra válidas/inválidas: 12 px, com 2 px de vão entre as partes (separa as cores para quem não as
+// distingue); as partes também se distinguem pela posição e pelos números.
 .bar {
   display: flex;
-  height: 10px;
+  gap: 2px;
+  height: 12px;
   overflow: hidden;
   border-radius: var(--mat-sys-corner-full);
   background: var(--mat-sys-surface-container-high);
+
+  > span:empty[style*='flex-grow: 0'] {
+    display: none;
+  }
 }
 
 .ok {
@@ -51,10 +65,10 @@
 
 .dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   margin-right: 6px;
-  border-radius: 50%;
+  border-radius: 3px;
 }
 
 h4 {

@@ -1,7 +1,7 @@
 import { Component, ElementRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatFormField } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
@@ -36,7 +36,6 @@ import {
     ReactiveFormsModule,
     MatButton,
     MatFormField,
-    MatLabel,
     MatOption,
     MatSelect,
     SaveBar,
@@ -155,8 +154,31 @@ export class SchemaCard {
     }
   }
 
+  /**
+   * A opção da mensagem: `#id` e o tipo do evento do corpo quando há (`type`, `event`), como no
+   * protótipo ("#e41b7 payment_intent.succeeded"); senão o método e há quanto tempo.
+   */
   protected label(request: WebhookRequest): string {
-    return `#${request.uuid.slice(0, 5)} ${request.method} · ${fromNow(request.created_at)}`;
+    const id = `#${request.uuid.slice(0, 5)}`;
+    const body = jsonBody(request)?.value;
+    const event =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? ((body as Record<string, unknown>)['type'] ?? (body as Record<string, unknown>)['event'])
+        : undefined;
+    return typeof event === 'string'
+      ? `${id} ${event}`
+      : `${id} ${request.method} · ${fromNow(request.created_at)}`;
+  }
+
+  /** O dialeto do schema salvo, lido do `$schema` ("2020-12", "2019-09", "draft-07"). */
+  protected dialect(): string | null {
+    const declared = this.saved()?.['$schema'];
+    if (typeof declared !== 'string') {
+      return null;
+    }
+    return (
+      /draft\/(\d{4}-\d{2})\//.exec(declared)?.[1] ?? /(draft-0\d)/.exec(declared)?.[1] ?? null
+    );
   }
 
   protected async saveSchema(): Promise<void> {

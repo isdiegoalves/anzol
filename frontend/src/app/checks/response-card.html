@@ -18,7 +18,7 @@
 </p>
 
 <form class="fields" [formGroup]="form" (ngSubmit)="saveResponse()">
-  <div class="row">
+  <div class="row status-line">
     <mat-form-field appearance="outline">
       <mat-label i18n>Default status code</mat-label>
       <input matInput formControlName="default_status" inputmode="numeric" placeholder="200" />
@@ -36,19 +36,31 @@
   </div>
   <mat-form-field appearance="outline">
     <mat-label i18n>Response body</mat-label>
-    <textarea matInput rows="4" class="code" formControlName="default_content"></textarea>
+    <textarea matInput rows="2" class="code" formControlName="default_content"></textarea>
   </mat-form-field>
   <div class="row">
-    <mat-form-field appearance="outline">
-      <mat-label i18n>Timeout before response</mat-label>
-      <input matInput type="number" min="0" max="10" formControlName="timeout" placeholder="0" />
-      <mat-hint i18n>Seconds, 0 to 10</mat-hint>
-      <mat-error i18n>The timeout must be an integer between 0 and 10.</mat-error>
-    </mat-form-field>
+    <div class="delay">
+      <span class="segmented-label" id="response-timeout-label" i18n>Timeout before response</span>
+      <div class="delay-line">
+        <mat-slider min="0" max="10" step="1" [displayWith]="seconds">
+          <input
+            matSliderThumb
+            formControlName="timeout"
+            aria-labelledby="response-timeout-label"
+          />
+        </mat-slider>
+        <span class="delay-value" aria-hidden="true" i18n>{{ form.controls.timeout.value }} s</span>
+      </div>
+    </div>
     <mat-form-field appearance="outline">
       <mat-label i18n>Retry-After</mat-label>
-      <input matInput formControlName="retry_after" placeholder="120" />
-      <mat-hint i18n>Seconds or HTTP-date; useful with 429, 503 or 3xx. Off when empty.</mat-hint>
+      <input
+        matInput
+        formControlName="retry_after"
+        placeholder="120 or HTTP date"
+        i18n-placeholder
+      />
+      <mat-hint i18n>Off when empty. For 429, 503, 3xx.</mat-hint>
       <mat-error i18n>The retry after must be a number of seconds or an HTTP date.</mat-error>
     </mat-form-field>
   </div>
@@ -76,8 +88,12 @@
   </div>
 </form>
 
-<div class="cors">
+<div class="cors-row">
+  <p id="response-cors-help" class="hint" i18n>
+    Lets a browser page call this URL. Applies right away.
+  </p>
   <mat-slide-toggle
+    labelPosition="before"
     [checked]="tokens.token()?.cors ?? false"
     [disabled]="togglingCors()"
     aria-describedby="response-cors-help"
@@ -85,9 +101,6 @@
     i18n
     >Enable CORS</mat-slide-toggle
   >
-  <p id="response-cors-help" class="hint" i18n>
-    Adds CORS headers so a browser page can call this URL. Applies right away.
-  </p>
 </div>
 
 <app-save-bar

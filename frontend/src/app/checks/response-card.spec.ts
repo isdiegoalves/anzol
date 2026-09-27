@@ -32,8 +32,7 @@ describe('Dado o cartão "Response" de Checks', () => {
     expect(box('Response body').value).toBe('antes');
     expect(box('Retry-After').value).toBe('30');
     expect(
-      (screen.getByRole('spinbutton', { name: 'Timeout before response' }) as HTMLInputElement)
-        .value,
+      (screen.getByRole('slider', { name: 'Timeout before response' }) as HTMLInputElement).value,
     ).toBe('2');
     const cleanup = screen.getByRole('radiogroup', { name: 'Auto cleanup' });
     expect(
@@ -77,13 +76,6 @@ describe('Dado o cartão "Response" de Checks', () => {
   });
 
   it.each([
-    [
-      'o timeout',
-      'spinbutton',
-      'Timeout before response',
-      '11',
-      '1 field needs attention: Timeout before response',
-    ],
     ['o Retry-After', 'textbox', 'Retry-After', 'amanhã', '1 field needs attention: Retry-After'],
   ] as const)(
     'deve dizer o que corrigir e focar o campo Quando %s é inválido',
@@ -100,17 +92,6 @@ describe('Dado o cartão "Response" de Checks', () => {
       http.expectNone((sent) => sent.method === 'PUT');
     },
   );
-
-  it('deve mandar timeout 0, e não nulo (422), Quando o campo do timeout é apagado', async () => {
-    const { http } = await renderCard(ResponseCard, SALVA);
-
-    await userEvent.clear(screen.getByRole('spinbutton', { name: 'Timeout before response' }));
-    await userEvent.click(save());
-
-    const put = await expectPut(http);
-    expect(put.request.body.timeout).toBe('0');
-    put.flush(SALVA);
-  });
 
   it('deve avisar "changed elsewhere", sem sobrescrever, e recarregar pelo Reload Quando o status mudou lá fora', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
@@ -191,5 +172,35 @@ describe('Dado o cartão "Response" de Checks', () => {
     http.expectOne(`/token/${TOKEN_ID}/rules`).flush([{ id: 'a', name: 'A' }]);
 
     expect(await screen.findByRole('link', { name: '1 rule answers first' })).toBeTruthy();
+  });
+
+  it('CHECKS-21: deve ter o atraso como slider de 0 a 10 s, com passo 1 e "N seconds" para o leitor de tela', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+
+    const slider = screen.getByRole('slider', {
+      name: 'Timeout before response',
+    }) as HTMLInputElement;
+    expect([slider.min, slider.max, slider.step]).toEqual(['0', '10', '1']);
+    expect(slider.getAttribute('aria-valuetext')).toBe('2 seconds');
+    expect(screen.getByText('2 s')).toBeTruthy();
+
+    slider.value = '5';
+    slider.dispatchEvent(new Event('input'));
+    slider.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(slider.getAttribute('aria-valuetext')).toBe('5 seconds'));
+    await userEvent.click(save());
+
+    const put = await expectPut(http);
+    expect(put.request.body.timeout).toBe('5');
+    put.flush({ ...SALVA, timeout: 5 });
+  });
+
+  it('CHECKS-21: deve pôr o CORS numa linha com a explicação e o switch "Enable CORS"', async () => {
+    const { container } = await renderCard(ResponseCard, SALVA);
+
+    const row = container.querySelector('.cors-row') as HTMLElement;
+    expect(row.textContent).toContain('Lets a browser page call this URL. Applies right away.');
+    expect(within(row).getByRole('switch', { name: 'Enable CORS' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Response body' }).getAttribute('rows')).toBe('2');
   });
 });

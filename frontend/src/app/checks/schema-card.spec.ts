@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/angular';
+import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { expectPut, renderCard } from '../../testing/checks';
@@ -175,5 +175,47 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     await userEvent.clear(field());
     await userEvent.type(field(), '{{"type": ');
     expect(meta()).toMatch(/· invalid$/);
+  });
+
+  it.each([
+    ['2020-12', 'https://json-schema.org/draft/2020-12/schema', 'On · 2020-12'],
+    ['2019-09', 'https://json-schema.org/draft/2019-09/schema#', 'On · 2019-09'],
+    ['draft-07', 'http://json-schema.org/draft-07/schema#', 'On · draft-07'],
+    ['sem $schema', null, 'On'],
+  ])(
+    'CHECKS-14: deve mostrar o dialeto no chip Quando o schema é %s',
+    async (_c, dialect, chip) => {
+      const schema = dialect ? { $schema: dialect, type: 'object' } : { type: 'object' };
+      const { http, container } = await renderCard(SchemaCard, token({ schema }));
+      http.expectOne(RECENTES).flush(requestPage([]));
+
+      expect(container.querySelector('.card-head .state.on')?.textContent?.trim()).toBe(chip);
+    },
+  );
+
+  it('CHECKS-16: deve mostrar o tipo do evento na opção e o painel com o nome sem repetição', async () => {
+    const { http, container } = await renderCard(SchemaCard, token());
+    http
+      .expectOne(RECENTES)
+      .flush(
+        requestPage([
+          webhookRequest(1, { content: '{"type":"payment_intent.succeeded","id":"evt_1"}' }),
+          webhookRequest(2, { content: '[1,2]' }),
+        ]),
+      );
+
+    const panel = await vi.waitFor(() => container.querySelector('.generate.panel') as HTMLElement);
+    expect(panel.querySelectorAll('mat-label')).toHaveLength(0);
+    const source = await within(panel).findByRole('combobox', { name: /^Generate from a message/ });
+    expect(source.textContent).toContain(
+      `#${webhookRequest(1).uuid.slice(0, 5)} payment_intent.succeeded`,
+    );
+    expect(panel.textContent).toContain(
+      'Pick a JSON request; the schema is inferred from its body.',
+    );
+    expect(panel.textContent).not.toContain('Ctrl+Z');
+    expect(
+      within(panel).getByRole('button', { name: 'Generate schema' }).querySelector('app-icon'),
+    ).toBeTruthy();
   });
 });

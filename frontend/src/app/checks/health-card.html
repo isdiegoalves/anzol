@@ -5,21 +5,29 @@
   /></span>
   <h2 id="health-title" i18n>Health</h2>
   <span class="spacer"></span>
-  <button mat-button type="button" [disabled]="loading()" (click)="refresh()" i18n>Refresh</button>
-</header>
-<div class="segmented">
-  <span class="segmented-label" id="health-window-label" i18n>Window (last requests)</span>
-  <mat-button-toggle-group
-    aria-labelledby="health-window-label"
-    hideSingleSelectionIndicator
-    [value]="window()"
-    (change)="chooseWindow($event.value)"
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="window">
+    <mat-select
+      aria-label="Window"
+      i18n-aria-label
+      [value]="window()"
+      (selectionChange)="chooseWindow($event.value)"
+    >
+      @for (size of windows; track size) {
+        <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <button
+    mat-icon-button
+    type="button"
+    aria-label="Refresh"
+    i18n-aria-label
+    [disabled]="loading()"
+    (click)="refresh()"
   >
-    @for (size of windows; track size) {
-      <mat-button-toggle [value]="size">{{ size }}</mat-button-toggle>
-    }
-  </mat-button-toggle-group>
-</div>
+    <app-icon name="refresh" [size]="20" />
+  </button>
+</header>
 
 <div class="body" aria-live="polite">
   @if (failure(); as message) {
@@ -47,7 +55,11 @@
               }
             </div>
             @if (data.percent) {
-              <div class="bar" role="img" [attr.aria-label]="barLabel(data.valid, data.invalid)">
+              <div
+                class="bar gapped"
+                role="img"
+                [attr.aria-label]="barLabel(data.valid, data.invalid)"
+              >
                 <span class="ok" [style.flex-grow]="data.valid"></span>
                 <span class="bad" [style.flex-grow]="data.invalid"></span>
               </div>

@@ -75,9 +75,15 @@ describe('Dado o diálogo curto "Create New URL"', () => {
       'spinbutton',
       'Timeout before response',
       '11',
-      'To save, fix: Timeout before response',
+      '1 field needs attention: Timeout before response',
     ],
-    ['o Retry-After é "amanhã"', 'textbox', 'Retry-After', 'amanhã', 'To save, fix: Retry-After'],
+    [
+      'o Retry-After é "amanhã"',
+      'textbox',
+      'Retry-After',
+      'amanhã',
+      '1 field needs attention: Retry-After',
+    ],
   ] as const)(
     'não deve criar e deve dizer o que corrigir, abrindo o campo recolhido, Quando %s',
     async (_c, role, name, valor, resumo) => {
@@ -107,7 +113,7 @@ describe('Dado o diálogo curto "Create New URL"', () => {
     await create();
 
     expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      'To save, fix: Secret to view, Confirm secret',
+      '2 fields need attention: Secret to view, Confirm secret',
     );
     expect(save).not.toHaveBeenCalled();
   });

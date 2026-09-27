@@ -57,8 +57,6 @@ export const translations: Record<string, string> = {
   '2041675390931385838': 'Saúde',
   // Refresh
   '1102717806459547726': 'Atualizar',
-  // Window (last requests)
-  '2134983675996971664': 'Janela (últimas requisições)',
   // No requests yet: the numbers appear as requests arrive.
   '3233095098443468999': 'Nenhuma requisição ainda: os números aparecem conforme elas chegam.',
   //  From the result recorded on each of the last {$INTERPOLATION} requests (of {$INTERPOLATION_1} kept).
@@ -142,14 +140,10 @@ export const translations: Record<string, string> = {
   '6904637365292840921': 'Corpo da resposta',
   // Timeout before response
   '6123728028512498233': 'Espera antes de responder',
-  // Seconds, 0 to 10
-  '7422460794063771372': 'Segundos, de 0 a 10',
   // The timeout must be an integer between 0 and 10.
   '4994309984804411886': 'A espera precisa ser um número inteiro de 0 a 10.',
   // Retry-After
   '6340462620175900175': 'Retry-After',
-  // Seconds or HTTP-date; useful with 429, 503 or 3xx. Off when empty.
-  '9084058922678641455': 'Segundos ou data HTTP; útil com 429, 503 ou 3xx. Desligado quando vazio.',
   // The retry after must be a number of seconds or an HTTP date.
   '6597161126433336325': 'O Retry-After precisa ser um número de segundos ou uma data HTTP.',
   // Auto cleanup
@@ -161,9 +155,6 @@ export const translations: Record<string, string> = {
     '{$START_BLOCK_IF} Guarda as {$INTERPOLATION} requisições mais recentes; a mais antiga sai quando chega uma nova. A URL nunca deixa de receber. {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} Sem limite por URL: vale o limite geral do servidor. {$CLOSE_BLOCK_ELSE}',
   // Enable CORS
   '6497827724854597414': 'Ligar CORS',
-  //  Adds CORS headers so a browser page can call this URL. Applies right away.
-  '4822507525201581243':
-    ' Adiciona os cabeçalhos de CORS para que uma página no navegador possa chamar esta URL. Vale na hora. ',
   // Save response
   '8605570611578081197': 'Salvar resposta',
   // Reload
@@ -184,15 +175,10 @@ export const translations: Record<string, string> = {
   '5849679101981511442': ' Valida o corpo JSON de cada requisição; deixe vazio para desligar ',
   // Generate from a message
   '4937042507750664347': 'Gerar a partir de uma mensagem',
-  //  Generate schema
-  '6686833977001829353': ' Gerar schema ',
   // No request with a JSON body yet.
   '662249624956915255': 'Nenhuma requisição com corpo JSON ainda.',
   // Loading requests…
   '2288182186106794766': 'Carregando requisições…',
-  //  The schema is inferred from the body of a recent JSON request. Every key present becomes required; integers become integer. Review before saving.
-  '3931320358708761429':
-    ' O schema é inferido do corpo de uma requisição JSON recente. Toda chave presente vira obrigatória; inteiros viram integer. Revise antes de salvar. ',
   // Dialect 2020-12, or 2019-09 / draft-07 by {$START_TAG_CODE}$schema{$CLOSE_TAG_CODE}.
   '7333366267350857834':
     'Dialeto 2020-12, ou 2019-09 / draft-07 por {$START_TAG_CODE}$schema{$CLOSE_TAG_CODE}.',
@@ -1869,12 +1855,6 @@ export const translations: Record<string, string> = {
   '551564307771458202': 'Guarda as {$INTERPOLATION} requisições mais recentes',
   //  Create
   '7941428823403788384': ' Criar ',
-  // fill in: {$fields}
-  '7615313807359232783': 'preencha: {$fields}',
-  // fix: {$fields}
-  '5913194384140121592': 'corrija: {$fields}',
-  // To save, {$parts}
-  '1634369451692992793': 'Para salvar, {$parts}',
   // This URL is protected
   '5373322810477456488': 'Esta URL é protegida',
   //  Enter the secret to view the requests, rules and history of {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}.
@@ -2046,4 +2026,25 @@ export const translations: Record<string, string> = {
   '1952012124061719459': '1 campo precisa de atenção: {$fields}',
   // {$count} fields need attention: {$fields}
   '624500080299950127': '{$count} campos precisam de atenção: {$fields}',
+  // Window
+  '6718069813936046169': 'Janela',
+  // Last {$INTERPOLATION}
+  '394634218099291067': 'Últimas {$INTERPOLATION}',
+  // {$INTERPOLATION} s
+  '3969642018190845113': '{$INTERPOLATION} s',
+  // 120 or HTTP date
+  '6894572111922321814': '120 ou data HTTP',
+  // Off when empty. For 429, 503, 3xx.
+  '3049454891898194535': 'Desligado quando vazio. Para 429, 503, 3xx.',
+  //  Lets a browser page call this URL. Applies right away.
+  '3919115585450169442': ' Deixa uma página do navegador chamar esta URL. Vale na hora. ',
+  // {$seconds} seconds
+  '1941477924301007516': '{$seconds} segundos',
+  //  Pick a JSON request; the schema is inferred from its body.
+  '8344561646705861323': ' Escolha uma requisição JSON; o schema sai do corpo dela. ',
+  // Generate schema
+  '1389905508423715434': 'Gerar schema',
+  //  Every key present becomes required; integers become integer. Review before saving.
+  '8146939615938260524':
+    ' Toda chave presente vira obrigatória; inteiros viram integer. Revise antes de salvar. ',
 };

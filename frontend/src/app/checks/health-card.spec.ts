@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/angular';
+import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { renderCard } from '../../testing/checks';
@@ -64,7 +64,8 @@ describe('Dado o cartão "Health" de Checks', () => {
     const { http } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
 
-    await userEvent.click(screen.getByRole('radio', { name: '50' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Window' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Last 50' }));
 
     http.expectOne(statsUrl(50)).flush(stats({ window: 50 }));
   });
@@ -117,5 +118,21 @@ describe('Dado o cartão "Health" de Checks', () => {
         'From the result recorded on each request. Click a line to see those requests in the Inbox.',
       ),
     ).toBeTruthy();
+  });
+
+  it('CHECKS-18: deve pôr a janela no cabeçalho, o Refresh em ícone e a barra com vão entre as partes', async () => {
+    const { http, container } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(stats());
+
+    const head = container.querySelector('.card-head') as HTMLElement;
+    await vi.waitFor(() =>
+      expect(within(head).getByRole('combobox', { name: 'Window' }).textContent).toContain(
+        'Last 200',
+      ),
+    );
+    const refresh = within(head).getByRole('button', { name: 'Refresh' });
+    expect(refresh.textContent?.trim()).toBe('');
+    expect(refresh.querySelector('app-icon')).toBeTruthy();
+    expect(container.querySelector('.bar.gapped')).toBeTruthy();
   });
 });

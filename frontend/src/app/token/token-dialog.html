@@ -115,7 +115,7 @@
   </form>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  @let summary = attempted() ? pending() : '';
+  @let summary = attempted() ? attention() : '';
   @if (summary) {
     <p id="token-form-pending" class="pending" role="alert">{{ summary }}</p>
   }

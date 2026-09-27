@@ -11,11 +11,44 @@
 
 mat-button-toggle-group {
   flex-wrap: wrap;
-  align-self: flex-start;
+  align-self: stretch;
+
+  mat-button-toggle {
+    flex: 1;
+  }
 }
 
-.cors {
+// Status (140 px) e Content-Type na mesma linha (CHECKS-21).
+.status-line {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.delay {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+}
+
+.delay-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  mat-slider {
+    flex: 1;
+  }
+}
+
+.delay-value {
+  min-width: 3ch;
+  font: var(--mat-sys-label-large);
+  font-variant-numeric: tabular-nums;
+}
+
+// O CORS numa linha: a explicação à esquerda e o switch à direita.
+.cors-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }

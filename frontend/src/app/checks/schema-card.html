@@ -5,7 +5,13 @@
   <span class="card-icon primary" aria-hidden="true"><app-icon name="braces" [size]="22" /></span>
   <h2 id="schema-title" i18n>Schema validation</h2>
   @if (savedSchema) {
-    <span class="state on" i18n>On</span>
+    <span class="state on">
+      @if (dialect(); as name) {
+        <ng-container i18n>On · {{ name }}</ng-container>
+      } @else {
+        <ng-container i18n>On</ng-container>
+      }
+    </span>
   } @else {
     <span class="state" i18n>Off</span>
   }
@@ -60,20 +66,26 @@
   </div>
 
   <div class="side">
-    <div class="generate">
-      <h3 class="generate-title" i18n>Generate from a message</h3>
+    <div class="generate panel">
+      <h3 id="schema-source-title" class="generate-title" i18n>Generate from a message</h3>
+      <p id="schema-source-pick" class="hint" i18n>
+        Pick a JSON request; the schema is inferred from its body.
+      </p>
       @if (recent(); as requests) {
         @if (requests.length > 0) {
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label i18n>Generate from a message</mat-label>
-            <mat-select formControlName="source" aria-describedby="schema-source-help">
+            <mat-select
+              formControlName="source"
+              aria-labelledby="schema-source-title"
+              aria-describedby="schema-source-pick schema-source-help"
+            >
               @for (request of requests; track request.uuid) {
                 <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
-          <button mat-stroked-button type="button" (click)="generate()" i18n>
-            Generate schema
+          <button mat-flat-button class="tonal" type="button" (click)="generate()">
+            <app-icon name="braces" [size]="18" /><ng-container i18n>Generate schema</ng-container>
           </button>
         } @else {
           <p class="hint" i18n>No request with a JSON body yet.</p>
@@ -82,8 +94,7 @@
         <p class="hint" i18n>Loading requests…</p>
       }
       <p id="schema-source-help" class="hint" i18n>
-        The schema is inferred from the body of a recent JSON request. Every key present becomes
-        required; integers become integer. Review before saving.
+        Every key present becomes required; integers become integer. Review before saving.
       </p>
     </div>
     <ul class="rules">

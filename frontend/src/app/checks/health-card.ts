@@ -1,9 +1,10 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MatButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
+import { MatFormField } from '@angular/material/form-field';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
-import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -52,7 +53,7 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  */
 @Component({
   selector: 'app-health-card',
-  imports: [Icon, RouterLink, MatButton, MatButtonToggle, MatButtonToggleGroup],
+  imports: [Icon, RouterLink, MatFormField, MatIconButton, MatOption, MatSelect],
   templateUrl: './health-card.html',
   styleUrls: ['./card.scss', './health-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'health-title' },

@@ -158,20 +158,21 @@ export class TokenDialog {
     }
   }
 
-  /** "To save, fill in: …"; vazio quando nada falta. */
-  protected pending(): string {
-    const problems = this.fields().filter(([control]) => control.invalid);
-    const missing = problems.filter(([control]) => control.hasError('required'));
-    const invalid = problems.filter(([control]) => !control.hasError('required'));
-    const parts = [
-      ...(missing.length > 0
-        ? [$localize`fill in: ${missing.map(([, , label]) => label).join(', ')}:fields:`]
-        : []),
-      ...(invalid.length > 0
-        ? [$localize`fix: ${invalid.map(([, , label]) => label).join(', ')}:fields:`]
-        : []),
-    ];
-    return parts.length > 0 ? $localize`To save, ${parts.join('; ')}:parts:` : '';
+  /**
+   * Depois de tentar criar: "2 fields need attention: Secret to view, Confirm secret", como os
+   * cartões de Checks (CHECKS-13); vazio quando nada falta.
+   */
+  protected attention(): string {
+    const labels = this.fields()
+      .filter(([control]) => control.invalid)
+      .map(([, , label]) => label);
+    const list = labels.join(', ');
+    if (labels.length === 0) {
+      return '';
+    }
+    return labels.length === 1
+      ? $localize`1 field needs attention: ${list}:fields:`
+      : $localize`${labels.length}:count: fields need attention: ${list}:fields:`;
   }
 
   /**

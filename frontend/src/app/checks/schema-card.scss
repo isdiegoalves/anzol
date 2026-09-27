@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 .layout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -80,6 +82,22 @@ textarea {
 .generate-title {
   margin: 0;
   font: var(--mat-sys-title-small);
+}
+
+// "Generate from a message" num painel tonal (CHECKS-16).
+.panel {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container);
+}
+
+.tonal {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--mat-sys-secondary-container),
+      filled-label-text-color: var(--mat-sys-on-secondary-container),
+    )
+  );
 }
 
 .generate button {
