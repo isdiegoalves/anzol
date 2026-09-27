@@ -12,6 +12,8 @@ import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import site.webhook.UUID_PATTERN
+import site.webhook.capture.addCaptureSandbox
+import site.webhook.capture.isCapturePath
 import tools.jackson.databind.json.JsonMapper
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
@@ -48,6 +50,9 @@ private const val HEADER_TOO_LARGE_PAGE =
  * (400) e corpo acima de 1 MiB (413), lê o corpo cru uma vez, monta o [LegacyInput] e aplica o
  * `X-HTTP-Method-Override` / `_method` do Symfony. Roda antes de tudo para que ninguém consuma o
  * corpo antes dele. Só o transporte do MCP lê o corpo pelo stream: para ele, o corpo lido volta ([ReplayedBody]).
+ *
+ * Num caminho de captura, o CSP sandbox entra antes de tudo: vale também para os erros (400 e 413 daqui, 410, 500 e
+ * 507 do `LegacyErrorAdvice`), que não passam pelo `WebhookController`.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -59,6 +64,7 @@ class LegacyRequestFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
+        if (request.isCapturePath()) response.addCaptureSandbox()
         if (request.hasHeaderLineAbove(MAX_HEADER_LINE)) {
             response.rejectLikeNginx(HttpServletResponse.SC_BAD_REQUEST, HEADER_TOO_LARGE_PAGE)
             return

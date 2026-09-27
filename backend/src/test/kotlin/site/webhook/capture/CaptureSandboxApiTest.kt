@@ -75,6 +75,48 @@ class CaptureSandboxApiTest(
         assertThat(response.csp()).containsExactlyInAnyOrder("default-src *", SANDBOX)
     }
 
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = ["GET", "POST", "HEAD", "OPTIONS"])
+    @DisplayName("Dado uma URL inexistente, quando chega um webhook (cliente comum ou JSON), então o 410 vem com o CSP sandbox")
+    fun erro410_deveSairEmSandbox(method: String) {
+        val tokenId = java.util.UUID.randomUUID()
+
+        val comum = api.send(method, "/$tokenId/pagina?x=1")
+        val json = api.send(method, "/$tokenId", headers = mapOf("Accept" to "application/json"))
+
+        assertThat(comum.statusCode()).isEqualTo(410)
+        assertThat(comum.csp()).containsExactly(SANDBOX)
+        assertThat(json.statusCode()).isEqualTo(410)
+        assertThat(json.csp()).containsExactly(SANDBOX)
+    }
+
+    @Test
+    @DisplayName("Dado um corpo acima de 1 MiB ou uma linha de cabeçalho acima de 8 KB, quando chega, então o 413 e o 400 vêm em sandbox")
+    fun erroDoFiltro_deveSairEmSandbox() {
+        val tokenId = api.tokenId()
+
+        val grande = api.send("POST", "/$tokenId/grande", ByteArray(1024 * 1024 + 1) { 'a'.code.toByte() })
+        val cabecalho = api.send("GET", "/$tokenId", headers = mapOf("X-Grande" to "a".repeat(8_200)))
+
+        assertThat(grande.statusCode()).isEqualTo(413)
+        assertThat(grande.csp()).containsExactly(SANDBOX)
+        assertThat(cabecalho.statusCode()).isEqualTo(400)
+        assertThat(cabecalho.csp()).containsExactly(SANDBOX)
+    }
+
+    @Test
+    @DisplayName("Dado uma regra cujo template estoura os tetos, quando casa, então o 500 vem em sandbox e com o X-Request-Id da mensagem")
+    fun erro500_deveSairEmSandboxComRequestId() {
+        val tokenId = tokenWithRule("""{"status":201,"body":"{{request.body}}{{request.body}}","template":true}""")
+
+        val response = api.send("POST", "/$tokenId", ByteArray(600 * 1024) { 'a'.code.toByte() }, mapOf("Content-Type" to "text/plain"))
+
+        val stored = api.json(api.send("GET", "/token/$tokenId/requests"))["data"][0]["uuid"].asString()
+        assertThat(response.statusCode()).isEqualTo(500)
+        assertThat(response.csp()).containsExactly(SANDBOX)
+        assertThat(response.headers().firstValue("X-Request-Id")).hasValue(stored)
+    }
+
     @Test
     @DisplayName("Dado uma regra com dribble, quando casa, então o CSP sandbox vem nos cabeçalhos enviados antes do corpo")
     fun regra_comDribble_deveSairEmSandbox() {

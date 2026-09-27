@@ -60,6 +60,7 @@ class RedisFullApiTest(
         val page = api.send("GET", "/token/$tokenId/requests", headers = JSON_CLIENT)
 
         assertThat(rejected.statusCode()).isEqualTo(507)
+        assertThat(rejected.headers().allValues("Content-Security-Policy")).containsExactly(CAPTURE_SANDBOX)
         assertThat(api.json(rejected)["error"]["message"].asString()).isEqualTo(STORAGE_FULL_MESSAGE)
         assertThat(token.statusCode()).isEqualTo(200)
         assertThat(page.statusCode()).isEqualTo(200)

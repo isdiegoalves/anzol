@@ -59,6 +59,16 @@ val CORS_HEADERS =
 const val CAPTURE_SANDBOX = "sandbox allow-scripts allow-forms allow-popups allow-modals"
 const val CSP_HEADER = "Content-Security-Policy"
 
+/** Caminho de captura (`/{uuid}` e `/{uuid}/…`): toda resposta dele, de sucesso ou de erro, sai com o [CAPTURE_SANDBOX]. */
+private val CAPTURE_PATH = Regex("^/$UUID_PATTERN(/.*)?$", RegexOption.IGNORE_CASE)
+
+fun HttpServletRequest.isCapturePath(): Boolean = CAPTURE_PATH.matches(requestURI)
+
+/** Acrescenta o [CAPTURE_SANDBOX] se ele ainda não está entre os CSP da resposta (um CSP da regra se soma a ele). */
+fun HttpServletResponse.addCaptureSandbox() {
+    if (CAPTURE_SANDBOX !in getHeaders(CSP_HEADER)) addHeader(CSP_HEADER, CAPTURE_SANDBOX)
+}
+
 /** `charset_types` padrão do nginx que não começam com `text/` (esses o Symfony já cobre). */
 private val NGINX_CHARSET_TYPES = setOf("application/javascript", "application/rss+xml")
 private val VALID_FINAL_STATUS = 200..599
@@ -192,7 +202,8 @@ class WebhookController(
      *
      * O template que não compila ou estoura os tetos ao responder vira o erro de sempre (500, pelo `LegacyErrorAdvice`):
      * antes de relançar, a mensagem é regravada com o status desse erro no `response`, o realmente respondido. O evento
-     * `request.created` já saiu com o status da regra e não é corrigido; a listagem, o `GET` e a busca trazem o 500.
+     * `request.created` já saiu com o status da regra e não é corrigido; a listagem, o `GET` e a busca trazem o 500. O 500
+     * leva o `X-Request-Id` da mensagem, como as outras respostas da captura.
      */
     private fun answerByRule(
         response: HttpServletResponse,
@@ -208,6 +219,7 @@ class WebhookController(
                 answer.rendered(input)
             } catch (e: ResponseStatusException) {
                 requests.replace(token, captured.copy(response = RecordedResponse(status = e.statusCode.value())))
+                response.setHeader("X-Request-Id", captured.uuid.toString())
                 throw e
             }
         response.writeRuleResponse(token, captured, rendered, stopwatch)
@@ -225,7 +237,7 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         token.retryAfter?.let { setHeader("Retry-After", it.headerValue()) }
-        addHeader(CSP_HEADER, CAPTURE_SANDBOX)
+        addCaptureSandbox()
         writeBody(token.defaultContent)
     }
 
@@ -244,7 +256,7 @@ class WebhookController(
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
         answer.headers.forEach(::setHeader)
-        addHeader(CSP_HEADER, CAPTURE_SANDBOX)
+        addCaptureSandbox()
         val dribble = answer.dribble
         if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble, stopwatch)
     }
