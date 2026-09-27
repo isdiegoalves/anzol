@@ -27,7 +27,7 @@
   <div class="url-row">
     <code class="url">{{ url() }}</code>
     <button mat-stroked-button type="button" [cdkCopyToClipboard]="url()">
-      <app-icon name="copy" [size]="18" />
+      <app-icon class="button-icon" name="copy" [size]="18" />
       <ng-container i18n>Copy URL</ng-container>
     </button>
     <a mat-button [href]="url()" target="_blank" rel="noopener" i18n>Open in new tab</a>
