@@ -115,15 +115,16 @@ separação do Trajan entre código compartilhado e funcionalidades isoladas vir
 | `src/app/ui/` | Biblioteca interna, só apresentação (selo, tabela, bloco de código, split…) | `ui/`; de `pipeline/` só tipos |
 | `src/app/pipeline/` | Funções puras que derivam da mensagem o que a tela mostra (`pipelineOf`) | `pipeline/` e os modelos das features |
 | `src/app/shell/` | Rail, cabeçalho da URL, Settings e Help: monta a tela | tudo |
-| `src/app/<feature>/` | Uma funcionalidade (`inbox/`, `rules/`, `checks/`…) | a própria feature, `ui/`, `pipeline/`, `shell/` e o que é público das outras: stores e serviços (`*-store.ts`, `Preferences`, `RequestStream`…), `*-actions.ts` por `import()` e os modelos (`webhook-request.ts`, `token.ts`, `rule.ts`, `stats.ts`…) |
+| `src/app/<feature>/` | Uma funcionalidade (`inbox/`, `rules/`, `checks/`…) | a própria feature, `ui/`, `pipeline/`, `shell/` e o que é público das outras: stores e serviços (`*-store.ts`, `Preferences`, `RequestStream`…), `*-actions.ts` e o `openShareDialog` por `import()`, o `request-view` (a mensagem só-leitura que a página do link mostra) e os modelos (`webhook-request.ts`, `token.ts`, `rule.ts`, `stats.ts`…) |
 | `src/app/*.ts`, `src/main.ts` | Raiz: rotas e bootstrap | tudo |
 
 A Inbox é feita de quatro pastas que se compõem e se importam entre si: a página (`inbox/`), a
 lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`); o Compare (`diff/`)
 usa a mesma lista e o onboarding (`onboarding/`) ocupa o detalhe da URL vazia, e os dois entram
-no grupo (`INBOX_PARTS` no `eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
-numa lista "legado" no `eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada
-novo entra nela.
+no grupo (`INBOX_PARTS` no `eslint.config.js`). Componente que duas features usam vai para `ui/`
+(como o `app-markdown` da IA) ou para a feature que o mostra (o Explain no detalhe, o Suggest em
+Rules); `ai/` guarda só o cliente. A lista "legado" do item 14 zerou na E11: nada importa de
+outra feature sem uma regra da tabela acima.
 
 ## 9. i18n
 

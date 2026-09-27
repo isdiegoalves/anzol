@@ -155,7 +155,7 @@ export class RequestDetail {
       return;
     }
     const request = this.request();
-    const { ExplainPanel } = await import('../ai/explain-panel');
+    const { ExplainPanel } = await import('./explain-panel');
     if (this.request() !== request || this.explaining()) {
       return;
     }

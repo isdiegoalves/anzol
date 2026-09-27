@@ -4,7 +4,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { TOKEN_ID } from '../../testing/fixtures';
-import { AI_WAIT_HINT } from './ai-client';
+import { AI_WAIT_HINT } from '../ai/ai-client';
 import { ExplainPanel } from './explain-panel';
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000001';

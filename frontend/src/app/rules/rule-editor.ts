@@ -29,7 +29,7 @@ import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { merge } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
-import { RuleSuggest } from '../ai/rule-suggest';
+import { RuleSuggest } from './rule-suggest';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Pane } from '../ui/pane';
 import { HistoryTestPanel } from './history-test-panel';

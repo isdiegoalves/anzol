@@ -30,40 +30,6 @@ export const translations: Record<string, string> = {
   // Too many AI calls for this URL (up to 10 per minute, one at a time). Try again {$PH}.
   '5181484920451887627':
     'Chamadas demais à IA nesta URL (até 10 por minuto, uma de cada vez). Tente de novo {$PH}.',
-  // Explanation
-  '3235573132965089379': 'Explicação',
-  // Explain
-  '4996995639236033897': 'Explicar',
-  // Written by the local model; check the facts before acting on them.
-  '3258553765580616039': 'Escrito pelo modelo local; confira os fatos antes de agir.',
-  // Try again
-  '6650633628037596693': 'Tentar de novo',
-  // Describe the rule
-  '7034436938184564320': 'Descreva a regra',
-  // What should the rule do?
-  '1377608685058341473': 'O que a regra deve fazer?',
-  // Answer 429 with Retry-After 5 for POST on /payments
-  '5421087220437655747': 'Responder 429 com Retry-After 5 para POST em /payments',
-  // Paths are relative to this URL (say /payments). Nothing is saved until you click Save.
-  '4605968302108106293':
-    'Os caminhos são relativos a esta URL (por exemplo, /payments). Nada é salvo até você clicar em Salvar.',
-  //  Your description mentions this URL. The rule's path is only what comes after /{$INTERPOLATION}: describe it as /payments, not as the full URL.
-  '1071461579321275486':
-    ' A descrição cita esta URL. O caminho da regra é só o que vem depois de /{$INTERPOLATION}: descreva como /payments, não como a URL inteira. ',
-  // Use the open request as example ({$INTERPOLATION})
-  '6865598316148725689': 'Usar a requisição aberta como exemplo ({$INTERPOLATION})',
-  //  Suggest
-  '159796731387745428': ' Sugerir ',
-  // Suggestion errors
-  '7525535972409983324': 'Erros da sugestão',
-  // Suggestion
-  '703654473580242036': 'Sugestão',
-  //  Suggested in {$ICU}. Review the rule below and click Save to keep it.
-  '9101299821667311506':
-    ' Sugerida em {$ICU}. Revise a regra abaixo e clique em Salvar para mantê-la. ',
-  // {VAR_PLURAL, plural, =1 {1 attempt} other {{INTERPOLATION} attempts}}
-  '5786928460558931082':
-    '{VAR_PLURAL, plural, =1 {1 tentativa} other {{INTERPOLATION} tentativas}}',
   // {$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Webhook Tester
   '7500871767052433189': '{$START_TAG_APP_ICON}{$CLOSE_TAG_APP_ICON}Webhook Tester',
   // Checks
@@ -921,6 +887,14 @@ export const translations: Record<string, string> = {
   '9200910835768230509': 'Assinatura inválida — o {$formula} bateu, mas {$reason}',
   // Signature {$state} — {$reason}
   '150094202595422510': 'Assinatura {$state} — {$reason}',
+  // Explanation
+  '3235573132965089379': 'Explicação',
+  // Explain
+  '4996995639236033897': 'Explicar',
+  // Written by the local model; check the facts before acting on them.
+  '3258553765580616039': 'Escrito pelo modelo local; confira os fatos antes de agir.',
+  // Try again
+  '6650633628037596693': 'Tentar de novo',
   // Newer
   '8314700931837210100': 'Mais nova',
   // Newer (K)
@@ -1347,6 +1321,32 @@ export const translations: Record<string, string> = {
   '2939453186195223024': 'Não foi possível salvar as regras ({$PH}).',
   // Rule {$position} › {$field}:
   '1619912122646364208': 'Regra {$position} › {$field}: ',
+  // Describe the rule
+  '7034436938184564320': 'Descreva a regra',
+  // What should the rule do?
+  '1377608685058341473': 'O que a regra deve fazer?',
+  // Answer 429 with Retry-After 5 for POST on /payments
+  '5421087220437655747': 'Responder 429 com Retry-After 5 para POST em /payments',
+  // Paths are relative to this URL (say /payments). Nothing is saved until you click Save.
+  '4605968302108106293':
+    'Os caminhos são relativos a esta URL (por exemplo, /payments). Nada é salvo até você clicar em Salvar.',
+  //  Your description mentions this URL. The rule's path is only what comes after /{$INTERPOLATION}: describe it as /payments, not as the full URL.
+  '1071461579321275486':
+    ' A descrição cita esta URL. O caminho da regra é só o que vem depois de /{$INTERPOLATION}: descreva como /payments, não como a URL inteira. ',
+  // Use the open request as example ({$INTERPOLATION})
+  '6865598316148725689': 'Usar a requisição aberta como exemplo ({$INTERPOLATION})',
+  //  Suggest
+  '159796731387745428': ' Sugerir ',
+  // Suggestion errors
+  '7525535972409983324': 'Erros da sugestão',
+  // Suggestion
+  '703654473580242036': 'Sugestão',
+  //  Suggested in {$ICU}. Review the rule below and click Save to keep it.
+  '9101299821667311506':
+    ' Sugerida em {$ICU}. Revise a regra abaixo e clique em Salvar para mantê-la. ',
+  // {VAR_PLURAL, plural, =1 {1 attempt} other {{INTERPOLATION} attempts}}
+  '5786928460558931082':
+    '{VAR_PLURAL, plural, =1 {1 tentativa} other {{INTERPOLATION} tentativas}}',
   // When any request
   '9202146983718243336': 'Quando qualquer requisição',
   // When a {$methods}

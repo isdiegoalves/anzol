@@ -1,7 +1,7 @@
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { AI_OFF_HINT, AI_WAIT_HINT, AiClient, aiErrorMessages } from './ai-client';
-import { MarkdownView } from './markdown-view';
+import { AI_OFF_HINT, AI_WAIT_HINT, AiClient, aiErrorMessages } from '../ai/ai-client';
+import { MarkdownView } from '../ui/markdown-view';
 
 /**
  * Painel do "Explain" na mensagem: pede o diagnóstico ao abrir (`request/{rid}/explain`) e mostra

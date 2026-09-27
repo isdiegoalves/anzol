@@ -5,9 +5,15 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { WebhookRequest } from '../requests/webhook-request';
-import { Rule } from '../rules/rule';
-import { AI_OFF_HINT, AI_WAIT_HINT, AiClient, RuleSuggestion, aiErrorMessages } from './ai-client';
-import { MarkdownView } from './markdown-view';
+import { Rule } from './rule';
+import {
+  AI_OFF_HINT,
+  AI_WAIT_HINT,
+  AiClient,
+  RuleSuggestion,
+  aiErrorMessages,
+} from '../ai/ai-client';
+import { MarkdownView } from '../ui/markdown-view';
 
 /** Teto do `prompt` no servidor (`rules/suggest`). */
 export const PROMPT_MAX_LENGTH = 2000;

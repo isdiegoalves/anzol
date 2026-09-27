@@ -9,8 +9,8 @@ import { MatInputHarness } from '@angular/material/input/testing';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
-import { Rule } from '../rules/rule';
-import { AI_WAIT_HINT } from './ai-client';
+import { Rule } from './rule';
+import { AI_WAIT_HINT } from '../ai/ai-client';
 import { RuleSuggest } from './rule-suggest';
 
 const URL_SUGGEST = `/token/${TOKEN_ID}/rules/suggest`;

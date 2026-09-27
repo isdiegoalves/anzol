@@ -251,9 +251,10 @@ module.exports = defineConfig([
             'src/app/ai/ai-client.ts',
           ],
         },
-        // Ações carregadas por import() (diálogos e fluxos de outra feature).
+        // Ações carregadas por import() (diálogos e fluxos de outra feature): o `openShareDialog`
+        // é o diálogo "Share read-only link…" que o detalhe abre.
         { category: 'actions', pattern: 'src/app/*/*-actions.ts' },
-        { category: 'actions', pattern: 'src/app/rules/rule-from-request.ts' },
+        { category: 'actions', pattern: 'src/app/share/share-dialog.ts' },
         // Tipos e funções puras do domínio.
         {
           category: 'model',
@@ -268,19 +269,9 @@ module.exports = defineConfig([
             'src/app/request-detail/dates.ts',
           ],
         },
-        // Legado: componentes que uma feature importava de outra antes do item 14. Cada fatia que
-        // reescreve a tela tira os seus daqui (E5/E7: options-bar, o bloco provisório da Inbox;
-        // E7: method-label no Outbound; E10: tutorial, que virou o onboarding). request-view fica: é o
-        // detalhe só-leitura que a página do link (share/) usa. Nada novo entra nesta lista.
-        {
-          category: 'legacy',
-          pattern: [
-            'src/app/request-detail/request-view.ts',
-            'src/app/ai/explain-panel.ts',
-            'src/app/ai/rule-suggest.ts',
-            'src/app/share/share-dialog.ts',
-          ],
-        },
+        // Componente que uma feature publica para outra: a mensagem só-leitura do detalhe, que a
+        // página do link (share/) mostra igual. A lista "legado" do item 14 zerou na E11.
+        { category: 'public', pattern: 'src/app/request-detail/request-view.ts' },
       ],
     },
     rules: {
@@ -351,7 +342,7 @@ module.exports = defineConfig([
                 {
                   to: {
                     element: { type: 'feature' },
-                    file: { categories: ['store', 'actions', 'model', 'legacy'] },
+                    file: { categories: ['store', 'actions', 'model', 'public'] },
                   },
                 },
               ],
@@ -359,7 +350,7 @@ module.exports = defineConfig([
             {
               // A Inbox (item 14, E4) é feita de quatro pastas que se compõem: a página (inbox/),
               // a lista (requests/), o detalhe (request-detail/) e a busca (search/); o Compare
-              // (diff/, E8) usa a mesma lista.
+              // (diff/, E8) usa a mesma lista e o onboarding (onboarding/, E10) ocupa o detalhe vazio.
               from: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } },
               allow: { to: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } } },
             },
