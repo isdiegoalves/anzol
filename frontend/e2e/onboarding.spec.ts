@@ -30,6 +30,32 @@ function onboarding(page: Page) {
 }
 
 test.describe('Dado uma URL nova, sem mensagens', () => {
+  // Pedido do dono (2026-09-27): o "What is a webhook?" deixa de apontar para o blog do autor antigo e vira uma
+  // explicação curta, na própria tela, num `<details>` com esse `<summary>`, sem link externo.
+  test('deve explicar "What is a webhook?" num details, sem link externo', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+    const pronta = onboarding(page);
+    await expect(pronta).toBeVisible();
+
+    const oQueE = pronta.locator('details', {
+      has: page.locator('summary', { hasText: /^\s*What is a webhook\?\s*$/ }),
+    });
+    await expect(oQueE).toHaveCount(1);
+    await expect(oQueE).not.toHaveAttribute('open');
+    await oQueE.locator('summary').click();
+    await expect(oQueE).toHaveAttribute('open', '');
+    const explicacao = (await oQueE.innerText()).replace(/What is a webhook\?/, '').trim();
+    expect(explicacao.length, 'explicação curta ao abrir').toBeGreaterThan(20);
+    await expect(oQueE.locator('a')).toHaveCount(0);
+    await expect(pronta.getByRole('link', { name: 'What is a webhook?' })).toHaveCount(0);
+    await expect(page.locator('a[href*="fredsted"]')).toHaveCount(0);
+  });
+
   test('deve mostrar "Your URL is ready" com a URL, as três abas e os destinos da URL', async ({
     page,
     tokens,

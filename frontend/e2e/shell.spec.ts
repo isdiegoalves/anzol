@@ -309,24 +309,25 @@ test.describe('Dado a página do link só-leitura', () => {
 });
 
 test.describe('Dado o Help do rail', () => {
-  test('deve levar a "Github Page", "Donate" e "@fredsted" no About', async ({ page, tokens }) => {
+  // Pedido do dono (2026-09-27): sai o GitHub e o autor antigos; entra o GitHub dele.
+  test('deve levar ao GitHub do projeto no About, sem as referências ao autor antigo', async ({
+    page,
+    tokens,
+  }) => {
     await page.goto(`/#/${await tokens.create()}`);
     await expect(ajuda(page)).toBeVisible();
 
     await ajuda(page).click();
 
-    await expect(page.getByRole('link', { name: 'Github Page' })).toHaveAttribute(
+    const ajudaAberta = page.getByRole('dialog', { name: 'Help' });
+    await expect(ajudaAberta.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
       'href',
-      'https://github.com/fredsted/webhook.site',
+      'https://github.com/isdiegoalves',
     );
-    await expect(page.getByRole('link', { name: 'Donate' })).toHaveAttribute(
-      'href',
-      'https://github.com/fredsted/webhook.site#donate',
-    );
-    await expect(page.getByRole('link', { name: '@fredsted' })).toHaveAttribute(
-      'href',
-      'https://twitter.com/fredsted',
-    );
+    await expect(page.getByRole('link', { name: 'Donate' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '@fredsted' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Github Page' })).toHaveCount(0);
+    await expect(page.locator('a[href*="fredsted"]')).toHaveCount(0);
   });
 });
 
