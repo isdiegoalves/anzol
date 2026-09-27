@@ -1,6 +1,7 @@
 @let current = result();
 <p class="target">
-  <app-method-label [method]="current.method" />&nbsp;<code>{{ current.target }}</code>
+  <app-method-badge [method]="current.method" />
+  <code>{{ current.target }}</code>
 </p>
 @if (redirectedHost(); as host) {
   <p class="note">Sent to {{ host }}</p>
@@ -14,72 +15,24 @@
     @if (error.hint) {
       <p class="hint">{{ error.hint }}</p>
     }
+    <p class="hint" i18n>Nothing reached the target, so there is no response.</p>
   </div>
 } @else {
   <p class="summary">
-    <span
-      class="status"
-      [class.s2]="statusClass() === 2"
-      [class.s3]="statusClass() === 3"
-      [class.s4]="statusClass() === 4"
-      [class.s5]="statusClass() === 5"
-      >{{ current.status }}</span
-    >
+    <app-status-code [status]="current.status ?? null" />
     <span class="duration">{{ current.duration_ms }} ms</span>
   </p>
-}
-@if (sentHeaders()) {
-  <table class="table" aria-label="Sent headers">
-    <thead>
-      <tr>
-        <th colspan="2">Sent headers</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (header of requestHeaders(); track $index) {
-        <tr>
-          <td class="name">{{ header[0] }}</td>
-          <td>
-            <code>{{ header[1] }}</code>
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td class="small">(none)</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-}
-@if (!error()) {
-  <table class="table" aria-label="Response headers">
-    <thead>
-      <tr>
-        <th colspan="2">Response headers</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (header of responseHeaders(); track $index) {
-        <tr>
-          <td class="name">{{ header[0] }}</td>
-          <td>
-            <code>{{ header[1] }}</code>
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td class="small">(none)</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-  <h4 class="body-title">Response body</h4>
+  <h3 class="part" i18n>Response headers</h3>
+  <app-kv-table label="Response headers" empty="(none)" [rows]="responseHeaders()" />
+  <h3 class="part" i18n>Response body</h3>
   @if (current.truncated) {
-    <p class="truncated" role="note">Truncated: only the first 64 KB of the body is shown.</p>
+    <p class="truncated" role="note" i18n>Truncated: only the first 64 KB of the body is shown.</p>
   }
   @if (current.body) {
     <pre class="body" aria-label="Response body">{{ current.body }}</pre>
   } @else {
-    <p class="small">(no body content)</p>
+    <p class="small" i18n>(no body content)</p>
   }
 }
+<h3 class="part" i18n>Sent headers</h3>
+<app-kv-table label="Sent headers" empty="(none)" [rows]="requestHeaders()" />

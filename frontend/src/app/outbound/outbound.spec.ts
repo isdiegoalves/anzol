@@ -1,12 +1,14 @@
 import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import {
+  ageText,
   apiDate,
   draftFromRequest,
   headerEntries,
   outboundErrorText,
   pathSuffix,
   requestErrorText,
+  staleSignature,
 } from './outbound';
 
 const httpError = (status: number, error: unknown = null, headers: Record<string, string> = {}) =>
@@ -141,5 +143,65 @@ describe('Dado os headers e a data do resultado', () => {
     ['formato da API', '2026-09-26 10:00:00', '2026-09-26 10:00:00'],
   ])('deve virar o formato UTC da API Quando o at é %s', (_caso, at, esperado) => {
     expect(apiDate(at)).toBe(esperado);
+  });
+});
+
+describe('Dado a assinatura com horário de uma mensagem a reenviar', () => {
+  const NOW = 1_790_000_000_000;
+  const segundos = NOW / 1000;
+  const stripe = (t: number) =>
+    webhookRequest(1, { headers: { 'stripe-signature': [`t=${t},v1=abc,v0=def`] } });
+  const slack = (t: number) =>
+    webhookRequest(1, {
+      headers: { 'x-slack-signature': ['v0=abc'], 'x-slack-request-timestamp': [String(t)] },
+    });
+
+  it('deve avisar Quando o t= da Stripe é mais velho que a tolerância padrão (300 s)', () => {
+    expect(staleSignature(stripe(segundos - 301), null, NOW)).toEqual({
+      provider: 'Stripe',
+      age: 301,
+      tolerance: 300,
+    });
+  });
+
+  it('não deve avisar Quando o t= está dentro da tolerância', () => {
+    expect(staleSignature(stripe(segundos - 300), null, NOW)).toBeNull();
+  });
+
+  it('deve usar a tolerância da URL Quando ela verifica o mesmo provedor', () => {
+    const url = token({ signature: { provider: 'stripe', secret: 'x', toleranceSeconds: 3600 } });
+
+    expect(staleSignature(stripe(segundos - 600), url, NOW)).toBeNull();
+    expect(staleSignature(stripe(segundos - 3601), url, NOW)?.tolerance).toBe(3600);
+  });
+
+  it('deve avisar pelo X-Slack-Request-Timestamp Quando a mensagem é do Slack', () => {
+    const url = token({ signature: { provider: 'slack', secret: 'x', toleranceSeconds: 60 } });
+
+    expect(staleSignature(slack(segundos - 61), url, NOW)).toEqual({
+      provider: 'Slack',
+      age: 61,
+      tolerance: 60,
+    });
+  });
+
+  it.each([
+    ['sem header de assinatura', webhookRequest(1)],
+    [
+      'GitHub (não assina horário)',
+      webhookRequest(1, { headers: { 'x-hub-signature-256': ['sha256=x'] } }),
+    ],
+    ['Stripe sem t=', webhookRequest(1, { headers: { 'stripe-signature': ['v1=abc'] } })],
+  ])('não deve avisar Quando a mensagem vem %s', (_caso, request) => {
+    expect(staleSignature(request, null, NOW)).toBeNull();
+  });
+
+  it.each([
+    [45, '45 s'],
+    [600, '10 min'],
+    [7200, '2 h'],
+    [259_200, '3 days'],
+  ])('deve dizer a idade de %s s como "%s"', (segundos, texto) => {
+    expect(ageText(segundos)).toBe(texto);
   });
 });

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { OutboundResult, ReplayPayload, SendPayload } from './outbound';
 
 /** O servidor guarda as últimas 50 respostas de cada URL. */
@@ -44,6 +45,20 @@ export class OutboundStore {
     );
     this.record(tokenId, result);
     return result;
+  }
+
+  /** Mensagens da primeira página da URL (as 50 mais novas): o seletor do Replay. */
+  async recent(tokenId: string): Promise<WebhookRequest[]> {
+    const page = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: 1, sorting: 'newest' },
+      }),
+    );
+    return page.data;
+  }
+
+  request(tokenId: string, requestId: string): Promise<WebhookRequest> {
+    return firstValueFrom(this.http.get<WebhookRequest>(`/token/${tokenId}/request/${requestId}`));
   }
 
   private record(tokenId: string, result: OutboundResult): void {

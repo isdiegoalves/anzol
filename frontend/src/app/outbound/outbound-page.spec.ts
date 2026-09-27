@@ -1,123 +1,240 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { screen, within } from '@testing-library/angular';
+import userEvent from '@testing-library/user-event';
+import { expectNoAxeViolations } from '../../testing/axe';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { outboundResult } from '../../testing/outbound-fixtures';
+import { outboundMatcher } from '../app.routes';
 import { Preferences } from '../settings/preferences';
-import { OutboundActions } from './outbound-actions';
+import { Redirector } from '../settings/redirect';
+import { Token } from '../token/token';
+import { OutboundResult } from './outbound';
 import { OutboundPage } from './outbound-page';
 
-describe('Dado a aba "Outbound" de uma URL', () => {
-  const historyUrl = `/token/${TOKEN_ID}/outbound`;
-  let fixture: ComponentFixture<OutboundPage>;
+const HISTORY = `/token/${TOKEN_ID}/outbound`;
+const RECENT = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
+const PEDIDO = webhookRequest(1, {
+  method: 'PUT',
+  url: `http://localhost:8084/${TOKEN_ID}/pedidos?x=1`,
+  headers: { 'content-type': ['text/plain'], 'x-origem': ['e2e'], host: ['localhost'] },
+  content: 'corpo original',
+});
+/** Stripe assinou há uma hora: velho para a tolerância padrão (300 s). */
+const VELHA = webhookRequest(2, {
+  headers: {
+    'stripe-signature': [`t=${Math.floor(Date.now() / 1000) - 3600},v1=abc`],
+    'content-type': ['application/json'],
+  },
+  content: '{"id":"evt_1"}',
+});
+
+describe('Dado a página Outbound', () => {
   let http: HttpTestingController;
 
-  /** A resposta passa pelo `firstValueFrom` do serviço antes de chegar à tela. */
-  const settle = async () => {
-    await new Promise((resolve) => setTimeout(resolve));
-    await fixture.whenStable();
-  };
-  const send = vi.fn();
-
-  const render = async (history: object | null, init?: { status: number; statusText: string }) => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        provideRouter(
+          [{ matcher: outboundMatcher, component: OutboundPage }],
+          withComponentInputBinding(),
+        ),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: OutboundActions, useValue: { send } },
       ],
     });
-    TestBed.inject(Preferences).token.set(token());
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(OutboundPage);
-    fixture.componentRef.setInput('tokenId', TOKEN_ID);
-    await fixture.whenStable();
-    http.expectOne(historyUrl).flush(history, init);
-    await settle();
-    return fixture.nativeElement as HTMLElement;
+  });
+
+  afterEach(() => localStorage.clear());
+
+  /** Abre a rota e responde a URL, as recentes e o histórico. */
+  const open = async (
+    query = '',
+    {
+      url = token(),
+      history = [outboundResult(2), outboundResult(1)] as OutboundResult[],
+      recent = [PEDIDO, VELHA],
+    }: { url?: Token; history?: OutboundResult[]; recent?: (typeof PEDIDO)[] } = {},
+  ) => {
+    const harness = await RouterTestingHarness.create();
+    void harness.navigateByUrl(`/${TOKEN_ID}/outbound${query}`);
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(url);
+    http.expectOne(RECENT).flush(requestPage(recent));
+    http.expectOne(HISTORY).flush(history);
+    await vi.waitFor(() =>
+      expect(screen.getByRole('list', { name: 'Outbound history' })).toBeTruthy(),
+    );
+    await harness.fixture.whenStable();
+    return harness;
   };
-  const rows = (element: HTMLElement) =>
-    [...element.querySelectorAll('table[aria-label="Outbound history"] tbody tr')].map((row) =>
-      [...row.querySelectorAll('td')].map((cell) => cell.textContent?.replace(/\s+/g, ' ').trim()),
+
+  it('deve listar o histórico, abrir o mais novo no detalhe e passar no axe', async () => {
+    const harness = await open();
+
+    const items = within(screen.getByRole('list', { name: 'Outbound history' })).getAllByRole(
+      'button',
     );
-
-  afterEach(() => {
-    http.verify();
-    localStorage.clear();
-  });
-
-  it('deve listar status, método, alvo, tipo e tempo, mais novo primeiro, Quando há histórico', async () => {
-    const element = await render([
-      outboundResult(2, { kind: 'send', method: 'PUT', status: 500, target: 'http://b/' }),
-      outboundResult(1, {
-        status: null,
-        headers: null,
-        body: null,
-        error: { kind: 'timeout', message: 'no answer in 10 s' },
-        target: 'http://a/',
-      }),
-    ]);
-
-    expect(rows(element).map((row) => row.slice(0, 5))).toEqual([
-      ['500', 'PUT', 'http://b/', 'Send', '12 ms'],
-      ['Timed out', 'POST', 'http://a/', 'Replay', '12 ms'],
-    ]);
-    expect(rows(element)[0][5]).toMatch(/ago$/);
-  });
-
-  it('deve abrir o mais novo com headers enviados e recebidos e o corpo Quando a aba carrega', async () => {
-    const element = await render([
-      outboundResult(2, { request_headers: { 'x-sent': 'ida' }, body: '{"v":2}' }),
-      outboundResult(1),
-    ]);
-
-    const detail = element.querySelector('section[aria-label="Outbound detail"]');
-    expect(detail?.querySelector('table[aria-label="Sent headers"]')?.textContent).toContain(
-      'x-sent',
-    );
-    expect(detail?.querySelector('table[aria-label="Response headers"]')?.textContent).toContain(
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain('/app/pedidos?n=2');
+    expect(items[0].getAttribute('aria-current')).toBe('true');
+    const detail = screen.getByRole('region', { name: 'Outbound detail' });
+    expect(within(detail).getByRole('table', { name: 'Response headers' }).textContent).toContain(
       'x-app',
     );
-    expect(detail?.querySelector('pre.body')?.textContent).toBe('{"v":2}');
+    expect(within(detail).getByRole('table', { name: 'Sent headers' })).toBeTruthy();
+    expect(within(detail).getByLabelText('Response body').textContent).toBe('{"ok":true}');
+
+    await userEvent.click(items[1]);
+    expect(within(detail).getByText(/pedidos\?n=1/)).toBeTruthy();
+    await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);
   });
 
-  it('deve trocar o detalhe Quando outra linha é clicada', async () => {
-    const element = await render([
-      outboundResult(2, { body: 'dois' }),
-      outboundResult(1, { body: 'um' }),
-    ]);
+  it('deve reenviar a mensagem da rota e mostrar o resultado no detalhe Quando Replay é clicado', async () => {
+    await open(`?replay=${PEDIDO.uuid}`);
 
-    element.querySelector<HTMLElement>('tr[data-outbound-id="out-1"]')?.click();
-    await settle();
-
-    expect(element.querySelector('pre.body')?.textContent).toBe('um');
+    const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(
-      element.querySelector('tr[data-outbound-id="out-1"]')?.getAttribute('aria-selected'),
-    ).toBe('true');
-  });
+      (within(composer).getByRole('combobox', { name: 'Request to replay' }) as HTMLSelectElement)
+        .value,
+    ).toBe(PEDIDO.uuid);
+    expect(within(composer).getByText('/pedidos?x=1')).toBeTruthy();
+    await userEvent.type(
+      within(composer).getByRole('textbox', { name: 'Target URL' }),
+      'http://localhost:3000/app',
+    );
+    await userEvent.click(within(composer).getByRole('button', { name: 'Replay' }));
 
-  it('deve dizer como enviar Quando o histórico está vazio', async () => {
-    const element = await render([]);
-
-    expect(rows(element)).toEqual([
-      ['Nothing sent yet. Use Replay on a request, or Send in the top bar.'],
-    ]);
-    expect(element.querySelector('section[aria-label="Outbound detail"]')).toBeNull();
-  });
-
-  it('deve avisar Quando a URL não existe mais', async () => {
-    const element = await render(null, { status: 404, statusText: 'Not Found' });
-
-    expect(element.querySelector('[role=alert]')?.textContent).toBe(
-      'This URL no longer exists (404).',
+    const call = http.expectOne(`/token/${TOKEN_ID}/request/${PEDIDO.uuid}/replay`);
+    expect(call.request.body).toEqual({
+      url: 'http://localhost:3000/app',
+      keep_path: true,
+      timeout: 10_000,
+    });
+    call.flush(outboundResult(3, { target: 'http://host.docker.internal:3000/app/pedidos?x=1' }));
+    await vi.waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Outbound detail' })).getByText(
+          'http://host.docker.internal:3000/app/pedidos?x=1',
+        ),
+      ).toBeTruthy(),
     );
   });
 
-  it('deve abrir o Send da URL Quando "Send…" é clicado', async () => {
-    const element = await render([]);
+  it('deve avisar da assinatura velha e abrir o Send assinado Quando "Send as new with a fresh signature" é clicado', async () => {
+    await open(`?replay=${VELHA.uuid}`, {
+      url: token({ signature: { provider: 'stripe', secret: '••••1234', toleranceSeconds: 300 } }),
+    });
 
-    [...element.querySelectorAll('button')].find((b) => b.textContent?.includes('Send'))?.click();
+    const composer = await screen.findByRole('region', { name: 'Replay request' });
+    expect(within(composer).getByRole('status').textContent).toMatch(
+      /The Stripe signature on this request is 60 min old, more than the 300 s tolerance/,
+    );
+    await userEvent.click(
+      within(composer).getByRole('button', { name: 'Send as new with a fresh signature' }),
+    );
 
-    expect(send).toHaveBeenCalledWith();
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    expect(
+      within(send)
+        .getByRole('switch', { name: "Sign with this URL's signature" })
+        .getAttribute('aria-checked'),
+    ).toBe('true');
+    expect((within(send).getByRole('textbox', { name: 'Body' }) as HTMLTextAreaElement).value).toBe(
+      '{"id":"evt_1"}',
+    );
+  });
+
+  it('não deve avisar Quando a mensagem não traz assinatura com horário', async () => {
+    await open(`?replay=${PEDIDO.uuid}`);
+
+    const composer = await screen.findByRole('region', { name: 'Replay request' });
+    expect(within(composer).queryByRole('status')).toBeNull();
+  });
+
+  it('deve abrir o Send preenchido com a mensagem, sem headers de conexão, Quando a rota traz ?send-from=', async () => {
+    await open(`?send-from=${PEDIDO.uuid}`);
+
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    expect((within(send).getByRole('textbox', { name: 'Body' }) as HTMLTextAreaElement).value).toBe(
+      'corpo original',
+    );
+    const names = within(send)
+      .getAllByRole('textbox', { name: /^Header \d+ name$/ })
+      .map((input) => (input as HTMLInputElement).value);
+    expect(names).toEqual(['content-type', 'x-origem']);
+  });
+
+  it('deve disparar pelo servidor com a assinatura Quando ?send=signed e a URL assina', async () => {
+    await open('?send=signed', {
+      url: token({ signature: { provider: 'github', secret: '••••1234' } }),
+    });
+
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    await userEvent.type(
+      within(send).getByRole('textbox', { name: 'URL' }),
+      'http://localhost:3000/x',
+    );
+    await userEvent.click(within(send).getByRole('button', { name: 'Send' }));
+
+    const call = http.expectOne(`/token/${TOKEN_ID}/send`);
+    expect(call.request.body).toMatchObject({
+      url: 'http://localhost:3000/x',
+      method: 'POST',
+      sign: true,
+    });
+    call.flush(outboundResult(4, { kind: 'send' }));
+  });
+
+  it('deve deixar a assinatura desligada e apontar Checks Quando a URL não assina', async () => {
+    await open('?send=new');
+
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    expect(
+      (
+        within(send).getByRole('switch', {
+          name: "Sign with this URL's signature",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(within(send).getByRole('link', { name: 'Checks' }).getAttribute('href')).toContain(
+      'checks?section=signature',
+    );
+  });
+
+  it('deve reenviar pelo navegador a mensagem escolhida Quando "Redirect Now" é clicado', async () => {
+    TestBed.inject(Preferences).redirectUrl.set('http://redirect.test');
+    const redirect = vi.spyOn(TestBed.inject(Redirector), 'redirect').mockResolvedValue();
+    await open(`?replay=${PEDIDO.uuid}`);
+    await screen.findByRole('region', { name: 'Replay request' });
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Forward from this browser (legacy)' }),
+    );
+    const forward = screen.getByRole('region', { name: 'Forward from this browser (legacy)' });
+    expect(
+      (within(forward).getByRole('switch', { name: 'Auto redirect' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    await userEvent.click(within(forward).getByRole('button', { name: 'Redirect Now' }));
+
+    expect(redirect).toHaveBeenCalledWith(PEDIDO);
+  });
+
+  it('deve dizer que a URL não existe mais Quando o histórico responde 410', async () => {
+    const harness = await RouterTestingHarness.create();
+    void harness.navigateByUrl(`/${TOKEN_ID}/outbound`);
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(token());
+    http.expectOne(RECENT).flush(requestPage([]));
+    http.expectOne(HISTORY).flush(null, { status: 410, statusText: 'Gone' });
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole('alert').textContent?.trim()).toBe(
+        'This URL no longer exists (410).',
+      ),
+    );
   });
 });

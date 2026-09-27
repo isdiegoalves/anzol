@@ -32,9 +32,14 @@
   }
   <span class="spacer"></span>
   <div class="actions">
-    <button type="button" class="action" (click)="sendRequest()">
+    <a
+      class="action"
+      [routerLink]="['/', token.uuid, 'outbound']"
+      [queryParams]="{ send: 'new' }"
+      title="Send a request from the server: open Outbound"
+    >
       <app-icon name="outbound" [size]="18" />Send
-    </button>
+    </a>
     @if (lockable()) {
       <button type="button" class="action" (click)="lockUrl()">
         <app-icon name="lock" [size]="18" />Lock

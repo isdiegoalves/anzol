@@ -1,0 +1,85 @@
+@let current = chosen();
+<h2 id="replay-title" class="composer-title" i18n>Replay request</h2>
+<p class="hint" i18n>
+  The server sends a received request again (method, headers and body as received) to the target and
+  records the answer below.
+</p>
+
+@if (requests().length === 0) {
+  <p class="hint" i18n>No request to replay yet: send one to this URL first.</p>
+} @else {
+  <form class="fields" [formGroup]="form" (ngSubmit)="replayRequest()">
+    <label class="native" for="replay-request">
+      <span i18n>Request to replay</span>
+      <select id="replay-request" formControlName="request">
+        @for (request of requests(); track request.uuid) {
+          <option [value]="request.uuid">{{ label(request) }}</option>
+        }
+      </select>
+    </label>
+
+    @if (stale(); as stale) {
+      <div class="warning" role="status">
+        <p>
+          The {{ stale.provider }} signature on this request is {{ age(stale.age) }} old, more than
+          the {{ stale.tolerance }} s tolerance: a receiver that checks the timestamp will reject
+          the replay.
+        </p>
+        @if (signer(); as provider) {
+          <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>
+            Send as new with a fresh signature
+          </button>
+          <p class="hint">Signs the same method, headers and body again as {{ provider }}.</p>
+        } @else {
+          <p class="hint">
+            To send it with a fresh signature, set up the signature in
+            <a mat-button [routerLink]="['/', token().uuid, 'checks']" i18n>Checks</a>.
+          </p>
+        }
+      </div>
+    }
+
+    <mat-form-field>
+      <mat-label i18n>Target URL</mat-label>
+      <input
+        matInput
+        formControlName="url"
+        aria-label="Target URL"
+        placeholder="http://localhost:3000/webhook"
+      />
+      <mat-hint i18n>Remembered for this webhook URL</mat-hint>
+      <mat-error>{{ targetError }}</mat-error>
+    </mat-form-field>
+    <div class="row">
+      <mat-slide-toggle formControlName="keepPath" i18n>Keep path</mat-slide-toggle>
+      <span class="hint">
+        @if (suffix(); as suffix) {
+          Appends <code>{{ suffix }}</code> to the target
+        } @else {
+          <ng-container i18n>The request has no path or query to append</ng-container>
+        }
+      </span>
+    </div>
+    <div class="row">
+      <mat-form-field class="timeout">
+        <mat-label i18n>Timeout (s)</mat-label>
+        <input
+          matInput
+          type="number"
+          min="1"
+          max="30"
+          formControlName="timeout"
+          aria-label="Timeout (s)"
+        />
+        <mat-error>{{ timeoutError }}</mat-error>
+      </mat-form-field>
+      <span class="spacer"></span>
+      <button mat-flat-button type="submit" [disabled]="sending()">
+        {{ sending() ? 'Sending…' : 'Replay' }}
+      </button>
+    </div>
+  </form>
+}
+@if (failure(); as message) {
+  <p class="failure" role="alert">{{ message }}</p>
+}

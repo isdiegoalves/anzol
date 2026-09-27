@@ -129,7 +129,7 @@ describe('Dado o diálogo "Send" da URL', () => {
       sign: true,
       timeout: 10000,
     });
-    expect(element.querySelector('.status')?.textContent?.trim()).toBe('204');
+    expect(element.querySelector('.status .code')?.textContent?.trim()).toBe('204');
     expect(element.querySelector('.note')).toBeNull();
   });
 

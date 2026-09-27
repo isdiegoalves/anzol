@@ -71,7 +71,7 @@ export class Redirector {
       this.snackBar.open(
         `Redirected request to ${call.url}. Status: ${response.statusText}`,
         undefined,
-        { duration: 1000 },
+        { duration: 4000 },
       );
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.statusText : String(error);

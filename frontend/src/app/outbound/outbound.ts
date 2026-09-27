@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { WebhookRequest } from '../requests/webhook-request';
+import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 
 /** Métodos que o `POST /token/{id}/send` aceita. */
 export const OUTBOUND_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
@@ -228,4 +229,60 @@ export function apiDate(at: string): string {
   }
   const date = new Date(at);
   return Number.isNaN(date.getTime()) ? at : date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/** Tolerância padrão do timestamp assinado (a da Stripe e a do Slack), em segundos. */
+export const DEFAULT_TOLERANCE_S = 300;
+
+/** Assinatura com timestamp velho demais para um replay passar na verificação do receptor. */
+export interface StaleSignature {
+  /** Provedor que assinou com o timestamp ("Stripe", "Slack"). */
+  provider: string;
+  /** Idade do timestamp assinado, em segundos. */
+  age: number;
+  /** Tolerância que vale: a da URL, se ela verifica esse provedor; senão a padrão (300 s). */
+  tolerance: number;
+}
+
+/**
+ * O replay reenvia os headers como chegaram: a Stripe (`t=` do `Stripe-Signature`) e o Slack
+ * (`X-Slack-Request-Timestamp`) assinam o horário junto, e um receptor que confere o horário
+ * recusa o reenvio depois da tolerância. Devolve a assinatura velha, ou `null` se não há.
+ */
+export function staleSignature(
+  request: WebhookRequest,
+  token: Token | null,
+  now: number = Date.now(),
+): StaleSignature | null {
+  const header = (name: string) => request.headers[name]?.[0] ?? null;
+  const stripe = /(?:^|,)\s*t=(\d+)/.exec(header('stripe-signature') ?? '')?.[1];
+  const slack = /^\d+$/.exec(header('x-slack-request-timestamp') ?? '')?.[0];
+  const signed = stripe
+    ? { provider: 'stripe' as const, at: Number(stripe) }
+    : slack
+      ? { provider: 'slack' as const, at: Number(slack) }
+      : null;
+  if (!signed) {
+    return null;
+  }
+  const config = token?.signature?.provider === signed.provider ? token.signature : null;
+  const tolerance = config?.toleranceSeconds ?? DEFAULT_TOLERANCE_S;
+  const age = Math.floor(now / 1000) - signed.at;
+  return age > tolerance
+    ? { provider: SIGNATURE_PROVIDER_LABELS[signed.provider], age, tolerance }
+    : null;
+}
+
+/** Idade em texto curto: "45 s", "12 min", "5 h", "3 days". */
+export function ageText(seconds: number): string {
+  if (seconds < 120) {
+    return `${seconds} s`;
+  }
+  if (seconds < 7200) {
+    return `${Math.floor(seconds / 60)} min`;
+  }
+  if (seconds < 172_800) {
+    return `${Math.floor(seconds / 3600)} h`;
+  }
+  return `${Math.floor(seconds / 86_400)} days`;
 }

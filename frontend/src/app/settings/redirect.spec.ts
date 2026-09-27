@@ -67,7 +67,7 @@ describe('Dado o Redirector com a URL de destino configurada', () => {
     expect(open).toHaveBeenCalledWith(
       'Redirected request to http://destino. Status: OK',
       undefined,
-      { duration: 1000 },
+      { duration: 4000 },
     );
   });
 

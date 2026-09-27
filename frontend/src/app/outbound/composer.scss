@@ -1,0 +1,109 @@
+// Compositores Replay e Send da página Outbound.
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.composer-title {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+  font-variation-settings: 'ROND' 100;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.grow {
+  flex: 1 1 200px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.timeout,
+.method {
+  width: 140px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.section {
+  margin: 8px 0 0;
+  font: var(--mat-sys-title-small);
+}
+
+.native {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--mat-sys-label-large);
+
+  select {
+    min-height: 40px;
+    padding: 0 8px;
+    border: 1px solid var(--mat-sys-outline);
+    border-radius: var(--mat-sys-corner-small);
+    background: var(--mat-sys-surface-container-lowest);
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium);
+    font-family: var(--app-code-family);
+  }
+}
+
+.warning {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+
+  p {
+    margin: 0;
+  }
+
+  .hint {
+    color: inherit;
+  }
+}
+
+.failure {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.code {
+  font-family: var(--app-code-family);
+  font-size: 12px;
+}
+
+code {
+  padding: 2px 4px;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  font-family: var(--app-code-family);
+}

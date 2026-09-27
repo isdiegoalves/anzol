@@ -6,7 +6,6 @@ import { Subscription } from 'rxjs';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, token } from '../../testing/fixtures';
-import { OutboundActions } from '../outbound/outbound-actions';
 import { RequestStream } from '../realtime/request-stream';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
@@ -15,17 +14,11 @@ import { UrlHeader } from './url-header';
 
 describe('Dado o cabeçalho da URL aberta', () => {
   let actions: { lockUrl: ReturnType<typeof vi.fn> };
-  let send: ReturnType<typeof vi.fn>;
 
   const renderWith = (url: Token | null) => {
     actions = { lockUrl: vi.fn().mockResolvedValue(undefined) };
-    send = vi.fn();
     return render(UrlHeader, {
-      providers: [
-        provideRouter([]),
-        { provide: TokenActions, useValue: actions },
-        { provide: OutboundActions, useValue: { send } },
-      ],
+      providers: [provideRouter([]), { provide: TokenActions, useValue: actions }],
       configureTestBed: (testBed) => testBed.inject(Preferences).token.set(url),
     });
   };
@@ -46,12 +39,12 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve abrir o Send de hoje Quando o botão é clicado', async () => {
+  it('deve levar ao Send de Outbound pelo "Send"', async () => {
     await renderWith(token());
 
-    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
-
-    await vi.waitFor(() => expect(send).toHaveBeenCalledWith());
+    expect(screen.getByRole('link', { name: 'Send' }).getAttribute('href')).toBe(
+      `/${TOKEN_ID}/outbound?send=new`,
+    );
   });
 
   it('deve levar a Checks pelo "Edit" (o antigo Edit URL)', async () => {

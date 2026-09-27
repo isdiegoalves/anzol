@@ -99,7 +99,7 @@ describe('Dado o diálogo "Replay" de uma mensagem', () => {
 
     await answer(outboundResult(1, { body: 'x'.repeat(10), truncated: true, duration_ms: 87 }));
 
-    expect(element.querySelector('.status')?.textContent?.trim()).toBe('201');
+    expect(element.querySelector('.status .code')?.textContent?.trim()).toBe('201');
     expect(element.querySelector('.duration')?.textContent).toBe('87 ms');
     expect(element.querySelector('table[aria-label="Response headers"]')?.textContent).toContain(
       'x-app',

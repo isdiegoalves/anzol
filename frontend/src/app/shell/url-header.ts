@@ -10,8 +10,8 @@ import { LiveState, LiveStatus } from '../ui/live-status';
 /**
  * Cabeçalho fixo da URL aberta, em todo destino: o campo com Copy, o chip do tempo real (só com o
  * stream aberto, isto é, na Inbox), os chips de assinatura e schema que levam a Checks, e as ações
- * da URL. "Edit" leva a Checks (o antigo Edit URL, S2); "Send" ainda abre o diálogo de hoje (até a
- * fatia E7); "Lock" só com a URL protegida.
+ * da URL. "Edit" leva a Checks (o antigo Edit URL, S2) e "Send" ao Send de Outbound; "Lock" só com a
+ * URL protegida.
  */
 @Component({
   selector: 'app-url-header',
@@ -43,11 +43,5 @@ export class UrlHeader {
   protected async lockUrl(): Promise<void> {
     const { TokenActions } = await import('../token/token-actions');
     await this.injector.get(TokenActions).lockUrl();
-  }
-
-  /** O diálogo Send vem sob demanda (no pedaço do `outbound-actions`). */
-  protected async sendRequest(): Promise<void> {
-    const { OutboundActions } = await import('../outbound/outbound-actions');
-    this.injector.get(OutboundActions).send();
   }
 }

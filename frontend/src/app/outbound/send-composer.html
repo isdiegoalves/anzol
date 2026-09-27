@@ -1,0 +1,102 @@
+<h2 id="send-title" class="composer-title" i18n>Send request</h2>
+<p class="hint" i18n>The server sends this request to the target and records the answer below.</p>
+<form class="fields" [formGroup]="form" (ngSubmit)="sendRequest()">
+  <div class="row">
+    <mat-form-field class="method">
+      <mat-label i18n>Method</mat-label>
+      <mat-select formControlName="method" aria-label="Method">
+        @for (method of methods; track method) {
+          <mat-option [value]="method">{{ method }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field class="grow">
+      <mat-label i18n>URL</mat-label>
+      <input
+        matInput
+        formControlName="url"
+        aria-label="URL"
+        placeholder="http://localhost:3000/webhook"
+      />
+      <mat-error>{{ targetError }}</mat-error>
+    </mat-form-field>
+  </div>
+
+  <h3 class="section" i18n>Headers</h3>
+  <div formArrayName="headers">
+    @for (row of form.controls.headers.controls; track row; let i = $index) {
+      <div class="row" [formGroupName]="i">
+        <mat-form-field class="grow">
+          <mat-label i18n>Name</mat-label>
+          <input
+            matInput
+            formControlName="name"
+            [attr.aria-label]="'Header ' + (i + 1) + ' name'"
+          />
+          <mat-error i18n>A header name, without spaces or colons.</mat-error>
+        </mat-form-field>
+        <mat-form-field class="grow">
+          <mat-label i18n>Value</mat-label>
+          <input
+            matInput
+            formControlName="value"
+            [attr.aria-label]="'Header ' + (i + 1) + ' value'"
+          />
+        </mat-form-field>
+        <button
+          mat-button
+          type="button"
+          [attr.aria-label]="'Remove header ' + (i + 1)"
+          (click)="removeHeader(i)"
+        >
+          &#x2715;
+        </button>
+      </div>
+    }
+  </div>
+  <div>
+    <button mat-button type="button" (click)="addHeader()" i18n>Add header</button>
+  </div>
+
+  <mat-form-field>
+    <mat-label i18n>Body</mat-label>
+    <textarea matInput class="code" rows="6" formControlName="body" aria-label="Body"></textarea>
+  </mat-form-field>
+
+  <div class="row">
+    <mat-slide-toggle formControlName="sign" i18n>Sign with this URL's signature</mat-slide-toggle>
+    <span class="hint">
+      @if (signature; as provider) {
+        Signs the body as {{ provider }} does; the secret stays on the server
+      } @else {
+        <ng-container i18n>This URL has no signature configured. Set one up in</ng-container>
+        <a [routerLink]="['/', token().uuid, 'checks']" [queryParams]="{ section: 'signature' }"
+          >Checks</a
+        >
+        <ng-container i18n>to sign.</ng-container>
+      }
+    </span>
+  </div>
+
+  <div class="row">
+    <mat-form-field class="timeout">
+      <mat-label i18n>Timeout (s)</mat-label>
+      <input
+        matInput
+        type="number"
+        min="1"
+        max="30"
+        formControlName="timeout"
+        aria-label="Timeout (s)"
+      />
+      <mat-error>{{ timeoutError }}</mat-error>
+    </mat-form-field>
+    <span class="spacer"></span>
+    <button mat-flat-button type="submit" [disabled]="sending()">
+      {{ sending() ? 'Sending…' : 'Send' }}
+    </button>
+  </div>
+</form>
+@if (failure(); as message) {
+  <p class="failure" role="alert">{{ message }}</p>
+}
