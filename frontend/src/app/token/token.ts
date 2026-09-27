@@ -138,3 +138,11 @@ export function isRetryAfter(value: string): boolean {
 export function retryAfterValidator(control: AbstractControl<string>): ValidationErrors | null {
   return control.value === '' || isRetryAfter(control.value) ? null : { retryAfter: true };
 }
+
+/**
+ * O comando do CLI que encaminha as mensagens da URL para o app local (onboarding e o menu da
+ * URL): `anzol listen --server {origem} --forward http://localhost:3000 --token {uuid}`.
+ */
+export function cliListenCommand(server: string, tokenId: string): string {
+  return `anzol listen --server ${server} --forward http://localhost:3000 --token ${tokenId}`;
+}

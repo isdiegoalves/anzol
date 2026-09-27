@@ -4,9 +4,35 @@
   <a class="brand" routerLink="/" aria-label="Anzol" i18n-aria-label title="Anzol" i18n-title>
     <app-icon name="hook" [size]="24" />
   </a>
+  <!-- Celular (< 600 px): o título do destino, a busca da Inbox e o ⋮ com o que sai da barra. -->
+  @if (current(); as here) {
+    <span class="page-title top-only" aria-hidden="true">{{ label(here) }}</span>
+  }
+  <span class="spacer top-only"></span>
+  @if (open && current() === destinations[0]) {
+    <button
+      type="button"
+      class="tool top-only"
+      aria-label="Search requests"
+      i18n-aria-label
+      title="Search requests (/)"
+      i18n-title
+      (click)="openSearch()"
+    >
+      <app-icon name="search" [size]="22" />
+    </button>
+  }
+  <app-menu
+    class="top-only"
+    label="URL actions"
+    i18n-label
+    hint="Send, new URL, delete URL, settings and help"
+    i18n-hint
+    [items]="topActions()"
+  />
   <button
     type="button"
-    class="fab"
+    class="fab rail-only"
     aria-label="New URL"
     i18n-aria-label
     title="New URL (N)"
@@ -19,23 +45,32 @@
     <nav class="destinations" aria-label="URL sections" i18n-aria-label>
       @for (destination of destinations; track destination.label) {
         @let here = current() === destination;
+        @let status = statusOf(destination);
         <a
           class="destination"
           [routerLink]="link(destination, open.uuid)"
           [class.current]="here"
           [attr.aria-current]="here ? 'page' : null"
+          [attr.aria-label]="status?.name ?? null"
           [attr.title]="hint(destination)"
         >
-          <span class="indicator"><app-icon [name]="destination.icon" [size]="22" /></span>
+          <span class="indicator"
+            ><app-icon [name]="destination.icon" [size]="22" />
+            @if (status?.badge; as badge) {
+              <span class="badge" aria-hidden="true">{{ badge }}</span>
+            } @else if (status) {
+              <span class="dot" aria-hidden="true"></span>
+            }
+          </span>
           <span class="label">{{ label(destination) }}</span>
         </a>
       }
     </nav>
   }
-  <span class="spacer"></span>
+  <span class="spacer rail-only"></span>
   <button
     type="button"
-    class="tool"
+    class="tool rail-only"
     aria-label="Settings"
     i18n-aria-label
     title="Settings"
@@ -47,7 +82,7 @@
   </button>
   <button
     type="button"
-    class="tool"
+    class="tool rail-only"
     aria-label="Help"
     i18n-aria-label
     title="Help and shortcuts (?)"
@@ -60,7 +95,7 @@
 </div>
 <div class="workspace">
   @if (open) {
-    <app-url-header />
+    <app-url-header [class.on-detail]="screen.detailFullscreen()" />
   }
   <div class="content">
     <ng-container #unlockHost />

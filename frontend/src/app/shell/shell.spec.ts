@@ -1,11 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import {
   checksMatcher,
   compareMatcher,
@@ -14,6 +15,7 @@ import {
   outboundMatcher,
   rulesMatcher,
 } from '../app.routes';
+import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { TokenActions } from '../token/token-actions';
 import { UrlLock } from '../token/url-lock';
@@ -115,6 +117,56 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(screen.queryByText('página da rota')).toBeNull();
     expect(await screen.findByRole('heading', { name: 'This URL is protected' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'New URL' })).toBeTruthy();
+  });
+
+  it('deve mostrar as não lidas no destino Inbox, com o número no nome (INBOX-02)', async () => {
+    const { container } = await renderAt(`/${TOKEN_ID}/rules`);
+
+    TestBed.inject(Preferences).unread.set(['a', 'b', 'c']);
+    await screen.findByRole('link', { name: 'Inbox, 3 unread' });
+
+    expect(container.querySelector('.destination .badge')?.textContent?.trim()).toBe('3');
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve marcar Checks com "needs attention" Quando uma mensagem da lista tem assinatura ou schema inválido (CHECKS-23)', async () => {
+    const { container } = await renderAt(`/${TOKEN_ID}`);
+    const store = TestBed.inject(RequestStore);
+    expect(screen.getByRole('link', { name: 'Checks' })).toBeTruthy();
+
+    store.tokenId.set(TOKEN_ID);
+    store.append(
+      webhookRequest(1, {
+        signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
+      }),
+      1,
+    );
+
+    await screen.findByRole('link', { name: 'Checks, needs attention' });
+    expect(container.querySelector('.destination .dot')).not.toBeNull();
+  });
+
+  it('deve reunir no ⋮ da barra do celular as ações que saem da barra (INBOX-29)', async () => {
+    const user = userEvent.setup();
+    await renderAt(`/${TOKEN_ID}`);
+
+    // A barra do topo só aparece abaixo de 600 px (media query, que o jsdom não aplica).
+    await user.click(screen.getByRole('button', { name: 'URL actions', hidden: true }));
+
+    expect(
+      screen.getAllByRole('menuitem', { hidden: true }).map((item) => item.textContent?.trim()),
+    ).toEqual([
+      'Send',
+      'New URL',
+      'Edit URL',
+      'Open in new tab',
+      'Copy CLI command',
+      'Delete URL',
+      'Settings',
+      'Help',
+    ]);
+    await user.click(screen.getByRole('menuitem', { name: 'New URL', hidden: true }));
+    await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
   });
 
   it('deve abrir o "Create New URL" Quando o FAB é clicado', async () => {

@@ -7,6 +7,7 @@ import {
   Type,
   ViewContainerRef,
   computed,
+  afterNextRender,
   effect,
   inject,
   signal,
@@ -14,12 +15,16 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
 import { Icon } from '../ui/icon';
+import { Menu, MenuItem } from '../ui/menu';
 import { DESTINATIONS, Destination, placeOf } from './destinations';
 import { Hotkeys } from './hotkeys';
+import { ScreenState } from './screen-state';
 import { ShellSettings } from './shell-settings';
+import type { TokenActions } from '../token/token-actions';
 import { UrlHeader } from './url-header';
 
 /** Folha aberta pelo rail: Settings ou Help, carregadas sob demanda. */
@@ -32,14 +37,15 @@ export interface SheetComponent {
 
 /**
  * O espaço de trabalho (C §3.1): rail com a marca, o FAB "New URL", os cinco destinos da URL,
- * Settings e Help; cabeçalho fixo da URL; e a página da rota. Abaixo de 600 px o rail vira barra
- * no topo e os destinos, barra inferior; a partir de 1600 px o rail se expande com os rótulos ao
- * lado. URL protegida sem acesso: a página sai (o SSE fecha junto) e entra a tela de desbloqueio,
+ * Settings e Help; cabeçalho fixo da URL; e a página da rota. O destino Inbox mostra as não lidas e
+ * Checks um ponto quando há assinatura ou schema inválido na lista (INBOX-02, CHECKS-23). Abaixo de
+ * 600 px o rail vira barra no topo (marca, título do destino, busca e um ⋮ com o FAB, Settings,
+ * Help e as ações da URL, INBOX-29) e os destinos, barra inferior. URL protegida sem acesso: a página sai (o SSE fecha junto) e entra a tela de desbloqueio,
  * sem os destinos nem o cabeçalho, que voltam ao destrancar.
  */
 @Component({
   selector: 'app-shell',
-  imports: [Icon, RouterLink, RouterOutlet, UrlHeader],
+  imports: [Icon, Menu, RouterLink, RouterOutlet, UrlHeader],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
@@ -50,6 +56,8 @@ export class Shell {
   private readonly urlLock = inject(UrlLock);
   private readonly injector = inject(Injector);
   private readonly clipboard = inject(Clipboard);
+  private readonly requests = inject(RequestStore);
+  protected readonly screen = inject(ScreenState);
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
 
@@ -124,6 +132,106 @@ export class Shell {
     return $localize`${this.label(destination)}:destination: (G then ${destination.key.toUpperCase()}:key:)`;
   }
 
+  /** Não lidas da URL aberta (o badge do destino Inbox). */
+  private readonly unread = computed(() => this.requests.unread().length);
+  /**
+   * Checks pede atenção quando alguma mensagem carregada desta URL tem a assinatura ou o schema
+   * inválidos (o que o Health contaria como falha).
+   */
+  private readonly attention = computed(() => {
+    const token = this.tokens.token();
+    return (
+      !!token &&
+      this.requests.tokenId() === token.uuid &&
+      this.requests
+        .requests()
+        .some((request) => request.signature?.valid === false || request.schema?.valid === false)
+    );
+  });
+
+  /** O badge ou o ponto do destino, com o nome acessível que diz o que ele quer dizer. */
+  protected statusOf(destination: Destination): { name: string; badge: number | null } | null {
+    const label = this.label(destination);
+    if (destination.path === null && this.unread() > 0) {
+      const count = this.unread();
+      return { name: $localize`${label}:destination:, ${count}:count: unread`, badge: count };
+    }
+    if (destination.path === 'checks' && this.attention()) {
+      return { name: $localize`${label}:destination:, needs attention`, badge: null };
+    }
+    return null;
+  }
+
+  /** O ⋮ da barra do celular: o que a barra do topo e o cabeçalho da URL deixam de mostrar. */
+  protected readonly topActions = computed<MenuItem[]>(() => {
+    const token = this.tokens.token();
+    const url: MenuItem[] =
+      token && !this.locked()
+        ? [
+            {
+              label: $localize`:action|Botão que manda a requisição:Send`,
+              icon: 'outbound',
+              action: () =>
+                void this.router.navigate(['/', token.uuid, 'outbound'], {
+                  queryParams: { send: 'new' },
+                }),
+            },
+          ]
+        : [];
+    const more: MenuItem[] =
+      token && !this.locked()
+        ? [
+            {
+              label: $localize`Edit URL`,
+              icon: 'settings',
+              action: () => void this.router.navigate(['/', token.uuid, 'checks']),
+            },
+            {
+              label: $localize`Open in new tab`,
+              icon: 'outbound',
+              action: () => window.open(this.tokens.webhookUrl(), '_blank', 'noopener'),
+            },
+            {
+              label: $localize`Copy CLI command`,
+              icon: 'copy',
+              action: () => void this.withActions((actions) => actions.copyCliCommand()),
+            },
+            ...(token.protected
+              ? [
+                  {
+                    label: $localize`Lock`,
+                    icon: 'lock' as const,
+                    action: () => void this.withActions((actions) => actions.lockUrl()),
+                  },
+                ]
+              : []),
+            {
+              label: $localize`Delete URL`,
+              icon: 'trash',
+              action: () => void this.withActions((actions) => actions.deleteUrl()),
+            },
+          ]
+        : [];
+    return [
+      ...url,
+      { label: $localize`New URL`, icon: 'plus', action: () => void this.createUrl() },
+      ...more,
+      { label: $localize`Settings`, icon: 'settings', action: () => this.sheet.set('settings') },
+      { label: $localize`Help`, icon: 'help', action: () => this.sheet.set('help') },
+    ];
+  });
+
+  /** A lupa da barra do celular: mostra a busca da lista e põe o foco nela. */
+  protected openSearch(): void {
+    this.screen.searchOpen.set(true);
+    afterNextRender(() => this.focusSearch(), { injector: this.injector });
+  }
+
+  private async withActions(run: (actions: TokenActions) => unknown): Promise<void> {
+    const { TokenActions } = await import('../token/token-actions');
+    await run(this.injector.get(TokenActions));
+  }
+
   protected link(destination: Destination, tokenId: string): string[] {
     return destination.path ? ['/', tokenId, destination.path] : ['/', tokenId];
   }
@@ -132,9 +240,8 @@ export class Shell {
     this.sheet.update((open) => (open === sheet ? null : sheet));
   }
 
-  protected async createUrl(): Promise<void> {
-    const { TokenActions } = await import('../token/token-actions');
-    await this.injector.get(TokenActions).createUrl();
+  protected createUrl(): Promise<void> {
+    return this.withActions((actions) => actions.createUrl());
   }
 
   private goTo(destination: Destination | undefined): void {

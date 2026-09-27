@@ -1,17 +1,19 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { DOCUMENT } from '@angular/common';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, Injector, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
-import { TokenSettings } from './token';
+import { TokenSettings, cliListenCommand } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
 import { UrlAccess } from './url-access';
 
 /**
- * Fluxos "New URL" e "Lock" do shell. Fica num chunk carregado no primeiro clique: diálogo,
+ * Fluxos "New URL", "Lock", "Delete URL" e "Copy CLI command" do shell. Fica num chunk carregado no primeiro clique: diálogo,
  * formulários e overlay não pesam na carga inicial. A configuração da URL mora em Checks (o antigo
  * Edit URL deixou de existir, S2).
  */
@@ -23,6 +25,10 @@ export class TokenActions {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly clipboard = inject(Clipboard);
+  private readonly injector = inject(Injector);
+  private readonly origin = inject(DOCUMENT).location.origin;
 
   async createUrl(): Promise<void> {
     const dialog = this.dialog.open<TokenDialog, TokenDialogData, TokenSettings>(TokenDialog, {
@@ -38,6 +44,41 @@ export class TokenActions {
     if (token) {
       await this.access.lock(token.uuid);
       this.snackBar.open($localize`URL locked`, undefined, { duration: 4000 });
+    }
+  }
+
+  /**
+   * "Delete URL" (menu da URL, protótipo C): confirma, apaga no servidor (mensagens, regras e
+   * histórico vão junto) e abre uma URL nova no lugar, como a tela faz com uma URL que sumiu.
+   */
+  async deleteUrl(): Promise<void> {
+    const token = this.tokens.token();
+    if (!token) {
+      return;
+    }
+    const { confirmDeleteUrl } = await import('./confirm-delete-url');
+    if (!(await confirmDeleteUrl(this.injector, this.tokens.webhookUrl()))) {
+      return;
+    }
+    try {
+      await firstValueFrom(this.http.delete(`/token/${token.uuid}`));
+      const created = await this.tokens.create();
+      this.requests.resetUnread();
+      await this.router.navigate(['/', created.uuid]);
+      this.snackBar.open($localize`URL deleted. A new URL is open.`, undefined, { duration: 4000 });
+    } catch (error) {
+      const status = error instanceof HttpErrorResponse ? error.status : $localize`unknown`;
+      this.snackBar.open($localize`Could not delete the URL (${status}:status:).`, undefined, {
+        duration: 10000,
+      });
+    }
+  }
+
+  /** "Copy CLI command": o `webhook listen` que encaminha as mensagens para o app local. */
+  copyCliCommand(): void {
+    const token = this.tokens.token();
+    if (token && this.clipboard.copy(cliListenCommand(this.origin, token.uuid))) {
+      this.snackBar.open($localize`Copied the CLI command.`, undefined, { duration: 1000 });
     }
   }
 

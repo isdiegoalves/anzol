@@ -4,6 +4,7 @@ import { MatButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { Preferences } from '../settings/preferences';
+import { cliListenCommand } from '../token/token';
 import { Icon } from '../ui/icon';
 
 /** O corpo do "Send a test request": JSON, como um webhook de verdade (não formulário). */
@@ -38,9 +39,8 @@ export class Onboarding {
   protected readonly curl = computed(
     () => `curl -X POST -H 'Content-Type: application/json' -d '{"hello":"world"}' ${this.url()}`,
   );
-  protected readonly cli = computed(
-    () =>
-      `anzol listen --server ${new URL(this.url()).origin} --forward http://localhost:3000 --token ${this.tokenId()}`,
+  protected readonly cli = computed(() =>
+    cliListenCommand(new URL(this.url()).origin, this.tokenId()),
   );
 
   protected readonly sending = signal(false);

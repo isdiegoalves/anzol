@@ -1718,6 +1718,12 @@ export const translations: Record<string, string> = {
   '4046649033157042513': 'Compacta',
   // Anzol
   '8985871462726005345': 'Anzol',
+  // Search requests (/)
+  '5478414183275041974': 'Buscar requisições (/)',
+  // URL actions
+  '4818946598990383444': 'Ações da URL',
+  // Send, new URL, delete URL, settings and help
+  '6801798798110034903': 'Enviar, nova URL, apagar a URL, configurações e ajuda',
   // New URL (N)
   '131281839817929607': 'Nova URL (N)',
   // URL sections
@@ -1726,22 +1732,53 @@ export const translations: Record<string, string> = {
   '5036287821443969284': 'Ajuda e atalhos (?)',
   // {$destination} (G then {$key})
   '1735799584802064851': '{$destination} (G e depois {$key})',
+  // {$destination}, {$count} unread
+  '814164756853505191': '{$destination}, {$count} não lidas',
+  // {$destination}, needs attention
+  '1469418318150552308': '{$destination}, pede atenção',
+  // Edit URL
+  '5639322219019388338': 'Editar a URL',
+  // Copy CLI command
+  '438815826227761396': 'Copiar o comando do CLI',
+  // Lock
+  '5635860082093871248': 'Trancar',
+  // Delete URL
+  '2138164891962720900': 'Apagar a URL',
   // Webhook URL
   '8582782147430932081': 'URL do webhook',
   // Copy URL (C)
   '5765890918485292193': 'Copiar a URL (C)',
+  // · keeps {$INTERPOLATION}
+  '2776081700505103837': '· guarda {$INTERPOLATION}',
   // Schema validation on. Open Checks
   '8301965875232311588': 'Validação de schema ligada. Abrir Verificações',
   // Send a request from the server: open Outbound
   '6940018098964837895': 'Mandar uma requisição pelo servidor: abrir Saída',
-  // Lock
-  '5635860082093871248': 'Trancar',
-  // Edit URL: open Checks
-  '7002078159318591773': 'Editar a URL: abrir Verificações',
+  // More URL actions
+  '9064031518606878552': 'Mais ações da URL',
+  // Edit URL, open in new tab, copy CLI command, delete URL
+  '5707574018885283160': 'Editar a URL, abrir em nova aba, copiar o comando do CLI, apagar a URL',
   // Signature verification: {$provider}. Open Checks
   '7448920973178183690': 'Verificação de assinatura: {$provider}. Abrir Verificações',
+  // 1 request
+  '5460014314878732908': '1 requisição',
+  // {$count} requests
+  '6147271671367032360': '{$count} requisições',
+  // {$stored}, auto cleanup keeps the {$limit} most recent
+  '1886402781235704922': '{$stored}, a limpeza automática guarda as {$limit} mais recentes',
+  // Delete this URL?
+  '8240225322229955099': 'Apagar esta URL?',
+  //  The URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stops receiving, and its requests, rules and history are deleted. This can't be undone. A new URL opens in its place.
+  '1451742787852545337':
+    ' A URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} deixa de receber, e as requisições, as regras e o histórico dela são apagados. Não dá para desfazer. Uma URL nova abre no lugar. ',
   // URL locked
   '7160754438595707040': 'URL trancada',
+  // URL deleted. A new URL is open.
+  '423054761492435849': 'URL apagada. Uma URL nova está aberta.',
+  // Could not delete the URL ({$status}).
+  '3286163688907254875': 'Não foi possível apagar a URL ({$status}).',
+  // Copied the CLI command.
+  '8435024155600644601': 'Comando do CLI copiado.',
   // New URL created
   '527966257423045718': 'Nova URL criada',
   // Error creating token: {$messages}

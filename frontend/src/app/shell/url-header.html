@@ -10,6 +10,19 @@
   @if (live(); as state) {
     <app-live-status [state]="state" />
   }
+  @if (count(); as stored) {
+    <a
+      class="chip"
+      [routerLink]="['/', token.uuid, 'checks']"
+      [queryParams]="{ section: 'response' }"
+      [attr.aria-label]="stored.label"
+    >
+      <app-icon name="inbox" [size]="16" />{{ stored.total }}
+      @if (stored.keeps !== null) {
+        <span class="keeps" i18n>· keeps {{ stored.keeps }}</span>
+      }
+    </a>
+  }
   @if (token.signature; as signature) {
     <a
       class="chip"
@@ -49,13 +62,12 @@
         <app-icon name="lock" [size]="18" /><span i18n>Lock</span>
       </button>
     }
-    <a
-      class="action"
-      [routerLink]="['/', token.uuid, 'checks']"
-      title="Edit URL: open Checks"
-      i18n-title
-    >
-      <app-icon name="settings" [size]="18" /><span i18n>Edit</span>
-    </a>
+    <app-menu
+      label="More URL actions"
+      i18n-label
+      hint="Edit URL, open in new tab, copy CLI command, delete URL"
+      i18n-hint
+      [items]="urlActions()"
+    />
   </div>
 }

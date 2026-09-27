@@ -1,3 +1,4 @@
+import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -137,5 +138,55 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
     expect(TestBed.inject(UrlLock).tokenId()).toBe(TOKEN_ID);
     expect(TestBed.inject(Preferences).token()).toBeNull();
     expect(snack).toHaveBeenCalledWith('URL locked', undefined, { duration: 4000 });
+  });
+
+  describe('Dado o menu "More URL actions" (F1)', () => {
+    const confirm = (answer: boolean) =>
+      vi
+        .spyOn(TestBed.inject(MatDialog), 'open')
+        .mockReturnValue({ afterClosed: () => from([answer]) } as MatDialogRef<unknown>);
+
+    it('deve apagar a URL, abrir uma nova e avisar Quando "Delete URL" é confirmado', async () => {
+      TestBed.inject(Preferences).token.set(token());
+      TestBed.inject(Preferences).unread.set(['x']);
+      confirm(true);
+
+      const done = TestBed.inject(TokenActions).deleteUrl();
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}` }).flush(null, NO_CONTENT),
+      );
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'POST', url: '/token' }).flush(token({ uuid: 'novo' })),
+      );
+      await done;
+
+      expect(navigate).toHaveBeenCalledWith(['/', 'novo']);
+      expect(TestBed.inject(Preferences).unread()).toEqual([]);
+      expect(snack).toHaveBeenCalledWith('URL deleted. A new URL is open.', undefined, {
+        duration: 4000,
+      });
+    });
+
+    it('não deve apagar nada Quando a confirmação é cancelada', async () => {
+      TestBed.inject(Preferences).token.set(token());
+      confirm(false);
+
+      await TestBed.inject(TokenActions).deleteUrl();
+
+      http.expectNone({ method: 'DELETE', url: `/token/${TOKEN_ID}` });
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('deve copiar o comando do CLI com a URL aberta Quando "Copy CLI command" é escolhido', () => {
+      TestBed.inject(Preferences).token.set(token());
+      const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+
+      TestBed.inject(TokenActions).copyCliCommand();
+
+      expect(copy).toHaveBeenCalledWith(
+        `anzol listen --server ${location.origin} --forward http://localhost:3000 --token ${TOKEN_ID}`,
+      );
+      expect(snack).toHaveBeenCalledWith('Copied the CLI command.', undefined, { duration: 1000 });
+    });
   });
 });

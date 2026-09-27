@@ -37,6 +37,10 @@
   }
 }
 
+.keeps {
+  font-weight: 500;
+}
+
 .spacer {
   flex: 1 0 0;
 }
@@ -44,6 +48,7 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
 }
 
@@ -75,9 +80,20 @@
   }
 }
 
+// Celular (INBOX-30, VarC-Mobile): o cartão da URL (campo e copiar; embaixo, Live, a contagem e os
+// provedores). Send, Lock e o ⋮ vão para o ⋮ da barra do topo; no detalhe em tela cheia, o cartão
+// sai.
 @media (width < 600px) {
   :host {
-    padding: 8px;
+    margin: 0 8px 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--mat-sys-corner-large);
+    background: var(--mat-sys-surface-container-lowest);
+  }
+
+  :host(.on-detail) {
+    display: none;
   }
 
   .url {
@@ -85,7 +101,8 @@
     max-width: none;
   }
 
-  .spacer {
+  .spacer,
+  .actions {
     display: none;
   }
 }

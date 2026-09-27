@@ -1,6 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { provideHttpClient } from '@angular/common/http';
 import { clearTranslations, loadTranslations } from '@angular/localize';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { Subscription } from 'rxjs';
@@ -12,15 +13,28 @@ import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
 import { TokenActions } from '../token/token-actions';
 import { translations } from '../../locale/pt-BR';
+import { RequestStore } from '../requests/request-store';
 import { UrlHeader } from './url-header';
 
 describe('Dado o cabeçalho da URL aberta', () => {
-  let actions: { lockUrl: ReturnType<typeof vi.fn> };
+  let actions: {
+    lockUrl: ReturnType<typeof vi.fn>;
+    deleteUrl: ReturnType<typeof vi.fn>;
+    copyCliCommand: ReturnType<typeof vi.fn>;
+  };
 
   const renderWith = (url: Token | null) => {
-    actions = { lockUrl: vi.fn().mockResolvedValue(undefined) };
+    actions = {
+      lockUrl: vi.fn().mockResolvedValue(undefined),
+      deleteUrl: vi.fn().mockResolvedValue(undefined),
+      copyCliCommand: vi.fn(),
+    };
     return render(UrlHeader, {
-      providers: [provideRouter([]), { provide: TokenActions, useValue: actions }],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        { provide: TokenActions, useValue: actions },
+      ],
       configureTestBed: (testBed) => testBed.inject(Preferences).token.set(url),
     });
   };
@@ -61,13 +75,59 @@ describe('Dado o cabeçalho da URL aberta', () => {
     );
   });
 
-  it('deve levar a Checks pelo "Edit" (o antigo Edit URL)', async () => {
-    await renderWith(token());
+  it('deve ter o menu "More URL actions" no lugar do botão "Edit" (INBOX-04, CHECKS-22)', async () => {
+    const user = userEvent.setup();
+    const { container, fixture } = await renderWith(token());
+    const navigate = vi.spyOn(fixture.debugElement.injector.get(Router), 'navigate');
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
 
-    expect(screen.getByRole('link', { name: 'Edit' })).toHaveProperty(
-      'href',
-      expect.stringMatching(new RegExp(`/${TOKEN_ID}/checks$`)),
-    );
+    const more = screen.getByRole('button', { name: 'More URL actions' });
+    await user.click(more);
+    await fixture.whenStable();
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent?.trim())).toEqual([
+      'Edit URL',
+      'Open in new tab',
+      'Copy CLI command',
+      'Delete URL',
+    ]);
+    await expectNoAxeViolations(container);
+    await user.click(screen.getByRole('menuitem', { name: 'Edit URL' }));
+    expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'checks']);
+    await user.click(more);
+    await user.click(screen.getByRole('menuitem', { name: 'Open in new tab' }));
+    expect(open).toHaveBeenCalledWith(`${location.origin}/${TOKEN_ID}`, '_blank', 'noopener');
+    await user.click(more);
+    await user.click(screen.getByRole('menuitem', { name: 'Copy CLI command' }));
+    await vi.waitFor(() => expect(actions.copyCliCommand).toHaveBeenCalledOnce());
+    await user.click(more);
+    await user.click(screen.getByRole('menuitem', { name: 'Delete URL' }));
+    await vi.waitFor(() => expect(actions.deleteUrl).toHaveBeenCalledOnce());
+  });
+
+  it('deve mostrar quantas mensagens a URL guarda e o limite, levando a Checks › Response (INBOX-03)', async () => {
+    const { fixture } = await renderWith(token({ auto_cleanup: 1000 }));
+    const store = fixture.debugElement.injector.get(RequestStore);
+    store.tokenId.set(TOKEN_ID);
+    store.total.set(128);
+    await fixture.whenStable();
+
+    const chip = screen.getByRole('link', {
+      name: '128 requests, auto cleanup keeps the 1000 most recent',
+    });
+    expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · keeps 1000');
+    expect(chip.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=response`);
+  });
+
+  it('deve mostrar só a contagem Quando a URL não tem limpeza automática', async () => {
+    const { fixture } = await renderWith(token({ auto_cleanup: null }));
+    const store = fixture.debugElement.injector.get(RequestStore);
+    store.tokenId.set(TOKEN_ID);
+    store.total.set(1);
+    await fixture.whenStable();
+
+    expect(screen.getByRole('link', { name: '1 request' }).textContent?.trim()).toBe('1');
   });
 
   it('deve mostrar "Lock" e trancar a URL Quando ela é protegida', async () => {
