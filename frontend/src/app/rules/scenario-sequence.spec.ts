@@ -226,12 +226,35 @@ describe('Dado o diálogo "Sequence" (WM-32)', () => {
     http.expectNone({ method: 'GET', url: URL_REGRAS });
   });
 
-  it('deve avisar e não gravar Quando passaria de 100 regras', async () => {
+  it('deve avisar e desabilitar "Create" Quando passaria de 100 regras', async () => {
     await show(Array.from({ length: 98 }, (_, i) => rule(i + 1)));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Create 3 rules' }));
-
-    expect(screen.getByRole('alert').textContent).toContain('Would exceed 100 rules.');
+    expect(screen.getByRole('note').textContent).toContain('Would exceed 100 rules.');
+    const criar = screen.getByRole('button', { name: 'Create 3 rules' }) as HTMLButtonElement;
+    expect(criar.disabled).toBe(true);
     http.expectNone({ method: 'GET', url: URL_REGRAS });
+  });
+
+  it('deve sugerir o nome do cenário pelo caminho digitado, até o nome ser digitado', async () => {
+    const result = await render(ScenarioSequence, {
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MAT_DIALOG_DATA, useValue: {} },
+        { provide: MatDialogRef, useValue: { close } },
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const nome = screen.getByRole('textbox', { name: 'Scenario name' }) as HTMLInputElement;
+    expect(nome.value).toBe('sequence');
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Path' }), '/entrega');
+    result.fixture.detectChanges();
+    expect(nome.value).toBe('entrega');
+
+    await userEvent.clear(nome);
+    await userEvent.type(nome, 'meu');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Path' }), '/x');
+    expect(nome.value).toBe('meu');
   });
 });

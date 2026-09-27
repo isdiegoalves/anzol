@@ -106,7 +106,7 @@
       id="sequence-scenario"
       maxlength="94"
       [value]="scenario()"
-      (input)="scenario.set(value($event))"
+      (input)="typeScenario(value($event))"
     />
   </mat-form-field>
   @if (joins()) {
@@ -123,6 +123,9 @@
     </ol>
   </section>
 
+  @if (exceeds()) {
+    <p class="exceeds" role="note">{{ exceedsText }}</p>
+  }
   @if (errors().length > 0) {
     <div role="alert">
       <ul class="errors">
@@ -135,7 +138,13 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end" class="actions">
   <button mat-button type="button" [mat-dialog-close]="false" i18n>Cancel</button>
-  <button mat-flat-button type="button" [attr.aria-busy]="saving()" (click)="create()">
+  <button
+    mat-flat-button
+    type="button"
+    [attr.aria-busy]="saving()"
+    [disabled]="exceeds()"
+    (click)="create()"
+  >
     {{ createLabel() }}
   </button>
 </mat-dialog-actions>

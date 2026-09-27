@@ -13,6 +13,7 @@ import { MatButton } from '@angular/material/button';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
+import { neverMatches } from './rule-shadow';
 import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
 import { openSequence } from './scenario-sequence';
@@ -48,6 +49,20 @@ export class ScenarioPanel {
     return [...saved, ...drafted];
   });
 
+  /**
+   * E-09: os estados exigidos que nenhuma outra regra ligada produz (nem Started, nem o estado de
+   * agora, que pode ter sido posto à mão), com as regras do rascunho: provável erro de digitação.
+   */
+  protected readonly orphans = computed(() => {
+    const rules = this.rules();
+    const states = rules.flatMap((rule) => {
+      const never = neverMatches(rule, rules, {}, this.store.scenarios());
+      return never?.cause === 'state' ? [never.state] : [];
+    });
+    return [...new Set(states)].map(
+      (state) => $localize`No rule leads to state "${state}:state:" — probably a typo.`,
+    );
+  });
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly busy = signal(false);
   /** Estado escolhido no seletor de cada cenário, ainda não enviado. */

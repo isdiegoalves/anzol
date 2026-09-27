@@ -26,6 +26,15 @@
   gap: 8px;
 }
 
+// Estado exigido que nenhuma regra produz (E-09).
+.orphan {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
 .errors {
   margin: 0 0 12px;
   padding: 12px 12px 12px 32px;

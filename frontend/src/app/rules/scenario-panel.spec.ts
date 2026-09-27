@@ -63,6 +63,21 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
     vi.restoreAllMocks();
   });
 
+  it('deve apontar o estado exigido que nenhuma regra produz (provável erro de digitação, E-09)', async () => {
+    await open(
+      [{ name: 'entrega', state: 'Started', states: ['Started'] }],
+      [
+        rule(1, { scenario: { name: 'entrega', requiredState: 'Started', newState: 'falhou-1' } }),
+        rule(2, { scenario: { name: 'entrega', requiredState: 'entregue' } }),
+        rule(3, { scenario: { name: 'entrega', requiredState: 'falhou-1' } }),
+      ],
+    );
+
+    expect(screen.getAllByRole('note').map((note) => note.textContent?.trim())).toEqual([
+      'No rule leads to state "entregue" — probably a typo.',
+    ]);
+  });
+
   it('deve listar cada cenário com o estado atual Quando carrega', async () => {
     await open([retry('falhou-1'), login]);
 

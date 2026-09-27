@@ -133,7 +133,7 @@ export class ScenarioSequence {
   private readonly data = inject<SequenceData | null>(MAT_DIALOG_DATA, { optional: true });
 
   protected readonly allMethods = METHODS;
-  protected readonly methods = signal<string[]>(['POST']);
+  protected readonly methods = signal<string[]>([]);
   protected readonly pathMode = signal<PathMode>(this.data?.path ? 'equals' : 'any');
   protected readonly path = signal(this.data?.path ?? '');
   protected readonly times = signal('2');
@@ -141,7 +141,11 @@ export class ScenarioSequence {
   protected readonly firstBody = signal('');
   protected readonly finalStatus = signal(String(RULE_DEFAULT_STATUS));
   protected readonly finalBody = signal('');
-  protected readonly scenario = signal(suggestScenarioName(this.data?.path ?? ''));
+  /** O nome digitado; até alguém digitar, o nome acompanha o caminho ("/entrega" → "entrega"). */
+  private readonly typedScenario = signal<string | null>(null);
+  protected readonly scenario = computed(
+    () => this.typedScenario() ?? suggestScenarioName(this.path()),
+  );
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly saving = signal(false);
 
@@ -151,6 +155,9 @@ export class ScenarioSequence {
     return (Number.isInteger(times) && times >= 1 && times <= TIMES_MAX ? times : 2) + 1;
   });
   protected readonly createLabel = computed(() => $localize`Create ${this.count()}:count: rules`);
+  /** Passaria do teto de 100 regras da URL: o aviso aparece e "Create" fica desabilitado. */
+  protected readonly exceeds = computed(() => this.store.rules().length + this.count() > RULES_MAX);
+  protected readonly exceedsText = $localize`Would exceed 100 rules.`;
   protected readonly previewTitle = computed(
     () => $localize`${this.count()}:count: rules will be created`,
   );
@@ -174,6 +181,10 @@ export class ScenarioSequence {
   );
 
   /** O caminho sempre aberto (como no editor, F3): digitar num "Any path" passa a "Equals". */
+  protected typeScenario(name: string): void {
+    this.typedScenario.set(name);
+  }
+
   protected typePath(path: string): void {
     this.path.set(path);
     if (path.trim() !== '' && this.pathMode() === 'any') {
@@ -202,8 +213,7 @@ export class ScenarioSequence {
       return;
     }
     const saved = this.store.rules();
-    if (saved.length + this.count() > RULES_MAX) {
-      this.errors.set([$localize`Would exceed 100 rules.`]);
+    if (this.exceeds()) {
       return;
     }
     const { rules } = insertSequence(saved, this.spec());
