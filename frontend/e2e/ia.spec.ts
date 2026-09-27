@@ -138,6 +138,17 @@ async function descrever(dialog: Locator): Promise<Locator> {
   return campo;
 }
 
+/**
+ * UX de Regras, E-13 (guia §3.3): a sugestão deixa de substituir o editor. Aparece como a proposta "Suggestion" com a
+ * lista de mudanças e "Apply all" / "Apply conditions only" / "Dismiss". SUPOSIÇÃO: o guia diz `region "Suggestion"`
+ * (existente) e hoje ela é `status "Suggestion"`; aceita os dois papéis.
+ */
+function sugestao(dialog: Locator): Locator {
+  return dialog
+    .getByRole('region', { name: 'Suggestion' })
+    .or(dialog.getByRole('status', { name: 'Suggestion' }));
+}
+
 async function newRuleDialog(page: Page, tokenId: string) {
   await abrirRegras(page, tokenId);
   return novaRegra(page);
@@ -165,6 +176,10 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     await expect(dialog.getByRole('status').filter({ hasText: 'up to ~30 s' })).toBeVisible();
+    // E-13: nada muda no editor até "Apply all".
+    await expect(sugestao(dialog)).toContainText('status 200 → 429');
+    await expect(dialog.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue('');
+    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(
       'Pagamentos 429',
     );
@@ -176,7 +191,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await expect(dialog.getByRole('textbox', { name: 'Response header 1 name' })).toHaveValue(
       'Retry-After',
     );
-    const result = dialog.getByRole('status', { name: 'Suggestion' });
+    const result = sugestao(dialog);
     await expect(result).toContainText('Suggested in 1 attempt.');
     await expect(result.locator('strong')).toHaveText('429');
     expect(llm.prompt(0)).toContain(prompt);
@@ -222,8 +237,58 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     expect(call.postDataJSON()).toEqual(
       expect.objectContaining({ prompt: 'Igual a esta mensagem', request_id: requestId }),
     );
+    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Pedidos');
     expect(llm.prompt(0)).toContain('e2e-exemplo-7731');
+  });
+
+  // UX de Regras, E-13 (guia §3.3): proposta com a lista de mudanças; aplicar tudo, só as condições, descartar e
+  // desfazer.
+  test('deve propor a sugestão como lista de mudanças, aplicar só as condições, descartar e desfazer', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await newRuleDialog(page, tokenId);
+    const proposta = {
+      name: 'Acme',
+      enabled: true,
+      priority: 5,
+      match: { headers: { 'x-tenant': { equals: 'acme' } } },
+      response: { status: 201, headers: {}, body: '{"ok":true}' },
+    };
+    const status = dialog.getByRole('spinbutton', { name: 'Status' });
+    llm.program(
+      { content: suggestion(proposta, 'Only acme.') },
+      { content: suggestion(proposta, 'Only acme.') },
+      { content: suggestion(proposta, 'Only acme.') },
+    );
+
+    await (await descrever(dialog)).fill('201 para o tenant acme');
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+    const lista = sugestao(dialog);
+    await expect(lista).toContainText('+ header x-tenant = acme');
+    await expect(lista).toContainText('status 200 → 201');
+    await expect(lista).toContainText('body changed');
+    await lista.getByRole('button', { name: 'Apply conditions only' }).click();
+    await parte(dialog, 'Match');
+    await expect(dialog.getByRole('textbox', { name: 'Header 1 value' })).toHaveValue('acme');
+    await parte(dialog, 'Response');
+    await expect(status).toHaveValue('200');
+
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+    await sugestao(dialog).getByRole('button', { name: 'Dismiss' }).click();
+    await expect(sugestao(dialog)).toHaveCount(0);
+    await expect(status).toHaveValue('200');
+
+    await dialog.getByRole('button', { name: 'Suggest' }).click();
+    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
+    await expect(status).toHaveValue('201');
+    await expect(page.getByText('Suggestion applied')).toBeVisible();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect(status).toHaveValue('200');
+    expect(await rulesOf(request, tokenId)).toEqual([]);
   });
 
   test('deve mostrar os últimos erros e manter o editor Quando o modelo erra a regra 3 vezes (422)', async ({
@@ -262,6 +327,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
 
     await (await descrever(dialog)).fill('429 em pagamentos');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
+    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
 
     const aviso = dialog
       .getByRole('alert')
