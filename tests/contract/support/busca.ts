@@ -18,6 +18,13 @@ export interface PedidoDeBusca {
    * miss) ou `default` (sem `rule`). Fora de `match`; combina em E com o resto.
    */
   outcome?: { type: 'rule' | 'near_miss'; rule: string } | { type: 'default' };
+  /**
+   * Decisões do Anzol, M1: o `reason` da assinatura inválida, sem o parêntese final (o mesmo texto de
+   * `/stats` `signature.reasons[].reason`).
+   */
+  signature_reason?: string | null;
+  /** Decisões do Anzol, M1: o `path` (JSON Pointer; `""` = raiz) de um erro do schema, como em `/stats` `schema.paths[].path`. */
+  schema_path?: string | null;
   sorting?: 'newest' | 'oldest';
   page?: number;
   per_page?: number;
