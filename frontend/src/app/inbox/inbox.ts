@@ -106,6 +106,8 @@ export class Inbox {
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
   private arrivals = 0;
+  /** A mensagem que a própria tela abriu por último (sem o usuário pedir). */
+  private chosenByScreen: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -151,7 +153,12 @@ export class Inbox {
     });
   }
 
+  /**
+   * Abre a mensagem pela rota. Com `replaceUrl`, é a tela que escolheu (a primeira ao abrir a URL,
+   * a que substituiu a cortada): no celular isso não tira a lista da frente.
+   */
   protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
+    this.chosenByScreen = replaceUrl ? request.uuid : null;
     const page = this.requests.pageOf(request.uuid);
     return this.router.navigate(['/', request.token_id, request.uuid, page], { replaceUrl });
   }
@@ -215,6 +222,13 @@ export class Inbox {
     const list = this.requests.requests();
     if (requestId && list.some((request) => request.uuid === requestId)) {
       this.requests.select(requestId);
+      // Link permanente, Newer/Older, Follow new: no celular, o detalhe vem para a frente.
+      if (requestId !== this.chosenByScreen) {
+        this.showDetail.set(true);
+      }
+      if (requestId === list.at(-1)?.uuid) {
+        this.list()?.clearNew();
+      }
     } else if (list.length > 0) {
       await this.openRequest(list[0], true);
     }
@@ -293,13 +307,16 @@ export class Inbox {
     } else if (!this.requests.selected()) {
       await this.openRequest(list[0]);
     }
-    const inView = this.list()?.receive(complete) ?? true;
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
+      this.list()?.receive(complete, true);
       await this.openRequest(list[list.length - 1]);
       this.list()?.scrollTo(complete.uuid);
       this.notify(complete, true);
       return;
     }
+    // A que a tela abriu (a primeira numa Inbox vazia, ou a que substituiu a cortada) está à vista.
+    const opened = this.requests.selected()?.uuid === complete.uuid;
+    const inView = (this.list()?.receive(complete, opened) ?? true) || opened;
     this.notify(complete, inView);
   }
 
@@ -336,7 +353,7 @@ export class Inbox {
       this.arrivals = 0;
       this.announceTimer = null;
       void this.announcer.announce(
-        `${count} new ${count === 1 ? 'request' : 'requests'} received`,
+        `${count} new ${count === 1 ? 'request' : 'requests'} arrived`,
         'polite',
       );
     }, ANNOUNCE_EVERY_MS);

@@ -1,6 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
@@ -224,23 +226,44 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('.range')?.textContent).toBe('1–1 of 60');
   });
 
-  it('deve mostrar a pílula das novas e a destacar Quando chega mensagem com o fim da lista fora da vista', async () => {
+  it('deve contar na pílula a nova que a tela não abriu e dizer se ela ficou à vista', async () => {
     const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
     await load(vinte);
     const list = fixture.componentInstance;
-    const viewport = element().querySelector('cdk-virtual-scroll-viewport') as HTMLElement;
-    Object.defineProperty(viewport, 'scrollHeight', { value: 20 * ITEM_HEIGHT });
-    Object.defineProperty(viewport, 'clientHeight', { value: 3 * ITEM_HEIGHT });
+    const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))
+      .componentInstance as CdkVirtualScrollViewport;
+    vi.spyOn(viewport, 'getViewportSize').mockReturnValue(3 * ITEM_HEIGHT);
+    const top = vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(0);
 
     const nova = webhookRequest(21);
     store.append(nova, 21);
     expect(list.receive(nova)).toBe(false);
     await fixture.whenStable();
-
     expect(element().querySelector('.new-pill')?.textContent?.trim()).toBe('1 new request');
+    expect(items().some((item) => item.classList.contains('fresh'))).toBe(false);
+
+    top.mockReturnValue(18 * ITEM_HEIGHT);
+    const outra = webhookRequest(22);
+    store.append(outra, 22);
+    expect(list.receive(outra)).toBe(true);
+    await fixture.whenStable();
+    expect(element().querySelector('.new-pill')?.textContent?.trim()).toBe('2 new requests');
+
     list.showNew();
     await fixture.whenStable();
     expect(element().querySelector('.new-pill')).toBeNull();
+  });
+
+  it('não deve contar na pílula a nova que a tela abriu', async () => {
+    await load([webhookRequest(1)]);
+    const nova = webhookRequest(2);
+    store.append(nova, 2);
+
+    expect(fixture.componentInstance.receive(nova, true)).toBe(true);
+    await fixture.whenStable();
+
+    expect(element().querySelector('.new-pill')).toBeNull();
+    expect(items()[1].classList.contains('fresh')).toBe(true);
   });
 
   it('deve mostrar a busca acima da lista Quando a URL tem mensagens', async () => {

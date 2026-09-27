@@ -314,9 +314,9 @@ describe('Dado a tela principal', () => {
     expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
   });
 
-  it('deve mostrar um painel por vez e o detalhe em tela cheia com "Back to requests" Quando a janela é estreita', async () => {
+  it('deve mostrar um painel por vez: a lista ao abrir a URL, o detalhe pelo link permanente ou pelo clique, e "Back to requests"', async () => {
     windowClass.set('compact');
-    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    await openToken(`/${TOKEN_ID}`);
     const root = harness.routeNativeElement as HTMLElement;
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
@@ -334,6 +334,19 @@ describe('Dado a tela principal', () => {
     root.querySelector<HTMLButtonElement>('button[aria-label="Back to requests"]')?.click();
     await harness.fixture.whenStable();
     expect(root.querySelector('app-request-list')).not.toBeNull();
+  });
+
+  it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {
+    windowClass.set('compact');
+    await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(root.querySelector('app-request-detail')).not.toBeNull();
+    });
+    expect(text()).toContain(R2.uuid);
+    expect(root.querySelector('button[aria-label="Back to requests"]')).not.toBeNull();
   });
 
   it('deve guardar o "Follow new" na chave de hoje (autoNavEnable)', async () => {

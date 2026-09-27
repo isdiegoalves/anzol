@@ -56,8 +56,9 @@
     background: var(--mat-sys-secondary-container);
     color: var(--mat-sys-on-secondary-container);
 
+    // O estado já está no aria-pressed: o ✓ é só visual (texto alternativo vazio).
     &::before {
-      content: '✓ ';
+      content: '✓ ' / '';
     }
   }
 

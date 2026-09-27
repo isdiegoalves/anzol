@@ -116,19 +116,21 @@ export class RequestList {
   }
 
   /**
-   * Uma mensagem chegou (já está no fim da lista): fica destacada e, se o fim da lista estava à
-   * vista, a lista acompanha; senão conta na pílula. Devolve se a nova ficou à vista.
+   * Uma mensagem chegou (já está no fim da lista): fica destacada; se o fim da lista estava à
+   * vista, a lista acompanha. Se a tela não a abriu (`opened`), ela conta na pílula das novas.
+   * Devolve se a nova ficou à vista na lista.
    */
-  receive(request: WebhookRequest): boolean {
+  receive(request: WebhookRequest, opened = false): boolean {
     this.fresh.update((fresh) => new Set([...fresh, request.uuid]));
     this.later(
       () => this.fresh.update((fresh) => new Set([...fresh].filter((id) => id !== request.uuid))),
       FRESH_MS,
     );
-    const inView = this.isAtEnd();
+    const inView = this.wasAtEnd();
     if (inView) {
       afterNextRender(() => this.scrollToEnd(), { injector: this.injector });
-    } else {
+    }
+    if (!opened) {
       this.newBelow.update((count) => count + 1);
     }
     return inView;
@@ -140,17 +142,16 @@ export class RequestList {
     this.scrollToEnd();
   }
 
+  /** A mais nova foi aberta: a pílula não tem mais o que mostrar. */
+  clearNew(): void {
+    this.newBelow.set(0);
+  }
+
   /** Leva a lista até a mensagem (a aberta pelo "Follow new" ou pelo "View" do aviso). */
   scrollTo(requestId: string): void {
     const index = this.store.requests().findIndex((request) => request.uuid === requestId);
     if (index >= 0) {
       afterNextRender(() => this.viewport()?.scrollToIndex(index), { injector: this.injector });
-    }
-  }
-
-  protected scrolled(): void {
-    if (this.newBelow() > 0 && this.isAtEnd()) {
-      this.newBelow.set(0);
     }
   }
 
@@ -167,10 +168,19 @@ export class RequestList {
     return item.request.uuid;
   }
 
-  /** O fim da lista está à vista (ou a lista cabe inteira). */
-  private isAtEnd(): boolean {
+  /**
+   * Antes da nova, o fim da lista estava à vista: a penúltima (a última de antes) cabia na área
+   * visível. Sem viewport medido ainda (lista que acabou de aparecer), conta como à vista.
+   */
+  private wasAtEnd(): boolean {
     const viewport = this.viewport();
-    return !viewport || viewport.measureScrollOffset('bottom') < ITEM_HEIGHT * 1.5;
+    const size = viewport?.getViewportSize() ?? 0;
+    if (!viewport || size === 0) {
+      return true;
+    }
+    const visibleEnd = viewport.measureScrollOffset('top') + size;
+    const previousEnd = (this.store.requests().length - 1) * ITEM_HEIGHT;
+    return previousEnd <= visibleEnd + ITEM_HEIGHT / 2;
   }
 
   private later(fn: () => void, ms: number): void {

@@ -33,11 +33,7 @@
     />
   }
   <div class="list">
-    <cdk-virtual-scroll-viewport
-      class="viewport"
-      [itemSize]="itemHeight"
-      (scrolledIndexChange)="scrolled()"
-    >
+    <cdk-virtual-scroll-viewport class="viewport" [itemSize]="itemHeight">
       <div
         *cdkVirtualFor="let item of items(); trackBy: trackByUuid"
         class="item"
