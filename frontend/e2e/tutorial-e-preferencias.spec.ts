@@ -1,9 +1,15 @@
+import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { expectCorpo } from './support/inbox';
 import { readStorage, seedStorage } from './support/storage';
 
 // Checklist 12 e 14. Item 14, E4 (S13/S14): "Format JSON/XML" vira o `switch "Pretty"` e "Auto Navigate" o
 // `switch "Follow new"`, lendo e gravando as mesmas chaves (`formatJsonEnable`, `autoNavEnable`).
+// Item 14, E10: o tutorial vira o onboarding "Your URL is ready" (`region` com esse nome), que respeita
+// `hideTutorial` como hoje: com mensagens, aparece até o "Close"; sem mensagens, aparece sempre, com a URL.
+
+/** O onboarding que substitui o tutorial (E10). */
+const onboarding = (page: Page) => page.getByRole('region', { name: 'Your URL is ready' });
 
 test.describe('Dado o tutorial (checklist 12)', () => {
   test('deve esconder e continuar escondido após recarregar Quando o × é clicado com mensagens', async ({
@@ -14,7 +20,7 @@ test.describe('Dado o tutorial (checklist 12)', () => {
     await tokens.send(tokenId);
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
-    const tutorial = page.getByRole('region', { name: 'Tutorial' });
+    const tutorial = onboarding(page);
     await expect(tutorial).toBeVisible();
 
     await tutorial.getByRole('button', { name: 'Close' }).click();
@@ -35,7 +41,7 @@ test.describe('Dado o tutorial (checklist 12)', () => {
 
     await page.goto(`/#/${tokenId}`);
 
-    await expect(page.getByRole('region', { name: 'Tutorial' })).toContainText(`/${tokenId}`);
+    await expect(onboarding(page)).toContainText(`/${tokenId}`);
   });
 });
 
@@ -70,7 +76,7 @@ test.describe('Dado as preferências no localStorage (checklist 14)', () => {
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/`));
     await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Follow new' })).toBeChecked();
-    await expect(page.getByRole('region', { name: 'Tutorial' })).toBeHidden();
+    await expect(onboarding(page)).toBeHidden();
     await expectCorpo(page, '{\n  "a": 1\n}');
     // Item 14, E7: o redirect pelo navegador fica em Outbound › "Forward from this browser (legacy)".
     await page

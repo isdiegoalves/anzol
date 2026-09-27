@@ -2,6 +2,7 @@ import { Server, createServer } from 'node:http';
 import { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
+import { seedStorage } from './support/storage';
 import { abrirRegras, novaRegra, parte } from './support/regras';
 
 // IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
@@ -286,6 +287,9 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
   }) => {
     const tokenId = await tokens.create();
     const requestId = await tokens.send(tokenId, { data: '{"valor":10}' });
+    // Item 14, E10: com o navegador em pt-BR a tela abriria em pt-BR (CA-4); a tela fica em inglês pela escolha em
+    // Settings, e o `lang` do Explain continua o do navegador.
+    await seedStorage(page, { language: '"en"' });
     await openRequest(page, tokenId, requestId);
     llm.program({
       delayMs: 1000,
