@@ -1142,10 +1142,6 @@ export const translations: Record<string, string> = {
   '6627245072730118087': 'A ordem das chaves é ignorada',
   //  Add body condition
   '5120317169293791316': ' Adicionar condição do corpo ',
-  // Set up signature verification in Checks
-  '330777829988418611': 'Configure a verificação de assinatura em Verificações',
-  // Set up schema validation in Checks
-  '1711681564122380362': 'Configure a validação de schema em Verificações',
   // Fault
   '7586043432986819460': 'Falha',
   // Simulate a network failure
@@ -1210,8 +1206,6 @@ export const translations: Record<string, string> = {
   '8194247567496147362': ' Testar contra o histórico ',
   //  Save
   '3620188369327429839': ' Salvar ',
-  //  Missed here by {$ICU}
-  '9194388078939579027': ' Falhou aqui em {$ICU} ',
   // {VAR_PLURAL, plural, =1 {1 recorded request} other {{INTERPOLATION} recorded requests}}
   '7651032547637262387':
     '{VAR_PLURAL, plural, =1 {1 requisição gravada} other {{INTERPOLATION} requisições gravadas}}',
@@ -1286,8 +1280,6 @@ export const translations: Record<string, string> = {
   '6238291467288576076': 'Contém',
   // Equal to JSON
   '2577169615394187504': 'É igual ao JSON',
-  // Absent (no signature header)
-  '8104314127848761778': 'Ausente (sem cabeçalho de assinatura)',
   // Fixed
   '4108478337308251505': 'Fixo',
   // Uniform (random)
@@ -1318,10 +1310,6 @@ export const translations: Record<string, string> = {
   '7452353939910904225': 'Até 100 caracteres.',
   // Edit rule {$PH}
   '2547758668904389075': 'Editar a regra {$PH}',
-  // Fails on {$failed} of {$tested} tested
-  '1999225047819466463': 'Falha em {$failed} de {$tested} testadas',
-  // Passes on all {$tested} tested
-  '2113082443290172072': 'Passa nas {$tested} testadas',
   // Query {$number} name
   '233478066120015611': 'Query {$number}: nome',
   // Query {$number} operator
@@ -2084,4 +2072,32 @@ export const translations: Record<string, string> = {
   '748057184661191470': 'P{$INTERPOLATION}',
   // Answered {$answered}
   '1718242002612993810': 'Respondeu {$answered}',
+  // Against history
+  '3865041831127255584': 'Contra o histórico',
+  // of the {$INTERPOLATION} most recent would match
+  '3419759645909503817': 'das {$INTERPOLATION} mais recentes casariam',
+  // Closest misses
+  '2572533559527738245': 'Falhas mais próximas',
+  // {VAR_PLURAL, plural, =1 {1 condition} other {{INTERPOLATION} conditions}}
+  '276488709221725208': '{VAR_PLURAL, plural, =1 {1 condição} other {{INTERPOLATION} condições}}',
+  //  Test again
+  '1645325731858691881': ' Testar de novo ',
+  // All results
+  '2757869225055392739': 'Todos os resultados',
+  //  Not tested yet. "Test against history" runs the rule as it is here, unsaved, on the recorded requests.
+  '3951404826277819774':
+    ' Ainda não testada. "Testar contra o histórico" roda a regra como está aqui, sem salvar, nas requisições gravadas. ',
+  // Missed here by {$ICU}
+  '5963745014580778667': 'Falhou aqui em {$ICU}',
+  //  Recorded on arrival · {$INTERPOLATION} · {$START_LINK}Set up in Checks{$CLOSE_LINK}
+  '700416008090876555':
+    ' Gravado na chegada · {$INTERPOLATION} · {$START_LINK}Configurar em Verificações{$CLOSE_LINK}',
+  // No condition
+  '259340347945213850': 'Sem condição',
+  // Fails on {$failed}/{$tested}
+  '4232143714547810509': 'Falha em {$failed}/{$tested}',
+  // Passes {$passed}/{$tested}
+  '8699347718386103992': 'Passa {$passed}/{$tested}',
+  // not set up
+  '1340974250420078790': 'não configurado',
 };

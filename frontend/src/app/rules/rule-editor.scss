@@ -39,11 +39,6 @@
   .spacer {
     flex: 1;
   }
-
-  .tabs {
-    margin: 0;
-    border-bottom: 0;
-  }
 }
 
 .errors {
@@ -72,46 +67,6 @@
 
 // Abas próprias (padrão de abas da ARIA): os painéis ficam no DOM, só escondidos, e o formulário
 // é um só.
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 8px 0 12px;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-}
-
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 16px;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  background: transparent;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-title-small);
-  cursor: pointer;
-
-  &[aria-selected='true'] {
-    border-bottom-color: var(--mat-sys-primary);
-    color: var(--mat-sys-primary);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: -2px;
-  }
-}
-
-.badge {
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: var(--mat-sys-surface-container-highest);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-label-small);
-  font-family: var(--app-code-family);
-}
-
 .panel {
   padding-bottom: 12px;
 }
@@ -127,16 +82,84 @@
   overflow: hidden;
 }
 
-.feedback,
-.recorded {
-  margin: -4px 0 8px;
+// Aba Match (C, RULES-17/18/19): condições em grade rótulo | controles | resultado, e o resumo
+// do último teste ao lado.
+.match-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+  gap: 16px;
+  align-items: start;
+
+  @media (width < 1400px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cond {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  h3 {
+    margin: 10px 0 0;
+  }
+
+  @media (width < 600px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    h3 {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-large);
+  font-family: var(--app-code-family);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: transparent;
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
+}
+
+.origin,
+.field-error {
+  margin: 6px 0 0;
   font: var(--mat-sys-body-small);
+}
+
+.origin {
   color: var(--mat-sys-on-surface-variant);
 }
 
-.feedback.fails,
-.recorded {
-  color: var(--app-on-warning-container);
+.field-error {
+  color: var(--mat-sys-error);
+}
+
+.mono {
+  font-family: var(--app-code-family);
 }
 
 .preview {
@@ -189,9 +212,7 @@ h3 {
   color: var(--mat-sys-on-surface-variant);
 }
 
-.fault,
-.signature,
-.schema {
+.fault {
   width: 300px;
 }
 

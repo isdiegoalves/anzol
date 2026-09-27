@@ -30,7 +30,10 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { merge } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { RuleSuggest } from './rule-suggest';
+import { RouterLink } from '@angular/router';
 import { WebhookRequest } from '../requests/webhook-request';
+import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
+import { TokenStore } from '../token/token-store';
 import { HistoryTestPanel } from './history-test-panel';
 import { PriorityPreview, priorityPreview } from './priority-preview';
 import {
@@ -69,6 +72,9 @@ import {
 } from './rule-form';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 import { RuleEditorHeader } from './rule-editor-header';
+import { EditorTab, RuleTabs } from './rule-tabs';
+import { AgainstHistory } from './against-history';
+import { ConditionResult, ConditionResultChip } from './condition-result';
 import { ruleInWords } from './rule-words';
 import { ScenarioDiagram } from './scenario-diagram';
 
@@ -98,15 +104,6 @@ const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 const FORM_VIEW = 0;
 const JSON_VIEW = 1;
 let nextEditorId = 0;
-
-/** Abas do editor em modo formulário (C §2.4). */
-export type EditorTab = 'match' | 'response' | 'scenario' | 'test';
-const TABS: { id: EditorTab; label: string }[] = [
-  { id: 'match', label: $localize`Match` },
-  { id: 'response', label: $localize`Response` },
-  { id: 'scenario', label: $localize`Scenario` },
-  { id: 'test', label: $localize`Test` },
-];
 
 /** A prévia com prioridade (S8) do último teste; `preview` nulo quando a leitura falhou. */
 interface PreviewState {
@@ -163,7 +160,11 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
   selector: 'app-rule-editor',
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     RuleEditorHeader,
+    RuleTabs,
+    ConditionResultChip,
+    AgainstHistory,
     MatFormField,
     MatLabel,
     MatHint,
@@ -185,6 +186,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
 })
 export class RuleEditor {
   private readonly store = inject(RuleStore);
+  private readonly tokens = inject(TokenStore);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   /** A regra a editar; a página recria o editor quando ela muda. */
@@ -267,7 +269,6 @@ export class RuleEditor {
 
   protected readonly view = signal(FORM_VIEW);
   protected readonly tab = signal<EditorTab>('match');
-  protected readonly tabs = TABS;
   /** Muda a cada edição do formulário ou do JSON: recalcula a frase e o aviso do caminho. */
   private readonly edits = signal(0);
   protected readonly saving = signal(false);
@@ -318,6 +319,14 @@ export class RuleEditor {
     return { name, rules };
   });
   protected readonly historyWindow = HISTORY_TEST_WINDOW;
+  /** Selos das abas: o status da resposta e, depois de um teste, "casam / testadas". */
+  protected readonly tabBadges = computed(() => {
+    const result = this.historyTest();
+    return {
+      response: this.responseBadge(),
+      ...(result && { test: `${result.matched} / ${result.tested}` }),
+    };
+  });
   protected readonly responseBadge = computed(() => {
     this.edits();
     const { fault, status } = this.form.controls;
@@ -345,7 +354,7 @@ export class RuleEditor {
     { value: 'any', label: $localize`Any` },
     { value: 'valid', label: $localize`Valid` },
     { value: 'invalid', label: $localize`Invalid` },
-    { value: 'absent', label: $localize`Absent (no signature header)` },
+    { value: 'absent', label: $localize`Absent` },
   ];
   protected readonly schemaOptions: { value: SchemaOption; label: string }[] = [
     { value: 'any', label: $localize`Any` },
@@ -451,25 +460,6 @@ export class RuleEditor {
     this.tab.set(tab);
   }
 
-  /** Setas, Home e End entre as abas (padrão de abas da ARIA); o foco vai junto. */
-  protected moveTab(event: KeyboardEvent, current: EditorTab): void {
-    const index = TABS.findIndex(({ id }) => id === current);
-    const next: Record<string, number> = {
-      ArrowRight: (index + 1) % TABS.length,
-      ArrowLeft: (index - 1 + TABS.length) % TABS.length,
-      Home: 0,
-      End: TABS.length - 1,
-    };
-    if (!(event.key in next)) {
-      return;
-    }
-    event.preventDefault();
-    const tab = TABS[next[event.key]].id;
-    this.tab.set(tab);
-    const list = (event.currentTarget as HTMLElement).closest('[role="tablist"]');
-    list?.querySelector<HTMLElement>(`#rule-tab-${tab}`)?.focus();
-  }
-
   /**
    * Relê a lista depois do aviso "changed elsewhere". O rascunho fica no editor; o próximo Save o
    * põe na lista nova (pelo `id` da regra em edição, ou no fim se é nova). Prioridade e enabled
@@ -533,24 +523,6 @@ export class RuleEditor {
     }
   }
 
-  /**
-   * Como a condição foi no último teste: "Fails on 3 of 10 tested" ou "Passes on all 10 tested".
-   * `fails` decide o estilo; o texto é só para ler (e muda com o idioma).
-   */
-  protected feedback(key: ConditionKey): { fails: boolean; text: string } | null {
-    const tested = this.tested();
-    if (!tested) {
-      return null;
-    }
-    const failed = tested.tally.counts.get(key) ?? 0;
-    return failed > 0
-      ? {
-          fails: true,
-          text: $localize`Fails on ${failed}:failed: of ${tested.tested}:tested: tested`,
-        }
-      : { fails: false, text: $localize`Passes on all ${tested.tested}:tested: tested` };
-  }
-
   /** Nomes acessíveis de uma linha de condição (n a partir de 1). */
   protected conditionLabels(list: 'query' | 'headers', n: number) {
     return list === 'query'
@@ -586,6 +558,51 @@ export class RuleEditor {
       value: $localize`Response header ${n}:number: value`,
       remove: $localize`Remove response header ${n}:number:`,
     };
+  }
+
+  /**
+   * O chip de uma condição (RULES-18): sem condição, "No condition"; com ela, depois de um teste,
+   * "Passes 196/200" ou "Fails on 4/200"; antes do teste, nada.
+   */
+  protected result(key: ConditionKey, hasCondition: boolean): ConditionResult | null {
+    if (!hasCondition) {
+      return { kind: 'none', text: $localize`No condition` };
+    }
+    const tested = this.tested();
+    if (!tested) {
+      return null;
+    }
+    const failed = tested.tally.counts.get(key) ?? 0;
+    const total = tested.tested;
+    return failed > 0
+      ? { kind: 'fails', text: $localize`Fails on ${failed}:failed:/${total}:tested:` }
+      : { kind: 'passes', text: $localize`Passes ${total - failed}:passed:/${total}:tested:` };
+  }
+
+  /** Os métodos como chips (RULES-17): liga ou desliga um; nenhum ligado é qualquer método. */
+  protected toggleMethod(method: string): void {
+    const control = this.form.controls.methods;
+    const current = control.value;
+    control.setValue(
+      current.includes(method) ? current.filter((m) => m !== method) : [...current, method],
+    );
+    control.markAsDirty();
+  }
+
+  /** De onde vem o resultado da assinatura: o provedor da URL, ou "not set up". */
+  protected signatureOrigin(): string {
+    const provider = this.tokens.token()?.signature?.provider;
+    return provider ? SIGNATURE_PROVIDER_LABELS[provider] : $localize`not set up`;
+  }
+
+  /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not set up". */
+  protected schemaOrigin(): string {
+    return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not set up`;
+  }
+
+  /** Erro do servidor num controle sem `mat-form-field` (os segmentados). */
+  protected serverError(control: AbstractControl): string | null {
+    return (control.getError('server') as string | undefined) ?? null;
   }
 
   /** Quantos near misses gravados desta regra falharam na condição. */

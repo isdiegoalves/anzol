@@ -4,14 +4,20 @@ import { HarnessLoader } from '@angular/cdk/testing';
 import type { Mock } from 'vitest';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { MatButtonHarness } from '@angular/material/button/testing';
-import { MatButtonToggleHarness } from '@angular/material/button-toggle/testing';
+import {
+  MatButtonToggleGroupHarness,
+  MatButtonToggleHarness,
+} from '@angular/material/button-toggle/testing';
 import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
-import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { Preferences } from '../settings/preferences';
+import { Token } from '../token/token';
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { RuleEditor, RuleEditorData } from './rule-editor';
@@ -48,6 +54,36 @@ describe('Dado o editor de regra', () => {
     loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
   const button = (text: string) => loader.getHarness(MatButtonHarness.with({ text }));
   const save = async () => (await button('Save')).click();
+  const root = () => fixture.nativeElement as HTMLElement;
+  /** Os chips de método (RULES-17): os ligados e o clique num deles. */
+  const methodChips = () => [
+    ...root().querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Methods"] button'),
+  ];
+  const pressedMethods = () =>
+    methodChips()
+      .filter((chip) => chip.getAttribute('aria-pressed') === 'true')
+      .map((chip) => chip.textContent?.trim());
+  const clickMethod = async (method: string) => {
+    methodChips()
+      .find((chip) => chip.textContent?.trim() === method)
+      ?.click();
+    await fixture.whenStable();
+  };
+  /** Segmentado de Signature/Schema (`radiogroup`). */
+  const segmented = (label: 'Signature' | 'Schema') =>
+    loader.getHarness(MatButtonToggleGroupHarness.with({ selector: `[aria-label="${label}"]` }));
+  const segmentedValue = async (label: 'Signature' | 'Schema') => {
+    for (const toggle of await (await segmented(label)).getToggles()) {
+      if (await toggle.isChecked()) {
+        return toggle.getText();
+      }
+    }
+    return null;
+  };
+  const choose = async (label: 'Signature' | 'Schema', text: string) => {
+    const [toggle] = await (await segmented(label)).getToggles({ text });
+    await toggle.check();
+  };
   /** O `PUT` do Save, depois da releitura da lista (a guarda contra mudança em outro lugar). */
   const put = async () => {
     (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush(onServer);
@@ -62,7 +98,7 @@ describe('Dado o editor de regra', () => {
     closed = vi.fn();
     TestBed.configureTestingModule({
       imports: [RuleEditor],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -73,10 +109,7 @@ describe('Dado o editor de regra', () => {
     await open({ index: null });
 
     await (await input('Name')).setValue('Pix pago');
-    const methods = await select('Methods');
-    await methods.open();
-    await methods.clickOptions({ text: 'POST' });
-    await methods.close();
+    await clickMethod('POST');
     const pathMode = await select('Path match');
     await pathMode.open();
     await pathMode.clickOptions({ text: 'Equals' });
@@ -130,7 +163,7 @@ describe('Dado o editor de regra', () => {
 
     expect(await (await input('Name')).getValue()).toBe('Rule 2');
     expect(await (await input('Path')).getValue()).toBe('/r2');
-    expect(await (await select('Methods')).getValueText()).toBe('POST');
+    expect(pressedMethods()).toEqual(['POST']);
     await (await input('Name')).setValue('Renomeada');
     await save();
 
@@ -307,41 +340,49 @@ describe('Dado o editor de regra', () => {
       return (call.request.body as Rule[])[0].match;
     };
 
-    it('deve oferecer Any, Valid, Invalid e Absent, começando em Any, e explicar de onde vem', async () => {
+    it('deve oferecer Any, Valid, Invalid e Absent, começando em Any, e dizer de onde vem com link para Checks', async () => {
       await open({ index: 0 }, [rule(1)]);
-      const signature = await select('Signature');
 
-      expect(await signature.getValueText()).toBe('Any');
-      await signature.open();
-      const options = await signature.getOptions();
-      expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+      expect(await segmentedValue('Signature')).toBe('Any');
+      const toggles = await (await segmented('Signature')).getToggles();
+      expect(await Promise.all(toggles.map((toggle) => toggle.getText()))).toEqual([
         'Any',
         'Valid',
         'Invalid',
-        'Absent (no signature header)',
+        'Absent',
       ]);
-      expect(await (await field('Signature')).getTextHints()).toEqual([
-        'Set up signature verification in Checks',
+      // A URL do fixture não verifica assinatura.
+      expect(text('.origin[data-for="signature"]')).toEqual([
+        'Recorded on arrival · not set up · Set up in Checks',
+      ]);
+      const link = root().querySelector('.origin[data-for="signature"] a') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=signature`);
+    });
+
+    it('deve dizer o provedor da URL Quando ela verifica assinatura', async () => {
+      TestBed.inject(Preferences).token.set(
+        token({ signature: { provider: 'github' } as Token['signature'] }),
+      );
+      await open({ index: 0 }, [rule(1)]);
+
+      expect(text('.origin[data-for="signature"]')).toEqual([
+        'Recorded on arrival · GitHub · Set up in Checks',
       ]);
     });
 
     it('deve gravar match.signature Quando "Invalid" é escolhido', async () => {
       await open({ index: 0 }, [rule(1)]);
 
-      const signature = await select('Signature');
-      await signature.open();
-      await signature.clickOptions({ text: 'Invalid' });
+      await choose('Signature', 'Invalid');
 
       expect(await savedMatch()).toEqual({ ...rule(1).match, signature: 'invalid' });
     });
 
     it('deve vir com a condição salva e retirá-la do match Quando volta para "Any"', async () => {
       await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, signature: 'valid' } })]);
-      const signature = await select('Signature');
 
-      expect(await signature.getValueText()).toBe('Valid');
-      await signature.open();
-      await signature.clickOptions({ text: 'Any' });
+      expect(await segmentedValue('Signature')).toBe('Valid');
+      await choose('Signature', 'Any');
 
       expect(await savedMatch()).toEqual(rule(1).match);
     });
@@ -355,8 +396,8 @@ describe('Dado o editor de regra', () => {
         { status: 422, statusText: 'Unprocessable Entity' },
       );
 
-      await vi.waitFor(async () =>
-        expect(await (await field('Signature')).getTextErrors()).toEqual([
+      await vi.waitFor(() =>
+        expect(text('.field-error[data-for="signature"]')).toEqual([
           'The selected signature is invalid.',
         ]),
       );
@@ -373,49 +414,41 @@ describe('Dado o editor de regra', () => {
     const view = (text: 'Form' | 'JSON') =>
       loader.getHarness(MatButtonToggleHarness.with({ text }));
 
-    it('deve oferecer Any, Valid e Invalid, começando em Any, e explicar de onde vem', async () => {
+    it('deve oferecer Any, Valid e Invalid, começando em Any, e dizer de onde vem', async () => {
       await open({ index: 0 }, [rule(1)]);
-      const schema = await select('Schema');
 
-      expect(await schema.getValueText()).toBe('Any');
-      await schema.open();
-      const options = await schema.getOptions();
-      expect(await Promise.all(options.map((option) => option.getText()))).toEqual([
+      expect(await segmentedValue('Schema')).toBe('Any');
+      const toggles = await (await segmented('Schema')).getToggles();
+      expect(await Promise.all(toggles.map((toggle) => toggle.getText()))).toEqual([
         'Any',
         'Valid',
         'Invalid',
       ]);
-      expect(await (await field('Schema')).getTextHints()).toEqual([
-        'Set up schema validation in Checks',
+      expect(text('.origin[data-for="schema"]')).toEqual([
+        'Recorded on arrival · not set up · Set up in Checks',
       ]);
     });
 
     it('deve gravar match.schema Quando "Invalid" é escolhido', async () => {
       await open({ index: 0 }, [rule(1)]);
 
-      const schema = await select('Schema');
-      await schema.open();
-      await schema.clickOptions({ text: 'Invalid' });
+      await choose('Schema', 'Invalid');
 
       expect(await savedMatch()).toEqual({ ...rule(1).match, schema: 'invalid' });
     });
 
     it('deve vir com a condição salva e retirá-la do match Quando volta para "Any"', async () => {
       await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, schema: 'valid' } })]);
-      const schema = await select('Schema');
 
-      expect(await schema.getValueText()).toBe('Valid');
-      await schema.open();
-      await schema.clickOptions({ text: 'Any' });
+      expect(await segmentedValue('Schema')).toBe('Valid');
+      await choose('Schema', 'Any');
 
       expect(await savedMatch()).toEqual(rule(1).match);
     });
 
     it('deve levar a condição do formulário ao JSON e de volta Quando alterna as abas', async () => {
       await open({ index: 0 }, [rule(1)]);
-      const schema = await select('Schema');
-      await schema.open();
-      await schema.clickOptions({ text: 'Invalid' });
+      await choose('Schema', 'Invalid');
 
       await (await view('JSON')).check();
       const json = await loader.getHarness(
@@ -426,7 +459,7 @@ describe('Dado o editor de regra', () => {
       await json.setValue(JSON.stringify({ ...regra, match: { ...regra.match, schema: 'valid' } }));
       await (await view('Form')).check();
 
-      expect(await (await select('Schema')).getValueText()).toBe('Valid');
+      expect(await segmentedValue('Schema')).toBe('Valid');
     });
 
     it('deve mostrar no campo o erro do servidor para a condição de schema', async () => {
@@ -438,8 +471,8 @@ describe('Dado o editor de regra', () => {
         { status: 422, statusText: 'Unprocessable Entity' },
       );
 
-      await vi.waitFor(async () =>
-        expect(await (await field('Schema')).getTextErrors()).toEqual([
+      await vi.waitFor(() =>
+        expect(text('.field-error[data-for="schema"]')).toEqual([
           'The selected schema is invalid.',
         ]),
       );
@@ -680,7 +713,7 @@ describe('Dado o editor de regra', () => {
       await open({ index: null, draft: draft() });
 
       expect(await (await input('Name')).getValue()).toBe('POST /pedidos');
-      expect(await (await select('Methods')).getValueText()).toBe('POST');
+      expect(pressedMethods()).toEqual(['POST']);
       expect(await (await select('Path match')).getValueText()).toBe('Equals');
       expect(await (await input('Path')).getValue()).toBe('/pedidos');
       expect(await (await input('Query 1 name')).getValue()).toBe('tipo');
@@ -882,18 +915,22 @@ describe('Dado o editor de regra', () => {
       const feedback = [
         ...(fixture.nativeElement as HTMLElement).querySelectorAll('.feedback'),
       ].map((element) => [element.getAttribute('data-condition'), element.textContent?.trim()]);
+      // Um chip por condição, à direita (RULES-18); seção vazia diz "No condition".
       expect(feedback).toEqual([
-        ['match.method', 'Fails on 1 of 2 tested'],
-        ['match.path', 'Passes on all 2 tested'],
-        ['match.headers.X-Sig', 'Fails on 2 of 2 tested'],
-        ['match.body.0', 'Passes on all 2 tested'],
+        ['match.method', 'Fails on 1/2'],
+        ['match.path', 'Passes 2/2'],
+        ['match.query', 'No condition'],
+        ['match.headers.X-Sig', 'Fails on 2/2'],
+        ['match.body.0', 'Passes 2/2'],
+        ['match.signature', 'No condition'],
+        ['match.schema', 'No condition'],
       ]);
-      // O estilo vem do resultado (`fails`), não do texto, que muda com o idioma.
+      // O estilo vem do resultado (a classe), não do texto, que muda com o idioma.
       expect(
-        [...(fixture.nativeElement as HTMLElement).querySelectorAll('.feedback')].map((element) =>
-          element.classList.contains('fails'),
+        [...root().querySelectorAll('.feedback')].map((element) =>
+          ['passes', 'fails', 'none'].find((kind) => element.classList.contains(kind)),
         ),
-      ).toEqual([true, false, true, false]);
+      ).toEqual(['fails', 'passes', 'none', 'fails', 'passes', 'none', 'none']);
     });
   });
 
@@ -1114,6 +1151,49 @@ describe('Dado o editor de regra', () => {
       fixture.componentRef.setInput('data', { index: null });
       fixture.detectChanges();
       expect(root().querySelector('[aria-label="Delete rule"]')).toBeNull();
+    });
+  });
+
+  describe('Dado o aside "Against history" na aba Match (RULES-19)', () => {
+    const aside = () => root().querySelector('aside[aria-label="Against history"]') as HTMLElement;
+
+    it('deve dizer que não houve teste e, depois de um, o número, as falhas mais próximas e os botões', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      expect(aside().textContent).toContain('Not tested yet');
+
+      await (await button('Test against history')).click();
+      (await vi.waitFor(() => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }))).flush(
+        {
+          matches: [{ uuid: 'a', seq: 5 }],
+          misses: [
+            { uuid: 'bbbbbbbb-0000', seq: 4, failed: ['method: x', 'path: y'], conditions: null },
+            { uuid: 'cccccccc-0000', seq: 3, failed: ['method: x'], conditions: null },
+          ],
+        },
+      );
+      (await vi.waitFor(() => http.expectOne((req) => req.params.get('per_page') === '1'))).flush({
+        data: [],
+        total: 3,
+      });
+      (await vi.waitFor(() => http.expectOne((req) => req.params.get('per_page') === '100'))).flush(
+        requestPage([webhookRequest(1, { uuid: 'a', rule: null })]),
+      );
+      (root().querySelector('#rule-tab-match') as HTMLElement).click();
+      fixture.detectChanges();
+
+      await vi.waitFor(() => expect(text('[aria-label="Against history"] .big')).toEqual(['1']));
+      expect(text('[aria-label="Against history"] .of')).toEqual([
+        'of the 3 most recent would match',
+      ]);
+      // As mais próximas primeiro: a de 1 condição antes da de 2.
+      expect(text('[aria-label="Against history"] .closest .id')).toEqual(['#ccccc', '#bbbbb']);
+      expect(text('[aria-label="Against history"] .closest .count')).toEqual([
+        '1 condition',
+        '2 conditions',
+      ]);
+      await (await button('All results')).click();
+      expect(root().querySelector('#rule-tab-test')?.getAttribute('aria-selected')).toBe('true');
+      expect(await (await button('Test again')).isDisabled()).toBe(false);
     });
   });
 });

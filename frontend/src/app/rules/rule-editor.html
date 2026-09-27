@@ -53,31 +53,7 @@
     @if (view() === formView) {
       <form id="rule-form" class="rule-form" [formGroup]="form" (ngSubmit)="saveRule()">
         <div class="tabbar">
-          <div class="tabs" role="tablist" aria-label="Rule parts" i18n-aria-label>
-            @for (item of tabs; track item.id) {
-              <button
-                type="button"
-                role="tab"
-                class="tab"
-                [id]="'rule-tab-' + item.id"
-                [attr.aria-selected]="tab() === item.id"
-                [attr.aria-controls]="'rule-panel-' + item.id"
-                [attr.tabindex]="tab() === item.id ? 0 : -1"
-                (click)="selectTab(item.id)"
-                (keydown)="moveTab($event, item.id)"
-              >
-                {{ item.label }}
-                @if (item.id === 'response') {
-                  <span class="badge" aria-hidden="true">{{ responseBadge() }}</span>
-                }
-                @if (item.id === 'test' && historyTest(); as result) {
-                  <span class="badge" aria-hidden="true"
-                    >{{ result.matched }} / {{ result.tested }}</span
-                  >
-                }
-              </button>
-            }
-          </div>
+          <app-rule-tabs [current]="tab()" [badges]="tabBadges()" (selected)="selectTab($event)" />
           <span class="spacer"></span>
           <ng-container [ngTemplateOutlet]="barActions" />
         </div>
@@ -99,238 +75,321 @@
               the recorded phrase.
             </p>
           }
-          <div class="line">
-            <mat-form-field>
-              <mat-label i18n>Methods</mat-label>
-              <mat-select
-                formControlName="methods"
-                multiple
-                aria-label="Methods"
-                i18n-aria-label
-                placeholder="Any"
-                i18n-placeholder
-              >
-                @for (method of methods(); track method) {
-                  <mat-option [value]="method">{{ method }}</mat-option>
-                }
-              </mat-select>
-              <mat-error>{{ errorOf(form.controls.methods, '') }}</mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label i18n>Path match</mat-label>
-              <mat-select formControlName="pathMode" aria-label="Path match" i18n-aria-label>
-                <mat-option value="any" i18n>Any path</mat-option>
-                <mat-option value="equals" i18n>Equals</mat-option>
-                <mat-option value="prefix" i18n>Starts with</mat-option>
-                <mat-option value="regex" i18n>Matches regex</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field class="grow">
-              <mat-label i18n>Path</mat-label>
-              <input
-                matInput
-                formControlName="path"
-                aria-label="Path"
-                i18n-aria-label
-                placeholder="/payments"
-                i18n-placeholder
-              />
-              <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
-              <mat-error>{{ errorOf(form.controls.path, messages.pathRequired) }}</mat-error>
-            </mat-form-field>
-          </div>
-          @if (form.controls.methods.value.length > 0) {
-            <ng-container
-              [ngTemplateOutlet]="conditionFeedback"
-              [ngTemplateOutletContext]="{ $implicit: 'match.method' }"
-            />
-          }
-          @if (form.controls.pathMode.value !== 'any') {
-            <ng-container
-              [ngTemplateOutlet]="conditionFeedback"
-              [ngTemplateOutletContext]="{ $implicit: 'match.path' }"
-            />
-          }
-          @if (pathFix() !== null) {
-            <div class="notice path-warning" role="alert">
-              <p i18n>
-                The path includes this URL's token. Rule paths are relative to the URL (what comes
-                after /{{ tokenId() }}), so this rule never matches.
-              </p>
-              <button mat-stroked-button type="button" (click)="removeTokenFromPath()" i18n>
-                Remove the token from the path
-              </button>
-            </div>
-          }
+          <div class="match-layout">
+            <div class="conds">
+              <div class="cond">
+                <h3 i18n>Method</h3>
+                <div class="controls">
+                  <div class="chips" role="group" aria-label="Methods" i18n-aria-label>
+                    @for (method of methods(); track method) {
+                      <button
+                        type="button"
+                        class="chip"
+                        [attr.aria-pressed]="form.controls.methods.value.includes(method)"
+                        (click)="toggleMethod(method)"
+                      >
+                        {{ method }}
+                      </button>
+                    }
+                  </div>
+                  @if (serverError(form.controls.methods); as error) {
+                    <p class="field-error" [attr.data-for]="'methods'">{{ error }}</p>
+                  }
+                </div>
+                <app-condition-result
+                  [key]="'match.method'"
+                  [result]="result('match.method', form.controls.methods.value.length > 0)"
+                  [recorded]="recordedMisses('match.method')"
+                />
+              </div>
 
-          @for (section of conditionSections; track section.list) {
-            <h3>{{ section.title }}</h3>
-            <div [formArrayName]="section.list">
-              @for (row of form.controls[section.list].controls; track row; let i = $index) {
-                <div class="line row" [formGroupName]="i">
-                  <mat-form-field>
-                    <mat-label i18n>Name</mat-label>
-                    <input
-                      matInput
-                      formControlName="name"
-                      [attr.aria-label]="conditionLabels(section.list, i + 1).name"
-                    />
-                    <mat-error>{{ errorOf(row.controls.name, messages.nameRequired) }}</mat-error>
-                  </mat-form-field>
-                  <mat-form-field>
-                    <mat-label i18n>Operator</mat-label>
-                    <mat-select
-                      formControlName="operator"
-                      [aria-label]="conditionLabels(section.list, i + 1).operator"
-                    >
-                      @for (operator of valueOperators; track operator.value) {
-                        <mat-option [value]="operator.value">{{ operator.label }}</mat-option>
-                      }
-                    </mat-select>
-                  </mat-form-field>
-                  @if (row.controls.value.enabled) {
+              <div class="cond">
+                <h3 i18n>Path</h3>
+                <div class="controls">
+                  <div class="line">
+                    <mat-form-field>
+                      <mat-label i18n>Path match</mat-label>
+                      <mat-select
+                        formControlName="pathMode"
+                        aria-label="Path match"
+                        i18n-aria-label
+                      >
+                        <mat-option value="any" i18n>Any path</mat-option>
+                        <mat-option value="equals" i18n>Equals</mat-option>
+                        <mat-option value="prefix" i18n>Starts with</mat-option>
+                        <mat-option value="regex" i18n>Matches regex</mat-option>
+                      </mat-select>
+                    </mat-form-field>
                     <mat-form-field class="grow">
-                      <mat-label i18n>Value</mat-label>
+                      <mat-label i18n>Path</mat-label>
                       <input
                         matInput
-                        formControlName="value"
-                        [attr.aria-label]="conditionLabels(section.list, i + 1).value"
+                        class="mono"
+                        formControlName="path"
+                        aria-label="Path"
+                        i18n-aria-label
+                        placeholder="/payments"
+                        i18n-placeholder
                       />
-                      <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
+                      <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
+                      <mat-error>{{
+                        errorOf(form.controls.path, messages.pathRequired)
+                      }}</mat-error>
                     </mat-form-field>
-                  } @else {
-                    <span class="grow"></span>
+                  </div>
+                  @if (pathFix() !== null) {
+                    <div class="notice path-warning" role="alert">
+                      <p i18n>
+                        The path includes this URL's token. Rule paths are relative to the URL (what
+                        comes after /{{ tokenId() }}), so this rule never matches.
+                      </p>
+                      <button mat-stroked-button type="button" (click)="removeTokenFromPath()" i18n>
+                        Remove the token from the path
+                      </button>
+                    </div>
                   }
-                  <button
-                    mat-button
-                    type="button"
-                    [attr.aria-label]="conditionLabels(section.list, i + 1).remove"
-                    (click)="removeRow(section.list, i)"
-                  >
-                    &#x2715;
+                </div>
+                <app-condition-result
+                  [key]="'match.path'"
+                  [result]="result('match.path', form.controls.pathMode.value !== 'any')"
+                  [recorded]="recordedMisses('match.path')"
+                />
+              </div>
+
+              @for (section of conditionSections; track section.list) {
+                @let rows = form.controls[section.list].controls;
+                <div class="cond">
+                  <h3>{{ section.title }}</h3>
+                  <div class="controls" [formArrayName]="section.list">
+                    @for (row of rows; track row; let i = $index) {
+                      <div class="line row" [formGroupName]="i">
+                        <mat-form-field>
+                          <mat-label i18n>Name</mat-label>
+                          <input
+                            matInput
+                            formControlName="name"
+                            [attr.aria-label]="conditionLabels(section.list, i + 1).name"
+                          />
+                          <mat-error>{{
+                            errorOf(row.controls.name, messages.nameRequired)
+                          }}</mat-error>
+                        </mat-form-field>
+                        <mat-form-field>
+                          <mat-label i18n>Operator</mat-label>
+                          <mat-select
+                            formControlName="operator"
+                            [aria-label]="conditionLabels(section.list, i + 1).operator"
+                          >
+                            @for (operator of valueOperators; track operator.value) {
+                              <mat-option [value]="operator.value">{{ operator.label }}</mat-option>
+                            }
+                          </mat-select>
+                        </mat-form-field>
+                        @if (row.controls.value.enabled) {
+                          <mat-form-field class="grow">
+                            <mat-label i18n>Value</mat-label>
+                            <input
+                              matInput
+                              formControlName="value"
+                              [attr.aria-label]="conditionLabels(section.list, i + 1).value"
+                            />
+                            <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
+                          </mat-form-field>
+                        } @else {
+                          <span class="grow"></span>
+                        }
+                        <button
+                          mat-button
+                          type="button"
+                          [attr.aria-label]="conditionLabels(section.list, i + 1).remove"
+                          (click)="removeRow(section.list, i)"
+                        >
+                          &#x2715;
+                        </button>
+                        <app-condition-result
+                          [key]="rowKey(section.list, row)"
+                          [result]="result(rowKey(section.list, row), true)"
+                          [recorded]="recordedMisses(rowKey(section.list, row))"
+                        />
+                      </div>
+                    }
+                    <button mat-button type="button" (click)="addCondition(section.list)">
+                      {{ section.add }}
+                    </button>
+                  </div>
+                  @if (rows.length === 0) {
+                    <app-condition-result
+                      [key]="'match.' + section.list"
+                      [result]="result('match.' + section.list, false)"
+                    />
+                  }
+                </div>
+              }
+
+              <div class="cond">
+                <h3 i18n>Body</h3>
+                <div class="controls" formArrayName="body">
+                  @for (row of form.controls.body.controls; track row; let i = $index) {
+                    <div class="line row" [formGroupName]="i">
+                      <mat-form-field>
+                        <mat-label i18n>Condition</mat-label>
+                        <mat-select formControlName="type" [aria-label]="bodyLabels(i + 1).type">
+                          @for (type of bodyTypes; track type.value) {
+                            <mat-option [value]="type.value">{{ type.label }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                      @if (row.controls.type.value === 'jsonPath') {
+                        <mat-form-field class="grow">
+                          <mat-label i18n>JSONPath</mat-label>
+                          <input
+                            matInput
+                            class="mono"
+                            formControlName="path"
+                            placeholder="$.status"
+                            i18n-placeholder
+                            [attr.aria-label]="bodyLabels(i + 1).path"
+                          />
+                          <mat-error>{{
+                            errorOf(row.controls.path, messages.jsonPathRequired)
+                          }}</mat-error>
+                        </mat-form-field>
+                        <mat-form-field class="grow">
+                          <mat-label i18n>Equals (JSON)</mat-label>
+                          <input
+                            matInput
+                            class="mono"
+                            formControlName="equals"
+                            placeholder='"paid", 10, true'
+                            i18n-placeholder
+                            [attr.aria-label]="bodyLabels(i + 1).equals"
+                          />
+                          <mat-hint i18n>Empty: the path exists</mat-hint>
+                          <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
+                        </mat-form-field>
+                      } @else {
+                        <mat-form-field class="grow">
+                          @if (row.controls.type.value === 'equalToJson') {
+                            <mat-label i18n>JSON</mat-label>
+                          } @else {
+                            <mat-label i18n>Text</mat-label>
+                          }
+                          <input
+                            matInput
+                            formControlName="value"
+                            [attr.aria-label]="bodyLabels(i + 1).value"
+                          />
+                          @if (row.controls.type.value === 'equalToJson') {
+                            <mat-hint i18n>Key order is ignored</mat-hint>
+                          }
+                          <mat-error>{{
+                            errorOf(row.controls.value, messages.validJson)
+                          }}</mat-error>
+                        </mat-form-field>
+                      }
+                      <button
+                        mat-button
+                        type="button"
+                        [attr.aria-label]="bodyLabels(i + 1).remove"
+                        (click)="removeRow('body', i)"
+                      >
+                        &#x2715;
+                      </button>
+                      <app-condition-result
+                        [key]="'match.body.' + i"
+                        [result]="result('match.body.' + i, true)"
+                        [recorded]="recordedMisses('match.body.' + i)"
+                      />
+                    </div>
+                  }
+                  <button mat-button type="button" (click)="addBodyCondition()" i18n>
+                    Add body condition
                   </button>
                 </div>
-                <ng-container
-                  [ngTemplateOutlet]="conditionFeedback"
-                  [ngTemplateOutletContext]="{ $implicit: rowKey(section.list, row) }"
-                />
-              }
-            </div>
-            <button mat-button type="button" (click)="addCondition(section.list)">
-              {{ section.add }}
-            </button>
-          }
-
-          <h3 i18n>Body</h3>
-          <div formArrayName="body">
-            @for (row of form.controls.body.controls; track row; let i = $index) {
-              <div class="line row" [formGroupName]="i">
-                <mat-form-field>
-                  <mat-label i18n>Condition</mat-label>
-                  <mat-select formControlName="type" [aria-label]="bodyLabels(i + 1).type">
-                    @for (type of bodyTypes; track type.value) {
-                      <mat-option [value]="type.value">{{ type.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                @if (row.controls.type.value === 'jsonPath') {
-                  <mat-form-field class="grow">
-                    <mat-label i18n>JSONPath</mat-label>
-                    <input
-                      matInput
-                      formControlName="path"
-                      placeholder="$.status"
-                      i18n-placeholder
-                      [attr.aria-label]="bodyLabels(i + 1).path"
-                    />
-                    <mat-error>{{
-                      errorOf(row.controls.path, messages.jsonPathRequired)
-                    }}</mat-error>
-                  </mat-form-field>
-                  <mat-form-field class="grow">
-                    <mat-label i18n>Equals (JSON)</mat-label>
-                    <input
-                      matInput
-                      formControlName="equals"
-                      placeholder='"paid", 10, true'
-                      i18n-placeholder
-                      [attr.aria-label]="bodyLabels(i + 1).equals"
-                    />
-                    <mat-hint i18n>Empty: the path exists</mat-hint>
-                    <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
-                  </mat-form-field>
-                } @else {
-                  <mat-form-field class="grow">
-                    @if (row.controls.type.value === 'equalToJson') {
-                      <mat-label i18n>JSON</mat-label>
-                    } @else {
-                      <mat-label i18n>Text</mat-label>
-                    }
-                    <input
-                      matInput
-                      formControlName="value"
-                      [attr.aria-label]="bodyLabels(i + 1).value"
-                    />
-                    @if (row.controls.type.value === 'equalToJson') {
-                      <mat-hint i18n>Key order is ignored</mat-hint>
-                    }
-                    <mat-error>{{ errorOf(row.controls.value, messages.validJson) }}</mat-error>
-                  </mat-form-field>
+                @if (form.controls.body.length === 0) {
+                  <app-condition-result
+                    [key]="'match.body'"
+                    [result]="result('match.body', false)"
+                  />
                 }
-                <button
-                  mat-button
-                  type="button"
-                  [attr.aria-label]="bodyLabels(i + 1).remove"
-                  (click)="removeRow('body', i)"
-                >
-                  &#x2715;
-                </button>
               </div>
-              <ng-container
-                [ngTemplateOutlet]="conditionFeedback"
-                [ngTemplateOutletContext]="{ $implicit: 'match.body.' + i }"
-              />
-            }
+
+              <div class="cond">
+                <h3 i18n>Signature</h3>
+                <div class="controls">
+                  <mat-button-toggle-group
+                    formControlName="signature"
+                    aria-label="Signature"
+                    i18n-aria-label
+                    hideSingleSelectionIndicator
+                  >
+                    @for (option of signatureOptions; track option.value) {
+                      <mat-button-toggle [value]="option.value">{{
+                        option.label
+                      }}</mat-button-toggle>
+                    }
+                  </mat-button-toggle-group>
+                  <p class="origin" [attr.data-for]="'signature'" i18n>
+                    Recorded on arrival · {{ signatureOrigin() }} ·
+                    <a
+                      [routerLink]="['/', tokenId(), 'checks']"
+                      [queryParams]="{ section: 'signature' }"
+                      >Set up in Checks</a
+                    >
+                  </p>
+                  @if (serverError(form.controls.signature); as error) {
+                    <p class="field-error" [attr.data-for]="'signature'">{{ error }}</p>
+                  }
+                </div>
+                <app-condition-result
+                  [key]="'match.signature'"
+                  [result]="result('match.signature', form.controls.signature.value !== 'any')"
+                  [recorded]="recordedMisses('match.signature')"
+                />
+              </div>
+
+              <div class="cond">
+                <h3 i18n>Schema</h3>
+                <div class="controls">
+                  <mat-button-toggle-group
+                    formControlName="schema"
+                    aria-label="Schema"
+                    i18n-aria-label
+                    hideSingleSelectionIndicator
+                  >
+                    @for (option of schemaOptions; track option.value) {
+                      <mat-button-toggle [value]="option.value">{{
+                        option.label
+                      }}</mat-button-toggle>
+                    }
+                  </mat-button-toggle-group>
+                  <p class="origin" [attr.data-for]="'schema'" i18n>
+                    Recorded on arrival · {{ schemaOrigin() }} ·
+                    <a
+                      [routerLink]="['/', tokenId(), 'checks']"
+                      [queryParams]="{ section: 'schema' }"
+                      >Set up in Checks</a
+                    >
+                  </p>
+                  @if (serverError(form.controls.schema); as error) {
+                    <p class="field-error" [attr.data-for]="'schema'">{{ error }}</p>
+                  }
+                </div>
+                <app-condition-result
+                  [key]="'match.schema'"
+                  [result]="result('match.schema', form.controls.schema.value !== 'any')"
+                  [recorded]="recordedMisses('match.schema')"
+                />
+              </div>
+            </div>
+            <app-against-history
+              class="against"
+              [result]="historyTest()"
+              [canTest]="canTest()"
+              (testAgain)="testAgainstHistory()"
+              (allResults)="selectTab('test')"
+            />
           </div>
-          <button mat-button type="button" (click)="addBodyCondition()" i18n>
-            Add body condition
-          </button>
-
-          <h3 i18n>Signature</h3>
-          <mat-form-field class="signature">
-            <mat-label i18n>Signature</mat-label>
-            <mat-select formControlName="signature" aria-label="Signature" i18n-aria-label>
-              @for (option of signatureOptions; track option.value) {
-                <mat-option [value]="option.value">{{ option.label }}</mat-option>
-              }
-            </mat-select>
-            <mat-hint i18n>Set up signature verification in Checks</mat-hint>
-            <mat-error>{{ errorOf(form.controls.signature, '') }}</mat-error>
-          </mat-form-field>
-          @if (form.controls.signature.value !== 'any') {
-            <ng-container
-              [ngTemplateOutlet]="conditionFeedback"
-              [ngTemplateOutletContext]="{ $implicit: 'match.signature' }"
-            />
-          }
-
-          <h3 i18n>Schema</h3>
-          <mat-form-field class="schema">
-            <mat-label i18n>Schema</mat-label>
-            <mat-select formControlName="schema" aria-label="Schema" i18n-aria-label>
-              @for (option of schemaOptions; track option.value) {
-                <mat-option [value]="option.value">{{ option.label }}</mat-option>
-              }
-            </mat-select>
-            <mat-hint i18n>Set up schema validation in Checks</mat-hint>
-            <mat-error>{{ errorOf(form.controls.schema, '') }}</mat-error>
-          </mat-form-field>
-          @if (form.controls.schema.value !== 'any') {
-            <ng-container
-              [ngTemplateOutlet]="conditionFeedback"
-              [ngTemplateOutletContext]="{ $implicit: 'match.schema' }"
-            />
-          }
         </div>
 
         <div
@@ -682,19 +741,6 @@
     >
     <mat-button-toggle i18n [value]="jsonView">JSON</mat-button-toggle>
   </mat-button-toggle-group>
-</ng-template>
-
-<ng-template #conditionFeedback let-key>
-  @if (feedback(key); as result) {
-    <p class="feedback" [attr.data-condition]="key" [class.fails]="result.fails">
-      {{ result.text }}
-    </p>
-  }
-  @if (recordedMisses(key); as count) {
-    <p class="recorded" [attr.data-condition]="key" i18n>
-      Missed here by {count, plural, =1 {1 recorded request} other {{{ count }} recorded requests}}
-    </p>
-  }
 </ng-template>
 
 <ng-template #testSection>
