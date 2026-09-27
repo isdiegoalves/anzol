@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
 import site.webhook.support.AiApiTest
 import site.webhook.support.ApiClient
+import site.webhook.support.JSON_BODY
 import site.webhook.support.JSON_CLIENT
 import site.webhook.support.RawResponse
 import site.webhook.support.rawHttp
@@ -24,7 +25,7 @@ import java.util.concurrent.CompletableFuture
 private const val SECRET = "segredo-do-mcp-Wn4t"
 private const val READ_SECRET = "leitura-do-mcp-8Hj"
 
-/** As 14 ferramentas da §1 do plano "ia-local". */
+/** As 14 ferramentas da §1 do plano "ia-local" e o `diff_rules` (E-07 da UX de Regras). */
 private val TOOLS =
     listOf(
         "create_url",
@@ -37,6 +38,7 @@ private val TOOLS =
         "wait_for_request",
         "get_rules",
         "set_rules",
+        "diff_rules",
         "test_rule",
         "replay_request",
         "send_request",
@@ -126,6 +128,42 @@ class McpServerApiTest(
 
         assertThat(call("delete_url", mapOf("token_id" to tokenId)).json()["deleted"].asBoolean()).isTrue()
         assertThat(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT).statusCode()).isEqualTo(410)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado regras salvas, quando o diff_rules recebe uma proposta, então compara por id depois dos padrões e não grava nada",
+    )
+    fun diffRules_proposta_deveCompararPorIdSemGravar() {
+        val tokenId = api.tokenId()
+        val salvas =
+            api.json(
+                api.send(
+                    "PUT",
+                    "/token/$tokenId/rules",
+                    """[{"name":"igual"},{"name":"muda","match":{"path":{"equals":"/a"}}},{"name":"sai"}]""".toByteArray(),
+                    JSON_BODY,
+                ),
+            )
+        val (igual, muda, sai) = salvas.toList().map { it["id"].asString() }
+        val novoId = "11111111-2222-4333-8444-555555555555"
+        val proposta =
+            listOf(
+                mapOf("id" to igual, "name" to "igual"),
+                mapOf("id" to muda, "name" to "mudou", "enabled" to false, "match" to mapOf("path" to mapOf("equals" to "/b"))),
+                mapOf("name" to "nova"),
+                mapOf("id" to novoId, "name" to "com id"),
+            )
+
+        val diff = call("diff_rules", mapOf("token_id" to tokenId, "rules" to proposta)).json()
+
+        assertThat(diff).isEqualTo(
+            api.tree(
+                """{"equal":["$igual"],"changed":[{"id":"$muda","name":"mudou","fields":["name","enabled","match.path.equals"]}],""" +
+                    """"removed":[{"id":"$sai","name":"sai"}],"added":[{"name":"nova"},{"id":"$novoId","name":"com id"}]}""",
+            ),
+        )
+        assertThat(api.json(api.send("GET", "/token/$tokenId/rules", headers = JSON_CLIENT))).isEqualTo(salvas)
     }
 
     @Test

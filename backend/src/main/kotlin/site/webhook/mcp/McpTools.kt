@@ -16,6 +16,8 @@ import site.webhook.outbound.OutboundStore
 import site.webhook.privacy.ProtectedUrls
 import site.webhook.rules.Parsed
 import site.webhook.rules.RuleStore
+import site.webhook.rules.diff
+import site.webhook.rules.generatedIds
 import site.webhook.rules.parseRule
 import site.webhook.rules.parseRules
 import site.webhook.rules.readJson
@@ -48,6 +50,9 @@ private const val SETTINGS = """
     "auto_cleanup": {"type": "integer", "description": "Keep only the newest N requests: 500, 1000, 5000 or 10000"},
     "signature": {"type": "object", "description": "HMAC verification: {provider: stripe|github|shopify|slack|generic, secret, header?, algorithm?, encoding?, prefix?, toleranceSeconds?}. The secret is never returned, only masked"},
     "schema": {"description": "JSON Schema (draft 7, 2019-09 or 2020-12) the request body is validated against"}"""
+
+/** O argumento do `set_rules` e do `diff_rules`: a lista inteira de regras. */
+private const val RULES_ARGUMENT = """$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}"""
 
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
@@ -265,13 +270,30 @@ class McpTools {
                 ToolDefinition(
                     "set_rules",
                     "Replace all response rules of a webhook URL (up to 100) and return the saved list, with ids.\n\n$RULES_LANGUAGE",
-                    objectSchema("""$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}""", "token_id", "rules"),
+                    objectSchema(RULES_ARGUMENT, "token_id", "rules"),
                     readOnly = false,
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
                 val token = urls.open(id, args.readSecret())
                 parseRules(readJson(args.bodyOf("rules"))?.get("rules")).map { rules.store(token.uuid, it) }
+            },
+            kit.tool(
+                ToolDefinition(
+                    "diff_rules",
+                    "Compare a proposed list of response rules (the same argument as set_rules) with the URL's saved rules, " +
+                        "by id, without saving anything. Returns {equal: [id], changed: [{id, name, fields}], removed: [{id, name}], " +
+                        "added: [{id?, name}]}; a rule without id is new. Invalid rules give the same errors as set_rules.",
+                    objectSchema(RULES_ARGUMENT, "token_id", "rules"),
+                    readOnly = true,
+                ),
+            ) { args ->
+                val id = args.tokenId() ?: return@tool missingUuid("token_id")
+                val token = urls.open(id, args.readSecret())
+                val tree = readJson(args.bodyOf("rules"))?.get("rules")
+                parseRules(tree).map { proposed ->
+                    rules.find(token.uuid).diff(proposed, proposed.generatedIds(checkNotNull(tree)), jsonMapper)
+                }
             },
             kit.tool(
                 ToolDefinition(

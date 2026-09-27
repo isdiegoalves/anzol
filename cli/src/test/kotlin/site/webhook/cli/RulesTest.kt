@@ -181,6 +181,90 @@ class RulesTest {
     }
 
     @Nested
+    @DisplayName("push --dry-run")
+    inner class DryRun {
+        @Test
+        @DisplayName(
+            "Dado regras salvas e um arquivo com uma igual, uma alterada e uma nova, quando roda push --dry-run, então imprime " +
+                "o resumo por id, não grava e sai com 0",
+        )
+        fun pushDryRun_arquivo_deveImprimirResumoSemGravar(
+            @TempDir dir: Path,
+        ) {
+            val token = site.createToken()
+            val igual = rule("igual")
+            val muda = rule("muda")
+            val sai = rule("sai")
+            site.storeRules(token, JsonArray(listOf(igual, muda, sai)))
+            val alterada = JsonObject(muda + ("priority" to JsonPrimitive(1)))
+            val semPadroes =
+                buildJsonObject {
+                    put("id", igual.getValue("id"))
+                    put("name", "igual")
+                    putJsonObject("match") {
+                        putJsonArray("method") { add(JsonPrimitive("POST")) }
+                        putJsonObject("path") { put("equals", "/pagamentos") }
+                    }
+                    putJsonObject("response") {
+                        put("status", 201)
+                        putJsonObject("headers") { put("Content-Type", "application/json") }
+                    }
+                }
+            val file = dir.resolve("regras.json")
+            file.writeText(
+                buildJsonArray {
+                    add(semPadroes)
+                    add(alterada)
+                    add(buildJsonObject { put("name", "nova") })
+                }.toString(),
+            )
+
+            val cli = run("push", token, "--dry-run", file.toString(), "--server", site.base)
+
+            assertThat(cli.awaitExit()).isEqualTo(0)
+            assertThat(Json.parseToJsonElement(cli.stdout.joinToString("\n"))).isEqualTo(
+                Json.parseToJsonElement(
+                    """{"equal":[${igual.getValue("id")}],""" +
+                        """"changed":[{"id":${muda.getValue("id")},"name":"muda","fields":["priority"]}],""" +
+                        """"removed":[{"id":${sai.getValue("id")},"name":"sai"}],"added":[{"name":"nova"}]}""",
+                ),
+            )
+            assertThat(site.rulePuts.get()).isZero()
+            assertThat(site.rules(token)).isEqualTo(JsonArray(listOf(igual, muda, sai)))
+        }
+
+        @Test
+        @DisplayName("Dado um token que não existe, quando roda push --dry-run, então escreve Token not found e sai com 1")
+        fun pushDryRun_tokenInexistente_deveSairComErro(
+            @TempDir dir: Path,
+        ) {
+            val file = dir.resolve("regras.json")
+            file.writeText("[]")
+
+            val cli = run("push", UUID.randomUUID().toString(), "--dry-run", file.toString(), "--server", site.base)
+
+            assertThat(cli.awaitExit()).isEqualTo(1)
+            assertThat(cli.stderr).containsExactly("Token not found")
+        }
+
+        @Test
+        @DisplayName("Dado um arquivo que não é lista, quando roda push --dry-run, então diz que espera uma lista e sai com 1")
+        fun pushDryRun_naoLista_deveSairComErro(
+            @TempDir dir: Path,
+        ) {
+            val token = site.createToken()
+            val file = dir.resolve("regras.json")
+            file.writeText("{}")
+
+            val cli = run("push", token, "--dry-run", file.toString(), "--server", site.base)
+
+            assertThat(cli.awaitExit()).isEqualTo(1)
+            assertThat(cli.stderr).containsExactly("Invalid rules in $file: expected a list of rules")
+            assertThat(site.rulePuts.get()).isZero()
+        }
+    }
+
+    @Nested
     @DisplayName("push")
     inner class Push {
         @Test
