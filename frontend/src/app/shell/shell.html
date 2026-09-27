@@ -5,8 +5,13 @@
     <app-icon name="hook" [size]="24" />
   </a>
   <!-- Celular (< 600 px): o título do destino, a busca da Inbox e o ⋮ com o que sai da barra. -->
+  <!-- O título do destino: h1 na Inbox (a página não tem outro); nos demais, a página tem o seu. -->
   @if (current(); as here) {
-    <span class="page-title top-only" aria-hidden="true">{{ label(here) }}</span>
+    @if (here === destinations[0]) {
+      <h1 class="page-title top-only">{{ label(here) }}</h1>
+    } @else {
+      <span class="page-title top-only" aria-hidden="true">{{ label(here) }}</span>
+    }
   }
   <span class="spacer top-only"></span>
   @if (open && current() === destinations[0]) {
@@ -24,7 +29,7 @@
   }
   <app-menu
     class="top-only"
-    label="URL actions"
+    label="URL actions: send, new URL, delete"
     i18n-label
     hint="Send, new URL, delete URL, settings and help"
     i18n-hint

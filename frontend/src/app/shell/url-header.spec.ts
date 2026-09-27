@@ -79,7 +79,6 @@ describe('Dado o cabeçalho da URL aberta', () => {
     const user = userEvent.setup();
     const { container, fixture } = await renderWith(token());
     const navigate = vi.spyOn(fixture.debugElement.injector.get(Router), 'navigate');
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
 
     const more = screen.getByRole('button', { name: 'More URL actions' });
@@ -96,8 +95,10 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Edit URL' }));
     expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'checks']);
     await user.click(more);
-    await user.click(screen.getByRole('menuitem', { name: 'Open in new tab' }));
-    expect(open).toHaveBeenCalledWith(`${location.origin}/${TOKEN_ID}`, '_blank', 'noopener');
+    expect(screen.getByRole('menuitem', { name: 'Open in new tab' }).getAttribute('href')).toBe(
+      `${location.origin}/${TOKEN_ID}`,
+    );
+    await user.keyboard('{Escape}');
     await user.click(more);
     await user.click(screen.getByRole('menuitem', { name: 'Copy CLI command' }));
     await vi.waitFor(() => expect(actions.copyCliCommand).toHaveBeenCalledOnce());

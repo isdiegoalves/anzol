@@ -13,7 +13,9 @@ import { Icon, IconName } from './icon';
 export interface MenuItem {
   label: string;
   icon?: IconName;
-  action: () => void;
+  /** Com `href`, o item é um link (abre em outra aba); sem, um botão que roda `action`. */
+  href?: string;
+  action?: () => void;
 }
 
 let nextId = 0;
@@ -53,12 +55,29 @@ let nextId = 0;
         (keydown)="move($event)"
       >
         @for (item of items(); track item.label) {
-          <button type="button" role="menuitem" tabindex="-1" class="item" (click)="choose(item)">
-            @if (item.icon) {
-              <app-icon [name]="item.icon" [size]="18" />
-            }
-            <span>{{ item.label }}</span>
-          </button>
+          @if (item.href) {
+            <a
+              role="menuitem"
+              tabindex="-1"
+              class="item"
+              target="_blank"
+              rel="noopener"
+              [href]="item.href"
+              (click)="choose(item)"
+            >
+              @if (item.icon) {
+                <app-icon [name]="item.icon" [size]="18" />
+              }
+              <span>{{ item.label }}</span>
+            </a>
+          } @else {
+            <button type="button" role="menuitem" tabindex="-1" class="item" (click)="choose(item)">
+              @if (item.icon) {
+                <app-icon [name]="item.icon" [size]="18" />
+              }
+              <span>{{ item.label }}</span>
+            </button>
+          }
         }
       </div>
     }
@@ -98,7 +117,7 @@ export class Menu {
 
   protected choose(item: MenuItem): void {
     this.close(true);
-    item.action();
+    item.action?.();
   }
 
   protected move(event: KeyboardEvent): void {

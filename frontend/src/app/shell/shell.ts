@@ -189,7 +189,7 @@ export class Shell {
             {
               label: $localize`Open in new tab`,
               icon: 'outbound',
-              action: () => window.open(this.tokens.webhookUrl(), '_blank', 'noopener'),
+              href: this.tokens.webhookUrl(),
             },
             {
               label: $localize`Copy CLI command`,
