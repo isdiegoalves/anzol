@@ -23,72 +23,73 @@
       </button>
     </div>
   }
-</section>
-
-@if (current.tested > 0) {
-  <div class="columns">
-    <section class="column" aria-labelledby="would-match-title">
-      <h4 id="would-match-title" i18n>Would match ({{ current.matched }})</h4>
-      <ul class="matches">
-        @for (match of current.matchList; track match.uuid) {
-          <li>
-            <a
-              target="_blank"
-              rel="noopener"
-              title="Open the request in a new tab"
-              i18n-title
-              [href]="link(match.uuid, match.page)"
-              [attr.aria-label]="openLabel(match.uuid)"
-              >#{{ match.uuid.substring(0, 5) }}</a
-            >
-            <span class="seq" i18n>seq {{ match.seq }}</span>
-            @if (when(match.uuid); as time) {
-              <span class="when">{{ time }}</span>
-            }
-          </li>
-        }
-      </ul>
-    </section>
-    <section class="column" aria-labelledby="would-not-match-title">
-      <div class="column-head">
-        <h4 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h4>
-        <button
-          mat-button
-          type="button"
-          [attr.aria-pressed]="closest()"
-          (click)="closest.set(!closest())"
-          i18n
-        >
-          Closest first
-        </button>
-      </div>
-      <ul class="misses">
-        @for (miss of misses(); track miss.uuid) {
-          <li [class.near]="miss.failed.length === 1">
-            <a
-              target="_blank"
-              rel="noopener"
-              title="Open the request in a new tab"
-              i18n-title
-              [href]="link(miss.uuid, miss.page)"
-              [attr.aria-label]="openLabel(miss.uuid)"
-              >#{{ miss.uuid.substring(0, 5) }}</a
-            >
-            @if (when(miss.uuid); as time) {
-              <span class="when">{{ time }}</span>
-            }
-            <span class="count" i18n>{miss.failed.length, plural,
-              =1 {1 condition}
-              other {{{ miss.failed.length }} conditions}
-            }</span>
-            <ul class="failed">
-              @for (reason of miss.failed; track $index) {
-                <li>{{ reason }}</li>
+  @if (current.tested > 0) {
+    <div class="columns">
+      <section class="column" aria-labelledby="would-match-title">
+        <h4 id="would-match-title" i18n>Would match ({{ current.matched }})</h4>
+        <ul class="matches">
+          @for (match of current.matchList; track match.uuid) {
+            <li>
+              <a
+                target="_blank"
+                rel="noopener"
+                title="Open the request in a new tab"
+                i18n-title
+                [href]="link(match.uuid, match.page)"
+                [attr.aria-label]="openLabel(match.uuid)"
+                >#{{ match.uuid.substring(0, 5) }}</a
+              >
+              <span class="seq" i18n>seq {{ match.seq }}</span>
+              @if (when(match.uuid); as time) {
+                <span class="when">{{ time }}</span>
               }
-            </ul>
-          </li>
-        }
-      </ul>
-    </section>
-  </div>
-}
+            </li>
+          }
+        </ul>
+      </section>
+      <section class="column" aria-labelledby="would-not-match-title">
+        <div class="column-head">
+          <h4 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h4>
+          <button
+            mat-button
+            type="button"
+            [attr.aria-pressed]="closest()"
+            (click)="closest.set(!closest())"
+            i18n
+          >
+            Closest first
+          </button>
+        </div>
+        <ul class="misses">
+          @for (miss of misses(); track miss.uuid) {
+            <li [class.near]="miss.failed.length === 1">
+              <a
+                target="_blank"
+                rel="noopener"
+                title="Open the request in a new tab"
+                i18n-title
+                [href]="link(miss.uuid, miss.page)"
+                [attr.aria-label]="openLabel(miss.uuid)"
+                >#{{ miss.uuid.substring(0, 5) }}</a
+              >&ngsp;
+              @if (when(miss.uuid); as time) {
+                <span class="when">{{ time }}</span
+                >&ngsp;
+              }
+              <span class="count" i18n>{miss.failed.length, plural,
+                =1 {1 condition}
+                other {{{ miss.failed.length }} conditions}
+              }</span
+              >&ngsp;
+              <ul class="failed">
+                @for (reason of miss.failed; track $index) {
+                  <li>{{ reason }}</li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+  }
+</section>

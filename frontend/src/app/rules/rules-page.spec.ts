@@ -17,6 +17,7 @@ import { Viewport, WindowClass } from '../shell/viewport';
 import { TokenStats } from '../stats/stats';
 import { Rule } from './rule';
 import { ruleFromRequest } from './rule-from-request';
+import { RuleStore } from './rule-store';
 import { RulesPage } from './rules-page';
 
 const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
@@ -335,6 +336,16 @@ describe('Dado a página Rules', () => {
       expect(await screen.findByText(/The rules changed elsewhere/)).toBeTruthy();
       http.expectNone({ method: 'PUT', url: URL_REGRAS });
     });
+    it('deve avisar na página aberta depois Quando o Undo acha a lista mudada (o editor fechou e a rota trocou)', async () => {
+      await open([rule(1)]);
+
+      TestBed.inject(RuleStore).changedElsewhere.set(true);
+
+      expect(
+        (await screen.findByText(/The rules changed elsewhere/)).closest('[role=alert]'),
+      ).not.toBeNull();
+    });
+
     it('deve devolver só a regra apagada, sem apagar a de outra aba, Quando o Undo vem depois de um Reload', async () => {
       await open([rule(1), rule(2)], { ruleId: 'r2' });
       const desfazer = new Subject<void>();

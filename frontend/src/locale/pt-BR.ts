@@ -2117,4 +2117,6 @@ export const translations: Record<string, string> = {
   '8617520222597264220': 'Definir o estado de {$scenario}',
   // Could not update the scenarios.
   '8669551583001532577': 'Não foi possível atualizar os cenários.',
+  // not validated
+  '6369481998239960406': 'não validado',
 };

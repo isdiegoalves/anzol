@@ -34,6 +34,12 @@ export class RuleStore {
 
   readonly tokenId = signal<string | null>(null);
   readonly rules = signal<readonly Rule[]>([]);
+  /**
+   * A lista do servidor mudou desde a leitura e nada foi gravado (toggle, reordenação, apagar,
+   * Undo). Fica aqui, e não na página, porque o Undo do "Delete rule" chega depois que o editor
+   * fechou e a rota trocou (outra instância da página).
+   */
+  readonly changedElsewhere = signal(false);
   /** Hits por regra na janela de `stats` (`null` enquanto não chegam ou se falharem). */
   readonly hits = signal<(RuleStats & { evaluated: number }) | null>(null);
   /** A lista como o servidor a devolveu na última leitura ou gravação. */

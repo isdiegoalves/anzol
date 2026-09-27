@@ -243,7 +243,9 @@ tfoot .item {
   border-top: 1px solid var(--mat-sys-outline-variant);
 }
 
-.row-actions {
+// A área de toque do botão (48 px) passa 4 px do botão: a folga à direita evita rolagem de lado.
+.table td.row-actions {
+  padding-right: 6px;
   white-space: nowrap;
   text-align: right;
 }

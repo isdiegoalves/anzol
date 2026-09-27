@@ -425,7 +425,7 @@ describe('Dado o editor de regra', () => {
         'Invalid',
       ]);
       expect(text('.origin[data-for="schema"]')).toEqual([
-        'Recorded on arrival · not set up · Set up in Checks',
+        'Recorded on arrival · not validated · Set up in Checks',
       ]);
     });
 
@@ -1192,6 +1192,9 @@ describe('Dado o editor de regra', () => {
       ]);
       // As mais próximas primeiro: a de 1 condição antes da de 2.
       expect(text('[aria-label="Against history"] .closest .id')).toEqual(['#ccccc', '#bbbbb']);
+      expect(text('[aria-label="Against history"] .closest > li')[0]).toBe(
+        '#ccccc 1 condition method: x',
+      );
       expect(text('[aria-label="Against history"] .closest .count')).toEqual([
         '1 condition',
         '2 conditions',

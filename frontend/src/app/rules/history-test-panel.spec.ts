@@ -48,7 +48,12 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   it('deve listar as que casariam com o link, o seq e a hora', async () => {
     await show(RESULTADO, new Map([[A, '2026-09-27 10:00:00']]));
 
-    const casam = screen.getByRole('heading', { name: 'Would match (1)' }).parentElement;
+    const status = screen.getByRole('status', { name: 'History test' });
+    const casam = within(status).getByRole('heading', { name: 'Would match (1)' }).parentElement;
+    expect(within(status).getByRole('heading', { name: 'Would not match (2)' })).toBeTruthy();
+    expect(clean(status.querySelector('.misses > li'))).toBe(
+      `#${C.substring(0, 5)} 1 condition header x-signature: absent`,
+    );
     const link = within(casam as HTMLElement).getByRole('link', { name: `Open request ${A}` });
     expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${A}/1`);
     expect(clean((casam as HTMLElement).querySelector('.seq'))).toBe('seq 30');

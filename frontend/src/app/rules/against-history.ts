@@ -34,11 +34,11 @@ export function closestFirst(misses: readonly HistoryMiss[]): HistoryMiss[] {
             @for (miss of closest(); track miss.uuid) {
               <li [class.near]="miss.failed.length === 1">
                 <span class="id">#{{ miss.uuid.substring(0, 5) }}</span
-                >&ngsp;
-                <span class="count" i18n>{miss.failed.length, plural,
+                >&ngsp; &ngsp;<span class="count" i18n>{miss.failed.length, plural,
                   =1 {1 condition}
                   other {{{ miss.failed.length }} conditions}
-                }</span>
+                }</span
+                >&ngsp;
                 <ul class="failed">
                   @for (reason of miss.failed; track $index) {
                     <li>{{ reason }}</li>

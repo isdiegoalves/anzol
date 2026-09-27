@@ -594,9 +594,9 @@ export class RuleEditor {
     return provider ? SIGNATURE_PROVIDER_LABELS[provider] : $localize`not set up`;
   }
 
-  /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not set up". */
+  /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */
   protected schemaOrigin(): string {
-    return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not set up`;
+    return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not validated`;
   }
 
   /** Erro do servidor num controle sem `mat-form-field` (os segmentados). */

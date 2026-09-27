@@ -111,8 +111,8 @@ export class RulesPage {
   protected readonly loaded = signal(false);
   /** Erros do último load, save ou import, uma frase por linha. */
   protected readonly errors = signal<readonly string[]>([]);
-  /** A lista do servidor mudou desde a leitura: nada foi gravado. */
-  protected readonly changedElsewhere = signal(false);
+  /** A lista do servidor mudou desde a leitura: nada foi gravado (na store, ver lá). */
+  protected readonly changedElsewhere = this.store.changedElsewhere;
   private readonly fromRequest = signal<FromRequest>({ state: 'done', request: null });
 
   protected readonly ordered = computed<OrderedRule[]>(() => {
