@@ -384,6 +384,21 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();
   });
 
+  // L9 da auditoria: com filtro (inclusive o desfecho do C2), o título diz quantas sobraram.
+  it('deve dizer "N of M" no título Quando há filtro, e voltar a "M" sem ele', async () => {
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)], 9);
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (9)');
+
+    const applied = store.applyFilter({ ...NO_FILTER, outcome: { type: 'default' } });
+    http
+      .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+      .flush(requestPage([webhookRequest(1)], { total: 3 }));
+    await applied;
+    await fixture.whenStable();
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (3 of 9)');
+  });
+
   it('deve manter a busca à vista para limpar o filtro Quando a URL fica vazia com filtro ativo', async () => {
     await load([webhookRequest(1)]);
     const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });

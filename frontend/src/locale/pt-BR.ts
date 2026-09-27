@@ -2726,4 +2726,6 @@ export const translations: Record<string, string> = {
   // Say what should answer; if this server has AI set up, it drafts the rule.
   '5244421226679972779':
     'Diga o que deve responder; se este servidor tiver IA configurada, ela rascunha a regra.',
+  // {$matched} of {$total}
+  '5481673356259336453': '{$matched} de {$total}',
 };

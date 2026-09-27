@@ -161,7 +161,11 @@ export class RequestList {
   });
   protected readonly count = computed(() => {
     const limit = this.limit();
-    return limit === null ? `${this.store.total()}` : `${this.store.total()} / ${limit}`;
+    const total = limit === null ? `${this.store.total()}` : `${this.store.total()} / ${limit}`;
+    // Com filtro (texto, chips ou o desfecho do C2), quantas sobraram de quantas (L9).
+    return this.store.filtering()
+      ? $localize`${this.store.matched()}:matched: of ${total}:total:`
+      : total;
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));

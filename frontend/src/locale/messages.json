@@ -648,6 +648,7 @@
     "2188654793312603120": "{$count} · oldest first",
     "3157148606438158546": "Delete request {$uuid}",
     "8310868561287074437": "Auto cleanup keeps the {$limit} most recent requests",
+    "5481673356259336453": "{$matched} of {$total}",
     "6929323867588234142": "Sorted newest first. Change order",
     "7247208851153160942": "Sorted oldest first. Change order",
     "1068133721354916856": "from {$ip}",
