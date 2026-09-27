@@ -57,7 +57,7 @@
       <h3 class="generate-title" i18n>Generate from a message</h3>
       @if (recent(); as requests) {
         @if (requests.length > 0) {
-          <mat-form-field subscriptSizing="dynamic">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label i18n>Generate from a message</mat-label>
             <mat-select formControlName="source" aria-describedby="schema-source-help">
               @for (request of requests; track request.uuid) {

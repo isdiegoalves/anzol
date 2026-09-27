@@ -124,6 +124,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px 24px;
+  align-items: start;
 }
 
 .explain {
@@ -132,25 +133,91 @@
   gap: 8px;
 }
 
+// Header de exemplo em partes coloridas por papel, e a mesma cor na chave da legenda (CHECKS-11).
+.example {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+  font: 13px / 22px var(--app-code-family);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.part.prefix,
+.part.time,
+.part.sig,
+.key {
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+
+.prefix {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.time {
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.sig {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
 .anatomy {
   margin: 0;
-  padding: 6px 8px;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
   font: 12px / 1.6 var(--app-code-family);
   white-space: pre-line;
   word-break: break-all;
 }
 
 .legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   font: var(--mat-sys-body-small);
+
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  .key {
+    flex: none;
+    font-family: var(--app-code-family);
+    font-weight: 600;
+  }
 }
 
-.required-note {
-  margin: 0;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-label-medium);
-  text-align: right;
+// Formulário do provedor (CHECKS-12): título "{Provider} settings" com "* required", campos em
+// grade (header e segredo lado a lado; prefixo, algoritmo e codificação numa linha).
+.settings-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pair,
+.triple {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px 12px;
+  align-items: start;
+}
+
+.triple {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.tolerance {
+  width: 220px;
+  max-width: 100%;
 }

@@ -30,13 +30,13 @@
         This URL is protected. Leave the fields blank to keep the current secret.
       </p>
     }
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label>{{ secretLabel() }}</mat-label>
       <input matInput type="password" autocomplete="new-password" formControlName="read_secret" />
       <mat-hint i18n>8 to 256 characters</mat-hint>
       <mat-error i18n>The secret must have 8 to 256 characters.</mat-error>
     </mat-form-field>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label i18n>Confirm secret</mat-label>
       <input
         matInput

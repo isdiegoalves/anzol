@@ -4,12 +4,20 @@
   <span class="card-icon primary" aria-hidden="true"><app-icon name="checks" [size]="22" /></span>
   <h2 id="signature-title" i18n>Signature verification</h2>
   @if (savedConfig) {
-    <span i18n class="state on">On · {{ providerLabels[savedConfig.provider] }}</span>
+    <span class="state on"
+      ><app-icon name="ok" [size]="15" /><span i18n
+        >On · {{ providerLabels[savedConfig.provider] }}</span
+      ></span
+    >
   } @else {
     <span class="state" i18n>Off</span>
   }
   @if (form.dirty) {
     <span class="state draft" i18n>Unsaved</span>
+  }
+  <span class="spacer"></span>
+  @if (chosen !== 'none') {
+    <button mat-button type="button" (click)="turnOff()" i18n>Turn off</button>
   }
 </header>
 
@@ -106,12 +114,31 @@
   <div class="setup">
     <div class="explain">
       <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
-      <p class="anatomy" [textContent]="anatomyText()"></p>
+      <code class="example" aria-label="Example header" i18n-aria-label>
+        @for (part of example(); track $index) {
+          <span
+            class="part"
+            [class.prefix]="part.tone === 'prefix'"
+            [class.time]="part.tone === 'time'"
+            [class.sig]="part.tone === 'sig'"
+            >{{ part.text }}</span
+          >
+        }
+      </code>
       <ul class="legend">
-        @for (note of legend[chosen]; track note) {
-          <li>{{ note }}</li>
+        @for (item of legend(); track item.key) {
+          <li>
+            <span
+              class="key"
+              [class.prefix]="item.tone === 'prefix'"
+              [class.time]="item.tone === 'time'"
+              [class.sig]="item.tone === 'sig'"
+              >{{ item.key }}</span
+            ><span>{{ item.text }}</span>
+          </li>
         }
       </ul>
+      <p class="anatomy" [textContent]="anatomyText()"></p>
       @if (guide) {
         <p i18n class="hint">
           Where to find the secret: {{ guide.secret }}. The HMAC key is the UTF-8 bytes of the whole
@@ -120,72 +147,88 @@
       }
     </div>
 
-    <form class="fields" [formGroup]="form" (ngSubmit)="saveSignature()">
-      <p class="required-note" i18n>* required</p>
-      @if (chosen === 'generic') {
-        <mat-form-field>
-          <mat-label i18n>Signature header</mat-label>
-          <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
-          <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
-          <mat-error i18n>The header is required.</mat-error>
-        </mat-form-field>
-      }
-      @let keeps = keepsSecret();
-      <mat-form-field [floatLabel]="keeps ? 'always' : 'auto'">
-        <mat-label i18n>Secret</mat-label>
-        <input
-          matInput
-          type="password"
-          autocomplete="new-password"
-          formControlName="secret"
-          [placeholder]="keeps ? (savedConfig?.secret ?? '') : ''"
-        />
-        @if (keeps) {
-          <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
+    <form
+      class="fields"
+      aria-labelledby="signature-settings-title"
+      [formGroup]="form"
+      (ngSubmit)="saveSignature()"
+    >
+      <div class="settings-head">
+        <h3 id="signature-settings-title" i18n>{{ providerLabels[chosen] }} settings</h3>
+        <span class="hint" i18n>* required</span>
+      </div>
+      <div class="pair">
+        @if (chosen === 'generic') {
+          <mat-form-field appearance="outline">
+            <mat-label i18n>Signature header</mat-label>
+            <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
+            <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
+            <mat-error i18n>The header is required.</mat-error>
+          </mat-form-field>
         }
-        <mat-error>
-          @if (form.controls.secret.errors?.['server']; as server) {
-            {{ server }}
-          } @else {
-            <ng-container i18n>The secret is required, up to 256 characters.</ng-container>
+        @let keeps = keepsSecret();
+        <mat-form-field appearance="outline" [floatLabel]="keeps ? 'always' : 'auto'">
+          <mat-label i18n>Secret</mat-label>
+          <input
+            matInput
+            type="password"
+            autocomplete="new-password"
+            formControlName="secret"
+            [placeholder]="keeps ? (savedConfig?.secret ?? '') : ''"
+          />
+          @if (keeps) {
+            <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
           }
-        </mat-error>
-      </mat-form-field>
-      @if (chosen === 'generic') {
-        <mat-form-field>
-          <mat-label i18n>Prefix</mat-label>
-          <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
-          <mat-hint i18n>Optional, before the signature</mat-hint>
-        </mat-form-field>
-        <div class="segmented">
-          <span class="segmented-label" id="signature-algorithm-label" i18n>Algorithm</span>
-          <mat-button-toggle-group
-            formControlName="algorithm"
-            aria-labelledby="signature-algorithm-label"
-            hideSingleSelectionIndicator
-          >
-            @for (algorithm of algorithms; track algorithm.value) {
-              <mat-button-toggle [value]="algorithm.value">{{ algorithm.label }}</mat-button-toggle>
+          <mat-error>
+            @if (form.controls.secret.errors?.['server']; as server) {
+              {{ server }}
+            } @else {
+              <ng-container i18n>The secret is required, up to 256 characters.</ng-container>
             }
-          </mat-button-toggle-group>
-        </div>
-        <div class="segmented">
-          <span class="segmented-label" id="signature-encoding-label" i18n>Encoding</span>
-          <mat-button-toggle-group
-            formControlName="encoding"
-            aria-labelledby="signature-encoding-label"
-            hideSingleSelectionIndicator
-          >
-            <mat-button-toggle value="hex" i18n>Hex</mat-button-toggle>
-            <mat-button-toggle value="base64" i18n>Base64</mat-button-toggle>
-          </mat-button-toggle-group>
+          </mat-error>
+        </mat-form-field>
+      </div>
+      @if (chosen === 'generic') {
+        <div class="triple">
+          <mat-form-field appearance="outline">
+            <mat-label i18n>Prefix</mat-label>
+            <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
+            <mat-hint i18n>Optional, before the signature</mat-hint>
+          </mat-form-field>
+          <div class="segmented">
+            <span class="segmented-label" id="signature-algorithm-label" i18n>Algorithm</span>
+            <mat-button-toggle-group
+              formControlName="algorithm"
+              aria-labelledby="signature-algorithm-label"
+              hideSingleSelectionIndicator
+            >
+              @for (algorithm of algorithms; track algorithm.value) {
+                <mat-button-toggle [value]="algorithm.value">{{
+                  algorithm.label
+                }}</mat-button-toggle>
+              }
+            </mat-button-toggle-group>
+          </div>
+          <div class="segmented">
+            <span class="segmented-label" id="signature-encoding-label" i18n>Encoding</span>
+            <mat-button-toggle-group
+              formControlName="encoding"
+              aria-labelledby="signature-encoding-label"
+              hideSingleSelectionIndicator
+            >
+              <mat-button-toggle value="hex" i18n>Hex</mat-button-toggle>
+              <mat-button-toggle value="base64" i18n>Base64</mat-button-toggle>
+            </mat-button-toggle-group>
+          </div>
         </div>
       }
       @if (chosen === 'stripe' || chosen === 'slack') {
-        <mat-form-field>
+        <mat-form-field appearance="outline" class="tolerance">
           <mat-label i18n>Timestamp tolerance (seconds)</mat-label>
           <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
-          <mat-hint i18n>Older signed timestamps are rejected</mat-hint>
+          <mat-hint i18n
+            >1 to 86400. Older or future timestamps are rejected (replay protection).</mat-hint
+          >
           <mat-error i18n>An integer between 1 and 86400.</mat-error>
         </mat-form-field>
       }

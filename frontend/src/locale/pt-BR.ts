@@ -291,8 +291,6 @@ export const translations: Record<string, string> = {
   '9006998869158092634': 'Base64',
   // Timestamp tolerance (seconds)
   '8845571227674163852': 'Tolerância do timestamp (segundos)',
-  // Older signed timestamps are rejected
-  '7501903237452422786': 'Timestamps assinados mais antigos são recusados',
   // An integer between 1 and 86400.
   '2158922591797595494': 'Um número inteiro de 1 a 86400.',
   // Save signature
@@ -317,22 +315,6 @@ export const translations: Record<string, string> = {
   '235420540102747188': 'Corpo bruto, HMAC-SHA1/256/512, hex ou base64',
   // Any secret, up to 256 characters
   '9019065453748117756': 'Qualquer segredo, até 256 caracteres',
-  // t: when Stripe signed, checked against the timestamp tolerance.
-  '6392401123443390854': 't: quando o Stripe assinou, conferido contra a tolerância do timestamp.',
-  // v1: the HMAC of t, a dot and the raw body.
-  '1867648009797475452': 'v1: o HMAC de t, um ponto e o corpo bruto.',
-  // sha256=: fixed prefix, then the HMAC of the raw body.
-  '6637498136775363537': 'sha256=: prefixo fixo, depois o HMAC do corpo bruto.',
-  // The whole value is the HMAC of the raw body, in base64.
-  '311528976752498754': 'O valor inteiro é o HMAC do corpo bruto, em base64.',
-  // v0=: version prefix, then the HMAC of "v0:", the timestamp, ":" and the raw body.
-  '192443924792443647':
-    'v0=: prefixo de versão, depois o HMAC de "v0:", do timestamp, de ":" e do corpo bruto.',
-  // The timestamp header is checked against the timestamp tolerance.
-  '6572799542561357857': 'O cabeçalho de timestamp é conferido contra a tolerância do timestamp.',
-  // The prefix, if any, comes before the HMAC of the raw body in the encoding you choose.
-  '7920986406005690081':
-    'O prefixo, se houver, vem antes do HMAC do corpo bruto, na codificação que você escolher.',
   // None
   '6252070156626006029': 'Nenhum',
   // Requests are not checked
@@ -1977,4 +1959,37 @@ export const translations: Record<string, string> = {
   '3434214639687233214': '{$width} pixels',
   // No response
   '7913570146997711091': 'Sem resposta',
+  // Turn off
+  '7889909065193723586': 'Desligar',
+  // Example header
+  '1580302866004562110': 'Cabeçalho de exemplo',
+  // {$INTERPOLATION} settings
+  '3190437767017675641': 'Configuração do {$INTERPOLATION}',
+  // 1 to 86400. Older or future timestamps are rejected (replay protection).
+  '2355991685879491443':
+    'De 1 a 86400. Horários mais antigos ou futuros são recusados (proteção contra reenvio).',
+  // Unix time of signing. Rejected when more than the tolerance away from arrival.
+  '3940968034357494067':
+    'Hora Unix da assinatura. Recusada quando se afasta da chegada mais que a tolerância.',
+  // Hex HMAC-SHA256 of t + "." + the raw body, keyed with the whole whsec_… secret.
+  '5090726087814907412':
+    'HMAC-SHA256 em hex de t + "." + o corpo bruto, com o segredo whsec_… inteiro como chave.',
+  // Fixed prefix.
+  '2108478388469687295': 'Prefixo fixo.',
+  // HMAC-SHA256 of the raw body, keyed with the webhook secret.
+  '2215843431946467223': 'HMAC-SHA256 do corpo bruto, com o segredo do webhook como chave.',
+  // HMAC-SHA256 of the raw body, keyed with the client secret, in base64.
+  '1122854570024246615': 'HMAC-SHA256 do corpo bruto, com o client secret como chave, em base64.',
+  // Seconds since epoch; checked against the tolerance.
+  '765520211070489398': 'Segundos desde a época Unix; conferido contra a tolerância.',
+  // Version prefix.
+  '6531473085533879379': 'Prefixo da versão.',
+  // HMAC-SHA256 of "v0:" + timestamp + ":" + raw body.
+  '1983953012220759325': 'HMAC-SHA256 de "v0:" + timestamp + ":" + corpo bruto.',
+  // The header name; you type it in Signature header.
+  '414751637088345085': 'O nome do cabeçalho; você o digita em Cabeçalho da assinatura.',
+  // Optional text before the signature, removed before comparing.
+  '8710897513934450078': 'Texto opcional antes da assinatura, tirado antes de comparar.',
+  // HMAC-{$algorithm} of the raw body in {$encoding}.
+  '7311316083823946136': 'HMAC-{$algorithm} do corpo bruto em {$encoding}.',
 };

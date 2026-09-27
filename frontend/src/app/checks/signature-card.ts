@@ -82,22 +82,95 @@ const ANATOMY: Record<Exclude<SignatureProvider, 'generic'>, readonly string[]> 
   ],
 };
 
-/** Legenda das partes do header, por provedor. */
-const LEGEND: Record<SignatureProvider, readonly string[]> = {
+/** Papel de cada parte do header de exemplo: a cor dela e a da chave na legenda (protótipo C). */
+type PartTone = '' | 'prefix' | 'time' | 'sig';
+
+interface Part {
+  text: string;
+  tone: PartTone;
+}
+
+interface LegendItem {
+  key: string;
+  tone: PartTone;
+  text: string;
+}
+
+/** Header de exemplo real, em partes, por provedor fixo; o do genérico se monta com os campos. */
+const EXAMPLE: Record<Exclude<SignatureProvider, 'generic'>, readonly Part[]> = {
   stripe: [
-    $localize`t: when Stripe signed, checked against the timestamp tolerance.`,
-    $localize`v1: the HMAC of t, a dot and the raw body.`,
+    { text: 'Stripe-Signature: ', tone: '' },
+    { text: 't=1790438525', tone: 'time' },
+    { text: ',', tone: '' },
+    { text: 'v1=5257a869e7ec…', tone: 'sig' },
   ],
-  github: [$localize`sha256=: fixed prefix, then the HMAC of the raw body.`],
-  shopify: [$localize`The whole value is the HMAC of the raw body, in base64.`],
+  github: [
+    { text: 'X-Hub-Signature-256: ', tone: '' },
+    { text: 'sha256=', tone: 'prefix' },
+    { text: '3f2a91c8d07b…', tone: 'sig' },
+  ],
+  shopify: [
+    { text: 'X-Shopify-Hmac-Sha256: ', tone: '' },
+    { text: 'mx4MT6J9fQ2kP0…=', tone: 'sig' },
+  ],
   slack: [
-    $localize`v0=: version prefix, then the HMAC of "v0:", the timestamp, ":" and the raw body.`,
-    $localize`The timestamp header is checked against the timestamp tolerance.`,
-  ],
-  generic: [
-    $localize`The prefix, if any, comes before the HMAC of the raw body in the encoding you choose.`,
+    { text: 'X-Slack-Request-Timestamp: ', tone: '' },
+    { text: '1790438525', tone: 'time' },
+    { text: '  X-Slack-Signature: ', tone: '' },
+    { text: 'v0=', tone: 'prefix' },
+    { text: 'a2114d57b48e…', tone: 'sig' },
   ],
 };
+
+/** Legenda das partes, com a chave na cor da parte; a do genérico se monta com os campos. */
+function legendOf(provider: Exclude<SignatureProvider, 'generic'>): readonly LegendItem[] {
+  switch (provider) {
+    case 'stripe':
+      return [
+        {
+          key: 't',
+          tone: 'time',
+          text: $localize`Unix time of signing. Rejected when more than the tolerance away from arrival.`,
+        },
+        {
+          key: 'v1',
+          tone: 'sig',
+          text: $localize`Hex HMAC-SHA256 of t + "." + the raw body, keyed with the whole whsec_… secret.`,
+        },
+      ];
+    case 'github':
+      return [
+        { key: 'sha256=', tone: 'prefix', text: $localize`Fixed prefix.` },
+        {
+          key: 'hex',
+          tone: 'sig',
+          text: $localize`HMAC-SHA256 of the raw body, keyed with the webhook secret.`,
+        },
+      ];
+    case 'shopify':
+      return [
+        {
+          key: 'base64',
+          tone: 'sig',
+          text: $localize`HMAC-SHA256 of the raw body, keyed with the client secret, in base64.`,
+        },
+      ];
+    case 'slack':
+      return [
+        {
+          key: 'timestamp',
+          tone: 'time',
+          text: $localize`Seconds since epoch; checked against the tolerance.`,
+        },
+        { key: 'v0=', tone: 'prefix', text: $localize`Version prefix.` },
+        {
+          key: 'hex',
+          tone: 'sig',
+          text: $localize`HMAC-SHA256 of "v0:" + timestamp + ":" + raw body.`,
+        },
+      ];
+  }
+}
 
 /** Tolerância do timestamp (Stripe e Slack), em segundos, como o servidor aceita. */
 const TOLERANCE_DEFAULT = 300;
@@ -161,7 +234,6 @@ export class SignatureCard {
     value,
     label: value.replace('sha', 'SHA-'),
   }));
-  protected readonly legend = LEGEND;
 
   /** A configuração salva: base do "SAVED", do segredo mantido e do Discard. */
   protected readonly saved = signal<SignatureConfig | null>(this.tokens.token()?.signature ?? null);
@@ -245,8 +317,62 @@ export class SignatureCard {
   }
 
   /** A linha "Expected header:" com o header do provedor escolhido (texto corrido, uma linha por header). */
+  /** O header de exemplo em partes coloridas por papel (CHECKS-11). */
+  protected example(): readonly Part[] {
+    const provider = this.provider();
+    if (provider === 'none') {
+      return [];
+    }
+    if (provider !== 'generic') {
+      return EXAMPLE[provider];
+    }
+    const c = this.form.controls;
+    const sample = c.encoding.value === 'hex' ? '9b1e0c4fa27d…' : 'mx4MT6J9fQ…=';
+    return [
+      { text: `${c.header.value || 'X-Signature'}: `, tone: '' },
+      ...(c.prefix.value ? [{ text: c.prefix.value, tone: 'prefix' as const }] : []),
+      { text: sample, tone: 'sig' },
+    ];
+  }
+
+  /** A legenda do exemplo, com a chave de cada parte na mesma cor. */
+  protected legend(): readonly LegendItem[] {
+    const provider = this.provider();
+    if (provider === 'none') {
+      return [];
+    }
+    if (provider !== 'generic') {
+      return legendOf(provider);
+    }
+    const c = this.form.controls;
+    const algorithm = c.algorithm.value.replace('sha', 'SHA-');
+    const encoding = c.encoding.value;
+    return [
+      {
+        key: c.header.value || 'X-Signature',
+        tone: '',
+        text: $localize`The header name; you type it in Signature header.`,
+      },
+      {
+        key: 'prefix',
+        tone: 'prefix',
+        text: $localize`Optional text before the signature, removed before comparing.`,
+      },
+      {
+        key: encoding,
+        tone: 'sig',
+        text: $localize`HMAC-${algorithm}:algorithm: of the raw body in ${encoding}:encoding:.`,
+      },
+    ];
+  }
+
   protected anatomyText(): string {
     return $localize`Expected header: ${this.anatomy().join('\n')}`;
+  }
+
+  /** "Turn off" do cabeçalho: escolhe "None" (o banner diz que salvar desliga). */
+  protected turnOff(): void {
+    this.chooseProvider('none');
   }
 
   protected guideOf(provider: ProviderOption) {

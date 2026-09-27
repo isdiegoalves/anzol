@@ -10,12 +10,12 @@
 
 <form class="fields" [formGroup]="form" (ngSubmit)="saveResponse()">
   <div class="row">
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label i18n>Default status code</mat-label>
       <input matInput formControlName="default_status" inputmode="numeric" placeholder="200" />
       <mat-error i18n>The default status must be an integer.</mat-error>
     </mat-form-field>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label i18n>Content Type</mat-label>
       <input
         matInput
@@ -25,18 +25,18 @@
       />
     </mat-form-field>
   </div>
-  <mat-form-field>
+  <mat-form-field appearance="outline">
     <mat-label i18n>Response body</mat-label>
     <textarea matInput rows="4" class="code" formControlName="default_content"></textarea>
   </mat-form-field>
   <div class="row">
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label i18n>Timeout before response</mat-label>
       <input matInput type="number" min="0" max="10" formControlName="timeout" placeholder="0" />
       <mat-hint i18n>Seconds, 0 to 10</mat-hint>
       <mat-error i18n>The timeout must be an integer between 0 and 10.</mat-error>
     </mat-form-field>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label i18n>Retry-After</mat-label>
       <input matInput formControlName="retry_after" placeholder="120" />
       <mat-hint i18n>Seconds or HTTP-date; useful with 429, 503 or 3xx. Off when empty.</mat-hint>

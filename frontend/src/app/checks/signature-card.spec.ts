@@ -1,4 +1,6 @@
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { TestBed } from '@angular/core/testing';
+import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -190,6 +192,83 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
 
     expect(provider('GitHub').getAttribute('aria-checked')).toBe('true');
     expect(screen.queryByText('Unsaved')).toBeNull();
+  });
+
+  describe('Dado a fidelidade ao protótipo C (F2)', () => {
+    it('CHECKS-06: deve mostrar o chip "On · GitHub" com ícone e desligar pelo "Turn off" do cabeçalho', async () => {
+      const { container } = await renderCard(SignatureCard, SALVA);
+
+      const chip = container.querySelector('.card-head .state.on');
+      expect(chip?.textContent?.trim()).toBe('On · GitHub');
+      expect(chip?.querySelector('svg')).toBeTruthy();
+      await userEvent.click(screen.getByRole('button', { name: 'Turn off' }));
+
+      expect(provider('None').getAttribute('aria-checked')).toBe('true');
+      expect(screen.getByText(/^Saving turns signature verification off/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Turn off' })).toBeNull();
+    });
+
+    it('CHECKS-11: deve pintar o header de exemplo por parte e repetir a cor na legenda, mantendo a linha "Expected header:"', async () => {
+      const { container } = await renderCard(SignatureCard, SALVA);
+
+      const example = screen.getByLabelText('Example header');
+      const parts = [...example.querySelectorAll('span')].map((part) => [
+        part.textContent,
+        part.className,
+      ]);
+      expect(parts).toEqual([
+        ['X-Hub-Signature-256: ', 'part'],
+        ['sha256=', 'part prefix'],
+        [expect.stringMatching(/^[0-9a-f]+…$/), 'part sig'],
+      ]);
+      const keys = [...container.querySelectorAll('.legend .key')].map((key) => [
+        key.textContent?.trim(),
+        key.className,
+      ]);
+      expect(keys).toEqual([
+        ['sha256=', 'key prefix'],
+        ['hex', 'key sig'],
+      ]);
+      expect(container.querySelector('.anatomy')?.textContent).toBe(
+        'Expected header: X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>',
+      );
+    });
+
+    it('CHECKS-11: deve montar o exemplo do genérico com o header e o prefixo digitados', async () => {
+      await renderCard(SignatureCard, token());
+      await userEvent.click(provider('Generic'));
+      await userEvent.type(
+        screen.getByRole('textbox', { name: 'Signature header' }),
+        'X-Assinatura',
+      );
+      await userEvent.type(screen.getByRole('textbox', { name: 'Prefix' }), 'v1=');
+
+      const parts = [...screen.getByLabelText('Example header').querySelectorAll('span')].map(
+        (part) => part.textContent,
+      );
+      expect(parts.slice(0, 2)).toEqual(['X-Assinatura: ', 'v1=']);
+    });
+
+    it('CHECKS-12: deve ter o título "{Provider} settings", campos contornados e a ajuda da tolerância do protótipo', async () => {
+      const { container, fixture } = await renderCard(
+        SignatureCard,
+        token({ signature: { provider: 'stripe', secret: '••••1234', toleranceSeconds: 300 } }),
+      );
+
+      expect(screen.getByRole('heading', { level: 3, name: 'Stripe settings' })).toBeTruthy();
+      expect(container.querySelector('.settings-head')?.textContent).toContain('* required');
+      const loader = TestbedHarnessEnvironment.loader(fixture);
+      const fields = await loader.getAllHarnesses(MatFormFieldHarness);
+      expect(fields.length).toBeGreaterThan(0);
+      for (const field of fields) {
+        expect(await field.getAppearance()).toBe('outline');
+      }
+      expect(
+        screen.getByText(
+          '1 to 86400. Older or future timestamps are rejected (replay protection).',
+        ),
+      ).toBeTruthy();
+    });
   });
 });
 

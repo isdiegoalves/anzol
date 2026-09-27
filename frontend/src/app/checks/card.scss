@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 // Cartão de Checks (Signature, Schema, Response, Privacy, Health): superfície, cabeçalho e textos.
 :host {
   display: flex;
@@ -9,6 +11,14 @@
   background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   scroll-margin-top: 16px;
+
+  // Campos contornados de 48 px (densidade -2): com o contorno, o rótulo continua à vista.
+  @include mat.form-field-overrides(
+    (
+      container-height: 48px,
+      container-vertical-padding: 12px,
+    )
+  );
 }
 
 .card-head {
