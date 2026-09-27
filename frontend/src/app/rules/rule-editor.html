@@ -34,11 +34,13 @@
       </p>
     }
     @if (generalErrors().length > 0) {
-      <ul class="errors" role="alert">
-        @for (message of generalErrors(); track $index) {
-          <li>{{ message }}</li>
-        }
-      </ul>
+      <div role="alert">
+        <ul class="errors">
+          @for (message of generalErrors(); track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
     }
     <app-rule-suggest
       [tokenId]="tokenId() ?? ''"
@@ -710,11 +712,13 @@
     at most.
   </p>
   @if (historyErrors().length > 0) {
-    <ul class="errors history-errors" role="alert">
-      @for (message of historyErrors(); track $index) {
-        <li>{{ message }}</li>
-      }
-    </ul>
+    <div role="alert">
+      <ul class="errors history-errors">
+        @for (message of historyErrors(); track $index) {
+          <li>{{ message }}</li>
+        }
+      </ul>
+    </div>
   }
   @if (historyTest(); as result) {
     <app-history-test-panel [result]="result" [tokenId]="tokenId() ?? ''" />

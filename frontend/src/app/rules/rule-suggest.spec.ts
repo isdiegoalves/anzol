@@ -6,6 +6,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
+import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
@@ -115,6 +116,9 @@ describe('Dado o "Describe the rule"', () => {
     expect(
       [...element.querySelectorAll('[role=alert] li')].map((li) => li.textContent?.trim()),
     ).toEqual(['No valid rule after 3 attempts', 'response.status: too big']);
+    // A lista continua lista para o leitor de tela: o alerta fica no contêiner em volta (E11).
+    expect(element.querySelector('ul[role]')).toBeNull();
+    await expectNoAxeViolations(element);
     expect(suggested).toEqual([]);
     expect(await (await suggestButton()).isDisabled()).toBe(false);
   });

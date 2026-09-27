@@ -47,11 +47,13 @@
     <p class="wait" role="status">{{ waitHint }}</p>
   }
   @if (errors().length > 0) {
-    <ul class="errors" role="alert" aria-label="Suggestion errors" i18n-aria-label>
-      @for (message of errors(); track $index) {
-        <li>{{ message }}</li>
-      }
-    </ul>
+    <div role="alert" aria-label="Suggestion errors" i18n-aria-label>
+      <ul class="errors">
+        @for (message of errors(); track $index) {
+          <li>{{ message }}</li>
+        }
+      </ul>
+    </div>
   }
   @if (result(); as suggestion) {
     <div class="result" role="status" aria-label="Suggestion" i18n-aria-label>

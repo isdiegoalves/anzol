@@ -591,6 +591,8 @@ describe('Dado a página Rules', () => {
 
         await vi.waitFor(() => expect(alertText()).toContain(erro));
         http.expectNone({ method: 'PUT', url: URL_REGRAS });
+        expect(document.querySelector('ul[role]')).toBeNull();
+        await expectNoAxeViolations(document.body);
       },
     );
   });
