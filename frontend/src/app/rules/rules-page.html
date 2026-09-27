@@ -40,10 +40,9 @@
             <span class="count" i18n>{{ store.rules().length }} · {{ enabledCount() }} on</span>
           }
         </div>
-        <p class="hint" i18n>
-          Checked by priority, lowest first. The first enabled rule that matches answers; if none
-          does, the URL's default response does.
-        </p>
+        <!-- Numa linha só: sem espaço nas pontas, o texto é o que se lê. -->
+        <!-- prettier-ignore -->
+        <p class="hint" i18n>Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.</p>
       </div>
       <div class="actions">
         <button

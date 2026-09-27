@@ -18,7 +18,7 @@
   <div class="content">
     @if (words(); as segments) {
       <!-- A regra em palavras (C, RULES-15): método e status em destaque, o caminho como código. -->
-      <p class="words" role="note" aria-label="Rule in plain words" i18n-aria-label>
+      <p class="words" role="group" aria-label="Rule in plain words" i18n-aria-label>
         @for (segment of segments; track $index) {
           @switch (segment.kind) {
             @case ('strong') {
@@ -800,16 +800,12 @@
           }
           <ul>
             @if (outcome.fromDefault > 0) {
-              <li i18n>
-                {{ outcome.fromDefault }} would now get {{ answer() }} from this rule instead of the
-                default {{ defaultStatus() }}
-              </li>
+              <!-- prettier-ignore -->
+              <li i18n>{{ outcome.fromDefault }} would now get {{ answer() }} from this rule instead of the default {{ defaultStatus() }}</li>
             }
             @if (outcome.draft > outcome.fromDefault) {
-              <li i18n>
-                {{ outcome.draft - outcome.fromDefault }} would now get {{ answer() }} from this
-                rule
-              </li>
+              <!-- prettier-ignore -->
+              <li i18n>{{ outcome.draft - outcome.fromDefault }} would now get {{ answer() }} from this rule</li>
             }
             @for (earlier of outcome.earlier; track earlier.id) {
               <li i18n>{{ earlier.count }} still answered by earlier rule {{ earlier.name }}</li>

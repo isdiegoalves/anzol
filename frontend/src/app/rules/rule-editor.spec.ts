@@ -918,6 +918,9 @@ describe('Dado o editor de regra', () => {
         '1 would now get 209 from this rule instead of the default 200',
         '1 still answered by earlier rule Rule 1',
       ]);
+      expect(root().querySelector('.preview li')?.textContent).toBe(
+        '1 would now get 209 from this rule instead of the default 200',
+      );
       const barra = root().querySelector('.preview .proportion') as HTMLElement;
       expect(barra.getAttribute('aria-hidden')).toBe('true');
       expect([...barra.querySelectorAll('span')].map((part) => part.style.width)).toEqual([
@@ -983,6 +986,8 @@ describe('Dado o editor de regra', () => {
 
       // RULES-15: o parágrafo "Rule in plain words", sem o rótulo, com método/status em negrito.
       const frase = root().querySelector('[aria-label="Rule in plain words"]') as HTMLElement;
+      // Não é `note`: a dica da falha é o `note` da aba Response.
+      expect(frase.getAttribute('role')).toBe('group');
       expect(frase.textContent?.replace(/\s+/g, ' ').trim()).toBe(
         'When a POST to /r1, answer 201.',
       );

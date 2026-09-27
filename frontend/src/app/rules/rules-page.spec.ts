@@ -211,7 +211,8 @@ describe('Dado a página Rules', () => {
 
       const titulo = screen.getByRole('heading', { name: 'Rules', level: 1 });
       expect(titulo.parentElement?.querySelector('.count')?.textContent?.trim()).toBe('3 · 2 on');
-      expect(document.querySelector('.heading .hint')?.textContent?.trim()).toBe(
+      // Sem espaço nas pontas: o texto é casado inteiro (RULES-06).
+      expect(document.querySelector('.heading .hint')?.textContent).toBe(
         "Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.",
       );
       for (const name of ['Import', 'Export']) {

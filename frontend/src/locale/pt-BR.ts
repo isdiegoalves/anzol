@@ -2088,9 +2088,6 @@ export const translations: Record<string, string> = {
   '3129001544428431323': 'DESLIGADA',
   // {$INTERPOLATION} · {$INTERPOLATION_1} on
   '3968264942277486357': '{$INTERPOLATION} · {$INTERPOLATION_1} ligadas',
-  //  Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.
-  '1150843568729669655':
-    ' Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL. ',
   // Import
   '1071721880474488785': 'Importar',
   // Import: replace all rules with the ones in a JSON file
@@ -2103,11 +2100,6 @@ export const translations: Record<string, string> = {
   '7978723831900223519': 'Não avaliada enquanto desligada',
   // Rule in plain words
   '2268582330010433110': 'Regra em palavras',
-  //  {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule instead of the default {$INTERPOLATION_2}
-  '2185491368998792148':
-    ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2} ',
-  //  {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
-  '7611102451634570418': ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra ',
   // Before answering; up to 60 s.
   '9000665470264003000': 'Antes de responder; até 60 s.',
   // Send the body in chunks over time
@@ -2122,4 +2114,12 @@ export const translations: Record<string, string> = {
   '4303907595329868490': 'as {$evaluated} mais novas de {$total} guardadas',
   // of the {$total} kept
   '6960211955108263369': 'das {$total} guardadas',
+  // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule instead of the default {$INTERPOLATION_2}
+  '8949862395501794336':
+    '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2}',
+  // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
+  '8758745832004953313': '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra',
+  // Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.
+  '9138032896822434594':
+    'Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL.',
 };
