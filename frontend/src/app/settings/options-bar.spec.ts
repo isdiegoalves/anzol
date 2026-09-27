@@ -5,8 +5,7 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { token, webhookRequest } from '../../testing/fixtures';
 import { OptionsBar } from './options-bar';
 import { Preferences } from './preferences';
 import { Redirector } from './redirect';
@@ -37,12 +36,11 @@ describe('Dado a barra de opções acima do detalhe', () => {
     localStorage.clear();
   });
 
-  it('deve ter só o redirect e o CORS (o resto foi para Pretty, Follow new e as abas)', async () => {
+  it('deve ter só o redirect (o CORS foi para Checks; o resto, para Pretty, Follow new e as abas)', async () => {
     const toggles = await loader.getAllHarnesses(MatSlideToggleHarness);
 
     expect(await Promise.all(toggles.map((item) => item.getLabelText()))).toEqual([
       'Auto redirect',
-      'Enable CORS BETA',
     ]);
   });
 
@@ -60,34 +58,5 @@ describe('Dado a barra de opções acima do detalhe', () => {
     await (await loader.getHarness(MatButtonHarness.with({ text: 'Redirect Now' }))).click();
 
     expect(redirect).toHaveBeenCalledWith(webhookRequest(1));
-  });
-
-  it('deve refletir o valor do servidor e avisar Quando o CORS é ligado', async () => {
-    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
-    const cors = await toggle('Enable CORS BETA');
-
-    await cors.toggle();
-    http.expectOne(`/token/${TOKEN_ID}/cors/toggle`).flush({ enabled: true });
-    await vi.waitFor(() =>
-      expect(open).toHaveBeenCalledWith('CORS enabled.', undefined, { duration: 1000 }),
-    );
-
-    expect(await cors.isChecked()).toBe(true);
-    expect(preferences.token()?.cors).toBe(true);
-  });
-
-  it('deve avisar o erro do servidor Quando o CORS não pode ser alternado', async () => {
-    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
-
-    await (await toggle('Enable CORS BETA')).toggle();
-    http
-      .expectOne(`/token/${TOKEN_ID}/cors/toggle`)
-      .flush({ success: false, error: { message: 'Gone' } }, { status: 410, statusText: 'Gone' });
-
-    await vi.waitFor(() =>
-      expect(open).toHaveBeenCalledWith('Could not toggle CORS: Gone', undefined, {
-        duration: 1000,
-      }),
-    );
   });
 });

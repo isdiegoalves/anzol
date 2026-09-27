@@ -16,7 +16,7 @@ import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleFromRequest } from '../rules/rule-from-request';
 import { ShareDialog } from '../share/share-dialog';
-import { TokenActions } from '../token/token-actions';
+import { Router } from '@angular/router';
 import { RequestDetail } from './request-detail';
 
 describe('Dado o detalhe de uma mensagem com as ações', () => {
@@ -120,14 +120,20 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     await vi.waitFor(() => expect(open).toHaveBeenCalledWith(request));
   });
 
-  it('deve abrir o Edit URL com o schema da mensagem Quando "Create schema from this request" é clicado', async () => {
-    const createSchemaFrom = vi.fn().mockResolvedValue(undefined);
+  it('deve abrir Checks › Schema com a mensagem Quando "Create schema from this request" é clicado', async () => {
     const request = webhookRequest(3, { content: '{"id": 7}' });
-    await show(request, [{ provide: TokenActions, useValue: { createSchemaFrom } }]);
+    const { fixture } = await show(request);
+    const navigate = vi
+      .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
+      .mockResolvedValue(true);
 
     await userEvent.click(action('Create schema from this request'));
 
-    await vi.waitFor(() => expect(createSchemaFrom).toHaveBeenCalledWith(request));
+    await vi.waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'checks'], {
+        queryParams: { 'schema-from': request.uuid },
+      }),
+    );
   });
 
   it.each([

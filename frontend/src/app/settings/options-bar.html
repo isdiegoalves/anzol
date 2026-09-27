@@ -11,12 +11,4 @@
   <button mat-button type="button" [disabled]="!preferences.redirectUrl()" (click)="redirectNow()">
     Redirect Now
   </button>
-
-  <!-- CORS: vai para Checks › Response na E5. -->
-  <mat-slide-toggle
-    title="Enable automatic CORS headers"
-    [checked]="tokens.token()?.cors ?? false"
-    (change)="toggleCors()"
-    >Enable CORS <sup class="muted">BETA</sup></mat-slide-toggle
-  >
 </div>

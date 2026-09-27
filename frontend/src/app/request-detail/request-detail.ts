@@ -15,6 +15,7 @@ import {
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
@@ -44,6 +45,7 @@ export class RequestDetail {
   private readonly snackBar = inject(MatSnackBar);
   private readonly origin = inject(DOCUMENT).location.origin;
   private readonly injector = inject(Injector);
+  private readonly router = inject(Router);
   private readonly compare = inject(CompareStore);
   private readonly requests = inject(RequestStore);
   protected readonly ai = inject(AiClient);
@@ -174,10 +176,12 @@ export class RequestDetail {
     this.injector.get(OutboundActions).send(this.request());
   }
 
-  /** O diálogo do Edit URL e a inferência vêm sob demanda (no pedaço do `token-actions`). */
+  /** Checks › Schema com o schema inferido desta mensagem, para revisar e salvar (E5). */
   protected async createSchema(): Promise<void> {
-    const { TokenActions } = await import('../token/token-actions');
-    await this.injector.get(TokenActions).createSchemaFrom(this.request());
+    const request = this.request();
+    await this.router.navigate(['/', request.token_id, 'checks'], {
+      queryParams: { 'schema-from': request.uuid },
+    });
   }
 }
 
