@@ -341,3 +341,22 @@ h3 {
     margin: 0;
   }
 }
+
+// A mensagem do resultado aberta ao lado, dentro de Regras (WM-22).
+.opened-request {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+}
+
+.opened-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  h3 {
+    overflow-wrap: anywhere;
+  }
+}

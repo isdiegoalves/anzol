@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { RuleStats, TokenStats } from '../stats/stats';
 import {
@@ -55,6 +55,7 @@ export class RuleStore {
   /** As mensagens da janela do `rules/test`, lidas uma vez por carga da lista. */
   private recent: Promise<WebhookRequest[]> | null = null;
   private latest: Promise<WebhookRequest | null> | null = null;
+  private total: Promise<number> | null = null;
 
   /** A leitura dos hits falhou (ou o servidor não os tem): "Hits unavailable" na lista. */
   readonly hitsFailed = signal(false);
@@ -75,6 +76,7 @@ export class RuleStore {
     this.rules.set([]);
     this.recent = null;
     this.latest = null;
+    this.total = null;
     this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
   }
 
@@ -231,22 +233,50 @@ export class RuleStore {
    * A regra em edição (salva ou não) contra as mensagens gravadas mais recentes. O total de
    * mensagens da URL vem junto, para o link de cada falha abrir a página certa da lista.
    */
-  async testRule(rule: Rule): Promise<HistoryTest> {
+  testRule(rule: Rule): Promise<HistoryTest> {
+    return firstValueFrom(this.testRule$(rule));
+  }
+
+  /**
+   * O mesmo teste como Observable: cancelar a inscrição cancela o `POST` (o rerun do editor só
+   * quer o último, WM-22). O total de mensagens da URL é lido uma vez por carga da lista.
+   */
+  testRule$(rule: Rule): Observable<HistoryTest> {
     const tokenId = this.requireToken();
-    const [response, requests] = await Promise.all([
-      firstValueFrom(this.http.post<RuleTestResponse>(`${this.url(tokenId)}/test`, rule)),
-      firstValueFrom(
-        this.http.get<{ total: number }>(`/token/${tokenId}/requests`, {
-          params: { per_page: 1 },
-        }),
-      ),
-    ]);
-    const result = summarizeHistoryTest(response, requests.total);
-    if (rule.id) {
-      const tested = { match: rule.match ?? {}, matches: result.matches };
-      this.tested.update((map) => new Map(map).set(rule.id ?? '', tested));
-    }
-    return result;
+    // Sem operadores do RxJS: eles iriam para o pedaço compartilhado com a carga inicial.
+    return new Observable<HistoryTest>((subscriber) => {
+      const total = this.requestTotal(tokenId);
+      const post = this.http.post<RuleTestResponse>(`${this.url(tokenId)}/test`, rule).subscribe({
+        next: (response) =>
+          void total.then(
+            (count) => {
+              const result = summarizeHistoryTest(response, count);
+              if (rule.id) {
+                const tested = { match: rule.match ?? {}, matches: result.matches };
+                this.tested.update((known) => new Map(known).set(rule.id ?? '', tested));
+              }
+              subscriber.next(result);
+              subscriber.complete();
+            },
+            (error: unknown) => subscriber.error(error),
+          ),
+        error: (error: unknown) => subscriber.error(error),
+      });
+      return () => post.unsubscribe();
+    });
+  }
+
+  /** Quantas mensagens a URL guarda (para a página de cada link do teste); uma leitura por carga. */
+  private requestTotal(tokenId: string): Promise<number> {
+    this.total ??= firstValueFrom(
+      this.http.get<{ total: number }>(`/token/${tokenId}/requests`, { params: { per_page: 1 } }),
+    )
+      .then(({ total }) => total)
+      .catch((error: unknown) => {
+        this.total = null;
+        throw error;
+      });
+    return this.total;
   }
 
   private url(tokenId: string): string {

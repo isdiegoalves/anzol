@@ -1060,8 +1060,6 @@ export const translations: Record<string, string> = {
   '6289177450660401926': 'Só as {$INTERPOLATION} requisições mais recentes foram testadas.',
   // Would not match ({$INTERPOLATION})
   '7537023677815855960': 'Não casariam ({$INTERPOLATION})',
-  // Open the request in a new tab
-  '1403890484979816069': 'Abrir a requisição em nova aba',
   // Open request {$uuid}
   '1549963127344206416': 'Abrir a requisição {$uuid}',
   // Editor view
@@ -1176,8 +1174,6 @@ export const translations: Record<string, string> = {
   '4039102480098358947': 'Vazio: mantém o estado',
   // Rule JSON
   '9084383820735529436': 'JSON da regra',
-  //  Test against history
-  '8194247567496147362': ' Testar contra o histórico ',
   //  Save
   '3620188369327429839': ' Salvar ',
   // {VAR_PLURAL, plural, =1 {1 recorded request} other {{INTERPOLATION} recorded requests}}
@@ -1192,9 +1188,6 @@ export const translations: Record<string, string> = {
   '8823180892239058592': ' Com base na regra que respondeu na hora; ignora o estado dos cenários. ',
   // This rule is off; turn it on to answer.
   '78167379411983619': 'Esta regra está desligada; ligue-a para responder.',
-  // {$INTERPOLATION} still answered by earlier rule {$INTERPOLATION_1}
-  '7868313625932043703':
-    '{$INTERPOLATION} continuam respondidas pela regra anterior {$INTERPOLATION_1}',
   //  Could not read the recorded requests for this preview.
   '1714866520584713830': ' Não foi possível ler as requisições gravadas para esta prévia. ',
   // Testing…
@@ -2551,4 +2544,21 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {INTERPOLATION} requests kept.}}
   '1357560753461228101':
     '{VAR_PLURAL, plural, =0 {Ainda sem requisições: os acertos começam com a primeira.} =1 {Acertos na última requisição guardada.} other {Acertos nas últimas {INTERPOLATION} requisições guardadas.}}',
+  // Out of date
+  '9161462110331438114': 'Desatualizado',
+  // Test again
+  '1574794591863580114': 'Testar de novo',
+  // answered by {$rule} at the time
+  '4721076730862488015': 'respondida por {$rule} na época',
+  // answered {$status} by {$rule} at the time
+  '8147400412142813296': 'respondida {$status} por {$rule} na época',
+  // Test against history
+  '8757397461687997049': 'Testar contra o histórico',
+  // {$INTERPOLATION} still answered by earlier rule {$START_LINK}{$INTERPOLATION_1}{$CLOSE_LINK}
+  '8344223446232918156':
+    '{$INTERPOLATION} continuam com a regra anterior {$START_LINK}{$INTERPOLATION_1}{$CLOSE_LINK}',
+  // Loading the request…
+  '4791386586357239732': 'Carregando a requisição…',
+  // Request {$uuid}
+  '3162761057963063529': 'Requisição {$uuid}',
 };

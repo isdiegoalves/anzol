@@ -827,9 +827,12 @@
     aria-keyshortcuts="Control+Enter Meta+Enter"
     [attr.aria-busy]="testing()"
     (click)="testAgainstHistory()"
-    i18n
   >
-    Test against history
+    @if (testing()) {
+      <ng-container i18n>Testing…</ng-container>
+    } @else {
+      <ng-container i18n>Test against history</ng-container>
+    }
   </button>
   <!-- "Form" nunca desabilitado (WM-04): com o JSON inválido, o clique diz o que corrigir. -->
   <mat-button-toggle-group
@@ -864,45 +867,66 @@
     <app-history-test-panel
       [result]="result"
       [tokenId]="tokenId() ?? ''"
-      [times]="times()"
+      [requests]="recent()"
       [canTest]="canTest()"
+      [testing]="testing()"
+      [outOfDate]="outOfDate()"
       (testAgain)="testAgainstHistory()"
-    />
-    @if (preview(); as state) {
-      <section class="preview" aria-labelledby="rule-preview-title">
-        <h3 id="rule-preview-title" i18n>With the rules before it</h3>
-        <p class="hint" i18n>
-          Based on the rule that answered at the time; ignores scenario state.
-        </p>
-        @if (ruleOff()) {
-          <p class="notice off" i18n>This rule is off; turn it on to answer.</p>
-        }
-        @if (state.preview; as outcome) {
-          <!-- Proporção de relance (RULES-21): esta regra | as anteriores; o texto abaixo diz os números. -->
-          @let total = outcome.draft + earlierCount(outcome);
-          @if (total > 0) {
-            <div class="proportion" aria-hidden="true">
-              <span class="mine" [style.width.%]="(outcome.draft / total) * 100"></span>
-              <span class="earlier" [style.width.%]="(earlierCount(outcome) / total) * 100"></span>
-            </div>
-          }
-          <ul>
-            @if (outcome.fromDefault > 0) {
-              <!-- prettier-ignore -->
-              <li i18n>{{ outcome.fromDefault }} would now get {{ answer() }} from this rule instead of the default {{ defaultStatus() }}</li>
-            }
-            @if (outcome.draft > outcome.fromDefault) {
-              <!-- prettier-ignore -->
-              <li i18n>{{ outcome.draft - outcome.fromDefault }} would now get {{ answer() }} from this rule</li>
-            }
-            @for (earlier of outcome.earlier; track earlier.id) {
-              <li i18n>{{ earlier.count }} still answered by earlier rule {{ earlier.name }}</li>
-            }
-          </ul>
-        } @else {
-          <p class="errors" role="alert" i18n>
-            Could not read the recorded requests for this preview.
+      (openRequest)="openRequest($event)"
+    >
+      @if (preview(); as state) {
+        <section class="preview" aria-labelledby="rule-preview-title">
+          <h3 id="rule-preview-title" i18n>With the rules before it</h3>
+          <p class="hint" i18n>
+            Based on the rule that answered at the time; ignores scenario state.
           </p>
+          @if (ruleOff()) {
+            <p class="notice off" i18n>This rule is off; turn it on to answer.</p>
+          }
+          @if (state.preview; as outcome) {
+            <!-- Proporção de relance (RULES-21): esta regra | as anteriores; o texto abaixo diz os números. -->
+            @let total = outcome.draft + earlierCount(outcome);
+            @if (total > 0) {
+              <div class="proportion" aria-hidden="true">
+                <span class="mine" [style.width.%]="(outcome.draft / total) * 100"></span>
+                <span
+                  class="earlier"
+                  [style.width.%]="(earlierCount(outcome) / total) * 100"
+                ></span>
+              </div>
+            }
+            <ul>
+              @if (outcome.fromDefault > 0) {
+                <!-- prettier-ignore -->
+                <li i18n>{{ outcome.fromDefault }} would now get {{ answer() }} from this rule instead of the default {{ defaultStatus() }}</li>
+              }
+              @if (outcome.draft > outcome.fromDefault) {
+                <!-- prettier-ignore -->
+                <li i18n>{{ outcome.draft - outcome.fromDefault }} would now get {{ answer() }} from this rule</li>
+              }
+              @for (earlier of outcome.earlier; track earlier.id) {
+                <!-- prettier-ignore -->
+                <li i18n>{{ earlier.count }} still answered by earlier rule <a [routerLink]="['/', tokenId(), 'rules', earlier.id]">{{ earlier.name }}</a></li>
+              }
+            </ul>
+          } @else {
+            <p class="errors" role="alert" i18n>
+              Could not read the recorded requests for this preview.
+            </p>
+          }
+        </section>
+      }
+    </app-history-test-panel>
+    @if (openedRequest(); as request) {
+      <!-- A mensagem do resultado aberta ao lado, sem sair da regra (WM-22); o detalhe vem sob demanda. -->
+      <section class="opened-request" role="region" [attr.aria-label]="openedLabel(request)">
+        <div class="opened-head">
+          <h3 tabindex="-1">{{ openedLabel(request) }}</h3>
+          <button mat-button type="button" (click)="openedRequest.set(null)" i18n>Close</button>
+        </div>
+        <ng-container #requestHost />
+        @if (!requestView()) {
+          <p class="hint" i18n>Loading the request…</p>
         }
       </section>
     }

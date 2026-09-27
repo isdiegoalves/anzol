@@ -18,6 +18,7 @@ import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
+import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
@@ -897,7 +898,8 @@ describe('Dado o editor de regra', () => {
       ]);
       const link = root().querySelector('.misses a') as HTMLAnchorElement;
       expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${MISS}/1`);
-      expect(link.target).toBe('_blank');
+      // WM-22: abre ao lado, dentro de Regras, não em outra aba.
+      expect(link.target).toBe('');
       expect(link.textContent?.trim()).toBe('#00000');
       expect(text('.misses .failed li')).toEqual(['method: expected POST, got GET', 'x: y']);
       expect(closed).not.toHaveBeenCalled();
@@ -936,7 +938,7 @@ describe('Dado o editor de regra', () => {
       );
     });
 
-    it('deve apagar o resultado Quando a regra muda depois do teste', async () => {
+    it('deve manter o resultado em dia Quando só muda o que não é condição (WM-22)', async () => {
       await open({ index: 0 }, [rule(1)]);
       await (await button('Test against history')).click();
       (await testCall()).flush({ matches: [], misses: [] });
@@ -944,8 +946,64 @@ describe('Dado o editor de regra', () => {
       await vi.waitFor(() => expect(panel()).not.toBeNull());
 
       await (await input('Name')).setValue('Outra');
+      await (await input('Status')).setValue('503');
 
-      expect(panel()).toBeNull();
+      expect(panel()).not.toBeNull();
+      expect(text('[aria-label="History test"] .stale')).toEqual([]);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      http.expectNone({ method: 'POST', url: `${URL_REGRAS}/test` });
+    });
+
+    it('deve abrir a mensagem do resultado ao lado, dentro de Regras, e fechar (WM-22)', async () => {
+      const pedido = webhookRequest(1, { uuid: 'a', url: `http://localhost/${TOKEN_ID}/x` });
+      await open({ index: 0 }, [rule(1)]);
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [{ uuid: 'a', seq: 3 }], misses: [] });
+      (await countCall()).flush({ data: [], total: 1 });
+      (await recentCall()).flush(requestPage([pedido]));
+      const link = await vi.waitFor(() => {
+        const found = root().querySelector<HTMLAnchorElement>('.matches a');
+        expect(found?.textContent).toMatch(/^POST \/x · /);
+        return found as HTMLAnchorElement;
+      });
+
+      link.click();
+
+      const regiao = await vi.waitFor(() => {
+        const found = root().querySelector('[role="region"][aria-label="Request a"]');
+        expect(found).not.toBeNull();
+        expect(found?.querySelector('app-request-view')).not.toBeNull();
+        return found as HTMLElement;
+      });
+      await expectNoAxeViolations(root());
+      (
+        [...regiao.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Close') as
+          HTMLButtonElement | undefined
+      )?.click();
+      await fixture.whenStable();
+      expect(root().querySelector('[aria-label="Request a"]')).toBeNull();
+    });
+
+    it('deve marcar "Out of date" e rerodar 1 s depois Quando uma condição muda (WM-22)', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [], misses: [{ uuid: MISS, seq: 2, failed: ['x'] }] });
+      (await countCall()).flush({ data: [], total: 1 });
+      (await recentCall()).flush(requestPage([]));
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      await (await input('Path')).setValue('/outro');
+
+      expect(text('[aria-label="History test"] .stale')).toEqual(['Out of date']);
+      http.expectNone({ method: 'POST', url: `${URL_REGRAS}/test` });
+      const rerun = await vi.waitFor(
+        () => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }),
+        { timeout: 3000 },
+      );
+      expect((rerun.request.body as Rule).match?.path).toEqual({ equals: '/outro' });
+      rerun.flush({ matches: [], misses: [] });
+      // O total de mensagens é lido uma vez por carga: o rerun não pede de novo.
+      await vi.waitFor(() => expect(text('[aria-label="History test"] .stale')).toEqual([]));
     });
 
     it('deve dizer quantas passam a ter esta resposta e quantas seguem com a regra anterior (prévia com prioridade)', async () => {

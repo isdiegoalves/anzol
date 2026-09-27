@@ -4,6 +4,9 @@ import {
   DestroyRef,
   ElementRef,
   Injector,
+  Type,
+  ViewContainerRef,
+  viewChild,
   afterNextRender,
   computed,
   effect,
@@ -32,7 +35,7 @@ import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/for
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { merge } from 'rxjs';
+import { Subscription, merge } from 'rxjs';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { RuleSuggest, SuggestionApply } from './rule-suggest';
 import { RouterLink } from '@angular/router';
@@ -112,6 +115,9 @@ export interface RuleEditorData {
   /** Abre o "Describe the rule" já expandido (só desta vez; RULES-16 o mantém recolhido). */
   openSuggest?: boolean;
 }
+
+/** Espera depois da última mudança de condição antes de rerodar o teste (WM-22). */
+const RERUN_DELAY_MS = 1000;
 
 /** O que o clique em Save ou em Test achou inválido. */
 type Blocked = 'save' | 'test';
@@ -201,7 +207,7 @@ export class RuleEditor {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly document = inject(DOCUMENT);
-  private readonly tokens = inject(TokenStore);
+  protected readonly tokens = inject(TokenStore);
   private readonly viewport = inject(Viewport);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
@@ -333,7 +339,27 @@ export class RuleEditor {
   protected readonly historyErrors = signal<readonly string[]>([]);
   protected readonly testing = signal(false);
   protected readonly preview = signal<PreviewState | null>(null);
-  protected readonly times = signal<ReadonlyMap<string, string>>(new Map());
+  /** As mensagens da janela do teste (a aba Test descreve cada uma e abre ao lado, WM-22). */
+  protected readonly recent = signal<ReadonlyMap<string, WebhookRequest>>(new Map());
+  /** A mensagem do resultado aberta ao lado, dentro de Regras (`region "Request {id}"`). */
+  protected readonly openedRequest = signal<WebhookRequest | null>(null);
+  /** O detalhe da mensagem (o da Inbox, só leitura), carregado na primeira vez que abre. */
+  protected readonly requestView = signal<Type<unknown> | null>(null);
+  private readonly requestHost = viewChild('requestHost', { read: ViewContainerRef });
+  /** As condições (o `match`) do último resultado: mudou, o resultado fica "Out of date". */
+  private readonly testedMatch = signal<string | null>(null);
+  /** O teste já foi pedido uma vez: a partir daí, mudar condição reroda sozinho. */
+  private testRequested = false;
+  /** As condições do teste pedido por último (em curso ou agendado): não pede de novo o mesmo. */
+  private lastRunMatch: string | null = null;
+  /** O teste agendado (rerun) e o que está em curso: um pedido novo cancela os dois. */
+  private testTimer: ReturnType<typeof setTimeout> | undefined;
+  private testRun: Subscription | null = null;
+  protected readonly outOfDate = computed(() => {
+    this.edits();
+    this.view();
+    return !!this.historyTest() && this.testedMatch() !== matchKey(this.editedRule());
+  });
   /** Near misses gravados desta regra, por condição (só editando uma regra salva). */
   protected readonly recorded = signal<ConditionTally | null>(null);
   protected readonly tokenId = this.store.tokenId;
@@ -459,7 +485,7 @@ export class RuleEditor {
       .pipe(takeUntilDestroyed())
       .subscribe(() => {
         this.edits.update((n) => n + 1);
-        this.clearHistoryTest();
+        this.rerunIfConditionsChanged();
         this.draftOffer.set(null);
         this.scheduleDraft();
       });
@@ -472,7 +498,23 @@ export class RuleEditor {
           this.blocked.set(null);
         }
       });
+    // A mensagem aberta ao lado: o detalhe da Inbox, criado à mão (sem @defer, que levaria o
+    // mecanismo de carga adiada para o pacote inicial).
+    effect(() => {
+      const [host, view, request] = [this.requestHost(), this.requestView(), this.openedRequest()];
+      if (host && view && request) {
+        untracked(() => {
+          host.clear();
+          const ref = host.createComponent(view);
+          ref.setInput('request', request);
+          ref.setInput('token', this.tokens.token());
+          ref.setInput('readonly', true);
+        });
+      }
+    });
     inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.testTimer);
+      this.testRun?.unsubscribe();
       // A aba fechou (ou a URL trancou) no meio do debounce: o rascunho sai agora.
       if (this.draftTimer !== undefined) {
         clearTimeout(this.draftTimer);
@@ -1139,7 +1181,7 @@ export class RuleEditor {
   }
 
   /** `rules/test` com a regra como está no editor (formulário ou JSON), sem salvar. */
-  protected async testAgainstHistory(): Promise<void> {
+  protected testAgainstHistory(): void {
     if (this.testing()) {
       return;
     }
@@ -1148,23 +1190,89 @@ export class RuleEditor {
       this.block('test');
       return;
     }
-    this.clearHistoryTest();
     this.tab.set('test');
-    this.testing.set(true);
-    try {
-      const result = await this.store.testRule(rule);
-      this.historyTest.set(result);
-      if (result.tested > 0) {
-        void this.loadTimes();
-      }
-      if (result.matched > 0) {
-        this.preview.set(await this.previewOf(rule, result));
-      }
-    } catch (error) {
-      this.historyErrors.set(testMessages(error));
-    } finally {
-      this.testing.set(false);
+    this.testRequested = true;
+    this.lastRunMatch = matchKey(rule);
+    this.scheduleTest(0);
+  }
+
+  /** Um teste por vez (WM-22): o pedido novo cancela o agendado e o que está em curso. */
+  private scheduleTest(delay: number): void {
+    clearTimeout(this.testTimer);
+    this.testTimer = setTimeout(() => this.runTest(), delay);
+  }
+
+  /**
+   * Rerun (WM-22): só depois de um teste pedido, só quando as condições mudam e o formulário vale,
+   * 1 s depois da última mudança. Nome, prioridade, ligada, resposta e cenário não reprovam o
+   * resultado.
+   */
+  private rerunIfConditionsChanged(): void {
+    if (!this.testRequested || !this.editedValid()) {
+      return;
     }
+    const key = matchKey(this.editedRule());
+    if (key !== this.lastRunMatch) {
+      this.lastRunMatch = key;
+      this.scheduleTest(RERUN_DELAY_MS);
+    }
+  }
+
+  /**
+   * `rules/test` com a regra como está agora. O resultado anterior fica até o novo chegar; o erro
+   * (422) aparece ao lado dele.
+   */
+  private runTest(): void {
+    this.testRun?.unsubscribe();
+    const rule = this.editedValid() ? this.editedRule() : undefined;
+    if (!rule) {
+      this.testing.set(false);
+      return;
+    }
+    this.testing.set(true);
+    this.historyErrors.set([]);
+    this.testRun = this.store.testRule$(rule).subscribe({
+      next: (result) => {
+        this.testing.set(false);
+        this.historyTest.set(result);
+        this.testedMatch.set(matchKey(rule));
+        this.preview.set(null);
+        if (result.tested > 0) {
+          void this.loadRecent();
+        }
+        if (result.matched > 0) {
+          void this.previewOf(rule, result).then((state) => {
+            if (this.historyTest() === result) {
+              this.preview.set(state);
+            }
+          });
+        }
+      },
+      error: (error: unknown) => {
+        this.testing.set(false);
+        this.historyErrors.set(testMessages(error));
+      },
+    });
+  }
+
+  /** "{method} {path} · {time}" no resultado: abre a mensagem ao lado, sem sair da regra. */
+  protected openRequest(uuid: string): void {
+    const request = this.recent().get(uuid);
+    if (request) {
+      this.openedRequest.set(request);
+      if (!this.requestView()) {
+        void import('../request-detail/request-view').then(({ RequestView }) =>
+          this.requestView.set(RequestView),
+        );
+      }
+      afterNextRender(() => this.host.querySelector<HTMLElement>('.opened-request h3')?.focus(), {
+        injector: this.injector,
+      });
+    }
+  }
+
+  protected openedLabel(request: WebhookRequest): string {
+    return $localize`Request ${request.uuid}:uuid:`;
   }
 
   /**
@@ -1190,12 +1298,13 @@ export class RuleEditor {
   }
 
   /** A hora de cada mensagem testada (a mesma janela do teste), para a aba Test. */
-  private async loadTimes(): Promise<void> {
+  /** As mensagens da janela do teste (a mesma do `rules/test`), para a aba Test. */
+  private async loadRecent(): Promise<void> {
     try {
       const recent = await this.store.recentRequests();
-      this.times.set(new Map(recent.map((request) => [request.uuid, request.created_at])));
+      this.recent.set(new Map(recent.map((request) => [request.uuid, request])));
     } catch {
-      // Sem as horas, a aba Test mostra o resto.
+      // Sem as mensagens, a aba Test mostra o id de cada uma.
     }
   }
 
@@ -1287,12 +1396,6 @@ export class RuleEditor {
   /** A regra na visão aberta: a do formulário, ou o JSON como foi escrito. */
   private editedRule(): Rule | undefined {
     return this.view() === JSON_VIEW ? parseRuleJson(this.json.value).rule : this.formRule();
-  }
-
-  private clearHistoryTest(): void {
-    this.historyTest.set(null);
-    this.historyErrors.set([]);
-    this.preview.set(null);
   }
 
   private loadForm(rule: Rule): void {
@@ -1421,6 +1524,11 @@ export class RuleEditor {
   private headerGroup(row: HeaderRow): HeaderGroup {
     return this.formBuilder.group({ name: [row.name, Validators.required], value: [row.value] });
   }
+}
+
+/** As condições da regra como texto, para saber se mudaram desde o teste. */
+function matchKey(rule: Rule | undefined): string | null {
+  return rule ? JSON.stringify(rule.match ?? null) : null;
 }
 
 function withoutId(rule: Rule): Rule {

@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID } from '../../testing/fixtures';
+import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
+import { WebhookRequest } from '../requests/webhook-request';
 import { HistoryTestPanel } from './history-test-panel';
 import { HistoryTest } from './rule';
 
@@ -23,8 +24,11 @@ const RESULTADO: HistoryTest = {
 };
 
 describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', () => {
-  const show = (result: HistoryTest, times = new Map<string, string>()) =>
-    render(HistoryTestPanel, { inputs: { result, tokenId: TOKEN_ID, times } });
+  const show = (
+    result: HistoryTest,
+    requests = new Map<string, WebhookRequest>(),
+    extra: { testing?: boolean; outOfDate?: boolean } = {},
+  ) => render(HistoryTestPanel, { inputs: { result, tokenId: TOKEN_ID, requests, ...extra } });
   const clean = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
 
   it('deve dizer quantas das mais recentes casariam, com a nota e o "Test again"', async () => {
@@ -45,19 +49,50 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     await expectNoAxeViolations(container);
   });
 
-  it('deve listar as que casariam com o link, o seq e a hora', async () => {
-    await show(RESULTADO, new Map([[A, '2026-09-27 10:00:00']]));
+  it('deve descrever cada mensagem por método, caminho e hora, com o trecho do corpo e quem respondeu na época (WM-22)', async () => {
+    const corpo = JSON.stringify({ id: 42, texto: 'x'.repeat(150) });
+    const pedido = webhookRequest(1, {
+      uuid: A,
+      url: `http://localhost/${TOKEN_ID}/pedidos`,
+      content: corpo,
+      rule: { id: 'r1', name: 'Antiga' },
+      response: { status: 201 },
+    });
+    const { container, fixture } = await show(RESULTADO, new Map([[A, pedido]]));
+    const aberta = vi.fn();
+    fixture.componentInstance.openRequest.subscribe(aberta);
 
     const status = screen.getByRole('status', { name: 'History test' });
     const casam = within(status).getByRole('heading', { name: 'Would match (1)' }).parentElement;
-    expect(within(status).getByRole('heading', { name: 'Would not match (2)' })).toBeTruthy();
+    const link = within(casam as HTMLElement).getByRole('link', { name: /^POST \/pedidos · .+/ });
+    expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${A}/1`);
+    expect(link.getAttribute('target')).toBeNull();
+    const linha = link.closest('li') as HTMLElement;
+    expect(linha.querySelector('.snippet')?.textContent).toBe(`${corpo.slice(0, 80)}…`);
+    expect(clean(linha.querySelector('.answered'))).toBe('answered 201 by Antiga at the time');
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(link);
+    expect(aberta).toHaveBeenCalledWith(A);
+  });
+
+  it('deve cair no id da mensagem Quando ela não está entre as lidas', async () => {
+    await show(RESULTADO);
+
+    const status = screen.getByRole('status', { name: 'History test' });
     expect(clean(status.querySelector('.misses > li'))).toBe(
       `#${C.substring(0, 5)} 1 condition header x-signature: absent`,
     );
-    const link = within(casam as HTMLElement).getByRole('link', { name: `Open request ${A}` });
-    expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${A}/1`);
-    expect(clean((casam as HTMLElement).querySelector('.seq'))).toBe('seq 30');
-    expect((casam as HTMLElement).querySelector('.when')?.textContent?.trim()).toMatch(/ago|in /);
+    expect(within(status).getByRole('link', { name: `Open request ${A}` })).toBeTruthy();
+  });
+
+  it('deve marcar "Out of date" e dizer "Testing…" ocupado Quando as condições mudaram e o teste roda de novo', async () => {
+    await show(RESULTADO, new Map(), { outOfDate: true, testing: true });
+
+    const status = screen.getByRole('status', { name: 'History test' });
+    expect(within(status).getByText('Out of date')).toBeTruthy();
+    const botao = within(status).getByRole('button', { name: 'Testing…' });
+    expect(botao.getAttribute('aria-busy')).toBe('true');
   });
 
   it('deve pôr as que não casariam das mais próximas para as mais longes, com a contagem, e voltar à ordem com "Closest first"', async () => {

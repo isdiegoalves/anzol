@@ -12,16 +12,25 @@
           <p i18n class="window">Only the {{ window }} most recent requests were tested.</p>
         }
       </div>
+      @if (outOfDate()) {
+        <span class="stale" i18n>Out of date</span>
+      }
       <button
         mat-stroked-button
         type="button"
         [disabled]="!canTest()"
+        [attr.aria-busy]="testing()"
         (click)="testAgain.emit()"
-        i18n
       >
-        Test again
+        @if (testing()) {
+          <ng-container i18n>Testing…</ng-container>
+        } @else {
+          <ng-container i18n>Test again</ng-container>
+        }
       </button>
     </div>
+    <!-- A prévia com prioridade (S8) sobe para logo abaixo do contador (WM-22). -->
+    <ng-content />
   }
   @if (current.tested > 0) {
     <div class="columns">
@@ -30,19 +39,10 @@
         <ul class="matches">
           @for (match of current.matchList; track match.uuid) {
             <li>
-              <a
-                target="_blank"
-                rel="noopener"
-                title="Open the request in a new tab"
-                i18n-title
-                [href]="link(match.uuid, match.page)"
-                [attr.aria-label]="openLabel(match.uuid)"
-                >#{{ match.uuid.substring(0, 5) }}</a
-              >
-              <span class="seq" i18n>seq {{ match.seq }}</span>
-              @if (when(match.uuid); as time) {
-                <span class="when">{{ time }}</span>
-              }
+              <ng-container
+                [ngTemplateOutlet]="item"
+                [ngTemplateOutletContext]="{ uuid: match.uuid, page: match.page }"
+              />
             </li>
           }
         </ul>
@@ -65,20 +65,11 @@
           <ul class="misses">
             @for (miss of misses(); track miss.uuid) {
               <li [class.near]="miss.failed.length === 1">
-                <a
-                  target="_blank"
-                  rel="noopener"
-                  title="Open the request in a new tab"
-                  i18n-title
-                  [href]="link(miss.uuid, miss.page)"
-                  [attr.aria-label]="openLabel(miss.uuid)"
-                  >#{{ miss.uuid.substring(0, 5) }}</a
-                >&ngsp;
-                @if (when(miss.uuid); as time) {
-                  <span class="when">{{ time }}</span
-                  >&ngsp;
-                }
-                <span class="count" i18n>{miss.failed.length, plural,
+                <ng-container
+                  [ngTemplateOutlet]="item"
+                  [ngTemplateOutletContext]="{ uuid: miss.uuid, page: miss.page }"
+                />
+                &ngsp;<span class="count" i18n>{miss.failed.length, plural,
                   =1 {1 condition}
                   other {{{ miss.failed.length }} conditions}
                 }</span
@@ -96,3 +87,24 @@
     </div>
   }
 </section>
+
+<!-- Uma mensagem do resultado: o link (abre ao lado), o trecho do corpo e quem respondeu na época. -->
+<ng-template #item let-uuid="uuid" let-page="page">
+  @if (describe(uuid); as about) {
+    <a class="open" [href]="link(uuid, page)" (click)="open($event, uuid)">{{ about.label }}</a>
+    @if (about.answered) {
+      <span class="answered">{{ about.answered }}</span>
+    }
+    @if (about.snippet) {
+      <code class="snippet">{{ about.snippet }}</code>
+    }
+  } @else {
+    <a
+      class="open"
+      [href]="link(uuid, page)"
+      [attr.aria-label]="openLabel(uuid)"
+      (click)="open($event, uuid)"
+      >#{{ uuid.substring(0, 5) }}</a
+    >
+  }
+</ng-template>
