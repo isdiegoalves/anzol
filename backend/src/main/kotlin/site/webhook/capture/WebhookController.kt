@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ResponseStatusException
 import site.webhook.STATUS_IN_PATH
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
@@ -188,6 +189,10 @@ class WebhookController(
     /**
      * Resposta da regra sem `fault`: espera o `delay` (a mensagem já está gravada; a thread da requisição é
      * virtual) e responde, com o corpo de uma vez ou pingando (`dribble`). Devolve o status dado.
+     *
+     * O template que não compila ou estoura os tetos ao responder vira o erro de sempre (500, pelo `LegacyErrorAdvice`):
+     * antes de relançar, a mensagem é regravada com o status desse erro no `response`, o realmente respondido. O evento
+     * `request.created` já saiu com o status da regra e não é corrigido; a listagem, o `GET` e a busca trazem o 500.
      */
     private fun answerByRule(
         response: HttpServletResponse,
@@ -198,7 +203,13 @@ class WebhookController(
     ): Int {
         answer.delay?.let { stopwatch.sleep(Duration.ofMillis(it.millis())) }
         val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant(), token.signature)
-        val rendered = answer.rendered(input)
+        val rendered =
+            try {
+                answer.rendered(input)
+            } catch (e: ResponseStatusException) {
+                requests.replace(token, captured.copy(response = RecordedResponse(status = e.statusCode.value())))
+                throw e
+            }
         response.writeRuleResponse(token, captured, rendered, stopwatch)
         return rendered.status
     }

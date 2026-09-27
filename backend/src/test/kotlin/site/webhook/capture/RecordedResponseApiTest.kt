@@ -76,6 +76,23 @@ class RecordedResponseApiTest(
     }
 
     @Test
+    @DisplayName(
+        "Dado uma regra 201 cujo template estoura o teto com o corpo recebido, quando o webhook chega, então o cliente recebe 500 " +
+            "e a mensagem grava o 500 realmente respondido",
+    )
+    fun capture_templateEstouraAoResponder_deveGravar500() {
+        val tokenId =
+            tokenWithRules(
+                """[{"name":"eco dobrado","response":{"status":201,"body":"{{request.body}}{{request.body}}","template":true}}]""",
+            )
+
+        val response = api.send("POST", "/$tokenId", "x".repeat(600 * 1024).toByteArray(), mapOf("Content-Type" to "text/plain"))
+
+        assertThat(response.statusCode()).isEqualTo(500)
+        assertThat(messages(tokenId)[0]["response"]).isEqualTo(api.tree("""{"status":500}"""))
+    }
+
+    @Test
     @DisplayName("Dado uma URL com 429 e Retry-After, quando o webhook chega, então grava o 429")
     fun capture_retryAfter_deveGravar429() {
         val tokenId = api.tokenId("""{"default_status":429,"retry_after":30}""")

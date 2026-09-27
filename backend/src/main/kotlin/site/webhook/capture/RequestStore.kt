@@ -29,6 +29,7 @@ private val PAGE = requestScript("requests-page", List::class.java)
 private val STORE = requestScript("requests-store", List::class.java)
 private val TRIM = requestScript("requests-trim", List::class.java)
 private val DELETE = requestScript("requests-delete", Long::class.javaObjectType)
+private val REPLACE = requestScript("requests-replace", Long::class.javaObjectType)
 private val FIND = requestScript("requests-find", List::class.java)
 private val AFTER = requestScript("requests-after", List::class.java)
 private val SCAN = requestScript("requests-scan", List::class.java)
@@ -68,6 +69,9 @@ private fun List<*>.toMessages(jsonMapper: JsonMapper): List<CapturedRequest> =
 
 private fun List<*>.toRequestIds(): List<RequestId> = filterIsInstance<String>().map { RequestId(UUID.fromString(it)) }
 
+/** As duas chaves das mensagens do token: a hash e o índice. */
+private fun Token.requestKeys() = listOf(RedisKeys.requests(uuid), RedisKeys.requestIndex(uuid))
+
 /**
  * Mensagens de um token em duas chaves que os scripts Lua mantêm coerentes: a hash
  * `token:{uuid}:requests` (uuid → JSON, no formato que o app antigo lê e grava) e o índice
@@ -84,16 +88,14 @@ class RequestStore(
     private val jsonMapper: JsonMapper,
     private val properties: WebhookProperties,
 ) {
-    private fun keys(token: Token) = listOf(RedisKeys.requests(token.uuid), RedisKeys.requestIndex(token.uuid))
-
     private fun retention(token: Token): Long = token.autoCleanup?.limit ?: properties.maxRequests
 
     fun find(
         token: Token,
         id: RequestId,
     ): CapturedRequest? {
-        val message = redis.execute(FIND, keys(token), id.toString()).toMessages(jsonMapper).firstOrNull() ?: return null
-        keys(token).forEach { redis.expire(it, properties.expiry) }
+        val message = redis.execute(FIND, token.requestKeys(), id.toString()).toMessages(jsonMapper).firstOrNull() ?: return null
+        token.requestKeys().forEach { redis.expire(it, properties.expiry) }
         return message
     }
 
@@ -110,7 +112,7 @@ class RequestStore(
         val positions = phpPagePositions(count(token), page, perPage)
         if (positions.isEmpty()) return emptyList()
         val order = if (sorting == Sorting.NEWEST) "newest" else "oldest"
-        return redis.execute(PAGE, keys(token), positions.first.toString(), positions.last.toString(), order).toMessages(jsonMapper)
+        return redis.execute(PAGE, token.requestKeys(), positions.first.toString(), positions.last.toString(), order).toMessages(jsonMapper)
     }
 
     /** Até [limit] mensagens com `seq` maior que [after], da mais antiga para a mais nova, só pelo índice. */
@@ -119,7 +121,7 @@ class RequestStore(
         after: Long,
         limit: Long,
     ): RequestBatch {
-        val reply = redis.execute(AFTER, keys(token), after.toString(), limit.toString())
+        val reply = redis.execute(AFTER, token.requestKeys(), after.toString(), limit.toString())
         return RequestBatch(messages = reply.drop(1).toMessages(jsonMapper), hasMore = reply.first().toString().toLong() > 0)
     }
 
@@ -135,14 +137,21 @@ class RequestStore(
     ): ScanBatch {
         val order = if (sorting == Sorting.NEWEST) "newest" else "oldest"
         val reply =
-            redis.execute(SCAN, keys(token), order, from?.seq?.toString().orEmpty(), (from?.sameSeq ?: 0).toString(), limit.toString())
+            redis.execute(
+                SCAN,
+                token.requestKeys(),
+                order,
+                from?.seq?.toString().orEmpty(),
+                (from?.sameSeq ?: 0).toString(),
+                limit.toString(),
+            )
         val (read, seq, sameSeq) = reply.take(SCAN_HEADER).map { it.toString() }
         // Trecho incompleto: o índice acabou (e, vazio, nem há cursor a ler).
         val next = if (read.toLong() < limit) null else ScanCursor(seq = seq.toLong(), sameSeq = sameSeq.toLong())
         return ScanBatch(messages = reply.drop(SCAN_HEADER).toMessages(jsonMapper), next = next)
     }
 
-    fun count(token: Token): Long = redis.execute(COUNT, keys(token))
+    fun count(token: Token): Long = redis.execute(COUNT, token.requestKeys())
 
     /** Grava e corta o excedente, atômico; devolve o `seq` dado à mensagem e as que saíram (nunca a gravada). */
     fun store(
@@ -153,7 +162,7 @@ class RequestStore(
         val reply =
             redis.execute(
                 STORE,
-                keys(token) + RedisKeys.requestSeq(token.uuid),
+                token.requestKeys() + RedisKeys.requestSeq(token.uuid),
                 request.uuid.toString(),
                 jsonMapper.writeValueAsString(request),
                 ChronoUnit.MICROS.between(Instant.EPOCH, arrival).toString(),
@@ -163,13 +172,25 @@ class RequestStore(
         return Stored(seq = reply.first().toString().toLong(), removed = reply.drop(1).toRequestIds())
     }
 
+    /**
+     * Regrava a mensagem já gravada [request] (sem o `seq`, que não vai à hash), se ela ainda está lá; o índice não
+     * muda. Devolve se regravou.
+     */
+    fun replace(
+        token: Token,
+        request: CapturedRequest,
+    ): Boolean {
+        val json = jsonMapper.writeValueAsString(request.copy(seq = null))
+        return redis.execute(REPLACE, token.requestKeys(), request.uuid.toString(), json) > 0
+    }
+
     /** Corta o excedente sobre o limite atual do token (depois de reduzi-lo). */
-    fun trim(token: Token): List<RequestId> = redis.execute(TRIM, keys(token), retention(token).toString()).toRequestIds()
+    fun trim(token: Token): List<RequestId> = redis.execute(TRIM, token.requestKeys(), retention(token).toString()).toRequestIds()
 
     fun delete(
         token: Token,
         request: CapturedRequest,
-    ): Boolean = redis.execute(DELETE, keys(token), request.uuid.toString()) > 0
+    ): Boolean = redis.execute(DELETE, token.requestKeys(), request.uuid.toString()) > 0
 
-    fun deleteAll(token: Token): Boolean = redis.delete(keys(token)) > 0
+    fun deleteAll(token: Token): Boolean = redis.delete(token.requestKeys()) > 0
 }
