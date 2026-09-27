@@ -48,7 +48,6 @@ export class RequestDetail {
   private readonly router = inject(Router);
   private readonly compare = inject(CompareStore);
   private readonly requests = inject(RequestStore);
-  private readonly router = inject(Router);
   protected readonly ai = inject(AiClient);
 
   readonly request = input.required<WebhookRequest>();

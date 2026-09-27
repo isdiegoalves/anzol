@@ -15,7 +15,6 @@ import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { ShareDialog } from '../share/share-dialog';
-import { Router } from '@angular/router';
 import { RequestDetail } from './request-detail';
 
 describe('Dado o detalhe de uma mensagem com as ações', () => {

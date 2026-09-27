@@ -63,9 +63,9 @@ describe('Dado o diagrama de um cenário', () => {
       li.textContent?.replace(/\s+/g, ' ').trim(),
     );
     expect(steps).toEqual([
-      'Started → falha 1 503Service Unavailable → falhou 1',
-      'falhou 1 → falha 2 503Service Unavailable → entregue',
-      'entregue → ok 200OK → stays in entregue',
+      'Started → falha 1 503 Service Unavailable → falhou 1',
+      'falhou 1 → falha 2 503 Service Unavailable → entregue',
+      'entregue → ok 200 OK → stays in entregue',
     ]);
     await expectNoAxeViolations(container);
   });
