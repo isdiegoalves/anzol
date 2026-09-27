@@ -8,7 +8,6 @@
   <span class="spacer"></span>
   <ng-content select="[listTools]" />
 </div>
-<ng-content select="[listOptions]" />
 <!-- Com filtro ativo fica à vista mesmo com a URL vazia, para dar como limpar o filtro. -->
 @if (store.hasRequests() || store.filtering()) {
   <app-request-search class="search" />

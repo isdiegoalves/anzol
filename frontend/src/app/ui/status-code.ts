@@ -33,7 +33,8 @@ const REASONS: Record<number, string> = {
     @if (status(); as code) {
       <span class="code">{{ code }}</span>
       @if (reason()) {
-        <span class="reason">{{ reason() }}</span>
+        <!-- O espaço dentro do texto separa o número da frase para o leitor de tela. -->
+        <span class="reason"> {{ reason() }}</span>
       }
     } @else {
       <span class="reason">{{ error() ?? 'No response' }}</span>

@@ -43,6 +43,12 @@ describe('Dado o status de uma resposta (app-status-code)', () => {
     },
   );
 
+  it('deve separar o número da frase no texto (o leitor de tela não lê "503Service")', async () => {
+    const { container } = await render(StatusCode, { inputs: { status: 503 } });
+
+    expect(container.textContent?.replace(/\s+/g, ' ').trim()).toBe('503 Service Unavailable');
+  });
+
   it('deve mostrar o erro de saída Quando não houve status', async () => {
     const { container } = await render(StatusCode, {
       inputs: { status: null, error: 'Connection failed' },
