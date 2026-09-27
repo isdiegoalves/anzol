@@ -169,6 +169,9 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
       ]);
 
       await userEvent.click(screen.getByRole('button', { name: 'Ver original' }));
+      // R2-L4: o rótulo diz como voltar, e o estado segue em aria-pressed.
+      const voltar = screen.getByRole('button', { name: 'Ver tradução' });
+      expect(voltar.getAttribute('aria-pressed')).toBe('true');
 
       expect(frases().map(([text]) => text)).toEqual([
         'header x-signature: absent',

@@ -403,6 +403,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         await userEvent.click(original);
 
         expect(original.getAttribute('aria-pressed')).toBe('true');
+        // R2-L4: o rótulo diz como voltar.
+        expect(original.textContent?.trim()).toBe('Ver tradução');
         expect(items()[0].textContent).toBe('method: expected GET, got POST');
         await expectNoAxeViolations(container);
       });

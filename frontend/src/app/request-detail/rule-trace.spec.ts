@@ -157,6 +157,12 @@ describe('Dado o "Why not rule…?" no cartão da regra (C1, WM-23)', () => {
       await userEvent.click(original);
 
       expect(original.getAttribute('aria-pressed')).toBe('true');
+      // R2-L4: o rótulo diz como voltar.
+      expect(original.textContent?.trim()).toBe('Ver tradução');
+      await userEvent.click(original);
+      expect(original.textContent?.trim()).toBe('Ver original');
+      expect(original.getAttribute('aria-pressed')).toBe('false');
+      await userEvent.click(original);
       expect(veredito()?.textContent).toContain(
         'não casou: header x-tenant: expected "acme", got "outra" · frobnicate: unknown',
       );

@@ -2699,8 +2699,6 @@ export const translations: Record<string, string> = {
   '2093276602253257282': 'O campo {$field} deve ser true ou false.',
   // Original: {$phrase}
   '3876084183795082544': 'Original: {$phrase}',
-  //  Show original
-  '2690970470580291381': ' Ver original ',
   // The schema is invalid: {$reason}.
   '4408653464724127151': 'Schema inválido: {$reason}.',
   // The {$field} must have exactly one of: {$list}.
@@ -2748,4 +2746,8 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =1 {1 more header} other {{INTERPOLATION} more headers}}
   '5798468791560194063':
     '{VAR_PLURAL, plural, =1 {mais 1 cabeçalho} other {mais {INTERPOLATION} cabeçalhos}}',
+  // Show translation
+  '2553373886817327991': 'Ver tradução',
+  // Show original
+  '4635704663136718774': 'Ver original',
 };

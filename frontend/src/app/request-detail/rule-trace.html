@@ -56,9 +56,13 @@
             type="button"
             [attr.aria-pressed]="showOriginal()"
             (click)="showOriginal.set(!showOriginal())"
-            i18n
           >
-            Show original
+            <!-- R2-L4: o rótulo diz como voltar; o estado segue em aria-pressed. -->
+            @if (showOriginal()) {
+              <ng-container i18n>Show translation</ng-container>
+            } @else {
+              <ng-container i18n>Show original</ng-container>
+            }
           </button>
         }
         @if (current.chosen.scenario?.name) {
