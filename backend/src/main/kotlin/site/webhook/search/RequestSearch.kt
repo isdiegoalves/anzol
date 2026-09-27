@@ -17,7 +17,8 @@ private const val SCAN_BATCH = 100L
 
 /**
  * Varre todas as mensagens retidas da URL, em trechos do índice na ordem pedida, e guarda só as da
- * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam.
+ * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, texto e
+ * `match`, em E).
  */
 @Component
 class RequestSearch(
@@ -35,6 +36,7 @@ class RequestSearch(
             buildList {
                 batches(token, search.sorting)
                     .flatMap { it.messages }
+                    .filter { message -> search.outcome?.matches(message) != false }
                     .filter { message -> message.contains(search.text) && conditions.none { it.failure(message.toMatchInput()) != null } }
                     .forEach { message ->
                         if (total in window) add(message)

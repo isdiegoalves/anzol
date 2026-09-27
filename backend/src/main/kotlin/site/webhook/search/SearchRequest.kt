@@ -15,17 +15,18 @@ private val PAGE_RANGE = 1L..Long.MAX_VALUE
 private val PER_PAGE_RANGE = 1L..100L
 private val SORTINGS = mapOf("newest" to Sorting.NEWEST, "oldest" to Sorting.OLDEST)
 
-/** Corpo do `POST /token/{id}/requests/search`, já validado; [text] vazio é sem filtro de texto. */
+/** Corpo do `POST /token/{id}/requests/search`, já validado; [text] vazio e [outcome] nulo são sem filtro. */
 data class SearchRequest(
     val text: String = "",
     val match: RuleMatch = RuleMatch(),
+    val outcome: SearchOutcome? = null,
     val sorting: Sorting = Sorting.NEWEST,
     val page: Long = 1,
     val perPage: Long = DEFAULT_PER_PAGE,
 )
 
 /**
- * `{"text", "match", "sorting", "page", "per_page"}`, todos opcionais; corpo vazio vale `{}`. `match`
+ * `{"text", "match", "outcome", "sorting", "page", "per_page"}`, todos opcionais; corpo vazio vale `{}`. `match`
  * passa pelo leitor das regras (chaves `match.path.regex`…); os outros erros ficam na chave do campo,
  * e o corpo que não é objeto JSON, em `search`.
  */
@@ -35,6 +36,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
     val violations = Violations()
     val text = violations.searchText(tree["text"])
     val match = MatchReader(violations).match(tree["match"], "match")
+    val outcome = violations.outcome(tree["outcome"])
     val sorting = violations.sorting(tree["sorting"])
     val page = violations.whole(tree["page"], "page", PAGE_RANGE, default = 1)
     val perPage = violations.whole(tree["per_page"], "per_page", PER_PAGE_RANGE, default = DEFAULT_PER_PAGE)
@@ -42,6 +44,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
         SearchRequest(
             text = checkNotNull(text),
             match = checkNotNull(match),
+            outcome = outcome,
             sorting = checkNotNull(sorting),
             page = checkNotNull(page),
             perPage = checkNotNull(perPage),
