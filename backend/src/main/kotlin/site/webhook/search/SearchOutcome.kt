@@ -1,5 +1,6 @@
 package site.webhook.search
 
+import site.webhook.UUID_PATTERN
 import site.webhook.capture.CapturedRequest
 import site.webhook.rules.RuleId
 import site.webhook.rules.Violations
@@ -7,7 +8,8 @@ import site.webhook.rules.given
 import tools.jackson.databind.JsonNode
 import java.util.UUID
 
-private val RULE_ID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+/** O UUID de sempre ([UUID_PATTERN]), sem diferenciar caixa, como o `id` das regras. */
+private val RULE_ID = Regex(UUID_PATTERN, RegexOption.IGNORE_CASE)
 private const val TYPE_KEY = "outcome.type"
 private const val RULE_KEY = "outcome.rule"
 
