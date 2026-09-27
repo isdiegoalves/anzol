@@ -2,8 +2,9 @@
 <mat-dialog-content>
   <!-- prettier-ignore -->
   <p class="summary" i18n>This file has {incoming, plural, =1 {1 rule} other {{{ incoming }} rules}}. Compared with the {{ saved }} saved:</p>
+  <!-- M9: um plural por parte ("1 alterada · 2 novas" em pt-BR). -->
   <!-- prettier-ignore -->
-  <p class="counts" i18n>{{ diff.unchanged.length }} unchanged · {{ diff.changed.length }} changed · {{ diff.removed.length }} removed · {{ diff.added.length }} new</p>
+  <p class="counts" i18n>{diff.unchanged.length, plural, other {{{ diff.unchanged.length }} unchanged}} · {diff.changed.length, plural, other {{{ diff.changed.length }} changed}} · {diff.removed.length, plural, other {{{ diff.removed.length }} removed}} · {diff.added.length, plural, other {{{ diff.added.length }} new}}</p>
   @for (group of groups; track group.id) {
     <details [open]="group.id === 'changed' || group.id === 'removed'">
       <summary>

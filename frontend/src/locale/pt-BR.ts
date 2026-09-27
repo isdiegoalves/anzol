@@ -1090,7 +1090,7 @@ export const translations: Record<string, string> = {
   // Any
   '3184700926171002527': 'Qualquer',
   // Path match
-  '6229203245897643271': 'Casamento do caminho',
+  '6229203245897643271': 'Como casar o caminho',
   // Equals
   '6424246633820870206': 'É igual a',
   // Starts with
@@ -1195,7 +1195,7 @@ export const translations: Record<string, string> = {
   // No test yet: click "Test against history".
   '8894637699792041269': 'Nenhum teste ainda: clique em "Testar contra o histórico".',
   // Match
-  '6619869754055745168': 'Casamento',
+  '6619869754055745168': 'Condições',
   // Scenario
   '7268724710243443192': 'Cenário',
   // Test
@@ -2126,9 +2126,6 @@ export const translations: Record<string, string> = {
   '6194967565668606157': 'Este arquivo tem {$ICU}. Comparado com as {$INTERPOLATION_1} salvas:',
   // {VAR_PLURAL, plural, =1 {1 rule} other {{INTERPOLATION} rules}}
   '6799431695330327454': '{VAR_PLURAL, plural, =1 {1 regra} other {{INTERPOLATION} regras}}',
-  // {$INTERPOLATION} unchanged · {$INTERPOLATION_1} changed · {$INTERPOLATION_2} removed · {$INTERPOLATION_3} new
-  '7949110215552260436':
-    '{$INTERPOLATION} iguais · {$INTERPOLATION_1} alteradas · {$INTERPOLATION_2} apagadas · {$INTERPOLATION_3} novas',
   // Changed ({$INTERPOLATION})
   '8159504106451560664': 'Alteradas ({$INTERPOLATION})',
   // Removed ({$INTERPOLATION})
@@ -2730,4 +2727,14 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
   //  Empty: any path. After the URL's token.
   '5803951141866487424': ' Vazio: qualquer caminho. Depois do token da URL. ',
+  // {VAR_PLURAL, plural, other {{INTERPOLATION} unchanged}}
+  '6537404698767307831': '{VAR_PLURAL, plural, =1 {1 igual} other {{INTERPOLATION} iguais}}',
+  // {$ICU} · {$ICU_1} · {$ICU_2} · {$ICU_3}
+  '9142788427657206483': '{$ICU} · {$ICU_1} · {$ICU_2} · {$ICU_3}',
+  // {VAR_PLURAL, plural, other {{INTERPOLATION} changed}}
+  '600712590348718114': '{VAR_PLURAL, plural, =1 {1 alterada} other {{INTERPOLATION} alteradas}}',
+  // {VAR_PLURAL, plural, other {{INTERPOLATION} removed}}
+  '3602575198958243443': '{VAR_PLURAL, plural, =1 {1 apagada} other {{INTERPOLATION} apagadas}}',
+  // {VAR_PLURAL, plural, other {{INTERPOLATION} new}}
+  '2018068437367180273': '{VAR_PLURAL, plural, =1 {1 nova} other {{INTERPOLATION} novas}}',
 };
