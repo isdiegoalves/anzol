@@ -7,6 +7,7 @@ import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { JsonSchema, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { ChecksStore, isRequestId, jsonBody } from './checks-store';
 import { inferSchema } from './infer-schema';
 import { SaveBar, SaveNotice } from './save-bar';
@@ -29,7 +30,16 @@ import {
  */
 @Component({
   selector: 'app-schema-card',
-  imports: [ReactiveFormsModule, MatButton, MatFormField, MatLabel, MatOption, MatSelect, SaveBar],
+  imports: [
+    Icon,
+    ReactiveFormsModule,
+    MatButton,
+    MatFormField,
+    MatLabel,
+    MatOption,
+    MatSelect,
+    SaveBar,
+  ],
   templateUrl: './schema-card.html',
   styleUrls: ['./card.scss', './schema-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'schema-title' },

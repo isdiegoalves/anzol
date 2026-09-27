@@ -1,6 +1,7 @@
 @let c = form.controls;
 @let protectedNow = wasProtected();
 <header class="card-head">
+  <span class="card-icon secondary" aria-hidden="true"><app-icon name="lock" [size]="22" /></span>
   <h2 id="privacy-title" i18n>Privacy</h2>
   @if (protectedNow) {
     <span class="state on" i18n>Protected</span>

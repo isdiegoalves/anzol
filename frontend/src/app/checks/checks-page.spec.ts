@@ -54,14 +54,19 @@ describe('Dado a página Checks', () => {
     await harness.fixture.whenStable();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Checks' })).toBeTruthy();
-    for (const name of [
-      'Signature verification',
-      'Schema validation',
-      'Response',
-      'Privacy',
-      'Health',
+    // CHECKS-03: cada cartão abre com o ícone tonal de 40 px, na cor do papel (protótipo C).
+    for (const [name, tone] of [
+      ['Signature verification', 'primary'],
+      ['Schema validation', 'primary'],
+      ['Response', 'secondary'],
+      ['Privacy', 'secondary'],
+      ['Health', 'tertiary'],
     ]) {
-      expect(screen.getByRole('region', { name })).toBeTruthy();
+      const region = screen.getByRole('region', { name });
+      const icon = region.querySelector('.card-head .card-icon');
+      expect(icon?.classList.contains(tone), `${name}: ícone ${tone}`).toBe(true);
+      expect(icon?.getAttribute('aria-hidden')).toBe('true');
+      expect(icon?.querySelector('svg')).toBeTruthy();
     }
     expect(
       (screen.getByRole('textbox', { name: 'Default status code' }) as HTMLInputElement).value,

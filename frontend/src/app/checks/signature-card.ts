@@ -22,6 +22,7 @@ import {
   Token,
 } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
 import { PendingField, fieldErrors, pendingSummary, saveErrorNotice } from './url-settings';
@@ -114,6 +115,7 @@ const INTEGER = /^[+-]?\d+$/;
 @Component({
   selector: 'app-signature-card',
   imports: [
+    Icon,
     ReactiveFormsModule,
     RouterLink,
     MatAnchor,

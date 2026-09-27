@@ -52,6 +52,12 @@ const ICONS = {
     { tag: 'rect', x: 8, y: 8, width: 14, height: 14, rx: 2 },
     path('M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'),
   ],
+  braces: [
+    path('M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1'),
+    path('M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1'),
+  ],
+  activity: [path('M22 12h-4l-3 9L9 3l-3 9H2')],
+  reply: [path('m15 10 5 5-5 5'), path('M4 4v7a4 4 0 0 0 4 4h12')],
   lock: [
     { tag: 'rect', x: 3, y: 11, width: 18, height: 11, rx: 2 },
     path('M7 11V7a5 5 0 0 1 10 0v4'),

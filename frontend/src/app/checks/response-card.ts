@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { AUTO_CLEANUP_LIMITS, AutoCleanup, Token, retryAfterValidator } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
 import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
@@ -23,6 +24,7 @@ type CleanupOption = 'off' | `${AutoCleanup}`;
 @Component({
   selector: 'app-response-card',
   imports: [
+    Icon,
     ReactiveFormsModule,
     MatButton,
     MatButtonToggle,

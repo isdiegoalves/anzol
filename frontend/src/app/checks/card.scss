@@ -4,10 +4,9 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  padding: 16px 20px 20px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-low);
+  padding: 20px 24px 22px;
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   scroll-margin-top: 16px;
 }
@@ -16,12 +15,38 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 8px 12px;
 
   h2 {
     margin: 0;
     font: var(--mat-sys-title-large);
+    font-size: 22px;
     font-variation-settings: 'ROND' 100;
+  }
+}
+
+// Ícone do cartão em quadrado tonal de 40 px, na cor do papel (protótipo C).
+.card-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+
+  &.primary {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+
+  &.secondary {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  &.tertiary {
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
   }
 }
 

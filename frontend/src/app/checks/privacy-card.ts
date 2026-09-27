@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
 import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
@@ -23,6 +24,7 @@ const READ_SECRET_MAX = 256;
 @Component({
   selector: 'app-privacy-card',
   imports: [
+    Icon,
     ReactiveFormsModule,
     MatButton,
     MatError,

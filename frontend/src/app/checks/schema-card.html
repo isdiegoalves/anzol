@@ -2,6 +2,7 @@
 @let savedSchema = saved();
 @let message = error();
 <header class="card-head">
+  <span class="card-icon primary" aria-hidden="true"><app-icon name="braces" [size]="22" /></span>
   <h2 id="schema-title" i18n>Schema validation</h2>
   @if (savedSchema) {
     <span class="state on" i18n>On</span>

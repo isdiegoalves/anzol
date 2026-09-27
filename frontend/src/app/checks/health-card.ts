@@ -5,6 +5,7 @@ import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 
 /** Uma linha do Health: quantas passaram, quantas não, e os motivos mais comuns. */
@@ -29,7 +30,7 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  */
 @Component({
   selector: 'app-health-card',
-  imports: [MatButton, MatButtonToggle, MatButtonToggleGroup],
+  imports: [Icon, MatButton, MatButtonToggle, MatButtonToggleGroup],
   templateUrl: './health-card.html',
   styleUrls: ['./card.scss', './health-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'health-title' },

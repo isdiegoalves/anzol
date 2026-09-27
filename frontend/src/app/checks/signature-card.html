@@ -1,6 +1,7 @@
 @let chosen = provider();
 @let savedConfig = saved();
 <header class="card-head">
+  <span class="card-icon primary" aria-hidden="true"><app-icon name="checks" [size]="22" /></span>
   <h2 id="signature-title" i18n>Signature verification</h2>
   @if (savedConfig) {
     <span i18n class="state on">On · {{ providerLabels[savedConfig.provider] }}</span>

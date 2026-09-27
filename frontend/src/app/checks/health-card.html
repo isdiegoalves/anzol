@@ -1,5 +1,8 @@
 @let current = stats();
 <header class="card-head">
+  <span class="card-icon tertiary" aria-hidden="true"
+    ><app-icon name="activity" [size]="22"
+  /></span>
   <h2 id="health-title" i18n>Health</h2>
   <span class="spacer"></span>
   <button mat-button type="button" [disabled]="loading()" (click)="refresh()" i18n>Refresh</button>
