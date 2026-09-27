@@ -84,6 +84,9 @@ test.describe('Dado o cabeçalho e as linhas da lista de regras (RULES-06/08)', 
     tokens,
   }) => {
     const tokenId = await urlComRegras(request, tokens);
+    // UX de Regras, WM-29: sem mensagens a linha diz "No requests yet…"; com uma, "Hits over the last 1 request
+    // kept.", que é o que este teste confere. Um POST: a "Pix" responde e o cenário "entrega" fica em Started.
+    await tokens.send(tokenId, { method: 'POST' });
     await abrirRegras(page, tokenId);
 
     const titulo = page.getByRole('heading', { name: 'Rules', level: 1 });
