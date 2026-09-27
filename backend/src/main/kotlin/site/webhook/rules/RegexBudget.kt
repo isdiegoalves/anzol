@@ -17,6 +17,29 @@ private const val CHECK_EVERY = 1024
 /** O fim da frase do `failed` quando a regex passou do teto. */
 const val REGEX_TIMED_OUT = "regex timed out"
 
+/**
+ * Os padrões que já passaram do teto na requisição em curso nesta thread (texto e flags). Dentro de uma requisição, o
+ * padrão que estourou uma vez vale "timed out" na hora nas avaliações seguintes, sem rodar de novo: o custo fica em
+ * cerca de [MAX_REGEX_TIME] por padrão distinto, e não por mensagem (um `rules/test` sobre 500 mensagens pagaria 50 s).
+ */
+private val timedOutPatterns = ThreadLocal<MutableSet<String>>()
+
+/**
+ * Roda [block] como uma requisição: os padrões que estouram nele não rodam de novo até ele acabar. Aninhado, vale o
+ * escopo de fora.
+ */
+fun <T> withRegexMemo(block: () -> T): T {
+    if (timedOutPatterns.get() != null) return block()
+    timedOutPatterns.set(mutableSetOf())
+    try {
+        return block()
+    } finally {
+        timedOutPatterns.remove()
+    }
+}
+
+private fun Pattern.memoKey(): String = "${flags()}:${pattern()}"
+
 /** O resultado de uma avaliação com teto. */
 enum class RegexOutcome {
     MATCHED,
@@ -52,17 +75,20 @@ private class TimedText(
 }
 
 /**
- * [pattern] contra [input] com o teto de [MAX_REGEX_TIME]: o valor inteiro ([find] falso, como as condições) ou um
- * trecho dele ([find] verdadeiro, como o `pattern` do JSON Schema).
+ * O padrão contra [input] com o teto de [MAX_REGEX_TIME] e a memória da requisição ([withRegexMemo]): o valor
+ * inteiro ([find] falso, como as condições) ou um trecho dele ([find] verdadeiro, como o `pattern` do JSON Schema).
  */
 fun Pattern.evaluate(
     input: CharSequence,
     find: Boolean = false,
 ): RegexOutcome {
+    val memo = timedOutPatterns.get()
+    if (memo != null && memoKey() in memo) return RegexOutcome.TIMED_OUT
     val matcher = matcher(TimedText(input, System.nanoTime() + MAX_REGEX_TIME.toNanos()))
     return try {
         if (if (find) matcher.find() else matcher.matches()) RegexOutcome.MATCHED else RegexOutcome.UNMATCHED
     } catch (_: CancellationException) {
+        memo?.add(memoKey())
         RegexOutcome.TIMED_OUT
     }
 }

@@ -27,6 +27,9 @@ private val SLOW_POLYNOMIAL = "a".repeat(40) + "!"
 /** Uma avaliação para em torno de 100 ms; a folga cobre a máquina carregada. */
 private val WITHIN: Duration = Duration.ofMillis(1_500)
 
+/** Vinte avaliações repetidas de um padrão já estourado: sem memória levariam 2 s. */
+private val REPEATED_WITHIN: Duration = Duration.ofMillis(500)
+
 private fun matching(match: String): Rule =
     when (val parsed = parseRule(mapper.readTree("""{"name":"r","match":$match}"""))) {
         is Parsed.Valid -> parsed.value
@@ -37,6 +40,34 @@ private fun <T> fast(block: () -> T): T = assertTimeoutPreemptively(WITHIN, Thro
 
 @DisplayName("Teto de custo das regex (ReDoS)")
 class RegexBudgetTest {
+    @Test
+    @DisplayName(
+        "Dado um padrão que já estourou o teto dentro da mesma requisição, quando avalia de novo, então é timed out na hora, " +
+            "sem executar; fora dela, executa de novo",
+    )
+    fun evaluate_padraoQueJaEstourou_deveSerTimedOutNaHora() {
+        val pattern = conditionRegex(EXPONENTIAL).toPattern()
+
+        var repeatedTook = Duration.ZERO
+        val (first, repeated) =
+            withRegexMemo {
+                val first = pattern.evaluate(SLOW_EXPONENTIAL)
+                val from = System.nanoTime()
+                val repeated = List(20) { pattern.evaluate(SLOW_EXPONENTIAL + it) }
+                repeatedTook = Duration.ofNanos(System.nanoTime() - from)
+                first to repeated
+            }
+        val started = System.nanoTime()
+        val outside = pattern.evaluate(SLOW_EXPONENTIAL)
+
+        assertThat(first).isEqualTo(RegexOutcome.TIMED_OUT)
+        assertThat(repeated).containsOnly(RegexOutcome.TIMED_OUT)
+        assertThat(repeatedTook).isLessThan(REPEATED_WITHIN)
+        assertThat(outside).isEqualTo(RegexOutcome.TIMED_OUT)
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isGreaterThanOrEqualTo(MAX_REGEX_TIME)
+        assertThat(withRegexMemo { pattern.evaluate("aaaa") }).isEqualTo(RegexOutcome.MATCHED)
+    }
+
     @ParameterizedTest(name = "{0}")
     @DisplayName("Dado uma regex catastrófica em cada alvo, quando avalia, então para no teto e a frase diz que estourou")
     @CsvSource(
