@@ -281,6 +281,7 @@ export class RuleEditor {
   protected readonly historyErrors = signal<readonly string[]>([]);
   protected readonly testing = signal(false);
   protected readonly preview = signal<PreviewState | null>(null);
+  protected readonly times = signal<ReadonlyMap<string, string>>(new Map());
   /** Near misses gravados desta regra, por condição (só editando uma regra salva). */
   protected readonly recorded = signal<ConditionTally | null>(null);
   protected readonly tokenId = this.store.tokenId;
@@ -690,6 +691,9 @@ export class RuleEditor {
     try {
       const result = await this.store.testRule(rule);
       this.historyTest.set(result);
+      if (result.tested > 0) {
+        void this.loadTimes();
+      }
       if (result.matched > 0) {
         this.preview.set(await this.previewOf(rule, result));
       }
@@ -719,6 +723,16 @@ export class RuleEditor {
       };
     } catch {
       return { preview: null, error: true };
+    }
+  }
+
+  /** A hora de cada mensagem testada (a mesma janela do teste), para a aba Test. */
+  private async loadTimes(): Promise<void> {
+    try {
+      const recent = await this.store.recentRequests();
+      this.times.set(new Map(recent.map((request) => [request.uuid, request.created_at])));
+    } catch {
+      // Sem as horas, a aba Test mostra o resto.
     }
   }
 

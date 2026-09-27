@@ -153,6 +153,7 @@ describe('Dado a resposta do teste da regra contra o histórico', () => {
     expect(resumo.tested).toBe(4);
     expect(resumo.matched).toBe(1);
     expect(resumo.matches).toEqual([uuid(120)]);
+    expect(resumo.matchList).toEqual([{ uuid: uuid(120), seq: 120, page: 3 }]);
     expect(resumo.windowFull).toBe(false);
     expect(resumo.misses).toEqual([
       { uuid: uuid(119), seq: 119, failed: ['method: expected POST, got GET'], page: 3 },
@@ -194,6 +195,7 @@ describe('Dado a resposta do teste da regra contra o histórico', () => {
       tested: 0,
       matched: 0,
       matches: [],
+      matchList: [],
       misses: [],
       windowFull: false,
     });

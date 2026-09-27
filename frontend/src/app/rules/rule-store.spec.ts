@@ -88,6 +88,7 @@ describe('Dado as regras da URL aberta', () => {
       tested: 2,
       matched: 1,
       matches: ['a'],
+      matchList: [{ uuid: 'a', seq: 2, page: 2 }],
       misses: [{ uuid: 'b', seq: 1, failed: ['method: expected POST, got GET'], page: 2 }],
       windowFull: false,
     });

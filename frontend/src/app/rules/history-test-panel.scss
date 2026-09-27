@@ -1,49 +1,110 @@
 :host {
   display: block;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
+// Faixa do resultado (C): número grande, nota e "Test again".
 .history {
-  padding: 8px 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
+  padding: 12px 16px;
+  border-radius: var(--mat-sys-corner-medium);
   background: var(--mat-sys-primary-container);
   color: var(--mat-sys-on-primary-container);
 }
 
-h3 {
-  margin: 0 0 4px;
-  font: var(--mat-sys-title-small);
+.band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.summary,
+.note,
+.window {
+  margin: 0;
+}
+
+.summary strong {
+  font: var(--mat-sys-display-small);
+  font-variation-settings: 'ROND' 100;
+}
+
+.note,
+.window {
+  font: var(--mat-sys-body-small);
+}
+
+// Duas colunas: as que casariam e as que não, lado a lado quando cabe.
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.column-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
 }
 
 h4 {
-  margin: 8px 0 4px;
-  font: var(--mat-sys-label-large);
+  margin: 8px 0;
+  font: var(--mat-sys-title-small);
 }
 
-p {
-  margin: 0;
-}
-
-.window {
-  font-size: 12px;
-}
-
+.matches,
 .misses {
-  max-height: 240px;
+  display: grid;
+  gap: 6px;
   margin: 0;
-  padding-left: 20px;
-  overflow-y: auto;
+  padding: 0;
+  list-style: none;
 
-  a {
-    color: var(--mat-sys-on-primary-container);
-    font-weight: 500;
+  > li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: var(--mat-sys-surface-container-high);
   }
 }
 
+.matches > li {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+.misses > li.near {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}
+
+a {
+  color: inherit;
+  font-family: var(--app-code-family);
+}
+
+.seq,
+.when,
+.count {
+  font: var(--mat-sys-body-small);
+}
+
+.count {
+  margin-left: auto;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .failed {
-  margin: 0 0 4px;
+  flex-basis: 100%;
+  margin: 0;
   padding-left: 16px;
-  font-family: Menlo, Consolas, monospace;
-  font-size: 12px;
+  font: var(--mat-sys-body-small);
+  overflow-wrap: anywhere;
 }

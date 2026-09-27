@@ -798,16 +798,14 @@ describe('Dado o editor de regra', () => {
       await vi.waitFor(() => expect(panel()).not.toBeNull());
 
       expect(call.request.body).toEqual({ ...rule(1), name: 'Em edição' });
-      expect(panel()?.querySelector('.summary')?.textContent?.trim()).toBe(
-        '1 of 2 recorded requests would match.',
-      );
-      const link = panel()?.querySelector('a') as HTMLAnchorElement;
+      expect(text('[aria-label="History test"] .summary')).toEqual([
+        '1 of the 2 most recent requests would match',
+      ]);
+      const link = root().querySelector('.misses a') as HTMLAnchorElement;
       expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${MISS}/1`);
       expect(link.target).toBe('_blank');
       expect(link.textContent?.trim()).toBe('#00000');
-      expect(
-        [...(panel()?.querySelectorAll('.failed li') ?? [])].map((li) => li.textContent),
-      ).toEqual(['method: expected POST, got GET', 'x: y']);
+      expect(text('.misses .failed li')).toEqual(['method: expected POST, got GET', 'x: y']);
       expect(closed).not.toHaveBeenCalled();
     });
 
@@ -910,6 +908,7 @@ describe('Dado o editor de regra', () => {
         ],
       });
       (await countCall()).flush({ data: [], total: 2 });
+      (await recentCall()).flush(requestPage([]));
       await vi.waitFor(() => expect(panel()).not.toBeNull());
 
       const feedback = [

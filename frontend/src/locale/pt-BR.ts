@@ -1056,16 +1056,8 @@ export const translations: Record<string, string> = {
   '7506030455509189164': 'comparada como B',
   // History test
   '4613187588784711544': 'Teste contra o histórico',
-  // Test against history
-  '8757397461687997049': 'Testar contra o histórico',
   // No recorded requests to test against.
   '2187455510077358653': 'Nenhuma requisição gravada para testar.',
-  // {$START_TAG_STRONG}{$INTERPOLATION} of {$INTERPOLATION_1}{$CLOSE_TAG_STRONG} recorded {$ICU} would match.
-  '4240998920968705930':
-    '{$START_TAG_STRONG}{$INTERPOLATION} de {$INTERPOLATION_1}{$CLOSE_TAG_STRONG} {$ICU}. ',
-  // {VAR_PLURAL, plural, =1 {request} other {requests}}
-  '8230506787034350305':
-    '{VAR_PLURAL, plural, =1 {requisição gravada casaria} other {requisições gravadas casariam}}',
   // Only the {$INTERPOLATION} most recent requests were tested.
   '6289177450660401926': 'Só as {$INTERPOLATION} requisições mais recentes foram testadas.',
   // Would not match ({$INTERPOLATION})
@@ -2100,4 +2092,15 @@ export const translations: Record<string, string> = {
   '8699347718386103992': 'Passa {$passed}/{$tested}',
   // not set up
   '1340974250420078790': 'não configurado',
+  // {$START_TAG_STRONG}{$INTERPOLATION}{$CLOSE_TAG_STRONG} of the {$INTERPOLATION_1} most recent requests would match
+  '777640898733405651':
+    '{$START_TAG_STRONG}{$INTERPOLATION}{$CLOSE_TAG_STRONG} das {$INTERPOLATION_1} requisições mais recentes casariam',
+  // Unsaved rule as in the editor · scenario state not considered
+  '1891269785782569214': 'Regra não salva, como está no editor · estado do cenário não considerado',
+  // Would match ({$INTERPOLATION})
+  '8648422323386277627': 'Casariam ({$INTERPOLATION})',
+  // seq {$INTERPOLATION}
+  '5546473895597574498': 'seq {$INTERPOLATION}',
+  //  Closest first
+  '6966871819784814657': ' Mais próximas primeiro ',
 };

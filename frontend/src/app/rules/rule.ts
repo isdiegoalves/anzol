@@ -136,12 +136,21 @@ export interface HistoryMiss {
   page: number;
 }
 
+/** Mensagem que a regra casaria, com a página da lista onde ela está (para o link). */
+export interface HistoryMatch {
+  uuid: string;
+  seq: number;
+  page: number;
+}
+
 /** Resultado do "Test against history" como a tela mostra. */
 export interface HistoryTest {
   tested: number;
   matched: number;
   /** As mensagens que a regra casaria, da mais nova para a mais antiga (para a prévia, S8). */
   matches: string[];
+  /** As mesmas, com o seq e a página (a coluna "Would match" da aba Test, RULES-20). */
+  matchList: HistoryMatch[];
   misses: HistoryMiss[];
   /** O servidor só testa as 500 mensagens mais recentes. */
   windowFull: boolean;
@@ -171,6 +180,7 @@ export function summarizeHistoryTest(response: RuleTestResponse, total: number):
     tested,
     matched: response.matches.length,
     matches: response.matches.map(({ uuid }) => uuid),
+    matchList: response.matches.map(({ uuid, seq }) => ({ uuid, seq, page: pageOf(seq) })),
     misses: response.misses.map((miss) => ({ ...miss, page: pageOf(miss.seq) })),
     windowFull: tested >= HISTORY_TEST_WINDOW,
   };

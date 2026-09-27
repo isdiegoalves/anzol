@@ -758,7 +758,13 @@
     </div>
   }
   @if (historyTest(); as result) {
-    <app-history-test-panel [result]="result" [tokenId]="tokenId() ?? ''" />
+    <app-history-test-panel
+      [result]="result"
+      [tokenId]="tokenId() ?? ''"
+      [times]="times()"
+      [canTest]="canTest()"
+      (testAgain)="testAgainstHistory()"
+    />
     @if (preview(); as state) {
       <section class="preview" aria-labelledby="rule-preview-title">
         <h3 id="rule-preview-title" i18n>With the rules before it</h3>
