@@ -88,6 +88,19 @@ describe('Dado uma regra na linha 2 da lista (matchLine, RULES-02)', () => {
   ])('deve listar as condições Quando a regra é %s', (_caso, rule, line) => {
     expect(matchLine(rule)).toBe(line);
   });
+
+  it.each<[Rule['match'], string]>([
+    [{ signature: 'valid', schema: 'invalid' }, 'assinatura válida · schema inválido'],
+    [{ signature: 'invalid', schema: 'valid' }, 'assinatura inválida · schema válido'],
+    [{ signature: 'absent' }, 'sem assinatura'],
+  ])('deve traduzir o estado da assinatura e do schema em pt-BR (%o)', (match, line) => {
+    loadTranslations(translations);
+    try {
+      expect(matchLine({ name: 'x', match, response: {} })).toBe(line);
+    } finally {
+      clearTranslations();
+    }
+  });
 });
 
 describe('Dado uma regra de cenário na linha 3 da lista (scenarioTransition, RULES-07)', () => {

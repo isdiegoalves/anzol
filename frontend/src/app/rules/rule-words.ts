@@ -4,6 +4,8 @@ import {
   RULE_DEFAULT_STATUS,
   Rule,
   RuleDelay,
+  SchemaCondition,
+  SignatureCondition,
   ValueMatcher,
 } from './rule';
 
@@ -209,16 +211,32 @@ export function matchLine(rule: Rule): string {
     ...(match.body ?? []).map(shortBody),
   );
   if (match.signature) {
-    parts.push($localize`signature ${match.signature}:state:`);
+    parts.push(signatureShort(match.signature));
   }
   if (match.schema) {
-    parts.push($localize`schema ${match.schema}:state:`);
+    parts.push(schemaShort(match.schema));
   }
   if (parts.length === 0) {
     parts.push($localize`any request`);
   }
   const timing = responseTiming(rule);
   return [...parts, ...(timing ? [timing] : [])].join(' · ');
+}
+
+/** A condição de assinatura na linha 2, com o estado traduzido junto (o valor salvo não muda). */
+function signatureShort(signature: SignatureCondition): string {
+  switch (signature) {
+    case 'valid':
+      return $localize`signature valid`;
+    case 'invalid':
+      return $localize`signature invalid`;
+    case 'absent':
+      return $localize`signature absent`;
+  }
+}
+
+function schemaShort(schema: SchemaCondition): string {
+  return schema === 'valid' ? $localize`schema valid` : $localize`schema invalid`;
 }
 
 /**

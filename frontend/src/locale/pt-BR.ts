@@ -1997,10 +1997,6 @@ export const translations: Record<string, string> = {
   '1715239868738025527': 'caminho começa com {$prefix}',
   // path matches {$regex}
   '5810002288823785088': 'caminho casa com {$regex}',
-  // signature {$state}
-  '690333166882199346': 'assinatura {$state}',
-  // schema {$state}
-  '3093972816524349303': 'schema {$state}',
   // any request
   '3670253094280446538': 'qualquer requisição',
   // {$target} contains {$value}
@@ -2116,4 +2112,14 @@ export const translations: Record<string, string> = {
     'Conferidas por prioridade, a menor primeiro. A primeira regra ligada que casa responde; sem nenhuma, responde a resposta padrão da URL.',
   // Request
   '6170082236603228916': 'Requisição',
+  // signature valid
+  '522720521720403118': 'assinatura válida',
+  // signature invalid
+  '2251206797069218320': 'assinatura inválida',
+  // signature absent
+  '1779933695441110135': 'sem assinatura',
+  // schema valid
+  '5850464247858785304': 'schema válido',
+  // schema invalid
+  '2600812382397698771': 'schema inválido',
 };
