@@ -208,9 +208,19 @@ export class RequestList {
       localDate(request.created_at),
       ...seals.map((seal) => `${seal.title}: ${seal.detail}`),
       ...(this.isUnread(request) ? ['unread'] : []),
+      ...this.compareRole(request),
     ].join(', ');
     return { request, route: pipeline.route, seals, label };
   }
 
   protected readonly localDate = localDate;
+
+  /** No Compare, o item diz que é a A ou a B. */
+  private compareRole(request: WebhookRequest): string[] {
+    const pair = this.compare.pair();
+    if (pair?.a.uuid === request.uuid) {
+      return ['compared as A'];
+    }
+    return pair?.b.uuid === request.uuid ? ['compared as B'] : [];
+  }
 }

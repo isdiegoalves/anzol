@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
@@ -307,6 +308,7 @@ describe('Dado a lista lateral de mensagens', () => {
   it('deve escolher a B em vez de abrir a mensagem Quando a lista está no "Compare with…"', async () => {
     await load([webhookRequest(1), webhookRequest(2)]);
     const compare = TestBed.inject(CompareStore);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const opened: WebhookRequest[] = [];
     fixture.componentInstance.openRequest.subscribe((request) => opened.push(request));
 
@@ -319,7 +321,29 @@ describe('Dado a lista lateral de mensagens', () => {
     items()[1].querySelector<HTMLButtonElement>('.select')?.click();
 
     expect(opened).toEqual([]);
-    expect(compare.pair()).toEqual({ a: webhookRequest(1), b: webhookRequest(2) });
+    expect(navigate).toHaveBeenCalledWith([
+      '/',
+      TOKEN_ID,
+      'compare',
+      webhookRequest(1).uuid,
+      webhookRequest(2).uuid,
+    ]);
+  });
+
+  it('deve marcar A e B, com a etiqueta e o papel no nome, Quando a página do Compare mostra o par', async () => {
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)]);
+
+    TestBed.inject(CompareStore).show(webhookRequest(3), webhookRequest(1));
+    await fixture.whenStable();
+
+    expect(items().map((item) => item.querySelector('.tag')?.textContent ?? '')).toEqual([
+      'B',
+      '',
+      'A',
+    ]);
+    expect(items()[2].querySelector('.select')?.getAttribute('aria-label')).toMatch(
+      /compared as A$/,
+    );
   });
 
   it('deve sair do modo de escolha Quando "Cancel" é clicado', async () => {

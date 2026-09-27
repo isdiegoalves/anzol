@@ -119,8 +119,8 @@ separação do Trajan entre código compartilhado e funcionalidades isoladas vir
 | `src/app/*.ts`, `src/main.ts` | Raiz: rotas e bootstrap | tudo |
 
 A Inbox é feita de quatro pastas que se compõem e se importam entre si: a página (`inbox/`), a
-lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`) (`INBOX_PARTS` no
-`eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
+lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`); o Compare (`diff/`)
+usa a mesma lista e entra no grupo (`INBOX_PARTS` no `eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
 numa lista "legado" no `eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada
 novo entra nela.
 

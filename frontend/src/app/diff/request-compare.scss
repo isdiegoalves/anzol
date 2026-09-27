@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .heading {
   display: flex;
   flex-wrap: wrap;
@@ -9,29 +14,34 @@
 
 .side {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin: 0;
+  min-width: 0;
 
   small {
     color: var(--mat-sys-on-surface-variant);
   }
 }
 
+.route {
+  overflow-wrap: anywhere;
+}
+
 .tag {
   padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: bold;
+  border-radius: var(--mat-sys-corner-extra-small);
+  font: var(--mat-sys-label-medium);
+  font-weight: 700;
 
   &.a {
-    background: var(--mat-sys-error);
-    color: var(--mat-sys-on-error);
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
   }
 
   &.b {
-    background: var(--app-success);
-    color: var(--app-on-success);
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
   }
 }
 
@@ -41,19 +51,96 @@
   align-items: center;
   gap: 4px 12px;
   margin-left: auto;
-  font-size: 12px;
 }
 
 h3 {
   margin: 16px 0 6px;
-  font-size: 14px;
+  font: var(--mat-sys-title-small);
+}
+
+// Largura fixa por coluna: no celular os cartões quebram a linha em vez de estourar a tela.
+.checks {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  th:first-child {
+    width: 5.5em;
+  }
+
+  th:last-child {
+    width: 4.5em;
+  }
+
+  th,
+  td {
+    padding: 4px 8px 4px 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-large);
+  }
+
+  app-check-chip {
+    width: 100%;
+  }
+
+  .status {
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
+  }
+
+  tr.changed .status {
+    color: var(--mat-sys-on-surface);
+    font-weight: 700;
+  }
+}
+
+.outcome {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.card {
+  padding: 12px 16px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+
+  h4 {
+    margin: 0 0 6px;
+    font: var(--mat-sys-title-small);
+  }
+
+  ul,
+  p {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+  }
+
+  ul {
+    padding-left: 18px;
+  }
+
+  &.explains {
+    background: var(--app-warning-container);
+    color: var(--app-on-warning-container);
+  }
+
+  .hint {
+    margin-top: 8px;
+    font: var(--mat-sys-body-small);
+  }
 }
 
 .warning {
   margin: 0 0 8px;
   padding: 8px 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
+  border-radius: var(--mat-sys-corner-small);
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
 }
@@ -61,7 +148,7 @@ h3 {
 .note {
   margin: 0 0 8px;
   color: var(--mat-sys-on-surface-variant);
-  font-size: 12px;
+  font: var(--mat-sys-body-small);
 }
 
 .lines {
@@ -69,24 +156,34 @@ h3 {
   border: 1px solid var(--mat-sys-outline-variant);
   border-collapse: collapse;
   background: var(--mat-sys-surface-container-low);
-  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-  font-size: 12px;
+  font: var(--mat-sys-body-small);
+  font-family: var(--app-code-family);
+  table-layout: fixed;
 
-  td {
+  td,
+  th {
     padding: 0 6px;
     vertical-align: top;
+  }
+
+  thead th {
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: left;
   }
 }
 
 .number {
-  width: 1%;
+  width: 3.5em;
   color: var(--mat-sys-on-surface-variant);
   text-align: right;
   user-select: none;
 }
 
+.lines:not(.side-by-side) .sign {
+  width: 1.5em;
+}
+
 .sign {
-  width: 1%;
   user-select: none;
 }
 
@@ -95,12 +192,26 @@ h3 {
   word-break: break-all;
 }
 
-.removed {
-  background: var(--mat-sys-error-container);
+.lines:not(.side-by-side) {
+  .removed {
+    background: var(--mat-sys-error-container);
+  }
+
+  .added {
+    background: var(--app-success-container);
+  }
 }
 
-.added {
-  background: var(--app-success-container);
+.side-by-side {
+  .removed .side-a,
+  .changed .side-a {
+    background: var(--mat-sys-error-container);
+  }
+
+  .added .side-b,
+  .changed .side-b {
+    background: var(--app-success-container);
+  }
 }
 
 .skipped td {

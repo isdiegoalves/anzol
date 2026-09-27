@@ -1,31 +1,111 @@
 @let empty = onlyDifferences() ? 'No differences' : '(empty)';
+@let report = outcome();
 <section class="compare" aria-label="Compare requests">
   <header class="heading">
-    <p class="side">
+    <div class="side">
       <span class="tag a">A</span>
-      <strong class="id-a">#{{ a().uuid.substring(0, 5) }}</strong>
-      <small>{{ localDate(a().created_at) }}</small>
-    </p>
-    <p class="side">
+      <app-method-badge [method]="left().method" />
+      <strong class="id-a">#{{ left().uuid.substring(0, 5) }}</strong>
+      <code class="route">{{ routeA() }}</code>
+      <small>{{ localDate(left().created_at) }}</small>
+    </div>
+    <div class="side">
       <span class="tag b">B</span>
-      <strong class="id-b">#{{ b().uuid.substring(0, 5) }}</strong>
-      <small>{{ localDate(b().created_at) }}</small>
-    </p>
+      <app-method-badge [method]="right().method" />
+      <strong class="id-b">#{{ right().uuid.substring(0, 5) }}</strong>
+      <code class="route">{{ routeB() }}</code>
+      <small>{{ localDate(right().created_at) }}</small>
+    </div>
     <div class="actions">
-      <mat-slide-toggle [checked]="onlyDifferences()" (change)="onlyDifferences.set($event.checked)"
+      <mat-slide-toggle [checked]="onlyDifferences()" (change)="showOnlyDifferences($event.checked)"
         >Only differences</mat-slide-toggle
       >
-      <button mat-button type="button" (click)="compare.swap()">Swap A and B</button>
+      <button mat-button type="button" (click)="swap()">Swap A and B</button>
       <button mat-button type="button" (click)="compare.close()">Close</button>
     </div>
   </header>
+
+  <h3>Checks</h3>
+  <table class="checks" aria-label="Checks">
+    <thead>
+      <tr>
+        <th scope="col">Check</th>
+        <th scope="col">A</th>
+        <th scope="col">B</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of checks(); track row.kind) {
+        <tr [class.changed]="!row.same">
+          <th scope="row">{{ row.label }}</th>
+          <td><app-check-chip [result]="row.a" size="card" /></td>
+          <td><app-check-chip [result]="row.b" size="card" /></td>
+          <td class="status">{{ row.same ? 'same' : 'changed' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <div class="outcome">
+    <section class="card explains" aria-labelledby="explains-title">
+      <h4 id="explains-title">
+        {{ report.causes.length }}
+        {{ report.causes.length === 1 ? 'change explains' : 'changes explain' }} the outcome
+      </h4>
+      @if (report.causes.length) {
+        <ul>
+          @for (cause of report.causes; track $index) {
+            <li>{{ causeText(cause) }}</li>
+          }
+        </ul>
+      } @else {
+        <p>Signature, schema and rules recorded the same result for both.</p>
+      }
+      <p class="hint">
+        Only what the server recorded: schema error paths, the rule conditions that failed and the
+        signature reason.
+      </p>
+    </section>
+    @if (report.noise.length) {
+      <section class="card noise" aria-labelledby="noise-title">
+        <h4 id="noise-title">
+          {{ report.noise.length }}
+          {{ report.noise.length === 1 ? 'difference changes' : 'differences change' }} on every
+          delivery
+        </h4>
+        <ul>
+          @for (item of report.noise; track item) {
+            <li>
+              <code>{{ item }}</code>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+    @if (report.other.length) {
+      <section class="card other" aria-labelledby="other-title">
+        <h4 id="other-title">
+          {{ report.other.length }} other
+          {{ report.other.length === 1 ? 'difference' : 'differences' }}
+        </h4>
+        <ul>
+          @for (item of report.other; track item) {
+            <li>
+              <code>{{ item }}</code>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
 
   <h3>Request</h3>
   <app-field-diff label="Request" [rows]="requestLine()" [empty]="empty" />
   <h3>Query</h3>
   <app-field-diff label="Query" [rows]="query()" [empty]="empty" />
   <h3>Headers</h3>
-  <app-field-diff label="Headers" [rows]="headers()" [empty]="empty" />
+  <app-field-diff label="Headers" [rows]="headers()" [empty]="empty" [noise]="noiseHeaders" />
 
   <h3>Body</h3>
   @let pair = body();
@@ -39,7 +119,7 @@
   }
   @if (bodyEqual() && onlyDifferences()) {
     <p class="note">No differences</p>
-  } @else {
+  } @else if (unified()) {
     <table class="lines" aria-label="Body">
       <tbody>
         @for (row of bodyRows(); track $index) {
@@ -57,6 +137,48 @@
                 {{ row.kind === 'removed' ? '-' : row.kind === 'added' ? '+' : '' }}
               </td>
               <td class="text">{{ row.text }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  } @else {
+    <table class="lines side-by-side" aria-label="Body">
+      <thead>
+        <tr>
+          <th scope="col" colspan="2">A</th>
+          <th scope="col" colspan="2">B</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of sideRows(); track $index) {
+          @if (row.kind === 'skipped') {
+            <tr class="skipped">
+              <td colspan="4">
+                &#8943; {{ row.count }} unchanged {{ row.count === 1 ? 'line' : 'lines' }}
+              </td>
+            </tr>
+          } @else {
+            <!-- "changed" também leva removed/added: a linha tem as duas coisas, uma de cada lado. -->
+            <tr [class]="row.kind === 'changed' ? 'changed removed added' : row.kind">
+              <td class="number">{{ row.a?.line }}</td>
+              <td class="text side-a">
+                @if (row.a) {
+                  @if (row.kind !== 'equal') {
+                    <span class="sign">- </span>
+                  }
+                  {{ row.a.text }}
+                }
+              </td>
+              <td class="number">{{ row.b?.line }}</td>
+              <td class="text side-b">
+                @if (row.b) {
+                  @if (row.kind !== 'equal') {
+                    <span class="sign">+ </span>
+                  }
+                  {{ row.b.text }}
+                }
+              </td>
             </tr>
           }
         }

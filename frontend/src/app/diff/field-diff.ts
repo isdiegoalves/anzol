@@ -35,7 +35,12 @@ const STATUS_LABELS: Record<FieldRow['status'], string> = {
                 <code>{{ row.b === '' ? '(empty)' : row.b }}</code>
               }
             </td>
-            <td class="status">{{ statusLabels[row.status] }}</td>
+            <td class="status">
+              {{ statusLabels[row.status] }}
+              @if (row.status !== 'equal' && noise().has(row.name.toLowerCase())) {
+                <span class="noise">· changes every event</span>
+              }
+            </td>
           </tr>
         } @empty {
           <tr>
@@ -52,6 +57,8 @@ export class FieldDiff {
   readonly rows = input.required<FieldRow[]>();
   /** Texto da tabela sem linhas ("(empty)", ou "No differences" no "Only differences"). */
   readonly empty = input.required<string>();
+  /** Nomes (minúsculos) que mudam a cada entrega do provedor: a linha diz isso (S9). */
+  readonly noise = input<ReadonlySet<string>>(new Set());
 
   protected readonly statusLabels = STATUS_LABELS;
 }

@@ -95,6 +95,14 @@
     box-shadow: inset 4px 0 var(--app-warning);
   }
 
+  &.pick-a .select {
+    box-shadow: inset 4px 0 var(--mat-sys-tertiary);
+  }
+
+  &.pick-b .select {
+    box-shadow: inset 4px 0 var(--mat-sys-primary);
+  }
+
   &.fresh .select {
     box-shadow: inset 4px 0 var(--mat-sys-tertiary);
   }
@@ -141,6 +149,24 @@
 
 .id {
   font-family: var(--app-code-family);
+}
+
+// A e B no Compare: a mesma etiqueta do cabeçalho da comparação.
+.tag {
+  padding: 0 6px;
+  border-radius: var(--mat-sys-corner-extra-small);
+  font: var(--mat-sys-label-medium);
+  font-weight: 700;
+
+  &.a {
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  }
+
+  &.b {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
 }
 
 .route {

@@ -50,6 +50,68 @@ export function diffLines(a: string, b: string): DiffLine[] {
   return rows;
 }
 
+/** Um lado de uma linha do diff lado a lado. */
+export interface SideCell {
+  line: number;
+  text: string;
+}
+
+/**
+ * Linha do diff lado a lado: `changed` junta uma removida de A com a adicionada de B na mesma
+ * altura; `removed`/`added` ficam com o outro lado vazio.
+ */
+export interface SideRow {
+  kind: 'equal' | 'changed' | 'removed' | 'added';
+  a: SideCell | null;
+  b: SideCell | null;
+}
+
+/**
+ * As linhas do diff unificado em duas colunas: cada bloco de removidas seguido de adicionadas é
+ * pareado na ordem (a primeira removida com a primeira adicionada); a sobra fica sozinha no seu
+ * lado. Os trechos escondidos pelo "Only differences" passam como estão.
+ */
+export function sideBySide(rows: readonly DiffRow[]): (SideRow | SkippedLines)[] {
+  const result: (SideRow | SkippedLines)[] = [];
+  let removed: DiffLine[] = [];
+  let added: DiffLine[] = [];
+  const cell = (row: DiffLine, line: number | null): SideCell => ({
+    line: line ?? 0,
+    text: row.text,
+  });
+  const flush = () => {
+    for (let i = 0; i < Math.max(removed.length, added.length); i++) {
+      const [left, right] = [removed.at(i), added.at(i)];
+      result.push({
+        kind: left && right ? 'changed' : left ? 'removed' : 'added',
+        a: left ? cell(left, left.lineA) : null,
+        b: right ? cell(right, right.lineB) : null,
+      });
+    }
+    removed = [];
+    added = [];
+  };
+  for (const row of rows) {
+    if (row.kind === 'removed') {
+      if (added.length > 0) {
+        flush();
+      }
+      removed.push(row);
+    } else if (row.kind === 'added') {
+      added.push(row);
+    } else {
+      flush();
+      result.push(
+        row.kind === 'skipped'
+          ? { ...row }
+          : { kind: 'equal', a: cell(row, row.lineA), b: cell(row, row.lineB) },
+      );
+    }
+  }
+  flush();
+  return result;
+}
+
 /** Cada sequência de linhas iguais vira um marcador com quantas foram escondidas. */
 export function onlyDifferences(rows: readonly DiffLine[]): DiffRow[] {
   const result: DiffRow[] = [];

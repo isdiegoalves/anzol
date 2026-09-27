@@ -128,7 +128,10 @@ export class RequestDetail {
     this.snackBar.open(`Copied request as ${format}`, undefined, { duration: 1000 });
   }
 
-  /** A lista entra em modo de escolha da mensagem B. */
+  /**
+   * A lista entra em modo de escolha da mensagem B; escolhida, abre a página do Compare
+   * (`#/{token}/compare/{a}/{b}`, link compartilhável) pelo `CompareStore`.
+   */
   protected compareWith(): void {
     this.compare.start(this.request());
   }

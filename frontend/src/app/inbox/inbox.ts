@@ -20,7 +20,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
-import { CompareOutlet } from '../diff/compare-outlet';
 import { CompareStore } from '../diff/compare-store';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
@@ -55,7 +54,6 @@ export const RECEIVED_NOTICE_MS = 4000;
 @Component({
   selector: 'app-inbox',
   imports: [
-    CompareOutlet,
     Icon,
     MatIconButton,
     MatSlideToggle,

@@ -63,6 +63,7 @@
 
 :host(.card) .title {
   font: var(--mat-sys-title-small);
+  white-space: normal;
 }
 
 .detail {
