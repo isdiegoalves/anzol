@@ -2,7 +2,7 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
@@ -503,13 +503,32 @@ describe('Dado a página Rules', () => {
       },
     );
 
+    /**
+     * `rules` e `rules/{id}` são rotas diferentes: cada troca cria outra instância da página. Aqui,
+     * como o router: destrói a página e abre outra na rota nova, com a lista relida.
+     */
+    const routeTo = async (
+      fixture: ComponentFixture<RulesPage>,
+      ruleId: string | undefined,
+      rules: Rule[],
+    ) => {
+      fixture.destroy();
+      const next = TestBed.createComponent(RulesPage);
+      next.componentRef.setInput('tokenId', TOKEN_ID);
+      next.componentRef.setInput('ruleId', ruleId);
+      document.body.appendChild(next.nativeElement);
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush(rules));
+      await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
+      return next;
+    };
+
     it('deve levar o foco ao nome no topo do editor Quando a regra é aberta com Enter na lista', async () => {
       const { fixture } = await open([rule(1), rule(2)]);
 
       openButton('r2').focus();
       await userEvent.keyboard('{Enter}');
       expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules', 'r2']);
-      fixture.componentRef.setInput('ruleId', 'r2');
+      await routeTo(fixture, 'r2', [rule(1), rule(2)]);
 
       const editor = await screen.findByRole('region', { name: 'Edit rule Rule 2' });
       await vi.waitFor(() =>
@@ -532,7 +551,7 @@ describe('Dado a página Rules', () => {
 
         await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
         expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
-        fixture.componentRef.setInput('ruleId', undefined);
+        await routeTo(fixture, undefined, [rule(1), rule(2)]);
 
         await vi.waitFor(() => expect(document.activeElement).toBe(openButton('r2')));
       },
@@ -543,7 +562,7 @@ describe('Dado a página Rules', () => {
       const editor = await screen.findByRole('region', { name: 'New rule' });
 
       await userEvent.click(within(editor).getByRole('button', { name: 'Discard' }));
-      fixture.componentRef.setInput('ruleId', undefined);
+      await routeTo(fixture, undefined, [rule(1)]);
 
       await vi.waitFor(() =>
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New rule' })),
