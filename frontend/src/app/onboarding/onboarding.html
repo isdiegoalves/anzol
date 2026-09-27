@@ -44,7 +44,9 @@
     <mat-tab label="cURL" i18n-label>
       <div class="way">
         <p i18n>From a terminal:</p>
-        <pre class="command"><code>{{ curl() }}</code></pre>
+        <p class="command">
+          <code>{{ curl() }}</code>
+        </p>
       </div>
     </mat-tab>
     <mat-tab label="From a provider" i18n-label>
@@ -77,7 +79,9 @@
     <mat-tab label="CLI" i18n-label>
       <div class="way">
         <p i18n>Forward each request to your app while it runs on your machine:</p>
-        <pre class="command"><code>{{ cli() }}</code></pre>
+        <p class="command">
+          <code>{{ cli() }}</code>
+        </p>
       </div>
     </mat-tab>
   </mat-tab-group>
@@ -89,7 +93,7 @@
         <app-icon name="rules" [size]="22" />
         <span class="card-title" i18n>Answer your way</span>
         <span class="card-text" i18n
-          >Rules choose the status, body, delay or fault per request.</span
+          >Choose the status, body, delay or fault for each request.</span
         >
       </a>
     </li>
@@ -97,14 +101,14 @@
       <a class="card" [routerLink]="['/', tokenId(), 'checks']">
         <app-icon name="checks" [size]="22" />
         <span class="card-title" i18n>Check signature and schema</span>
-        <span class="card-text" i18n>Checks verify each request as it arrives.</span>
+        <span class="card-text" i18n>Verify each request as it arrives.</span>
       </a>
     </li>
     <li>
       <a class="card" [routerLink]="['/', tokenId(), 'outbound']">
         <app-icon name="outbound" [size]="22" />
         <span class="card-title" i18n>Resend to your app</span>
-        <span class="card-text" i18n>Outbound replays a request or sends a new one.</span>
+        <span class="card-text" i18n>Replay a request or send a new one.</span>
       </a>
     </li>
   </ul>

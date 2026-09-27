@@ -657,17 +657,16 @@ export const translations: Record<string, string> = {
   '8523756288859245828': 'O que esta URL sabe fazer',
   // Answer your way
   '538539335477124837': 'Responder do seu jeito',
-  // Rules choose the status, body, delay or fault per request.
-  '9124900425978577749':
-    'As regras escolhem o status, o corpo, o atraso ou a falha de cada requisição.',
+  // Choose the status, body, delay or fault for each request.
+  '5437382525220253627': 'Escolha o status, o corpo, o atraso ou a falha de cada requisição.',
   // Check signature and schema
   '8963859255589757480': 'Conferir assinatura e schema',
-  // Checks verify each request as it arrives.
-  '2038326089976134986': 'As verificações conferem cada requisição na chegada.',
+  // Verify each request as it arrives.
+  '6458240187642199055': 'Confira cada requisição na chegada.',
   // Resend to your app
   '5421575596412529255': 'Reenviar para o seu app',
-  // Outbound replays a request or sends a new one.
-  '1573927522680939': 'A Saída reenvia uma requisição ou manda uma nova.',
+  // Replay a request or send a new one.
+  '74882804406295429': 'Reenvie uma requisição ou mande uma nova.',
   // What is a webhook?
   '352406610025407906': 'O que é um webhook?',
   // Sent. The URL answered {$status}; the request shows up in the list.

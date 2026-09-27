@@ -99,6 +99,7 @@ p {
 }
 
 .command {
+  // Parágrafo, não <pre>: o detalhe da mensagem já tem o <pre> do corpo.
   margin: 0;
   padding: 12px;
   overflow-x: auto;
