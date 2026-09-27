@@ -33,8 +33,6 @@
 
 h1 {
   margin: 8px 0 4px;
-  font: var(--mat-sys-headline-small);
-  font-variation-settings: 'ROND' 100;
 }
 
 .lead,
@@ -53,6 +51,7 @@ h1 {
 .jump-link {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--mat-sys-outline-variant);

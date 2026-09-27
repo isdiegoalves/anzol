@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { screen } from '@testing-library/angular';
+import { screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { checksMatcher } from '../app.routes';
@@ -74,6 +74,19 @@ describe('Dado a página Checks', () => {
     expect(screen.getByRole('link', { name: 'Schema' }).getAttribute('href')).toContain(
       'section=schema',
     );
+    // CHECKS-05: os cinco atalhos, na ordem da §1, com o ícone de 16 px do protótipo.
+    const jump = screen.getByRole('navigation', { name: 'On this page' });
+    const links = within(jump).getAllByRole('link');
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Signature',
+      'Schema',
+      'Response',
+      'Privacy',
+      'Health',
+    ]);
+    for (const link of links) {
+      expect(link.querySelector('app-icon svg')?.getAttribute('width')).toBe('16');
+    }
     await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);
   });
 

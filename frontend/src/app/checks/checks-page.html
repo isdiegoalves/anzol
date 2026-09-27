@@ -1,7 +1,7 @@
 <main class="page">
   <header class="page-head">
     <div>
-      <h1 i18n>Checks</h1>
+      <h1 class="page-title" i18n>Checks</h1>
       <p class="lead" i18n>
         What this URL verifies on every request, how healthy that is, and how it answers.
       </p>
@@ -13,7 +13,7 @@
           [routerLink]="[]"
           [queryParams]="{ section: item.id }"
           [attr.aria-current]="section() === item.id ? 'location' : null"
-          >{{ item.label }}</a
+          ><app-icon [name]="item.icon" [size]="16" />{{ item.label }}</a
         >
       }
     </nav>

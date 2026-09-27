@@ -100,6 +100,15 @@ h3 {
   font-variation-settings: 'ROND' 100;
 }
 
+// Título de página (Checks, Outbound; Inbox, Rules e Insights na fase 2): 28/36, peso 600, ROND.
+.page-title {
+  margin: 0;
+  font: var(--mat-sys-headline-medium);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+}
+
 // Tudo que é dado (URL, header, JSON, `seq`) na fonte de código.
 code,
 kbd,

@@ -12,6 +12,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TokenStore } from '../token/token-store';
+import { Icon } from '../ui/icon';
 import { HealthCard } from './health-card';
 import { PrivacyCard } from './privacy-card';
 import { ResponseCard } from './response-card';
@@ -20,11 +21,11 @@ import { SignatureCard } from './signature-card';
 
 /** Seções da página, na ordem do "On this page" (`?section=`). */
 const SECTIONS = [
-  { id: 'signature', label: 'Signature' },
-  { id: 'schema', label: 'Schema' },
-  { id: 'response', label: 'Response' },
-  { id: 'privacy', label: 'Privacy' },
-  { id: 'health', label: 'Health' },
+  { id: 'signature', label: 'Signature', icon: 'checks' },
+  { id: 'schema', label: 'Schema', icon: 'braces' },
+  { id: 'response', label: 'Response', icon: 'reply' },
+  { id: 'privacy', label: 'Privacy', icon: 'lock' },
+  { id: 'health', label: 'Health', icon: 'activity' },
 ] as const;
 
 /**
@@ -36,7 +37,7 @@ const SECTIONS = [
  */
 @Component({
   selector: 'app-checks-page',
-  imports: [RouterLink, SignatureCard, SchemaCard, ResponseCard, PrivacyCard, HealthCard],
+  imports: [Icon, RouterLink, SignatureCard, SchemaCard, ResponseCard, PrivacyCard, HealthCard],
   templateUrl: './checks-page.html',
   styleUrl: './checks-page.scss',
 })
