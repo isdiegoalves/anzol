@@ -9,6 +9,7 @@ import {
   gravarRegras,
   lerRegras,
   linhaDaRegra,
+  metodo,
   novaRegra,
   parte,
   salvarRegra,
@@ -124,7 +125,8 @@ test.describe('Dado uma regra pega-tudo ligada e uma regra nova (E-01, WM-30; CA
     );
     await nova.getByRole('textbox', { name: 'Name', exact: true }).fill('Nova');
     await parte(nova, 'Match');
-    await nova.getByRole('textbox', { name: 'Path', exact: true }).fill('/nova');
+    // Só o método (o caminho em um passo é da F3): POST /nova não casa a "Pix pago" (POST /pagamentos).
+    await metodo(nova, 'POST');
     await parte(nova, 'Response');
     await nova.getByRole('spinbutton', { name: 'Status' }).fill('201');
     await salvarRegra(page, nova, tokenId);
