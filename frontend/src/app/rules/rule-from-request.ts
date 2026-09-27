@@ -29,6 +29,8 @@ export interface RuleCandidate {
   value: unknown;
   checked: boolean;
   hint: VolatileHint | null;
+  /** Cabeçalho que todo cliente manda (host, content-length…): a folha o recolhe no fim (R2-L3). */
+  transport: boolean;
 }
 
 /** A resposta que a folha monta ao lado das condições. */
@@ -87,9 +89,12 @@ export function ruleCandidates(request: WebhookRequest): RuleCandidate[] {
     const hint = volatileHint(name, value);
     candidates.push(candidate('query', name, value, value, hint === null, hint));
   }
-  for (const [name, values] of Object.entries(request.headers ?? {})) {
+  for (const [name, values] of headersByInterest(Object.entries(request.headers ?? {}))) {
     const value = values.join(', ');
-    candidates.push(candidate('header', name, value, value, false, null));
+    candidates.push({
+      ...candidate('header', name, value, value, false, null),
+      transport: isTransportHeader(name),
+    });
   }
   candidates.push(...bodyCandidates(request.content ?? ''));
   return candidates;
@@ -103,7 +108,40 @@ function candidate(
   checked: boolean,
   hint: VolatileHint | null,
 ): RuleCandidate {
-  return { key: `${kind}:${field}`, kind, display, field, value, checked, hint };
+  return { key: `${kind}:${field}`, kind, display, field, value, checked, hint, transport: false };
+}
+
+/**
+ * Cabeçalhos que todo cliente manda e raramente decidem a regra (L6, R2-L3), e os `sec-*` que o
+ * navegador acrescenta sozinho.
+ */
+const TRANSPORT_HEADERS = new Set([
+  'host',
+  'content-length',
+  'accept',
+  'accept-encoding',
+  'accept-language',
+  'user-agent',
+  'connection',
+]);
+
+export function isTransportHeader(name: string): boolean {
+  const lower = name.toLowerCase();
+  return TRANSPORT_HEADERS.has(lower) || lower.startsWith('sec-');
+}
+
+/**
+ * Os `x-*` primeiro, os de transporte por último; a ordem da mensagem fica dentro de cada grupo
+ * (o painel "From this request" e a folha de F5).
+ */
+export function headersByInterest<T>(headers: [string, T][]): [string, T][] {
+  const rank = (name: string) => {
+    if (name.toLowerCase().startsWith('x-')) {
+      return 0;
+    }
+    return isTransportHeader(name) ? 2 : 1;
+  };
+  return [...headers].sort(([a], [b]) => rank(a) - rank(b));
 }
 
 function bodyCandidates(content: string): RuleCandidate[] {

@@ -97,6 +97,35 @@ describe('Dado a folha "Create rule from this request"', () => {
     await expectNoAxeViolations(dialog);
   });
 
+  // R2-L3 e R2-L6: os cabeçalhos de transporte ficam recolhidos no fim, e a Resposta sobe.
+  it('deve recolher host, content-length, accept e user-agent num "4 more headers" fechado', async () => {
+    const dialog = await open({
+      ...EVENTO,
+      headers: {
+        'content-length': ['17'],
+        'x-tenant': ['acme'],
+        accept: ['*/*'],
+        'user-agent': ['curl/8'],
+        host: ['localhost'],
+      },
+    });
+    await counts(1, 1);
+
+    const recolhidos = dialog.querySelector<HTMLDetailsElement>('details.transport');
+    expect(recolhidos?.open).toBe(false);
+    expect(recolhidos?.querySelector('summary')?.textContent?.trim()).toBe('4 more headers');
+    for (const nome of [/^Header host = /, /^Header content-length = /, /^Header accept = /]) {
+      expect(recolhidos?.contains(box(dialog, nome))).toBe(true);
+    }
+    expect(recolhidos?.contains(box(dialog, /^Header x-tenant = /))).toBe(false);
+    // A Resposta vem antes das caixas de cabeçalho: no celular ela fica à vista sem rolar.
+    const ordem = [...dialog.querySelectorAll('h3')].map((h) => h.textContent?.trim());
+    expect(ordem).toEqual(['Conditions', 'Response', 'Header conditions']);
+    expect(
+      dialog.querySelector('section.headers')?.contains(box(dialog, /^Header x-tenant = /)),
+    ).toBe(true);
+  });
+
   it('deve avisar que é específica demais e afrouxar com "Loosen" (E-03)', async () => {
     const dialog = await open();
     await counts(1, 6);

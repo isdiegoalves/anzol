@@ -4,32 +4,38 @@
     <section class="conditions" aria-labelledby="create-rule-conditions">
       <h3 id="create-rule-conditions" i18n>Conditions</h3>
       <ul class="boxes">
-        @for (candidate of candidates(); track candidate.key) {
-          <li>
-            <mat-checkbox
-              [checked]="candidate.checked"
-              (change)="toggle(candidate.key, $event.checked)"
-              >{{ label(candidate) }}</mat-checkbox
-            >
-            @if (hint(candidate); as why) {
-              <span class="why">({{ why }})</span>
-            }
-            @if (candidate.kind === 'path') {
-              <mat-radio-group
-                class="path-mode"
-                aria-label="Path match"
-                i18n-aria-label
-                [value]="pathMode()"
-                (change)="pathMode.set($event.value)"
-              >
-                <mat-radio-button value="equals" i18n>Equals</mat-radio-button>
-                <mat-radio-button value="prefix" i18n>Starts with</mat-radio-button>
-              </mat-radio-group>
-            }
-          </li>
+        @for (candidate of mainCandidates(); track candidate.key) {
+          <ng-container
+            [ngTemplateOutlet]="box"
+            [ngTemplateOutletContext]="{ $implicit: candidate }"
+          />
         }
       </ul>
     </section>
+    <ng-template #box let-candidate>
+      <li>
+        <mat-checkbox
+          [checked]="candidate.checked"
+          (change)="toggle(candidate.key, $event.checked)"
+          >{{ label(candidate) }}</mat-checkbox
+        >
+        @if (hint(candidate); as why) {
+          <span class="why">({{ why }})</span>
+        }
+        @if (candidate.kind === 'path') {
+          <mat-radio-group
+            class="path-mode"
+            aria-label="Path match"
+            i18n-aria-label
+            [value]="pathMode()"
+            (change)="pathMode.set($event.value)"
+          >
+            <mat-radio-button value="equals" i18n>Equals</mat-radio-button>
+            <mat-radio-button value="prefix" i18n>Starts with</mat-radio-button>
+          </mat-radio-group>
+        }
+      </li>
+    </ng-template>
     <section class="response" aria-labelledby="create-rule-response">
       <h3 id="create-rule-response" i18n>Response</h3>
       <mat-form-field class="status">
@@ -95,6 +101,35 @@
         }
       </div>
     </section>
+    <!-- R2-L6: os cabeçalhos (todos desmarcados de saída) depois da Resposta, que sobe no celular. -->
+    @if (headerCandidates().length + transportCandidates().length > 0) {
+      <section class="headers" aria-labelledby="create-rule-headers">
+        <h3 id="create-rule-headers" i18n>Header conditions</h3>
+        <ul class="boxes">
+          @for (candidate of headerCandidates(); track candidate.key) {
+            <ng-container
+              [ngTemplateOutlet]="box"
+              [ngTemplateOutletContext]="{ $implicit: candidate }"
+            />
+          }
+        </ul>
+        <!-- R2-L3: host, content-length, accept… recolhidos no fim (ninguém os quer numa regra). -->
+        @if (transportCandidates().length > 0) {
+          <details class="transport">
+            <!-- prettier-ignore -->
+            <summary i18n>{transportCandidates().length, plural, =1 {1 more header} other {{{ transportCandidates().length }} more headers}}</summary>
+            <ul class="boxes">
+              @for (candidate of transportCandidates(); track candidate.key) {
+                <ng-container
+                  [ngTemplateOutlet]="box"
+                  [ngTemplateOutletContext]="{ $implicit: candidate }"
+                />
+              }
+            </ul>
+          </details>
+        }
+      </section>
+    }
   </mat-dialog-content>
   <div class="footer">
     <p class="count" role="status">

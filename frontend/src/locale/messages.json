@@ -871,6 +871,8 @@
     "6588126907468031121": "The rule must be a JSON object.",
     "2079395509894825886": "Conditions",
     "8911476744078832650": "Add response header",
+    "1713967737010144929": "Header conditions",
+    "5798468791560194063": "{VAR_PLURAL, plural, =1 {1 more header} other {{INTERPOLATION} more headers}}",
     "4347220840936880702": "Counting…",
     "7655690352868609824": "Too specific: only this request would match (of the last 500).",
     "4327816279085003575": "Loosen",

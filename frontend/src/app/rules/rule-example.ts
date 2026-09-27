@@ -1,5 +1,5 @@
 import { FieldValue, WebhookRequest } from '../requests/webhook-request';
-import { pathAfterToken } from './rule-from-request';
+import { headersByInterest, pathAfterToken } from './rule-from-request';
 
 // A mensagem de exemplo no editor (WM-16, E-12): os campos que viram condição com um clique e o
 // testador aproximado de regex e JSONPath. Funções puras; o servidor continua sendo o juiz (a aba
@@ -27,7 +27,7 @@ function text(value: FieldValue | undefined): string {
 /** Cabeçalhos, query e folhas do corpo JSON (até 4 níveis), no máximo 60 ao todo. */
 export function exampleFields(request: WebhookRequest): ExampleField[] {
   const fields: ExampleField[] = [];
-  for (const [name, values] of byInterest(Object.entries(request.headers ?? {}))) {
+  for (const [name, values] of headersByInterest(Object.entries(request.headers ?? {}))) {
     const value = values.join(', ');
     fields.push({ kind: 'header', path: name, display: value, value });
   }
@@ -40,28 +40,6 @@ export function exampleFields(request: WebhookRequest): ExampleField[] {
     collectLeaves(body.value, '$', 1, fields);
   }
   return fields.slice(0, EXAMPLE_MAX_FIELDS);
-}
-
-/** Cabeçalhos que todo cliente manda e raramente decidem a regra (L6). */
-const TRANSPORT_HEADERS = new Set([
-  'host',
-  'content-length',
-  'accept',
-  'accept-encoding',
-  'user-agent',
-  'connection',
-]);
-
-/** Os `x-*` primeiro, os de transporte por último; a ordem da mensagem fica dentro de cada grupo. */
-function byInterest<T>(headers: [string, T][]): [string, T][] {
-  const rank = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.startsWith('x-')) {
-      return 0;
-    }
-    return TRANSPORT_HEADERS.has(lower) ? 2 : 1;
-  };
-  return [...headers].sort(([a], [b]) => rank(a) - rank(b));
 }
 
 function collectLeaves(value: object, path: string, depth: number, into: ExampleField[]): void {

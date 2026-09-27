@@ -65,6 +65,35 @@ describe('Dado uma mensagem gravada como ponto de partida de uma regra', () => {
     ]);
   });
 
+  // R2-L3: os cabeçalhos na ordem do painel (L6), x-* primeiro e os de transporte marcados.
+  it('deve pôr os x-* primeiro e marcar os cabeçalhos de transporte, por último', () => {
+    const request = webhookRequest(1, {
+      url: `${BASE}/pagamentos`,
+      headers: {
+        'content-length': ['17'],
+        'x-tenant': ['acme'],
+        'content-type': ['application/json'],
+        accept: ['*/*'],
+        'user-agent': ['curl/8'],
+        host: ['localhost'],
+      },
+      content: '',
+    });
+
+    expect(
+      ruleCandidates(request)
+        .filter(({ kind }) => kind === 'header')
+        .map(({ field, transport }) => [field, transport]),
+    ).toEqual([
+      ['x-tenant', false],
+      ['content-type', false],
+      ['content-length', true],
+      ['accept', true],
+      ['user-agent', true],
+      ['host', true],
+    ]);
+  });
+
   it('deve montar a regra das caixas escolhidas, com o caminho "começa com" e a resposta da folha', () => {
     const request = webhookRequest(1, {
       url: `${BASE}/pagamentos`,

@@ -2743,4 +2743,9 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {INTERPOLATION} requests kept.}}
   '1357560753461228101':
     '{VAR_PLURAL, plural, =0 {Ainda sem requisições: os acertos começam com a primeira.} =1 {Acertos na última requisição guardada.} other {Acertos nas últimas {INTERPOLATION} requisições guardadas.}}',
+  // Header conditions
+  '1713967737010144929': 'Condições de cabeçalho',
+  // {VAR_PLURAL, plural, =1 {1 more header} other {{INTERPOLATION} more headers}}
+  '5798468791560194063':
+    '{VAR_PLURAL, plural, =1 {mais 1 cabeçalho} other {mais {INTERPOLATION} cabeçalhos}}',
 };

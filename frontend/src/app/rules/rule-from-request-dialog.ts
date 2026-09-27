@@ -20,6 +20,7 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { WebhookRequest } from '../requests/webhook-request';
@@ -47,6 +48,7 @@ const SIBLINGS_FOR_WARNING = 5;
 @Component({
   selector: 'app-rule-from-request-dialog',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     MatButton,
     MatCheckbox,
@@ -74,6 +76,18 @@ export class RuleFromRequestDialog {
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   protected readonly candidates = signal<readonly RuleCandidate[]>(ruleCandidates(this.request));
+  /** Método, caminho, query e corpo: o que decide a regra, antes da Resposta. */
+  protected readonly mainCandidates = computed(() =>
+    this.candidates().filter(({ kind }) => kind !== 'header'),
+  );
+  /** Os cabeçalhos úteis (x-* primeiro), depois da Resposta (R2-L6). */
+  protected readonly headerCandidates = computed(() =>
+    this.candidates().filter(({ kind, transport }) => kind === 'header' && !transport),
+  );
+  /** Os cabeçalhos de transporte, num "N more headers" fechado no fim (R2-L3). */
+  protected readonly transportCandidates = computed(() =>
+    this.candidates().filter(({ transport }) => transport),
+  );
   protected readonly pathMode = signal<'equals' | 'prefix'>('equals');
   protected readonly form = this.formBuilder.group({
     status: [
