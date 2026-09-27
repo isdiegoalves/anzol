@@ -212,7 +212,7 @@ export async function lerTrace(request: APIRequestContext, tokenId: string, requ
 export type Renderizada =
   | { uuid: string; status: number; headers: Record<string, string>; body: string }
   | { uuid: string; fault: Falha }
-  | { uuid: string; error: string };
+  | { uuid: string; error: 'timeout' | 'too_large' };
 
 export interface ResultadoTesteComRender extends ResultadoTesteDeRegra {
   rendered: Renderizada[];

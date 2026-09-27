@@ -115,7 +115,32 @@ test.describe('C3: response gravado na mensagem', () => {
     expect(msg.response).toEqual({ status: 503 });
   });
 
-  const FALHAS: Falha[] = ['connection_reset', 'empty_response', 'malformed_chunk', 'random_data_then_close'];
+  // Resolução 9 do api-contrato (achado da revisão): o template que passa dos tetos ao responder vira 500 para o
+  // cliente; o gravado é o 500 respondido, não o status da regra. Tetos de hoje: corpo renderizado de 1 MiB e valor de
+  // cabeçalho de 8 KiB (`TemplateLimits`); os envios passam deles com folga e ficam abaixo do 1 MiB do webhook.
+  const ESTOUROS: Array<[string, { headers?: Record<string, string>; body?: string }, number]> = [
+    ['corpo {{request.body}}{{request.body}} com 600 KiB', { body: '{{request.body}}{{request.body}}' }, 600 * 1024],
+    ['cabeçalho {{request.body}} com 9 KiB', { headers: { 'X-Eco': '{{request.body}}' }, body: 'ok' }, 9 * 1024],
+  ];
+  for (const [caso, resposta, tamanho] of ESTOUROS) {
+    test(`template que estoura ao responder (${caso}): o cliente recebe 500 e a mensagem grava {status: 500}`, async ({ request, tokens }) => {
+      const token = await tokens.criar({ default_status: 226 });
+      const [regra] = await salvarRegras(request, token.uuid, [
+        { name: 'estoura', match: { method: ['POST'] }, response: { status: 201, ...resposta, template: true } },
+      ]);
+      const res = await request.post(`/${token.uuid}/grande`, { headers: { 'Content-Type': 'text/plain' }, data: Buffer.from('a'.repeat(tamanho)) });
+      expect(res.status(), 'o cliente recebe 500').toBe(500);
+      // O 500 do estouro pode vir sem `X-Request-Id` (o api-contrato não o exige aqui): a mensagem vem da listagem.
+      const { data, total } = await listar(request, token.uuid);
+      expect(total, 'a mensagem foi gravada').toBe(1);
+      const msg = data[0];
+      expect(msg.content).toHaveLength(tamanho);
+      expect(msg.rule).toEqual({ id: regra.id, name: 'estoura' });
+      await expectRespostaEmTodaParte(request, token.uuid, msg, { status: 500 });
+    });
+  }
+
+  const FALHAS: Falha[] =['connection_reset', 'empty_response', 'malformed_chunk', 'random_data_then_close'];
   for (const fault of FALHAS) {
     test(`regra com fault ${fault}: response = {fault: "${fault}"}, sem status`, async ({ request, tokens }) => {
       const token = await tokens.criar();

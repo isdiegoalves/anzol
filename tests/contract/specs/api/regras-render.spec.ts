@@ -7,7 +7,8 @@ import {
 
 // UX de Regras, C4 (E-05, `.docs-arquivo/regras-ux/api-contrato.md`): `POST /token/{id}/rules/test?render=N`, N de 1
 // a 3, acrescenta `rendered`: uma entrada para cada uma das N mensagens mais novas de `matches`, com a resposta que
-// a regra daria — `{uuid, status, headers, body}`, `{uuid, fault}` ou `{uuid, error: "timeout"}`. Mesmo motor do
+// a regra daria — `{uuid, status, headers, body}`, `{uuid, fault}` ou `{uuid, error}`, com `error` `"timeout"` ou
+// `"too_large"` (resolução 8: a resposta renderizada passa dos tetos, onde a execução real responderia 500). Mesmo motor do
 // webhook (template, helpers, tetos), com `seq` e `now` de agora; helper que falha deixa o trecho vazio; sem atraso
 // nem dribble; prazo total de 1 s. `render` fora de 1..3 ou não inteiro → 422 em `render`. Sem o parâmetro, a
 // resposta é a de hoje.
@@ -192,6 +193,24 @@ test.describe('C4: render no rules/test', () => {
     expect(await estadoDoCenario(request, t, 'fluxo')).toBe('Started');
     expect(await lerRegras(request, t)).toEqual(salvas);
     expect((await listar(request, t)).total).toBe(5);
+  });
+});
+
+test.describe('C4: tetos do template', () => {
+  test('resposta renderizada acima dos tetos: {uuid, error: "too_large"}, como o 500 da execução', async ({ request, tokens }) => {
+    // Resolução 8 do api-contrato. Tetos de hoje (`TemplateLimits`): corpo de 1 MiB e valor de cabeçalho de 8 KiB.
+    const t = (await tokens.criar()).uuid;
+    const { msg: pequena } = await enviarEGuardar(request, t, '/p', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, data: Buffer.from('curto') });
+    const { msg: grande } = await enviarEGuardar(request, t, '/g', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, data: Buffer.from('a'.repeat(600 * 1024)) });
+
+    const noCorpo: Regra = { name: 'corpo dobrado', match: { method: ['POST'] }, response: { status: 201, body: '{{request.body}}{{request.body}}', template: true } };
+    const { rendered } = await renderizar(request, t, noCorpo, 2);
+    expect(rendered.map((r) => r.uuid)).toEqual([grande.uuid, pequena.uuid]);
+    expect(rendered[0]).toEqual({ uuid: grande.uuid, error: 'too_large' });
+    expect(resposta(rendered[1])).toMatchObject({ status: 201, body: 'curtocurto' });
+
+    const noCabecalho: Regra = { name: 'cabeçalho', match: { path: { equals: '/g' } }, response: { headers: { 'X-Eco': '{{request.body}}' }, body: 'ok', template: true } };
+    expect((await renderizar(request, t, noCabecalho, 1)).rendered).toEqual([{ uuid: grande.uuid, error: 'too_large' }]);
   });
 });
 

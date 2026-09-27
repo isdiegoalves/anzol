@@ -677,13 +677,15 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     entrou em `CHAVES_MENSAGEM` (os testes de forma de `mensagem.spec.ts`, `assinatura-config.spec.ts` e
     `privacidade-share.spec.ts` passam a exigi-la). Exatamente `{status}` com o status respondido: `default_status`,
     status pelo caminho (`/404`, `/500`), 429 com `Retry-After`, a regra (inclusive em `/404`), near miss (a resposta
-    padrão) e regra com atraso; exatamente `{fault}` nas quatro falhas de rede. Igual no `GET`, na listagem, na busca, no
+    padrão) e regra com atraso; template que estoura ao responder (corpo `{{request.body}}{{request.body}}` com
+    600 KiB, cabeçalho `{{request.body}}` com 9 KiB) → o cliente recebe 500 e a mensagem grava `{status: 500}`, achada pela
+    listagem (resolução 9); exatamente `{fault}` nas quatro falhas de rede. Igual no `GET`, na listagem, na busca, no
     link só-leitura (com e sem `redact`) e no evento SSE, inclusive o cortado.
   - *Render* (`regras-render.spec.ts`, C4): sem `render`, `rules/test` devolve exatamente `{matches, misses}`; com
     `render=1..3`, mais `rendered` com as N mais novas de `matches`, da mais nova para a mais antiga (menos se há menos;
     `[]` sem nenhuma), cada uma exatamente `{uuid, status, headers, body}` renderizada pelo motor do webhook (cabeçalho
     comparado sem caixa no nome), literal com `template: false`, status 200 e corpo vazio sem `response`, helper que
-    falha vazio, `now` perto do relógio e `seq` inteiro não anterior ao da mensagem, `{uuid, fault}` com falha, sem
+    falha vazio, `now` perto do relógio e `seq` inteiro não anterior ao da mensagem, `{uuid, fault}` com falha, `{uuid, error: "too_large"}` acima dos tetos (corpo e cabeçalho, resolução 8), sem
     atraso nem dribble (3 respostas de 5 s em menos de 3 s), sem gravar mensagem, salvar a regra ou mudar o cenário.
     `render` 0, 4, −1, 1.5, `abc`, `true` e 20 dígitos → 422 com a chave `render`.
   - *Helper `hmac`* (`regras-hmac.spec.ts`, C5): o HMAC esperado vem de `node:crypto` com o segredo configurado pelo
