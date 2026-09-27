@@ -14,97 +14,104 @@
       <app-icon name="back" [size]="20" />
     </button>
   }
-  @if (fields()) {
-    @let nameInvalid = name().invalid && name().touched;
-    <div class="name-field">
-      <input
-        matInput
-        class="name-input"
-        [formControl]="name()"
-        aria-label="Name"
-        i18n-aria-label
-        placeholder="Rule name"
-        i18n-placeholder
-        maxlength="100"
-        [attr.aria-invalid]="nameInvalid"
-        [attr.aria-describedby]="nameInvalid ? errorId : null"
-      />
-      @if (nameInvalid) {
-        <p class="field-error" [id]="errorId">{{ nameError() }}</p>
-      }
-    </div>
-  } @else {
-    <span class="name-field">{{ title() }}</span>
-  }
-  @if (unsaved()) {
-    <span class="unsaved" i18n>Unsaved changes</span>
-  }
-  @if (fields() && !compact()) {
-    <ng-container [ngTemplateOutlet]="details" />
-  }
-  <span class="spacer"></span>
-  @if (!compact()) {
-    @if (canDelete()) {
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Duplicate rule"
-        i18n-aria-label
-        title="Duplicate rule"
-        i18n-title
-        (click)="duplicateRule.emit()"
-      >
-        <app-icon name="copy" [size]="20" />
-      </button>
-      <button
-        mat-icon-button
-        type="button"
-        class="delete"
-        aria-label="Delete rule"
-        i18n-aria-label
-        title="Delete rule"
-        i18n-title
-        (click)="deleteRule.emit()"
-      >
-        <app-icon name="trash" [size]="20" />
-      </button>
+  <!-- M3: nome, rascunho e detalhes quebram linha entre si; as ações ficam na primeira linha, à
+       direita, e o Save não muda de lugar. No celular as duas caixas somem (display: contents). -->
+  <div class="lead">
+    @if (fields()) {
+      @let nameInvalid = name().invalid && name().touched;
+      <div class="name-field">
+        <input
+          matInput
+          class="name-input"
+          [formControl]="name()"
+          aria-label="Name"
+          i18n-aria-label
+          placeholder="Rule name"
+          i18n-placeholder
+          maxlength="100"
+          [attr.aria-invalid]="nameInvalid"
+          [attr.aria-describedby]="nameInvalid ? errorId : null"
+        />
+        @if (nameInvalid) {
+          <p class="field-error" [id]="errorId">{{ nameError() }}</p>
+        }
+      </div>
+    } @else {
+      <span class="name-field">{{ title() }}</span>
     }
-    <button mat-button type="button" (click)="discard.emit()" i18n>Discard</button>
-  }
-  <!-- Nunca desabilitado (WM-12): inválido, o clique diz o que corrigir. -->
-  <button
-    mat-flat-button
-    type="button"
-    title="Save · Ctrl+S"
-    i18n-title
-    aria-keyshortcuts="Control+S Meta+S"
-    [attr.aria-busy]="saving()"
-    (click)="save.emit()"
-    i18n
-  >
-    Save
-  </button>
-  @if (compact()) {
-    <button
-      mat-icon-button
-      type="button"
-      aria-label="More actions"
-      i18n-aria-label
-      title="More actions"
-      i18n-title
-      [matMenuTriggerFor]="actions"
-    >
-      <app-icon name="more" [size]="20" />
-    </button>
-    <mat-menu #actions="matMenu">
+    @if (unsaved()) {
+      <span class="unsaved" i18n>Unsaved changes</span>
+    }
+    @if (fields() && !compact()) {
+      <ng-container [ngTemplateOutlet]="details" />
+    }
+  </div>
+  <div class="actions">
+    @if (!compact()) {
       @if (canDelete()) {
-        <button mat-menu-item type="button" (click)="duplicateRule.emit()" i18n>
-          Duplicate rule
+        <button
+          mat-icon-button
+          type="button"
+          aria-label="Duplicate rule"
+          i18n-aria-label
+          title="Duplicate rule"
+          i18n-title
+          (click)="duplicateRule.emit()"
+        >
+          <app-icon name="copy" [size]="20" />
         </button>
-        <button mat-menu-item type="button" (click)="deleteRule.emit()" i18n>Delete rule</button>
+        <button
+          mat-icon-button
+          type="button"
+          class="delete"
+          aria-label="Delete rule"
+          i18n-aria-label
+          title="Delete rule"
+          i18n-title
+          (click)="deleteRule.emit()"
+        >
+          <app-icon name="trash" [size]="20" />
+        </button>
       }
-      <button mat-menu-item type="button" (click)="discard.emit()" i18n>Discard</button>
-    </mat-menu>
+      <button mat-button type="button" (click)="discard.emit()" i18n>Discard</button>
+    }
+    <!-- Nunca desabilitado (WM-12): inválido, o clique diz o que corrigir. -->
+    <button
+      mat-flat-button
+      type="button"
+      title="Save · Ctrl+S"
+      i18n-title
+      aria-keyshortcuts="Control+S Meta+S"
+      [attr.aria-busy]="saving()"
+      (click)="save.emit()"
+      i18n
+    >
+      Save
+    </button>
+    @if (compact()) {
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="More actions"
+        i18n-aria-label
+        title="More actions"
+        i18n-title
+        [matMenuTriggerFor]="actions"
+      >
+        <app-icon name="more" [size]="20" />
+      </button>
+      <mat-menu #actions="matMenu">
+        @if (canDelete()) {
+          <button mat-menu-item type="button" (click)="duplicateRule.emit()" i18n>
+            Duplicate rule
+          </button>
+          <button mat-menu-item type="button" (click)="deleteRule.emit()" i18n>Delete rule</button>
+        }
+        <button mat-menu-item type="button" (click)="discard.emit()" i18n>Discard</button>
+      </mat-menu>
+    }
+  </div>
+  @if (compact()) {
     @if (fields()) {
       <!-- Prioridade e Enabled recolhidos: a primeira tela mostra a frase e a condição. -->
       <details class="details">

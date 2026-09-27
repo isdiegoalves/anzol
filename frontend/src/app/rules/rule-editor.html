@@ -145,7 +145,7 @@
                 <h3 i18n>Path</h3>
                 <div class="controls">
                   <div class="line">
-                    <mat-form-field>
+                    <mat-form-field subscriptSizing="dynamic">
                       <mat-label i18n>Path match</mat-label>
                       <mat-select
                         formControlName="pathMode"
@@ -157,7 +157,7 @@
                         <mat-option value="regex" i18n>Matches regex (whole value)</mat-option>
                       </mat-select>
                     </mat-form-field>
-                    <mat-form-field class="grow">
+                    <mat-form-field class="grow" subscriptSizing="dynamic">
                       <mat-label i18n>Path</mat-label>
                       <input
                         matInput
@@ -167,11 +167,15 @@
                         i18n-aria-label
                         placeholder="/payments"
                         i18n-placeholder
+                        aria-describedby="rule-path-hint"
                       />
-                      <mat-hint i18n>Empty: any path. After the URL's token.</mat-hint>
                       <mat-error>{{ errorOf(form.controls.path, '') }}</mat-error>
                     </mat-form-field>
                   </div>
+                  <!-- L7: a dica na largura do modo e do caminho, não espremida sob o campo. -->
+                  <p class="origin path-hint" id="rule-path-hint" i18n>
+                    Empty: any path. After the URL's token.
+                  </p>
                   @if (form.controls.pathMode.value === 'regex') {
                     <app-rule-condition-hint
                       [pattern]="form.controls.path.value"
@@ -414,6 +418,7 @@
                   <p class="origin" [attr.data-for]="'signature'" i18n>
                     Recorded on arrival · {{ signatureOrigin() }} ·
                     <a
+                      mat-button
                       [routerLink]="['/', tokenId(), 'checks']"
                       [queryParams]="{ section: 'signature' }"
                       >Set up in Checks</a
@@ -453,6 +458,7 @@
                   <p class="origin" [attr.data-for]="'schema'" i18n>
                     Recorded on arrival · {{ schemaOrigin() }} ·
                     <a
+                      mat-button
                       [routerLink]="['/', tokenId(), 'checks']"
                       [queryParams]="{ section: 'schema' }"
                       >Set up in Checks</a

@@ -2340,8 +2340,6 @@ export const translations: Record<string, string> = {
   '258208735216943759': 'Não casa "{$value}" — a regex precisa cobrir o valor inteiro.',
   // Matches regex (whole value)
   '869703986535961805': 'Casa com regex (valor inteiro)',
-  // Empty: any path. After the URL's token.
-  '7263162362549580026': 'Vazio: qualquer caminho. Depois do token da URL.',
   //  Add body field (JSONPath)
   '4394009986034316686': ' Adicionar campo do corpo (JSONPath) ',
   //  Add header condition
@@ -2730,4 +2728,6 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =1 {1 request kept} other {{INTERPOLATION} requests kept}}
   '7371048342128462743':
     '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
+  //  Empty: any path. After the URL's token.
+  '5803951141866487424': ' Vazio: qualquer caminho. Depois do token da URL. ',
 };

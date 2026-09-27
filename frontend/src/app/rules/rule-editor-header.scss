@@ -5,24 +5,37 @@
   display: block;
 }
 
-// Nome, rascunho, prioridade, Enabled, Delete, Discard e Save: sempre à vista no topo.
+// Nome, rascunho, prioridade, Enabled, Delete, Discard e Save: sempre à vista no topo. O que quebra
+// linha é a caixa da esquerda; as ações ficam na primeira linha (M3: o Save não muda de lugar).
 .editor-header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-large) var(--mat-sys-corner-large) 0 0;
   background: var(--mat-sys-surface-container-lowest);
 
-  .spacer {
-    flex: 1;
-  }
-
   .delete {
     color: var(--mat-sys-error);
   }
+}
+
+.lead {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
 }
 
 .name-field {
@@ -69,12 +82,32 @@
 
 // Folha do celular (F8): voltar, nome, Save e ⋮ numa linha; Details embaixo.
 .compact {
+  flex-wrap: wrap;
+
+  // Pelo topo: o erro do nome cresce o campo para baixo sem mexer no Save.
+  align-items: flex-start;
   gap: 4px 8px;
   padding: 8px 12px;
   border-radius: 0;
 
+  .lead,
+  .actions {
+    display: contents;
+  }
+
+  // A 320 px, voltar + nome + Save + ⋮ cabem numa linha: o nome encolhe primeiro.
   .name-field {
-    flex: 1 1 120px;
+    flex: 1 1 72px;
+  }
+
+  // M3: "Unsaved changes" desce para a linha de baixo (antes de Details); voltar, nome, Save e ⋮
+  // ficam sempre na primeira.
+  .unsaved {
+    order: 1;
+  }
+
+  .details {
+    order: 2;
   }
 
   .name-input {

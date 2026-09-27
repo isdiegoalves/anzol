@@ -27,7 +27,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
+import { MatAnchor, MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -183,6 +183,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     MatSelect,
     MatOption,
     MatSlideToggle,
+    MatAnchor,
     MatButton,
     MatButtonToggleGroup,
     MatButtonToggle,

@@ -124,9 +124,14 @@ describe('Dado o editor de condições e resposta', () => {
 
       expect(await (await input('Path')).isDisabled()).toBe(false);
       expect(await (await select('Path match')).getValueText()).toBe('Equals');
-      expect(texts('#rule-panel-match mat-hint')).toContain(
+      // A dica na largura das duas colunas (modo + caminho), e não espremida sob o campo (L7).
+      expect(texts('#rule-panel-match .path-hint')).toEqual([
         "Empty: any path. After the URL's token.",
-      );
+      ]);
+      const hint = root().querySelector('#rule-panel-match .path-hint');
+      expect(
+        root().querySelector('input[aria-label="Path"]')?.getAttribute('aria-describedby'),
+      ).toContain(hint?.id);
       expect((await saved()).match?.path).toBeNull();
     });
 

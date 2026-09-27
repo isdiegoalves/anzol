@@ -115,7 +115,9 @@
   gap: 16px;
   align-items: start;
 
-  @media (width < 1400px) {
+  // M2: com a lista aberta, o editor tem ~830 px a 1440; abaixo de 1600 px "From this request" e
+  // "Against history" vão para baixo das condições.
+  @media (width < 1600px) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -178,6 +180,7 @@
 .origin {
   color: var(--mat-sys-on-surface-variant);
 }
+
 
 .field-error {
   color: var(--mat-sys-error);
@@ -270,6 +273,12 @@ h3 {
   }
 }
 
+// A 320 px os quatro tipos de atraso não cabem numa linha: quebram, como nos outros segmentados
+// do app (A4).
+.delay mat-button-toggle-group {
+  flex-wrap: wrap;
+}
+
 .delay .hint {
   margin: 4px 0 0;
 }
@@ -303,7 +312,6 @@ h3 {
 }
 
 .from-request {
-  display: block;
   margin-bottom: 12px;
 }
 
