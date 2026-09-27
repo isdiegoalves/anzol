@@ -658,6 +658,9 @@ export const translations: Record<string, string> = {
   '74882804406295429': 'Reenvie uma requisição ou mande uma nova.',
   // What is a webhook?
   '352406610025407906': 'O que é um webhook?',
+  //  A webhook is an HTTP request that a service sends to your URL when something happens, like an approved payment or a push to a repository. This URL captures those requests so you can see, check and answer them.
+  '4038354471836751154':
+    ' Um webhook é uma requisição HTTP que um serviço manda para a sua URL quando algo acontece, como um pagamento aprovado ou um push num repositório. Esta URL captura essas requisições para você ver, conferir e responder. ',
   // Sent. The URL answered {$status}; the request shows up in the list.
   '1976632029174090970': 'Enviada. A URL respondeu {$status}; a requisição aparece na lista.',
   // Could not send the test request. Check that the server is running and try again.
@@ -1674,12 +1677,6 @@ export const translations: Record<string, string> = {
   '1726363342938046830': 'Sobre',
   // Webhook Tester, open source under the MIT license.
   '3602266787484365903': 'Webhook Tester, código aberto sob a licença MIT.',
-  // Github Page
-  '6915767768628367173': 'Página no GitHub',
-  // Donate
-  '89970906091089947': 'Doar',
-  // @fredsted
-  '2658571631317674103': '@fredsted',
   // G then I, R, C, O, N
   '7040474656175352156': 'G e depois I, R, C, O, N',
   // Go to Inbox, Rules, Checks, Outbound, Insights

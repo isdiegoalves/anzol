@@ -188,7 +188,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(screen.getByRole('button', { name: 'Reload now' })).toBeTruthy();
   });
 
-  it('deve mostrar os atalhos e o About com os links de hoje Quando Help é clicado', async () => {
+  it('deve mostrar os atalhos e o About com o GitHub do projeto Quando Help é clicado', async () => {
     const user = userEvent.setup();
     const { container } = await renderAt(`/${TOKEN_ID}`);
 
@@ -200,11 +200,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       within(help)
         .getAllByRole('link')
         .map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
-    ).toEqual([
-      ['Github Page', 'https://github.com/fredsted/webhook.site'],
-      ['Donate', 'https://github.com/fredsted/webhook.site#donate'],
-      ['@fredsted', 'https://twitter.com/fredsted'],
-    ]);
+    ).toEqual([['GitHub', 'https://github.com/isdiegoalves']]);
     await expectNoAxeViolations(container);
 
     await user.keyboard('{Escape}');

@@ -101,4 +101,15 @@ describe('Dado o onboarding "Your URL is ready"', () => {
       sent_at: '2026-09-26T12:00:00.000Z',
     });
   });
+
+  it('deve explicar o que é um webhook na própria tela, sem link externo', async () => {
+    const { container } = await renderWith();
+
+    await userEvent.click(screen.getByText('What is a webhook?'));
+
+    const details = container.querySelector('details.about') as HTMLDetailsElement;
+    expect(details.open).toBe(true);
+    expect(details.textContent).toContain('A webhook is an HTTP request');
+    expect(container.querySelector('a[href^="http"]:not([href*="localhost"])')).toBeNull();
+  });
 });

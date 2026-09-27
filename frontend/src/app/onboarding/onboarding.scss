@@ -173,3 +173,16 @@ a:not(.card, [mat-button]) {
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-medium);
 }
+
+// "What is a webhook?": a explicação curta na própria tela, recolhida.
+.about {
+  summary {
+    color: var(--mat-sys-primary);
+    cursor: pointer;
+  }
+
+  p {
+    margin-top: 8px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
