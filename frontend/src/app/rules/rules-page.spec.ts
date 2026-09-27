@@ -124,6 +124,12 @@ describe('Dado a página Rules', () => {
     expect(row('r1').querySelector('.hits')?.textContent?.trim()).toBe('');
   });
 
+  it('deve dizer a janela no singular Quando a URL guarda só uma requisição', async () => {
+    await open([rule(1)], {}, stats({}, 1));
+
+    expect(await screen.findByText('Hits over the last request kept.')).toBeTruthy();
+  });
+
   it('deve explicar que não há regras Quando a lista está vazia', async () => {
     await open([]);
 
