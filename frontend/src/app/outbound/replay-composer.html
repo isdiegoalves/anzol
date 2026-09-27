@@ -10,25 +10,31 @@
 } @else {
   <form class="fields" [formGroup]="form" (ngSubmit)="replayRequest()">
     <div class="replay-line">
-      <mat-form-field appearance="outline" class="pick">
-        <mat-label i18n>Request to replay</mat-label>
-        <mat-select formControlName="request">
-          <mat-select-trigger>
-            @if (current) {
-              <span class="picked">
-                <app-method-badge [method]="current.method" />
-                <code>#{{ current.uuid.slice(0, 5) }} {{ suffix() || '/' }}</code>
-              </span>
-            }
-          </mat-select-trigger>
-          @for (request of requests(); track request.uuid) {
-            <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
+      <div class="pick">
+        <span class="pick-label" i18n>Request to replay</span>
+        <button
+          type="button"
+          class="pick-button"
+          [matMenuTriggerFor]="picker"
+          [attr.aria-label]="pickLabel()"
+        >
+          @if (current) {
+            <app-method-badge [method]="current.method" />
+            <code>#{{ current.uuid.slice(0, 5) }} {{ suffix() || '/' }}</code>
           }
-        </mat-select>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
         @if (current) {
-          <mat-hint>{{ when(current.created_at) }}</mat-hint>
+          <span class="hint">{{ when(current.created_at) }}</span>
         }
-      </mat-form-field>
+        <mat-menu #picker="matMenu">
+          @for (request of requests(); track request.uuid) {
+            <button mat-menu-item type="button" (click)="pick(request.uuid)">
+              {{ label(request) }}
+            </button>
+          }
+        </mat-menu>
+      </div>
       <mat-form-field appearance="outline" class="url">
         <mat-label i18n>Target URL</mat-label>
         <input
@@ -65,11 +71,11 @@
     </div>
     <div class="row keep">
       <mat-slide-toggle formControlName="keepPath" i18n>Keep path and query</mat-slide-toggle>
-      <span class="sends-to hint"
-        ><ng-container i18n>Sends to</ng-container> <code>{{ resolved() }}</code> ·
-        <ng-container i18n
-          >method, headers and body as received; hop-by-hop headers dropped</ng-container
-        ></span
+      <span class="sends-to hint" i18n
+        >Sends to <code>{{ resolved() }}</code></span
+      >
+      <span class="hint" i18n
+        >· method, headers and body as received; hop-by-hop headers dropped</span
       >
       <span i18n class="hint">
         @if (suffix(); as suffix) {

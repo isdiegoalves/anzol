@@ -122,9 +122,13 @@
 
 .setup {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px 24px;
   align-items: start;
+
+  @media (width >= 1000px) {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
 }
 
 .explain {
@@ -208,13 +212,20 @@
 .pair,
 .triple {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 12px;
   align-items: start;
 }
 
 .triple {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (width < 600px) {
+  .pair,
+  .triple {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .tolerance {

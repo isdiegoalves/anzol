@@ -35,18 +35,20 @@
         }
       </span>
     </div>
-    <div class="editor scroll" [class.invalid]="message">
-      <pre class="gutter" aria-hidden="true">{{ lineNumbers() }}</pre>
+    <div class="editor" [class.invalid]="message">
+      <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
       <textarea
+        #textarea
         id="schema-text"
         formControlName="schema"
-        [rows]="rows()"
+        rows="12"
         wrap="off"
         spellcheck="false"
         [attr.aria-invalid]="message ? 'true' : null"
         [attr.aria-describedby]="
           message ? 'schema-text-help schema-text-error' : 'schema-text-help'
         "
+        (scroll)="syncGutter(textarea, gutter)"
       ></textarea>
     </div>
     @if (message) {

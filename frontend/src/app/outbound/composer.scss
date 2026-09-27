@@ -129,24 +129,57 @@ code {
   margin-top: 4px;
 }
 
-.picked {
-  display: inline-flex;
+// A mensagem a reenviar como botão (método, #id e rota) que abre a lista (OUTBOUND-05).
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pick-label {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+}
+
+.pick-button {
+  display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -1px;
+  }
 
   app-method-badge {
     flex: none;
   }
 
   code {
+    flex: 1;
     overflow: hidden;
     padding: 0;
     background: none;
     font-family: var(--app-code-family);
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.chevron {
+  flex: none;
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .keep {
@@ -154,7 +187,6 @@ code {
 }
 
 .sends-to code {
-  margin: 0 4px;
   padding: 0;
   background: none;
   overflow-wrap: anywhere;

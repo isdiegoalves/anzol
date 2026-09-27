@@ -103,8 +103,10 @@ describe('Dado a página Outbound', () => {
 
     const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(
-      within(composer).getByRole('combobox', { name: 'Request to replay' }).textContent,
-    ).toContain(`#${PEDIDO.uuid.slice(0, 5)}`);
+      within(composer).getByRole('button', {
+        name: `Request to replay: #${PEDIDO.uuid.slice(0, 5)}, PUT /pedidos?x=1. Change`,
+      }),
+    ).toBeTruthy();
     expect(within(composer).getByText('/pedidos?x=1')).toBeTruthy();
     await userEvent.type(
       within(composer).getByRole('textbox', { name: 'Target URL' }),
@@ -296,6 +298,7 @@ describe('Dado a página Outbound', () => {
       );
 
       const sendsTo = () => composer.querySelector('.sends-to code')?.textContent;
+      expect(composer.querySelector('.sends-to')?.textContent).toMatch(/^Sends to http/);
       expect(sendsTo()).toBe('http://localhost:3000/app/pedidos?x=1');
       await userEvent.click(within(composer).getByRole('switch', { name: 'Keep path and query' }));
       expect(sendsTo()).toBe('http://localhost:3000/app');
@@ -386,6 +389,23 @@ describe('Dado a página Outbound', () => {
       );
       expect(curl).toContain("-H 'content-type: application/json'");
       expect(curl).toContain("--data-raw 'corpo original'");
+    });
+
+    it('OUTBOUND-05: deve trocar a mensagem pelo botão "Change" (lista das recentes)', async () => {
+      await open(`?replay=${PEDIDO.uuid}`);
+      const composer = await screen.findByRole('region', { name: 'Replay request' });
+
+      await userEvent.click(within(composer).getByRole('button', { name: /^Request to replay: / }));
+      const items = await screen.findAllByRole('menuitem');
+      expect(items).toHaveLength(2);
+      await userEvent.click(items[1]);
+
+      // As duas mensagens do teste começam com o mesmo #id: o método diz qual ficou.
+      expect(
+        within(composer)
+          .getByRole('button', { name: /^Request to replay: / })
+          .getAttribute('aria-label'),
+      ).toBe(`Request to replay: #${VELHA.uuid.slice(0, 5)}, POST /. Change`);
     });
   });
 });

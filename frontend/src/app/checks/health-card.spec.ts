@@ -103,7 +103,7 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     const mismatch = await screen.findByRole('link', { name: /signature mismatch/ });
     expect(mismatch.getAttribute('href')).toBe(`/${TOKEN_ID}?signature=invalid`);
-    expect(mismatch.getAttribute('title')).toBe('Show in Inbox');
+    expect(mismatch.textContent).toContain('Show in Inbox');
     expect(
       screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
     ).toBe(`/${TOKEN_ID}?signature=absent`);

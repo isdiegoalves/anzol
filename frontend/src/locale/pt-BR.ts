@@ -2015,10 +2015,6 @@ export const translations: Record<string, string> = {
   '8192263622528673983': 'O destino respondeu sem corpo.',
   // Keep path and query
   '4098448859935651316': 'Manter o caminho e a query',
-  // Sends to
-  '843200079440358689': 'Manda para',
-  // method, headers and body as received; hop-by-hop headers dropped
-  '5657963756689266752': 'método, cabeçalhos e corpo como chegaram; os cabeçalhos hop-by-hop saem',
   //  A header name, without spaces or colons.
   '3232184008194083676': ' Um nome de cabeçalho, sem espaços nem dois-pontos. ',
   // Adds {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} with this URL's secret; the secret never leaves the server.
@@ -2027,4 +2023,13 @@ export const translations: Record<string, string> = {
   // This URL has no signature configured. Set one up in {$START_LINK}Checks{$CLOSE_LINK} to sign.
   '4053673393621536099':
     'Esta URL não tem assinatura configurada. Configure uma em {$START_LINK}Verificações{$CLOSE_LINK} para assinar.',
+  // Sends to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}
+  '4419100359222645495': 'Manda para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}',
+  // · method, headers and body as received; hop-by-hop headers dropped
+  '9114896514441904652':
+    '· método, cabeçalhos e corpo como chegaram; os cabeçalhos hop-by-hop saem',
+  // Request to replay. Choose
+  '1481637659035866979': 'Requisição a reenviar. Escolher',
+  // Request to replay: #{$id}, {$method} {$path}. Change
+  '4897714653704161369': 'Requisição a reenviar: #{$id}, {$method} {$path}. Trocar',
 };

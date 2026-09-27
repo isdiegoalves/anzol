@@ -72,9 +72,8 @@
                       class="reason"
                       [routerLink]="['/', tokens.token()?.uuid]"
                       [queryParams]="item.filter"
-                      title="Show in Inbox"
-                      i18n-title
                       ><code>{{ item.label }}</code
+                      ><span class="show" i18n>Show in Inbox</span
                       ><span class="count">{{ item.count }}</span></a
                     >
                     <span class="track" aria-hidden="true"

@@ -4,7 +4,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatAnchor, MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { MatOption, MatSelect, MatSelectTrigger } from '@angular/material/select';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
@@ -32,9 +32,9 @@ import { rememberTarget, rememberedTarget } from './replay-target';
 @Component({
   selector: 'app-replay-composer',
   imports: [
-    MatOption,
-    MatSelect,
-    MatSelectTrigger,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
     MethodBadge,
     ReactiveFormsModule,
     RouterLink,
@@ -104,6 +104,22 @@ export class ReplayComposer implements OnInit {
   protected resolved(): string {
     const { url, keepPath } = this.values();
     return url ? (keepPath ? `${url}${this.suffix()}` : url) : '…';
+  }
+
+  /** Nome do botão da mensagem: "Request to replay: #e41b7, POST /webhooks/stripe. Change". */
+  protected pickLabel(): string {
+    const request = this.chosen();
+    if (!request) {
+      return $localize`Request to replay. Choose`;
+    }
+    const id = request.uuid.slice(0, 5);
+    const path = this.suffix() || '/';
+    return $localize`Request to replay: #${id}:id:, ${request.method}:method: ${path}:path:. Change`;
+  }
+
+  /** Escolhe a mensagem na lista do botão "Change". */
+  protected pick(requestId: string): void {
+    this.form.controls.request.setValue(requestId);
   }
 
   protected suffix(): string {
