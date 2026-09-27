@@ -12,6 +12,9 @@ import { parte } from './support/regras';
 // Item 14, E6: "Create rule from this request" leva a `#/{token}/rules/new?from={id}`, com o editor (`region "New
 // rule"`) preenchido; "Test against history" fica no rodapé e abre a aba Test; salvar volta à lista (o aviso "View
 // rules" deixa de existir). SUPOSIÇÕES em `support/regras.ts`.
+// UX de Regras, WM-31 (guia §3.5): o botão abre antes a folha `dialog "Create rule from this request"`, com as
+// condições em caixas (id, datas e UUIDs desmarcados; corpo por campo de primeiro nível, não mais o JSON inteiro);
+// "Open in editor" leva ao editor com o rascunho.
 
 const SCREENS = process.env['SCREENS_DIR'];
 
@@ -31,6 +34,7 @@ async function createRuleFrom(
   tokenId: string,
   requestId: string,
   shot?: string,
+  marcar?: (folha: Locator) => Promise<void>,
 ): Promise<Locator> {
   await page.goto(`/#/${tokenId}/${requestId}/1`);
   await expect(detalhes(page)).toContainText(requestId);
@@ -38,7 +42,10 @@ async function createRuleFrom(
     await screenshot(page, shot);
   }
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules/new\\?from=${requestId}$`));
+  const folha = page.getByRole('dialog', { name: 'Create rule from this request' });
+  await marcar?.(folha);
+  await folha.getByRole('button', { name: 'Open in editor' }).click();
+  await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules/new`));
   const dialog = page.getByRole('region', { name: 'New rule', exact: true });
   await expect(dialog).toBeVisible();
   return dialog;
@@ -69,7 +76,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     const webhook = {
       path: '/pedidos?tipo=pix',
       headers: { 'Content-Type': 'application/json' },
-      data: '{"id": 42, "itens": [1, 2]}',
+      data: '{"id": 42, "status": "novo"}',
     };
     const requestId = await tokens.send(tokenId, webhook);
 
@@ -84,8 +91,10 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     await expect(textbox(dialog, 'Path')).toHaveValue('/pedidos');
     await expect(textbox(dialog, 'Query 1 name')).toHaveValue('tipo');
     await expect(textbox(dialog, 'Query 1 value')).toHaveValue('pix');
-    await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveText('Equal to JSON');
-    await expect(textbox(dialog, 'Body 1 value')).toHaveValue('{"id":42,"itens":[1,2]}');
+    // WM-31: um campo por condição, sem o id.
+    await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveText('JSONPath');
+    await expect(textbox(dialog, 'Body 1 path')).toHaveValue('$.status');
+    await expect(textbox(dialog, 'Body 2 path')).toHaveCount(0);
     await expect(textbox(dialog, 'Header 1 name')).toHaveCount(0);
     await parte(dialog, 'Response');
     await expect(dialog.getByRole('spinbutton', { name: 'Status' })).toHaveValue('200');
@@ -104,7 +113,7 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
         path: { equals: '/pedidos' },
         query: { tipo: { equals: 'pix' } },
         headers: {},
-        body: [{ equalToJson: { id: 42, itens: [1, 2] } }],
+        body: [{ jsonPath: { path: '$.status', equals: 'novo' } }],
       },
     });
     const denovo = await request.post(`/${tokenId}${webhook.path}`, {
@@ -113,15 +122,15 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     });
     expect(denovo.status()).toBe(201);
     expect(await denovo.text()).toBe('{"pedido":"aceito"}');
-    // Chave em outra ordem continua casando (equalToJson); outro corpo, não.
-    const reordenado = await request.post(`/${tokenId}${webhook.path}`, {
+    // CA-6: a próxima entrega do mesmo evento (outro id) casa; outro status, não.
+    const proxima = await request.post(`/${tokenId}${webhook.path}`, {
       headers: webhook.headers,
-      data: '{"itens": [1, 2], "id": 42}',
+      data: '{"status": "novo", "id": 43}',
     });
-    expect(reordenado.status()).toBe(201);
+    expect(proxima.status()).toBe(201);
     const outro = await request.post(`/${tokenId}${webhook.path}`, {
       headers: webhook.headers,
-      data: '{"id": 43, "itens": [1, 2]}',
+      data: '{"id": 42, "status": "velho"}',
     });
     expect(outro.status()).toBe(200);
   });
@@ -139,7 +148,10 @@ test.describe('Dado uma mensagem gravada e o botão "Create rule from this reque
     };
     const requestId = await tokens.send(tokenId, webhook);
 
-    const dialog = await createRuleFrom(page, tokenId, requestId);
+    // WM-31: o corpo que não é JSON vem desmarcado ("Body equals the text"); marcado aqui, vira o "Equals".
+    const dialog = await createRuleFrom(page, tokenId, requestId, undefined, (folha) =>
+      folha.getByRole('checkbox', { name: /^Body equals the text/ }).check(),
+    );
     await expect(textbox(dialog, 'Name')).toHaveValue('POST /form');
     await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveText('Equals');
     await expect(textbox(dialog, 'Body 1 value')).toHaveValue('nome=Ana&idade=30');
@@ -237,7 +249,8 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     const dialog = await createRuleFrom(page, tokenId, primeira);
     await choosePathMode(page, dialog, 'Starts with');
     await textbox(dialog, 'Path').fill('/');
-    await dialog.getByRole('button', { name: 'Remove body 1' }).click();
+    // WM-31: a mensagem GET sem corpo não traz mais condição de corpo para remover.
+    await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Test against history' }).click();
 
     const result = dialog.getByRole('status', { name: 'History test' });

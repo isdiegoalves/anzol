@@ -221,6 +221,11 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     });
     await openRequest(page, tokenId, requestId);
     await page.getByRole('button', { name: 'Create rule from this request' }).click();
+    // UX de Regras, WM-31: a folha "Create rule from this request" vem antes; "Open in editor" leva ao editor.
+    await page
+      .getByRole('dialog', { name: 'Create rule from this request' })
+      .getByRole('button', { name: 'Open in editor' })
+      .click();
     const dialog = page.getByRole('region', { name: 'New rule', exact: true });
     await expect(dialog).toBeVisible();
     llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });
