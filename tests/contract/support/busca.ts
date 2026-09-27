@@ -13,6 +13,11 @@ export interface PedidoDeBusca {
   text?: string;
   /** O objeto `match` de uma regra; ausente = `{}`. */
   match?: MatchRegra;
+  /**
+   * UX de Regras, C2: filtra pelo desfecho gravado — `rule` (respondida pela regra), `near_miss` (a regra foi o near
+   * miss) ou `default` (sem `rule`). Fora de `match`; combina em E com o resto.
+   */
+  outcome?: { type: 'rule' | 'near_miss'; rule: string } | { type: 'default' };
   sorting?: 'newest' | 'oldest';
   page?: number;
   per_page?: number;
