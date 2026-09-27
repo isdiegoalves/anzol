@@ -6,7 +6,7 @@ Gera uma URL única e aleatória que grava toda requisição HTTP recebida e a m
 tempo real: método, cabeçalhos, query, corpo. Serve para testar e depurar webhooks e clientes
 HTTP sem subir um servidor exposto à internet.
 
-Mantido por [Diego Silva](https://github.com/isdiegoalves). Reescrito do zero, preservando o comportamento
+Mantido por [Diego Alves](https://github.com/isdiegoalves). Reescrito do zero, preservando o comportamento
 da API e do webhook (licença MIT, ver [`LICENSE`](LICENSE)):
 
 | Parte | Stack | Pasta |
