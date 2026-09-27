@@ -198,13 +198,14 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
       const { tokenId, health } = await urlComFalhas(page, tokens);
       const link = health.getByRole('link', { name: motivo });
       await expect(link).toContainText('Show in Inbox');
-      await expect(link).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}$`));
+      // Decisões do Anzol, M1: o link leva também o motivo ou o caminho exato, num parâmetro a mais.
+      await expect(link).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}(&|$)`));
 
       await link.click();
 
       // Na janela larga a Inbox abre a primeira mensagem que casa, e o filtro segue na rota.
       await expect(page).toHaveURL(
-        new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?${parametro}$`),
+        new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?${parametro}(&|$)`),
       );
       await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', 'true');
       await expect(itens(page)).toHaveCount(1);
