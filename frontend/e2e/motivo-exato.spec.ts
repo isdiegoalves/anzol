@@ -93,11 +93,9 @@ async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Pro
 /** Remove o chip do filtro: o `button "Remove …"` se existir, senão o próprio chip. */
 async function removerChip(page: Page, texto: string): Promise<void> {
   const chip = chipDo(page, texto);
-  const remover = page
-    .getByRole('group', { name: 'Filters' })
-    .getByRole('button', {
-      name: new RegExp(`^Remove\\b.*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
-    });
+  const remover = page.getByRole('group', { name: 'Filters' }).getByRole('button', {
+    name: new RegExp(`^Remove\\b.*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+  });
   if ((await remover.count()) > 0) {
     await remover.first().click();
   } else {
