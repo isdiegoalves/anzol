@@ -125,6 +125,8 @@ export class Inbox {
   private arrivals = 0;
   /** A mensagem que a própria tela abriu por último (sem o usuário pedir). */
   private chosenByScreen: string | null = null;
+  /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
+  private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -195,10 +197,16 @@ export class Inbox {
 
   /**
    * Abre a mensagem pela rota. Com `replaceUrl`, é a tela que escolheu (a primeira ao abrir a URL,
-   * a que substituiu a cortada): no celular isso não tira a lista da frente.
+   * a que substituiu a cortada): no celular isso não tira a lista da frente, e ela segue não lida
+   * (salvo `read`, quando o detalhe a mostra a quem esperava por ela).
    */
-  protected openRequest(request: WebhookRequest, replaceUrl = false): Promise<boolean> {
+  protected openRequest(
+    request: WebhookRequest,
+    replaceUrl = false,
+    read = !replaceUrl,
+  ): Promise<boolean> {
     this.chosenByScreen = replaceUrl ? request.uuid : null;
+    this.keepUnread = read ? null : request.uuid;
     const page = this.requests.pageOf(request.uuid);
     // O filtro da rota fica: abrir uma mensagem não desfaz a busca.
     return this.router.navigate(['/', request.token_id, request.uuid, page], {
@@ -213,7 +221,7 @@ export class Inbox {
     this.showDetail.set(true);
     if (this.requests.selected()?.uuid === request.uuid) {
       // A que a tela abriu sozinha: a rota não muda, mas agora alguém a leu.
-      this.chosenByScreen = null;
+      this.keepUnread = null;
       this.requests.select(request.uuid);
       return;
     }
@@ -271,7 +279,7 @@ export class Inbox {
     }
     const list = this.requests.requests();
     if (requestId && list.some((request) => request.uuid === requestId)) {
-      this.requests.select(requestId, requestId !== this.chosenByScreen);
+      this.requests.select(requestId, requestId !== this.keepUnread);
       // Link permanente, Newer/Older, Follow new: no celular, o detalhe vem para a frente.
       if (requestId !== this.chosenByScreen) {
         this.showDetail.set(true);
@@ -289,20 +297,34 @@ export class Inbox {
 
   /**
    * Link permanente para uma mensagem fora da página carregada (com a mais nova no topo, as novas
-   * empurram as outras de página): busca pela API. Devolve `false` se ela sumiu (404), para a tela
-   * abrir a primeira; se a rota mudou enquanto isso, a nova rota decide.
+   * empurram as outras de página): busca pela API. Sumida (404, cortada pela limpeza automática),
+   * abre a mais antiga que ficou; se a rota mudou enquanto isso, a nova rota decide. Devolve se
+   * abriu alguma.
    */
   private async openOutsideList(tokenId: string, requestId: string): Promise<boolean> {
+    let request: WebhookRequest;
     try {
-      const request = await this.requests.fetchOne(tokenId, requestId);
-      if (this.requestId() === requestId) {
-        this.requests.selectOutsideList(request);
-        this.showDetail.set(true);
-      }
-      return true;
+      request = await this.requests.fetchOne(tokenId, requestId);
     } catch {
-      return false;
+      const oldest = await this.requests.oldestKept();
+      return oldest !== undefined && this.openRequest(oldest, true);
     }
+    if (this.requestId() === requestId) {
+      this.requests.selectOutsideList(request);
+      this.showDetail.set(true);
+    }
+    return true;
+  }
+
+  /** A aberta fora da lista saiu pela limpeza automática: a vizinha é a mais antiga que ficou. */
+  private async replaceCutOutsideList(
+    removed: readonly string[] = [],
+  ): Promise<WebhookRequest | undefined> {
+    const selected = this.requests.selected();
+    if (!selected || this.requests.selectedIndex() >= 0 || !removed.includes(selected.uuid)) {
+      return undefined;
+    }
+    return this.requests.oldestKept();
   }
 
   /** A lista da URL da rota já está carregada (os filtros da rota e da tela podem conversar). */
@@ -380,14 +402,16 @@ export class Inbox {
       return;
     }
     // A limpeza automática pode ter cortado a mensagem aberta: abre a mais próxima que ficou.
-    const replacement = this.requests.append(complete, total, removed);
+    const replacement =
+      this.requests.append(complete, total, removed) ?? (await this.replaceCutOutsideList(removed));
     const list = this.requests.requests();
     if (replacement) {
       await this.openRequest(replacement, true);
     } else if (!this.requests.selected()) {
       // A primeira de uma Inbox vazia é a tela que abre (como a primeira ao abrir a URL): no celular
-      // a lista fica à frente, e quem mandou (o "Send a test request") a vê chegar.
-      await this.openRequest(list[0], true);
+      // a lista fica à frente, e quem mandou (o "Send a test request") a vê chegar; na janela larga,
+      // o detalhe a mostra ao lado, e ela conta como lida.
+      await this.openRequest(list[0], true, this.twoPanes());
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
       this.list()?.receive(complete, true);

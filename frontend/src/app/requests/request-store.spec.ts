@@ -400,5 +400,29 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.newestFirst()).toBe(false);
       expect(store.requests().map((r) => r.uuid)).toEqual([webhookRequest(1).uuid]);
     });
+
+    // A limpeza automática corta as mais antigas: a vizinha da cortada é a mais antiga que ficou.
+    it('deve achar a mais antiga que ficou pela API Quando ela está além das páginas carregadas', async () => {
+      const loaded = store.load(TOKEN_ID, 1);
+      http
+        .expectOne(`${listUrl}?page=1&sorting=newest`)
+        .flush(requestPage([webhookRequest(9), webhookRequest(8)], { is_last_page: false }));
+      await loaded;
+
+      const oldest = store.oldestKept();
+      http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([webhookRequest(2)]));
+
+      expect((await oldest)?.uuid).toBe(webhookRequest(2).uuid);
+    });
+
+    it('deve achar a mais antiga que ficou no fim da lista Quando todas as páginas estão carregadas', async () => {
+      const loaded = store.load(TOKEN_ID, 1);
+      http
+        .expectOne(`${listUrl}?page=1&sorting=newest`)
+        .flush(requestPage([webhookRequest(9), webhookRequest(8)]));
+      await loaded;
+
+      expect((await store.oldestKept())?.uuid).toBe(webhookRequest(8).uuid);
+    });
   });
 });

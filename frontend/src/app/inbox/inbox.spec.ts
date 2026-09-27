@@ -155,7 +155,9 @@ describe('Dado a tela principal', () => {
     expect(store.selected()?.uuid).toBe(R9.uuid);
   });
 
-  it('deve abrir a primeira Quando a mensagem do link permanente não existe mais (404)', async () => {
+  // A limpeza automática corta as mais antigas: a vizinha da que sumiu é a mais antiga que ficou
+  // (a primeira da lista quando a ordem era a da API).
+  it('deve abrir a mais antiga que ficou Quando a mensagem do link permanente não existe mais (404)', async () => {
     const R9 = webhookRequest(9);
 
     await openToken(`/${TOKEN_ID}/${R9.uuid}/1`);
@@ -164,6 +166,28 @@ describe('Dado a tela principal', () => {
       {},
       { status: 404, statusText: 'Not Found' },
     );
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+  });
+
+  it('deve abrir a mais antiga que ficou Quando a aberta pelo link permanente, fora da lista, é cortada ao vivo', async () => {
+    const [R0, R3] = [webhookRequest(10), webhookRequest(3)];
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R0.uuid}/1`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(
+      `/token/${TOKEN_ID}/requests?page=1&sorting=newest`,
+      requestPage([R2, R1], { total: 3, is_last_page: false }),
+    );
+    await flush(`/token/${TOKEN_ID}/request/${R0.uuid}`, R0);
+    await vi.waitFor(() => expect(text()).toContain(R0.uuid));
+
+    FakeEventSource.latest().emit('request.created', {
+      request: R3,
+      total: 3,
+      truncated: false,
+      removed: [R0.uuid],
+    });
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=oldest`, requestPage([R1]));
 
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
   });
@@ -435,6 +459,22 @@ describe('Dado a tela principal', () => {
     expect(root.querySelector('app-request-list')).not.toBeNull();
     expect(text()).toContain('Requests (1)');
     expect(root.querySelector('app-request-detail')).toBeNull();
+    // O detalhe não veio para a frente: ninguém a leu ainda.
+    expect(TestBed.inject(Preferences).unread()).toEqual([R1.uuid]);
+  });
+
+  it('deve abrir a primeira no detalhe e contá-la como lida Quando ela chega numa URL vazia na janela larga', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([]));
+    await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
+
+    FakeEventSource.latest().emit('request.created', { request: R1, total: 1, truncated: false });
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    await vi.waitFor(() => expect(text()).toContain(R1.uuid));
+    // Quem espera a primeira a vê chegar no detalhe, ao lado da lista.
+    expect(TestBed.inject(Preferences).unread()).toEqual([]);
   });
 
   it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {

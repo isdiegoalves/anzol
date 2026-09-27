@@ -205,6 +205,27 @@ export class RequestStore {
     this.markAsRead(request.uuid);
   }
 
+  /**
+   * A mais antiga que ficou na URL. A limpeza automática corta as mais antigas: quando a aberta
+   * fora da lista (link permanente) some, é ela a vizinha. Com a mais nova no topo e páginas por
+   * carregar, vem da API.
+   */
+  async oldestKept(): Promise<WebhookRequest | undefined> {
+    const tokenId = this.tokenId();
+    if (!tokenId || !this.newestFirst()) {
+      return this.requests()[0];
+    }
+    if (this.lastPageReached()) {
+      return this.requests().at(-1);
+    }
+    const oldest = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: 1, sorting: 'oldest' },
+      }),
+    );
+    return oldest.data[0];
+  }
+
   /** Inverte a ordem e relê a primeira página, com a mensagem aberta mantida. */
   async toggleSorting(): Promise<void> {
     this.sorting.update((sorting) => (sorting === 'newest' ? 'oldest' : 'newest'));
