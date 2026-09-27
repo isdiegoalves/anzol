@@ -1,10 +1,12 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
@@ -360,10 +362,59 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
       await userEvent.click(screen.getByRole('button', { name: 'Why? (2)' }));
 
-      expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      expect(screen.getAllByRole('listitem').map((item) => item.textContent?.trim())).toEqual([
         'method: expected GET, got POST',
         'header x-a: absent',
       ]);
+      // Em inglês nada muda: sem "Show original" e sem title.
+      expect(screen.queryByRole('button', { name: 'Show original' })).toBeNull();
+      expect(screen.getAllByRole('listitem').some((item) => item.hasAttribute('title'))).toBe(
+        false,
+      );
+    });
+
+    // WM-05: as frases do servidor na língua da tela, com o original no title e em "Ver original".
+    describe('Dado a tela em pt-BR', () => {
+      beforeEach(() => loadTranslations(translations));
+      afterEach(() => clearTranslations());
+
+      it('deve traduzir as condições do "Por quê?" e mostrar o original sob pedido', async () => {
+        const { container } = await show(
+          webhookRequest(1, {
+            near_miss: {
+              id: 'r2',
+              name: 'Só GET',
+              failed: ['method: expected GET, got POST', 'frobnicate: unknown'],
+            },
+          }),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Por quê? (2)' }));
+        const items = () => screen.getAllByRole('listitem');
+
+        expect(items().map((item) => item.textContent?.trim())).toEqual([
+          'método: esperava GET, veio POST',
+          'frobnicate: unknown',
+        ]);
+        expect(items()[0].getAttribute('title')).toBe('Original: method: expected GET, got POST');
+        expect(items()[1].hasAttribute('title')).toBe(false);
+
+        const original = screen.getByRole('button', { name: 'Ver original' });
+        expect(original.getAttribute('aria-pressed')).toBe('false');
+        await userEvent.click(original);
+
+        expect(original.getAttribute('aria-pressed')).toBe('true');
+        expect(items()[0].textContent?.trim()).toBe('method: expected GET, got POST');
+        await expectNoAxeViolations(container);
+      });
+
+      it('deve traduzir a condição do cartão Quando só uma falhou', async () => {
+        await show(
+          webhookRequest(1, {
+            near_miss: { id: 'r2', name: 'Só GET', failed: ['header x-a: absent'] },
+          }),
+        );
+        expect(screen.getByText(/cabeçalho x-a: ausente/)).toBeTruthy();
+      });
     });
   });
 

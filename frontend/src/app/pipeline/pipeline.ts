@@ -1,4 +1,5 @@
 import { CapturedRequest, SignatureResult, absentHeader } from '../requests/webhook-request';
+import { conditionPhrase } from './server-phrases';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 import { SignatureCheck, signatureCheck } from './signature-check';
 
@@ -268,7 +269,7 @@ function ruleResult(request: CapturedRequest): CheckResult {
       // INBOX-18: com uma condição só, a frase dela vai no cartão (sem o "Why? (n)").
       detail:
         failed.length === 1
-          ? $localize`Closest: ${name}:rule: · ${failed[0]}:condition:`
+          ? $localize`Closest: ${name}:rule: · ${conditionPhrase(failed[0]).text}:condition:`
           : $localize`Closest: ${name}:rule: (${failed.length}:count: conditions failed)`,
       short: $localize`Near miss`,
       ref: { id, name },

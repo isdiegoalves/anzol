@@ -81,7 +81,8 @@ import {
   parseRuleJson,
   toFormValue,
 } from './rule-form';
-import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
+import { RuleStore, RulesChangedError, plainPhrase, validationPhrases } from './rule-store';
+import { ServerPhrase, originalTitle, validationPhrase } from '../pipeline/server-phrases';
 import { RuleEditorHeader } from './rule-editor-header';
 import { RuleBodyTools } from './rule-body-tools';
 import { RuleConditionHint } from './rule-condition-hint';
@@ -334,10 +335,12 @@ export class RuleEditor {
   /** O último Save achou a lista do servidor diferente da lida: nada foi gravado. */
   protected readonly changedElsewhere = signal(false);
   /** Erros do servidor sem campo no formulário (ou de outras regras da lista). */
-  protected readonly generalErrors = signal<readonly string[]>([]);
+  protected readonly generalErrors = signal<readonly ServerPhrase[]>([]);
   /** Último "Test against history" da regra como está; some quando a regra muda. */
   protected readonly historyTest = signal<HistoryTest | null>(null);
-  protected readonly historyErrors = signal<readonly string[]>([]);
+  protected readonly historyErrors = signal<readonly ServerPhrase[]>([]);
+  /** "Original: …" das frases do servidor traduzidas (WM-05). */
+  protected readonly originalTitle = originalTitle;
   protected readonly testing = signal(false);
   protected readonly preview = signal<PreviewState | null>(null);
   /** As mensagens da janela do teste (a aba Test descreve cada uma e abre ao lado, WM-22). */
@@ -754,7 +757,7 @@ export class RuleEditor {
         this.takeUntouched(saved);
       }
     } catch (error) {
-      this.generalErrors.set(validationMessages(error));
+      this.generalErrors.set(validationPhrases(error));
     }
   }
 
@@ -1416,8 +1419,15 @@ export class RuleEditor {
     }
   }
 
+  /**
+   * Os erros da visão JSON ("chave: mensagem", no formato do 422), com a mensagem na língua da tela
+   * (WM-05).
+   */
   protected jsonErrors(): readonly string[] {
-    return (this.json.getError('rule') as string[] | null) ?? [];
+    return ((this.json.getError('rule') as string[] | null) ?? []).map((error) => {
+      const split = /^([\w.$[\]'-]+): (.*)$/s.exec(error);
+      return split ? `${split[1]}: ${validationPhrase(split[2]).text}` : error;
+    });
   }
 
   /** Mensagem do campo: a do servidor, se houver; senão a da validação da tela. */
@@ -1506,10 +1516,10 @@ export class RuleEditor {
 
   private showErrors(error: unknown, index: number): void {
     if (!(error instanceof HttpErrorResponse && error.status === 422)) {
-      this.generalErrors.set(validationMessages(error));
+      this.generalErrors.set(validationPhrases(error));
       return;
     }
-    const general: string[] = [];
+    const general: ServerPhrase[] = [];
     const prefix = `${index}.`;
     const value = this.form.getRawValue() as RuleFormValue;
     for (const [key, messages] of Object.entries(error.error as Record<string, string[]>)) {
@@ -1520,11 +1530,14 @@ export class RuleEditor {
       const control = ref && this.control(ref);
       // Campo desabilitado não mostra erro: a mensagem vai para o alerta do topo.
       if (control?.enabled) {
-        control.setErrors({ server: messages.join(' ') });
+        // WM-05: a mensagem do servidor na língua da tela.
+        control.setErrors({
+          server: messages.map((message) => validationPhrase(message).text).join(' '),
+        });
         control.markAsTouched();
       } else {
         general.push(
-          ...validationMessages(new HttpErrorResponse({ status: 422, error: { [key]: messages } })),
+          ...validationPhrases(new HttpErrorResponse({ status: 422, error: { [key]: messages } })),
         );
       }
     }
@@ -1630,10 +1643,10 @@ function requiredWhenJsonPath(control: AbstractControl<string>): ValidationError
 }
 
 /** Erro do `rules/test`: o 422 (regra inválida) e a URL apagada como no salvar; o resto, genérico. */
-function testMessages(error: unknown): string[] {
+function testMessages(error: unknown): ServerPhrase[] {
   if (error instanceof HttpErrorResponse && [404, 410, 422].includes(error.status)) {
-    return validationMessages(error);
+    return validationPhrases(error);
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return [$localize`Could not test the rule (${status}).`];
+  return [plainPhrase($localize`Could not test the rule (${status}).`)];
 }

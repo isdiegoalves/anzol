@@ -1,7 +1,9 @@
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import { WebhookRequest } from '../requests/webhook-request';
 import { HistoryTestPanel } from './history-test-panel';
 import { HistoryTest } from './rule';
@@ -134,6 +136,40 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     const previa = screen.getByRole('button', { name: 'Preview response' }) as HTMLButtonElement;
     expect(previa.disabled).toBe(true);
     expect(previa.parentElement?.getAttribute('title')).toBe('Nothing would match yet');
+  });
+
+  it('não deve oferecer "Show original" Quando a tela está em inglês (WM-05)', async () => {
+    await show(RESULTADO);
+    expect(screen.queryByRole('button', { name: 'Show original' })).toBeNull();
+  });
+
+  describe('Dado a tela em pt-BR (WM-05)', () => {
+    beforeEach(() => loadTranslations(translations));
+    afterEach(() => clearTranslations());
+
+    it('deve traduzir as frases de falha, com o original no title e em "Ver original"', async () => {
+      const { container } = await show(RESULTADO);
+      const frases = () =>
+        [...document.querySelectorAll('.misses .failed li')].map((li) => [
+          clean(li),
+          li.getAttribute('title'),
+        ]);
+
+      expect(frases()).toEqual([
+        ['cabeçalho x-signature: ausente', 'Original: header x-signature: absent'],
+        ['método: esperava POST, veio GET', 'Original: method: expected POST, got GET'],
+        ['path: x', null],
+      ]);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Ver original' }));
+
+      expect(frases().map(([text]) => text)).toEqual([
+        'header x-signature: absent',
+        'method: expected POST, got GET',
+        'path: x',
+      ]);
+      await expectNoAxeViolations(container);
+    });
   });
 
   it('deve manter o título "Would not match (0)" sem lista vazia Quando todas casariam', async () => {

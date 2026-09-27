@@ -1,4 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
+import { conditionPhrase, originalTitle } from '../pipeline/server-phrases';
 import { MatButton } from '@angular/material/button';
 import { HistoryMiss, HistoryTest } from './rule';
 
@@ -41,7 +42,8 @@ export function closestFirst(misses: readonly HistoryMiss[]): HistoryMiss[] {
                 >&ngsp;
                 <ul class="failed">
                   @for (reason of miss.failed; track $index) {
-                    <li>{{ reason }}</li>
+                    @let phrase = translate(reason);
+                    <li [attr.title]="originalTitle(phrase)">{{ phrase.text }}</li>
                   }
                 </ul>
               </li>
@@ -72,6 +74,9 @@ export function closestFirst(misses: readonly HistoryMiss[]): HistoryMiss[] {
 })
 export class AgainstHistory {
   readonly result = input<HistoryTest | null>(null);
+  /** As frases de falha na língua da tela, com o original no `title` (WM-05). */
+  protected readonly translate = conditionPhrase;
+  protected readonly originalTitle = originalTitle;
   readonly canTest = input(true);
   readonly testAgain = output<void>();
   readonly allResults = output<void>();

@@ -6,6 +6,7 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { CheckKind, pipelineOf } from '../pipeline/pipeline';
+import { conditionPhrase, originalTitle } from '../pipeline/server-phrases';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport } from '../shell/viewport';
@@ -164,6 +165,17 @@ export class RequestView {
     source: () => this.request().uuid,
     computation: () => 0,
   });
+  /** As frases do near miss na língua da tela (WM-05), com o original. */
+  protected readonly whyPhrases = computed(() =>
+    (this.request().near_miss?.failed ?? []).map(conditionPhrase),
+  );
+  protected readonly whyTranslated = computed(() => this.whyPhrases().some((p) => p.translated));
+  /** "Show original": as frases como o servidor mandou; volta ao abrir outra mensagem. */
+  protected readonly showOriginal = linkedSignal({
+    source: () => this.request().uuid,
+    computation: () => false,
+  });
+  protected readonly originalTitle = originalTitle;
   /** "Why? (n)" do near miss aberto; fecha ao abrir outra mensagem. */
   protected readonly whyOpen = linkedSignal({
     source: () => this.request().uuid,

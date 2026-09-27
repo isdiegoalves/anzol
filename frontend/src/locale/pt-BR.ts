@@ -2613,4 +2613,116 @@ export const translations: Record<string, string> = {
   '7375431196650714596': '{$count} das últimas {$window} requisições casariam',
   // The rules changed elsewhere; open Rules and try again.
   '3321906449955825761': 'As regras mudaram em outro lugar; abra Regras e tente de novo.',
+  // method: expected one of {$list}, got {$got}
+  '7846216507391491587': 'método: esperava um de {$list}, veio {$got}',
+  // method: expected {$expected}, got {$got}
+  '6744282959739294730': 'método: esperava {$expected}, veio {$got}',
+  // path: expected prefix {$expected}, got {$got}
+  '240407957127034661': 'caminho: esperava começar com {$expected}, veio {$got}',
+  // path: expected to match {$expected}, got {$got}
+  '3488351269425483045': 'caminho: esperava casar a regex {$expected}, veio {$got}',
+  // path: expected {$expected}, got {$got}
+  '9006985689427972170': 'caminho: esperava {$expected}, veio {$got}',
+  // {$target}: absent
+  '5620596733399889321': '{$target}: ausente',
+  // {$target}: present
+  '964563040468101815': '{$target}: presente',
+  // {$target}: expected to contain {$expected}, got {$got}
+  '8768389120418433368': '{$target}: esperava conter {$expected}, veio {$got}',
+  // {$target}: expected to match {$expected}, got {$got}
+  '860026762485362589': '{$target}: esperava casar a regex {$expected}, veio {$got}',
+  // {$target}: expected {$expected}, got {$got}
+  '8428123385147001192': '{$target}: esperava {$expected}, veio {$got}',
+  // {$target}: body is not JSON
+  '6745144186278603040': '{$target}: o corpo não é JSON',
+  // body: body is not JSON
+  '7562279532876293375': 'corpo: o corpo não é JSON',
+  // body: not equal to the expected JSON
+  '6434402795018602279': 'corpo: diferente do JSON dado',
+  // body: expected to contain {$expected}
+  '3000720646748437340': 'corpo: esperava conter {$expected}',
+  // body: expected to match {$expected}
+  '5394357430299189555': 'corpo: esperava casar a regex {$expected}',
+  // body: expected {$expected}, got {$got}
+  '4699872197355484648': 'corpo: esperava {$expected}, veio {$got}',
+  // signature: expected {$expected}, got not configured
+  '1239663005845036139': 'assinatura: não configurada nesta URL (a regra pede {$expected})',
+  // signature: expected {$expected}, got {$got}
+  '7418487935490997162': 'assinatura: esperava {$expected}, veio {$got}',
+  // schema: expected {$expected}, got not configured
+  '1930130574293914257': 'schema: não configurado nesta URL (a regra pede {$expected})',
+  // schema: expected {$expected}, got {$got}
+  '3951080615472233541': 'schema: esperava {$expected}, veio {$got}',
+  // scenario {$name}: expected state {$expected}, got {$got}
+  '3953946883460574491': 'cenário {$name}: esperava o estado {$expected}, estava em {$got}',
+  // The regex is invalid.
+  '4314563148369354905': 'A regex é inválida.',
+  // The status must be between {$min} and {$max}.
+  '4315191220319314541': 'O status deve estar entre {$min} e {$max}.',
+  // The priority must be at least 1.
+  '5091493556931668565': 'A prioridade deve ser 1 ou mais.',
+  // The name field is required.
+  '3196084850965031890': 'O nome é obrigatório.',
+  // The name may not be greater than {$max} characters.
+  '6588427496217666784': 'O nome pode ter no máximo {$max} caracteres.',
+  // The rules may not have more than {$max} items.
+  '5473226211877652746': 'Mais de {$max} regras.',
+  // The template is invalid: {$reason}.
+  '1900476710738240300': 'Erro no template: {$reason}.',
+  // The rendered template is too large.
+  '4123183016493912490': 'O template renderizado ficou grande demais.',
+  // The template took too long to render.
+  '1705356405171248564': 'O template demorou demais para renderizar.',
+  // The header name is invalid.
+  '7222083873748907047': 'O nome do cabeçalho é inválido.',
+  // The header value is invalid.
+  '5308364508939811054': 'O valor do cabeçalho é inválido.',
+  // The path is invalid.
+  '1136326979901743249': 'O caminho é inválido.',
+  // The id field has a duplicate value.
+  '1555571571247850858': 'O id está repetido.',
+  // The id must be a valid UUID.
+  '3479472037801366985': 'O id deve ser um UUID válido.',
+  // The max must be greater than or equal to the min.
+  '3974144077387209997': 'O máximo deve ser maior ou igual ao mínimo.',
+  // The equalToJson must be a valid JSON string.
+  '2006144874960565238': 'O equalToJson deve ser um JSON válido.',
+  // The selected {$field} is invalid.
+  '10981317029088923': 'O {$field} escolhido é inválido.',
+  // The {$field} field is required.
+  '1772870605253351736': 'O campo {$field} é obrigatório.',
+  // The {$field} must be between {$min} and {$max}.
+  '6244131550246797163': 'O campo {$field} deve estar entre {$min} e {$max}.',
+  // The {$field} must be at least {$min}.
+  '733407780387240958': 'O campo {$field} deve ser pelo menos {$min}.',
+  // The {$field} must be an integer.
+  '388542053114501103': 'O campo {$field} deve ser um número inteiro.',
+  // The {$field} must be a number.
+  '8720525036878434644': 'O campo {$field} deve ser um número.',
+  // The {$field} must be a string.
+  '8714035860586208505': 'O campo {$field} deve ser um texto.',
+  // The {$field} must be an object.
+  '3339942095543240176': 'O campo {$field} deve ser um objeto.',
+  // The {$field} must be an array.
+  '1549263646704579002': 'O campo {$field} deve ser uma lista.',
+  // The {$field} field must be true or false.
+  '2093276602253257282': 'O campo {$field} deve ser true ou false.',
+  // Original: {$phrase}
+  '3876084183795082544': 'Original: {$phrase}',
+  //  Show original
+  '2690970470580291381': ' Ver original ',
+  // The schema is invalid: {$reason}.
+  '4408653464724127151': 'Schema inválido: {$reason}.',
+  // The {$field} must have exactly one of: {$list}.
+  '1606575023713199953': 'O campo {$field} deve ter exatamente um de: {$list}.',
+  // The {$field} may not be greater than {$max} characters.
+  '2992969966405280607': 'O campo {$field} pode ter no máximo {$max} caracteres.',
+  // The {$field} is invalid.
+  '7680023505659143656': 'O campo {$field} é inválido.',
+  // header {$name}
+  '7954786449630480040': 'cabeçalho {$name}',
+  // body {$path}
+  '3614190978895842984': 'corpo {$path}',
+  // query {$name}
+  '7767340803089953733': 'query {$name}',
 };

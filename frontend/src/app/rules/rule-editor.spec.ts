@@ -1,4 +1,6 @@
 import { signal } from '@angular/core';
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { WebhookRequest } from '../requests/webhook-request';
 import { HttpRequest, provideHttpClient } from '@angular/common/http';
@@ -221,6 +223,34 @@ describe('Dado o editor de regra', () => {
       'Rule 1 › name: The name has already been taken.',
     );
     expect(closed).not.toHaveBeenCalled();
+  });
+
+  // WM-05: a mensagem do 422 na língua da tela; o original fica no title do alerta.
+  it('deve traduzir o 422 no campo e no alerta, com o original no title, Quando a tela está em pt-BR', async () => {
+    loadTranslations(translations);
+    try {
+      await open({ index: 1 }, [rule(1), rule(2)]);
+
+      await (await button('Salvar')).click();
+      (await put()).flush(
+        {
+          '1.match.path.equals': ['The path is invalid.'],
+          '0.name': ['The name field is required.'],
+        },
+        { status: 422, statusText: 'Unprocessable Entity' },
+      );
+
+      await vi.waitFor(() =>
+        expect(root().querySelector('mat-error')?.textContent?.trim()).toBe(
+          'O caminho é inválido.',
+        ),
+      );
+      const alerta = root().querySelector('[role=alert] li');
+      expect(alerta?.textContent).toContain('O nome é obrigatório.');
+      expect(alerta?.getAttribute('title')).toMatch(/^Original: .*The name field is required\.$/);
+    } finally {
+      clearTranslations();
+    }
   });
 
   it('deve mostrar o erro no campo da condição Quando o 422 aponta um header pelo nome', async () => {

@@ -85,10 +85,24 @@
     }
     @if (readonly() || whyOpen()) {
       <ul class="failed" [attr.aria-label]="conditionsLabel(nearMiss.name)">
-        @for (reason of nearMiss.failed; track $index) {
-          <li>{{ reason }}</li>
+        @for (reason of whyPhrases(); track $index) {
+          <li [attr.title]="originalTitle(reason)">
+            {{ showOriginal() ? reason.original : reason.text }}
+          </li>
         }
       </ul>
+      <!-- WM-05: as frases do servidor na língua da tela; o original à mão. -->
+      @if (whyTranslated()) {
+        <button
+          mat-button
+          type="button"
+          [attr.aria-pressed]="showOriginal()"
+          (click)="showOriginal.set(!showOriginal())"
+          i18n
+        >
+          Show original
+        </button>
+      }
     }
   </div>
 }

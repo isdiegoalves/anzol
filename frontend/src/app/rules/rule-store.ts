@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
+import { ServerPhrase, validationPhrase } from '../pipeline/server-phrases';
 import { RuleStats, TokenStats } from '../stats/stats';
 import {
   HISTORY_TEST_WINDOW,
@@ -326,18 +327,39 @@ export class RuleStore {
  * numerada a partir de 1 (`0.match.path.regex` → `Rule 1 › match.path.regex: ...`).
  */
 export function validationMessages(error: unknown): string[] {
+  return validationPhrases(error).map(({ text }) => text);
+}
+
+/**
+ * As mesmas frases, com a mensagem do 422 na língua da tela e o original ao lado (WM-05): a tela
+ * mostra `text` e põe `original` no `title`.
+ */
+export function validationPhrases(error: unknown): ServerPhrase[] {
   if (!(error instanceof HttpErrorResponse)) {
-    return [$localize`Could not save the rules (unknown).`];
+    return [plainPhrase($localize`Could not save the rules (unknown).`)];
   }
   if (error.status === 422 && error.error && typeof error.error === 'object') {
     return Object.entries(error.error as Record<string, string[]>).flatMap(([key, messages]) =>
-      messages.map((message) => `${describeKey(key)}${message}`),
+      messages.map((message) => {
+        const phrase = validationPhrase(message);
+        const prefix = describeKey(key);
+        return {
+          text: `${prefix}${phrase.text}`,
+          original: `${prefix}${message}`,
+          translated: phrase.translated,
+        };
+      }),
     );
   }
   if (error.status === 404 || error.status === 410) {
-    return [$localize`This URL no longer exists (${error.status}).`];
+    return [plainPhrase($localize`This URL no longer exists (${error.status}).`)];
   }
-  return [$localize`Could not save the rules (${error.status}).`];
+  return [plainPhrase($localize`Could not save the rules (${error.status}).`)];
+}
+
+/** Uma frase da própria tela (já no idioma dela), no formato das do servidor. */
+export function plainPhrase(text: string): ServerPhrase {
+  return { text, original: text, translated: false };
 }
 
 function describeKey(key: string): string {

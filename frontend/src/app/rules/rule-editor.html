@@ -75,7 +75,7 @@
       <div role="alert">
         <ul class="errors">
           @for (message of generalErrors(); track $index) {
-            <li>{{ message }}</li>
+            <li [attr.title]="originalTitle(message)">{{ message.text }}</li>
           }
         </ul>
       </div>
@@ -858,7 +858,7 @@
     <div role="alert">
       <ul class="errors history-errors">
         @for (message of historyErrors(); track $index) {
-          <li>{{ message }}</li>
+          <li [attr.title]="originalTitle(message)">{{ message.text }}</li>
         }
       </ul>
     </div>

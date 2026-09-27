@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { MatButton } from '@angular/material/button';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
+import { ServerPhrase, conditionPhrase, originalTitle } from '../pipeline/server-phrases';
 import { closestFirst } from './against-history';
 import { HISTORY_TEST_WINDOW, HistoryTest } from './rule';
 import { examplePath } from './rule-example';
@@ -50,6 +51,12 @@ export class HistoryTestPanel {
   readonly openRequest = output<string>();
 
   protected readonly window = HISTORY_TEST_WINDOW;
+  /** "Show original" (WM-05): as frases de falha como o servidor mandou. */
+  protected readonly showOriginal = signal(false);
+  protected readonly originalTitle = originalTitle;
+  protected readonly anyTranslated = computed(() =>
+    this.result().misses.some(({ failed }) => failed.some((f) => conditionPhrase(f).translated)),
+  );
   /** Dica do "Preview response" desabilitado (o botão desabilitado não recebe foco nem hover). */
   protected readonly nothingMatches = $localize`Nothing would match yet`;
   protected readonly closest = signal(true);
@@ -84,6 +91,11 @@ export class HistoryTestPanel {
             : content,
       answered,
     };
+  }
+
+  /** As frases de falha de uma mensagem na língua da tela (WM-05). */
+  protected phrases(failed: readonly string[]): ServerPhrase[] {
+    return failed.map(conditionPhrase);
   }
 
   protected link(uuid: string, page: number): string {

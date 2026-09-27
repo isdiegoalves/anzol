@@ -72,6 +72,17 @@
           >
             Closest first
           </button>
+          @if (anyTranslated()) {
+            <button
+              mat-button
+              type="button"
+              [attr.aria-pressed]="showOriginal()"
+              (click)="showOriginal.set(!showOriginal())"
+              i18n
+            >
+              Show original
+            </button>
+          }
         </div>
         <!-- Sem nenhuma que falhe, fica só o título com (0), sem lista vazia. -->
         @if (current.misses.length > 0) {
@@ -88,8 +99,10 @@
                 }</span
                 >&ngsp;
                 <ul class="failed">
-                  @for (reason of miss.failed; track $index) {
-                    <li>{{ reason }}</li>
+                  @for (reason of phrases(miss.failed); track $index) {
+                    <li [attr.title]="originalTitle(reason)">
+                      {{ showOriginal() ? reason.original : reason.text }}
+                    </li>
                   }
                 </ul>
               </li>
