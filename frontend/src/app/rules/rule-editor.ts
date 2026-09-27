@@ -350,6 +350,8 @@ export class RuleEditor {
   protected readonly recent = signal<ReadonlyMap<string, WebhookRequest>>(new Map());
   /** A mensagem do resultado aberta ao lado, dentro de Regras (`region "Request {id}"`). */
   protected readonly openedRequest = signal<WebhookRequest | null>(null);
+  /** O link do resultado que abriu a mensagem, para onde o foco volta no "Close". */
+  private openedFrom: HTMLElement | null = null;
   /** O detalhe da mensagem (o da Inbox, só leitura), carregado na primeira vez que abre. */
   protected readonly requestView = signal<Type<unknown> | null>(null);
   private readonly requestHost = viewChild('requestHost', { read: ViewContainerRef });
@@ -1329,6 +1331,7 @@ export class RuleEditor {
   protected openRequest(uuid: string): void {
     const request = this.recent().get(uuid);
     if (request) {
+      this.openedFrom = document.activeElement as HTMLElement | null;
       this.openedRequest.set(request);
       if (!this.requestView()) {
         void import('../request-detail/request-view').then(({ RequestView }) =>
@@ -1339,6 +1342,16 @@ export class RuleEditor {
         injector: this.injector,
       });
     }
+  }
+
+  /** "Close": o foco volta ao link que abriu a mensagem (R2-L2), e não ao body. */
+  protected closeRequest(): void {
+    this.openedRequest.set(null);
+    const from = this.openedFrom;
+    this.openedFrom = null;
+    afterNextRender(() => (from?.isConnected ? from.focus() : undefined), {
+      injector: this.injector,
+    });
   }
 
   protected openedLabel(request: WebhookRequest): string {

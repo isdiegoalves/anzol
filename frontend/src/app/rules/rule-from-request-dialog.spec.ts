@@ -13,6 +13,7 @@ import { WebhookRequest } from '../requests/webhook-request';
 import { Rule } from './rule';
 import { openCreateRuleDialog } from './rule-actions';
 import { RuleIntents } from './rule-intents';
+import { RuleStore } from './rule-store';
 
 const URL_REGRAS = `/token/${TOKEN_ID}/rules`;
 
@@ -143,6 +144,8 @@ describe('Dado a folha "Create rule from this request"', () => {
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules']));
     expect(snack).toHaveBeenCalledWith('Rule saved', undefined, { duration: 4000 });
     expect(TestBed.inject(RuleIntents).created()?.ids).toEqual(['novo']);
+    // R2-M1: a lista abre com o foco na linha da regra criada, e não no body.
+    expect(TestBed.inject(RuleStore).pendingFocus()).toEqual({ rule: 'novo' });
     for (const call of http.match({ method: 'POST', url: `${URL_REGRAS}/test` })) {
       call.flush({ matches: [], misses: [] });
     }
@@ -161,6 +164,8 @@ describe('Dado a folha "Create rule from this request"', () => {
     expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
       queryParams: { from: EVENTO.uuid },
     });
+    // R2-M2: o editor abre com o foco no Nome, como no "New rule".
+    expect(TestBed.inject(RuleStore).pendingFocus()).toBe('editor');
     http.expectNone({ method: 'PUT', url: URL_REGRAS });
   });
 });

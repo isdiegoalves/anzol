@@ -1045,6 +1045,7 @@ describe('Dado o editor de regra', () => {
         return found as HTMLAnchorElement;
       });
 
+      link.focus();
       link.click();
 
       const regiao = await vi.waitFor(() => {
@@ -1060,6 +1061,8 @@ describe('Dado o editor de regra', () => {
       )?.click();
       await fixture.whenStable();
       expect(root().querySelector('[aria-label="Request a"]')).toBeNull();
+      // R2-L2: o foco volta ao link que abriu a mensagem, e não ao body.
+      await vi.waitFor(() => expect(document.activeElement).toBe(link));
     });
 
     it('deve pedir a resposta renderizada só no "Preview response" e mostrá-la (C4)', async () => {

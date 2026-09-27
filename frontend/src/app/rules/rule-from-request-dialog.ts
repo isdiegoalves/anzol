@@ -238,12 +238,13 @@ export class RuleFromRequestDialog {
       rules.splice(placement ? placement.index : rules.length, 0, rule);
       const before = new Set(this.store.rules().map(({ id }) => id));
       await this.store.saveIfUnchanged(rules);
-      this.intents.markCreated(
-        this.store
-          .rules()
-          .map(({ id }) => id)
-          .filter((id): id is string => !!id && !before.has(id)),
-      );
+      const created = this.store
+        .rules()
+        .map(({ id }) => id)
+        .filter((id): id is string => !!id && !before.has(id));
+      this.intents.markCreated(created);
+      // R2-M1: a lista abre com o foco na regra criada (o botão da Entrada que abriu a folha some).
+      this.store.pendingFocus.set({ rule: created[0] ?? null });
       this.dialog.close();
       this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
       await this.router.navigate(['/', tokenId, 'rules']);
@@ -261,6 +262,8 @@ export class RuleFromRequestDialog {
   /** "Open in editor": o rascunho vai para o editor da regra nova, sem gravar. */
   protected async openInEditor(): Promise<void> {
     this.intents.request({ draft: this.rule() });
+    // R2-M2: o editor abre com o foco no Nome, como no "New rule".
+    this.store.pendingFocus.set('editor');
     this.dialog.close();
     await this.router.navigate(['/', this.request.token_id, 'rules', 'new'], {
       queryParams: { from: this.request.uuid },

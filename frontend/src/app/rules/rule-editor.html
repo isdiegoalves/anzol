@@ -941,7 +941,7 @@
       <section class="opened-request" role="region" [attr.aria-label]="openedLabel(request)">
         <div class="opened-head">
           <h3 tabindex="-1">{{ openedLabel(request) }}</h3>
-          <button mat-button type="button" (click)="openedRequest.set(null)" i18n>Close</button>
+          <button mat-button type="button" (click)="closeRequest()" i18n>Close</button>
         </div>
         <ng-container #requestHost />
         @if (!requestView()) {
