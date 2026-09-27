@@ -144,17 +144,19 @@ class WebhookController(
         val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
         if (decision is Decision.Unmatched && token.timeout > 0) stopwatch.sleep(Duration.ofSeconds(token.timeout))
         val arrival = clock.instant()
+        val fault = decision.fault()
+        val defaultStatus = responseStatus(request.secondSegment(), token.defaultStatus)
         val captured =
             received.copy(
                 createdAt = arrival.toLegacyDateTime(),
                 updatedAt = arrival.toLegacyDateTime(),
                 rule = decision.ruleRef(),
                 nearMiss = decision.nearMiss(),
+                response = decision.recordedResponse(defaultStatus),
             )
         val stored = requests.store(token, captured, arrival)
         telemetry.cleanupRemoved(stored.removed.size)
         stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
-        val fault = decision.fault()
         // Status dado ao cliente; nulo quando a falha de rede da regra derrubou a conexão (nada mais vale).
         val status =
             when (decision) {
@@ -168,9 +170,7 @@ class WebhookController(
                 }
 
                 is Decision.Unmatched -> {
-                    responseStatus(request.secondSegment(), token.defaultStatus).also {
-                        response.writeConfiguredResponse(token, captured, it)
-                    }
+                    defaultStatus.also { response.writeConfiguredResponse(token, captured, it) }
                 }
             }
         val outcome =
@@ -275,6 +275,22 @@ private fun Decision.fault(): Fault? =
     when (this) {
         is Decision.Matched -> rule.response.fault
         is Decision.Unmatched -> null
+    }
+
+/**
+ * O `response` gravado: a falha de rede da regra, o status dela (que o template não muda) ou o [defaultStatus] da URL
+ * quando nenhuma regra respondeu.
+ */
+private fun Decision.recordedResponse(defaultStatus: Int): RecordedResponse =
+    when (this) {
+        is Decision.Matched -> {
+            val fault = rule.response.fault
+            if (fault != null) RecordedResponse(fault = fault) else RecordedResponse(status = rule.response.status)
+        }
+
+        is Decision.Unmatched -> {
+            RecordedResponse(status = defaultStatus)
+        }
     }
 
 private fun Decision.nearMiss(): NearMiss? =

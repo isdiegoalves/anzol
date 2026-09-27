@@ -25,7 +25,7 @@ class LegacyRedisCompatibilityTest(
     @Test
     @DisplayName(
         "Dado token e mensagens gravados pelo PHP, quando a API nova os lê, " +
-            "então devolve o mesmo JSON (campos novos nulos, protected false, rule, near_miss, signature e schema nulos, " +
+            "então devolve o mesmo JSON (campos novos nulos, protected false, rule, near_miss, signature, schema e response nulos, " +
             "seq do created_at)",
     )
     fun leitura_jsonGravadoPeloPhp_deveDevolverOMesmoConteudo() {
@@ -108,6 +108,7 @@ class LegacyRedisCompatibilityTest(
             "near_miss",
             "signature",
             "schema",
+            "response",
         )
         assertThat(message["created_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
         assertThat(redis.getExpire("token:$tokenId")).isBetween(EXPIRY_SECONDS - 5, EXPIRY_SECONDS)
@@ -115,12 +116,13 @@ class LegacyRedisCompatibilityTest(
     }
 
     /**
-     * A mensagem como a API a devolve: o JSON gravado, `rule`, `near_miss`, `signature` e `schema` nulos (gravada antes deles)
+     * A mensagem como a API a devolve: o JSON gravado, `rule`, `near_miss`, `signature`, `schema` e `response` nulos (gravada
+     * antes deles)
      * e o `seq`, que no
      * backfill é o `created_at` em microssegundos.
      */
     private fun String.withSeq(createdAt: String) =
-        dropLast(1) + ""","rule":null,"near_miss":null,"signature":null,"schema":null,""" +
+        dropLast(1) + ""","rule":null,"near_miss":null,"signature":null,"schema":null,"response":null,""" +
             """"seq":${Instant.parse(createdAt).epochSecond * 1_000_000}}"""
 
     private fun phpToken(tokenId: String) =

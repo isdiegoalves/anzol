@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import site.webhook.RequestId
 import site.webhook.TIMESTAMP_PATTERN
 import site.webhook.TokenId
+import site.webhook.rules.Fault
 import site.webhook.rules.NearMiss
 import site.webhook.rules.RuleRef
 import site.webhook.schema.SchemaResult
@@ -22,7 +23,8 @@ import java.time.LocalDateTime
  * (Kotlin `null`, requisição JSON), `null` no JSON (`NullNode`, sem campos) ou os campos.
  *
  * `rule` e `near_miss` (regras de resposta), `signature` (verificação HMAC) e `schema` (validação do corpo)
- * são gravados sempre, nulos quando não se aplicam; mensagem gravada antes deles os lê como `null`.
+ * são gravados sempre, nulos quando não se aplicam; mensagem gravada antes deles os lê como `null`. `response` é o que
+ * a URL respondeu ([RecordedResponse]), gravado sempre; mensagem gravada antes dele o lê como `null`.
  *
  * `seq` é o score da mensagem no índice (estritamente crescente por URL): anexado quando a mensagem
  * sai do Redis (listagem, `GET`, evento) e nunca gravado na hash, que guarda o formato do app antigo.
@@ -49,6 +51,7 @@ data class CapturedRequest(
     val nearMiss: NearMiss? = null,
     val signature: SignatureResult? = null,
     val schema: SchemaResult? = null,
+    val response: RecordedResponse? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val seq: Long? = null,
 ) {
@@ -56,6 +59,17 @@ data class CapturedRequest(
     @JsonIgnore
     fun isJson(): Boolean = headers["content-type"]?.firstOrNull() == "application/json"
 }
+
+/**
+ * `response` da mensagem: o que a URL respondeu, conhecido antes de responder. O [status] dado (da regra ou da resposta
+ * padrão), ou a [fault] da regra que derrubou a conexão; no JSON, só a chave que se aplica.
+ */
+data class RecordedResponse(
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val status: Int? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val fault: Fault? = null,
+)
 
 enum class Sorting {
     OLDEST,
