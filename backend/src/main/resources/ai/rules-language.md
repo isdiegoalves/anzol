@@ -11,7 +11,8 @@ Rule fields:
   - query: object, parameter name -> exactly one of {"equals": text}, {"contains": text}, {"regex": text}, {"present": true|false}.
   - headers: object, header name (any case) -> the same operators as query.
   - body: list of conditions, each exactly one of {"equals": text}, {"contains": text}, {"regex": text},
-    {"jsonPath": {"path": "$.status", "equals": <any JSON value>}} (without "equals" the path only has to exist),
+    {"jsonPath": {"path": "$.status", "equals": <any JSON value>}} (without "equals" the path only has to exist; the
+    path may not use the =~ regex operator, use {"regex": ...} instead),
     {"equalToJson": <JSON value or text holding JSON>}.
   - signature: "valid", "invalid" or "absent" (HMAC verification configured on the URL).
   - schema: "valid" or "invalid" (JSON Schema validation configured on the URL).

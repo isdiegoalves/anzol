@@ -20,6 +20,13 @@ val HEADER_NAME = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 private val PATH_OPERATORS = listOf("equals", "prefix", "regex")
 private val FIELD_OPERATORS = listOf("equals", "contains", "regex", "present")
 private val BODY_OPERATORS = listOf("equals", "contains", "regex", "jsonPath", "equalToJson")
+
+/**
+ * O operador de regex dos filtros JSONPath. A regex dele roda dentro da biblioteca, que não deixa trocar o motor, e
+ * escaparia do teto de custo (ReDoS): o `jsonPath` das condições o recusa ao salvar; para regex há a condição `regex`.
+ */
+private const val REGEX_FILTER = "=~"
+private const val REGEX_FILTER_REFUSED = "The path may not use the regex operator =~; use the regex condition instead."
 private val DELAY_OPERATORS = listOf("fixed", "uniform", "lognormal")
 private val DELAY_RANGE = 0..MAX_DELAY_MS
 private val MEDIAN_RANGE = BigDecimal.ONE..BigDecimal(MAX_DELAY_MS)
@@ -36,7 +43,7 @@ class RuleReader(
     private val violations: Violations,
     private val checkTemplates: Boolean = true,
 ) {
-    private val matchReader = MatchReader(violations)
+    private val matchReader = MatchReader(violations, strict = checkTemplates)
     private val scenarioReader = ScenarioReader(violations)
     private val timingReader = TimingReader(violations)
 
@@ -185,9 +192,13 @@ class RuleReader(
         }
 }
 
-/** O `match` de uma regra: método, caminho, query, cabeçalhos, corpo, assinatura e schema. */
+/**
+ * O `match` de uma regra: método, caminho, query, cabeçalhos, corpo, assinatura e schema. Sem [strict] (a lista
+ * gravada), aceita o que foi salvo antes de uma recusa nova (o filtro JSONPath com `=~`).
+ */
 class MatchReader(
     private val violations: Violations,
+    private val strict: Boolean = true,
 ) {
     fun match(
         node: JsonNode?,
@@ -322,11 +333,21 @@ class MatchReader(
         val pathKey = key(key, "path")
         val path = given["path"].given()
         val source = if (path == null) violations.fail(pathKey, "The path field is required.") else violations.text(path, pathKey)
-        return source?.let {
-            try {
-                BodyMatcher.JsonPathMatch(it, JsonPath.compile(it), given["equals"].given())
-            } catch (_: InvalidPathException) {
-                violations.fail(pathKey, "The path is invalid.")
+        return when {
+            source == null -> {
+                null
+            }
+
+            strict && REGEX_FILTER in source -> {
+                violations.fail(pathKey, REGEX_FILTER_REFUSED)
+            }
+
+            else -> {
+                try {
+                    BodyMatcher.JsonPathMatch(source, JsonPath.compile(source), given["equals"].given())
+                } catch (_: InvalidPathException) {
+                    violations.fail(pathKey, "The path is invalid.")
+                }
             }
         }
     }
