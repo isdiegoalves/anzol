@@ -40,6 +40,7 @@ import {
   FAULT_LABELS,
   HISTORY_TEST_WINDOW,
   HistoryTest,
+  RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
   RULE_FAULTS,
   Rule,
@@ -189,7 +190,15 @@ export class RuleEditor {
   /** A regra salva em edição, como estava ao abrir (`null` numa regra nova). */
   private readonly editing = signal<Rule | null>(null);
   /** `id` da regra salva em edição (fixo, mesmo que o JSON editado perca o campo). */
-  private editingId: string | undefined;
+  private readonly editingId = signal<string | undefined>(undefined);
+  /**
+   * A regra salva em edição não está mais na lista (apagada ou reimportada com ids novos em outro
+   * lugar): o Save a acrescenta como regra nova, com id novo, e a tela avisa antes.
+   */
+  protected readonly missingFromList = computed(() => {
+    const id = this.editingId();
+    return id !== undefined && !this.store.rules().some((rule) => rule.id === id);
+  });
   /** Título com o nome salvo, fixo enquanto o nome é editado. */
   protected readonly title = signal('New rule');
   protected readonly methods = signal<string[]>(METHODS);
@@ -378,7 +387,7 @@ export class RuleEditor {
   private start(data: RuleEditorData): void {
     const saved = data.index === null ? undefined : this.store.rules()[data.index];
     this.base = saved ?? data.draft ?? newRule();
-    this.editingId = saved?.id;
+    this.editingId.set(saved?.id);
     this.title.set(saved ? `Edit rule ${saved.name}` : 'New rule');
     this.methods.set([
       ...METHODS,
@@ -434,15 +443,36 @@ export class RuleEditor {
 
   /**
    * Relê a lista depois do aviso "changed elsewhere". O rascunho fica no editor; o próximo Save o
-   * põe na lista nova (pelo `id` da regra em edição, ou no fim se é nova).
+   * põe na lista nova (pelo `id` da regra em edição, ou no fim se é nova). Prioridade e enabled
+   * que o editor não tocou passam a ser os da lista nova (outra aba pode tê-los mudado).
    */
   protected async reloadRules(): Promise<void> {
     try {
       await this.store.reload();
       this.changedElsewhere.set(false);
+      const saved = this.store.rules().find((rule) => rule.id === this.editingId());
+      if (saved) {
+        this.takeUntouched(saved);
+      }
     } catch (error) {
       this.generalErrors.set(validationMessages(error));
     }
+  }
+
+  /** Prioridade e enabled da regra salva, onde o formulário (ou o JSON) não os mudou. */
+  private takeUntouched(saved: Rule): void {
+    const { priority, enabled } = this.form.controls;
+    const untouched: Partial<Rule> = {};
+    if (!priority.dirty) {
+      untouched.priority = saved.priority;
+      priority.setValue(saved.priority ?? RULE_DEFAULT_PRIORITY, { emitEvent: false });
+    }
+    if (!enabled.dirty) {
+      untouched.enabled = saved.enabled;
+      enabled.setValue(saved.enabled ?? true, { emitEvent: false });
+    }
+    this.base = { ...this.base, ...untouched };
+    this.edits.update((n) => n + 1);
   }
 
   /** A regra em edição está desligada: a prévia diz o que ela casaria, mas ela não responde. */
@@ -528,7 +558,8 @@ export class RuleEditor {
    * regra salva, ela fica com o `id` dessa regra.
    */
   protected applySuggestion(rule: Rule): void {
-    this.base = this.editingId === undefined ? rule : { ...rule, id: this.editingId };
+    const id = this.editingId();
+    this.base = id === undefined ? rule : { ...rule, id };
     this.generalErrors.set([]);
     this.loadForm(this.base);
     this.tab.set('match');
@@ -604,7 +635,8 @@ export class RuleEditor {
     }
     const rules = [...this.store.rules()];
     const index = this.currentIndex() ?? rules.length;
-    rules[index] = rule;
+    // Regra que saiu da lista em outro lugar volta como nova: o id velho não é reaproveitado.
+    rules[index] = this.missingFromList() ? withoutId(rule) : rule;
     this.saving.set(true);
     this.generalErrors.set([]);
     this.changedElsewhere.set(false);
@@ -636,10 +668,11 @@ export class RuleEditor {
    * (toggle, reordenação). `null` para regra nova, ou se ela saiu da lista (salvar a recria no fim).
    */
   private currentIndex(): number | null {
-    if (this.editingId === undefined) {
+    const id = this.editingId();
+    if (id === undefined) {
       return null;
     }
-    const index = this.store.rules().findIndex((rule) => rule.id === this.editingId);
+    const index = this.store.rules().findIndex((rule) => rule.id === id);
     return index < 0 ? null : index;
   }
 
@@ -798,6 +831,12 @@ export class RuleEditor {
   private headerGroup(row: HeaderRow): HeaderGroup {
     return this.formBuilder.group({ name: [row.name, Validators.required], value: [row.value] });
   }
+}
+
+function withoutId(rule: Rule): Rule {
+  const copy = { ...rule };
+  delete copy.id;
+  return copy;
 }
 
 function setEnabled(control: AbstractControl, enabled: boolean): void {

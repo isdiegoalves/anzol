@@ -150,13 +150,17 @@ export class RulesPage {
     return state ? [state] : [];
   });
   private openEditor: EditorState | null = null;
-  /** A rota aponta para uma regra que não está na lista. */
+  /**
+   * A rota aponta para uma regra que não está na lista e nenhum editor está aberto (com o editor
+   * aberto, o aviso é o dele: "Save adds it as a new rule").
+   */
   protected readonly missingRule = computed(() => {
     const ruleId = this.ruleId();
     return (
       !!ruleId &&
       ruleId !== 'new' &&
       this.loaded() &&
+      this.editor().length === 0 &&
       !this.store.rules().some((rule) => rule.id === ruleId)
     );
   });
@@ -267,14 +271,28 @@ export class RulesPage {
   }
 
   protected async deleteRule(index: number): Promise<void> {
-    const previous = this.store.rules();
-    if (!(await this.saveUnchanged(previous.filter((_, i) => i !== index)))) {
+    const deleted = this.store.rules()[index];
+    if (!(await this.saveUnchanged(this.store.rules().filter((_, i) => i !== index)))) {
       return;
     }
     this.snackBar
       .open('Rule deleted', 'Undo', { duration: 5000 })
       .onAction()
-      .subscribe(() => void this.saveUnchanged(previous));
+      .subscribe(() => void this.undoDelete(deleted, index));
+  }
+
+  /**
+   * Devolve só a regra apagada, na posição de antes (ou no fim), sobre a lista de agora: a lista
+   * pode ter sido relida depois do Delete, com regras que outra aba gravou.
+   */
+  private async undoDelete(deleted: Rule, index: number): Promise<void> {
+    const current = this.store.rules();
+    if (deleted.id && current.some((rule) => rule.id === deleted.id)) {
+      return;
+    }
+    const restored = [...current];
+    restored.splice(Math.min(index, restored.length), 0, deleted);
+    await this.saveUnchanged(restored);
   }
 
   /** Relê a lista depois do aviso "changed elsewhere". */

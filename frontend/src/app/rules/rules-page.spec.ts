@@ -301,6 +301,31 @@ describe('Dado a página Rules', () => {
       expect(await screen.findByText(/The rules changed elsewhere/)).toBeTruthy();
       http.expectNone({ method: 'PUT', url: URL_REGRAS });
     });
+    it('deve devolver só a regra apagada, sem apagar a de outra aba, Quando o Undo vem depois de um Reload', async () => {
+      await open([rule(1), rule(2)]);
+      const desfazer = new Subject<void>();
+      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open').mockReturnValue({
+        onAction: () => desfazer,
+      } as unknown as ReturnType<MatSnackBar['open']>);
+
+      // Apaga a regra 2; outra aba acrescenta a 3; o toggle avisa e a lista é relida.
+      await userEvent.click(within(row('r2')).getByRole('button', { name: 'Delete' }));
+      await expectGuardedPut([rule(1), rule(2)], [rule(1)]);
+      await vi.waitFor(() => expect(snack).toHaveBeenCalled());
+      await userEvent.click(screen.getByRole('switch', { name: 'Enable rule Rule 1' }));
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1), rule(3)]),
+      );
+      await userEvent.click(await screen.findByRole('button', { name: 'Reload' }));
+      http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1), rule(3)]);
+      await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+
+      desfazer.next();
+
+      // A regra 2 volta à posição de antes, sobre a lista de agora: a 3 continua.
+      await expectGuardedPut([rule(1), rule(3)], [rule(1), rule(2), rule(3)]);
+    });
   });
 
   describe('Dado o editor aberto pela rota', () => {
@@ -330,6 +355,20 @@ describe('Dado a página Rules', () => {
       ).toEqual(['Match', 'Response', 'Scenario', 'Test']);
       expect(row('r2').classList).toContain('open');
       await expectNoAxeViolations(container);
+    });
+
+    it('deve deixar só o aviso do editor Quando a regra aberta sai da lista (apagada ao lado)', async () => {
+      await open([rule(1), rule(2)], { ruleId: 'r2' });
+      await screen.findByRole('region', { name: 'Edit rule Rule 2' });
+
+      await userEvent.click(within(row('r2')).getByRole('button', { name: 'Delete' }));
+      await expectGuardedPut([rule(1), rule(2)], [rule(1)]);
+
+      await vi.waitFor(() =>
+        expect(screen.getAllByRole('alert').map((alert) => alert.textContent?.trim())).toEqual([
+          'This rule no longer exists in the list; Save adds it as a new rule.',
+        ]),
+      );
     });
 
     it('deve avisar Quando a regra da rota não existe', async () => {

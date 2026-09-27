@@ -27,6 +27,11 @@
         <button mat-stroked-button type="button" (click)="reloadRules()" i18n>Reload</button>
       </div>
     }
+    @if (missingFromList()) {
+      <p class="missing" role="alert" i18n>
+        This rule no longer exists in the list; Save adds it as a new rule.
+      </p>
+    }
     @if (generalErrors().length > 0) {
       <ul class="errors" role="alert">
         @for (message of generalErrors(); track $index) {

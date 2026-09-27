@@ -1000,4 +1000,67 @@ describe('Dado o editor de regra', () => {
       );
     });
   });
+
+  describe('Dado o Reload do editor depois de "changed elsewhere"', () => {
+    /** Save → a lista do servidor mudou → aviso → Reload com a lista nova. */
+    const conflictThenReload = async (server: Rule[]) => {
+      await save();
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush(server);
+      await (await vi.waitFor(() => button('Reload'))).click();
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush(server);
+      await fixture.whenStable();
+      onServer = server;
+    };
+
+    it('deve avisar e salvar como regra nova, sem o id velho, Quando a regra em edição sumiu da lista (import com ids novos)', async () => {
+      await open({ index: 1 }, [rule(1), rule(2)]);
+      await (await input('Name')).setValue('Editada');
+      const reimportada = [rule(1, { id: 'novo-1' }), rule(2, { id: 'novo-2' })];
+
+      await conflictThenReload(reimportada);
+
+      await vi.waitFor(() =>
+        expect(text('.missing')).toEqual([
+          'This rule no longer exists in the list; Save adds it as a new rule.',
+        ]),
+      );
+      await save();
+      const call = await put();
+      const body = call.request.body as Rule[];
+      expect(body.map((r) => [r.id, r.name])).toEqual([
+        ['novo-1', 'Rule 1'],
+        ['novo-2', 'Rule 2'],
+        [undefined, 'Editada'],
+      ]);
+      expect('id' in body[2]).toBe(false);
+    });
+
+    it('deve ficar com a prioridade e o enabled da lista nova Quando o editor não os tocou', async () => {
+      await open({ index: 1 }, [rule(1), rule(2)]);
+      await (await input('Name')).setValue('Editada');
+
+      await conflictThenReload([rule(2, { priority: 1, enabled: false }), rule(1)]);
+      await save();
+
+      const body = (await put()).request.body as Rule[];
+      expect(body.map((r) => [r.name, r.priority, r.enabled])).toEqual([
+        ['Editada', 1, false],
+        ['Rule 1', 5, true],
+      ]);
+    });
+
+    it('deve manter a prioridade digitada Quando o editor a mudou antes do Reload', async () => {
+      await open({ index: 1 }, [rule(1), rule(2)]);
+      await (await input('Priority')).setValue('7');
+
+      await conflictThenReload([rule(2, { priority: 1 }), rule(1)]);
+      await save();
+
+      const body = (await put()).request.body as Rule[];
+      expect(body.map((r) => [r.name, r.priority])).toEqual([
+        ['Rule 2', 7],
+        ['Rule 1', 5],
+      ]);
+    });
+  });
 });
