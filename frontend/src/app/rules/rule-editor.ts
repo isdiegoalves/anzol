@@ -734,6 +734,16 @@ export class RuleEditor {
     }
   }
 
+  /** Quantas mensagens seguem com uma regra anterior (a barra da prévia). */
+  protected earlierCount(preview: PriorityPreview): number {
+    return preview.earlier.reduce((sum, rule) => sum + rule.count, 0);
+  }
+
+  /** Status da resposta padrão da URL ("instead of the default 200"). */
+  protected defaultStatus(): number {
+    return this.tokens.token()?.default_status ?? RULE_DEFAULT_STATUS;
+  }
+
   /** O que a regra responde, para a frase da prévia ("would now get 201 from this rule"). */
   protected answer(): string {
     const rule = this.editedRule();

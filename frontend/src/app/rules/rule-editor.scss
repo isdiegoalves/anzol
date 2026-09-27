@@ -173,6 +173,22 @@
   }
 }
 
+.proportion {
+  display: flex;
+  height: 8px;
+  margin: 0 0 8px;
+  overflow: hidden;
+  border-radius: 4px;
+
+  .mine {
+    background: var(--mat-sys-primary);
+  }
+
+  .earlier {
+    background: var(--mat-sys-outline);
+  }
+}
+
 .line {
   display: flex;
   flex-wrap: wrap;

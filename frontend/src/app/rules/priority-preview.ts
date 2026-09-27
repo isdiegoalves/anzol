@@ -13,6 +13,8 @@ export interface EarlierRule {
  */
 export interface PriorityPreview {
   draft: number;
+  /** Das que passariam ao rascunho, quantas eram da resposta padrão (RULES-21). */
+  fromDefault: number;
   earlier: EarlierRule[];
 }
 
@@ -40,6 +42,7 @@ export function priorityPreview(
   const draftPosition = position.get(at) ?? 0;
 
   let answeredByDraft = 0;
+  let fromDefault = 0;
   const earlier = new Map<string, EarlierRule>();
   for (const uuid of matched) {
     const ref = answeredBy.get(uuid);
@@ -52,10 +55,14 @@ export function priorityPreview(
       earlier.set(ref.id, entry);
     } else {
       answeredByDraft++;
+      if (ref === null) {
+        fromDefault++;
+      }
     }
   }
   return {
     draft: answeredByDraft,
+    fromDefault,
     earlier: [...earlier.values()].sort(
       (a, b) => b.count - a.count || a.name.localeCompare(b.name),
     ),

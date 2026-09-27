@@ -1206,8 +1206,6 @@ export const translations: Record<string, string> = {
   '8823180892239058592': ' Com base na regra que respondeu na hora; ignora o estado dos cenários. ',
   // This rule is off; turn it on to answer.
   '78167379411983619': 'Esta regra está desligada; ligue-a para responder.',
-  // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
-  '8758745832004953313': '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra',
   // {$INTERPOLATION} still answered by earlier rule {$INTERPOLATION_1}
   '7868313625932043703':
     '{$INTERPOLATION} continuam respondidas pela regra anterior {$INTERPOLATION_1}',
@@ -2113,4 +2111,9 @@ export const translations: Record<string, string> = {
   '7978723831900223519': 'Não avaliada enquanto desligada',
   // Rule in plain words
   '2268582330010433110': 'Regra em palavras',
+  //  {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule instead of the default {$INTERPOLATION_2}
+  '2185491368998792148':
+    ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2} ',
+  //  {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule
+  '7611102451634570418': ' {$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra ',
 };

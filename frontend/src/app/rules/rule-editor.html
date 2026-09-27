@@ -787,8 +787,27 @@
           <p class="notice off" i18n>This rule is off; turn it on to answer.</p>
         }
         @if (state.preview; as outcome) {
+          <!-- Proporção de relance (RULES-21): esta regra | as anteriores; o texto abaixo diz os números. -->
+          @let total = outcome.draft + earlierCount(outcome);
+          @if (total > 0) {
+            <div class="proportion" aria-hidden="true">
+              <span class="mine" [style.width.%]="(outcome.draft / total) * 100"></span>
+              <span class="earlier" [style.width.%]="(earlierCount(outcome) / total) * 100"></span>
+            </div>
+          }
           <ul>
-            <li i18n>{{ outcome.draft }} would now get {{ answer() }} from this rule</li>
+            @if (outcome.fromDefault > 0) {
+              <li i18n>
+                {{ outcome.fromDefault }} would now get {{ answer() }} from this rule instead of the
+                default {{ defaultStatus() }}
+              </li>
+            }
+            @if (outcome.draft > outcome.fromDefault) {
+              <li i18n>
+                {{ outcome.draft - outcome.fromDefault }} would now get {{ answer() }} from this
+                rule
+              </li>
+            }
             @for (earlier of outcome.earlier; track earlier.id) {
               <li i18n>{{ earlier.count }} still answered by earlier rule {{ earlier.name }}</li>
             }

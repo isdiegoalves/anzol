@@ -876,9 +876,16 @@ describe('Dado o editor de regra', () => {
       expect(text('.preview .hint')).toEqual([
         'Based on the rule that answered at the time; ignores scenario state.',
       ]);
+      // RULES-21: a que vinha da resposta padrão diz qual era, e a barra mostra a proporção.
       expect(text('.preview li')).toEqual([
-        '1 would now get 209 from this rule',
+        '1 would now get 209 from this rule instead of the default 200',
         '1 still answered by earlier rule Rule 1',
+      ]);
+      const barra = root().querySelector('.preview .proportion') as HTMLElement;
+      expect(barra.getAttribute('aria-hidden')).toBe('true');
+      expect([...barra.querySelectorAll('span')].map((part) => part.style.width)).toEqual([
+        '50%',
+        '50%',
       ]);
     });
 

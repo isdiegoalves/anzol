@@ -60,7 +60,7 @@ describe('Dado a prévia do rascunho com a prioridade das regras salvas (S8)', (
       new Map([['m1', ref(P1)]]),
     );
 
-    expect(preview).toEqual({ draft: 1, earlier: [] });
+    expect(preview).toEqual({ draft: 1, fromDefault: 0, earlier: [] });
   });
 
   it('deve agrupar por regra anterior, da que mais responde para a que menos', () => {
@@ -80,8 +80,10 @@ describe('Dado a prévia do rascunho com a prioridade das regras salvas (S8)', (
       answeredBy,
     );
 
+    // "d" veio da resposta padrão e "e" de uma regra que hoje vem depois (RULES-21).
     expect(preview).toEqual({
       draft: 2,
+      fromDefault: 1,
       earlier: [
         { id: P5.id, name: P5.name, count: 2 },
         { id: P1.id, name: P1.name, count: 1 },
