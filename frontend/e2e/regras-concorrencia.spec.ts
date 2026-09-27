@@ -1,6 +1,6 @@
 import { APIRequestContext, Locator, Page, Response } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { celular, editor, linhaDaRegra } from './support/regras';
+import { acaoDoEditor, celular, editor, linhaDaRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Item 14, E6 — refutação independente (CA-12), transformada em spec. `PUT /token/{id}/rules` troca a lista
@@ -66,7 +66,8 @@ async function abrir(
  */
 async function apagarPeloEditor(page: Page, nome: string): Promise<void> {
   await linhaDaRegra(page, nome).locator('td.item').getByRole('button').click();
-  await editor(page, `Edit rule ${nome}`).getByRole('button', { name: 'Delete rule' }).click();
+  // UX de Regras, F8: no celular o "Delete rule" fica no ⋮ "More actions" do cabeçalho do editor.
+  await acaoDoEditor(page, editor(page, `Edit rule ${nome}`), 'Delete rule');
 }
 
 /** Clica e espera o `PUT /rules` responder ou o aviso de conflito aparecer. */

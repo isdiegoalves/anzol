@@ -188,3 +188,21 @@ export async function mostrarLista(page: Page): Promise<void> {
   }
   await expect(lista(page)).toBeVisible();
 }
+
+/**
+ * Uma ação do detalhe da mensagem: botão da `toolbar "Request actions"` na largura grande; no celular (janela
+ * compacta, INBOX-33) algumas saem da barra e ficam no `button "More"` do detalhe, como `menuitem`.
+ */
+export async function acaoDaMensagem(page: Page, nome: string): Promise<void> {
+  await expect(acoes(page)).toBeVisible();
+  const botao = acoes(page).getByRole('button', { name: nome, exact: true });
+  if (await botao.isVisible()) {
+    await botao.click();
+    return;
+  }
+  await page
+    .getByRole('region', { name: 'Request detail' })
+    .getByRole('button', { name: 'More', exact: true })
+    .click();
+  await page.getByRole('menuitem', { name: nome, exact: true }).click();
+}

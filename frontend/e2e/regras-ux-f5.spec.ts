@@ -1,6 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirMensagem } from './support/inbox';
+import { abrirMensagem, acaoDaMensagem } from './support/inbox';
 import { dialogo, editor, gravarRegras, lerRegras, parte, snackbar } from './support/regras';
 
 // UX de Regras, fatia F5 — criar regra da mensagem sem superajustar (WM-31, E-03, WM-28; guia-ux §3.5; CA-6).
@@ -217,7 +217,8 @@ test.describe('Dado "Test a variation" no detalhe da mensagem (WM-28)', () => {
     const id = await tokens.send(tokenId, EVENTO);
     await abrirMensagem(page, tokenId, id);
 
-    await page.getByRole('button', { name: 'Test a variation' }).click();
+    // No celular (janela compacta) a ação fica no "More" do detalhe.
+    await acaoDaMensagem(page, 'Test a variation');
 
     const envio = page.getByRole('region', { name: 'Send request' });
     await expect(envio.getByRole('textbox', { name: 'URL', exact: true })).toHaveValue(
