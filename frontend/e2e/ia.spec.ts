@@ -210,8 +210,10 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await expect(dialog).toBeVisible();
     llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });
 
+    // O checkbox fica dentro do Suggest recolhido (RULES-16): abre antes.
+    const campo = await descrever(dialog);
     await dialog.getByRole('checkbox', { name: /Use the open request as example/ }).check();
-    await (await descrever(dialog)).fill('Igual a esta mensagem');
+    await campo.fill('Igual a esta mensagem');
     const [call] = await Promise.all([
       page.waitForRequest((r) => r.url().endsWith(`/token/${tokenId}/rules/suggest`)),
       dialog.getByRole('button', { name: 'Suggest' }).click(),
@@ -368,8 +370,9 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
 
     // A mesma sessão da tela (só o hash muda): o editor já abre com a IA desligada.
     const dialog = await newRuleDialog(page, tokenId);
+    // A dica e o campo ficam dentro do Suggest recolhido (RULES-16): abre antes.
+    await expect(await descrever(dialog)).toBeDisabled();
     await expect(dialog.getByText('Set WEBHOOK_AI_* to enable')).toBeVisible();
-    await expect(dialog.getByRole('textbox', { name: 'Describe the rule' })).toBeDisabled();
     await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeDisabled();
   });
 
