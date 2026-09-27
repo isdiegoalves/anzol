@@ -1,6 +1,9 @@
+import { abrirChecks, abrirCreate, pendenteAlerta, salvar } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
 
 // Campo Retry-After dos diálogos da URL. Precisa do backend com `retry_after` no token.
+// Item 14, E5: no "Create New URL" o campo fica no painel "Customize response"; o "Edit URL" vira o cartão
+// `region "Response"` de Checks, com "Save response". SUPOSIÇÕES em `support/checks.ts`.
 
 const DATA_HTTP = 'Sun, 06 Nov 1994 08:49:37 GMT';
 
@@ -13,8 +16,7 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New URL', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Create New URL' });
+    const dialog = await abrirCreate(page);
     await expect(
       dialog.getByText('Seconds or HTTP-date; useful with 429, 503 or 3xx'),
     ).toBeVisible();
@@ -39,13 +41,12 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
     }) => {
       await page.goto(`/#/${await tokens.create()}`);
 
-      await page.getByRole('button', { name: 'New URL', exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: 'Create New URL' });
+      const dialog = await abrirCreate(page);
       await dialog.getByLabel('Retry-After').fill(valor);
       await dialog.getByLabel('Default status code').click();
       await dialog.getByRole('button', { name: 'Create' }).click();
 
-      await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: Retry-After');
+      await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: Retry-After');
       await expect(dialog.getByLabel('Retry-After')).toBeFocused();
       await expect(
         dialog.getByText('The retry after must be a number of seconds or an HTTP date.'),
@@ -54,25 +55,19 @@ test.describe('Dado o campo Retry-After do diálogo "Create New URL"', () => {
   }
 });
 
-test.describe('Dado o campo Retry-After do diálogo "Edit URL"', () => {
-  test('deve vir com o valor salvo e trocar por data HTTP Quando Edit é clicado', async ({
+test.describe('Dado o campo Retry-After do cartão "Response" de Checks', () => {
+  test('deve vir com o valor salvo e trocar por data HTTP Quando "Save response" é clicado', async ({
     page,
     request,
     tokens,
   }) => {
     const tokenId = await tokens.create({ retry_after: '30' });
-    await page.goto(`/#/${tokenId}`);
-    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
-      new RegExp(`/${tokenId}$`),
-    );
+    const dialog = await abrirChecks(page, tokenId, 'Response');
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
     await expect(dialog.getByLabel('Retry-After')).toHaveValue('30');
     await dialog.getByLabel('Retry-After').fill(DATA_HTTP);
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await salvar(page, dialog, 'Save response', tokenId);
 
-    await expect(page.getByText('URL updated!')).toBeVisible();
     expect(await tokens.read(tokenId)).toMatchObject({ retry_after: DATA_HTTP });
     const webhook = await request.get(`/${tokenId}/503`);
     expect(webhook.status()).toBe(503);
@@ -85,21 +80,12 @@ test.describe('Dado o campo Retry-After do diálogo "Edit URL"', () => {
     tokens,
   }) => {
     const tokenId = await tokens.create({ retry_after: '30', default_status: '429' });
-    await page.goto(`/#/${tokenId}`);
-    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
-      new RegExp(`/${tokenId}$`),
-    );
+    const dialog = await abrirChecks(page, tokenId, 'Response');
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
     await dialog.getByLabel('Retry-After').fill('');
-    const put = page.waitForRequest(
-      (sent) => sent.method() === 'PUT' && sent.url().endsWith(`/token/${tokenId}`),
-    );
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    const put = await salvar(page, dialog, 'Save response', tokenId);
 
-    expect((await put).postDataJSON()).toMatchObject({ retry_after: null });
-    await expect(page.getByText('URL updated!')).toBeVisible();
+    expect(put).toMatchObject({ retry_after: null });
     expect(await tokens.read(tokenId)).toMatchObject({ retry_after: null, default_status: 429 });
     const webhook = await request.post(`/${tokenId}`);
     expect(webhook.status()).toBe(429);

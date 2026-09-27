@@ -1,4 +1,5 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
+import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 import {
   abrirMensagem,
@@ -10,7 +11,7 @@ import {
 } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Validação de schema por URL (CA-5, o que é da tela): configurar pelo Edit URL, selo na
+// Validação de schema por URL (CA-5, o que é da tela): configurar pela tela, selo na
 // mensagem com os erros, gerar o schema de uma mensagem e condição "Schema" no editor de regras.
 // Precisa do backend com `schema` no token, na mensagem e em `match.schema`.
 // Item 14, E4: o selo vira o cartão "Schema valid|invalid" no `group "Checks on this request"` (o primeiro erro na
@@ -50,27 +51,18 @@ async function choose(page: Page, select: Locator, option: string) {
   await page.getByRole('option', { name: option, exact: true }).click();
 }
 
+/**
+ * Item 14, E5: a seção sai do diálogo "Edit URL" e vira o cartão `region "Schema validation"` de Checks, com
+ * "Save schema" e "Clear schema"; "Create schema from this request" leva a `#/{token}/checks?schema-from={id}`
+ * com o schema inferido no campo, sem salvar. SUPOSIÇÕES em `support/checks.ts`.
+ */
 async function openEditUrl(page: Page, tokenId: string): Promise<Locator> {
-  await page.goto(`/#/${tokenId}`);
-  // O diálogo abre com o token carregado do servidor (antes disso, o do localStorage).
-  await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
-    new RegExp(`/${tokenId}$`),
-  );
-  await page.getByRole('button', { name: 'Edit' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit URL' });
-  await expect(dialog).toBeVisible();
-  return dialog;
+  return abrirChecks(page, tokenId, 'Schema validation');
 }
 
-/** Clica em "Edit" no diálogo e devolve o corpo do `PUT /token/{id}`. */
+/** Clica em "Save schema" e devolve o corpo do `PUT /token/{id}`. */
 async function submitEdit(page: Page, dialog: Locator, tokenId: string) {
-  const put = page.waitForRequest(
-    (sent) => sent.method() === 'PUT' && sent.url().endsWith(`/token/${tokenId}`),
-  );
-  await dialog.getByRole('button', { name: 'Edit' }).click();
-  const body = (await put).postDataJSON() as Record<string, unknown>;
-  await expect(page.getByText('URL updated!')).toBeVisible();
-  return body;
+  return salvar(page, dialog, 'Save schema', tokenId);
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
@@ -88,7 +80,7 @@ async function getRules(api: APIRequestContext, tokenId: string) {
   return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Record<string, unknown>[];
 }
 
-test.describe('Dado a seção "Schema validation" do Edit URL', () => {
+test.describe('Dado o cartão "Schema validation" de Checks', () => {
   test('deve validar com o schema colado pela tela e marcar as mensagens válida, inválida e sem JSON', async ({
     page,
     tokens,
@@ -101,8 +93,8 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     await field.fill('{"type": ');
     await field.blur();
     await expect(dialog.getByText(/^Invalid JSON: /)).toBeVisible();
-    await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: JSON Schema');
+    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
+    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: JSON Schema');
     await expect(field).toBeFocused();
     await field.fill(JSON.stringify(PEDIDO, null, 2));
     await field.scrollIntoViewIfNeeded();
@@ -136,7 +128,7 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     await expect(errorPaths(page)).toHaveText(['(root) body is not JSON']);
   });
 
-  test('deve mostrar no campo o erro do servidor, manter o diálogo aberto e desligar pelo "Clear schema"', async ({
+  test('deve mostrar no campo o erro do servidor, manter o que foi digitado e desligar pelo "Clear schema"', async ({
     page,
     tokens,
   }) => {
@@ -149,13 +141,13 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     const recusa = page.waitForResponse(
       (response) => response.request().method() === 'PUT' && response.status() === 422,
     );
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
     await recusa;
 
     await expect(dialog.getByText(/^The schema is invalid: /)).toBeVisible();
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog.locator('#token-form-pending')).toHaveText('To save, fix: JSON Schema');
+    await expect(field).toHaveValue('{"$ref": "https://exemplo.com/pedido.json"}');
+    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
+    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: JSON Schema');
     await field.scrollIntoViewIfNeeded();
     await screenshot(page, '04-edit-url-erro-do-servidor');
     expect(await tokens.read(tokenId)).toMatchObject({ schema: PEDIDO });
@@ -174,7 +166,7 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
 });
 
 test.describe('Dado "Create schema from this request"', () => {
-  test('deve abrir o Edit URL com o schema inferido do corpo e, salvo, validar as mensagens seguintes', async ({
+  test('deve abrir Checks com o schema inferido do corpo e, salvo, validar as mensagens seguintes', async ({
     page,
     tokens,
   }) => {
@@ -191,8 +183,10 @@ test.describe('Dado "Create schema from this request"', () => {
 
     await openRequest(page, tokenId, exemplo);
     await page.getByRole('button', { name: 'Create schema from this request' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks\\?schema-from=${exemplo}$`));
+    const dialog = page.getByRole('region', { name: 'Schema validation', exact: true });
     await expect(dialog).toBeVisible();
+    expect(await tokens.read(tokenId)).toMatchObject({ schema: null });
     const inferido = {
       $schema: DRAFT,
       type: 'object',

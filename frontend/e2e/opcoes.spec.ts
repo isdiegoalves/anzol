@@ -1,4 +1,5 @@
 import { Request } from '@playwright/test';
+import { abrirChecks } from './support/checks';
 import { expect, test } from './support/fixtures';
 import { readStorage, seedStorage } from './support/storage';
 
@@ -6,6 +7,8 @@ import { readStorage, seedStorage } from './support/storage';
 // tempo-real.spec.ts).
 
 test.describe('Dado o toggle de CORS (checklist 9)', () => {
+  // Item 14, E5: o toggle sai da barra de opções para o cartão `region "Response"` de Checks (S13) e continua
+  // valendo na hora (SUPOSIÇÃO: sem esperar o "Save response"), com o mesmo aviso.
   test('deve ligar no servidor e continuar ligado após recarregar Quando é clicado (regressão do C2)', async ({
     page,
     request,
@@ -13,15 +16,15 @@ test.describe('Dado o toggle de CORS (checklist 9)', () => {
   }) => {
     const tokenId = await tokens.create();
     await tokens.send(tokenId);
-    await page.goto(`/#/${tokenId}`);
-    const cors = page.getByRole('switch', { name: /Enable CORS/ });
+    const resposta = await abrirChecks(page, tokenId, 'Response');
+    const cors = resposta.getByRole('switch', { name: /Enable CORS/ });
     await expect(cors).not.toBeChecked();
 
     await cors.click();
     await expect(page.getByText('CORS enabled.')).toBeVisible();
     await page.reload();
 
-    await expect(page.getByRole('switch', { name: /Enable CORS/ })).toBeChecked();
+    await expect(resposta.getByRole('switch', { name: /Enable CORS/ })).toBeChecked();
     expect(
       ((await (await request.get(`/token/${tokenId}`)).json()) as { cors: boolean }).cors,
     ).toBe(true);

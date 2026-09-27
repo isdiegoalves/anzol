@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
 import { abrirAba, acoes, expectCorpo, item, linhas } from './support/inbox';
 import { seedStorage } from './support/storage';
 
@@ -35,7 +36,9 @@ async function waitForStream(page: Page, tokenId: string): Promise<void> {
   expect(stream.status()).toBe(200);
 }
 
-test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
+// Item 14, E5: a seção "Privacy" do "Edit URL" vira o cartão `region "Privacy"` de Checks, com "Save privacy"; o
+// "Create New URL" mantém a seção (criar já protegida). SUPOSIÇÕES em `support/checks.ts`.
+test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
   test('deve proteger a URL, seguir aberta nesta tela e mostrar "Lock" Quando o segredo é definido', async ({
     page,
     request,
@@ -46,22 +49,20 @@ test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
     await page.goto(`/#/${tokenId}`);
     await expect(page.getByText('Waiting for first request...')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
+    const dialog = await abrirChecks(page, tokenId, 'Privacy');
     await dialog.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
     await dialog.getByLabel('Secret to view', { exact: true }).fill(SEGREDO);
     await dialog.getByLabel('Confirm secret', { exact: true }).fill(SEGREDO);
-    await dialog.getByRole('button', { name: 'Edit' }).click();
     tokens.protectedWith(tokenId, SEGREDO);
+    await salvar(page, dialog, 'Save privacy', tokenId);
 
-    await expect(page.getByText('URL updated!')).toBeVisible();
-    await expect(dialog).toBeHidden();
     const semSegredo = await request.get(`/token/${tokenId}`);
     expect(semSegredo.status()).toBe(401);
     expect(await semSegredo.json()).toMatchObject(PROTEGIDA);
     // A tela desbloqueou sozinha com o segredo novo: recarregar abre a URL, não a tela de desbloqueio.
     await page.reload();
-    await expect(page.getByText('Waiting for first request...')).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'This URL is protected' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Lock' })).toBeVisible();
   });
 
@@ -78,9 +79,7 @@ test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
     await dialog.getByLabel('Confirm secret', { exact: true }).fill('outro');
     await dialog.getByRole('button', { name: 'Create' }).click();
 
-    await expect(dialog.locator('#token-form-pending')).toHaveText(
-      'To save, fix: Secret to view, Confirm secret',
-    );
+    await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: Secret to view, Confirm secret');
     await expect(dialog.getByText('The secret must have 8 to 256 characters.')).toBeVisible();
     await expect(dialog.getByText('The secrets do not match.')).toBeVisible();
   });
@@ -96,16 +95,18 @@ test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
     await unlock(page, SEGREDO);
     await expect(page.getByText('Waiting for first request...')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    let dialog = page.getByRole('dialog', { name: 'Edit URL' });
+    await page
+      .getByRole('navigation', { name: 'URL sections' })
+      .getByRole('link', { name: 'Checks', exact: true })
+      .click();
+    const dialog = page.getByRole('region', { name: 'Privacy', exact: true });
     await expect(
       dialog.getByRole('switch', { name: 'Require a secret to view this URL' }),
     ).toBeChecked();
     await expect(
       dialog.getByText('This URL is protected. Leave the fields blank to keep the current secret.'),
     ).toBeVisible();
-    await dialog.getByRole('button', { name: 'Edit' }).click();
-    await expect(dialog).toBeHidden();
+    await salvar(page, dialog, 'Save privacy', tokenId);
     expect((await request.get(`/token/${tokenId}`)).status()).toBe(401);
     const comSegredo = await request.get(`/token/${tokenId}`, {
       headers: { 'X-Webhook-Secret': SEGREDO },
@@ -113,13 +114,10 @@ test.describe('Dado o Create/Edit URL com a seção "Privacy"', () => {
     expect(comSegredo.status()).toBe(200);
     expect(await comSegredo.json()).toMatchObject({ protected: true });
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    dialog = page.getByRole('dialog', { name: 'Edit URL' });
     await dialog.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
     await expect(dialog.getByText('Saving removes the secret')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await salvar(page, dialog, 'Save privacy', tokenId);
 
-    await expect(dialog).toBeHidden();
     const aberta = await request.get(`/token/${tokenId}`);
     expect(aberta.status()).toBe(200);
     expect(await aberta.json()).toMatchObject({ protected: false });

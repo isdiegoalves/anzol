@@ -39,6 +39,16 @@ async function axe(page: Page): Promise<Analise> {
 
 /** Roda o axe na página inteira e exige zero violações `serious`/`critical`, listando as que houver. */
 export async function expectSemViolacoesGraves(page: Page, contexto: string): Promise<void> {
+  // O axe mede cor no meio de uma transição (ex.: o `mat-error` em fade-in) e acusaria contraste falso. Espera as
+  // animações finitas acabarem; as infinitas (um spinner) não acabam e não entram na conta.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animacao) =>
+          animacao.playState !== 'running' || animacao.effect?.getTiming().iterations === Infinity,
+      ),
+  );
   const { violations } = await (await axe(page)).analyze();
   const graves = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')

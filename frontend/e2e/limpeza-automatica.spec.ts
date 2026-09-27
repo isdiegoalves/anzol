@@ -1,12 +1,18 @@
 import { Page } from '@playwright/test';
+import { abrirChecks, abrirCreate, escolherLimpeza, salvar } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
 
 // Limpeza automática: campo nos diálogos da URL, contador com o limite e lista ao vivo
 // coerente com o corte FIFO do servidor. Precisa do backend com `auto_cleanup` e `removed`.
+// Item 14, E5: o `mat-select` vira `radiogroup "Auto cleanup"` (C §2.6), no "Customize response" do Create e no
+// cartão `region "Response"` de Checks (o "Edit URL" deixa de existir). SUPOSIÇÕES em `support/checks.ts`.
 
-async function chooseAutoCleanup(page: Page, option: string): Promise<void> {
-  await page.getByRole('combobox', { name: 'Auto cleanup' }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
+/** Volta à Inbox pelo rail (Checks é outra página). */
+async function openInbox(page: Page): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'URL sections' })
+    .getByRole('link', { name: 'Inbox', exact: true })
+    .click();
 }
 
 /** Abre a URL e espera o `EventSource` receber os cabeçalhos (assinatura pronta no servidor). */
@@ -18,7 +24,7 @@ async function openListening(page: Page, path: string, tokenId: string): Promise
   expect((await stream).status()).toBe(200);
 }
 
-test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
+test.describe('Dado o campo "Auto cleanup" do Create e de Checks', () => {
   test('deve criar a URL com o limite escolhido e mostrá-lo no contador Quando Create é clicado', async ({
     page,
     tokens,
@@ -26,10 +32,13 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New URL', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Create New URL' });
-    await expect(dialog.getByRole('combobox', { name: 'Auto cleanup' })).toHaveText('Disabled');
-    await chooseAutoCleanup(page, '1000');
+    const dialog = await abrirCreate(page);
+    await expect(
+      dialog
+        .getByRole('radiogroup', { name: 'Auto cleanup' })
+        .getByRole('radio', { name: 'Disabled', exact: true }),
+    ).toBeChecked();
+    await escolherLimpeza(dialog, '1000');
     await expect(dialog.getByText('Keeps the 1000 most recent requests')).toBeVisible();
     await dialog.getByRole('button', { name: 'Create' }).click();
 
@@ -42,7 +51,7 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     await expect(page.getByRole('heading', { name: 'Requests (0 / 1000)' })).toBeVisible();
   });
 
-  test('deve desligar a limpeza Quando Disabled é escolhido no Edit (o PUT leva auto_cleanup nulo)', async ({
+  test('deve desligar a limpeza Quando Disabled é escolhido em Checks (o PUT leva auto_cleanup nulo)', async ({
     page,
     tokens,
   }) => {
@@ -50,18 +59,18 @@ test.describe('Dado o campo "Auto cleanup" dos diálogos da URL', () => {
     await page.goto(`/#/${tokenId}`);
     await expect(page.getByRole('heading', { name: 'Requests (0 / 500)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
-    await expect(dialog.getByRole('combobox', { name: 'Auto cleanup' })).toHaveText('500');
-    await chooseAutoCleanup(page, 'Disabled');
-    const put = page.waitForRequest(
-      (sent) => sent.method() === 'PUT' && sent.url().endsWith(`/token/${tokenId}`),
-    );
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    const dialog = await abrirChecks(page, tokenId, 'Response');
+    await expect(
+      dialog
+        .getByRole('radiogroup', { name: 'Auto cleanup' })
+        .getByRole('radio', { name: '500', exact: true }),
+    ).toBeChecked();
+    await escolherLimpeza(dialog, 'Disabled');
+    const put = await salvar(page, dialog, 'Save response', tokenId);
 
-    expect((await put).postDataJSON()).toMatchObject({ auto_cleanup: null, retry_after: null });
-    await expect(page.getByText('URL updated!')).toBeVisible();
+    expect(put).toMatchObject({ auto_cleanup: null, retry_after: null });
     expect(await tokens.read(tokenId)).toMatchObject({ auto_cleanup: null });
+    await openInbox(page);
     await expect(page.getByRole('heading', { name: 'Requests (0)' })).toBeVisible();
   });
 });
@@ -98,7 +107,9 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
   });
 
-  test('deve recarregar a lista e abrir a mais próxima Quando o limite é reduzido no Edit', async ({
+  // Item 14, E5 — cenário trocado: o limite muda em Checks (outra página, não um diálogo sobre a Inbox); ao voltar
+  // à Inbox a lista vem cortada e o detalhe mostra a mais próxima que ficou.
+  test('deve recarregar a lista e abrir a mais próxima Quando o limite é reduzido em Checks', async ({
     page,
     tokens,
   }) => {
@@ -111,15 +122,13 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await expect(details).toContainText(antiga.uuid);
     await expect(page.getByRole('heading', { name: 'Requests (505)' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    await chooseAutoCleanup(page, '500');
-    await page
-      .getByRole('dialog', { name: 'Edit URL' })
-      .getByRole('button', { name: 'Edit' })
-      .click();
+    const resposta = await abrirChecks(page, tokenId, 'Response');
+    await escolherLimpeza(resposta, '500');
+    await salvar(page, resposta, 'Save response', tokenId);
+    await openInbox(page);
 
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${primeiraQueFica.uuid}/1$`));
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/${primeiraQueFica.uuid}/1)?$`));
     await expect(details).toContainText(primeiraQueFica.uuid);
     for (const cortada of ordem.slice(0, 5)) {
       await expect(

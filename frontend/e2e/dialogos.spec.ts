@@ -1,6 +1,9 @@
+import { abrirChecks, abrirCreate, pendenteAlerta, salvar } from './support/checks';
 import { UUID, expect, test, tokenInUrl } from './support/fixtures';
 
-// Checklist 4 e 5.
+// Checklist 4 e 5. Item 14, E5: o "Create New URL" fica curto, com os campos da resposta no painel recolhido
+// "Customize response" (S2); o "Edit URL" deixa de existir e os mesmos campos vão para o cartão `region
+// "Response"` de Checks, com "Save response". SUPOSIÇÕES em `support/checks.ts`.
 
 test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
   test('deve criar a URL com status, content-type, timeout e corpo Quando Create é clicado', async ({
@@ -11,8 +14,7 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
     const original = await tokens.create();
     await page.goto(`/#/${original}`);
 
-    await page.getByRole('button', { name: 'New URL', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Create New URL' });
+    const dialog = await abrirCreate(page);
     await dialog.getByLabel('Default status code').fill('404');
     await dialog.getByLabel('Content Type').fill('application/json');
     await dialog.getByLabel('Timeout before response').fill('1');
@@ -41,15 +43,12 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
       }) => {
         await page.goto(`/#/${await tokens.create()}`);
 
-        await page.getByRole('button', { name: 'New URL', exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: 'Create New URL' });
+        const dialog = await abrirCreate(page);
         await dialog.getByLabel('Timeout before response').fill(timeout);
         await dialog.getByLabel('Default status code').click();
         await dialog.getByRole('button', { name: 'Create' }).click();
 
-        await expect(dialog.locator('#token-form-pending')).toHaveText(
-          'To save, fix: Timeout before response',
-        );
+        await expect(pendenteAlerta(dialog)).toHaveText('To save, fix: Timeout before response');
         await expect(dialog.getByLabel('Timeout before response')).toBeFocused();
         await expect(
           dialog.getByText('The timeout must be an integer between 0 and 10.'),
@@ -59,8 +58,8 @@ test.describe('Dado o diálogo "Create New URL" (checklist 4)', () => {
   });
 });
 
-test.describe('Dado o diálogo "Edit URL" (checklist 5)', () => {
-  test('deve vir preenchido e gravar os campos editados Quando Edit é clicado', async ({
+test.describe('Dado o cartão "Response" de Checks (checklist 5)', () => {
+  test('deve vir preenchido e gravar os campos editados Quando "Save response" é clicado', async ({
     page,
     request,
     tokens,
@@ -70,21 +69,15 @@ test.describe('Dado o diálogo "Edit URL" (checklist 5)', () => {
       default_content: 'antes',
       timeout: '2',
     });
-    await page.goto(`/#/${tokenId}`);
-    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
-      new RegExp(`/${tokenId}$`),
-    );
+    const dialog = await abrirChecks(page, tokenId, 'Response');
 
-    await page.getByRole('button', { name: 'Edit' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Edit URL' });
     await expect(dialog.getByLabel('Default status code')).toHaveValue('202');
     await expect(dialog.getByLabel('Timeout before response')).toHaveValue('2');
     await expect(dialog.getByLabel('Response body')).toHaveValue('antes');
     await dialog.getByLabel('Default status code').fill('201');
     await dialog.getByLabel('Response body').fill('depois');
-    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await salvar(page, dialog, 'Save response', tokenId);
 
-    await expect(page.getByText('URL updated!')).toBeVisible();
     const token = (await (await request.get(`/token/${tokenId}`)).json()) as Record<
       string,
       unknown
