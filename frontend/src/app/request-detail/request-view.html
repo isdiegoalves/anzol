@@ -9,10 +9,12 @@
 
 <!-- Linha de metadados do protótipo C (INBOX-17, trava 3): URL, host com whois, data absoluta e
      relativa, tamanho, seq e o ID completo com "Copy request ID". -->
+<!-- Espaço no começo de cada campo: o do leiaute (gap) não entra no texto, e os campos colariam
+     ("36 Bseq 12") para o leitor de tela e a busca por texto. -->
 <div class="meta" role="group" aria-label="Request metadata" i18n-aria-label>
   <a class="req-url" [href]="current.url">{{ current.url }}</a>
   <span class="req-ip">
-    <app-icon name="outbound" [size]="16" />{{ current.ip }}
+    <app-icon name="outbound" [size]="16" /> {{ current.ip }}
     <a
       i18n
       class="whois"
@@ -22,15 +24,17 @@
       >whois</a
     >
   </span>
-  <span class="req-date" [title]="current.created_at + ' UTC'"
-    >{{ localDate(current.created_at) }} · {{ fromNow(current.created_at) }}</span
+  <span class="req-date" [title]="current.created_at + ' UTC'">
+    {{ localDate(current.created_at) }} · {{ fromNow(current.created_at) }}</span
   >
-  <span class="req-size">{{ size() }}</span>
+  <span class="req-size"> {{ size() }}</span>
   @if (current.seq) {
-    <span class="req-seq" i18n>seq {{ current.seq }}</span>
+    <span class="req-seq"
+      >&ngsp;<ng-container i18n>seq {{ current.seq }}</ng-container></span
+    >
   }
   <span class="req-id"
-    ><ng-container i18n>id</ng-container> <code>{{ current.uuid }}</code>
+    >&ngsp;<ng-container i18n>id</ng-container>&ngsp;<code>{{ current.uuid }}</code>
     <!-- A página do link só-leitura não tem botões (E3). -->
     @if (!readonly()) {
       <button

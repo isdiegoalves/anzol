@@ -2,6 +2,7 @@ import { Component, Injector, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
+import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import type { TokenActions } from '../token/token-actions';
 import { TokenStore } from '../token/token-store';
@@ -29,6 +30,7 @@ export class UrlHeader {
   private readonly injector = inject(Injector);
   private readonly requests = inject(RequestStore);
   private readonly router = inject(Router);
+  private readonly copyCliCommand = injectCopyCliCommand();
 
   protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
@@ -92,7 +94,7 @@ export class UrlHeader {
       {
         label: $localize`Copy CLI command`,
         icon: 'copy',
-        action: () => void this.withActions((actions) => actions.copyCliCommand()),
+        action: () => this.copyCli(),
       },
       {
         label: $localize`Delete URL`,
@@ -104,6 +106,13 @@ export class UrlHeader {
 
   protected lockUrl(): Promise<void> {
     return this.withActions((actions) => actions.lockUrl());
+  }
+
+  /** Copia no clique; o aviso vem com o chunk de `TokenActions`. */
+  private copyCli(): void {
+    if (this.copyCliCommand()) {
+      void this.withActions((actions) => actions.cliCommandCopied());
+    }
   }
 
   private async withActions(run: (actions: TokenActions) => unknown): Promise<void> {

@@ -1,5 +1,3 @@
-import { Clipboard } from '@angular/cdk/clipboard';
-import { DOCUMENT } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, Injector, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
@@ -7,7 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
-import { TokenSettings, cliListenCommand } from './token';
+import { TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
 import { UrlAccess } from './url-access';
@@ -26,9 +24,12 @@ export class TokenActions {
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
   private readonly http = inject(HttpClient);
-  private readonly clipboard = inject(Clipboard);
   private readonly injector = inject(Injector);
-  private readonly origin = inject(DOCUMENT).location.origin;
+
+  /** O aviso do "Copy CLI command", que copia no clique (`injectCopyCliCommand`). */
+  cliCommandCopied(): void {
+    this.snackBar.open($localize`Copied the CLI command.`, undefined, { duration: 1000 });
+  }
 
   async createUrl(): Promise<void> {
     const dialog = this.dialog.open<TokenDialog, TokenDialogData, TokenSettings>(TokenDialog, {
@@ -71,14 +72,6 @@ export class TokenActions {
       this.snackBar.open($localize`Could not delete the URL (${status}:status:).`, undefined, {
         duration: 10000,
       });
-    }
-  }
-
-  /** "Copy CLI command": o `webhook listen` que encaminha as mensagens para o app local. */
-  copyCliCommand(): void {
-    const token = this.tokens.token();
-    if (token && this.clipboard.copy(cliListenCommand(this.origin, token.uuid))) {
-      this.snackBar.open($localize`Copied the CLI command.`, undefined, { duration: 1000 });
     }
   }
 

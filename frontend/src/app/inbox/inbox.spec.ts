@@ -80,6 +80,23 @@ describe('Dado a tela principal', () => {
     expect(text()).toContain(R1.uuid);
   });
 
+  it('deve deixar como não lida a mensagem que a tela abriu sozinha e marcá-la Quando ela é clicada (INBOX-02)', async () => {
+    const preferences = TestBed.inject(Preferences);
+    preferences.unread.set([R1.uuid, R2.uuid]);
+
+    await openToken(`/${TOKEN_ID}`);
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    await harness.fixture.whenStable();
+    expect(preferences.unread()).toEqual([R1.uuid, R2.uuid]);
+
+    const root = harness.routeNativeElement as HTMLElement;
+    root.querySelectorAll<HTMLButtonElement>('.item .select')[0].click();
+    await vi.waitFor(() => expect(preferences.unread()).toEqual([R2.uuid]));
+    root.querySelectorAll<HTMLButtonElement>('.item .select')[1].click();
+    await vi.waitFor(() => expect(preferences.unread()).toEqual([]));
+  });
+
   it('deve criar uma URL nova e ir para ela Quando a raiz é aberta sem token salvo', async () => {
     await harness.navigateByUrl('/');
 
@@ -122,6 +139,33 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(text()).toContain(R2.uuid));
     expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`);
     expect(text()).not.toContain(R1.uuid);
+  });
+
+  // Com a mais nova no topo, as novas empurram cada mensagem para as páginas seguintes: o link
+  // permanente não pode depender de ela ainda estar na página que ele traz.
+  it('deve buscar a mensagem pela API e abri-la Quando o link permanente aponta uma que não está na página', async () => {
+    const R9 = webhookRequest(9);
+    const store = TestBed.inject(RequestStore);
+
+    await openToken(`/${TOKEN_ID}/${R9.uuid}/1`);
+    await flush(`/token/${TOKEN_ID}/request/${R9.uuid}`, R9);
+
+    await vi.waitFor(() => expect(text()).toContain(R9.uuid));
+    expect(router.url).toBe(`/${TOKEN_ID}/${R9.uuid}/1`);
+    expect(store.selected()?.uuid).toBe(R9.uuid);
+  });
+
+  it('deve abrir a primeira Quando a mensagem do link permanente não existe mais (404)', async () => {
+    const R9 = webhookRequest(9);
+
+    await openToken(`/${TOKEN_ID}/${R9.uuid}/1`);
+    await flush(
+      `/token/${TOKEN_ID}/request/${R9.uuid}`,
+      {},
+      { status: 404, statusText: 'Not Found' },
+    );
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
   });
 
   // E10 (C §2.11): o aviso sai do snackbar de 10 s e vai para o onboarding da URL criada no lugar.

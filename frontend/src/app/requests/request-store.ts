@@ -185,9 +185,24 @@ export class RequestStore {
     return this.pages().find((page) => page.data.some((r) => r.uuid === requestId))?.page ?? 1;
   }
 
-  select(requestId: string): void {
+  /**
+   * Abre a mensagem. `read` falso quando foi a tela que a escolheu (a primeira ao abrir a URL, a que
+   * substituiu a cortada): ninguém a leu ainda, e ela segue contando nas não lidas (INBOX-02).
+   */
+  select(requestId: string, read = true): void {
     this.selection.set({ id: requestId, request: this.find(requestId) });
-    this.markAsRead(requestId);
+    if (read) {
+      this.markAsRead(requestId);
+    }
+  }
+
+  /**
+   * Abre pelo link permanente uma mensagem que não está nas páginas carregadas (a ordem ou as novas
+   * a levaram para outra página): ela vem da API e fica aberta sem entrar na lista.
+   */
+  selectOutsideList(request: WebhookRequest): void {
+    this.selection.set({ id: request.uuid, request });
+    this.markAsRead(request.uuid);
   }
 
   /** Inverte a ordem e relê a primeira página, com a mensagem aberta mantida. */

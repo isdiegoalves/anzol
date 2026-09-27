@@ -119,6 +119,21 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(screen.getByRole('button', { name: 'New URL' })).toBeTruthy();
   });
 
+  it('deve manter "New URL", Settings e Help no ⋮ da barra do celular Quando a URL está trancada (trava 11)', async () => {
+    const user = userEvent.setup();
+    const { fixture } = await renderAt(`/${TOKEN_ID}`);
+    fixture.debugElement.injector.get(UrlLock).lock(TOKEN_ID);
+    await fixture.whenStable();
+
+    await user.click(
+      screen.getByRole('button', { name: 'URL actions: send, new URL, delete', hidden: true }),
+    );
+
+    expect(
+      screen.getAllByRole('menuitem', { hidden: true }).map((item) => item.textContent?.trim()),
+    ).toEqual(['New URL', 'Settings', 'Help']);
+  });
+
   it('deve mostrar as não lidas no destino Inbox, com o número no nome (INBOX-02)', async () => {
     const { container } = await renderAt(`/${TOKEN_ID}/rules`);
 

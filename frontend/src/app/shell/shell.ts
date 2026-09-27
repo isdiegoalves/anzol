@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { RequestStore } from '../requests/request-store';
+import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
 import { Icon } from '../ui/icon';
@@ -58,6 +59,7 @@ export class Shell {
   private readonly clipboard = inject(Clipboard);
   private readonly requests = inject(RequestStore);
   protected readonly screen = inject(ScreenState);
+  private readonly copyCliCommand = injectCopyCliCommand();
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
 
@@ -194,7 +196,7 @@ export class Shell {
             {
               label: $localize`Copy CLI command`,
               icon: 'copy',
-              action: () => void this.withActions((actions) => actions.copyCliCommand()),
+              action: () => this.copyCli(),
             },
             ...(token.protected
               ? [
@@ -225,6 +227,13 @@ export class Shell {
   protected openSearch(): void {
     this.screen.searchOpen.set(true);
     afterNextRender(() => this.focusSearch(), { injector: this.injector });
+  }
+
+  /** Copia no clique; o aviso vem com o chunk de `TokenActions`. */
+  private copyCli(): void {
+    if (this.copyCliCommand()) {
+      void this.withActions((actions) => actions.cliCommandCopied());
+    }
   }
 
   private async withActions(run: (actions: TokenActions) => unknown): Promise<void> {

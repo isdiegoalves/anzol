@@ -20,14 +20,14 @@ describe('Dado o cabeçalho da URL aberta', () => {
   let actions: {
     lockUrl: ReturnType<typeof vi.fn>;
     deleteUrl: ReturnType<typeof vi.fn>;
-    copyCliCommand: ReturnType<typeof vi.fn>;
+    cliCommandCopied: ReturnType<typeof vi.fn>;
   };
 
   const renderWith = (url: Token | null) => {
     actions = {
       lockUrl: vi.fn().mockResolvedValue(undefined),
       deleteUrl: vi.fn().mockResolvedValue(undefined),
-      copyCliCommand: vi.fn(),
+      cliCommandCopied: vi.fn(),
     };
     return render(UrlHeader, {
       providers: [
@@ -100,8 +100,15 @@ describe('Dado o cabeçalho da URL aberta', () => {
     );
     await user.keyboard('{Escape}');
     await user.click(more);
+    const copy = vi
+      .spyOn(fixture.debugElement.injector.get(Clipboard), 'copy')
+      .mockReturnValue(true);
     await user.click(screen.getByRole('menuitem', { name: 'Copy CLI command' }));
-    await vi.waitFor(() => expect(actions.copyCliCommand).toHaveBeenCalledOnce());
+    // Na hora do clique, sem esperar um `import()`: a cópia precisa do gesto do usuário.
+    expect(copy).toHaveBeenCalledWith(
+      `anzol listen --server ${location.origin} --forward http://localhost:3000 --token ${TOKEN_ID}`,
+    );
+    await vi.waitFor(() => expect(actions.cliCommandCopied).toHaveBeenCalledOnce());
     await user.click(more);
     await user.click(screen.getByRole('menuitem', { name: 'Delete URL' }));
     await vi.waitFor(() => expect(actions.deleteUrl).toHaveBeenCalledOnce());

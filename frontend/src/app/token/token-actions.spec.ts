@@ -1,4 +1,3 @@
-import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -177,15 +176,9 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
       expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('deve copiar o comando do CLI com a URL aberta Quando "Copy CLI command" é escolhido', () => {
-      TestBed.inject(Preferences).token.set(token());
-      const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+    it('deve avisar "Copied the CLI command." depois da cópia do "Copy CLI command"', () => {
+      TestBed.inject(TokenActions).cliCommandCopied();
 
-      TestBed.inject(TokenActions).copyCliCommand();
-
-      expect(copy).toHaveBeenCalledWith(
-        `anzol listen --server ${location.origin} --forward http://localhost:3000 --token ${TOKEN_ID}`,
-      );
       expect(snack).toHaveBeenCalledWith('Copied the CLI command.', undefined, { duration: 1000 });
     });
   });

@@ -62,8 +62,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     const text = meta.textContent?.replace(/\s+/g, ' ') ?? '';
     expect(text).toContain('192.168.0.1');
     expect(text).toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM) · .+ ago/);
-    expect(text).toContain('7 B');
-    expect(text).toContain('seq 179');
+    // Cada campo é uma palavra no texto (o leitor de tela e a busca por texto não os colam).
+    expect(text).toMatch(/ ago 7 B seq 179 id [0-9a-f-]{36}/);
     expect(text).toContain(request.uuid);
     await userEvent.click(within(meta).getByRole('button', { name: 'Copy request ID' }));
     expect(copy).toHaveBeenCalledWith(request.uuid);

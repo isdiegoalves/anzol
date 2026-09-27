@@ -211,6 +211,12 @@ export class Inbox {
   protected openFromList(request: WebhookRequest): void {
     this.compare.close();
     this.showDetail.set(true);
+    if (this.requests.selected()?.uuid === request.uuid) {
+      // A que a tela abriu sozinha: a rota não muda, mas agora alguém a leu.
+      this.chosenByScreen = null;
+      this.requests.select(request.uuid);
+      return;
+    }
     void this.openRequest(request);
   }
 
@@ -265,7 +271,7 @@ export class Inbox {
     }
     const list = this.requests.requests();
     if (requestId && list.some((request) => request.uuid === requestId)) {
-      this.requests.select(requestId);
+      this.requests.select(requestId, requestId !== this.chosenByScreen);
       // Link permanente, Newer/Older, Follow new: no celular, o detalhe vem para a frente.
       if (requestId !== this.chosenByScreen) {
         this.showDetail.set(true);
@@ -273,8 +279,29 @@ export class Inbox {
       if (requestId === this.requests.newest()?.uuid) {
         this.list()?.clearNew();
       }
-    } else if (list.length > 0) {
-      await this.openRequest(list[0], true);
+    } else {
+      const opened = requestId !== undefined && (await this.openOutsideList(tokenId, requestId));
+      if (!opened && list.length > 0) {
+        await this.openRequest(list[0], true);
+      }
+    }
+  }
+
+  /**
+   * Link permanente para uma mensagem fora da página carregada (com a mais nova no topo, as novas
+   * empurram as outras de página): busca pela API. Devolve `false` se ela sumiu (404), para a tela
+   * abrir a primeira; se a rota mudou enquanto isso, a nova rota decide.
+   */
+  private async openOutsideList(tokenId: string, requestId: string): Promise<boolean> {
+    try {
+      const request = await this.requests.fetchOne(tokenId, requestId);
+      if (this.requestId() === requestId) {
+        this.requests.selectOutsideList(request);
+        this.showDetail.set(true);
+      }
+      return true;
+    } catch {
+      return false;
     }
   }
 
