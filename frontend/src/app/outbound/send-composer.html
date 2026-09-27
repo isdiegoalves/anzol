@@ -97,7 +97,11 @@
     </mat-form-field>
     <span class="spacer"></span>
     <button mat-flat-button type="submit" [disabled]="sending()">
-      {{ sending() ? 'Sending…' : 'Send' }}
+      @if (sending()) {
+        <ng-container i18n>Sending…</ng-container>
+      } @else {
+        <ng-container i18n="action|Botão que manda a requisição">Send</ng-container>
+      }
     </button>
   </div>
 </form>

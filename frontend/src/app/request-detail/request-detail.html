@@ -83,7 +83,11 @@
         [disabled]="ai.disabled() && !explaining()"
         (click)="toggleExplain()"
       >
-        {{ explaining() ? 'Hide explanation' : 'Explain' }}
+        @if (explaining()) {
+          <ng-container i18n>Hide explanation</ng-container>
+        } @else {
+          <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>
+        }
       </button>
       @if (ai.disabled()) {
         <span class="ai-off">{{ aiOffHint }}</span>

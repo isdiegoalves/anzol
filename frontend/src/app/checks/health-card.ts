@@ -63,11 +63,16 @@ export class HealthCard {
           stats.valid,
           stats.invalid,
           stats.unchecked,
-          stats.paths.map(({ path, count }) => ({ label: path === '' ? '(root)' : path, count })),
+          stats.paths.map(({ path, count }) => ({
+            label: path === '' ? $localize`(root)` : path,
+            count,
+          })),
         )
       : null;
   });
 
+  protected readonly barLabel = (valid: number, invalid: number) =>
+    $localize`${valid}:valid: valid, ${invalid}:invalid: invalid`;
   protected readonly metrics = computed(() => [
     { title: $localize`Signature`, why: $localize`Why invalid`, data: this.signature() },
     { title: $localize`Schema`, why: $localize`Failing paths`, data: this.schema() },

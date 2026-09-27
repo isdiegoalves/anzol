@@ -69,7 +69,7 @@ export class Redirector {
         }),
       );
       this.snackBar.open(
-        `Redirected request to ${call.url}. Status: ${response.statusText}`,
+        $localize`Redirected request to ${call.url}:url:. Status: ${response.statusText}:status:`,
         undefined,
         { duration: 4000 },
       );

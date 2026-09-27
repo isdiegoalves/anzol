@@ -1,3 +1,5 @@
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
 import { Rule } from './rule';
 import { ruleInWords } from './rule-words';
 
@@ -64,5 +66,22 @@ describe('Dado uma regra (ruleInWords)', () => {
     const words = ruleInWords({ name: 'x', match: { body: [{ equals: 'a'.repeat(80) }] } });
 
     expect(words).toBe(`When any request has a body equal to "${'a'.repeat(38)}…, answer 200.`);
+  });
+
+  it('deve montar a frase em pt-BR Quando a tradução está carregada', () => {
+    loadTranslations(translations);
+    try {
+      const words = ruleInWords({
+        name: 'Pix',
+        match: { method: ['POST'], path: { equals: '/pagamentos' }, signature: 'valid' },
+        response: { status: 201 },
+      });
+
+      expect(words).toBe(
+        'Quando um POST para /pagamentos tiver uma assinatura válida, responder 201.',
+      );
+    } finally {
+      clearTranslations();
+    }
   });
 });

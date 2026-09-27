@@ -47,7 +47,11 @@
                   <span class="line">
                     <app-method-badge [method]="item.method" />
                     <span class="meta">
-                      {{ item.kind === 'replay' ? 'Replay' : 'Send' }}
+                      @if (item.kind === 'replay') {
+                        <ng-container i18n>Replay</ng-container>
+                      } @else {
+                        <ng-container i18n>Send</ng-container>
+                      }
                       @if (item.source_request; as source) {
                         · #{{ source.slice(0, 5) }}
                       }
@@ -84,8 +88,12 @@
             [value]="mode()"
             (change)="chooseMode($event.value)"
           >
-            <mat-button-toggle value="replay" i18n>Replay</mat-button-toggle>
-            <mat-button-toggle value="send" i18n>Send</mat-button-toggle>
+            <mat-button-toggle value="replay" i18n="action|Botão que manda a requisição"
+              >Replay</mat-button-toggle
+            >
+            <mat-button-toggle value="send" i18n="action|Botão que manda a requisição"
+              >Send</mat-button-toggle
+            >
           </mat-button-toggle-group>
         </div>
         @if (token(); as current) {
@@ -118,7 +126,12 @@
       @if (selected(); as current) {
         <section class="detail" aria-label="Outbound detail" i18n-aria-label>
           <h2 class="section-title">
-            {{ current.kind === 'replay' ? 'Replay' : 'Send' }} · {{ date(current.at) }}
+            @if (current.kind === 'replay') {
+              <ng-container i18n>Replay</ng-container>
+            } @else {
+              <ng-container i18n>Send</ng-container>
+            }
+            · {{ date(current.at) }}
           </h2>
           <app-outbound-result-view [result]="current" />
         </section>

@@ -164,10 +164,14 @@ export class TokenDialog {
     const missing = problems.filter(([control]) => control.hasError('required'));
     const invalid = problems.filter(([control]) => !control.hasError('required'));
     const parts = [
-      ...(missing.length > 0 ? [`fill in: ${missing.map(([, , label]) => label).join(', ')}`] : []),
-      ...(invalid.length > 0 ? [`fix: ${invalid.map(([, , label]) => label).join(', ')}`] : []),
+      ...(missing.length > 0
+        ? [$localize`fill in: ${missing.map(([, , label]) => label).join(', ')}:fields:`]
+        : []),
+      ...(invalid.length > 0
+        ? [$localize`fix: ${invalid.map(([, , label]) => label).join(', ')}:fields:`]
+        : []),
     ];
-    return parts.length > 0 ? `To save, ${parts.join('; ')}` : '';
+    return parts.length > 0 ? $localize`To save, ${parts.join('; ')}:parts:` : '';
   }
 
   /**

@@ -76,6 +76,8 @@ export class RequestCompare {
   protected readonly onlyDifferences = signal(false);
   protected readonly noiseHeaders: ReadonlySet<string> = new Set(NOISE_HEADERS);
   protected readonly localDate = localDate;
+  protected readonly noDifferences = $localize`No differences`;
+  protected readonly emptyValue = $localize`(empty)`;
   /** No compacto (e no médio) o corpo sai unificado: duas colunas não cabem. */
   protected readonly unified = computed(() =>
     ['compact', 'medium'].includes(this.viewport.windowClass()),

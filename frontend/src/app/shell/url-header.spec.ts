@@ -1,4 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { provideRouter } from '@angular/router';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +11,7 @@ import { RequestStream } from '../realtime/request-stream';
 import { Preferences } from '../settings/preferences';
 import { Token } from '../token/token';
 import { TokenActions } from '../token/token-actions';
+import { translations } from '../../locale/pt-BR';
 import { UrlHeader } from './url-header';
 
 describe('Dado o cabeçalho da URL aberta', () => {
@@ -37,6 +39,18 @@ describe('Dado o cabeçalho da URL aberta', () => {
 
     expect(copy).toHaveBeenCalledWith(url.value);
     await expectNoAxeViolations(container);
+  });
+
+  it('deve dizer "Enviar" (verbo) e "Copiar" em pt-BR Quando a tradução está carregada', async () => {
+    loadTranslations(translations);
+    try {
+      await renderWith(token());
+
+      expect(screen.getByRole('link', { name: 'Enviar' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Copiar' })).toBeTruthy();
+    } finally {
+      clearTranslations();
+    }
   });
 
   it('deve levar ao Send de Outbound pelo "Send"', async () => {

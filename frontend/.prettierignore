@@ -4,3 +4,5 @@ node_modules
 test-results
 playwright-report
 package-lock.json
+# Gerado pelo ng extract-i18n (sem newline no fim); o ci.sh confere que está atual.
+src/locale/messages.json

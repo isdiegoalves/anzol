@@ -1,4 +1,4 @@
-@let empty = onlyDifferences() ? 'No differences' : '(empty)';
+@let empty = onlyDifferences() ? noDifferences : emptyValue;
 @let report = outcome();
 <section class="compare" aria-label="Compare requests" i18n-aria-label>
   <header class="heading">

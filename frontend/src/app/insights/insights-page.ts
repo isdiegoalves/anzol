@@ -82,6 +82,7 @@ export class InsightsPage {
   );
   protected readonly grafanaUrl = `${this.document.location.protocol}//${this.document.location.hostname}:${GRAFANA_PORT}${GRAFANA_DASHBOARD}`;
   protected readonly percent = percent;
+  protected readonly rootLabel = $localize`(root)`;
   protected readonly methodsText = methodsText;
 
   constructor() {

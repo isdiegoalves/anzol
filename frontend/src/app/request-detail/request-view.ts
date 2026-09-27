@@ -112,7 +112,7 @@ export class RequestView {
     const schema = this.request().schema;
     return (schema?.valid === false ? schema.errors : []).map((error) => ({
       pointer: error.path,
-      message: `${error.path || '(root)'} ${error.message}`,
+      message: `${error.path || $localize`(root)`} ${error.message}`,
     }));
   });
 

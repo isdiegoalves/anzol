@@ -101,10 +101,10 @@ const JSON_VIEW = 1;
 /** Abas do editor em modo formulário (C §2.4). */
 export type EditorTab = 'match' | 'response' | 'scenario' | 'test';
 const TABS: { id: EditorTab; label: string }[] = [
-  { id: 'match', label: 'Match' },
-  { id: 'response', label: 'Response' },
-  { id: 'scenario', label: 'Scenario' },
-  { id: 'test', label: 'Test' },
+  { id: 'match', label: $localize`Match` },
+  { id: 'response', label: $localize`Response` },
+  { id: 'scenario', label: $localize`Scenario` },
+  { id: 'test', label: $localize`Test` },
 ];
 
 /** A prévia com prioridade (S8) do último teste; `preview` nulo quando a leitura falhou. */
@@ -314,15 +314,15 @@ export class RuleEditor {
     return fault.value !== 'none' ? 'fault' : String(status.value ?? RULE_DEFAULT_STATUS);
   });
   protected readonly conditionSections = [
-    { list: 'query', title: 'Query', label: 'Query' },
-    { list: 'headers', title: 'Headers', label: 'Header' },
+    { list: 'query', title: $localize`Query`, add: $localize`Add query condition` },
+    { list: 'headers', title: $localize`Headers`, add: $localize`Add header condition` },
   ] as const;
   protected readonly valueOperators: { value: ValueOperator; label: string }[] = [
-    { value: 'equals', label: 'equals' },
-    { value: 'contains', label: 'contains' },
-    { value: 'regex', label: 'matches regex' },
-    { value: 'present', label: 'is present' },
-    { value: 'absent', label: 'is absent' },
+    { value: 'equals', label: $localize`equals` },
+    { value: 'contains', label: $localize`contains` },
+    { value: 'regex', label: $localize`matches regex` },
+    { value: 'present', label: $localize`is present` },
+    { value: 'absent', label: $localize`is absent` },
   ];
   protected readonly bodyTypes: { value: BodyType; label: string }[] = [
     { value: 'equals', label: $localize`Equals` },
@@ -355,6 +355,19 @@ export class RuleEditor {
   protected readonly helpers = TEMPLATE_HELPERS;
   protected readonly delayMax = DELAY_MAX_MS;
   protected readonly msError = $localize`An integer between 0 and ${DELAY_MAX_MS} (ms).`;
+  /** Mensagens de validação quando o servidor não mandou a dele (`errorOf`). */
+  protected readonly messages = {
+    nameRequired: $localize`The name is required.`,
+    priority: $localize`The priority must be an integer of at least 1.`,
+    pathRequired: $localize`The path is required.`,
+    jsonPathRequired: $localize`The JSONPath is required.`,
+    validJson: $localize`The value must be valid JSON.`,
+    status: $localize`The status must be an integer between 100 and 599.`,
+    delayMax: $localize`At least the min, up to 60000 (ms).`,
+    sigma: $localize`A number of at least 0.`,
+    chunks: $localize`An integer between 1 and 100.`,
+    upTo100: $localize`Up to 100 characters.`,
+  };
   protected readonly showAtOnce = showAtOnce;
   protected readonly formView = FORM_VIEW;
   protected readonly jsonView = JSON_VIEW;
@@ -498,16 +511,59 @@ export class RuleEditor {
     }
   }
 
-  /** Como a condição foi no último teste: "Fails on 3 of 10 tested" ou "Passes on all 10 tested". */
-  protected feedback(key: ConditionKey): string | null {
+  /**
+   * Como a condição foi no último teste: "Fails on 3 of 10 tested" ou "Passes on all 10 tested".
+   * `fails` decide o estilo; o texto é só para ler (e muda com o idioma).
+   */
+  protected feedback(key: ConditionKey): { fails: boolean; text: string } | null {
     const tested = this.tested();
     if (!tested) {
       return null;
     }
     const failed = tested.tally.counts.get(key) ?? 0;
     return failed > 0
-      ? `Fails on ${failed} of ${tested.tested} tested`
-      : `Passes on all ${tested.tested} tested`;
+      ? {
+          fails: true,
+          text: $localize`Fails on ${failed}:failed: of ${tested.tested}:tested: tested`,
+        }
+      : { fails: false, text: $localize`Passes on all ${tested.tested}:tested: tested` };
+  }
+
+  /** Nomes acessíveis de uma linha de condição (n a partir de 1). */
+  protected conditionLabels(list: 'query' | 'headers', n: number) {
+    return list === 'query'
+      ? {
+          name: $localize`Query ${n}:number: name`,
+          operator: $localize`Query ${n}:number: operator`,
+          value: $localize`Query ${n}:number: value`,
+          remove: $localize`Remove query ${n}:number:`,
+        }
+      : {
+          name: $localize`Header ${n}:number: name`,
+          operator: $localize`Header ${n}:number: operator`,
+          value: $localize`Header ${n}:number: value`,
+          remove: $localize`Remove header ${n}:number:`,
+        };
+  }
+
+  /** Nomes acessíveis de uma condição do corpo (n a partir de 1). */
+  protected bodyLabels(n: number) {
+    return {
+      type: $localize`Body ${n}:number: type`,
+      path: $localize`Body ${n}:number: path`,
+      equals: $localize`Body ${n}:number: equals`,
+      value: $localize`Body ${n}:number: value`,
+      remove: $localize`Remove body ${n}:number:`,
+    };
+  }
+
+  /** Nomes acessíveis de um cabeçalho da resposta (n a partir de 1). */
+  protected responseHeaderLabels(n: number) {
+    return {
+      name: $localize`Response header ${n}:number: name`,
+      value: $localize`Response header ${n}:number: value`,
+      remove: $localize`Remove response header ${n}:number:`,
+    };
   }
 
   /** Quantos near misses gravados desta regra falharam na condição. */

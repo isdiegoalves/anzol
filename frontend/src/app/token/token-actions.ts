@@ -66,8 +66,8 @@ export class TokenActions {
 export function createError(error: unknown): string {
   if (error instanceof HttpErrorResponse && error.status === 422) {
     const messages = Object.values(error.error as Record<string, string[]>).flat();
-    return `Error creating token: ${messages.join(', ')}`;
+    return $localize`Error creating token: ${messages.join(', ')}:messages:`;
   }
-  const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return `Error creating token (${status})`;
+  const status = error instanceof HttpErrorResponse ? error.status : $localize`unknown`;
+  return $localize`Error creating token (${status}:status:)`;
 }

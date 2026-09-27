@@ -101,6 +101,6 @@ function scenarioMessages(error: unknown): string[] {
   if (error instanceof HttpErrorResponse && [410, 422].includes(error.status)) {
     return validationMessages(error);
   }
-  const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return [`Could not update the scenarios (${status}).`];
+  const status = error instanceof HttpErrorResponse ? error.status : $localize`unknown`;
+  return [$localize`Could not update the scenarios (${status}:status:).`];
 }

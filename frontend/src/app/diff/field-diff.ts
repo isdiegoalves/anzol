@@ -2,10 +2,10 @@ import { Component, input } from '@angular/core';
 import { FieldRow } from './request-diff';
 
 const STATUS_LABELS: Record<FieldRow['status'], string> = {
-  equal: 'same',
-  different: 'changed',
-  'only-a': 'only in A',
-  'only-b': 'only in B',
+  equal: $localize`same`,
+  different: $localize`changed`,
+  'only-a': $localize`only in A`,
+  'only-b': $localize`only in B`,
 };
 
 /** Tabela nome / A / B de uma seção da comparação (Request, Query, Headers). */

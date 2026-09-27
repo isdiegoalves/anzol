@@ -111,7 +111,7 @@ export class ShareDialog {
       this.created.set(link);
       this.links.update((links) => [link, ...links.filter((l) => l.id !== link.id)]);
     } catch (error) {
-      this.error.set(shareError('create the link', error));
+      this.error.set(shareError($localize`create the link`, error));
     } finally {
       this.creating.set(false);
     }
@@ -127,7 +127,7 @@ export class ShareDialog {
       }
       this.snackBar.open($localize`Link revoked`, undefined, { duration: 1000 });
     } catch (error) {
-      this.error.set(shareError('revoke the link', error));
+      this.error.set(shareError($localize`revoke the link`, error));
     }
   }
 
@@ -153,7 +153,7 @@ export class ShareDialog {
     try {
       this.links.set(await this.store.list(this.tokenId));
     } catch (error) {
-      this.error.set(shareError('load the active links', error));
+      this.error.set(shareError($localize`load the active links`, error));
     } finally {
       this.loaded.set(true);
     }
@@ -166,7 +166,7 @@ export class ShareDialog {
  */
 function shareError(action: string, error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) {
-    return `Could not ${action}.`;
+    return $localize`Could not ${action}:action:.`;
   }
   const body = error.error as Record<string, unknown> | null;
   const messages =
@@ -176,5 +176,5 @@ function shareError(action: string, error: unknown): string {
         ? [body['error']]
         : [];
   const detail = messages.length > 0 ? `: ${messages.join(' ')}` : '';
-  return `Could not ${action} (${error.status})${detail}`;
+  return $localize`Could not ${action}:action: (${error.status}:status:)${detail}:detail:`;
 }

@@ -161,7 +161,7 @@ function schemaResult(request: CapturedRequest): CheckResult {
   const [first] = schema.errors;
   const count = schema.errors.length;
   const detail = first
-    ? `${first.path || '(root)'} ${first.message}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
+    ? `${first.path || $localize`(root)`} ${first.message}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
     : $localize`Body does not match the schema`;
   return { kind, state: 'invalid', tone: 'bad', title: $localize`Schema invalid`, detail };
 }

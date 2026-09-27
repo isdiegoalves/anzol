@@ -139,7 +139,7 @@
                 @for (path of stats.schema.paths; track path.path) {
                   <tr>
                     <td>
-                      <code>{{ path.path === '' ? '(root)' : path.path }}</code>
+                      <code>{{ path.path === '' ? rootLabel : path.path }}</code>
                     </td>
                     <td class="number">{{ path.count }}</td>
                   </tr>

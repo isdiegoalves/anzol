@@ -44,11 +44,7 @@
               }
             </div>
             @if (data.percent) {
-              <div
-                class="bar"
-                role="img"
-                [attr.aria-label]="data.valid + ' valid, ' + data.invalid + ' invalid'"
-              >
+              <div class="bar" role="img" [attr.aria-label]="barLabel(data.valid, data.invalid)">
                 <span class="ok" [style.flex-grow]="data.valid"></span>
                 <span class="bad" [style.flex-grow]="data.invalid"></span>
               </div>

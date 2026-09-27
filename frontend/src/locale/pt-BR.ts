@@ -110,6 +110,10 @@ export const translations: Record<string, string> = {
   '994463048896196371': '{$INTERPOLATION} não verificadas',
   // Loading…
   '2369742814572661392': 'Carregando…',
+  // (root)
+  '5267671911622079393': '(raiz)',
+  // {$valid} valid, {$invalid} invalid
+  '3721271038538548419': '{$valid} válidas, {$invalid} inválidas',
   // Signature
   '2445188258613609179': 'Assinatura',
   // Why invalid
@@ -303,6 +307,8 @@ export const translations: Record<string, string> = {
   '7896650584449704588': 'Segredo',
   // Leave blank to keep the current secret
   '1920165940832819589': 'Deixe em branco para manter o segredo atual',
+  // The secret is required, up to 256 characters.
+  '4344811737802546370': 'O segredo é obrigatório, até 256 caracteres.',
   // Prefix
   '2942230580917375982': 'Prefixo',
   // sha256=
@@ -418,6 +424,14 @@ export const translations: Record<string, string> = {
     ' Não foi possível carregar as requisições para comparar ({$INTERPOLATION}). Tente de novo mais tarde. ',
   // Loading comparison…
   '3807791837410938976': 'Carregando a comparação…',
+  // same
+  '3759984489428864895': 'igual',
+  // changed
+  '1790106018092279624': 'mudou',
+  // only in A
+  '4117917317240034051': 'só na A',
+  // only in B
+  '8656459452816879901': 'só na B',
   // Name
   '8953033926734869941': 'Nome',
   // A
@@ -425,7 +439,7 @@ export const translations: Record<string, string> = {
   // B
   '2021928621838842498': 'B',
   // Status
-  '5611592591303869712': 'Situação',
+  '5611592591303869712': 'Status',
   // · changes every event
   '6788836596279146541': '· muda a cada evento',
   // Compare requests
@@ -477,6 +491,8 @@ export const translations: Record<string, string> = {
   // {VAR_PLURAL, plural, =1 {1 unchanged line} other {{INTERPOLATION} unchanged lines}}
   '6484985239131178835':
     '{VAR_PLURAL, plural, =1 {1 linha igual} other {{INTERPOLATION} linhas iguais}}',
+  // (empty)
+  '6137649443564269922': '(vazio)',
   // Delete all requests?
   '1483027337041318683': 'Apagar todas as requisições?',
   //  The {$ICU} of this URL will be deleted. This can't be undone.
@@ -714,6 +730,10 @@ export const translations: Record<string, string> = {
   '4854396465510517671': 'Destino',
   // Time
   '8497528947328199741': 'Hora',
+  // Replay
+  '1225203534534338921': 'Reenvio',
+  // Send
+  '6490688569532630280': 'Envio',
   // {$INTERPOLATION} ms
   '7181536990766699085': '{$INTERPOLATION} ms',
   //  Nothing sent yet. Replay a request or send a new one.
@@ -723,9 +743,9 @@ export const translations: Record<string, string> = {
   // Kind of request
   '6204880661937902988': 'Tipo de requisição',
   // Replay
-  '1225203534534338921': 'Reenvio',
+  '7602321393344758918': 'Reenviar',
   // Send
-  '6490688569532630280': 'Envio',
+  '8909919426486565827': 'Enviar',
   // Outbound detail
   '1927033373433956308': 'Detalhe da saída',
   // Could not load the outbound history ({$PH}).
@@ -819,6 +839,8 @@ export const translations: Record<string, string> = {
     '{$START_BLOCK_IF} Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} ao destino {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} A requisição não tem caminho nem query para acrescentar {$CLOSE_BLOCK_ELSE}',
   // Timeout (s)
   '3923887161250817705': 'Tempo limite (s)',
+  // Sending…
+  '7606672167560356784': 'Enviando…',
   // Send request
   '736940570258467336': 'Mandar requisição',
   // The server sends this request to the target and records the answer below.
@@ -852,7 +874,7 @@ export const translations: Record<string, string> = {
   // This URL did not verify signatures
   '6681545142694176643': 'Esta URL não verificava assinaturas',
   // Signature absent
-  '72442362552594738': 'Assinatura ausente',
+  '72442362552594738': 'Sem assinatura',
   // Signature invalid
   '76465393282813109': 'Assinatura inválida',
   // Schema not checked
@@ -881,6 +903,24 @@ export const translations: Record<string, string> = {
   '2479848593142434231': 'Recebida antes das regras',
   // No rule answered
   '2294482763688392758': 'Nenhuma regra respondeu',
+  // Timestamp signed with the body
+  '5284952865465031727': 'Timestamp assinado junto com o corpo',
+  // HMAC-SHA256 of "{t}.{raw body}"
+  '5486514171305893593': 'HMAC-SHA256 de "{t}.{corpo bruto}"',
+  // HMAC-SHA256 of "v0:{timestamp}:{raw body}"
+  '2104609890280920664': 'HMAC-SHA256 de "v0:{timestamp}:{corpo bruto}"',
+  // HMAC-{$algorithm} of the raw body
+  '8420722841458093211': 'HMAC-{$algorithm} do corpo bruto',
+  // HMAC-SHA256 of the raw body
+  '8606252083433065721': 'HMAC-SHA256 do corpo bruto',
+  // Signature valid — {$formula} matched
+  '7745991131581196387': 'Assinatura válida — o {$formula} bateu',
+  // Signature invalid — {$formula} did not match (signature mismatch)
+  '109936488826144296': 'Assinatura inválida — o {$formula} não bateu (signature mismatch)',
+  // Signature invalid — {$formula} matched, but {$reason}
+  '9200910835768230509': 'Assinatura inválida — o {$formula} bateu, mas {$reason}',
+  // Signature {$state} — {$reason}
+  '150094202595422510': 'Assinatura {$state} — {$reason}',
   // Newer
   '8314700931837210100': 'Mais nova',
   // Newer (K)
@@ -918,6 +958,10 @@ export const translations: Record<string, string> = {
   // Ask the local model why signature, schema and rules gave this result
   '4209809529690937932':
     'Perguntar ao modelo local por que assinatura, schema e regras deram este resultado',
+  // Hide explanation
+  '2380217756304706466': 'Esconder a explicação',
+  // Explain
+  '5922533565893373062': 'Explicar',
   // Copied payload
   '1866256676598500016': 'Payload copiado',
   // Copied request as {$format}
@@ -1069,8 +1113,6 @@ export const translations: Record<string, string> = {
   '838577534283306722': ' Tirar o token do caminho ',
   // Operator
   '1179184907489210406': 'Operador',
-  //  Add {$INTERPOLATION} condition
-  '1902261473535153580': ' Adicionar condição de {$INTERPOLATION} ',
   // Condition
   '2838129566011107043': 'Condição',
   // JSONPath
@@ -1083,6 +1125,8 @@ export const translations: Record<string, string> = {
   '6537026039485973795': '"paid", 10, true',
   // Empty: the path exists
   '917408878876318167': 'Vazio: o caminho existe',
+  // Text
+  '6162693758764653365': 'Texto',
   // Key order is ignored
   '6627245072730118087': 'A ordem das chaves é ignorada',
   //  Add body condition
@@ -1180,6 +1224,12 @@ export const translations: Record<string, string> = {
   '9133703782808481756': 'Testando…',
   // No test yet: click "Test against history".
   '8894637699792041269': 'Nenhum teste ainda: clique em "Testar contra o histórico".',
+  // Match
+  '6619869754055745168': 'Casamento',
+  // Scenario
+  '7268724710243443192': 'Cenário',
+  // Test
+  '6563391987554512024': 'Teste',
   // HTTP method
   '8624416928888064138': 'Método HTTP',
   // Path after the URL's token
@@ -1207,6 +1257,20 @@ export const translations: Record<string, string> = {
   '7797929411085924471': "Aritmética: '+', '-', '*', '/'",
   // New rule
   '609790514962379936': 'Nova regra',
+  // Add query condition
+  '2822509143046858985': 'Adicionar condição de query',
+  // Add header condition
+  '2420128804747895988': 'Adicionar condição de cabeçalho',
+  // equals
+  '3697582909018473071': 'é igual a',
+  // contains
+  '326106955650253946': 'contém',
+  // matches regex
+  '3599663444722178290': 'casa com a regex',
+  // is present
+  '9159433559441189171': 'está presente',
+  // is absent
+  '1773801036438612572': 'está ausente',
   // Contains
   '6238291467288576076': 'Contém',
   // Equal to JSON
@@ -1221,8 +1285,58 @@ export const translations: Record<string, string> = {
   '3761080073073715220': 'Log-normal',
   // An integer between 0 and {$PH} (ms).
   '5348000120438028024': 'Um número inteiro de 0 a {$PH} (ms).',
+  // The name is required.
+  '2251827586065267500': 'O nome é obrigatório.',
+  // The priority must be an integer of at least 1.
+  '2207428802465937153': 'A prioridade precisa ser um número inteiro de pelo menos 1.',
+  // The path is required.
+  '2667481719713596528': 'O caminho é obrigatório.',
+  // The JSONPath is required.
+  '5946675482642489113': 'O JSONPath é obrigatório.',
+  // The value must be valid JSON.
+  '4060759168736211664': 'O valor precisa ser um JSON válido.',
+  // The status must be an integer between 100 and 599.
+  '6742532429707368197': 'O status precisa ser um número inteiro de 100 a 599.',
+  // At least the min, up to 60000 (ms).
+  '5417346972907244808': 'No mínimo o valor mínimo, até 60000 (ms).',
+  // A number of at least 0.
+  '7746830683176421346': 'Um número de pelo menos 0.',
+  // An integer between 1 and 100.
+  '8088872202130126469': 'Um número inteiro de 1 a 100.',
+  // Up to 100 characters.
+  '7452353939910904225': 'Até 100 caracteres.',
   // Edit rule {$PH}
   '2547758668904389075': 'Editar a regra {$PH}',
+  // Fails on {$failed} of {$tested} tested
+  '1999225047819466463': 'Falha em {$failed} de {$tested} testadas',
+  // Passes on all {$tested} tested
+  '2113082443290172072': 'Passa nas {$tested} testadas',
+  // Query {$number} name
+  '233478066120015611': 'Query {$number}: nome',
+  // Query {$number} operator
+  '265456987234451664': 'Query {$number}: operador',
+  // Query {$number} value
+  '6779815515272671145': 'Query {$number}: valor',
+  // Remove query {$number}
+  '501341756846129966': 'Remover a query {$number}',
+  // Header {$number} operator
+  '6408646595548645248': 'Cabeçalho {$number}: operador',
+  // Body {$number} type
+  '8308355925924578923': 'Corpo {$number}: tipo',
+  // Body {$number} path
+  '823922318292377054': 'Corpo {$number}: caminho',
+  // Body {$number} equals
+  '522421462930466892': 'Corpo {$number}: é igual a',
+  // Body {$number} value
+  '6158416231215601815': 'Corpo {$number}: valor',
+  // Remove body {$number}
+  '6438795118930117974': 'Remover a condição do corpo {$number}',
+  // Response header {$number} name
+  '4348450316430411614': 'Cabeçalho da resposta {$number}: nome',
+  // Response header {$number} value
+  '581355660005497699': 'Cabeçalho da resposta {$number}: valor',
+  // Remove response header {$number}
+  '5365124439588054789': 'Remover o cabeçalho da resposta {$number}',
   // Could not test the rule ({$PH}).
   '2941832689797231625': 'Não foi possível testar a regra ({$PH}).',
   // The rule must be a JSON object.
@@ -1233,6 +1347,74 @@ export const translations: Record<string, string> = {
   '2939453186195223024': 'Não foi possível salvar as regras ({$PH}).',
   // Rule {$position} › {$field}:
   '1619912122646364208': 'Regra {$position} › {$field}: ',
+  // When any request
+  '9202146983718243336': 'Quando qualquer requisição',
+  // When a {$methods}
+  '1192478214337819242': 'Quando um {$methods}',
+  // query {$name}
+  '5189704128861120796': 'a query {$name}',
+  // header {$name}
+  '671740933703996045': 'o cabeçalho {$name}',
+  //  has {$conditions}
+  '7728608720362041319': ' tiver {$conditions}',
+  // , while scenario {$scenario} is in {$state}
+  '7427457293979710682': ', enquanto o cenário {$scenario} estiver em {$state}',
+  // , {$response}
+  '2116228078712248832': ', {$response}',
+  //  and moves scenario {$scenario} to {$state}
+  '5612461601284425645': ' e levar o cenário {$scenario} para {$state}',
+  // a valid signature
+  '2366840414129770031': 'uma assinatura válida',
+  // an invalid signature
+  '8845664058059729277': 'uma assinatura inválida',
+  // no signature header
+  '4126643192592460277': 'nenhum cabeçalho de assinatura',
+  // a body valid against the schema
+  '4330561618798698484': 'um corpo válido pelo schema',
+  // a body invalid against the schema
+  '2616683234706928614': 'um corpo inválido pelo schema',
+  //  to {$path}
+  '916173346180633514': ' para {$path}',
+  //  to a path starting with {$prefix}
+  '1041177723918929444': ' para um caminho que começa com {$prefix}',
+  //  to a path matching {$regex}
+  '6120465592973573416': ' para um caminho que casa com {$regex}',
+  // {$target} present
+  '399192746694499653': '{$target} presente',
+  // no {$target}
+  '4526765948885602539': 'sem {$target}',
+  // {$target} equal to {$value}
+  '1745170143742075582': '{$target} igual a {$value}',
+  // {$target} containing {$value}
+  '3116102020133134623': '{$target} contendo {$value}',
+  // {$target} matching {$regex}
+  '2436855986268198376': '{$target} casando com {$regex}',
+  // {$path} present
+  '4716783619636203183': '{$path} presente',
+  // {$path} equal to {$value}
+  '3734887181811744453': '{$path} igual a {$value}',
+  // a body equal to the given JSON
+  '4416594301411065209': 'um corpo igual ao JSON dado',
+  // a body equal to {$value}
+  '227978063814580931': 'um corpo igual a {$value}',
+  // a body containing {$value}
+  '6512901344878179955': 'um corpo contendo {$value}',
+  // a body matching {$regex}
+  '5011744985685492691': 'um corpo casando com {$regex}',
+  // fail with {$fault}
+  '2554878304407464729': 'falhar com {$fault}',
+  //  with a templated body
+  '7686440254764373882': ' com o corpo de template',
+  //  after {$delay}
+  '7739113087185754206': ' depois de {$delay}',
+  // answer {$status}{$body}{$delay}
+  '5566218938374452301': 'responder {$status}{$body}{$delay}',
+  // about {$median} ms
+  '1888478615595597552': 'cerca de {$median} ms',
+  // {$first} or {$last}
+  '8212926519424367459': '{$first} ou {$last}',
+  // {$first} and {$last}
+  '5762149304068294084': '{$first} e {$last}',
   // Connection reset (TCP RST)
   '50377479265602245': 'Conexão reiniciada (TCP RST)',
   // Empty response (close without writing)
@@ -1279,8 +1461,6 @@ export const translations: Record<string, string> = {
   '5721589179245249262': 'Reordenar',
   // Behavior
   '7779249123661446825': 'Comportamento',
-  // Match
-  '6619869754055745168': 'Casamento',
   // Hits
   '4793456052173041220': 'Acertos',
   // Actions
@@ -1348,8 +1528,6 @@ export const translations: Record<string, string> = {
   '4116228028354126363': 'Voltar todos os cenários para Started',
   //  Reset all
   '4760846516919742648': ' Reiniciar todos ',
-  // Scenario
-  '7268724710243443192': 'Cenário',
   // Current state
   '4849277051965761197': 'Estado atual',
   // Set state
@@ -1368,6 +1546,8 @@ export const translations: Record<string, string> = {
   '2073198119882707396': 'Cenário {$scenario} definido como {$state}',
   // Scenarios reset to {$state}
   '1524236363010811687': 'Cenários reiniciados em {$state}',
+  // Could not update the scenarios ({$status}).
+  '2276106420599073954': 'Não foi possível atualizar os cenários ({$status}).',
   // Filter requests
   '7506409234432679914': 'Filtrar requisições',
   // Search
@@ -1411,6 +1591,8 @@ export const translations: Record<string, string> = {
   '6769004555858769001': 'Método HTTP',
   // Default (use request method)
   '3215927471856292774': 'Padrão (usa o método da requisição)',
+  // Redirected request to {$url}. Status: {$status}
+  '8165836203746506483': 'Requisição redirecionada para {$url}. Status: {$status}',
   // Error redirecting request to {$url}. Status: {$status}
   '5848676174481124755': 'Erro ao redirecionar a requisição para {$url}. Status: {$status}',
   // Share read-only link
@@ -1436,9 +1618,9 @@ export const translations: Record<string, string> = {
   '6143795228406387052': ' Copiar link ',
   // Active links
   '1122183606548293857': 'Links ativos',
-  //  expires {$INTERPOLATION} · {$INTERPOLATION_1} {$START_BLOCK_IF} · this request {$CLOSE_BLOCK_IF}
-  '4638240770204890219':
-    ' expira {$INTERPOLATION} · {$INTERPOLATION_1} {$START_BLOCK_IF} · esta requisição {$CLOSE_BLOCK_IF}',
+  //  expires {$INTERPOLATION} · {$START_BLOCK_IF} sensitive values hidden {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} all values shown {$CLOSE_BLOCK_ELSE}{$START_BLOCK_IF_1} · this request {$CLOSE_BLOCK_IF}
+  '317944432976388770':
+    ' expira {$INTERPOLATION} · {$START_BLOCK_IF} valores sensíveis escondidos {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} todos os valores à mostra {$CLOSE_BLOCK_ELSE}{$START_BLOCK_IF_1} · esta requisição {$CLOSE_BLOCK_IF}',
   //  Revoke
   '2438803034455350509': ' Revogar ',
   // No active links for this URL.
@@ -1447,10 +1629,20 @@ export const translations: Record<string, string> = {
   '4859350702674712542': ' Criar link ',
   // Revoke link {$id}
   '960117636857124775': 'Revogar o link {$id}',
+  // create the link
+  '633537937116220590': 'criar o link',
   // Link revoked
   '6644784554144787727': 'Link revogado',
+  // revoke the link
+  '1060400676506569756': 'revogar o link',
   // Copied link
   '3198248282936256481': 'Link copiado',
+  // load the active links
+  '3445716779265435198': 'carregar os links ativos',
+  // Could not {$action}.
+  '2782600301985371685': 'Não foi possível {$action}.',
+  // Could not {$action} ({$status}){$detail}
+  '2755372319248692235': 'Não foi possível {$action} ({$status}){$detail}',
   //  Shared read-only link · expires {$INTERPOLATION}
   '137361549104371657': ' Link só-leitura compartilhado · expira {$INTERPOLATION} ',
   // This link is not available
@@ -1546,6 +1738,10 @@ export const translations: Record<string, string> = {
   '7160754438595707040': 'URL trancada',
   // New URL created
   '527966257423045718': 'Nova URL criada',
+  // Error creating token: {$messages}
+  '5484573448941431902': 'Erro ao criar a URL: {$messages}',
+  // Error creating token ({$status})
+  '2520860617031932539': 'Erro ao criar a URL ({$status})',
   // Create New URL
   '4429755721790420681': 'Criar nova URL',
   //  This URL could not be found. It might have been automatically deleted.{$LINE_BREAK} Please create a new URL.
@@ -1562,6 +1758,12 @@ export const translations: Record<string, string> = {
   '551564307771458202': 'Guarda as {$INTERPOLATION} requisições mais recentes',
   //  Create
   '7941428823403788384': ' Criar ',
+  // fill in: {$fields}
+  '7615313807359232783': 'preencha: {$fields}',
+  // fix: {$fields}
+  '5913194384140121592': 'corrija: {$fields}',
+  // To save, {$parts}
+  '1634369451692992793': 'Para salvar, {$parts}',
   // This URL is protected
   '5373322810477456488': 'Esta URL é protegida',
   //  Enter the secret to view the requests, rules and history of {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}.

@@ -58,7 +58,7 @@
               i18n-aria-label
               maxlength="100"
             />
-            <mat-error>{{ errorOf(form.controls.name, 'The name is required.') }}</mat-error>
+            <mat-error>{{ errorOf(form.controls.name, messages.nameRequired) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="short">
             <mat-label i18n>Priority</mat-label>
@@ -71,9 +71,7 @@
               i18n-aria-label
             />
             <mat-hint i18n>Lowest first</mat-hint>
-            <mat-error>{{
-              errorOf(form.controls.priority, 'The priority must be an integer of at least 1.')
-            }}</mat-error>
+            <mat-error>{{ errorOf(form.controls.priority, messages.priority) }}</mat-error>
           </mat-form-field>
           <mat-slide-toggle formControlName="enabled" i18n>Enabled</mat-slide-toggle>
         </div>
@@ -158,7 +156,7 @@
                 i18n-placeholder
               />
               <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
-              <mat-error>{{ errorOf(form.controls.path, 'The path is required.') }}</mat-error>
+              <mat-error>{{ errorOf(form.controls.path, messages.pathRequired) }}</mat-error>
             </mat-form-field>
           </div>
           @if (form.controls.methods.value.length > 0) {
@@ -195,15 +193,15 @@
                     <input
                       matInput
                       formControlName="name"
-                      [attr.aria-label]="section.label + ' ' + (i + 1) + ' name'"
+                      [attr.aria-label]="conditionLabels(section.list, i + 1).name"
                     />
-                    <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
+                    <mat-error>{{ errorOf(row.controls.name, messages.nameRequired) }}</mat-error>
                   </mat-form-field>
                   <mat-form-field>
                     <mat-label i18n>Operator</mat-label>
                     <mat-select
                       formControlName="operator"
-                      [aria-label]="section.label + ' ' + (i + 1) + ' operator'"
+                      [aria-label]="conditionLabels(section.list, i + 1).operator"
                     >
                       @for (operator of valueOperators; track operator.value) {
                         <mat-option [value]="operator.value">{{ operator.label }}</mat-option>
@@ -216,7 +214,7 @@
                       <input
                         matInput
                         formControlName="value"
-                        [attr.aria-label]="section.label + ' ' + (i + 1) + ' value'"
+                        [attr.aria-label]="conditionLabels(section.list, i + 1).value"
                       />
                       <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
                     </mat-form-field>
@@ -226,7 +224,7 @@
                   <button
                     mat-button
                     type="button"
-                    [attr.aria-label]="'Remove ' + section.label.toLowerCase() + ' ' + (i + 1)"
+                    [attr.aria-label]="conditionLabels(section.list, i + 1).remove"
                     (click)="removeRow(section.list, i)"
                   >
                     &#x2715;
@@ -238,8 +236,8 @@
                 />
               }
             </div>
-            <button i18n mat-button type="button" (click)="addCondition(section.list)">
-              Add {{ section.label.toLowerCase() }} condition
+            <button mat-button type="button" (click)="addCondition(section.list)">
+              {{ section.add }}
             </button>
           }
 
@@ -249,7 +247,7 @@
               <div class="line row" [formGroupName]="i">
                 <mat-form-field>
                   <mat-label i18n>Condition</mat-label>
-                  <mat-select formControlName="type" [aria-label]="'Body ' + (i + 1) + ' type'">
+                  <mat-select formControlName="type" [aria-label]="bodyLabels(i + 1).type">
                     @for (type of bodyTypes; track type.value) {
                       <mat-option [value]="type.value">{{ type.label }}</mat-option>
                     }
@@ -263,10 +261,10 @@
                       formControlName="path"
                       placeholder="$.status"
                       i18n-placeholder
-                      [attr.aria-label]="'Body ' + (i + 1) + ' path'"
+                      [attr.aria-label]="bodyLabels(i + 1).path"
                     />
                     <mat-error>{{
-                      errorOf(row.controls.path, 'The JSONPath is required.')
+                      errorOf(row.controls.path, messages.jsonPathRequired)
                     }}</mat-error>
                   </mat-form-field>
                   <mat-form-field class="grow">
@@ -276,33 +274,33 @@
                       formControlName="equals"
                       placeholder='"paid", 10, true'
                       i18n-placeholder
-                      [attr.aria-label]="'Body ' + (i + 1) + ' equals'"
+                      [attr.aria-label]="bodyLabels(i + 1).equals"
                     />
                     <mat-hint i18n>Empty: the path exists</mat-hint>
                     <mat-error>{{ errorOf(row.controls.equals, '') }}</mat-error>
                   </mat-form-field>
                 } @else {
                   <mat-form-field class="grow">
-                    <mat-label>{{
-                      row.controls.type.value === 'equalToJson' ? 'JSON' : 'Text'
-                    }}</mat-label>
+                    @if (row.controls.type.value === 'equalToJson') {
+                      <mat-label i18n>JSON</mat-label>
+                    } @else {
+                      <mat-label i18n>Text</mat-label>
+                    }
                     <input
                       matInput
                       formControlName="value"
-                      [attr.aria-label]="'Body ' + (i + 1) + ' value'"
+                      [attr.aria-label]="bodyLabels(i + 1).value"
                     />
                     @if (row.controls.type.value === 'equalToJson') {
                       <mat-hint i18n>Key order is ignored</mat-hint>
                     }
-                    <mat-error>{{
-                      errorOf(row.controls.value, 'The value must be valid JSON.')
-                    }}</mat-error>
+                    <mat-error>{{ errorOf(row.controls.value, messages.validJson) }}</mat-error>
                   </mat-form-field>
                 }
                 <button
                   mat-button
                   type="button"
-                  [attr.aria-label]="'Remove body ' + (i + 1)"
+                  [attr.aria-label]="bodyLabels(i + 1).remove"
                   (click)="removeRow('body', i)"
                 >
                   &#x2715;
@@ -374,9 +372,7 @@
                 aria-label="Status"
                 i18n-aria-label
               />
-              <mat-error>{{
-                errorOf(form.controls.status, 'The status must be an integer between 100 and 599.')
-              }}</mat-error>
+              <mat-error>{{ errorOf(form.controls.status, messages.status) }}</mat-error>
             </mat-form-field>
             <mat-form-field class="fault">
               <mat-label i18n>Fault</mat-label>
@@ -404,23 +400,23 @@
                   <input
                     matInput
                     formControlName="name"
-                    [attr.aria-label]="'Response header ' + (i + 1) + ' name'"
+                    [attr.aria-label]="responseHeaderLabels(i + 1).name"
                   />
-                  <mat-error>{{ errorOf(row.controls.name, 'The name is required.') }}</mat-error>
+                  <mat-error>{{ errorOf(row.controls.name, messages.nameRequired) }}</mat-error>
                 </mat-form-field>
                 <mat-form-field class="grow">
                   <mat-label i18n>Value</mat-label>
                   <input
                     matInput
                     formControlName="value"
-                    [attr.aria-label]="'Response header ' + (i + 1) + ' value'"
+                    [attr.aria-label]="responseHeaderLabels(i + 1).value"
                   />
                   <mat-error>{{ errorOf(row.controls.value, '') }}</mat-error>
                 </mat-form-field>
                 <button
                   mat-button
                   type="button"
-                  [attr.aria-label]="'Remove response header ' + (i + 1)"
+                  [attr.aria-label]="responseHeaderLabels(i + 1).remove"
                   [disabled]="faulted()"
                   (click)="removeRow('responseHeaders', i)"
                 >
@@ -512,9 +508,7 @@
                     aria-label="Delay max (ms)"
                     i18n-aria-label
                   />
-                  <mat-error>{{
-                    errorOf(form.controls.delayMax, 'At least the min, up to 60000 (ms).')
-                  }}</mat-error>
+                  <mat-error>{{ errorOf(form.controls.delayMax, messages.delayMax) }}</mat-error>
                 </mat-form-field>
               }
               @case ('lognormal') {
@@ -541,9 +535,7 @@
                     i18n-aria-label
                   />
                   <mat-hint i18n>Spread; capped at {{ delayMax }} ms</mat-hint>
-                  <mat-error>{{
-                    errorOf(form.controls.delaySigma, 'A number of at least 0.')
-                  }}</mat-error>
+                  <mat-error>{{ errorOf(form.controls.delaySigma, messages.sigma) }}</mat-error>
                 </mat-form-field>
               }
             }
@@ -564,9 +556,7 @@
                   aria-label="Chunks"
                   i18n-aria-label
                 />
-                <mat-error>{{
-                  errorOf(form.controls.dribbleChunks, 'An integer between 1 and 100.')
-                }}</mat-error>
+                <mat-error>{{ errorOf(form.controls.dribbleChunks, messages.chunks) }}</mat-error>
               </mat-form-field>
               <mat-form-field class="ms">
                 <mat-label i18n>Dribble duration (ms)</mat-label>
@@ -613,9 +603,7 @@
                 }
               </datalist>
               <mat-hint i18n>Empty: no scenario</mat-hint>
-              <mat-error>{{
-                errorOf(form.controls.scenarioName, 'Up to 100 characters.')
-              }}</mat-error>
+              <mat-error>{{ errorOf(form.controls.scenarioName, messages.upTo100) }}</mat-error>
             </mat-form-field>
             <mat-form-field class="grow">
               <mat-label i18n>Required state</mat-label>
@@ -627,9 +615,7 @@
                 list="scenario-states"
               />
               <mat-hint i18n>Empty: any state</mat-hint>
-              <mat-error>{{
-                errorOf(form.controls.requiredState, 'Up to 100 characters.')
-              }}</mat-error>
+              <mat-error>{{ errorOf(form.controls.requiredState, messages.upTo100) }}</mat-error>
             </mat-form-field>
             <mat-form-field class="grow">
               <mat-label i18n>New state</mat-label>
@@ -646,7 +632,7 @@
                 }
               </datalist>
               <mat-hint i18n>Empty: keeps the state</mat-hint>
-              <mat-error>{{ errorOf(form.controls.newState, 'Up to 100 characters.') }}</mat-error>
+              <mat-error>{{ errorOf(form.controls.newState, messages.upTo100) }}</mat-error>
             </mat-form-field>
           </div>
           @if (scenarioRules(); as preview) {
@@ -706,9 +692,9 @@
 </app-pane>
 
 <ng-template #conditionFeedback let-key>
-  @if (feedback(key); as text) {
-    <p class="feedback" [attr.data-condition]="key" [class.fails]="text.startsWith('Fails')">
-      {{ text }}
+  @if (feedback(key); as result) {
+    <p class="feedback" [attr.data-condition]="key" [class.fails]="result.fails">
+      {{ result.text }}
     </p>
   }
   @if (recordedMisses(key); as count) {

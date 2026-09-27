@@ -53,7 +53,11 @@
           <a target="_blank" rel="noopener" [href]="address(link)">{{ link.id }}</a>
           <span i18n class="meta">
             expires {{ expires(link) }} ·
-            {{ link.redact ? 'sensitive values hidden' : 'all values shown' }}
+            @if (link.redact) {
+              sensitive values hidden
+            } @else {
+              all values shown
+            }
             @if (isThisRequest(link)) {
               · this request
             }

@@ -143,10 +143,11 @@
           <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
         }
         <mat-error>
-          {{
-            form.controls.secret.errors?.['server'] ??
-              'The secret is required, up to 256 characters.'
-          }}
+          @if (form.controls.secret.errors?.['server']; as server) {
+            {{ server }}
+          } @else {
+            <ng-container i18n>The secret is required, up to 256 characters.</ng-container>
+          }
         </mat-error>
       </mat-form-field>
       @if (chosen === 'generic') {

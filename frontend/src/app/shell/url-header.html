@@ -40,7 +40,9 @@
       title="Send a request from the server: open Outbound"
       i18n-title
     >
-      <app-icon name="outbound" [size]="18" /><span i18n>Send</span>
+      <app-icon name="outbound" [size]="18" /><span i18n="action|Botão que manda a requisição"
+        >Send</span
+      >
     </a>
     @if (lockable()) {
       <button type="button" class="action" (click)="lockUrl()">

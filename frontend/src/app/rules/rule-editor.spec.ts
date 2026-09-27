@@ -888,6 +888,12 @@ describe('Dado o editor de regra', () => {
         ['match.headers.X-Sig', 'Fails on 2 of 2 tested'],
         ['match.body.0', 'Passes on all 2 tested'],
       ]);
+      // O estilo vem do resultado (`fails`), não do texto, que muda com o idioma.
+      expect(
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('.feedback')].map((element) =>
+          element.classList.contains('fails'),
+        ),
+      ).toEqual([true, false, true, false]);
     });
   });
 

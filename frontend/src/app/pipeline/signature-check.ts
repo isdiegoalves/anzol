@@ -64,7 +64,7 @@ export function signatureCheck(
     rows.set(
       name,
       name === 'x-slack-request-timestamp'
-        ? `${ICONS[state]} Timestamp signed with the body`
+        ? `${ICONS[state]} ${$localize`Timestamp signed with the body`}`
         : verdict,
     );
   }
@@ -75,26 +75,26 @@ export function signatureCheck(
 function formulaOf(provider: SignatureProvider, algorithm = 'sha256'): string {
   switch (provider) {
     case 'stripe':
-      return 'HMAC-SHA256 of "{t}.{raw body}"';
+      return $localize`HMAC-SHA256 of "{t}.{raw body}"`;
     case 'slack':
-      return 'HMAC-SHA256 of "v0:{timestamp}:{raw body}"';
+      return $localize`HMAC-SHA256 of "v0:{timestamp}:{raw body}"`;
     case 'generic':
-      return `HMAC-${algorithm.toUpperCase()} of the raw body`;
+      return $localize`HMAC-${algorithm.toUpperCase()}:algorithm: of the raw body`;
     default:
-      return 'HMAC-SHA256 of the raw body';
+      return $localize`HMAC-SHA256 of the raw body`;
   }
 }
 
 /** Frase da linha; o motivo do servidor aparece como veio. */
 function verdictOf(state: SignatureState, reason: string | null, formula: string): string {
   if (reason === null) {
-    return `Signature valid — ${formula} matched`;
+    return $localize`Signature valid — ${formula}:formula: matched`;
   }
   if (reason === 'signature mismatch') {
-    return `Signature invalid — ${formula} did not match (signature mismatch)`;
+    return $localize`Signature invalid — ${formula}:formula: did not match (signature mismatch)`;
   }
   if (reason.startsWith('timestamp outside tolerance')) {
-    return `Signature invalid — ${formula} matched, but ${reason}`;
+    return $localize`Signature invalid — ${formula}:formula: matched, but ${reason}:reason:`;
   }
-  return `Signature ${state} — ${reason}`;
+  return $localize`Signature ${state}:state: — ${reason}:reason:`;
 }

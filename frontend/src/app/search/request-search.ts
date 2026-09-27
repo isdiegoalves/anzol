@@ -48,6 +48,17 @@ export class RequestSearch {
   /** O que o "Copy as webhook wait-for" copiou, com o aviso do texto que ficou de fora. */
   protected readonly copied = signal<string | null>(null);
 
+  /** Rótulos dos chips (os nomes acessíveis da E4 em inglês), traduzidos na instância. */
+  private readonly signatureLabels: Record<Exclude<SignatureFilter, 'any'>, string> = {
+    valid: $localize`Signature valid`,
+    invalid: $localize`Signature invalid`,
+    absent: $localize`Signature absent`,
+  };
+  private readonly schemaLabels: Record<Exclude<SchemaFilter, 'any'>, string> = {
+    valid: $localize`Schema valid`,
+    invalid: $localize`Schema invalid`,
+  };
+
   protected readonly chips = computed<Chip[]>(() => {
     const filter = this.store.filter();
     const methods = FILTER_METHODS.map((method) => ({
@@ -60,13 +71,13 @@ export class RequestSearch {
             : [...filter.methods, method],
         }),
     }));
-    const signatures = (['valid', 'invalid', 'absent'] as SignatureFilter[]).map((value) => ({
-      label: `Signature ${value}`,
+    const signatures = (['valid', 'invalid', 'absent'] as const).map((value) => ({
+      label: this.signatureLabels[value],
       pressed: filter.signature === value,
       toggle: () => this.apply({ signature: filter.signature === value ? 'any' : value }),
     }));
-    const schemas = (['valid', 'invalid'] as SchemaFilter[]).map((value) => ({
-      label: `Schema ${value}`,
+    const schemas = (['valid', 'invalid'] as const).map((value) => ({
+      label: this.schemaLabels[value],
       pressed: filter.schema === value,
       toggle: () => this.apply({ schema: filter.schema === value ? 'any' : value }),
     }));
