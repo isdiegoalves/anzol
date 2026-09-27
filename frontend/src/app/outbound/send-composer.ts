@@ -6,7 +6,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
@@ -19,6 +19,7 @@ import {
   SendDraft,
   TIMEOUT_DEFAULT_S,
   requestErrorText,
+  signedHeaderHint,
 } from './outbound';
 import { TARGET_ERROR, TIMEOUT_ERROR, targetValidators, timeoutValidators } from './outbound-form';
 import { OutboundStore } from './outbound-store';
@@ -37,6 +38,7 @@ type HeaderGroup = FormGroup<{ name: FormControl<string>; value: FormControl<str
     ReactiveFormsModule,
     RouterLink,
     MatButton,
+    MatIconButton,
     MatError,
     MatFormField,
     MatInput,
@@ -71,6 +73,8 @@ export class SendComposer implements OnInit {
 
   /** Provedor da assinatura da URL; `null` quando ela não assina. */
   protected signature: string | null = null;
+  /** O header que a assinatura acrescenta ("Stripe-Signature: t=…,v1=…"); `null` sem assinatura. */
+  protected signedHeader: string | null = null;
   protected readonly methods = OUTBOUND_METHODS;
   protected readonly targetError = TARGET_ERROR;
   protected readonly timeoutError = TIMEOUT_ERROR;
@@ -92,6 +96,7 @@ export class SendComposer implements OnInit {
       body: '',
     };
     this.signature = token.signature ? SIGNATURE_PROVIDER_LABELS[token.signature.provider] : null;
+    this.signedHeader = token.signature ? signedHeaderHint(token.signature) : null;
     for (const [name, value] of draft.headers) {
       this.form.controls.headers.push(this.headerGroup(name, value));
     }

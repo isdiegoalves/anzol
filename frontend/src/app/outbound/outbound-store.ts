@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
-import { OutboundResult, ReplayPayload, SendPayload } from './outbound';
+import { OutboundResult, ReplayPayload, Repeat, SendPayload, TIMEOUT_DEFAULT_S } from './outbound';
 
 /** O servidor guarda as últimas 50 respostas de cada URL. */
 const HISTORY_SIZE = 50;
@@ -18,6 +18,8 @@ export class OutboundStore {
   readonly tokenId = signal<string | null>(null);
   /** Mais novo primeiro, como a API devolve. */
   readonly history = signal<readonly OutboundResult[]>([]);
+  /** O que cada disparo feito nesta tela mandou: o "Run again" repete igual (o send traz o corpo). */
+  private readonly repeats = new Map<string, Repeat>();
 
   async load(tokenId: string): Promise<void> {
     this.tokenId.set(tokenId);
@@ -38,6 +40,7 @@ export class OutboundStore {
         payload,
       ),
     );
+    this.repeats.set(result.id, { kind: 'replay', requestId, payload });
     this.record(tokenId, result);
     return result;
   }
@@ -46,8 +49,45 @@ export class OutboundStore {
     const result = await firstValueFrom(
       this.http.post<OutboundResult>(`/token/${tokenId}/send`, payload),
     );
+    this.repeats.set(result.id, { kind: 'send', payload });
     this.record(tokenId, result);
     return result;
+  }
+
+  /**
+   * Como repetir o disparo: o que esta tela mandou; ou, no replay do histórico, a mesma mensagem
+   * para o alvo efetivo (que já traz o caminho). O send do histórico não guarda o corpo: `null`.
+   */
+  repeatOf(result: OutboundResult): Repeat | null {
+    const known = this.repeats.get(result.id);
+    if (known) {
+      return known;
+    }
+    const source = result.source_request;
+    return result.kind === 'replay' && isRequestId(source)
+      ? {
+          kind: 'replay',
+          requestId: source,
+          payload: { url: result.target, keep_path: false, timeout: TIMEOUT_DEFAULT_S * 1000 },
+        }
+      : null;
+  }
+
+  /** "Run again": repete o replay ou o send; o resultado novo entra no topo do histórico. */
+  runAgain(tokenId: string, result: OutboundResult): Promise<OutboundResult> {
+    const repeat = this.repeatOf(result);
+    if (!repeat) {
+      return Promise.reject(new Error('This send cannot be repeated from here.'));
+    }
+    return repeat.kind === 'replay'
+      ? this.replay(tokenId, repeat.requestId, repeat.payload)
+      : this.send(tokenId, repeat.payload);
+  }
+
+  /** O corpo que o send desta tela mandou (o "Copy as curl" o leva); `null` se não se sabe. */
+  sentBody(result: OutboundResult): string | null {
+    const repeat = this.repeats.get(result.id);
+    return repeat?.kind === 'send' ? repeat.payload.body : null;
   }
 
   /** Mensagens da primeira página da URL (as 50 mais novas): o seletor do Replay. */

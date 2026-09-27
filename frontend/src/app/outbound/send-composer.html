@@ -1,8 +1,8 @@
 <h2 id="send-title" class="composer-title" i18n>Send request</h2>
 <p class="hint" i18n>The server sends this request to the target and records the answer below.</p>
 <form class="fields" [formGroup]="form" (ngSubmit)="sendRequest()">
-  <div class="row">
-    <mat-form-field class="method">
+  <div class="send-line">
+    <mat-form-field appearance="outline" class="method">
       <mat-label i18n>Method</mat-label>
       <mat-select formControlName="method" aria-label="Method" i18n-aria-label>
         @for (method of methods; track method) {
@@ -10,7 +10,7 @@
         }
       </mat-select>
     </mat-form-field>
-    <mat-form-field class="grow">
+    <mat-form-field appearance="outline" class="url">
       <mat-label i18n>URL</mat-label>
       <input
         matInput
@@ -22,67 +22,7 @@
       />
       <mat-error>{{ targetError }}</mat-error>
     </mat-form-field>
-  </div>
-
-  <h3 class="section" i18n>Headers</h3>
-  <div formArrayName="headers">
-    @for (row of form.controls.headers.controls; track row; let i = $index) {
-      <div class="row" [formGroupName]="i">
-        <mat-form-field class="grow">
-          <mat-label i18n>Name</mat-label>
-          <input matInput formControlName="name" [attr.aria-label]="headerLabel(i + 1).name" />
-          <mat-error i18n>A header name, without spaces or colons.</mat-error>
-        </mat-form-field>
-        <mat-form-field class="grow">
-          <mat-label i18n>Value</mat-label>
-          <input matInput formControlName="value" [attr.aria-label]="headerLabel(i + 1).value" />
-        </mat-form-field>
-        <button
-          mat-button
-          type="button"
-          [attr.aria-label]="headerLabel(i + 1).remove"
-          (click)="removeHeader(i)"
-        >
-          &#x2715;
-        </button>
-      </div>
-    }
-  </div>
-  <div>
-    <button mat-button type="button" (click)="addHeader()" i18n>Add header</button>
-  </div>
-
-  <mat-form-field>
-    <mat-label i18n>Body</mat-label>
-    <textarea
-      matInput
-      class="code"
-      rows="6"
-      formControlName="body"
-      aria-label="Body"
-      i18n-aria-label
-    ></textarea>
-  </mat-form-field>
-
-  <div class="row">
-    <mat-slide-toggle formControlName="sign" i18n>Sign with this URL's signature</mat-slide-toggle>
-    <span i18n class="hint">
-      @if (signature; as provider) {
-        Signs the body as {{ provider }} does; the secret stays on the server
-      } @else {
-        <span
-          >This URL has no signature configured. Set one up in
-          <a [routerLink]="['/', token().uuid, 'checks']" [queryParams]="{ section: 'signature' }"
-            >Checks</a
-          >
-          to sign.</span
-        >
-      }
-    </span>
-  </div>
-
-  <div class="row">
-    <mat-form-field class="timeout">
+    <mat-form-field appearance="outline" class="timeout">
       <mat-label i18n>Timeout (s)</mat-label>
       <input
         matInput
@@ -95,14 +35,90 @@
       />
       <mat-error>{{ timeoutError }}</mat-error>
     </mat-form-field>
-    <span class="spacer"></span>
-    <button mat-flat-button type="submit" [disabled]="sending()">
+    <button mat-flat-button class="go" type="submit" [disabled]="sending()">
       @if (sending()) {
         <ng-container i18n>Sending…</ng-container>
       } @else {
         <ng-container i18n="action|Botão que manda a requisição">Send</ng-container>
       }
     </button>
+  </div>
+
+  <div class="send-parts">
+    <div class="headers">
+      <h3 class="section" id="send-headers-title" i18n>Headers</h3>
+      <div formArrayName="headers" class="kv">
+        @for (row of form.controls.headers.controls; track row; let i = $index) {
+          @let labels = headerLabel(i + 1);
+          @let name = row.controls.name;
+          <div class="kv-row" [formGroupName]="i">
+            <input
+              class="kv-input"
+              formControlName="name"
+              spellcheck="false"
+              [attr.aria-label]="labels.name"
+              [attr.aria-invalid]="name.invalid && name.touched ? 'true' : null"
+              [attr.aria-describedby]="
+                name.invalid && name.touched ? 'send-header-error-' + i : null
+              "
+            />
+            <input
+              class="kv-input"
+              formControlName="value"
+              spellcheck="false"
+              [attr.aria-label]="labels.value"
+            />
+            <button
+              mat-icon-button
+              type="button"
+              [attr.aria-label]="labels.remove"
+              (click)="removeHeader(i)"
+            >
+              &#x2715;
+            </button>
+            @if (name.invalid && name.touched) {
+              <p class="kv-error" [id]="'send-header-error-' + i" i18n>
+                A header name, without spaces or colons.
+              </p>
+            }
+          </div>
+        }
+      </div>
+      <div>
+        <button mat-button type="button" (click)="addHeader()" i18n>Add header</button>
+      </div>
+    </div>
+    <mat-form-field appearance="outline" class="body">
+      <mat-label i18n>Body</mat-label>
+      <textarea
+        matInput
+        class="code"
+        rows="3"
+        formControlName="body"
+        aria-label="Body"
+        i18n-aria-label
+      ></textarea>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+    <mat-slide-toggle formControlName="sign" i18n>Sign with this URL's signature</mat-slide-toggle>
+    <span class="hint">
+      @if (signedHeader; as header) {
+        <ng-container i18n
+          >Adds <code>{{ header }}</code> with this URL's secret; the secret never leaves the
+          server.</ng-container
+        >
+      } @else {
+        <span i18n
+          >This URL has no signature configured. Set one up in
+          <a [routerLink]="['/', token().uuid, 'checks']" [queryParams]="{ section: 'signature' }"
+            >Checks</a
+          >
+          to sign.</span
+        >
+      }
+    </span>
   </div>
 </form>
 @if (failure(); as message) {

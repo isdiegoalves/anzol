@@ -1,4 +1,30 @@
 @let current = result();
+@let failure = error();
+<div class="head">
+  <h2 class="title" i18n>Result</h2>
+  <span [class]="'big-status ' + family()">{{ current.status ?? failure?.title }}</span>
+  <span class="meta">
+    <strong i18n>{{ current.duration_ms }} ms</strong>
+    <span>
+      @if (current.kind === 'replay') {
+        <ng-container i18n>Replay</ng-container>
+      } @else {
+        <ng-container i18n>Send</ng-container>
+      }
+      @if (current.source_request; as source) {
+        · #{{ source.slice(0, 5) }}
+      }
+      · {{ date() }}
+    </span>
+  </span>
+  <span class="spacer"></span>
+  @if (repeatable()) {
+    <button mat-flat-button class="tonal" type="button" (click)="runAgain.emit()" i18n>
+      Run again
+    </button>
+  }
+  <button mat-button type="button" (click)="copyCurl.emit()" i18n>Copy as curl</button>
+</div>
 <p class="target">
   <app-method-badge [method]="current.method" />
   <code>{{ current.target }}</code>
@@ -6,41 +32,102 @@
 @if (redirectedHost(); as host) {
   <p i18n class="note">Sent to {{ host }}</p>
 }
-@if (error(); as error) {
+@if (failure) {
   <div class="error" role="alert">
     <p>
-      <strong>{{ error.title }}</strong
-      >{{ error.detail ? ': ' + error.detail : '' }}
+      <strong>{{ failure.title }}</strong
+      >{{ failure.detail ? ': ' + failure.detail : '' }}
     </p>
-    @if (error.hint) {
-      <p class="hint">{{ error.hint }}</p>
+    @if (failure.hint) {
+      <p class="hint">{{ failure.hint }}</p>
     }
     <p class="hint" i18n>Nothing reached the target, so there is no response.</p>
   </div>
-} @else {
-  <p class="summary">
-    <app-status-code [status]="current.status ?? null" />
-    <span i18n class="duration">{{ current.duration_ms }} ms</span>
-  </p>
-  <h3 class="part" i18n>Response headers</h3>
+  <h3 class="part" i18n>Sent headers</h3>
   <app-kv-table
-    label="Response headers"
+    label="Sent headers"
     i18n-label
     empty="(none)"
     i18n-empty
-    [rows]="responseHeaders()"
+    [rows]="requestHeaders()"
   />
-  <h3 class="part" i18n>Response body</h3>
-  @if (current.truncated) {
-    <p class="truncated" role="note" i18n>Truncated: only the first 64 KB of the body is shown.</p>
-  }
-  @if (current.body) {
-    <pre class="body" tabindex="0" aria-label="Response body" i18n-aria-label>{{
-      current.body
-    }}</pre>
-  } @else {
-    <p class="small" i18n>(no body content)</p>
-  }
+} @else {
+  @let active = tab();
+  <div class="tabs" role="tablist" aria-label="Result parts" i18n-aria-label>
+    <button
+      id="outbound-tab-body"
+      type="button"
+      role="tab"
+      aria-controls="outbound-panel"
+      [attr.aria-selected]="active === 'body'"
+      [tabIndex]="active === 'body' ? 0 : -1"
+      (click)="chooseTab('body')"
+      (keydown)="moveTab($event)"
+      i18n
+    >
+      Response body
+    </button>
+    <button
+      id="outbound-tab-response"
+      type="button"
+      role="tab"
+      aria-controls="outbound-panel"
+      [attr.aria-selected]="active === 'response'"
+      [tabIndex]="active === 'response' ? 0 : -1"
+      (click)="chooseTab('response')"
+      (keydown)="moveTab($event)"
+      i18n
+    >
+      Response headers ({{ responseHeaders().length }})
+    </button>
+    <button
+      id="outbound-tab-sent"
+      type="button"
+      role="tab"
+      aria-controls="outbound-panel"
+      [attr.aria-selected]="active === 'sent'"
+      [tabIndex]="active === 'sent' ? 0 : -1"
+      (click)="chooseTab('sent')"
+      (keydown)="moveTab($event)"
+      i18n
+    >
+      Sent headers ({{ requestHeaders().length }})
+    </button>
+  </div>
+  <div id="outbound-panel" class="panel" role="tabpanel">
+    @switch (active) {
+      @case ('body') {
+        @if (current.truncated) {
+          <p class="truncated" role="note" i18n>
+            Truncated: only the first 64 KB of the body is shown.
+          </p>
+        }
+        @if (current.body) {
+          <pre class="body" tabindex="0" aria-label="Response body" i18n-aria-label>{{
+            current.body
+          }}</pre>
+        } @else {
+          <p class="small" i18n>The target answered with no body.</p>
+        }
+      }
+      @case ('response') {
+        <app-kv-table
+          label="Response headers"
+          i18n-label
+          empty="(none)"
+          i18n-empty
+          [rows]="responseHeaders()"
+        />
+      }
+      @case ('sent') {
+        <app-kv-table
+          label="Sent headers"
+          i18n-label
+          empty="(none)"
+          i18n-empty
+          [rows]="requestHeaders()"
+        />
+      }
+    }
+  </div>
 }
-<h3 class="part" i18n>Sent headers</h3>
-<app-kv-table label="Sent headers" i18n-label empty="(none)" i18n-empty [rows]="requestHeaders()" />

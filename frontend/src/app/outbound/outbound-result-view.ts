@@ -1,25 +1,39 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { localDate } from '../request-detail/dates';
 import { KvRow, KvTable } from '../ui/kv-table';
 import { MethodBadge } from '../ui/method-badge';
-import { StatusCode } from '../ui/status-code';
-import { OutboundResult, headerEntries, outboundErrorText } from './outbound';
+import { OutboundResult, apiDate, headerEntries, outboundErrorText } from './outbound';
+
+/** Abas do resultado (OUTBOUND-09). */
+type Tab = 'body' | 'response' | 'sent';
+const TABS: readonly Tab[] = ['body', 'response', 'sent'];
 
 /**
- * Resultado de um replay ou send: alvo efetivo, status e tempo, headers recebidos e o corpo da
- * resposta (com aviso quando o corpo veio cortado), ou o erro de saída em texto claro; e sempre os
- * headers enviados. `typedUrl` avisa quando o servidor trocou o host (`localhost`).
+ * Resultado de um replay ou send (C §2.7, OUTBOUND-08/09): o status em destaque (ou o erro de
+ * saída), o tempo, o tipo com o `#id` da mensagem de origem e a data; "Run again" e "Copy as curl";
+ * o alvo efetivo; e as abas "Response body", "Response headers (n)" e "Sent headers (n)". Com erro
+ * de saída não há resposta: o alerta e os headers enviados. `typedUrl` avisa quando o servidor
+ * trocou o host (`localhost`).
  */
 @Component({
   selector: 'app-outbound-result-view',
-  imports: [KvTable, MethodBadge, StatusCode],
+  imports: [KvTable, MatButton, MethodBadge],
   templateUrl: './outbound-result-view.html',
   styleUrl: './outbound-result-view.scss',
 })
 export class OutboundResultView {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
   readonly result = input.required<OutboundResult>();
   /** URL digitada no compositor: se o servidor trocou o host, o aviso diz para onde foi. */
   readonly typedUrl = input<string>();
+  /** Dá para repetir (replay com a origem, ou send feito nesta tela). */
+  readonly repeatable = input(false);
+  readonly runAgain = output<void>();
+  readonly copyCurl = output<void>();
 
+  protected readonly tab = signal<Tab>('body');
   protected readonly error = computed(() => {
     const error = this.result().error;
     return error ? outboundErrorText(error) : null;
@@ -30,6 +44,33 @@ export class OutboundResultView {
     const typed = this.typedUrl();
     return typed ? changedHost(typed, this.result().target) : null;
   });
+  /** Família do status (`s2`…`s5`) para a cor do número grande. */
+  protected readonly family = computed(() => {
+    const status = this.result().status;
+    return status ? `s${Math.floor(status / 100)}` : 'failed';
+  });
+  protected readonly date = computed(() => localDate(apiDate(this.result().at)));
+
+  protected chooseTab(tab: Tab): void {
+    this.tab.set(tab);
+  }
+
+  /** Setas, Home e End no `tablist`: movem a aba escolhida e o foco (roving tabindex). */
+  protected moveTab(event: KeyboardEvent): void {
+    const index = TABS.indexOf(this.tab());
+    const next: Record<string, number> = {
+      ArrowRight: (index + 1) % TABS.length,
+      ArrowLeft: (index + TABS.length - 1) % TABS.length,
+      Home: 0,
+      End: TABS.length - 1,
+    };
+    if (event.key in next) {
+      event.preventDefault();
+      const tab = TABS[next[event.key]];
+      this.tab.set(tab);
+      this.host.nativeElement.querySelector<HTMLElement>(`#outbound-tab-${tab}`)?.focus();
+    }
+  }
 }
 
 function rows(headers: OutboundResult['headers']): KvRow[] {

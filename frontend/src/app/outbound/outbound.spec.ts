@@ -7,7 +7,9 @@ import {
   headerEntries,
   outboundErrorText,
   pathSuffix,
+  curlOf,
   requestErrorText,
+  signedHeaderHint,
   staleSignature,
 } from './outbound';
 
@@ -203,5 +205,44 @@ describe('Dado a assinatura com horário de uma mensagem a reenviar', () => {
     [259_200, '3 days'],
   ])('deve dizer a idade de %s s como "%s"', (segundos, texto) => {
     expect(ageText(segundos)).toBe(texto);
+  });
+});
+
+describe('Dado o resultado a copiar como curl (OUTBOUND-08)', () => {
+  it('deve montar o curl com método, headers, corpo e URL, entre aspas simples seguras', () => {
+    expect(
+      curlOf(
+        'POST',
+        'http://localhost:3000/app?x=1',
+        { 'content-type': 'application/json', 'x-nome': ["O'Neil", 'b'] },
+        '{"a":1}',
+      ),
+    ).toBe(
+      "curl -X POST 'http://localhost:3000/app?x=1' \\\n" +
+        "  -H 'content-type: application/json' \\\n" +
+        "  -H 'x-nome: O'\\''Neil, b' \\\n" +
+        '  --data-raw \'{"a":1}\'',
+    );
+  });
+
+  it('deve deixar o corpo de fora Quando não há corpo', () => {
+    expect(curlOf('GET', 'http://x', {}, null)).toBe("curl -X GET 'http://x'");
+  });
+});
+
+describe('Dado o "Sign with this URL\'s signature" do Send (OUTBOUND-07)', () => {
+  it.each([
+    ['stripe', 'Stripe-Signature: t=…,v1=…'],
+    ['github', 'X-Hub-Signature-256: sha256=…'],
+    ['shopify', 'X-Shopify-Hmac-Sha256: …'],
+    ['slack', 'X-Slack-Signature: v0=… + X-Slack-Request-Timestamp'],
+  ] as const)('deve dizer qual header entra Quando a URL assina como %s', (provider, header) => {
+    expect(signedHeaderHint({ provider, secret: 'x' })).toBe(header);
+  });
+
+  it('deve usar o header e o prefixo do genérico', () => {
+    expect(
+      signedHeaderHint({ provider: 'generic', secret: 'x', header: 'X-Sig', prefix: 'v1=' }),
+    ).toBe('X-Sig: v1=…');
   });
 });

@@ -1,12 +1,80 @@
+@use '@angular/material' as mat;
+
 :host {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
 p {
   margin: 0;
+}
+
+// Cabeçalho do resultado (OUTBOUND-09): o status grande em código, o tempo e de onde veio.
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.title {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+  font-variation-settings: 'ROND' 100;
+}
+
+.big-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  font: 700 18px / 1 var(--app-code-family);
+
+  &.s2 {
+    background: var(--app-success-container);
+    color: var(--app-on-success-container);
+  }
+
+  &.s4 {
+    background: var(--app-warning-container);
+    color: var(--app-on-warning-container);
+  }
+
+  &.s5,
+  &.failed {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+
+  strong {
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-title-small);
+  }
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tonal {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--mat-sys-secondary-container),
+      filled-label-text-color: var(--mat-sys-on-secondary-container),
+    )
+  );
 }
 
 .target {
@@ -22,7 +90,6 @@ p {
 }
 
 .note,
-.duration,
 .small {
   color: var(--mat-sys-on-surface-variant);
 }
@@ -32,21 +99,51 @@ p {
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  border-radius: var(--mat-sys-corner-small);
+  border-radius: 12px;
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
 }
 
-.summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .part {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-large);
+}
+
+// Abas com contador; a escolhida sublinhada (não só a cor).
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  button {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-title-small);
+    cursor: pointer;
+
+    &[aria-selected='true'] {
+      border-bottom-color: var(--mat-sys-primary);
+      color: var(--mat-sys-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: -2px;
+    }
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .truncated {
@@ -56,16 +153,11 @@ p {
 .body {
   max-height: 320px;
   margin: 0;
-  padding: 10px;
+  padding: 12px 14px;
   overflow: auto;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-low);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
   font: 12px / 1.5 var(--app-code-family);
   white-space: pre-wrap;
   word-break: break-all;
-
-  &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
-  }
 }

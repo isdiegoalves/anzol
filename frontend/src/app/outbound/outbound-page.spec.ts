@@ -1,6 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { screen, within } from '@testing-library/angular';
@@ -11,6 +13,7 @@ import { outboundResult } from '../../testing/outbound-fixtures';
 import { outboundMatcher } from '../app.routes';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { Token } from '../token/token';
 import { OutboundResult } from './outbound';
 import { OutboundPage } from './outbound-page';
@@ -46,7 +49,6 @@ describe('Dado a página Outbound', () => {
         provideHttpClientTesting(),
       ],
     });
-    http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => localStorage.clear());
@@ -60,6 +62,7 @@ describe('Dado a página Outbound', () => {
       recent = [PEDIDO, VELHA],
     }: { url?: Token; history?: OutboundResult[]; recent?: (typeof PEDIDO)[] } = {},
   ) => {
+    http = TestBed.inject(HttpTestingController);
     const harness = await RouterTestingHarness.create();
     void harness.navigateByUrl(`/${TOKEN_ID}/outbound${query}`);
     (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(url);
@@ -82,11 +85,13 @@ describe('Dado a página Outbound', () => {
     expect(items[0].textContent).toContain('/app/pedidos?n=2');
     expect(items[0].getAttribute('aria-selected')).toBe('true');
     const detail = screen.getByRole('region', { name: 'Outbound detail' });
+    expect(within(detail).getByLabelText('Response body').textContent).toBe('{"ok":true}');
+    await userEvent.click(within(detail).getByRole('tab', { name: /^Response headers/ }));
     expect(within(detail).getByRole('table', { name: 'Response headers' }).textContent).toContain(
       'x-app',
     );
+    await userEvent.click(within(detail).getByRole('tab', { name: /^Sent headers/ }));
     expect(within(detail).getByRole('table', { name: 'Sent headers' })).toBeTruthy();
-    expect(within(detail).getByLabelText('Response body').textContent).toBe('{"ok":true}');
 
     await userEvent.click(items[1]);
     expect(within(detail).getByText(/pedidos\?n=1/)).toBeTruthy();
@@ -98,9 +103,8 @@ describe('Dado a página Outbound', () => {
 
     const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(
-      (within(composer).getByRole('combobox', { name: 'Request to replay' }) as HTMLSelectElement)
-        .value,
-    ).toBe(PEDIDO.uuid);
+      within(composer).getByRole('combobox', { name: 'Request to replay' }).textContent,
+    ).toContain(`#${PEDIDO.uuid.slice(0, 5)}`);
     expect(within(composer).getByText('/pedidos?x=1')).toBeTruthy();
     await userEvent.type(
       within(composer).getByRole('textbox', { name: 'Target URL' }),
@@ -240,6 +244,7 @@ describe('Dado a página Outbound', () => {
   );
 
   it('deve dizer que a URL não existe mais Quando o histórico responde 410', async () => {
+    http = TestBed.inject(HttpTestingController);
     const harness = await RouterTestingHarness.create();
     void harness.navigateByUrl(`/${TOKEN_ID}/outbound`);
     (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(token());
@@ -251,5 +256,136 @@ describe('Dado a página Outbound', () => {
         'This URL no longer exists (410).',
       ),
     );
+  });
+
+  describe('Dado a fidelidade ao protótipo C (F2)', () => {
+    const detail = () => screen.getByRole('region', { name: 'Outbound detail' });
+
+    it('OUTBOUND-01: deve pôr histórico e trabalho num split redimensionável a partir de 840 px', async () => {
+      TestBed.overrideProvider(Viewport, {
+        useValue: { windowClass: signal<WindowClass>('large') },
+      });
+      await open();
+
+      const separator = screen.getByRole('separator', { name: 'Resize history and request' });
+      expect(separator.getAttribute('aria-valuenow')).toBe('420');
+      const start = separator.previousElementSibling;
+      expect(start?.querySelector('table[aria-label="Outbound history"]')).toBeTruthy();
+      const end = separator.nextElementSibling;
+      expect(end?.querySelector('[aria-label="New request"]')).toBeTruthy();
+      expect(end?.querySelector('[aria-label="Outbound detail"]')).toBeTruthy();
+    });
+
+    it('OUTBOUND-03: deve mostrar o alvo numa linha (com o inteiro no title) e o ícone do tipo', async () => {
+      await open();
+
+      const row = screen
+        .getByRole('table', { name: 'Outbound history' })
+        .querySelector('tbody tr') as HTMLElement;
+      const target = row.querySelector('.target') as HTMLElement;
+      expect(target.getAttribute('title')).toBe('http://host.docker.internal:3000/app/pedidos?n=2');
+      expect(row.querySelector('.kind app-icon')).toBeTruthy();
+    });
+
+    it('OUTBOUND-05: deve dizer para onde o Replay vai, com e sem "Keep path and query"', async () => {
+      await open(`?replay=${PEDIDO.uuid}`);
+      const composer = await screen.findByRole('region', { name: 'Replay request' });
+      await userEvent.type(
+        within(composer).getByRole('textbox', { name: 'Target URL' }),
+        'http://localhost:3000/app',
+      );
+
+      const sendsTo = () => composer.querySelector('.sends-to code')?.textContent;
+      expect(sendsTo()).toBe('http://localhost:3000/app/pedidos?x=1');
+      await userEvent.click(within(composer).getByRole('switch', { name: 'Keep path and query' }));
+      expect(sendsTo()).toBe('http://localhost:3000/app');
+    });
+
+    it('OUTBOUND-07: deve dizer qual header a assinatura acrescenta', async () => {
+      await open('?send=signed', {
+        url: token({
+          signature: { provider: 'stripe', secret: '••••1234', toleranceSeconds: 300 },
+        }),
+      });
+
+      const send = await screen.findByRole('region', { name: 'Send request' });
+      expect(send.textContent).toContain(
+        "Adds Stripe-Signature: t=…,v1=… with this URL's secret; the secret never leaves the server.",
+      );
+    });
+
+    it('OUTBOUND-09: deve mostrar o status grande, o #id da origem e as abas com contadores', async () => {
+      await open();
+
+      expect(detail().querySelector('.big-status')?.textContent?.trim()).toBe('201');
+      expect(detail().textContent).toContain('#00000');
+      const tabs = within(detail()).getAllByRole('tab');
+      expect(tabs.map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+        'Response body',
+        'Response headers (2)',
+        'Sent headers (1)',
+      ]);
+      expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+      expect(within(detail()).getByLabelText('Response body').textContent).toBe('{"ok":true}');
+
+      await userEvent.click(tabs[1]);
+      expect(
+        within(detail()).getByRole('table', { name: 'Response headers' }).textContent,
+      ).toContain('x-app');
+      await userEvent.keyboard('{ArrowRight}');
+      expect(within(detail()).getByRole('table', { name: 'Sent headers' })).toBeTruthy();
+    });
+
+    it('OUTBOUND-08: deve repetir o replay pelo servidor Quando "Run again" é clicado', async () => {
+      await open();
+
+      await userEvent.click(within(detail()).getByRole('button', { name: 'Run again' }));
+
+      const call = http.expectOne(
+        `/token/${TOKEN_ID}/request/00000000-0000-4000-8000-000000000001/replay`,
+      );
+      expect(call.request.body).toEqual({
+        url: 'http://host.docker.internal:3000/app/pedidos?n=2',
+        keep_path: false,
+        timeout: 10_000,
+      });
+      call.flush(outboundResult(5));
+      await vi.waitFor(() => expect(detail().textContent).toContain('/app/pedidos?n=5'));
+    });
+
+    it('OUTBOUND-08: deve repetir o send com o mesmo corpo Quando o send foi feito nesta página', async () => {
+      await open('?send=new');
+      const send = await screen.findByRole('region', { name: 'Send request' });
+      await userEvent.type(
+        within(send).getByRole('textbox', { name: 'URL' }),
+        'http://localhost:3000/x',
+      );
+      await userEvent.type(within(send).getByRole('textbox', { name: 'Body' }), 'um corpo');
+      await userEvent.click(within(send).getByRole('button', { name: 'Send' }));
+      const first = http.expectOne(`/token/${TOKEN_ID}/send`);
+      first.flush(outboundResult(6, { kind: 'send', source_request: null }));
+
+      await userEvent.click(await within(detail()).findByRole('button', { name: 'Run again' }));
+
+      const again = http.expectOne(`/token/${TOKEN_ID}/send`);
+      expect(again.request.body).toEqual(first.request.body);
+      again.flush(outboundResult(7, { kind: 'send', source_request: null }));
+    });
+
+    it('OUTBOUND-08: deve copiar o resultado como curl, com o corpo da mensagem reenviada', async () => {
+      const copy = vi.fn().mockReturnValue(true);
+      TestBed.overrideProvider(Clipboard, { useValue: { copy } });
+      await open('', { history: [outboundResult(1, { source_request: PEDIDO.uuid })] });
+
+      await userEvent.click(within(detail()).getByRole('button', { name: 'Copy as curl' }));
+
+      await vi.waitFor(() => expect(copy).toHaveBeenCalled());
+      const curl = copy.mock.calls[0][0] as string;
+      expect(curl).toMatch(
+        /^curl -X POST 'http:\/\/host\.docker\.internal:3000\/app\/pedidos\?n=1'/,
+      );
+      expect(curl).toContain("-H 'content-type: application/json'");
+      expect(curl).toContain("--data-raw 'corpo original'");
+    });
   });
 });

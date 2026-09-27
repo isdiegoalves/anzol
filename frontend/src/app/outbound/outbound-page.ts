@@ -1,23 +1,31 @@
+import { Clipboard } from '@angular/cdk/clipboard';
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { fromNow, localDate } from '../request-detail/dates';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { Viewport } from '../shell/viewport';
+import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
+import { Split } from '../ui/split';
 import { StatusCode } from '../ui/status-code';
 import { ForwardLegacy } from './forward-legacy';
 import {
   OutboundResult,
   SendDraft,
   apiDate,
+  curlOf,
   draftFromRequest,
   outboundErrorText,
+  requestErrorText,
   resignedDraft,
 } from './outbound';
 import { OutboundResultView } from './outbound-result-view';
@@ -39,6 +47,9 @@ type Mode = 'replay' | 'send';
 @Component({
   selector: 'app-outbound-page',
   imports: [
+    NgTemplateOutlet,
+    Icon,
+    Split,
     MatButton,
     MatButtonToggle,
     MatButtonToggleGroup,
@@ -56,10 +67,25 @@ export class OutboundPage {
   protected readonly store = inject(OutboundStore);
   private readonly tokens = inject(TokenStore);
   private readonly inbox = inject(RequestStore);
+  private readonly viewport = inject(Viewport);
+  private readonly clipboard = inject(Clipboard);
+  private readonly snackBar = inject(MatSnackBar);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
 
   /** Parâmetro da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
+
+  /**
+   * Histórico e trabalho lado a lado, com a divisória arrastável, a partir de 840 px (OUTBOUND-01);
+   * abaixo disso, um embaixo do outro.
+   */
+  protected readonly twoPanes = computed(() =>
+    ['expanded', 'large', 'extra-large'].includes(this.viewport.windowClass()),
+  );
+  /** Largura do histórico no split, em px (lembrada no localStorage). */
+  protected readonly historyWidth = signal(420);
+  /** Erro do "Run again" (429, 422…), no detalhe. */
+  protected readonly actionError = signal<string | null>(null);
 
   /** URL carregada do servidor para esta rota (a assinatura dela assina o Send). */
   protected readonly token = signal<Token | null>(null);
@@ -133,7 +159,39 @@ export class OutboundPage {
   }
 
   protected showResult(result: OutboundResult): void {
+    this.actionError.set(null);
     this.selectedId.set(result.id);
+  }
+
+  /** "Run again": o mesmo replay ou send; o resultado novo entra no topo e fica aberto. */
+  protected async runAgain(result: OutboundResult): Promise<void> {
+    const token = this.token();
+    if (!token) {
+      return;
+    }
+    this.actionError.set(null);
+    try {
+      this.showResult(await this.store.runAgain(token.uuid, result));
+    } catch (error) {
+      this.actionError.set(requestErrorText(error));
+    }
+  }
+
+  /**
+   * "Copy as curl": método, alvo, headers enviados e o corpo que a tela conhece (o do send feito
+   * aqui, ou o da mensagem que o replay reenviou).
+   */
+  protected async copyCurl(result: OutboundResult): Promise<void> {
+    let body = this.store.sentBody(result);
+    const source = result.source_request;
+    if (body === null && result.kind === 'replay' && source) {
+      const request =
+        this.requests()?.find((item) => item.uuid === source) ??
+        (await this.store.request(this.tokenId(), source).catch(() => null));
+      body = request?.content ?? null;
+    }
+    this.clipboard.copy(curlOf(result.method, result.target, result.request_headers, body));
+    this.snackBar.open($localize`Copied as curl`, undefined, { duration: 4000 });
   }
 
   private async open(tokenId: string): Promise<void> {

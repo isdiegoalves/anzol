@@ -107,3 +107,121 @@ code {
   color: var(--mat-sys-on-surface);
   font-family: var(--app-code-family);
 }
+
+// Replay numa linha (OUTBOUND-05): a mensagem, o alvo, o timeout e o botão; embaixo, o caminho.
+.replay-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) 110px auto;
+  gap: 4px 12px;
+  align-items: start;
+
+  .timeout {
+    width: auto;
+  }
+
+  @media (width < 1200px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.go {
+  height: 48px;
+  margin-top: 4px;
+}
+
+.picked {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  code {
+    font-family: var(--app-code-family);
+  }
+}
+
+.keep {
+  gap: 4px 12px;
+}
+
+.sends-to code {
+  padding: 0;
+  background: none;
+  overflow-wrap: anywhere;
+}
+
+// Send (OUTBOUND-07): método, URL, timeout e o botão numa linha; headers e corpo lado a lado.
+.send-line {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 110px auto;
+  gap: 4px 12px;
+  align-items: start;
+
+  .method,
+  .timeout {
+    width: auto;
+  }
+
+  @media (width < 1200px) {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+}
+
+.send-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 16px;
+  align-items: start;
+}
+
+.headers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+// Campos compactos de header (36 px, código), com o nome acessível "Header n name/value".
+.kv-input {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: 12.5px var(--app-code-family);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -1px;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--mat-sys-error);
+  }
+
+  @media (pointer: coarse) {
+    height: 44px;
+  }
+}
+
+.kv-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-small);
+}

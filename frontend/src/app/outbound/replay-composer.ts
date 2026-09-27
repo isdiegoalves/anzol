@@ -4,11 +4,13 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatAnchor, MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatOption, MatSelect, MatSelectTrigger } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { MethodBadge } from '../ui/method-badge';
 import {
   OutboundResult,
   TIMEOUT_DEFAULT_S,
@@ -30,6 +32,10 @@ import { rememberTarget, rememberedTarget } from './replay-target';
 @Component({
   selector: 'app-replay-composer',
   imports: [
+    MatOption,
+    MatSelect,
+    MatSelectTrigger,
+    MethodBadge,
     ReactiveFormsModule,
     RouterLink,
     MatAnchor,
@@ -89,6 +95,15 @@ export class ReplayComposer implements OnInit {
   ngOnInit(): void {
     const first = this.initial() ?? this.requests()[0]?.uuid ?? '';
     this.form.patchValue({ request: first, url: rememberedTarget(this.token().uuid) });
+  }
+
+  protected readonly when = fromNow;
+  private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.value });
+
+  /** Para onde o replay vai: o alvo e, com "Keep path and query", o caminho e a query da mensagem. */
+  protected resolved(): string {
+    const { url, keepPath } = this.values();
+    return url ? (keepPath ? `${url}${this.suffix()}` : url) : '…';
   }
 
   protected suffix(): string {

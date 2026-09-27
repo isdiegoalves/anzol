@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { WebhookRequest } from '../requests/webhook-request';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { SIGNATURE_PROVIDER_LABELS, SignatureConfig, Token } from '../token/token';
 
 /** Métodos que o `POST /token/{id}/send` aceita. */
 export const OUTBOUND_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
@@ -311,3 +311,46 @@ export function ageText(seconds: number): string {
   }
   return $localize`${Math.floor(seconds / 86_400)}:count: days`;
 }
+
+/** Texto entre aspas simples para o shell (a aspa simples vira `'\''`). */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/**
+ * "Copy as curl" do resultado (OUTBOUND-08): o método, o alvo efetivo, os headers enviados e o
+ * corpo (quando a tela o conhece), um argumento por linha.
+ */
+export function curlOf(
+  method: string,
+  target: string,
+  headers: HeaderValues | null | undefined,
+  body: string | null,
+): string {
+  return [
+    `curl -X ${method} ${shellQuote(target)}`,
+    ...headerEntries(headers).map(([name, value]) => `  -H ${shellQuote(`${name}: ${value}`)}`),
+    ...(body ? [`  --data-raw ${shellQuote(body)}`] : []),
+  ].join(' \\\n');
+}
+
+/** O header que "Sign with this URL's signature" acrescenta, como o provedor o manda (OUTBOUND-07). */
+export function signedHeaderHint(signature: SignatureConfig): string {
+  switch (signature.provider) {
+    case 'stripe':
+      return 'Stripe-Signature: t=…,v1=…';
+    case 'github':
+      return 'X-Hub-Signature-256: sha256=…';
+    case 'shopify':
+      return 'X-Shopify-Hmac-Sha256: …';
+    case 'slack':
+      return 'X-Slack-Signature: v0=… + X-Slack-Request-Timestamp';
+    default:
+      return `${signature.header ?? 'X-Signature'}: ${signature.prefix ?? ''}…`;
+  }
+}
+
+/** Como repetir um disparo ("Run again"): o mesmo replay ou o mesmo send. */
+export type Repeat =
+  | { kind: 'replay'; requestId: string; payload: ReplayPayload }
+  | { kind: 'send'; payload: SendPayload };

@@ -14,130 +14,156 @@
     <p class="errors" role="alert">{{ message }}</p>
   }
 
-  <div class="layout">
-    <section class="history" aria-labelledby="outbound-history-title">
-      <h2 id="outbound-history-title" class="section-title">
-        <ng-container i18n>History</ng-container>
-        <span class="hint" i18n>last 50 sent by the server, newest first</span>
-      </h2>
-      @if (loaded()) {
-        <table class="table" aria-label="Outbound history" i18n-aria-label>
-          <thead>
-            <tr>
-              <th scope="col" i18n>Status</th>
-              <th scope="col" i18n>Target</th>
-              <th scope="col" class="numeric" i18n>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of store.history(); track item.id) {
-              @let error = item.error ? errorTitle(item.error).title : null;
-              @let here = item.id === selected()?.id;
-              <tr
-                tabindex="0"
-                [attr.data-outbound-id]="item.id"
-                [class.selected]="here"
-                [attr.aria-selected]="here"
-                (click)="select(item.id)"
-                (keydown.enter)="select(item.id)"
-                (keydown.space)="select(item.id); $event.preventDefault()"
-              >
-                <td><app-status-code [status]="item.status ?? null" [error]="error" /></td>
-                <td>
-                  <span class="line">
-                    <app-method-badge [method]="item.method" />
-                    <span class="meta">
-                      @if (item.kind === 'replay') {
-                        <ng-container i18n>Replay</ng-container>
-                      } @else {
-                        <ng-container i18n>Send</ng-container>
-                      }
-                      @if (item.source_request; as source) {
-                        · #{{ source.slice(0, 5) }}
-                      }
-                    </span>
+  @if (twoPanes()) {
+    <app-split
+      class="split"
+      label="Resize history and request"
+      i18n-label
+      storageKey="outboundHistoryWidth"
+      [min]="300"
+      [max]="560"
+      [(width)]="historyWidth"
+    >
+      <div splitStart class="history-pane">
+        <ng-container [ngTemplateOutlet]="history" />
+      </div>
+      <div splitEnd class="work-pane">
+        <ng-container [ngTemplateOutlet]="work" />
+      </div>
+    </app-split>
+  } @else {
+    <div class="stack">
+      <div class="history-pane"><ng-container [ngTemplateOutlet]="history" /></div>
+      <div class="work-pane"><ng-container [ngTemplateOutlet]="work" /></div>
+    </div>
+  }
+</main>
+
+<ng-template #history>
+  <section class="history card" aria-labelledby="outbound-history-title">
+    <h2 id="outbound-history-title" class="section-title">
+      <ng-container i18n>History</ng-container>
+      <span class="hint" i18n>last 50 sent by the server, newest first</span>
+    </h2>
+    @if (loaded()) {
+      <table class="table" aria-label="Outbound history" i18n-aria-label>
+        <thead>
+          <tr>
+            <th scope="col" i18n>Status</th>
+            <th scope="col" i18n>Target</th>
+            <th scope="col" class="numeric" i18n>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of store.history(); track item.id) {
+            @let error = item.error ? errorTitle(item.error).title : null;
+            @let here = item.id === selected()?.id;
+            <tr
+              tabindex="0"
+              [attr.data-outbound-id]="item.id"
+              [class.selected]="here"
+              [attr.aria-selected]="here"
+              (click)="select(item.id)"
+              (keydown.enter)="select(item.id)"
+              (keydown.space)="select(item.id); $event.preventDefault()"
+            >
+              <td><app-status-code [status]="item.status ?? null" [error]="error" /></td>
+              <td class="target-cell">
+                <span class="line">
+                  <app-method-badge [method]="item.method" />
+                  <span class="kind meta">
+                    <app-icon [name]="item.kind === 'replay' ? 'reply' : 'outbound'" [size]="14" />
+                    @if (item.kind === 'replay') {
+                      <ng-container i18n>Replay</ng-container>
+                    } @else {
+                      <ng-container i18n>Send</ng-container>
+                    }
+                    @if (item.source_request; as source) {
+                      · #{{ source.slice(0, 5) }}
+                    }
                   </span>
-                  <span class="target">{{ item.target }}</span>
-                </td>
-                <td class="numeric">
-                  <ng-container i18n>{{ item.duration_ms }} ms</ng-container>
-                  <span class="meta" [title]="date(item.at)">{{ when(item.at) }}</span>
-                </td>
-              </tr>
-            } @empty {
-              <tr>
-                <td class="empty" colspan="3" i18n>
-                  Nothing sent yet. Replay a request or send a new one.
-                </td>
-              </tr>
+                </span>
+                <span class="target" [title]="item.target">{{ item.target }}</span>
+              </td>
+              <td class="numeric">
+                <ng-container i18n>{{ item.duration_ms }} ms</ng-container>
+                <span class="meta" [title]="date(item.at)">{{ when(item.at) }}</span>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td class="empty" colspan="3" i18n>
+                Nothing sent yet. Replay a request or send a new one.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else if (!loadError()) {
+      <p class="hint" i18n>Loading…</p>
+    }
+  </section>
+  <app-forward-legacy class="forward card" [request]="replayRequest()" />
+</ng-template>
+
+<ng-template #work>
+  <div class="work card">
+    <section class="composer" aria-label="New request" i18n-aria-label>
+      <div class="mode">
+        <mat-button-toggle-group
+          aria-label="Kind of request"
+          i18n-aria-label
+          hideSingleSelectionIndicator
+          [value]="mode()"
+          (change)="chooseMode($event.value)"
+        >
+          <mat-button-toggle value="replay" i18n="action|Botão que manda a requisição"
+            >Replay</mat-button-toggle
+          >
+          <mat-button-toggle value="send" i18n="action|Botão que manda a requisição"
+            >Send</mat-button-toggle
+          >
+        </mat-button-toggle-group>
+      </div>
+      @if (token(); as current) {
+        @if (requests(); as list) {
+          @for (key of [composerKey()]; track key) {
+            @if (mode() === 'replay') {
+              <app-replay-composer
+                [token]="current"
+                [requests]="list"
+                [initial]="replayId()"
+                (picked)="replayId.set($event)"
+                (sent)="showResult($event)"
+                (resign)="resign($event)"
+              />
+            } @else {
+              <app-send-composer
+                [token]="current"
+                [draft]="draft()"
+                [sign]="signing()"
+                (sent)="showResult($event)"
+              />
             }
-          </tbody>
-        </table>
-      } @else if (!loadError()) {
-        <p class="hint" i18n>Loading…</p>
+          }
+        }
+      } @else {
+        <p class="hint" i18n>Loading this URL…</p>
       }
     </section>
 
-    <div class="work">
-      <section class="composer" aria-label="New request" i18n-aria-label>
-        <div class="mode">
-          <mat-button-toggle-group
-            aria-label="Kind of request"
-            i18n-aria-label
-            hideSingleSelectionIndicator
-            [value]="mode()"
-            (change)="chooseMode($event.value)"
-          >
-            <mat-button-toggle value="replay" i18n="action|Botão que manda a requisição"
-              >Replay</mat-button-toggle
-            >
-            <mat-button-toggle value="send" i18n="action|Botão que manda a requisição"
-              >Send</mat-button-toggle
-            >
-          </mat-button-toggle-group>
-        </div>
-        @if (token(); as current) {
-          @if (requests(); as list) {
-            @for (key of [composerKey()]; track key) {
-              @if (mode() === 'replay') {
-                <app-replay-composer
-                  [token]="current"
-                  [requests]="list"
-                  [initial]="replayId()"
-                  (picked)="replayId.set($event)"
-                  (sent)="showResult($event)"
-                  (resign)="resign($event)"
-                />
-              } @else {
-                <app-send-composer
-                  [token]="current"
-                  [draft]="draft()"
-                  [sign]="signing()"
-                  (sent)="showResult($event)"
-                />
-              }
-            }
-          }
-        } @else {
-          <p class="hint" i18n>Loading this URL…</p>
+    @if (selected(); as current) {
+      <section class="detail" aria-label="Outbound detail" i18n-aria-label aria-live="polite">
+        <app-outbound-result-view
+          [result]="current"
+          [repeatable]="store.repeatOf(current) !== null"
+          (runAgain)="runAgain(current)"
+          (copyCurl)="copyCurl(current)"
+        />
+        @if (actionError(); as message) {
+          <p class="errors" role="alert">{{ message }}</p>
         }
       </section>
-
-      @if (selected(); as current) {
-        <section class="detail" aria-label="Outbound detail" i18n-aria-label>
-          <h2 class="section-title">
-            @if (current.kind === 'replay') {
-              <ng-container i18n>Replay</ng-container>
-            } @else {
-              <ng-container i18n>Send</ng-container>
-            }
-            · {{ date(current.at) }}
-          </h2>
-          <app-outbound-result-view [result]="current" />
-        </section>
-      }
-    </div>
+    }
   </div>
-
-  <app-forward-legacy class="forward" [request]="replayRequest()" />
-</main>
+</ng-template>

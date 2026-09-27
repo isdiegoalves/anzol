@@ -1,10 +1,17 @@
+:host {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  background: var(--mat-sys-surface-container);
+}
+
 .page {
   box-sizing: border-box;
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
-  gap: 16px;
-  max-width: 1600px;
-  padding: 16px 24px 32px;
+  gap: 12px;
+  padding: 16px 24px 24px;
 }
 
 .heading {
@@ -35,37 +42,80 @@
   color: var(--mat-sys-on-error-container);
 }
 
-// Histórico à esquerda; compositor e resultado à direita (uma coluna abaixo de 1200 px).
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-
-  @media (width >= 1200px) {
-    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
-    align-items: start;
-  }
+// Histórico e trabalho lado a lado no split (OUTBOUND-01), empilhados abaixo de 840 px.
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.history,
-.composer,
-.detail,
-.forward {
+.history-pane,
+.work-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.card {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
   padding: 16px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-low);
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-lowest);
 }
 
+// Um cartão só para o compositor (em cima, com a borda embaixo) e o resultado.
 .work {
+  gap: 0;
+  padding: 0;
+}
+
+.composer,
+.detail {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   min-width: 0;
+  padding: 16px 20px;
+}
+
+.composer {
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+// Com altura que cabe (trava 6: a partir de ~700 px), o quadro fica preso ao shell e o histórico e
+// o resultado rolam por dentro; abaixo disso (ou no zoom de 200 %) a página rola inteira.
+@media (width >= 840px) and (height >= 700px) {
+  :host,
+  .page {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .split {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .history-pane {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .work-pane,
+  .work {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .detail {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
 }
 
 .section-title {
@@ -112,6 +162,14 @@
   tr.selected {
     background: var(--mat-sys-secondary-container);
     color: var(--mat-sys-on-secondary-container);
+
+    td:first-child {
+      border-radius: 14px 0 0 14px;
+    }
+
+    td:last-child {
+      border-radius: 0 14px 14px 0;
+    }
   }
 
   .numeric {
@@ -120,8 +178,23 @@
   }
 }
 
+// O alvo numa linha, com reticências (o inteiro fica no `title`).
+.target-cell {
+  width: 100%;
+  max-width: 0;
+}
+
 .table .target {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .table .numeric .meta {
@@ -136,7 +209,6 @@
 
 .target {
   font-family: var(--app-code-family);
-  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -154,6 +226,9 @@
 
 .mode {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 @media (width < 600px) {

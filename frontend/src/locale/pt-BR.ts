@@ -745,10 +745,6 @@ export const translations: Record<string, string> = {
   '2382279394038645925': 'Cabeçalhos da resposta',
   // (none)
   '1961496988675941063': '(nenhum)',
-  // Truncated: only the first 64 KB of the body is shown.
-  '9143694446143187297': 'Cortado: só o primeiro 64 KB do corpo aparece.',
-  // (no body content)
-  '6657822247840547624': '(sem corpo)',
   // Sent headers
   '1976452198769794416': 'Cabeçalhos enviados',
   // Blocked
@@ -819,8 +815,6 @@ export const translations: Record<string, string> = {
   '2126386429776005289': 'http://localhost:3000/webhook',
   // Remembered for this webhook URL
   '1459231644562504105': 'Lembrada para esta URL de webhook',
-  // Keep path
-  '6000711797189847398': 'Manter o caminho',
   // {$START_BLOCK_IF} Appends {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} to the target {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} The request has no path or query to append {$CLOSE_BLOCK_ELSE}
   '6980006274384158389':
     '{$START_BLOCK_IF} Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} ao destino {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} A requisição não tem caminho nem query para acrescentar {$CLOSE_BLOCK_ELSE}',
@@ -837,17 +831,12 @@ export const translations: Record<string, string> = {
   '8864288285279476751': 'Método',
   // URL
   '2375260419993138758': 'URL',
-  // A header name, without spaces or colons.
-  '444856146080413966': 'Um nome de cabeçalho, sem espaços nem dois-pontos.',
   // Value
   '6555318547274416232': 'Valor',
   // Add header
   '2179697481488400528': 'Adicionar cabeçalho',
   // Sign with this URL's signature
   '2846310330944913846': 'Assinar com a assinatura desta URL',
-  // {$START_BLOCK_IF} Signs the body as {$INTERPOLATION} does; the secret stays on the server {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE}{$START_TAG_SPAN}This URL has no signature configured. Set one up in {$START_LINK}Checks{$CLOSE_LINK} to sign.{$CLOSE_TAG_SPAN}{$CLOSE_BLOCK_ELSE}
-  '1043217784425152263':
-    '{$START_BLOCK_IF} Assina o corpo como o {$INTERPOLATION} assina; o segredo fica no servidor {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE}{$START_TAG_SPAN}Esta URL não tem assinatura configurada. Configure uma em {$START_LINK}Verificações{$CLOSE_LINK} para assinar.{$CLOSE_TAG_SPAN}{$CLOSE_BLOCK_ELSE}',
   // Header {$number} name
   '8867882780734398358': 'Cabeçalho {$number}: nome',
   // Header {$number} value
@@ -2002,4 +1991,40 @@ export const translations: Record<string, string> = {
   '3878543995923799007': 'válido',
   // invalid
   '7640664565182744014': 'inválido',
+  // Resize history and request
+  '6349860591652904562': 'Redimensionar histórico e requisição',
+  // Copied as curl
+  '6645837697535777190': 'Copiado como curl',
+  // Result
+  '2525230676386818985': 'Resultado',
+  //  Run again
+  '975693364861189738': ' Rodar de novo ',
+  // Copy as curl
+  '2234229222499268461': 'Copiar como curl',
+  // Result parts
+  '4588729003481512132': 'Partes do resultado',
+  //  Response body
+  '2419742386349038907': ' Corpo da resposta ',
+  //  Response headers ({$INTERPOLATION})
+  '5307814005224398056': ' Cabeçalhos da resposta ({$INTERPOLATION}) ',
+  //  Sent headers ({$INTERPOLATION})
+  '4033474878383385581': ' Cabeçalhos enviados ({$INTERPOLATION}) ',
+  //  Truncated: only the first 64 KB of the body is shown.
+  '1301096563980270869': ' Cortado: só o primeiro 64 KB do corpo aparece. ',
+  // The target answered with no body.
+  '8192263622528673983': 'O destino respondeu sem corpo.',
+  // Keep path and query
+  '4098448859935651316': 'Manter o caminho e a query',
+  // Sends to
+  '843200079440358689': 'Manda para',
+  // method, headers and body as received; hop-by-hop headers dropped
+  '5657963756689266752': 'método, cabeçalhos e corpo como chegaram; os cabeçalhos hop-by-hop saem',
+  //  A header name, without spaces or colons.
+  '3232184008194083676': ' Um nome de cabeçalho, sem espaços nem dois-pontos. ',
+  // Adds {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} with this URL's secret; the secret never leaves the server.
+  '3905286544474359363':
+    'Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} com o segredo desta URL; o segredo nunca sai do servidor.',
+  // This URL has no signature configured. Set one up in {$START_LINK}Checks{$CLOSE_LINK} to sign.
+  '4053673393621536099':
+    'Esta URL não tem assinatura configurada. Configure uma em {$START_LINK}Verificações{$CLOSE_LINK} para assinar.',
 };

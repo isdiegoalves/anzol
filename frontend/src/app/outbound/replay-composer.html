@@ -9,14 +9,76 @@
   <p class="hint" i18n>No request to replay yet: send one to this URL first.</p>
 } @else {
   <form class="fields" [formGroup]="form" (ngSubmit)="replayRequest()">
-    <label class="native" for="replay-request">
-      <span i18n>Request to replay</span>
-      <select id="replay-request" formControlName="request">
-        @for (request of requests(); track request.uuid) {
-          <option [value]="request.uuid">{{ label(request) }}</option>
+    <div class="replay-line">
+      <mat-form-field appearance="outline" class="pick">
+        <mat-label i18n>Request to replay</mat-label>
+        <mat-select formControlName="request">
+          <mat-select-trigger>
+            @if (current) {
+              <span class="picked">
+                <app-method-badge [method]="current.method" />
+                <code>#{{ current.uuid.slice(0, 5) }} {{ suffix() || '/' }}</code>
+              </span>
+            }
+          </mat-select-trigger>
+          @for (request of requests(); track request.uuid) {
+            <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
+          }
+        </mat-select>
+        @if (current) {
+          <mat-hint>{{ when(current.created_at) }}</mat-hint>
         }
-      </select>
-    </label>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="url">
+        <mat-label i18n>Target URL</mat-label>
+        <input
+          matInput
+          formControlName="url"
+          aria-label="Target URL"
+          i18n-aria-label
+          placeholder="http://localhost:3000/webhook"
+          i18n-placeholder
+        />
+        <mat-hint i18n>Remembered for this webhook URL</mat-hint>
+        <mat-error>{{ targetError }}</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="timeout">
+        <mat-label i18n>Timeout (s)</mat-label>
+        <input
+          matInput
+          type="number"
+          min="1"
+          max="30"
+          formControlName="timeout"
+          aria-label="Timeout (s)"
+          i18n-aria-label
+        />
+        <mat-error>{{ timeoutError }}</mat-error>
+      </mat-form-field>
+      <button mat-flat-button class="go" type="submit" [disabled]="sending()">
+        @if (sending()) {
+          <ng-container i18n>Sending…</ng-container>
+        } @else {
+          <ng-container i18n="action|Botão que manda a requisição">Replay</ng-container>
+        }
+      </button>
+    </div>
+    <div class="row keep">
+      <mat-slide-toggle formControlName="keepPath" i18n>Keep path and query</mat-slide-toggle>
+      <span class="sends-to hint"
+        ><ng-container i18n>Sends to</ng-container> <code>{{ resolved() }}</code> ·
+        <ng-container i18n
+          >method, headers and body as received; hop-by-hop headers dropped</ng-container
+        ></span
+      >
+      <span i18n class="hint">
+        @if (suffix(); as suffix) {
+          Appends <code>{{ suffix }}</code> to the target
+        } @else {
+          The request has no path or query to append
+        }
+      </span>
+    </div>
 
     @if (stale(); as stale) {
       <div class="warning" role="status">
@@ -39,53 +101,6 @@
         }
       </div>
     }
-
-    <mat-form-field>
-      <mat-label i18n>Target URL</mat-label>
-      <input
-        matInput
-        formControlName="url"
-        aria-label="Target URL"
-        i18n-aria-label
-        placeholder="http://localhost:3000/webhook"
-        i18n-placeholder
-      />
-      <mat-hint i18n>Remembered for this webhook URL</mat-hint>
-      <mat-error>{{ targetError }}</mat-error>
-    </mat-form-field>
-    <div class="row">
-      <mat-slide-toggle formControlName="keepPath" i18n>Keep path</mat-slide-toggle>
-      <span i18n class="hint">
-        @if (suffix(); as suffix) {
-          Appends <code>{{ suffix }}</code> to the target
-        } @else {
-          The request has no path or query to append
-        }
-      </span>
-    </div>
-    <div class="row">
-      <mat-form-field class="timeout">
-        <mat-label i18n>Timeout (s)</mat-label>
-        <input
-          matInput
-          type="number"
-          min="1"
-          max="30"
-          formControlName="timeout"
-          aria-label="Timeout (s)"
-          i18n-aria-label
-        />
-        <mat-error>{{ timeoutError }}</mat-error>
-      </mat-form-field>
-      <span class="spacer"></span>
-      <button mat-flat-button type="submit" [disabled]="sending()">
-        @if (sending()) {
-          <ng-container i18n>Sending…</ng-container>
-        } @else {
-          <ng-container i18n="action|Botão que manda a requisição">Replay</ng-container>
-        }
-      </button>
-    </div>
   </form>
 }
 @if (failure(); as message) {
