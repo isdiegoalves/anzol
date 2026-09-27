@@ -26,7 +26,10 @@ describe('Dado o editor de regra', () => {
   let loader: HarnessLoader;
   let closed: Mock<(saved: boolean) => void>;
 
+  /** A lista que o servidor tem: a guarda do Save a relê antes do `PUT`. */
+  let onServer: Rule[] = [];
   const open = async (data: RuleEditorData, rules: Rule[] = [rule(1)]) => {
+    onServer = rules;
     const store = TestBed.inject(RuleStore);
     const loaded = store.load(TOKEN_ID);
     http.expectOne(URL_REGRAS).flush(rules);
@@ -45,7 +48,11 @@ describe('Dado o editor de regra', () => {
     loader.getHarness(MatFormFieldHarness.with({ floatingLabelText: label }));
   const button = (text: string) => loader.getHarness(MatButtonHarness.with({ text }));
   const save = async () => (await button('Save')).click();
-  const put = () => vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+  /** O `PUT` do Save, depois da releitura da lista (a guarda contra mudança em outro lugar). */
+  const put = async () => {
+    (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush(onServer);
+    return vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+  };
   const text = (selector: string) =>
     [...(fixture.nativeElement as HTMLElement).querySelectorAll(selector)].map((element) =>
       element.textContent?.replace(/\s+/g, ' ').trim(),
@@ -930,6 +937,67 @@ describe('Dado o editor de regra', () => {
 
       expect(await (await input('Path')).getValue()).toBe('/pagamentos');
       expect(warning()).toBeNull();
+    });
+  });
+
+  describe('Dado a lista mudada em outro lugar com o editor aberto (PUT troca a lista inteira)', () => {
+    const changed = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]')].find((alert) =>
+        alert.textContent?.includes('The rules changed elsewhere'),
+      );
+
+    it('não deve gravar e deve avisar Quando outra aba acrescentou uma regra, e salvar sem perdê-la depois do Reload', async () => {
+      await open({ index: null }, [rule(1)]);
+      await (await input('Name')).setValue('Nova');
+      await save();
+
+      // Outra aba (ou o CLI) acrescentou a regra 2 depois da leitura.
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([
+        rule(1),
+        rule(2),
+      ]);
+      await vi.waitFor(() => expect(changed()).toBeDefined());
+      http.expectNone({ method: 'PUT', url: URL_REGRAS });
+      expect(closed).not.toHaveBeenCalled();
+
+      await (await button('Reload')).click();
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([
+        rule(1),
+        rule(2),
+      ]);
+      await vi.waitFor(() => expect(changed()).toBeUndefined());
+      expect(await (await input('Name')).getValue()).toBe('Nova');
+      onServer = [rule(1), rule(2)];
+      await save();
+
+      const call = await put();
+      expect((call.request.body as Rule[]).map((r) => r.name)).toEqual([
+        'Rule 1',
+        'Rule 2',
+        'Nova',
+      ]);
+    });
+  });
+
+  describe('Dado a regra em edição desligada', () => {
+    it('deve avisar na prévia que a regra desligada não responde', async () => {
+      await open({ index: 0 }, [rule(1, { enabled: false })]);
+
+      await (await button('Test against history')).click();
+      (await vi.waitFor(() => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }))).flush(
+        { matches: [{ uuid: 'a', seq: 1 }], misses: [] },
+      );
+      (await vi.waitFor(() => http.expectOne((req) => req.params.get('per_page') === '1'))).flush({
+        data: [],
+        total: 1,
+      });
+      (await vi.waitFor(() => http.expectOne((req) => req.params.get('per_page') === '100'))).flush(
+        requestPage([webhookRequest(1, { uuid: 'a', rule: null })]),
+      );
+
+      await vi.waitFor(() =>
+        expect(text('.preview .off')).toEqual(['This rule is off; turn it on to answer.']),
+      );
     });
   });
 });

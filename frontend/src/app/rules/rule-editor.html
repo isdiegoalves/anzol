@@ -18,6 +18,15 @@
         <strong i18n>In plain words:</strong>&ngsp;<span class="sentence">{{ sentence }}</span>
       </p>
     }
+    @if (changedElsewhere()) {
+      <div class="changed" role="alert">
+        <p i18n>
+          The rules changed elsewhere since this page read them, so nothing was saved. Reload the
+          rules, then save again: your changes stay in the editor.
+        </p>
+        <button mat-stroked-button type="button" (click)="reloadRules()" i18n>Reload</button>
+      </div>
+    }
     @if (generalErrors().length > 0) {
       <ul class="errors" role="alert">
         @for (message of generalErrors(); track $index) {
@@ -681,6 +690,9 @@
         <p class="hint" i18n>
           Based on the rule that answered at the time; ignores scenario state.
         </p>
+        @if (ruleOff()) {
+          <p class="off" i18n>This rule is off; turn it on to answer.</p>
+        }
         @if (state.preview; as outcome) {
           <ul>
             <li i18n>{{ outcome.draft }} would now get {{ answer() }} from this rule</li>

@@ -274,7 +274,7 @@ export class RulesPage {
     this.snackBar
       .open('Rule deleted', 'Undo', { duration: 5000 })
       .onAction()
-      .subscribe(() => void this.save(previous));
+      .subscribe(() => void this.saveUnchanged(previous));
   }
 
   /** Relê a lista depois do aviso "changed elsewhere". */

@@ -67,7 +67,7 @@ import {
   parseRuleJson,
   toFormValue,
 } from './rule-form';
-import { RuleStore, validationMessages } from './rule-store';
+import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 import { ruleInWords } from './rule-words';
 import { ScenarioDiagram } from './scenario-diagram';
 
@@ -246,6 +246,8 @@ export class RuleEditor {
   /** Muda a cada edição do formulário ou do JSON: recalcula a frase e o aviso do caminho. */
   private readonly edits = signal(0);
   protected readonly saving = signal(false);
+  /** O último Save achou a lista do servidor diferente da lida: nada foi gravado. */
+  protected readonly changedElsewhere = signal(false);
   /** Erros do servidor sem campo no formulário (ou de outras regras da lista). */
   protected readonly generalErrors = signal<readonly string[]>([]);
   /** Último "Test against history" da regra como está; some quando a regra muda. */
@@ -430,6 +432,24 @@ export class RuleEditor {
     list?.querySelector<HTMLElement>(`#rule-tab-${tab}`)?.focus();
   }
 
+  /**
+   * Relê a lista depois do aviso "changed elsewhere". O rascunho fica no editor; o próximo Save o
+   * põe na lista nova (pelo `id` da regra em edição, ou no fim se é nova).
+   */
+  protected async reloadRules(): Promise<void> {
+    try {
+      await this.store.reload();
+      this.changedElsewhere.set(false);
+    } catch (error) {
+      this.generalErrors.set(validationMessages(error));
+    }
+  }
+
+  /** A regra em edição está desligada: a prévia diz o que ela casaria, mas ela não responde. */
+  protected ruleOff(): boolean {
+    return this.editedRule()?.enabled === false;
+  }
+
   protected cancel(): void {
     this.closed.emit(false);
   }
@@ -587,10 +607,15 @@ export class RuleEditor {
     rules[index] = rule;
     this.saving.set(true);
     this.generalErrors.set([]);
+    this.changedElsewhere.set(false);
     try {
-      await this.store.save(rules);
+      await this.store.saveIfUnchanged(rules);
       this.closed.emit(true);
     } catch (error) {
+      if (error instanceof RulesChangedError) {
+        this.changedElsewhere.set(true);
+        return;
+      }
       this.showErrors(error, index);
     } finally {
       this.saving.set(false);

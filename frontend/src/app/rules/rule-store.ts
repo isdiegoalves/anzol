@@ -48,6 +48,11 @@ export class RuleStore {
     this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
   }
 
+  /** Relê a lista do servidor (depois do aviso "changed elsewhere"), sem apagar a da tela antes. */
+  async reload(): Promise<void> {
+    this.keep(await this.fetchAll());
+  }
+
   /** Relê os hits (`GET /stats`); sem eles, a lista só não mostra as contagens. */
   async loadHits(tokenId: string): Promise<void> {
     this.hits.set(null);
@@ -62,8 +67,9 @@ export class RuleStore {
   }
 
   /**
-   * Substitui a lista só se a do servidor ainda é a que a tela leu (toggle, reordenação e apagar
-   * partem da lista mostrada); senão, não grava e lança `RulesChangedError`.
+   * Substitui a lista só se a do servidor ainda é a que a tela leu (toda mudança da tela parte da
+   * lista mostrada: salvar no editor, toggle, reordenação, apagar e desfazer); senão, não grava e
+   * lança `RulesChangedError`. O import é a exceção: ele troca a lista de propósito.
    */
   async saveIfUnchanged(rules: readonly Rule[]): Promise<void> {
     const current = await this.fetchAll();

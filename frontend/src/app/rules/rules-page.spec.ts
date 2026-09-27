@@ -280,7 +280,26 @@ describe('Dado a página Rules', () => {
       );
 
       desfazer.next();
-      await expectPut([rule(1), rule(2)]);
+      await expectGuardedPut([rule(2)], [rule(1), rule(2)]);
+    });
+
+    it('não deve desfazer o Delete e deve avisar Quando a lista mudou em outro lugar depois de apagar', async () => {
+      await open([rule(1), rule(2)]);
+      const desfazer = new Subject<void>();
+      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open').mockReturnValue({
+        onAction: () => desfazer,
+      } as unknown as ReturnType<MatSnackBar['open']>);
+
+      await userEvent.click(within(row('r1')).getByRole('button', { name: 'Delete' }));
+      await expectGuardedPut([rule(1), rule(2)], [rule(2)]);
+      await vi.waitFor(() => expect(snack).toHaveBeenCalled());
+      desfazer.next();
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(2), rule(3)]),
+      );
+
+      expect(await screen.findByText(/The rules changed elsewhere/)).toBeTruthy();
+      http.expectNone({ method: 'PUT', url: URL_REGRAS });
     });
   });
 
@@ -366,6 +385,7 @@ describe('Dado a página Rules', () => {
 
       await userEvent.type(within(editor).getByRole('textbox', { name: 'Name' }), 'Nova');
       await userEvent.click(within(editor).getByRole('button', { name: 'Save' }));
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
       const call = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
       expect((call.request.body as Rule[]).map((r) => r.name)).toEqual(['Rule 1', 'Nova']);
       call.flush([rule(1), rule(2, { name: 'Nova' })]);
@@ -390,6 +410,11 @@ describe('Dado a página Rules', () => {
       await userEvent.type(name, 'Editada');
       await userEvent.click(within(editor).getByRole('button', { name: 'Save' }));
 
+      await vi.waitFor(() =>
+        http
+          .expectOne({ method: 'GET', url: URL_REGRAS })
+          .flush([rule(2, { priority: 1 }), rule(1, { priority: 5 })]),
+      );
       const call = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
       expect((call.request.body as Rule[]).map((r) => r.name)).toEqual(['Rule 2', 'Editada']);
       call.flush(call.request.body as Rule[]);
