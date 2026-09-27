@@ -30,6 +30,7 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Base64
 
 /** O 404 do link público: igual para id inexistente, expirado, revogado, URL apagada e mensagem apagada. */
 const val SHARE_NOT_FOUND_BODY = """{"error":"This shared link does not exist or has expired"}"""
@@ -68,17 +69,62 @@ data class ShareSummary(
 )
 
 /**
- * O [uuid] como aparece em qualquer texto: cada caractere é ele mesmo ou `%hh` (o byte em hexadecimal), sem diferenciar
- * maiúsculas. Casa só dígitos hexadecimais, `-` e `%`, que o JSON nunca escapa: trocar no JSON serializado não o quebra.
+ * Um caractere do UUID em qualquer grafia: ele mesmo, `%hh` ou o escape JSON `\uXXXX` (que no JSON do link sai como
+ * `\\uXXXX`), da letra em minúscula ou em maiúscula. Só casa dígitos hexadecimais, `-`, `%`, `\` e `u`: trocar no JSON
+ * serializado não o quebra.
+ */
+private fun anySpelling(c: Char): String =
+    listOf(c.lowercaseChar(), c.uppercaseChar()).distinct().joinToString("|", "(?:", ")") { variant ->
+        val code = variant.code.toString(HEX).padStart(2, '0')
+        "${Regex.escape(variant.toString())}|%$code|\\\\{1,2}u00$code"
+    }
+
+/**
+ * O [uuid] como aparece em qualquer texto: cada caractere em qualquer grafia ([anySpelling]), sem diferenciar
+ * maiúsculas, e os hífens opcionais (as 32 hex juntas também casam).
  */
 fun uuidPattern(uuid: String): Regex =
     Regex(
-        uuid.lowercase().asIterable().joinToString("") { c ->
-            val encoded = c.code.toString(HEX).padStart(2, '0')
-            "(?:${Regex.escape(c.toString())}|%$encoded)"
-        },
+        uuid.lowercase().asIterable().joinToString("") { c -> if (c == '-') "${anySpelling(c)}?" else anySpelling(c) },
         RegexOption.IGNORE_CASE,
     )
+
+/** Grafias do UUID cujo base64 o link não entrega: com e sem hífens, em minúsculas e em maiúsculas. */
+private fun spellings(uuid: String): List<String> {
+    val compact = uuid.replace("-", "")
+    return listOf(uuid.lowercase(), uuid.uppercase(), compact.lowercase(), compact.uppercase())
+}
+
+private const val BITS_PER_BYTE = 8
+private const val BITS_PER_BASE64_CHAR = 6
+private const val BASE64_ALIGNMENTS = 3
+
+/**
+ * Os trechos de base64 e base64url que só dependem dos bytes de cada grafia do [uuid] ([spellings]): para o
+ * deslocamento `k` de 0 a 2, os caracteres de `ceil(8k/6)` a `floor(8(k+n)/6) - 1` de `base64(k bytes + grafia)`. Um
+ * texto com o UUID em qualquer posição, codificado em base64, contém um deles.
+ */
+private fun base64Cores(uuid: String): List<String> =
+    spellings(uuid)
+        .flatMap { spelling ->
+            val bytes = spelling.toByteArray(Charsets.US_ASCII)
+            (0 until BASE64_ALIGNMENTS).flatMap { k ->
+                val encoded = Base64.getEncoder().encodeToString(ByteArray(k) + bytes)
+                val from = (BITS_PER_BYTE * k + BITS_PER_BASE64_CHAR - 1) / BITS_PER_BASE64_CHAR
+                val core = encoded.substring(from, BITS_PER_BYTE * (k + bytes.size) / BITS_PER_BASE64_CHAR)
+                listOf(core, core.replace('+', '-').replace('/', '_'))
+            }
+        }.distinct()
+
+/**
+ * O [json] do link com o [uuid] da URL trocado por [REDACTED] onde quer que apareça: cru, em `%hh` ou em escape JSON
+ * (qualquer caractere, misturados), sem hífens, e o miolo do base64 ou base64url de um texto que o contém. Outro UUID
+ * fica como veio.
+ */
+fun maskUrlUuid(
+    json: String,
+    uuid: String,
+): String = base64Cores(uuid).fold(uuidPattern(uuid).replace(json, REDACTED)) { text, core -> text.replace(core, REDACTED) }
 
 /** O endereço do link na tela (rota do Angular). */
 fun shareUrl(id: String): String = "/#/share/$id"
@@ -186,7 +232,7 @@ class ShareController(
                 put("shared_at", share.createdAt.format(TIMESTAMP))
                 put("expires_at", share.expiresAt.format(TIMESTAMP))
             }
-        val body = uuidPattern(token.uuid.toString()).replace(jsonMapper.writeValueAsString(tree), REDACTED)
+        val body = maskUrlUuid(jsonMapper.writeValueAsString(tree), token.uuid.toString())
         telemetry.share("view")
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body)
     }
