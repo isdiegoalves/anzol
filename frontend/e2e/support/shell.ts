@@ -24,13 +24,46 @@ export function secoes(page: Page): Locator {
   return page.getByRole('navigation', { name: 'URL sections' });
 }
 
+/**
+ * Um destino do rail. Fidelidade ao C (INBOX-02, CHECKS-23): o nome ganha o sufixo do contador ("Inbox, 3 unread") ou
+ * da atenção ("Checks, needs attention").
+ */
 export function destino(page: Page, nome: Destino): Locator {
-  return secoes(page).getByRole('link', { name: nome, exact: true });
+  return secoes(page).getByRole('link', { name: new RegExp(`^${nome}(, .+)?$`) });
 }
 
 /** `status` com "Live", "Reconnecting…" ou "Offline" no cabeçalho da URL. */
 export function estadoAoVivo(page: Page): Locator {
   return page.getByRole('status').filter({ hasText: /(^|\s)(Live|Reconnecting…|Offline)(\s|$)/ });
+}
+
+/**
+ * Fidelidade ao C (F1, INBOX-29/30): abaixo de 600 px, "New URL", "Settings" e "Help" saem da barra do topo e vão
+ * para o menu ⋮ `button "More actions"` (itens "Send", "New URL", "Delete URL", "Settings" e "Help", e "Lock" numa
+ * URL com segredo destrancada); "Edit URL" também fica nele. SUPOSIÇÃO: o corte é o mesmo do "More URL actions", que só existe a partir de 600 px.
+ */
+export function compacto(page: Page): boolean {
+  return (page.viewportSize()?.width ?? 1400) < 600;
+}
+
+/** O menu ⋮ da barra do topo no compacto. */
+export function maisAcoes(page: Page): Locator {
+  return page.getByRole('button', { name: 'More actions', exact: true });
+}
+
+/**
+ * Uma ação do shell pronta para clicar: o botão, ou, no compacto, o `menuitem` do menu "More actions" (que esta
+ * função abre).
+ */
+export async function acaoDoShell(
+  page: Page,
+  nome: 'New URL' | 'Settings' | 'Help' | 'Lock',
+): Promise<Locator> {
+  if (!compacto(page)) {
+    return page.getByRole('button', { name: nome, exact: true });
+  }
+  await maisAcoes(page).click();
+  return page.getByRole('menuitem', { name: nome, exact: true });
 }
 
 /** FAB "New URL" (§1: `button "New URL"`). */

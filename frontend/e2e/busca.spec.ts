@@ -8,7 +8,9 @@ import { campoDeBusca, detalhes, filtro, item as itemDe, itens } from './support
 // filters" volta à lista completa. Precisa do backend com `POST /token/{id}/requests/search`.
 // Item 14, E4 (S6): os três `mat-select` viram chips no `group "Filters"` (`button[aria-pressed]`, um clique por
 // filtro, C §2.3). SUPOSIÇÕES: um chip por método presente nas mensagens da URL ("GET", "POST", "PUT"…) e os chips
-// "Signature invalid", "Signature absent" e "Schema invalid"; o contador "N of M requests" continua.
+// "Signature invalid", "Signature absent" e "Schema invalid"; o contador "N of M requests" continua. Fidelidade ao C
+// (F1): a busca segue a ordem da lista, que abre com as mais novas primeiro (INBOX-01, `sorting: 'newest'`), e o
+// filtro vai para a rota (`?q=`).
 
 const SCREENS = process.env['SCREENS_DIR'];
 const SECRET = 'segredo-da-busca';
@@ -83,7 +85,7 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     const busca = searchRequest(page, 'ped-42');
     await campoDeBusca(page).fill('ped-42');
 
-    expect((await busca).postDataJSON()).toMatchObject({ text: 'ped-42', sorting: 'oldest' });
+    expect((await busca).postDataJSON()).toMatchObject({ text: 'ped-42', sorting: 'newest' });
     await expect(items(page)).toHaveCount(2);
     await expect(item(page, post)).toBeVisible();
     await expect(item(page, get)).toBeVisible();
@@ -170,7 +172,7 @@ test.describe('Dado um filtro ativo com a tela recebendo em tempo real', () => {
     await expect(counter(page)).toHaveText('2 of 4 requests');
     await expect(item(page, naoCasa)).toHaveCount(0);
     await expect(items(page)).toHaveCount(2);
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${aberta}/1$`));
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${aberta}/1\\?q=AMARELA$`));
     await expect(detalhes(page)).toContainText(aberta);
     await screenshot(page, '03-busca-ao-vivo');
 

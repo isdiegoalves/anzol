@@ -97,7 +97,7 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
 
     await page
       .getByRole('navigation', { name: 'URL sections' })
-      .getByRole('link', { name: 'Checks', exact: true })
+      .getByRole('link', { name: /^Checks(, .+)?$/ })
       .click();
     const dialog = page.getByRole('region', { name: 'Privacy', exact: true });
     await expect(
@@ -147,7 +147,7 @@ test.describe('Dado uma URL protegida aberta sem acesso', () => {
 
     const stream = waitForStream(page, tokenId);
     await unlock(page, SEGREDO);
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(antiga);
+    await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(antiga);
     await stream;
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${antiga}/1$`));
 
@@ -210,7 +210,7 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}/${requestId}/1`);
     await unlock(page, SEGREDO);
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
+    await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(requestId);
 
     await acoes(page).getByRole('button', { name: 'Share read-only link…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Share read-only link' });
@@ -241,7 +241,8 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
     );
     expect(await rows(visitor, 'Query strings')).toEqual(['token [redacted]', 'page 2']);
     await abrirAba(visitor, 'Body');
-    await expectCorpo(visitor, '{"cartao":"4111"}');
+    // Fidelidade ao C (INBOX-22): sem `formatJsonEnable` salvo, o JSON aparece formatado.
+    await expectCorpo(visitor, '{\n  "cartao": "4111"\n}');
     await expect(visitor.getByRole('button')).toHaveCount(0);
     await expect(visitor.getByRole('link', { name: /Permalink|Raw content/ })).toHaveCount(0);
     expect(calls.filter((path) => path.startsWith('/token'))).toEqual([]);

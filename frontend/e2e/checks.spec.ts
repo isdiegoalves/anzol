@@ -10,6 +10,7 @@ import {
   secao,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
+import { compacto, maisAcoes } from './support/shell';
 
 // Item 14, E5: a página Checks (`#/{token}/checks`). CA-11 (o Save de um cartão manda o token salvo mais só aquele
 // cartão: os outros campos não voltam ao padrão nem levam o que foi digitado e não salvo), Health por
@@ -21,7 +22,7 @@ import { Webhook, expect, test } from './support/fixtures';
 // - Schema: `combobox "Generate from a message"` com as mensagens JSON recentes (opção com `#` e os 5 primeiros
 //   caracteres do UUID) e o `button "Generate schema"`, que preenche o "JSON Schema" sem salvar;
 // - Signature: "Send a signed test" (link ou botão) leva a `#/{token}/outbound?send=signed`;
-// - o "Edit" do cabeçalho da URL é um `link` (decisão do main) que leva a `#/{token}/checks` (sem diálogo "Edit
+// - o "Edit URL" do menu ⋮ da URL (fidelidade ao C; antes um `link "Edit"`) leva a `#/{token}/checks` (sem diálogo "Edit
 //   URL");
 // - `?section=schema` rola até o cartão "Schema validation".
 
@@ -235,7 +236,9 @@ test.describe('Dado o cartão Signature verification', () => {
   });
 });
 
-test.describe('Dado o "Edit" do cabeçalho da URL', () => {
+// Fidelidade ao C (item 14.1, INBOX-04/CHECKS-22): o "Edit" sai do cabeçalho e vira "Edit URL" no menu ⋮ "More URL
+// actions" (S2), que leva a Checks. SUPOSIÇÃO: o item é `menuitem "Edit URL"`.
+test.describe('Dado o "Edit URL" do menu da URL', () => {
   test('deve abrir Checks, e não o diálogo "Edit URL"', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await page.goto(`/#/${tokenId}`);
@@ -243,7 +246,12 @@ test.describe('Dado o "Edit" do cabeçalho da URL', () => {
       new RegExp(`/${tokenId}$`),
     );
 
-    await page.getByRole('link', { name: 'Edit', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Edit', exact: true })).toHaveCount(0);
+    // No compacto (< 600 px), "Edit URL" fica no menu "More actions" da barra do topo (INBOX-30).
+    await (
+      compacto(page) ? maisAcoes(page) : page.getByRole('button', { name: 'More URL actions' })
+    ).click();
+    await page.getByRole('menuitem', { name: 'Edit URL' }).click();
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks$`));
     await expect(secao(page, 'Signature verification')).toBeVisible();

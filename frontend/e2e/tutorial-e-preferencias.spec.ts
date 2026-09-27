@@ -7,29 +7,43 @@ import { readStorage, seedStorage } from './support/storage';
 // `switch "Follow new"`, lendo e gravando as mesmas chaves (`formatJsonEnable`, `autoNavEnable`).
 // Item 14, E10: o tutorial vira o onboarding "Your URL is ready" (`region` com esse nome), que respeita
 // `hideTutorial` como hoje: com mensagens, aparece até o "Close"; sem mensagens, aparece sempre, com a URL.
+// Fidelidade ao C (item 14.1, INBOX-06): com mensagens, o onboarding não fica em cima do detalhe; o detalhe começa no
+// topo do painel (o onboarding some, ou fica abaixo do detalhe e ainda fecha pelo "Close").
 
 /** O onboarding que substitui o tutorial (E10). */
 const onboarding = (page: Page) => page.getByRole('region', { name: 'Your URL is ready' });
 
 test.describe('Dado o tutorial (checklist 12)', () => {
-  test('deve esconder e continuar escondido após recarregar Quando o × é clicado com mensagens', async ({
+  test('não deve pôr o onboarding em cima do detalhe Quando a URL tem mensagens', async ({
     page,
     tokens,
   }) => {
     const tokenId = await tokens.create();
-    await tokens.send(tokenId);
+    const requestId = await tokens.send(tokenId);
     await seedStorage(page, {});
-    await page.goto(`/#/${tokenId}`);
+    await page.goto(`/#/${tokenId}/${requestId}/1`);
+    const metadados = page.getByRole('group', { name: 'Request metadata' });
+    await expect(metadados).toBeVisible();
     const tutorial = onboarding(page);
-    await expect(tutorial).toBeVisible();
 
-    await tutorial.getByRole('button', { name: 'Close' }).click();
-    await expect(tutorial).toBeHidden();
-    await page.reload();
-
-    await expect(page.getByRole('table', { name: 'Request Details' })).toBeVisible();
-    await expect(tutorial).toBeHidden();
-    expect((await readStorage(page))['hideTutorial']).toBe('true');
+    if ((await tutorial.count()) > 0 && (await tutorial.isVisible())) {
+      const topoDoDetalhe = (await page
+        .getByRole('heading', { name: '/', exact: true })
+        .boundingBox())!;
+      expect((await tutorial.boundingBox())!.y, 'onboarding abaixo do detalhe').toBeGreaterThan(
+        topoDoDetalhe.y,
+      );
+      await tutorial.getByRole('button', { name: 'Close' }).click();
+      await expect(tutorial).toBeHidden();
+      await page.reload();
+      await expect(metadados).toBeVisible();
+      await expect(tutorial).toBeHidden();
+      expect((await readStorage(page))['hideTutorial']).toBe('true');
+    }
+    // O detalhe começa no topo do painel: o cabeçalho da mensagem está à vista sem rolar.
+    await expect(page.getByRole('heading', { name: '/', exact: true })).toBeInViewport();
+    const cabecalho = (await page.getByRole('heading', { name: '/', exact: true }).boundingBox())!;
+    expect(cabecalho.y, 'cabeçalho da mensagem no topo').toBeLessThan(200);
   });
 
   test('deve mostrar o tutorial mesmo escondido Quando a URL não tem mensagens', async ({
@@ -103,15 +117,17 @@ test.describe('Dado as preferências no localStorage (checklist 14)', () => {
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
 
+    // Fidelidade ao C (INBOX-22): "Pretty" nasce ligado; desligar grava `formatJsonEnable` false.
+    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
     await page.getByRole('switch', { name: 'Pretty', exact: true }).click();
     await page.getByRole('switch', { name: 'Follow new' }).click();
     await page.reload();
 
-    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).not.toBeChecked();
     await expect(page.getByRole('switch', { name: 'Follow new' })).toBeChecked();
     const stored = await readStorage(page);
     expect(stored).toMatchObject({
-      formatJsonEnable: 'true',
+      formatJsonEnable: 'false',
       autoNavEnable: 'true',
       redirectEnable: 'false',
       redirectUrl: 'null',

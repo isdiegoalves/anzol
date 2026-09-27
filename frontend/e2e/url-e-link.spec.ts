@@ -49,7 +49,7 @@ test.describe('Dado um link salvo do app antigo (checklist 2)', () => {
     await page.goto(`/#!/${tokenId}/${segunda}/1`);
 
     await expect(page).toHaveURL(new RegExp(`/#/${tokenId}/${segunda}/1$`));
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(segunda);
+    await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(segunda);
     await expect(page.locator('pre')).toHaveText('segunda');
   });
 });

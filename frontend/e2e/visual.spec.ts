@@ -86,7 +86,7 @@ const TELAS: Tela[] = [
       await seedStorage(page, { formatJsonEnable: 'true', hideTutorial: 'true' });
       await abrirMensagem(page, tokenId, requestId);
       await expect(verificacoes(page)).toContainText('Signature valid');
-      return [...mascarasDaLista(page), detalhes(page).locator('td')];
+      return [...mascarasDaLista(page), detalhes(page)];
     },
   },
   {
@@ -207,7 +207,7 @@ const TELAS: Tela[] = [
       await seedStorage(page, { formatJsonEnable: 'true' });
       await page.goto(`/#/share/${id}`);
       await expect(page.getByText(/Shared read-only link · expires/)).toBeVisible();
-      return [page.getByText(/Shared read-only link · expires/), detalhes(page).locator('td')];
+      return [page.getByText(/Shared read-only link · expires/), detalhes(page)];
     },
   },
 ];

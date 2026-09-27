@@ -1,6 +1,7 @@
 import { Page } from '@playwright/test';
 import { abrirChecks, abrirCreate, escolherLimpeza, salvar } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
+import { item, itens } from './support/inbox';
 
 // Limpeza automática: campo nos diálogos da URL, contador com o limite e lista ao vivo
 // coerente com o corte FIFO do servidor. Precisa do backend com `auto_cleanup` e `removed`.
@@ -11,8 +12,20 @@ import { expect, test, tokenInUrl } from './support/fixtures';
 async function openInbox(page: Page): Promise<void> {
   await page
     .getByRole('navigation', { name: 'URL sections' })
-    .getByRole('link', { name: 'Inbox', exact: true })
+    .getByRole('link', { name: /^Inbox(, .+)?$/ })
     .click();
+}
+
+/**
+ * Fidelidade ao C (F1, INBOX-01): a lista abre com as mais novas primeiro, e a mais antiga não está na página 1. O
+ * link permanente `/{id}/1` abre a mensagem mesmo fora da página carregada; para conferir o que o corte tirou, a lista
+ * passa a mais antigas primeiro, como o usuário faria.
+ */
+async function maisAntigasPrimeiro(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Sorted newest first. Change order' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Sorted oldest first. Change order' }),
+  ).toBeVisible();
 }
 
 /** Abre a URL e espera o `EventSource` receber os cabeçalhos (assinatura pronta no servidor). */
@@ -86,14 +99,16 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await tokens.sendMany(tokenId, 500);
     const [antiga, seguinte] = await tokens.listed(tokenId);
     await openListening(page, `/#/${tokenId}/${antiga.uuid}/1`, tokenId);
-    const details = page.getByRole('table', { name: 'Request Details' });
+    const details = page.getByRole('group', { name: 'Request metadata' });
     await expect(details).toContainText(antiga.uuid);
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
 
     await tokens.send(tokenId);
 
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${seguinte.uuid}/1$`));
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${seguinte.uuid}/\\d+$`));
     await expect(details).toContainText(seguinte.uuid);
+    await maisAntigasPrimeiro(page);
+    await expect(itens(page).first()).toContainText(`#${seguinte.uuid.substring(0, 5)}`);
     await expect(page.getByRole('button', { name: `Delete request ${antiga.uuid}` })).toHaveCount(
       0,
     );
@@ -118,7 +133,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     const ordem = await tokens.listed(tokenId);
     const [antiga, primeiraQueFica] = [ordem[0], ordem[5]];
     await page.goto(`/#/${tokenId}/${antiga.uuid}/1`);
-    const details = page.getByRole('table', { name: 'Request Details' });
+    const details = page.getByRole('group', { name: 'Request metadata' });
     await expect(details).toContainText(antiga.uuid);
     await expect(page.getByRole('heading', { name: 'Requests (505)' })).toBeVisible();
 
@@ -128,8 +143,11 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await openInbox(page);
 
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/${primeiraQueFica.uuid}/1)?$`));
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/${primeiraQueFica.uuid}/\\d+)?$`));
     await expect(details).toContainText(primeiraQueFica.uuid);
+    await maisAntigasPrimeiro(page);
+    await expect(item(page, primeiraQueFica.uuid)).toBeVisible();
+    await expect(itens(page).first()).toContainText(`#${primeiraQueFica.uuid.substring(0, 5)}`);
     for (const cortada of ordem.slice(0, 5)) {
       await expect(
         page.getByRole('button', { name: `Delete request ${cortada.uuid}` }),

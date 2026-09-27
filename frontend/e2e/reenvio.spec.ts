@@ -254,7 +254,7 @@ test.describe('Dado o Send do cabeçalho da URL', () => {
     // A mensagem que chegou a esta mesma URL foi verificada como válida.
     await page
       .getByRole('navigation', { name: 'URL sections' })
-      .getByRole('link', { name: 'Inbox', exact: true })
+      .getByRole('link', { name: /^Inbox(, .+)?$/ })
       .click();
     await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
   });

@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
 import { TokenTracker, expect, test } from './support/fixtures';
-import { destino, novaUrl } from './support/shell';
+import { acaoDoShell, compacto, destino } from './support/shell';
 import { seedStorage } from './support/storage';
 
 // Item 14, CA-2 no shell (E3): axe com WCAG 2.2 A/AA e zero violações `serious`/`critical` nas telas que o shell
@@ -38,7 +38,12 @@ const TELAS: Tela[] = [
       await seedStorage(page, {});
       await page.goto(`/#/${tokenId}`);
       await expect(page.getByRole('heading', { name: 'This URL is protected' })).toBeVisible();
-      await expect(novaUrl(page)).toBeVisible();
+      // Fidelidade ao C (F1, INBOX-29, trava 11): no compacto, "New URL" fica no menu "More actions".
+      await expect(await acaoDoShell(page, 'New URL')).toBeVisible();
+      if (compacto(page)) {
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('menuitem', { name: 'New URL' })).toHaveCount(0);
+      }
     },
   },
   {

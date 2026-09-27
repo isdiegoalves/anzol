@@ -111,7 +111,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     expect(webhook.headers()['content-type']).toContain('application/json');
     expect(await webhook.text()).toBe('{"ok":true}');
 
-    await page.getByRole('link', { name: 'Inbox', exact: true }).click();
+    await page.getByRole('link', { name: /^Inbox(, .+)?$/ }).click();
     // Item 14, E4: o selo da regra é o cartão do `group "Checks on this request"`.
     await expect(verificacoes(page)).toContainText(/Answered by rule\s*Pix pago/);
   });
@@ -235,7 +235,7 @@ test.describe('Dado uma URL com regras salvas', () => {
 
     await page.goto(`/#/${tokenId}/${requestId}/1`);
 
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
+    await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(requestId);
     await expect(verificacoes(page)).toBeVisible();
     await expect(verificacoes(page)).not.toContainText(/Answered by rule|No rule matched/);
   });
@@ -310,7 +310,7 @@ test.describe('Dado a alternância "Inbox" / "Rules"', () => {
     await expect(page.getByRole('link', { name: 'Rules' })).toHaveAttribute('aria-current', 'page');
     await request.post(`/${tokenId}`);
 
-    await page.getByRole('link', { name: 'Inbox', exact: true }).click();
+    await page.getByRole('link', { name: /^Inbox(, .+)?$/ }).click();
     await expect(page.getByText('Requests (2)')).toBeVisible();
     await request.post(`/${tokenId}`);
     await expect(page.getByText('Requests (3)')).toBeVisible();

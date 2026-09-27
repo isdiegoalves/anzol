@@ -10,6 +10,10 @@ import { seedStorage } from './support/storage';
 // - o cabeçalho do detalhe tem o selo do método e o `heading` com a rota (caminho e query depois do token); a linha
 //   URL da "Request Details" não repete o método;
 // - a aba Body é a aberta por padrão; o corpo realça cada chave JSON num elemento próprio (`span`).
+// Fidelidade ao C (item 14.1, F1): a tabela "Request Details" vira a linha de metadados `group "Request metadata"`
+// (INBOX-17, trava 3: URL como link, Host + whois, data absoluta, ID completo, e mais tamanho, seq e "Copy request
+// ID"); o JSON nasce formatado quando `formatJsonEnable` não existe (INBOX-22, trava 9: a escolha salva continua
+// valendo e o corpo cru fica a um clique, sem reformatar o número grande).
 
 test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)', () => {
   let tokenId: string;
@@ -35,14 +39,20 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
       page.getByRole('heading', { name: '/extra/path?x=1&y=', exact: true }),
     ).toBeVisible();
     const origin = new URL(page.url()).origin;
-    expect(await linhas(page, 'Request Details')).toEqual([
-      `URL ${origin}/${tokenId}/extra/path?x=1&y=`,
-      expect.stringMatching(/^Host \S+ whois$/),
-      expect.stringMatching(
-        /^Date [A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM) \(a few seconds ago\)$/,
-      ),
-      `ID ${requestId}`,
-    ]);
+    const meta = detalhes(page);
+    await expect(meta.getByRole('link', { name: /\/extra\/path/ }).first()).toHaveAttribute(
+      'href',
+      `${origin}/${tokenId}/extra/path?x=1&y=`,
+    );
+    await expect(meta).toContainText(/\b\d{1,3}(\.\d{1,3}){3}\b/);
+    await expect(meta.getByRole('link', { name: 'whois' })).toBeVisible();
+    await expect(meta).toContainText(/[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM)/);
+    await expect(meta).toContainText(/a few seconds ago|\d+ s ago/);
+    await expect(meta).toContainText('36 B');
+    await expect(meta).toContainText(/\bseq \d+/);
+    await meta.getByRole('button', { name: 'Copy request ID' }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(requestId);
+    await expect(page.getByRole('table', { name: 'Request Details' })).toHaveCount(0);
 
     await abrirAba(page, 'Headers');
     expect(await linhas(page, 'Headers')).toEqual(
@@ -60,17 +70,29 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
     await expect(page.getByRole('table', { name: 'Form values' })).toHaveCount(0);
   });
 
-  test('deve mostrar o corpo cru e o formatado com destaque Quando "Pretty" alterna', async ({
+  // Fidelidade ao C (INBOX-22): sem a chave `formatJsonEnable`, o JSON nasce formatado; o cru fica a um clique.
+  test('deve mostrar o corpo formatado com destaque e o cru Quando "Pretty" alterna', async ({
     page,
   }) => {
     await expect(aba(page, 'Body')).toHaveAttribute('aria-selected', 'true');
-    await expectCorpo(page, '{"a":12345678901234567890,"b":[1,2]}');
+    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
+    await expectCorpo(page, '{\n  "a": 12345678901234567890,\n  "b": [\n    1,\n    2\n  ]\n}');
+    await expect(corpo(page).locator('span', { hasText: /^"a"$/ }).first()).toBeVisible();
 
     await page.getByRole('switch', { name: 'Pretty', exact: true }).click();
 
-    await expectCorpo(page, '{\n  "a": 12345678901234567890,\n  "b": [\n    1,\n    2\n  ]\n}');
-    await expect(corpo(page).locator('span', { hasText: /^"a"$/ }).first()).toBeVisible();
+    await expectCorpo(page, '{"a":12345678901234567890,"b":[1,2]}');
     await expect(page.getByRole('switch', { name: 'Format JSON/XML' })).toHaveCount(0);
+  });
+
+  test('deve respeitar a escolha salva de ver o corpo cru (formatJsonEnable = false)', async ({
+    page,
+  }) => {
+    await seedStorage(page, { formatJsonEnable: 'false' });
+    await page.goto(`/#/${tokenId}/${requestId}/1`);
+
+    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).not.toBeChecked();
+    await expectCorpo(page, '{"a":12345678901234567890,"b":[1,2]}');
   });
 
   test('deve apontar Permalink e Raw content para esta mensagem Quando o menu "More" abre', async ({

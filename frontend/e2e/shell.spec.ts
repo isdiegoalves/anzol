@@ -1,10 +1,11 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import {
+  acaoDoShell,
+  compacto,
   CAMINHO,
   DESTINOS,
   Destino,
-  ajuda,
   destino,
   estadoAoVivo,
   novaUrl,
@@ -208,8 +209,9 @@ test.describe('Dado o cabeçalho fixo da URL', () => {
     const tokenId = await tokens.create();
     for (const nome of DESTINOS) {
       await page.goto(`/#/${tokenId}${CAMINHO[nome]}`);
-      await expect(novaUrl(page), nome).toBeVisible();
-      await novaUrl(page).click();
+      const nova = await acaoDoShell(page, 'New URL');
+      await expect(nova, nome).toBeVisible();
+      await nova.click();
       const dialog = page.getByRole('dialog', { name: 'Create New URL' });
       await expect(dialog, nome).toBeVisible();
       await page.keyboard.press('Escape');
@@ -263,7 +265,11 @@ test.describe('Dado uma URL protegida aberta sem acesso (desbloqueio dentro do s
     await page.goto(`/#/${tokenId}`);
 
     await expect(page.getByRole('heading', { name: 'This URL is protected' })).toBeVisible();
-    await expect(novaUrl(page), 'o shell continua em volta do desbloqueio').toBeVisible();
+    const nova = await acaoDoShell(page, 'New URL');
+    await expect(nova, 'o shell continua em volta do desbloqueio').toBeVisible();
+    if (compacto(page)) {
+      await page.keyboard.press('Escape');
+    }
     await expect(secoes(page)).toHaveCount(0);
 
     await unlock(page, SEGREDO);
@@ -271,7 +277,7 @@ test.describe('Dado uma URL protegida aberta sem acesso (desbloqueio dentro do s
     await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'This URL is protected' })).toBeHidden();
 
-    await page.getByRole('button', { name: 'Lock' }).click();
+    await (await acaoDoShell(page, 'Lock')).click();
 
     await expect(page.getByRole('heading', { name: 'This URL is protected' })).toBeVisible();
     await expect(secoes(page)).toHaveCount(0);
@@ -315,9 +321,10 @@ test.describe('Dado o Help do rail', () => {
     tokens,
   }) => {
     await page.goto(`/#/${await tokens.create()}`);
-    await expect(ajuda(page)).toBeVisible();
+    const help = await acaoDoShell(page, 'Help');
+    await expect(help).toBeVisible();
 
-    await ajuda(page).click();
+    await help.click();
 
     const ajudaAberta = page.getByRole('dialog', { name: 'Help' });
     // O produto se chama Anzol (decisão do dono, 2026-09-27): o repositório é isdiegoalves/anzol.

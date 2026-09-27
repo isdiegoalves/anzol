@@ -35,9 +35,14 @@ export function itens(page: Page): Locator {
   return lista(page).locator('.item');
 }
 
-/** O item de uma mensagem, pelo `#` e os 5 primeiros caracteres do UUID. */
+/**
+ * O item de uma mensagem, pelo `#` e os 5 primeiros caracteres do UUID no nome acessível do botão (fidelidade ao C,
+ * INBOX-11: o `#id` pode sair da linha 1 e ficar só na linha 2 ou no nome acessível).
+ */
 export function item(page: Page, uuid: string): Locator {
-  return itens(page).filter({ hasText: `#${uuid.substring(0, 5)}` });
+  return itens(page).filter({
+    has: page.getByRole('button', { name: new RegExp(`#${uuid.substring(0, 5)}`) }),
+  });
 }
 
 /** O botão que abre a mensagem (o nome acessível resume o item). */
@@ -47,9 +52,13 @@ export function abrirItem(page: Page, uuid: string): Locator {
   });
 }
 
-/** `table "Request Details"` do detalhe (URL, Host, Date, ID). */
+/**
+ * Os metadados da mensagem aberta. Fidelidade ao C (INBOX-17, trava 3): a tabela "Request Details" vira uma linha de
+ * metadados, com URL (link), Host + whois, data absoluta, ID completo, tamanho, seq e "Copy request ID".
+ * SUPOSIÇÃO: a linha é o `group "Request metadata"` ("Metadados da requisição" em pt-BR).
+ */
 export function detalhes(page: Page): Locator {
-  return page.getByRole('table', { name: 'Request Details' });
+  return page.getByRole('group', { name: 'Request metadata' });
 }
 
 /** Abre `#/{token}/{mensagem}/1` e espera o detalhe dela. */

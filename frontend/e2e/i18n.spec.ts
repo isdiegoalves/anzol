@@ -12,7 +12,7 @@ import { readStorage, seedStorage } from './support/storage';
 // - Inbox: `heading` "Requisições (N)"; `switch "Seguir novas"`; `group "Verificações desta requisição"` com o
 //   cartão "Assinatura inválida" e, na linha seguinte, o motivo do servidor em inglês ("signature mismatch");
 //   abas "Corpo" e "Cabeçalhos (n)"; a data da "Request Details" no formato do `Intl` pt-BR ("26 de set. de
-//   2026"), a tabela mantém o nome "Request Details" traduzido para "Detalhes da requisição";
+//   2026"), na linha de metadados `group "Metadados da requisição"` (fidelidade ao C, INBOX-17);
 // - Checks: `heading` h1 "Verificações"; `region "Verificação de assinatura"` com `button "Salvar assinatura"`;
 // - Rules: `heading` h1 "Regras"; `button "Nova regra"`;
 // - em Settings, o `radiogroup "Language"` (em pt-BR, "Idioma") tem os radios "English" e "Português (Brasil)" (o
@@ -75,7 +75,10 @@ test.describe('Dado o idioma pt-BR escolhido em Settings', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
     const secoes = page.getByRole('navigation', { name: 'Seções da URL' });
     for (const nome of ['Entrada', 'Regras', 'Verificações', 'Saída', 'Métricas']) {
-      await expect(secoes.getByRole('link', { name: nome, exact: true })).toBeVisible();
+      // Fidelidade ao C (F1, INBOX-02/CHECKS-23): o nome pode ganhar o sufixo (", 2 não lidas", ", precisa de atenção").
+      await expect(
+        secoes.getByRole('link', { name: new RegExp(`^${nome}(, .+)?$`) }),
+      ).toBeVisible();
     }
     await expect(page.getByRole('button', { name: 'Nova URL', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Configurações', exact: true })).toBeVisible();
@@ -90,12 +93,13 @@ test.describe('Dado o idioma pt-BR escolhido em Settings', () => {
     await expect(cartoes).toContainText(/Assinatura inválida\s*signature mismatch/);
     await expect(page.getByRole('tab', { name: /^Corpo\b/ })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^Cabeçalhos \(\d+\)$/ })).toBeVisible();
-    const detalhes = page.getByRole('table', { name: 'Detalhes da requisição' });
+    const detalhes = page.getByRole('group', { name: 'Metadados da requisição' });
     await expect(detalhes).toContainText(/\d{1,2} de [a-zç]{3}\.? de \d{4}/);
     await expect(detalhes).not.toContainText(/\b(AM|PM)\b/);
 
     // Checks.
-    await secoes.getByRole('link', { name: 'Verificações', exact: true }).click();
+    // Fidelidade ao C (F1, CHECKS-23): o nome ganha ", precisa de atenção" quando há falha, como o `destino()`.
+    await secoes.getByRole('link', { name: /^Verificações(, .+)?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Verificações', level: 1 })).toBeVisible();
     await expect(
       page

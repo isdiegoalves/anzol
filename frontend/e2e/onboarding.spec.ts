@@ -4,6 +4,7 @@ import { expectSemViolacoesGraves } from './support/a11y';
 import { abrirChecks } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
 import { campoDeBusca, itens, lista } from './support/inbox';
+import { acaoDoShell, compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
 // Item 14, E10: onboarding, estados vazios, de erro e de carregamento (C §2.10 e §2.11) e o Settings completo.
@@ -167,6 +168,10 @@ test.describe('Dado um filtro sem resultado', () => {
     await page.goto(`/#/${tokenId}`);
     await expect(itens(page)).toHaveCount(1);
 
+    if (compacto(page)) {
+      // Fidelidade ao C (F1, INBOX-31): no compacto, a busca abre pela lupa da barra do topo.
+      await page.getByRole('button', { name: 'Search requests' }).click();
+    }
     await campoDeBusca(page).fill('nada-casa-com-isto');
 
     await expect(page.getByText('No requests match the filters.')).toBeVisible();
@@ -215,7 +220,7 @@ test.describe('Dado o Settings completo', () => {
     const tokenId = await tokens.create();
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await (await acaoDoShell(page, 'Settings')).click();
     const densidade = page.getByRole('radiogroup', { name: 'Density' });
     await expect(densidade.getByRole('radio', { name: 'Comfortable' })).toBeChecked();
     await expect(page.locator('html')).not.toHaveClass(/\bcompact\b/);
@@ -235,7 +240,7 @@ test.describe('Dado o Settings completo', () => {
     const tokenId = await tokens.create();
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await (await acaoDoShell(page, 'Settings')).click();
 
     await page.getByRole('switch', { name: 'Keyboard shortcuts' }).uncheck();
     await page.reload();
@@ -243,7 +248,7 @@ test.describe('Dado o Settings completo', () => {
     await page.keyboard.press('r');
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}$`));
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await (await acaoDoShell(page, 'Settings')).click();
     await expect(page.getByRole('switch', { name: 'Keyboard shortcuts' })).not.toBeChecked();
   });
 });
