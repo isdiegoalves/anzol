@@ -17,8 +17,8 @@ private const val SCAN_BATCH = 100L
 
 /**
  * Varre todas as mensagens retidas da URL, em trechos do índice na ordem pedida, e guarda só as da
- * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, texto e
- * `match`, em E).
+ * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, motivo da
+ * assinatura, caminho do schema, texto e `match`, em E).
  */
 @Component
 class RequestSearch(
@@ -37,6 +37,8 @@ class RequestSearch(
                 batches(token, search.sorting)
                     .flatMap { it.messages }
                     .filter { message -> search.outcome?.matches(message) != false }
+                    .filter { message -> search.signatureReason?.let(message::hasSignatureReason) != false }
+                    .filter { message -> search.schemaPath?.let(message::hasSchemaPath) != false }
                     .filter { message -> message.contains(search.text) && conditions.none { it.failure(message.toMatchInput()) != null } }
                     .forEach { message ->
                         if (total in window) add(message)

@@ -31,6 +31,9 @@ private const val SCAN_BATCH = 100
 /** O parêntese final do motivo (`timestamp outside tolerance (412 s)`), que varia de mensagem para mensagem. */
 private val TRAILING_DETAIL = Regex("""\s*\([^()]*\)$""")
 
+/** O motivo da assinatura sem o detalhe entre parênteses do fim (`timestamp outside tolerance (412 s)`): o do `/stats` e o da busca. */
+fun String.withoutTrailingDetail(): String = replace(TRAILING_DETAIL, "")
+
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class RequestStats(
     val window: Int,
@@ -177,7 +180,7 @@ private fun List<StatsSample>.signatureStats(): SignatureStats {
     val states = groupingBy { it.signature?.state() }.eachCount()
     val reasons =
         mapNotNull { it.signature?.reason }
-            .map { it.replace(TRAILING_DETAIL, "") }
+            .map { it.withoutTrailingDetail() }
             .ranked()
             .map { (reason, count) -> ReasonCount(reason, count) }
     return SignatureStats(
