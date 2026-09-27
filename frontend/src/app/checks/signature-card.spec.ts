@@ -21,18 +21,19 @@ const save = () => screen.getByRole('button', { name: 'Save signature' });
 describe('Dado o cartão "Signature verification" de Checks', () => {
   afterEach(() => localStorage.clear());
 
-  it('deve oferecer os cinco provedores num radiogroup, sem nenhum marcado, Quando a URL não verifica', async () => {
+  it('deve oferecer None e os cinco provedores num radiogroup, com None marcado, Quando a URL não verifica', async () => {
     const { container } = await renderCard(SignatureCard, token());
 
     const group = screen.getByRole('radiogroup', { name: 'Signature provider' });
     const radios = within(group).getAllByRole('radio');
     expect(radios).toEqual(
-      ['Stripe', 'GitHub', 'Shopify', 'Slack', 'Generic'].map((name) =>
+      ['None', 'Stripe', 'GitHub', 'Shopify', 'Slack', 'Generic'].map((name) =>
         within(group).getByRole('radio', { name }),
       ),
     );
-    expect(within(group).queryAllByRole('radio', { checked: true })).toEqual([]);
-    expect(provider('Stripe').tabIndex).toBe(0);
+    expect(within(group).getAllByRole('radio', { checked: true })).toEqual([provider('None')]);
+    expect(provider('None').tabIndex).toBe(0);
+    expect(provider('Stripe').tabIndex).toBe(-1);
     expect(screen.getByRole('region', { name: 'Signature verification' })).toBeTruthy();
     expect(screen.queryByText(/^To save/)).toBeNull();
     await expectNoAxeViolations(container);
@@ -161,13 +162,15 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     expect(provider('Shopify').getAttribute('aria-checked')).toBe('true');
     expect(document.activeElement).toBe(provider('Shopify'));
     await userEvent.keyboard('{Home}');
-    expect(provider('Stripe').getAttribute('aria-checked')).toBe('true');
+    expect(provider('None').getAttribute('aria-checked')).toBe('true');
+    await userEvent.keyboard('{ArrowUp}');
+    expect(provider('Generic').getAttribute('aria-checked')).toBe('true');
   });
 
   it('deve mandar assinatura nula e manter o schema Quando "Turn off" é salvo', async () => {
     const { http } = await renderCard(SignatureCard, SALVA);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Turn off' }));
+    await userEvent.click(provider('None'));
     await userEvent.click(save());
 
     const put = await expectPut(http);

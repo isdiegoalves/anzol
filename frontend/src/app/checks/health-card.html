@@ -5,7 +5,7 @@
   <button mat-button type="button" [disabled]="loading()" (click)="refresh()" i18n>Refresh</button>
 </header>
 <div class="segmented">
-  <span class="segmented-label" id="health-window-label" i18n>Window</span>
+  <span class="segmented-label" id="health-window-label" i18n>Window (last requests)</span>
   <mat-button-toggle-group
     aria-labelledby="health-window-label"
     hideSingleSelectionIndicator
@@ -13,7 +13,7 @@
     (change)="chooseWindow($event.value)"
   >
     @for (size of windows; track size) {
-      <mat-button-toggle [value]="size">Last {{ size }}</mat-button-toggle>
+      <mat-button-toggle [value]="size">{{ size }}</mat-button-toggle>
     }
   </mat-button-toggle-group>
 </div>

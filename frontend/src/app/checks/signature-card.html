@@ -10,10 +10,6 @@
   @if (form.dirty) {
     <span class="state draft" i18n>Unsaved</span>
   }
-  <span class="spacer"></span>
-  @if (chosen !== 'none') {
-    <button mat-button type="button" (click)="turnOff()" i18n>Turn off</button>
-  }
 </header>
 
 <ol class="steps" aria-label="How signature verification works" i18n-aria-label>

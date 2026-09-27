@@ -77,17 +77,8 @@ textarea {
 }
 
 .generate-title {
+  margin: 0;
   font: var(--mat-sys-title-small);
-}
-
-select {
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1px solid var(--mat-sys-outline);
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-lowest);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
 }
 
 .generate button {

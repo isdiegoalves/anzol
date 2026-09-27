@@ -60,11 +60,11 @@ describe('Dado o cartão "Health" de Checks', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve pedir de novo com a janela escolhida Quando "Last 50" é clicado', async () => {
+  it('deve pedir de novo com a janela escolhida Quando "50" é clicado', async () => {
     const { http } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
 
-    await userEvent.click(screen.getByRole('radio', { name: 'Last 50' }));
+    await userEvent.click(screen.getByRole('radio', { name: '50' }));
 
     http.expectOne(statsUrl(50)).flush(stats({ window: 50 }));
   });

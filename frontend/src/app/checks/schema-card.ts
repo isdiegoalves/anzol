@@ -1,6 +1,9 @@
 import { Component, ElementRef, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatOption, MatSelect } from '@angular/material/select';
+import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { JsonSchema, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
@@ -26,7 +29,7 @@ import {
  */
 @Component({
   selector: 'app-schema-card',
-  imports: [ReactiveFormsModule, MatButton, SaveBar],
+  imports: [ReactiveFormsModule, MatButton, MatFormField, MatLabel, MatOption, MatSelect, SaveBar],
   templateUrl: './schema-card.html',
   styleUrls: ['./card.scss', './schema-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'schema-title' },
@@ -118,7 +121,7 @@ export class SchemaCard {
   }
 
   protected label(request: WebhookRequest): string {
-    return `${request.method} ${request.uuid.slice(0, 8)} · ${request.created_at}`;
+    return `#${request.uuid.slice(0, 5)} ${request.method} · ${fromNow(request.created_at)}`;
   }
 
   protected async saveSchema(): Promise<void> {

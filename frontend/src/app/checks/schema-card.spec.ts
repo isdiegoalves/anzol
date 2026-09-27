@@ -135,9 +135,12 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
       );
 
     const source = await screen.findByRole('combobox', { name: 'Generate from a message' });
-    expect(Array.from((source as HTMLSelectElement).options).map((o) => o.value)).toEqual([
-      webhookRequest(2).uuid,
-    ]);
+    expect(source.textContent).toContain(`#${webhookRequest(2).uuid.slice(0, 5)}`);
+    await userEvent.click(source);
+    expect(
+      (await screen.findAllByRole('option')).map((o) => o.textContent?.trim().slice(0, 6)),
+    ).toEqual([`#${webhookRequest(2).uuid.slice(0, 5)}`]);
+    await userEvent.keyboard('{Escape}');
     await userEvent.click(screen.getByRole('button', { name: 'Generate schema' }));
 
     expect(JSON.parse(field().value)).toMatchObject({ properties: { ok: { type: 'boolean' } } });

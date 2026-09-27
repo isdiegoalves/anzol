@@ -53,14 +53,17 @@
 
   <div class="side">
     <div class="generate">
-      <label for="schema-source" class="generate-title" i18n>Generate from a message</label>
+      <h3 class="generate-title" i18n>Generate from a message</h3>
       @if (recent(); as requests) {
         @if (requests.length > 0) {
-          <select id="schema-source" formControlName="source" aria-describedby="schema-source-help">
-            @for (request of requests; track request.uuid) {
-              <option [value]="request.uuid">{{ label(request) }}</option>
-            }
-          </select>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label i18n>Generate from a message</mat-label>
+            <mat-select formControlName="source" aria-describedby="schema-source-help">
+              @for (request of requests; track request.uuid) {
+                <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
           <button mat-stroked-button type="button" (click)="generate()" i18n>
             Generate schema
           </button>

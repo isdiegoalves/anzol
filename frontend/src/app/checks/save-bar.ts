@@ -22,9 +22,7 @@ export interface SaveNotice {
     @let result = notice();
     <div class="notes">
       <p class="note" role="status" [id]="alerting ? null : pendingId">
-        @if (!alerting) {
-          {{ summary() || (result && !result.error ? result.text : '') }}
-        }
+        {{ alerting ? '' : summary() || (result && !result.error ? result.text : '') }}
       </p>
       @if (alerting || result?.error) {
         <p class="note error" role="alert" [id]="alerting ? pendingId : null">

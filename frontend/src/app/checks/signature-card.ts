@@ -137,10 +137,23 @@ export class SignatureCard {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  protected readonly providers = PROVIDER_GUIDE.map((row) => ({
-    ...row,
-    label: SIGNATURE_PROVIDER_LABELS[row.provider],
-  }));
+  /** As linhas do seletor: "None" (desliga) e os cinco provedores. */
+  protected readonly providers: readonly {
+    provider: ProviderOption;
+    label: string;
+    arrives: string;
+    signed: string;
+    secret: string;
+  }[] = [
+    {
+      provider: 'none',
+      label: 'None',
+      arrives: '—',
+      signed: 'Requests are not checked',
+      secret: '—',
+    },
+    ...PROVIDER_GUIDE.map((row) => ({ ...row, label: SIGNATURE_PROVIDER_LABELS[row.provider] })),
+  ];
   protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
   protected readonly algorithms = SIGNATURE_ALGORITHMS.map((value) => ({
     value,
@@ -177,9 +190,9 @@ export class SignatureCard {
 
   /** Setas, Home e End no `radiogroup` dos provedores: movem o foco e escolhem (roving tabindex). */
   protected moveProvider(event: KeyboardEvent): void {
-    const order = SIGNATURE_PROVIDERS;
+    const order: readonly ProviderOption[] = ['none', ...SIGNATURE_PROVIDERS];
     const last = order.length - 1;
-    const current = order.indexOf(this.provider() as SignatureProvider);
+    const current = order.indexOf(this.provider());
     const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
     const back = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
     let next: number;
@@ -199,10 +212,9 @@ export class SignatureCard {
       ?.focus();
   }
 
-  /** Radio que recebe o Tab: o escolhido, ou o primeiro quando nenhum está. */
-  protected tabbable(provider: SignatureProvider): boolean {
-    const chosen = this.provider();
-    return chosen === 'none' ? provider === SIGNATURE_PROVIDERS[0] : provider === chosen;
+  /** Radio que recebe o Tab: o escolhido (roving tabindex). */
+  protected tabbable(provider: ProviderOption): boolean {
+    return provider === this.provider();
   }
 
   /**
@@ -234,10 +246,6 @@ export class SignatureCard {
 
   protected pending(): string {
     return pendingSummary(this.fields());
-  }
-
-  protected turnOff(): void {
-    this.chooseProvider('none');
   }
 
   protected discard(): void {
