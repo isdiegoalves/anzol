@@ -675,7 +675,7 @@
             </mat-form-field>
           </div>
           @if (tab() === 'scenario') {
-            <app-scenario-states [tokenId]="tokenId() ?? ''" [rules]="draftRules()" />
+            <app-scenario-panel [tokenId]="tokenId() ?? ''" [rules]="draftRules()" />
           }
         </div>
 

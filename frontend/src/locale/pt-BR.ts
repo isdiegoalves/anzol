@@ -1534,8 +1534,6 @@ export const translations: Record<string, string> = {
   '3468362183638571454': 'Ler de novo os estados atuais',
   // Move every scenario back to Started
   '4116228028354126363': 'Voltar todos os cenários para Started',
-  //  Reset all
-  '4760846516919742648': ' Reiniciar todos ',
   // Scenario table
   '3720212523757594428': 'Tabela de cenários',
   // Current state
@@ -1550,8 +1548,6 @@ export const translations: Record<string, string> = {
   '8744168147430634241': ' Definir estado ',
   // No scenario state yet.
   '7287268288391150525': 'Nenhum estado de cenário ainda.',
-  // Scenario {$INTERPOLATION}
-  '3647917601104716260': 'Cenário {$INTERPOLATION}',
   // Scenario {$scenario} set to {$state}
   '2073198119882707396': 'Cenário {$scenario} definido como {$state}',
   // Scenarios reset to {$state}
@@ -2109,14 +2105,6 @@ export const translations: Record<string, string> = {
   '1428341111551699472': 'Cenários desta URL',
   //  Reset all to Started
   '3626015837035842959': ' Voltar tudo a Started ',
-  //  Set
-  '2671827835175438409': ' Definir ',
-  // No rule uses a scenario yet.
-  '6705416959153781388': 'Nenhuma regra usa cenário ainda.',
-  // Set state of {$scenario}
-  '8617520222597264220': 'Definir o estado de {$scenario}',
-  // Could not update the scenarios.
-  '8669551583001532577': 'Não foi possível atualizar os cenários.',
   // not validated
   '6369481998239960406': 'não validado',
 };

@@ -6,13 +6,17 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { screen } from '@testing-library/angular';
+import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID } from '../../testing/fixtures';
+import { rule } from '../../testing/rule-fixtures';
+import { Rule } from './rule';
 import { ScenarioPanel } from './scenario-panel';
 import { Scenario } from './scenario-store';
 
 const URL_CENARIOS = `/token/${TOKEN_ID}/scenarios`;
 
-describe('Dado o painel de cenários da aba de regras', () => {
+describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () => {
   let http: HttpTestingController;
   let fixture: ComponentFixture<ScenarioPanel>;
   let loader: HarnessLoader;
@@ -33,9 +37,10 @@ describe('Dado o painel de cenários da aba de regras', () => {
     loader.getHarness(MatButtonHarness.with({ text, ancestor }));
   const flushGet = (scenarios: Scenario[]) =>
     vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_CENARIOS }).flush(scenarios));
-  const open = async (scenarios: Scenario[]) => {
+  const open = async (scenarios: Scenario[], rules: Rule[] = []) => {
     fixture = TestBed.createComponent(ScenarioPanel);
     fixture.componentRef.setInput('tokenId', TOKEN_ID);
+    fixture.componentRef.setInput('rules', rules);
     loader = TestbedHarnessEnvironment.loader(fixture);
     fixture.detectChanges();
     await flushGet(scenarios);
@@ -58,10 +63,29 @@ describe('Dado o painel de cenários da aba de regras', () => {
   it('deve listar cada cenário com o estado atual Quando carrega', async () => {
     await open([retry('falhou-1'), login]);
 
+    expect(screen.getByRole('heading', { name: 'Scenarios on this URL' })).toBeTruthy();
     expect(rows()).toEqual([
       ['Retry', 'falhou-1'],
       ['Login', 'logado'],
     ]);
+  });
+
+  it('deve incluir o cenário que só o rascunho cita, em Started, com o diagrama das regras com o rascunho, e passar no axe', async () => {
+    const rascunho = [
+      rule(1, { scenario: { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' } }),
+      rule(2, { scenario: { name: 'Novo', newState: 'x' } }),
+    ];
+    await open([retry('falhou-1')], rascunho);
+
+    expect(rows()).toEqual([
+      ['Retry', 'falhou-1'],
+      ['Novo', 'Started'],
+    ]);
+    expect(
+      screen.getByRole('img', { name: /^Retry: Started, then falhou-1 \(current\)/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Novo: Started (current), then x' })).toBeTruthy();
+    await expectNoAxeViolations(element());
   });
 
   it('deve oferecer Started e os estados citados, e enviar o escolhido Quando "Set state" é clicado', async () => {
@@ -92,7 +116,7 @@ describe('Dado o painel de cenários da aba de regras', () => {
   it('deve apagar todos os estados e reler Quando "Reset all" é clicado', async () => {
     await open([retry('ok'), login]);
 
-    await (await button('Reset all')).click();
+    await (await button('Reset all to Started')).click();
 
     http.expectOne({ method: 'DELETE', url: URL_CENARIOS }).flush(null);
     await flushGet([retry(), { ...login, state: 'Started' }]);
@@ -116,7 +140,7 @@ describe('Dado o painel de cenários da aba de regras', () => {
   it('deve explicar o erro e manter a lista Quando o reset falha', async () => {
     await open([retry('ok')]);
 
-    await (await button('Reset all')).click();
+    await (await button('Reset all to Started')).click();
     http
       .expectOne({ method: 'DELETE', url: URL_CENARIOS })
       .flush({ success: false }, { status: 410, statusText: 'Gone' });

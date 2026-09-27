@@ -561,18 +561,12 @@ describe('Dado a página Rules', () => {
       expect(document.querySelector('app-scenario-panel')).toBeNull();
     });
 
-    it('deve mostrar o painel com o diagrama do cenário e relê-lo Quando uma regra salva usa cenário', async () => {
+    it('não deve mostrar os cenários abaixo da lista: eles ficam na aba Scenario do editor (RULES-12)', async () => {
       await open([rule(1), comCenario]);
       await flushScenarios();
 
-      const diagrama = await screen.findByRole('img', {
-        name: 'Retry: Started, then falhou-1 (current)',
-      });
-      expect(diagrama).toBeTruthy();
-      await userEvent.click(screen.getByRole('switch', { name: 'Enable rule Rule 1' }));
-      await expectGuardedPut([rule(1), comCenario], [{ ...rule(1), enabled: false }, comCenario]);
-
-      await flushScenarios();
+      expect(document.querySelector('app-scenario-panel')).toBeNull();
+      expect(screen.queryByRole('table', { name: 'Scenarios' })).toBeNull();
     });
 
     it('deve agrupar as regras do cenário sob um cabeçalho com o estado atual e dizer a transição (RULES-07)', async () => {

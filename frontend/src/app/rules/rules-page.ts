@@ -13,7 +13,6 @@ import {
   input,
   signal,
   untracked,
-  viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
@@ -41,7 +40,6 @@ import { RuleEditor, RuleEditorData } from './rule-editor';
 import { RuleItem } from './rule-item';
 import { ruleFromRequest } from './rule-from-request';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
-import { ScenarioPanel } from './scenario-panel';
 
 /** Regra na posição em que o servidor a avalia, com o índice dela na lista salva. */
 interface OrderedRule {
@@ -79,7 +77,6 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
-    ScenarioPanel,
     RuleEditor,
     RuleItem,
   ],
@@ -136,8 +133,6 @@ export class RulesPage {
   protected readonly hasScenarios = computed(() =>
     this.store.rules().some((rule) => !!rule.scenario?.name),
   );
-  /** Existe só quando alguma regra usa cenário; recém-criado, ele mesmo carrega os estados. */
-  private readonly scenarioPanel = viewChild(ScenarioPanel);
 
   /**
    * O editor da rota. Depende só da rota e da carga: a lista muda enquanto o editor está aberto
@@ -199,6 +194,13 @@ export class RulesPage {
       const tokenId = this.tokenId();
       untracked(() => void this.open(tokenId));
     });
+    // O chip "state: …" dos grupos de cenário (RULES-07) lê os estados da URL; o painel com "Set
+    // state" fica na aba Scenario do editor (RULES-12).
+    effect(() => {
+      if (this.loaded() && this.hasScenarios()) {
+        untracked(() => this.refreshScenarios());
+      }
+    });
     effect(() => {
       const [tokenId, ruleId, from] = [this.tokenId(), this.ruleId(), this.from()];
       untracked(() => void this.loadFrom(tokenId, ruleId === 'new' ? from : undefined));
@@ -217,6 +219,13 @@ export class RulesPage {
     const answered = hits.answered.find(({ id }) => id === item.rule.id)?.count ?? 0;
     const near = hits.near_miss.find(({ id }) => id === item.rule.id)?.count ?? 0;
     return hitsLine(answered, near, hits.evaluated, item.transition);
+  }
+
+  /** Relê os estados dos cenários (depois de gravar a lista, que pode mudar os cenários). */
+  private refreshScenarios(): void {
+    if (this.hasScenarios()) {
+      this.scenarios.load(this.tokenId()).catch(() => undefined);
+    }
   }
 
   /** Estado atual do cenário (`GET /scenarios`), para o chip do cabeçalho do grupo. */
@@ -257,7 +266,7 @@ export class RulesPage {
   protected closeEditor(saved: boolean): void {
     if (saved) {
       this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
-      void this.scenarioPanel()?.refresh();
+      this.refreshScenarios();
     }
     void this.router.navigate(['/', this.tokenId(), 'rules']);
   }
@@ -436,7 +445,7 @@ export class RulesPage {
     this.errors.set([]);
     try {
       await this.store.save(rules);
-      void this.scenarioPanel()?.refresh();
+      this.refreshScenarios();
       return true;
     } catch (error) {
       this.errors.set(validationMessages(error));
@@ -449,7 +458,7 @@ export class RulesPage {
     this.errors.set([]);
     try {
       await this.store.saveIfUnchanged(rules);
-      void this.scenarioPanel()?.refresh();
+      this.refreshScenarios();
       return true;
     } catch (error) {
       if (error instanceof RulesChangedError) {

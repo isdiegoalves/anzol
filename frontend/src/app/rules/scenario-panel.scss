@@ -10,7 +10,7 @@
   justify-content: space-between;
   gap: 8px 24px;
 
-  h2 {
+  h3 {
     margin: 0 0 4px;
     font: var(--mat-sys-title-medium);
   }
@@ -82,9 +82,8 @@ code {
   color: var(--mat-sys-on-surface-variant);
 }
 
-.diagram-title {
-  margin: 16px 0 8px;
-  font: var(--mat-sys-title-small);
+.diagram {
+  margin-top: 12px;
 }
 
 .table-scroll {

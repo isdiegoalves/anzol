@@ -1,7 +1,7 @@
 <section aria-labelledby="scenarios-title">
   <header class="heading">
     <div>
-      <h2 i18n id="scenarios-title">Scenarios</h2>
+      <h3 i18n id="scenarios-title">Scenarios on this URL</h3>
       <p i18n class="hint">
         A rule with a scenario only answers in its required state, then moves the scenario to its
         new state. Every scenario starts at "Started".
@@ -28,7 +28,7 @@
         [disabled]="busy()"
         (click)="resetAll()"
       >
-        Reset all
+        Reset all to Started
       </button>
     </div>
   </header>
@@ -53,7 +53,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (scenario of store.scenarios(); track scenario.name) {
+        @for (scenario of scenarios(); track scenario.name) {
           <tr [attr.data-scenario]="scenario.name">
             <td class="data name">{{ scenario.name }}</td>
             <td class="data">
@@ -93,12 +93,13 @@
     </table>
   </div>
 
-  @for (scenario of store.scenarios(); track scenario.name) {
-    <h3 class="diagram-title" i18n>Scenario {{ scenario.name }}</h3>
+  @for (scenario of scenarios(); track scenario.name) {
     <app-scenario-diagram
+      class="diagram"
       [name]="scenario.name"
-      [rules]="rules.rules()"
+      [rules]="rules()"
       [current]="scenario.state"
+      [showSteps]="false"
     />
   }
 </section>

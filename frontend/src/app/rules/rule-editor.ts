@@ -76,7 +76,7 @@ import { EditorTab, RuleTabs } from './rule-tabs';
 import { AgainstHistory } from './against-history';
 import { ConditionResult, ConditionResultChip } from './condition-result';
 import { ruleInWords } from './rule-words';
-import { ScenarioStates } from './scenario-states';
+import { ScenarioPanel } from './scenario-panel';
 
 export interface RuleEditorData {
   /** Posição da regra na lista salva; `null` para uma regra nova (entra no fim). */
@@ -179,7 +179,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     HistoryTestPanel,
     RuleSuggest,
     NgTemplateOutlet,
-    ScenarioStates,
+    ScenarioPanel,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',

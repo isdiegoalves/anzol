@@ -1,17 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { SCENARIO_STARTED } from './rule';
-import { RuleStore, validationMessages } from './rule-store';
+import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
+import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
 import { Scenario, ScenarioStore } from './scenario-store';
 
 /**
- * Painel "Scenarios" da página Rules: estado atual de cada cenário da URL, "Set state" para
- * forçar um estado, "Reset all" para voltar todos a `Started` e o diagrama de cada cenário. Os webhooks mudam os estados no
- * servidor sem aviso à tela: "Refresh" relê, e a aba relê depois de salvar regras.
+ * "Scenarios on this URL", na aba Scenario do editor (C, RULES-12/24): o estado atual de cada cenário
+ * da URL (e dos que só o rascunho cita, em `Started`), "Set state" para forçar um estado, "Reset all
+ * to Started" e o diagrama de cada cenário com as regras do rascunho. Os webhooks mudam os estados
+ * no servidor sem aviso à tela: "Refresh" relê.
  */
 @Component({
   selector: 'app-scenario-panel',
@@ -21,10 +22,20 @@ import { Scenario, ScenarioStore } from './scenario-store';
 })
 export class ScenarioPanel {
   protected readonly store = inject(ScenarioStore);
-  protected readonly rules = inject(RuleStore);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly tokenId = input.required<string>();
+  /** As regras da URL com o rascunho do editor no lugar dele. */
+  readonly rules = input<readonly Rule[]>([]);
+
+  /** Os cenários do servidor e, em `Started`, os que só o rascunho cita. */
+  protected readonly scenarios = computed<Scenario[]>(() => {
+    const saved = this.store.scenarios();
+    const drafted = scenarioNames(this.rules())
+      .filter((name) => !saved.some((scenario) => scenario.name === name))
+      .map((name) => ({ name, state: SCENARIO_STARTED, states: [] }));
+    return [...saved, ...drafted];
+  });
 
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly busy = signal(false);
@@ -38,7 +49,7 @@ export class ScenarioPanel {
     });
   }
 
-  /** Relê os estados (chamado também pela aba depois de salvar regras). */
+  /** Relê os estados. */
   async refresh(): Promise<void> {
     await this.run(() => this.store.load(this.tokenId()));
   }
