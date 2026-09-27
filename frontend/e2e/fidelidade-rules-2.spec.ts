@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
+import { filtro, itens } from './support/inbox';
 import { abrirRegra, abrirRegras, linhaDaRegra, metodo, novaRegra, parte } from './support/regras';
 
 // Item 14.1, fase 2, fatia F3-2 (fidelidade ao protótipo C): os itens "discutir" de Rules e Insights que o dono
@@ -254,10 +255,11 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
       .getByRole('region', { name: 'Signature', exact: true })
       .getByRole('link', { name: /signature mismatch/ })
       .click();
-    // Na janela larga a Inbox abre a primeira mensagem que casa, e o filtro segue na rota.
-    await expect(page).toHaveURL(
-      new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?signature=invalid$`),
-    );
+    // Na janela larga a Inbox abre sozinha uma mensagem, e a rota ganha o id dela: em vez da rota exata, espera o
+    // filtro aplicado (o chip pressionado e só a mensagem de assinatura inválida na lista).
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[^?]*)?\\?signature=invalid$`));
+    await expect(filtro(page, 'Signature invalid')).toHaveAttribute('aria-pressed', 'true');
+    await expect(itens(page)).toHaveCount(1);
   });
 
   test('deve dizer "the newest 500 of N kept" Quando a URL guarda mais que a janela', async ({
