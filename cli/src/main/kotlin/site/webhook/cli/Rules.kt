@@ -30,7 +30,7 @@ class Rules : CoreNoOpCliktCommand(name = "rules") {
 }
 
 class RulesPull : CoreCliktCommand(name = "pull") {
-    private val token by argument("token", help = "webhook.site token (uuid)").convert { TokenId(it) }
+    private val token by argument("token", help = "Anzol token (uuid)").convert { TokenId(it) }
     private val file by option("--file", help = "Writes the rules to this file instead of stdout")
     private val server by serverOption()
     private val readSecret by readSecretOption()
@@ -60,7 +60,7 @@ class RulesPull : CoreCliktCommand(name = "pull") {
 }
 
 class RulesPush : CoreCliktCommand(name = "push") {
-    private val token by argument("token", help = "webhook.site token (uuid)").convert { TokenId(it) }
+    private val token by argument("token", help = "Anzol token (uuid)").convert { TokenId(it) }
     private val file by argument("file", help = "JSON file with the list of rules, as pull writes it")
     private val server by serverOption()
     private val readSecret by readSecretOption()

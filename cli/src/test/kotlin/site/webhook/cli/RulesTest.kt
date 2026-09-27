@@ -20,8 +20,8 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import site.webhook.cli.support.CliProcess
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import java.nio.file.Path
 import java.util.UUID
 import kotlin.io.path.exists
@@ -56,9 +56,9 @@ private fun JsonArray.names(): List<String> =
             .jsonPrimitive.content
     }
 
-@DisplayName("webhook rules")
+@DisplayName("anzol rules")
 class RulesTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val cli = mutableListOf<CliProcess>()
 
     @AfterEach

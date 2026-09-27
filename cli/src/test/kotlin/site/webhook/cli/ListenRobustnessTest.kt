@@ -13,8 +13,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import site.webhook.cli.support.CliProcess
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import site.webhook.cli.support.Received
 import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private val ANY_FORWARD_LINE = Regex("""\d{2}:\d{2}:\d{2} \S+ \S+ -> .*""")
 
-@DisplayName("webhook listen: robustez")
+@DisplayName("anzol listen: robustez")
 class ListenRobustnessTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val apps = mutableListOf(FakeLocalApp())
     private val app get() = apps.first()
     private val cli = mutableListOf<CliProcess>()

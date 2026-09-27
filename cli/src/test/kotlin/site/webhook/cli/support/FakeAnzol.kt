@@ -36,13 +36,13 @@ private const val PROTECTED = """{"error":"This URL is protected","protected":tr
 private const val UNAUTHORIZED = 401
 
 /**
- * Servidor webhook.site falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
+ * Servidor Anzol falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
  * `POST /token`, `GET /token/{id}` (410 se não existe), o SSE `request.created`, a listagem
  * paginada (e a incremental, `after=<seq>`), `GET /token/{id}/request/{rid}`, `GET`/`PUT /token/{id}/rules` e o
  * `POST /token/{id}/requests/wait` (grava o corpo e responde [waitReply], sem avaliar nada).
  * Cada mensagem gravada ganha `seq` crescente, como o índice do servidor real.
  */
-class FakeWebhookSite : AutoCloseable {
+class FakeAnzol : AutoCloseable {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
     private val messages = ConcurrentHashMap<String, MutableList<JsonObject>>()
     private val subscribers = CopyOnWriteArrayList<Subscriber>()

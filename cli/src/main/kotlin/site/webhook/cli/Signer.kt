@@ -37,7 +37,7 @@ enum class SignatureEncoding(
 
 /**
  * Os cinco provedores da verificação do servidor (`backend/.../signature/SignatureVerification.kt`),
- * com as mesmas fórmulas: o que sai daqui o webhook.site verifica como válido.
+ * com as mesmas fórmulas: o que sai daqui o Anzol verifica como válido.
  */
 sealed interface Provider {
     data object Stripe : Provider

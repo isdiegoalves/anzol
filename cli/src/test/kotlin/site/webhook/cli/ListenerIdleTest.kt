@@ -5,8 +5,8 @@ import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import site.webhook.cli.support.message
 import java.net.http.HttpClient
 import java.time.Duration
@@ -15,7 +15,7 @@ import java.util.concurrent.CountDownLatch
 
 @DisplayName("Listener: conexão muda")
 class ListenerIdleTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val app = FakeLocalApp()
     private val threads = mutableListOf<Thread>()
 

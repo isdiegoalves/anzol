@@ -91,7 +91,7 @@ sealed interface WaitAnswer {
 }
 
 /**
- * A API do webhook.site que o CLI usa; nada além dela. Com [readSecret], toda chamada leva o [SECRET_HEADER]: numa URL
+ * A API do Anzol que o CLI usa; nada além dela. Com [readSecret], toda chamada leva o [SECRET_HEADER]: numa URL
  * protegida é ele que dá acesso (numa aberta, o servidor o ignora). O segredo só sai neste cabeçalho.
  */
 @Suppress("TooManyFunctions") // uma função por rota da API que o CLI chama, mais o envio e a leitura de status

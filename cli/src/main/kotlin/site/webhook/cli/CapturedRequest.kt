@@ -24,7 +24,7 @@ value class RequestId(
 /**
  * Mensagem gravada, como a API devolve (`GET /token/{id}/request/{rid}` e a listagem) e o evento
  * `request.created` traz. Só os campos que o reenvio usa; `url` é a URL inteira recebida pelo
- * webhook.site, com o caminho cru e a query normalizada; `seq` é a posição dela no índice do
+ * Anzol, com o caminho cru e a query normalizada; `seq` é a posição dela no índice do
  * servidor, estritamente crescente por URL.
  */
 @Serializable

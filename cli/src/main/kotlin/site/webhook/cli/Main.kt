@@ -28,14 +28,14 @@ private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
 /** O `main` do Clikt, com uma troca: uso inválido do `wait-for` sai com 2, porque o 1 dele é "não casou". */
 fun main(args: Array<String>) {
-    val webhook = Webhook().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
+    val anzol = Anzol().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
     try {
-        webhook.parse(args)
+        anzol.parse(args)
     } catch (e: UsageError) {
-        webhook.echoFormattedHelp(e)
+        anzol.echoFormattedHelp(e)
         exitProcess(if (e.context?.command is WaitFor) WAIT_FOR_ERROR else e.statusCode)
     } catch (e: CliktError) {
-        webhook.echoFormattedHelp(e)
+        anzol.echoFormattedHelp(e)
         exitProcess(e.statusCode)
     }
 }
@@ -44,7 +44,7 @@ fun main(args: Array<String>) {
  * O `clikt-core` (sem o Mordant, que no JDK 25 avisa sobre acesso nativo no stderr) não lê
  * variável de ambiente, não separa stderr e não encerra o processo: os três ficam ligados aqui.
  */
-class Webhook : CoreNoOpCliktCommand(name = "webhook") {
+class Anzol : CoreNoOpCliktCommand(name = "anzol") {
     init {
         context {
             readEnvvar = System::getenv
@@ -58,7 +58,7 @@ class Webhook : CoreNoOpCliktCommand(name = "webhook") {
     }
 
     override fun help(context: Context) =
-        "Delivers the webhooks captured by webhook.site to an app running locally, or sends webhooks to it as a provider would."
+        "Delivers the webhooks captured by Anzol to an app running locally, or sends webhooks to it as a provider would."
 }
 
 /** HTTP/1.1 sempre: o padrão do `java.net.http` tentaria upgrade para h2c no app local. */
@@ -71,7 +71,7 @@ fun httpClient(connectTimeout: Duration = CONNECT_TIMEOUT): HttpClient =
 
 /** `--server`, senão `WEBHOOK_SERVER`, senão o app local da porta 8084. */
 fun BaseCliktCommand<*>.serverOption() =
-    option("--server", envvar = "WEBHOOK_SERVER", help = "webhook.site server (default $DEFAULT_SERVER)").default(DEFAULT_SERVER)
+    option("--server", envvar = "WEBHOOK_SERVER", help = "Anzol server (default $DEFAULT_SERVER)").default(DEFAULT_SERVER)
 
 /** Caracteres que o `HttpClient` do JDK manda num cabeçalho: os demais ele troca por `?` sem avisar. */
 private val HEADER_TEXT = ' '..'~'
@@ -130,7 +130,7 @@ fun <T> BaseCliktCommand<*>.reaching(
 
 class Listen : CoreCliktCommand(name = "listen") {
     private val forward by option("--forward", help = "Local URL that receives each request, e.g. http://localhost:3000").required()
-    private val token by option("--token", help = "Existing webhook.site token (uuid); without it a new URL is created")
+    private val token by option("--token", help = "Existing Anzol token (uuid); without it a new URL is created")
         .convert { TokenId(it) }
     private val server by serverOption()
     private val readSecret by readSecretOption()
@@ -152,7 +152,7 @@ class Listen : CoreCliktCommand(name = "listen") {
 }
 
 class Replay : CoreCliktCommand(name = "replay") {
-    private val token by argument("token", help = "webhook.site token (uuid)").convert { TokenId(it) }
+    private val token by argument("token", help = "Anzol token (uuid)").convert { TokenId(it) }
     private val requestId by argument("requestId", help = "Stored request (uuid)").convert { RequestId(it) }
     private val to by option("--to", help = "Local URL that receives the request, e.g. http://localhost:3000").required()
     private val server by serverOption()

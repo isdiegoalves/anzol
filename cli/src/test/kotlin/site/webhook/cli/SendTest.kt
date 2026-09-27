@@ -21,7 +21,7 @@ import kotlin.io.path.writeText
 private const val SECRET = "s3gr3do-que-nao-aparece"
 private val ATTEMPT_LINE = Regex("""\d{2}:\d{2}:\d{2} #\d+ attempt \d+/\d+ -> .*""")
 
-@DisplayName("webhook send")
+@DisplayName("anzol send")
 class SendTest {
     private val receivers = mutableListOf<FakeReceiver>()
     private val cli = mutableListOf<CliProcess>()

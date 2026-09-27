@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    applicationName = "webhook"
+    applicationName = "anzol"
     mainClass = "site.webhook.cli.MainKt"
 }
 

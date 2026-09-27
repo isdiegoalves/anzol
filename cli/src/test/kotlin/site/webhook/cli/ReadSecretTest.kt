@@ -8,8 +8,8 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import site.webhook.cli.support.CliProcess
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
 import site.webhook.cli.support.uuid
@@ -22,7 +22,7 @@ private const val PROTECTED = "This URL is protected: pass --read-secret or set 
 /** `--read-secret` / `WEBHOOK_READ_SECRET` (item 12): o cabeçalho `X-Webhook-Secret` nas chamadas da URL, nunca na saída. */
 @DisplayName("Segredo de leitura no CLI")
 class ReadSecretTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val app = FakeLocalApp()
     private val cli = mutableListOf<CliProcess>()
 

@@ -9,17 +9,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import site.webhook.cli.support.CliProcess
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import site.webhook.cli.support.Received
 import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
 import java.time.Duration
 import java.util.UUID
 
-@DisplayName("webhook listen")
+@DisplayName("anzol listen")
 class ListenTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val app = FakeLocalApp()
     private val cli = mutableListOf<CliProcess>()
 
@@ -85,7 +85,7 @@ class ListenTest {
                     "x-repetido" to listOf("um", "dois"),
                     "user-agent" to listOf("Stripe/1.0"),
                     "content-type" to listOf(""),
-                    "host" to listOf("webhook.site"),
+                    "host" to listOf("localhost:8084"),
                     "content-length" to listOf("999"),
                     "connection" to listOf("close"),
                     "keep-alive" to listOf("timeout=5"),

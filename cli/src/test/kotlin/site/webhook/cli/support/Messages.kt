@@ -25,7 +25,7 @@ fun forwardedLine(
 
 /**
  * Mensagem gravada no formato de `tests/contract/` (`GET /token/{id}/request/{rid}`), recebida
- * pelo webhook.site em `http://localhost:8084/{token}{target}`; [target] é o caminho após o
+ * pelo Anzol em `http://localhost:8084/{token}{target}`; [target] é o caminho após o
  * token com a query (`/a/b?x=1`).
  */
 fun message(

@@ -5,16 +5,16 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import site.webhook.cli.support.CliProcess
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.FakeLocalApp
-import site.webhook.cli.support.FakeWebhookSite
 import site.webhook.cli.support.forwardedLine
 import site.webhook.cli.support.message
 import site.webhook.cli.support.uuid
 import java.util.UUID
 
-@DisplayName("webhook replay")
+@DisplayName("anzol replay")
 class ReplayTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val app = FakeLocalApp()
     private val cli = mutableListOf<CliProcess>()
 

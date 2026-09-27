@@ -12,7 +12,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import site.webhook.cli.support.CliProcess
-import site.webhook.cli.support.FakeWebhookSite
+import site.webhook.cli.support.FakeAnzol
 import site.webhook.cli.support.message
 import java.net.ServerSocket
 import java.nio.file.Path
@@ -21,9 +21,9 @@ import kotlin.io.path.writeText
 
 private const val MESSAGE = """{"uuid":"11111111-1111-4111-8111-111111111111","seq":7,"method":"POST","url":"http://x/t/p","content":"ç"}"""
 
-@DisplayName("webhook wait-for")
+@DisplayName("anzol wait-for")
 class WaitForTest {
-    private val site = FakeWebhookSite()
+    private val site = FakeAnzol()
     private val token = site.createToken()
     private val cli = mutableListOf<CliProcess>()
 
@@ -218,6 +218,15 @@ class WaitForTest {
         @DisplayName("Dado nenhum --token, quando roda, então sai com 2")
         fun waitFor_semToken_deveSair2() {
             assertThat(waitFor("--server", site.base).awaitExit()).isEqualTo(2)
+        }
+
+        @Test
+        @DisplayName("Dado um uso inválido, quando o CLI mostra o uso, então o comando se chama anzol")
+        fun waitFor_usoInvalido_deveMostrarOComandoAnzol() {
+            val process = waitFor("--server", site.base)
+
+            assertThat(process.awaitExit()).isEqualTo(2)
+            assertThat(process.stderr).anySatisfy { assertThat(it).startsWith("Usage: anzol wait-for") }
         }
 
         @Test

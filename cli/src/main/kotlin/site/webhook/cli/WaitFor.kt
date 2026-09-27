@@ -95,7 +95,7 @@ private fun JsonElement.isStrict(): Boolean =
     }
 
 class WaitFor : CoreCliktCommand(name = "wait-for") {
-    private val token by option("--token", help = "webhook.site token (uuid)").convert { TokenId(it) }.required()
+    private val token by option("--token", help = "Anzol token (uuid)").convert { TokenId(it) }.required()
     private val server by serverOption()
     private val readSecret by readSecretOption()
     private val match by option("--match", help = "JSON object in the format of a response rule's match")
