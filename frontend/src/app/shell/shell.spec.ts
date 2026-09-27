@@ -1,3 +1,5 @@
+import { RulesSeen } from '../rules/rules-seen';
+import { HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
@@ -6,7 +8,7 @@ import { Router, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import {
   checksMatcher,
   compareMatcher,
@@ -141,6 +143,46 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
 
     expect(container.querySelector('.destination .badge')?.textContent?.trim()).toBe('3');
     await expectNoAxeViolations(container);
+  });
+
+  // WM-01: ponto em Rules quando chegaram mensagens sem regra desde a última visita a Regras.
+  it('deve marcar Rules com "{n} requests without a rule" desde a última visita', async () => {
+    const { container } = await renderAt(`/${TOKEN_ID}`);
+    const seen = TestBed.inject(RulesSeen);
+    const store = TestBed.inject(RequestStore);
+    seen.markSeen(TOKEN_ID);
+    const depois = '2999-01-01 00:00:00';
+    const antes = '2000-01-01 00:00:00';
+    const load = store.load(TOKEN_ID);
+    TestBed.inject(HttpTestingController)
+      .match((req) => req.url === `/token/${TOKEN_ID}/requests`)
+      .forEach((req) =>
+        req.flush(
+          requestPage([
+            webhookRequest(1, {
+              created_at: depois,
+              rule: null,
+              near_miss: { id: 'r', name: 'P', failed: ['x'] },
+            }),
+            webhookRequest(2, {
+              created_at: antes,
+              rule: null,
+              near_miss: { id: 'r', name: 'P', failed: ['x'] },
+            }),
+            webhookRequest(3, { created_at: depois, rule: { id: 'r', name: 'P' } }),
+          ]),
+        ),
+      );
+    await load;
+
+    await screen.findByRole('link', { name: 'Rules · 1 request without a rule' });
+    expect(container.querySelector('.destination .dot')).not.toBeNull();
+
+    // A visita seguinte a Regras (depois da mensagem de 2999) apaga o ponto.
+    vi.useFakeTimers({ now: new Date('3000-01-01T00:00:00Z'), toFake: ['Date'] });
+    seen.markSeen(TOKEN_ID);
+    vi.useRealTimers();
+    await screen.findByRole('link', { name: 'Rules' });
   });
 
   it('deve marcar Checks com "needs attention" Quando uma mensagem da lista tem assinatura ou schema inválido (CHECKS-23)', async () => {

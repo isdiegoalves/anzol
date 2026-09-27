@@ -27,6 +27,57 @@
         {{ chip.label }}
       </button>
     }
+    <!-- C2: pelo desfecho (uma regra escolhida no menu, ou a resposta padrão), um por vez. -->
+    @if (answeredBy(); as label) {
+      <button type="button" class="chip" aria-pressed="true" (click)="setOutcome(null)">
+        {{ label }} <span aria-hidden="true">✕</span>
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="chip"
+        aria-pressed="false"
+        [matMenuTriggerFor]="answeredMenu"
+        (menuOpened)="loadRules()"
+        i18n="filter chip|Messages a rule answered; opens the list of rules"
+      >
+        Answered by rule…
+      </button>
+    }
+    @if (nearMissOf(); as label) {
+      <button type="button" class="chip" aria-pressed="true" (click)="setOutcome(null)">
+        {{ label }} <span aria-hidden="true">✕</span>
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="chip"
+        aria-pressed="false"
+        [matMenuTriggerFor]="nearMenu"
+        (menuOpened)="loadRules()"
+        i18n="filter chip|Messages that almost matched a rule; opens the list of rules"
+      >
+        Near miss of…
+      </button>
+    }
+    <button
+      type="button"
+      class="chip"
+      [attr.aria-pressed]="outcome()?.type === 'default'"
+      (click)="toggleDefault()"
+      i18n="filter chip|Messages the URL's default response answered"
+    >
+      Default response
+    </button>
+    <mat-menu #answeredMenu="matMenu" aria-label="Rules" i18n-aria-label>
+      <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'rule' }" />
+    </mat-menu>
+    <mat-menu #nearMenu="matMenu" aria-label="Rules" i18n-aria-label>
+      <ng-container
+        [ngTemplateOutlet]="ruleItems"
+        [ngTemplateOutletContext]="{ type: 'near_miss' }"
+      />
+    </mat-menu>
     <button
       i18n
       type="button"
@@ -72,3 +123,15 @@
     <p class="count" role="status">{{ statusLine() }}</p>
   }
 </div>
+
+<ng-template #ruleItems let-type="type">
+  @if (rules(); as list) {
+    @for (rule of list; track rule.id ?? $index) {
+      <button mat-menu-item type="button" (click)="chooseRule(type, rule)">{{ rule.name }}</button>
+    } @empty {
+      <button mat-menu-item type="button" disabled i18n>This URL has no rules.</button>
+    }
+  } @else {
+    <button mat-menu-item type="button" disabled i18n>Loading the rules…</button>
+  }
+</ng-template>

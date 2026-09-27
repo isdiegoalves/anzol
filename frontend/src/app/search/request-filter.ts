@@ -20,7 +20,13 @@ export interface RequestFilter {
   methods: readonly string[];
   signature: SignatureFilter;
   schema: SchemaFilter;
+  /** Desfecho da mensagem (C2): respondida por uma regra, quase acerto dela, ou resposta padrão. */
+  outcome?: OutcomeFilter | null;
 }
+
+/** O `outcome` da busca, com o nome da regra para o chip ("Answered by: Pix"). */
+export type OutcomeFilter =
+  { type: 'rule' | 'near_miss'; rule: string; name: string } | { type: 'default' };
 
 export const NO_FILTER: RequestFilter = { text: '', methods: [], signature: 'any', schema: 'any' };
 
@@ -30,6 +36,9 @@ export interface FilterParams {
   schema?: string | null;
   methods?: string | null;
   q?: string | null;
+  outcome?: string | null;
+  rule?: string | null;
+  ruleName?: string | null;
 }
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
@@ -44,7 +53,29 @@ export function filterFromParams(params: FilterParams): RequestFilter {
   const schema = SCHEMA_VALUES.find((value) => value === params.schema) ?? 'any';
   const wanted = (params.methods ?? '').split(',').map((method) => method.trim().toUpperCase());
   const methods = FILTER_METHODS.filter((method) => wanted.includes(method));
-  return { text: (params.q ?? '').slice(0, 200), methods, signature, schema };
+  const outcome = outcomeFromParams(params);
+  return {
+    text: (params.q ?? '').slice(0, 200),
+    methods,
+    signature,
+    schema,
+    ...(outcome && { outcome }),
+  };
+}
+
+const UUID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
+
+function outcomeFromParams(params: FilterParams): OutcomeFilter | null {
+  if (params.outcome === 'default') {
+    return { type: 'default' };
+  }
+  if (
+    (params.outcome === 'rule' || params.outcome === 'near_miss') &&
+    UUID.test(params.rule ?? '')
+  ) {
+    return { type: params.outcome, rule: params.rule ?? '', name: params.ruleName ?? '' };
+  }
+  return null;
 }
 
 /** A query da rota para o filtro: só o que está ligado (`null` tira o parâmetro). */
@@ -54,6 +85,9 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     schema: filter.schema === 'any' ? null : filter.schema,
     methods: filter.methods.length > 0 ? filter.methods.join(',') : null,
     q: filter.text.trim() ? filter.text : null,
+    outcome: filter.outcome?.type ?? null,
+    rule: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.rule : null,
+    ruleName: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.name : null,
   };
 }
 
@@ -64,6 +98,7 @@ export const SEARCH_PER_PAGE = 50;
 export interface SearchBody {
   text?: string;
   match: RuleMatch;
+  outcome?: { type: OutcomeFilter['type']; rule?: string };
   sorting: RequestSorting;
   page: number;
   per_page: number;
@@ -74,7 +109,8 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.text.trim() !== '' ||
     filter.methods.length > 0 ||
     filter.signature !== 'any' ||
-    filter.schema !== 'any'
+    filter.schema !== 'any' ||
+    !!filter.outcome
   );
 }
 
@@ -84,8 +120,17 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     a.signature === b.signature &&
     a.schema === b.schema &&
     a.methods.length === b.methods.length &&
-    a.methods.every((method) => b.methods.includes(method))
+    a.methods.every((method) => b.methods.includes(method)) &&
+    sameOutcome(a.outcome ?? null, b.outcome ?? null)
   );
+}
+
+function sameOutcome(a: OutcomeFilter | null, b: OutcomeFilter | null): boolean {
+  if (!a || !b) {
+    return a === b;
+  }
+  const rule = (outcome: OutcomeFilter) => (outcome.type === 'default' ? null : outcome.rule);
+  return a.type === b.type && rule(a) === rule(b);
 }
 
 /**
@@ -108,9 +153,16 @@ export function searchBody(
   if (filter.schema !== 'any') {
     match.schema = filter.schema;
   }
+  const outcome = filter.outcome;
   return {
     ...(text && { text }),
     match,
+    ...(outcome && {
+      outcome:
+        outcome.type === 'default'
+          ? { type: outcome.type }
+          : { type: outcome.type, rule: outcome.rule },
+    }),
     sorting,
     page,
     per_page: SEARCH_PER_PAGE,

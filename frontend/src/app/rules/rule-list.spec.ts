@@ -1,6 +1,6 @@
 import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
-import { defaultResponseDetail, hitsLine, listRows } from './rule-list';
+import { defaultResponseDetail, hitsParts, hitsText, listRows } from './rule-list';
 
 const cenario = (n: number, name: string): Rule =>
   rule(n, { scenario: { name, requiredState: 'Started' } });
@@ -34,18 +34,29 @@ describe('Dado as regras na ordem de avaliação (listRows, RULES-07)', () => {
   });
 });
 
-describe('Dado os hits de uma regra (hitsLine, RULES-01)', () => {
+describe('Dado os hits de uma regra (hitsParts, RULES-01)', () => {
   it.each([
     [41, 0, 200, null, 'Answered 41 of the last 200'],
     [5, 1, 200, null, 'Answered 5 of the last 200 · 1 near miss'],
     [0, 3, 1, null, 'Answered 0 of the last 1 · 3 near misses'],
     [2, 0, 9, 'Started → falhou 1', 'Started → falhou 1 · Answered 2 of the last 9'],
+    [0, 0, 0, null, 'No requests yet'],
+    [0, 0, 0, 'Started → x', 'Started → x · No requests yet'],
   ])(
     'deve dizer %i respondidas e %i near misses na janela de %i',
     (answered, near, window, transition, line) => {
-      expect(hitsLine(answered, near, window, transition)).toBe(line);
+      expect(hitsText(hitsParts(answered, near, window, transition))).toBe(line);
     },
   );
+
+  it('deve separar as contagens que viram links (C2)', () => {
+    expect(hitsParts(1, 2, 3, null)).toEqual({
+      prefix: null,
+      answered: 'Answered 1 of the last 3',
+      near: '2 near misses',
+    });
+    expect(hitsParts(0, 0, 0, null)).toEqual({ text: 'No requests yet' });
+  });
 });
 
 describe('Dado a resposta padrão da URL (defaultResponseDetail, RULES-09)', () => {

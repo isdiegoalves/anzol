@@ -56,8 +56,61 @@ describe('Dado a busca e os filtros em chips da lista', () => {
       within(container)
         .getAllByRole('button', { pressed: false })
         .map((button) => button.textContent?.trim()),
-    ).toEqual(['POST', 'GET', 'PUT', 'Signature invalid', 'Signature absent', 'Schema invalid']);
+    ).toEqual([
+      'POST',
+      'GET',
+      'PUT',
+      'Signature invalid',
+      'Signature absent',
+      'Schema invalid',
+      'Answered by rule…',
+      'Near miss of…',
+      'Default response',
+    ]);
     await expectNoAxeViolations(container);
+  });
+
+  // C2 (WM-27): o desfecho vai na busca, fora do `match`; o chip ativo diz a regra.
+  it('deve filtrar pelas respondidas por uma regra escolhida no menu, e tirar ao clicar de novo', async () => {
+    await userEvent.click(chip('Answered by rule…'));
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush([
+      { id: '11111111-2222-4333-8444-555555555555', name: 'Pix', priority: 1 },
+      { id: '22222222-2222-4333-8444-555555555555', name: 'Tudo', priority: 9 },
+    ]);
+    const menu = await screen.findByRole('menu', { name: 'Rules' });
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent?.trim()),
+    ).toEqual(['Pix', 'Tudo']);
+
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Pix' }));
+    const [search] = searches();
+    expect(search.request.body).toMatchObject({
+      match: {},
+      outcome: { type: 'rule', rule: '11111111-2222-4333-8444-555555555555' },
+    });
+    search.flush(requestPage([webhookRequest(1)]));
+
+    const ativo = await screen.findByRole('button', { name: /^Answered by: Pix/ });
+    expect(ativo.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(ativo);
+    expect(store.filter().outcome ?? null).toBeNull();
+    // Sem filtro, a lista volta à página 1 sem busca.
+    await vi.waitFor(() =>
+      http
+        .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+        .flush(requestPage([webhookRequest(1)])),
+    );
+  });
+
+  it('deve filtrar pelas da resposta padrão com o chip "Default response"', async () => {
+    await userEvent.click(chip('Default response'));
+
+    const [search] = searches();
+    expect(search.request.body).toMatchObject({ outcome: { type: 'default' } });
+    search.flush(requestPage([]));
+    expect(chip('Default response').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('deve mostrar os demais filtros em "More filters", sem perder nenhum (INBOX-09, trava 4)', async () => {

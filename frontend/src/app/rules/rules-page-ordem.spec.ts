@@ -1,3 +1,4 @@
+import { RequestStore } from '../requests/request-store';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -612,6 +613,64 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       await screen.findByRole('region', { name: 'Edit rule Rule 1' });
 
       expect(screen.queryByRole('button', { name: 'Back to request' })).toBeNull();
+    });
+  });
+
+  describe('Dado os acertos como links para a Entrada (C2, WM-27)', () => {
+    it('deve levar "Answered N of the last M" e "N near misses" à Entrada filtrada, fora do botão', async () => {
+      const { container } = await open([rule(1, { name: 'Pix' })], {
+        hits: stats(
+          {
+            answered: [{ id: 'r1', name: 'Pix', count: 1 }],
+            near_miss: [{ id: 'r1', name: 'Pix', count: 2 }],
+          },
+          3,
+        ),
+      });
+
+      const hits = row('r1').querySelector('.hits') as HTMLElement;
+      expect(hits.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        'Answered 1 of the last 3 · 2 near misses',
+      );
+      const respondidas = within(hits).getByRole('link', { name: 'Answered 1 of the last 3' });
+      expect(respondidas.getAttribute('href')).toBe(
+        `/${TOKEN_ID}?outcome=rule&rule=r1&ruleName=Pix`,
+      );
+      expect(within(hits).getByRole('link', { name: '2 near misses' }).getAttribute('href')).toBe(
+        `/${TOKEN_ID}?outcome=near_miss&rule=r1&ruleName=Pix`,
+      );
+      // O item continua um botão só; os links ficam fora dele.
+      expect(
+        within(row('r1').querySelector('td.item') as HTMLElement).getAllByRole('button'),
+      ).toHaveLength(1);
+      await expectNoAxeViolations(container);
+    });
+  });
+
+  describe('Dado mensagens sem regra desde a última visita (WM-01)', () => {
+    it('deve dizer quantas no topo, com o link para a Entrada, e marcar a visita', async () => {
+      localStorage.setItem(
+        'rulesSeenAt',
+        JSON.stringify({ [TOKEN_ID]: '2000-01-01T00:00:00.000Z' }),
+      );
+      await open([rule(1)], {
+        configure: () => {
+          const requests = TestBed.inject(RequestStore);
+          requests.tokenId.set(TOKEN_ID);
+          vi.spyOn(requests, 'requests').mockReturnValue([
+            webhookRequest(1, { rule: null, near_miss: { id: 'r1', name: 'P', failed: ['x'] } }),
+            webhookRequest(2, { rule: null, near_miss: { id: 'r1', name: 'P', failed: ['x'] } }),
+          ]);
+        },
+      });
+
+      const aviso = screen.getByRole('link', {
+        name: /^2 requests without a rule since .+ — see them$/,
+      });
+      expect(aviso.getAttribute('href')).toBe(`/${TOKEN_ID}?outcome=default`);
+      expect(JSON.parse(localStorage.getItem('rulesSeenAt') ?? '{}')[TOKEN_ID]).not.toBe(
+        '2000-01-01T00:00:00.000Z',
+      );
     });
   });
 

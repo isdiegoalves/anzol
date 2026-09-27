@@ -56,7 +56,9 @@ export interface RulePosition {
       <app-status-code class="status" [status]="status()" error="Fault" i18n-error />
     </span>
     <span class="line2 match" [id]="baseId() + '-match'">{{ detail() }}</span>
-    <span class="line3 hits" [class.warn]="warn()" [id]="baseId() + '-hits'">{{ hits() }}</span>
+    @if (hits() !== null) {
+      <span class="line3 hits" [class.warn]="warn()" [id]="baseId() + '-hits'">{{ hits() }}</span>
+    }
   `,
   styleUrl: './rule-item.scss',
 })

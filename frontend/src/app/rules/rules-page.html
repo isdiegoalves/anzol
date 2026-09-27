@@ -168,6 +168,14 @@
         <!-- prettier-ignore -->
         <p class="hint window" i18n>Hits over the last {hits.evaluated, plural, =1 {1 request kept} other {{{ hits.evaluated }} requests kept}}.</p>
       }
+      @if (unruled(); as notice) {
+        <!-- WM-01: o que chegou sem regra desde a última visita, com a Entrada já filtrada. -->
+        <p class="hint">
+          <a [routerLink]="['/', tokenId()]" [queryParams]="{ outcome: 'default' }">{{
+            unruledText(notice)
+          }}</a>
+        </p>
+      }
       @if (catchAll(); as catchAll) {
         <!-- WM-30: com uma pega-tudo ligada, o near miss deixa de ser gravado. -->
         <!-- prettier-ignore -->
@@ -287,11 +295,18 @@
                             : (item.rule.response?.status ?? defaultStatus)
                         "
                         [detail]="item.match"
-                        [hits]="hitsOf(item)"
-                        [warn]="!!item.diagnosis && item.diagnosis.kind !== 'likely'"
                         [created]="created"
                       />
                     </button>
+                    <!-- Linha 3 fora do botão: as contagens são links para a Entrada (C2). -->
+                    <app-rule-hits
+                      [attr.id]="'rule-' + item.index + '-hits'"
+                      [view]="hitsOf(item)"
+                      [tokenId]="tokenId()"
+                      [ruleId]="item.rule.id"
+                      [ruleName]="item.rule.name"
+                      [warn]="!!item.diagnosis && item.diagnosis.kind !== 'likely'"
+                    />
                   </td>
                   <td class="row-actions rule-row-actions">
                     <button

@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { RulesSeen } from '../rules/rules-seen';
 import { RequestStore } from '../requests/request-store';
 import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { TokenStore } from '../token/token-store';
@@ -58,6 +59,7 @@ export class Shell {
   private readonly injector = inject(Injector);
   private readonly clipboard = inject(Clipboard);
   private readonly requests = inject(RequestStore);
+  private readonly rulesSeen = inject(RulesSeen);
   protected readonly screen = inject(ScreenState);
   private readonly copyCliCommand = injectCopyCliCommand();
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
@@ -140,6 +142,8 @@ export class Shell {
 
   /** Não lidas da URL aberta (o badge do destino Inbox). */
   private readonly unread = computed(() => this.requests.unread().length);
+  /** WM-01: mensagens sem regra desde a última visita a Regras (o ponto em "Rules"). */
+  private readonly unruled = computed(() => this.rulesSeen.unseen().length);
   /**
    * Checks pede atenção quando alguma mensagem carregada desta URL tem a assinatura ou o schema
    * inválidos (o que o Health contaria como falha).
@@ -161,6 +165,14 @@ export class Shell {
     if (destination.path === null && this.unread() > 0) {
       const count = this.unread();
       return { name: $localize`${label}:destination:, ${count}:count: unread`, badge: count };
+    }
+    if (destination.path === 'rules' && this.unruled() > 0) {
+      const count = this.unruled();
+      const name =
+        count === 1
+          ? $localize`${label}:destination: · 1 request without a rule`
+          : $localize`${label}:destination: · ${count}:count: requests without a rule`;
+      return { name, badge: null };
     }
     if (destination.path === 'checks' && this.attention()) {
       return { name: $localize`${label}:destination:, needs attention`, badge: null };

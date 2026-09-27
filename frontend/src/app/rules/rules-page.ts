@@ -48,7 +48,8 @@ import {
   defaultResponseDetail,
   diagnosisFlag,
   diagnosisLine,
-  hitsLine,
+  HitsView,
+  hitsParts,
   isFiltering,
   listRows,
   offLine,
@@ -59,12 +60,14 @@ import {
   wouldBeShadowed,
 } from './rule-list';
 import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
+import { RulesSeen } from './rules-seen';
 import { ScenarioGroup } from './scenario-group';
 import { openSequence } from './scenario-sequence';
 import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { newRule } from './rule-form';
 import { CREATED_HIGHLIGHT_MS, RuleIntents } from './rule-intents';
+import { RuleHits } from './rule-hits';
 import { RuleItem, RulePosition } from './rule-item';
 import { RuleSwitch } from './rule-switch';
 import { RuleListEmpty } from './rule-list-empty';
@@ -138,6 +141,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     MatMenuItem,
     MatMenuTrigger,
     RuleEditor,
+    RuleHits,
     RuleItem,
     RuleListEmpty,
     RuleListFilter,
@@ -164,6 +168,7 @@ export class RulesPage {
   protected readonly scenarios = inject(ScenarioStore);
   private readonly intents = inject(RuleIntents);
   protected readonly ai = inject(AiClient);
+  private readonly rulesSeen = inject(RulesSeen);
   /** Chegou mensagem com a aba em segundo plano: relê ao voltar (WM-38). */
   private liveStale = false;
 
@@ -279,6 +284,8 @@ export class RulesPage {
   private readonly turnedOff = signal<ReadonlySet<string>>(new Set());
   /** Regras recém-criadas, destacadas por 5 s (WM-35). */
   protected readonly createdIds = signal<ReadonlySet<string>>(new Set());
+  /** WM-01: mensagens sem regra desde a visita anterior (a linha do topo). */
+  protected readonly unruled = signal<{ count: number; since: Date } | null>(null);
   /** A mensagem mais nova da URL, para o cartão "Create from the latest request" (WM-02). */
   protected readonly latest = signal<WebhookRequest | null>(null);
   protected readonly templates = ruleTemplates();
@@ -540,7 +547,7 @@ export class RulesPage {
    * Linha 3 da regra (RULES-01): "Answered 41 of the last 200 · 3 near misses", com a transição do
    * cenário na frente; sem os hits de `stats`, só a transição.
    */
-  protected hitsOf(item: OrderedRule): string | null {
+  protected hitsOf(item: OrderedRule): HitsView | string | null {
     if (item.rule.enabled === false) {
       // Desligada, a regra não é avaliada: "Answered 0" sugeriria que ela roda e não casa (RULES-08).
       return offLine(!!item.rule.id && this.turnedOff().has(item.rule.id));
@@ -556,7 +563,7 @@ export class RulesPage {
     }
     const answered = hits.answered.find(({ id }) => id === item.rule.id)?.count ?? 0;
     const near = hits.near_miss.find(({ id }) => id === item.rule.id)?.count ?? 0;
-    return hitsLine(answered, near, hits.evaluated, item.transition);
+    return hitsParts(answered, near, hits.evaluated, item.transition);
   }
 
   /** Relê os estados dos cenários (depois de gravar a lista, que pode mudar os cenários). */
@@ -959,6 +966,7 @@ export class RulesPage {
   }
 
   private async open(tokenId: string): Promise<void> {
+    this.noteUnruled(tokenId);
     this.loaded.set(false);
     this.errors.set([]);
     this.changedElsewhere.set(false);
@@ -973,6 +981,27 @@ export class RulesPage {
     } catch (error) {
       this.errors.set(loadMessages(error));
     }
+  }
+
+  /**
+   * WM-01: quantas mensagens chegaram sem regra desde a última visita (as que a Entrada tem desta
+   * URL), para a linha do topo; e marca esta visita, o que apaga o ponto do rail.
+   */
+  private noteUnruled(tokenId: string): void {
+    const since = this.rulesSeen.seenAt(tokenId);
+    const count = this.requests.tokenId() === tokenId ? this.rulesSeen.unseen().length : 0;
+    this.unruled.set(since && count > 0 ? { count, since } : null);
+    this.rulesSeen.markSeen(tokenId);
+  }
+
+  /** "3 requests without a rule since 9:41 AM — see them". */
+  protected unruledText(notice: { count: number; since: Date }): string {
+    const time = new Intl.DateTimeFormat(this.document.documentElement.lang || 'en', {
+      timeStyle: 'short',
+    }).format(notice.since);
+    return notice.count === 1
+      ? $localize`1 request without a rule since ${time}:time: — see them`
+      : $localize`${notice.count}:count: requests without a rule since ${time}:time: — see them`;
   }
 
   /** A mensagem de `?from=`; sem ela (apagada), o editor abre com a regra em branco. */

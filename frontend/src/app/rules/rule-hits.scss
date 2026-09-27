@@ -1,0 +1,22 @@
+// Linha 3 do item, logo abaixo do botão da linha, alinhada ao texto dele (padding de 6 px).
+:host {
+  display: block;
+  padding: 0 6px 8px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+  overflow-wrap: anywhere;
+}
+
+:host(.warn) {
+  color: var(--mat-sys-on-surface);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+}

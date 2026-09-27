@@ -96,12 +96,19 @@ export class Inbox {
   readonly schema = input<string>();
   readonly methods = input<string>();
   readonly q = input<string>();
+  /** Desfecho (C2): `?outcome=rule|near_miss|default&rule={id}&ruleName={nome}`. */
+  readonly outcome = input<string>();
+  readonly rule = input<string>();
+  readonly ruleName = input<string>();
   private readonly routeFilter = computed(() =>
     filterFromParams({
       signature: this.signature(),
       schema: this.schema(),
       methods: this.methods(),
       q: this.q(),
+      outcome: this.outcome(),
+      rule: this.rule(),
+      ruleName: this.ruleName(),
     }),
   );
 

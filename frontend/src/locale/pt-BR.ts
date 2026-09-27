@@ -1454,10 +1454,6 @@ export const translations: Record<string, string> = {
   '1971050335506975022': 'Quando nenhuma regra casa',
   // Reorder {$rule}
   '7851725313429979857': 'Reordenar {$rule}',
-  //  · 1 near miss
-  '6079555798105880101': ' · 1 quase acerto',
-  //  · {$count} near misses
-  '4310678172376392590': ' · {$count} quase acertos',
   // Rule saved
   '6780557385928670316': 'Regra salva',
   // {$rule} moved to position {$position} of {$count}
@@ -1967,8 +1963,6 @@ export const translations: Record<string, string> = {
   '6721990731116033031': 'Alterações não salvas',
   // Delete rule
   '4754052462239552170': 'Apagar regra',
-  // Answered {$answered} of the last {$window}{$nearMisses}
-  '842590195454025618': 'Respondeu {$answered} das últimas {$window}{$nearMisses}',
   // {$seconds} s delay
   '6629307616548746858': 'atraso de {$seconds} s',
   // no delay
@@ -2527,4 +2521,28 @@ export const translations: Record<string, string> = {
   '6880150177600715185': 'Não foi possível conferir as regras ({$status}).',
   // Why not rule…?
   '3835773417306108672': 'Por que não a regra…?',
+  // Answered {$answered} of the last {$window}
+  '2479730488820423139': 'Respondeu {$answered} das últimas {$window}',
+  // 1 near miss
+  '4562285775534877675': '1 quase acerto',
+  // {$count} near misses
+  '2807979711783765088': '{$count} quase acertos',
+  // 1 request without a rule since {$time} — see them
+  '1399707326815643504': '1 requisição sem regra desde {$time} — ver',
+  // {$count} requests without a rule since {$time} — see them
+  '4918300128465595845': '{$count} requisições sem regra desde {$time} — ver',
+  //  Answered by rule…
+  '4526684745563814750': ' Respondidas por regra… ',
+  //  Near miss of…
+  '8767848550805852377': ' Quase acerto de… ',
+  //  Default response
+  '1303534027367842386': ' Resposta padrão ',
+  // Near miss of: {$name}
+  '2282262815863593717': 'Quase acerto de: {$name}',
+  // {$destination} · 1 request without a rule
+  '1491812982266449461': '{$destination} · 1 requisição sem regra',
+  // {$destination} · {$count} requests without a rule
+  '8651699805099577856': '{$destination} · {$count} requisições sem regra',
+  // Answered by: {$name}
+  '7987311005276722867': 'Respondidas por: {$name}',
 };

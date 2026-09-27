@@ -114,12 +114,64 @@ describe('Dado os filtros na query da rota da Inbox', () => {
   it('deve levar à rota só o que está ligado', () => {
     expect(
       filterToParams({ text: 'abc', methods: ['POST'], signature: 'absent', schema: 'any' }),
-    ).toEqual({ signature: 'absent', schema: null, methods: 'POST', q: 'abc' });
+    ).toEqual({
+      signature: 'absent',
+      schema: null,
+      methods: 'POST',
+      q: 'abc',
+      outcome: null,
+      rule: null,
+      ruleName: null,
+    });
     expect(filterToParams(NO_FILTER)).toEqual({
       signature: null,
       schema: null,
       methods: null,
       q: null,
+      outcome: null,
+      rule: null,
+      ruleName: null,
     });
+  });
+});
+
+const RULE = '11111111-2222-4333-8444-555555555555';
+
+describe('Dado o filtro por desfecho (C2, WM-27)', () => {
+  const pix = { ...NO_FILTER, outcome: { type: 'rule' as const, rule: RULE, name: 'Pix' } };
+
+  it('deve ativar o filtro e ir na busca fora do match, sem o nome', () => {
+    expect(isFilterActive(pix)).toBe(true);
+    expect(searchBody(pix, 1)).toEqual({
+      match: {},
+      outcome: { type: 'rule', rule: RULE },
+      sorting: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+    expect(searchBody({ ...NO_FILTER, outcome: { type: 'default' } }, 1).outcome).toEqual({
+      type: 'default',
+    });
+    expect(searchBody(NO_FILTER, 1)).not.toHaveProperty('outcome');
+  });
+
+  it('deve comparar o desfecho pelo tipo e pela regra', () => {
+    expect(sameFilter(pix, { ...pix, outcome: { ...pix.outcome, name: 'outro nome' } })).toBe(true);
+    expect(sameFilter(pix, NO_FILTER)).toBe(false);
+    expect(
+      sameFilter(pix, { ...NO_FILTER, outcome: { type: 'near_miss', rule: RULE, name: 'Pix' } }),
+    ).toBe(false);
+  });
+
+  it('deve ir e voltar pela rota (?outcome=rule&rule=…&ruleName=…)', () => {
+    expect(filterToParams(pix)).toMatchObject({ outcome: 'rule', rule: RULE, ruleName: 'Pix' });
+    expect(filterFromParams({ outcome: 'rule', rule: RULE, ruleName: 'Pix' })).toEqual(pix);
+    expect(filterFromParams({ outcome: 'default' })).toEqual({
+      ...NO_FILTER,
+      outcome: { type: 'default' },
+    });
+    // Tipo desconhecido ou regra que não é UUID: sem desfecho.
+    expect(filterFromParams({ outcome: 'rule', rule: 'x' })).toEqual(NO_FILTER);
+    expect(filterFromParams({ outcome: 'talvez' })).toEqual(NO_FILTER);
   });
 });

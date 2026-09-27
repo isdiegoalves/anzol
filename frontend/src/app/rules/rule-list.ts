@@ -31,27 +31,41 @@ export function listRows<T extends ListedRule>(ordered: readonly T[]): ListRow<T
 }
 
 /**
- * Linha 3 da regra (C, RULES-01): "Answered 41 of the last 200 · 1 near miss", com a transição
- * do cenário na frente quando a regra tem uma.
+ * Linha 3 da regra (C, RULES-01) em partes: a transição do cenário na frente, "Answered 41 of the
+ * last 200" e "1 near miss". As duas contagens são links para a Entrada filtrada (C2); sem
+ * mensagens, só "No requests yet" (WM-29).
  */
-export function hitsLine(
+export type HitsView =
+  { text: string } | { prefix: string | null; answered: string; near: string | null };
+
+export function hitsParts(
   answered: number,
   near: number,
   window: number,
   transition: string | null,
-): string {
-  const nearText =
-    near === 0
-      ? ''
-      : near === 1
-        ? $localize` · 1 near miss`
-        : $localize` · ${near}:count: near misses`;
-  // URL sem mensagens: "Answered 0 of the last 0" não diz nada (WM-29).
-  const hits =
-    window === 0
-      ? $localize`No requests yet`
-      : $localize`Answered ${answered}:answered: of the last ${window}:window:${nearText}:nearMisses:`;
-  return transition ? `${transition} · ${hits}` : hits;
+): HitsView {
+  if (window === 0) {
+    const none = $localize`No requests yet`;
+    return { text: transition ? `${transition} · ${none}` : none };
+  }
+  return {
+    prefix: transition,
+    answered: $localize`Answered ${answered}:answered: of the last ${window}:window:`,
+    near:
+      near === 0
+        ? null
+        : near === 1
+          ? $localize`1 near miss`
+          : $localize`${near}:count: near misses`,
+  };
+}
+
+/** A linha 3 como se lê, numa frase só. */
+export function hitsText(view: HitsView): string {
+  if ('text' in view) {
+    return view.text;
+  }
+  return [view.prefix, view.answered, view.near].filter((part) => part !== null).join(' · ');
 }
 
 /** Detalhe da resposta padrão no fim da lista (C, RULES-09): tipo do corpo e atraso da URL. */

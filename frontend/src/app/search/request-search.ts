@@ -6,9 +6,14 @@ import { debounceTime } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { ScreenState } from '../shell/screen-state';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { NgTemplateOutlet } from '@angular/common';
+import { Rule, evaluationOrder } from '../rules/rule';
+import { RuleStore } from '../rules/rule-store';
 import { Icon } from '../ui/icon';
 import {
   NO_FILTER,
+  OutcomeFilter,
   RequestFilter,
   SchemaFilter,
   SignatureFilter,
@@ -35,7 +40,7 @@ interface Chip {
  */
 @Component({
   selector: 'app-request-search',
-  imports: [Icon],
+  imports: [Icon, MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet],
   templateUrl: './request-search.html',
   styleUrl: './request-search.scss',
   host: { '[class.collapsed]': "!screen.searchOpen() && !store.filtering() && draft() === ''" },
@@ -46,6 +51,23 @@ export class RequestSearch {
   private readonly clipboard = inject(Clipboard);
   private readonly origin = inject(DOCUMENT).location.origin;
   protected readonly screen = inject(ScreenState);
+  private readonly rulesStore = inject(RuleStore);
+
+  /** As regras da URL, para os menus "Answered by rule…" e "Near miss of…" (C2); lidas ao abrir. */
+  protected readonly rules = signal<readonly Rule[] | null>(null);
+  private rulesToken: string | null = null;
+  /** O desfecho ligado, para o nome do chip ("Answered by: Pix"). */
+  protected readonly outcome = computed(() => this.store.filter().outcome ?? null);
+  protected readonly answeredBy = computed(() => {
+    const outcome = this.outcome();
+    return outcome?.type === 'rule'
+      ? $localize`:filter chip|Active filter, messages the rule answered:Answered by: ${outcome.name}:name:`
+      : null;
+  });
+  protected readonly nearMissOf = computed(() => {
+    const outcome = this.outcome();
+    return outcome?.type === 'near_miss' ? $localize`Near miss of: ${outcome.name}:name:` : null;
+  });
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
@@ -122,6 +144,37 @@ export class RequestSearch {
     toObservable(this.draft)
       .pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed())
       .subscribe((text) => this.apply({ text }));
+  }
+
+  /** Lê as regras da URL na primeira vez que um dos menus abre. */
+  protected async loadRules(): Promise<void> {
+    const tokenId = this.store.tokenId();
+    if (!tokenId || (this.rulesToken === tokenId && this.rules() !== null)) {
+      return;
+    }
+    this.rulesToken = tokenId;
+    this.rules.set(null);
+    try {
+      const rules = await this.rulesStore.listRules(tokenId);
+      this.rules.set(evaluationOrder(rules).map((index) => rules[index]));
+    } catch {
+      this.rules.set([]);
+    }
+  }
+
+  /** Um desfecho por vez; `null` tira o filtro. */
+  protected setOutcome(outcome: OutcomeFilter | null): void {
+    this.apply({ outcome });
+  }
+
+  protected chooseRule(type: 'rule' | 'near_miss', rule: Rule): void {
+    if (rule.id) {
+      this.setOutcome({ type, rule: rule.id, name: rule.name });
+    }
+  }
+
+  protected toggleDefault(): void {
+    this.setOutcome(this.outcome()?.type === 'default' ? null : { type: 'default' });
   }
 
   protected clearFilters(): void {
