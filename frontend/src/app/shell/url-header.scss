@@ -92,7 +92,8 @@
     background: var(--mat-sys-surface-container-lowest);
   }
 
-  :host(.on-detail) {
+  // O detalhe em tela cheia ou a busca aberta (INBOX-30/31): a lista e o detalhe sobem.
+  :host(.collapsed) {
     display: none;
   }
 

@@ -1,6 +1,6 @@
 @let token = tokens.token();
 @let open = token && !locked() ? token : null;
-<div class="rail">
+<div class="rail" [class.on-detail]="screen.detailFullscreen()">
   <a class="brand" routerLink="/" aria-label="Anzol" i18n-aria-label title="Anzol" i18n-title>
     <app-icon name="hook" [size]="24" />
   </a>
@@ -22,7 +22,8 @@
       i18n-aria-label
       title="Search requests (/)"
       i18n-title
-      (click)="openSearch()"
+      [attr.aria-expanded]="screen.searchOpen()"
+      (click)="toggleSearch()"
     >
       <app-icon name="search" [size]="22" />
     </button>
@@ -100,7 +101,7 @@
 </div>
 <div class="workspace">
   @if (open) {
-    <app-url-header [class.on-detail]="screen.detailFullscreen()" />
+    <app-url-header [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()" />
   }
   <div class="content">
     <ng-container #unlockHost />

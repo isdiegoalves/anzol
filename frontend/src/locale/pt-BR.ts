@@ -476,14 +476,14 @@ export const translations: Record<string, string> = {
   '3564657009456372725': 'Redimensionar lista e detalhe',
   // Request detail
   '8657335803784897027': 'Detalhe da requisição',
-  // Back to requests
-  '4161463875721849613': 'Voltar para as requisições',
   // Open each new request as it arrives
   '2394242285062767175': 'Abrir cada requisição nova assim que chega',
   // Follow new
   '627815422387065776': 'Seguir novas',
   // Delete all requests
   '9124335329556182572': 'Apagar todas as requisições',
+  // Back to requests
+  '4161463875721849613': 'Voltar para as requisições',
   // Requests not found - invalid ID
   '582157911944558273': 'Requisições não encontradas: ID inválido',
   // Request received
@@ -912,6 +912,14 @@ export const translations: Record<string, string> = {
   '5937251202465808296': 'Mais',
   // Permalink, Raw content
   '3672300871929116043': 'Link permanente, conteúdo bruto',
+  // Send as new…
+  '7130825112248571070': 'Mandar como nova…',
+  //  Compare with…
+  '5731842205788585435': ' Comparar com… ',
+  //  Create schema from this request
+  '3050372262779981936': ' Criar schema a partir desta requisição ',
+  //  Share read-only link…
+  '4627804049049897994': ' Compartilhar link só-leitura… ',
   // Permalink
   '2390582664692406528': 'Link permanente',
   // Raw content
@@ -920,20 +928,14 @@ export const translations: Record<string, string> = {
   '5248427223647753150': 'Ações da requisição',
   // Replay…
   '8675553612970232351': 'Reenviar…',
-  // Send as new…
-  '7130825112248571070': 'Mandar como nova…',
   // Compare with…
   '5187370181515015220': 'Comparar com…',
   //  Create rule from this request
   '4983464855217910618': ' Criar regra a partir desta requisição ',
-  //  Create schema from this request
-  '3050372262779981936': ' Criar schema a partir desta requisição ',
   // Copy payload
   '324655176291010387': 'Copiar payload',
   // Copy As
   '6540883201841879405': 'Copiar como',
-  //  Share read-only link…
-  '4627804049049897994': ' Compartilhar link só-leitura… ',
   // Ask the local model why signature, schema and rules gave this result
   '4209809529690937932':
     'Perguntar ao modelo local por que assinatura, schema e regras deram este resultado',
@@ -985,13 +987,13 @@ export const translations: Record<string, string> = {
     'Sem campos de formulário. Corpos application/x-www-form-urlencoded e multipart/form-data aparecem aqui.',
   // Conditions of {$rule} that failed
   '4108680511513605373': 'Condições de {$rule} que falharam',
+  // Choose a request to compare with #{$INTERPOLATION}
+  '7859832298764837459': 'Escolha uma requisição para comparar com a #{$INTERPOLATION}',
   // {VAR_PLURAL, plural, =1 {1 new request} other {{INTERPOLATION} new requests}}
   '2738823000442264367':
     '{VAR_PLURAL, plural, =1 {1 requisição nova} other {{INTERPOLATION} requisições novas}}',
   // Requests ({$INTERPOLATION})
   '6985457637811548682': 'Requisições ({$INTERPOLATION})',
-  // Choose a request to compare with #{$INTERPOLATION}
-  '7859832298764837459': 'Escolha uma requisição para comparar com a #{$INTERPOLATION}',
   // Waiting for first request...
   '6098775451672579267': 'Esperando a primeira requisição...',
   // No requests match the filters.
@@ -1779,14 +1781,14 @@ export const translations: Record<string, string> = {
   //  The URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stops receiving, and its requests, rules and history are deleted. This can't be undone. A new URL opens in its place.
   '1451742787852545337':
     ' A URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} deixa de receber, e as requisições, as regras e o histórico dela são apagados. Não dá para desfazer. Uma URL nova abre no lugar. ',
+  // Copied the CLI command.
+  '8435024155600644601': 'Comando do CLI copiado.',
   // URL locked
   '7160754438595707040': 'URL trancada',
   // URL deleted. A new URL is open.
   '423054761492435849': 'URL apagada. Uma URL nova está aberta.',
   // Could not delete the URL ({$status}).
   '3286163688907254875': 'Não foi possível apagar a URL ({$status}).',
-  // Copied the CLI command.
-  '8435024155600644601': 'Comando do CLI copiado.',
   // New URL created
   '527966257423045718': 'Nova URL criada',
   // Error creating token: {$messages}

@@ -5,6 +5,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
+import { ScreenState } from '../shell/screen-state';
 import { Icon } from '../ui/icon';
 import {
   NO_FILTER,
@@ -29,19 +30,22 @@ interface Chip {
  * Busca em pílula e os filtros como chips (um clique cada, C §2.3), no lugar dos três `MatSelect`
  * (fora do pacote da Inbox): método (vários), assinatura válida/inválida/ausente e schema
  * válido/inválido (um de cada). Mapeiam 1:1 no `match` da busca. Com filtro, o contador
- * "N of M requests"; e o "Copy as anzol wait-for" com os mesmos filtros.
+ * "N of M requests"; e o "Copy as anzol wait-for" com os mesmos filtros. No celular (INBOX-31),
+ * só a linha de chips: a pílula e a linha Clear/Copy vêm pela lupa da barra do topo ou com filtro.
  */
 @Component({
   selector: 'app-request-search',
   imports: [Icon],
   templateUrl: './request-search.html',
   styleUrl: './request-search.scss',
+  host: { '[class.collapsed]': "!screen.searchOpen() && !store.filtering() && draft() === ''" },
 })
 export class RequestSearch {
   protected readonly store = inject(RequestStore);
   private readonly tokens = inject(TokenStore);
   private readonly clipboard = inject(Clipboard);
   private readonly origin = inject(DOCUMENT).location.origin;
+  protected readonly screen = inject(ScreenState);
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);

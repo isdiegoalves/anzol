@@ -392,7 +392,7 @@ describe('Dado a lista lateral de mensagens', () => {
 
     compare.start(webhookRequest(1));
     await fixture.whenStable();
-    expect(element().querySelector('.picking')?.textContent).toContain(
+    expect(element().querySelector('app-compare-band .band')?.textContent).toContain(
       'Choose a request to compare with #00000',
     );
     expect(items()[0].classList.contains('base')).toBe(true);
@@ -430,10 +430,10 @@ describe('Dado a lista lateral de mensagens', () => {
     compare.start(webhookRequest(1));
     await fixture.whenStable();
 
-    element().querySelector<HTMLButtonElement>('.picking button')?.click();
+    element().querySelector<HTMLButtonElement>('app-compare-band .band button')?.click();
     await fixture.whenStable();
 
     expect(compare.picking()).toBeNull();
-    expect(element().querySelector('.picking')).toBeNull();
+    expect(element().querySelector('app-compare-band .band')).toBeNull();
   });
 });

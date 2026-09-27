@@ -1,5 +1,6 @@
 @let current = request();
 <app-request-view [request]="current" [token]="token()">
+  <ng-container ngProjectAs="[viewBack]"><ng-content select="[detailBack]" /></ng-container>
   <div class="nav" viewNav>
     <button
       mat-icon-button
@@ -37,6 +38,29 @@
       <app-icon name="more" />
     </button>
     <mat-menu #moreMenu="matMenu">
+      <!-- Celular (INBOX-33, trava 5): as ações que saem da barra vêm para cá. -->
+      @if (compact()) {
+        <button i18n mat-menu-item type="button" (click)="sendAsNew()">Send as new&hellip;</button>
+        <button i18n mat-menu-item type="button" (click)="compareWith()">
+          Compare with&hellip;
+        </button>
+        @if (jsonBody()) {
+          <button i18n mat-menu-item type="button" (click)="createSchema()">
+            Create schema from this request
+          </button>
+        }
+        <button i18n mat-menu-item type="button" (click)="shareRequest()">
+          Share read-only link&hellip;
+        </button>
+        <button
+          mat-menu-item
+          type="button"
+          [disabled]="ai.disabled() && !explaining()"
+          (click)="toggleExplain()"
+        >
+          <ng-container [ngTemplateOutlet]="explainLabel" />
+        </button>
+      }
       <a i18n mat-menu-item [href]="permalink()">Permalink</a>
       <a i18n mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
     </mat-menu>
@@ -45,14 +69,16 @@
   <div class="actions" role="toolbar" aria-label="Request actions" i18n-aria-label viewActions>
     <div class="group">
       <button i18n mat-flat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
-      <button i18n mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
-      <button i18n mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+      @if (!compact()) {
+        <button i18n mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
+        <button i18n mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+      }
     </div>
     <div class="group">
       <button i18n mat-button type="button" (click)="createRule()">
         Create rule from this request
       </button>
-      @if (jsonBody()) {
+      @if (jsonBody() && !compact()) {
         <button i18n mat-button type="button" (click)="createSchema()">
           Create schema from this request
         </button>
@@ -71,28 +97,38 @@
         }
       </mat-menu>
     </div>
-    <div class="group">
-      <button i18n mat-button type="button" (click)="shareRequest()">
-        Share read-only link&hellip;
-      </button>
-      <button
-        mat-button
-        type="button"
-        title="Ask the local model why signature, schema and rules gave this result"
-        i18n-title
-        [disabled]="ai.disabled() && !explaining()"
-        (click)="toggleExplain()"
-      >
-        @if (explaining()) {
-          <ng-container i18n>Hide explanation</ng-container>
-        } @else {
-          <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>
+    @if (!compact()) {
+      <div class="group">
+        <button i18n mat-button type="button" (click)="shareRequest()">
+          Share read-only link&hellip;
+        </button>
+        <button
+          mat-button
+          type="button"
+          title="Ask the local model why signature, schema and rules gave this result"
+          i18n-title
+          [disabled]="ai.disabled() && !explaining()"
+          (click)="toggleExplain()"
+        >
+          <ng-container [ngTemplateOutlet]="explainLabel" />
+        </button>
+        @if (ai.disabled()) {
+          <span class="ai-off">{{ aiOffHint }}</span>
         }
-      </button>
-      @if (ai.disabled()) {
-        <span class="ai-off">{{ aiOffHint }}</span>
-      }
-    </div>
+      </div>
+    }
   </div>
+  @if (compact() && ai.disabled()) {
+    <!-- O "Explain" desabilitado fica no menu: a dica de configuração continua à vista. -->
+    <p class="ai-off">{{ aiOffHint }}</p>
+  }
   <ng-container #explainHost />
 </app-request-view>
+
+<ng-template #explainLabel>
+  @if (explaining()) {
+    <ng-container i18n>Hide explanation</ng-container>
+  } @else {
+    <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>
+  }
+</ng-template>

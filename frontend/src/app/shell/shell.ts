@@ -117,7 +117,7 @@ export class Shell {
         copyUrl: () => this.tokens.webhookUrl() && this.clipboard.copy(this.tokens.webhookUrl()),
         newUrl: () => void this.createUrl(),
         help: () => this.sheet.set('help'),
-        search: () => this.focusSearch(),
+        search: () => this.openSearch(),
         close: () => this.sheet.set(null),
         enabled: () => this.settings.shortcuts(),
       },
@@ -223,8 +223,17 @@ export class Shell {
     ];
   });
 
-  /** A lupa da barra do celular: mostra a busca da lista e põe o foco nela. */
-  protected openSearch(): void {
+  /** A lupa da barra do celular: mostra a busca da lista (com o foco nela) ou a recolhe. */
+  protected toggleSearch(): void {
+    if (this.screen.searchOpen()) {
+      this.screen.searchOpen.set(false);
+    } else {
+      this.openSearch();
+    }
+  }
+
+  /** Mostra a busca da lista (no celular ela fica recolhida) e põe o foco nela. */
+  private openSearch(): void {
     this.screen.searchOpen.set(true);
     afterNextRender(() => this.focusSearch(), { injector: this.injector });
   }

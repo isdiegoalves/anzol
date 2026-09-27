@@ -237,6 +237,17 @@
       display: none;
     }
 
+    // O detalhe em tela cheia tem o cabeçalho dele (Back, método, caminho, ⋮; INBOX-33): a barra do
+    // topo sai, e os destinos seguem embaixo.
+    .rail.on-detail {
+      height: 0;
+      padding: 0;
+
+      > :not(.destinations) {
+        display: none;
+      }
+    }
+
     .destinations {
       position: fixed;
       z-index: 2;

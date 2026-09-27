@@ -102,3 +102,27 @@
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }
+
+// Celular (INBOX-31): os chips numa linha que rola; a pílula e a linha Clear/Copy só pela lupa da
+// barra do topo ou com filtro ativo.
+@media (width < 600px) {
+  .chips {
+    flex-wrap: nowrap;
+    margin: -4px -16px;
+    padding: 4px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .chip {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  :host(.collapsed) {
+    .pill,
+    .row {
+      display: none;
+    }
+  }
+}

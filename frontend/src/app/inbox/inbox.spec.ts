@@ -15,6 +15,7 @@ import { RequestStore } from '../requests/request-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Redirector } from '../settings/redirect';
 import { RequestList } from '../requests/request-list';
+import { ScreenState } from '../shell/screen-state';
 import { Viewport, WindowClass } from '../shell/viewport';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
@@ -434,10 +435,16 @@ describe('Dado a tela principal', () => {
       expect(root.querySelector('app-request-detail')).not.toBeNull();
     });
     expect(root.querySelector('app-request-list')).toBeNull();
+    // INBOX-30/33: o detalhe em tela cheia tira o cartão da URL, e o Back abre o cabeçalho dele.
+    const screen = TestBed.inject(ScreenState);
+    expect(screen.detailFullscreen()).toBe(true);
+    const back = root.querySelector<HTMLButtonElement>('button[aria-label="Back to requests"]');
+    expect(back?.closest('header')?.querySelector('h2')).not.toBeNull();
 
-    root.querySelector<HTMLButtonElement>('button[aria-label="Back to requests"]')?.click();
+    back?.click();
     await harness.fixture.whenStable();
     expect(root.querySelector('app-request-list')).not.toBeNull();
+    expect(screen.detailFullscreen()).toBe(false);
   });
 
   it('deve mostrar a lista com a primeira mensagem Quando ela chega numa URL vazia na janela estreita (E11)', async () => {

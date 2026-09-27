@@ -31,6 +31,7 @@ import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { isTyping } from '../shell/hotkeys';
+import { ScreenState } from '../shell/screen-state';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
@@ -82,6 +83,7 @@ export class Inbox {
   private readonly injector = inject(Injector);
   private readonly settings = inject(ShellSettings);
   private readonly viewport = inject(Viewport);
+  private readonly screen = inject(ScreenState);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -130,6 +132,13 @@ export class Inbox {
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    // O detalhe em tela cheia (um painel por vez) tira o cartão da URL e a barra do topo (INBOX-30).
+    effect(() =>
+      this.screen.detailFullscreen.set(
+        !this.twoPanes() && this.showDetail() && !!this.requests.selected(),
+      ),
+    );
+
     effect(() => {
       const unread = this.requests.unread().length;
       this.title.setTitle(unread > 0 ? `(${unread}) Anzol` : 'Anzol');
@@ -188,6 +197,8 @@ export class Inbox {
     const keys = (event: KeyboardEvent) => this.navigateByKey(event);
     this.document.addEventListener('keydown', keys);
     inject(DestroyRef).onDestroy(() => {
+      this.screen.detailFullscreen.set(false);
+      this.screen.searchOpen.set(false);
       this.document.removeEventListener('keydown', keys);
       if (this.announceTimer) {
         clearTimeout(this.announceTimer);

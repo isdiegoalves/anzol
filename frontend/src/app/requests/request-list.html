@@ -16,12 +16,7 @@
 @if (store.hasRequests() || store.filtering()) {
   <app-request-search class="search" />
 }
-@if (compare.picking(); as base) {
-  <div class="picking" role="status">
-    <span i18n>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
-    <button i18n mat-button type="button" (click)="compare.close()">Cancel</button>
-  </div>
-}
+<app-compare-band />
 @if (store.loading()) {
   <!-- Esqueleto com a forma do item (C §2.11); o `aria-busy` fica na região da lista. -->
   <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />

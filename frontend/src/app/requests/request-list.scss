@@ -38,18 +38,6 @@
   padding: 0 16px;
 }
 
-.picking {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 16px;
-  padding: 4px 4px 4px 12px;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
-  font: var(--mat-sys-body-medium);
-}
-
 .waiting {
   display: flex;
   align-items: center;
@@ -297,5 +285,17 @@
     bottom: 6px;
     left: auto;
     max-width: calc(40% - 56px);
+  }
+}
+
+// Celular (INBOX-31): o cabeçalho numa linha só, para a lista começar perto do topo.
+@media (width < 600px) {
+  .head {
+    flex-wrap: nowrap;
+    gap: 0 4px;
+  }
+
+  .header {
+    font: var(--mat-sys-title-small);
   }
 }

@@ -19,6 +19,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { TokenActions } from '../token/token-actions';
 import { UrlLock } from '../token/url-lock';
+import { ScreenState } from './screen-state';
 import { Shell } from './shell';
 
 @Component({ template: '<p>página da rota</p>' })
@@ -159,6 +160,34 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
 
     await screen.findByRole('link', { name: 'Checks, needs attention' });
     expect(container.querySelector('.destination .dot')).not.toBeNull();
+  });
+
+  it('deve abrir e fechar a busca da lista pela lupa da barra do celular (INBOX-29/31)', async () => {
+    const user = userEvent.setup();
+    const { container } = await renderAt(`/${TOKEN_ID}`);
+    const state = TestBed.inject(ScreenState);
+    const search = screen.getByRole('button', { name: 'Search requests', hidden: true });
+
+    await user.click(search);
+    expect(state.searchOpen()).toBe(true);
+    expect(search.getAttribute('aria-expanded')).toBe('true');
+    // Buscando, o cartão da URL recolhe (a lista começa perto do topo).
+    expect(container.querySelector('app-url-header')?.classList).toContain('collapsed');
+
+    await user.click(search);
+    expect(state.searchOpen()).toBe(false);
+    expect(search.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('deve tirar a barra do topo e o cartão da URL Quando o detalhe está em tela cheia (INBOX-30/33)', async () => {
+    const { container, fixture } = await renderAt(`/${TOKEN_ID}`);
+
+    TestBed.inject(ScreenState).detailFullscreen.set(true);
+    await fixture.whenStable();
+
+    expect(container.querySelector('.rail')?.classList).toContain('on-detail');
+    expect(container.querySelector('app-url-header')?.classList).toContain('collapsed');
+    expect(sections()).not.toBeNull();
   });
 
   it('deve reunir no ⋮ da barra do celular as ações que saem da barra (INBOX-29)', async () => {

@@ -19,6 +19,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
+import { CompareBand } from './compare-band';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
@@ -90,6 +91,7 @@ interface ItemView {
 @Component({
   selector: 'app-request-list',
   imports: [
+    CompareBand,
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,

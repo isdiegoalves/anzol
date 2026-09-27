@@ -1,12 +1,14 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
+import { ScreenState } from '../shell/screen-state';
 import { RequestSearch, SEARCH_DEBOUNCE_MS } from './request-search';
 
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
@@ -170,5 +172,21 @@ describe('Dado a busca e os filtros em chips da lista', () => {
         .some((status) => status.textContent?.includes('Copied the anzol wait-for command.')),
     ).toBe(true);
     expect(searches()).toHaveLength(0);
+  });
+
+  // INBOX-31: no celular, só a linha de chips; a pílula da busca e a linha Clear/Copy aparecem pela
+  // lupa da barra do topo ou com filtro ativo (a classe liga o CSS abaixo de 600 px).
+  it('deve recolher a pílula no celular até a lupa abrir a busca ou haver filtro', async () => {
+    const collapsed = () => container.classList.contains('collapsed');
+    expect(collapsed()).toBe(true);
+
+    TestBed.inject(ScreenState).searchOpen.set(true);
+    await vi.waitFor(() => expect(collapsed()).toBe(false));
+    TestBed.inject(ScreenState).searchOpen.set(false);
+    await vi.waitFor(() => expect(collapsed()).toBe(true));
+
+    await userEvent.click(chip('POST'));
+    searches().forEach((search) => search.flush(requestPage([webhookRequest(1)])));
+    await vi.waitFor(() => expect(collapsed()).toBe(false));
   });
 });

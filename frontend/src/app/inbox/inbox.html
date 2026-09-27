@@ -24,15 +24,6 @@
     </app-split>
   } @else if (showDetail() && requests.selected()) {
     <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
-      <button
-        mat-icon-button
-        type="button"
-        aria-label="Back to requests"
-        i18n-aria-label
-        (click)="backToList()"
-      >
-        <app-icon name="back" />
-      </button>
       <ng-container [ngTemplateOutlet]="detailPane" />
     </section>
   } @else {
@@ -94,7 +85,21 @@
       [token]="token"
       [page]="requests.pageOf(request.uuid)"
       (openRequest)="openRequest($event)"
-    />
+    >
+      <!-- Um painel por vez (INBOX-33): o Back abre o cabeçalho do detalhe, como no protótipo. -->
+      @if (!twoPanes()) {
+        <button
+          detailBack
+          mat-icon-button
+          type="button"
+          aria-label="Back to requests"
+          i18n-aria-label
+          (click)="backToList()"
+        >
+          <app-icon name="back" />
+        </button>
+      }
+    </app-request-detail>
   }
   <!-- INBOX-06: o detalhe começa no topo; com mensagens, o onboarding (até o Close, hideTutorial)
        fica abaixo dele. Na URL vazia, é ele o painel. -->

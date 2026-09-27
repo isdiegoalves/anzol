@@ -33,3 +33,24 @@
   color: var(--mat-sys-error);
   font: var(--mat-sys-body-small);
 }
+
+// Celular (INBOX-33): as ações principais numa linha que rola, sem os divisores dos grupos.
+@media (width < 600px) {
+  .actions {
+    flex-wrap: nowrap;
+    margin: 0 -12px;
+    padding: 4px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .group {
+    flex: none;
+    flex-wrap: nowrap;
+
+    & + .group {
+      padding-left: 0;
+      border-left: 0;
+    }
+  }
+}

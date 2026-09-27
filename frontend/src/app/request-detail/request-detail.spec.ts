@@ -2,7 +2,7 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { Provider } from '@angular/core';
+import { Provider, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,13 +15,21 @@ import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { ShareDialog } from '../share/share-dialog';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { RequestDetail } from './request-detail';
 
 describe('Dado o detalhe de uma mensagem com as ações', () => {
+  /** Janela larga por padrão; o jsdom não tem `matchMedia`. */
+  const windowClass = signal<WindowClass>('large');
   const show = async (request: WebhookRequest, providers: Provider[] = []) => {
     const view = await render(RequestDetail, {
       inputs: { request, token: token(), page: 2 },
-      providers: [provideHttpClient(), provideHttpClientTesting(), ...providers],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
+        ...providers,
+      ],
     });
     return {
       ...view,
@@ -32,7 +40,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
   const toolbar = () => screen.getByRole('toolbar', { name: 'Request actions' });
   const action = (name: string | RegExp) => within(toolbar()).getByRole('button', { name });
 
-  afterEach(() => localStorage.clear());
+  afterEach(() => {
+    localStorage.clear();
+    windowClass.set('large');
+  });
 
   it('deve agrupar as ações na barra "Request actions" e passar no axe', async () => {
     const { container } = await show(webhookRequest(1, { content: '{"a":1}' }));
@@ -72,6 +83,34 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       `${location.origin}/#/${TOKEN_ID}/${request.uuid}/2`,
       `${location.origin}/token/${TOKEN_ID}/request/${request.uuid}/raw`,
     ]);
+  });
+
+  // INBOX-33 (trava 5): no celular, as ações principais numa linha e as demais no ⋮ "More".
+  it('deve deixar Replay, Create rule e Copy na barra e levar o resto ao menu "More" Quando a janela é compacta', async () => {
+    windowClass.set('compact');
+    const request = webhookRequest(1, { content: '{"a":1}' });
+    const { container, loader, fixture } = await show(request);
+
+    expect(
+      within(toolbar())
+        .getAllByRole('button')
+        .map((button) => button.textContent?.trim()),
+    ).toEqual(['Replay…', 'Create rule from this request', 'Copy payload', 'Copy As']);
+    const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+    await more.open();
+    expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
+      'Send as new…',
+      'Compare with…',
+      'Create schema from this request',
+      'Share read-only link…',
+      'Explain',
+      'Permalink',
+      'Raw content',
+    ]);
+    await expectNoAxeViolations(container);
+
+    await more.clickItem({ text: 'Compare with…' });
+    expect(fixture.debugElement.injector.get(CompareStore).picking()).toEqual(request);
   });
 
   it('deve copiar o curl e avisar Quando "Copy As > curl" é escolhido', async () => {

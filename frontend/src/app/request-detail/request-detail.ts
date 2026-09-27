@@ -1,5 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   Injector,
@@ -20,6 +20,7 @@ import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
+import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
@@ -32,11 +33,21 @@ const COPY_FORMATS: readonly CopyFormat[] = ['curl', 'HAR'];
  * Detalhe da mensagem na Inbox: a visualização (`RequestView`) com as ações — Newer/Older e o menu
  * "More" (Permalink, Raw content) no cabeçalho; embaixo dos cartões, a barra "Request actions"
  * agrupada por intenção (reenviar e comparar; criar regra e schema; copiar; compartilhar e
- * explicar). Cada ação que leva a outra página ainda abre o fluxo de hoje até a fatia dela.
+ * explicar). Cada ação que leva a outra página ainda abre o fluxo de hoje até a fatia dela. No
+ * celular, a barra é uma linha rolável com as principais, e as demais vão ao "More".
  */
 @Component({
   selector: 'app-request-detail',
-  imports: [Icon, MatButton, MatIconButton, MatMenu, MatMenuItem, MatMenuTrigger, RequestView],
+  imports: [
+    Icon,
+    MatButton,
+    MatIconButton,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
+    NgTemplateOutlet,
+    RequestView,
+  ],
   templateUrl: './request-detail.html',
   styleUrl: './request-detail.scss',
 })
@@ -49,6 +60,7 @@ export class RequestDetail {
   private readonly compare = inject(CompareStore);
   private readonly requests = inject(RequestStore);
   protected readonly ai = inject(AiClient);
+  private readonly viewport = inject(Viewport);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -66,6 +78,8 @@ export class RequestDetail {
   protected readonly aiOffHint = AI_OFF_HINT;
 
   protected readonly formats = COPY_FORMATS;
+  /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
+  protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
 
   private readonly index = computed(() =>
     this.requests.requests().findIndex((request) => request.uuid === this.request().uuid),

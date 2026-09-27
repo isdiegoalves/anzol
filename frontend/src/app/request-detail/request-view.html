@@ -1,6 +1,7 @@
 @let current = request();
 @let flow = pipeline();
 <header class="head">
+  <ng-content select="[viewBack]" />
   <app-method-badge [method]="current.method" />
   <h2 class="route" [title]="flow.route">{{ flow.route }}</h2>
   <span class="spacer"></span>

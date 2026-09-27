@@ -47,3 +47,14 @@
   align-items: center;
   gap: 4px;
 }
+
+// Celular: o detalhe em tela cheia começa no topo (o Back no cabeçalho dele, INBOX-33).
+@media (width < 600px) {
+  .detail-pane {
+    padding: 8px 12px 16px;
+  }
+
+  .list-pane {
+    padding-top: 4px;
+  }
+}
