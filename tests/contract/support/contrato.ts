@@ -41,6 +41,8 @@ export const CHAVES_TOKEN = [
 export const CHAVES_MENSAGEM = [
   'uuid', 'token_id', 'ip', 'hostname', 'method', 'user_agent', 'content', 'query', 'headers',
   'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss', 'signature', 'schema',
+  // UX de Regras, C3 (E-06): o que a captura respondeu, gravado em toda mensagem nova.
+  'response',
 ].sort();
 
 export interface Token {
@@ -105,6 +107,12 @@ export interface Mensagem {
    * URL não tinha schema. `path` é o JSON Pointer da instância; no máximo 20 erros.
    */
   schema: { valid: boolean; errors: Array<{ path: string; message: string }> } | null;
+  /**
+   * UX de Regras, C3: o que a captura respondeu, conhecido antes de responder — `{status}` (regra ou resposta
+   * padrão da URL) ou `{fault}` (regra com falha de rede). Mensagem gravada antes do campo existir não o tem (ou
+   * tem `null`); toda mensagem nova tem.
+   */
+  response?: { status: number } | { fault: string } | null;
   request?: Record<string, unknown> | null;
 }
 
