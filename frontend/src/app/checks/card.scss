@@ -101,9 +101,12 @@ h3 {
 }
 
 .banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
   margin: 0;
-  padding: 12px;
-  border-radius: var(--mat-sys-corner-small);
+  padding: 10px 14px;
+  border-radius: 12px;
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
   font: var(--mat-sys-body-medium);

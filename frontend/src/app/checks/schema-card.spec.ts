@@ -41,7 +41,9 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     expect(screen.getByRole('status').textContent?.trim()).toBe('To save, fix: JSON Schema');
     await userEvent.click(save());
 
-    expect(screen.getByRole('alert').textContent?.trim()).toBe('To save, fix: JSON Schema');
+    expect(screen.getByRole('alert').textContent?.trim()).toBe(
+      '1 field needs attention: JSON Schema',
+    );
     expect(document.activeElement).toBe(field());
     expect(field().getAttribute('aria-invalid')).toBe('true');
     http.expectNone((sent) => sent.method === 'PUT');

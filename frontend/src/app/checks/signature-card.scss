@@ -1,3 +1,10 @@
+// Os três passos num painel tonal, com os números em tertiary-container (CHECKS-07).
+.steps-panel {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container);
+}
+
 .steps {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -21,34 +28,35 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
   font: var(--mat-sys-label-medium);
 }
 
 // A tabela dos provedores é o seletor: uma linha por provedor, a escolhida em destaque (fundo,
 // barra e o círculo marcado, não só a cor).
 .providers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   overflow-x: auto;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-medium);
 }
 
 .provider-row {
   display: grid;
-  grid-template-columns: 24px minmax(88px, 0.8fr) minmax(0, 3fr);
-  gap: 8px;
+  grid-template-columns: 28px minmax(96px, 0.8fr) minmax(0, 3.5fr);
+  gap: 14px;
   align-items: start;
   min-width: 520px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   text-align: left;
 }
 
 .provider-head {
-  grid-template-columns: 24px minmax(88px, 0.8fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: 28px minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.9fr);
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-medium);
 }
@@ -57,7 +65,7 @@
   width: 100%;
   min-height: 48px;
   border: 0;
-  border-top: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
   background: transparent;
   color: inherit;
   font: var(--mat-sys-body-small);
@@ -72,10 +80,11 @@
     outline-offset: -2px;
   }
 
+  // A escolhida em secondary-container, como a linha aberta da Inbox e de Rules (CHECKS-08); o
+  // rádio com anel e ponto e o "SAVED" em texto não dependem da cor.
   &.chosen {
-    background: var(--mat-sys-primary-container);
-    box-shadow: inset 3px 0 var(--mat-sys-primary);
-    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
   }
 }
 
@@ -101,18 +110,17 @@
 }
 
 .saved-tag {
-  padding: 0 6px;
-  border-radius: var(--mat-sys-corner-extra-small);
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
+  color: var(--app-success);
   font: var(--mat-sys-label-small);
+  font-weight: 700;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
 .about {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.9fr);
+  gap: 14px;
 
   code {
     font-family: var(--app-code-family);

@@ -82,9 +82,9 @@ describe('Dado o cartão "Response" de Checks', () => {
       'spinbutton',
       'Timeout before response',
       '11',
-      'To save, fix: Timeout before response',
+      '1 field needs attention: Timeout before response',
     ],
-    ['o Retry-After', 'textbox', 'Retry-After', 'amanhã', 'To save, fix: Retry-After'],
+    ['o Retry-After', 'textbox', 'Retry-After', 'amanhã', '1 field needs attention: Retry-After'],
   ] as const)(
     'deve dizer o que corrigir e focar o campo Quando %s é inválido',
     async (_c, role, name, valor, resumo) => {

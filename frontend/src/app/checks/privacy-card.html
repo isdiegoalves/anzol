@@ -58,12 +58,13 @@
   label="Save privacy"
   i18n-label
   [summary]="pending()"
+  [pendingLabels]="pendingLabels()"
   [attempted]="attempted()"
   [notice]="form.dirty && !notice()?.error ? null : notice()"
   (reload)="reloadCard()"
   (save)="savePrivacy()"
 >
   @if (form.dirty) {
-    <button mat-button type="button" (click)="discard()" i18n>Discard</button>
+    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
   }
 </app-save-bar>

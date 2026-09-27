@@ -10,7 +10,7 @@ import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
+import { PendingField, pendingLabels, pendingSummary, saveErrorNotice } from './url-settings';
 
 /** Tamanho do segredo de leitura que o servidor aceita. */
 const READ_SECRET_MIN = 8;
@@ -76,6 +76,10 @@ export class PrivacyCard {
 
   protected pending(): string {
     return pendingSummary(this.fields());
+  }
+
+  protected pendingLabels(): string[] {
+    return pendingLabels(this.fields());
   }
 
   protected discard(): void {

@@ -48,7 +48,7 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     await userEvent.click(save());
 
     expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      'To save, fix: Secret to view, Confirm secret',
+      '2 fields need attention: Secret to view, Confirm secret',
     );
     expect(screen.getByText('The secret must have 8 to 256 characters.')).toBeTruthy();
     expect(screen.getByText('The secrets do not match.')).toBeTruthy();

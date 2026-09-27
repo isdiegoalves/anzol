@@ -231,9 +231,6 @@ export const translations: Record<string, string> = {
     'Cada provedor tem o próprio nome e formato de cabeçalho. A tabela abaixo mostra onde olhar.',
   // This URL checks it on arrival
   '3868263935956017737': 'Esta URL confere na chegada',
-  // Same formula, same secret, over the exact bytes received. Each request is marked Valid, or Invalid with the reason.
-  '2201855392011790586':
-    'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos. Cada requisição fica marcada como válida, ou inválida com o motivo.',
   // Provider
   '8232773653071363045': 'Provedor',
   // Where the signature arrives
@@ -249,14 +246,8 @@ export const translations: Record<string, string> = {
   //  Saving turns signature verification off. Requests already received keep the result they got on arrival.
   '2620361476002268199':
     ' Salvar desliga a verificação de assinatura. As requisições já recebidas mantêm o resultado que tiveram na chegada. ',
-  //  The saved {$INTERPOLATION} secret is not reused for {$INTERPOLATION_1}: paste the {$INTERPOLATION_1} secret.
-  '690424501516206812':
-    ' O segredo salvo do {$INTERPOLATION} não é reaproveitado para o {$INTERPOLATION_1}: cole o segredo do {$INTERPOLATION_1}. ',
   // Anatomy of a {$INTERPOLATION} signature
   '5449939660123036620': 'Anatomia de uma assinatura {$INTERPOLATION}',
-  //  Where to find the secret: {$INTERPOLATION}. The HMAC key is the UTF-8 bytes of the whole secret.
-  '6184710892939123078':
-    ' Onde achar o segredo: {$INTERPOLATION}. A chave do HMAC são os bytes UTF-8 do segredo inteiro. ',
   // * required
   '5909961776431665131': '* obrigatório',
   // Signature header
@@ -295,24 +286,8 @@ export const translations: Record<string, string> = {
   '4196863552407318610': 'Salvar assinatura',
   // Send a signed test
   '3245840457560393248': 'Mandar um teste assinado',
-  // Endpoint signing secret, whole (whsec_…)
-  '5375332049105949884': 'Signing secret do endpoint, inteiro (whsec_…)',
-  // Raw body, HMAC-SHA256, hex
-  '8590066677204087437': 'Corpo bruto, HMAC-SHA256, hex',
-  // The webhook's secret
-  '47867689568526211': 'O secret do webhook',
-  // Raw body, HMAC-SHA256, base64
-  '2339284717760115149': 'Corpo bruto, HMAC-SHA256, base64',
   // The app's client secret
   '6542656792500449511': 'O client secret do app',
-  // The app's signing secret
-  '1910276609759970770': 'O signing secret do app',
-  // The header you name
-  '6831527637071037893': 'O cabeçalho que você indicar',
-  // Raw body, HMAC-SHA1/256/512, hex or base64
-  '235420540102747188': 'Corpo bruto, HMAC-SHA1/256/512, hex ou base64',
-  // Any secret, up to 256 characters
-  '9019065453748117756': 'Qualquer segredo, até 256 caracteres',
   // None
   '6252070156626006029': 'Nenhum',
   // Requests are not checked
@@ -2032,4 +2007,43 @@ export const translations: Record<string, string> = {
   '1481637659035866979': 'Requisição a reenviar. Escolher',
   // Request to replay: #{$id}, {$method} {$path}. Change
   '4897714653704161369': 'Requisição a reenviar: #{$id}, {$method} {$path}. Trocar',
+  // Same formula, same secret, over the exact bytes received, compared in constant time. Each request is marked Valid, or Invalid with the reason.
+  '1290468726882053783':
+    'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos, comparados em tempo constante. Cada requisição fica marcada como válida, ou inválida com o motivo.',
+  // Unsaved: switching from {$INTERPOLATION} (saved) to {$INTERPOLATION_1}. Requests already received keep the result they got on arrival.
+  '2256076041282014055':
+    'Não salvo: trocando de {$INTERPOLATION} (salvo) para {$INTERPOLATION_1}. As requisições já recebidas mantêm o resultado que tiveram na chegada.',
+  // The saved {$INTERPOLATION} secret is not reused for {$INTERPOLATION_1}: paste the {$INTERPOLATION_1} secret.
+  '771515961909249733':
+    'O segredo salvo do {$INTERPOLATION} não é reaproveitado para o {$INTERPOLATION_1}: cole o segredo do {$INTERPOLATION_1}.',
+  //  Where to find the secret: {$INTERPOLATION} The HMAC key is the UTF-8 bytes of the whole secret.
+  '5672477284479518071':
+    ' Onde achar o segredo: {$INTERPOLATION} A chave do HMAC são os bytes UTF-8 do segredo inteiro. ',
+  // Endpoint signing secret (whsec_…)
+  '4870652055908188265': 'Signing secret do endpoint (whsec_…)',
+  // Stripe Dashboard › Developers › Webhooks › your endpoint › Signing secret.
+  '3826857760944154085':
+    'Stripe Dashboard › Developers › Webhooks › seu endpoint › Signing secret.',
+  // The webhook Secret field
+  '1507753916702191566': 'O campo Secret do webhook',
+  // Repository or organization › Settings › Webhooks › Secret.
+  '95634975908449751': 'Repositório ou organização › Settings › Webhooks › Secret.',
+  // Partners › Apps › your app › Client credentials › Client secret.
+  '5610967971845069495': 'Partners › Apps › seu app › Client credentials › Client secret.',
+  // The app Signing Secret
+  '191036864016606422': 'O Signing Secret do app',
+  // api.slack.com › your app › Basic Information › Signing Secret.
+  '3390356502925590830': 'api.slack.com › seu app › Basic Information › Signing Secret.',
+  // A header you name, optional prefix + signature
+  '4103468559002721539': 'Um header que você nomeia, prefixo opcional + assinatura',
+  // Any shared secret, 1–256 chars
+  '8268973624833839509': 'Qualquer segredo compartilhado, de 1 a 256 caracteres',
+  // Whatever secret the sender signs with.
+  '3865428615171776315': 'O segredo com que quem envia assina.',
+  // Saved. Leave the secret blank to keep it.
+  '3116130584750615135': 'Salvo. Deixe o segredo em branco para mantê-lo.',
+  // 1 field needs attention: {$fields}
+  '1952012124061719459': '1 campo precisa de atenção: {$fields}',
+  // {$count} fields need attention: {$fields}
+  '624500080299950127': '{$count} campos precisam de atenção: {$fields}',
 };

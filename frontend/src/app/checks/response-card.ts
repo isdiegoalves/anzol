@@ -11,7 +11,7 @@ import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, pendingSummary, saveErrorNotice } from './url-settings';
+import { PendingField, pendingLabels, pendingSummary, saveErrorNotice } from './url-settings';
 
 const INTEGER = /^[+-]?\d+$/;
 /** Valor do segmentado "Auto cleanup": `off` desliga (vai `null`). */
@@ -83,6 +83,10 @@ export class ResponseCard {
 
   protected pending(): string {
     return pendingSummary(this.fields());
+  }
+
+  protected pendingLabels(): string[] {
+    return pendingLabels(this.fields());
   }
 
   protected cleanupLimit(): string | null {

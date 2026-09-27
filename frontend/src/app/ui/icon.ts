@@ -58,6 +58,8 @@ const ICONS = {
   ],
   activity: [path('M22 12h-4l-3 9L9 3l-3 9H2')],
   reply: [path('m15 10 5 5-5 5'), path('M4 4v7a4 4 0 0 0 4 4h12')],
+  info: [circle(12, 12, 10), path('M12 16v-4'), path('M12 8h.01')],
+  check: [path('M20 6 9 17l-5-5')],
   lock: [
     { tag: 'rect', x: 3, y: 11, width: 18, height: 11, rx: 2 },
     path('M7 11V7a5 5 0 0 1 10 0v4'),

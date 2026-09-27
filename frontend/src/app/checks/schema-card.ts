@@ -14,6 +14,7 @@ import { SaveBar, SaveNotice } from './save-bar';
 import {
   PendingField,
   fieldErrors,
+  pendingLabels,
   pendingSummary,
   schemaOf,
   schemaText,
@@ -117,6 +118,10 @@ export class SchemaCard {
 
   protected pending(): string {
     return pendingSummary(this.fields());
+  }
+
+  protected pendingLabels(): string[] {
+    return pendingLabels(this.fields());
   }
 
   /** "Clear schema": sem schema, a URL deixa de validar ao salvar. */

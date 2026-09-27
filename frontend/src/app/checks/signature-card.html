@@ -21,38 +21,40 @@
   }
 </header>
 
-<ol class="steps" aria-label="How signature verification works" i18n-aria-label>
-  <li>
-    <span class="step-number" aria-hidden="true">1</span>
-    <span>
-      <strong i18n>The provider signs</strong>
-      <span class="hint" i18n
-        >It computes an HMAC of the raw body (Stripe and Slack add a timestamp) with a secret that
-        only you and it know.</span
-      >
-    </span>
-  </li>
-  <li>
-    <span class="step-number" aria-hidden="true">2</span>
-    <span>
-      <strong i18n>The signature rides in a header</strong>
-      <span class="hint" i18n
-        >Each provider has its own header name and format. The table below shows where to
-        look.</span
-      >
-    </span>
-  </li>
-  <li>
-    <span class="step-number" aria-hidden="true">3</span>
-    <span>
-      <strong i18n>This URL checks it on arrival</strong>
-      <span class="hint" i18n
-        >Same formula, same secret, over the exact bytes received. Each request is marked Valid, or
-        Invalid with the reason.</span
-      >
-    </span>
-  </li>
-</ol>
+<div class="steps-panel">
+  <ol class="steps" aria-label="How signature verification works" i18n-aria-label>
+    <li>
+      <span class="step-number" aria-hidden="true">1</span>
+      <span>
+        <strong i18n>The provider signs</strong>
+        <span class="hint" i18n
+          >It computes an HMAC of the raw body (Stripe and Slack add a timestamp) with a secret that
+          only you and it know.</span
+        >
+      </span>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">2</span>
+      <span>
+        <strong i18n>The signature rides in a header</strong>
+        <span class="hint" i18n
+          >Each provider has its own header name and format. The table below shows where to
+          look.</span
+        >
+      </span>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">3</span>
+      <span>
+        <strong i18n>This URL checks it on arrival</strong>
+        <span class="hint" i18n
+          >Same formula, same secret, over the exact bytes received, compared in constant time. Each
+          request is marked Valid, or Invalid with the reason.</span
+        >
+      </span>
+    </li>
+  </ol>
+</div>
 
 <div class="providers">
   <div class="provider-row provider-head" aria-hidden="true">
@@ -102,9 +104,19 @@
       arrival.
     </p>
   } @else {
-    <p i18n class="banner" role="status">
-      The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
-      {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.
+    <p class="banner" role="status">
+      <app-icon name="info" [size]="18" />
+      <span>
+        <span i18n
+          >Unsaved: switching from {{ providerLabels[savedConfig.provider] }} (saved) to
+          {{ providerLabels[chosen] }}. Requests already received keep the result they got on
+          arrival.</span
+        >
+        <span i18n
+          >The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
+          {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.</span
+        >
+      </span>
     </p>
   }
 }
@@ -141,7 +153,7 @@
       <p class="anatomy" [textContent]="anatomyText()"></p>
       @if (guide) {
         <p i18n class="hint">
-          Where to find the secret: {{ guide.secret }}. The HMAC key is the UTF-8 bytes of the whole
+          Where to find the secret: {{ guide.where }} The HMAC key is the UTF-8 bytes of the whole
           secret.
         </p>
       }
@@ -241,6 +253,7 @@
   label="Save signature"
   i18n-label
   [summary]="pending()"
+  [pendingLabels]="pendingLabels()"
   [attempted]="attempted()"
   [notice]="form.dirty && !notice()?.error ? null : notice()"
   (reload)="reloadCard()"
@@ -251,11 +264,12 @@
       mat-button
       [routerLink]="['/', tokens.token()?.uuid, 'outbound']"
       [queryParams]="{ send: 'signed' }"
-      i18n
-      >Send a signed test</a
+      ><app-icon name="outbound" [size]="18" /><ng-container i18n
+        >Send a signed test</ng-container
+      ></a
     >
   }
   @if (form.dirty) {
-    <button mat-button type="button" (click)="discard()" i18n>Discard</button>
+    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
   }
 </app-save-bar>

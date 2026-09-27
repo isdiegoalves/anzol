@@ -25,7 +25,13 @@ import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChecksStore } from './checks-store';
 import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, fieldErrors, pendingSummary, saveErrorNotice } from './url-settings';
+import {
+  PendingField,
+  fieldErrors,
+  pendingLabels,
+  pendingSummary,
+  saveErrorNotice,
+} from './url-settings';
 
 type ProviderOption = SignatureProvider | 'none';
 
@@ -38,36 +44,43 @@ const PROVIDER_GUIDE: readonly {
   arrives: string;
   signed: string;
   secret: string;
+  /** Onde achar o segredo no painel do provedor. */
+  where: string;
 }[] = [
   {
     provider: 'stripe',
-    arrives: 'Stripe-Signature',
-    signed: '"{t}.{raw body}", HMAC-SHA256, hex',
-    secret: $localize`Endpoint signing secret, whole (whsec_…)`,
+    arrives: 'Stripe-Signature: t=…,v1=<hex>',
+    signed: 'HMAC-SHA256(secret, "{t}.{raw body}") → hex',
+    secret: $localize`Endpoint signing secret (whsec_…)`,
+    where: $localize`Stripe Dashboard › Developers › Webhooks › your endpoint › Signing secret.`,
   },
   {
     provider: 'github',
-    arrives: 'X-Hub-Signature-256',
-    signed: $localize`Raw body, HMAC-SHA256, hex`,
-    secret: $localize`The webhook's secret`,
+    arrives: 'X-Hub-Signature-256: sha256=<hex>',
+    signed: 'HMAC-SHA256(secret, raw body) → hex',
+    secret: $localize`The webhook Secret field`,
+    where: $localize`Repository or organization › Settings › Webhooks › Secret.`,
   },
   {
     provider: 'shopify',
-    arrives: 'X-Shopify-Hmac-Sha256',
-    signed: $localize`Raw body, HMAC-SHA256, base64`,
+    arrives: 'X-Shopify-Hmac-Sha256: <base64>',
+    signed: 'HMAC-SHA256(secret, raw body) → base64',
     secret: $localize`The app's client secret`,
+    where: $localize`Partners › Apps › your app › Client credentials › Client secret.`,
   },
   {
     provider: 'slack',
-    arrives: 'X-Slack-Signature + X-Slack-Request-Timestamp',
-    signed: '"v0:{timestamp}:{raw body}", HMAC-SHA256, hex',
-    secret: $localize`The app's signing secret`,
+    arrives: 'X-Slack-Signature: v0=<hex> + X-Slack-Request-Timestamp',
+    signed: 'HMAC-SHA256(secret, "v0:{timestamp}:{raw body}") → hex',
+    secret: $localize`The app Signing Secret`,
+    where: $localize`api.slack.com › your app › Basic Information › Signing Secret.`,
   },
   {
     provider: 'generic',
-    arrives: $localize`The header you name`,
-    signed: $localize`Raw body, HMAC-SHA1/256/512, hex or base64`,
-    secret: $localize`Any secret, up to 256 characters`,
+    arrives: $localize`A header you name, optional prefix + signature`,
+    signed: 'HMAC-{algorithm}(secret, raw body) → hex or base64',
+    secret: $localize`Any shared secret, 1–256 chars`,
+    where: $localize`Whatever secret the sender signs with.`,
   },
 ];
 
@@ -219,6 +232,7 @@ export class SignatureCard {
     arrives: string;
     signed: string;
     secret: string;
+    where: string;
   }[] = [
     {
       provider: 'none',
@@ -226,6 +240,7 @@ export class SignatureCard {
       arrives: '—',
       signed: $localize`Requests are not checked`,
       secret: '—',
+      where: '',
     },
     ...PROVIDER_GUIDE.map((row) => ({ ...row, label: SIGNATURE_PROVIDER_LABELS[row.provider] })),
   ];
@@ -383,6 +398,10 @@ export class SignatureCard {
     return pendingSummary(this.fields());
   }
 
+  protected pendingLabels(): string[] {
+    return pendingLabels(this.fields());
+  }
+
   protected discard(): void {
     this.reset(this.saved());
   }
@@ -418,7 +437,12 @@ export class SignatureCard {
       this.base.set(token);
       this.saved.set(token.signature ?? null);
       this.reset(this.saved());
-      this.notice.set({ text: $localize`Saved.`, error: false });
+      this.notice.set({
+        text: this.saved()
+          ? $localize`Saved. Leave the secret blank to keep it.`
+          : $localize`Saved.`,
+        error: false,
+      });
     } catch (error) {
       const messages = fieldErrors(error, 'signature.secret');
       if (messages.length > 0) {

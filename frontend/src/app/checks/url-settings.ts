@@ -162,3 +162,16 @@ export function saveErrorNotice(error: unknown): { text: string; error: true; re
   }
   return { text: updateError(error), error: true, reload: false };
 }
+
+/** Rótulos dos campos pendentes, na ordem da tela (o alerta depois de tentar salvar). */
+export function pendingLabels(fields: readonly PendingField[]): string[] {
+  return fields.filter(([control]) => control.invalid).map(([, , label]) => label);
+}
+
+/** "2 fields need attention: Signature header, Secret" (CHECKS-13, protótipo C). */
+export function attentionText(labels: readonly string[]): string {
+  const list = labels.join(', ');
+  return labels.length === 1
+    ? $localize`1 field needs attention: ${list}:fields:`
+    : $localize`${labels.length}:count: fields need attention: ${list}:fields:`;
+}

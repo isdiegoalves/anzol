@@ -60,7 +60,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     await userEvent.click(save());
 
     expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      'To save, fill in: Signature header, Secret',
+      '2 fields need attention: Signature header, Secret',
     );
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Signature header' }));
     expect(save().getAttribute('aria-describedby')).toBe('signature-pending');
@@ -106,7 +106,9 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       }),
     );
     await vi.waitFor(() => expect(screen.getByText('On · Generic')).toBeTruthy());
-    expect(screen.getByRole('status').textContent?.trim()).toBe('Saved.');
+    expect(screen.getByRole('status').textContent?.trim()).toBe(
+      'Saved. Leave the secret blank to keep it.',
+    );
     expect(TestBed.inject(Preferences).token()?.signature?.provider).toBe('generic');
     expect(screen.getByRole('link', { name: 'Send a signed test' }).getAttribute('href')).toContain(
       'outbound?send=signed',
@@ -146,7 +148,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     expect(secret().hasAttribute('required')).toBe(true);
     expect(secret().getAttribute('placeholder') ?? '').toBe('');
     await userEvent.click(save());
-    expect(screen.getByRole('alert').textContent?.trim()).toBe('To save, fill in: Secret');
+    expect(screen.getByRole('alert').textContent?.trim()).toBe('1 field needs attention: Secret');
     await userEvent.type(secret(), 'shpss_novo');
     await userEvent.click(save());
 
@@ -268,6 +270,68 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
           '1 to 86400. Older or future timestamps are rejected (replay protection).',
         ),
       ).toBeTruthy();
+    });
+  });
+
+  describe('Dado as decisões do dono sobre o cartão (F2 fase 2)', () => {
+    it('CHECKS-07: deve pôr os três passos num painel e dizer que a comparação é em tempo constante', async () => {
+      const { container } = await renderCard(SignatureCard, SALVA);
+
+      const steps = screen.getByRole('list', { name: 'How signature verification works' });
+      expect(steps.closest('.steps-panel')).toBeTruthy();
+      expect(steps.textContent).toContain('compared in constant time');
+      expect(container.querySelectorAll('.step-number')).toHaveLength(3);
+    });
+
+    it('CHECKS-09: deve mostrar o formato do header, a fórmula e o segredo curto do protótipo', async () => {
+      await renderCard(SignatureCard, SALVA);
+
+      const github = [...provider('GitHub').querySelectorAll('.about > *')].map((cell) =>
+        cell.textContent?.trim(),
+      );
+      expect(github).toEqual([
+        'X-Hub-Signature-256: sha256=<hex>',
+        'HMAC-SHA256(secret, raw body) → hex',
+        'The webhook Secret field',
+      ]);
+      expect(provider('Stripe').textContent).toContain('Stripe-Signature: t=…,v1=<hex>');
+      expect(provider('Stripe').textContent).toContain(
+        'HMAC-SHA256(secret, "{t}.{raw body}") → hex',
+      );
+      expect(
+        screen.getByText(
+          /^Where to find the secret: Repository or organization › Settings › Webhooks › Secret\./,
+        ),
+      ).toBeTruthy();
+    });
+
+    it('CHECKS-10: deve dizer que as já recebidas guardam o resultado e manter o pedido do segredo novo', async () => {
+      await renderCard(SignatureCard, SALVA);
+
+      await userEvent.click(provider('Shopify'));
+
+      const banner = document.querySelector('.banner[role="status"]');
+      const parts = [...(banner?.querySelectorAll('span > span') ?? [])].map((part) =>
+        part.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+      expect(parts).toEqual([
+        'Unsaved: switching from GitHub (saved) to Shopify. Requests already received keep the result they got on arrival.',
+        'The saved GitHub secret is not reused for Shopify: paste the Shopify secret.',
+      ]);
+      expect(banner?.querySelector('app-icon')).toBeTruthy();
+    });
+
+    it('CHECKS-13: deve ter os ícones do protótipo na barra, "Send a signed test" com ícone e Discard contornado', async () => {
+      await renderCard(SignatureCard, SALVA);
+
+      expect(save().querySelector('app-icon')).toBeTruthy();
+      expect(
+        screen.getByRole('link', { name: 'Send a signed test' }).querySelector('app-icon'),
+      ).toBeTruthy();
+      await userEvent.click(provider('Slack'));
+      expect(
+        screen.getByRole('button', { name: 'Discard' }).hasAttribute('mat-stroked-button'),
+      ).toBe(true);
     });
   });
 });

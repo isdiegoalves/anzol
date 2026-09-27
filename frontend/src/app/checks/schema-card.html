@@ -102,12 +102,13 @@
   label="Save schema"
   i18n-label
   [summary]="pending()"
+  [pendingLabels]="pendingLabels()"
   [attempted]="attempted()"
   [notice]="control.dirty && !notice()?.error ? null : notice()"
   (reload)="reloadCard()"
   (save)="saveSchema()"
 >
   @if (control.dirty) {
-    <button mat-button type="button" (click)="discard()" i18n>Discard</button>
+    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
   }
 </app-save-bar>
