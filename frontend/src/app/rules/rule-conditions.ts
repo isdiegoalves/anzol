@@ -139,12 +139,3 @@ export function tallyConditions(
   }
   return { counts, inferred };
 }
-
-/** A chave de cada linha de condição do formulário, com o nome como está escrito. */
-export function rowConditionKey(
-  list: 'query' | 'headers' | 'body',
-  row: number,
-  name = '',
-): string {
-  return list === 'body' ? `match.body.${row}` : `match.${list}.${name}`;
-}
