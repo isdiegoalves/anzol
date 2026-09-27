@@ -26,6 +26,7 @@ import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
+import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { isTyping } from '../shell/hotkeys';
@@ -33,7 +34,6 @@ import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
 import { isProtectedError } from '../token/url-lock';
-import { Tutorial } from '../tutorial/tutorial';
 import { Icon } from '../ui/icon';
 import { Split } from '../ui/split';
 
@@ -58,10 +58,10 @@ export const RECEIVED_NOTICE_MS = 4000;
     MatIconButton,
     MatSlideToggle,
     NgTemplateOutlet,
+    Onboarding,
     RequestDetail,
     RequestList,
     Split,
-    Tutorial,
   ],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
@@ -97,6 +97,13 @@ export class Inbox {
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
   protected readonly listWidth = signal(380);
+  /** A URL pedida que não existia mais e a que a tela criou no lugar (C §2.11). */
+  private readonly replaced = signal<{ missing: string; token: string } | null>(null);
+  /** O onboarding da URL criada no lugar diz qual não existia mais. */
+  protected readonly missingNote = computed(() => {
+    const replaced = this.replaced();
+    return replaced && replaced.token === this.tokenId() ? replaced.missing : null;
+  });
 
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
@@ -246,7 +253,7 @@ export class Inbox {
     } catch (error) {
       // URL protegida sem acesso: a tela de desbloqueio assume (`UrlLock`); não é URL apagada.
       if (!isProtectedError(error)) {
-        await this.replaceMissingToken(error);
+        await this.replaceMissingToken(tokenId, error);
       }
       return false;
     }
@@ -254,7 +261,9 @@ export class Inbox {
       await this.requests.load(tokenId, page);
     } catch (error) {
       if (!isProtectedError(error)) {
-        this.snackBar.open('Requests not found - invalid ID', undefined, { duration: 1000 });
+        this.snackBar.open($localize`Requests not found - invalid ID`, undefined, {
+          duration: 1000,
+        });
       }
       return false;
     }
@@ -271,16 +280,17 @@ export class Inbox {
     await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
 
-  /** URL apagada ou inválida: cria outra e avisa, como o app atual. */
-  private async replaceMissingToken(error: unknown): Promise<void> {
+  /**
+   * URL apagada ou inválida: cria outra, como o app atual, e o onboarding dela diz qual não
+   * existia mais e por quê (C §2.11), no lugar do snackbar de 10 s.
+   */
+  private async replaceMissingToken(missing: string, error: unknown): Promise<void> {
     const token = await this.tokens.create();
     this.requests.resetUnread();
-    await this.router.navigate(['/', token.uuid], { replaceUrl: true });
     if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 410)) {
-      this.snackBar.open('URL not found. Invalid ID, created new URL', undefined, {
-        duration: 10000,
-      });
+      this.replaced.set({ missing, token: token.uuid });
     }
+    await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
 
   private async receive({ request, total, truncated, removed }: RequestCreated): Promise<void> {
@@ -327,7 +337,7 @@ export class Inbox {
     this.announceArrival();
     if (!inView) {
       this.snackBar
-        .open('Request received', 'View', { duration: RECEIVED_NOTICE_MS })
+        .open($localize`Request received`, $localize`View`, { duration: RECEIVED_NOTICE_MS })
         .onAction()
         .subscribe(() => void this.viewNewest());
     }
@@ -349,7 +359,9 @@ export class Inbox {
       this.arrivals = 0;
       this.announceTimer = null;
       void this.announcer.announce(
-        `${count} new ${count === 1 ? 'request' : 'requests'} arrived`,
+        count === 1
+          ? $localize`1 new request arrived`
+          : $localize`${count}:count: new requests arrived`,
         'polite',
       );
     }, ANNOUNCE_EVERY_MS);

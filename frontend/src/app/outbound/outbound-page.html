@@ -21,7 +21,7 @@
         <span class="hint" i18n>last 50 sent by the server, newest first</span>
       </h2>
       @if (loaded()) {
-        <table class="table" aria-label="Outbound history">
+        <table class="table" aria-label="Outbound history" i18n-aria-label>
           <thead>
             <tr>
               <th scope="col" i18n>Status</th>
@@ -56,7 +56,7 @@
                   <span class="target">{{ item.target }}</span>
                 </td>
                 <td class="numeric">
-                  {{ item.duration_ms }} ms
+                  <ng-container i18n>{{ item.duration_ms }} ms</ng-container>
                   <span class="meta" [title]="date(item.at)">{{ when(item.at) }}</span>
                 </td>
               </tr>
@@ -116,7 +116,7 @@
       </section>
 
       @if (selected(); as current) {
-        <section class="detail" aria-label="Outbound detail">
+        <section class="detail" aria-label="Outbound detail" i18n-aria-label>
           <h2 class="section-title">
             {{ current.kind === 'replay' ? 'Replay' : 'Send' }} · {{ date(current.at) }}
           </h2>

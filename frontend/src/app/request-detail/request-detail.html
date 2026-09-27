@@ -5,7 +5,9 @@
       mat-icon-button
       type="button"
       aria-label="Newer"
+      i18n-aria-label
       title="Newer (K)"
+      i18n-title
       [disabled]="!hasNewer()"
       (click)="showNewer()"
     >
@@ -15,7 +17,9 @@
       mat-icon-button
       type="button"
       aria-label="Older"
+      i18n-aria-label
       title="Older (J)"
+      i18n-title
       [disabled]="!hasOlder()"
       (click)="showOlder()"
     >
@@ -25,36 +29,40 @@
       mat-icon-button
       type="button"
       aria-label="More"
+      i18n-aria-label
       title="Permalink, Raw content"
+      i18n-title
       [matMenuTriggerFor]="moreMenu"
     >
       <app-icon name="more" />
     </button>
     <mat-menu #moreMenu="matMenu">
-      <a mat-menu-item [href]="permalink()">Permalink</a>
-      <a mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+      <a i18n mat-menu-item [href]="permalink()">Permalink</a>
+      <a i18n mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
     </mat-menu>
   </div>
 
-  <div class="actions" role="toolbar" aria-label="Request actions" viewActions>
+  <div class="actions" role="toolbar" aria-label="Request actions" i18n-aria-label viewActions>
     <div class="group">
-      <button mat-flat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
-      <button mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
-      <button mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
+      <button i18n mat-flat-button type="button" (click)="replayRequest()">Replay&hellip;</button>
+      <button i18n mat-button type="button" (click)="sendAsNew()">Send as new&hellip;</button>
+      <button i18n mat-button type="button" (click)="compareWith()">Compare with&hellip;</button>
     </div>
     <div class="group">
-      <button mat-button type="button" (click)="createRule()">Create rule from this request</button>
+      <button i18n mat-button type="button" (click)="createRule()">
+        Create rule from this request
+      </button>
       @if (jsonBody()) {
-        <button mat-button type="button" (click)="createSchema()">
+        <button i18n mat-button type="button" (click)="createSchema()">
           Create schema from this request
         </button>
       }
     </div>
     <div class="group">
       @if (current.content) {
-        <button mat-button type="button" (click)="copyPayload()">Copy payload</button>
+        <button i18n mat-button type="button" (click)="copyPayload()">Copy payload</button>
       }
-      <button mat-button type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
+      <button i18n mat-button type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
       <mat-menu #copyMenu="matMenu">
         @for (format of formats; track format) {
           <button mat-menu-item type="button" (click)="copyRequestAs(format)">
@@ -64,13 +72,14 @@
       </mat-menu>
     </div>
     <div class="group">
-      <button mat-button type="button" (click)="shareRequest()">
+      <button i18n mat-button type="button" (click)="shareRequest()">
         Share read-only link&hellip;
       </button>
       <button
         mat-button
         type="button"
         title="Ask the local model why signature, schema and rules gave this result"
+        i18n-title
         [disabled]="ai.disabled() && !explaining()"
         (click)="toggleExplain()"
       >

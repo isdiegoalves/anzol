@@ -16,5 +16,5 @@ export const timeoutValidators = [
   Validators.pattern(/^\d+$/),
 ];
 
-export const TARGET_ERROR = 'An http:// or https:// URL of up to 2048 characters.';
-export const TIMEOUT_ERROR = `A whole number of seconds from ${TIMEOUT_MIN_S} to ${TIMEOUT_MAX_S}.`;
+export const TARGET_ERROR = $localize`An http:// or https:// URL of up to 2048 characters.`;
+export const TIMEOUT_ERROR = $localize`A whole number of seconds from ${TIMEOUT_MIN_S} to ${TIMEOUT_MAX_S}.`;

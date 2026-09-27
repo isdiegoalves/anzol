@@ -148,6 +148,46 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(document.activeElement).toBe(settings);
   });
 
+  it('deve trocar a densidade para compacta em Settings, gravar e pôr a classe no <html>', async () => {
+    const user = userEvent.setup();
+    await renderAt(`/${TOKEN_ID}`);
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const density = await screen.findByRole('radiogroup', { name: 'Density' });
+    expect(within(density).getByRole('radio', { name: 'Comfortable' })).toHaveProperty(
+      'checked',
+      true,
+    );
+    expect(document.documentElement.classList.contains('compact')).toBe(false);
+    await user.click(within(density).getByRole('radio', { name: 'Compact' }));
+
+    expect(document.documentElement.classList.contains('compact')).toBe(true);
+    expect(localStorage.getItem('density')).toBe('"compact"');
+    await user.click(within(density).getByRole('radio', { name: 'Comfortable' }));
+    expect(document.documentElement.classList.contains('compact')).toBe(false);
+  });
+
+  it('deve mostrar cada idioma no próprio nome e pedir para recarregar Quando o idioma muda', async () => {
+    const user = userEvent.setup();
+    await renderAt(`/${TOKEN_ID}`);
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const language = await screen.findByRole('radiogroup', { name: 'Language' });
+    expect(
+      within(language)
+        .getAllByRole('radio')
+        .map((radio) => radio.parentElement?.textContent?.trim()),
+    ).toEqual(['English', 'Português (Brasil)']);
+    expect(screen.queryByRole('button', { name: 'Reload now' })).toBeNull();
+    await user.click(within(language).getByRole('radio', { name: 'Português (Brasil)' }));
+
+    expect(localStorage.getItem('language')).toBe('"pt-BR"');
+    expect(screen.getByRole('status').textContent).toContain(
+      'The language changes when the page reloads.',
+    );
+    expect(screen.getByRole('button', { name: 'Reload now' })).toBeTruthy();
+  });
+
   it('deve mostrar os atalhos e o About com os links de hoje Quando Help é clicado', async () => {
     const user = userEvent.setup();
     const { container } = await renderAt(`/${TOKEN_ID}`);

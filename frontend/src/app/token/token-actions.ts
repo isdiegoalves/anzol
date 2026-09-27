@@ -37,7 +37,7 @@ export class TokenActions {
     const token = this.tokens.token();
     if (token) {
       await this.access.lock(token.uuid);
-      this.snackBar.open('URL locked', undefined, { duration: 4000 });
+      this.snackBar.open($localize`URL locked`, undefined, { duration: 4000 });
     }
   }
 
@@ -53,7 +53,7 @@ export class TokenActions {
       }
       this.requests.resetUnread();
       await this.router.navigate(['/', token.uuid]);
-      this.snackBar.open('New URL created', undefined, { duration: 4000 });
+      this.snackBar.open($localize`New URL created`, undefined, { duration: 4000 });
       return true;
     } catch (error) {
       this.snackBar.open(createError(error), undefined, { duration: 10000 });

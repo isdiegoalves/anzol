@@ -25,6 +25,9 @@ export class UrlHeader {
   private readonly injector = inject(Injector);
 
   protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly signatureLabel = (provider: string) =>
+    $localize`Signature verification: ${provider}:provider:. Open Checks`;
 
   /** O estado do SSE na linguagem da tela; `null` sem stream (fora da Inbox). */
   protected readonly live = computed<LiveState | null>(() => {

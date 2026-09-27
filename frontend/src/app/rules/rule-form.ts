@@ -432,10 +432,10 @@ export function parseRuleJson(text: string): ParsedRule {
   try {
     value = JSON.parse(text);
   } catch (error) {
-    return { errors: [`Invalid JSON: ${(error as Error).message}`] };
+    return { errors: [$localize`Invalid JSON: ${(error as Error).message}`] };
   }
   if (!isObject(value)) {
-    return { errors: ['The rule must be a JSON object.'] };
+    return { errors: [$localize`The rule must be a JSON object.`] };
   }
   const errors = [
     ...ruleFieldErrors(value),

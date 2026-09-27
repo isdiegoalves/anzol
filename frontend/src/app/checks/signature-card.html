@@ -3,7 +3,7 @@
 <header class="card-head">
   <h2 id="signature-title" i18n>Signature verification</h2>
   @if (savedConfig) {
-    <span class="state on">On · {{ providerLabels[savedConfig.provider] }}</span>
+    <span i18n class="state on">On · {{ providerLabels[savedConfig.provider] }}</span>
   } @else {
     <span class="state" i18n>Off</span>
   }
@@ -93,7 +93,7 @@
       arrival.
     </p>
   } @else {
-    <p class="banner" role="status">
+    <p i18n class="banner" role="status">
       The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
       {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.
     </p>
@@ -112,7 +112,7 @@
         }
       </ul>
       @if (guide) {
-        <p class="hint">
+        <p i18n class="hint">
           Where to find the secret: {{ guide.secret }}. The HMAC key is the UTF-8 bytes of the whole
           secret.
         </p>
@@ -124,7 +124,7 @@
       @if (chosen === 'generic') {
         <mat-form-field>
           <mat-label i18n>Signature header</mat-label>
-          <input matInput formControlName="header" placeholder="X-Signature" />
+          <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
           <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
           <mat-error i18n>The header is required.</mat-error>
         </mat-form-field>
@@ -152,7 +152,7 @@
       @if (chosen === 'generic') {
         <mat-form-field>
           <mat-label i18n>Prefix</mat-label>
-          <input matInput formControlName="prefix" placeholder="sha256=" />
+          <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
           <mat-hint i18n>Optional, before the signature</mat-hint>
         </mat-form-field>
         <div class="segmented">

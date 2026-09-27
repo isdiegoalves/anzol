@@ -127,9 +127,10 @@ export class ResponseCard {
       );
       this.base.set(token);
       this.reset(token);
-      this.notice.set({ text: 'Saved.', error: false });
+      this.notice.set({ text: $localize`Saved.`, error: false });
     } catch (error) {
       this.notice.set(saveErrorNotice(error));
+      this.checks.offerRetry(error, () => void this.saveResponse());
     } finally {
       this.saving.set(false);
     }
@@ -161,8 +162,8 @@ export class ResponseCard {
   private fields(): readonly PendingField[] {
     const c = this.form.controls;
     return [
-      [c.default_status, 'default_status', 'Default status code'],
-      [c.timeout, 'timeout', 'Timeout before response'],
+      [c.default_status, 'default_status', $localize`Default status code`],
+      [c.timeout, 'timeout', $localize`Timeout before response`],
       [c.retry_after, 'retry_after', 'Retry-After'],
     ];
   }

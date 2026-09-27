@@ -29,4 +29,33 @@ describe('Dado a data de uma mensagem ("Y-m-d H:i:s" em UTC)', () => {
   ])('deve seguir os limiares do moment Quando se passaram %i segundos', (segundos, esperado) => {
     expect(fromNow(CRIADA, base + segundos * 1000)).toBe(esperado);
   });
+
+  it('deve contar como passado Quando o relógio do servidor está poucos segundos à frente', () => {
+    expect(fromNow(CRIADA, base - 5 * 1000)).toBe('a few seconds ago');
+  });
+});
+
+describe('Dado a data de uma mensagem em outro idioma (Intl)', () => {
+  it('deve formatar pelo Intl do idioma, sem AM/PM, Quando a tela está em pt-BR', () => {
+    const text = localDate(CRIADA, 'pt-BR');
+
+    expect(text).toMatch(/\d{1,2} de [a-zç]{3}\.? de \d{4}/);
+    expect(text).not.toMatch(/\b(AM|PM)\b/);
+  });
+
+  it.each([
+    [30, 'agora'],
+    [3 * 60, 'há 3 minutos'],
+    [3 * 86400, 'há 3 dias'],
+  ])(
+    'deve dizer o tempo relativo pelo Intl Quando se passaram %i segundos',
+    (segundos, esperado) => {
+      expect(fromNow(CRIADA, base + segundos * 1000, 'pt-BR')).toBe(esperado);
+    },
+  );
+
+  it('deve dizer o futuro Quando a data ainda vai chegar (validade de um link)', () => {
+    expect(fromNow(CRIADA, base - 7 * 86400 * 1000, 'en')).toBe('in 7 days');
+    expect(fromNow(CRIADA, base - 7 * 86400 * 1000, 'pt-BR')).toBe('em 7 dias');
+  });
 });

@@ -22,7 +22,7 @@
 
 @if (stats(); as stats) {
   <div class="grid">
-    <app-pane class="summary wide" heading="Summary">
+    <app-pane class="summary wide" heading="Summary" i18n-heading>
       <div class="body">
         <dl class="kpis">
           <div class="kpi">
@@ -60,20 +60,22 @@
           <app-empty-state
             icon="insights"
             heading="No requests yet"
+            i18n-heading
             text="Send a request to this URL and its numbers show up here."
+            i18n-text
           />
         }
       </div>
     </app-pane>
 
     @if (stats.evaluated > 0) {
-      <app-pane class="wide" heading="Requests per hour">
+      <app-pane class="wide" heading="Requests per hour" i18n-heading>
         <div class="body">
           <app-hourly-chart [bars]="hourly()" />
           <details class="data" open>
             <summary i18n>Data table</summary>
             <div class="table-scroll">
-              <table class="table" aria-label="Requests per hour data">
+              <table class="table" aria-label="Requests per hour data" i18n-aria-label>
                 <thead>
                   <tr>
                     <th i18n>Hour (UTC)</th>
@@ -96,11 +98,11 @@
         </div>
       </app-pane>
 
-      <app-pane heading="Signature">
+      <app-pane heading="Signature" i18n-heading>
         <div class="body">
-          <app-proportion-bar label="Signature" [parts]="signature()" />
+          <app-proportion-bar label="Signature" i18n-label [parts]="signature()" />
           @if (stats.signature.reasons.length > 0) {
-            <table class="table" aria-label="Signature failure reasons">
+            <table class="table" aria-label="Signature failure reasons" i18n-aria-label>
               <thead>
                 <tr>
                   <th i18n>Reason</th>
@@ -122,11 +124,11 @@
         </div>
       </app-pane>
 
-      <app-pane heading="Schema">
+      <app-pane heading="Schema" i18n-heading>
         <div class="body">
-          <app-proportion-bar label="Schema" [parts]="schema()" />
+          <app-proportion-bar label="Schema" i18n-label [parts]="schema()" />
           @if (stats.schema.paths.length > 0) {
-            <table class="table" aria-label="Schema error paths">
+            <table class="table" aria-label="Schema error paths" i18n-aria-label>
               <thead>
                 <tr>
                   <th i18n>Path</th>
@@ -148,9 +150,9 @@
         </div>
       </app-pane>
 
-      <app-pane class="wide" heading="Rules">
+      <app-pane class="wide" heading="Rules" i18n-heading>
         <div class="body">
-          <table class="table" aria-label="Who answered">
+          <table class="table" aria-label="Who answered" i18n-aria-label>
             <thead>
               <tr>
                 <th i18n>Answered by</th>
@@ -180,7 +182,7 @@
             </tbody>
           </table>
           @if (stats.rules.near_miss.length > 0) {
-            <table class="table" aria-label="Near misses">
+            <table class="table" aria-label="Near misses" i18n-aria-label>
               <thead>
                 <tr>
                   <th i18n>Closest rule when none matched</th>

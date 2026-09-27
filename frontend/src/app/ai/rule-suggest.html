@@ -1,12 +1,14 @@
 <details class="suggest" open>
-  <summary>Describe the rule</summary>
+  <summary i18n>Describe the rule</summary>
   <mat-form-field class="prompt">
-    <mat-label>What should the rule do?</mat-label>
+    <mat-label i18n>What should the rule do?</mat-label>
     <textarea
       matInput
       rows="2"
       aria-label="Describe the rule"
+      i18n-aria-label
       placeholder="Answer 429 with Retry-After 5 for POST on /payments"
+      i18n-placeholder
       [maxlength]="maxLength"
       [disabled]="disabled()"
       [ngModel]="prompt()"
@@ -30,13 +32,14 @@
   <div class="actions">
     @if (example(); as request) {
       <mat-checkbox
+        i18n
         [disabled]="disabled()"
         [checked]="useExample()"
         (change)="useExample.set($event.checked)"
         >Use the open request as example ({{ request.method }})</mat-checkbox
       >
     }
-    <button mat-stroked-button type="button" [disabled]="!canSuggest()" (click)="suggest()">
+    <button i18n mat-stroked-button type="button" [disabled]="!canSuggest()" (click)="suggest()">
       Suggest
     </button>
   </div>
@@ -44,18 +47,18 @@
     <p class="wait" role="status">{{ waitHint }}</p>
   }
   @if (errors().length > 0) {
-    <ul class="errors" role="alert" aria-label="Suggestion errors">
+    <ul class="errors" role="alert" aria-label="Suggestion errors" i18n-aria-label>
       @for (message of errors(); track $index) {
         <li>{{ message }}</li>
       }
     </ul>
   }
   @if (result(); as suggestion) {
-    <div class="result" role="status" aria-label="Suggestion">
-      <p class="attempts">
-        Suggested in {{ suggestion.attempts }}
-        {{ suggestion.attempts === 1 ? 'attempt' : 'attempts' }}. Review the rule below and click
-        Save to keep it.
+    <div class="result" role="status" aria-label="Suggestion" i18n-aria-label>
+      <p i18n class="attempts">
+        Suggested in
+        {suggestion.attempts, plural, =1 {1 attempt} other {{{ suggestion.attempts }} attempts}}.
+        Review the rule below and click Save to keep it.
       </p>
       <app-markdown [text]="suggestion.explanation" />
     </div>

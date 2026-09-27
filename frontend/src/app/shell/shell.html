@@ -1,16 +1,31 @@
 @let token = tokens.token();
 @let open = token && !locked() ? token : null;
 <div class="rail">
-  <a class="brand" routerLink="/" aria-label="Webhook Tester" title="Webhook Tester">
+  <a
+    class="brand"
+    routerLink="/"
+    aria-label="Webhook Tester"
+    i18n-aria-label
+    title="Webhook Tester"
+    i18n-title
+  >
     <app-icon name="anchor" [size]="24" />
-    <span class="brand-name" aria-hidden="true">Webhook Tester</span>
+    <span i18n class="brand-name" aria-hidden="true">Webhook Tester</span>
   </a>
-  <button type="button" class="fab" aria-label="New URL" title="New URL (N)" (click)="createUrl()">
+  <button
+    type="button"
+    class="fab"
+    aria-label="New URL"
+    i18n-aria-label
+    title="New URL (N)"
+    i18n-title
+    (click)="createUrl()"
+  >
     <app-icon name="plus" [size]="24" />
-    <span class="fab-text" aria-hidden="true">New URL</span>
+    <span i18n class="fab-text" aria-hidden="true">New URL</span>
   </button>
   @if (open) {
-    <nav class="destinations" aria-label="URL sections">
+    <nav class="destinations" aria-label="URL sections" i18n-aria-label>
       @for (destination of destinations; track destination.label) {
         @let here = current() === destination;
         <a
@@ -18,10 +33,10 @@
           [routerLink]="link(destination, open.uuid)"
           [class.current]="here"
           [attr.aria-current]="here ? 'page' : null"
-          [attr.title]="destination.label + ' (G then ' + destination.key.toUpperCase() + ')'"
+          [attr.title]="hint(destination)"
         >
           <span class="indicator"><app-icon [name]="destination.icon" [size]="22" /></span>
-          <span class="label">{{ destination.label }}</span>
+          <span class="label">{{ label(destination) }}</span>
         </a>
       }
     </nav>
@@ -31,7 +46,9 @@
     type="button"
     class="tool"
     aria-label="Settings"
+    i18n-aria-label
     title="Settings"
+    i18n-title
     [attr.aria-expanded]="sheet() === 'settings'"
     (click)="toggleSheet('settings')"
   >
@@ -41,7 +58,9 @@
     type="button"
     class="tool"
     aria-label="Help"
+    i18n-aria-label
     title="Help and shortcuts (?)"
+    i18n-title
     [attr.aria-expanded]="sheet() === 'help'"
     (click)="toggleSheet('help')"
   >

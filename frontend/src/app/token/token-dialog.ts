@@ -196,11 +196,16 @@ export class TokenDialog {
   private fields(): [AbstractControl, string, string, boolean][] {
     const c = this.form.controls;
     return [
-      [c.default_status, 'default_status', 'Default status code', true],
-      [c.timeout, 'timeout', 'Timeout before response', true],
+      [c.default_status, 'default_status', $localize`Default status code`, true],
+      [c.timeout, 'timeout', $localize`Timeout before response`, true],
       [c.retry_after, 'retry_after', 'Retry-After', true],
-      [c.privacy.controls.read_secret, 'read_secret', 'Secret to view', false],
-      [c.privacy.controls.read_secret_confirm, 'read_secret_confirm', 'Confirm secret', false],
+      [c.privacy.controls.read_secret, 'read_secret', $localize`Secret to view`, false],
+      [
+        c.privacy.controls.read_secret_confirm,
+        'read_secret_confirm',
+        $localize`Confirm secret`,
+        false,
+      ],
     ];
   }
 

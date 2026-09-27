@@ -54,6 +54,14 @@ export class Shell {
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
 
   protected readonly destinations = DESTINATIONS;
+  /** Rótulos traduzidos na instância (o `DESTINATIONS` é do módulo, lido antes da tradução). */
+  private readonly labels: Record<Destination['label'], string> = {
+    Inbox: $localize`Inbox`,
+    Rules: $localize`Rules`,
+    Checks: $localize`Checks`,
+    Outbound: $localize`Outbound`,
+    Insights: $localize`Insights`,
+  };
   protected readonly sheet = signal<Sheet | null>(null);
   private opener: HTMLElement | null = null;
 
@@ -105,6 +113,15 @@ export class Shell {
       },
       inject(DestroyRef),
     );
+  }
+
+  protected label(destination: Destination): string {
+    return this.labels[destination.label];
+  }
+
+  /** "Rules (G then R)": o atalho junto do nome, na dica. */
+  protected hint(destination: Destination): string {
+    return $localize`${this.label(destination)}:destination: (G then ${destination.key.toUpperCase()}:key:)`;
   }
 
   protected link(destination: Destination, tokenId: string): string[] {

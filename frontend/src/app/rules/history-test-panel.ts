@@ -16,6 +16,8 @@ export class HistoryTestPanel {
   readonly tokenId = input.required<string>();
 
   protected readonly window = HISTORY_TEST_WINDOW;
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly openLabel = (uuid: string) => $localize`Open request ${uuid}:uuid:`;
 
   constructor() {
     // O resultado aparece no fim do editor, que pode estar rolado para cima.

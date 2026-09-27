@@ -53,6 +53,9 @@ export class RequestView {
 
   protected readonly localDate = localDate;
   protected readonly fromNow = fromNow;
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly conditionsLabel = (rule: string) =>
+    $localize`Conditions of ${rule}:rule: that failed`;
 
   protected readonly pipeline = computed(() => pipelineOf(this.request(), { token: this.token() }));
   protected readonly checks = computed(() => {

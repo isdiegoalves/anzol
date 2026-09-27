@@ -160,7 +160,7 @@ export class SchemaCard {
       control.reset(schemaText(this.saved()));
       this.attempted.set(false);
       this.inferred.set(null);
-      this.notice.set({ text: 'Saved.', error: false });
+      this.notice.set({ text: $localize`Saved.`, error: false });
     } catch (error) {
       const messages = fieldErrors(error, 'schema');
       if (messages.length > 0) {
@@ -168,6 +168,7 @@ export class SchemaCard {
         control.markAsTouched();
       } else {
         this.notice.set(saveErrorNotice(error));
+        this.checks.offerRetry(error, () => void this.saveSchema());
       }
     } finally {
       this.saving.set(false);
@@ -178,19 +179,22 @@ export class SchemaCard {
     try {
       this.useRequest(await this.checks.request(tokenId, requestId));
     } catch {
-      this.inferred.set({ text: 'Could not load that request.', error: true });
+      this.inferred.set({ text: $localize`Could not load that request.`, error: true });
     }
   }
 
   private useRequest(request: WebhookRequest): void {
     const body = jsonBody(request);
     if (!body) {
-      this.inferred.set({ text: 'That request has no JSON body to infer from.', error: true });
+      this.inferred.set({
+        text: $localize`That request has no JSON body to infer from.`,
+        error: true,
+      });
       return;
     }
     this.setDraft(schemaText(inferSchema(body.value)));
     this.inferred.set({
-      text: `Inferred from request ${request.uuid.slice(0, 8)}. Every key present became required; review it and save.`,
+      text: $localize`Inferred from request ${request.uuid.slice(0, 8)}. Every key present became required; review it and save.`,
       error: false,
     });
   }

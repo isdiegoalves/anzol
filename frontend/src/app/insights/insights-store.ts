@@ -45,8 +45,8 @@ export class InsightsStore {
 
 function statsMessage(error: unknown): string {
   if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 410)) {
-    return `This URL no longer exists (${error.status}).`;
+    return $localize`This URL no longer exists (${error.status}).`;
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return `Could not load the numbers of this URL (${status}).`;
+  return $localize`Could not load the numbers of this URL (${status}).`;
 }

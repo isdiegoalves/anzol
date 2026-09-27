@@ -10,7 +10,8 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { CompareStore } from '../diff/compare-store';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
-import { ITEM_HEIGHT, RequestList, UNDO_MS } from './request-list';
+import { ShellSettings } from '../shell/shell-settings';
+import { ITEM_HEIGHT, ITEM_HEIGHT_COMPACT, RequestList, UNDO_MS } from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -55,6 +56,31 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().textContent).toContain('Requests (0)');
     expect(element().textContent).toContain('Waiting for first request...');
+  });
+
+  it('deve mostrar o esqueleto, e não "Waiting for first request...", Quando a lista carrega (E10)', async () => {
+    const loaded = store.load(TOKEN_ID);
+    await fixture.whenStable();
+
+    expect(element().querySelectorAll('.skeleton .ghost')).toHaveLength(6);
+    expect(element().textContent).not.toContain('Waiting for first request...');
+    expect(items()).toHaveLength(0);
+
+    http.expectOne(`/token/${TOKEN_ID}/requests?page=1`).flush(requestPage([webhookRequest(1)]));
+    await loaded;
+    await fixture.whenStable();
+    expect(element().querySelector('.skeleton')).toBeNull();
+    expect(items()).toHaveLength(1);
+  });
+
+  it('deve usar itens de 60 px Quando a densidade é compacta (S17)', async () => {
+    TestBed.inject(ShellSettings).density.set('compact');
+    await load([webhookRequest(1)]);
+
+    expect(fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))).toBeTruthy();
+    expect(
+      (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight(),
+    ).toBe(ITEM_HEIGHT_COMPACT);
   });
 
   it('deve mostrar método, início do UUID, rota, IP e data e destacar a não lida Quando há mensagens', async () => {

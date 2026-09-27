@@ -101,8 +101,8 @@ export class RequestSearch {
     );
     this.copied.set(
       filter.text.trim()
-        ? 'Copied. The text search is not part of wait-for: only the filters went into --match.'
-        : 'Copied the webhook wait-for command.',
+        ? $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`
+        : $localize`Copied the webhook wait-for command.`,
     );
   }
 

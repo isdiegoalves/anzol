@@ -1,17 +1,18 @@
 @let current = state();
-<main class="page" aria-label="Compare">
+<main class="page" aria-label="Compare" i18n-aria-label>
   @switch (current.kind) {
     @case ('loaded') {
       @if (twoPanes()) {
         <app-split
           class="split"
           label="Resize list and comparison"
+          i18n-label
           storageKey="compareListWidth"
           [min]="260"
           [max]="520"
           [(width)]="listWidth"
         >
-          <section splitStart class="pane list-pane" aria-label="Request list">
+          <section splitStart class="pane list-pane" aria-label="Request list" i18n-aria-label>
             <app-request-list (openRequest)="chooseB($event)" />
           </section>
           <div splitEnd class="pane compare-pane">
@@ -28,18 +29,20 @@
       <app-empty-state
         icon="search"
         heading="One of these requests is gone"
+        i18n-heading
         text="It may have been deleted or cut by auto cleanup."
+        i18n-text
       >
-        <a [routerLink]="['/', tokenId()]">Back to the Inbox</a>
+        <a i18n [routerLink]="['/', tokenId()]">Back to the Inbox</a>
       </app-empty-state>
     }
     @case ('failed') {
-      <p class="error" role="alert">
+      <p i18n class="error" role="alert">
         Could not load the requests to compare ({{ current.status }}). Try again later.
       </p>
     }
     @default {
-      <p class="loading">Loading comparison&hellip;</p>
+      <p i18n class="loading">Loading comparison&hellip;</p>
     }
   }
 </main>

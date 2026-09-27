@@ -1,4 +1,4 @@
-<div class="search" role="search" aria-label="Filter requests">
+<div class="search" role="search" aria-label="Filter requests" i18n-aria-label>
   <label class="pill">
     <app-icon name="search" [size]="18" />
     <input
@@ -7,16 +7,19 @@
       type="text"
       name="search"
       aria-label="Search"
+      i18n-aria-label
       placeholder="Search path, headers, body"
+      i18n-placeholder
       maxlength="200"
       autocomplete="off"
       enterkeyhint="search"
       title="Search (/)"
+      i18n-title
       [value]="draft()"
       (input)="draft.set(box.value)"
     />
   </label>
-  <div class="chips" role="group" aria-label="Filters">
+  <div class="chips" role="group" aria-label="Filters" i18n-aria-label>
     @for (chip of chips(); track chip.label) {
       <button type="button" class="chip" [attr.aria-pressed]="chip.pressed" (click)="chip.toggle()">
         {{ chip.label }}
@@ -25,6 +28,7 @@
   </div>
   <div class="row">
     <button
+      i18n
       type="button"
       class="link"
       [disabled]="!store.filtering() && draft() === ''"
@@ -32,12 +36,14 @@
     >
       Clear filters
     </button>
-    <button type="button" class="link" (click)="copyWaitFor()">Copy as webhook wait-for</button>
+    <button i18n type="button" class="link" (click)="copyWaitFor()">
+      Copy as webhook wait-for
+    </button>
   </div>
   @if (copied(); as message) {
     <p class="note" role="status">{{ message }}</p>
   }
   @if (store.filtering()) {
-    <p class="count" role="status">{{ store.matched() }} of {{ store.total() }} requests</p>
+    <p i18n class="count" role="status">{{ store.matched() }} of {{ store.total() }} requests</p>
   }
 </div>

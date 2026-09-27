@@ -89,10 +89,10 @@ export const RULE_FAULTS = [
 export type RuleFault = (typeof RULE_FAULTS)[number];
 
 export const FAULT_LABELS: Record<RuleFault, string> = {
-  connection_reset: 'Connection reset (TCP RST)',
-  empty_response: 'Empty response (close without writing)',
-  malformed_chunk: 'Malformed chunk (valid status and headers)',
-  random_data_then_close: 'Random data, then close',
+  connection_reset: $localize`Connection reset (TCP RST)`,
+  empty_response: $localize`Empty response (close without writing)`,
+  malformed_chunk: $localize`Malformed chunk (valid status and headers)`,
+  random_data_then_close: $localize`Random data, then close`,
 };
 
 export const DELAY_MAX_MS = 60_000;
@@ -207,20 +207,23 @@ export function ruleFlags(rule: Rule): RuleFlag[] {
   const flags: RuleFlag[] = [];
   if (response.fault) {
     const label = FAULT_LABELS[response.fault] ?? response.fault;
-    flags.push({ label: 'fault', detail: `Fault: ${label[0].toLowerCase()}${label.slice(1)}` });
+    flags.push({
+      label: 'fault',
+      detail: $localize`Fault: ${label[0].toLowerCase()}${label.slice(1)}`,
+    });
   } else {
     if (response.template) {
-      flags.push({ label: 'template', detail: 'Body and header values are templates' });
+      flags.push({ label: 'template', detail: $localize`Body and header values are templates` });
     }
     if (response.delay) {
-      flags.push({ label: 'delay', detail: `Delay: ${describeDelay(response.delay)}` });
+      flags.push({ label: 'delay', detail: $localize`Delay: ${describeDelay(response.delay)}` });
     }
   }
   if (rule.scenario?.name) {
     const { name, requiredState, newState } = rule.scenario;
     flags.push({
       label: 'scenario',
-      detail: `Scenario ${name}: ${requiredState || 'any state'} → ${newState || 'keeps the state'}`,
+      detail: $localize`Scenario ${name}:scenario:: ${requiredState || $localize`any state`}:from: → ${newState || $localize`keeps the state`}:to:`,
     });
   }
   return flags;

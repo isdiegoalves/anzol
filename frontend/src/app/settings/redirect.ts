@@ -75,9 +75,13 @@ export class Redirector {
       );
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.statusText : String(error);
-      this.snackBar.open(`Error redirecting request to ${call.url}. Status: ${status}`, undefined, {
-        duration: 5000,
-      });
+      this.snackBar.open(
+        $localize`Error redirecting request to ${call.url}:url:. Status: ${status}:status:`,
+        undefined,
+        {
+          duration: 5000,
+        },
+      );
     }
   }
 }

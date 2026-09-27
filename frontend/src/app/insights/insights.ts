@@ -62,10 +62,10 @@ export function percent(count: number, total: number): string {
 export function signatureParts(stats: TokenStats): Part[] {
   const { valid, invalid, absent, unchecked } = stats.signature;
   return [
-    { label: 'Valid', count: valid, tone: 'ok' },
-    { label: 'Invalid', count: invalid, tone: 'bad' },
-    { label: 'Absent', count: absent, tone: 'near' },
-    { label: 'Not checked', count: unchecked, tone: 'none' },
+    { label: $localize`Valid`, count: valid, tone: 'ok' },
+    { label: $localize`Invalid`, count: invalid, tone: 'bad' },
+    { label: $localize`Absent`, count: absent, tone: 'near' },
+    { label: $localize`Not checked`, count: unchecked, tone: 'none' },
   ];
 }
 
@@ -73,9 +73,9 @@ export function signatureParts(stats: TokenStats): Part[] {
 export function schemaParts(stats: TokenStats): Part[] {
   const { valid, invalid, unchecked } = stats.schema;
   return [
-    { label: 'Valid', count: valid, tone: 'ok' },
-    { label: 'Invalid', count: invalid, tone: 'bad' },
-    { label: 'Not checked', count: unchecked, tone: 'none' },
+    { label: $localize`Valid`, count: valid, tone: 'ok' },
+    { label: $localize`Invalid`, count: invalid, tone: 'bad' },
+    { label: $localize`Not checked`, count: unchecked, tone: 'none' },
   ];
 }
 
@@ -85,7 +85,7 @@ export function answeredParts(stats: TokenStats): Part[] {
     ...[...stats.rules.answered]
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
       .map(({ name, count }) => ({ label: name, count, tone: 'primary' as const })),
-    { label: 'Default response', count: stats.rules.default, tone: 'none' },
+    { label: $localize`Default response`, count: stats.rules.default, tone: 'none' },
   ];
 }
 
@@ -100,11 +100,12 @@ export function methodsText(methods: Record<string, number>): string {
 /** Resumo do gráfico por hora para leitor de tela (o `img` do SVG). */
 export function hourlySummary(bars: readonly HourBar[]): string {
   if (bars.length === 0) {
-    return 'Requests per hour: no requests';
+    return $localize`Requests per hour: no requests`;
   }
   const peak = bars.reduce((best, bar) => (bar.count > best.count ? bar : best), bars[0]);
-  return (
-    `Requests per hour, ${bars.length} ${bars.length === 1 ? 'hour' : 'hours'} from ` +
-    `${bars[0].hour} to ${bars[bars.length - 1].hour} UTC; peak ${peak.count} at ${peak.hour} UTC`
-  );
+  const from = bars[0].hour;
+  const to = bars[bars.length - 1].hour;
+  return bars.length === 1
+    ? $localize`Requests per hour, 1 hour from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`
+    : $localize`Requests per hour, ${bars.length}:count: hours from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`;
 }

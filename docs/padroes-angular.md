@@ -120,11 +120,28 @@ separação do Trajan entre código compartilhado e funcionalidades isoladas vir
 
 A Inbox é feita de quatro pastas que se compõem e se importam entre si: a página (`inbox/`), a
 lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`); o Compare (`diff/`)
-usa a mesma lista e entra no grupo (`INBOX_PARTS` no `eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
+usa a mesma lista e o onboarding (`onboarding/`) ocupa o detalhe da URL vazia, e os dois entram
+no grupo (`INBOX_PARTS` no `eslint.config.js`). Os componentes que uma feature já importava de outra antes do item 14 estão
 numa lista "legado" no `eslint.config.js`; a fatia que reescreve a tela tira os seus de lá, e nada
 novo entra nela.
 
-## 9. Cortado na revisão (e por quê)
+## 9. i18n
+
+Tradução em runtime, um build só: a raiz do servidor é o namespace dos webhooks, então não há
+`/pt-BR/`. O inglês é o texto do código; o pt-BR vem de `src/locale/pt-BR.ts`, num chunk próprio.
+
+| Regra | Fonte | Guarda |
+|---|---|---|
+| Todo texto e atributo legível da tela marcado: `i18n` no elemento que tem a frase inteira (o link ou o `<code>` do meio viram placeholder), `i18n-aria-label`, `i18n-title`, `i18n-placeholder`, `i18n-<input>` nos componentes (`heading`, `label`, `empty`…). Sem `i18n` dentro de `i18n` | angular.dev (i18n) | `@angular-eslint/template/i18n` (atributos técnicos na lista `I18N_IGNORED_ATTRIBUTES` do `eslint.config.js`); o compilador recusa `i18n` aninhado (NG5002) |
+| Texto do TypeScript (snackbar, `aria-label` com valor, rótulo de selo, erro) com `` $localize`…` ``; placeholder com nome quando ajuda quem traduz (`` $localize`Delete request ${uuid}:uuid:` ``). Nome acessível com valor sai de um método ou campo com `$localize`: o `aria-label` interpolado no template não vira atributo | angular.dev (i18n) | revisão |
+| A tradução entra **antes** do `bootstrapApplication`: `main.ts` chama `loadLocale()`, que faz `import('./pt-BR')` e `loadTranslations()`. Por isso **nada de `$localize` em constante de módulo alcançada estaticamente pelo `main.ts`** (shell, `ui/`, `pipeline/`…): ela roda antes da tradução e fica em inglês. Leve para uma função ou para a instância (`private readonly labels = { … }`) | angular.dev (`loadTranslations`) | `no-restricted-syntax` nos arquivos do caminho inicial (`eslint.config.js`) e o E2E `i18n.spec.ts` |
+| Plural com ICU no template (`{count, plural, =1 {1 request} other {{{ count }} requests}}`) e, no TypeScript, uma frase por forma. Nada de `count === 1 ? 'request' : 'requests'` dentro de frase marcada | angular.dev (ICU) | revisão |
+| Data e hora pelo `Intl` do idioma da tela (`localDate`, `fromNow` em `request-detail/dates.ts`); o inglês mantém o formato do app atual ("Sep 25, 2026 9:43 PM", "3 minutes ago") | estudo C §3.5 | `dates.spec.ts` |
+| Frases do servidor (`reason` da assinatura, `failed` do near miss, 422) ficam em inglês, como a API devolve; o que a tela diz em volta é traduzido. A reason phrase do HTTP também fica | CA-4 do item 14 | revisão e o E2E `i18n.spec.ts` |
+| Mensagem nova: `npx ng extract-i18n` atualiza `src/locale/messages.json` (a fonte, com ids gerados pelo conteúdo); a tradução entra em `pt-BR.ts` com o mesmo id e os mesmos placeholders e ICU. Em Settings, o nome de cada idioma fica na própria língua ("English", "Português (Brasil)") | — | `locale.spec.ts`: toda mensagem traduzida, placeholders iguais, nenhuma tradução órfã |
+| Idioma: o de Settings (`localStorage.language`), senão o do navegador, senão inglês; o `<html lang>` acompanha. Trocar pede recarregar | CA-4 do item 14 | `locale.spec.ts` |
+
+## 10. Cortado na revisão (e por quê)
 
 | Regra cortada | Motivo |
 |---|---|

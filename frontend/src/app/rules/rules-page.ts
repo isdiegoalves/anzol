@@ -92,6 +92,8 @@ export class RulesPage {
   /** `rules/new?from={requestId}`: a regra nova parte da mensagem. */
   readonly from = input<string>();
 
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly reorderLabel = (name: string) => $localize`Reorder ${name}:rule:`;
   protected readonly loaded = signal(false);
   /** Erros do último load, save ou import, uma frase por linha. */
   protected readonly errors = signal<readonly string[]>([]);
@@ -188,8 +190,13 @@ export class RulesPage {
     }
     const answered = hits.answered.find(({ id }) => id === rule.id)?.count ?? 0;
     const near = hits.near_miss.find(({ id }) => id === rule.id)?.count ?? 0;
-    const nearText = near === 0 ? '' : ` · ${near} near ${near === 1 ? 'miss' : 'misses'}`;
-    return `Answered ${answered}${nearText}`;
+    const nearText =
+      near === 0
+        ? ''
+        : near === 1
+          ? $localize` · 1 near miss`
+          : $localize` · ${near}:count: near misses`;
+    return $localize`Answered ${answered}:answered:${nearText}:nearMisses:`;
   }
 
   protected newRule(): void {
@@ -204,7 +211,7 @@ export class RulesPage {
 
   protected closeEditor(saved: boolean): void {
     if (saved) {
-      this.snackBar.open('Rule saved', undefined, { duration: 4000 });
+      this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
       void this.scenarioPanel()?.refresh();
     }
     void this.router.navigate(['/', this.tokenId(), 'rules']);
@@ -258,7 +265,9 @@ export class RulesPage {
     if (!(await this.saveUnchanged(moveInOrder(this.store.rules(), from, to)))) {
       return;
     }
-    this.announcer.announce(`${moved.name} moved to position ${to + 1} of ${rules.length}`);
+    this.announcer.announce(
+      $localize`${moved.name}:rule: moved to position ${to + 1}:position: of ${rules.length}:count:`,
+    );
     if (keepFocus && moved.id) {
       afterNextRender(
         () =>
@@ -276,7 +285,7 @@ export class RulesPage {
       return;
     }
     this.snackBar
-      .open('Rule deleted', 'Undo', { duration: 5000 })
+      .open($localize`Rule deleted`, $localize`Undo`, { duration: 5000 })
       .onAction()
       .subscribe(() => void this.undoDelete(deleted, index));
   }
@@ -327,15 +336,15 @@ export class RulesPage {
     try {
       rules = JSON.parse(await file.text());
     } catch {
-      this.errors.set(['The file is not valid JSON.']);
+      this.errors.set([$localize`The file is not valid JSON.`]);
       return;
     }
     if (!Array.isArray(rules)) {
-      this.errors.set(['The file must contain a JSON list of rules.']);
+      this.errors.set([$localize`The file must contain a JSON list of rules.`]);
       return;
     }
     if (await this.save(rules as Rule[])) {
-      this.snackBar.open(`Imported ${this.store.rules().length} rules`, undefined, {
+      this.snackBar.open($localize`Imported ${this.store.rules().length}:count: rules`, undefined, {
         duration: 4000,
       });
     }
@@ -370,7 +379,7 @@ export class RulesPage {
       request = await this.store.fetchRequest(tokenId, requestId);
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.errors.set([`Could not load the request ${requestId} (${status}).`]);
+      this.errors.set([$localize`Could not load the request ${requestId} (${status}).`]);
     }
     if (this.from() === requestId) {
       this.fromRequest.set({ state: 'done', request });
@@ -412,5 +421,5 @@ function loadMessages(error: unknown): string[] {
     return validationMessages(error);
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return [`Could not load the rules (${status}).`];
+  return [$localize`Could not load the rules (${status}).`];
 }

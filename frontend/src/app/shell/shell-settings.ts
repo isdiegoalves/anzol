@@ -6,14 +6,19 @@ import { readSetting } from '../settings/preferences';
 export const THEMES = ['system', 'light', 'dark'] as const;
 export type Theme = (typeof THEMES)[number];
 
+/** Densidade (S17): confortável por padrão; a compacta é a classe `compact` no `<html>`. */
+export const DENSITIES = ['comfortable', 'compact'] as const;
+export type Density = (typeof DENSITIES)[number];
+
 /** Chaves novas do `localStorage` (S14): as de hoje ficam no `Preferences`, com o formato delas. */
 export const THEME_KEY = 'theme';
+export const DENSITY_KEY = 'density';
 export const SHORTCUTS_KEY = 'shortcuts';
 
 /**
- * Preferências do shell: tema, idioma e atalhos de uma tecla. Cada uma na sua chave, em JSON como
- * as outras. O tema vale na hora (`data-theme` no `<html>`, que fixa o `color-scheme`); o idioma,
- * ao recarregar (a tradução entra antes do bootstrap).
+ * Preferências do shell: tema, densidade, idioma e atalhos de uma tecla. Cada uma na sua chave, em
+ * JSON como as outras. Tema e densidade valem na hora (`data-theme` e a classe `compact` no
+ * `<html>`); o idioma, ao recarregar (a tradução entra antes do bootstrap).
  */
 @Injectable({ providedIn: 'root' })
 export class ShellSettings {
@@ -21,6 +26,9 @@ export class ShellSettings {
 
   readonly theme = this.stored<Theme>(THEME_KEY, (value) =>
     THEMES.includes(value as Theme) ? (value as Theme) : 'system',
+  );
+  readonly density = this.stored<Density>(DENSITY_KEY, (value) =>
+    value === 'compact' ? 'compact' : 'comfortable',
   );
   readonly language = this.stored<Language>(LANGUAGE_KEY, (value) =>
     languageOf(value, navigator.languages),
@@ -37,6 +45,7 @@ export class ShellSettings {
         this.root.setAttribute('data-theme', theme);
       }
     });
+    effect(() => this.root.classList.toggle('compact', this.density() === 'compact'));
   }
 
   private stored<T>(key: string, parse: (value: unknown) => T): WritableSignal<T> {

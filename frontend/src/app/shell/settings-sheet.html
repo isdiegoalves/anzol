@@ -1,13 +1,13 @@
 <section class="sheet" role="dialog" aria-labelledby="settings-title">
   <header class="sheet-header">
-    <h2 id="settings-title" tabindex="-1">Settings</h2>
-    <button type="button" class="close" aria-label="Close" (click)="closed.emit()">
+    <h2 i18n id="settings-title" tabindex="-1">Settings</h2>
+    <button type="button" class="close" aria-label="Close" i18n-aria-label (click)="closed.emit()">
       <app-icon name="close" [size]="20" />
     </button>
   </header>
 
   <div class="group" role="radiogroup" aria-labelledby="theme-label">
-    <p id="theme-label" class="group-label">Theme</p>
+    <p i18n id="theme-label" class="group-label">Theme</p>
     @for (theme of themes; track theme.value) {
       <label class="option">
         <input
@@ -22,8 +22,24 @@
     }
   </div>
 
+  <div class="group" role="radiogroup" aria-labelledby="density-label">
+    <p i18n id="density-label" class="group-label">Density</p>
+    @for (density of densities; track density.value) {
+      <label class="option">
+        <input
+          type="radio"
+          name="density"
+          [value]="density.value"
+          [checked]="settings.density() === density.value"
+          (change)="chooseDensity(density.value)"
+        />
+        {{ density.label }}
+      </label>
+    }
+  </div>
+
   <div class="group" role="radiogroup" aria-labelledby="language-label">
-    <p id="language-label" class="group-label">Language</p>
+    <p i18n id="language-label" class="group-label">Language</p>
     @for (language of languages; track language.value) {
       <label class="option">
         <input
@@ -38,8 +54,8 @@
     }
     @if (settings.language() !== startLanguage) {
       <p class="note" role="status">
-        The language changes when the page reloads.
-        <button type="button" class="link" (click)="reload()">Reload now</button>
+        <ng-container i18n>The language changes when the page reloads.</ng-container>
+        <button i18n type="button" class="link" (click)="reload()">Reload now</button>
       </p>
     }
   </div>
@@ -52,8 +68,10 @@
         [checked]="settings.shortcuts()"
         (change)="toggleShortcuts($event)"
       />
-      Keyboard shortcuts
+      <span i18n>Keyboard shortcuts</span>
     </label>
-    <p class="note">Single-key shortcuts (G then I, C, N, ?…). They never fire while typing.</p>
+    <p i18n class="note">
+      Single-key shortcuts (G then I, C, N, ?…). They never fire while typing.
+    </p>
   </div>
 </section>

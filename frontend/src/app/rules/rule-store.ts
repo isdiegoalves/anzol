@@ -178,7 +178,7 @@ export class RuleStore {
  */
 export function validationMessages(error: unknown): string[] {
   if (!(error instanceof HttpErrorResponse)) {
-    return ['Could not save the rules (unknown).'];
+    return [$localize`Could not save the rules (unknown).`];
   }
   if (error.status === 422 && error.error && typeof error.error === 'object') {
     return Object.entries(error.error as Record<string, string[]>).flatMap(([key, messages]) =>
@@ -186,15 +186,15 @@ export function validationMessages(error: unknown): string[] {
     );
   }
   if (error.status === 404 || error.status === 410) {
-    return [`This URL no longer exists (${error.status}).`];
+    return [$localize`This URL no longer exists (${error.status}).`];
   }
-  return [`Could not save the rules (${error.status}).`];
+  return [$localize`Could not save the rules (${error.status}).`];
 }
 
 function describeKey(key: string): string {
   const indexed = /^(\d+)\.(.+)$/.exec(key);
   if (indexed) {
-    return `Rule ${Number(indexed[1]) + 1} › ${indexed[2]}: `;
+    return $localize`Rule ${Number(indexed[1]) + 1}:position: › ${indexed[2]}:field:: `;
   }
   return key === 'rules' ? '' : `${key}: `;
 }

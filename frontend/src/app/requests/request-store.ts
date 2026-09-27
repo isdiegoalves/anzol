@@ -39,6 +39,8 @@ export class RequestStore {
   /** Só vale a resposta da carga mais recente: o filtro pode mudar com uma busca a caminho. */
   private generation = 0;
 
+  /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
+  readonly loading = signal(false);
   /** Token cuja lista está carregada. */
   readonly tokenId = signal<string | null>(null);
   /** Mensagens da URL, com ou sem filtro (o "M" de "N of M requests"). */
@@ -76,13 +78,18 @@ export class RequestStore {
   async load(tokenId: string, page = 1): Promise<void> {
     this.generation++;
     this.activeFilter.set(NO_FILTER);
-    const result = await this.fetchPage(tokenId, page);
-    this.tokenId.set(tokenId);
-    this.selection.set(undefined);
-    this.pages.set([{ page: result.current_page, data: result.data }]);
-    this.lastPageReached.set(result.is_last_page);
-    this.total.set(result.total);
-    this.matched.set(0);
+    this.loading.set(true);
+    try {
+      const result = await this.fetchPage(tokenId, page);
+      this.tokenId.set(tokenId);
+      this.selection.set(undefined);
+      this.pages.set([{ page: result.current_page, data: result.data }]);
+      this.lastPageReached.set(result.is_last_page);
+      this.total.set(result.total);
+      this.matched.set(0);
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   /**

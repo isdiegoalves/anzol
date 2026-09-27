@@ -1,7 +1,9 @@
-<section class="panel" aria-label="Explanation">
+<section class="panel" aria-label="Explanation" i18n-aria-label>
   <header class="title">
-    <h3>Explain</h3>
-    <span class="note">Written by the local model; check the facts before acting on them.</span>
+    <h3 i18n>Explain</h3>
+    <span i18n class="note"
+      >Written by the local model; check the facts before acting on them.</span
+    >
   </header>
   @if (loading()) {
     <p class="wait" role="status">{{ waitHint }}</p>
@@ -13,7 +15,7 @@
       }
     </ul>
     @if (!disabled()) {
-      <button mat-stroked-button type="button" (click)="retry()">Try again</button>
+      <button i18n mat-stroked-button type="button" (click)="retry()">Try again</button>
     }
   }
   @if (explanation(); as text) {

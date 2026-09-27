@@ -74,6 +74,17 @@ html[data-theme='dark'] {
   color-scheme: dark;
 }
 
+// Densidade compacta de Settings (S17, C §3.6): o `ShellSettings` põe a classe no `<html>`. Um
+// token de densidade só, então é uma troca de classe, não um segundo tema; -2 ainda mostra o
+// rótulo dos campos.
+html.compact {
+  @include mat.theme(
+    (
+      density: -2,
+    )
+  );
+}
+
 body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);

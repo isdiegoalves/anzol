@@ -20,7 +20,7 @@
 
     @if (stale(); as stale) {
       <div class="warning" role="status">
-        <p>
+        <p i18n>
           The {{ stale.provider }} signature in this request is older than the tolerance ({{
             stale.tolerance
           }}
@@ -30,11 +30,11 @@
           <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>
             Send as new with a fresh signature
           </button>
-          <p class="hint">Signs the same method, headers and body again as {{ provider }}.</p>
+          <p i18n class="hint">Signs the same method, headers and body again as {{ provider }}.</p>
         } @else {
-          <p class="hint">
+          <p class="hint" i18n>
             To send it with a fresh signature, set up the signature in
-            <a mat-button [routerLink]="['/', token().uuid, 'checks']" i18n>Checks</a>.
+            <a mat-button [routerLink]="['/', token().uuid, 'checks']">Checks</a>.
           </p>
         }
       </div>
@@ -46,18 +46,20 @@
         matInput
         formControlName="url"
         aria-label="Target URL"
+        i18n-aria-label
         placeholder="http://localhost:3000/webhook"
+        i18n-placeholder
       />
       <mat-hint i18n>Remembered for this webhook URL</mat-hint>
       <mat-error>{{ targetError }}</mat-error>
     </mat-form-field>
     <div class="row">
       <mat-slide-toggle formControlName="keepPath" i18n>Keep path</mat-slide-toggle>
-      <span class="hint">
+      <span i18n class="hint">
         @if (suffix(); as suffix) {
           Appends <code>{{ suffix }}</code> to the target
         } @else {
-          <ng-container i18n>The request has no path or query to append</ng-container>
+          The request has no path or query to append
         }
       </span>
     </div>
@@ -71,6 +73,7 @@
           max="30"
           formControlName="timeout"
           aria-label="Timeout (s)"
+          i18n-aria-label
         />
         <mat-error>{{ timeoutError }}</mat-error>
       </mat-form-field>

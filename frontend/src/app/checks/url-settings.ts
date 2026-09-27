@@ -50,10 +50,10 @@ export function fieldErrors(error: unknown, ...fields: string[]): readonly strin
 export function updateError(error: unknown): string {
   if (error instanceof HttpErrorResponse && error.status === 422) {
     const messages = Object.values((error.error ?? {}) as Record<string, string[]>).flat();
-    return `Error updating token: ${messages.join(', ')}`;
+    return $localize`Error updating token: ${messages.join(', ')}`;
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return `Error updating token (${status})`;
+  return $localize`Error updating token (${status})`;
 }
 
 /** O schema salvo, ou o sugerido, indentado para editar à mão. */
@@ -71,11 +71,11 @@ export function schemaValidator(control: AbstractControl<string>): ValidationErr
   try {
     value = JSON.parse(text);
   } catch (error) {
-    return { json: `Invalid JSON: ${(error as Error).message}` };
+    return { json: $localize`Invalid JSON: ${(error as Error).message}` };
   }
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? null
-    : { json: 'The schema must be a JSON object.' };
+    : { json: $localize`The schema must be a JSON object.` };
 }
 
 /** Valor do campo do schema para o `PUT`: vazio é `null` (desliga). */
@@ -95,23 +95,27 @@ export function pendingSummary(fields: readonly PendingField[]): string {
   const missing = problems.filter(([control]) => control.hasError('required'));
   const invalid = problems.filter(([control]) => !control.hasError('required'));
   const parts = [
-    ...(missing.length > 0 ? [`fill in: ${missing.map(([, , label]) => label).join(', ')}`] : []),
-    ...(invalid.length > 0 ? [`fix: ${invalid.map(([, , label]) => label).join(', ')}`] : []),
+    ...(missing.length > 0
+      ? [$localize`fill in: ${missing.map(([, , label]) => label).join(', ')}`]
+      : []),
+    ...(invalid.length > 0
+      ? [$localize`fix: ${invalid.map(([, , label]) => label).join(', ')}`]
+      : []),
   ];
-  return parts.length > 0 ? `To save, ${parts.join('; ')}` : '';
+  return parts.length > 0 ? $localize`To save, ${parts.join('; ')}` : '';
 }
 
 /** Rótulo de cada campo do `PUT` na tela, para a frase de "changed elsewhere". */
 const FIELD_LABELS: Record<keyof TokenSettings, string> = {
-  default_status: 'default status code',
-  default_content_type: 'content type',
+  default_status: $localize`default status code`,
+  default_content_type: $localize`content type`,
   timeout: 'timeout',
-  default_content: 'response body',
+  default_content: $localize`response body`,
   retry_after: 'Retry-After',
-  auto_cleanup: 'auto cleanup',
+  auto_cleanup: $localize`auto cleanup`,
   signature: 'signature',
   schema: 'schema',
-  read_secret: 'privacy',
+  read_secret: $localize`privacy`,
 };
 
 /**
@@ -136,8 +140,10 @@ export function changedFields(
 export function changedElsewhereText(fields: readonly string[]): string {
   const labels = fields.map((field) => FIELD_LABELS[field as keyof TokenSettings] ?? field);
   const list =
-    labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0];
-  return `The ${list} changed elsewhere since this page read it. Reload to see it before saving.`;
+    labels.length > 1
+      ? $localize`${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+      : labels[0];
+  return $localize`The ${list} changed elsewhere since this page read it. Reload to see it before saving.`;
 }
 
 /** O aviso do cartão para o erro do `save`: "changed elsewhere" (com Reload) ou o erro do `PUT`. */

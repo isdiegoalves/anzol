@@ -36,6 +36,7 @@ import { Redirector } from '../settings/redirect';
         <div class="row">
           <mat-slide-toggle
             title="Redirect incoming requests to another URL via XHR"
+            i18n-title
             [disabled]="!preferences.redirectUrl()"
             [checked]="preferences.redirectEnable()"
             (change)="preferences.redirectEnable.set($event.checked)"
@@ -53,11 +54,11 @@ import { Redirector } from '../settings/redirect';
             Redirect Now
           </button>
         </div>
-        <p class="hint">
+        <p i18n class="hint">
           @if (preferences.redirectUrl(); as url) {
             To {{ url }}. Auto redirect forwards each new request while the Inbox is open.
           } @else {
-            <ng-container i18n>Set the target in Settings... first.</ng-container>
+            Set the target in Settings... first.
           }
         </p>
       }

@@ -7,19 +7,20 @@
   <ng-content select="[viewNav]" />
 </header>
 
-<table class="meta" aria-label="Request Details">
+<table class="meta" aria-label="Request Details" i18n-aria-label>
   <tbody>
     <tr>
-      <th scope="row">URL</th>
+      <th i18n scope="row">URL</th>
       <td class="req-url">
         <a [href]="current.url">{{ current.url }}</a>
       </td>
     </tr>
     <tr>
-      <th scope="row">Host</th>
+      <th i18n scope="row">Host</th>
       <td class="req-ip">
         {{ current.ip }}
         <a
+          i18n
           class="whois"
           target="_blank"
           rel="noopener"
@@ -29,19 +30,19 @@
       </td>
     </tr>
     <tr>
-      <th scope="row">Date</th>
+      <th i18n scope="row">Date</th>
       <td class="req-date" [title]="current.created_at + ' UTC'">
         {{ localDate(current.created_at) }} ({{ fromNow(current.created_at) }})
       </td>
     </tr>
     <tr>
-      <th scope="row">ID</th>
+      <th i18n scope="row">ID</th>
       <td class="req-id">{{ current.uuid }}</td>
     </tr>
   </tbody>
 </table>
 
-<div class="checks" role="group" aria-label="Checks on this request">
+<div class="checks" role="group" aria-label="Checks on this request" i18n-aria-label>
   @for (check of checks(); track check.kind) {
     @if (!readonly() && hasTarget(check.kind)) {
       <button type="button" class="check" (click)="showCheck(check.kind)">
@@ -58,12 +59,12 @@
 @if (current.near_miss; as nearMiss) {
   <div class="why">
     @if (!readonly()) {
-      <button mat-button type="button" [attr.aria-expanded]="whyOpen()" (click)="toggleWhy()">
+      <button i18n mat-button type="button" [attr.aria-expanded]="whyOpen()" (click)="toggleWhy()">
         Why? ({{ nearMiss.failed.length }})
       </button>
     }
     @if (readonly() || whyOpen()) {
-      <ul class="failed" [attr.aria-label]="'Conditions of ' + nearMiss.name + ' that failed'">
+      <ul class="failed" [attr.aria-label]="conditionsLabel(nearMiss.name)">
         @for (reason of nearMiss.failed; track $index) {
           <li>{{ reason }}</li>
         }
@@ -82,10 +83,12 @@
   [selectedIndex]="tab()"
   (selectedIndexChange)="tab.set($event)"
 >
-  <mat-tab label="Body">
+  <mat-tab label="Body" i18n-label>
     <div class="body-bar">
       <mat-slide-toggle
+        i18n
         title="Formats valid JSON and XML bodies; off shows the body exactly as it arrived"
+        i18n-title
         [checked]="preferences.formatJsonEnable()"
         (change)="preferences.formatJsonEnable.set($event.checked)"
         >Pretty</mat-slide-toggle
@@ -96,10 +99,12 @@
         class="xml"
         tabindex="0"
         aria-label="Request body"
+        i18n-aria-label
       ><code class="hljs" [innerHTML]="html"></code></pre>
     } @else {
       <app-code-view
         label="Request body"
+        i18n-label
         [text]="current.content ?? ''"
         [language]="language() === 'json' ? 'json' : 'text'"
         [pretty]="preferences.formatJsonEnable()"
@@ -107,21 +112,32 @@
       />
     }
   </mat-tab>
-  <mat-tab [label]="'Headers (' + headers().length + ')'">
-    <app-kv-table label="Headers" [rows]="headers()" [notes]="headerNotes()" empty="No headers." />
-  </mat-tab>
-  <mat-tab [label]="'Query (' + query().length + ')'">
+  <mat-tab label="Headers ({{ headers().length }})" i18n-label>
     <app-kv-table
-      label="Query strings"
-      [rows]="query()"
-      empty="No query string. Parameters after ? in the URL appear here."
+      label="Headers"
+      i18n-label
+      [rows]="headers()"
+      [notes]="headerNotes()"
+      empty="No headers."
+      i18n-empty
     />
   </mat-tab>
-  <mat-tab [label]="'Form (' + form().length + ')'">
+  <mat-tab label="Query ({{ query().length }})" i18n-label>
+    <app-kv-table
+      label="Query strings"
+      i18n-label
+      [rows]="query()"
+      empty="No query string. Parameters after ? in the URL appear here."
+      i18n-empty
+    />
+  </mat-tab>
+  <mat-tab label="Form ({{ form().length }})" i18n-label>
     <app-kv-table
       label="Form values"
+      i18n-label
       [rows]="form()"
       empty="No form fields. application/x-www-form-urlencoded and multipart/form-data bodies appear here."
+      i18n-empty
     />
   </mat-tab>
 </mat-tab-group>

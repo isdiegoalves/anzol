@@ -1,10 +1,5 @@
 <div class="head">
-  <h2
-    class="header"
-    [attr.title]="limit() ? 'Auto cleanup keeps the ' + limit() + ' most recent requests' : null"
-  >
-    Requests ({{ count() }})
-  </h2>
+  <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
   <span class="spacer"></span>
   <ng-content select="[listTools]" />
 </div>
@@ -14,25 +9,30 @@
 }
 @if (compare.picking(); as base) {
   <div class="picking" role="status">
-    <span>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
-    <button mat-button type="button" (click)="compare.close()">Cancel</button>
+    <span i18n>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
+    <button i18n mat-button type="button" (click)="compare.close()">Cancel</button>
   </div>
 }
-@if (!store.hasRequests()) {
+@if (store.loading()) {
+  <!-- Esqueleto com a forma do item (C §2.11); o `aria-busy` fica na região da lista. -->
+  <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />
+} @else if (!store.hasRequests()) {
   <p class="waiting">
     <mat-progress-spinner mode="indeterminate" diameter="16" />
-    Waiting for first request...
+    <span i18n>Waiting for first request...</span>
   </p>
 } @else {
   @if (store.requests().length === 0) {
     <app-empty-state
       icon="search"
       heading="No requests match the filters."
+      i18n-heading
       text="New requests that match will appear here live."
+      i18n-text
     />
   }
   <div class="list">
-    <cdk-virtual-scroll-viewport class="viewport" [itemSize]="itemHeight">
+    <cdk-virtual-scroll-viewport class="viewport" [itemSize]="itemHeight()">
       <div
         *cdkVirtualFor="let item of items(); trackBy: trackByUuid"
         class="item"
@@ -53,9 +53,9 @@
           <span class="line route-line">
             @if (compare.pair(); as pair) {
               @if (pair.a.uuid === item.request.uuid) {
-                <span class="tag a">A</span>
+                <span i18n class="tag a">A</span>
               } @else if (pair.b.uuid === item.request.uuid) {
-                <span class="tag b">B</span>
+                <span i18n class="tag b">B</span>
               }
             }
             <app-method-badge [method]="item.request.method" />
@@ -76,7 +76,8 @@
           type="button"
           class="delete"
           title="Delete"
-          [attr.aria-label]="'Delete request ' + item.request.uuid"
+          i18n-title
+          [attr.aria-label]="deleteLabel(item.request.uuid)"
           (click)="deleteRequest(item.request)"
         >
           <app-icon name="trash" [size]="18" />
@@ -86,18 +87,23 @@
     @if (newBelow() > 0) {
       <button type="button" class="new-pill" (click)="showNew()">
         <app-icon name="down" [size]="18" />
-        {{ newBelow() }} new {{ newBelow() === 1 ? 'request' : 'requests' }}
+        <span i18n>{newBelow(), plural,
+          =1 {1 new request}
+          other {{{ newBelow() }} new requests}
+        }</span>
       </button>
     }
   </div>
   @let range = store.range();
   <footer class="footer">
     @if (store.hasPreviousPage()) {
-      <button mat-button type="button" (click)="store.loadPreviousPage()">Previous page</button>
+      <button i18n mat-button type="button" (click)="store.loadPreviousPage()">
+        Previous page
+      </button>
     }
-    <span class="range">{{ range.from }}–{{ range.to }} of {{ range.of }}</span>
+    <span i18n class="range">{{ range.from }}–{{ range.to }} of {{ range.of }}</span>
     @if (store.hasNextPage()) {
-      <button mat-button type="button" (click)="store.loadNextPage()">Next page</button>
+      <button i18n mat-button type="button" (click)="store.loadNextPage()">Next page</button>
     }
   </footer>
 }

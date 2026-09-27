@@ -156,8 +156,8 @@ export class OutboundPage {
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
       this.loadError.set(
         status === 404 || status === 410
-          ? `This URL no longer exists (${status}).`
-          : `Could not load the outbound history (${status}).`,
+          ? $localize`This URL no longer exists (${status}).`
+          : $localize`Could not load the outbound history (${status}).`,
       );
     }
   }

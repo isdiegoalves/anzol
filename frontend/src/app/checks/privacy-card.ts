@@ -69,7 +69,7 @@ export class PrivacyCard {
   }
 
   protected secretLabel(): string {
-    return this.wasProtected() ? 'New secret' : 'Secret to view';
+    return this.wasProtected() ? $localize`New secret` : $localize`Secret to view`;
   }
 
   protected pending(): string {
@@ -111,9 +111,10 @@ export class PrivacyCard {
       this.base.set(token);
       this.wasProtected.set(token.protected === true);
       this.reset();
-      this.notice.set({ text: 'Saved.', error: false });
+      this.notice.set({ text: $localize`Saved.`, error: false });
     } catch (error) {
       this.notice.set(saveErrorNotice(error));
+      this.checks.offerRetry(error, () => void this.savePrivacy());
     } finally {
       this.saving.set(false);
     }
@@ -174,7 +175,7 @@ export class PrivacyCard {
     const c = this.form.controls;
     return [
       [c.read_secret, 'read_secret', this.secretLabel()],
-      [c.read_secret_confirm, 'read_secret_confirm', 'Confirm secret'],
+      [c.read_secret_confirm, 'read_secret_confirm', $localize`Confirm secret`],
     ];
   }
 }

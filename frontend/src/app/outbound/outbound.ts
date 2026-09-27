@@ -79,28 +79,28 @@ export interface ErrorText {
 
 const ERROR_TEXTS: Record<OutboundErrorKind, Omit<ErrorText, 'detail'>> = {
   blocked: {
-    title: 'Blocked',
-    hint:
-      'The server does not send to private, loopback or link-local addresses. For a target on ' +
-      'your machine or network, start the server with WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. ' +
-      'Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.',
+    title: $localize`Blocked`,
+    hint: $localize`The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.`,
   },
-  dns: { title: 'DNS lookup failed', hint: 'Check the host name of the target URL.' },
+  dns: {
+    title: $localize`DNS lookup failed`,
+    hint: $localize`Check the host name of the target URL.`,
+  },
   connect: {
-    title: 'Connection failed',
-    hint: 'Check that the target is up and listening on that host and port.',
+    title: $localize`Connection failed`,
+    hint: $localize`Check that the target is up and listening on that host and port.`,
   },
   timeout: {
-    title: 'Timed out',
-    hint: 'The target did not answer within the timeout. Raise it (up to 30 s) or check the target.',
+    title: $localize`Timed out`,
+    hint: $localize`The target did not answer within the timeout. Raise it (up to 30 s) or check the target.`,
   },
   tls: {
-    title: 'TLS error',
-    hint: "The target's certificate or TLS setup was refused.",
+    title: $localize`TLS error`,
+    hint: $localize`The target's certificate or TLS setup was refused.`,
   },
   invalid_url: {
-    title: 'Invalid URL',
-    hint: 'Use an http:// or https:// URL of up to 2048 characters.',
+    title: $localize`Invalid URL`,
+    hint: $localize`Use an http:// or https:// URL of up to 2048 characters.`,
   },
 };
 
@@ -120,33 +120,33 @@ export function outboundErrorText(error: OutboundError): ErrorText {
  */
 export function requestErrorText(error: unknown, now: number = Date.now()): string {
   if (!(error instanceof HttpErrorResponse)) {
-    return 'Could not send the request.';
+    return $localize`Could not send the request.`;
   }
   if (error.status === 429) {
-    return `Too many sends from this URL (30 per minute). ${retryText(error.headers.get('Retry-After'), now)}`;
+    return $localize`Too many sends from this URL (30 per minute). ${retryText(error.headers.get('Retry-After'), now)}`;
   }
   if (error.status === 422) {
     const messages = validationMessages(error.error);
     return messages.length > 0
-      ? `Invalid request: ${messages.join(' ')}`
-      : 'Invalid request (422).';
+      ? $localize`Invalid request: ${messages.join(' ')}`
+      : $localize`Invalid request (422).`;
   }
   if (error.status === 404 || error.status === 410) {
-    return `This URL or request no longer exists (${error.status}).`;
+    return $localize`This URL or request no longer exists (${error.status}).`;
   }
-  return `Could not send the request (${error.status || 'no response'}).`;
+  return $localize`Could not send the request (${error.status || 'no response'}).`;
 }
 
 /** `Retry-After` em segundos ou data HTTP (RFC 9110 §10.2.3). */
 function retryText(retryAfter: string | null, now: number): string {
   if (retryAfter !== null && /^\d+$/.test(retryAfter.trim())) {
-    return `Try again in ${Number(retryAfter.trim())} s.`;
+    return $localize`Try again in ${Number(retryAfter.trim())} s.`;
   }
   const date = retryAfter === null ? NaN : Date.parse(retryAfter);
   if (!Number.isNaN(date)) {
-    return `Try again in ${Math.max(0, Math.ceil((date - now) / 1000))} s.`;
+    return $localize`Try again in ${Math.max(0, Math.ceil((date - now) / 1000))} s.`;
   }
-  return 'Try again in a minute.';
+  return $localize`Try again in a minute.`;
 }
 
 /** `{campo: [mensagens]}` (como o resto da API) ou `{message}`; o resto não vira texto. */
@@ -309,5 +309,5 @@ export function ageText(seconds: number): string {
   if (seconds < 172_800) {
     return `${Math.floor(seconds / 3600)} h`;
   }
-  return `${Math.floor(seconds / 86_400)} days`;
+  return $localize`${Math.floor(seconds / 86_400)}:count: days`;
 }

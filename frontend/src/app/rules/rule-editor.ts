@@ -119,27 +119,33 @@ const ms = [Validators.required, Validators.min(0), Validators.max(DELAY_MAX_MS)
 
 /** Cola dos helpers de template (Anexo B), com um exemplo de cada. */
 const TEMPLATE_HELPERS: { example: string; description: string }[] = [
-  { example: '{{request.method}}', description: 'HTTP method' },
-  { example: '{{request.path}}', description: "Path after the URL's token" },
-  { example: '{{request.url}}', description: 'Full URL' },
-  { example: '{{request.query.id}}', description: 'Query parameter "id"' },
-  { example: '{{request.headers.authorization}}', description: 'Header, name in lowercase' },
-  { example: '{{request.body}}', description: 'Raw request body' },
-  { example: '{{seq}}', description: 'Sequence number of the request' },
+  { example: '{{request.method}}', description: $localize`HTTP method` },
+  { example: '{{request.path}}', description: $localize`Path after the URL's token` },
+  { example: '{{request.url}}', description: $localize`Full URL` },
+  { example: '{{request.query.id}}', description: $localize`Query parameter "id"` },
+  {
+    example: '{{request.headers.authorization}}',
+    description: $localize`Header, name in lowercase`,
+  },
+  { example: '{{request.body}}', description: $localize`Raw request body` },
+  { example: '{{seq}}', description: $localize`Sequence number of the request` },
   {
     example: "{{jsonPath request.body '$.id'}}",
     description:
       "Value from the JSON body (objects and lists come out as JSON). Simple paths only: '..', '?' and '(' " +
       "are refused anywhere in the path, even inside a quoted key ($['a(b)'], $['x?'])",
   },
-  { example: '{{now}}', description: 'Current time, ISO-8601 UTC' },
-  { example: "{{now format='yyyy-MM-dd'}}", description: 'Current time, Java date pattern' },
-  { example: "{{randomValue type='UUID'}}", description: 'Random UUID' },
+  { example: '{{now}}', description: $localize`Current time, ISO-8601 UTC` },
+  {
+    example: "{{now format='yyyy-MM-dd'}}",
+    description: $localize`Current time, Java date pattern`,
+  },
+  { example: "{{randomValue type='UUID'}}", description: $localize`Random UUID` },
   {
     example: "{{randomValue type='ALPHANUMERIC' length=8}}",
-    description: 'Random text: ALPHANUMERIC, NUMERIC or HEX (length 16 by default)',
+    description: $localize`Random text: ALPHANUMERIC, NUMERIC or HEX (length 16 by default)`,
   },
-  { example: "{{math seq '*' 10}}", description: "Arithmetic: '+', '-', '*', '/'" },
+  { example: "{{math seq '*' 10}}", description: $localize`Arithmetic: '+', '-', '*', '/'` },
 ];
 
 /** Erro assim que o campo fica inválido, sem esperar o blur (JSON digitado e erros do servidor). */
@@ -200,7 +206,7 @@ export class RuleEditor {
     return id !== undefined && !this.store.rules().some((rule) => rule.id === id);
   });
   /** Título com o nome salvo, fixo enquanto o nome é editado. */
-  protected readonly title = signal('New rule');
+  protected readonly title = signal($localize`New rule`);
   protected readonly methods = signal<string[]>(METHODS);
 
   protected readonly form = this.formBuilder.group({
@@ -319,36 +325,36 @@ export class RuleEditor {
     { value: 'absent', label: 'is absent' },
   ];
   protected readonly bodyTypes: { value: BodyType; label: string }[] = [
-    { value: 'equals', label: 'Equals' },
-    { value: 'contains', label: 'Contains' },
-    { value: 'regex', label: 'Matches regex' },
+    { value: 'equals', label: $localize`Equals` },
+    { value: 'contains', label: $localize`Contains` },
+    { value: 'regex', label: $localize`Matches regex` },
     { value: 'jsonPath', label: 'JSONPath' },
-    { value: 'equalToJson', label: 'Equal to JSON' },
+    { value: 'equalToJson', label: $localize`Equal to JSON` },
   ];
   protected readonly signatureOptions: { value: SignatureOption; label: string }[] = [
-    { value: 'any', label: 'Any' },
-    { value: 'valid', label: 'Valid' },
-    { value: 'invalid', label: 'Invalid' },
-    { value: 'absent', label: 'Absent (no signature header)' },
+    { value: 'any', label: $localize`Any` },
+    { value: 'valid', label: $localize`Valid` },
+    { value: 'invalid', label: $localize`Invalid` },
+    { value: 'absent', label: $localize`Absent (no signature header)` },
   ];
   protected readonly schemaOptions: { value: SchemaOption; label: string }[] = [
-    { value: 'any', label: 'Any' },
-    { value: 'valid', label: 'Valid' },
-    { value: 'invalid', label: 'Invalid' },
+    { value: 'any', label: $localize`Any` },
+    { value: 'valid', label: $localize`Valid` },
+    { value: 'invalid', label: $localize`Invalid` },
   ];
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
-    { value: 'none', label: 'None' },
-    { value: 'fixed', label: 'Fixed' },
-    { value: 'uniform', label: 'Uniform (random)' },
-    { value: 'lognormal', label: 'Log-normal' },
+    { value: 'none', label: $localize`None` },
+    { value: 'fixed', label: $localize`Fixed` },
+    { value: 'uniform', label: $localize`Uniform (random)` },
+    { value: 'lognormal', label: $localize`Log-normal` },
   ];
   protected readonly faults: { value: FaultOption; label: string }[] = [
-    { value: 'none', label: 'None' },
+    { value: 'none', label: $localize`None` },
     ...RULE_FAULTS.map((fault) => ({ value: fault, label: FAULT_LABELS[fault] })),
   ];
   protected readonly helpers = TEMPLATE_HELPERS;
   protected readonly delayMax = DELAY_MAX_MS;
-  protected readonly msError = `An integer between 0 and ${DELAY_MAX_MS} (ms).`;
+  protected readonly msError = $localize`An integer between 0 and ${DELAY_MAX_MS} (ms).`;
   protected readonly showAtOnce = showAtOnce;
   protected readonly formView = FORM_VIEW;
   protected readonly jsonView = JSON_VIEW;
@@ -388,7 +394,7 @@ export class RuleEditor {
     const saved = data.index === null ? undefined : this.store.rules()[data.index];
     this.base = saved ?? data.draft ?? newRule();
     this.editingId.set(saved?.id);
-    this.title.set(saved ? `Edit rule ${saved.name}` : 'New rule');
+    this.title.set(saved ? $localize`Edit rule ${saved.name}` : $localize`New rule`);
     this.methods.set([
       ...METHODS,
       ...(this.base.match?.method ?? []).filter((method) => !METHODS.includes(method)),
@@ -884,5 +890,5 @@ function testMessages(error: unknown): string[] {
     return validationMessages(error);
   }
   const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-  return [`Could not test the rule (${status}).`];
+  return [$localize`Could not test the rule (${status}).`];
 }

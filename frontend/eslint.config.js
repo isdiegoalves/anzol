@@ -6,8 +6,125 @@ const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 const boundaries = require('eslint-plugin-boundaries');
 
-/** As pastas da Inbox e do Compare, que usa a mesma lista (§8 do padrão): importam umas das outras. */
-const INBOX_PARTS = '{inbox,requests,request-detail,search,diff}';
+/**
+ * Atributos que não são texto para o usuário (e ficam fora da guarda de i18n): os técnicos do
+ * padrão do angular-eslint mais os do Material, do CDK e dos componentes de `ui/` desta tela.
+ */
+const I18N_IGNORED_ATTRIBUTES = [
+  'autocomplete',
+  'charset',
+  'class',
+  'color',
+  'colspan',
+  'dir',
+  'fill',
+  'for',
+  'formArrayName',
+  'formControlName',
+  'formGroupName',
+  'height',
+  'href',
+  'id',
+  'lang',
+  'list',
+  'name',
+  'ngClass',
+  'ngProjectAs',
+  'role',
+  'routerLink',
+  'routerLinkActive',
+  'src',
+  'stroke',
+  'stroke-width',
+  'style',
+  'svgIcon',
+  'tabindex',
+  'target',
+  'type',
+  'value',
+  'viewBox',
+  'width',
+  'xmlns',
+  'rel',
+  'mode',
+  'diameter',
+  'align',
+  'appearance',
+  'animationDuration',
+  'mat-stretch-tabs',
+  'inputmode',
+  'enterkeyhint',
+  'maxlength',
+  'minlength',
+  'min',
+  'max',
+  'step',
+  'rows',
+  'cols',
+  'spellcheck',
+  'accept',
+  'subscriptSizing',
+  'size',
+  'icon',
+  'language',
+  'storageKey',
+  'itemSize',
+  'aria-orientation',
+  'aria-hidden',
+  'aria-live',
+  'aria-haspopup',
+  'aria-controls',
+  'aria-describedby',
+  'aria-labelledby',
+  'focusable',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'x',
+  'y',
+  'rx',
+  'r',
+  'cx',
+  'cy',
+  'd',
+  'text-anchor',
+  'dominant-baseline',
+  'preserveAspectRatio',
+  'matInput',
+  'cdkDrag',
+  'cdkDropList',
+  'cdkDragHandle',
+  'mat-dialog-close',
+  'mat-dialog-title',
+  'matTooltip',
+  'data-kind',
+  'splitStart',
+  'splitEnd',
+  'paneActions',
+  'viewNav',
+  'viewActions',
+  'listTools',
+  'listOptions',
+  'formControl',
+  'multiple',
+  'hideSingleSelectionIndicator',
+  'labelPosition',
+  'panelClass',
+  'pattern',
+  'accesskey',
+  'scope',
+  'headers',
+  'datetime',
+  'download',
+  'wrap',
+  'form',
+  'cdkDropListLockAxis',
+];
+
+/**
+ * As pastas da Inbox, do Compare (usa a mesma lista) e do onboarding (o detalhe da URL vazia), §8
+ * do padrão: importam umas das outras.
+ */
+const INBOX_PARTS = '{inbox,requests,request-detail,search,diff,onboarding}';
 
 module.exports = defineConfig([
   {
@@ -74,6 +191,17 @@ module.exports = defineConfig([
     ],
     ignores: ['**/*.spec.ts'],
     rules: {
+      // § i18n: o módulo destes arquivos roda antes do `loadTranslations` (o `main.ts` os importa
+      // estaticamente); `$localize` numa constante de módulo ficaria em inglês.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            ":matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > TaggedTemplateExpression[tag.name='$localize'], :matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > :matches(ObjectExpression, ArrayExpression) TaggedTemplateExpression[tag.name='$localize']",
+          message:
+            '$localize em constante de módulo alcançada pelo main.ts roda antes da tradução (docs/padroes-angular.md, § i18n): leve para uma função ou para a instância.',
+        },
+      ],
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {
@@ -142,13 +270,12 @@ module.exports = defineConfig([
         },
         // Legado: componentes que uma feature importava de outra antes do item 14. Cada fatia que
         // reescreve a tela tira os seus daqui (E5/E7: options-bar, o bloco provisório da Inbox;
-        // E7: method-label no Outbound; E10: tutorial). request-view fica: é o
+        // E7: method-label no Outbound; E10: tutorial, que virou o onboarding). request-view fica: é o
         // detalhe só-leitura que a página do link (share/) usa. Nada novo entra nesta lista.
         {
           category: 'legacy',
           pattern: [
             'src/app/request-detail/request-view.ts',
-            'src/app/tutorial/tutorial.ts',
             'src/app/ai/explain-panel.ts',
             'src/app/ai/rule-suggest.ts',
             'src/app/share/share-dialog.ts',
@@ -258,7 +385,25 @@ module.exports = defineConfig([
       '@angular-eslint/template/click-events-have-key-events': 'error',
       // Desligada de propósito (§7): ler signal é chamada.
       '@angular-eslint/template/no-call-expression': 'off',
+      // Nova § i18n: todo texto e atributo legível da tela marcado com i18n (tradução em runtime).
+      // Ids gerados pelo conteúdo (checkId off): o arquivo pt-BR sai do `ng extract-i18n`.
+      '@angular-eslint/template/i18n': [
+        'error',
+        {
+          checkId: false,
+          checkDuplicateId: false,
+          ignoreAttributes: I18N_IGNORED_ATTRIBUTES,
+          // Só pontuação, números, símbolos e códigos (HTTP, JSON) não precisam de tradução.
+          boundTextAllowedPattern: '^[\\s\\d·…:/()\\[\\]{}"#%+\\-–—=|,.⋯✓✕⊘↑↓×&;?!*@$<>]*$',
+        },
+      ],
     },
+  },
+  {
+    // O catálogo de `ui/` é só de desenvolvimento, e os templates de spec são hospedeiros de teste.
+    // O `index.html` é o documento, não um template (título e metas ficam como estão).
+    files: ['src/index.html', 'src/app/catalog/**/*.html', 'src/**/*.spec.ts/*.html'],
+    rules: { '@angular-eslint/template/i18n': 'off' },
   },
   {
     files: ['e2e/**/*.ts', 'playwright.config.ts'],

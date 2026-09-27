@@ -1,4 +1,19 @@
+import { clearTranslations } from '@angular/localize';
+import { readFileSync } from 'node:fs';
 import { languageOf, loadLocale } from './locale';
+import { translations } from './pt-BR';
+
+/** Fonte das mensagens, gerada por `npx ng extract-i18n` (o teste roda na pasta do frontend). */
+const messages = (
+  JSON.parse(readFileSync('src/locale/messages.json', 'utf8')) as {
+    translations: Record<string, string>;
+  }
+).translations;
+/** Placeholders ({$PH}, {$INTERPOLATION}, tags) e as partes do ICU, que a tradução mantém. */
+const placeholders = (text: string) =>
+  (
+    text.match(/\{\$[A-Za-z0-9_]+\}|VAR_PLURAL|VAR_SELECT|\{INTERPOLATION(?:_\d+)?\}/g) ?? []
+  ).sort();
 
 describe('Dado o idioma da tela (tradução em runtime)', () => {
   it.each([
@@ -19,11 +34,47 @@ describe('Dado o idioma da tela (tradução em runtime)', () => {
     expect(languageOf(chosen, browser)).toBe(expected);
   });
 
-  afterEach(() => (document.documentElement.lang = ''));
+  afterEach(() => {
+    document.documentElement.lang = '';
+    clearTranslations();
+  });
 
-  it('deve marcar o idioma no <html> Quando a tradução é carregada', async () => {
+  it('deve marcar o idioma no <html> e traduzir o $localize Quando a tradução é carregada', async () => {
     await loadLocale('pt-BR');
 
     expect(document.documentElement.lang).toBe('pt-BR');
+    expect($localize`Inbox`).toBe('Entrada');
+    const count = 3;
+    expect($localize`${count}:count: new requests arrived`).toBe('3 requisições novas chegaram');
+  });
+
+  it('deve ficar em inglês Quando o idioma é en', async () => {
+    await loadLocale('en');
+
+    expect(document.documentElement.lang).toBe('en');
+    expect($localize`Inbox`).toBe('Inbox');
+  });
+});
+
+describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () => {
+  it('deve traduzir toda mensagem da tela', () => {
+    const missing = Object.entries(messages)
+      .filter(([id]) => !(id in translations))
+      .map(([, text]) => text);
+
+    expect(missing).toEqual([]);
+  });
+
+  it('deve manter os placeholders e o ICU de cada mensagem', () => {
+    const different = Object.entries(messages)
+      .filter(([id]) => id in translations)
+      .filter(([id, text]) => placeholders(text).join() !== placeholders(translations[id]).join())
+      .map(([, text]) => text);
+
+    expect(different).toEqual([]);
+  });
+
+  it('não deve guardar traduções de mensagens que saíram da tela', () => {
+    expect(Object.keys(translations).filter((id) => !(id in messages))).toEqual([]);
   });
 });

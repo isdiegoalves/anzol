@@ -1,13 +1,13 @@
 <section class="sheet" role="dialog" aria-labelledby="help-title">
   <header class="sheet-header">
-    <h2 id="help-title" tabindex="-1">Help</h2>
-    <button type="button" class="close" aria-label="Close" (click)="closed.emit()">
+    <h2 i18n id="help-title" tabindex="-1">Help</h2>
+    <button type="button" class="close" aria-label="Close" i18n-aria-label (click)="closed.emit()">
       <app-icon name="close" [size]="20" />
     </button>
   </header>
 
-  <h3>Keyboard shortcuts</h3>
-  <table class="shortcuts" aria-label="Keyboard shortcuts">
+  <h3 i18n>Keyboard shortcuts</h3>
+  <table class="shortcuts" aria-label="Keyboard shortcuts" i18n-aria-label>
     <tbody>
       @for (shortcut of shortcuts; track shortcut.keys) {
         <tr>
@@ -19,23 +19,23 @@
       }
     </tbody>
   </table>
-  <p class="note">Turn single-key shortcuts off in Settings.</p>
+  <p i18n class="note">Turn single-key shortcuts off in Settings.</p>
 
-  <h3>About</h3>
-  <p>Webhook Tester, open source under the MIT license.</p>
+  <h3 i18n>About</h3>
+  <p i18n>Webhook Tester, open source under the MIT license.</p>
   <ul class="links">
     <li>
-      <a href="https://github.com/fredsted/webhook.site" target="_blank" rel="noopener"
+      <a i18n href="https://github.com/fredsted/webhook.site" target="_blank" rel="noopener"
         >Github Page</a
       >
     </li>
     <li>
-      <a href="https://github.com/fredsted/webhook.site#donate" target="_blank" rel="noopener"
+      <a i18n href="https://github.com/fredsted/webhook.site#donate" target="_blank" rel="noopener"
         >Donate</a
       >
     </li>
     <li>
-      <a href="https://twitter.com/fredsted" target="_blank" rel="noopener">&#64;fredsted</a>
+      <a i18n href="https://twitter.com/fredsted" target="_blank" rel="noopener">&#64;fredsted</a>
     </li>
   </ul>
 </section>

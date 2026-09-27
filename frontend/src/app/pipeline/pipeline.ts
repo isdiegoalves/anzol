@@ -98,26 +98,38 @@ function signatureResult(signature: SignatureResult | null | undefined): CheckRe
       kind,
       state: 'unchecked',
       tone: 'none',
-      title: 'Signature not checked',
+      title: $localize`Signature not checked`,
       detail:
         signature === undefined
-          ? 'Received before signature checks'
-          : 'This URL did not verify signatures',
+          ? $localize`Received before signature checks`
+          : $localize`This URL did not verify signatures`,
     };
   }
   const provider = SIGNATURE_PROVIDER_LABELS[signature.provider] ?? signature.provider;
   if (signature.valid) {
-    return { kind, state: 'valid', tone: 'ok', title: 'Signature valid', detail: provider };
+    return {
+      kind,
+      state: 'valid',
+      tone: 'ok',
+      title: $localize`Signature valid`,
+      detail: provider,
+    };
   }
   const reason = signature.reason ?? 'signature invalid';
   if (absentHeader(signature) !== null) {
-    return { kind, state: 'absent', tone: 'bad', title: 'Signature absent', detail: reason };
+    return {
+      kind,
+      state: 'absent',
+      tone: 'bad',
+      title: $localize`Signature absent`,
+      detail: reason,
+    };
   }
   return {
     kind,
     state: STALE_REASON.test(reason) ? 'stale' : 'invalid',
     tone: 'bad',
-    title: 'Signature invalid',
+    title: $localize`Signature invalid`,
     detail: reason,
   };
 }
@@ -130,11 +142,11 @@ function schemaResult(request: CapturedRequest): CheckResult {
       kind,
       state: 'unchecked',
       tone: 'none',
-      title: 'Schema not checked',
+      title: $localize`Schema not checked`,
       detail:
         schema === undefined
-          ? 'Received before schema checks'
-          : 'This URL did not validate a schema',
+          ? $localize`Received before schema checks`
+          : $localize`This URL did not validate a schema`,
     };
   }
   if (schema.valid) {
@@ -142,16 +154,16 @@ function schemaResult(request: CapturedRequest): CheckResult {
       kind,
       state: 'valid',
       tone: 'ok',
-      title: 'Schema valid',
-      detail: 'Body matches the schema',
+      title: $localize`Schema valid`,
+      detail: $localize`Body matches the schema`,
     };
   }
   const [first] = schema.errors;
   const count = schema.errors.length;
   const detail = first
-    ? `${first.path || '(root)'} ${first.message}${count > 1 ? ` (+${count - 1} more)` : ''}`
-    : 'Body does not match the schema';
-  return { kind, state: 'invalid', tone: 'bad', title: 'Schema invalid', detail };
+    ? `${first.path || '(root)'} ${first.message}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
+    : $localize`Body does not match the schema`;
+  return { kind, state: 'invalid', tone: 'bad', title: $localize`Schema invalid`, detail };
 }
 
 function ruleResult(request: CapturedRequest): CheckResult {
@@ -161,7 +173,7 @@ function ruleResult(request: CapturedRequest): CheckResult {
       kind,
       state: 'answered',
       tone: 'ok',
-      title: 'Answered by rule',
+      title: $localize`Answered by rule`,
       detail: request.rule.name,
     };
   }
@@ -171,15 +183,19 @@ function ruleResult(request: CapturedRequest): CheckResult {
       kind,
       state: 'near-miss',
       tone: 'near',
-      title: 'No rule matched',
-      detail: `Closest: ${request.near_miss.name} (${failed} ${failed === 1 ? 'condition' : 'conditions'} failed)`,
+      title: $localize`No rule matched`,
+      detail:
+        failed === 1
+          ? $localize`Closest: ${request.near_miss.name}:rule: (1 condition failed)`
+          : $localize`Closest: ${request.near_miss.name}:rule: (${failed}:count: conditions failed)`,
     };
   }
   return {
     kind,
     state: 'default',
     tone: 'none',
-    title: 'Default response',
-    detail: request.rule === undefined ? 'Received before rules' : 'No rule answered',
+    title: $localize`Default response`,
+    detail:
+      request.rule === undefined ? $localize`Received before rules` : $localize`No rule answered`,
   };
 }

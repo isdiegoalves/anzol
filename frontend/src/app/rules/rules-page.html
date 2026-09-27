@@ -18,6 +18,7 @@
           mat-stroked-button
           type="button"
           title="Replace all rules with the ones in a JSON file"
+          i18n-title
           [disabled]="!loaded()"
           (click)="file.click()"
           i18n
@@ -30,6 +31,7 @@
           type="file"
           accept="application/json,.json"
           aria-label="Rules JSON file"
+          i18n-aria-label
           [disabled]="!loaded()"
           (change)="importRules(file)"
         />
@@ -37,6 +39,7 @@
           mat-stroked-button
           type="button"
           title="Download the saved rules as JSON"
+          i18n-title
           [disabled]="!loaded()"
           (click)="exportRules()"
           i18n
@@ -71,7 +74,7 @@
         <p class="hint window" i18n>Hits over the last {{ hits.evaluated }} requests kept.</p>
       }
       <div class="table-scroll">
-        <table class="table" aria-label="Rules">
+        <table class="table" aria-label="Rules" i18n-aria-label>
           <thead>
             <tr>
               <th class="handle"><span class="visually-hidden" i18n>Reorder</span></th>
@@ -100,8 +103,9 @@
                     class="grip"
                     cdkDragHandle
                     [attr.data-handle]="item.rule.id"
-                    [attr.aria-label]="'Reorder ' + item.rule.name"
+                    [attr.aria-label]="reorderLabel(item.rule.name)"
                     title="Drag, or use the arrow keys, to change the order"
+                    i18n-title
                     (keydown)="moveByKey($event, $index)"
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -117,7 +121,8 @@
                 <td class="toggle">
                   <mat-slide-toggle
                     #toggle
-                    [aria-label]="'Enable rule ' + item.rule.name"
+                    aria-label="Enable rule {{ item.rule.name }}"
+                    i18n-aria-label
                     [checked]="item.rule.enabled ?? true"
                     (change)="setEnabled(item.index, $event.checked, toggle)"
                   />
@@ -139,7 +144,9 @@
                     mat-icon-button
                     type="button"
                     aria-label="Move up"
+                    i18n-aria-label
                     title="Move up (checked earlier)"
+                    i18n-title
                     [disabled]="first"
                     (click)="moveRule($index, -1)"
                   >
@@ -149,7 +156,9 @@
                     mat-icon-button
                     type="button"
                     aria-label="Move down"
+                    i18n-aria-label
                     title="Move down (checked later)"
+                    i18n-title
                     [disabled]="last"
                     (click)="moveRule($index, 1)"
                   >

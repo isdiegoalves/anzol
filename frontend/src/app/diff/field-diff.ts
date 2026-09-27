@@ -15,10 +15,10 @@ const STATUS_LABELS: Record<FieldRow['status'], string> = {
     <table class="fields" [attr.aria-label]="label()">
       <thead>
         <tr>
-          <th class="name">Name</th>
-          <th>A</th>
-          <th>B</th>
-          <th class="status">Status</th>
+          <th i18n class="name">Name</th>
+          <th i18n>A</th>
+          <th i18n>B</th>
+          <th i18n class="status">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<FieldRow['status'], string> = {
             <td class="status">
               {{ statusLabels[row.status] }}
               @if (row.status !== 'equal' && noise().has(row.name.toLowerCase())) {
-                <span class="noise">· changes every event</span>
+                <span i18n class="noise">· changes every event</span>
               }
             </td>
           </tr>

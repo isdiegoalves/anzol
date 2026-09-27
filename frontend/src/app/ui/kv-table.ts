@@ -58,5 +58,5 @@ export class KvTable {
   readonly rows = input.required<readonly KvRow[]>();
   readonly notes = input<ReadonlyMap<string, KvNote>>(new Map());
   /** Frase quando não há linhas. */
-  readonly empty = input('Nothing here.');
+  readonly empty = input($localize`Nothing here.`);
 }

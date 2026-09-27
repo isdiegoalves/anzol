@@ -42,31 +42,31 @@ const PROVIDER_GUIDE: readonly {
     provider: 'stripe',
     arrives: 'Stripe-Signature',
     signed: '"{t}.{raw body}", HMAC-SHA256, hex',
-    secret: 'Endpoint signing secret, whole (whsec_…)',
+    secret: $localize`Endpoint signing secret, whole (whsec_…)`,
   },
   {
     provider: 'github',
     arrives: 'X-Hub-Signature-256',
-    signed: 'Raw body, HMAC-SHA256, hex',
-    secret: "The webhook's secret",
+    signed: $localize`Raw body, HMAC-SHA256, hex`,
+    secret: $localize`The webhook's secret`,
   },
   {
     provider: 'shopify',
     arrives: 'X-Shopify-Hmac-Sha256',
-    signed: 'Raw body, HMAC-SHA256, base64',
-    secret: "The app's client secret",
+    signed: $localize`Raw body, HMAC-SHA256, base64`,
+    secret: $localize`The app's client secret`,
   },
   {
     provider: 'slack',
     arrives: 'X-Slack-Signature + X-Slack-Request-Timestamp',
     signed: '"v0:{timestamp}:{raw body}", HMAC-SHA256, hex',
-    secret: "The app's signing secret",
+    secret: $localize`The app's signing secret`,
   },
   {
     provider: 'generic',
-    arrives: 'The header you name',
-    signed: 'Raw body, HMAC-SHA1/256/512, hex or base64',
-    secret: 'Any secret, up to 256 characters',
+    arrives: $localize`The header you name`,
+    signed: $localize`Raw body, HMAC-SHA1/256/512, hex or base64`,
+    secret: $localize`Any secret, up to 256 characters`,
   },
 ];
 
@@ -84,17 +84,17 @@ const ANATOMY: Record<Exclude<SignatureProvider, 'generic'>, readonly string[]> 
 /** Legenda das partes do header, por provedor. */
 const LEGEND: Record<SignatureProvider, readonly string[]> = {
   stripe: [
-    't: when Stripe signed, checked against the timestamp tolerance.',
-    'v1: the HMAC of t, a dot and the raw body.',
+    $localize`t: when Stripe signed, checked against the timestamp tolerance.`,
+    $localize`v1: the HMAC of t, a dot and the raw body.`,
   ],
-  github: ['sha256=: fixed prefix, then the HMAC of the raw body.'],
-  shopify: ['The whole value is the HMAC of the raw body, in base64.'],
+  github: [$localize`sha256=: fixed prefix, then the HMAC of the raw body.`],
+  shopify: [$localize`The whole value is the HMAC of the raw body, in base64.`],
   slack: [
-    'v0=: version prefix, then the HMAC of "v0:", the timestamp, ":" and the raw body.',
-    'The timestamp header is checked against the timestamp tolerance.',
+    $localize`v0=: version prefix, then the HMAC of "v0:", the timestamp, ":" and the raw body.`,
+    $localize`The timestamp header is checked against the timestamp tolerance.`,
   ],
   generic: [
-    'The prefix, if any, comes before the HMAC of the raw body in the encoding you choose.',
+    $localize`The prefix, if any, comes before the HMAC of the raw body in the encoding you choose.`,
   ],
 };
 
@@ -147,9 +147,9 @@ export class SignatureCard {
   }[] = [
     {
       provider: 'none',
-      label: 'None',
+      label: $localize`None`,
       arrives: '—',
-      signed: 'Requests are not checked',
+      signed: $localize`Requests are not checked`,
       secret: '—',
     },
     ...PROVIDER_GUIDE.map((row) => ({ ...row, label: SIGNATURE_PROVIDER_LABELS[row.provider] })),
@@ -244,7 +244,7 @@ export class SignatureCard {
 
   /** A linha "Expected header:" com o header do provedor escolhido (texto corrido, uma linha por header). */
   protected anatomyText(): string {
-    return `Expected header: ${this.anatomy().join('\n')}`;
+    return $localize`Expected header: ${this.anatomy().join('\n')}`;
   }
 
   protected guideOf(provider: ProviderOption) {
@@ -290,7 +290,7 @@ export class SignatureCard {
       this.base.set(token);
       this.saved.set(token.signature ?? null);
       this.reset(this.saved());
-      this.notice.set({ text: 'Saved.', error: false });
+      this.notice.set({ text: $localize`Saved.`, error: false });
     } catch (error) {
       const messages = fieldErrors(error, 'signature.secret');
       if (messages.length > 0) {
@@ -298,6 +298,7 @@ export class SignatureCard {
         this.showPending();
       } else {
         this.notice.set(saveErrorNotice(error));
+        this.checks.offerRetry(error, () => void this.saveSignature());
       }
     } finally {
       this.saving.set(false);
@@ -320,9 +321,9 @@ export class SignatureCard {
   private fields(): readonly PendingField[] {
     const c = this.form.controls;
     return [
-      [c.header, 'header', 'Signature header'],
+      [c.header, 'header', $localize`Signature header`],
       [c.secret, 'secret', 'Secret'],
-      [c.toleranceSeconds, 'toleranceSeconds', 'Timestamp tolerance (seconds)'],
+      [c.toleranceSeconds, 'toleranceSeconds', $localize`Timestamp tolerance (seconds)`],
     ];
   }
 

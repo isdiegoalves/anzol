@@ -66,7 +66,7 @@ export function scenarioSummary(
           <span class="state">{{ step.from }}</span
           >&ngsp; <span class="arrow" aria-hidden="true">→</span>&ngsp;
           <span class="rule">{{ step.rule }}</span
-          >&ngsp; <app-status-code [status]="step.status" error="Network fault" />&ngsp;
+          >&ngsp; <app-status-code [status]="step.status" error="Network fault" i18n-error />&ngsp;
           <span class="arrow" aria-hidden="true">→</span>&ngsp;
           @if (step.stays) {
             <span class="stays" i18n>stays in {{ step.to }}</span>

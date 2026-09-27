@@ -18,7 +18,9 @@ import { Icon } from './ui/icon';
   template: `
     @if (sharing()) {
       <header class="brand-bar">
-        <a class="brand" routerLink="/"><app-icon name="anchor" [size]="22" />Webhook Tester</a>
+        <a class="brand" routerLink="/" i18n
+          ><app-icon name="anchor" [size]="22" />Webhook Tester</a
+        >
       </header>
       <router-outlet />
     } @else {

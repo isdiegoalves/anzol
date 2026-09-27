@@ -36,7 +36,7 @@ export class CopyField {
   readonly value = input.required<string>();
   /** Nome acessível do campo ("Webhook URL"). */
   readonly label = input.required<string>();
-  readonly buttonLabel = input('Copy');
+  readonly buttonLabel = input($localize`Copy`);
   /** Dica do botão, como o atalho ("Copy URL (C)"). */
   readonly hint = input<string | null>(null);
   /** `true` quando a cópia deu certo. */

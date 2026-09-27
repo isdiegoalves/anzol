@@ -25,7 +25,7 @@
     @if (current.evaluated === 0) {
       <p class="hint" i18n>No requests yet: the numbers appear as requests arrive.</p>
     } @else {
-      <p class="hint">
+      <p i18n class="hint">
         From the result recorded on each of the last {{ current.evaluated }} requests (of
         {{ current.total }} kept).
       </p>
@@ -36,7 +36,9 @@
               <h3>{{ part.title }}</h3>
               @if (data.percent) {
                 <span class="percent">{{ data.percent }}</span>
-                <span class="hint">{{ data.valid }} of {{ data.valid + data.invalid }} valid</span>
+                <span i18n class="hint"
+                  >{{ data.valid }} of {{ data.valid + data.invalid }} valid</span
+                >
               } @else {
                 <span class="hint" i18n>not checked in this window</span>
               }
@@ -51,12 +53,14 @@
                 <span class="bad" [style.flex-grow]="data.invalid"></span>
               </div>
               <p class="counts">
-                <span><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span>
-                <span
+                <span i18n
+                  ><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span
+                >
+                <span i18n
                   ><span class="dot bad" aria-hidden="true"></span>{{ data.invalid }} invalid</span
                 >
                 @if (data.unchecked > 0) {
-                  <span>{{ data.unchecked }} not checked</span>
+                  <span i18n>{{ data.unchecked }} not checked</span>
                 }
               </p>
             }

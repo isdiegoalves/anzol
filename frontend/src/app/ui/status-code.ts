@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 
-/** Frase padrão dos status mais comuns; o resto mostra só o número. */
+/** Frase padrão dos status mais comuns (a do protocolo, em inglês); o resto mostra só o número. */
 const REASONS: Record<number, string> = {
   200: 'OK',
   201: 'Created',
@@ -37,7 +37,7 @@ const REASONS: Record<number, string> = {
         <span class="reason"> {{ reason() }}</span>
       }
     } @else {
-      <span class="reason">{{ error() ?? 'No response' }}</span>
+      <span class="reason">{{ error() ?? noResponse }}</span>
     }
   `,
   styleUrl: './status-code.scss',
@@ -47,6 +47,8 @@ export class StatusCode {
   readonly status = input<number | null>(null);
   /** Erro de saída quando não houve status ("Timed out", "Connection failed"). */
   readonly error = input<string | null>(null);
+
+  protected readonly noResponse = $localize`No response`;
 
   protected readonly family = computed(() => {
     const status = this.status();

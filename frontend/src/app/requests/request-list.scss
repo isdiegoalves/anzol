@@ -270,3 +270,26 @@
     transition: box-shadow 0.3s;
   }
 }
+
+// Densidade compacta (S17, C §3.6): itens de 60 px; os selos sobem para a direita da linha da
+// origem, que corta antes deles.
+:host(.compact) {
+  .item {
+    height: 60px;
+  }
+
+  .select {
+    gap: 0;
+    padding-block: 6px;
+  }
+
+  .meta {
+    max-width: 45%;
+  }
+
+  .seals {
+    bottom: 6px;
+    left: auto;
+    max-width: calc(55% - 56px);
+  }
+}

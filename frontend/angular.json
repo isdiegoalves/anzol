@@ -87,6 +87,15 @@
           },
           "defaultConfiguration": "development"
         },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n",
+          "options": {
+            "buildTarget": "frontend:build",
+            "format": "json",
+            "outputPath": "src/locale",
+            "outFile": "messages.json"
+          }
+        },
         "test": {
           "builder": "@angular/build:unit-test"
         },

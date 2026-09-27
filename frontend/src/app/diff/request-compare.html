@@ -1,38 +1,41 @@
 @let empty = onlyDifferences() ? 'No differences' : '(empty)';
 @let report = outcome();
-<section class="compare" aria-label="Compare requests">
+<section class="compare" aria-label="Compare requests" i18n-aria-label>
   <header class="heading">
     <div class="side">
-      <span class="tag a">A</span>
+      <span i18n class="tag a">A</span>
       <app-method-badge [method]="left().method" />
       <strong class="id-a">#{{ left().uuid.substring(0, 5) }}</strong>
       <code class="route">{{ routeA() }}</code>
       <small>{{ localDate(left().created_at) }}</small>
     </div>
     <div class="side">
-      <span class="tag b">B</span>
+      <span i18n class="tag b">B</span>
       <app-method-badge [method]="right().method" />
       <strong class="id-b">#{{ right().uuid.substring(0, 5) }}</strong>
       <code class="route">{{ routeB() }}</code>
       <small>{{ localDate(right().created_at) }}</small>
     </div>
     <div class="actions">
-      <mat-slide-toggle [checked]="onlyDifferences()" (change)="showOnlyDifferences($event.checked)"
+      <mat-slide-toggle
+        i18n
+        [checked]="onlyDifferences()"
+        (change)="showOnlyDifferences($event.checked)"
         >Only differences</mat-slide-toggle
       >
-      <button mat-button type="button" (click)="swap()">Swap A and B</button>
-      <button mat-button type="button" (click)="compare.close()">Close</button>
+      <button i18n mat-button type="button" (click)="swap()">Swap A and B</button>
+      <button i18n mat-button type="button" (click)="compare.close()">Close</button>
     </div>
   </header>
 
-  <h3>Checks</h3>
-  <table class="checks" aria-label="Checks">
+  <h3 i18n>Checks</h3>
+  <table class="checks" aria-label="Checks" i18n-aria-label>
     <thead>
       <tr>
-        <th scope="col">Check</th>
-        <th scope="col">A</th>
-        <th scope="col">B</th>
-        <th scope="col">Status</th>
+        <th i18n scope="col">Check</th>
+        <th i18n scope="col">A</th>
+        <th i18n scope="col">B</th>
+        <th i18n scope="col">Status</th>
       </tr>
     </thead>
     <tbody>
@@ -49,9 +52,12 @@
 
   <div class="outcome">
     <section class="card explains" aria-labelledby="explains-title">
-      <h4 id="explains-title">
-        {{ report.causes.length }}
-        {{ report.causes.length === 1 ? 'change explains' : 'changes explain' }} the outcome
+      <h4 i18n id="explains-title">
+        {report.causes.length, plural,
+          =1 {1 change explains}
+          other {{{ report.causes.length }} changes explain}
+        }
+        the outcome
       </h4>
       @if (report.causes.length) {
         <ul>
@@ -60,19 +66,21 @@
           }
         </ul>
       } @else {
-        <p>Signature, schema and rules recorded the same result for both.</p>
+        <p i18n>Signature, schema and rules recorded the same result for both.</p>
       }
-      <p class="hint">
+      <p i18n class="hint">
         Only what the server recorded: schema error paths, the rule conditions that failed and the
         signature reason.
       </p>
     </section>
     @if (report.noise.length) {
       <section class="card noise" aria-labelledby="noise-title">
-        <h4 id="noise-title">
-          {{ report.noise.length }}
-          {{ report.noise.length === 1 ? 'difference changes' : 'differences change' }} on every
-          delivery
+        <h4 i18n id="noise-title">
+          {report.noise.length, plural,
+            =1 {1 difference changes}
+            other {{{ report.noise.length }} differences change}
+          }
+          on every delivery
         </h4>
         <ul>
           @for (item of report.noise; track item) {
@@ -85,9 +93,11 @@
     }
     @if (report.other.length) {
       <section class="card other" aria-labelledby="other-title">
-        <h4 id="other-title">
-          {{ report.other.length }} other
-          {{ report.other.length === 1 ? 'difference' : 'differences' }}
+        <h4 i18n id="other-title">
+          {report.other.length, plural,
+            =1 {1 other difference}
+            other {{{ report.other.length }} other differences}
+          }
         </h4>
         <ul>
           @for (item of report.other; track item) {
@@ -100,33 +110,40 @@
     }
   </div>
 
-  <h3>Request</h3>
-  <app-field-diff label="Request" [rows]="requestLine()" [empty]="empty" />
-  <h3>Query</h3>
-  <app-field-diff label="Query" [rows]="query()" [empty]="empty" />
-  <h3>Headers</h3>
-  <app-field-diff label="Headers" [rows]="headers()" [empty]="empty" [noise]="noiseHeaders" />
+  <h3 i18n>Request</h3>
+  <app-field-diff label="Request" i18n-label [rows]="requestLine()" [empty]="empty" />
+  <h3 i18n>Query</h3>
+  <app-field-diff label="Query" i18n-label [rows]="query()" [empty]="empty" />
+  <h3 i18n>Headers</h3>
+  <app-field-diff
+    label="Headers"
+    i18n-label
+    [rows]="headers()"
+    [empty]="empty"
+    [noise]="noiseHeaders"
+  />
 
-  <h3>Body</h3>
+  <h3 i18n>Body</h3>
   @let pair = body();
   @if (pair.truncated) {
-    <p class="warning" role="alert">
+    <p i18n class="warning" role="alert">
       Body larger than 1 MB: comparing only the first 1 MB of each request.
     </p>
   }
   @if (pair.json) {
-    <p class="note">JSON bodies, formatted with sorted keys.</p>
+    <p i18n class="note">JSON bodies, formatted with sorted keys.</p>
   }
   @if (bodyEqual() && onlyDifferences()) {
-    <p class="note">No differences</p>
+    <p i18n class="note">No differences</p>
   } @else if (unified()) {
-    <table class="lines" aria-label="Body">
+    <table class="lines" aria-label="Body" i18n-aria-label>
       <tbody>
         @for (row of bodyRows(); track $index) {
           @if (row.kind === 'skipped') {
             <tr class="skipped">
-              <td colspan="4">
-                &#8943; {{ row.count }} unchanged {{ row.count === 1 ? 'line' : 'lines' }}
+              <td i18n colspan="4">
+                &#8943;
+                {row.count, plural, =1 {1 unchanged line} other {{{ row.count }} unchanged lines}}
               </td>
             </tr>
           } @else {
@@ -143,19 +160,20 @@
       </tbody>
     </table>
   } @else {
-    <table class="lines side-by-side" aria-label="Body">
+    <table class="lines side-by-side" aria-label="Body" i18n-aria-label>
       <thead>
         <tr>
-          <th scope="col" colspan="2">A</th>
-          <th scope="col" colspan="2">B</th>
+          <th i18n scope="col" colspan="2">A</th>
+          <th i18n scope="col" colspan="2">B</th>
         </tr>
       </thead>
       <tbody>
         @for (row of sideRows(); track $index) {
           @if (row.kind === 'skipped') {
             <tr class="skipped">
-              <td colspan="4">
-                &#8943; {{ row.count }} unchanged {{ row.count === 1 ? 'line' : 'lines' }}
+              <td i18n colspan="4">
+                &#8943;
+                {row.count, plural, =1 {1 unchanged line} other {{{ row.count }} unchanged lines}}
               </td>
             </tr>
           } @else {

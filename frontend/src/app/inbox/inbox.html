@@ -1,30 +1,52 @@
-<main class="inbox" aria-label="Inbox">
+<main class="inbox" aria-label="Inbox" i18n-aria-label>
   @if (twoPanes()) {
     <app-split
       class="split"
       label="Resize list and detail"
+      i18n-label
       storageKey="inboxListWidth"
       [min]="300"
       [max]="640"
       [(width)]="listWidth"
     >
-      <section splitStart class="pane list-pane" aria-label="Request list">
+      <section
+        splitStart
+        class="pane list-pane"
+        aria-label="Request list"
+        i18n-aria-label
+        [attr.aria-busy]="requests.loading() || null"
+      >
         <ng-container [ngTemplateOutlet]="listPane" />
       </section>
-      <section splitEnd class="pane detail-pane" aria-label="Request detail">
+      <section splitEnd class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
         <ng-container [ngTemplateOutlet]="detailPane" />
       </section>
     </app-split>
   } @else if (showDetail() && requests.selected()) {
-    <section class="pane detail-pane" aria-label="Request detail">
-      <button mat-icon-button type="button" aria-label="Back to requests" (click)="backToList()">
+    <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Back to requests"
+        i18n-aria-label
+        (click)="backToList()"
+      >
         <app-icon name="back" />
       </button>
       <ng-container [ngTemplateOutlet]="detailPane" />
     </section>
   } @else {
-    <section class="pane list-pane" aria-label="Request list">
+    <section
+      class="pane list-pane"
+      aria-label="Request list"
+      i18n-aria-label
+      [attr.aria-busy]="requests.loading() || null"
+    >
       <ng-container [ngTemplateOutlet]="listPane" />
+      <!-- Um painel por vez: sem mensagens, o onboarding vem embaixo da lista que espera. -->
+      @if (!requests.hasRequests() && !requests.loading()) {
+        <ng-container [ngTemplateOutlet]="onboarding" />
+      }
     </section>
   }
 </main>
@@ -33,7 +55,9 @@
   <app-request-list (openRequest)="openFromList($event)">
     <div class="list-tools" listTools>
       <mat-slide-toggle
+        i18n
         title="Open each new request as it arrives"
+        i18n-title
         [checked]="preferences.autoNavEnable()"
         (change)="preferences.autoNavEnable.set($event.checked)"
         >Follow new</mat-slide-toggle
@@ -43,7 +67,9 @@
           mat-icon-button
           type="button"
           aria-label="Delete all requests"
+          i18n-aria-label
           title="Delete all requests"
+          i18n-title
           (click)="deleteAllRequests()"
         >
           <app-icon name="trash" />
@@ -53,9 +79,15 @@
   </app-request-list>
 </ng-template>
 
+<ng-template #onboarding>
+  @if (tokens.token(); as token) {
+    <app-onboarding [url]="tokens.webhookUrl()" [tokenId]="token.uuid" [missing]="missingNote()" />
+  }
+</ng-template>
+
 <ng-template #detailPane>
-  @if (!requests.hasRequests() || !preferences.hideTutorial()) {
-    <app-tutorial [url]="tokens.webhookUrl()" />
+  @if ((!requests.hasRequests() || !preferences.hideTutorial()) && !requests.loading()) {
+    <ng-container [ngTemplateOutlet]="onboarding" />
   }
   @let request = requests.selected();
   @let token = tokens.token();

@@ -9,6 +9,7 @@ import { KvTable } from '../ui/kv-table';
 import { LiveState, LiveStatus } from '../ui/live-status';
 import { MethodBadge } from '../ui/method-badge';
 import { Pane } from '../ui/pane';
+import { SkeletonList } from '../ui/skeleton-list';
 import { Split } from '../ui/split';
 import { StatusCode } from '../ui/status-code';
 
@@ -28,6 +29,7 @@ import { StatusCode } from '../ui/status-code';
     LiveStatus,
     MethodBadge,
     Pane,
+    SkeletonList,
     Split,
     StatusCode,
   ],

@@ -2,7 +2,9 @@
   <app-copy-field
     class="url"
     label="Webhook URL"
+    i18n-label
     hint="Copy URL (C)"
+    i18n-hint
     [value]="tokens.webhookUrl()"
   />
   @if (live(); as state) {
@@ -13,9 +15,7 @@
       class="chip"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'signature' }"
-      [attr.aria-label]="
-        'Signature verification: ' + providerLabels[signature.provider] + '. Open Checks'
-      "
+      [attr.aria-label]="signatureLabel(providerLabels[signature.provider])"
     >
       <app-icon name="checks" [size]="16" />{{ providerLabels[signature.provider] }}
     </a>
@@ -26,8 +26,9 @@
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'schema' }"
       aria-label="Schema validation on. Open Checks"
+      i18n-aria-label
     >
-      <app-icon name="checks" [size]="16" />Schema
+      <app-icon name="checks" [size]="16" /><span i18n>Schema</span>
     </a>
   }
   <span class="spacer"></span>
@@ -37,16 +38,22 @@
       [routerLink]="['/', token.uuid, 'outbound']"
       [queryParams]="{ send: 'new' }"
       title="Send a request from the server: open Outbound"
+      i18n-title
     >
-      <app-icon name="outbound" [size]="18" />Send
+      <app-icon name="outbound" [size]="18" /><span i18n>Send</span>
     </a>
     @if (lockable()) {
       <button type="button" class="action" (click)="lockUrl()">
-        <app-icon name="lock" [size]="18" />Lock
+        <app-icon name="lock" [size]="18" /><span i18n>Lock</span>
       </button>
     }
-    <a class="action" [routerLink]="['/', token.uuid, 'checks']" title="Edit URL: open Checks">
-      <app-icon name="settings" [size]="18" />Edit
+    <a
+      class="action"
+      [routerLink]="['/', token.uuid, 'checks']"
+      title="Edit URL: open Checks"
+      i18n-title
+    >
+      <app-icon name="settings" [size]="18" /><span i18n>Edit</span>
     </a>
   </div>
 }

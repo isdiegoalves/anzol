@@ -69,8 +69,8 @@ export class HealthCard {
   });
 
   protected readonly metrics = computed(() => [
-    { title: 'Signature', why: 'Why invalid', data: this.signature() },
-    { title: 'Schema', why: 'Failing paths', data: this.schema() },
+    { title: $localize`Signature`, why: $localize`Why invalid`, data: this.signature() },
+    { title: $localize`Schema`, why: $localize`Failing paths`, data: this.schema() },
   ]);
 
   constructor() {
@@ -107,7 +107,7 @@ export class HealthCard {
       this.failure.set(null);
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.failure.set(`Could not load the numbers (${status}).`);
+      this.failure.set($localize`Could not load the numbers (${status}).`);
     } finally {
       this.loading.set(false);
     }

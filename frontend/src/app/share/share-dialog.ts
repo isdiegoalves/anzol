@@ -87,6 +87,8 @@ export class ShareDialog {
   protected readonly links = signal<readonly ShareLink[]>([]);
   protected readonly loaded = signal(false);
   protected readonly error = signal<string | null>(null);
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly revokeLabel = (id: string) => $localize`Revoke link ${id}:id:`;
 
   private readonly tokenId = this.data.request.token_id;
 
@@ -123,14 +125,14 @@ export class ShareDialog {
       if (this.created()?.id === link.id) {
         this.created.set(null);
       }
-      this.snackBar.open('Link revoked', undefined, { duration: 1000 });
+      this.snackBar.open($localize`Link revoked`, undefined, { duration: 1000 });
     } catch (error) {
       this.error.set(shareError('revoke the link', error));
     }
   }
 
   protected copied(): void {
-    this.snackBar.open('Copied link', undefined, { duration: 1000 });
+    this.snackBar.open($localize`Copied link`, undefined, { duration: 1000 });
   }
 
   /** Endereço completo do link, para abrir em outro navegador. */

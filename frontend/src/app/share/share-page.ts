@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { apiDate } from '../outbound/outbound';
-import { fromNow, localDate, parseUtc } from '../request-detail/dates';
+import { fromNow, localDate } from '../request-detail/dates';
 import { RequestView } from '../request-detail/request-view';
 import { SharedRequest } from './share';
 import { ShareStore } from './share-store';
@@ -40,9 +40,7 @@ export class SharePage {
   /** "Oct 3, 2026 9:43 PM (in 7 days)": a validade em hora local e o quanto falta. */
   protected expires(request: SharedRequest): string {
     const at = apiDate(request.expires_at);
-    const ago = fromNow(at);
-    const future = parseUtc(at).getTime() > Date.now();
-    return `${localDate(at)} (${future ? `in ${ago.replace(/ ago$/, '')}` : ago})`;
+    return `${localDate(at)} (${fromNow(at)})`;
   }
 
   private async open(shareId: string): Promise<void> {

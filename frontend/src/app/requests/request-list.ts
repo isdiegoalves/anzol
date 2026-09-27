@@ -22,16 +22,20 @@ import { CompareStore } from '../diff/compare-store';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
+import { ShellSettings } from '../shell/shell-settings';
 import { TokenStore } from '../token/token-store';
 import { CheckChip } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
+import { SkeletonList } from '../ui/skeleton-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
 /** Altura fixa de um item (três linhas: rota, origem e data, selos), para a rolagem virtual. */
 export const ITEM_HEIGHT = 84;
+/** Na densidade compacta (S17, C §3.6), os selos sobem para a linha da origem. */
+export const ITEM_HEIGHT_COMPACT = 60;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
 export const FRESH_MS = 3000;
 /** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
@@ -64,23 +68,34 @@ interface ItemView {
     MatProgressSpinner,
     MethodBadge,
     RequestSearch,
+    SkeletonList,
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
+  host: { '[class.compact]': "settings.density() === 'compact'" },
 })
 export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly tokens = inject(TokenStore);
+  protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
   private readonly viewport = viewChild(CdkVirtualScrollViewport);
 
   readonly openRequest = output<WebhookRequest>();
-  protected readonly itemHeight = ITEM_HEIGHT;
+  protected readonly itemHeight = computed(() =>
+    this.settings.density() === 'compact' ? ITEM_HEIGHT_COMPACT : ITEM_HEIGHT,
+  );
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly deleteLabel = (uuid: string) => $localize`Delete request ${uuid}:uuid:`;
 
   /** Limite da limpeza automática da URL aberta, mostrado ao lado do total. */
   protected readonly limit = computed(() => this.tokens.token()?.auto_cleanup ?? null);
+  protected readonly cleanupHint = computed(() => {
+    const limit = this.limit();
+    return limit ? $localize`Auto cleanup keeps the ${limit}:limit: most recent requests` : null;
+  });
   protected readonly count = computed(() => {
     const limit = this.limit();
     return limit === null ? `${this.store.total()}` : `${this.store.total()} / ${limit}`;
@@ -157,7 +172,9 @@ export class RequestList {
 
   /** Tira da lista na hora; apaga no servidor quando o aviso some sem "Undo". */
   protected deleteRequest(request: WebhookRequest): void {
-    const notice = this.snackBar.open('Request deleted', 'Undo', { duration: UNDO_MS });
+    const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
+      duration: UNDO_MS,
+    });
     const undo = firstValueFrom(notice.afterDismissed()).then(
       ({ dismissedByAction }) => dismissedByAction,
     );
@@ -179,8 +196,9 @@ export class RequestList {
       return true;
     }
     const visibleEnd = viewport.measureScrollOffset('top') + size;
-    const previousEnd = (this.store.requests().length - 1) * ITEM_HEIGHT;
-    return previousEnd <= visibleEnd + ITEM_HEIGHT / 2;
+    const height = this.itemHeight();
+    const previousEnd = (this.store.requests().length - 1) * height;
+    return previousEnd <= visibleEnd + height / 2;
   }
 
   private later(fn: () => void, ms: number): void {
@@ -204,10 +222,10 @@ export class RequestList {
     const label = [
       `${request.method} ${pipeline.route}`,
       `#${request.uuid.substring(0, 5)}`,
-      `from ${request.ip}`,
+      $localize`from ${request.ip}:ip:`,
       localDate(request.created_at),
       ...seals.map((seal) => `${seal.title}: ${seal.detail}`),
-      ...(this.isUnread(request) ? ['unread'] : []),
+      ...(this.isUnread(request) ? [$localize`unread`] : []),
       ...this.compareRole(request),
     ].join(', ');
     return { request, route: pipeline.route, seals, label };
@@ -219,8 +237,8 @@ export class RequestList {
   private compareRole(request: WebhookRequest): string[] {
     const pair = this.compare.pair();
     if (pair?.a.uuid === request.uuid) {
-      return ['compared as A'];
+      return [$localize`compared as A`];
     }
-    return pair?.b.uuid === request.uuid ? ['compared as B'] : [];
+    return pair?.b.uuid === request.uuid ? [$localize`compared as B`] : [];
   }
 }

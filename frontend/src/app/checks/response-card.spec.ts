@@ -129,6 +129,36 @@ describe('Dado o cartão "Response" de Checks', () => {
     await vi.waitFor(() => expect(box('Default status code').value).toBe('404'));
   });
 
+  it('deve oferecer "Retry", manter o digitado e salvar de novo Quando a rede falha no Save (E10)', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+    await userEvent.clear(box('Response body'));
+    await userEvent.type(box('Response body'), 'depois');
+    await userEvent.click(save());
+
+    (await expectPut(http)).error(new ProgressEvent('error'));
+
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    expect(box('Response body').value).toBe('depois');
+    await userEvent.click(retry);
+    const put = await expectPut(http);
+    expect(put.request.body.default_content).toBe('depois');
+    put.flush({ ...SALVA, default_content: 'depois' });
+    await vi.waitFor(() => expect(screen.getByRole('status').textContent).toContain('Saved.'));
+  });
+
+  it('não deve oferecer "Retry" Quando o servidor recusa o Save (422)', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+    await userEvent.click(save());
+
+    (await expectPut(http)).flush(
+      { default_status: ['bad'] },
+      { status: 422, statusText: 'Unprocessable Content' },
+    );
+
+    await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/bad/));
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
   it('deve ligar o CORS na hora, sem Save, Quando o switch é clicado', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
 

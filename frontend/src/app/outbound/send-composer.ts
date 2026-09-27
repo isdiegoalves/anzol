@@ -76,6 +76,12 @@ export class SendComposer implements OnInit {
   protected readonly timeoutError = TIMEOUT_ERROR;
   protected readonly sending = signal(false);
   protected readonly failure = signal<string | null>(null);
+  /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
+  protected readonly headerLabel = (n: number) => ({
+    name: $localize`Header ${n}:number: name`,
+    value: $localize`Header ${n}:number: value`,
+    remove: $localize`Remove header ${n}:number:`,
+  });
 
   ngOnInit(): void {
     const token = this.token();

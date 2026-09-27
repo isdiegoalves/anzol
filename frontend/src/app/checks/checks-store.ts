@@ -54,8 +54,24 @@ export class ChecksStore {
     if (cutsRequests(fresh, updated) && this.requests.tokenId() === base.uuid) {
       await this.requests.reload();
     }
-    this.snackBar.open('URL updated!', undefined, { duration: 4000 });
+    this.snackBar.open($localize`URL updated!`, undefined, { duration: 4000 });
     return updated;
+  }
+
+  /**
+   * Erro de rede ao salvar (C §2.11): o snackbar oferece "Retry", que salva de novo pelo cartão
+   * (o formulário mantém o que foi digitado). Os outros erros ficam só no aviso do cartão.
+   */
+  offerRetry(error: unknown, retry: () => void): void {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 0) {
+      return;
+    }
+    this.snackBar
+      .open($localize`Could not reach the server. Your changes are kept.`, $localize`Retry`, {
+        duration: 10000,
+      })
+      .onAction()
+      .subscribe(retry);
   }
 
   /** "Reload" depois de `ChangedElsewhere`: a URL como está no servidor. */
@@ -79,11 +95,15 @@ export class ChecksStore {
     }
     try {
       const enabled = await this.tokens.toggleCors(token.uuid);
-      this.snackBar.open(enabled ? 'CORS enabled.' : 'CORS disabled.', undefined, {
-        duration: 4000,
-      });
+      this.snackBar.open(
+        enabled ? $localize`CORS enabled.` : $localize`CORS disabled.`,
+        undefined,
+        {
+          duration: 4000,
+        },
+      );
     } catch {
-      this.snackBar.open('Could not toggle CORS.', undefined, { duration: 10000 });
+      this.snackBar.open($localize`Could not toggle CORS.`, undefined, { duration: 10000 });
     }
   }
 

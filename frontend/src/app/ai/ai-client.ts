@@ -5,11 +5,10 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { Rule } from '../rules/rule';
 
 /** Dica mostrada com os controles de IA desligados (o servidor respondeu 503). */
-export const AI_OFF_HINT = 'Set WEBHOOK_AI_* to enable';
+export const AI_OFF_HINT = $localize`Set WEBHOOK_AI_* to enable`;
 
 /** Enquanto a chamada roda: o modelo local pode levar ~30 s para carregar na primeira vez. */
-export const AI_WAIT_HINT =
-  'Asking the local model… The first call can take up to ~30 s while the model loads.';
+export const AI_WAIT_HINT = $localize`Asking the local model… The first call can take up to ~30 s while the model loads.`;
 
 /** Resposta de `POST /token/{id}/rules/suggest`: a regra não foi gravada. */
 export interface RuleSuggestion {
@@ -71,7 +70,7 @@ export class AiClient {
 /** Frases para o usuário a partir do erro de uma rota de IA. */
 export function aiErrorMessages(error: unknown): string[] {
   if (!(error instanceof HttpErrorResponse)) {
-    return ['The AI call failed (unknown).'];
+    return [$localize`The AI call failed (unknown).`];
   }
   const body = (error.error && typeof error.error === 'object' ? error.error : {}) as {
     error?: unknown;
@@ -80,11 +79,11 @@ export function aiErrorMessages(error: unknown): string[] {
   const detail = typeof body.error === 'string' && body.error ? body.error : null;
   switch (error.status) {
     case 503:
-      return [`AI is not configured on this server. ${AI_OFF_HINT}.`];
+      return [$localize`AI is not configured on this server. ${AI_OFF_HINT}.`];
     case 502:
       return [
-        `The local model did not answer${detail ? `: ${detail}` : '.'}`,
-        'Check that it is running and reachable from the server, then try again.',
+        $localize`The local model did not answer${detail ? `: ${detail}` : '.'}`,
+        $localize`Check that it is running and reachable from the server, then try again.`,
       ];
     case 429:
       return [tooManyCalls(error.headers.get('Retry-After'))];
@@ -92,24 +91,24 @@ export function aiErrorMessages(error: unknown): string[] {
       // `{"error", "errors": {chave: [msg]}}` ou só `{chave: [msg]}`, como no PUT das regras.
       const fields = fieldErrors('errors' in body ? body.errors : { ...body, error: undefined });
       return detail || fields.length === 0
-        ? [detail ?? 'The request was not accepted.', ...fields]
+        ? [detail ?? $localize`The request was not accepted.`, ...fields]
         : fields;
     }
     case 404:
     case 410:
-      return [`This URL or request no longer exists (${error.status}).`];
+      return [$localize`This URL or request no longer exists (${error.status}).`];
     default:
-      return [`The AI call failed (${error.status || 'no answer'}).`];
+      return [$localize`The AI call failed (${error.status || 'no answer'}).`];
   }
 }
 
 function tooManyCalls(retryAfter: string | null): string {
   const when = !retryAfter
-    ? 'in a moment'
+    ? $localize`in a moment`
     : /^\d+$/.test(retryAfter)
-      ? `in ${retryAfter} s`
-      : `after ${retryAfter}`;
-  return `Too many AI calls for this URL (up to 10 per minute, one at a time). Try again ${when}.`;
+      ? $localize`in ${retryAfter} s`
+      : $localize`after ${retryAfter}`;
+  return $localize`Too many AI calls for this URL (up to 10 per minute, one at a time). Try again ${when}.`;
 }
 
 /** `{"chave": ["msg"]}` (os erros do parser de regras) ou uma lista de frases. */

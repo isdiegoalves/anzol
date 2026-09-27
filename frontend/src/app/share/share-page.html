@@ -2,25 +2,25 @@
 <main class="share">
   @switch (current.kind) {
     @case ('loaded') {
-      <p class="banner" role="status">
+      <p i18n class="banner" role="status">
         Shared read-only link · expires {{ expires(current.request) }}
       </p>
       <app-request-view [request]="current.request" [readonly]="true" />
     }
     @case ('missing') {
       <section class="missing">
-        <h1>This link is not available</h1>
-        <p>It may have expired, been revoked, or the request may have been deleted.</p>
-        <p>Ask whoever shared it for a new link.</p>
+        <h1 i18n>This link is not available</h1>
+        <p i18n>It may have expired, been revoked, or the request may have been deleted.</p>
+        <p i18n>Ask whoever shared it for a new link.</p>
       </section>
     }
     @case ('failed') {
-      <p class="error" role="alert">
+      <p i18n class="error" role="alert">
         Could not load the shared request ({{ current.status }}). Try again later.
       </p>
     }
     @default {
-      <p class="loading">Loading…</p>
+      <p i18n class="loading">Loading…</p>
     }
   }
 </main>

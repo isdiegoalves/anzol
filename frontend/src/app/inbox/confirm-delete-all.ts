@@ -15,16 +15,16 @@ import { firstValueFrom } from 'rxjs';
   selector: 'app-confirm-delete-all',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
   template: `
-    <h2 mat-dialog-title>Delete all requests?</h2>
+    <h2 i18n mat-dialog-title>Delete all requests?</h2>
     <mat-dialog-content>
-      <p>
-        The {{ count }} {{ count === 1 ? 'request' : 'requests' }} of this URL will be deleted. This
-        can't be undone.
+      <p i18n>
+        The {count, plural, =1 {1 request} other {{{ count }} requests}} of this URL will be
+        deleted. This can't be undone.
       </p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="false">Cancel</button>
-      <button mat-flat-button type="button" [mat-dialog-close]="true">Delete all</button>
+      <button i18n mat-button type="button" [mat-dialog-close]="false">Cancel</button>
+      <button i18n mat-flat-button type="button" [mat-dialog-close]="true">Delete all</button>
     </mat-dialog-actions>
   `,
 })

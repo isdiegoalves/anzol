@@ -3,14 +3,15 @@
     paneActions
     class="view"
     aria-label="Editor view"
+    i18n-aria-label
     hideSingleSelectionIndicator
     [value]="view()"
     (change)="switchView($event.value)"
   >
-    <mat-button-toggle [value]="formView" [disabled]="view() === jsonView && json.invalid"
+    <mat-button-toggle i18n [value]="formView" [disabled]="view() === jsonView && json.invalid"
       >Form</mat-button-toggle
     >
-    <mat-button-toggle [value]="jsonView">JSON</mat-button-toggle>
+    <mat-button-toggle i18n [value]="jsonView">JSON</mat-button-toggle>
   </mat-button-toggle-group>
   <div class="content">
     @if (words(); as sentence) {
@@ -50,7 +51,13 @@
         <div class="line">
           <mat-form-field class="grow">
             <mat-label i18n>Name</mat-label>
-            <input matInput formControlName="name" aria-label="Name" maxlength="100" />
+            <input
+              matInput
+              formControlName="name"
+              aria-label="Name"
+              i18n-aria-label
+              maxlength="100"
+            />
             <mat-error>{{ errorOf(form.controls.name, 'The name is required.') }}</mat-error>
           </mat-form-field>
           <mat-form-field class="short">
@@ -61,6 +68,7 @@
               min="1"
               formControlName="priority"
               aria-label="Priority"
+              i18n-aria-label
             />
             <mat-hint i18n>Lowest first</mat-hint>
             <mat-error>{{
@@ -70,7 +78,7 @@
           <mat-slide-toggle formControlName="enabled" i18n>Enabled</mat-slide-toggle>
         </div>
 
-        <div class="tabs" role="tablist" aria-label="Rule parts">
+        <div class="tabs" role="tablist" aria-label="Rule parts" i18n-aria-label>
           @for (item of tabs; track item.id) {
             <button
               type="button"
@@ -116,7 +124,14 @@
           <div class="line">
             <mat-form-field>
               <mat-label i18n>Methods</mat-label>
-              <mat-select formControlName="methods" multiple aria-label="Methods" placeholder="Any">
+              <mat-select
+                formControlName="methods"
+                multiple
+                aria-label="Methods"
+                i18n-aria-label
+                placeholder="Any"
+                i18n-placeholder
+              >
                 @for (method of methods(); track method) {
                   <mat-option [value]="method">{{ method }}</mat-option>
                 }
@@ -125,7 +140,7 @@
             </mat-form-field>
             <mat-form-field>
               <mat-label i18n>Path match</mat-label>
-              <mat-select formControlName="pathMode" aria-label="Path match">
+              <mat-select formControlName="pathMode" aria-label="Path match" i18n-aria-label>
                 <mat-option value="any" i18n>Any path</mat-option>
                 <mat-option value="equals" i18n>Equals</mat-option>
                 <mat-option value="prefix" i18n>Starts with</mat-option>
@@ -134,7 +149,14 @@
             </mat-form-field>
             <mat-form-field class="grow">
               <mat-label i18n>Path</mat-label>
-              <input matInput formControlName="path" aria-label="Path" placeholder="/payments" />
+              <input
+                matInput
+                formControlName="path"
+                aria-label="Path"
+                i18n-aria-label
+                placeholder="/payments"
+                i18n-placeholder
+              />
               <mat-hint i18n>After the URL's token; "" is "/"</mat-hint>
               <mat-error>{{ errorOf(form.controls.path, 'The path is required.') }}</mat-error>
             </mat-form-field>
@@ -216,7 +238,7 @@
                 />
               }
             </div>
-            <button mat-button type="button" (click)="addCondition(section.list)">
+            <button i18n mat-button type="button" (click)="addCondition(section.list)">
               Add {{ section.label.toLowerCase() }} condition
             </button>
           }
@@ -240,6 +262,7 @@
                       matInput
                       formControlName="path"
                       placeholder="$.status"
+                      i18n-placeholder
                       [attr.aria-label]="'Body ' + (i + 1) + ' path'"
                     />
                     <mat-error>{{
@@ -252,6 +275,7 @@
                       matInput
                       formControlName="equals"
                       placeholder='"paid", 10, true'
+                      i18n-placeholder
                       [attr.aria-label]="'Body ' + (i + 1) + ' equals'"
                     />
                     <mat-hint i18n>Empty: the path exists</mat-hint>
@@ -297,7 +321,7 @@
           <h3 i18n>Signature</h3>
           <mat-form-field class="signature">
             <mat-label i18n>Signature</mat-label>
-            <mat-select formControlName="signature" aria-label="Signature">
+            <mat-select formControlName="signature" aria-label="Signature" i18n-aria-label>
               @for (option of signatureOptions; track option.value) {
                 <mat-option [value]="option.value">{{ option.label }}</mat-option>
               }
@@ -315,7 +339,7 @@
           <h3 i18n>Schema</h3>
           <mat-form-field class="schema">
             <mat-label i18n>Schema</mat-label>
-            <mat-select formControlName="schema" aria-label="Schema">
+            <mat-select formControlName="schema" aria-label="Schema" i18n-aria-label>
               @for (option of schemaOptions; track option.value) {
                 <mat-option [value]="option.value">{{ option.label }}</mat-option>
               }
@@ -348,6 +372,7 @@
                 max="599"
                 formControlName="status"
                 aria-label="Status"
+                i18n-aria-label
               />
               <mat-error>{{
                 errorOf(form.controls.status, 'The status must be an integer between 100 and 599.')
@@ -355,7 +380,7 @@
             </mat-form-field>
             <mat-form-field class="fault">
               <mat-label i18n>Fault</mat-label>
-              <mat-select formControlName="fault" aria-label="Fault">
+              <mat-select formControlName="fault" aria-label="Fault" i18n-aria-label>
                 @for (fault of faults; track fault.value) {
                   <mat-option [value]="fault.value">{{ fault.label }}</mat-option>
                 }
@@ -420,6 +445,7 @@
               rows="6"
               formControlName="responseBody"
               aria-label="Response body"
+              i18n-aria-label
             ></textarea>
             <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
           </mat-form-field>
@@ -443,7 +469,7 @@
           <div class="line row">
             <mat-form-field>
               <mat-label i18n>Delay</mat-label>
-              <mat-select formControlName="delayType" aria-label="Delay">
+              <mat-select formControlName="delayType" aria-label="Delay" i18n-aria-label>
                 @for (type of delayTypes; track type.value) {
                   <mat-option [value]="type.value">{{ type.label }}</mat-option>
                 }
@@ -460,6 +486,7 @@
                     type="number"
                     formControlName="delayFixed"
                     aria-label="Delay (ms)"
+                    i18n-aria-label
                   />
                   <mat-error>{{ errorOf(form.controls.delayFixed, msError) }}</mat-error>
                 </mat-form-field>
@@ -472,6 +499,7 @@
                     type="number"
                     formControlName="delayMin"
                     aria-label="Delay min (ms)"
+                    i18n-aria-label
                   />
                   <mat-error>{{ errorOf(form.controls.delayMin, msError) }}</mat-error>
                 </mat-form-field>
@@ -482,6 +510,7 @@
                     type="number"
                     formControlName="delayMax"
                     aria-label="Delay max (ms)"
+                    i18n-aria-label
                   />
                   <mat-error>{{
                     errorOf(form.controls.delayMax, 'At least the min, up to 60000 (ms).')
@@ -496,6 +525,7 @@
                     type="number"
                     formControlName="delayMedian"
                     aria-label="Delay median (ms)"
+                    i18n-aria-label
                   />
                   <mat-error>{{ errorOf(form.controls.delayMedian, msError) }}</mat-error>
                 </mat-form-field>
@@ -508,6 +538,7 @@
                     min="0"
                     formControlName="delaySigma"
                     aria-label="Sigma"
+                    i18n-aria-label
                   />
                   <mat-hint i18n>Spread; capped at {{ delayMax }} ms</mat-hint>
                   <mat-error>{{
@@ -526,7 +557,13 @@
             @if (form.controls.dribble.value) {
               <mat-form-field class="ms">
                 <mat-label i18n>Chunks</mat-label>
-                <input matInput type="number" formControlName="dribbleChunks" aria-label="Chunks" />
+                <input
+                  matInput
+                  type="number"
+                  formControlName="dribbleChunks"
+                  aria-label="Chunks"
+                  i18n-aria-label
+                />
                 <mat-error>{{
                   errorOf(form.controls.dribbleChunks, 'An integer between 1 and 100.')
                 }}</mat-error>
@@ -538,6 +575,7 @@
                   type="number"
                   formControlName="dribbleDuration"
                   aria-label="Dribble duration (ms)"
+                  i18n-aria-label
                 />
                 <mat-error>{{ errorOf(form.controls.dribbleDuration, msError) }}</mat-error>
               </mat-form-field>
@@ -565,6 +603,7 @@
                 matInput
                 formControlName="scenarioName"
                 aria-label="Scenario name"
+                i18n-aria-label
                 maxlength="100"
                 list="scenario-names"
               />
@@ -584,6 +623,7 @@
                 matInput
                 formControlName="requiredState"
                 aria-label="Required state"
+                i18n-aria-label
                 list="scenario-states"
               />
               <mat-hint i18n>Empty: any state</mat-hint>
@@ -597,6 +637,7 @@
                 matInput
                 formControlName="newState"
                 aria-label="New state"
+                i18n-aria-label
                 list="scenario-states"
               />
               <datalist id="scenario-states">
@@ -631,6 +672,7 @@
           matInput
           rows="22"
           aria-label="Rule JSON"
+          i18n-aria-label
           spellcheck="false"
           [formControl]="json"
           [errorStateMatcher]="showAtOnce"
@@ -648,6 +690,7 @@
         type="button"
         class="test"
         title="Check which of the recorded requests this rule would match, without saving it"
+        i18n-title
         [disabled]="!canTest()"
         (click)="testAgainstHistory()"
         i18n

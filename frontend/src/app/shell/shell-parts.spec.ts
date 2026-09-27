@@ -4,7 +4,7 @@ import type { Mock } from 'vitest';
 import { TOKEN_ID } from '../../testing/fixtures';
 import { placeOf } from './destinations';
 import { HotkeyActions, Hotkeys, SEQUENCE_MS } from './hotkeys';
-import { SHORTCUTS_KEY, ShellSettings, THEME_KEY } from './shell-settings';
+import { DENSITY_KEY, SHORTCUTS_KEY, ShellSettings, THEME_KEY } from './shell-settings';
 import { windowClassOf } from './viewport';
 
 const REQUEST = '0691864a-71ef-4de5-953b-518660fe6287';
@@ -150,6 +150,18 @@ describe('Dado as preferências do shell (ShellSettings)', () => {
   afterEach(() => {
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    document.documentElement.classList.remove('compact');
+  });
+
+  it('deve abrir confortável e aplicar a compacta gravada (S17)', () => {
+    expect(TestBed.inject(ShellSettings).density()).toBe('comfortable');
+    TestBed.resetTestingModule();
+    localStorage.setItem(DENSITY_KEY, '"compact"');
+
+    TestBed.inject(ShellSettings);
+    TestBed.tick();
+
+    expect(document.documentElement.classList.contains('compact')).toBe(true);
   });
 
   it('deve seguir o sistema, com os atalhos ligados, Quando nada foi escolhido', () => {

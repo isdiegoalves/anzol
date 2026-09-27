@@ -54,7 +54,7 @@ export class UnlockScreen {
     this.error.set(null);
     try {
       await this.access.unlock(this.tokenId(), this.form.getRawValue().secret);
-      this.snackBar.open('URL unlocked', undefined, { duration: 1000 });
+      this.snackBar.open($localize`URL unlocked`, undefined, { duration: 1000 });
     } catch (error) {
       this.failed(error);
     } finally {
@@ -71,8 +71,8 @@ export class UnlockScreen {
     }
     this.error.set(
       status === 401
-        ? 'Wrong secret. Try again.'
-        : `Could not unlock the URL (${status || 'unknown'}).`,
+        ? $localize`Wrong secret. Try again.`
+        : $localize`Could not unlock the URL (${status || $localize`unknown`}:status:).`,
     );
     this.form.controls.secret.setValue('');
   }

@@ -29,6 +29,11 @@
 .list-pane {
   padding-top: 12px;
   overflow: auto;
+
+  // Um painel por vez, URL vazia: o onboarding embaixo da lista.
+  app-onboarding {
+    padding: 16px;
+  }
 }
 
 .detail-pane {

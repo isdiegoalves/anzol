@@ -4,7 +4,7 @@
   <code>{{ current.target }}</code>
 </p>
 @if (redirectedHost(); as host) {
-  <p class="note">Sent to {{ host }}</p>
+  <p i18n class="note">Sent to {{ host }}</p>
 }
 @if (error(); as error) {
   <div class="error" role="alert">
@@ -20,19 +20,25 @@
 } @else {
   <p class="summary">
     <app-status-code [status]="current.status ?? null" />
-    <span class="duration">{{ current.duration_ms }} ms</span>
+    <span i18n class="duration">{{ current.duration_ms }} ms</span>
   </p>
   <h3 class="part" i18n>Response headers</h3>
-  <app-kv-table label="Response headers" empty="(none)" [rows]="responseHeaders()" />
+  <app-kv-table
+    label="Response headers"
+    i18n-label
+    empty="(none)"
+    i18n-empty
+    [rows]="responseHeaders()"
+  />
   <h3 class="part" i18n>Response body</h3>
   @if (current.truncated) {
     <p class="truncated" role="note" i18n>Truncated: only the first 64 KB of the body is shown.</p>
   }
   @if (current.body) {
-    <pre class="body" aria-label="Response body">{{ current.body }}</pre>
+    <pre class="body" aria-label="Response body" i18n-aria-label>{{ current.body }}</pre>
   } @else {
     <p class="small" i18n>(no body content)</p>
   }
 }
 <h3 class="part" i18n>Sent headers</h3>
-<app-kv-table label="Sent headers" empty="(none)" [rows]="requestHeaders()" />
+<app-kv-table label="Sent headers" i18n-label empty="(none)" i18n-empty [rows]="requestHeaders()" />

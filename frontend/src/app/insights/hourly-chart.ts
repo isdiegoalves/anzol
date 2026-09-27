@@ -40,7 +40,7 @@ const MIN_SLOTS = 24;
     </svg>
     <div class="scale" aria-hidden="true">
       <span>{{ first() }}</span>
-      <span>peak {{ peak() }}</span>
+      <span i18n>peak {{ peak() }}</span>
       <span>{{ last() }}</span>
     </div>
   `,
@@ -70,9 +70,11 @@ export class HourlyChart {
         width: Math.max(1, slot - GAP),
         y: HEIGHT - BOTTOM - height,
         height,
-        title: `${bar.hour} UTC: ${bar.count} ${bar.count === 1 ? 'request' : 'requests'}${
-          bar.count ? ` (${methodsText(bar.methods)})` : ''
-        }`,
+        title:
+          (bar.count === 1
+            ? $localize`${bar.hour}:hour: UTC: 1 request`
+            : $localize`${bar.hour}:hour: UTC: ${bar.count}:count: requests`) +
+          (bar.count ? ` (${methodsText(bar.methods)})` : ''),
       };
     });
   });

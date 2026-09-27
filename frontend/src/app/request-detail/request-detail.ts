@@ -117,14 +117,16 @@ export class RequestDetail {
   /** Corpo exatamente como chegou, mesmo com o Pretty ligado. */
   protected copyPayload(): void {
     this.clipboard.copy(this.request().content ?? '');
-    this.snackBar.open('Copied payload', undefined, { duration: 1000 });
+    this.snackBar.open($localize`Copied payload`, undefined, { duration: 1000 });
   }
 
   /** O conversor (curl, HAR) vem sob demanda: não pesa no pedaço da Inbox. */
   protected async copyRequestAs(format: CopyFormat): Promise<void> {
     const { convertRequest } = await import('./copy-as');
     this.clipboard.copy(convertRequest(this.request(), format, this.token()));
-    this.snackBar.open(`Copied request as ${format}`, undefined, { duration: 1000 });
+    this.snackBar.open($localize`Copied request as ${format}:format:`, undefined, {
+      duration: 1000,
+    });
   }
 
   /**

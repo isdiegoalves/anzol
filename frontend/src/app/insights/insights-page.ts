@@ -66,15 +66,15 @@ export class InsightsPage {
     const answered = stats.rules.answered.reduce((sum, rule) => sum + rule.count, 0);
     const nearMisses = stats.rules.near_miss.reduce((sum, rule) => sum + rule.count, 0);
     return [
-      { label: 'Answered by a rule', count: answered },
-      { label: 'Default response', count: stats.rules.default },
-      { label: 'Near misses', count: nearMisses },
-      { label: 'Signature valid', count: stats.signature.valid },
+      { label: $localize`Answered by a rule`, count: answered },
+      { label: $localize`Default response`, count: stats.rules.default },
+      { label: $localize`Near misses`, count: nearMisses },
+      { label: $localize`Signature valid`, count: stats.signature.valid },
       {
-        label: 'Signature invalid or absent',
+        label: $localize`Signature invalid or absent`,
         count: stats.signature.invalid + stats.signature.absent,
       },
-      { label: 'Schema invalid', count: stats.schema.invalid },
+      { label: $localize`Schema invalid`, count: stats.schema.invalid },
     ];
   });
   protected readonly maxAnswered = computed(() =>

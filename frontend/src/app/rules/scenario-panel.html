@@ -1,26 +1,30 @@
 <section aria-labelledby="scenarios-title">
   <header class="heading">
     <div>
-      <h2 id="scenarios-title">Scenarios</h2>
-      <p class="hint">
+      <h2 i18n id="scenarios-title">Scenarios</h2>
+      <p i18n class="hint">
         A rule with a scenario only answers in its required state, then moves the scenario to its
         new state. Every scenario starts at "Started".
       </p>
     </div>
     <div class="actions">
       <button
+        i18n
         mat-stroked-button
         type="button"
         title="Read the current states again"
+        i18n-title
         [disabled]="busy()"
         (click)="refresh()"
       >
         Refresh
       </button>
       <button
+        i18n
         mat-stroked-button
         type="button"
         title="Move every scenario back to Started"
+        i18n-title
         [disabled]="busy()"
         (click)="resetAll()"
       >
@@ -38,12 +42,12 @@
   }
 
   <div class="table-scroll">
-    <table class="table" aria-label="Scenarios">
+    <table class="table" aria-label="Scenarios" i18n-aria-label>
       <thead>
         <tr>
-          <th>Scenario</th>
-          <th>Current state</th>
-          <th class="set">Set state</th>
+          <th i18n>Scenario</th>
+          <th i18n>Current state</th>
+          <th i18n class="set">Set state</th>
         </tr>
       </thead>
       <tbody>
@@ -57,7 +61,9 @@
               <mat-select
                 class="state"
                 placeholder="State"
-                [aria-label]="'New state of ' + scenario.name"
+                i18n-placeholder
+                aria-label="New state of {{ scenario.name }}"
+                i18n-aria-label
                 [value]="chosen()[scenario.name]"
                 (selectionChange)="choose(scenario.name, $event.value)"
               >
@@ -66,6 +72,7 @@
                 }
               </mat-select>
               <button
+                i18n
                 mat-button
                 type="button"
                 [disabled]="!canSet(scenario)"
@@ -77,7 +84,7 @@
           </tr>
         } @empty {
           <tr>
-            <td class="empty" colspan="3">No scenario state yet.</td>
+            <td i18n class="empty" colspan="3">No scenario state yet.</td>
           </tr>
         }
       </tbody>
