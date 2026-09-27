@@ -306,6 +306,57 @@ test.describe('Dado filtros na rota da Inbox', () => {
 });
 
 /**
+ * INBOX-11 (checagem de layout): com o user-agent de um navegador de verdade no resumo, a linha `.meta` do item corta
+ * com reticências dentro do item, e o #id continua à vista no painel da lista.
+ */
+const UA_DE_NAVEGADOR =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+
+test.describe('Dado um item da lista com o user-agent de um navegador (INBOX-11, layout)', () => {
+  for (const viewport of [
+    { width: 1400, height: 900 },
+    { width: 1600, height: 1000 },
+  ]) {
+    test(`não deve transbordar o item nem esconder o #id a ${viewport.width} px`, async ({
+      page,
+      tokens,
+    }) => {
+      await page.setViewportSize(viewport);
+      const tokenId = await tokens.create();
+      const requestId = await tokens.send(tokenId, {
+        headers: { 'User-Agent': UA_DE_NAVEGADOR },
+        data: 'x',
+      });
+      await seedStorage(page, {});
+      await page.goto(`/#/${tokenId}`);
+      await expect(item(page, requestId)).toBeVisible();
+
+      const medida = await item(page, requestId).evaluate(
+        (el, painel) => {
+          const direita = (e: Element) => Math.round(e.getBoundingClientRect().right);
+          const meta = el.querySelector('.meta') as HTMLElement;
+          const id = el.querySelector('.id') as HTMLElement;
+          return {
+            item: [el.scrollWidth, el.clientWidth],
+            meta: [meta.scrollWidth, meta.clientWidth],
+            // Bordas direitas: painel da lista, item, linha .meta e #id.
+            direitas: [painel!, el, meta, id].map(direita),
+          };
+        },
+        await lista(page).elementHandle(),
+      );
+      const [painel, noItem, naMeta, doId] = medida.direitas;
+      expect(medida.item[0], 'o item não transborda').toBeLessThanOrEqual(medida.item[1]);
+      expect(medida.meta[0], 'a linha .meta não transborda').toBeLessThanOrEqual(medida.meta[1]);
+      expect(noItem, 'o item dentro do painel da lista').toBeLessThanOrEqual(painel + 1);
+      expect(naMeta, 'a linha .meta dentro do item').toBeLessThanOrEqual(noItem + 1);
+      expect(doId, 'o #id dentro do painel da lista').toBeLessThanOrEqual(painel);
+      await expect(item(page, requestId)).toContainText(`#${requestId.substring(0, 5)}`);
+    });
+  }
+});
+
+/**
  * INBOX-19 (checagem de layout): a `toolbar "Request actions"` não rola nem corta botão em nenhuma largura. A 1400 e a
  * 1600 px as ações quebram de linha; a 390 px ficam Replay, Create rule e Copy payload, e o resto (Copy As inclusive)
  * vai para o menu "More" do detalhe (trava 5).

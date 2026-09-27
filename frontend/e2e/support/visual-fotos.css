@@ -1,0 +1,11 @@
+/*
+ * Só nas fotos da regressão visual (visual.spec.ts, `stylePath`). No compacto, os metadados da mensagem (mascarados)
+ * quebram em mais ou menos linhas conforme a largura do UUID, do IP e da data, e a altura deles empurrava o resto da
+ * tela entre uma execução e outra: a altura fica fixa.
+ */
+@media (width < 600px) {
+  [role='group'][aria-label='Request metadata'] {
+    height: 144px !important;
+    overflow: hidden !important;
+  }
+}
