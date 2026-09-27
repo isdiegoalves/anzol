@@ -871,7 +871,9 @@
       [canTest]="canTest()"
       [testing]="testing()"
       [outOfDate]="outOfDate()"
+      [rendering]="rendering()"
       (testAgain)="testAgainstHistory()"
+      (previewResponse)="previewResponse()"
       (openRequest)="openRequest($event)"
     >
       @if (preview(); as state) {
@@ -917,6 +919,8 @@
         </section>
       }
     </app-history-test-panel>
+    <!-- "Rendered responses" (C4): o componente vem sob demanda, no primeiro "Preview response". -->
+    <ng-container #renderedHost />
     @if (openedRequest(); as request) {
       <!-- A mensagem do resultado aberta ao lado, sem sair da regra (WM-22); o detalhe vem sob demanda. -->
       <section class="opened-request" role="region" [attr.aria-label]="openedLabel(request)">

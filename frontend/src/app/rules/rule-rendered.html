@@ -1,0 +1,45 @@
+<section class="rendered" role="region" aria-labelledby="rendered-title">
+  <h3 id="rendered-title" i18n>Rendered responses</h3>
+  <p class="note" i18n>seq and now are from now.</p>
+  <div class="tabs" role="tablist" aria-labelledby="rendered-title">
+    @for (response of responses(); track response.uuid) {
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [attr.data-tab]="response.uuid"
+        [attr.aria-selected]="response.uuid === current()"
+        [attr.tabindex]="response.uuid === current() ? 0 : -1"
+        (click)="current.set(response.uuid)"
+        (keydown)="moveTab($event, response.uuid)"
+      >
+        {{ tabLabel(response.uuid) }}
+      </button>
+    }
+  </div>
+  @if (selected(); as response) {
+    <div class="panel" role="tabpanel" [attr.aria-label]="tabLabel(response.uuid)">
+      @if (response.fault) {
+        <p class="outcome" i18n>Fault: {{ response.fault }}</p>
+      } @else if (response.error === 'timeout') {
+        <p class="outcome" i18n>Timed out (1 s)</p>
+      } @else if (response.error) {
+        <p class="outcome" i18n>Could not render: {{ response.error }}</p>
+      } @else {
+        <p class="status">{{ response.status }}</p>
+        @if (headers(response).length > 0) {
+          <ul class="headers">
+            @for (header of headers(response); track header[0]) {
+              <li>
+                <span class="name">{{ header[0] }}:</span> {{ header[1] }}
+              </li>
+            }
+          </ul>
+        }
+        <pre class="body" tabindex="0" aria-label="Rendered body" i18n-aria-label>{{
+          response.body
+        }}</pre>
+      }
+    </div>
+  }
+</section>

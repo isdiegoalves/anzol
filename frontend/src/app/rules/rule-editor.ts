@@ -53,6 +53,7 @@ import {
   HISTORY_TEST_WINDOW,
   HistoryTest,
   RULE_DEFAULT_PRIORITY,
+  RenderedResponse,
   RULE_DEFAULT_STATUS,
   RULE_FAULTS,
   Rule,
@@ -346,6 +347,11 @@ export class RuleEditor {
   /** O detalhe da mensagem (o da Inbox, só leitura), carregado na primeira vez que abre. */
   protected readonly requestView = signal<Type<unknown> | null>(null);
   private readonly requestHost = viewChild('requestHost', { read: ViewContainerRef });
+  /** "Preview response" (C4): buscando, e as respostas da última busca. */
+  protected readonly rendering = signal(false);
+  private readonly rendered = signal<readonly RenderedResponse[] | null>(null);
+  private readonly renderedView = signal<Type<unknown> | null>(null);
+  private readonly renderedHost = viewChild('renderedHost', { read: ViewContainerRef });
   /** As condições (o `match`) do último resultado: mudou, o resultado fica "Out of date". */
   private readonly testedMatch = signal<string | null>(null);
   /** O teste já foi pedido uma vez: a partir daí, mudar condição reroda sozinho. */
@@ -511,6 +517,26 @@ export class RuleEditor {
           ref.setInput('readonly', true);
         });
       }
+    });
+    // As respostas renderizadas (C4), no mesmo esquema: criadas à mão, sob demanda.
+    effect(() => {
+      const [host, view, rendered, recent] = [
+        this.renderedHost(),
+        this.renderedView(),
+        this.rendered(),
+        this.recent(),
+      ];
+      if (!host) {
+        return;
+      }
+      untracked(() => {
+        host.clear();
+        if (view && rendered) {
+          const ref = host.createComponent(view);
+          ref.setInput('responses', rendered);
+          ref.setInput('requests', recent);
+        }
+      });
     });
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.testTimer);
@@ -1235,6 +1261,7 @@ export class RuleEditor {
       next: (result) => {
         this.testing.set(false);
         this.historyTest.set(result);
+        this.rendered.set(null);
         this.testedMatch.set(matchKey(rule));
         this.preview.set(null);
         if (result.tested > 0) {
@@ -1253,6 +1280,32 @@ export class RuleEditor {
         this.historyErrors.set(testMessages(error));
       },
     });
+  }
+
+  /**
+   * "Preview response" (C4): a resposta que a regra, como está, daria às até 3 mensagens mais novas
+   * que ela casa. Só sob pedido; o componente das respostas vem por import() na primeira vez.
+   */
+  protected async previewResponse(): Promise<void> {
+    const rule = this.editedValid() ? this.editedRule() : undefined;
+    if (!rule) {
+      this.block('test');
+      return;
+    }
+    this.rendering.set(true);
+    this.historyErrors.set([]);
+    try {
+      const [view, responses] = await Promise.all([
+        this.renderedView() ?? import('./rule-rendered').then(({ RuleRendered }) => RuleRendered),
+        this.store.renderRule(rule),
+      ]);
+      this.renderedView.set(view);
+      this.rendered.set(responses);
+    } catch (error) {
+      this.historyErrors.set(testMessages(error));
+    } finally {
+      this.rendering.set(false);
+    }
   }
 
   /** "{method} {path} · {time}" no resultado: abre a mensagem ao lado, sem sair da regra. */

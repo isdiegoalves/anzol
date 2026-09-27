@@ -119,6 +119,23 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     expect(lista().map(([label]) => label)).toEqual([`Open request ${B}`, `Open request ${C}`]);
   });
 
+  it('deve pedir a prévia da resposta pelo "Preview response" (C4)', async () => {
+    const { fixture } = await show(RESULTADO);
+    const previa = vi.fn();
+    fixture.componentInstance.previewResponse.subscribe(previa);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Preview response' }));
+    expect(previa).toHaveBeenCalled();
+  });
+
+  it('deve desabilitar "Preview response" com a dica Quando nada casaria (C4)', async () => {
+    await show({ ...RESULTADO, matched: 0, matches: [], matchList: [] });
+
+    const previa = screen.getByRole('button', { name: 'Preview response' }) as HTMLButtonElement;
+    expect(previa.disabled).toBe(true);
+    expect(previa.parentElement?.getAttribute('title')).toBe('Nothing would match yet');
+  });
+
   it('deve manter o título "Would not match (0)" sem lista vazia Quando todas casariam', async () => {
     await show({ ...RESULTADO, tested: 1, misses: [] });
 

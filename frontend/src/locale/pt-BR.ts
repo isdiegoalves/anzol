@@ -2561,4 +2561,20 @@ export const translations: Record<string, string> = {
   '4791386586357239732': 'Carregando a requisição…',
   // Request {$uuid}
   '3162761057963063529': 'Requisição {$uuid}',
+  //  Preview response
+  '8830640757016765901': ' Ver como responderia ',
+  // Nothing would match yet
+  '5348008142135533378': 'Nada casaria ainda',
+  // Rendered responses
+  '5158358178420034517': 'Respostas renderizadas',
+  // seq and now are from now.
+  '960207092644559768': 'seq e now são de agora.',
+  // Fault: {$INTERPOLATION}
+  '5211711429271102908': 'Falha de rede: {$INTERPOLATION}',
+  // Timed out (1 s)
+  '8107371803010217629': 'Estourou o prazo (1 s)',
+  // Could not render: {$INTERPOLATION}
+  '9109980654677406198': 'Não foi possível renderizar: {$INTERPOLATION}',
+  // Rendered body
+  '1729320846134795312': 'Corpo renderizado',
 };

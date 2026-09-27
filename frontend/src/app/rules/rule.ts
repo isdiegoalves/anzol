@@ -139,9 +139,24 @@ export interface RuleTrace {
   }[];
 }
 
+/**
+ * A resposta que a regra daria a uma mensagem (`rules/test?render=N`, C4): status, cabeçalhos e
+ * corpo, ou a falha de rede, ou `error: "timeout"` quando o prazo de 1 s estourou.
+ */
+export interface RenderedResponse {
+  uuid: string;
+  status?: number;
+  headers?: Record<string, string>;
+  body?: string;
+  fault?: string;
+  error?: string;
+}
+
 /** Resposta de `POST /token/{id}/rules/test`, da mensagem mais nova para a mais antiga. */
 export interface RuleTestResponse {
   matches: { uuid: string; seq: number }[];
+  /** Só com `?render=N` (C4). */
+  rendered?: RenderedResponse[];
   misses: { uuid: string; seq: number; failed: string[]; conditions?: string[] | null }[];
 }
 

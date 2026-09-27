@@ -634,8 +634,16 @@ describe('Dado o editor de regra', () => {
       match: { ...rule(9).match, path: { equals: '/pagamentos' } },
       response: { ...rule(9).response, status: 429, headers: { 'Retry-After': '5' } },
     };
+    /** O formulário do "Describe the rule" vem ao abrir o `<details>` (RULES-16). */
+    const openSuggest = async () => {
+      (root().querySelector('details.suggest summary') as HTMLElement).click();
+      await vi.waitFor(() =>
+        expect(root().querySelector('textarea[aria-label="Describe the rule"]')).not.toBeNull(),
+      );
+    };
     const applyAll = async () => (await vi.waitFor(() => button('Apply all'))).click();
     const suggest = async (texto = 'Responda 429 com Retry-After 5 para POST em /pagamentos') => {
+      await openSuggest();
       await (await input('Describe the rule')).setValue(texto);
       await (await button('Suggest')).click();
       const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: URL_SUGGEST }));
@@ -691,6 +699,7 @@ describe('Dado o editor de regra', () => {
     it('deve preencher o JSON Quando a visão aberta é a "JSON"', async () => {
       await open({ index: null }, []);
       await (await loader.getHarness(MatButtonToggleHarness.with({ text: 'JSON' }))).check();
+      await openSuggest();
 
       await (await input('Describe the rule')).setValue('regra de 429');
       await (await button('Suggest')).click();
@@ -712,6 +721,7 @@ describe('Dado o editor de regra', () => {
     it('deve oferecer a mensagem aberta como exemplo Quando o editor recebe uma', async () => {
       const example = webhookRequest(5);
       await open({ index: null, example }, []);
+      await openSuggest();
 
       await (await loader.getHarness(MatCheckboxHarness)).check();
       await (await input('Describe the rule')).setValue('igual a esta');
@@ -982,6 +992,35 @@ describe('Dado o editor de regra', () => {
       )?.click();
       await fixture.whenStable();
       expect(root().querySelector('[aria-label="Request a"]')).toBeNull();
+    });
+
+    it('deve pedir a resposta renderizada só no "Preview response" e mostrá-la (C4)', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [{ uuid: 'a', seq: 3 }], misses: [] });
+      (await countCall()).flush({ data: [], total: 1 });
+      (await recentCall()).flush(requestPage([webhookRequest(1, { uuid: 'a' })]));
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      await (await button('Preview response')).click();
+
+      const render = await vi.waitFor(() =>
+        http.expectOne(
+          (req) => req.url === `${URL_REGRAS}/test` && req.params.get('render') === '3',
+        ),
+      );
+      render.flush({
+        matches: [{ uuid: 'a', seq: 3 }],
+        misses: [],
+        rendered: [{ uuid: 'a', status: 201, headers: {}, body: 'ok' }],
+      });
+      const regiao = await vi.waitFor(() => {
+        const found = root().querySelector('[role="region"][aria-labelledby="rendered-title"]');
+        expect(found).not.toBeNull();
+        return found as HTMLElement;
+      });
+      expect(regiao.textContent).toContain('Rendered responses');
+      expect(regiao.querySelector('pre')?.textContent?.trim()).toBe('ok');
     });
 
     it('deve marcar "Out of date" e rerodar 1 s depois Quando uma condição muda (WM-22)', async () => {

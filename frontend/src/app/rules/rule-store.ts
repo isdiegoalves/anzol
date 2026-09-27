@@ -6,12 +6,16 @@ import { RuleStats, TokenStats } from '../stats/stats';
 import {
   HISTORY_TEST_WINDOW,
   HistoryTest,
+  RenderedResponse,
   Rule,
   RuleMatch,
   RuleTestResponse,
   RuleTrace,
   summarizeHistoryTest,
 } from './rule';
+
+/** Quantas mensagens o "Preview response" renderiza (o teto do servidor, C4). */
+const RENDER_COUNT = 3;
 
 /** Páginas de 100 que cobrem a janela de 500 do `rules/test` (S8). */
 const RECENT_PER_PAGE = 100;
@@ -264,6 +268,20 @@ export class RuleStore {
       });
       return () => post.unsubscribe();
     });
+  }
+
+  /**
+   * "Preview response" (C4): o `rules/test` com `render=3`, a resposta renderizada das até 3
+   * mensagens mais novas que a regra casa. Só sob pedido; o rerun nunca pede render.
+   */
+  async renderRule(rule: Rule): Promise<RenderedResponse[]> {
+    const tokenId = this.requireToken();
+    const response = await firstValueFrom(
+      this.http.post<RuleTestResponse>(`${this.url(tokenId)}/test`, rule, {
+        params: { render: RENDER_COUNT },
+      }),
+    );
+    return response.rendered ?? [];
   }
 
   /** Quantas mensagens a URL guarda (para a página de cada link do teste); uma leitura por carga. */

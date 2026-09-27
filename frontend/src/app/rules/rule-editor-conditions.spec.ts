@@ -345,6 +345,10 @@ describe('Dado o editor de condições e resposta', () => {
         response: { ...rule(1).response, status: 429 },
       });
 
+      (root().querySelector('details.suggest summary') as HTMLElement).click();
+      await vi.waitFor(() =>
+        expect(root().querySelector('textarea[aria-label="Describe the rule"]')).not.toBeNull(),
+      );
       await (await input('Describe the rule')).setValue('429 para acme');
       await (await button('Suggest')).click();
       (

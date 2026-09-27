@@ -1,0 +1,84 @@
+<mat-form-field class="prompt">
+  <mat-label i18n>What should the rule do?</mat-label>
+  <textarea
+    matInput
+    rows="2"
+    aria-label="Describe the rule"
+    i18n-aria-label
+    placeholder="Answer 429 with Retry-After 5 for POST on /payments"
+    i18n-placeholder
+    [maxlength]="maxLength"
+    [disabled]="disabled()"
+    [ngModel]="prompt()"
+    (ngModelChange)="prompt.set($event)"
+  ></textarea>
+  @if (disabled()) {
+    <mat-hint class="off">{{ offHint }}</mat-hint>
+  } @else {
+    <mat-hint i18n
+      >Paths are relative to this URL (say /payments). Nothing is saved until you click
+      Save.</mat-hint
+    >
+  }
+</mat-form-field>
+@if (mentionsUrl()) {
+  <p class="note" i18n>
+    Your description mentions this URL. The rule's path is only what comes after /{{ tokenId() }}:
+    describe it as /payments, not as the full URL.
+  </p>
+}
+<div class="actions">
+  @if (example(); as request) {
+    <mat-checkbox
+      i18n
+      [disabled]="disabled()"
+      [checked]="useExample()"
+      (change)="useExample.set($event.checked)"
+      >Use the open request as example ({{ request.method }})</mat-checkbox
+    >
+  }
+  <button i18n mat-stroked-button type="button" [disabled]="!canSuggest()" (click)="suggest()">
+    Suggest
+  </button>
+</div>
+@if (loading()) {
+  <p class="wait" role="status">{{ waitHint }}</p>
+}
+@if (errors().length > 0) {
+  <div role="alert" aria-label="Suggestion errors" i18n-aria-label>
+    <ul class="errors">
+      @for (message of errors(); track $index) {
+        <li>{{ message }}</li>
+      }
+    </ul>
+  </div>
+}
+@if (result(); as suggestion) {
+  <!-- Proposta, não substituição (E-13): nada muda no editor até "Apply". -->
+  <section class="result" role="region" aria-label="Suggestion" i18n-aria-label>
+    <p i18n class="attempts">
+      Suggested in
+      {suggestion.attempts, plural, =1 {1 attempt} other {{{ suggestion.attempts }} attempts}}.
+      Review the rule below and click Save to keep it.
+    </p>
+    @if (pending()) {
+      @if (changes().length > 0) {
+        <ul class="changes">
+          @for (change of changes(); track $index) {
+            <li>{{ change }}</li>
+          }
+        </ul>
+      } @else {
+        <p i18n>The suggestion is the same as the rule in the editor.</p>
+      }
+      <div class="actions">
+        <button mat-button type="button" (click)="dismiss()" i18n>Dismiss</button>
+        <button mat-stroked-button type="button" (click)="apply(true)" i18n>
+          Apply conditions only
+        </button>
+        <button mat-flat-button type="button" (click)="apply(false)" i18n>Apply all</button>
+      </div>
+    }
+    <app-markdown [text]="suggestion.explanation" />
+  </section>
+}

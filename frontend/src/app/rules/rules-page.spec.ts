@@ -506,7 +506,9 @@ describe('Dado a página Rules', () => {
       expect(
         (within(editor).getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value,
       ).toBe(ruleFromRequest(mensagem).name);
-      expect(within(editor).getByText(/Use the open request as example/)).toBeTruthy();
+      // O "Describe the rule" carrega o formulário ao abrir (RULES-16).
+      await userEvent.click(within(editor).getByText('Describe the rule'));
+      expect(await within(editor).findByText(/Use the open request as example/)).toBeTruthy();
     });
 
     it.each([
@@ -524,6 +526,8 @@ describe('Dado a página Rules', () => {
         await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
 
         const editor = await screen.findByRole('region', { name: 'New rule' });
+        await userEvent.click(within(editor).getByText('Describe the rule'));
+        await within(editor).findByRole('textbox', { name: 'Describe the rule' });
         expect(within(editor).queryByText(/Use the open request as example/) !== null).toBe(
           oferece,
         );

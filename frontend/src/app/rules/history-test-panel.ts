@@ -43,10 +43,15 @@ export class HistoryTestPanel {
   readonly testing = input(false);
   /** As condições mudaram depois deste resultado (o rerun vem em seguida). */
   readonly outOfDate = input(false);
+  /** O "Preview response" está buscando as respostas (C4). */
+  readonly rendering = input(false);
   readonly testAgain = output<void>();
+  readonly previewResponse = output<void>();
   readonly openRequest = output<string>();
 
   protected readonly window = HISTORY_TEST_WINDOW;
+  /** Dica do "Preview response" desabilitado (o botão desabilitado não recebe foco nem hover). */
+  protected readonly nothingMatches = $localize`Nothing would match yet`;
   protected readonly closest = signal(true);
   protected readonly misses = computed(() =>
     this.closest() ? closestFirst(this.result().misses) : this.result().misses,

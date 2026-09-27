@@ -28,6 +28,19 @@
           <ng-container i18n>Test again</ng-container>
         }
       </button>
+      <!-- C4: a resposta renderizada, só sob pedido; sem nada que case, a dica diz por quê. -->
+      <span [attr.title]="current.matched === 0 ? nothingMatches : null">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="current.matched === 0"
+          [attr.aria-busy]="rendering()"
+          (click)="previewResponse.emit()"
+          i18n
+        >
+          Preview response
+        </button>
+      </span>
     </div>
     <!-- A prévia com prioridade (S8) sobe para logo abaixo do contador (WM-22). -->
     <ng-content />
