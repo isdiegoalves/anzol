@@ -10,21 +10,9 @@ import { HitsView, hitsText } from './rule-list';
 @Component({
   selector: 'app-rule-hits',
   imports: [RouterLink],
-  template: `
-    @if (parts(); as view) {
-      @if (view.prefix) {
-        {{ view.prefix }} ·&ngsp;
-      }
-      <a [routerLink]="['/', tokenId()]" [queryParams]="filter('rule')">{{ view.answered }}</a>
-      @if (view.near) {
-        &ngsp;·&ngsp;<a [routerLink]="['/', tokenId()]" [queryParams]="filter('near_miss')">{{
-          view.near
-        }}</a>
-      }
-    } @else {
-      {{ text() }}
-    }
-  `,
+  // Numa linha só: sem espaço nas pontas, o texto é o que se lê ("Started → x · Answered …").
+  // prettier-ignore
+  template: `@if (parts(); as view) {@if (view.prefix) {<span>{{ view.prefix }} ·&ngsp;</span>}<a [routerLink]="['/', tokenId()]" [queryParams]="filter('rule')">{{ view.answered }}</a>@if (view.near) {<span>&ngsp;·&ngsp;</span><a [routerLink]="['/', tokenId()]" [queryParams]="filter('near_miss')">{{ view.near }}</a>}} @else {<span>{{ text() }}</span>}`,
   styleUrl: './rule-hits.scss',
   host: { class: 'line3 hits', '[class.warn]': 'warn()' },
 })
