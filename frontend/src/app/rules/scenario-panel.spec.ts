@@ -4,6 +4,7 @@ import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatDialogHarness } from '@angular/material/dialog/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { screen } from '@testing-library/angular';
@@ -113,12 +114,45 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
     });
   });
 
-  it('deve apagar todos os estados e reler Quando "Reset all" é clicado', async () => {
+  /** O diálogo "Reset all scenarios?" (WM-37), e o botão escolhido nele. */
+  const confirmReset = async (choice: 'Reset' | 'Cancel') => {
+    const dialog =
+      await TestbedHarnessEnvironment.documentRootLoader(fixture).getHarness(MatDialogHarness);
+    const texto = [await dialog.getTitleText(), await dialog.getContentText()];
+    await (await dialog.getHarness(MatButtonHarness.with({ text: choice }))).click();
+    return texto;
+  };
+
+  it('deve confirmar nomeando os cenários, apagar todos os estados e reler Quando "Reset all" é clicado', async () => {
     await open([retry('ok'), login]);
 
     await (await button('Reset all to Started')).click();
 
-    http.expectOne({ method: 'DELETE', url: URL_CENARIOS }).flush(null);
+    expect(await confirmReset('Reset')).toEqual([
+      'Reset all scenarios?',
+      'Resets 2 scenarios to Started: Retry, Login.',
+    ]);
+    (await vi.waitFor(() => http.expectOne({ method: 'DELETE', url: URL_CENARIOS }))).flush(null);
+    await flushGet([retry(), { ...login, state: 'Started' }]);
+  });
+
+  it('não deve zerar nada Quando o reset é cancelado', async () => {
+    await open([retry('ok')]);
+
+    await (await button('Reset all to Started')).click();
+    await confirmReset('Cancel');
+
+    http.expectNone({ method: 'DELETE', url: URL_CENARIOS });
+    expect(rows()).toEqual([['Retry', 'ok']]);
+  });
+
+  it('deve reler os estados depois do reset', async () => {
+    await open([retry('ok'), login]);
+
+    await (await button('Reset all to Started')).click();
+    await confirmReset('Reset');
+
+    (await vi.waitFor(() => http.expectOne({ method: 'DELETE', url: URL_CENARIOS }))).flush(null);
     await flushGet([retry(), { ...login, state: 'Started' }]);
     await vi.waitFor(() =>
       expect(rows()).toEqual([
@@ -141,9 +175,11 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
     await open([retry('ok')]);
 
     await (await button('Reset all to Started')).click();
-    http
-      .expectOne({ method: 'DELETE', url: URL_CENARIOS })
-      .flush({ success: false }, { status: 410, statusText: 'Gone' });
+    await confirmReset('Reset');
+    (await vi.waitFor(() => http.expectOne({ method: 'DELETE', url: URL_CENARIOS }))).flush(
+      { success: false },
+      { status: 410, statusText: 'Gone' },
+    );
 
     await vi.waitFor(() =>
       expect(element().querySelector('[role=alert]')?.textContent).toContain(

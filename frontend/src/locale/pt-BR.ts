@@ -2080,12 +2080,8 @@ export const translations: Record<string, string> = {
   '3968264942277486357': '{$INTERPOLATION} · {$INTERPOLATION_1} ligadas',
   // Import
   '1071721880474488785': 'Importar',
-  // Import: replace all rules with the ones in a JSON file
-  '770758667285644039': 'Importar: trocar todas as regras pelas de um arquivo JSON',
   // Export
   '7462301153729425254': 'Exportar',
-  // Export: download the saved rules as JSON
-  '3347999324731452812': 'Exportar: baixar as regras salvas em JSON',
   // Not checked while off
   '7978723831900223519': 'Não avaliada enquanto desligada',
   // Rule in plain words
@@ -2163,4 +2159,60 @@ export const translations: Record<string, string> = {
   '4109185880787660547': 'até 100 caracteres',
   // at least the min
   '243500472496876097': 'pelo menos o mínimo',
+  // Import rules
+  '4093475112032445060': 'Importar regras',
+  // This file has {$ICU}. Compared with the {$INTERPOLATION_1} saved:
+  '6194967565668606157': 'Este arquivo tem {$ICU}. Comparado com as {$INTERPOLATION_1} salvas:',
+  // {VAR_PLURAL, plural, =1 {1 rule} other {{INTERPOLATION} rules}}
+  '6799431695330327454': '{VAR_PLURAL, plural, =1 {1 regra} other {{INTERPOLATION} regras}}',
+  // {$INTERPOLATION} unchanged · {$INTERPOLATION_1} changed · {$INTERPOLATION_2} removed · {$INTERPOLATION_3} new
+  '7949110215552260436':
+    '{$INTERPOLATION} iguais · {$INTERPOLATION_1} alteradas · {$INTERPOLATION_2} apagadas · {$INTERPOLATION_3} novas',
+  // Changed ({$INTERPOLATION})
+  '8159504106451560664': 'Alteradas ({$INTERPOLATION})',
+  // Removed ({$INTERPOLATION})
+  '2519077745627798462': 'Apagadas ({$INTERPOLATION})',
+  // New ({$INTERPOLATION})
+  '484681768866565220': 'Novas ({$INTERPOLATION})',
+  // Unchanged ({$INTERPOLATION})
+  '1014824396237074245': 'Iguais ({$INTERPOLATION})',
+  // Import mode
+  '6001628830748553103': 'Modo de importação',
+  // Replace the {$INTERPOLATION} saved rules
+  '136018925314073282': 'Substituir as {$INTERPOLATION} regras salvas',
+  // Merge: keep the {$INTERPOLATION}, add {$INTERPOLATION_1}
+  '8521208746137378765': 'Mesclar: manter as {$INTERPOLATION}, acrescentar {$INTERPOLATION_1}',
+  // Would exceed 100 rules.
+  '5593565440168449881': 'Passaria de 100 regras.',
+  // Merge
+  '3206542606001340679': 'Mesclar',
+  // Replace
+  '6254459922754143568': 'Substituir',
+  //  Turn all rules off
+  '3096730165381343020': ' Desligar todas as regras ',
+  // Import rules from a JSON file: see what changes, then replace or merge
+  '8481706238319045391':
+    'Importar regras de um arquivo JSON: ver o que muda e então substituir ou mesclar',
+  // Download the saved rules as JSON
+  '8556016147397832585': 'Baixar as regras salvas em JSON',
+  // Turn all rules off?
+  '2013222664173539552': 'Desligar todas as regras?',
+  // 1 rule stops answering until turned on again.
+  '8893957426717963848': '1 regra para de responder até ser religada.',
+  // {$count} rules stop answering until turned on again.
+  '1959308614678541425': '{$count} regras param de responder até serem religadas.',
+  // 1 rule turned off
+  '4711952792605897143': '1 regra desligada',
+  // {$count} rules turned off
+  '275407520297556682': '{$count} regras desligadas',
+  // Imported 1 rule
+  '7354024378873626781': '1 regra importada',
+  // Reset all scenarios?
+  '949672927874840835': 'Voltar todos os cenários a Started?',
+  // Resets 1 scenario to {$state}: {$names}.
+  '2221343192476305963': 'Volta 1 cenário a {$state}: {$names}.',
+  // Resets {$count} scenarios to {$state}: {$names}.
+  '4627306994793137545': 'Volta {$count} cenários a {$state}: {$names}.',
+  // Reset
+  '7808756054397155068': 'Voltar a Started',
 };

@@ -41,6 +41,9 @@ import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { RuleItem } from './rule-item';
 import { ruleFromRequest } from './rule-from-request';
+import { chooseImport } from './import-rules-dialog';
+import { confirmAction } from './rule-dialogs';
+import { diffRules, mergeRules } from './rule-diff';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 
 /** Regra na posição em que o servidor a avalia, com o índice dela na lista salva. */
@@ -426,7 +429,41 @@ export class RulesPage {
     }
   }
 
-  /** O import substitui a lista inteira (`PUT /rules`); o servidor valida e responde 422. */
+  /**
+   * "Turn all rules off" (WM-37): confirma nomeando quantas param de responder e grava todas
+   * desligadas, com Desfazer (volta a lista de antes).
+   */
+  protected async turnAllOff(): Promise<void> {
+    const previous = this.store.rules();
+    const count = previous.filter((rule) => rule.enabled !== false).length;
+    const confirmed = await confirmAction(this.injector, {
+      title: $localize`Turn all rules off?`,
+      message:
+        count === 1
+          ? $localize`1 rule stops answering until turned on again.`
+          : $localize`${count}:count: rules stop answering until turned on again.`,
+      confirm: $localize`Turn off`,
+      cancel: $localize`Cancel`,
+    });
+    if (
+      !confirmed ||
+      !(await this.saveUnchanged(previous.map((rule) => ({ ...rule, enabled: false }))))
+    ) {
+      return;
+    }
+    const text =
+      count === 1 ? $localize`1 rule turned off` : $localize`${count}:count: rules turned off`;
+    this.snackBar
+      .open(text, $localize`Undo`, { duration: 5000 })
+      .onAction()
+      .subscribe(() => void this.saveUnchanged(previous));
+  }
+
+  /**
+   * O import mostra antes o que muda (WM-19): substituir a lista inteira, ou mesclar as regras de
+   * id novo nas salvas. Grava só se a lista do servidor ainda é a comparada, com Desfazer; o
+   * servidor valida e responde 422.
+   */
   protected async importRules(input: HTMLInputElement): Promise<void> {
     const file = input.files?.[0];
     input.value = '';
@@ -444,10 +481,24 @@ export class RulesPage {
       this.errors.set([$localize`The file must contain a JSON list of rules.`]);
       return;
     }
-    if (await this.save(rules as Rule[])) {
-      this.snackBar.open($localize`Imported ${this.store.rules().length}:count: rules`, undefined, {
-        duration: 4000,
-      });
+    const incoming = rules as Rule[];
+    const previous = this.store.rules();
+    const mode = await chooseImport(this.injector, previous, incoming);
+    if (!mode) {
+      return;
+    }
+    const diff = diffRules(previous, incoming);
+    const next = mode === 'merge' ? mergeRules(previous, diff) : incoming;
+    const count = mode === 'merge' ? diff.added.length : incoming.length;
+    if (await this.saveUnchanged(next)) {
+      this.snackBar
+        .open(
+          count === 1 ? $localize`Imported 1 rule` : $localize`Imported ${count}:count: rules`,
+          $localize`Undo`,
+          { duration: 5000 },
+        )
+        .onAction()
+        .subscribe(() => void this.saveUnchanged(previous));
     }
   }
 
@@ -484,18 +535,6 @@ export class RulesPage {
     }
     if (this.from() === requestId) {
       this.fromRequest.set({ state: 'done', request });
-    }
-  }
-
-  private async save(rules: readonly Rule[]): Promise<boolean> {
-    this.errors.set([]);
-    try {
-      await this.store.save(rules);
-      this.refreshScenarios();
-      return true;
-    } catch (error) {
-      this.errors.set(validationMessages(error));
-      return false;
     }
   }
 

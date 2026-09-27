@@ -1,0 +1,55 @@
+<h2 mat-dialog-title i18n>Import rules</h2>
+<mat-dialog-content>
+  <!-- prettier-ignore -->
+  <p class="summary" i18n>This file has {incoming, plural, =1 {1 rule} other {{{ incoming }} rules}}. Compared with the {{ saved }} saved:</p>
+  <!-- prettier-ignore -->
+  <p class="counts" i18n>{{ diff.unchanged.length }} unchanged · {{ diff.changed.length }} changed · {{ diff.removed.length }} removed · {{ diff.added.length }} new</p>
+  @for (group of groups; track group.id) {
+    <details [open]="group.id === 'changed' || group.id === 'removed'">
+      <summary>
+        @switch (group.id) {
+          @case ('changed') {
+            <span i18n>Changed ({{ group.rules.length }})</span>
+          }
+          @case ('removed') {
+            <span i18n>Removed ({{ group.rules.length }})</span>
+          }
+          @case ('added') {
+            <span i18n>New ({{ group.rules.length }})</span>
+          }
+          @default {
+            <span i18n>Unchanged ({{ group.rules.length }})</span>
+          }
+        }
+      </summary>
+      <ul>
+        @for (line of group.rules; track $index) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    </details>
+  }
+  <mat-radio-group
+    class="modes"
+    aria-label="Import mode"
+    i18n-aria-label
+    [value]="mode()"
+    (change)="mode.set($event.value)"
+  >
+    <mat-radio-button value="replace" i18n>Replace the {{ saved }} saved rules</mat-radio-button>
+    <mat-radio-button value="merge" [disabled]="tooMany" i18n
+      >Merge: keep the {{ saved }}, add {{ diff.added.length }}</mat-radio-button
+    >
+  </mat-radio-group>
+  @if (tooMany) {
+    <p class="limit" i18n>Would exceed 100 rules.</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end" class="actions">
+  <button mat-button type="button" class="safe" [mat-dialog-close]="null" i18n>Cancel</button>
+  @if (mode() === 'merge') {
+    <button mat-flat-button type="button" [mat-dialog-close]="'merge'" i18n>Merge</button>
+  } @else {
+    <button mat-flat-button type="button" [mat-dialog-close]="'replace'" i18n>Replace</button>
+  }
+</mat-dialog-actions>

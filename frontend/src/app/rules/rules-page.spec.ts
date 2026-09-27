@@ -206,7 +206,7 @@ describe('Dado a página Rules', () => {
   });
 
   describe('Dado o cabeçalho e a regra desligada (RULES-06/08)', () => {
-    it('deve contar as ligadas ao lado do h1, com a frase curta e Import/Export só com ícone', async () => {
+    it('deve contar as ligadas ao lado do h1, com a frase curta e Import/Export com rótulo (WM-19)', async () => {
       await open([rule(1), rule(2, { enabled: false }), rule(3)]);
 
       const titulo = screen.getByRole('heading', { name: 'Rules', level: 1 });
@@ -218,7 +218,7 @@ describe('Dado a página Rules', () => {
       for (const name of ['Import', 'Export']) {
         const botao = screen.getByRole('button', { name });
         expect(botao.getAttribute('title')).toMatch(/\S/);
-        expect(botao.textContent?.trim()).toBe('');
+        expect(botao.textContent?.trim()).toBe(name);
       }
       expect(screen.getByText('Hits over the last 12 requests kept.')).toBeTruthy();
     });
@@ -681,6 +681,41 @@ describe('Dado a página Rules', () => {
     });
   });
 
+  describe('Dado "Turn all rules off" (WM-37)', () => {
+    it('deve confirmar dizendo quantas param, desligar todas e oferecer Desfazer', async () => {
+      await open([rule(1), rule(2), rule(3, { enabled: false })]);
+      const onAction = new Subject<void>();
+      const snack = vi
+        .spyOn(TestBed.inject(MatSnackBar), 'open')
+        .mockReturnValue({ onAction: () => onAction } as never);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Turn all rules off' }));
+      const dialog = within(await screen.findByRole('dialog', { name: 'Turn all rules off?' }));
+      expect(dialog.getByText('2 rules stop answering until turned on again.')).toBeTruthy();
+      await userEvent.click(dialog.getByRole('button', { name: 'Turn off' }));
+
+      const off = [rule(1), rule(2), rule(3)].map((r) => ({ ...r, enabled: false }));
+      await expectGuardedPut([rule(1), rule(2), rule(3, { enabled: false })], off);
+      await vi.waitFor(() =>
+        expect(snack).toHaveBeenCalledWith('2 rules turned off', 'Undo', { duration: 5000 }),
+      );
+      onAction.next();
+      await expectGuardedPut(off, [rule(1), rule(2), rule(3, { enabled: false })]);
+    });
+
+    it('não deve gravar nada Quando a confirmação é cancelada', async () => {
+      await open([rule(1)]);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Turn all rules off' }));
+      const dialog = within(await screen.findByRole('dialog', { name: 'Turn all rules off?' }));
+      expect(dialog.getByText('1 rule stops answering until turned on again.')).toBeTruthy();
+      await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+      http.expectNone({ method: 'GET', url: URL_REGRAS });
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+  });
+
   describe('Dado o export e o import', () => {
     const chooseFile = (content: string) => {
       const input = document.querySelector<HTMLInputElement>('input[type=file]');
@@ -712,23 +747,90 @@ describe('Dado a página Rules', () => {
       vi.unstubAllGlobals();
     });
 
-    it('deve substituir a lista pelo arquivo e avisar Quando o import é aceito', async () => {
+    /** O diálogo "Import rules" (WM-19) já aberto pelo arquivo escolhido. */
+    const importDialog = () => screen.findByRole('dialog', { name: 'Import rules' });
+
+    it('deve mostrar a diferença por id antes de gravar e não gravar nada Quando cancela', async () => {
+      await open([rule(1), rule(2), rule(3)]);
+
+      chooseFile(
+        JSON.stringify([
+          rule(1),
+          rule(2, { name: 'Pix pago', response: { ...rule(2).response, status: 200 } }),
+          { ...rule(9), id: undefined },
+        ]),
+      );
+
+      const dialog = within(await importDialog());
+      expect(dialog.getByText('This file has 3 rules. Compared with the 3 saved:')).toBeTruthy();
+      expect(dialog.getByText('1 unchanged · 1 changed · 1 removed · 1 new')).toBeTruthy();
+      expect(
+        dialog.getByText('Pix pago — name "Rule 2" → "Pix pago"; response.status 202 → 200'),
+      ).toBeTruthy();
+      expect(dialog.getByRole('radio', { name: 'Replace the 3 saved rules' })).toBeTruthy();
+      expect(dialog.getByRole('radio', { name: 'Merge: keep the 3, add 1' })).toBeTruthy();
+      await expectNoAxeViolations(document.body);
+
+      await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+      await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      http.expectNone({ method: 'PUT', url: URL_REGRAS });
+      http.expectNone({ method: 'GET', url: URL_REGRAS });
+    });
+
+    it('deve substituir a lista pelo arquivo e oferecer Desfazer Quando "Replace" é escolhido', async () => {
       await open([rule(1)]);
-      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+      const onAction = new Subject<void>();
+      const snack = vi
+        .spyOn(TestBed.inject(MatSnackBar), 'open')
+        .mockReturnValue({ onAction: () => onAction } as never);
 
       chooseFile(JSON.stringify([rule(7), rule(8)]));
+      await userEvent.click(within(await importDialog()).getByRole('button', { name: 'Replace' }));
 
-      await expectPut([rule(7), rule(8)]);
+      await expectGuardedPut([rule(1)], [rule(7), rule(8)]);
       await vi.waitFor(() => expect(rows().map((r) => r[0])).toEqual(['Rule 7', 'Rule 8']));
       await vi.waitFor(() =>
-        expect(snack).toHaveBeenCalledWith('Imported 2 rules', undefined, { duration: 4000 }),
+        expect(snack).toHaveBeenCalledWith('Imported 2 rules', 'Undo', { duration: 5000 }),
       );
+
+      onAction.next();
+
+      await expectGuardedPut([rule(7), rule(8)], [rule(1)]);
+    });
+
+    it('deve manter as salvas e acrescentar só as de id novo Quando "Merge" é escolhido', async () => {
+      await open([rule(1), rule(2)]);
+
+      chooseFile(JSON.stringify([rule(2, { name: 'Mudada' }), rule(5)]));
+      const dialog = within(await importDialog());
+      await userEvent.click(dialog.getByRole('radio', { name: 'Merge: keep the 2, add 1' }));
+      await userEvent.click(dialog.getByRole('button', { name: 'Merge' }));
+
+      await expectGuardedPut([rule(1), rule(2)], [rule(1), rule(2), rule(5)]);
+    });
+
+    it('deve desabilitar o "Merge" e dizer o motivo Quando passaria de 100 regras', async () => {
+      const salvas = Array.from({ length: 99 }, (_, i) => rule(i + 1));
+      await open(salvas);
+
+      chooseFile(JSON.stringify([rule(200), rule(201)]));
+
+      const dialog = within(await importDialog());
+      expect(
+        (dialog.getByRole('radio', { name: 'Merge: keep the 99, add 2' }) as HTMLInputElement)
+          .disabled,
+      ).toBe(true);
+      expect(dialog.getByText('Would exceed 100 rules.')).toBeTruthy();
+      await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
     });
 
     it('deve mostrar os erros do servidor e manter a lista Quando o import responde 422', async () => {
       await open([rule(1)]);
 
       chooseFile(JSON.stringify([rule(7)]));
+      await userEvent.click(within(await importDialog()).getByRole('button', { name: 'Replace' }));
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
       const call = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
       call.flush(
         { '0.match.path.regex': ['The regex is invalid.'] },

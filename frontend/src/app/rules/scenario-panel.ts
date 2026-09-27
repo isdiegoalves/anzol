@@ -1,9 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+  Component,
+  Injector,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
+import { confirmAction } from './rule-dialogs';
 import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
 import { Scenario, ScenarioStore } from './scenario-store';
@@ -23,6 +33,7 @@ import { Scenario, ScenarioStore } from './scenario-store';
 export class ScenarioPanel {
   protected readonly store = inject(ScenarioStore);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly injector = inject(Injector);
 
   readonly tokenId = input.required<string>();
   /** As regras da URL com o rascunho do editor no lugar dele. */
@@ -84,8 +95,20 @@ export class ScenarioPanel {
     }
   }
 
+  /** "Reset all to Started" zera todos os cenários da URL: confirma nomeando quais (WM-37). */
   protected async resetAll(): Promise<void> {
-    if (await this.run(() => this.store.resetAll())) {
+    const names = this.store.scenarios().map(({ name }) => name);
+    const list = names.join(', ');
+    const confirmed = await confirmAction(this.injector, {
+      title: $localize`Reset all scenarios?`,
+      message:
+        names.length === 1
+          ? $localize`Resets 1 scenario to ${SCENARIO_STARTED}:state:: ${list}:names:.`
+          : $localize`Resets ${names.length}:count: scenarios to ${SCENARIO_STARTED}:state:: ${list}:names:.`,
+      confirm: $localize`Reset`,
+      cancel: $localize`Cancel`,
+    });
+    if (confirmed && (await this.run(() => this.store.resetAll()))) {
       this.chosen.set({});
       this.snackBar.open($localize`Scenarios reset to ${SCENARIO_STARTED}:state:`, undefined, {
         duration: 1000,

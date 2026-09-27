@@ -45,12 +45,16 @@
         <p class="hint" i18n>Checked by priority, lowest first. The first enabled rule that matches answers; if none does, the URL's default response does.</p>
       </div>
       <div class="actions">
+        @if (enabledCount() > 0) {
+          <button mat-button type="button" [disabled]="!loaded()" (click)="turnAllOff()" i18n>
+            Turn all rules off
+          </button>
+        }
+        <!-- Com rótulo (WM-19): o Import mostra a diferença antes de gravar. -->
         <button
-          mat-icon-button
+          mat-button
           type="button"
-          aria-label="Import"
-          i18n-aria-label
-          title="Import: replace all rules with the ones in a JSON file"
+          title="Import rules from a JSON file: see what changes, then replace or merge"
           i18n-title
           [disabled]="!loaded()"
           (click)="file.click()"
@@ -60,6 +64,7 @@
             <path d="m7 8 5-5 5 5" />
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           </svg>
+          <ng-container i18n>Import</ng-container>
         </button>
         <input
           #file
@@ -72,11 +77,9 @@
           (change)="importRules(file)"
         />
         <button
-          mat-icon-button
+          mat-button
           type="button"
-          aria-label="Export"
-          i18n-aria-label
-          title="Export: download the saved rules as JSON"
+          title="Download the saved rules as JSON"
           i18n-title
           [disabled]="!loaded()"
           (click)="exportRules()"
@@ -86,6 +89,7 @@
             <path d="m7 10 5 5 5-5" />
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           </svg>
+          <ng-container i18n>Export</ng-container>
         </button>
         <!-- Antes de a lista carregar, o PUT da lista inteira apagaria as regras salvas. -->
         <button
