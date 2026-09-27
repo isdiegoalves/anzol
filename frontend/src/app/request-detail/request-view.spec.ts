@@ -317,6 +317,12 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
     });
 
+    it('não deve ter link no cartão da regra em modo só-leitura, mesmo com o token', async () => {
+      await show(webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } }), null, true);
+
+      expect(screen.queryByRole('link', { name: 'Pix' })).toBeNull();
+    });
+
     it('não deve ter link no cartão da regra na página do link só-leitura', async () => {
       await show(
         webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, token_id: undefined }),

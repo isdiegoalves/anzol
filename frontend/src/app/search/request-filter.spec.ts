@@ -159,6 +159,12 @@ describe('Dado o filtro por desfecho (C2, WM-27)', () => {
     expect(sameFilter(pix, { ...pix, outcome: { ...pix.outcome, name: 'outro nome' } })).toBe(true);
     expect(sameFilter(pix, NO_FILTER)).toBe(false);
     expect(
+      sameFilter(pix, {
+        ...NO_FILTER,
+        outcome: { type: 'rule', rule: '99999999-2222-4333-8444-555555555555', name: 'Pix' },
+      }),
+    ).toBe(false);
+    expect(
       sameFilter(pix, { ...NO_FILTER, outcome: { type: 'near_miss', rule: RULE, name: 'Pix' } }),
     ).toBe(false);
   });
