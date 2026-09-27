@@ -31,6 +31,11 @@
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-medium);
 
+  // O #id inteiro numa linha (a 390 px quebrava no meio: "#3d6d / 9").
+  strong {
+    white-space: nowrap;
+  }
+
   .side-text {
     display: flex;
     flex-direction: column;
