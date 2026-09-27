@@ -26,6 +26,7 @@
       [data]="data"
       (closed)="closeEditor($event)"
       (deleteRequested)="deleteFromEditor($event)"
+      (duplicateRequested)="duplicate($event)"
     />
   }
 </ng-template>
@@ -243,6 +244,7 @@
                       type="button"
                       class="open-rule"
                       [attr.aria-current]="open ? 'true' : null"
+                      [attr.aria-description]="inWords(item.rule)"
                       [attr.aria-labelledby]="'rule-' + item.index + '-name'"
                       [attr.aria-describedby]="
                         'rule-' +

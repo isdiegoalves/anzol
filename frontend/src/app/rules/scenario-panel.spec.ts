@@ -116,8 +116,9 @@ describe('Dado os cenários da URL na aba Scenario do editor (RULES-12/24)', () 
 
   /** O diálogo "Reset all scenarios?" (WM-37), e o botão escolhido nele. */
   const confirmReset = async (choice: 'Reset' | 'Cancel') => {
-    const dialog =
-      await TestbedHarnessEnvironment.documentRootLoader(fixture).getHarness(MatDialogHarness);
+    const dialog = await vi.waitFor(() =>
+      TestbedHarnessEnvironment.documentRootLoader(fixture).getHarness(MatDialogHarness),
+    );
     const texto = [await dialog.getTitleText(), await dialog.getContentText()];
     await (await dialog.getHarness(MatButtonHarness.with({ text: choice }))).click();
     return texto;

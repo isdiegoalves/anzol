@@ -130,6 +130,10 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+
+  // Ao lado do rótulo (Import, Export): no meio da linha, com um respiro.
+  margin-inline-end: 4px;
+  vertical-align: middle;
 }
 
 .file,

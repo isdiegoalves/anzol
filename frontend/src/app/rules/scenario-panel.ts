@@ -13,7 +13,6 @@ import { MatButton } from '@angular/material/button';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Rule, SCENARIO_STARTED, scenarioNames } from './rule';
-import { confirmAction } from './rule-dialogs';
 import { validationMessages } from './rule-store';
 import { ScenarioDiagram } from './scenario-diagram';
 import { Scenario, ScenarioStore } from './scenario-store';
@@ -99,6 +98,8 @@ export class ScenarioPanel {
   protected async resetAll(): Promise<void> {
     const names = this.store.scenarios().map(({ name }) => name);
     const list = names.join(', ');
+    // O diálogo (e o MatDialog) vêm sob demanda: ficam fora do pedaço de Regras.
+    const { confirmAction } = await import('./rule-dialogs');
     const confirmed = await confirmAction(this.injector, {
       title: $localize`Reset all scenarios?`,
       message:

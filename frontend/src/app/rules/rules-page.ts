@@ -55,7 +55,7 @@ import {
   priorityTitle,
   wouldBeShadowed,
 } from './rule-list';
-import { matchLine, scenarioTransition } from './rule-words';
+import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
 import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { newRule } from './rule-form';
@@ -64,8 +64,6 @@ import { RuleItem, RulePosition } from './rule-item';
 import { RuleListEmpty } from './rule-list-empty';
 import { RuleListFilter } from './rule-list-filter';
 import { ruleFromRequest } from './rule-from-request';
-import { chooseImport } from './import-rules-dialog';
-import { confirmAction } from './rule-dialogs';
 import { diffRules, mergeRules } from './rule-diff';
 import {
   Diagnosis,
@@ -368,6 +366,8 @@ export class RulesPage {
 
   protected readonly defaultPriority = RULE_DEFAULT_PRIORITY;
   protected readonly defaultStatus = RULE_DEFAULT_STATUS;
+  /** A regra em palavras, a descrição do item da lista (WM-04; o nome continua o nome acessível). */
+  protected readonly inWords = ruleInWords;
 
   constructor() {
     effect(() => {
@@ -782,6 +782,8 @@ export class RulesPage {
   protected async turnAllOff(): Promise<void> {
     const previous = this.store.rules();
     const count = previous.filter((rule) => rule.enabled !== false).length;
+    // O diálogo (e o MatDialog) vêm sob demanda: ficam fora do pedaço de Regras.
+    const { confirmAction } = await import('./rule-dialogs');
     const confirmed = await confirmAction(this.injector, {
       title: $localize`Turn all rules off?`,
       message:
@@ -829,6 +831,7 @@ export class RulesPage {
     }
     const incoming = rules as Rule[];
     const previous = this.store.rules();
+    const { chooseImport } = await import('./import-rules-dialog');
     const mode = await chooseImport(this.injector, previous, incoming);
     if (!mode) {
       return;
@@ -837,6 +840,15 @@ export class RulesPage {
     const next = mode === 'merge' ? mergeRules(previous, diff) : incoming;
     const count = mode === 'merge' ? diff.added.length : incoming.length;
     if (await this.saveUnchanged(next)) {
+      // As que entraram agora (ids que não havia) ficam destacadas (WM-35); o snackbar já anuncia.
+      const before = new Set(previous.map(({ id }) => id));
+      this.intents.markCreated(
+        this.store
+          .rules()
+          .map(({ id }) => id)
+          .filter((id): id is string => !!id && !before.has(id)),
+        false,
+      );
       this.snackBar
         .open(
           count === 1 ? $localize`Imported 1 rule` : $localize`Imported ${count}:count: rules`,
