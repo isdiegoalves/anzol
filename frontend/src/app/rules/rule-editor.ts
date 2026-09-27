@@ -590,7 +590,9 @@ export class RuleEditor {
     if (this.leaving || !this.unsaved()) {
       return Promise.resolve(true);
     }
-    const name = this.form.controls.name.value.trim() || $localize`New rule`;
+    // A regra salva pelo nome salvo (o da lista); a nova, pelo que já tem no campo.
+    const name =
+      this.editing()?.name || this.form.controls.name.value.trim() || $localize`New rule`;
     this.confirming ??= confirmDiscard(this.injector, name).then((discard) => {
       this.confirming = null;
       if (discard) {

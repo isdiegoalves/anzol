@@ -134,7 +134,7 @@ describe('Dado o editor de regra com alterações', () => {
 
       const confirm = await page.getHarness(MatDialogHarness);
       expect(await confirm.getTitleText()).toBe('Discard changes?');
-      expect(await confirm.getContentText()).toBe('"Pix pago" has unsaved changes.');
+      expect(await confirm.getContentText()).toBe('"Rule 1" has unsaved changes.');
       await vi.waitFor(() =>
         expect(document.activeElement?.textContent?.trim()).toBe('Keep editing'),
       );
