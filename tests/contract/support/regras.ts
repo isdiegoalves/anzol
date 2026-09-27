@@ -164,3 +164,61 @@ export async function estadoDoCenario(request: APIRequestContext, tokenId: strin
   expect(cenario, `cenário ${nome} ausente de ${JSON.stringify(cenarios)}`).toBeDefined();
   return cenario!.state;
 }
+
+// ---- UX de Regras (`.docs-arquivo/regras-ux/api-contrato.md`) ----
+
+/** Uma regra da lista no trace de uma mensagem (C1). */
+export interface RegraNoTrace {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** 1..N entre as ligadas, na ordem de avaliação; `null` nas desligadas, que vêm no fim. */
+  position: number | null;
+  /** Casaria a mensagem, ignorando `enabled`. */
+  matches: boolean;
+  /** As frases do near miss (`RuleMatching`) de cada condição que falhou. */
+  failed: string[];
+  /** A chave da condição de cada frase de `failed`, na mesma ordem (as do near miss). */
+  conditions: string[];
+}
+
+/** `GET /token/{id}/request/{rid}/rules/trace` (C1): as regras atuais avaliadas contra a mensagem gravada. */
+export interface Trace {
+  /** O uuid da mensagem. */
+  request: string;
+  /** O `rule` gravado na mensagem (pode citar regra que não existe mais). */
+  responded_by: RegraQueRespondeu | null;
+  rules: RegraNoTrace[];
+}
+
+export const CHAVES_TRACE = ['request', 'responded_by', 'rules'];
+export const CHAVES_REGRA_NO_TRACE = ['conditions', 'enabled', 'failed', 'id', 'matches', 'name', 'position'];
+
+export function chamarTrace(request: APIRequestContext, tokenId: string, requestId: string): Promise<APIResponse> {
+  return request.get(`/token/${tokenId}/request/${requestId}/rules/trace`, { headers: JSON_ACCEPT });
+}
+
+/** Trace válido: exige 200 e as chaves exatas do envelope e de cada regra. */
+export async function lerTrace(request: APIRequestContext, tokenId: string, requestId: string): Promise<Trace> {
+  const res = await chamarTrace(request, tokenId, requestId);
+  expect(res.status(), `GET …/request/{rid}/rules/trace: ${(await res.text()).slice(0, 500)}`).toBe(200);
+  const trace = (await res.json()) as Trace;
+  expect(Object.keys(trace).sort(), JSON.stringify(trace).slice(0, 300)).toEqual(CHAVES_TRACE);
+  for (const regra of trace.rules) expect(Object.keys(regra).sort(), JSON.stringify(regra)).toEqual(CHAVES_REGRA_NO_TRACE);
+  return trace;
+}
+
+/** Uma entrada de `rendered` do `rules/test?render=N` (C4). */
+export type Renderizada =
+  | { uuid: string; status: number; headers: Record<string, string>; body: string }
+  | { uuid: string; fault: Falha }
+  | { uuid: string; error: string };
+
+export interface ResultadoTesteComRender extends ResultadoTesteDeRegra {
+  rendered: Renderizada[];
+}
+
+/** `POST /token/{id}/rules/test?render=<valor>` com qualquer valor (inclusive inválido). */
+export function testarRegraComRender(request: APIRequestContext, tokenId: string, regra: unknown, render: string | number): Promise<APIResponse> {
+  return request.post(`/token/${tokenId}/rules/test?render=${encodeURIComponent(String(render))}`, { data: regra as object, headers: JSON_ACCEPT });
+}
