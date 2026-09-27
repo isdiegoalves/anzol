@@ -28,6 +28,9 @@ import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
+/** A nota do `push --dry-run` no stderr: o resumo não valida as regras. */
+private const val DRY_RUN_NOTE = "Note: --dry-run does not validate the rules; the server validates them on push."
+
 /** Regra no formato do Anexo A, já com `id`, como o servidor a devolve. */
 private fun rule(
     name: String,
@@ -229,8 +232,61 @@ class RulesTest {
                         """"removed":[{"id":${sai.getValue("id")},"name":"sai"}],"added":[{"name":"nova"}]}""",
                 ),
             )
+            assertThat(cli.stderr).containsExactly(DRY_RUN_NOTE)
             assertThat(site.rulePuts.get()).isZero()
             assertThat(site.rules(token)).isEqualTo(JsonArray(listOf(igual, muda, sai)))
+        }
+
+        @Test
+        @DisplayName("Dado o id de uma regra salva em maiúsculas no arquivo, quando roda push --dry-run, então é a mesma regra (UUID)")
+        fun pushDryRun_idEmMaiusculas_deveCompararComoUuid(
+            @TempDir dir: Path,
+        ) {
+            val token = site.createToken()
+            val salva = rule("salva")
+            site.storeRules(token, JsonArray(listOf(salva)))
+            val maiusculas =
+                JsonObject(
+                    salva + (
+                        "id" to
+                            JsonPrimitive(
+                                salva
+                                    .getValue("id")
+                                    .jsonPrimitive.content
+                                    .uppercase(),
+                            )
+                    ),
+                )
+            val file = dir.resolve("regras.json")
+            file.writeText(JsonArray(listOf(maiusculas)).toString())
+
+            val cli = run("push", token, "--dry-run", file.toString(), "--server", site.base)
+
+            assertThat(cli.awaitExit()).isEqualTo(0)
+            assertThat(Json.parseToJsonElement(cli.stdout.joinToString("\n"))).isEqualTo(
+                Json.parseToJsonElement("""{"equal":[${salva.getValue("id")}],"changed":[],"removed":[],"added":[]}"""),
+            )
+        }
+
+        @Test
+        @DisplayName(
+            "Dado um arquivo com o mesmo id duas vezes (caixas diferentes), quando roda push --dry-run, então diz o id repetido como " +
+                "o push recusaria, sai com 1 e não grava",
+        )
+        fun pushDryRun_idRepetido_deveSairComErro(
+            @TempDir dir: Path,
+        ) {
+            val token = site.createToken()
+            val id = UUID.randomUUID().toString()
+            val file = dir.resolve("regras.json")
+            file.writeText("""[{"id":"$id","name":"a"},{"id":"${id.uppercase()}","name":"b"}]""")
+
+            val cli = run("push", token, "--dry-run", file.toString(), "--server", site.base)
+
+            assertThat(cli.awaitExit()).isEqualTo(1)
+            assertThat(cli.stderr).containsExactly("Invalid rules in $file: 1.id: The id field has a duplicate value.")
+            assertThat(cli.stdout).isEmpty()
+            assertThat(site.rulePuts.get()).isZero()
         }
 
         @Test

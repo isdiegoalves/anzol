@@ -29,6 +29,9 @@ private val prettyJson =
         prettyPrintIndent = "  "
     }
 
+/** Vai ao stderr depois do resumo do `push --dry-run`: quem valida as regras é o servidor, no push de verdade. */
+private const val DRY_RUN_NOTE = "Note: --dry-run does not validate the rules; the server validates them on push."
+
 class Rules : CoreNoOpCliktCommand(name = "rules") {
     override fun help(context: Context) = "Downloads or replaces the response rules of a URL."
 }
@@ -99,7 +102,8 @@ class RulesPush : CoreCliktCommand(name = "push") {
 
     /**
      * O resumo do `diff_rules` (JSON indentado no stdout): o arquivo contra as regras salvas, por `id`. Nada é gravado; a
-     * validação das regras fica com o push de verdade.
+     * validação das regras fica com o push de verdade (a nota no stderr diz isso), menos o `id` repetido, que o CLI
+     * recusa como o push recusaria.
      */
     private fun printDiff(
         site: WebhookServer,
@@ -107,10 +111,12 @@ class RulesPush : CoreCliktCommand(name = "push") {
     ) {
         val proposed = (rules as? JsonArray)?.map { it as? JsonObject ?: fail("Invalid rules in $file: every rule must be an object") }
         if (proposed == null) fail("Invalid rules in $file: expected a list of rules")
+        duplicateIdIndex(proposed)?.let { fail("Invalid rules in $file: $it.id: The id field has a duplicate value.") }
         val saved = reaching(site) { site.rules(token) } ?: fail("Token not found")
         val diff = diffRules(saved.map { it.jsonObject }, proposed)
         System.out.write((prettyJson.encodeToString(JsonElement.serializer(), diff) + "\n").toByteArray(Charsets.UTF_8))
         System.out.flush()
+        echo(DRY_RUN_NOTE, err = true)
     }
 
     private fun read(file: String): String =

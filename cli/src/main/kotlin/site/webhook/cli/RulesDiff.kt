@@ -68,7 +68,14 @@ private fun JsonObject.normalizedRule(): JsonObject {
     )
 }
 
-private fun JsonObject.id(): String? = (this["id"] as? JsonPrimitive)?.contentOrNull
+/** O `id` para comparar: UUID sem diferenciar caixa (o servidor lê `ABC…` e `abc…` como o mesmo). */
+private fun JsonObject.id(): String? = (this["id"] as? JsonPrimitive)?.contentOrNull?.lowercase()
+
+/** A posição da primeira regra cujo `id` já apareceu antes na lista (o push recusaria com 422); nula sem repetição. */
+fun duplicateIdIndex(proposed: List<JsonObject>): Int? {
+    val seen = mutableSetOf<String>()
+    return proposed.indexOfFirst { rule -> rule.id()?.let { !seen.add(it) } == true }.takeIf { it >= 0 }
+}
 
 private fun JsonObject.name(): String = (this["name"] as? JsonPrimitive)?.contentOrNull.orEmpty()
 
