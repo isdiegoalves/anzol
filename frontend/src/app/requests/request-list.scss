@@ -24,6 +24,11 @@
   cursor: pointer;
 }
 
+.unread-count {
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+}
+
 .header {
   margin: 0;
   font: var(--mat-sys-title-medium);
@@ -242,21 +247,6 @@
   .delete {
     opacity: 1;
   }
-}
-
-.footer {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 4px 8px;
-  padding: 0 8px 8px;
-}
-
-.range {
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-small);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -293,12 +293,34 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items().length).toBeLessThan(40);
   });
 
-  it('deve oferecer "Next page" e dizer a faixa no rodapé Quando a API diz que não é a última página', async () => {
+  // INBOX-16: os dois botões sempre no mesmo lugar; sem página, aria-disabled e focáveis.
+  it('deve manter "Previous page" e "Next page" no rodapé, o sem página desabilitado e focável', async () => {
     await load([webhookRequest(1)], 60, false);
 
-    expect(element().textContent).toContain('Next page');
-    expect(element().textContent).not.toContain('Previous page');
+    const footer = within(element().querySelector('footer') as HTMLElement);
+    const previous = footer.getByRole('button', { name: 'Previous page' });
+    const next = footer.getByRole('button', { name: 'Next page' });
+    expect(previous.getAttribute('aria-disabled')).toBe('true');
+    expect(previous.hasAttribute('disabled')).toBe(false);
+    expect(next.getAttribute('aria-disabled')).toBeNull();
     expect(element().querySelector('.range')?.textContent).toBe('1–1 of 60');
+
+    previous.click();
+    http.expectNone(`/token/${TOKEN_ID}/requests?page=0&sorting=newest`);
+    next.click();
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=2&sorting=newest`)
+      .flush(requestPage([webhookRequest(2)], { current_page: 2, total: 60 }));
+    await expectNoAxeViolations(element());
+  });
+
+  it('deve dizer "N unread" ao lado do heading, fora dele (INBOX-07)', async () => {
+    const [um, dois, tres] = [1, 2, 3].map((n) => webhookRequest(n));
+    TestBed.inject(Preferences).unread.set([um.uuid, dois.uuid]);
+    await load([um, dois, tres]);
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (3)');
+    expect(within(element()).getByText('2 unread')).toBeTruthy();
   });
 
   it('deve contar na pílula a nova que a tela não abriu e dizer se ela ficou à vista', async () => {
@@ -379,8 +401,17 @@ describe('Dado a lista lateral de mensagens', () => {
     await applied;
     await fixture.whenStable();
 
-    expect(element().textContent).toContain('No requests match the filters.');
+    expect(element().textContent).toContain('No requests match these filters');
     expect(element().textContent).not.toContain('Waiting for first request...');
+
+    // INBOX-25: o "Clear filters" do estado vazio volta à lista completa.
+    within(element().querySelector('app-empty-state') as HTMLElement)
+      .getByRole('button', { name: 'Clear filters' })
+      .click();
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1)]));
+    await vi.waitFor(() => expect(store.filtering()).toBe(false));
   });
 
   it('deve escolher a B em vez de abrir a mensagem Quando a lista está no "Compare with…"', async () => {

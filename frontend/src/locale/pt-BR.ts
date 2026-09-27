@@ -1008,27 +1008,31 @@ export const translations: Record<string, string> = {
   // {$START_TAG_STRONG}Compare mode.{$CLOSE_TAG_STRONG} Click a request to make it {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Press {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} to leave.
   '5983805913245337057':
     '{$START_TAG_STRONG}Modo de comparação.{$CLOSE_TAG_STRONG} Clique numa requisição para ela ser a {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Aperte {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} para sair. ',
+  // {$INTERPOLATION}–{$INTERPOLATION_1} of {$INTERPOLATION_2}
+  '142759852506198943': '{$INTERPOLATION}–{$INTERPOLATION_1} de {$INTERPOLATION_2}',
+  //  Previous page
+  '6239996843795186926': ' Página anterior ',
+  //  Next page
+  '5199198986727525993': ' Próxima página ',
   // {VAR_PLURAL, plural, =1 {1 new request} other {{INTERPOLATION} new requests}}
   '2738823000442264367':
     '{VAR_PLURAL, plural, =1 {1 requisição nova} other {{INTERPOLATION} requisições novas}}',
   // Requests ({$INTERPOLATION})
   '6985457637811548682': 'Requisições ({$INTERPOLATION})',
+  // {VAR_PLURAL, plural, =1 {1 unread} other {{INTERPOLATION} unread}}
+  '1848626050946308520': '{VAR_PLURAL, plural, =1 {1 não lida} other {{INTERPOLATION} não lidas}}',
   // Waiting for first request...
   '6098775451672579267': 'Esperando a primeira requisição...',
-  // No requests match the filters.
-  '3761920443584035784': 'Nenhuma requisição casa com os filtros.',
+  // No requests match these filters
+  '4967883454131782336': 'Nenhuma requisição casa com estes filtros',
   // New requests that match will appear here live.
   '153307474085686822': 'As requisições novas que casarem aparecem aqui ao vivo.',
+  // Clear filters
+  '6559246822757089203': 'Limpar filtros',
   // NEW
   '1147828071904789728': 'NOVA',
   // Delete
   '7022070615528435141': 'Apagar',
-  //  Previous page
-  '6239996843795186926': ' Página anterior ',
-  // {$INTERPOLATION}–{$INTERPOLATION_1} of {$INTERPOLATION_2}
-  '142759852506198943': '{$INTERPOLATION}–{$INTERPOLATION_1} de {$INTERPOLATION_2}',
-  // Next page
-  '3337301694210287595': 'Próxima página',
   // Delete request {$uuid}
   '3157148606438158546': 'Apagar a requisição {$uuid}',
   // Auto cleanup keeps the {$limit} most recent requests
@@ -1591,8 +1595,8 @@ export const translations: Record<string, string> = {
   '7506409234432679914': 'Filtrar requisições',
   // Search
   '4580988005648117665': 'Buscar',
-  // Search path, headers, body
-  '4238314164229707005': 'Buscar no caminho, cabeçalhos e corpo',
+  // Search path, IP, header or body
+  '7816062410528188063': 'Buscar no caminho, IP, header ou corpo',
   // Search (/)
   '3185098119447169060': 'Buscar (/)',
   // Filters
@@ -1603,8 +1607,11 @@ export const translations: Record<string, string> = {
   '6634790566400449864': ' Limpar filtros ',
   // Copy as anzol wait-for
   '1673917569694962048': 'Copiar como anzol wait-for',
-  // {$INTERPOLATION} of {$INTERPOLATION_1} requests
-  '3473137933317204464': '{$INTERPOLATION} de {$INTERPOLATION_1} requisições',
+  // 1 request matches · search runs on the server over all {$total}
+  '54548846186041710': '1 requisição casa · a busca roda no servidor, sobre todas as {$total}',
+  // {$count} requests match · search runs on the server over all {$total}
+  '4728142484903370833':
+    '{$count} requisições casam · a busca roda no servidor, sobre todas as {$total}',
   // Copied. The text search is not part of wait-for: only the filters went into --match.
   '8331056956976948859':
     'Copiado. A busca por texto não entra no wait-for: só os filtros foram para o --match.',

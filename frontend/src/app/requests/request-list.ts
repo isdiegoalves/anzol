@@ -20,6 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import { CompareBand } from './compare-band';
+import { ListFooter } from './list-footer';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
@@ -31,6 +32,7 @@ import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
 import { SkeletonList } from '../ui/skeleton-list';
 import { NewPill } from './new-pill';
+import { NO_FILTER } from '../search/request-filter';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -92,6 +94,7 @@ interface ItemView {
   selector: 'app-request-list',
   imports: [
     CompareBand,
+    ListFooter,
     CdkVirtualScrollViewport,
     CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
@@ -137,6 +140,8 @@ export class RequestList {
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));
+  /** As não lidas da URL, ao lado do heading (INBOX-07). */
+  protected readonly unreadCount = computed(() => this.store.unread().length);
 
   /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
   private readonly now = signal(Date.now());
@@ -164,6 +169,11 @@ export class RequestList {
       this.timers.forEach(clearTimeout);
       clearInterval(clock);
     });
+  }
+
+  /** O "Clear filters" do estado vazio (INBOX-25): a lista completa de volta. */
+  protected clearFilters(): void {
+    void this.store.applyFilter(NO_FILTER);
   }
 
   protected changeOrder(): void {

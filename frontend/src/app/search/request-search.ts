@@ -49,6 +49,17 @@ export class RequestSearch {
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
+  /** Com filtro e sem resultado: o estado vazio da lista tem o seu "Clear filters" (INBOX-25). */
+  protected readonly nothingMatches = computed(
+    () => this.store.filtering() && this.store.requests().length === 0,
+  );
+  /** "2 requests match · search runs on the server over all 3" (INBOX-10). */
+  protected readonly statusLine = computed(() => {
+    const [matched, total] = [this.store.matched(), this.store.total()];
+    return matched === 1
+      ? $localize`1 request matches · search runs on the server over all ${total}:total:`
+      : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
+  });
   /** O que o "Copy as anzol wait-for" copiou, com o aviso do texto que ficou de fora. */
   protected readonly copied = signal<string | null>(null);
 

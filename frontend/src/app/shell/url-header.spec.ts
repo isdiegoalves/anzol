@@ -52,6 +52,9 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Copy' }));
 
     expect(copy).toHaveBeenCalledWith(url.value);
+    // INBOX-05: o copiar só com o ícone, com o nome "Copy"; o ícone de link antes da URL.
+    expect(screen.getByRole('button', { name: 'Copy' }).textContent?.trim()).toBe('');
+    expect(container.querySelector('app-copy-field .link')).not.toBeNull();
     await expectNoAxeViolations(container);
   });
 

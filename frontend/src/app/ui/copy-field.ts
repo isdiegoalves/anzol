@@ -3,13 +3,15 @@ import { Component, input, output } from '@angular/core';
 import { Icon } from './icon';
 
 /**
- * Valor só-leitura com o botão de copiar (a URL no cabeçalho, o comando no onboarding). Clicar ou
- * Enter no campo seleciona tudo, como a barra de hoje.
+ * Valor só-leitura com o botão de copiar (a URL do cabeçalho). Clicar ou Enter no campo seleciona
+ * tudo, como a barra de hoje. Como no protótipo C (INBOX-05): o ícone de link antes do valor e o
+ * copiar só com o ícone, com o nome acessível ("Copy") e a dica no `title`.
  */
 @Component({
   selector: 'app-copy-field',
   imports: [CdkCopyToClipboard, Icon],
   template: `
+    <app-icon class="link" name="link" [size]="18" />
     <input
       class="value"
       type="text"
@@ -22,12 +24,12 @@ import { Icon } from './icon';
     <button
       type="button"
       class="copy"
+      [attr.aria-label]="buttonLabel()"
       [attr.title]="hint()"
       [cdkCopyToClipboard]="value()"
       (cdkCopyToClipboardCopied)="copied.emit($event)"
     >
-      <app-icon name="copy" [size]="18" />
-      <span>{{ buttonLabel() }}</span>
+      <app-icon name="copy" [size]="20" />
     </button>
   `,
   styleUrl: './copy-field.scss',

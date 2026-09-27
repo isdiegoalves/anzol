@@ -1,5 +1,12 @@
 <div class="head">
   <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
+  <!-- INBOX-07: as não lidas ao lado do heading, fora dele (S15). -->
+  @if (unreadCount() > 0) {
+    <span class="unread-count" i18n>{unreadCount(), plural,
+      =1 {1 unread}
+      other {{{ unreadCount() }} unread}
+    }</span>
+  }
   <span class="spacer"></span>
   <button
     type="button"
@@ -30,11 +37,14 @@
   @if (store.requests().length === 0) {
     <app-empty-state
       icon="search"
-      heading="No requests match the filters."
+      heading="No requests match these filters"
       i18n-heading
       text="New requests that match will appear here live."
       i18n-text
-    />
+    >
+      <!-- INBOX-25: o único "Clear filters" à vista (a busca esconde o dela). -->
+      <button i18n mat-button type="button" (click)="clearFilters()">Clear filters</button>
+    </app-empty-state>
   }
   <div class="list">
     <cdk-virtual-scroll-viewport class="viewport" [itemSize]="itemHeight()">
@@ -103,16 +113,5 @@
       <app-new-pill [count]="newBelow()" [up]="store.newestFirst()" (show)="showNew()" />
     }
   </div>
-  @let range = store.range();
-  <footer class="footer">
-    @if (store.hasPreviousPage()) {
-      <button i18n mat-button type="button" (click)="store.loadPreviousPage()">
-        Previous page
-      </button>
-    }
-    <span i18n class="range">{{ range.from }}–{{ range.to }} of {{ range.of }}</span>
-    @if (store.hasNextPage()) {
-      <button i18n mat-button type="button" (click)="store.loadNextPage()">Next page</button>
-    }
-  </footer>
+  <app-list-footer />
 }

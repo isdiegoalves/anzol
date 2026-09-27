@@ -8,7 +8,7 @@
       name="search"
       aria-label="Search"
       i18n-aria-label
-      placeholder="Search path, headers, body"
+      placeholder="Search path, IP, header or body"
       i18n-placeholder
       maxlength="200"
       autocomplete="off"
@@ -18,6 +18,8 @@
       [value]="draft()"
       (input)="draft.set(box.value)"
     />
+    <!-- INBOX-08: o atalho que já existe, à vista (o title do campo também o diz). -->
+    <kbd class="key" aria-hidden="true">/</kbd>
   </label>
   <div class="chips" role="group" aria-label="Filters" i18n-aria-label>
     @for (chip of chips().main; track chip.label) {
@@ -48,21 +50,25 @@
     }
   </div>
   <div class="row">
-    <button
-      i18n
-      type="button"
-      class="link"
-      [disabled]="!store.filtering() && draft() === ''"
-      (click)="clearFilters()"
-    >
-      Clear filters
-    </button>
+    <!-- INBOX-25: sem resultado, o "Clear filters" é o do estado vazio da lista. -->
+    @if (!nothingMatches()) {
+      <button
+        i18n
+        type="button"
+        class="link"
+        [disabled]="!store.filtering() && draft() === ''"
+        (click)="clearFilters()"
+      >
+        Clear filters
+      </button>
+    }
     <button i18n type="button" class="link" (click)="copyWaitFor()">Copy as anzol wait-for</button>
   </div>
   @if (copied(); as message) {
     <p class="note" role="status">{{ message }}</p>
   }
+  <!-- INBOX-10: só com filtro; e diz que a busca é no servidor, sobre a URL inteira. -->
   @if (store.filtering()) {
-    <p i18n class="count" role="status">{{ store.matched() }} of {{ store.total() }} requests</p>
+    <p class="count" role="status">{{ statusLine() }}</p>
   }
 </div>
