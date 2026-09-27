@@ -2486,4 +2486,6 @@ export const translations: Record<string, string> = {
   '6008475733454314598': 'Vezes (1–20)',
   // Final status (100–599)
   '496817270242983918': 'Status da resposta final (100–599)',
+  // Empty: any path. After the URL's token.
+  '2285437227648346581': 'Vazio: qualquer caminho. Depois do token da URL.',
 };

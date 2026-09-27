@@ -9,7 +9,7 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { firstValueFrom } from 'rxjs';
@@ -116,6 +116,7 @@ export interface SequenceData {
     MatDialogContent,
     MatDialogTitle,
     MatFormField,
+    MatHint,
     MatLabel,
     MatInput,
     MatSelect,
@@ -171,6 +172,14 @@ export class ScenarioSequence {
   protected readonly joinsText = computed(
     () => $localize`Joins the existing scenario "${this.joins()}:name:"`,
   );
+
+  /** O caminho sempre aberto (como no editor, F3): digitar num "Any path" passa a "Equals". */
+  protected typePath(path: string): void {
+    this.path.set(path);
+    if (path.trim() !== '' && this.pathMode() === 'any') {
+      this.pathMode.set('equals');
+    }
+  }
 
   protected toggleMethod(method: string): void {
     this.methods.update((methods) =>

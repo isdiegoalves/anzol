@@ -22,13 +22,10 @@
     <div class="row">
       <mat-form-field class="path" subscriptSizing="dynamic">
         <mat-label i18n>Path</mat-label>
-        <input
-          matInput
-          id="sequence-path"
-          [value]="path()"
-          [disabled]="pathMode() === 'any'"
-          (input)="path.set(value($event))"
-        />
+        <input matInput id="sequence-path" [value]="path()" (input)="typePath(value($event))" />
+        <mat-hint i18n="path hint in the Sequence dialog|Empty path matches any path"
+          >Empty: any path. After the URL's token.</mat-hint
+        >
       </mat-form-field>
       <mat-form-field class="mode" subscriptSizing="dynamic">
         <mat-label i18n>Path match</mat-label>

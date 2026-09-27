@@ -2,7 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -154,6 +156,26 @@ describe('Dado o diálogo "Sequence" (WM-32)', () => {
     ]);
     expect(screen.getByRole('button', { name: 'Create 3 rules' })).toBeTruthy();
     await expectNoAxeViolations(container);
+  });
+
+  it('deve passar de "Any path" a "Equals" Quando o caminho é digitado', async () => {
+    const result = await render(ScenarioSequence, {
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: MAT_DIALOG_DATA, useValue: {} },
+        { provide: MatDialogRef, useValue: { close } },
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    const modo = await TestbedHarnessEnvironment.loader(result.fixture).getHarness(
+      MatSelectHarness,
+    );
+    expect(await modo.getValueText()).toBe('Any path');
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Path' }), '/x');
+
+    expect(await modo.getValueText()).toBe('Equals');
   });
 
   it('deve recalcular a prévia com N e avisar Quando o cenário já existe', async () => {

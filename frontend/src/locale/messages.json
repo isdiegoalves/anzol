@@ -1034,6 +1034,7 @@
     "3071361935587815300": "Sequence",
     "3688995182435416377": " Scenario rules chained with the same conditions: answer one response a few times, then another that stays. For \"fail 2 times, then accept\". ",
     "3198123723060667787": "When",
+    "2285437227648346581": "Empty: any path. After the URL's token.",
     "6268471435166560344": "Matches regex (whole value)",
     "180890281978183006": "First response",
     "5421076199587087589": "Times",
