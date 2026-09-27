@@ -1,7 +1,27 @@
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { translations } from '../../locale/pt-BR';
 import { Rule } from './rule';
-import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
+import { matchLine, ruleInWords, ruleWordSegments, scenarioTransition } from './rule-words';
+
+describe('Dado a regra em palavras com destaque (ruleWordSegments, RULES-15)', () => {
+  it('deve marcar o método e o status em negrito e o caminho como código, com o mesmo texto de ruleInWords', () => {
+    const regra: Rule = {
+      name: 'Pix',
+      match: { method: ['POST', 'PUT'], path: { prefix: '/api' }, signature: 'valid' },
+      response: { status: 201 },
+    };
+
+    const segments = ruleWordSegments(regra);
+
+    expect(segments.map(({ text }) => text).join('')).toBe(ruleInWords(regra));
+    expect(segments.filter(({ kind }) => kind !== 'text')).toEqual([
+      { kind: 'strong', text: 'POST' },
+      { kind: 'strong', text: 'PUT' },
+      { kind: 'code', text: '/api' },
+      { kind: 'strong', text: '201' },
+    ]);
+  });
+});
 
 describe('Dado uma regra na linha 2 da lista (matchLine, RULES-02)', () => {
   it.each<[string, Rule, string]>([

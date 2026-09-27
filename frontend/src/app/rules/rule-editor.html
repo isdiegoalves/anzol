@@ -16,9 +16,22 @@
     (save)="saveRule()"
   />
   <div class="content">
-    @if (words(); as sentence) {
-      <p class="words">
-        <strong i18n>In plain words:</strong>&ngsp;<span class="sentence">{{ sentence }}</span>
+    @if (words(); as segments) {
+      <!-- A regra em palavras (C, RULES-15): método e status em destaque, o caminho como código. -->
+      <p class="words" role="note" aria-label="Rule in plain words" i18n-aria-label>
+        @for (segment of segments; track $index) {
+          @switch (segment.kind) {
+            @case ('strong') {
+              <strong>{{ segment.text }}</strong>
+            }
+            @case ('code') {
+              <code>{{ segment.text }}</code>
+            }
+            @default {
+              <span>{{ segment.text }}</span>
+            }
+          }
+        }
       </p>
     }
     @if (changedElsewhere()) {

@@ -75,7 +75,7 @@ import { RuleEditorHeader } from './rule-editor-header';
 import { EditorTab, RuleTabs } from './rule-tabs';
 import { AgainstHistory } from './against-history';
 import { ConditionResult, ConditionResultChip } from './condition-result';
-import { ruleInWords } from './rule-words';
+import { ruleWordSegments } from './rule-words';
 import { ScenarioPanel } from './scenario-panel';
 
 export interface RuleEditorData {
@@ -286,12 +286,12 @@ export class RuleEditor {
   protected readonly recorded = signal<ConditionTally | null>(null);
   protected readonly tokenId = this.store.tokenId;
 
-  /** A regra "em palavras", da visão aberta; `null` com o JSON inválido. */
+  /** A regra "em palavras", da visão aberta, em pedaços com destaque; `null` com o JSON inválido. */
   protected readonly words = computed(() => {
     this.edits();
     this.view();
     const rule = this.editedRule();
-    return rule ? ruleInWords(rule) : null;
+    return rule ? ruleWordSegments(rule) : null;
   });
   /** Caminho sem o token da URL, quando o caminho escrito começa com ele (nunca casaria). */
   protected readonly pathFix = computed(() => {

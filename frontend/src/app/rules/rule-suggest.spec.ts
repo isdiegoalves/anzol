@@ -51,6 +51,15 @@ describe('Dado o "Describe the rule"', () => {
 
   afterEach(() => http.verify());
 
+  it('deve vir recolhido e abrir pelo título (RULES-16)', async () => {
+    const element = await render();
+
+    const details = element.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    (element.querySelector('summary') as HTMLElement).click();
+    expect(details.open).toBe(true);
+  });
+
   it('deve ficar desabilitado Quando a descrição está vazia', async () => {
     await render();
 

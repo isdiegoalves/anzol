@@ -937,11 +937,23 @@ describe('Dado o editor de regra', () => {
     it('deve descrever a regra do formulário e acompanhar a edição', async () => {
       await open({ index: 0 }, [rule(1)]);
 
-      expect(text('.words .sentence')).toEqual(['When a POST to /r1, answer 201.']);
+      // RULES-15: o parágrafo "Rule in plain words", sem o rótulo, com método/status em negrito.
+      const frase = root().querySelector('[aria-label="Rule in plain words"]') as HTMLElement;
+      expect(frase.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        'When a POST to /r1, answer 201.',
+      );
+      expect(frase.textContent).not.toContain('In plain words:');
+      expect([...frase.querySelectorAll('strong')].map((b) => b.textContent)).toEqual([
+        'POST',
+        '201',
+      ]);
+      expect([...frase.querySelectorAll('code')].map((c) => c.textContent)).toEqual(['/r1']);
       await (await input('Status')).setValue('418');
       fixture.detectChanges();
 
-      expect(text('.words .sentence')).toEqual(['When a POST to /r1, answer 418.']);
+      expect(text('[aria-label="Rule in plain words"]')).toEqual([
+        'When a POST to /r1, answer 418.',
+      ]);
     });
 
     it('deve mostrar só o painel da aba escolhida, com as setas trocando de aba', async () => {

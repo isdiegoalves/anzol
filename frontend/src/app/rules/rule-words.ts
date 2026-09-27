@@ -16,12 +16,54 @@ const QUOTE_MAX = 40;
  * o JSON salvo. Cada pedaço é uma mensagem com placeholders, para a tradução poder reordenar.
  */
 export function ruleInWords(rule: Rule): string {
+  return buildWords(rule);
+}
+
+/** Um pedaço da regra em palavras: texto corrido, destaque (método, status) ou código (caminho). */
+export interface WordSegment {
+  kind: 'text' | 'strong' | 'code';
+  text: string;
+}
+
+/** Marcas em volta dos valores destacados; não aparecem em texto de regra nem de tradução. */
+const STRONG = '\uE000';
+const CODE = '\uE001';
+let marking = false;
+const strong = (text: string) => (marking ? `${STRONG}${text}${STRONG}` : text);
+const code = (text: string) => (marking ? `${CODE}${text}${CODE}` : text);
+
+/**
+ * A regra em palavras em pedaços (C, RULES-15): o método e o status em destaque e o caminho como
+ * código. As marcas passam pelos placeholders da tradução, então valem em qualquer idioma; o texto
+ * junto é o de `ruleInWords`.
+ */
+export function ruleWordSegments(rule: Rule): WordSegment[] {
+  marking = true;
+  let text: string;
+  try {
+    text = buildWords(rule);
+  } finally {
+    marking = false;
+  }
+  return text
+    .split(/(\uE000[^\uE000]*\uE000|\uE001[^\uE001]*\uE001)/)
+    .filter((part) => part !== '')
+    .map((part) =>
+      part.startsWith(STRONG)
+        ? { kind: 'strong', text: part.slice(1, -1) }
+        : part.startsWith(CODE)
+          ? { kind: 'code', text: part.slice(1, -1) }
+          : { kind: 'text', text: part },
+    );
+}
+
+function buildWords(rule: Rule): string {
   const match = rule.match ?? {};
   const methods = match.method ?? [];
   const who =
     methods.length === 0
       ? $localize`When any request`
-      : $localize`When a ${orList(methods)}:methods:`;
+      : $localize`When a ${orList(methods.map(strong))}:methods:`;
   const conditions = [
     ...Object.entries(match.query ?? {}).map(([name, m]) =>
       valueWords($localize`query ${name}:name:`, m),
@@ -71,12 +113,12 @@ function pathWords(path: NonNullable<Rule['match']>['path']): string {
     return '';
   }
   if ('equals' in path) {
-    return $localize` to ${path.equals}:path:`;
+    return $localize` to ${code(path.equals)}:path:`;
   }
   if ('prefix' in path) {
-    return $localize` to a path starting with ${path.prefix}:prefix:`;
+    return $localize` to a path starting with ${code(path.prefix)}:prefix:`;
   }
-  return $localize` to a path matching ${path.regex}:regex:`;
+  return $localize` to a path matching ${code(path.regex)}:regex:`;
 }
 
 function valueWords(target: string, matcher: ValueMatcher): string {
@@ -118,7 +160,7 @@ function responseWords(rule: Rule): string {
     const fault = `${label[0].toLowerCase()}${label.slice(1)}`;
     return $localize`fail with ${fault}:fault:`;
   }
-  const status = response.status ?? RULE_DEFAULT_STATUS;
+  const status = strong(String(response.status ?? RULE_DEFAULT_STATUS));
   // O corpo fixo é detalhe; o template muda o que a resposta diz, então entra na frase.
   const body = response.body && response.template ? $localize` with a templated body` : '';
   const delay = response.delay ? $localize` after ${delayWords(response.delay)}:delay:` : '';

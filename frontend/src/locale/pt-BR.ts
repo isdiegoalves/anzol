@@ -1072,8 +1072,6 @@ export const translations: Record<string, string> = {
   '6907807228975360219': 'Formulário',
   // JSON
   '2742664813202759813': 'JSON',
-  // In plain words:
-  '4996286689602167385': 'Em palavras:',
   //  The rules changed elsewhere since this page read them, so nothing was saved. Reload the rules, then save again: your changes stay in the editor.
   '7694925179236514276':
     ' As regras mudaram em outro lugar desde que esta página as leu, então nada foi salvo. Recarregue as regras e salve de novo: suas alterações continuam no editor. ',
@@ -2113,4 +2111,6 @@ export const translations: Record<string, string> = {
   '3347999324731452812': 'Exportar: baixar as regras salvas em JSON',
   // Not checked while off
   '7978723831900223519': 'Não avaliada enquanto desligada',
+  // Rule in plain words
+  '2268582330010433110': 'Regra em palavras',
 };

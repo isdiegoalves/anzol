@@ -54,14 +54,17 @@
   margin: 12px 0 0;
 }
 
+// A regra em palavras em primary-fixed, separada do formulário (RULES-15).
 .words {
   margin: 0 0 12px;
   padding: 8px 12px;
   border-radius: 12px;
-  background: var(--mat-sys-surface-container-high);
+  background: var(--mat-sys-primary-fixed);
+  color: var(--mat-sys-on-primary-fixed);
+  font: var(--mat-sys-body-large);
 
-  .sentence {
-    font: var(--mat-sys-body-large);
+  code {
+    font-family: var(--app-code-family);
   }
 }
 
