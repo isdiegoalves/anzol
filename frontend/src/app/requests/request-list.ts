@@ -36,7 +36,6 @@ import { SkeletonList } from '../ui/skeleton-list';
 import { NewPill } from './new-pill';
 import { NO_FILTER } from '../search/request-filter';
 import { RequestStore } from './request-store';
-import { RuleStatusStore } from './rule-status-store';
 import { WebhookRequest } from './webhook-request';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
@@ -125,7 +124,6 @@ export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly tokens = inject(TokenStore);
-  private readonly ruleStatuses = inject(RuleStatusStore);
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
@@ -340,9 +338,7 @@ export class RequestList {
   }
 
   private itemOf(request: WebhookRequest, now: number): ItemView {
-    const pipeline = pipelineOf(request, {
-      ruleStatus: (id) => this.ruleStatuses.statusOf(id),
-    });
+    const pipeline = pipelineOf(request);
     const seals = [pipeline.signature, pipeline.schema, pipeline.rule].filter(
       (check) => check.tone !== 'none',
     );

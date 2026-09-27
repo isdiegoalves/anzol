@@ -53,11 +53,6 @@ export interface RequestPipeline {
 /** O que mais a tela sabe além da mensagem. O link só-leitura não tem a URL. */
 export interface PipelineContext {
   token?: Token | null;
-  /**
-   * O status da resposta de uma regra, pelo id. A mensagem guarda só a regra que respondeu: vale o
-   * da regra hoje (INBOX-13/18).
-   */
-  ruleStatus?: (ruleId: string) => number | undefined;
 }
 
 /**
@@ -74,7 +69,7 @@ export function pipelineOf(
     route: routeOf(request.url),
     signature: signatureResult(request),
     schema: schemaResult(request, context.token ?? null),
-    rule: ruleResult(request, context.ruleStatus),
+    rule: ruleResult(request),
     signatureHeaders: signatureCheck(request, context.token ?? null),
   };
 }
@@ -233,24 +228,33 @@ function schemaResult(request: CapturedRequest, token: Token | null): CheckResul
   };
 }
 
-function ruleResult(
-  request: CapturedRequest,
-  ruleStatus: PipelineContext['ruleStatus'],
-): CheckResult {
+/**
+ * C3 (E-06): o que a mensagem gravou que foi respondido — o status, ou "Fault" com falha de rede;
+ * `undefined` na mensagem gravada antes do campo (a tela omite o status).
+ */
+function answeredWith(request: CapturedRequest): string | undefined {
+  const response = request.response;
+  if (response?.fault) {
+    return $localize`:network fault instead of a response:Fault`;
+  }
+  return response?.status === undefined ? undefined : String(response.status);
+}
+
+function ruleResult(request: CapturedRequest): CheckResult {
   const kind = 'rule';
   if (request.rule) {
     const { id, name } = request.rule;
-    const status = ruleStatus?.(id);
+    const answer = answeredWith(request);
     return {
       kind,
       state: 'answered',
       tone: 'ok',
       title:
-        status === undefined
+        answer === undefined
           ? $localize`Answered by rule`
-          : $localize`Answered by rule · ${status}:status:`,
+          : $localize`Answered by rule · ${answer}:status:`,
       detail: name,
-      short: status === undefined ? name : `${status} · ${name}`,
+      short: answer === undefined ? $localize`Rule: ${name}:rule:` : `${answer} · ${name}`,
       ref: { id, name },
     };
   }

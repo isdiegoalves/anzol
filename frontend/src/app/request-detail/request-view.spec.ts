@@ -9,7 +9,6 @@ import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Token } from '../token/token';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { RequestView, sizeText } from './request-view';
 
 describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', () => {
@@ -277,18 +276,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
     });
 
-    // INBOX-18: o status da regra que respondeu no título; uma condição só vai direto no cartão.
-    it('deve dizer o status da regra que respondeu no título do cartão', async () => {
-      await render(RequestView, {
-        inputs: { request: webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } }), token: token() },
-        providers: [
-          provideRouter([]),
-          {
-            provide: RuleStatusStore,
-            useValue: { statusOf: (id: string) => (id === 'r1' ? 201 : undefined) },
-          },
-        ],
-      });
+    // INBOX-18, C3: o status gravado na mensagem no título; uma condição só vai direto no cartão.
+    it('deve dizer o status gravado da regra que respondeu no título do cartão', async () => {
+      await show(webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, response: { status: 201 } }));
 
       expect(cards()).toContain('Answered by rule · 201');
     });

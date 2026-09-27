@@ -13,7 +13,6 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
 import { bodySummary, eventType } from '../requests/request-list';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
 import { CheckChip } from '../ui/check-chip';
@@ -63,7 +62,6 @@ export class RequestCompare {
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
   private readonly changeDetector = inject(ChangeDetectorRef);
-  private readonly ruleStatuses = inject(RuleStatusStore);
 
   readonly a = input.required<WebhookRequest>();
   readonly b = input.required<WebhookRequest>();
@@ -115,9 +113,9 @@ export class RequestCompare {
   protected readonly checks = computed<CheckRow[]>(() => {
     const [a, b] = [pipelineOf(this.left()), pipelineOf(this.right())];
     const withStatus = (result: CheckResult, request: WebhookRequest): CheckResult => {
-      // RULES-30: "201 · Pagamento" no selo da regra (o status da regra hoje, `RuleStatusStore`).
-      const status = request.rule ? this.ruleStatuses.statusOf(request.rule.id) : undefined;
-      return result.kind === 'rule' && status !== undefined
+      // RULES-30: "201 · Pagamento" no selo da regra, com o status gravado na mensagem (C3).
+      const status = request.response?.fault ? $localize`Fault` : request.response?.status;
+      return result.kind === 'rule' && request.rule && status !== undefined
         ? { ...result, detail: `${status} · ${result.detail}` }
         : result;
     };

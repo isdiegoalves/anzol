@@ -27,7 +27,6 @@ import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { filterFromParams, filterToParams, sameFilter } from '../search/request-filter';
 import { Onboarding } from '../onboarding/onboarding';
@@ -87,7 +86,6 @@ export class Inbox {
   private readonly settings = inject(ShellSettings);
   private readonly viewport = inject(Viewport);
   private readonly screen = inject(ScreenState);
-  private readonly ruleStatuses = inject(RuleStatusStore);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -142,17 +140,6 @@ export class Inbox {
         !this.twoPanes() && this.showDetail() && !!this.requests.selected(),
       ),
     );
-
-    // O status das regras que responderam, para os selos e o cartão (INBOX-13/18).
-    effect(() => {
-      const tokenId = this.requests.tokenId();
-      const ids = this.requests
-        .requests()
-        .flatMap((request) => (request.rule ? [request.rule.id] : []));
-      if (tokenId) {
-        untracked(() => void this.ruleStatuses.ensure(tokenId, [...new Set(ids)]));
-      }
-    });
 
     effect(() => {
       const unread = this.requests.unread().length;

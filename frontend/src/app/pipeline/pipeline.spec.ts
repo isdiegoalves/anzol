@@ -233,9 +233,26 @@ describe('Dado a URL da mensagem com assinatura genérica', () => {
 
 // Fase 2 (INBOX-13): o selo da lista diz o que houve em poucas palavras; INBOX-18: o cartão do
 // detalhe diz o status da regra, o dialeto do schema e a idade da assinatura Stripe.
+describe('Dado a resposta gravada na mensagem (C3, E-06)', () => {
+  it.each([
+    [{ status: 404 }, 'Answered by rule · 404', '404 · Tudo o resto'],
+    [{ fault: 'connection_reset' }, 'Answered by rule · Fault', 'Fault · Tudo o resto'],
+    [null, 'Answered by rule', 'Rule: Tudo o resto'],
+    [undefined, 'Answered by rule', 'Rule: Tudo o resto'],
+  ])('deve mostrar %j como "%s" / "%s"', (response, title, short) => {
+    const request = webhookRequest(1, {
+      rule: { id: 'r9', name: 'Tudo o resto' },
+      ...(response !== undefined && { response }),
+    });
+    const rule = pipelineOf(request).rule;
+
+    expect([rule.title, rule.short]).toEqual([title, short]);
+  });
+});
+
 describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () => {
   const short = (request: CapturedRequest, kind: 'signature' | 'schema' | 'rule') =>
-    pipelineOf(request, { ruleStatus: (id) => (id === 'r1' ? 201 : undefined) })[kind].short;
+    pipelineOf(request)[kind].short;
 
   it.each([
     [{ provider: 'github', valid: true, reason: null }, 'GitHub'],
@@ -273,16 +290,19 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
     expect(short(request, 'schema')).toBe(esperado);
   });
 
-  it('deve dizer o status da regra que respondeu no selo e no título do cartão', () => {
-    const request = webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } });
-    const rule = pipelineOf(request, { ruleStatus: () => 201 }).rule;
+  // C3 (E-06): o status é o que a mensagem gravou, e não o que a regra responde hoje.
+  it('deve dizer o status gravado da regra que respondeu no selo e no título do cartão', () => {
+    const request = webhookRequest(1, {
+      rule: { id: 'r1', name: 'Pix' },
+      response: { status: 201 },
+    });
+    const rule = pipelineOf(request).rule;
 
     expect([rule.title, rule.detail, rule.short]).toEqual([
       'Answered by rule · 201',
       'Pix',
       '201 · Pix',
     ]);
-    expect(pipelineOf(request).rule.short).toBe('Pix');
     expect(
       short(webhookRequest(2, { near_miss: { id: 'r2', name: 'x', failed: ['a', 'b'] } }), 'rule'),
     ).toBe('Near miss');

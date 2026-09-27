@@ -2493,4 +2493,6 @@ export const translations: Record<string, string> = {
   '3523141136168498829': 'Nenhuma regra leva ao estado "{$state}" — provável erro de digitação.',
   // Enable rule {$rule}
   '4770561319318769665': 'Ligar a regra {$rule}',
+  // Rule: {$rule}
+  '4152048553367390961': 'Regra: {$rule}',
 };

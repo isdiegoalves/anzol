@@ -6,7 +6,6 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { CheckKind, pipelineOf } from '../pipeline/pipeline';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport } from '../shell/viewport';
@@ -74,7 +73,6 @@ export function sizeText(bytes: number, language: string): string {
 })
 export class RequestView {
   protected readonly preferences = inject(Preferences);
-  private readonly ruleStatuses = inject(RuleStatusStore);
   private readonly clipboard = inject(Clipboard);
   private readonly document = inject(DOCUMENT);
   private readonly viewport = inject(Viewport);
@@ -102,7 +100,6 @@ export class RequestView {
   protected readonly pipeline = computed(() =>
     pipelineOf(this.request(), {
       token: this.token(),
-      ruleStatus: (id) => this.ruleStatuses.statusOf(id),
     }),
   );
   protected readonly checks = computed(() => {

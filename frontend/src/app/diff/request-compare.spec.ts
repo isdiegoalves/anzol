@@ -5,7 +5,6 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport, WindowClass } from '../shell/viewport';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { CompareStore } from './compare-store';
 import { BODY_LIMIT } from './request-diff';
 import { RequestCompare } from './request-compare';
@@ -27,15 +26,10 @@ describe('Dado a comparação de duas mensagens', () => {
   const windowClass = signal<WindowClass>('large');
   const compare = { swap: vi.fn(), close: vi.fn() };
 
-  const show = (
-    a: WebhookRequest = A,
-    b: WebhookRequest = B,
-    ruleStatuses: ReadonlyMap<string, number> = new Map(),
-  ) =>
+  const show = (a: WebhookRequest = A, b: WebhookRequest = B) =>
     render(RequestCompare, {
       inputs: { a, b },
       providers: [
-        { provide: RuleStatusStore, useValue: { statusOf: (id: string) => ruleStatuses.get(id) } },
         { provide: Viewport, useValue: { windowClass } },
         { provide: CompareStore, useValue: compare },
       ],
@@ -84,9 +78,9 @@ describe('Dado a comparação de duas mensagens', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve dizer o status da resposta no selo da regra que respondeu (RULES-30)', async () => {
+  it('deve dizer o status gravado da resposta no selo da regra que respondeu (RULES-30, C3)', async () => {
     const rule = { id: 'r1', name: 'Pagamento' };
-    await show(A, webhookRequest(2, { rule }), new Map([['r1', 201]]));
+    await show(A, webhookRequest(2, { rule, response: { status: 201 } }));
 
     const table = screen.getByRole('table', { name: 'Checks' });
     expect(table.textContent).toContain('201 · Pagamento');

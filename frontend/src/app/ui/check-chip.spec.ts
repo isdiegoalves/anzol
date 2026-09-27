@@ -39,11 +39,13 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
     },
   );
 
-  it('deve mostrar o nome da regra que respondeu no selo mini', async () => {
-    const [, , answered] = checksOf(webhookRequest(1, { rule: { id: 'r', name: 'Pix pago' } }));
+  it('deve mostrar o status gravado e o nome da regra que respondeu no selo mini (C3)', async () => {
+    const [, , answered] = checksOf(
+      webhookRequest(1, { rule: { id: 'r', name: 'Pix pago' }, response: { status: 201 } }),
+    );
     const { container } = await render(CheckChip, { inputs: { result: answered } });
 
-    expect(container.textContent?.trim()).toBe('Pix pago');
+    expect(container.textContent?.trim()).toBe('201 · Pix pago');
   });
 
   it('deve mostrar o título e o motivo no cartão Quando o tamanho é "card"', async () => {

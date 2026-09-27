@@ -22,7 +22,6 @@ import {
   bodySummary,
 } from './request-list';
 import { RequestStore } from './request-store';
-import { RuleStatusStore } from './rule-status-store';
 import { WebhookRequest } from './webhook-request';
 
 describe('Dado a lista lateral de mensagens', () => {
@@ -478,19 +477,17 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('app-compare-band .band')).toBeNull();
   });
 
-  // INBOX-13: o selo da regra que respondeu diz o status dela ("201 · Pix").
-  it('deve dizer o status e o nome da regra que respondeu no selo', async () => {
-    const statuses = TestBed.inject(RuleStatusStore);
-    const ensured = statuses.ensure(TOKEN_ID, ['r1']);
-    http
-      .expectOne(`/token/${TOKEN_ID}/rules`)
-      .flush([{ id: 'r1', name: 'Pix', response: { status: 201 } }]);
-    await ensured;
-
-    await load([webhookRequest(1, { rule: { id: 'r1', name: 'Pix' } })]);
+  // INBOX-13, C3: o selo da regra que respondeu diz o status gravado ("201 · Pix"), "Fault · …" com
+  // falha de rede e, na mensagem antiga sem a resposta, só "Rule: {nome}".
+  it.each([
+    [{ status: 201 }, '201 · Pix'],
+    [{ fault: 'connection_reset' }, 'Fault · Pix'],
+    [null, 'Rule: Pix'],
+  ])('deve dizer %j no selo da regra que respondeu como "%s"', async (response, esperado) => {
+    await load([webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, response })]);
 
     const seal = items()[0].querySelector('.seals app-check-chip[data-kind="rule"]');
-    expect(seal?.textContent?.trim()).toBe('201 · Pix');
+    expect(seal?.textContent?.trim()).toBe(esperado);
   });
 
   // INBOX-32/34: no celular, itens de duas linhas (os selos sobem, como na densidade compacta), sem

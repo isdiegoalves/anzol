@@ -129,14 +129,14 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     http.expectNone(`/token/${TOKEN_ID}/request/${R1.uuid}`);
   });
 
-  it('deve pôr o status da regra que respondeu no selo dela, pelas regras da URL (RULES-30)', async () => {
-    const answered = webhookRequest(2, { rule: { id: 'r1', name: 'Lado A' } });
+  it('deve pôr no selo da regra o status gravado na mensagem (RULES-30, C3)', async () => {
+    const answered = webhookRequest(2, {
+      rule: { id: 'r1', name: 'Lado A' },
+      response: { status: 201 },
+    });
     await open(R1.uuid, answered.uuid);
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
     await flush(`/token/${TOKEN_ID}/request/${answered.uuid}`, answered);
-    await flush(`/token/${TOKEN_ID}/rules`, [
-      { id: 'r1', name: 'Lado A', response: { status: 201 } },
-    ]);
 
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();

@@ -26,6 +26,11 @@ export interface CapturedRequest {
   rule?: RuleRef | null;
   /** Regra mais próxima quando havia regras ativas e nenhuma casou. */
   near_miss?: NearMiss | null;
+  /**
+   * O que a URL respondeu (C3): o status, ou a falha de rede da regra. Ausente (ou `null`) nas
+   * mensagens gravadas antes dele: a tela omite o status.
+   */
+  response?: RecordedResponse | null;
   /** Verificação da assinatura; `null` quando a URL não verifica (ausente em mensagens antigas). */
   signature?: SignatureResult | null;
   /** Validação do corpo pelo schema da URL; `null` quando a URL não valida (ausente em mensagens antigas). */
@@ -39,6 +44,12 @@ export interface CapturedRequest {
 /** Mensagem recebida pela URL, no formato da API (`Storage/Request.php` no app atual), lida pelo dono. */
 export interface WebhookRequest extends CapturedRequest {
   token_id: string;
+}
+
+/** A resposta gravada na mensagem: `{status}` ou, com falha de rede, `{fault}`. */
+export interface RecordedResponse {
+  status?: number;
+  fault?: string;
 }
 
 /** `reason` é `null` quando válida; senão uma frase curta (`signature mismatch`). */

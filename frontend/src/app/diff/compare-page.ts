@@ -13,7 +13,6 @@ import { DOCUMENT } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
-import { RuleStatusStore } from '../requests/rule-status-store';
 import { CapturedRequest, WebhookRequest } from '../requests/webhook-request';
 import { isTyping } from '../shell/hotkeys';
 import { Viewport } from '../shell/viewport';
@@ -47,7 +46,6 @@ export class ComparePage {
   private readonly requests = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
-  private readonly rules = inject(RuleStatusStore);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -115,9 +113,6 @@ export class ComparePage {
       if (this.a() === a && this.b() === b) {
         this.compare.show(requestA, requestB);
         this.state.set({ kind: 'loaded', a: requestA, b: requestB });
-        // As regras só importam quando uma delas respondeu (o selo leva o status).
-        const ids = [requestA.rule?.id, requestB.rule?.id].filter((id) => id !== undefined);
-        void this.rules.ensure(tokenId, ids);
       }
     } catch (error) {
       if (isProtectedError(error)) {

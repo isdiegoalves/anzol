@@ -98,14 +98,17 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(preferences.unread()).toEqual([]));
   });
 
-  it('deve ler as regras da URL Quando uma mensagem da lista foi respondida por regra (INBOX-13)', async () => {
-    const answered = webhookRequest(7, { rule: { id: 'r1', name: 'Pix' } });
+  it('deve mostrar o status gravado na mensagem, sem ler as regras da URL (INBOX-13, C3)', async () => {
+    const answered = webhookRequest(7, {
+      rule: { id: 'r1', name: 'Pix' },
+      response: { status: 201 },
+    });
     await harness.navigateByUrl(`/${TOKEN_ID}`);
     await flush(`/token/${TOKEN_ID}`, token());
     await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([answered, R1]));
 
-    await flush(`/token/${TOKEN_ID}/rules`, [{ id: 'r1', name: 'Pix', response: { status: 201 } }]);
     await vi.waitFor(() => expect(text()).toContain('201 · Pix'));
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
   });
 
   it('deve criar uma URL nova e ir para ela Quando a raiz é aberta sem token salvo', async () => {
