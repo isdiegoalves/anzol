@@ -33,7 +33,7 @@ describe('Dado o onboarding "Your URL is ready"', () => {
     expect(within(pronta).getByRole('link', { name: 'Open in new tab' }).getAttribute('href')).toBe(
       URL,
     );
-    await userEvent.click(within(pronta).getByRole('button', { name: 'Copy' }));
+    await userEvent.click(within(pronta).getByRole('button', { name: 'Copy URL' }));
     expect(copy).toHaveBeenCalledWith(URL);
     for (const destino of ['rules', 'checks', 'outbound']) {
       expect(container.querySelector(`a.card[href="/${TOKEN_ID}/${destino}"]`)).not.toBeNull();

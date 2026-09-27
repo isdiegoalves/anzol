@@ -613,8 +613,8 @@ export const translations: Record<string, string> = {
   //  Requests sent to this URL show up here instantly, without reloading the page.
   '7746033190483067356':
     ' As requisições mandadas para esta URL aparecem aqui na hora, sem recarregar a página. ',
-  // Copy
-  '4323470180912194028': 'Copiar',
+  // Copy URL
+  '2184619916211262318': 'Copiar URL',
   // Open in new tab
   '6371588679924903737': 'Abrir em nova aba',
   //  Send a test request
@@ -1599,6 +1599,8 @@ export const translations: Record<string, string> = {
   '9202118846510819044': 'Quase acerto',
   // Default
   '5607669932062416162': 'Padrão',
+  // Copy
+  '4323470180912194028': 'Copiar',
   // Nothing here.
   '4451967922263063703': 'Nada aqui.',
   // Live

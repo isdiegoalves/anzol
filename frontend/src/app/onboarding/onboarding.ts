@@ -16,7 +16,7 @@ export function testPayload(now: Date = new Date()): string {
 }
 
 /**
- * "Your URL is ready" (C §2.10): o detalhe da URL vazia. A URL com Copy e "Open in new tab", três
+ * "Your URL is ready" (C §2.10): o detalhe da URL vazia. A URL com "Copy URL" e "Open in new tab", três
  * jeitos de mandar a primeira requisição (cURL, um provedor, o CLI), o "Send a test request" e o
  * que a URL sabe fazer. O "Close" alterna `hideTutorial`, como o tutorial do app atual.
  */
