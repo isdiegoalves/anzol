@@ -91,7 +91,7 @@
 
 <!-- INBOX-21: o Pretty na linha das abas (só com o Body aberto) e o tamanho no nome do Body. -->
 <div class="tabs">
-  @if (tab() === 0 && current.content) {
+  @if (tab() === 0) {
     <mat-slide-toggle
       i18n
       class="pretty"
@@ -121,9 +121,9 @@
       } @else {
         @if (schemaErrors() > 0) {
           <p class="schema-note">
-            {{ schemaErrorsText() }} ·
+            <span>{{ schemaErrorsText() }}</span>
             @if (token() && !readonly()) {
-              <a
+              &ngsp;·&ngsp;<a
                 i18n
                 [routerLink]="['/', token()?.uuid, 'checks']"
                 [queryParams]="{ section: 'schema' }"

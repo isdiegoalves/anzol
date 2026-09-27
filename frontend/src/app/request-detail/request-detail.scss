@@ -9,17 +9,21 @@
   gap: 2px;
 }
 
+// INBOX-19: as ações numa linha só; o que não cabe rola na horizontal (como no celular).
 .actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 // Um grupo por intenção (Gestalt de proximidade): reenviar e comparar; criar; copiar; compartilhar.
 .group {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 2px;
 

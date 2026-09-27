@@ -285,7 +285,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
   // INBOX-23: os erros de schema avisados acima do corpo, com o link para o schema da URL.
   it('deve avisar acima do corpo quantos erros de schema estão marcados, com "Open schema"', async () => {
-    await show(
+    const { container } = await show(
       webhookRequest(1, {
         content: '{"id":"x","nome":1}',
         schema: {
@@ -298,7 +298,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       }),
     );
 
-    const note = screen.getByText(/schema errors marked below/);
+    const note = container.querySelector('.schema-note') as HTMLElement;
+    // Sem espaço antes: a busca por texto do E2E ancora no começo ("^2 schema errors…").
+    expect(note.textContent?.startsWith('2 schema errors')).toBe(true);
     expect(note.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       '2 schema errors marked below · Open schema',
     );
