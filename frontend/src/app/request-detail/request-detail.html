@@ -43,7 +43,11 @@
       <!-- Celular (INBOX-33, trava 5): as ações que saem da barra vêm para cá. -->
       @if (compact()) {
         <button i18n mat-menu-item type="button" (click)="sendAsNew()">Send as new&hellip;</button>
-        <button i18n mat-menu-item type="button" (click)="testVariation()">Test a variation</button>
+      }
+      <!-- WM-28: o "Send as new…" apontado para a própria URL; no "More" também no desktop, para a
+           barra caber numa linha (INBOX-19). -->
+      <button i18n mat-menu-item type="button" (click)="testVariation()">Test a variation</button>
+      @if (compact()) {
         <button i18n mat-menu-item type="button" (click)="compareWith()">
           Compare with&hellip;
         </button>
@@ -83,10 +87,6 @@
           <app-icon name="outbound" [size]="18" /><ng-container i18n
             >Send as new&hellip;</ng-container
           >
-        </button>
-        <!-- WM-28: o "Send as new…" apontado para a própria URL e o caminho da mensagem. -->
-        <button mat-button type="button" (click)="testVariation()">
-          <app-icon name="replay" [size]="18" /><ng-container i18n>Test a variation</ng-container>
         </button>
         <button
           mat-button
