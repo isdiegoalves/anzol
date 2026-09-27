@@ -60,36 +60,50 @@ describe('Dado os indicadores da regra na lista', () => {
   });
 
   it.each([
-    ['template', response({ template: true }), 'template', 'Body and header values are templates'],
-    ['atraso fixo', response({ delay: { fixed: 500 } }), 'delay', 'Delay: 500 ms'],
+    [
+      'template',
+      response({ template: true }),
+      'template',
+      'Template',
+      'Body and header values are templates',
+    ],
+    ['atraso fixo', response({ delay: { fixed: 500 } }), 'delay', 'Delay', 'Delay: 500 ms'],
     [
       'atraso uniforme',
       response({ delay: { uniform: { min: 100, max: 900 } } }),
       'delay',
+      'Delay',
       'Delay: 100–900 ms (uniform)',
     ],
     [
       'atraso log-normal',
       response({ delay: { lognormal: { median: 800, sigma: 0.4 } } }),
       'delay',
+      'Delay',
       'Delay: ~800 ms (log-normal, sigma 0.4)',
     ],
     [
       'falha',
       response({ fault: 'connection_reset' }),
       'fault',
+      'Fault',
       'Fault: connection reset (TCP RST)',
     ],
-  ])('deve indicar %s com o detalhe no título', (_caso, resposta, label, detail) => {
-    expect(ruleFlags(rule({ response: resposta }))).toEqual([{ label, detail }]);
-  });
+  ])(
+    'deve indicar %s com o texto traduzido e o detalhe no título',
+    (_caso, resposta, label, text, detail) => {
+      expect(ruleFlags(rule({ response: resposta }))).toEqual([{ label, text, detail }]);
+    },
+  );
 
   it('deve indicar o cenário com a transição de estado', () => {
     const flags = ruleFlags(
       rule({ scenario: { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' } }),
     );
 
-    expect(flags).toEqual([{ label: 'scenario', detail: 'Scenario Retry: Started → falhou-1' }]);
+    expect(flags).toEqual([
+      { label: 'scenario', text: 'Scenario', detail: 'Scenario Retry: Started → falhou-1' },
+    ]);
   });
 
   it('deve dizer "any state" e "keeps the state" Quando o cenário não exige nem muda o estado', () => {

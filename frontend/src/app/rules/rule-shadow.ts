@@ -141,7 +141,10 @@ export function neverMatches(
 }
 
 export type Diagnosis =
-  ({ kind: 'never' } & NeverMatch) | { kind: 'shadowed'; by: Rule } | { kind: 'likely'; by: Rule };
+  | { kind: 'never'; cause: 'signature' | 'schema' }
+  | { kind: 'never'; cause: 'state'; state: string }
+  | { kind: 'shadowed'; by: Rule }
+  | { kind: 'likely'; by: Rule };
 
 /** A evidência do "Test against history": as mensagens que B casaria e quem respondeu cada uma. */
 export interface ShadowEvidence {
@@ -203,6 +206,25 @@ function likelyShadow(
   }
   const earlier = order.slice(0, order.indexOf(index)).map((i) => rules[i]);
   return earlier.find((rule) => rule.id === id && rule.enabled !== false) ?? null;
+}
+
+/**
+ * Os dois `match` pedem o mesmo: iguais depois de tirar o que vale "qualquer" (ausente, `null`,
+ * lista ou mapa vazio), sem ordem de chaves. O editor e o servidor escrevem a mesma regra com
+ * campos em ordens e formas diferentes.
+ */
+export function sameMatch(a: RuleMatch | undefined, b: RuleMatch | undefined): boolean {
+  const meaningful = (match: RuleMatch | undefined) =>
+    Object.fromEntries(
+      Object.entries(match ?? {}).filter(
+        ([, value]) =>
+          value !== null &&
+          value !== undefined &&
+          !(Array.isArray(value) && value.length === 0) &&
+          !(typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0),
+      ),
+    );
+  return sameJson(meaningful(a), meaningful(b));
 }
 
 function unknownConditions(match: RuleMatch): string[] {

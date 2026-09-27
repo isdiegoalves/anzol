@@ -202,9 +202,14 @@ export function matchSummary(rule: Rule): string {
   return `${methods} ~ ${path.regex}`;
 }
 
-/** Indicador discreto na lista: rótulo curto e o detalhe para o título. */
+/**
+ * Indicador discreto na lista: o tipo (`label`, para estilo e lógica), o texto traduzido e o
+ * detalhe para o título. Os de diagnóstico (pega-tudo, nunca casa, sombra) saem de `rule-shadow`.
+ */
 export interface RuleFlag {
-  label: 'template' | 'delay' | 'fault' | 'scenario';
+  label:
+    'template' | 'delay' | 'fault' | 'scenario' | 'catch-all' | 'never' | 'shadowed' | 'likely';
+  text: string;
   detail: string;
 }
 
@@ -219,20 +224,30 @@ export function ruleFlags(rule: Rule): RuleFlag[] {
     const label = FAULT_LABELS[response.fault] ?? response.fault;
     flags.push({
       label: 'fault',
+      text: $localize`:rule flag|Network fault instead of a response:Fault`,
       detail: $localize`Fault: ${label[0].toLowerCase()}${label.slice(1)}`,
     });
   } else {
     if (response.template) {
-      flags.push({ label: 'template', detail: $localize`Body and header values are templates` });
+      flags.push({
+        label: 'template',
+        text: $localize`:rule flag|The response is a Handlebars template:Template`,
+        detail: $localize`Body and header values are templates`,
+      });
     }
     if (response.delay) {
-      flags.push({ label: 'delay', detail: $localize`Delay: ${describeDelay(response.delay)}` });
+      flags.push({
+        label: 'delay',
+        text: $localize`:rule flag|The response waits before answering:Delay`,
+        detail: $localize`Delay: ${describeDelay(response.delay)}`,
+      });
     }
   }
   if (rule.scenario?.name) {
     const { name, requiredState, newState } = rule.scenario;
     flags.push({
       label: 'scenario',
+      text: $localize`:rule flag|The rule belongs to a scenario:Scenario`,
       detail: $localize`Scenario ${name}:scenario:: ${requiredState || $localize`any state`}:from: → ${newState || $localize`keeps the state`}:to:`,
     });
   }

@@ -5,6 +5,7 @@ import {
   diagnose,
   isCatchAll,
   neverMatches,
+  sameMatch,
   shadowedBy,
   shadows,
 } from './rule-shadow';
@@ -309,6 +310,23 @@ describe('Dado uma regra que nunca pode casar (neverMatches, E-11)', () => {
     expect(
       neverMatches(manual, [manual], semVerificacao, [{ name: 'e', state: 'x', states: [] }]),
     ).toBeNull();
+  });
+});
+
+describe('Dado o match testado e o salvo (sameMatch)', () => {
+  it('deve ignorar o que vale "qualquer" e a ordem das chaves', () => {
+    expect(
+      sameMatch(
+        { path: { equals: '/x' }, method: ['POST'], query: {}, signature: null },
+        { method: ['POST'], headers: {}, body: [], path: { equals: '/x' } },
+      ),
+    ).toBe(true);
+    expect(sameMatch(undefined, { method: [], path: null })).toBe(true);
+  });
+
+  it('deve diferenciar qualquer condição de verdade', () => {
+    expect(sameMatch({ path: { equals: '/x' } }, { path: { equals: '/y' } })).toBe(false);
+    expect(sameMatch({ method: ['POST'] }, {})).toBe(false);
   });
 });
 

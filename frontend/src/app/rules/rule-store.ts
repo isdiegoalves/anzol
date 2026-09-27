@@ -7,6 +7,7 @@ import {
   HISTORY_TEST_WINDOW,
   HistoryTest,
   Rule,
+  RuleMatch,
   RuleTestResponse,
   summarizeHistoryTest,
 } from './rule';
@@ -53,10 +54,21 @@ export class RuleStore {
   /** As mensagens da janela do `rules/test`, lidas uma vez por carga da lista. */
   private recent: Promise<WebhookRequest[]> | null = null;
 
+  /** A leitura dos hits falhou (ou o servidor não os tem): "Hits unavailable" na lista. */
+  readonly hitsFailed = signal(false);
+  /**
+   * O último "Test against history" de cada regra salva, com o `match` testado: a lista só o usa
+   * como evidência de sombra provável enquanto a regra salva tem o mesmo `match` (E-01).
+   */
+  readonly tested = signal<ReadonlyMap<string, { match: RuleMatch; matches: readonly string[] }>>(
+    new Map(),
+  );
+
   async load(tokenId: string): Promise<void> {
     this.tokenId.set(tokenId);
     this.rules.set([]);
     this.recent = null;
+    this.tested.set(new Map());
     this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
   }
 
@@ -68,14 +80,36 @@ export class RuleStore {
   /** Relê os hits (`GET /stats`); sem eles, a lista só não mostra as contagens. */
   async loadHits(tokenId: string): Promise<void> {
     this.hits.set(null);
+    this.hitsFailed.set(false);
+    await this.refreshHits(tokenId);
+  }
+
+  /** Relê os hits sem apagar os de agora (atualização ao vivo, WM-38). */
+  async refreshHits(tokenId: string): Promise<void> {
     try {
       const stats = await firstValueFrom(this.http.get<TokenStats>(`/token/${tokenId}/stats`));
       if (this.tokenId() === tokenId && stats.rules) {
         this.hits.set({ ...stats.rules, evaluated: stats.evaluated });
+        this.hitsFailed.set(false);
+      } else if (this.tokenId() === tokenId) {
+        this.hitsFailed.set(true);
       }
     } catch {
       // Servidor sem `stats` ou falha momentânea: a lista funciona sem os hits.
+      if (this.tokenId() === tokenId && !this.hits()) {
+        this.hitsFailed.set(true);
+      }
     }
+  }
+
+  /** A mensagem mais nova da URL (o cartão "Create from the latest request"), ou `null`. */
+  async latestRequest(tokenId: string): Promise<WebhookRequest | null> {
+    const page = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: 1, per_page: 1, sorting: 'newest' },
+      }),
+    );
+    return page.data[0] ?? null;
   }
 
   /**
@@ -168,7 +202,12 @@ export class RuleStore {
         }),
       ),
     ]);
-    return summarizeHistoryTest(response, requests.total);
+    const result = summarizeHistoryTest(response, requests.total);
+    if (rule.id) {
+      const tested = { match: rule.match ?? {}, matches: result.matches };
+      this.tested.update((map) => new Map(map).set(rule.id ?? '', tested));
+    }
+    return result;
   }
 
   private url(tokenId: string): string {
