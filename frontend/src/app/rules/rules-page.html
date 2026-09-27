@@ -73,7 +73,7 @@
       @if (store.hits(); as hits) {
         <!-- Sem espaço nas pontas da frase (o i18n guarda o espaço do template). -->
         <!-- prettier-ignore -->
-        <p class="hint window" i18n>Hits over the last {hits.evaluated, plural, =1 {request kept} other {{{ hits.evaluated }} requests kept}}.</p>
+        <p class="hint window" i18n>Hits over the last {hits.evaluated, plural, =1 {1 request kept} other {{{ hits.evaluated }} requests kept}}.</p>
       }
       <div class="table-scroll">
         <table class="table" aria-label="Rules" i18n-aria-label>

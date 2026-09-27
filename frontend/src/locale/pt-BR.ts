@@ -1457,8 +1457,8 @@ export const translations: Record<string, string> = {
   '7016076853172263386': 'Esta regra não existe mais.',
   // Hits over the last {$ICU}.
   '8274610231537942565': 'Acertos {$ICU}.',
-  // {VAR_PLURAL, plural, =1 {request kept} other {{INTERPOLATION} requests kept}}
-  '9153417133137372194':
+  // {VAR_PLURAL, plural, =1 {1 request kept} other {{INTERPOLATION} requests kept}}
+  '7371048342128462743':
     '{VAR_PLURAL, plural, =1 {na última requisição guardada} other {nas últimas {INTERPOLATION} requisições guardadas}}',
   // Reorder
   '5721589179245249262': 'Reordenar',

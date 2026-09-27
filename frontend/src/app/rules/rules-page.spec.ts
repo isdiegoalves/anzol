@@ -127,7 +127,7 @@ describe('Dado a página Rules', () => {
   it('deve dizer a janela no singular Quando a URL guarda só uma requisição', async () => {
     await open([rule(1)], {}, stats({}, 1));
 
-    expect(await screen.findByText('Hits over the last request kept.')).toBeTruthy();
+    expect(await screen.findByText('Hits over the last 1 request kept.')).toBeTruthy();
   });
 
   it('deve explicar que não há regras Quando a lista está vazia', async () => {
