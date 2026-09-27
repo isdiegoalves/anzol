@@ -1,4 +1,6 @@
-# Webhook.site
+# Anzol
+
+*anzol* é “fishhook” em português.
 
 Gera uma URL única e aleatória que grava toda requisição HTTP recebida e a mostra na tela em
 tempo real: método, cabeçalhos, query, corpo. Serve para testar e depurar webhooks e clientes
@@ -13,7 +15,7 @@ da API e do webhook (licença MIT, ver [`LICENSE`](LICENSE)):
 | Tela | Angular 22 + Angular Material | `frontend/` |
 | Armazenamento | Redis 8.10 (tokens expiram em 7 dias) | serviço `redis` do compose |
 | Contrato caixa-preta da API e do evento | Playwright | `tests/contract/` |
-| CLI de encaminhamento (`webhook listen`/`replay`) | Kotlin 2.4 + Java 25 + Clikt | `cli/` |
+| CLI de encaminhamento (`anzol listen`/`replay`) | Kotlin 2.4 + Java 25 + Clikt | `cli/` |
 
 Uma imagem só (`Dockerfile` da raiz): o Node constrói o Angular, o Gradle embute o build no jar
 e o Spring Boot serve a API e a tela na mesma porta.
@@ -638,8 +640,8 @@ cabeçalho em `listen`, `replay`, `wait-for` e `rules`. URL protegida sem o segr
 imprimível: o cliente HTTP do Java troca os demais caracteres por `?` num cabeçalho.
 
 ```bash
-WEBHOOK_READ_SECRET='meu-segredo' webhook listen --token <uuid> --forward http://localhost:3000
-webhook rules pull <uuid> --read-secret 'meu-segredo'
+WEBHOOK_READ_SECRET='meu-segredo' anzol listen --token <uuid> --forward http://localhost:3000
+anzol rules pull <uuid> --read-secret 'meu-segredo'
 ```
 
 No MCP, toda ferramenta da URL aceita o argumento opcional `read_secret`; URL protegida sem ele (ou com ele errado) é
@@ -717,10 +719,10 @@ qualquer nome que resolva para o app) passa a usar a API. O `/mcp` continua no p
 
 Com `WEBHOOK_MCP_ENABLED=true` (ligado no `docker-compose.yml`), o app é um servidor
 [MCP](https://modelcontextprotocol.io) em `/mcp` (Streamable HTTP, Spring AI 2.0): agentes de IA operam o
-webhook.site pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude Code:
+Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude Code:
 
 ```bash
-claude mcp add --transport http webhook http://127.0.0.1:8084/mcp
+claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
 ```
 
 | Ferramenta | Rota da API |
@@ -803,14 +805,14 @@ Precisa do Java 25.
 
 ```bash
 cd cli && ./gradlew installDist
-# o script fica em cli/build/install/webhook/bin/webhook; ponha a pasta bin no PATH ou chame pelo caminho
+# o script fica em cli/build/install/anzol/bin/anzol; ponha a pasta bin no PATH ou chame pelo caminho
 ```
 
-### `webhook listen`
+### `anzol listen`
 
 ```bash
-webhook listen --forward http://localhost:3000             # cria uma URL nova e a mostra
-webhook listen --forward http://localhost:3000 --token <uuid>   # usa uma URL que já existe
+anzol listen --forward http://localhost:3000             # cria uma URL nova e a mostra
+anzol listen --forward http://localhost:3000 --token <uuid>   # usa uma URL que já existe
 ```
 
 ```
@@ -839,21 +841,21 @@ mandou o webhook já recebeu a resposta configurada na URL: a resposta do app lo
 - Só as mensagens que chegam depois que o `listen` começa são reenviadas.
 - Token inexistente (ou apagado durante uma queda): `Token not found` no stderr e saída 1. Ctrl+C sai com 0.
 
-### `webhook replay`
+### `anzol replay`
 
 ```bash
-webhook replay <token> <requestId> --to http://localhost:3000
+anzol replay <token> <requestId> --to http://localhost:3000
 ```
 
 Reenvia uma mensagem gravada, igual ao `listen`, e imprime a mesma linha. Sai com 0 quando o app
 local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Request not found`.
 
-### `webhook rules pull` e `webhook rules push`
+### `anzol rules pull` e `anzol rules push`
 
 ```bash
-webhook rules pull <token>                     # a lista de regras no stdout
-webhook rules pull <token> --file regras.json  # no arquivo (o stdout fica vazio)
-webhook rules push <token> regras.json         # troca a lista inteira da URL pela do arquivo
+anzol rules pull <token>                     # a lista de regras no stdout
+anzol rules pull <token> --file regras.json  # no arquivo (o stdout fica vazio)
+anzol rules push <token> regras.json         # troca a lista inteira da URL pela do arquivo
 ```
 
 O `pull` escreve a lista como o `GET /token/{id}/rules` a devolve, em JSON indentado com 2 espaços,
@@ -863,7 +865,7 @@ apaga todas) e imprime `Pushed <n> rule(s)`. Regra com `id` o mantém; sem `id`,
 Ida e volta `pull` → `push` → `pull` dá o mesmo arquivo.
 
 ```
-$ webhook rules push 9f3c…e21a regras.json
+$ anzol rules push 9f3c…e21a regras.json
 0.match.path.regex: The regex is invalid.
 1.priority: The priority must be at least 1.
 ```
@@ -876,23 +878,23 @@ $ webhook rules push 9f3c…e21a regras.json
 | Arquivo do `push` que não é JSON | `Invalid JSON in <arquivo>: <motivo>`, saída 1, sem chamar o servidor |
 | Pasta do `--file` inexistente | `Could not write <arquivo>: no such directory`, saída 1 |
 
-### `webhook send`
+### `anzol send`
 
 Simula o provedor: dispara webhooks assinados como o Stripe, o GitHub, o Shopify ou o Slack
 assinariam, direto para o receptor do seu app, e tenta de novo quando ele falha. Serve para testar a
 verificação de assinatura, a idempotência e o que o app faz com a retentativa, sem depender do
-provedor de verdade. Não passa pelo servidor do webhook.site (não usa `--server`).
+provedor de verdade. Não passa pelo servidor do Anzol (não usa `--server`).
 
 ```bash
 # Stripe: 3 retentativas com backoff exponencial (1 s, 2 s, 4 s), Idempotency-Key igual em todas
-webhook send --to http://localhost:3000/webhooks/stripe \
+anzol send --to http://localhost:3000/webhooks/stripe \
   --provider stripe --secret whsec_teste \
   --header "Content-Type: application/json" --header "Idempotency-Key: {{uuid}}" \
   --data '{"id":"evt_{{random 24}}","type":"payment_intent.succeeded","created":{{timestamp}}}' \
   --retries 3
 
 # GitHub: corpo de um arquivo, 5 eventos com meio segundo entre eles
-webhook send --to http://localhost:3000/webhooks/github \
+anzol send --to http://localhost:3000/webhooks/github \
   --provider github --secret segredo-do-webhook \
   --header "Content-Type: application/json" --header "X-GitHub-Event: push" \
   --header "X-GitHub-Delivery: {{uuid}}" \
@@ -922,7 +924,7 @@ webhook send --to http://localhost:3000/webhooks/github \
 | `--repeat N` / `--interval ms` | `1` / `0` | Quantos eventos e a pausa entre o fim de um e o início do próximo |
 
 **Assinatura.** As mesmas fórmulas da [verificação de assinatura](#verificação-de-assinatura) do
-servidor: uma URL do webhook.site configurada com o mesmo provedor e segredo grava `valid: true`.
+servidor: uma URL do Anzol configurada com o mesmo provedor e segredo grava `valid: true`.
 
 | Provedor | Header | Conteúdo assinado (HMAC) |
 |---|---|---|
@@ -961,7 +963,7 @@ desiste não interrompe o `--repeat`. Sai com 0 se todos os envios entregaram e 
 desistiu ou se as opções são inválidas (motivo no stderr, nada é enviado). Ctrl+C sai com 130 sem
 reenviar.
 
-### `webhook wait-for`
+### `anzol wait-for`
 
 Para o teste de integração ou E2E do seu app: depois de disparar a ação que gera o webhook, espera
 (com prazo) até a URL receber a requisição esperada, e diz por que não chegou quando falha. Usa o
@@ -969,14 +971,14 @@ Para o teste de integração ou E2E do seu app: depois de disparar a ação que 
 
 ```bash
 # um POST em /pedidos… com status "pago" no corpo JSON, em até 10 s; as mensagens vão para o jq
-webhook wait-for --token <uuid> --method POST --path /pedidos --json-path '$.status="pago"' --timeout 10000 | jq '.[0].content'
+anzol wait-for --token <uuid> --method POST --path /pedidos --json-path '$.status="pago"' --timeout 10000 | jq '.[0].content'
 
 # 3 webhooks que casam o match de uma regra (inline ou de arquivo), só os que chegarem daqui em diante
-webhook wait-for --token <uuid> --match-file match.json --count 3 --new
+anzol wait-for --token <uuid> --match-file match.json --count 3 --new
 ```
 
 ```
-$ webhook wait-for --token 9f3c…e21a --method DELETE --path /evento/2 --timeout 1500
+$ anzol wait-for --token 9f3c…e21a --method DELETE --path /evento/2 --timeout 1500
 []
 timed out after 1506 ms: 0/1 matched
 closest: #1790438428567114 bbe0928d-1e7f-4684-961c-9a2e86c4980d
@@ -1018,8 +1020,8 @@ Quem corta a espera é o servidor: o prazo HTTP do CLI é o `--timeout` mais 10 
 ### Servidor
 
 `--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
-`replay`, `rules` e `wait-for` (o `send` fala direto com o `--to`) e vem depois do subcomando: `webhook listen --server https://hooks.exemplo --forward …`,
-`webhook rules pull <token> --server https://hooks.exemplo`. URL protegida: `--read-secret`, na mesma posição, ou
+`replay`, `rules` e `wait-for` (o `send` fala direto com o `--to`) e vem depois do subcomando: `anzol listen --server https://hooks.exemplo --forward …`,
+`anzol rules pull <token> --server https://hooks.exemplo`. URL protegida: `--read-secret`, na mesma posição, ou
 `WEBHOOK_READ_SECRET` (ver [Privacidade](#cli-e-mcp)).
 
 ### O que é reenviado
@@ -1107,6 +1109,6 @@ rodada inteira leva uns 2 minutos.
 
 ## Helm
 
-O chart em `helm/` está desatualizado: ainda descreve a stack antiga (imagens upstream
-`webhooksite/webhook.site` e `webhooksite/laravel-echo-server`, `redis:alpine`). Serve só
-como ponto de partida; o app roda com o `docker-compose.yml`.
+O chart `anzol` em `helm/` usa a imagem `ghcr.io/isdiegoalves/anzol` e o `redis:alpine`, mas
+está desatualizado: o deployment ainda leva os argumentos, as variáveis e a porta 80 da stack
+antiga em PHP. Serve só como ponto de partida; o app roda com o `docker-compose.yml`.

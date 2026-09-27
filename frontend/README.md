@@ -1,6 +1,6 @@
 # Frontend (Angular 22)
 
-Tela do webhook.site em Angular 22 + Angular Material. Fala só com a API REST (`/token/**`) e
+Tela do Anzol em Angular 22 + Angular Material. Fala só com a API REST (`/token/**`) e
 com o stream SSE `GET /token/{id}/stream`. Padrão de código: [`docs/padroes-angular.md`](../docs/padroes-angular.md).
 
 ## Rodar

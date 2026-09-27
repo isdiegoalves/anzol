@@ -1,4 +1,4 @@
-# Observabilidade do webhook.site
+# Observabilidade do Anzol
 
 O app exporta métricas, traces e logs por OTLP quando o ambiente liga (`docker-compose.yml`, variáveis
 `OTEL_*`); o destino é o Grafana Alloy do stack de observabilidade local, que grava métricas no Mimir, traces
