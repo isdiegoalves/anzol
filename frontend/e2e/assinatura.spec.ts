@@ -1,11 +1,25 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { Webhook, expect, test } from './support/fixtures';
+import {
+  abrirAba,
+  abrirItem,
+  abrirMensagem,
+  falhas,
+  item,
+  porque,
+  verificacoes,
+} from './support/inbox';
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pelo Edit URL, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
 // token, na mensagem e em `match.signature`. Item 13.1: selo na lista, linha do header realçada,
 // quadro dos provedores com a anatomia e o Edit que diz o que falta.
+// Item 14 (D7, CA-5): o leiaute novo mantém o que este spec cobra. E4: o selo da lista é o `app-check-chip` do
+// item (texto curto de hoje, "Sig OK", "Bad sig", "No sig"; o nome acessível do item diz "Signature …"); o selo do detalhe
+// vira o cartão no `group "Checks on this request"` (título e, na linha seguinte, o provedor ou o motivo do
+// servidor); a tabela Headers fica na aba "Headers (n)" e a linha realçada leva a frase do veredito (a classe
+// `signature valid|invalid|absent` de hoje sai: o tom vem por ícone e texto).
 
 const SCREENS = process.env['SCREENS_DIR'];
 const SECRET = 'segredo-do-e2e';
@@ -42,6 +56,11 @@ function headerRow(page: Page, name: string): Locator {
     .getByRole('row', { name: new RegExp(`^${name} `) });
 }
 
+/** A aba "Headers (n)" do detalhe, onde fica a tabela. */
+async function openHeaders(page: Page) {
+  await abrirAba(page, 'Headers');
+}
+
 async function choose(page: Page, select: Locator, option: string) {
   await select.click();
   await page.getByRole('option', { name: option, exact: true }).click();
@@ -71,8 +90,7 @@ async function submitEdit(page: Page, dialog: Locator, tokenId: string) {
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
-  await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  await abrirMensagem(page, tokenId, requestId);
 }
 
 async function getRules(api: APIRequestContext, tokenId: string) {
@@ -114,43 +132,42 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     const semAssinatura = await tokens.send(tokenId, github(null));
 
     await openRequest(page, tokenId, certa);
-    await expect(page.locator('app-signature-badge')).toHaveText('Signature valid — GitHub');
-    const list = page.locator('app-request-list');
-    await expect(list.getByRole('img', { name: 'Signature valid — GitHub' })).toHaveText(
-      '✓ Sig OK',
+    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
+    await expect(abrirItem(page, certa)).toHaveAccessibleName(/\bSignature valid: GitHub\b/);
+    await expect(item(page, certa)).toContainText('Sig OK');
+    await expect(abrirItem(page, errada)).toHaveAccessibleName(
+      /\bSignature invalid: signature mismatch\b/,
     );
-    await expect(
-      list.getByRole('img', { name: 'Signature invalid — signature mismatch' }),
-    ).toHaveText('✕ Bad sig');
-    await expect(
-      list.getByRole('img', { name: 'Signature absent — header X-Hub-Signature-256 absent' }),
-    ).toHaveText('⊘ No sig');
+    await expect(item(page, errada)).toContainText('Bad sig');
+    await expect(abrirItem(page, semAssinatura)).toHaveAccessibleName(
+      /\bSignature absent: header X-Hub-Signature-256 absent\b/,
+    );
+    await expect(item(page, semAssinatura)).toContainText('No sig');
+    await openHeaders(page);
     const valida = headerRow(page, 'x-hub-signature-256');
-    await expect(valida).toHaveClass(/\bsignature valid\b/);
-    await expect(valida.locator('.verdict')).toHaveText(
-      '✓ Signature valid — HMAC-SHA256 of the raw body matched',
-    );
-    await expect(page.getByRole('table', { name: 'Headers' }).locator('tr.signature')).toHaveCount(
-      1,
-    );
+    await expect(valida).toContainText('Signature valid — HMAC-SHA256 of the raw body matched');
+    await expect(
+      page
+        .getByRole('table', { name: 'Headers' })
+        .getByRole('row')
+        .filter({ hasText: 'Signature ' }),
+    ).toHaveCount(1);
     await screenshot(page, '02-selo-valida');
     await openRequest(page, tokenId, errada);
-    await expect(page.locator('app-signature-badge')).toHaveText(
-      'Signature invalid — signature mismatch',
-    );
-    await expect(headerRow(page, 'x-hub-signature-256')).toHaveClass(/\bsignature invalid\b/);
-    await expect(headerRow(page, 'x-hub-signature-256').locator('.verdict')).toHaveText(
-      '✕ Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch)',
+    await expect(verificacoes(page)).toContainText(/Signature invalid\s*signature mismatch/);
+    await openHeaders(page);
+    await expect(headerRow(page, 'x-hub-signature-256')).toContainText(
+      'Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch)',
     );
     await screenshot(page, '03-selo-invalida');
     await openRequest(page, tokenId, semAssinatura);
-    await expect(page.locator('app-signature-badge')).toHaveText(
-      'Signature invalid — header X-Hub-Signature-256 absent',
+    await expect(verificacoes(page)).toContainText(
+      /Signature absent\s*header X-Hub-Signature-256 absent/,
     );
-    const ausente = page.getByRole('table', { name: 'Headers' }).getByRole('row').nth(1);
-    await expect(ausente).toHaveClass(/\bsignature absent\b/);
+    await openHeaders(page);
+    const ausente = page.getByRole('table', { name: 'Headers' }).locator('tbody tr').first();
     await expect(ausente).toHaveText(
-      /^\s*x-hub-signature-256\s*\(not received\)\s*⊘ Signature absent — the GitHub check expects the X-Hub-Signature-256 header\s*$/,
+      /^\s*x-hub-signature-256\s*\(not received\)\s*⊘? ?Signature absent — the GitHub check expects the X-Hub-Signature-256 header\s*$/,
     );
     await screenshot(page, '03b-header-ausente');
   });
@@ -178,7 +195,7 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     expect(put['signature']).toEqual({ provider: 'github', secret: MASKED });
     const requestId = await tokens.send(tokenId, github(SECRET));
     await openRequest(page, tokenId, requestId);
-    await expect(page.locator('app-signature-badge')).toHaveText('Signature valid — GitHub');
+    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
   });
 
   test('não deve mostrar selo nem realce de assinatura Quando a URL não verifica', async ({
@@ -190,9 +207,14 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
 
     await openRequest(page, tokenId, requestId);
 
-    await expect(page.locator('app-signature-badge')).toHaveText('');
-    await expect(page.locator('app-request-list').getByRole('img')).toHaveCount(0);
-    await expect(headerRow(page, 'x-hub-signature-256')).not.toHaveClass(/signature/);
+    await expect(verificacoes(page)).not.toContainText(/Signature (valid|invalid|absent)/);
+    await expect(abrirItem(page, requestId)).toBeVisible();
+    await expect(abrirItem(page, requestId)).not.toHaveAccessibleName(
+      /signature (valid|invalid|absent)/i,
+    );
+    await expect(item(page, requestId)).not.toContainText(/Sig OK|Bad sig|No sig/);
+    await openHeaders(page);
+    await expect(headerRow(page, 'x-hub-signature-256')).not.toContainText('Signature ');
   });
 
   test('deve dizer o que falta, focar o primeiro campo e salvar o genérico Quando Edit é clicado com os obrigatórios vazios', async ({
@@ -254,9 +276,9 @@ test.describe('Dado a seção "Signature verification" do Edit URL', () => {
     });
     const requestId = await tokens.send(tokenId, generic(SECRET));
     await openRequest(page, tokenId, requestId);
-    await expect(headerRow(page, 'x-signature')).toHaveClass(/\bsignature valid\b/);
-    await expect(headerRow(page, 'x-signature').locator('.verdict')).toHaveText(
-      '✓ Signature valid — HMAC-SHA256 of the raw body matched',
+    await openHeaders(page);
+    await expect(headerRow(page, 'x-signature')).toContainText(
+      'Signature valid — HMAC-SHA256 of the raw body matched',
     );
   });
 
@@ -326,19 +348,15 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
     expect(certa.status()).toBe(200);
 
     await openRequest(page, tokenId, errada.headers()['x-request-id']);
-    await expect(page.locator('app-signature-badge')).toHaveText(
-      'Signature invalid — signature mismatch',
-    );
-    await expect(page.locator('app-rule-badge')).toHaveText('Answered by rule Recusa assinatura');
+    await expect(verificacoes(page)).toContainText(/Signature invalid\s*signature mismatch/);
+    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Recusa assinatura/);
     await screenshot(page, '06-selo-invalida-com-regra-401');
 
     await openRequest(page, tokenId, certa.headers()['x-request-id']);
-    await expect(page.locator('app-signature-badge')).toHaveText('Signature valid — GitHub');
-    await page.getByRole('button', { name: /^Why\? \(\d+\)$/ }).click();
+    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
+    await porque(page).click();
     await expect(
-      page
-        .locator('app-rule-badge li')
-        .filter({ hasText: /^signature: expected invalid, got valid/ }),
+      falhas(page).filter({ hasText: /^signature: expected invalid, got valid/ }),
     ).toHaveCount(1);
     await screenshot(page, '07-selo-valida-near-miss');
   });

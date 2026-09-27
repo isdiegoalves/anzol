@@ -1,6 +1,7 @@
 import { Server, createServer } from 'node:http';
 import { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { abrirMensagem, acoes } from './support/inbox';
 
 // IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
 // mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
@@ -10,6 +11,8 @@ import { expect, test } from './support/fixtures';
 // aqui, neste processo, na porta 18099 (troque com E2E_LLM_PORT), e cada teste programa as
 // respostas. Os testes deste arquivo rodam em sequência num só worker: o falso é um só.
 // Os estados 503 e 429 são simulados na rota (page.route): o CI roda com a IA ligada.
+// Item 14, E4: "Explain"/"Hide explanation" ficam no `toolbar "Request actions"` do detalhe, com a dica da IA
+// desligada ao lado; a `region "Explanation"` não muda.
 
 const LLM_PORT = Number(process.env['E2E_LLM_PORT'] ?? 18099);
 
@@ -124,8 +127,7 @@ async function newRuleDialog(page: Page, tokenId: string) {
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
-  await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  await abrirMensagem(page, tokenId, requestId);
 }
 
 test.describe('Dado o editor de regra com a IA ligada', () => {
@@ -268,9 +270,10 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
       ].join('\n'),
     });
 
+    await expect(acoes(page).getByRole('button', { name: 'Explain' })).toBeVisible();
     const [call] = await Promise.all([
       page.waitForRequest((r) => r.url().endsWith(`/request/${requestId}/explain`)),
-      page.getByRole('button', { name: 'Explain' }).click(),
+      acoes(page).getByRole('button', { name: 'Explain' }).click(),
     ]);
 
     expect(call.postDataJSON()).toEqual(expect.objectContaining({ lang: 'pt-BR' }));
@@ -288,7 +291,7 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
       undefined,
     );
 
-    await page.getByRole('button', { name: 'Hide explanation' }).click();
+    await acoes(page).getByRole('button', { name: 'Hide explanation' }).click();
     await expect(panel).toBeHidden();
   });
 });
@@ -305,14 +308,14 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     const requestId = await tokens.send(tokenId, { data: 'x' });
     await openRequest(page, tokenId, requestId);
 
-    await page.getByRole('button', { name: 'Explain' }).click();
+    await acoes(page).getByRole('button', { name: 'Explain' }).click();
 
     await expect(
       page.getByRole('region', { name: 'Explanation' }).getByRole('alert'),
     ).toContainText('Set WEBHOOK_AI_* to enable');
-    await expect(page.locator('.content-actions')).toContainText('Set WEBHOOK_AI_* to enable');
-    await page.getByRole('button', { name: 'Hide explanation' }).click();
-    await expect(page.getByRole('button', { name: 'Explain' })).toBeDisabled();
+    await expect(acoes(page)).toContainText('Set WEBHOOK_AI_* to enable');
+    await acoes(page).getByRole('button', { name: 'Hide explanation' }).click();
+    await expect(acoes(page).getByRole('button', { name: 'Explain' })).toBeDisabled();
 
     // A mesma sessão da tela (só o hash muda): o editor já abre com a IA desligada.
     const dialog = await newRuleDialog(page, tokenId);

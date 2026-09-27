@@ -1,21 +1,15 @@
-import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { aba, abrirAba, acoes, corpo, detalhes, expectCorpo, linhas } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Checklist 8.
-
-/** Linhas de uma tabela do detalhe, com as células separadas por espaço. */
-const rows = (page: Page, table: string) =>
-  page
-    .getByRole('table', { name: table })
-    .locator('tbody tr')
-    .evaluateAll((trs) =>
-      trs.map((tr) =>
-        [...tr.querySelectorAll('td')]
-          .map((td) => td.textContent?.replace(/\s+/g, ' ').trim())
-          .join(' '),
-      ),
-    );
+// Checklist 8. Item 14, E4: o detalhe ganha abas (Body, Headers (n), Query (n), Form (n)) no lugar de
+// "Hide Details" (S13), o "Format JSON/XML" vira o `switch "Pretty"` (lendo `formatJsonEnable`), o JSON sai pelo
+// tokenizer próprio (S5) e Permalink e Raw content vão para o menu "More" (`menuitem`, §1).
+// SUPOSIÇÕES (além das de `support/inbox.ts`):
+// - o menu é aberto pelo `button "More"` (exato) do cabeçalho do detalhe;
+// - o cabeçalho do detalhe tem o selo do método e o `heading` com a rota (caminho e query depois do token); a linha
+//   URL da "Request Details" não repete o método;
+// - a aba Body é a aberta por padrão; o corpo realça cada chave JSON num elemento próprio (`span`).
 
 test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)', () => {
   let tokenId: string;
@@ -36,65 +30,80 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
   test('deve mostrar URL, método, IP, data, ID, headers e query Quando a mensagem é aberta', async ({
     page,
   }) => {
-    const details = page.getByRole('table', { name: 'Request Details' });
-
-    await expect(details).toContainText(requestId);
+    await expect(detalhes(page)).toContainText(requestId);
+    await expect(
+      page.getByRole('heading', { name: '/extra/path?x=1&y=', exact: true }),
+    ).toBeVisible();
     const origin = new URL(page.url()).origin;
-    expect(await rows(page, 'Request Details')).toEqual([
-      `URL POST ${origin}/${tokenId}/extra/path?x=1&y=`,
+    expect(await linhas(page, 'Request Details')).toEqual([
+      `URL ${origin}/${tokenId}/extra/path?x=1&y=`,
       expect.stringMatching(/^Host \S+ whois$/),
       expect.stringMatching(
         /^Date [A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM) \(a few seconds ago\)$/,
       ),
       `ID ${requestId}`,
     ]);
-    expect(await rows(page, 'Headers')).toEqual(
+
+    await abrirAba(page, 'Headers');
+    expect(await linhas(page, 'Headers')).toEqual(
       expect.arrayContaining([
         'x-custom abc',
         'user-agent e2e-agent',
         'content-type application/json',
       ]),
     );
-    expect(await rows(page, 'Query strings')).toEqual(['x 1', 'y (empty)']);
-    expect(await rows(page, 'Form values')).toEqual(['(empty)']);
+    await abrirAba(page, 'Query');
+    await expect(aba(page, 'Query')).toHaveAccessibleName('Query (2)');
+    expect(await linhas(page, 'Query strings')).toEqual(['x 1', 'y (empty)']);
+    await abrirAba(page, 'Form');
+    await expect(aba(page, 'Form')).toHaveAccessibleName('Form (0)');
+    await expect(page.getByRole('table', { name: 'Form values' })).toHaveCount(0);
   });
 
-  test('deve mostrar o corpo cru e o formatado com destaque Quando "Format JSON/XML" alterna', async ({
+  test('deve mostrar o corpo cru e o formatado com destaque Quando "Pretty" alterna', async ({
     page,
   }) => {
-    await expect(page.locator('pre')).toHaveText('{"a":12345678901234567890,"b":[1,2]}');
+    await expect(aba(page, 'Body')).toHaveAttribute('aria-selected', 'true');
+    await expectCorpo(page, '{"a":12345678901234567890,"b":[1,2]}');
 
-    await page.getByRole('switch', { name: 'Format JSON/XML' }).click();
+    await page.getByRole('switch', { name: 'Pretty', exact: true }).click();
 
-    await expect(page.locator('pre')).toHaveText(
-      '{\n  "a": 12345678901234567890,\n  "b": [\n    1,\n    2\n  ]\n}',
-    );
-    await expect(page.locator('pre .hljs-attr').first()).toHaveText('"a"');
+    await expectCorpo(page, '{\n  "a": 12345678901234567890,\n  "b": [\n    1,\n    2\n  ]\n}');
+    await expect(corpo(page).locator('span', { hasText: /^"a"$/ }).first()).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Format JSON/XML' })).toHaveCount(0);
   });
 
-  test('deve apontar Permalink e Raw content para esta mensagem Quando o detalhe abre', async ({
+  test('deve apontar Permalink e Raw content para esta mensagem Quando o menu "More" abre', async ({
     page,
     request,
   }) => {
     const origin = new URL(page.url()).origin;
 
-    await expect(page.getByRole('link', { name: 'Permalink' })).toHaveAttribute(
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+
+    await expect(page.getByRole('menuitem', { name: 'Permalink' })).toHaveAttribute(
       'href',
       `${origin}/#/${tokenId}/${requestId}/1`,
     );
-    const raw = await page.getByRole('link', { name: 'Raw content' }).getAttribute('href');
+    const raw = await page.getByRole('menuitem', { name: 'Raw content' }).getAttribute('href');
     expect(await (await request.get(raw ?? '')).text()).toBe(
       '{"a":12345678901234567890,"b":[1,2]}',
     );
   });
 
-  test('deve esconder as tabelas e manter o corpo Quando "Hide Details" é ligado', async ({
+  test('deve mostrar só o corpo na aba Body e só os headers na aba Headers, sem "Hide Details"', async ({
     page,
   }) => {
-    await page.getByRole('switch', { name: 'Hide Details' }).click();
+    // Cenário trocado (S13): "Hide Details" sai; as abas separam o corpo das tabelas.
+    await expect(page.getByRole('switch', { name: 'Hide Details' })).toHaveCount(0);
+    await expect(corpo(page)).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Headers' })).toHaveCount(0);
+    await expect(acoes(page)).toBeVisible();
 
-    await expect(page.getByRole('table')).toHaveCount(0);
-    await expect(page.locator('pre')).toBeVisible();
+    await abrirAba(page, 'Headers');
+
+    await expect(page.getByRole('table', { name: 'Headers' })).toBeVisible();
+    await expect(corpo(page)).toHaveCount(0);
   });
 });
 
@@ -117,11 +126,13 @@ test.describe('Dado mensagens XML, formulário e sem corpo (checklist 8)', () =>
     await seedStorage(page, { formatJsonEnable: 'true' });
 
     await page.goto(`/#/${tokenId}/${xml}/1`);
-    await expect(page.locator('pre')).toHaveText('<a>\n  <b>1</b>\n  <c/>\n</a>');
+    await expect(page.getByRole('switch', { name: 'Pretty', exact: true })).toBeChecked();
+    await expectCorpo(page, '<a>\n  <b>1</b>\n  <c/>\n</a>');
 
     await page.goto(`/#/${tokenId}/${form}/1`);
-    await expect(page.getByRole('table', { name: 'Form values' })).toContainText('f2');
-    expect(await rows(page, 'Form values')).toEqual(['f1 v1', 'f2 (empty)']);
+    await expect(aba(page, 'Form')).toHaveAccessibleName('Form (2)');
+    await abrirAba(page, 'Form');
+    expect(await linhas(page, 'Form values')).toEqual(['f1 v1', 'f2 (empty)']);
 
     await page.goto(`/#/${tokenId}/${vazia}/1`);
     await expect(page.getByText('(no body content)')).toBeVisible();

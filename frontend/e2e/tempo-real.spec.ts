@@ -1,8 +1,22 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import {
+  anuncios,
+  corpo as corpoDoDetalhe,
+  detalhes,
+  expectCorpo,
+  item,
+  textoDoCorpo,
+} from './support/inbox';
 import { seedStorage } from './support/storage';
 
 // Checklist 7 e 13, e o auto-navegar do 9. Precisam do SSE (`GET /token/{id}/stream`, item 02).
+// Item 14, E4 — mudança de CENÁRIO (§3 item 4): o snackbar "Request received" de 1 s sai. A chegada entra na lista
+// com destaque, é anunciada pelo `LiveAnnouncer` (agregado, no máximo a cada 5 s) e, com uma mensagem aberta e
+// "Follow new" desligado, a tela não pula: aparece a pílula "↑ N new request(s)" (C §2.8). "Auto Navigate" vira o
+// `switch "Follow new"` (mesma chave `autoNavEnable`, S13/S14).
+// SUPOSIÇÕES: o anúncio contém "1 new request" (ou "N new requests"); a pílula é um `button` com
+// "N new request(s)" no nome.
 
 /** Abre a URL e espera o `EventSource` receber os cabeçalhos (assinatura pronta no servidor). */
 async function openListening(page: Page, tokenId: string): Promise<void> {
@@ -21,7 +35,7 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await seedStorage(page, {});
   });
 
-  test('deve mostrar a mensagem nova, avisar e contar não lida no título Quando um webhook chega', async ({
+  test('deve mostrar a mensagem nova, anunciar e contar não lida no título Quando um webhook chega', async ({
     page,
     tokens,
   }) => {
@@ -30,27 +44,33 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
 
     const requestId = await tokens.send(tokenId, { data: 'ao vivo' });
 
-    await expect(page.getByText('Request received')).toBeVisible();
+    await expect(item(page, requestId)).toBeVisible();
+    await expect(anuncios(page).filter({ hasText: /\b1 new request\b/ })).toHaveCount(1, {
+      timeout: 15_000,
+    });
+    await expect(page.getByText('Request received')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
-    await expect(page.locator('pre')).toHaveText('ao vivo');
-    await tokens.send(tokenId, { data: 'segunda' });
+    await expect(detalhes(page)).toContainText(requestId);
+    await expectCorpo(page, 'ao vivo');
+    const segunda = await tokens.send(tokenId, { data: 'segunda' });
     await expect(page).toHaveTitle('(1) Webhook.site');
+    // Com a primeira aberta, a segunda não rouba o detalhe: entra na lista e na pílula.
+    await expect(item(page, segunda)).toBeVisible();
+    await expect(page.getByRole('button', { name: /\b1 new request\b/ })).toBeVisible();
+    await expect(detalhes(page)).toContainText(requestId);
   });
 
-  test('deve ir para a mensagem nova Quando "Auto Navigate" está ligado', async ({
-    page,
-    tokens,
-  }) => {
+  test('deve ir para a mensagem nova Quando "Follow new" está ligado', async ({ page, tokens }) => {
     await tokens.send(tokenId, { data: 'antiga' });
     await seedStorage(page, { autoNavEnable: 'true' });
     await openListening(page, tokenId);
-    await expect(page.locator('pre')).toHaveText('antiga');
+    await expect(page.getByRole('switch', { name: 'Follow new' })).toBeChecked();
+    await expectCorpo(page, 'antiga');
 
     const nova = await tokens.send(tokenId, { data: 'nova' });
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
-    await expect(page.locator('pre')).toHaveText('nova');
+    await expectCorpo(page, 'nova');
   });
 
   test('deve buscar a mensagem inteira pela API Quando o evento chega truncado (> 1 MB, checklist 13)', async ({
@@ -70,7 +90,8 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     });
 
     expect((await detalhe).url()).toContain(requestId);
-    await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
-    expect((await page.locator('pre').textContent())?.length).toBe(corpo.length);
+    await expect(detalhes(page)).toContainText(requestId);
+    await expect(corpoDoDetalhe(page)).toBeVisible();
+    expect((await textoDoCorpo(page)).length).toBe(corpo.length);
   });
 });

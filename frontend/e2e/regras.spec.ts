@@ -1,6 +1,7 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './support/fixtures';
+import { falhas, porque, verificacoes } from './support/inbox';
 
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
@@ -102,7 +103,8 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     expect(await webhook.text()).toBe('{"ok":true}');
 
     await page.getByRole('link', { name: 'Inbox', exact: true }).click();
-    await expect(page.getByText('Answered by rule Pix pago')).toBeVisible();
+    // Item 14, E4: o selo da regra é o cartão do `group "Checks on this request"`.
+    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Pix pago/);
   });
 
   test('deve mostrar o erro 422 do servidor no campo Path e não fechar Quando a regex é inválida', async ({
@@ -208,12 +210,12 @@ test.describe('Dado uma URL com regras salvas', () => {
     });
 
     await page.goto(`/#/${tokenId}/${requestId}/1`);
-    await expect(page.getByText('No rule matched — closest: Pix pago')).toBeVisible();
-    const why = page.getByRole('button', { name: /^Why\? \(\d+\)$/ });
+    await expect(verificacoes(page)).toContainText(/No rule matched\s*Closest: Pix pago/);
+    const why = porque(page);
     await why.click();
 
     await expect(why).toHaveAttribute('aria-expanded', 'true');
-    const failed = page.locator('app-rule-badge li');
+    const failed = falhas(page);
     await expect(failed.filter({ hasText: /^method: .*POST.*GET/ })).toHaveCount(1);
     await expect(failed.filter({ hasText: /^header x-signature: absent/i })).toHaveCount(1);
     await expect(failed.filter({ hasText: /^body \$\.status: .*pendente/ })).toHaveCount(1);
@@ -226,7 +228,8 @@ test.describe('Dado uma URL com regras salvas', () => {
     await page.goto(`/#/${tokenId}/${requestId}/1`);
 
     await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
-    await expect(page.locator('app-rule-badge')).toHaveText('');
+    await expect(verificacoes(page)).toBeVisible();
+    await expect(verificacoes(page)).not.toContainText(/Answered by rule|No rule matched/);
   });
 });
 

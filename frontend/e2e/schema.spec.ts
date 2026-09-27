@@ -1,9 +1,21 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { Webhook, expect, test } from './support/fixtures';
+import {
+  abrirMensagem,
+  acoes,
+  falhas,
+  marcasDeSchema,
+  porque,
+  verificacoes,
+} from './support/inbox';
+import { seedStorage } from './support/storage';
 
 // Validação de schema por URL (CA-5, o que é da tela): configurar pelo Edit URL, selo na
 // mensagem com os erros, gerar o schema de uma mensagem e condição "Schema" no editor de regras.
 // Precisa do backend com `schema` no token, na mensagem e em `match.schema`.
+// Item 14, E4: o selo vira o cartão "Schema valid|invalid" no `group "Checks on this request"` (o primeiro erro na
+// segunda linha) e os erros aparecem na linha do JSON que falhou, no corpo (C §2.2). SUPOSIÇÃO: cada marca começa
+// pelo JSON Pointer do erro ("(root)" para a raiz), como a segunda linha do cartão.
 
 const SCREENS = process.env['SCREENS_DIR'];
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -62,13 +74,14 @@ async function submitEdit(page: Page, dialog: Locator, tokenId: string) {
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
-  await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  // Pretty ligado: os erros caem na linha do valor do JSON Pointer (com Raw, na primeira linha).
+  await seedStorage(page, { formatJsonEnable: 'true' });
+  await abrirMensagem(page, tokenId, requestId);
 }
 
-/** Caminhos (JSON Pointer) dos erros listados no selo. */
+/** As marcas de erro de schema no corpo (cada uma começa pelo caminho). */
 function errorPaths(page: Page) {
-  return page.locator('app-schema-badge li code');
+  return marcasDeSchema(page);
 }
 
 async function getRules(api: APIRequestContext, tokenId: string) {
@@ -104,18 +117,23 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     const semJson = await tokens.send(tokenId, { data: 'nome=Ana' });
 
     await openRequest(page, tokenId, valida);
-    await expect(page.locator('app-schema-badge')).toHaveText('Schema valid');
-    await expect(page.locator('app-schema-badge .valid')).toBeVisible();
+    await expect(verificacoes(page)).toContainText('Schema valid');
+    await expect(errorPaths(page)).toHaveCount(0);
     await screenshot(page, '02-selo-valido');
 
     await openRequest(page, tokenId, invalida);
-    await expect(page.locator('app-schema-badge .invalid p')).toHaveText('Schema invalid');
-    await expect(errorPaths(page)).toContainText(['/id']);
+    await expect(verificacoes(page)).toContainText('Schema invalid');
+    await expect(errorPaths(page).filter({ hasText: /^\/id\b/ })).toHaveCount(1);
     await expect(errorPaths(page).filter({ hasText: /^\/itens\/0/ })).not.toHaveCount(0);
+    // O erro de /id cai na linha do "id" do JSON formatado.
+    await expect(
+      page.getByLabel('Request body', { exact: true }).locator('.line.marked', { hasText: '"id"' }),
+    ).toHaveCount(1);
     await screenshot(page, '03-selo-invalido-com-erros');
 
     await openRequest(page, tokenId, semJson);
-    await expect(page.locator('app-schema-badge li')).toHaveText(['(root) body is not JSON']);
+    await expect(verificacoes(page)).toContainText(/Schema invalid\s*\(root\) body is not JSON/);
+    await expect(errorPaths(page)).toHaveText(['(root) body is not JSON']);
   });
 
   test('deve mostrar no campo o erro do servidor, manter o diálogo aberto e desligar pelo "Clear schema"', async ({
@@ -150,7 +168,8 @@ test.describe('Dado a seção "Schema validation" do Edit URL', () => {
     expect(await tokens.read(tokenId)).toMatchObject({ schema: null });
     const requestId = await tokens.send(tokenId, json(INVALIDO));
     await openRequest(page, tokenId, requestId);
-    await expect(page.locator('app-schema-badge')).toHaveText('');
+    await expect(verificacoes(page)).not.toContainText(/Schema (valid|invalid)/);
+    await expect(errorPaths(page)).toHaveCount(0);
   });
 });
 
@@ -164,10 +183,11 @@ test.describe('Dado "Create schema from this request"', () => {
     const formulario = await tokens.send(tokenId, { data: 'nome=Ana' });
 
     await openRequest(page, tokenId, formulario);
+    await expect(acoes(page)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create schema from this request' })).toHaveCount(
       0,
     );
-    await expect(page.locator('app-schema-badge')).toHaveText('');
+    await expect(verificacoes(page)).not.toContainText(/Schema (valid|invalid)/);
 
     await openRequest(page, tokenId, exemplo);
     await page.getByRole('button', { name: 'Create schema from this request' }).click();
@@ -195,10 +215,10 @@ test.describe('Dado "Create schema from this request"', () => {
     const igual = await tokens.send(tokenId, json('{"id": 7, "itens": []}'));
     const diferente = await tokens.send(tokenId, json('{"id": 7.5}'));
     await openRequest(page, tokenId, igual);
-    await expect(page.locator('app-schema-badge')).toHaveText('Schema valid');
+    await expect(verificacoes(page)).toContainText('Schema valid');
     await openRequest(page, tokenId, diferente);
-    await expect(page.locator('app-schema-badge .invalid p')).toHaveText('Schema invalid');
-    await expect(errorPaths(page)).toContainText(['/id']);
+    await expect(verificacoes(page)).toContainText('Schema invalid');
+    await expect(errorPaths(page).filter({ hasText: /^\/id\b/ })).toHaveCount(1);
   });
 });
 
@@ -246,17 +266,15 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     expect(valida.status()).toBe(200);
 
     await openRequest(page, tokenId, invalida.headers()['x-request-id']);
-    await expect(page.locator('app-schema-badge .invalid p')).toHaveText('Schema invalid');
-    await expect(page.locator('app-rule-badge')).toHaveText(
-      'Answered by rule Recusa fora do schema',
-    );
+    await expect(verificacoes(page)).toContainText('Schema invalid');
+    await expect(verificacoes(page)).toContainText(/Answered by rule\s*Recusa fora do schema/);
     await screenshot(page, '07-selo-invalido-com-regra-400');
 
     await openRequest(page, tokenId, valida.headers()['x-request-id']);
-    await expect(page.locator('app-schema-badge')).toHaveText('Schema valid');
-    await page.getByRole('button', { name: /^Why\? \(\d+\)$/ }).click();
+    await expect(verificacoes(page)).toContainText('Schema valid');
+    await porque(page).click();
     await expect(
-      page.locator('app-rule-badge li').filter({ hasText: /^schema: expected invalid, got valid/ }),
+      falhas(page).filter({ hasText: /^schema: expected invalid, got valid/ }),
     ).toHaveCount(1);
     await screenshot(page, '08-selo-valido-near-miss');
   });

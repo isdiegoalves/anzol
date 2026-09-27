@@ -1,5 +1,6 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { detalhes } from './support/inbox';
 
 // Regras de resposta, fase C (CA-10 no que é da tela, Anexo C): "Create rule from this request"
 // no detalhe da mensagem e "Test against history" no editor. Precisa do backend com
@@ -25,7 +26,7 @@ async function createRuleFrom(
   shot?: string,
 ): Promise<Locator> {
   await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  await expect(detalhes(page)).toContainText(requestId);
   if (shot) {
     await screenshot(page, shot);
   }
@@ -192,7 +193,7 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     const link = result.getByRole('link', { name: `Open request ${naoCasa}` });
     await expect(link).toHaveText(`#${naoCasa.substring(0, 5)}`);
     const [aba] = await Promise.all([page.waitForEvent('popup'), link.click()]);
-    await expect(aba.locator('.req-id')).toHaveText(naoCasa);
+    await expect(detalhes(aba)).toContainText(naoCasa);
     await expect(dialog).toBeVisible();
   });
 

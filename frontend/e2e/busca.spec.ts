@@ -1,10 +1,14 @@
 import { createHmac } from 'node:crypto';
 import { Page, Request } from '@playwright/test';
 import { Webhook, expect, test } from './support/fixtures';
+import { campoDeBusca, detalhes, filtro, item as itemDe, itens } from './support/inbox';
 
 // Busca e filtros rápidos (CA-5): o texto e os filtros Method, Signature e Schema reduzem a
 // lista; com filtro ativo, a mensagem nova que casa aparece e a que não casa não; "Clear
 // filters" volta à lista completa. Precisa do backend com `POST /token/{id}/requests/search`.
+// Item 14, E4 (S6): os três `mat-select` viram chips no `group "Filters"` (`button[aria-pressed]`, um clique por
+// filtro, C §2.3). SUPOSIÇÕES: um chip por método presente nas mensagens da URL ("GET", "POST", "PUT"…) e os chips
+// "Signature invalid", "Signature absent" e "Schema invalid"; o contador "N of M requests" continua.
 
 const SCREENS = process.env['SCREENS_DIR'];
 const SECRET = 'segredo-da-busca';
@@ -42,14 +46,10 @@ function searchRequest(page: Page, fragment: string): Promise<Request> {
   );
 }
 
-/** Escolhe no `mat-select` e fecha o painel (o de Method é de múltipla escolha). */
-async function choose(page: Page, label: string, option: string) {
-  // Espera o painel abrir e fechar: reabrir o select durante a animação de fechamento desmonta o painel novo.
-  await page.getByRole('combobox', { name: label }).click();
-  await expect(page.getByRole('listbox')).toBeVisible();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('listbox')).toHaveCount(0);
+/** Liga ou desliga um chip de filtro e confere o `aria-pressed`. */
+async function toggle(page: Page, chip: string, pressed: boolean) {
+  await filtro(page, chip).click();
+  await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', String(pressed));
 }
 
 async function openListening(page: Page, path: string, tokenId: string): Promise<void> {
@@ -60,9 +60,8 @@ async function openListening(page: Page, path: string, tokenId: string): Promise
   expect((await stream).status()).toBe(200);
 }
 
-const items = (page: Page) => page.locator('.item');
-const item = (page: Page, uuid: string) =>
-  page.locator('.item').filter({ hasText: `#${uuid.substring(0, 5)}` });
+const items = itens;
+const item = itemDe;
 const counter = (page: Page) => page.getByText(/^\d+ of \d+ requests$/);
 
 test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
@@ -82,7 +81,7 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await expect(counter(page)).toHaveCount(0);
 
     const busca = searchRequest(page, 'ped-42');
-    await page.getByRole('searchbox', { name: 'Search' }).fill('ped-42');
+    await campoDeBusca(page).fill('ped-42');
 
     expect((await busca).postDataJSON()).toMatchObject({ text: 'ped-42', sorting: 'oldest' });
     await expect(items(page)).toHaveCount(2);
@@ -92,7 +91,8 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await screenshot(page, '01-busca-por-texto');
 
     const porMetodo = searchRequest(page, '"method"');
-    await choose(page, 'Method', 'GET');
+    await expect(filtro(page, 'GET')).toHaveAttribute('aria-pressed', 'false');
+    await toggle(page, 'GET', true);
 
     expect((await porMetodo).postDataJSON()).toMatchObject({
       text: 'ped-42',
@@ -106,7 +106,8 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
 
     await expect(items(page)).toHaveCount(3);
     await expect(counter(page)).toHaveCount(0);
-    await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue('');
+    await expect(campoDeBusca(page)).toHaveValue('');
+    await expect(filtro(page, 'GET')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('heading', { name: 'Requests (3)' })).toBeVisible();
   });
 
@@ -125,15 +126,15 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await expect(items(page)).toHaveCount(3);
 
     const porAssinatura = searchRequest(page, '"signature"');
-    await choose(page, 'Signature', 'Invalid');
+    await toggle(page, 'Signature invalid', true);
 
     expect((await porAssinatura).postDataJSON()).toMatchObject({ match: { signature: 'invalid' } });
     await expect(items(page)).toHaveCount(1);
     await expect(item(page, assinaturaInvalida)).toBeVisible();
 
-    await choose(page, 'Signature', 'Any');
+    await toggle(page, 'Signature invalid', false);
     const porSchema = searchRequest(page, '"schema"');
-    await choose(page, 'Schema', 'Invalid');
+    await toggle(page, 'Schema invalid', true);
 
     expect((await porSchema).postDataJSON()).toEqual(
       expect.objectContaining({ match: { schema: 'invalid' } }),
@@ -154,8 +155,8 @@ test.describe('Dado um filtro ativo com a tela recebendo em tempo real', () => {
     const aberta = await tokens.send(tokenId, { data: 'casa amarela' });
     await tokens.send(tokenId, { data: 'casa azul' });
     await openListening(page, `/#/${tokenId}/${aberta}/1`, tokenId);
-    await expect(page.locator('.req-id')).toHaveText(aberta);
-    await page.getByRole('searchbox', { name: 'Search' }).fill('AMARELA');
+    await expect(detalhes(page)).toContainText(aberta);
+    await campoDeBusca(page).fill('AMARELA');
     await expect(items(page)).toHaveCount(1);
     await expect(counter(page)).toHaveText('1 of 2 requests');
 
@@ -170,12 +171,37 @@ test.describe('Dado um filtro ativo com a tela recebendo em tempo real', () => {
     await expect(item(page, naoCasa)).toHaveCount(0);
     await expect(items(page)).toHaveCount(2);
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${aberta}/1$`));
-    await expect(page.locator('.req-id')).toHaveText(aberta);
+    await expect(detalhes(page)).toContainText(aberta);
     await screenshot(page, '03-busca-ao-vivo');
 
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
     await expect(items(page)).toHaveCount(4);
     await expect(item(page, naoCasa)).toBeVisible();
+  });
+});
+
+test.describe('Dado o chip "Signature absent" (item 14, E4, de A)', () => {
+  test('deve mostrar só a mensagem sem o header de assinatura, com o match signature absent', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
+    await tokens.send(tokenId, signed('{"id":1}', SECRET));
+    await tokens.send(tokenId, signed('{"id":2}', 'outro-segredo'));
+    const semAssinatura = await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: '{"id":3}',
+    });
+    await page.goto(`/#/${tokenId}`);
+    await expect(items(page)).toHaveCount(3);
+
+    const porAusente = searchRequest(page, '"absent"');
+    await toggle(page, 'Signature absent', true);
+
+    expect((await porAusente).postDataJSON()).toMatchObject({ match: { signature: 'absent' } });
+    await expect(items(page)).toHaveCount(1);
+    await expect(item(page, semAssinatura)).toBeVisible();
+    await expect(counter(page)).toHaveText('1 of 3 requests');
   });
 });

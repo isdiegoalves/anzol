@@ -1,5 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 import { Webhook, expect, test } from './support/fixtures';
+import { abrirMensagem, detalhes, item } from './support/inbox';
 
 // Diff entre duas mensagens (CA-6): "Compare with…" na mensagem aberta, escolha na lista, headers
 // por nome sem diferenciar maiúsculas, corpo JSON canônico por linha, "Only differences", trocar
@@ -18,8 +19,8 @@ function json(body: string, headers: Record<string, string> = {}): Webhook {
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
-  await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  // Item 14, E4: o item da lista e o detalhe mudam de forma (`support/inbox.ts`).
+  await abrirMensagem(page, tokenId, requestId);
 }
 
 /** "Compare with…" na aberta e clique na B da lista; devolve a vista da comparação. */
@@ -29,10 +30,7 @@ async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
   await expect(page.getByRole('status').filter({ hasText: 'Choose a request' })).toContainText(
     `Choose a request to compare with #${a.substring(0, 5)}`,
   );
-  await page
-    .locator('.item')
-    .filter({ hasText: `#${b.substring(0, 5)}` })
-    .click();
+  await item(page, b).getByRole('button').first().click();
   const view = page.getByRole('region', { name: 'Compare requests' });
   await expect(view).toBeVisible();
   return view;
@@ -121,7 +119,7 @@ test.describe('Dado duas entregas do mesmo evento', () => {
 
     await view.getByRole('button', { name: 'Close' }).click();
     await expect(view).toBeHidden();
-    await expect(page.locator('.req-id')).toHaveText(a);
+    await expect(detalhes(page)).toContainText(a);
   });
 
   test('deve avisar e comparar só o primeiro 1 MB Quando um corpo passa do limite', async ({
@@ -162,6 +160,6 @@ test.describe('Dado duas entregas do mesmo evento', () => {
 
     await expect(page.getByText(/Choose a request to compare with/)).toBeHidden();
     await expect(page.getByRole('region', { name: 'Compare requests' })).toHaveCount(0);
-    await expect(page.locator('.req-id')).toHaveText(a);
+    await expect(detalhes(page)).toContainText(a);
   });
 });

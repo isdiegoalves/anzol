@@ -2,6 +2,7 @@ import { IncomingHttpHeaders, Server, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { abrirMensagem, verificacoes } from './support/inbox';
 
 // Reenvio pelo servidor e envio pela tela (CA-5): Replay na mensagem, Send na barra da URL (com e
 // sem assinatura), "Send as new…" e a aba Outbound. Precisa do backend com
@@ -52,8 +53,8 @@ test.afterEach(async () => {
 });
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
-  await page.goto(`/#/${tokenId}/${requestId}/1`);
-  await expect(page.locator('.req-id')).toHaveText(requestId);
+  // Item 14, E4: o detalhe muda de forma (`support/inbox.ts`).
+  await abrirMensagem(page, tokenId, requestId);
 }
 
 /** Barra da URL com o token já vindo do servidor (a assinatura está nele). */
@@ -219,7 +220,8 @@ test.describe('Dado o Send da barra da URL', () => {
     await expect(dialog).not.toContainText(SECRET);
     await dialog.getByRole('button', { name: 'Close' }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('Signature valid — GitHub')).toBeVisible();
+    // Item 14, E4: o selo da mensagem que chegou é o cartão do detalhe.
+    await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
 
     await page.getByRole('link', { name: 'Outbound' }).click();
     const detail = page.getByRole('region', { name: 'Outbound detail' });

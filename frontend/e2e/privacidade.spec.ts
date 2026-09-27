@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { abrirAba, acoes, expectCorpo, item, linhas } from './support/inbox';
 import { seedStorage } from './support/storage';
 
 // Item 12 (privacidade), CA-5 da tela: proteger, desbloquear, Lock, compartilhar e a página do
@@ -8,18 +9,14 @@ import { seedStorage } from './support/storage';
 const SEGREDO = 'segredo-do-e2e';
 const PROTEGIDA = { error: 'This URL is protected', protected: true };
 
-/** Linhas de uma tabela do detalhe, com as células separadas por espaço. */
-const rows = (page: Page, table: string) =>
-  page
-    .getByRole('table', { name: table })
-    .locator('tbody tr')
-    .evaluateAll((trs) =>
-      trs.map((tr) =>
-        [...tr.querySelectorAll('td')]
-          .map((td) => td.textContent?.replace(/\s+/g, ' ').trim())
-          .join(' '),
-      ),
-    );
+/**
+ * Linhas de uma tabela do detalhe, com as células separadas por espaço. Item 14, E4: as tabelas ficam nas abas do
+ * detalhe (também na página do link), então a aba é aberta antes.
+ */
+async function rows(page: Page, table: 'Headers' | 'Query strings') {
+  await abrirAba(page, table === 'Headers' ? 'Headers' : 'Query');
+  return linhas(page, table);
+}
 
 /** Faixa "Shared read-only link · expires …" da página do link. */
 const banner = (page: Page) => page.getByRole('main').getByRole('status');
@@ -156,8 +153,9 @@ test.describe('Dado uma URL protegida aberta sem acesso', () => {
     await stream;
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${antiga}/1$`));
 
-    await tokens.send(tokenId, { data: 'ao vivo' });
-    await expect(page.getByText('Request received')).toBeVisible();
+    // Item 14, E4: sem o snackbar "Request received"; a chegada entra na lista (ver tempo-real.spec.ts).
+    const aoVivo = await tokens.send(tokenId, { data: 'ao vivo' });
+    await expect(item(page, aoVivo)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Requests (2)' })).toBeVisible();
   });
 
@@ -216,7 +214,7 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
     await unlock(page, SEGREDO);
     await expect(page.getByRole('table', { name: 'Request Details' })).toContainText(requestId);
 
-    await page.getByRole('button', { name: 'Share read-only link…' }).click();
+    await acoes(page).getByRole('button', { name: 'Share read-only link…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Share read-only link' });
     await expect(dialog.getByRole('combobox', { name: 'Expires in' })).toHaveText('7 days');
     await expect(dialog.getByRole('switch', { name: 'Hide sensitive values' })).toBeChecked();
@@ -244,10 +242,17 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
       expect.arrayContaining(['authorization [redacted]', 'x-custom visivel']),
     );
     expect(await rows(visitor, 'Query strings')).toEqual(['token [redacted]', 'page 2']);
-    await expect(visitor.locator('pre')).toHaveText('{"cartao":"4111"}');
+    await abrirAba(visitor, 'Body');
+    await expectCorpo(visitor, '{"cartao":"4111"}');
     await expect(visitor.getByRole('button')).toHaveCount(0);
     await expect(visitor.getByRole('link', { name: /Permalink|Raw content/ })).toHaveCount(0);
     expect(calls.filter((path) => path.startsWith('/token'))).toEqual([]);
+    // S22: a rota vem da `url` com `[redacted]` no lugar do token, sem `token_id` e sem ações.
+    await expect(visitor.getByRole('heading', { name: /^\/hook\?/ })).toBeVisible();
+    await expect(visitor.getByRole('heading', { name: /^\/hook\?/ })).not.toContainText(tokenId);
+    await expect(visitor.getByRole('toolbar', { name: 'Request actions' })).toHaveCount(0);
+    await expect(visitor.getByRole('menuitem')).toHaveCount(0);
+    expect(await visitor.content()).not.toContain(tokenId);
 
     await dialog.getByRole('button', { name: `Revoke link ${shareId}` }).click();
     await expect(page.getByText('Link revoked')).toBeVisible();
@@ -270,7 +275,7 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}/${requestId}/1`);
 
-    await page.getByRole('button', { name: 'Share read-only link…' }).click();
+    await acoes(page).getByRole('button', { name: 'Share read-only link…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Share read-only link' });
     await dialog.getByRole('combobox', { name: 'Expires in' }).click();
     await page.getByRole('option', { name: '1 hour' }).click();

@@ -84,14 +84,16 @@ test.describe('Dado o redirect pelo navegador (checklist 9)', () => {
 });
 
 test.describe('Dado o toggle de auto-navegar (checklist 9)', () => {
-  test('deve ficar gravado Quando é ligado', async ({ page, tokens }) => {
+  // Item 14, E4 (S13/S14): "Auto Navigate" vira o `switch "Follow new"` no cabeçalho da lista, com a mesma chave.
+  test('deve ficar gravado Quando "Follow new" é ligado', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await tokens.send(tokenId);
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
 
-    await page.getByRole('switch', { name: 'Auto Navigate' }).click();
+    await page.getByRole('switch', { name: 'Follow new' }).click();
 
+    await expect(page.getByRole('switch', { name: 'Follow new' })).toBeChecked();
     expect((await readStorage(page))['autoNavEnable']).toBe('true');
   });
 });
