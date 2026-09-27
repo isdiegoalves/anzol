@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -6,6 +7,7 @@ import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import { rule } from '../../testing/rule-fixtures';
 import { RuleTrace } from '../rules/rule';
 import { RuleTracePanel } from './rule-trace';
@@ -111,6 +113,55 @@ describe('Dado o "Why not rule…?" no cartão da regra (C1, WM-23)', () => {
     expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/rules/r1?from-request=${MENSAGEM.uuid}`);
     expect(trace.querySelector('li.chosen')?.textContent).toContain('Pix pago');
     await expectNoAxeViolations(container);
+  });
+
+  it('não deve oferecer "Show original" Quando a tela está em inglês (WM-05)', async () => {
+    await show();
+    const trace = await escolher('Pix pago');
+    http.expectOne(URL_TRACE).flush(TRACE);
+
+    await vi.waitFor(() => expect(trace.textContent).toContain('Answered by: Tudo o resto'));
+    expect(within(trace).queryByRole('button', { name: 'Show original' })).toBeNull();
+    expect(trace.querySelector('.verdict[title]')).toBeNull();
+  });
+
+  // WM-05: as frases do servidor na língua da tela, com o original no title e em "Ver original".
+  describe('Dado a tela em pt-BR', () => {
+    beforeEach(() => loadTranslations(translations));
+    afterEach(() => clearTranslations());
+
+    it('deve traduzir as condições que falharam e mostrar o original sob pedido', async () => {
+      const { container } = await show();
+      await userEvent.click(screen.getByRole('button', { name: 'Por que não a regra…?' }));
+      await vi.waitFor(() => http.expectOne(URL_REGRAS).flush([PIX, TUDO, PARADA]));
+      const menu = await screen.findByRole('menu', { name: 'Regras' });
+      await userEvent.click(within(menu).getByRole('menuitem', { name: 'Pix pago' }));
+      const trace = screen.getByRole('region', { name: 'Avaliação das regras' });
+      const failed = ['header x-tenant: expected "acme", got "outra"', 'frobnicate: unknown'];
+      http.expectOne(URL_TRACE).flush({
+        ...TRACE,
+        rules: [{ ...TRACE.rules[0], failed }, ...TRACE.rules.slice(1)],
+      });
+
+      await vi.waitFor(() => expect(trace.textContent).toContain('Respondida por: Tudo o resto'));
+      const veredito = () => trace.querySelector('li.chosen .verdict');
+      expect(veredito()?.textContent).toContain(
+        'não casou: cabeçalho x-tenant: esperava "acme", veio "outra" · frobnicate: unknown',
+      );
+      expect(veredito()?.getAttribute('title')).toBe(
+        'Original: header x-tenant: expected "acme", got "outra" · frobnicate: unknown',
+      );
+
+      const original = within(trace).getByRole('button', { name: 'Ver original' });
+      expect(original.getAttribute('aria-pressed')).toBe('false');
+      await userEvent.click(original);
+
+      expect(original.getAttribute('aria-pressed')).toBe('true');
+      expect(veredito()?.textContent).toContain(
+        'não casou: header x-tenant: expected "acme", got "outra" · frobnicate: unknown',
+      );
+      await expectNoAxeViolations(container);
+    });
   });
 
   it('deve dizer "matched, but an earlier rule answered" e "No rule answered"', async () => {

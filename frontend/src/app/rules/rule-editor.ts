@@ -890,7 +890,6 @@ export class RuleEditor {
     return provider ? SIGNATURE_PROVIDER_LABELS[provider] : $localize`not set up`;
   }
 
-  /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */
   /**
    * A condição exige assinatura (ou schema) e a URL não verifica: a regra nunca casa (E-11, J3).
    * Com a URL ainda não lida, nada se afirma.
@@ -903,6 +902,7 @@ export class RuleEditor {
     return kind === 'signature' ? !token.signature?.provider : !token.schema;
   }
 
+  /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */
   protected schemaOrigin(): string {
     return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not validated`;
   }

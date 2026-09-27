@@ -3,6 +3,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
+import { ServerPhrase, conditionPhrase } from '../pipeline/server-phrases';
 import { CapturedRequest } from '../requests/webhook-request';
 import { Rule, RuleTrace, evaluationOrder } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
@@ -37,6 +38,8 @@ export class RuleTracePanel {
   /** As regras de agora, lidas ao abrir o menu (uma vez por mensagem). */
   protected readonly rules = signal<readonly Rule[] | null>(null);
   protected readonly state = signal<TraceState | null>(null);
+  /** "Show original" (WM-05): as condições que falharam como o servidor mandou. */
+  protected readonly showOriginal = signal(false);
 
   /** Ligadas na ordem de avaliação, depois as desligadas na ordem da lista. */
   protected readonly menu = computed(() => {
@@ -58,14 +61,27 @@ export class RuleTracePanel {
       return [];
     }
     const answered = state.trace.responded_by?.id ?? null;
-    return state.trace.rules.map((rule) => ({
-      id: rule.id,
-      name: rule.name,
-      position: rule.position,
-      chosen: rule.id === state.chosen.id,
-      off: !rule.enabled,
-      verdict: verdictOf(rule, answered),
-    }));
+    const original = this.showOriginal();
+    return state.trace.rules.map((rule) => {
+      const phrases = rule.failed.map(conditionPhrase);
+      return {
+        id: rule.id,
+        name: rule.name,
+        position: rule.position,
+        chosen: rule.id === state.chosen.id,
+        off: !rule.enabled,
+        verdict: verdictOf(rule, answered, phrases, original),
+        title: originalOf(phrases),
+      };
+    });
+  });
+  /** Alguma condição saiu traduzida: vale o "Show original". */
+  protected readonly anyTranslated = computed(() => {
+    const state = this.state();
+    return (
+      state?.kind === 'done' &&
+      state.trace.rules.some(({ failed }) => failed.some((f) => conditionPhrase(f).translated))
+    );
   });
   protected readonly answeredBy = computed(() => {
     const state = this.state();
@@ -80,6 +96,7 @@ export class RuleTracePanel {
       untracked(() => {
         this.state.set(null);
         this.rules.set(null);
+        this.showOriginal.set(false);
       });
     });
   }
@@ -108,9 +125,15 @@ export class RuleTracePanel {
   }
 }
 
-function verdictOf(rule: RuleTrace['rules'][number], answered: string | null): string {
+function verdictOf(
+  rule: RuleTrace['rules'][number],
+  answered: string | null,
+  phrases: readonly ServerPhrase[],
+  original: boolean,
+): string {
   if (!rule.matches) {
-    return $localize`did not match: ${rule.failed.join(' · ')}:conditions:`;
+    const conditions = phrases.map((p) => (original ? p.original : p.text)).join(' · ');
+    return $localize`did not match: ${conditions}:conditions:`;
   }
   if (!rule.enabled) {
     return $localize`would match, but it is off`;
@@ -122,6 +145,15 @@ function verdictOf(rule: RuleTrace['rules'][number], answered: string | null): s
   return rule.id === answered
     ? $localize`matched · answered`
     : $localize`matched, but an earlier rule answered`;
+}
+
+/** "Original: …" das condições, quando alguma saiu traduzida (WM-05). */
+function originalOf(phrases: readonly ServerPhrase[]): string | null {
+  if (!phrases.some((p) => p.translated)) {
+    return null;
+  }
+  const original = phrases.map((p) => p.original).join(' · ');
+  return $localize`Original: ${original}:phrase:`;
 }
 
 function traceError(error: unknown): string {

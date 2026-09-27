@@ -45,10 +45,22 @@
               @if (item.off) {
                 <span>&ngsp;<ng-container i18n="rule turned off">(off)</ng-container></span>
               }
-              <span class="verdict">&ngsp;— {{ item.verdict }}</span>
+              <span class="verdict" [attr.title]="item.title">&ngsp;— {{ item.verdict }}</span>
             </li>
           }
         </ol>
+        <!-- WM-05: as frases do servidor na língua da tela; o original à mão, como no "Why?". -->
+        @if (anyTranslated()) {
+          <button
+            mat-button
+            type="button"
+            [attr.aria-pressed]="showOriginal()"
+            (click)="showOriginal.set(!showOriginal())"
+            i18n
+          >
+            Show original
+          </button>
+        }
         @if (current.chosen.scenario?.name) {
           <p class="hint" i18n>Scenario state as of now.</p>
         }
