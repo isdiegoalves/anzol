@@ -57,10 +57,11 @@ export async function salvar(
       response.request().method() === 'PUT' && response.url().endsWith(`/token/${tokenId}`),
   );
   await regiao.getByRole('button', { name: botao, exact: true }).click();
-  // Espera a resposta deste PUT antes do aviso: o "URL updated!" de um save anterior não conta.
+  // Espera a resposta deste PUT antes do aviso: o "URL updated!" de um save anterior não conta. O snackbar anterior
+  // pode ainda estar no DOM, saindo (animação), num overlay mais antigo: o desta gravação é o último.
   const response = await put;
   const body = response.request().postDataJSON() as Record<string, unknown>;
-  await expect(page.getByText('URL updated!')).toBeVisible();
+  await expect(page.getByText('URL updated!').last()).toBeVisible();
   return body;
 }
 
