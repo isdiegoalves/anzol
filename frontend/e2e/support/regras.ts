@@ -1,4 +1,4 @@
-import { Locator, Page } from '@playwright/test';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
 
 /**
@@ -127,4 +127,117 @@ export async function salvarRegra(page: Page, regiao: Locator, tokenId: string):
   await expect(regiao).toBeHidden();
   await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
   await expect(page.getByText('Rule saved')).toBeVisible();
+}
+
+/*
+ * UX de Regras (iniciativa `regras-ux`, guia em `.docs-arquivo/regras-ux/guia-ux.md`): nomes acessíveis novos das
+ * fatias F1–F9 e das telas de C1–C4, em inglês (texto-fonte do `$localize`). O que o guia não fixa está marcado
+ * SUPOSIÇÃO no spec da fatia (`regras-ux-f*.spec.ts`).
+ */
+
+export type Regra = Record<string, unknown> & { id?: string; name: string };
+
+/** `PUT /token/{id}/rules` (troca a lista inteira); devolve as regras com os ids. */
+export async function gravarRegras(
+  api: APIRequestContext,
+  tokenId: string,
+  regras: object[],
+): Promise<Regra[]> {
+  const resposta = await api.put(`/token/${tokenId}/rules`, { data: regras });
+  expect(resposta.status(), await resposta.text()).toBe(200);
+  return (await resposta.json()) as Regra[];
+}
+
+/** `GET /token/{id}/rules`. */
+export async function lerRegras(api: APIRequestContext, tokenId: string): Promise<Regra[]> {
+  return (await (await api.get(`/token/${tokenId}/rules`)).json()) as Regra[];
+}
+
+/**
+ * F8: abaixo de 1200 px o editor vira folha de tela cheia (a lista some enquanto ele está aberto) e "Discard",
+ * "Delete rule" e "Duplicate rule" vão para o `⋮` "More actions" do cabeçalho.
+ */
+export function celular(page: Page): boolean {
+  return (page.viewportSize()?.width ?? 1400) < 1200;
+}
+
+export type AcaoDoEditor = 'Discard' | 'Delete rule' | 'Duplicate rule';
+
+/** Uma ação do cabeçalho do editor: botão no desktop; item do `⋮` "More actions" no celular (F8). */
+export async function acaoDoEditor(page: Page, regiao: Locator, nome: AcaoDoEditor): Promise<void> {
+  if (celular(page)) {
+    await regiao.getByRole('button', { name: 'More actions', exact: true }).click();
+    await page.getByRole('menuitem', { name: nome, exact: true }).click();
+  } else {
+    await regiao.getByRole('button', { name: nome, exact: true }).click();
+  }
+}
+
+/** F8: no celular, "Back to list" fecha a folha do editor; no desktop a lista já está ao lado. */
+export async function voltarALista(page: Page, regiao: Locator): Promise<void> {
+  if (celular(page)) {
+    await regiao.getByRole('button', { name: 'Back to list', exact: true }).click();
+    await expect(page.getByRole('table', { name: 'Rules' })).toBeVisible();
+  }
+}
+
+/** Um diálogo (MatDialog) pelo título. */
+export function dialogo(page: Page, nome: string | RegExp): Locator {
+  return page.getByRole('dialog', { name: nome });
+}
+
+/** F1: o `alert` "To save, fix: …" / "To test, fix: …" logo abaixo do cabeçalho do editor. */
+export function alertaParaCorrigir(regiao: Locator, acao: 'save' | 'test' = 'save'): Locator {
+  return regiao.getByRole('alert').filter({ hasText: new RegExp(`To ${acao}, fix:`) });
+}
+
+/** F1: o `alert` do rascunho guardado na aba ("You have a draft from …"). */
+export function alertaDeRascunho(regiao: Locator): Locator {
+  return regiao.getByRole('alert').filter({ hasText: /You have a draft from/ });
+}
+
+/** Arquivo para "Import": caminho ou conteúdo. */
+export type ArquivoDeRegras = string | { name: string; mimeType: string; buffer: Buffer };
+
+/** Um arquivo de regras em memória. */
+export function arquivoDeRegras(conteudo: unknown): ArquivoDeRegras {
+  return {
+    name: 'rules.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(typeof conteudo === 'string' ? conteudo : JSON.stringify(conteudo)),
+  };
+}
+
+/** F1: "Import" (botão com rótulo visível) → escolher o arquivo. Devolve o `dialog "Import rules"`. */
+export async function importar(page: Page, arquivo: ArquivoDeRegras): Promise<Locator> {
+  const seletor = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await (await seletor).setFiles(arquivo);
+  return dialogo(page, 'Import rules');
+}
+
+/**
+ * F1: importa substituindo tudo (o `radio "Replace the {m} saved rules"` e o `button "Replace"` do `dialog "Import
+ * rules"`).
+ */
+export async function importarSubstituindo(page: Page, arquivo: ArquivoDeRegras): Promise<void> {
+  const janela = await importar(page, arquivo);
+  await expect(janela).toBeVisible();
+  await janela.getByRole('radio', { name: /^Replace the \d+ saved rules?$/ }).check();
+  await janela.getByRole('button', { name: 'Replace', exact: true }).click();
+  await expect(janela).toBeHidden();
+}
+
+/** O `sessionStorage` da aba como texto (F1: o rascunho por regra fica ali). */
+export function memoriaDaAba(page: Page): Promise<string> {
+  return page.evaluate(() => JSON.stringify({ ...sessionStorage }));
+}
+
+/** Aceita o `beforeunload` da guarda de rascunho nas recargas que o teste faz de propósito. */
+export function aceitarSaida(page: Page): void {
+  page.on('dialog', (janela) => {
+    if (janela.type() === 'beforeunload') {
+      void janela.accept();
+    }
+  });
 }

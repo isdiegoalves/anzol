@@ -2,7 +2,14 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from './support/fixtures';
 import { falhas, porque, verificacoes } from './support/inbox';
-import { linhasDasRegras, metodo, novaRegra, parte } from './support/regras';
+import {
+  importar,
+  importarSubstituindo,
+  linhasDasRegras,
+  metodo,
+  novaRegra,
+  parte,
+} from './support/regras';
 
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
@@ -152,7 +159,12 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     const json = dialog.getByRole('textbox', { name: 'Rule JSON' });
     await json.fill('{"name": ""}');
     await expect(dialog.getByText('name: The name field is required.')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
+    // UX de Regras, WM-12/WM-04: Save nunca fica desabilitado; o clique diz o que corrigir e não grava.
+    const salvar = dialog.getByRole('button', { name: 'Save' });
+    await expect(salvar).toBeEnabled();
+    await salvar.click();
+    await expect(dialog.getByRole('alert').filter({ hasText: 'To save, fix:' })).toBeVisible();
+    expect(await getRules(request, tokenId)).toEqual([]);
     await json.fill(JSON.stringify(PIX));
     await dialog.getByRole('button', { name: 'Save' }).click();
 
@@ -267,7 +279,8 @@ test.describe('Dado o export e o import de regras', () => {
 
     const destino = await tokens.create();
     await openRules(page, destino);
-    await page.getByLabel('Rules JSON file').setInputFiles(caminho);
+    // UX de Regras, WM-19: o import mostra a diferença antes (`dialog "Import rules"`) e só grava no "Replace".
+    await importarSubstituindo(page, caminho);
 
     await expect(page.getByText('Imported 2 rules')).toBeVisible();
     expect(await ruleRows(page)).toEqual([
@@ -286,11 +299,14 @@ test.describe('Dado o export e o import de regras', () => {
     await putRules(request, tokenId, [PIX]);
     await openRules(page, tokenId);
 
-    await page.getByLabel('Rules JSON file').setInputFiles({
+    // UX de Regras, WM-19: a prévia (`dialog "Import rules"`) vem antes; o 422 aparece ao confirmar o "Replace".
+    const janela = await importar(page, {
       name: 'rules.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify([{ name: 'x', match: { path: { regex: '([a-z' } } }])),
     });
+    await janela.getByRole('radio', { name: /^Replace the 1 saved rules?$/ }).check();
+    await janela.getByRole('button', { name: 'Replace', exact: true }).click();
 
     await expect(page.getByRole('alert')).toContainText('Rule 1 › match.path.regex:');
     expect(await ruleRows(page)).toEqual([LINHA_PIX]);

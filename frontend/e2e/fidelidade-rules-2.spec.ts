@@ -95,10 +95,10 @@ test.describe('Dado o cabeçalho e as linhas da lista de regras (RULES-06/08)', 
         /^Checked by priority, lowest first\. The first enabled rule that matches answers; if none does, the URL['’]s default response does\.$/,
       ),
     ).toBeVisible();
+    // UX de Regras, WM-19 (guia §3.1): "Import" e "Export" voltam a ter rótulo visível (deixam de ser só ícone).
     for (const nome of ['Import', 'Export']) {
       const botao = page.getByRole('button', { name: nome, exact: true });
-      await expect(botao).toHaveAttribute('title', /\S/);
-      expect(await textoVisivel(botao)).toBe('');
+      expect(await textoVisivel(botao)).toBe(nome);
     }
     await expect(page.getByText(/^Hits over the last \d+ requests? kept\.$/)).toBeVisible();
 

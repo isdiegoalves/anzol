@@ -231,6 +231,11 @@ test.describe('Dado o editor de uma regra salva (RULES-13)', () => {
     await regra.getByRole('textbox', { name: 'Name', exact: true }).fill('Rejeita assinatura');
     await expect(regra.getByText('Unsaved changes')).toBeVisible();
     await regra.getByRole('button', { name: 'Discard' }).click();
+    // UX de Regras, E-04/WM-12: com alteração não salva, "Discard" pergunta antes ("Discard changes?").
+    await page
+      .getByRole('dialog', { name: 'Discard changes?' })
+      .getByRole('button', { name: 'Discard' })
+      .click();
     await expect(regra).toBeHidden();
     expect((await getRules(request, tokenId)).map((r) => r.name)).toContain('Rejeita');
 

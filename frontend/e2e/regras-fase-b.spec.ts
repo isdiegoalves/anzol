@@ -131,7 +131,14 @@ test.describe('Dado o editor de regras com template, atraso e falha', () => {
     await delay.fill('60001');
     await delay.blur();
     await expect(dialog.getByText('An integer between 0 and 60000 (ms).')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
+    // UX de Regras, WM-12/WM-04: Save nunca fica desabilitado; o clique leva ao campo e diz o que corrigir.
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(delay).toBeFocused();
+    await expect(
+      dialog.getByRole('alert').filter({ hasText: /To save, fix: .*Delay/ }),
+    ).toBeVisible();
+    expect(await getRules(request, tokenId)).toEqual([]);
     await delay.fill('1500');
     await saveRule(page, dialog, 'Lenta');
 
@@ -256,6 +263,10 @@ test.describe('Dado o cenário "falha 3×, depois 200" criado pela tela', () => 
     expect((await request.post(`/${tokenId}`)).status()).toBe(503);
 
     await panelButton('Reset all').click();
+    // UX de Regras, WM-37: voltar todos os cenários a Started pede confirmação nomeando os cenários.
+    const confirmar = page.getByRole('dialog', { name: 'Reset all scenarios?' });
+    await expect(confirmar).toContainText('Retry');
+    await confirmar.getByRole('button', { name: 'Reset', exact: true }).click();
     await expect(page.getByText('Scenarios reset to Started')).toBeVisible();
     await expect(row.locator('td.data').nth(1)).toHaveText('Started');
     expect((await request.post(`/${tokenId}`)).status()).toBe(503);
