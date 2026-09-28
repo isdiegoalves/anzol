@@ -73,6 +73,9 @@ temporária do sistema, apagada ao fim de cada teste.
 | `regras.test.mjs` 422 | push com regras inválidas (3 chaves): saída 1, sem `Pushed`, cada par chave/mensagem do 422 que a API dá para o mesmo arquivo numa linha do stderr, regras salvas intactas |
 | `regras.test.mjs` erros | token inexistente → `Token not found` no stderr e saída 1 (pull e push; o push não cria o token); arquivo inexistente e JSON inválido → saída 1, mensagem no stderr, regras intactas |
 | `regras.test.mjs` `--dry-run` (UX de Regras, E-07) | `rules push <token> --dry-run <arquivo>` com uma regra igual, duas alteradas (`response.status`, `priority`), uma removida e uma nova: saída 0, sem `Pushed`, regras intactas, e o resumo do `diff_rules` (JSON conferido item a item, ou texto com cada alterada numa linha com o campo e cada removida e nova citada); o arquivo do `pull` sem mudança → tudo igual; token inexistente → `Token not found` e saída 1, sem criar o token |
+| `cursor.test.mjs` cursor (patamar D1, DX-14) | `cursor <token>`: stdout é só o `seq` da mensagem mais nova (uma linha de dígitos; `0` numa URL vazia), igual ao da API, saída 0, e nada é gravado; token inexistente → `Token not found` no stderr, stdout vazio, saída ≠ 0; URL protegida → o número com `--read-secret`, e sem ele saída ≠ 0, stdout vazio e nenhum segredo na saída |
+| `cursor.test.mjs` roteiro (patamar D1, DX-14) | `cursor` → disparo → `wait-for --after <cursor>`, com o disparo **antes** de o `wait-for` começar: saída 0 em menos de 10 s só com a mensagem nova (a antiga que casa fica de fora); na mesma situação `--new --timeout 0` sai com 1 e `[]`; cursor `0` de URL vazia acha a primeira mensagem |
+| `bytecode.test.mjs` (patamar D1, DX-05) | toda classe dos `.jar` de `<instalação>/lib` tem bytecode de Java 21 ou anterior (`major` ≤ 65), lido do próprio arquivo, sem rodar Java; a falha lista o maior `major` de cada `.jar` |
 | `send.test.mjs` CA-1 | `send --method PUT` com query, 4 `--header` e `--data`: chega método, caminho+query, cabeçalhos e o corpo byte a byte com `{{uuid}}` (igual no cabeçalho e no corpo), `{{now}}` ISO-8601 UTC e `{{timestamp}}` na janela do envio, `{{seq}}` = 1, `{{random 1\|16\|256}}` alfanuméricos, `{{{{` → `{{`; `--data-file` com UTF-8 e CRLF, POST por padrão; linhas `#1 attempt 1/1 -> 201 (…)` e `#1 delivered after 1 attempt(s)`, saída 0 |
 | `send.test.mjs` CA-2 | stripe, github, shopify, slack e generic (padrões sha256/hex; sha512/base64/`hmac=`; sha1/hex): o receptor confere a assinatura com `node:crypto` sobre os bytes recebidos (timestamps a ≤ 5 s da chegada); prova cruzada: URL da 8084 com a mesma `signature` grava `{provider, valid: true, reason: null}` |
 | `send.test.mjs` CA-3 | 503, 503, 200 com `--retries 3 --initial-delay 1100` (exponencial padrão): linhas `1/4 -> 503 …, retrying in 1100 ms`, `2/4 … 2200 ms`, `3/4 -> 200`, `delivered after 3`, saída 0; intervalos medidos no receptor entre −30 e +2500 ms da espera; corpo e `Idempotency-Key: {{uuid}}` idênticos nas 3; Stripe reassinado com `t` crescente e sempre válido. Fixo (400, 400); exponencial com teto (300, 500, 500), 4 × 503 → `gave up after 4`, saída 1 |
@@ -118,6 +121,12 @@ temporária do sistema, apagada ao fim de cada teste.
   JSON `{equal, changed, removed, added}` no stdout ou texto em que cada alterada aparece numa linha com o nome ou o
   `id` e o campo, e cada removida e cada nova numa linha com o nome ou o `id` (a igual não aparece numa linha com um
   campo alterado). Token inexistente responde como o push de hoje.
+- `cursor` (patamar D1): o token é posicional, como em `rules` e `replay`, e `--server` e `--read-secret` vêm depois
+  dele. O código de saída do erro fica livre, desde que não seja 0. Sem o comando, cada teste falha com `falta
+  \`anzol cursor\` ou alguma opção dele?`.
+- `bytecode.test.mjs`: a pasta `lib` é a irmã da pasta do script (`<WEBHOOK_CLI>/../../lib`). Classes em
+  `META-INF/versions/N/` com N > 21 são ignoradas (o Java 21 não as carrega). O teste não prova que o CLI roda num
+  Java 21 de verdade, só que o bytecode permite: rodar fica com a matriz de JDK do CI.
 - `send`: `--to` é o alvo; não usa `--server` nem `WEBHOOK_SERVER`. Linhas casadas por inteiro, no stdout
   ou no stderr; `HH:mm:ss` é a hora local e o `(<ms> ms)` da tentativa não é conferido. Outras linhas
   são livres, mas toda linha com ` attempt ` ou ` attempt(s)` tem de seguir o formato da §1.
