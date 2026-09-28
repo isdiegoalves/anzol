@@ -54,7 +54,8 @@ import { seedStorage } from './support/storage';
 //   pedido.
 // - SUPOSIÇÃO: o anúncio da troca de URL começa por "{nome} opened." e segue com o destino ("Rules…" em Regras).
 // - Decisões do orquestrador (2026-09-28): a linha 1 do item mostra o tempo relativo, com a hora exata no `title`; o
-//   modo compacto da lista não entra nesta feature; depois de "Delete URL" abre a próxima URL conhecida do seletor
+//   a densidade "Compact" de Settings continua (item de 52 px; 60 no confortável; 64 no celular nas duas) e a CA-9
+//   vale também nela; depois de "Delete URL" abre a próxima URL conhecida do seletor
 //   e, sem nenhuma, cria uma URL como na primeira visita.
 // - SUPOSIÇÃO: a contagem regressiva "Trying again in {n} s" fica dentro de um ancestral `aria-hidden="true"`.
 // - SUPOSIÇÃO: o item de `menu` some do DOM ao fechar; no celular o seletor é `dialog` com `button "Close"`.
@@ -558,9 +559,44 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
 
       await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
     });
+
+    // Decisão do orquestrador: a densidade "Compact" de Settings continua valendo, com item de 52 px.
+    test('deve mostrar 9 requisições inteiras ou mais na densidade compacta de Settings', async ({
+      page,
+      tokens,
+    }, testInfo) => {
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop (CA-9)');
+      const tokenId = await tokens.create();
+      await tokens.sendMany(tokenId, 14);
+      await seedStorage(page, { language: '"pt-BR"', density: '"compact"' });
+
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requisições (14)' })).toBeVisible();
+      await expect(page.locator('.item').first()).toBeVisible();
+
+      await expect(page.locator('html')).toHaveClass(/\bcompact\b/);
+      await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
+    });
   });
 
-  test('deve ter item de duas linhas e 60 px (64 no celular), com hora e #id, sem IP nem agente na linha', async ({
+  test('deve ter item de 52 px na densidade compacta (64 no celular, nas duas densidades)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const id = await tokens.send(tokenId, { data: 'x' });
+    await seedStorage(page, { density: '"compact"' });
+    await abrirEntrada(page, tokenId, 1);
+
+    const altura = (await item(page, id).boundingBox())!.height;
+    const esperada = compacto(page) ? 64 : 52;
+    expect(
+      Math.abs(altura - esperada),
+      `item de ${esperada} px, tem ${altura}`,
+    ).toBeLessThanOrEqual(1);
+  });
+
+  test('deve ter item de duas linhas e 60 px na densidade confortável (64 no celular), com hora e #id, sem IP nem agente na linha', async ({
     page,
     request,
     tokens,

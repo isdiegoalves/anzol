@@ -473,14 +473,16 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     await expect(page.getByRole('link', { name: 'Send', exact: true })).toBeHidden();
     await expect(page.getByRole('link', { name: 'Edit', exact: true })).toHaveCount(0);
 
-    // Chips numa linha só (rola na horizontal) e a lista começando perto do topo.
+    // Chips numa linha só (rola na horizontal) e a lista começando perto do topo. Patamar, B1: os chips ficam atrás
+    // do `button "Filters"`; a lista é medida antes de abrir o painel, que no celular fica por cima dela.
+    expect((await itens(page).first().boundingBox())!.y, 'lista perto do topo').toBeLessThan(330);
+    await abrirFiltros(page);
     const chips = page.getByRole('group', { name: 'Filters' }).getByRole('button');
     const alturas = new Set<number>();
     for (let i = 0; i < 3; i++) {
       alturas.add(Math.round((await chips.nth(i).boundingBox())!.y));
     }
     expect(alturas.size, 'chips na mesma linha').toBe(1);
-    expect((await itens(page).first().boundingBox())!.y, 'lista perto do topo').toBeLessThan(330);
   });
 
   test('deve abrir o detalhe com Back no topo, ações numa linha e o resto no menu, sem o cartão da URL', async ({

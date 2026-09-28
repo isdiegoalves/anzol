@@ -566,17 +566,17 @@ test.describe('Dado a explicação de uma requisição (UX-42)', () => {
     return page.getByRole('region', { name: 'Explanation' });
   }
 
+  /**
+   * Esconde a explicação: pelo "Close panel" do painel de ação (R1), quando ele existe; senão pelo "Hide
+   * explanation", que no celular fica dentro do "More" (`acaoDaMensagem()` procura nos dois lugares).
+   */
   async function esconder(page: Page): Promise<void> {
-    await page
-      .getByRole('button', { name: 'Hide explanation' })
-      .or(page.getByRole('button', { name: 'Close panel' }))
-      .or(
-        page
-          .getByRole('dialog', { name: 'Actions on this request' })
-          .getByRole('button', { name: 'Close', exact: true }),
-      )
-      .first()
-      .click();
+    const fechar = page.getByRole('button', { name: 'Close panel' });
+    if (await fechar.isVisible()) {
+      await fechar.click();
+      return;
+    }
+    await acaoDaMensagem(page, 'Hide explanation');
   }
 
   test('deve anunciar a espera e a chegada uma vez, e guardar a resposta para reabrir na hora', async ({
