@@ -9,10 +9,27 @@ plugins {
 group = "site.webhook"
 version = "0.0.1-SNAPSHOT"
 
+// Constrói com o JDK 25 e roda em Java 21 (o LTS das máquinas de dev e de CI): classes no formato do 21 e, com o
+// -Xjdk-release, só a API do JDK 21 à vista do compilador (usar algo do 22 em diante não compila).
+val runtimeJavaVersion = 21
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
     }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget =
+            org.jetbrains.kotlin.gradle.dsl.JvmTarget
+                .fromTarget(runtimeJavaVersion.toString())
+        freeCompilerArgs.add("-Xjdk-release=$runtimeJavaVersion")
+    }
+}
+
+tasks.withType<JavaCompile> {
+    options.release = runtimeJavaVersion
 }
 
 repositories {
