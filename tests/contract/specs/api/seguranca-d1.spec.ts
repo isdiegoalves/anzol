@@ -73,7 +73,7 @@ test.describe('máscara gravada como segredo: PUT /token/{id}', () => {
     const antes = await lerToken(request, a.uuid);
 
     const erros = await erros422(await putToken(request, a.uuid, { signature: blocoDeB }));
-    expect(erros).toHaveProperty('signature.secret');
+    expect(erros).toHaveProperty(['signature.secret']);
     expect(await lerToken(request, a.uuid)).toEqual(antes);
     expect(await confere(request, a.uuid, SEGREDO)).toBe(true);
     expect(await confere(request, a.uuid, blocoDeB.secret)).toBe(false);
@@ -82,7 +82,7 @@ test.describe('máscara gravada como segredo: PUT /token/{id}', () => {
   test('URL sem assinatura: texto mascarado não é segredo novo → 422, e a URL segue sem assinatura', async ({ request, tokens }) => {
     const token = await tokens.criar();
     const erros = await erros422(await putToken(request, token.uuid, { signature: { provider: 'github', secret: mascarado(SEGREDO) } }));
-    expect(erros).toHaveProperty('signature.secret');
+    expect(erros).toHaveProperty(['signature.secret']);
     expect((await lerToken(request, token.uuid)).signature).toBeNull();
   });
 
@@ -169,7 +169,7 @@ test.describe('máscara gravada como segredo: criação da URL', () => {
     const res = await request.post('/token', { data: { signature: bloco }, headers: JSON_ACCEPT });
     const corpo = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (typeof corpo.uuid === 'string') tokens.registrar(corpo.uuid);
-    expect(await erros422(res)).toHaveProperty('signature.secret');
+    expect(await erros422(res)).toHaveProperty(['signature.secret']);
   });
 
   test('continua valendo: POST /token com segredo novo que tem • no meio cria a URL e confere com ele', async ({ request, tokens }) => {

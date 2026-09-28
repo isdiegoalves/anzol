@@ -216,7 +216,7 @@ async function expect422(request: APIRequestContext, t: string, corpo: Record<st
   expect(res.status(), `${descricao}: ${(await res.text()).slice(0, 300)}`).toBe(422);
   expectContentType(res, 'application/json');
   const erros = await erros422(res);
-  expect(erros, `${descricao}: ${JSON.stringify(erros)}`).toHaveProperty(chave);
+  expect(erros, `${descricao}: ${JSON.stringify(erros)}`).toHaveProperty([chave]);
   for (const m of erros[chave]) expect(m, descricao).toMatch(/^[A-Z].*\.$/s);
 }
 
