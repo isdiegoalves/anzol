@@ -1,5 +1,8 @@
 <main class="unlock">
   <h1 i18n>This URL is protected</h1>
+  @if (notice(); as saved) {
+    <p class="note" role="status">{{ saved }}</p>
+  }
   <p i18n>
     Enter the secret to view the requests, rules and history of
     <code class="url">{{ webhookUrl() }}</code

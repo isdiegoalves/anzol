@@ -11,14 +11,22 @@ export class UrlLock {
   private readonly locked = signal<string | null>(null);
   /** Token cujo acesso foi recusado; `null` quando nada está trancado. */
   readonly tokenId = this.locked.asReadonly();
+  private readonly why = signal<string | null>(null);
+  /**
+   * Frase que a tela de desbloqueio mostra quando foi a própria tela que trancou (Verificações
+   * salvou um segredo novo e não conseguiu destrancar com ele); `null` no 401 comum.
+   */
+  readonly notice = this.why.asReadonly();
 
-  lock(tokenId: string): void {
+  lock(tokenId: string, notice: string | null = null): void {
     clearUrlDrafts(tokenId);
+    this.why.set(notice);
     this.locked.set(tokenId);
   }
 
   release(): void {
     this.locked.set(null);
+    this.why.set(null);
   }
 }
 
@@ -32,13 +40,16 @@ export function urlDraftKey(tokenId: string, name: string): string {
   return `${draftPrefix(tokenId)}${name}`;
 }
 
-/** Trancar a URL leva junto o que se escreveu nela e não foi salvo. */
+/**
+ * Trancar a URL leva junto o que se escreveu nela e não foi salvo: os rascunhos das regras e o de
+ * Verificações (`anzol.checksDraft.{uuid}`, guia da combinação §4.1).
+ */
 function clearUrlDrafts(tokenId: string): void {
   try {
-    const prefix = draftPrefix(tokenId);
+    const prefixes = [draftPrefix(tokenId), `anzol.checksDraft.${tokenId}`];
     const keys = Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i));
     keys
-      .filter((key) => key?.startsWith(prefix))
+      .filter((key) => prefixes.some((prefix) => key?.startsWith(prefix)))
       .forEach((key) => sessionStorage.removeItem(key ?? ''));
   } catch {
     // Sem storage, sem rascunhos.

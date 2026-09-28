@@ -1,110 +1,137 @@
 @let current = stats();
-<header class="card-head">
-  <span class="card-icon tertiary" aria-hidden="true"
-    ><app-icon name="activity" [size]="22"
-  /></span>
-  <h2 id="health-title" i18n>Health</h2>
-  <span class="spacer"></span>
-  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="window">
-    <mat-select
-      aria-label="Window"
-      i18n-aria-label
-      [value]="window()"
-      (selectionChange)="chooseWindow($event.value)"
+<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon tertiary" aria-hidden="true"
+      ><app-icon name="activity" [size]="22"
+    /></span>
+    <h2 id="health-title" i18n>Health</h2>
+    <span class="spacer"></span>
+    @if (open()) {
+      <!-- CHECKS-18: a janela e o Refresh no cabeçalho, com o painel aberto. -->
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="window">
+        <mat-select
+          aria-label="Window"
+          i18n-aria-label
+          [value]="window()"
+          (selectionChange)="chooseWindow($event.value)"
+        >
+          @for (size of windows; track size) {
+            <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Refresh"
+        i18n-aria-label
+        [disabled]="loading()"
+        (click)="refresh()"
+      >
+        <app-icon name="refresh" [size]="20" />
+      </button>
+    }
+    <button
+      mat-button
+      type="button"
+      aria-controls="health-body"
+      [attr.aria-expanded]="open()"
+      (click)="open.set(!open())"
+      i18n
     >
-      @for (size of windows; track size) {
-        <mat-option [value]="size" i18n>Last {{ size }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-  <button
-    mat-icon-button
-    type="button"
-    aria-label="Refresh"
-    i18n-aria-label
-    [disabled]="loading()"
-    (click)="refresh()"
-  >
-    <app-icon name="refresh" [size]="20" />
-  </button>
-</header>
+      Show health
+    </button>
+  </header>
 
-<div class="body" aria-live="polite">
-  @if (failure(); as message) {
-    <p class="error" role="alert">{{ message }}</p>
-  } @else if (current) {
-    @if (current.evaluated === 0) {
-      <p class="hint" i18n>No requests yet: the numbers appear as requests arrive.</p>
+  <!-- B3: recolhido, uma linha com as duas taxas e o caminho para Métricas. -->
+  <p class="brief">
+    @if (failure(); as message) {
+      <span class="error" role="alert">{{ message }}</span>
+    } @else if (brief(); as rates) {
+      <span>{{ rates }}</span>
+    } @else if (current) {
+      <span class="hint" i18n>No requests yet: the numbers appear as requests arrive.</span>
     } @else {
-      <p i18n class="hint">
-        From the result recorded on each of the last {{ current.evaluated }} requests (of
-        {{ current.total }} kept).
-      </p>
-      @for (part of metrics(); track part.title) {
-        @if (part.data; as data) {
-          <div class="metric">
-            <div class="metric-head">
-              <h3>{{ part.title }}</h3>
+      <span class="hint" i18n>Loading…</span>
+    }
+    <a [routerLink]="['/', tokens.token()?.uuid, 'insights']" i18n>Open in Insights</a>
+  </p>
+
+  <div class="body" id="health-body" aria-live="polite" [hidden]="!open()">
+    <!-- A falha e a URL sem mensagens já estão na linha de cima. -->
+    @if (!failure() && current) {
+      @if (current.evaluated > 0) {
+        <p i18n class="hint">
+          From the result recorded on each of the last {{ current.evaluated }} requests (of
+          {{ current.total }} kept).
+        </p>
+        @for (part of metrics(); track part.title) {
+          @if (part.data; as data) {
+            <div class="metric">
+              <div class="metric-head">
+                <h3>{{ part.title }}</h3>
+                @if (data.percent) {
+                  <span class="percent">{{ data.percent }}</span>
+                  <span i18n class="hint"
+                    >{{ data.valid }} of {{ data.valid + data.invalid }} valid</span
+                  >
+                } @else {
+                  <span class="hint" i18n>not checked in this window</span>
+                }
+              </div>
               @if (data.percent) {
-                <span class="percent">{{ data.percent }}</span>
-                <span i18n class="hint"
-                  >{{ data.valid }} of {{ data.valid + data.invalid }} valid</span
+                <div
+                  class="bar gapped"
+                  role="img"
+                  [attr.aria-label]="barLabel(data.valid, data.invalid)"
                 >
-              } @else {
-                <span class="hint" i18n>not checked in this window</span>
+                  <span class="ok" [style.flex-grow]="data.valid"></span>
+                  <span class="bad" [style.flex-grow]="data.invalid"></span>
+                </div>
+                <p class="counts">
+                  <span i18n
+                    ><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span
+                  >
+                  <span i18n
+                    ><span class="dot bad" aria-hidden="true"></span
+                    >{{ data.invalid }} invalid</span
+                  >
+                  @if (data.unchecked > 0) {
+                    <span i18n>{{ data.unchecked }} not checked</span>
+                  }
+                </p>
+              }
+              @if (data.failed.length > 0) {
+                <h4>{{ part.why }}</h4>
+                <ul class="reasons">
+                  @for (item of data.failed; track item.label) {
+                    <li>
+                      <a
+                        class="reason"
+                        [routerLink]="['/', tokens.token()?.uuid]"
+                        [queryParams]="item.filter"
+                        ><code>{{ item.label }}</code
+                        ><span class="show" i18n>Show in Inbox</span
+                        ><span class="count">{{ item.count }}</span></a
+                      >
+                      <span class="track" aria-hidden="true"
+                        ><span class="share" [style.width]="item.share"></span
+                      ></span>
+                    </li>
+                  }
+                </ul>
               }
             </div>
-            @if (data.percent) {
-              <div
-                class="bar gapped"
-                role="img"
-                [attr.aria-label]="barLabel(data.valid, data.invalid)"
-              >
-                <span class="ok" [style.flex-grow]="data.valid"></span>
-                <span class="bad" [style.flex-grow]="data.invalid"></span>
-              </div>
-              <p class="counts">
-                <span i18n
-                  ><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span
-                >
-                <span i18n
-                  ><span class="dot bad" aria-hidden="true"></span>{{ data.invalid }} invalid</span
-                >
-                @if (data.unchecked > 0) {
-                  <span i18n>{{ data.unchecked }} not checked</span>
-                }
-              </p>
-            }
-            @if (data.failed.length > 0) {
-              <h4>{{ part.why }}</h4>
-              <ul class="reasons">
-                @for (item of data.failed; track item.label) {
-                  <li>
-                    <a
-                      class="reason"
-                      [routerLink]="['/', tokens.token()?.uuid]"
-                      [queryParams]="item.filter"
-                      ><code>{{ item.label }}</code
-                      ><span class="show" i18n>Show in Inbox</span
-                      ><span class="count">{{ item.count }}</span></a
-                    >
-                    <span class="track" aria-hidden="true"
-                      ><span class="share" [style.width]="item.share"></span
-                    ></span>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+          }
         }
       }
+      @if (current.evaluated > 0) {
+        <p class="hint" i18n>
+          From the result recorded on each request. Click a line to see those requests in the Inbox.
+        </p>
+      }
     }
-    @if (current.evaluated > 0) {
-      <p class="hint" i18n>
-        From the result recorded on each request. Click a line to see those requests in the Inbox.
-      </p>
-    }
-  } @else {
-    <p class="hint" i18n>Loading…</p>
-  }
+  </div>
 </div>

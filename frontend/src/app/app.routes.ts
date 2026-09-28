@@ -82,7 +82,10 @@ export function malformedMatcher(segments: UrlSegment[]): UrlMatchResult | null 
   return known ? null : { consumed: segments };
 }
 
-/** Página que pergunta antes de sair (Rules com alterações não salvas no editor, E-04). */
+/**
+ * Página que pergunta antes de sair: Rules com alterações não salvas no editor (E-04) e Checks com
+ * alterações na barra de salvar (B3).
+ */
 interface LeaveGuarded {
   canLeave(): Promise<boolean>;
 }
@@ -113,6 +116,7 @@ export const routes: Routes = [
   {
     matcher: checksMatcher,
     loadComponent: () => import('./checks/checks-page').then((m) => m.ChecksPage),
+    canDeactivate: [askBeforeLeaving],
   },
   {
     matcher: insightsMatcher,

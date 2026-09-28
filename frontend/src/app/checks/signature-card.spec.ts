@@ -4,7 +4,7 @@ import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { expectPut, renderCard } from '../../testing/checks';
+import { attention, changesBar, expectPut, renderCard, saveButton } from '../../testing/checks';
 import { token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { SignatureCard } from './signature-card';
@@ -18,7 +18,10 @@ const SALVA = token({
 
 const provider = (name: string) => screen.getByRole('radio', { name });
 const secret = () => screen.getByLabelText(/^Secret/);
-const save = () => screen.getByRole('button', { name: 'Save signature' });
+const save = saveButton;
+const card = () => screen.getByRole('region', { name: 'Signature verification' });
+/** O resumo do que falta (ou o "Saved."), no pé do cartão. */
+const note = () => within(card()).getByRole('status').textContent?.trim();
 
 describe('Dado o cartão "Signature verification" de Checks', () => {
   afterEach(() => localStorage.clear());
@@ -47,9 +50,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     await userEvent.click(provider('Generic'));
 
     expect(provider('Generic').getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('status').textContent?.trim()).toBe(
-      'To save, fill in: Signature header, Secret',
-    );
+    expect(note()).toBe('To save, fill in: Signature header, Secret');
     expect(screen.getByRole('textbox', { name: 'Signature header' }).hasAttribute('required')).toBe(
       true,
     );
@@ -59,11 +60,10 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
 
     await userEvent.click(save());
 
-    expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      '2 fields need attention: Signature header, Secret',
-    );
+    expect(attention()).toBe('2 fields need attention: Signature header, Secret');
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Signature header' }));
-    expect(save().getAttribute('aria-describedby')).toBe('signature-pending');
+    // O cartão continua a dizer o que falta, no status dele.
+    expect(note()).toBe('To save, fill in: Signature header, Secret');
     expect(screen.getByText('The header is required.')).toBeTruthy();
     http.expectNone(() => true);
   });
@@ -78,6 +78,10 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     expect(
       container(fixture).querySelector('.anatomy')?.textContent?.replace(/\s+/g, ' ').trim(),
     ).toBe('Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>');
+    expect(changesBar()?.textContent).toContain(
+      '4 unsaved changes: Signature provider, Signature header, Secret, Prefix',
+    );
+    expect(changesBar()?.textContent).not.toContain('segredo');
     await userEvent.click(save());
     const put = await expectPut(http);
 
@@ -106,9 +110,8 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       }),
     );
     await vi.waitFor(() => expect(screen.getByText('On · Generic')).toBeTruthy());
-    expect(screen.getByRole('status').textContent?.trim()).toBe(
-      'Saved. Leave the secret blank to keep it.',
-    );
+    expect(note()).toBe('Saved. Leave the secret blank to keep it.');
+    expect(changesBar()).toBeNull();
     expect(TestBed.inject(Preferences).token()?.signature?.provider).toBe('generic');
     expect(screen.getByRole('link', { name: 'Send a signed test' }).getAttribute('href')).toContain(
       'outbound?send=signed',
@@ -126,6 +129,10 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     const tolerance = screen.getByRole('spinbutton', { name: 'Timestamp tolerance (seconds)' });
     await userEvent.clear(tolerance);
     await userEvent.type(tolerance, '600');
+    await userEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+    expect(screen.getByRole('list', { name: 'Changes to save' }).textContent?.trim()).toBe(
+      'Tolerance: 300 s → 600 s',
+    );
     await userEvent.click(save());
 
     const put = await expectPut(http);
@@ -148,7 +155,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     expect(secret().hasAttribute('required')).toBe(true);
     expect(secret().getAttribute('placeholder') ?? '').toBe('');
     await userEvent.click(save());
-    expect(screen.getByRole('alert').textContent?.trim()).toBe('1 field needs attention: Secret');
+    expect(attention()).toBe('1 field needs attention: Secret');
     await userEvent.type(secret(), 'shpss_novo');
     await userEvent.click(save());
 
@@ -324,25 +331,49 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     it('CHECKS-13: deve ter os ícones do protótipo na barra, "Send a signed test" com ícone e Discard contornado', async () => {
       await renderCard(SignatureCard, SALVA);
 
-      expect(save().querySelector('app-icon')).toBeTruthy();
       expect(
         screen.getByRole('link', { name: 'Send a signed test' }).querySelector('app-icon'),
       ).toBeTruthy();
       await userEvent.click(provider('Slack'));
+      expect(save().querySelector('app-icon')).toBeTruthy();
       expect(
         screen.getByRole('button', { name: 'Discard' }).hasAttribute('mat-stroked-button'),
       ).toBe(true);
+    });
+
+    // B3: o teste usa a configuração salva; com rascunho em Assinatura, o link diz por quê.
+    it('CHECKS-13: deve desligar o "Send a signed test", com a razão, Quando há rascunho em Assinatura', async () => {
+      const { container } = await renderCard(SignatureCard, SALVA);
+
+      await userEvent.click(provider('Slack'));
+
+      const link = screen.getByRole('link', { name: 'Send a signed test' });
+      expect(link.getAttribute('aria-disabled')).toBe('true');
+      expect(link.hasAttribute('href')).toBe(false);
+      const why = container.querySelector(`#${link.getAttribute('aria-describedby')}`);
+      expect(why?.textContent?.trim()).toBe('Save first: the test uses the saved settings.');
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve mostrar "Save changes · Ctrl+S", com o nome acessível "Save changes"', async () => {
+      await renderCard(SignatureCard, SALVA);
+      await userEvent.click(provider('Slack'));
+
+      expect(save().textContent?.replace(/\s+/g, ' ').trim()).toBe('Save changes· Ctrl+S');
+      expect(save().querySelector('.keys')?.textContent).toBe('· Ctrl+S');
+      expect(save().getAttribute('aria-keyshortcuts')).toBe('Control+S Meta+S');
+      expect(save().querySelector('.keys')?.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('CHECKS-13: deve dizer "Saved." ao abrir uma assinatura salva, sumir na edição e voltar no Discard', async () => {
       await renderCard(SignatureCard, SALVA);
       const saved = 'Saved. Leave the secret blank to keep it.';
 
-      expect(screen.getByRole('status').textContent?.trim()).toBe(saved);
+      expect(note()).toBe(saved);
       await userEvent.click(provider('Slack'));
       expect(screen.queryByText(saved)).toBeNull();
       await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
-      expect(screen.getByRole('status').textContent?.trim()).toBe(saved);
+      expect(note()).toBe(saved);
     });
 
     it('deve pôr a tolerância ao lado do Secret e deixar as ajudas crescerem sem cobrir o campo de baixo (Stripe)', async () => {

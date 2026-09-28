@@ -1,126 +1,119 @@
 @let control = form.controls.schema;
 @let savedSchema = saved();
 @let message = error();
-<header class="card-head">
-  <span class="card-icon primary" aria-hidden="true"><app-icon name="braces" [size]="22" /></span>
-  <h2 id="schema-title" i18n>Schema validation</h2>
-  @if (savedSchema) {
-    <span class="state on">
-      @if (dialect(); as name) {
-        <ng-container i18n>On · {{ name }}</ng-container>
-      } @else {
-        <ng-container i18n>On</ng-container>
-      }
-    </span>
-  } @else {
-    <span class="state" i18n>Off</span>
-  }
-  @if (control.dirty) {
-    <span class="state draft" i18n>Unsaved</span>
-  }
-  <span class="spacer"></span>
-  <button mat-button type="button" [disabled]="control.value === ''" (click)="clearSchema()" i18n>
-    Clear schema
-  </button>
-</header>
-
-@if (inferred(); as note) {
-  <p class="banner" [class.info]="!note.error" role="status">{{ note.text }}</p>
-}
-
-<div class="layout" [formGroup]="form">
-  <div class="editor-column">
-    <div class="editor-head">
-      <label for="schema-text" i18n>JSON Schema</label>
-      <span class="hint"
-        ><ng-container i18n>{{ size() }} of 64 KB</ng-container> ·
-        @if (validJson()) {
-          <ng-container i18n>valid</ng-container>
+<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon primary" aria-hidden="true"><app-icon name="braces" [size]="22" /></span>
+    <h2 id="schema-title" i18n>Schema validation</h2>
+    @if (savedSchema) {
+      <span class="state on">
+        @if (dialect(); as name) {
+          <ng-container i18n>On · {{ name }}</ng-container>
         } @else {
-          <ng-container i18n>invalid</ng-container>
+          <ng-container i18n>On</ng-container>
         }
       </span>
-    </div>
-    <div class="editor" [class.invalid]="message">
-      <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
-      <textarea
-        #textarea
-        id="schema-text"
-        formControlName="schema"
-        rows="12"
-        wrap="off"
-        spellcheck="false"
-        [attr.aria-invalid]="message ? 'true' : null"
-        [attr.aria-describedby]="
-          message ? 'schema-text-help schema-text-error' : 'schema-text-help'
-        "
-        (scroll)="syncGutter(textarea, gutter)"
-      ></textarea>
-    </div>
-    @if (message) {
-      <p id="schema-text-error" class="error">{{ message }}</p>
+    } @else {
+      <span class="state" i18n>Off</span>
     }
-    <p id="schema-text-help" class="hint" i18n>
-      Validates the JSON body of each request; leave empty to turn off
-    </p>
-  </div>
+    @if (unsaved()) {
+      <span class="state draft" i18n>Unsaved</span>
+    }
+    <span class="spacer"></span>
+    <button mat-button type="button" [disabled]="control.value === ''" (click)="clearSchema()" i18n>
+      Clear schema
+    </button>
+  </header>
 
-  <div class="side">
-    <div class="generate panel">
-      <h3 id="schema-source-title" class="generate-title" i18n>Generate from a message</h3>
-      <p id="schema-source-pick" class="hint" i18n>
-        Pick a JSON request; the schema is inferred from its body.
-      </p>
-      @if (recent(); as requests) {
-        @if (requests.length > 0) {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-select
-              formControlName="source"
-              aria-label="Request"
-              i18n-aria-label="Seletor da mensagem de onde o schema é gerado"
-              aria-describedby="schema-source-pick schema-source-help"
-            >
-              @for (request of requests; track request.uuid) {
-                <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <button mat-flat-button class="tonal" type="button" (click)="generate()">
-            <app-icon name="braces" [size]="18" /><ng-container i18n>Generate schema</ng-container>
-          </button>
-        } @else {
-          <p class="hint" i18n>No request with a JSON body yet.</p>
-        }
-      } @else {
-        <p class="hint" i18n>Loading requests…</p>
+  @if (inferred(); as note) {
+    <p class="banner" [class.info]="!note.error" role="status">{{ note.text }}</p>
+  }
+
+  <div class="layout" [formGroup]="form">
+    <div class="editor-column">
+      <div class="editor-head">
+        <label for="schema-text" i18n>JSON Schema</label>
+        <span class="hint"
+          ><ng-container i18n>{{ size() }} of 64 KB</ng-container> ·
+          @if (validJson()) {
+            <ng-container i18n>valid</ng-container>
+          } @else {
+            <ng-container i18n>invalid</ng-container>
+          }
+        </span>
+      </div>
+      <div class="editor" [class.invalid]="message">
+        <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
+        <textarea
+          #textarea
+          id="schema-text"
+          formControlName="schema"
+          rows="12"
+          wrap="off"
+          spellcheck="false"
+          [attr.aria-invalid]="message ? 'true' : null"
+          [attr.aria-describedby]="
+            message ? 'schema-text-help schema-text-error' : 'schema-text-help'
+          "
+          (scroll)="syncGutter(textarea, gutter)"
+        ></textarea>
+      </div>
+      @if (message) {
+        <p id="schema-text-error" class="error">{{ message }}</p>
       }
-      <p id="schema-source-help" class="hint" i18n>
-        Every key present becomes required; integers become integer. Review before saving.
+      <p id="schema-text-help" class="hint" i18n>
+        Validates the JSON body of each request; leave empty to turn off
       </p>
     </div>
-    <ul class="rules">
-      <li i18n>Dialect 2020-12, or 2019-09 / draft-07 by <code>$schema</code>.</li>
-      <li i18n>Only internal <code>$ref</code> (<code>#/$defs/…</code>); nothing is fetched.</li>
-      <li i18n>
-        Validates the body as JSON whatever the Content-Type. Up to 20 errors are kept per request.
-      </li>
-      <li i18n>Changing the schema doesn't re-check requests already received.</li>
-    </ul>
-  </div>
-</div>
 
-<app-save-bar
-  name="schema"
-  label="Save schema"
-  i18n-label
-  [summary]="pending()"
-  [pendingLabels]="pendingLabels()"
-  [attempted]="attempted()"
-  [notice]="control.dirty && !notice()?.error ? null : notice()"
-  (reload)="reloadCard()"
-  (save)="saveSchema()"
->
-  @if (control.dirty) {
-    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
-  }
-</app-save-bar>
+    <div class="side">
+      <div class="generate panel">
+        <h3 id="schema-source-title" class="generate-title" i18n>Generate from a message</h3>
+        <p id="schema-source-pick" class="hint" i18n>
+          Pick a JSON request; the schema is inferred from its body.
+        </p>
+        @if (recent(); as requests) {
+          @if (requests.length > 0) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-select
+                formControlName="source"
+                aria-label="Request"
+                i18n-aria-label="Seletor da mensagem de onde o schema é gerado"
+                aria-describedby="schema-source-pick schema-source-help"
+              >
+                @for (request of requests; track request.uuid) {
+                  <mat-option [value]="request.uuid">{{ label(request) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <button mat-flat-button class="tonal" type="button" (click)="generate()">
+              <app-icon name="braces" [size]="18" /><ng-container i18n
+                >Generate schema</ng-container
+              >
+            </button>
+          } @else {
+            <p class="hint" i18n>No request with a JSON body yet.</p>
+          }
+        } @else {
+          <p class="hint" i18n>Loading requests…</p>
+        }
+        <p id="schema-source-help" class="hint" i18n>
+          Every key present becomes required; integers become integer. Review before saving.
+        </p>
+      </div>
+      <ul class="rules">
+        <li i18n>Dialect 2020-12, or 2019-09 / draft-07 by <code>$schema</code>.</li>
+        <li i18n>Only internal <code>$ref</code> (<code>#/$defs/…</code>); nothing is fetched.</li>
+        <li i18n>
+          Validates the body as JSON whatever the Content-Type. Up to 20 errors are kept per
+          request.
+        </li>
+        <li i18n>Changing the schema doesn't re-check requests already received.</li>
+      </ul>
+    </div>
+  </div>
+
+  <app-card-foot name="schema" [summary]="pending()" />
+</div>

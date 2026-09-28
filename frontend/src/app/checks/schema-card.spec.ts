@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { expectPut, renderCard } from '../../testing/checks';
+import { attention, changesBar, expectPut, renderCard, saveButton } from '../../testing/checks';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { SchemaCard } from './schema-card';
 
@@ -10,7 +10,10 @@ const SCHEMA = { type: 'object', required: ['id'] };
 const RECENTES = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
 
 const field = () => screen.getByRole('textbox', { name: 'JSON Schema' }) as HTMLTextAreaElement;
-const save = () => screen.getByRole('button', { name: 'Save schema' });
+const save = saveButton;
+const card = () => screen.getByRole('region', { name: 'Schema validation' });
+/** O resumo do que falta, no pé do cartão. */
+const note = () => within(card()).getByRole('status').textContent?.trim();
 
 describe('Dado o cartão "Schema validation" de Checks', () => {
   afterEach(() => localStorage.clear());
@@ -38,12 +41,10 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     await userEvent.type(field(), '{{"type": ');
     await userEvent.tab();
     expect(screen.getByText(/^Invalid JSON: /)).toBeTruthy();
-    expect(screen.getByRole('status').textContent?.trim()).toBe('To save, fix: JSON Schema');
+    expect(note()).toBe('To save, fix: JSON Schema');
     await userEvent.click(save());
 
-    expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      '1 field needs attention: JSON Schema',
-    );
+    expect(attention()).toBe('1 field needs attention: JSON Schema');
     expect(document.activeElement).toBe(field());
     expect(field().getAttribute('aria-invalid')).toBe('true');
     http.expectNone((sent) => sent.method === 'PUT');
@@ -69,7 +70,9 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
       default_content: 'resposta',
     });
     put.flush(token({ schema: SCHEMA }));
-    await vi.waitFor(() => expect(screen.getByRole('status').textContent?.trim()).toBe('Saved.'));
+    await vi.waitFor(() => expect(changesBar()).toBeNull());
+    expect(within(card()).getByText('On')).toBeTruthy();
+    expect(within(card()).queryByText('Unsaved')).toBeNull();
   });
 
   it('deve mostrar o erro do servidor no campo Quando o PUT recusa o schema (422)', async () => {
@@ -88,7 +91,8 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     await vi.waitFor(() =>
       expect(screen.getByText('The schema is invalid: $ref is not internal.')).toBeTruthy(),
     );
-    expect(screen.getByRole('status').textContent?.trim()).toBe('To save, fix: JSON Schema');
+    expect(note()).toBe('To save, fix: JSON Schema');
+    expect(attention()).toBe('1 field needs attention: JSON Schema');
   });
 
   it('deve esvaziar e mandar schema nulo Quando "Clear schema" é salvo', async () => {

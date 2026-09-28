@@ -5,21 +5,23 @@ import { MatFormField } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
-import { JsonSchema, Token } from '../token/token';
+import { JsonSchema, Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { CardFold } from './card-fold';
+import { CardFoot, CardNotice } from './card-foot';
+import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import { ChecksStore, isRequestId, jsonBody } from './checks-store';
 import { inferSchema } from './infer-schema';
-import { SaveBar, SaveNotice } from './save-bar';
 import {
   PendingField,
+  changeOf,
   fieldErrors,
   pendingLabels,
   pendingSummary,
   schemaOf,
   schemaText,
   schemaValidator,
-  saveErrorNotice,
 } from './url-settings';
 
 /**
@@ -27,40 +29,43 @@ import {
  * código, fora de escopo), o tamanho contra o limite do servidor, "Clear schema", "Generate from a
  * message" com o `inferSchema` e as regras do jogo. Com `schemaFrom` (a rota
  * `?schema-from={requestId}`, "Create schema from this request"), o campo já vem com o schema
- * inferido daquela mensagem, sem salvar.
+ * inferido daquela mensagem, sem salvar. O salvar é o da barra da página (B3).
  */
 @Component({
   selector: 'app-schema-card',
-  imports: [Icon, ReactiveFormsModule, MatButton, MatFormField, MatOption, MatSelect, SaveBar],
+  imports: [Icon, ReactiveFormsModule, MatButton, MatFormField, MatOption, MatSelect, CardFoot],
   templateUrl: './schema-card.html',
   styleUrls: ['./card.scss', './schema-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'schema-title' },
+  hostDirectives: [{ directive: CardFold, inputs: ['fold'] }],
 })
-export class SchemaCard {
+export class SchemaCard implements ChecksSection {
   private readonly tokens = inject(TokenStore);
   private readonly checks = inject(ChecksStore);
+  private readonly draft = inject(ChecksDraft);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   /** Mensagem de onde inferir o schema (`?schema-from=`). */
   readonly schemaFrom = input<string | null>(null);
 
-  protected readonly saved = signal<JsonSchema | null>(this.tokens.token()?.schema ?? null);
-  /** A URL como este cartão a leu: o save confere se o schema mudou lá fora. */
-  private readonly base = signal(this.tokens.token());
-  protected readonly form = this.formBuilder.group({
+  readonly id = 'schema';
+  protected readonly saved = signal<JsonSchema | null>(
+    (this.draft.base() ?? this.tokens.token())?.schema ?? null,
+  );
+  readonly form = this.formBuilder.group({
     schema: [schemaText(this.saved()), schemaValidator],
     source: [''],
   });
+  /** Tentou salvar com o campo inválido: o erro aparece mesmo sem o campo ter sido tocado. */
   protected readonly attempted = signal(false);
-  protected readonly saving = signal(false);
-  protected readonly notice = signal<SaveNotice | null>(null);
   /** Mensagens JSON recentes para "Generate from a message"; `null` enquanto carrega. */
   protected readonly recent = signal<readonly WebhookRequest[] | null>(null);
   /** Aviso sobre o schema inferido (de onde veio, ou por que não deu). */
-  protected readonly inferred = signal<SaveNotice | null>(null);
+  protected readonly inferred = signal<CardNotice | null>(null);
 
   constructor() {
+    this.draft.register(this);
     const tokenId = this.tokens.token()?.uuid;
     if (tokenId) {
       this.checks
@@ -80,8 +85,7 @@ export class SchemaCard {
   }
 
   protected size(): string {
-    const bytes = new TextEncoder().encode(this.form.controls.schema.value).length;
-    return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+    return sizeOf(this.form.controls.schema.value);
   }
 
   protected lineNumbers(): string {
@@ -107,12 +111,12 @@ export class SchemaCard {
     return !this.form.controls.schema.hasError('json');
   }
 
-  protected pending(): string {
-    return pendingSummary(this.fields());
+  protected unsaved(): boolean {
+    return this.draft.dirtySections().includes(this.id);
   }
 
-  protected pendingLabels(): string[] {
-    return pendingLabels(this.fields());
+  protected pending(): string {
+    return pendingSummary(this.fields());
   }
 
   /** "Clear schema": sem schema, a URL deixa de validar ao salvar. */
@@ -120,22 +124,64 @@ export class SchemaCard {
     this.setDraft('');
   }
 
-  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
-  protected async reloadCard(): Promise<void> {
-    const base = this.base();
-    if (base) {
-      const token = await this.checks.reload(base.uuid);
-      this.base.set(token);
-      this.saved.set(token.schema ?? null);
-      this.discard();
-      this.notice.set(null);
+  /** O schema aparece pelo tamanho: o texto inteiro não cabe na barra. */
+  changes(): ChangeLine[] {
+    const text = this.form.controls.schema.value;
+    const saved = schemaText(this.saved());
+    if (text.trim() === saved.trim()) {
+      return [];
+    }
+    const size = (value: string) => (value.trim() === '' ? $localize`Off` : sizeOf(value));
+    const lines = changeOf('JSON Schema', size(saved), size(text));
+    // Mesmo tamanho, outro conteúdo: a linha continua a existir.
+    return lines.length > 0
+      ? lines
+      : [{ label: 'JSON Schema', before: size(saved), after: $localize`edited` }];
+  }
+
+  invalid(): string[] {
+    return pendingLabels(this.fields());
+  }
+
+  settings(): TokenSettings {
+    return { schema: schemaOf(this.form.controls.schema.value) };
+  }
+
+  showPending(focus: boolean): void {
+    this.attempted.set(true);
+    this.form.markAllAsTouched();
+    if (focus) {
+      this.host.nativeElement.querySelector<HTMLElement>('textarea')?.focus();
     }
   }
 
-  protected discard(): void {
+  load(token: Token): void {
+    this.saved.set(token.schema ?? null);
     this.form.controls.schema.reset(schemaText(this.saved()));
     this.attempted.set(false);
     this.inferred.set(null);
+  }
+
+  /** O 422 do schema vai para o campo, com a frase do servidor. */
+  refused(error: unknown): string[] {
+    const messages = fieldErrors(error, 'schema');
+    if (messages.length === 0) {
+      return [];
+    }
+    const control = this.form.controls.schema;
+    control.setErrors({ server: messages.join(' ') });
+    control.markAsTouched();
+    return ['JSON Schema'];
+  }
+
+  sketch(): Record<string, unknown> {
+    return { schema: this.form.controls.schema.value };
+  }
+
+  restore(sketch: Record<string, unknown>): void {
+    if (typeof sketch['schema'] === 'string') {
+      this.setDraft(sketch['schema']);
+    }
   }
 
   /** "Generate schema": o schema inferido da mensagem escolhida entra no campo, para revisar. */
@@ -173,43 +219,6 @@ export class SchemaCard {
     );
   }
 
-  protected async saveSchema(): Promise<void> {
-    if (this.saving()) {
-      return;
-    }
-    this.notice.set(null);
-    const control = this.form.controls.schema;
-    if (control.invalid) {
-      this.showPending();
-      return;
-    }
-    const base = this.base();
-    if (!base) {
-      return;
-    }
-    this.saving.set(true);
-    try {
-      const token: Token = await this.checks.save({ schema: schemaOf(control.value) }, base);
-      this.base.set(token);
-      this.saved.set(token.schema ?? null);
-      control.reset(schemaText(this.saved()));
-      this.attempted.set(false);
-      this.inferred.set(null);
-      this.notice.set({ text: $localize`Saved.`, error: false });
-    } catch (error) {
-      const messages = fieldErrors(error, 'schema');
-      if (messages.length > 0) {
-        control.setErrors({ server: messages.join(' ') });
-        control.markAsTouched();
-      } else {
-        this.notice.set(saveErrorNotice(error));
-        this.checks.offerRetry(error, () => void this.saveSchema());
-      }
-    } finally {
-      this.saving.set(false);
-    }
-  }
-
   private async inferFrom(tokenId: string, requestId: string): Promise<void> {
     try {
       this.useRequest(await this.checks.request(tokenId, requestId));
@@ -238,16 +247,15 @@ export class SchemaCard {
     const control = this.form.controls.schema;
     control.setValue(text);
     control.markAsDirty();
-    this.notice.set(null);
-  }
-
-  private showPending(): void {
-    this.attempted.set(true);
-    this.form.markAllAsTouched();
-    this.host.nativeElement.querySelector<HTMLElement>('textarea')?.focus();
   }
 
   private fields(): readonly PendingField[] {
     return [[this.form.controls.schema, 'schema', 'JSON Schema']];
   }
+}
+
+/** "312 B", "1.4 KB": o tamanho do texto do schema em UTF-8. */
+function sizeOf(text: string): string {
+  const bytes = new TextEncoder().encode(text).length;
+  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 }

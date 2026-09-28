@@ -7,6 +7,7 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { UrlAccess } from './url-access';
+import { UrlLock } from './url-lock';
 
 /** Sem `Retry-After` legível, espera um minuto (a janela das 10 tentativas do servidor). */
 const DEFAULT_WAIT_SECONDS = 60;
@@ -23,6 +24,8 @@ const DEFAULT_WAIT_SECONDS = 60;
 })
 export class UnlockScreen {
   private readonly access = inject(UrlAccess);
+  /** Por que a tela trancou, quando foi Verificações com o segredo novo (B3). */
+  protected readonly notice = inject(UrlLock).notice;
   private readonly snackBar = inject(MatSnackBar);
   private readonly location = inject(DOCUMENT).location;
   private readonly formBuilder = inject(NonNullableFormBuilder);

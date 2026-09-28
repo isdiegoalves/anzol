@@ -1,70 +1,66 @@
 @let c = form.controls;
 @let protectedNow = wasProtected();
-<header class="card-head">
-  <span class="card-icon secondary" aria-hidden="true"><app-icon name="lock" [size]="22" /></span>
-  <h2 id="privacy-title" i18n>Privacy</h2>
-  @if (protectedNow) {
-    <span class="state on" i18n>Protected</span>
-  } @else {
-    <span class="state" i18n>Open</span>
-  }
-  @if (form.dirty) {
-    <span class="state draft" i18n>Unsaved</span>
-  }
-</header>
-
-<form class="fields" [formGroup]="form" (ngSubmit)="savePrivacy()">
-  <mat-slide-toggle formControlName="required" i18n
-    >Require a secret to view this URL</mat-slide-toggle
-  >
-  <p class="hint" i18n>
-    Requests, rules and history open only with the secret. Sending webhooks to the URL keeps working
-    without it.
-  </p>
-  @if (protectedNow) {
-    <p class="hint" i18n>Changing the secret revokes existing read-only links.</p>
-  }
-  @if (c.required.value) {
+<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon secondary" aria-hidden="true"><app-icon name="lock" [size]="22" /></span>
+    <h2 id="privacy-title" i18n>Privacy</h2>
     @if (protectedNow) {
-      <p class="banner info" role="status" i18n>
-        This URL is protected. Leave the fields blank to keep the current secret.
+      <span class="state on" i18n>Protected</span>
+    } @else {
+      <span class="state" i18n>Open</span>
+    }
+    @if (unsaved()) {
+      <span class="state draft" i18n>Unsaved</span>
+    }
+  </header>
+
+  <form class="fields" [formGroup]="form">
+    <mat-slide-toggle formControlName="required" i18n
+      >Require a secret to view this URL</mat-slide-toggle
+    >
+    <p class="hint" i18n>
+      Requests, rules and history open only with the secret. Sending webhooks to the URL keeps
+      working without it.
+    </p>
+    @if (protectedNow) {
+      <p class="hint" i18n>Changing the secret revokes existing read-only links.</p>
+    }
+    @if (c.required.value) {
+      @if (protectedNow) {
+        <p class="banner info" role="status" i18n>
+          This URL is protected. Leave the fields blank to keep the current secret.
+        </p>
+      }
+      <mat-form-field appearance="outline">
+        <mat-label>{{ secretLabel() }}</mat-label>
+        <input matInput type="password" autocomplete="new-password" formControlName="read_secret" />
+        <mat-hint i18n>8 to 256 characters</mat-hint>
+        <mat-error>
+          @if (c.read_secret.errors?.['server']; as refused) {
+            {{ refused }}
+          } @else {
+            <ng-container i18n>The secret must have 8 to 256 characters.</ng-container>
+          }
+        </mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label i18n>Confirm secret</mat-label>
+        <input
+          matInput
+          type="password"
+          autocomplete="new-password"
+          formControlName="read_secret_confirm"
+        />
+        <mat-error i18n>The secrets do not match.</mat-error>
+      </mat-form-field>
+    } @else if (protectedNow) {
+      <p class="banner" role="status" i18n>
+        Saving removes the secret: anyone with the URL will see its requests.
       </p>
     }
-    <mat-form-field appearance="outline">
-      <mat-label>{{ secretLabel() }}</mat-label>
-      <input matInput type="password" autocomplete="new-password" formControlName="read_secret" />
-      <mat-hint i18n>8 to 256 characters</mat-hint>
-      <mat-error i18n>The secret must have 8 to 256 characters.</mat-error>
-    </mat-form-field>
-    <mat-form-field appearance="outline">
-      <mat-label i18n>Confirm secret</mat-label>
-      <input
-        matInput
-        type="password"
-        autocomplete="new-password"
-        formControlName="read_secret_confirm"
-      />
-      <mat-error i18n>The secrets do not match.</mat-error>
-    </mat-form-field>
-  } @else if (protectedNow) {
-    <p class="banner" role="status" i18n>
-      Saving removes the secret: anyone with the URL will see its requests.
-    </p>
-  }
-</form>
+  </form>
 
-<app-save-bar
-  name="privacy"
-  label="Save privacy"
-  i18n-label
-  [summary]="pending()"
-  [pendingLabels]="pendingLabels()"
-  [attempted]="attempted()"
-  [notice]="form.dirty && !notice()?.error ? null : notice()"
-  (reload)="reloadCard()"
-  (save)="savePrivacy()"
->
-  @if (form.dirty) {
-    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
-  }
-</app-save-bar>
+  <app-card-foot name="privacy" [summary]="pending()" />
+</div>

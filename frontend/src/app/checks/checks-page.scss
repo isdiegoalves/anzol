@@ -1,3 +1,4 @@
+// A página cresce e o shell rola: o índice e a barra de salvar ficam presos à área que rola.
 :host {
   display: flex;
   flex: 1 0 auto;
@@ -10,24 +11,10 @@
   display: flex;
   flex: 1 0 auto;
   flex-direction: column;
-  padding: 16px 24px 24px;
-}
-
-// Altura presa ao shell só quando cabe (trava 6); senão a página cresce e o shell rola.
-@media (width >= 1200px) and (height >= 700px) {
-  :host,
-  .page {
-    flex: 1 1 0;
-    min-height: 0;
-  }
+  padding: 16px 24px 0;
 }
 
 .page-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 24px;
   margin-bottom: 16px;
 }
 
@@ -42,14 +29,42 @@ h1 {
   font: var(--mat-sys-body-medium);
 }
 
+// A 1200 px ou mais, o índice fica fixo à esquerda da coluna; abaixo, vira faixa no topo.
+.layout {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px 24px;
+  align-items: start;
+  padding-bottom: 24px;
+
+  @media (width >= 1200px) {
+    grid-template-columns: 220px minmax(0, 880px);
+  }
+}
+
 .jump {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
+  padding: 8px 0;
+  overflow-x: auto;
+  background: var(--mat-sys-surface-container);
+  scrollbar-width: none;
+
+  @media (width >= 1200px) {
+    flex-direction: column;
+    gap: 4px;
+    padding: 0;
+    overflow: visible;
+  }
 }
 
 .jump-link {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 6px;
   min-height: 32px;
@@ -59,6 +74,7 @@ h1 {
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-large);
   text-decoration: none;
+  white-space: nowrap;
 
   &:hover {
     background: var(--mat-sys-surface-container-high);
@@ -69,46 +85,118 @@ h1 {
     background: var(--mat-sys-secondary-container);
     color: var(--mat-sys-on-secondary-container);
   }
-}
-
-// Duas colunas a partir de 1200 px: Signature e Schema; Health, Response e Privacy em 400 px.
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
 
   @media (width >= 1200px) {
-    grid-template-columns: minmax(0, 1fr) 400px;
-    align-items: start;
+    min-height: 40px;
   }
 
-  // Com altura que cabe (trava 6: a partir de ~700 px), cada coluna rola por dentro da altura do
-  // shell; abaixo disso, ou no zoom de 200 %, a página rola inteira e nada fica escondido.
-  @media (width >= 1200px) and (height >= 700px) {
-    flex: 1;
-    align-items: stretch;
-    min-height: 0;
-
-    .column {
-      min-height: 0;
-      overflow: auto;
-    }
+  @media (pointer: coarse) {
+    min-height: 44px;
   }
 }
 
-.column {
+.jump-state,
+.fold-state {
+  overflow: hidden;
+  font: var(--mat-sys-body-small);
+  text-overflow: ellipsis;
+}
+
+// Alteração pendente na seção: o ponto, além do ", unsaved" no nome.
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mat-sys-tertiary);
+}
+
+.cards {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  max-width: 880px;
+}
 
-  > * {
+// O índice e a barra são fixos: o cartão rolado até a vista não fica atrás deles.
+.slot {
+  min-width: 0;
+  scroll-margin-top: 64px;
+
+  @media (width >= 1200px) {
+    scroll-margin-top: 16px;
+  }
+}
+
+.skeleton {
+  min-height: 160px;
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-lowest);
+  opacity: 0.6;
+}
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+
+  p {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+// Celular: o cabeçalho recolhível de cada cartão.
+.fold-title {
+  margin: 0;
+  font: inherit;
+}
+
+.fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--mat-sys-corner-small);
+  background: transparent;
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-title-medium);
+  text-align: start;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -3px;
+  }
+
+  .fold-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .fold-state {
+    flex: 1;
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
+  }
+
+  .chevron {
     flex: none;
+    margin-left: auto;
   }
 }
 
 @media (width < 600px) {
   .page {
-    padding: 8px 8px 24px;
+    padding: 8px 8px 0;
   }
 }

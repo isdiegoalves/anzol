@@ -26,7 +26,7 @@ export class ChecksStore {
   private readonly snackBar = inject(MatSnackBar);
 
   /**
-   * Salva um cartão (CA-11). `base` é a URL como o cartão a leu. Antes do `PUT`, relê a URL no
+   * Salva as alterações de Verificações (CA-11, B3). `base` é a URL como a página a leu. Antes do `PUT`, relê a URL no
    * servidor: outra aba, o CLI ou o MCP podem ter gravado nesse meio-tempo. O corpo é a URL relida
    * com as mudanças do cartão por cima, então o que o cartão não edita segue como está no servidor.
    * Se um campo do próprio cartão mudou lá fora, não sobrescreve: `ChangedElsewhere`.
@@ -34,15 +34,23 @@ export class ChecksStore {
    * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. Com a limpeza
    * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
    */
-  async save(changes: TokenSettings, base: Token): Promise<Token> {
+  async save(changes: TokenSettings, base: Token, options: SaveOptions = {}): Promise<Token> {
     this.snackBar.dismiss();
     const url = `/token/${base.uuid}`;
     const fresh = await firstValueFrom(this.http.get<Token>(url));
-    const changed = changedFields(base, fresh, changes);
+    const cors = options.cors ?? null;
+    const changed: string[] = options.force
+      ? []
+      : [
+          ...changedFields(base, fresh, changes),
+          ...(cors !== null && (base.cors ?? false) !== (fresh.cors ?? false) ? ['cors'] : []),
+        ];
     if (changed.length > 0) {
       throw new ChangedElsewhere(changed);
     }
-    const updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
+    // O `PUT` troca a configuração inteira: vai sempre a URL relida completa (com o bloco
+    // `signature`), com as mudanças por cima.
+    let updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
     if (typeof changes.read_secret === 'string') {
       try {
         await this.unlock(base.uuid, changes.read_secret);
@@ -51,28 +59,31 @@ export class ChecksStore {
         throw new UnlockFailed(error instanceof HttpErrorResponse ? error.status : null);
       }
     }
+    // O CORS sai depois do `PUT` e do destrancar (B3): o pedido pela barra, ou o que a URL já tinha.
+    const wanted = cors ?? fresh.cors ?? false;
+    let corsFailed = false;
+    if ((updated.cors ?? false) !== wanted) {
+      try {
+        updated = { ...updated, cors: await this.tokens.toggleCors(base.uuid) };
+      } catch {
+        // O resto já foi gravado: a tela volta ao que o servidor tem e diz o que não entrou.
+        corsFailed = true;
+      }
+    }
     this.preferences.token.set(updated);
     if (cutsRequests(fresh, updated) && this.requests.tokenId() === base.uuid) {
       await this.requests.reload();
     }
-    this.snackBar.open($localize`URL updated!`, undefined, { duration: 4000 });
-    return updated;
-  }
-
-  /**
-   * Erro de rede ao salvar (C §2.11): o snackbar oferece "Retry", que salva de novo pelo cartão
-   * (o formulário mantém o que foi digitado). Os outros erros ficam só no aviso do cartão.
-   */
-  offerRetry(error: unknown, retry: () => void): void {
-    if (!(error instanceof HttpErrorResponse) || error.status !== 0) {
-      return;
+    if (corsFailed) {
+      this.snackBar.open($localize`Could not toggle CORS.`, undefined, { duration: 10000 });
+    } else {
+      // O anúncio sai uma vez, pelo `announcer` da barra: o snackbar fica calado (§4.3).
+      this.snackBar.open($localize`URL updated!`, undefined, {
+        duration: 4000,
+        politeness: 'off',
+      });
     }
-    this.snackBar
-      .open($localize`Could not reach the server. Your changes are kept.`, $localize`Retry`, {
-        duration: 10000,
-      })
-      .onAction()
-      .subscribe(retry);
+    return updated;
   }
 
   /** "Reload" depois de `ChangedElsewhere`: a URL como está no servidor. */
@@ -85,26 +96,6 @@ export class ChecksStore {
     await firstValueFrom(this.http.post(`/token/${tokenId}/unlock`, { secret }));
     if (this.urlLock.tokenId() === tokenId) {
       this.urlLock.release();
-    }
-  }
-
-  /** "Enable CORS": vale na hora, pelo `PUT /token/{id}/cors/toggle` de hoje. */
-  async toggleCors(): Promise<void> {
-    const token = this.tokens.token();
-    if (!token) {
-      return;
-    }
-    try {
-      const enabled = await this.tokens.toggleCors(token.uuid);
-      this.snackBar.open(
-        enabled ? $localize`CORS enabled.` : $localize`CORS disabled.`,
-        undefined,
-        {
-          duration: 4000,
-        },
-      );
-    } catch {
-      this.snackBar.open($localize`Could not toggle CORS.`, undefined, { duration: 10000 });
     }
   }
 
@@ -155,6 +146,14 @@ export function jsonBody(request: WebhookRequest): { value: unknown } | null {
   } catch {
     return null;
   }
+}
+
+/** O que a barra de salvar pede além dos campos do `PUT`. */
+export interface SaveOptions {
+  /** O CORS pedido (`PUT /token/{id}/cors/toggle`, depois do `PUT` do token); `null` mantém. */
+  cors?: boolean | null;
+  /** "Save anyway": grava por cima do que mudou em outro lugar. */
+  force?: boolean;
 }
 
 /** Um campo do cartão mudou no servidor desde que o cartão o leu (outra aba, CLI, MCP). */

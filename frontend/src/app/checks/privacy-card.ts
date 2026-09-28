@@ -1,16 +1,24 @@
 import { Component, ElementRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { TokenSettings } from '../token/token';
+import { Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
-import { ChecksStore } from './checks-store';
-import { SaveBar, SaveNotice } from './save-bar';
-import { PendingField, pendingLabels, pendingSummary, saveErrorNotice } from './url-settings';
+import { CardFold } from './card-fold';
+import { CardFoot } from './card-foot';
+import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
+import {
+  PendingField,
+  changeOf,
+  fieldErrors,
+  onOff,
+  pendingLabels,
+  pendingSummary,
+  secretChange,
+} from './url-settings';
 
 /** Tamanho do segredo de leitura que o servidor aceita. */
 const READ_SECRET_MIN = 8;
@@ -19,44 +27,43 @@ const READ_SECRET_MAX = 256;
 /**
  * Checks › Privacy, portada da seção do antigo Edit URL (item 12): "Require a secret to view this
  * URL" com o segredo e a confirmação. Na URL já protegida, em branco mantém o segredo atual;
- * desligar tira a proteção (`read_secret: null`). Segredo novo destranca esta tela na hora.
+ * desligar tira a proteção (`read_secret: null`). Segredo novo destranca esta tela ao salvar. O
+ * salvar é o da barra da página (B3); o segredo nunca vai ao rascunho da aba.
  */
 @Component({
   selector: 'app-privacy-card',
   imports: [
     Icon,
     ReactiveFormsModule,
-    MatButton,
     MatError,
     MatFormField,
     MatHint,
     MatInput,
     MatLabel,
     MatSlideToggle,
-    SaveBar,
+    CardFoot,
   ],
   templateUrl: './privacy-card.html',
   styleUrls: ['./card.scss'],
   host: { role: 'region', 'aria-labelledby': 'privacy-title' },
+  hostDirectives: [{ directive: CardFold, inputs: ['fold'] }],
 })
-export class PrivacyCard {
+export class PrivacyCard implements ChecksSection {
   private readonly tokens = inject(TokenStore);
-  private readonly checks = inject(ChecksStore);
+  private readonly draft = inject(ChecksDraft);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
+  readonly id = 'privacy';
   /** A URL salva já exige segredo: campo em branco mantém o atual. */
-  protected readonly wasProtected = signal(this.tokens.token()?.protected === true);
-  /** A URL como este cartão a leu: o save confere se a proteção mudou lá fora. */
-  private readonly base = signal(this.tokens.token());
-  protected readonly form = this.formBuilder.group({
+  protected readonly wasProtected = signal(
+    (this.draft.base() ?? this.tokens.token())?.protected === true,
+  );
+  readonly form = this.formBuilder.group({
     required: [this.wasProtected()],
     read_secret: [''],
     read_secret_confirm: [''],
   });
-  protected readonly attempted = signal(false);
-  protected readonly saving = signal(false);
-  protected readonly notice = signal<SaveNotice | null>(null);
 
   constructor() {
     const c = this.form.controls;
@@ -68,69 +75,42 @@ export class PrivacyCard {
       .pipe(takeUntilDestroyed())
       .subscribe(() => c.read_secret_confirm.updateValueAndValidity());
     this.sync();
+    this.draft.register(this);
   }
 
   protected secretLabel(): string {
     return this.wasProtected() ? $localize`New secret` : $localize`Secret to view`;
   }
 
+  protected unsaved(): boolean {
+    return this.draft.dirtySections().includes(this.id);
+  }
+
   protected pending(): string {
     return pendingSummary(this.fields());
   }
 
-  protected pendingLabels(): string[] {
+  changes(): ChangeLine[] {
+    const { required, read_secret } = this.form.getRawValue();
+    return [
+      ...changeOf(
+        $localize`Require a secret to view this URL`,
+        onOff(this.wasProtected()),
+        onOff(required),
+      ),
+      ...(required ? secretChange(this.secretLabel(), read_secret) : []),
+    ];
+  }
+
+  invalid(): string[] {
     return pendingLabels(this.fields());
-  }
-
-  protected discard(): void {
-    this.reset();
-  }
-
-  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
-  protected async reloadCard(): Promise<void> {
-    const base = this.base();
-    if (base) {
-      const token = await this.checks.reload(base.uuid);
-      this.base.set(token);
-      this.wasProtected.set(token.protected === true);
-      this.reset();
-      this.notice.set(null);
-    }
-  }
-
-  protected async savePrivacy(): Promise<void> {
-    if (this.saving()) {
-      return;
-    }
-    this.notice.set(null);
-    if (this.form.invalid) {
-      this.showPending();
-      return;
-    }
-    const base = this.base();
-    if (!base) {
-      return;
-    }
-    this.saving.set(true);
-    try {
-      const token = await this.checks.save(this.readSecret(), base);
-      this.base.set(token);
-      this.wasProtected.set(token.protected === true);
-      this.reset();
-      this.notice.set({ text: $localize`Saved.`, error: false });
-    } catch (error) {
-      this.notice.set(saveErrorNotice(error));
-      this.checks.offerRetry(error, () => void this.savePrivacy());
-    } finally {
-      this.saving.set(false);
-    }
   }
 
   /**
    * `read_secret` só vai quando muda: segredo novo, ou `null` para tirar a proteção. Ausente mantém
    * o atual no `PUT`.
    */
-  private readSecret(): Pick<TokenSettings, 'read_secret'> {
+  settings(): TokenSettings {
     const { required, read_secret } = this.form.getRawValue();
     if (required && read_secret !== '') {
       return { read_secret };
@@ -138,10 +118,42 @@ export class PrivacyCard {
     return !required && this.wasProtected() ? { read_secret: null } : {};
   }
 
-  private reset(): void {
+  showPending(focus: boolean): void {
+    this.form.markAllAsTouched();
+    const first = this.fields().find(([control]) => control.invalid);
+    if (focus && first) {
+      this.host.nativeElement
+        .querySelector<HTMLElement>(`[formControlName="${first[1]}"]`)
+        ?.focus();
+    }
+  }
+
+  load(token: Token): void {
+    this.wasProtected.set(token.protected === true);
     this.form.reset({ required: this.wasProtected(), read_secret: '', read_secret_confirm: '' });
-    this.attempted.set(false);
     this.sync();
+  }
+
+  refused(error: unknown): string[] {
+    const messages = fieldErrors(error, 'read_secret');
+    if (messages.length === 0) {
+      return [];
+    }
+    const control = this.form.controls.read_secret;
+    control.setErrors({ server: messages.join(' ') });
+    control.markAsTouched();
+    return [this.secretLabel()];
+  }
+
+  /** O segredo de leitura não vai à memória da aba: só o interruptor. */
+  sketch(): Record<string, unknown> {
+    return { required: this.form.controls.required.value };
+  }
+
+  restore(sketch: Record<string, unknown>): void {
+    const control = this.form.controls.required;
+    control.setValue(sketch['required'] === true);
+    control.markAsDirty();
   }
 
   /**
@@ -164,17 +176,6 @@ export class PrivacyCard {
     }
     c.read_secret.updateValueAndValidity({ emitEvent: false });
     c.read_secret_confirm.updateValueAndValidity({ emitEvent: false });
-  }
-
-  private showPending(): void {
-    this.attempted.set(true);
-    this.form.markAllAsTouched();
-    const first = this.fields().find(([control]) => control.invalid);
-    if (first) {
-      this.host.nativeElement
-        .querySelector<HTMLElement>(`[formControlName="${first[1]}"]`)
-        ?.focus();
-    }
   }
 
   private fields(): readonly PendingField[] {

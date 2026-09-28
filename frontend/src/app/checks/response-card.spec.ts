@@ -2,7 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { expectGet, expectPut, renderCard } from '../../testing/checks';
+import {
+  attention,
+  changesBar,
+  expectGet,
+  expectPut,
+  renderCard,
+  saveButton,
+} from '../../testing/checks';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { ResponseCard } from './response-card';
@@ -19,7 +26,8 @@ const SALVA = token({
 });
 
 const box = (name: string) => screen.getByRole('textbox', { name }) as HTMLInputElement;
-const save = () => screen.getByRole('button', { name: 'Save response' });
+const save = saveButton;
+const card = () => screen.getByRole('region', { name: 'Response' });
 
 describe('Dado o cartão "Response" de Checks', () => {
   afterEach(() => localStorage.clear());
@@ -47,13 +55,18 @@ describe('Dado o cartão "Response" de Checks', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve mandar a resposta com a assinatura e o schema salvos (CA-11) Quando Save response é clicado', async () => {
+  it('deve mandar a resposta com a assinatura e o schema salvos (CA-11) Quando "Save changes" é clicado', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
+    expect(changesBar()).toBeNull();
 
     await userEvent.clear(box('Default status code'));
     await userEvent.type(box('Default status code'), '201');
     await userEvent.clear(box('Retry-After'));
     await userEvent.click(screen.getByRole('radio', { name: 'Disabled' }));
+    expect(within(card()).getByText('Unsaved')).toBeTruthy();
+    expect(changesBar()?.textContent).toContain(
+      '3 unsaved changes: Default status code, Retry-After, Auto cleanup',
+    );
     await userEvent.click(save());
 
     const put = await expectPut(http);
@@ -68,11 +81,41 @@ describe('Dado o cartão "Response" de Checks', () => {
       schema: { type: 'object' },
     });
     put.flush({ ...SALVA, default_status: 201, retry_after: null, auto_cleanup: null });
-    await vi.waitFor(() => expect(screen.getByRole('status').textContent?.trim()).toBe('Saved.'));
 
-    // Editar de novo tira o "Saved." velho: ele só vale para o que foi salvo.
+    // Salvo: a barra some e o cartão deixa de dizer "Unsaved".
+    await vi.waitFor(() => expect(changesBar()).toBeNull());
+    expect(within(card()).queryByText('Unsaved')).toBeNull();
+    expect(box('Default status code').value).toBe('201');
+  });
+
+  it('deve mostrar o valor antigo e o novo de cada campo Quando "Review changes"', async () => {
+    await renderCard(ResponseCard, SALVA);
+    await userEvent.clear(box('Default status code'));
+    await userEvent.type(box('Default status code'), '429');
+    await userEvent.click(screen.getByRole('switch', { name: 'Enable CORS' }));
+
+    const review = screen.getByRole('button', { name: 'Review changes' });
+    expect(review.getAttribute('aria-expanded')).toBe('false');
+    await userEvent.click(review);
+
+    expect(review.getAttribute('aria-expanded')).toBe('true');
+    const list = screen.getByRole('list', { name: 'Changes to save' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent?.trim()),
+    ).toEqual(['Default status code: 202 → 429', 'CORS: off → on']);
+  });
+
+  it('deve voltar ao salvo e sumir com a barra Quando o valor volta ao que era', async () => {
+    await renderCard(ResponseCard, SALVA);
+
     await userEvent.type(box('Response body'), '!');
-    expect(screen.queryByText('Saved.')).toBeNull();
+    expect(changesBar()).not.toBeNull();
+    await userEvent.type(box('Response body'), '{Backspace}');
+
+    expect(changesBar()).toBeNull();
+    expect(within(card()).queryByText('Unsaved')).toBeNull();
   });
 
   it.each([
@@ -85,15 +128,19 @@ describe('Dado o cartão "Response" de Checks', () => {
 
       await userEvent.clear(input);
       await userEvent.type(input, valor);
+      // O cartão diz o que falta desde o começo, num status (S12).
+      expect(within(card()).getByRole('status').textContent?.trim()).toBe(
+        'To save, fix: Retry-After',
+      );
       await userEvent.click(save());
 
-      expect(screen.getByRole('alert').textContent?.trim()).toBe(resumo);
+      expect(attention()).toBe(resumo);
       expect(document.activeElement).toBe(input);
       http.expectNone((sent) => sent.method === 'PUT');
     },
   );
 
-  it('deve avisar "changed elsewhere", sem sobrescrever, e recarregar pelo Reload Quando o status mudou lá fora', async () => {
+  it('deve avisar que a URL mudou em outro lugar, sem sobrescrever, e recarregar pelo Reload', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
 
     await userEvent.clear(box('Default status code'));
@@ -101,16 +148,21 @@ describe('Dado o cartão "Response" de Checks', () => {
     await userEvent.click(save());
     (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
 
-    await vi.waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toMatch(/changed elsewhere/),
+    // O aviso é um alert dentro da barra, com os botões dele.
+    const aviso = await screen.findByRole('alert');
+    expect(aviso.textContent).toContain(
+      'This URL was changed elsewhere since you opened this page.',
     );
+    expect(changesBar()?.contains(aviso)).toBe(true);
     http.expectNone((sent) => sent.method === 'PUT');
-    await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(within(aviso).getByRole('button', { name: 'Save anyway' })).toBeTruthy();
+    await userEvent.click(within(aviso).getByRole('button', { name: 'Reload' }));
     (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
     await vi.waitFor(() => expect(box('Default status code').value).toBe('404'));
+    expect(changesBar()).toBeNull();
   });
 
-  it('deve oferecer "Retry", manter o digitado e salvar de novo Quando a rede falha no Save (E10)', async () => {
+  it('deve oferecer "Try again", manter o digitado e salvar de novo Quando a rede falha no Save (E10)', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
     await userEvent.clear(box('Response body'));
     await userEvent.type(box('Response body'), 'depois');
@@ -118,17 +170,22 @@ describe('Dado o cartão "Response" de Checks', () => {
 
     (await expectPut(http)).error(new ProgressEvent('error'));
 
-    const retry = await screen.findByRole('button', { name: 'Retry' });
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    expect(changesBar()?.textContent).toContain(
+      'Could not save. The server did not answer. Your changes are still here.',
+    );
     expect(box('Response body').value).toBe('depois');
     await userEvent.click(retry);
     const put = await expectPut(http);
     expect(put.request.body.default_content).toBe('depois');
     put.flush({ ...SALVA, default_content: 'depois' });
-    await vi.waitFor(() => expect(screen.getByRole('status').textContent).toContain('Saved.'));
+    await vi.waitFor(() => expect(changesBar()).toBeNull());
   });
 
-  it('não deve oferecer "Retry" Quando o servidor recusa o Save (422)', async () => {
+  it('deve pôr a frase do servidor no campo e dizer qual, sem "Try again", Quando o Save é recusado (422)', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
+    await userEvent.clear(box('Default status code'));
+    await userEvent.type(box('Default status code'), '999');
     await userEvent.click(save());
 
     (await expectPut(http)).flush(
@@ -136,20 +193,37 @@ describe('Dado o cartão "Response" de Checks', () => {
       { status: 422, statusText: 'Unprocessable Content' },
     );
 
-    await vi.waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/bad/));
-    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    await vi.waitFor(() =>
+      expect(attention()).toBe('1 field needs attention: Default status code'),
+    );
+    expect(within(card()).getByText('bad')).toBeTruthy();
+    expect(document.activeElement).toBe(box('Default status code'));
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
-  it('deve ligar o CORS na hora, sem Save, Quando o switch é clicado', async () => {
+  // B3: o CORS deixou de valer na hora; o interruptor marca a alteração e a chamada sai no salvar.
+  it('deve marcar a alteração, sem chamar o servidor, e trocar o CORS só no "Save changes"', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
 
     await userEvent.click(screen.getByRole('switch', { name: 'Enable CORS' }));
 
+    http.expectNone(`/token/${TOKEN_ID}/cors/toggle`);
+    expect(changesBar()?.textContent).toContain('1 unsaved change: CORS');
+    await userEvent.click(save());
+    // Primeiro o `PUT` do token, com a URL inteira; depois o CORS.
+    const put = await expectPut(http);
+    expect(put.request.body).toMatchObject({
+      default_status: '202',
+      signature: { provider: 'github', secret: '••••1234' },
+    });
+    http.expectNone(`/token/${TOKEN_ID}/cors/toggle`);
+    put.flush(SALVA);
     const call = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/cors/toggle`));
     expect(call.request.method).toBe('PUT');
     call.flush({ enabled: true });
+
     await vi.waitFor(() => expect(TestBed.inject(Preferences).token()?.cors).toBe(true));
-    http.expectNone(`/token/${TOKEN_ID}`);
+    expect(changesBar()).toBeNull();
   });
 
   it('CHECKS-20: deve dizer quantas regras ligadas respondem antes, com link para Rules', async () => {
@@ -199,7 +273,8 @@ describe('Dado o cartão "Response" de Checks', () => {
     const { container } = await renderCard(ResponseCard, SALVA);
 
     const row = container.querySelector('.cors-row') as HTMLElement;
-    expect(row.textContent).toContain('Lets a browser page call this URL. Applies right away.');
+    expect(row.textContent).toContain('Lets a browser page call this URL.');
+    expect(row.textContent).not.toContain('Applies right away');
     expect(within(row).getByRole('switch', { name: 'Enable CORS' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Response body' }).getAttribute('rows')).toBe('2');
   });

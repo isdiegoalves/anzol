@@ -20,17 +20,20 @@ import {
   SignatureEncoding,
   SignatureProvider,
   Token,
+  TokenSettings,
 } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
-import { ChecksStore } from './checks-store';
-import { SaveBar, SaveNotice } from './save-bar';
+import { CardFold } from './card-fold';
+import { CardFoot, CardNotice } from './card-foot';
+import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import {
   PendingField,
+  changeOf,
   fieldErrors,
   pendingLabels,
   pendingSummary,
-  saveErrorNotice,
+  secretChange,
 } from './url-settings';
 
 type ProviderOption = SignatureProvider | 'none';
@@ -194,9 +197,9 @@ const INTEGER = /^[+-]?\d+$/;
 /**
  * Checks › Signature verification (C §2.6, A): como funciona em três passos, a tabela dos
  * provedores que é o seletor (`radiogroup`), a anatomia do header com a linha "Expected header:",
- * os campos do provedor com os obrigatórios marcados desde o começo, e a barra de salvar que diz o
- * que falta (o Save nunca fica desabilitado: o genérico sem header nem segredo explica o motivo).
- * Trocar de provedor exige segredo novo (S11).
+ * os campos do provedor com os obrigatórios marcados desde o começo, e o pé do cartão que diz o
+ * que falta (o genérico sem header nem segredo explica o motivo). O salvar é o da barra da página
+ * (B3); o segredo nunca vai ao rascunho da aba. Trocar de provedor exige segredo novo (S11).
  */
 @Component({
   selector: 'app-signature-card',
@@ -213,18 +216,20 @@ const INTEGER = /^[+-]?\d+$/;
     MatHint,
     MatInput,
     MatLabel,
-    SaveBar,
+    CardFoot,
   ],
   templateUrl: './signature-card.html',
   styleUrls: ['./card.scss', './signature-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'signature-title' },
+  hostDirectives: [{ directive: CardFold, inputs: ['fold'] }],
 })
-export class SignatureCard {
+export class SignatureCard implements ChecksSection {
   protected readonly tokens = inject(TokenStore);
-  private readonly checks = inject(ChecksStore);
+  private readonly draft = inject(ChecksDraft);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
+  readonly id = 'signature';
   /** As linhas do seletor: "None" (desliga) e os cinco provedores. */
   protected readonly providers: readonly {
     provider: ProviderOption;
@@ -251,19 +256,21 @@ export class SignatureCard {
   }));
 
   /** A configuração salva: base do "SAVED", do segredo mantido e do Discard. */
-  protected readonly saved = signal<SignatureConfig | null>(this.tokens.token()?.signature ?? null);
-  protected readonly form = this.signatureForm(this.saved());
-  /** A URL como este cartão a leu: o save confere se a assinatura mudou lá fora. */
-  private readonly base = signal(this.tokens.token());
-  protected readonly saving = signal(false);
-  protected readonly attempted = signal(false);
-  protected readonly notice = signal<SaveNotice | null>(null);
+  protected readonly saved = signal<SignatureConfig | null>(
+    (this.draft.base() ?? this.tokens.token())?.signature ?? null,
+  );
+  readonly form = this.signatureForm(this.saved());
 
   constructor() {
     this.form.controls.provider.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.syncFields());
     this.syncFields();
+    this.draft.register(this);
+  }
+
+  protected unsaved(): boolean {
+    return this.draft.dirtySections().includes(this.id);
   }
 
   protected provider(): ProviderOption {
@@ -275,7 +282,6 @@ export class SignatureCard {
     if (control.value !== provider) {
       control.setValue(provider);
       control.markAsDirty();
-      this.notice.set(null);
     }
   }
 
@@ -398,77 +404,85 @@ export class SignatureCard {
     return pendingSummary(this.fields());
   }
 
-  protected pendingLabels(): string[] {
-    return pendingLabels(this.fields());
-  }
-
-  /** Com uma assinatura salva e nada editado, a barra diz como mantê-la (CHECKS-13). */
-  protected savedNotice(): SaveNotice | null {
+  /** Com uma assinatura salva e nada editado, o pé do cartão diz como mantê-la (CHECKS-13). */
+  protected savedNotice(): CardNotice | null {
     return this.saved()
       ? { text: $localize`Saved. Leave the secret blank to keep it.`, error: false }
       : null;
   }
 
-  protected discard(): void {
-    this.reset(this.saved());
+  /** As alterações contra a assinatura salva, só dos campos do provedor escolhido. */
+  changes(): ChangeLine[] {
+    const c = this.form.controls;
+    const was = this.valuesOf(this.saved());
+    const name = (provider: ProviderOption) =>
+      provider === 'none' ? $localize`None` : SIGNATURE_PROVIDER_LABELS[provider];
+    const seconds = (value: number | null) => $localize`${value ?? 0}:seconds: s`;
+    const field = <T>(control: AbstractControl<T>, label: string, show: (value: T) => string) =>
+      control.enabled
+        ? changeOf(label, show(was[nameOf(c, control)] as T), show(control.value))
+        : [];
+    const text = (value: string) => value;
+    return [
+      ...changeOf($localize`Signature provider`, name(was.provider), name(c.provider.value)),
+      ...field(c.header, $localize`Signature header`, text),
+      ...(c.secret.enabled ? secretChange('Secret', c.secret.value) : []),
+      ...field(c.toleranceSeconds, $localize`Tolerance`, seconds),
+      ...field(c.prefix, $localize`Prefix`, text),
+      ...field(c.algorithm, $localize`Algorithm`, (value) => value.replace('sha', 'SHA-')),
+      ...field(c.encoding, $localize`Encoding`, text),
+    ];
   }
 
-  /** "Reload" depois de "changed elsewhere": o cartão volta à URL como está no servidor. */
-  protected async reloadCard(): Promise<void> {
-    const base = this.base();
-    if (base) {
-      const token = await this.checks.reload(base.uuid);
-      this.base.set(token);
-      this.saved.set(token.signature ?? null);
-      this.reset(this.saved());
-      this.notice.set(null);
-    }
+  invalid(): string[] {
+    return pendingLabels(this.fields());
   }
 
-  protected async saveSignature(): Promise<void> {
-    if (this.saving()) {
-      return;
-    }
-    this.notice.set(null);
-    if (this.form.invalid) {
-      this.showPending();
-      return;
-    }
-    const base = this.base();
-    if (!base) {
-      return;
-    }
-    this.saving.set(true);
-    try {
-      const token: Token = await this.checks.save({ signature: this.signatureOf() }, base);
-      this.base.set(token);
-      this.saved.set(token.signature ?? null);
-      this.reset(this.saved());
-      this.notice.set(this.savedNotice() ?? { text: $localize`Saved.`, error: false });
-    } catch (error) {
-      const messages = fieldErrors(error, 'signature.secret');
-      if (messages.length > 0) {
-        this.form.controls.secret.setErrors({ server: messages.join(' ') });
-        this.showPending();
-      } else {
-        this.notice.set(saveErrorNotice(error));
-        this.checks.offerRetry(error, () => void this.saveSignature());
-      }
-    } finally {
-      this.saving.set(false);
-    }
+  settings(): TokenSettings {
+    return { signature: this.signatureOf() };
   }
 
-  /** Clicar com pendência: todos os erros à vista, o resumo em `alert` e o foco no primeiro campo. */
-  private showPending(): void {
-    this.attempted.set(true);
+  /** Todos os erros do cartão à vista; com `focus`, o foco vai ao primeiro campo inválido. */
+  showPending(focus: boolean): void {
     this.form.markAllAsTouched();
     const first = this.fields().find(([control]) => control.invalid);
-    if (first) {
+    if (focus && first) {
       this.host.nativeElement
         .querySelector<HTMLElement>(`[formControlName="${first[1]}"]`)
         ?.focus();
     }
+  }
+
+  load(token: Token): void {
+    this.saved.set(token.signature ?? null);
+    this.reset(this.saved());
+  }
+
+  /** O 422 do segredo vai para o campo, com a frase do servidor. */
+  refused(error: unknown): string[] {
+    const messages = fieldErrors(error, 'signature.secret');
+    if (messages.length === 0) {
+      return [];
+    }
+    const control = this.form.controls.secret;
+    control.setErrors({ server: messages.join(' ') });
+    control.markAsTouched();
+    return ['Secret'];
+  }
+
+  /** O rascunho da aba leva tudo menos o segredo. */
+  sketch(): Record<string, unknown> {
+    const values: Record<string, unknown> = this.form.getRawValue();
+    delete values['secret'];
+    return values;
+  }
+
+  restore(sketch: Record<string, unknown>): void {
+    const values = { ...sketch };
+    delete values['secret'];
+    this.form.patchValue(values);
+    this.form.markAsDirty();
+    this.syncFields();
   }
 
   /** Campos que podem ficar pendentes, na ordem da tela. */
@@ -512,7 +526,6 @@ export class SignatureCard {
 
   private reset(saved: SignatureConfig | null): void {
     this.form.reset(this.valuesOf(saved));
-    this.attempted.set(false);
     this.syncFields();
   }
 
@@ -580,4 +593,12 @@ export class SignatureCard {
     }
     c.secret.updateValueAndValidity({ emitEvent: false });
   }
+}
+
+/** O nome do controle no formulário (a chave dos valores salvos). */
+function nameOf<K extends string>(
+  controls: Record<K, AbstractControl>,
+  control: AbstractControl,
+): K {
+  return (Object.keys(controls) as K[]).find((key) => controls[key] === control) as K;
 }

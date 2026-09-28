@@ -1,13 +1,14 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatFormField } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { CardFold } from './card-fold';
 import { ChecksStore } from './checks-store';
 
 /** Um motivo (ou caminho) que falha, com o filtro da Inbox que mostra essas mensagens. */
@@ -52,14 +53,16 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  * Checks › Health (C §2.6, S20): a taxa de assinaturas e de corpos válidos nas últimas 50, 200 ou
  * 500 mensagens, com os motivos e caminhos que mais falham, lida do `GET /token/{id}/stats` (nada
  * é calculado na tela). Sem polling: recalcula ao abrir, ao trocar a janela, ao salvar a URL, ao
- * voltar para a aba e no "Refresh".
+ * voltar para a aba e no "Refresh". Na página fica por último e recolhido (B3): uma linha com as
+ * duas taxas, "Open in Insights" e "Show health", que abre o painel.
  */
 @Component({
   selector: 'app-health-card',
-  imports: [Icon, RouterLink, MatFormField, MatIconButton, MatOption, MatSelect],
+  imports: [Icon, RouterLink, MatButton, MatFormField, MatIconButton, MatOption, MatSelect],
   templateUrl: './health-card.html',
   styleUrls: ['./card.scss', './health-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'health-title' },
+  hostDirectives: [{ directive: CardFold, inputs: ['fold'] }],
 })
 export class HealthCard {
   protected readonly tokens = inject(TokenStore);
@@ -70,6 +73,26 @@ export class HealthCard {
   protected readonly stats = signal<TokenStats | null>(null);
   protected readonly loading = signal(false);
   protected readonly failure = signal<string | null>(null);
+  /** "Show health": o painel inteiro; recolhido, só a linha das duas taxas. */
+  protected readonly open = signal(false);
+  /** "Signatures 98.0 % valid · Schema not checked, over the newest 200". */
+  protected readonly brief = computed(() => {
+    const stats = this.stats();
+    if (!stats || stats.evaluated === 0) {
+      return null;
+    }
+    // Uma frase por taxa: em pt-BR "válidas" (assinaturas) e "válido" (schema).
+    const number = (percent: string) => percent.replace('%', '');
+    const signatures = this.signature()?.percent;
+    const bodies = this.schema()?.percent;
+    const signature = signatures
+      ? $localize`:signatures|Share of valid signatures:${number(signatures)}:rate: % valid`
+      : $localize`not checked`;
+    const schema = bodies
+      ? $localize`:schema|Share of bodies valid against the schema:${number(bodies)}:rate: % valid`
+      : $localize`not checked`;
+    return $localize`Signatures ${signature}:signature: · Schema ${schema}:schema:, over the newest ${stats.evaluated}:count:`;
+  });
 
   protected readonly signature = computed(() => {
     const stats = this.stats()?.signature;

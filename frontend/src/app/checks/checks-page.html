@@ -1,37 +1,123 @@
 <main class="page">
   <header class="page-head">
-    <div>
-      <h1 class="page-title" i18n>Checks</h1>
-      <p class="lead" i18n>
-        What this URL verifies on every request, how healthy that is, and how it answers.
-      </p>
-    </div>
+    <h1 class="page-title" i18n>Checks</h1>
+    <p class="lead" i18n>
+      What this URL verifies on every request, how healthy that is, and how it answers.
+    </p>
+  </header>
+
+  <div class="layout">
+    <!-- CHECKS-05: os cinco atalhos, na ordem dos cartões; ao lado do nome, o estado salvo. -->
     <nav class="jump" aria-label="On this page" i18n-aria-label>
       @for (item of sections; track item.id) {
         <a
           class="jump-link"
           [routerLink]="[]"
           [queryParams]="{ section: item.id }"
-          [attr.aria-current]="section() === item.id ? 'location' : null"
-          ><app-icon [name]="item.icon" [size]="16" />{{ item.label }}</a
-        >
+          [attr.aria-label]="linkName(item)"
+          [attr.aria-current]="current() === item.id ? 'location' : null"
+          ><app-icon [name]="item.icon" [size]="16" /><span class="jump-name">{{
+            item.label
+          }}</span>
+          @if (ready()) {
+            @if (stateOf(item.id); as state) {
+              <span class="jump-state">· {{ state.shown }}</span>
+            }
+            @if (unsaved(item.id)) {
+              <span class="dot" aria-hidden="true"></span>
+            }
+          }
+        </a>
       }
     </nav>
-  </header>
 
-  @if (ready()) {
-    <div class="columns">
-      <div class="column">
-        <app-signature-card id="checks-signature" />
-        <app-schema-card id="checks-schema" [schemaFrom]="schemaFrom()" />
-      </div>
-      <div class="column">
-        <app-health-card id="checks-health" />
-        <app-response-card id="checks-response" />
-        <app-privacy-card id="checks-privacy" />
-      </div>
+    <div class="cards">
+      @if (ready()) {
+        @if (draft.offer(); as saved) {
+          <div class="notice draft" role="alert">
+            <p i18n>You have a draft from {{ draftAge(saved) }}.</p>
+            <button mat-flat-button type="button" (click)="draft.restoreDraft()" i18n>
+              Restore draft
+            </button>
+            <!-- prettier-ignore -->
+            <button mat-button type="button" (click)="draft.discardDraft()" i18n>Discard draft</button>
+          </div>
+        }
+        @for (item of sections; track item.id) {
+          @let open = isOpen(item.id);
+          @let fold = !folding() ? 'none' : open ? 'open' : 'closed';
+          <!-- Celular: o cabeçalho do cartão é um botão que mostra o nome e o estado. -->
+          <ng-template #header>
+            @if (folding()) {
+              <h2 class="fold-title">
+                <button
+                  type="button"
+                  class="fold"
+                  [attr.aria-expanded]="open"
+                  [attr.aria-label]="foldName(item)"
+                  (click)="toggle(item.id)"
+                >
+                  <app-icon [name]="item.icon" [size]="20" />
+                  <span class="fold-name">{{ item.title }}</span>
+                  @if (stateOf(item.id); as state) {
+                    <span class="fold-state">· {{ state.shown }}</span>
+                  }
+                  @if (unsaved(item.id)) {
+                    <span class="dot" aria-hidden="true"></span>
+                  }
+                  <app-icon class="chevron" [name]="open ? 'up' : 'down'" [size]="20" />
+                </button>
+              </h2>
+            }
+          </ng-template>
+          @switch (item.id) {
+            @case ('signature') {
+              <app-signature-card class="slot" id="checks-signature" [fold]="fold">
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-signature-card>
+            }
+            @case ('schema') {
+              <app-schema-card
+                class="slot"
+                id="checks-schema"
+                [fold]="fold"
+                [schemaFrom]="schemaFrom()"
+              >
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-schema-card>
+            }
+            @case ('response') {
+              <app-response-card class="slot" id="checks-response" [fold]="fold">
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-response-card>
+            }
+            @case ('privacy') {
+              <app-privacy-card class="slot" id="checks-privacy" [fold]="fold">
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-privacy-card>
+            }
+            @case ('health') {
+              <app-health-card class="slot" id="checks-health" [fold]="fold">
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-health-card>
+            }
+          }
+        }
+      } @else if (failed()) {
+        <div class="notice" role="alert">
+          <p i18n>Could not load this URL.</p>
+          <button mat-flat-button type="button" (click)="load(tokenId())" i18n>Try again</button>
+        </div>
+      } @else {
+        <p class="loading" role="status" i18n>Loading this URL…</p>
+        <!-- Esqueleto dos cinco cartões: o índice já leva a cada lugar. -->
+        @for (item of sections; track item.id) {
+          <div class="slot skeleton" [id]="'checks-' + item.id" aria-hidden="true"></div>
+        }
+      }
     </div>
-  } @else {
-    <p class="loading" role="status" i18n>Loading this URL…</p>
-  }
+  </div>
+
+  <!-- Por último na ordem do DOM e do Tab: índice, cartões, barra de salvar. -->
+  <app-changes-bar />
 </main>

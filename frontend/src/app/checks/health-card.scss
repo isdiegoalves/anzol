@@ -148,3 +148,28 @@ h4 {
   margin: 0;
   color: var(--mat-sys-error);
 }
+
+// B3: o cartão recolhido mostra só esta linha (as duas taxas e o link para Métricas).
+.brief {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    color: var(--mat-sys-primary);
+  }
+
+  .error {
+    color: var(--mat-sys-error);
+  }
+}
+
+.body[hidden] {
+  display: none;
+}

@@ -34,6 +34,8 @@ function stats(overrides: Partial<TokenStats> = {}): TokenStats {
 }
 
 const statsUrl = (window: number) => `/token/${TOKEN_ID}/stats?window=${window}`;
+/** "Show health": abre o painel (o cartão vem recolhido, B3). */
+const show = () => userEvent.click(screen.getByRole('button', { name: 'Show health' }));
 
 describe('Dado a linha do Health', () => {
   it('deve calcular o percentual entre as verificadas, sem as não verificadas', () => {
@@ -45,10 +47,38 @@ describe('Dado a linha do Health', () => {
 describe('Dado o cartão "Health" de Checks', () => {
   afterEach(() => localStorage.clear());
 
+  // B3: por último e recolhido, com uma linha das duas taxas e o caminho para Métricas.
+  it('deve vir recolhido, com as duas taxas numa linha, "Open in Insights" e "Show health"', async () => {
+    const { container, http } = await renderCard(HealthCard, token());
+
+    http.expectOne(statsUrl(200)).flush(stats());
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.brief span')?.textContent).toBe(
+        'Signatures 90.2 % valid · Schema 83.3 % valid, over the newest 128',
+      ),
+    );
+    expect(screen.getByRole('link', { name: 'Open in Insights' }).getAttribute('href')).toBe(
+      `/${TOKEN_ID}/insights`,
+    );
+    const button = screen.getByRole('button', { name: 'Show health' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('#health-body')?.hasAttribute('hidden')).toBe(true);
+    expect(screen.queryByRole('combobox', { name: 'Window' })).toBeNull();
+    await expectNoAxeViolations(container);
+
+    await show();
+
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('#health-body')?.hasAttribute('hidden')).toBe(false);
+    expect(screen.getByText('signature mismatch')).toBeTruthy();
+  });
+
   it('deve mostrar as taxas e os motivos das últimas 200 e passar no axe', async () => {
     const { container, http } = await renderCard(HealthCard, token());
 
     http.expectOne(statsUrl(200)).flush(stats());
+    await show();
 
     await vi.waitFor(() => expect(screen.getByText('90.2%')).toBeTruthy());
     expect(screen.getByText('83.3%')).toBeTruthy();
@@ -63,6 +93,7 @@ describe('Dado o cartão "Health" de Checks', () => {
   it('deve pedir de novo com a janela escolhida Quando "50" é clicado', async () => {
     const { http } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
+    await show();
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Window' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Last 50' }));
@@ -101,6 +132,7 @@ describe('Dado o cartão "Health" de Checks', () => {
         schema: { valid: 0, invalid: 2, unchecked: 0, paths: [{ path: '', count: 2 }] },
       }),
     );
+    await show();
 
     const raiz = await screen.findByRole('link', { name: /\(root\)/ });
     expect(raiz.getAttribute('href')).toBe(`/${TOKEN_ID}?schema=invalid&schemaPath=`);
@@ -113,6 +145,7 @@ describe('Dado o cartão "Health" de Checks', () => {
         schema: { valid: 1, invalid: 4, unchecked: 0, paths: [{ path: '/id', count: 4 }] },
       }),
     );
+    await show();
 
     // M1: o motivo exato e o caminho do erro, junto do filtro largo de hoje.
     const mismatch = await screen.findByRole('link', { name: /signature mismatch/ });
@@ -138,6 +171,7 @@ describe('Dado o cartão "Health" de Checks', () => {
   it('CHECKS-18: deve pôr a janela no cabeçalho, o Refresh em ícone e a barra com vão entre as partes', async () => {
     const { http, container } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
+    await show();
 
     const head = container.querySelector('.card-head') as HTMLElement;
     await vi.waitFor(() =>

@@ -1,0 +1,70 @@
+@let failure = draft.failure();
+<section
+  class="bar"
+  [attr.role]="shown() ? 'region' : null"
+  [attr.aria-label]="shown() ? label : null"
+>
+  <!-- A região viva existe desde a carga, vazia (§4.3); a barra à vista aparece depois. -->
+  <app-live-region class="spoken" [text]="spoken()" [alert]="draft.alert() !== ''" />
+  @if (shown()) {
+    @if (failure) {
+      <!-- O erro do salvar, com o que fazer dele: a barra continua, e as alterações também. -->
+      <div class="failure" role="alert">
+        <p><app-icon name="bad" [size]="16" />{{ failure.text }}</p>
+        @switch (failure.kind) {
+          @case ('elsewhere') {
+            <button mat-stroked-button type="button" (click)="reload()" i18n>Reload</button>
+            <button mat-stroked-button type="button" (click)="save(true)" i18n>Save anyway</button>
+          }
+          @case ('network') {
+            <button mat-stroked-button type="button" (click)="save()" i18n>Try again</button>
+          }
+        }
+      </div>
+    }
+    <p class="summary" [class.error]="draft.alert()" aria-hidden="true">
+      @if (draft.alert()) {
+        <app-icon name="bad" [size]="16" />
+        <span>{{ visible() }}</span>
+      } @else {
+        <span class="full">{{ visible() }}</span>
+        <span class="count">{{ count() }}</span>
+      }
+    </p>
+    @if (reviewing() && lines().length > 0) {
+      <ul class="changes" id="checks-changes" aria-label="Changes to save" i18n-aria-label>
+        @for (line of lines(); track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    }
+    <div class="actions">
+      <button
+        mat-button
+        type="button"
+        class="review"
+        aria-controls="checks-changes"
+        [attr.aria-expanded]="reviewing()"
+        (click)="reviewing.set(!reviewing())"
+        i18n
+      >
+        Review changes
+      </button>
+      <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
+      <!-- Nunca desabilitado (S12): com campo inválido, o clique diz o que corrigir. -->
+      <button
+        mat-flat-button
+        type="button"
+        class="save"
+        aria-keyshortcuts="Control+S Meta+S"
+        [attr.aria-busy]="draft.saving()"
+        (click)="save()"
+      >
+        <app-icon name="check" [size]="18" /><ng-container i18n>Save changes</ng-container
+        ><span class="keys" aria-hidden="true" i18n="the keyboard shortcut, after Save changes"
+          >· Ctrl+S</span
+        >
+      </button>
+    </div>
+  }
+</section>

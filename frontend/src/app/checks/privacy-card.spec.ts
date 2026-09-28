@@ -1,13 +1,14 @@
-import { screen } from '@testing-library/angular';
+import { screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { expectPut, renderCard } from '../../testing/checks';
+import { attention, changesBar, expectPut, renderCard, saveButton } from '../../testing/checks';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { PrivacyCard } from './privacy-card';
 
 const NO_CONTENT = { status: 204, statusText: 'No Content' };
 const toggle = () => screen.getByRole('switch', { name: 'Require a secret to view this URL' });
-const save = () => screen.getByRole('button', { name: 'Save privacy' });
+const save = saveButton;
+const card = () => screen.getByRole('region', { name: 'Privacy' });
 
 describe('Dado o cartão "Privacy" de Checks', () => {
   afterEach(() => localStorage.clear());
@@ -23,6 +24,14 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     await userEvent.click(toggle());
     await userEvent.type(screen.getByLabelText('Secret to view'), 'segredo-longo');
     await userEvent.type(screen.getByLabelText('Confirm secret'), 'segredo-longo');
+    // O segredo nunca aparece na barra nem na lista de alterações.
+    await userEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+    expect(
+      within(screen.getByRole('list', { name: 'Changes to save' }))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent?.trim()),
+    ).toEqual(['Require a secret to view this URL: off → on', 'Secret to view: set (not shown)']);
+    expect(changesBar()?.textContent).not.toContain('segredo-longo');
     await userEvent.click(save());
 
     const put = await expectPut(http);
@@ -47,26 +56,29 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     await userEvent.type(screen.getByLabelText('Confirm secret'), 'outro');
     await userEvent.click(save());
 
-    expect(screen.getByRole('alert').textContent?.trim()).toBe(
-      '2 fields need attention: Secret to view, Confirm secret',
+    expect(attention()).toBe('2 fields need attention: Secret to view, Confirm secret');
+    expect(within(card()).getByRole('status').textContent?.trim()).toBe(
+      'To save, fix: Secret to view, Confirm secret',
     );
     expect(screen.getByText('The secret must have 8 to 256 characters.')).toBeTruthy();
     expect(screen.getByText('The secrets do not match.')).toBeTruthy();
     http.expectNone((sent) => sent.method === 'PUT');
   });
 
-  it('não deve mandar read_secret (mantém o atual) Quando a URL protegida é salva com os campos em branco', async () => {
+  it('não deve ter o que salvar (mantém o segredo atual) Quando a URL protegida fica com os campos em branco', async () => {
     const { http } = await renderCard(PrivacyCard, token({ protected: true }));
 
     expect(
       screen.getByText('This URL is protected. Leave the fields blank to keep the current secret.'),
     ).toBeTruthy();
-    await userEvent.click(save());
+    // Desligar e ligar de novo volta ao salvo: nada pendente, nada a mandar.
+    await userEvent.click(toggle());
+    expect(changesBar()).not.toBeNull();
+    await userEvent.click(toggle());
 
-    const put = await expectPut(http);
-    expect(put.request.body).not.toHaveProperty('read_secret');
-    put.flush(token({ protected: true }));
-    http.expectNone(`/token/${TOKEN_ID}/unlock`);
+    expect(changesBar()).toBeNull();
+    expect(within(card()).queryByText('Unsaved')).toBeNull();
+    http.expectNone((sent) => sent.method === 'PUT');
   });
 
   it('deve avisar e mandar read_secret nulo Quando a proteção é desligada', async () => {

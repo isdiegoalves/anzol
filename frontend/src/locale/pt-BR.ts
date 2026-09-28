@@ -43,14 +43,6 @@ export const translations: Record<string, string> = {
   '1091211545215261325': 'Carregando esta URL…',
   // URL updated!
   '702595232551336019': 'URL atualizada!',
-  // Could not reach the server. Your changes are kept.
-  '4266131453207504592': 'Não foi possível falar com o servidor. Suas alterações continuam aqui.',
-  // Retry
-  '7934833136974560675': 'Tentar de novo',
-  // CORS enabled.
-  '3618104030922081592': 'CORS ligado.',
-  // CORS disabled.
-  '469266493583734169': 'CORS desligado.',
   // Could not toggle CORS.
   '3959730088680902960': 'Não foi possível alternar o CORS.',
   // Health
@@ -116,16 +108,12 @@ export const translations: Record<string, string> = {
   '8661255126898122827': 'Os segredos não conferem.',
   //  Saving removes the secret: anyone with the URL will see its requests.
   '1638842964716429031': ' Salvar remove o segredo: quem tiver a URL vai ver as requisições dela. ',
-  // Save privacy
-  '5382937105591612751': 'Salvar privacidade',
   // Discard
   '3823219296477075982': 'Descartar',
   // New secret
   '7702420551206203313': 'Novo segredo',
   // Secret to view
   '8726240724963767305': 'Segredo para ver',
-  // Saved.
-  '3319622416410005872': 'Salvo.',
   // Response
   '6552449600024516046': 'Resposta',
   // Default status code
@@ -155,8 +143,6 @@ export const translations: Record<string, string> = {
     '{$START_BLOCK_IF} Guarda as {$INTERPOLATION} requisições mais recentes; a mais antiga sai quando chega uma nova. A URL nunca deixa de receber. {$CLOSE_BLOCK_IF}{$START_BLOCK_ELSE} Sem limite por URL: vale o limite geral do servidor. {$CLOSE_BLOCK_ELSE}',
   // Enable CORS
   '6497827724854597414': 'Ligar CORS',
-  // Save response
-  '8605570611578081197': 'Salvar resposta',
   // Reload
   '7967484035994732534': 'Recarregar',
   // Schema validation
@@ -190,8 +176,6 @@ export const translations: Record<string, string> = {
     ' Valida o corpo como JSON seja qual for o Content-Type. Até 20 erros são guardados por requisição. ',
   // Changing the schema doesn't re-check requests already received.
   '5878384991294022278': 'Trocar o schema não reverifica as requisições já recebidas.',
-  // Save schema
-  '2486420749108538599': 'Salvar schema',
   // Could not load that request.
   '9031212530448938333': 'Não foi possível carregar essa requisição.',
   // That request has no JSON body to infer from.
@@ -268,8 +252,6 @@ export const translations: Record<string, string> = {
   '8845571227674163852': 'Tolerância do timestamp (segundos)',
   // An integer between 1 and 86400.
   '2158922591797595494': 'Um número inteiro de 1 a 86400.',
-  // Save signature
-  '4196863552407318610': 'Salvar assinatura',
   // Send a signed test
   '3245840457560393248': 'Mandar um teste assinado',
   // The app's client secret
@@ -294,26 +276,8 @@ export const translations: Record<string, string> = {
   '7977999795707128636': 'corrija: {$PH}',
   // To save, {$PH}
   '6187175927533917757': 'Para salvar, {$PH}',
-  // default status code
-  '4438831085305413877': 'status padrão',
-  // content type
-  '5324455352510248299': 'content-type',
-  // response body
-  '7544729738209008223': 'corpo da resposta',
-  // auto cleanup
-  '708975333276531887': 'limpeza automática',
-  // privacy
-  '1204490431511805708': 'privacidade',
-  // {$PH} and {$PH_1}
-  '5033601776243148314': '{$PH} e {$PH_1}',
-  // The {$PH} changed elsewhere since this page read it. Reload to see it before saving.
-  '5228449922962488381':
-    'Mudou em outro lugar desde que esta página leu a URL: {$PH}. Recarregue para ver antes de salvar.',
   // unknown
   '4097761430561209267': 'desconhecido',
-  // The URL was saved, but this page could not unlock it with the new secret ({$status}). Unlock it with the new secret to keep working.
-  '6652188843367116863':
-    'A URL foi salva, mas esta página não conseguiu destrancá-la com o segredo novo ({$status}). Destranque-a com o segredo novo para continuar.',
   // Compare
   '2572999724448976084': 'Comparar',
   // Resize list and comparison
@@ -1668,7 +1632,7 @@ export const translations: Record<string, string> = {
   // {$destination}, needs attention
   '1469418318150552308': '{$destination}, pede atenção',
   // Edit URL
-  '5639322219019388338': 'Editar a URL',
+  '5639322219019388338': 'Configurar a URL',
   // Copy CLI command
   '438815826227761396': 'Copiar o comando do CLI',
   // Lock
@@ -1909,8 +1873,6 @@ export const translations: Record<string, string> = {
   '6894572111922321814': '120 ou data HTTP',
   // Off when empty. For 429, 503, 3xx.
   '3049454891898194535': 'Desligado quando vazio. Para 429, 503, 3xx.',
-  //  Lets a browser page call this URL. Applies right away.
-  '3919115585450169442': ' Deixa uma página do navegador chamar esta URL. Vale na hora. ',
   // {$seconds} seconds
   '1941477924301007516': '{$seconds} segundos',
   //  Pick a JSON request; the schema is inferred from its body.
@@ -2889,4 +2851,82 @@ export const translations: Record<string, string> = {
   '196162360584832288': 'Filtros limpos. {$requests}.',
   // No filter. {$requests}.
   '4610618820518753401': 'Sem filtro. {$requests}.',
+  // Changes to save
+  '4669666205343552713': 'Alterações a salvar',
+  // Save anyway
+  '7590965072754750003': 'Salvar mesmo assim',
+  //  Review changes
+  '1453959627369876853': ' Conferir as alterações ',
+  // Save changes
+  '7000649363168371045': 'Salvar alterações',
+  // Saved. 1 change.
+  '719940640156898501': 'Salvo. 1 alteração.',
+  // Saved. {$count} changes.
+  '5752996065078203419': 'Salvo. {$count} alterações.',
+  // Changes discarded.
+  '6043267881580519433': 'Alterações descartadas.',
+  // Draft restored.
+  '8736511586262562517': 'Rascunho restaurado.',
+  // Saved. Type the new secret to open this URL.
+  '3768184719388265277': 'Salvo. Digite o segredo novo para abrir esta URL.',
+  // This URL was changed elsewhere since you opened this page.
+  '6904025461932211719': 'Esta URL foi alterada em outro lugar desde que você abriu esta página.',
+  // Could not save. The server did not answer. Your changes are still here.
+  '5885774553484122599':
+    'Não foi possível salvar. O servidor não respondeu. Suas alterações continuam aqui.',
+  // 1 unsaved change: {$fields}
+  '1416090410117301609': '1 alteração não salva: {$fields}',
+  // {$count} unsaved changes: {$fields}
+  '8314476467671160744': '{$count} alterações não salvas: {$fields}',
+  // {$field}: set (not shown)
+  '2347523290020722312': '{$field}: definido (não mostrado)',
+  // {$field}: {$old} → {$new}
+  '5461607654576853907': '{$field}: {$old} → {$new}',
+  // Could not load this URL.
+  '7581075395114297532': 'Não foi possível carregar esta URL.',
+  // unsaved
+  '1001212805141003337': 'não salvo',
+  // On · {$dialect}
+  '239084826548390646': 'Ligada · {$dialect}',
+  // on
+  '4101941266124151376': 'ligado',
+  // off
+  '6110089012347909146': 'desligado',
+  // protected
+  '2934732845854580004': 'protegida',
+  // open
+  '9010413891924313175': 'aberta',
+  //  Show health
+  '1380560978091127676': ' Mostrar a saúde ',
+  // Open in Insights
+  '1841026810064988201': 'Abrir em Métricas',
+  // not checked
+  '5352265248740972007': 'não conferido',
+  // {VAR_PLURAL, plural, =1 {Checks has 1 unsaved change:} other {Checks has {INTERPOLATION} unsaved changes:}}
+  '2907088232744299679':
+    '{VAR_PLURAL, plural, =1 {Verificações tem 1 alteração não salva:} other {Verificações tem {INTERPOLATION} alterações não salvas:}}',
+  // Save and leave
+  '7211581972318359535': 'Salvar e sair',
+  // Lets a browser page call this URL.
+  '974402416930793809': 'Permite que uma página no navegador chame esta URL.',
+  // {$seconds} s
+  '3024352918195545398': '{$seconds} s',
+  // edited
+  '5611353616187282769': 'editado',
+  // Save first: the test uses the saved settings.
+  '2222270083272087568': 'Salve antes: o teste usa a configuração salva.',
+  // Tolerance
+  '8452154984826492593': 'Tolerância',
+  // · Ctrl+S
+  '2853807330238074173': '· Ctrl+S',
+  // 1 unsaved change
+  '1331381156208841382': '1 alteração não salva',
+  // {$count} unsaved changes
+  '6049785110692446958': '{$count} alterações não salvas',
+  // {$rate} % valid
+  '8563181798843418348': '{$rate} % válidas',
+  // {$rate} % valid
+  '444478121034528836': '{$rate} % válido',
+  // Signatures {$signature} · Schema {$schema}, over the newest {$count}
+  '1415018692366075249': 'Assinaturas {$signature} · Schema {$schema}, nas {$count} mais novas',
 };

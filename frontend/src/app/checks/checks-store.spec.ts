@@ -11,8 +11,7 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
-import { ChangedElsewhere, ChecksStore, jsonBody } from './checks-store';
-import { saveErrorNotice } from './url-settings';
+import { ChangedElsewhere, ChecksStore, UnlockFailed, jsonBody } from './checks-store';
 
 /** Responde a releitura com a URL da tela e devolve o `PUT` que vem depois. */
 async function expectPutAfterRead(http: HttpTestingController): Promise<TestRequest> {
@@ -65,7 +64,80 @@ describe('Dado o salvar de um cartão de Checks', () => {
       schema: { type: 'object' },
     });
     expect(TestBed.inject(Preferences).token()?.schema).toEqual({ type: 'object' });
-    expect(snack).toHaveBeenCalledWith('URL updated!', undefined, { duration: 4000 });
+    // §4.3: quem anuncia é a barra, uma vez; o snackbar aparece calado.
+    expect(snack).toHaveBeenCalledWith('URL updated!', undefined, {
+      duration: 4000,
+      politeness: 'off',
+    });
+  });
+
+  // B3: o CORS deixou de valer na hora e sai depois do `PUT` do token.
+  it('deve ligar o CORS depois do PUT Quando a barra o pede junto com outro campo', async () => {
+    const lida = token({ cors: false });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida, {
+      cors: true,
+    });
+    const put = await expectPutAfterRead(http);
+    http.expectNone(`/token/${TOKEN_ID}/cors/toggle`);
+    put.flush(token({ default_status: 201, cors: false }));
+    const toggle = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/cors/toggle`));
+    expect(toggle.request.method).toBe('PUT');
+    toggle.flush({ enabled: true });
+
+    expect((await saved).cors).toBe(true);
+    expect(TestBed.inject(Preferences).token()).toMatchObject({ default_status: 201, cors: true });
+  });
+
+  it('deve mandar o PUT com a URL inteira e depois trocar o CORS Quando só o CORS mudou', async () => {
+    const lida = token({ cors: true, signature: { provider: 'github', secret: '••••1234' } });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({}, lida, { cors: false });
+    const put = await expectPutAfterRead(http);
+    expect(put.request.body).toMatchObject({
+      default_status: '200',
+      signature: { provider: 'github', secret: '••••1234' },
+    });
+    put.flush(lida);
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/cors/toggle`))).flush({
+      enabled: false,
+    });
+
+    expect((await saved).cors).toBe(false);
+  });
+
+  it('deve manter o CORS que a URL tinha Quando o PUT o devolve desligado', async () => {
+    const lida = token({ cors: true });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida);
+    (await expectPutAfterRead(http)).flush(token({ default_status: 201, cors: false }));
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/cors/toggle`))).flush({
+      enabled: true,
+    });
+
+    expect((await saved).cors).toBe(true);
+  });
+
+  it('deve dizer que o CORS não entrou, com o resto gravado, Quando a troca falha', async () => {
+    const lida = token({ cors: false });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida, {
+      cors: true,
+    });
+    (await expectPutAfterRead(http)).flush(token({ default_status: 201, cors: false }));
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/cors/toggle`))).flush(null, {
+      status: 500,
+      statusText: 'x',
+    });
+
+    expect(await saved).toMatchObject({ default_status: 201, cors: false });
+    expect(snack).toHaveBeenLastCalledWith('Could not toggle CORS.', undefined, {
+      duration: 10000,
+    });
   });
 
   it('deve recarregar a lista da URL Quando a limpeza reduzida corta mensagens (o corte não gera evento)', async () => {
@@ -182,6 +254,38 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     http.expectNone((r) => r.method === 'PUT');
   });
 
+  it('deve recusar sem chamada Quando o CORS pedido mudou lá fora', async () => {
+    const lida = token({ cors: false });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({}, lida, { cors: true });
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      token({ cors: true }),
+    );
+
+    await expect(saved).rejects.toMatchObject({ fields: ['cors'] });
+    http.expectNone(`${URL}/cors/toggle`);
+  });
+
+  // "Save anyway": a pessoa viu o aviso e quer gravar por cima.
+  it('deve gravar por cima do que mudou lá fora Quando "force"', async () => {
+    const lida = token({ default_status: 200 });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida, {
+      force: true,
+    });
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      token({ default_status: 404, default_content: 'de fora' }),
+    );
+    const put = await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL));
+    // O que a barra não mexeu segue como está no servidor.
+    expect(put.request.body).toMatchObject({ default_status: '201', default_content: 'de fora' });
+    put.flush(token({ default_status: 201, default_content: 'de fora' }));
+
+    await saved;
+  });
+
   it('deve destrancar com o segredo novo antes de publicar a URL salva (o Health não pode pegar 401)', async () => {
     const lida = token({ protected: false });
     TestBed.inject(Preferences).token.set(lida);
@@ -234,12 +338,9 @@ describe('Dado o segredo de leitura trocado e o unlock recusado depois do PUT', 
       { status: 429, statusText: 'Too Many Requests' },
     );
 
-    const erro = await saved.catch((e: unknown) => e);
-    expect(saveErrorNotice(erro).text).toBe(
-      'The URL was saved, but this page could not unlock it with the new secret (429). ' +
-        'Unlock it with the new secret to keep working.',
-    );
-    expect(saveErrorNotice(erro).text).not.toMatch(/^Error updating token/);
+    // A barra tranca a URL com "Saved. Type the new secret to open this URL." (checks-draft.spec).
+    await expect(saved).rejects.toBeInstanceOf(UnlockFailed);
+    await expect(saved).rejects.toMatchObject({ status: 429 });
   });
 });
 

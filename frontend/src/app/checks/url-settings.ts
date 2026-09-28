@@ -105,19 +105,6 @@ export function pendingSummary(fields: readonly PendingField[]): string {
   return parts.length > 0 ? $localize`To save, ${parts.join('; ')}` : '';
 }
 
-/** Rótulo de cada campo do `PUT` na tela, para a frase de "changed elsewhere". */
-const FIELD_LABELS: Record<keyof TokenSettings, string> = {
-  default_status: $localize`default status code`,
-  default_content_type: $localize`content type`,
-  timeout: 'timeout',
-  default_content: $localize`response body`,
-  retry_after: 'Retry-After',
-  auto_cleanup: $localize`auto cleanup`,
-  signature: 'signature',
-  schema: 'schema',
-  read_secret: $localize`privacy`,
-};
-
 /**
  * Campos que o cartão manda (`changes`) e que mudaram no servidor (`fresh`) desde que o cartão leu a
  * URL (`base`). O segredo de leitura não volta na API: compara-se o `protected`.
@@ -136,31 +123,30 @@ export function changedFields(
   );
 }
 
-/** "The schema changed elsewhere since this page read it. Reload to see it before saving." */
-export function changedElsewhereText(fields: readonly string[]): string {
-  const labels = fields.map((field) => FIELD_LABELS[field as keyof TokenSettings] ?? field);
-  const list =
-    labels.length > 1
-      ? $localize`${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
-      : labels[0];
-  return $localize`The ${list} changed elsewhere since this page read it. Reload to see it before saving.`;
+/**
+ * Uma linha de alteração quando o valor do campo difere do salvo; vazio quando é o mesmo. Valor
+ * vazio aparece como "empty".
+ */
+export function changeOf(
+  label: string,
+  before: string,
+  after: string,
+): { label: string; before: string; after: string }[] {
+  const shown = (value: string) => (value === '' ? $localize`empty` : value);
+  return before === after ? [] : [{ label, before: shown(before), after: shown(after) }];
 }
 
-/** O aviso do cartão para o erro do `save`: "changed elsewhere" (com Reload) ou o erro do `PUT`. */
-export function saveErrorNotice(error: unknown): { text: string; error: true; reload: boolean } {
-  if (error instanceof Error && 'fields' in error && Array.isArray(error.fields)) {
-    return { text: changedElsewhereText(error.fields as string[]), error: true, reload: true };
-  }
-  if (error instanceof Error && error.name === 'UnlockFailed') {
-    const status =
-      'status' in error && error.status !== null ? String(error.status) : $localize`unknown`;
-    return {
-      text: $localize`The URL was saved, but this page could not unlock it with the new secret (${status}:status:). Unlock it with the new secret to keep working.`,
-      error: true,
-      reload: false,
-    };
-  }
-  return { text: updateError(error), error: true, reload: false };
+/** Um segredo digitado: a linha diz que foi definido, nunca o valor. */
+export function secretChange(
+  label: string,
+  typed: string,
+): { label: string; before: string; after: string; secret: true }[] {
+  return typed === '' ? [] : [{ label, before: '', after: '', secret: true }];
+}
+
+/** "on" e "off" dos interruptores, nas linhas de alteração. */
+export function onOff(value: boolean): string {
+  return value ? $localize`:switch state:on` : $localize`:switch state:off`;
 }
 
 /** Rótulos dos campos pendentes, na ordem da tela (o alerta depois de tentar salvar). */

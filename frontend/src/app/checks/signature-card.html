@@ -1,279 +1,289 @@
 @let chosen = provider();
 @let savedConfig = saved();
-<header class="card-head">
-  <span class="card-icon primary" aria-hidden="true"><app-icon name="checks" [size]="22" /></span>
-  <h2 id="signature-title" i18n>Signature verification</h2>
-  @if (savedConfig) {
-    <span class="state on"
-      ><app-icon name="ok" [size]="15" /><span i18n
-        >On · {{ providerLabels[savedConfig.provider] }}</span
-      ></span
-    >
-  } @else {
-    <span class="state" i18n>Off</span>
-  }
-  @if (form.dirty) {
-    <span class="state draft" i18n>Unsaved</span>
-  }
-  <span class="spacer"></span>
-  @if (chosen !== 'none') {
-    <button mat-button type="button" (click)="turnOff()" i18n>Turn off</button>
-  }
-</header>
-
-<div class="steps-panel">
-  <ol class="steps" aria-label="How signature verification works" i18n-aria-label>
-    <li>
-      <span class="step-number" aria-hidden="true">1</span>
-      <span>
-        <strong i18n>The provider signs</strong>
-        <span class="hint" i18n
-          >It computes an HMAC of the raw body (Stripe and Slack add a timestamp) with a secret that
-          only you and it know.</span
-        >
-      </span>
-    </li>
-    <li>
-      <span class="step-number" aria-hidden="true">2</span>
-      <span>
-        <strong i18n>The signature rides in a header</strong>
-        <span class="hint" i18n
-          >Each provider has its own header name and format. The table below shows where to
-          look.</span
-        >
-      </span>
-    </li>
-    <li>
-      <span class="step-number" aria-hidden="true">3</span>
-      <span>
-        <strong i18n>This URL checks it on arrival</strong>
-        <span class="hint" i18n
-          >Same formula, same secret, over the exact bytes received, compared in constant time. Each
-          request is marked Valid, or Invalid with the reason.</span
-        >
-      </span>
-    </li>
-  </ol>
-</div>
-
-<div class="providers">
-  <div class="provider-row provider-head" aria-hidden="true">
-    <span></span>
-    <span i18n>Provider</span>
-    <span i18n>Where the signature arrives</span>
-    <span i18n>What is signed</span>
-    <span i18n>Secret to paste</span>
-  </div>
-  <div role="radiogroup" aria-label="Signature provider" i18n-aria-label>
-    @for (row of providers; track row.provider) {
-      @let checked = row.provider === chosen;
-      <button
-        type="button"
-        role="radio"
-        class="provider-row provider"
-        [id]="'signature-provider-' + row.provider"
-        [class.chosen]="checked"
-        [attr.aria-checked]="checked"
-        [attr.aria-labelledby]="'signature-provider-name-' + row.provider"
-        [attr.aria-describedby]="'signature-provider-about-' + row.provider"
-        [tabIndex]="tabbable(row.provider) ? 0 : -1"
-        (click)="chooseProvider(row.provider)"
-        (keydown)="moveProvider($event)"
+<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon primary" aria-hidden="true"><app-icon name="checks" [size]="22" /></span>
+    <h2 id="signature-title" i18n>Signature verification</h2>
+    @if (savedConfig) {
+      <span class="state on"
+        ><app-icon name="ok" [size]="15" /><span i18n
+          >On · {{ providerLabels[savedConfig.provider] }}</span
+        ></span
       >
-        <span class="radio" aria-hidden="true"></span>
-        <span class="name">
-          <span [id]="'signature-provider-name-' + row.provider">{{ row.label }}</span>
-          @if (savedConfig?.provider === row.provider) {
-            <span class="saved-tag" i18n>Saved</span>
-          }
-        </span>
-        <span class="about" [id]="'signature-provider-about-' + row.provider">
-          <code>{{ row.arrives }}</code>
-          <code>{{ row.signed }}</code>
-          <span>{{ row.secret }}</span>
-        </span>
-      </button>
+    } @else {
+      <span class="state" i18n>Off</span>
     }
-  </div>
-</div>
+    @if (unsaved()) {
+      <span class="state draft" i18n>Unsaved</span>
+    }
+    <span class="spacer"></span>
+    @if (chosen !== 'none') {
+      <button mat-button type="button" (click)="turnOff()" i18n>Turn off</button>
+    }
+  </header>
 
-@if (savedConfig && chosen !== savedConfig.provider) {
-  @if (chosen === 'none') {
-    <p class="banner" role="status" i18n>
-      Saving turns signature verification off. Requests already received keep the result they got on
-      arrival.
-    </p>
-  } @else {
-    <p class="banner" role="status">
-      <app-icon name="info" [size]="18" />
-      <span>
-        <span i18n
-          >Unsaved: switching from {{ providerLabels[savedConfig.provider] }} (saved) to
-          {{ providerLabels[chosen] }}. Requests already received keep the result they got on
-          arrival.</span
-        >
-        <span i18n
-          >The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
-          {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.</span
-        >
-      </span>
-    </p>
-  }
-}
-
-@if (chosen !== 'none') {
-  @let guide = guideOf(chosen);
-  <div class="setup">
-    <div class="explain">
-      <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
-      <code class="example" aria-label="Example header" i18n-aria-label>
-        @for (part of example(); track $index) {
-          <span
-            class="part"
-            [class.prefix]="part.tone === 'prefix'"
-            [class.time]="part.tone === 'time'"
-            [class.sig]="part.tone === 'sig'"
-            >{{ part.text }}</span
+  <div class="steps-panel">
+    <ol class="steps" aria-label="How signature verification works" i18n-aria-label>
+      <li>
+        <span class="step-number" aria-hidden="true">1</span>
+        <span>
+          <strong i18n>The provider signs</strong>
+          <span class="hint" i18n
+            >It computes an HMAC of the raw body (Stripe and Slack add a timestamp) with a secret
+            that only you and it know.</span
           >
-        }
-      </code>
-      <ul class="legend">
-        @for (item of legend(); track item.key) {
-          <li>
-            <span
-              class="key"
-              [class.prefix]="item.tone === 'prefix'"
-              [class.time]="item.tone === 'time'"
-              [class.sig]="item.tone === 'sig'"
-              >{{ item.key }}</span
-            ><span>{{ item.text }}</span>
-          </li>
-        }
-      </ul>
-      <p class="anatomy" [textContent]="anatomyText()"></p>
-      @if (guide) {
-        <p i18n class="hint">
-          Where to find the secret: {{ guide.where }} The HMAC key is the UTF-8 bytes of the whole
-          secret.
-        </p>
+        </span>
+      </li>
+      <li>
+        <span class="step-number" aria-hidden="true">2</span>
+        <span>
+          <strong i18n>The signature rides in a header</strong>
+          <span class="hint" i18n
+            >Each provider has its own header name and format. The table below shows where to
+            look.</span
+          >
+        </span>
+      </li>
+      <li>
+        <span class="step-number" aria-hidden="true">3</span>
+        <span>
+          <strong i18n>This URL checks it on arrival</strong>
+          <span class="hint" i18n
+            >Same formula, same secret, over the exact bytes received, compared in constant time.
+            Each request is marked Valid, or Invalid with the reason.</span
+          >
+        </span>
+      </li>
+    </ol>
+  </div>
+
+  <div class="providers">
+    <div class="provider-row provider-head" aria-hidden="true">
+      <span></span>
+      <span i18n>Provider</span>
+      <span i18n>Where the signature arrives</span>
+      <span i18n>What is signed</span>
+      <span i18n>Secret to paste</span>
+    </div>
+    <div role="radiogroup" aria-label="Signature provider" i18n-aria-label>
+      @for (row of providers; track row.provider) {
+        @let checked = row.provider === chosen;
+        <button
+          type="button"
+          role="radio"
+          class="provider-row provider"
+          [id]="'signature-provider-' + row.provider"
+          [class.chosen]="checked"
+          [attr.aria-checked]="checked"
+          [attr.aria-labelledby]="'signature-provider-name-' + row.provider"
+          [attr.aria-describedby]="'signature-provider-about-' + row.provider"
+          [tabIndex]="tabbable(row.provider) ? 0 : -1"
+          (click)="chooseProvider(row.provider)"
+          (keydown)="moveProvider($event)"
+        >
+          <span class="radio" aria-hidden="true"></span>
+          <span class="name">
+            <span [id]="'signature-provider-name-' + row.provider">{{ row.label }}</span>
+            @if (savedConfig?.provider === row.provider) {
+              <span class="saved-tag" i18n>Saved</span>
+            }
+          </span>
+          <span class="about" [id]="'signature-provider-about-' + row.provider">
+            <code>{{ row.arrives }}</code>
+            <code>{{ row.signed }}</code>
+            <span>{{ row.secret }}</span>
+          </span>
+        </button>
       }
     </div>
-
-    <form
-      class="fields"
-      aria-labelledby="signature-settings-title"
-      [formGroup]="form"
-      (ngSubmit)="saveSignature()"
-    >
-      <div class="settings-head">
-        <h3 id="signature-settings-title" i18n>{{ providerLabels[chosen] }} settings</h3>
-        <span class="hint" i18n>* required</span>
-      </div>
-      <div class="pair">
-        @if (chosen === 'generic') {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label i18n>Signature header</mat-label>
-            <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
-            <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
-            <mat-error i18n>The header is required.</mat-error>
-          </mat-form-field>
-        }
-        @let keeps = keepsSecret();
-        <mat-form-field
-          appearance="outline"
-          subscriptSizing="dynamic"
-          [floatLabel]="keeps ? 'always' : 'auto'"
-        >
-          <mat-label i18n>Secret</mat-label>
-          <input
-            matInput
-            type="password"
-            autocomplete="new-password"
-            formControlName="secret"
-            [placeholder]="keeps ? (savedConfig?.secret ?? '') : ''"
-          />
-          @if (keeps) {
-            <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
-          }
-          <mat-error>
-            @if (form.controls.secret.errors?.['server']; as server) {
-              {{ server }}
-            } @else {
-              <ng-container i18n>The secret is required, up to 256 characters.</ng-container>
-            }
-          </mat-error>
-        </mat-form-field>
-        @if (chosen === 'stripe' || chosen === 'slack') {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label i18n>Timestamp tolerance (seconds)</mat-label>
-            <input matInput type="number" min="1" max="86400" formControlName="toleranceSeconds" />
-            <mat-hint i18n
-              >1 to 86400. Older or future timestamps are rejected (replay protection).</mat-hint
-            >
-            <mat-error i18n>An integer between 1 and 86400.</mat-error>
-          </mat-form-field>
-        }
-      </div>
-      @if (chosen === 'generic') {
-        <div class="triple">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label i18n>Prefix</mat-label>
-            <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
-            <mat-hint i18n>Optional, before the signature</mat-hint>
-          </mat-form-field>
-          <div class="segmented">
-            <span class="segmented-label" id="signature-algorithm-label" i18n>Algorithm</span>
-            <mat-button-toggle-group
-              formControlName="algorithm"
-              aria-labelledby="signature-algorithm-label"
-              hideSingleSelectionIndicator
-            >
-              @for (algorithm of algorithms; track algorithm.value) {
-                <mat-button-toggle [value]="algorithm.value">{{
-                  algorithm.label
-                }}</mat-button-toggle>
-              }
-            </mat-button-toggle-group>
-          </div>
-          <div class="segmented">
-            <span class="segmented-label" id="signature-encoding-label" i18n>Encoding</span>
-            <mat-button-toggle-group
-              formControlName="encoding"
-              aria-labelledby="signature-encoding-label"
-              hideSingleSelectionIndicator
-            >
-              <mat-button-toggle value="hex" i18n>Hex</mat-button-toggle>
-              <mat-button-toggle value="base64" i18n>Base64</mat-button-toggle>
-            </mat-button-toggle-group>
-          </div>
-        </div>
-      }
-    </form>
   </div>
-}
 
-<app-save-bar
-  name="signature"
-  label="Save signature"
-  i18n-label
-  [summary]="pending()"
-  [pendingLabels]="pendingLabels()"
-  [attempted]="attempted()"
-  [notice]="form.dirty && !notice()?.error ? null : (notice() ?? savedNotice())"
-  (reload)="reloadCard()"
-  (save)="saveSignature()"
->
-  @if (savedConfig && !form.dirty) {
-    <a
-      mat-button
-      [routerLink]="['/', tokens.token()?.uuid, 'outbound']"
-      [queryParams]="{ send: 'signed' }"
-      ><app-icon name="outbound" [size]="18" /><ng-container i18n
-        >Send a signed test</ng-container
-      ></a
-    >
+  @if (savedConfig && chosen !== savedConfig.provider) {
+    @if (chosen === 'none') {
+      <p class="banner" role="status" i18n>
+        Saving turns signature verification off. Requests already received keep the result they got
+        on arrival.
+      </p>
+    } @else {
+      <p class="banner" role="status">
+        <app-icon name="info" [size]="18" />
+        <span>
+          <span i18n
+            >Unsaved: switching from {{ providerLabels[savedConfig.provider] }} (saved) to
+            {{ providerLabels[chosen] }}. Requests already received keep the result they got on
+            arrival.</span
+          >
+          <span i18n
+            >The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
+            {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.</span
+          >
+        </span>
+      </p>
+    }
   }
-  @if (form.dirty) {
-    <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
+
+  @if (chosen !== 'none') {
+    @let guide = guideOf(chosen);
+    <div class="setup">
+      <div class="explain">
+        <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
+        <code class="example" aria-label="Example header" i18n-aria-label>
+          @for (part of example(); track $index) {
+            <span
+              class="part"
+              [class.prefix]="part.tone === 'prefix'"
+              [class.time]="part.tone === 'time'"
+              [class.sig]="part.tone === 'sig'"
+              >{{ part.text }}</span
+            >
+          }
+        </code>
+        <ul class="legend">
+          @for (item of legend(); track item.key) {
+            <li>
+              <span
+                class="key"
+                [class.prefix]="item.tone === 'prefix'"
+                [class.time]="item.tone === 'time'"
+                [class.sig]="item.tone === 'sig'"
+                >{{ item.key }}</span
+              ><span>{{ item.text }}</span>
+            </li>
+          }
+        </ul>
+        <p class="anatomy" [textContent]="anatomyText()"></p>
+        @if (guide) {
+          <p i18n class="hint">
+            Where to find the secret: {{ guide.where }} The HMAC key is the UTF-8 bytes of the whole
+            secret.
+          </p>
+        }
+      </div>
+
+      <form class="fields" aria-labelledby="signature-settings-title" [formGroup]="form">
+        <div class="settings-head">
+          <h3 id="signature-settings-title" i18n>{{ providerLabels[chosen] }} settings</h3>
+          <span class="hint" i18n>* required</span>
+        </div>
+        <div class="pair">
+          @if (chosen === 'generic') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label i18n>Signature header</mat-label>
+              <input matInput formControlName="header" placeholder="X-Signature" i18n-placeholder />
+              <mat-hint i18n>The header your provider sends the signature in.</mat-hint>
+              <mat-error i18n>The header is required.</mat-error>
+            </mat-form-field>
+          }
+          @let keeps = keepsSecret();
+          <mat-form-field
+            appearance="outline"
+            subscriptSizing="dynamic"
+            [floatLabel]="keeps ? 'always' : 'auto'"
+          >
+            <mat-label i18n>Secret</mat-label>
+            <input
+              matInput
+              type="password"
+              autocomplete="new-password"
+              formControlName="secret"
+              [placeholder]="keeps ? (savedConfig?.secret ?? '') : ''"
+            />
+            @if (keeps) {
+              <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
+            }
+            <mat-error>
+              @if (form.controls.secret.errors?.['server']; as server) {
+                {{ server }}
+              } @else {
+                <ng-container i18n>The secret is required, up to 256 characters.</ng-container>
+              }
+            </mat-error>
+          </mat-form-field>
+          @if (chosen === 'stripe' || chosen === 'slack') {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label i18n>Timestamp tolerance (seconds)</mat-label>
+              <input
+                matInput
+                type="number"
+                min="1"
+                max="86400"
+                formControlName="toleranceSeconds"
+              />
+              <mat-hint i18n
+                >1 to 86400. Older or future timestamps are rejected (replay protection).</mat-hint
+              >
+              <mat-error i18n>An integer between 1 and 86400.</mat-error>
+            </mat-form-field>
+          }
+        </div>
+        @if (chosen === 'generic') {
+          <div class="triple">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label i18n>Prefix</mat-label>
+              <input matInput formControlName="prefix" placeholder="sha256=" i18n-placeholder />
+              <mat-hint i18n>Optional, before the signature</mat-hint>
+            </mat-form-field>
+            <div class="segmented">
+              <span class="segmented-label" id="signature-algorithm-label" i18n>Algorithm</span>
+              <mat-button-toggle-group
+                formControlName="algorithm"
+                aria-labelledby="signature-algorithm-label"
+                hideSingleSelectionIndicator
+              >
+                @for (algorithm of algorithms; track algorithm.value) {
+                  <mat-button-toggle [value]="algorithm.value">{{
+                    algorithm.label
+                  }}</mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+            </div>
+            <div class="segmented">
+              <span class="segmented-label" id="signature-encoding-label" i18n>Encoding</span>
+              <mat-button-toggle-group
+                formControlName="encoding"
+                aria-labelledby="signature-encoding-label"
+                hideSingleSelectionIndicator
+              >
+                <mat-button-toggle value="hex" i18n>Hex</mat-button-toggle>
+                <mat-button-toggle value="base64" i18n>Base64</mat-button-toggle>
+              </mat-button-toggle-group>
+            </div>
+          </div>
+        }
+      </form>
+    </div>
   }
-</app-save-bar>
+
+  <app-card-foot name="signature" [summary]="pending()" [notice]="unsaved() ? null : savedNotice()">
+    @if (savedConfig) {
+      <!-- CHECKS-13: o teste usa a configuração salva; com rascunho em Assinatura, o link diz por quê. -->
+      @if (unsaved()) {
+        <a
+          mat-button
+          class="blocked"
+          role="link"
+          aria-disabled="true"
+          aria-describedby="signature-test-why"
+          tabindex="0"
+          ><app-icon name="outbound" [size]="18" /><ng-container i18n
+            >Send a signed test</ng-container
+          ></a
+        >
+        <span class="why" id="signature-test-why" i18n
+          >Save first: the test uses the saved settings.</span
+        >
+      } @else {
+        <a
+          mat-button
+          [routerLink]="['/', tokens.token()?.uuid, 'outbound']"
+          [queryParams]="{ send: 'signed' }"
+          ><app-icon name="outbound" [size]="18" /><ng-container i18n
+            >Send a signed test</ng-container
+          ></a
+        >
+      }
+    }
+  </app-card-foot>
+</div>
