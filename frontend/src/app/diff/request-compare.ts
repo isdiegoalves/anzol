@@ -36,7 +36,7 @@ interface CheckRow {
 const CHECK_LABELS: Record<CheckResult['kind'], string> = {
   signature: 'Signature',
   schema: 'Schema',
-  rule: 'Rule',
+  rule: 'Answer',
 };
 
 /**

@@ -130,6 +130,25 @@ describe('Dado a tela principal', () => {
 
     await vi.waitFor(() => expect(text()).toContain('201 · Pix'));
     http.expectNone(`/token/${TOKEN_ID}/rules`);
+    // B2: o detalhe pede o trace da aberta, para achar a regra mais perto quando quem respondeu
+    // foi uma pega-tudo. A regra com condições não ganha a frase.
+    await flush(`/token/${TOKEN_ID}/request/${answered.uuid}/rules/trace`, {
+      request: answered.uuid,
+      responded_by: { id: 'r1', name: 'Pix' },
+      rules: [
+        {
+          id: 'r1',
+          name: 'Pix',
+          enabled: true,
+          position: 1,
+          matches: true,
+          failed: [],
+          conditions: ['match.method'],
+        },
+      ],
+    });
+    await harness.fixture.whenStable();
+    expect(text()).not.toContain('Closest rule');
   });
 
   it('deve criar uma URL nova e ir para ela Quando a raiz é aberta sem token salvo', async () => {

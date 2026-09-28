@@ -83,6 +83,8 @@ export class RequestView {
   /** URL da mensagem; `null` no link compartilhado, que não expõe a configuração da URL. */
   readonly token = input<Token | null>(null);
   readonly readonly = input(false);
+  /** A regra que chegou mais perto, vinda do trace (quem tem a URL, o detalhe, pede e passa). */
+  readonly closest = input<readonly string[]>([]);
 
   protected readonly localDate = localDate;
   protected readonly fromNow = fromNow;
@@ -135,6 +137,22 @@ export class RequestView {
     };
     return rule.state === 'default' ? toChecks : null;
   });
+  /**
+   * B2: embaixo do status, o que a tela sabe com a ressalva certa. Os cabeçalhos respondidos não
+   * são gravados: o `Retry-After` da resposta padrão é o de agora, e o texto diz isso.
+   */
+  protected readonly answerNotes = computed(() => {
+    const state = this.pipeline().rule.state;
+    const retry = this.token()?.retry_after;
+    const byDefault = state === 'default' || state === 'near-miss';
+    return [
+      ...(byDefault && retry != null && `${retry}` !== ''
+        ? [$localize`Retry-After: ${retry}:value: (as configured now)`]
+        : []),
+      ...this.closest(),
+    ];
+  });
+
   /** Near miss: quem respondeu foi a resposta padrão, e ela também leva a Checks › Response. */
   protected readonly defaultLink = computed(() => {
     const tokenId = this.request().token_id;

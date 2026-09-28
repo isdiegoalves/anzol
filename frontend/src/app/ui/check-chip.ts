@@ -51,6 +51,10 @@ export interface ChipLink {
         } @else {
           <span class="detail">{{ result().detail }}</span>
         }
+        <!-- B2: o que mais a tela sabe, com a ressalva certa ("Retry-After: 5 (as configured now)"). -->
+        @for (note of notes(); track note) {
+          <span class="note">{{ note }}</span>
+        }
         @if (extra(); as more) {
           <a class="extra link" [routerLink]="more.commands" [queryParams]="more.queryParams">{{
             more.text
@@ -66,7 +70,7 @@ export interface ChipLink {
     '[class]': '"check " + result().tone + " " + size()',
     '[attr.data-kind]': 'result().kind',
     '[attr.data-state]': 'result().state',
-    '[attr.title]': 'size() === "mini" ? result().title + ": " + result().detail : null',
+    '[attr.title]': 'size() === "mini" ? spoken() : null',
   },
 })
 export class CheckChip {
@@ -83,6 +87,12 @@ export class CheckChip {
   /** Um link a mais, numa linha embaixo do motivo (o "Default response" do near miss, WM-10). */
   readonly extra = input<Omit<ChipLink, 'part'> | null>(null);
 
+  /** Linhas a mais no cartão, embaixo do motivo. */
+  readonly notes = input<readonly string[]>([]);
+
+  /** O veredito inteiro, no `title` do selo. */
+  protected readonly spoken = computed(() => spokenOf(this.result()));
+
   /** O motivo partido em volta do trecho que vira link: antes, o link, depois. */
   protected readonly detailParts = computed(() => {
     const link = this.link();
@@ -92,4 +102,9 @@ export class CheckChip {
       ? [detail.slice(0, at), link.text, detail.slice(at + link.text.length)]
       : null;
   });
+}
+
+/** O veredito como o nome acessível do item o diz: a frase própria, ou "título: motivo". */
+export function spokenOf(result: CheckResult): string {
+  return result.spoken ?? `${result.title}: ${result.detail}`;
 }

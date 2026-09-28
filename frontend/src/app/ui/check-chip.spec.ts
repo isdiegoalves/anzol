@@ -13,7 +13,10 @@ const [invalid] = checksOf(
   }),
 );
 const [, , near] = checksOf(
-  webhookRequest(1, { near_miss: { id: 'r', name: 'Refund', failed: ['method: expected GET'] } }),
+  webhookRequest(1, {
+    near_miss: { id: 'r', name: 'Refund', failed: ['method: expected GET'] },
+    response: { status: 429 },
+  }),
 );
 const [unchecked] = checksOf(webhookRequest(1, { signature: null }));
 
@@ -22,7 +25,8 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
     // INBOX-13: o provedor na válida, o motivo curto na inválida.
     ['válida', valid, 'ok', 'Stripe'],
     ['inválida', invalid, 'bad', 'Mismatch'],
-    ['quase (near miss)', near, 'near', 'Near miss'],
+    // B2: quem respondeu o near miss foi a resposta padrão, e o selo diz o status dela.
+    ['quase (near miss)', near, 'near', '429 · Default response'],
     ['não verificada', unchecked, 'none', 'No sig check'],
   ] as [string, CheckResult, string, string][])(
     'deve mostrar o texto curto com o tom, e o título e o motivo no title, Quando a verificação está %s (mini)',
@@ -34,7 +38,7 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
       expect(chip.textContent?.trim()).toBe(short);
       expect(chip.classList).toContain(tone);
       expect(chip.querySelector('.detail')).toBeNull();
-      expect(chip.getAttribute('title')).toBe(`${result.title}: ${result.detail}`);
+      expect(chip.getAttribute('title')).toBe(result.spoken ?? `${result.title}: ${result.detail}`);
       await expectNoAxeViolations(container);
     },
   );

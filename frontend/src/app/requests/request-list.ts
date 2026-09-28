@@ -28,7 +28,7 @@ import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
-import { CheckChip } from '../ui/check-chip';
+import { CheckChip, spokenOf } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
@@ -413,15 +413,20 @@ export class RequestList {
 
   private itemOf(request: WebhookRequest, now: number): ItemView {
     const pipeline = pipelineOf(request);
-    const seals = [pipeline.signature, pipeline.schema, pipeline.rule].filter(
-      (check) => check.tone !== 'none',
-    );
+    // B2: o status respondido vem primeiro e aparece sempre; os outros, só quando dizem algo.
+    const seals = [
+      pipeline.rule,
+      ...[pipeline.signature, pipeline.schema].filter((check) => check.tone !== 'none'),
+    ];
     const label = [
       `${request.method} ${pipeline.route}`,
       `#${request.uuid.substring(0, 5)}`,
       $localize`from ${request.ip}:ip:`,
       localDate(request.created_at),
-      ...seals.map((seal) => `${seal.title}: ${seal.detail}`),
+      ...[pipeline.signature, pipeline.schema]
+        .filter((check) => check.tone !== 'none')
+        .map(spokenOf),
+      spokenOf(pipeline.rule),
       ...(this.isUnread(request) ? [$localize`unread`] : []),
       ...this.compareRole(request),
     ].join(', ');

@@ -1,5 +1,5 @@
 @let current = request();
-<app-request-view [request]="current" [token]="token()">
+<app-request-view [request]="current" [token]="token()" [closest]="closest()">
   <ng-container ngProjectAs="[viewBack]"><ng-content select="[detailBack]" /></ng-container>
   <!-- C1: "Why not rule…?" no cartão da regra, com as regras de agora. -->
   <app-rule-trace checkActions [tokenId]="current.token_id" [request]="current" />

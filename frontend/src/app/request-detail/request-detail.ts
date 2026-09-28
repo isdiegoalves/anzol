@@ -10,6 +10,8 @@ import {
   input,
   linkedSignal,
   output,
+  signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
@@ -22,6 +24,8 @@ import { CompareStore } from '../diff/compare-store';
 import { UNDO_MS } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
+import { closestPhrase } from '../pipeline/pipeline';
+import { RuleStore } from '../rules/rule-store';
 import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
@@ -65,6 +69,7 @@ export class RequestDetail {
   private readonly requests = inject(RequestStore);
   protected readonly ai = inject(AiClient);
   private readonly viewport = inject(Viewport);
+  private readonly rules = inject(RuleStore);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -82,6 +87,13 @@ export class RequestDetail {
   protected readonly aiOffHint = AI_OFF_HINT;
 
   protected readonly formats = COPY_FORMATS;
+
+  /**
+   * B2: quando quem respondeu foi uma regra pega-tudo, a regra que chegou mais perto vem do trace,
+   * com a ressalva de que ele reavalia as regras de agora. Com a resposta padrão, vem do
+   * `near_miss` gravado (o cartão já o mostra).
+   */
+  protected readonly closest = signal<readonly string[]>([]);
 
   /** INBOX-20: o "Delete request" do "More", com o Undo da lixeira da lista. */
   protected deleteRequest(): void {
@@ -115,12 +127,43 @@ export class RequestDetail {
   protected readonly hasOlder = computed(() => this.neighbour(false) >= 0);
 
   constructor() {
+    effect(() => {
+      const { uuid, token_id: tokenId, rule, response } = this.request();
+      untracked(() => {
+        this.closest.set([]);
+        if (rule && response?.status !== undefined) {
+          void this.findClosest(tokenId, uuid, rule.id);
+        }
+      });
+    });
     // Fechar (ou abrir outra mensagem) tira o painel.
     effect(() => {
       if (!this.explaining()) {
         this.explainHost().clear();
       }
     });
+  }
+
+  private async findClosest(tokenId: string, requestId: string, answeredBy: string) {
+    try {
+      const trace = await this.rules.trace(tokenId, requestId);
+      const answered = trace.rules.find((entry) => entry.id === answeredBy);
+      // Só a pega-tudo: a regra com condições respondeu porque casou, e não por falta de outra.
+      if (this.request().uuid !== requestId || !answered || answered.conditions.length > 0) {
+        return;
+      }
+      const [near] = trace.rules
+        .filter((entry) => entry.enabled && !entry.matches && entry.failed.length > 0)
+        .sort((a, b) => a.failed.length - b.failed.length);
+      if (near) {
+        this.closest.set([
+          closestPhrase(near.name, near.failed),
+          $localize`Checked against the rules as they are now.`,
+        ]);
+      }
+    } catch {
+      // Sem o trace, o cartão fica só com o que a mensagem gravou.
+    }
   }
 
   protected readonly permalink = computed(

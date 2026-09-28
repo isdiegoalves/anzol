@@ -67,6 +67,7 @@
           size="card"
           [link]="check.kind === 'rule' ? ruleLink() : null"
           [extra]="check.kind === 'rule' ? defaultLink() : null"
+          [notes]="check.kind === 'rule' ? answerNotes() : []"
         />
       </div>
     }

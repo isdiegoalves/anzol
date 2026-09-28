@@ -43,6 +43,27 @@
   background: transparent;
 }
 
+// B2 (UX-02, UX-09): o selo do status respondido é neutro de 2xx a 5xx (só a falha de rede tem a
+// cor de erro), com o número em fonte de código; ele não encolhe: quem cede é o nome da regra.
+:host(.mini[data-kind='rule']:not(.bad)) {
+  border-color: transparent;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+}
+
+:host(.mini[data-kind='rule']) {
+  flex: none;
+}
+
+:host(.mini[data-kind='rule']) .title {
+  font-family: var(--app-code-family);
+  font-weight: 600;
+}
+
+.note {
+  overflow-wrap: anywhere;
+}
+
 .text {
   display: flex;
   flex-direction: column;

@@ -152,7 +152,10 @@ describe('Dado a lista lateral de mensagens', () => {
       expect.stringMatching(/^POST \/ .+ ago$/),
       expect.stringMatching(/^GET \/a\?b=1 .+ ago$/),
     ]);
-    expect(text('.meta')).toEqual(['payment_intent.succeeded #00000', '#00000']);
+    expect(text('.meta')).toEqual([
+      '— · not recorded payment_intent.succeeded #00000',
+      '— · not recorded #00000',
+    ]);
     expect(element().textContent).not.toContain('192.168.0.1');
     expect(element().textContent).not.toContain('Stripe/1.0');
     // O IP fica no nome acessível.
@@ -292,7 +295,7 @@ describe('Dado a lista lateral de mensagens', () => {
     async (_caso, signature, tone, texto, rotulo) => {
       await load([webhookRequest(1, { signature })]);
 
-      const seal = items()[0].querySelector('.seals app-check-chip');
+      const seal = items()[0].querySelector('.seals app-check-chip[data-kind="signature"]');
 
       expect(seal?.textContent?.trim()).toBe(texto);
       expect(seal?.getAttribute('title')).toBe(rotulo);
@@ -307,7 +310,7 @@ describe('Dado a lista lateral de mensagens', () => {
   ])('não deve mostrar selo de assinatura Quando ela é %s', async (_caso, campos) => {
     await load([webhookRequest(1, campos)]);
 
-    expect(items()[0].querySelector('.seals app-check-chip')).toBeNull();
+    expect(items()[0].querySelector('.seals app-check-chip[data-kind="signature"]')).toBeNull();
   });
 
   it('deve mostrar os selos de schema e de regra ao lado do de assinatura', async () => {
@@ -316,15 +319,55 @@ describe('Dado a lista lateral de mensagens', () => {
         signature: { provider: 'github', valid: true, reason: null },
         schema: { valid: false, errors: [{ path: '/id', message: 'must be integer' }] },
         near_miss: { id: 'r', name: 'Só GET', failed: ['method: expected GET, got POST'] },
+        response: { status: 429 },
       }),
     ]);
 
+    // B2: o status respondido é sempre o primeiro selo.
     expect(
       [...items()[0].querySelectorAll('.seals app-check-chip')].map((chip) =>
         chip.textContent?.trim(),
       ),
-    ).toEqual(['GitHub', '1 schema error', 'Near miss']);
+    ).toEqual(['429 · Default response', 'GitHub', '1 schema error']);
   });
+
+  // B2 (UX-02): o selo e o trecho do nome acessível dizem a mesma coisa, com o status e a origem.
+  it.each([
+    [
+      'a resposta padrão',
+      { rule: null, response: { status: 429 } },
+      '429 · Default response',
+      'Default response · 429',
+      'none',
+    ],
+    [
+      'uma regra',
+      { rule: { id: 'r1', name: 'Pedido pago' }, response: { status: 201 } },
+      '201 · Pedido pago',
+      'Answered by rule · 201: Pedido pago',
+      'ok',
+    ],
+    [
+      'uma falha de rede de regra',
+      { rule: { id: 'r2', name: 'Derruba' }, response: { fault: 'connection_reset' } },
+      '— · Connection reset',
+      'Network fault by rule: Connection reset: Derruba',
+      'bad',
+    ],
+    ['nada gravado', { rule: null }, '— · not recorded', 'Answer not recorded', 'none'],
+  ])(
+    'deve dizer o status e a origem no primeiro selo e no nome do item Quando respondeu %s',
+    async (_caso, campos, selo, nome, tom) => {
+      await load([webhookRequest(1, campos)]);
+
+      const seal = items()[0].querySelector('.seals app-check-chip');
+      expect(seal?.getAttribute('data-kind')).toBe('rule');
+      expect(seal?.querySelector('.title')?.textContent).toBe(selo);
+      expect(seal?.getAttribute('title')).toBe(nome);
+      expect(seal?.classList).toContain(tom);
+      expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(nome);
+    },
+  );
 
   it('deve emitir a mensagem clicada Quando o usuário clica nela', async () => {
     await load([webhookRequest(1)]);
@@ -602,12 +645,12 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('app-compare-band .band')).toBeNull();
   });
 
-  // INBOX-13, C3: o selo da regra que respondeu diz o status gravado ("201 · Pix"), "Fault · …" com
-  // falha de rede e, na mensagem antiga sem a resposta, só "Rule: {nome}".
+  // INBOX-13, C3 e B2: o selo da regra que respondeu diz o status gravado ("201 · Pix"), o tipo da
+  // falha de rede e, na mensagem antiga sem a resposta, "not recorded".
   it.each([
     [{ status: 201 }, '201 · Pix'],
-    [{ fault: 'connection_reset' }, 'Fault · Pix'],
-    [null, 'Rule: Pix'],
+    [{ fault: 'connection_reset' }, '— · Connection reset'],
+    [null, '— · not recorded'],
   ])('deve dizer %j no selo da regra que respondeu como "%s"', async (response, esperado) => {
     await load([webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, response })]);
 
@@ -636,7 +679,9 @@ describe('Dado a lista lateral de mensagens', () => {
       }),
     ]);
 
-    const seal = items()[0].querySelector('.select .meta .seals app-check-chip');
+    const seal = items()[0].querySelector(
+      '.select .meta .seals app-check-chip[data-kind="signature"]',
+    );
     expect(seal?.getAttribute('title')).toBe('Signature invalid: signature mismatch');
     expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
       'Signature invalid: signature mismatch',

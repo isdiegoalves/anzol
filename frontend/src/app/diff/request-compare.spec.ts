@@ -71,7 +71,7 @@ describe('Dado a comparação de duas mensagens', () => {
       within(table)
         .getAllByRole('rowheader')
         .map((header) => header.textContent?.replace(/\s+/g, ' ').trim()),
-    ).toEqual(['Signature', 'Schema', 'Rule']);
+    ).toEqual(['Signature', 'Schema', 'Answer']);
     // O "changed" fica na célula da B: o nome da linha é o da verificação.
     const schema = within(table).getByRole('rowheader', { name: 'Schema' }).closest('tr');
     expect(schema?.querySelectorAll('td')[1].textContent).toContain('changed');
@@ -104,7 +104,7 @@ describe('Dado a comparação de duas mensagens', () => {
     expect(groups).toEqual([
       ['Signature', 2],
       ['Schema', 2],
-      ['Rule', 2],
+      ['Answer', 2],
     ]);
     await expectNoAxeViolations(container);
   });

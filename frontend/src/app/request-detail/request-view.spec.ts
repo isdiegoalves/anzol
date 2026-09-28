@@ -282,7 +282,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     it('deve dizer o status gravado da regra que respondeu no título do cartão', async () => {
       await show(webhookRequest(1, { rule: { id: 'r1', name: 'Pix' }, response: { status: 201 } }));
 
-      expect(cards()).toContain('Answered by rule · 201');
+      expect(cards()).toContain('Answered 201 · by rule');
     });
 
     // WM-10: o nome da regra no cartão leva a ela, com a mensagem para voltar.
@@ -343,7 +343,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
 
       expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
-        'Closest: Só GET · method: expected GET, got POST',
+        'Closest rule: Só GET — method: expected GET, got POST',
       );
       expect(screen.queryByRole('button', { name: /^Why\?/ })).toBeNull();
     });
@@ -565,7 +565,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       expect(screen.queryAllByRole('button')).toEqual([]);
       // Uma condição só: a frase vai no cartão da regra (INBOX-18).
       expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
-        'Closest: Só GET · method: expected GET, got POST',
+        'Closest rule: Só GET — method: expected GET, got POST',
       );
       expect(screen.getByText('Signature invalid')).toBeTruthy();
       await expectNoAxeViolations(container);

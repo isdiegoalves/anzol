@@ -16,10 +16,18 @@ export type CheckTone = 'ok' | 'bad' | 'near' | 'none';
  * Estado fino de cada verificação. Assinatura: `valid`, `invalid` (o HMAC não bate), `stale`
  * (bate, mas o timestamp está fora da tolerância), `absent` (faltou um header exigido),
  * `unchecked`. Schema: `valid`, `invalid`, `unchecked`. Regra: `answered`, `near-miss`,
- * `default` (respondeu a resposta padrão).
+ * `default` (a resposta padrão), `fault` (falha de rede) e `unrecorded` (sem resposta gravada).
  */
 export type CheckState =
-  'valid' | 'invalid' | 'stale' | 'absent' | 'unchecked' | 'answered' | 'near-miss' | 'default';
+  | 'valid'
+  | 'invalid'
+  | 'stale'
+  | 'absent'
+  | 'unchecked'
+  | 'answered'
+  | 'near-miss'
+  | 'default'
+  | 'fault';
 
 /** Resultado de uma verificação, pronto para o selo (lista) e o cartão (detalhe). */
 export interface CheckResult {
@@ -35,6 +43,11 @@ export interface CheckResult {
    * "Stale timestamp", "2 schema errors", "201 · Pix".
    */
   short: string;
+  /**
+   * Como o resultado entra no nome acessível do item e no `title` do selo, quando difere de
+   * "título: motivo" ("Default response · 429").
+   */
+  spoken?: string;
   /** A regra que o resultado cita (a que respondeu, ou a mais próxima): o link no cartão (WM-10). */
   ref?: { id: string; name: string };
 }
@@ -229,59 +242,82 @@ function schemaResult(request: CapturedRequest, token: Token | null): CheckResul
   };
 }
 
-/**
- * C3 (E-06): o que a mensagem gravou que foi respondido — o status, ou "Fault" com falha de rede;
- * `undefined` na mensagem gravada antes do campo (a tela omite o status).
- */
-function answeredWith(request: CapturedRequest): string | undefined {
-  const response = request.response;
-  if (response?.fault) {
-    return $localize`:network fault instead of a response:Fault`;
-  }
-  return response?.status === undefined ? undefined : String(response.status);
+/** O nome de cada falha de rede no selo e no nome acessível ("— · Connection reset"). */
+function faultName(fault: string): string {
+  const names: Record<string, string> = {
+    connection_reset: $localize`:network fault:Connection reset`,
+    empty_response: $localize`:network fault:Empty response`,
+    malformed_chunk: $localize`:network fault:Malformed chunk`,
+    random_data_then_close: $localize`:network fault:Random data`,
+  };
+  return names[fault] ?? fault;
 }
 
+/** "Closest rule: Pedido pago — method: expected POST, got GET" (B2), com o que mais falhou. */
+export function closestPhrase(name: string, failed: readonly string[]): string {
+  const [first] = failed;
+  const reason = first ? conditionPhrase(first).text : '';
+  const more = failed.length > 1 ? $localize` (+${failed.length - 1}:count: more)` : '';
+  return $localize`Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
+}
+
+/**
+ * O que a URL respondeu (B2, UX-02): o status e a origem, no selo da lista ("429 · Default
+ * response"), no nome acessível do item ("Default response · 429") e no cartão do detalhe
+ * ("Answered 429 · default response"). Falha de rede de regra: "— · Connection reset". Mensagem
+ * gravada antes do campo `response`: "— · not recorded".
+ */
 function ruleResult(request: CapturedRequest): CheckResult {
   const kind = 'rule';
-  if (request.rule) {
-    const { id, name } = request.rule;
-    const answer = answeredWith(request);
+  const { rule, near_miss: near, response } = request;
+  if (response?.fault) {
+    const fault = faultName(response.fault);
+    const by = rule?.name ?? '';
+    return {
+      kind,
+      state: 'fault',
+      tone: 'bad',
+      title: $localize`Network fault · ${fault}:fault:`,
+      detail: by,
+      short: `— · ${fault}`,
+      spoken: $localize`Network fault by rule: ${fault}:fault:: ${by}:rule:`,
+      ...(rule && { ref: rule }),
+    };
+  }
+  const recorded = response?.status !== undefined;
+  const status = recorded ? String(response?.status) : '—';
+  if (rule) {
     return {
       kind,
       state: 'answered',
       tone: 'ok',
-      title:
-        answer === undefined
-          ? $localize`Answered by rule`
-          : $localize`Answered by rule · ${answer}:status:`,
-      detail: name,
-      short: answer === undefined ? $localize`Rule: ${name}:rule:` : `${answer} · ${name}`,
-      ref: { id, name },
-    };
-  }
-  if (request.near_miss) {
-    const { id, name, failed } = request.near_miss;
-    return {
-      kind,
-      state: 'near-miss',
-      tone: 'near',
-      title: $localize`No rule matched`,
-      // INBOX-18: com uma condição só, a frase dela vai no cartão (sem o "Why? (n)").
-      detail:
-        failed.length === 1
-          ? $localize`Closest: ${name}:rule: · ${conditionPhrase(failed[0]).text}:condition:`
-          : $localize`Closest: ${name}:rule: (${failed.length}:count: conditions failed)`,
-      short: $localize`Near miss`,
-      ref: { id, name },
+      title: recorded
+        ? $localize`Answered ${status}:status: · by rule`
+        : $localize`Answered by rule`,
+      detail: rule.name,
+      short: recorded ? `${status} · ${rule.name}` : $localize`— · not recorded`,
+      spoken: recorded
+        ? $localize`Answered by rule · ${status}:status:: ${rule.name}:rule:`
+        : $localize`Answer not recorded, by rule ${rule.name}:rule:`,
+      ref: rule,
     };
   }
   return {
     kind,
-    state: 'default',
-    tone: 'none',
-    title: $localize`Default response`,
-    detail:
-      request.rule === undefined ? $localize`Received before rules` : $localize`No rule answered`,
-    short: $localize`Default`,
+    state: near ? 'near-miss' : 'default',
+    tone: near ? 'near' : 'none',
+    title: recorded
+      ? $localize`Answered ${status}:status: · default response`
+      : $localize`Default response`,
+    detail: near
+      ? closestPhrase(near.name, near.failed)
+      : request.rule === undefined
+        ? $localize`Received before rules`
+        : $localize`No rule answered`,
+    short: recorded ? $localize`${status}:status: · Default response` : $localize`— · not recorded`,
+    spoken: recorded
+      ? $localize`Default response · ${status}:status:`
+      : $localize`Answer not recorded`,
+    ...(near && { ref: { id: near.id, name: near.name } }),
   };
 }

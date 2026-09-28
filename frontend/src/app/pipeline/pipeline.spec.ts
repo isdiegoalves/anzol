@@ -106,7 +106,12 @@ describe('Dado a regra que respondeu a mensagem', () => {
     [
       'uma regra respondeu',
       { rule: { id: 'r1', name: 'Pagamento pix' }, near_miss: null },
-      { state: 'answered', tone: 'ok', title: 'Answered by rule', detail: 'Pagamento pix' },
+      {
+        state: 'answered',
+        tone: 'ok',
+        title: 'Answered 200 · by rule',
+        detail: 'Pagamento pix',
+      },
     ],
     [
       'nenhuma casou e uma chegou perto (near miss)',
@@ -122,14 +127,19 @@ describe('Dado a regra que respondeu a mensagem', () => {
       {
         state: 'near-miss',
         tone: 'near',
-        title: 'No rule matched',
-        detail: 'Closest: Refund queued (2 conditions failed)',
+        title: 'Answered 200 · default response',
+        detail: 'Closest rule: Refund queued — method: expected POST, got GET (+1 more)',
       },
     ],
     [
       'nenhuma regra (a resposta padrão respondeu)',
       { rule: null, near_miss: null },
-      { state: 'default', tone: 'none', title: 'Default response', detail: 'No rule answered' },
+      {
+        state: 'default',
+        tone: 'none',
+        title: 'Answered 200 · default response',
+        detail: 'No rule answered',
+      },
     ],
   ] as const)('deve dar o selo certo Quando %s', (_caso, campos, esperado) => {
     const near = campos.near_miss && {
@@ -137,7 +147,11 @@ describe('Dado a regra que respondeu a mensagem', () => {
       failed: [...campos.near_miss.failed],
       conditions: [...campos.near_miss.conditions],
     };
-    const request = webhookRequest(1, { rule: campos.rule, near_miss: near });
+    const request = webhookRequest(1, {
+      rule: campos.rule,
+      near_miss: near,
+      response: { status: 200 },
+    });
 
     expect(brief(pipelineOf(request).rule)).toEqual(esperado);
   });
@@ -149,7 +163,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
 
     // INBOX-18: com uma condição só, a frase dela vai no cartão (o "Why? (n)" sai).
     expect(pipelineOf(request).rule.detail).toBe(
-      'Closest: Só GET · method: expected GET, got POST',
+      'Closest rule: Só GET — method: expected GET, got POST',
     );
   });
 });
@@ -233,20 +247,74 @@ describe('Dado a URL da mensagem com assinatura genérica', () => {
 
 // Fase 2 (INBOX-13): o selo da lista diz o que houve em poucas palavras; INBOX-18: o cartão do
 // detalhe diz o status da regra, o dialeto do schema e a idade da assinatura Stripe.
-describe('Dado a resposta gravada na mensagem (C3, E-06)', () => {
+describe('Dado a resposta gravada na mensagem (C3, E-06; B2, UX-02)', () => {
   it.each([
-    [{ status: 404 }, 'Answered by rule · 404', '404 · Tudo o resto'],
-    [{ fault: 'connection_reset' }, 'Answered by rule · Fault', 'Fault · Tudo o resto'],
-    [null, 'Answered by rule', 'Rule: Tudo o resto'],
-    [undefined, 'Answered by rule', 'Rule: Tudo o resto'],
-  ])('deve mostrar %j como "%s" / "%s"', (response, title, short) => {
+    [
+      { status: 404 },
+      'Answered 404 · by rule',
+      '404 · Tudo o resto',
+      'Answered by rule · 404: Tudo o resto',
+    ],
+    [
+      { fault: 'connection_reset' },
+      'Network fault · Connection reset',
+      '— · Connection reset',
+      'Network fault by rule: Connection reset: Tudo o resto',
+    ],
+    [
+      { fault: 'falha_nova' },
+      'Network fault · falha_nova',
+      '— · falha_nova',
+      'Network fault by rule: falha_nova: Tudo o resto',
+    ],
+    [null, 'Answered by rule', '— · not recorded', 'Answer not recorded, by rule Tudo o resto'],
+    [
+      undefined,
+      'Answered by rule',
+      '— · not recorded',
+      'Answer not recorded, by rule Tudo o resto',
+    ],
+  ])('deve mostrar %j, da regra, como "%s" / "%s"', (response, title, short, spoken) => {
     const request = webhookRequest(1, {
       rule: { id: 'r9', name: 'Tudo o resto' },
       ...(response !== undefined && { response }),
     });
     const rule = pipelineOf(request).rule;
 
-    expect([rule.title, rule.short]).toEqual([title, short]);
+    expect([rule.title, rule.short, rule.spoken]).toEqual([title, short, spoken]);
+  });
+
+  it.each([
+    [
+      { status: 429 },
+      'Answered 429 · default response',
+      '429 · Default response',
+      'Default response · 429',
+    ],
+    [
+      { status: 500 },
+      'Answered 500 · default response',
+      '500 · Default response',
+      'Default response · 500',
+    ],
+    [null, 'Default response', '— · not recorded', 'Answer not recorded'],
+  ])('deve mostrar %j, da resposta padrão, como "%s" / "%s"', (response, title, short, spoken) => {
+    const rule = pipelineOf(webhookRequest(1, { rule: null, response })).rule;
+
+    expect([rule.title, rule.short, rule.spoken]).toEqual([title, short, spoken]);
+    // Neutro de 2xx a 5xx: o status não muda o tom.
+    expect([rule.state, rule.tone]).toEqual(['default', 'none']);
+  });
+
+  it('deve dar o tom de erro só à falha de rede', () => {
+    const fault = pipelineOf(
+      webhookRequest(1, {
+        rule: { id: 'r', name: 'Derruba' },
+        response: { fault: 'empty_response' },
+      }),
+    ).rule;
+
+    expect([fault.state, fault.tone, fault.short]).toEqual(['fault', 'bad', '— · Empty response']);
   });
 });
 
@@ -299,13 +367,20 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
     const rule = pipelineOf(request).rule;
 
     expect([rule.title, rule.detail, rule.short]).toEqual([
-      'Answered by rule · 201',
+      'Answered 201 · by rule',
       'Pix',
       '201 · Pix',
     ]);
+    // Near miss: quem respondeu foi a resposta padrão, e o selo diz o status dela.
     expect(
-      short(webhookRequest(2, { near_miss: { id: 'r2', name: 'x', failed: ['a', 'b'] } }), 'rule'),
-    ).toBe('Near miss');
+      short(
+        webhookRequest(2, {
+          near_miss: { id: 'r2', name: 'x', failed: ['a', 'b'] },
+          response: { status: 429 },
+        }),
+        'rule',
+      ),
+    ).toBe('429 · Default response');
   });
 
   it('deve dizer o dialeto do $schema da URL no cartão do schema válido', () => {
