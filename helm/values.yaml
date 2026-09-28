@@ -3,7 +3,8 @@
 
 image:
   repository: ghcr.io/isdiegoalves/anzol
-  # Nenhum pipeline publica a imagem: construa com o Dockerfile da raiz, publique e escreva aqui a tag publicada.
+  # O workflow imagem.yml publica a imagem a cada tag de versão vX.Y.Z (tags X.Y.Z, X.Y e latest): escreva aqui a tag
+  # publicada. Sem tag de versão publicada, construa com o Dockerfile da raiz e publique.
   tag: latest
   pullPolicy: IfNotPresent
 

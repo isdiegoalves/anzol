@@ -15,7 +15,7 @@ da API e do webhook (licença MIT, ver [`LICENSE`](LICENSE)):
 | Tela | Angular 22 + Angular Material | `frontend/` |
 | Armazenamento | Redis 8.10 (tokens expiram em 7 dias) | serviço `redis` do compose |
 | Contrato caixa-preta da API e do evento | Playwright | `tests/contract/` |
-| CLI de encaminhamento (`anzol listen`/`replay`) | Kotlin 2.4 + Java 25 + Clikt | `cli/` |
+| CLI (`anzol listen`, `replay`, `rules`, `send`, `wait-for`) | Kotlin 2.4 + Clikt; roda em Java 21 ou mais novo (o build usa o JDK 25) | `cli/` |
 
 Uma imagem só (`Dockerfile` da raiz): o Node constrói o Angular, o Gradle embute o build no jar
 e o Spring Boot serve a API e a tela na mesma porta.
@@ -725,11 +725,14 @@ Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude C
 claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
 ```
 
+São 15 ferramentas:
+
 | Ferramenta | Rota da API |
 |---|---|
 | `create_url`, `get_url`, `update_url`, `delete_url` | `POST /token`, `GET`/`PUT`/`DELETE /token/{id}` |
 | `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search`, `POST .../requests/wait` |
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
+| `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
 | `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
@@ -801,7 +804,7 @@ Com o `wait-for`, um teste automatizado espera o webhook chegar, sem `sleep`.
 
 ### Instalar
 
-Precisa do Java 25.
+Roda em Java 21 ou mais novo. Para construir, o JDK 25 (o Gradle o usa como toolchain e gera classes do Java 21).
 
 ```bash
 cd cli && ./gradlew installDist
@@ -856,6 +859,7 @@ local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Req
 anzol rules pull <token>                     # a lista de regras no stdout
 anzol rules pull <token> --file regras.json  # no arquivo (o stdout fica vazio)
 anzol rules push <token> regras.json         # troca a lista inteira da URL pela do arquivo
+anzol rules push <token> --dry-run regras.json   # só mostra o que o push mudaria; não grava
 ```
 
 O `pull` escreve a lista como o `GET /token/{id}/rules` a devolve, em JSON indentado com 2 espaços,
@@ -863,6 +867,11 @@ UTF-8 e quebra de linha final, o mesmo formato do Export da tela. O `push` manda
 `PUT /token/{id}/rules` (a lista inteira: regra que não está no arquivo deixa de existir, e `[]`
 apaga todas) e imprime `Pushed <n> rule(s)`. Regra com `id` o mantém; sem `id`, o servidor gera um.
 Ida e volta `pull` → `push` → `pull` dá o mesmo arquivo.
+
+Com `--dry-run`, o `push` compara o arquivo com as regras salvas, por `id`, e imprime no stdout o resumo em JSON
+`{"equal": [id…], "changed": [{"id", "name", "fields"}], "removed": [{"id", "name"}], "added": [{"id"?, "name"}]}`
+(regra sem `id`, ou com um que a URL não tem, é nova), sem gravar, com saída 0. Ele não valida as regras (uma nota no
+stderr lembra disso): quem valida é o servidor, no push de verdade. Arquivo com `id` repetido sai com 1.
 
 ```
 $ anzol rules push 9f3c…e21a regras.json
@@ -1080,7 +1089,9 @@ abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf
 
 ### CI local
 
-Não há pipeline remoto: o CI é o `./ci.sh` da raiz, que roda tudo o que está acima de uma vez.
+O `./ci.sh` da raiz roda tudo o que está acima de uma vez. No GitHub, o workflow `testes`
+(`.github/workflows/testes.yml`) roda a cada push e pull request só a parte sem stack (passo 1 abaixo: backend, CLI e
+frontend); contrato, E2E e aceite do CLI ficam no `./ci.sh`.
 
 ```bash
 ./ci.sh
@@ -1111,8 +1122,9 @@ rodada inteira leva uns 2 minutos.
 
 O chart `anzol` em `helm/` sobe no Kubernetes o mesmo que o `docker-compose.yml`: o app (imagem
 `ghcr.io/isdiegoalves/anzol`, porta 8080, uma réplica) e um Redis 8 como StatefulSet com PVC, `--maxmemory` e
-`noeviction`, gravando o `dump.rdb` em `/data`. Nenhum pipeline publica a imagem: construa com o `Dockerfile` da raiz,
-publique no `ghcr.io` e informe a tag.
+`noeviction`, gravando o `dump.rdb` em `/data`. O workflow `imagem` (`.github/workflows/imagem.yml`) publica a imagem no
+`ghcr.io`, para amd64 e arm64, a cada tag de versão `vX.Y.Z` enviada ao GitHub (tags `X.Y.Z`, `X.Y` e `latest`); informe
+a tag publicada. Sem tag de versão publicada, construa com o `Dockerfile` da raiz e publique você mesmo.
 
 ```bash
 helm install anzol ./helm -f valores.yaml
