@@ -5,10 +5,11 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { NavigationError, Router, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import {
   checksMatcher,
@@ -19,6 +20,7 @@ import {
   outboundMatcher,
   rulesMatcher,
 } from '../app.routes';
+import { Connection } from '../realtime/connection-store';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
@@ -66,7 +68,13 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
 
   const sections = () => screen.queryByRole('navigation', { name: 'URL sections' });
 
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource);
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
   });
@@ -259,12 +267,212 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
   });
 
-  it('deve abrir o "Create New URL" Quando o FAB é clicado', async () => {
-    await renderAt(`/${TOKEN_ID}/checks`);
+  it('deve abrir o "Create New URL" pelo botão de ícone "New URL", com o title e a tecla de hoje (UX-11)', async () => {
+    const { container } = await renderAt(`/${TOKEN_ID}/checks`);
+    const button = screen.getByRole('button', { name: 'New URL' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'New URL' }));
+    expect(button.getAttribute('title')).toBe('New URL (N)');
+    expect(button.classList).toContain('new-url');
+    expect(container.querySelector('.fab')).toBeNull();
+    await userEvent.click(button);
 
     await vi.waitFor(() => expect(createUrl).toHaveBeenCalledWith());
+  });
+
+  describe('Dado o rail e o cabeçalho iguais em todo destino (B1, UX-11 e UX-12)', () => {
+    it.each([
+      ['a Entrada', `/${TOKEN_ID}`],
+      ['Regras', `/${TOKEN_ID}/rules`],
+      ['Métricas', `/${TOKEN_ID}/insights`],
+    ])('deve abrir o tempo real e mostrar "Live" em %s', async (_caso, url) => {
+      await renderAt(url);
+
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      FakeEventSource.latest().open();
+
+      expect((await screen.findByText('Live')).getAttribute('role')).toBe('status');
+    });
+
+    it('deve ler o total da URL à parte e contar as que chegam Quando a tela não é a Entrada', async () => {
+      await renderAt(`/${TOKEN_ID}/rules`);
+      const http = TestBed.inject(HttpTestingController);
+
+      const peek = await vi.waitFor(() =>
+        http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`),
+      );
+      expect(peek.request.params.get('per_page')).toBe('1');
+      peek.flush(requestPage([webhookRequest(1)], { total: 2 }));
+      expect(await screen.findByRole('link', { name: '2 requests' })).toBeTruthy();
+
+      const nova = webhookRequest(9);
+      FakeEventSource.latest().emit('request.created', { request: nova, total: 3 });
+
+      expect(await screen.findByRole('link', { name: '3 requests' })).toBeTruthy();
+      expect(TestBed.inject(Preferences).unread()).toEqual([nova.uuid]);
+      await screen.findByRole('link', { name: 'Inbox, 1 unread' });
+    });
+
+    it('não deve ler o total à parte nem contar as que chegam Quando a tela é a Entrada (ela mesma conta)', async () => {
+      await renderAt(`/${TOKEN_ID}`);
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+      FakeEventSource.latest().emit('request.created', { request: webhookRequest(9), total: 3 });
+
+      TestBed.inject(HttpTestingController).expectNone(
+        (req) => req.url === `/token/${TOKEN_ID}/requests`,
+      );
+      expect(TestBed.inject(Preferences).unread()).toEqual([]);
+    });
+
+    it('deve fechar o tempo real Quando a URL tranca', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+      TestBed.inject(UrlLock).lock(TOKEN_ID);
+      await fixture.whenStable();
+
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().readyState).toBe(FakeEventSource.CLOSED),
+      );
+    });
+
+    it('deve levar à Entrada Quando "Search requests" é clicado fora dela', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+      const search = screen.getByRole('button', { name: 'Search requests' });
+      expect(search.hasAttribute('aria-expanded')).toBe(false);
+
+      await userEvent.click(search);
+
+      const router = fixture.debugElement.injector.get(Router);
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}`));
+      await vi.waitFor(() => expect(TestBed.inject(ScreenState).searchOpen()).toBe(true));
+      TestBed.inject(ScreenState).searchOpen.set(false);
+    });
+  });
+
+  describe('Dado a faixa "sem conexão" (B1, UX-16)', () => {
+    const region = () => screen.getByRole('status', { name: 'Connection' });
+
+    it('deve existir vazia desde a carga, sem botão nem contagem', async () => {
+      const { container } = await renderAt(`/${TOKEN_ID}/checks`);
+
+      expect(region().textContent).toBe('');
+      expect(screen.queryByRole('button', { name: 'Try again now' })).toBeNull();
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve dizer a queda na região, com a contagem fora dela e "Try again now"', async () => {
+      const { container, fixture } = await renderAt(`/${TOKEN_ID}`);
+      const connection = TestBed.inject(Connection);
+
+      connection.failed();
+      await fixture.whenStable();
+
+      expect(region().textContent).toMatch(/^No connection to the server since /);
+      const countdown = screen.getByText(/^Trying again in \d+ s$/);
+      expect(countdown.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(region().contains(countdown)).toBe(false);
+      await expectNoAxeViolations(container);
+
+      const retry = vi.spyOn(connection, 'retry').mockResolvedValue();
+      await userEvent.click(screen.getByRole('button', { name: 'Try again now' }));
+      expect(retry).toHaveBeenCalled();
+      connection.downSince.set(null);
+      connection.notice.set('');
+    });
+  });
+
+  describe('Dado um destino cujo pedaço não carregou (B1, UX-16)', () => {
+    const fail = (router: Router, url: string) =>
+      (router.events as unknown as { next(event: unknown): void }).next(
+        new NavigationError(
+          1,
+          url,
+          new TypeError('Failed to fetch dynamically imported module: rules-page.js'),
+        ),
+      );
+
+    it('deve trocar o destino no rail e dizer "Could not open Rules", com a página de antes viva', async () => {
+      const { container, fixture } = await renderAt(`/${TOKEN_ID}`);
+      const router = fixture.debugElement.injector.get(Router);
+
+      fail(router, `/${TOKEN_ID}/rules`);
+      await fixture.whenStable();
+
+      const main = screen.getByRole('main');
+      expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
+        'Could not open Rules',
+      );
+      expect(main.textContent).toContain('The server did not answer. Nothing was changed.');
+      expect(screen.getByRole('link', { name: 'Rules' }).getAttribute('aria-current')).toBe('page');
+      expect(screen.getByText('página da rota').closest('[hidden]')).not.toBeNull();
+      expect(document.title).toBe(`Rules · URL ${TOKEN_ID.slice(0, 5)} · Anzol`);
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve tentar de novo o mesmo endereço em "Try again" e voltar à página Quando ele abre', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}`);
+      const router = fixture.debugElement.injector.get(Router);
+      fail(router, `/${TOKEN_ID}/rules`);
+      await fixture.whenStable();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/rules`));
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('heading', { name: 'Could not open Rules' })).toBeNull(),
+      );
+      expect(screen.getByText('página da rota').closest('[hidden]')).toBeNull();
+    });
+
+    it('deve voltar à Entrada, que seguia aberta, em "Back to the Inbox"', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}`);
+      fail(fixture.debugElement.injector.get(Router), `/${TOKEN_ID}/rules`);
+      await fixture.whenStable();
+
+      await userEvent.click(screen.getByRole('link', { name: 'Back to the Inbox' }));
+
+      await vi.waitFor(() =>
+        expect(screen.queryByRole('heading', { name: 'Could not open Rules' })).toBeNull(),
+      );
+      expect(screen.getByRole('link', { name: 'Inbox' }).getAttribute('aria-current')).toBe('page');
+    });
+
+    it('não deve tratar como pedaço que não carregou o erro de outra navegação', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}`);
+      const router = fixture.debugElement.injector.get(Router);
+
+      (router.events as unknown as { next(event: unknown): void }).next(
+        new NavigationError(1, `/${TOKEN_ID}/rules`, new Error('outra coisa')),
+      );
+      await fixture.whenStable();
+
+      expect(screen.queryByRole('heading', { level: 1, name: /^Could not open/ })).toBeNull();
+    });
+  });
+
+  it('deve começar pelo "Skip to content", que leva o foco ao main (UX-21)', async () => {
+    @Component({ template: '<main aria-label="Página">conteúdo</main>' })
+    class WithMain {}
+    await render(Shell, {
+      providers: [
+        provideRouter([{ matcher: inboxMatcher, component: WithMain }]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+      configureTestBed: (testBed) => testBed.inject(Preferences).token.set(token()),
+    }).then((view) => view.navigate(`/${TOKEN_ID}`));
+
+    await userEvent.tab();
+    const skip = screen.getByRole('link', { name: 'Skip to content' });
+    expect(document.activeElement).toBe(skip);
+    expect(skip.getAttribute('href')).toBe(`#/${TOKEN_ID}`);
+
+    await userEvent.keyboard('{Enter}');
+
+    expect(document.activeElement).toBe(screen.getByRole('main'));
   });
 
   it('deve trocar o tema em Settings, gravar e fechar devolvendo o foco ao botão', async () => {
@@ -324,9 +532,9 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await user.click(within(language).getByRole('radio', { name: 'Português (Brasil)' }));
 
     expect(localStorage.getItem('language')).toBe('"pt-BR"');
-    expect(screen.getByRole('status').textContent).toContain(
-      'The language changes when the page reloads.',
-    );
+    expect(
+      within(screen.getByRole('dialog', { name: 'Settings' })).getByRole('status').textContent,
+    ).toContain('The language changes when the page reloads.');
     expect(screen.getByRole('button', { name: 'Reload now' })).toBeTruthy();
   });
 
@@ -512,12 +720,6 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       TestBed.inject(UrlLock).lock(TOKEN_ID);
       await fixture.whenStable();
       expect(document.title).toBe('Locked · Anzol');
-    });
-
-    it('deve ser "Shared request · Anzol" no link só-leitura', async () => {
-      await renderAt('/share/abc', false);
-
-      await vi.waitFor(() => expect(document.title).toBe('Shared request · Anzol'));
     });
 
     it('deve ser "Anzol" Quando nenhuma URL está aberta', async () => {

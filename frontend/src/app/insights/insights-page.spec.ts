@@ -45,6 +45,9 @@ describe('Dado a página Insights', () => {
   it('deve mostrar os KPIs com a janela explícita, os gráficos com tabela e passar no axe', async () => {
     const { container } = await open(tokenStats());
 
+    // UX-21: a página é o `main` do destino, com o nome do `h1`.
+    expect(screen.getByRole('main', { name: 'Insights' })).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const summary = region('Summary');
     expect(summary.textContent).toContain('128 of the 128 kept');
     expect(summary.textContent?.replace(/\s+/g, ' ')).toContain(

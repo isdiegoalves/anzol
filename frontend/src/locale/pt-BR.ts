@@ -2870,4 +2870,21 @@ export const translations: Record<string, string> = {
   '7206950408817526226': 'Trocar de URL',
   // Open or close the filters of the Inbox
   '2339541821310133786': 'Abrir ou fechar os filtros da Entrada',
+  // No connection to the server since {$time}. What you typed is kept.
+  '6676655514486655765':
+    'Sem conexão com o servidor desde {$time}. O que você digitou está guardado.',
+  // Connected again.
+  '880525040732919916': 'Conexão de volta.',
+  // Connection
+  '2303041439224647987': 'Conexão',
+  // Try again now
+  '91400465433579092': 'Tentar agora',
+  // Trying again in {$seconds} s
+  '6526354410800284325': 'Nova tentativa em {$seconds} s',
+  // Skip to content
+  '3411805131914952915': 'Pular para o conteúdo',
+  // The server did not answer. Nothing was changed.
+  '8338815686281471068': 'O servidor não respondeu. Nada foi alterado.',
+  // Could not open {$destination}
+  '5572606818235964803': 'Não deu para abrir {$destination}',
 };

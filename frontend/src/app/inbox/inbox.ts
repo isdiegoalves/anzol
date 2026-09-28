@@ -21,6 +21,7 @@ import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import { routeOf } from '../pipeline/pipeline';
+import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
@@ -85,6 +86,7 @@ export class Inbox {
   private readonly settings = inject(ShellSettings);
   private readonly viewport = inject(Viewport);
   private readonly screen = inject(ScreenState);
+  private readonly connection = inject(Connection);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -182,6 +184,13 @@ export class Inbox {
           });
         }
       });
+    });
+
+    // A conexão voltou: o que chegou no intervalo entra na lista e na pílula, sem mover nada.
+    effect(() => {
+      if (this.connection.restored() > 0) {
+        untracked(() => void this.catchUp());
+      }
     });
 
     toObservable(this.streamTokenId)
@@ -445,7 +454,40 @@ export class Inbox {
     await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
 
+  /** O que chegou durante a queda (`after=<seq>`): acumula na pílula, sem abrir nem rolar. */
+  private async catchUp(): Promise<void> {
+    if (!this.listReady()) {
+      return;
+    }
+    if (this.requests.filtering()) {
+      this.searchRefresh.next();
+      return;
+    }
+    const seq = Math.max(0, ...this.requests.requests().map((request) => request.seq ?? 0));
+    if (seq === 0 && this.requests.hasRequests()) {
+      // Mensagens antigas, sem `seq`: relê a primeira página.
+      await this.requests.reload();
+      return;
+    }
+    const { data, total } = await this.requests.arrivedAfter(seq);
+    for (const request of data) {
+      if (!this.listed(request.uuid)) {
+        this.requests.append(request, total);
+        this.list()?.receive(request, false);
+        this.announceArrival();
+      }
+    }
+  }
+
+  private listed(requestId: string): boolean {
+    return this.requests.requests().some((request) => request.uuid === requestId);
+  }
+
   private async receive({ request, total, truncated, removed }: RequestCreated): Promise<void> {
+    // A reconexão pode repetir a que a volta da conexão já trouxe.
+    if (this.listed(request.uuid)) {
+      return;
+    }
     // Corpo > 1 MB chega cortado no evento: a mensagem completa vem da API.
     const complete = truncated
       ? await this.requests.fetchOne(request.token_id, request.uuid)

@@ -9,6 +9,74 @@ import { RequestPage } from './webhook-request';
 const listUrl = `/token/${TOKEN_ID}/requests`;
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
 
+describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve ler só o total, com uma requisição por página, sem mexer na lista', async () => {
+    expect(store.totalOf(TOKEN_ID)).toBeNull();
+
+    const peeked = store.peek(TOKEN_ID);
+    http.expectOne(`${listUrl}?per_page=1`).flush(requestPage([webhookRequest(1)], { total: 34 }));
+    await peeked;
+
+    expect(store.totalOf(TOKEN_ID)).toBe(34);
+    expect(store.totalOf('outra')).toBeNull();
+    expect(store.tokenId()).toBeNull();
+    expect(store.requests()).toEqual([]);
+  });
+
+  it('deve contar a que chega no total e nas não lidas, uma vez só', () => {
+    const nova = webhookRequest(7);
+
+    store.arrivedOutside(TOKEN_ID, nova, 35);
+    store.arrivedOutside(TOKEN_ID, nova, 35);
+
+    expect(store.totalOf(TOKEN_ID)).toBe(35);
+    expect(store.unread()).toEqual([nova.uuid]);
+  });
+
+  it('deve preferir o total da lista carregada, e mantê-lo em dia', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1)], { total: 5 }));
+    await loaded;
+    expect(store.totalOf(TOKEN_ID)).toBe(5);
+
+    store.arrivedOutside(TOKEN_ID, webhookRequest(2), 6);
+
+    expect(store.totalOf(TOKEN_ID)).toBe(6);
+    expect(store.total()).toBe(6);
+  });
+
+  it('deve pedir as que chegaram depois da seq dada, na ordem em que chegaram', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([webhookRequest(1)]));
+    await loaded;
+
+    const arrived = store.arrivedAfter(12);
+    http
+      .expectOne(`${listUrl}?after=12`)
+      .flush(requestPage([webhookRequest(2), webhookRequest(3)], { total: 3 }));
+
+    expect(await arrived).toEqual({ data: [webhookRequest(2), webhookRequest(3)], total: 3 });
+  });
+});
+
 describe('Dado o RequestStore da URL aberta', () => {
   let http: HttpTestingController;
   let store: RequestStore;

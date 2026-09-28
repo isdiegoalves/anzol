@@ -3,6 +3,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { FakeEventSource } from '../testing/fake-event-source';
 import { TOKEN_ID, token } from '../testing/fixtures';
 import { App } from './app';
 import { inboxMatcher } from './app.routes';
@@ -10,6 +11,10 @@ import { Preferences } from './settings/preferences';
 import { UrlLock } from './token/url-lock';
 
 const OUTRO = '11111111-1111-4111-8111-111111111111';
+
+// O shell abre o tempo real da URL aberta (o jsdom não tem SSE).
+beforeEach(() => vi.stubGlobal('EventSource', FakeEventSource));
+afterEach(() => vi.unstubAllGlobals());
 
 @Component({ selector: 'app-page', template: 'página da URL' })
 class Page {}

@@ -1,6 +1,8 @@
 @let token = tokens.token();
 @let gone = missing();
 @let open = token && !locked() && !gone ? token : null;
+<!-- O primeiro elemento focável da página; só aparece com o foco (UX-21). -->
+<app-skip-link [href]="here()" />
 <div class="rail" [class.on-detail]="screen.detailFullscreen()">
   <a class="brand" routerLink="/" aria-label="Anzol" i18n-aria-label title="Anzol" i18n-title>
     <app-icon name="hook" [size]="24" />
@@ -15,15 +17,16 @@
     }
   }
   <span class="spacer top-only"></span>
-  @if (open && current() === destinations[0]) {
+  <!-- UX-11: em todo destino, no mesmo lugar; fora da Entrada, leva a ela com o foco na busca. -->
+  @if (open) {
     <button
       type="button"
-      class="tool top-only"
+      class="tool"
       aria-label="Search requests"
       i18n-aria-label
       title="Search requests (/)"
       i18n-title
-      [attr.aria-expanded]="screen.searchOpen()"
+      [attr.aria-expanded]="current() === destinations[0] ? screen.searchOpen() : null"
       (click)="toggleSearch()"
     >
       <app-icon name="search" [size]="22" />
@@ -37,9 +40,10 @@
     i18n-hint
     [items]="topActions()"
   />
+  <!-- UX-11: botão de ícone tonal de 48 px, no lugar do FAB. -->
   <button
     type="button"
-    class="fab rail-only"
+    class="new-url rail-only"
     aria-label="New URL"
     i18n-aria-label
     title="New URL (N)"
@@ -116,12 +120,24 @@
       (switchTo)="switchTo($event)"
       (newUrl)="createUrl()"
     />
+    <app-connection-band />
   }
   <div class="content">
     <ng-container #unlockHost />
     <ng-container #missingHost />
+    @if (failed(); as where) {
+      <!-- O pedaço do destino não carregou: o rail troca, e o que já estava aberto segue vivo. -->
+      <app-open-failed
+        [destination]="failedName(where.destination)"
+        [tokenId]="where.tokenId"
+        (again)="retryOpen()"
+        (back)="failedUrl.set(null)"
+      />
+    }
     @if (!locked() && !gone) {
-      <router-outlet />
+      <div class="page" [hidden]="!!failed()">
+        <router-outlet />
+      </div>
     }
   </div>
 </div>

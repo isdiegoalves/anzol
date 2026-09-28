@@ -10,6 +10,7 @@ import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { Preferences } from '../settings/preferences';
+import { Connection } from '../realtime/connection-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { NO_FILTER } from '../search/request-filter';
@@ -371,6 +372,60 @@ describe('Dado a tela principal', () => {
     );
 
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+  });
+
+  it('deve ter um h1 "Inbox" escondido na janela larga, e nenhum no celular (o do shell vale) (UX-21)', async () => {
+    await openToken(`/${TOKEN_ID}`);
+    const root = harness.routeNativeElement as HTMLElement;
+    await vi.waitFor(() => expect(root.querySelectorAll('.item')).toHaveLength(2));
+
+    expect([...root.querySelectorAll('h1')].map((h1) => h1.textContent)).toEqual(['Inbox']);
+    expect(root.querySelector('main')?.getAttribute('aria-label')).toBe('Inbox');
+
+    windowClass.set('compact');
+    await harness.fixture.whenStable();
+    expect(root.querySelectorAll('h1')).toHaveLength(0);
+  });
+
+  describe('Dado a volta da conexão (B1, UX-16)', () => {
+    const restore = () => TestBed.inject(Connection).restored.update((count) => count + 1);
+
+    it('deve buscar o que chegou depois da última seq e juntar na pílula, sem trocar a aberta', async () => {
+      const [S1, S2] = [webhookRequest(1, { seq: 11 }), webhookRequest(2, { seq: 12 })];
+      await harness.navigateByUrl(`/${TOKEN_ID}/${S2.uuid}/1`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([S2, S1]));
+      await vi.waitFor(() => expect(text()).toContain(S2.uuid));
+      const chegou = webhookRequest(3, { seq: 13 });
+
+      restore();
+      await flush(`/token/${TOKEN_ID}/requests?after=12`, requestPage([chegou], { total: 3 }));
+
+      const store = TestBed.inject(RequestStore);
+      await vi.waitFor(() => expect(store.requests()).toEqual([chegou, S2, S1]));
+      expect(store.total()).toBe(3);
+      expect(store.unread()).toContain(chegou.uuid);
+      expect(router.url).toBe(`/${TOKEN_ID}/${S2.uuid}/1`);
+      await vi.waitFor(() => expect(text()).toContain('1 new request'));
+      expect(snack).not.toHaveBeenCalled();
+
+      // A reconexão do tempo real repete a mesma: não entra duas vezes.
+      FakeEventSource.latest().emit('request.created', { request: chegou, total: 3 });
+      await harness.fixture.whenStable();
+      expect(store.requests()).toEqual([chegou, S2, S1]);
+    });
+
+    it('deve refazer a busca, no lugar de pedir pela seq, Quando há filtro', async () => {
+      await openToken(`/${TOKEN_ID}`);
+      const store = TestBed.inject(RequestStore);
+      const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R1], { total: 1 }));
+      await applied;
+
+      restore();
+
+      await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R1], { total: 1 }));
+    });
   });
 
   describe('Dado o stream SSE aberto', () => {

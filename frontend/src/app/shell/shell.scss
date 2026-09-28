@@ -33,19 +33,19 @@
   text-decoration: none;
 }
 
-.fab {
+.new-url {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 56px;
-  height: 56px;
-  margin: 12px 0 16px;
+  width: 48px;
+  height: 48px;
+  margin: 4px 0 12px;
+  padding: 0;
   border: 0;
   border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-tertiary-container);
-  color: var(--mat-sys-on-tertiary-container);
-  box-shadow: var(--mat-sys-level1);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
   cursor: pointer;
 }
 
@@ -179,7 +179,7 @@
 }
 
 .brand,
-.fab,
+.new-url,
 .destination,
 .tool {
   &:focus-visible {
@@ -206,6 +206,19 @@
   overflow: auto;
   border-radius: var(--mat-sys-corner-large) 0 0;
   background: var(--mat-sys-surface-container-lowest);
+}
+
+// A página da rota; escondida (viva) enquanto o `main` mostra que um destino não abriu.
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 // Compacto (< 600 px), como no VarC-Mobile: barra no topo com a marca, o título do destino, a busca

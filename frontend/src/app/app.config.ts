@@ -2,6 +2,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.routes';
+import { connectionInterceptor } from './realtime/connection-store';
 import { urlLockInterceptor } from './token/url-lock';
 import { urlMissingInterceptor } from './token/url-missing';
 
@@ -13,7 +14,9 @@ export const appConfig: ApplicationConfig = {
     // Hash: `/{uuid}` é a URL que recebe webhooks e não pode ser rota da SPA.
     provideRouter(routes, withHashLocation(), withComponentInputBinding()),
     // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio; 410 (URL que não
-    // existe), pela página única de URL inexistente.
-    provideHttpClient(withInterceptors([urlLockInterceptor, urlMissingInterceptor])),
+    // existe), pela página única de URL inexistente. Falha de rede: a faixa "sem conexão".
+    provideHttpClient(
+      withInterceptors([connectionInterceptor, urlLockInterceptor, urlMissingInterceptor]),
+    ),
   ],
 };

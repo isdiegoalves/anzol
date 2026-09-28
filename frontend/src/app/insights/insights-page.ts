@@ -48,7 +48,12 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
   templateUrl: './insights-page.html',
   styleUrl: './insights-page.scss',
   // Sem polling: os números são recalculados quando a aba volta a ficar visível.
-  host: { '(document:visibilitychange)': 'refreshIfVisible()' },
+  // UX-21: a página é o `main` do destino, com o nome do `h1`.
+  host: {
+    role: 'main',
+    'aria-labelledby': 'insights-title',
+    '(document:visibilitychange)': 'refreshIfVisible()',
+  },
 })
 export class InsightsPage {
   private readonly tokens = inject(TokenStore);

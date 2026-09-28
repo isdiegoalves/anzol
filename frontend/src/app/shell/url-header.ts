@@ -67,15 +67,14 @@ export class UrlHeader {
 
   /**
    * Mensagens guardadas e o limite da limpeza automática (INBOX-03): o total é o da lista carregada
-   * desta URL (atualizado em tempo real); sem a lista (link direto para outro destino), o chip não
-   * aparece, em vez de pedir `stats` a cada página.
+   * desta URL (atualizado em tempo real); fora da Entrada, o que o shell leu à parte (UX-12).
    */
   protected readonly count = computed(() => {
     const token = this.tokens.token();
-    if (!token || this.requests.tokenId() !== token.uuid) {
+    const total = token ? this.requests.totalOf(token.uuid) : null;
+    if (!token || total === null) {
       return null;
     }
-    const total = this.requests.total();
     const keeps = token.auto_cleanup ?? null;
     const stored = total === 1 ? $localize`1 request` : $localize`${total}:count: requests`;
     return {

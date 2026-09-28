@@ -1,4 +1,8 @@
 <main class="inbox" aria-label="Inbox" i18n-aria-label>
+  <!-- UX-21: um h1 por destino. No celular ele é o título da barra do topo (no shell). -->
+  @if (!compact()) {
+    <h1 class="visually-hidden" i18n>Inbox</h1>
+  }
   @if (twoPanes()) {
     <app-split
       class="split"

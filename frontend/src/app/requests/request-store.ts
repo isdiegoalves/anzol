@@ -54,6 +54,8 @@ export class RequestStore {
   readonly tokenId = signal<string | null>(null);
   /** Mensagens da URL, com ou sem filtro (o "M" de "N of M requests"). */
   readonly total = signal(0);
+  /** O total de uma URL cuja lista não está carregada (o cabeçalho fora da Entrada, UX-12). */
+  private readonly outside = signal<{ tokenId: string; total: number } | null>(null);
   /** Mensagens que casam com o filtro ativo (o "N"). */
   readonly matched = signal(0);
   readonly unread = this.preferences.unread.asReadonly();
@@ -86,6 +88,51 @@ export class RequestStore {
     const selected = this.selected();
     return selected ? this.requests().indexOf(selected) : -1;
   });
+
+  /** Quantas a URL guarda, para o cabeçalho: o da lista carregada, ou o lido à parte. */
+  totalOf(tokenId: string): number | null {
+    if (this.tokenId() === tokenId) {
+      return this.total();
+    }
+    const outside = this.outside();
+    return outside?.tokenId === tokenId ? outside.total : null;
+  }
+
+  /** Lê só o total da URL (uma requisição por página), sem mexer na lista carregada. */
+  async peek(tokenId: string): Promise<void> {
+    const page = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, { params: { per_page: 1 } }),
+    );
+    this.outside.set({ tokenId, total: page.total });
+  }
+
+  /**
+   * Chegou uma requisição com a Entrada fechada: conta no total e nas não lidas. A lista é relida
+   * quando a Entrada abrir.
+   */
+  arrivedOutside(tokenId: string, request: WebhookRequest, total: number): void {
+    this.outside.set({ tokenId, total });
+    if (this.tokenId() === tokenId) {
+      this.total.set(total);
+    }
+    this.preferences.unread.update((unread) =>
+      unread.includes(request.uuid) ? unread : [...unread, request.uuid],
+    );
+  }
+
+  /** As que chegaram depois da `seq` dada (a volta da conexão), da mais antiga para a mais nova. */
+  async arrivedAfter(seq: number): Promise<{ data: WebhookRequest[]; total: number }> {
+    const tokenId = this.tokenId();
+    if (!tokenId) {
+      return { data: [], total: this.total() };
+    }
+    const page = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { after: seq },
+      }),
+    );
+    return { data: page.data, total: page.total };
+  }
 
   /**
    * Carrega a URL, sem filtro ou com o da rota (`?signature=…&q=…`): o filtro da tela não passa

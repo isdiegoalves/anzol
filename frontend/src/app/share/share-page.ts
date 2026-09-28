@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { apiDate } from '../outbound/outbound';
 import { fromNow, localDate } from '../request-detail/dates';
 import { RequestView } from '../request-detail/request-view';
@@ -31,6 +32,8 @@ export class SharePage {
   protected readonly state = signal<ShareState>({ kind: 'loading' });
 
   constructor() {
+    // A página fica fora do shell: o título da aba é dela (UX-21).
+    inject(Title).setTitle($localize`:browser tab title:Shared request · Anzol`);
     effect(() => {
       const shareId = this.shareId();
       untracked(() => void this.open(shareId));

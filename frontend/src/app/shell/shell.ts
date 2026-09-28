@@ -15,8 +15,12 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, NavigationError, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { EMPTY, map, switchMap } from 'rxjs';
+import { Connection } from '../realtime/connection-store';
+import { RequestStream } from '../realtime/request-stream';
 import { RulesSeen } from '../rules/rules-seen';
 import { RequestStore } from '../requests/request-store';
 import { injectCopyCliCommand } from '../token/copy-cli-command';
@@ -30,8 +34,15 @@ import { DESTINATIONS, Destination, placeOf } from './destinations';
 import { Hotkeys } from './hotkeys';
 import { ScreenState } from './screen-state';
 import { ShellSettings } from './shell-settings';
+import { SkipLink } from './skip-link';
 import type { TokenActions } from '../token/token-actions';
+import { ConnectionBand } from './connection-band';
+import { OpenFailed } from './open-failed';
 import { UrlHeader } from './url-header';
+
+/** O `import()` do pedaço de um destino falhou (rede): cada navegador diz de um jeito. */
+const CHUNK_ERROR =
+  /dynamically imported module|Importing a module script failed|error loading dynamically/i;
 
 /** Folha aberta pelo rail: Settings ou Help, carregadas sob demanda. */
 type Sheet = 'settings' | 'help';
@@ -51,7 +62,7 @@ export interface SheetComponent {
  */
 @Component({
   selector: 'app-shell',
-  imports: [Icon, Menu, RouterLink, RouterOutlet, UrlHeader],
+  imports: [ConnectionBand, Icon, Menu, OpenFailed, RouterLink, RouterOutlet, SkipLink, UrlHeader],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
@@ -69,6 +80,8 @@ export class Shell {
   private readonly known = inject(KnownUrls);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly title = inject(Title);
+  private readonly stream = inject(RequestStream);
+  private readonly connection = inject(Connection);
   private readonly copyCliCommand = injectCopyCliCommand();
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
   private readonly missingHost = viewChild.required('missingHost', { read: ViewContainerRef });
@@ -89,13 +102,35 @@ export class Shell {
   protected readonly sheet = signal<Sheet | null>(null);
   private opener: HTMLElement | null = null;
 
-  private readonly place = computed(() =>
-    placeOf(
-      this.router
-        .lastSuccessfulNavigation()
-        ?.finalUrl?.root.children['primary']?.segments.map((segment) => segment.path) ?? [],
-    ),
-  );
+  /** O endereço do destino cujo pedaço não carregou; `null` quando a navegação dá certo. */
+  protected readonly failedUrl = signal<string | null>(null);
+
+  /** Onde a tela está: a rota, ou o destino que não abriu (o rail troca mesmo assim). */
+  private readonly place = computed(() => {
+    const failed = this.failedUrl();
+    const url = failed
+      ? this.router.parseUrl(failed)
+      : this.router.lastSuccessfulNavigation()?.finalUrl;
+    return placeOf(url?.root.children['primary']?.segments.map((segment) => segment.path) ?? []);
+  });
+
+  protected readonly failed = computed(() => {
+    const { tokenId, destination } = this.place();
+    return this.failedUrl() ? { tokenId, destination } : null;
+  });
+
+  /** O endereço de agora, para o "Skip to content" ser um link de verdade. */
+  protected readonly here = computed(() => {
+    this.place();
+    return `#${this.router.url}`;
+  });
+
+  /** A URL aberta de fato: a da rota, já carregada, sem tranca e existente. */
+  private readonly openId = computed(() => {
+    const tokenId = this.place().tokenId;
+    const open = this.tokens.token()?.uuid === tokenId && !this.locked() && !this.missing();
+    return open ? tokenId : null;
+  });
 
   /** Destino marcado no rail (`aria-current="page"`); nenhum no Compare. */
   protected readonly current = computed(() => this.place().destination);
@@ -131,6 +166,41 @@ export class Shell {
         if (this.missing() === missing && host.length === 0) {
           host.createComponent(UrlMissingPage).setInput('missing', missing);
         }
+      }
+    });
+
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof NavigationError && CHUNK_ERROR.test(String(event.error))) {
+        this.failedUrl.set(event.url);
+      } else if (event instanceof NavigationEnd) {
+        this.failedUrl.set(null);
+      }
+    });
+
+    // O tempo real fica aberto em todo destino (o "Live" do cabeçalho, UX-12). Fora da Entrada,
+    // quem conta as que chegam é o shell; nela, a própria Entrada, que assina a mesma conexão.
+    toObservable(this.openId)
+      .pipe(
+        switchMap((tokenId) =>
+          tokenId ? this.stream.connect(tokenId).pipe(map((event) => ({ tokenId, event }))) : EMPTY,
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe(({ tokenId, event }) => {
+        if (this.current()?.path !== null) {
+          this.requests.arrivedOutside(tokenId, event.request, event.total);
+        }
+      });
+    effect(() => {
+      const tokenId = this.openId();
+      const inbox = this.current()?.path === null;
+      if (tokenId) {
+        untracked(() => {
+          this.connection.probe.set(`/token/${tokenId}`);
+          if (!inbox) {
+            this.requests.peek(tokenId).catch(() => undefined);
+          }
+        });
       }
     });
 
@@ -194,6 +264,18 @@ export class Shell {
     );
   }
 
+  /** O destino que o rail marcou e o `main` não conseguiu mostrar. */
+  protected failedName(destination: Destination | null): string {
+    return destination ? this.label(destination) : this.compareLabel;
+  }
+
+  protected retryOpen(): void {
+    const url = this.failedUrl();
+    if (url) {
+      void this.router.navigateByUrl(url).catch(() => undefined);
+    }
+  }
+
   /** Escolhida no seletor: a mesma tela (Regras segue em Regras) na outra URL, com histórico. */
   protected switchTo(uuid: string): void {
     const destination = this.current() ?? DESTINATIONS[0];
@@ -221,9 +303,9 @@ export class Shell {
     if (this.locked()) {
       return $localize`:browser tab title:Locked · Anzol`;
     }
-    const { tokenId, destination, compare, first } = this.place();
+    const { tokenId, destination, compare } = this.place();
     if (!tokenId) {
-      return first === 'share' ? $localize`:browser tab title:Shared request · Anzol` : 'Anzol';
+      return 'Anzol';
     }
     const where = compare ? this.compareLabel : destination ? this.label(destination) : null;
     const unread = this.unread() > 0 ? `(${this.unread()}) ` : '';
@@ -340,19 +422,37 @@ export class Shell {
     ];
   });
 
-  /** A lupa da barra do celular: mostra a busca da lista (com o foco nela) ou a recolhe. */
+  /**
+   * "Search requests": na Entrada, mostra a busca da lista (com o foco nela) ou a recolhe; fora
+   * dela, leva à Entrada com o foco na busca.
+   */
   protected toggleSearch(): void {
-    if (this.screen.searchOpen()) {
+    if (this.current()?.path !== null) {
+      this.openSearch();
+    } else if (this.screen.searchOpen()) {
       this.screen.searchOpen.set(false);
     } else {
       this.openSearch();
     }
   }
 
-  /** Mostra a busca da lista (no celular ela fica recolhida) e põe o foco nela. */
+  /** Põe o foco na busca da lista; fora da Entrada, vai a ela antes. */
   private openSearch(): void {
+    const token = this.tokens.token();
+    if (this.current()?.path !== null && token && !this.locked() && !this.missing()) {
+      void this.router.navigate(['/', token.uuid]).then(() => this.focusSearchWhenReady());
+      return;
+    }
     this.screen.searchOpen.set(true);
     afterNextRender(() => this.focusSearch(), { injector: this.injector });
+  }
+
+  /** A busca só existe com a lista carregada: espera por ela (até 3 s). */
+  private focusSearchWhenReady(left = 60): void {
+    this.screen.searchOpen.set(true);
+    if (!this.focusSearch() && left > 0) {
+      setTimeout(() => this.focusSearchWhenReady(left - 1), 50);
+    }
   }
 
   /** Copia no clique; o aviso vem com o chunk de `TokenActions`. */
@@ -386,8 +486,10 @@ export class Shell {
     }
   }
 
-  private focusSearch(): void {
-    document.querySelector<HTMLInputElement>('[role="search"] input')?.focus();
+  private focusSearch(): boolean {
+    const box = document.querySelector<HTMLInputElement>('[role="search"] input');
+    box?.focus();
+    return !!box;
   }
 
   /** Abre a folha no lugar da anterior; ao fechar, o foco volta para quem a abriu. */
