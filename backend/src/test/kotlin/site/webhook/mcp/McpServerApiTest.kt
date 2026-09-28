@@ -241,6 +241,26 @@ class McpServerApiTest(
     }
 
     @Test
+    @DisplayName(
+        "Dado signature ou schema como texto (vazio ou não) no update_url, quando chama, então erro na chave do campo e nada " +
+            "muda: só null desliga",
+    )
+    fun updateUrl_textoNoLugarDoBloco_naoDeveDesligar() {
+        val tokenId =
+            api.tokenId("""{"timeout":1,"signature":{"provider":"github","secret":"segredo-do-update"},"schema":{"type":"object"}}""")
+        val before = api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))
+
+        val results =
+            listOf("signature" to "", "schema" to "", "signature" to "  ", "schema" to "x").map { (field, text) ->
+                field to call("update_url", mapOf("token_id" to tokenId, field to text, "timeout" to 2))
+            }
+
+        assertThat(results.map { (_, result) -> result.isError }).containsOnly(true)
+        assertThat(results.map { (field, result) -> result.json()["errors"].has(field) }).containsOnly(true)
+        assertThat(api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))).isEqualTo(before)
+    }
+
+    @Test
     @DisplayName("Dado null nos campos do create_url, quando cria a URL, então vale como ausente: cria com os padrões")
     fun createUrl_comNull_deveCriarComOsPadroes() {
         val settings = listOf("default_status", "default_content", "default_content_type", "timeout", "retry_after", "auto_cleanup")

@@ -63,8 +63,9 @@ private const val UPDATE_URL =
     "Change a webhook URL's settings. Only the fields you send change: a field left out stays as it is, and a field " +
         "sent as null is turned off or reset (signature: null and schema: null switch the verification and the " +
         "validation off; the others return to their initial value). A signature object replaces the whole signature " +
-        "block, keeping the current secret when `secret` is omitted. The URL's read secret is never changed here: " +
-        "read_secret is only the access to a protected URL."
+        "block, keeping the current secret when `secret` is omitted; signature and schema are objects (text, even " +
+        "empty, is an error). The URL's read secret is never changed here: read_secret is only the access to a " +
+        "protected URL."
 
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
@@ -151,8 +152,10 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                urls.open(id, args.readSecret())
-                service.patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }.map { it.forApi() }
+                args.textBlocks() ?: run {
+                    urls.open(id, args.readSecret())
+                    service.patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }.map { it.forApi() }
+                }
             },
             kit.tool(
                 ToolDefinition(
@@ -405,6 +408,20 @@ class McpTools {
         )
     }
 }
+
+/**
+ * Os blocos da URL. No `PUT /token/{id}`, texto em branco num deles vale como ausente e o desliga (herança do
+ * formulário do Laravel); no `update_url` só o `null` desliga, e texto é erro: um agente que manda `""` não pediu para
+ * desligar a verificação de assinatura.
+ */
+private val BLOCKS = listOf("signature", "schema")
+
+/** O erro dos [BLOCKS] que vieram como texto; `null` quando nenhum veio. */
+private fun ToolArguments.textBlocks(): Parsed.Invalid? =
+    BLOCKS
+        .filter { this[it] is String }
+        .takeIf { it.isNotEmpty() }
+        ?.let { texts -> Parsed.Invalid(texts.associateWith { listOf("The $it must be an object, or null to turn it off.") }) }
 
 /** Os campos da URL que o `PUT /token/{id}` (e o `update_url`) definem. */
 private val URL_SETTINGS =
