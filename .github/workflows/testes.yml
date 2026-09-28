@@ -28,17 +28,27 @@ jobs:
       - run: ./gradlew check
         working-directory: backend
 
+  # O CLI é construído com o JDK 25 e roda em Java 21 ou mais novo: os testes (que disparam o CLI como processo) rodam
+  # em cada Java da matriz. O último java-version da lista é o padrão do runner, o que o Gradle usa para construir.
   cli:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ["21", "25"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: |
+            ${{ matrix.java }}
+            25
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew check installDist
+      - run: ./gradlew check installDist -PtestJavaVersion=${{ matrix.java }}
         working-directory: cli
+      - name: O CLI instalado roda no Java ${{ matrix.java }}
+        run: JAVA_HOME="$JAVA_HOME_${{ matrix.java }}_X64" cli/build/install/anzol/bin/anzol --help
 
   frontend:
     runs-on: ubuntu-latest

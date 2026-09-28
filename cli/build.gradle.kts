@@ -51,8 +51,15 @@ application {
     mainClass = "site.webhook.cli.MainKt"
 }
 
+// -PtestJavaVersion=21 roda os testes (e o CLI que eles disparam como processo) nesse Java; sem a propriedade, no do
+// toolchain. É como o CI confere que o CLI roda de fato no Java 21.
+val testJavaVersion = providers.gradleProperty("testJavaVersion").map(String::toInt)
+
 tasks.withType<Test> {
     useJUnitPlatform()
+    if (testJavaVersion.isPresent) {
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(testJavaVersion.get()) }
+    }
 }
 
 ktlint {
