@@ -1,7 +1,9 @@
 package site.webhook.mcp
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification
 import org.springframework.ai.mcp.customizer.McpSyncServerCustomizer
+import org.springframework.ai.util.JacksonUtils
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -24,9 +26,12 @@ import site.webhook.rules.readJson
 import site.webhook.rules.test
 import site.webhook.search.RequestSearch
 import site.webhook.search.parseSearch
+import site.webhook.token.Token
 import site.webhook.token.TokenService
 import site.webhook.wait.RequestWaiter
 import site.webhook.wait.parseWait
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.SerializationFeature
 import tools.jackson.databind.json.JsonMapper
 
 /** O `user_agent` do token criado pelo MCP (o IP do agente não chega às ferramentas). */
@@ -54,6 +59,13 @@ private const val SETTINGS = """
 /** O argumento do `set_rules` e do `diff_rules`: a lista inteira de regras. */
 private const val RULES_ARGUMENT = """$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}"""
 
+private const val UPDATE_URL =
+    "Change a webhook URL's settings. Only the fields you send change: a field left out stays as it is, and a field " +
+        "sent as null is turned off or reset (signature: null and schema: null switch the verification and the " +
+        "validation off; the others return to their initial value). A signature object replaces the whole signature " +
+        "block, keeping the current secret when `secret` is omitted. The URL's read secret is never changed here: " +
+        "read_secret is only the access to a protected URL."
+
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
 
@@ -78,6 +90,22 @@ class McpTools {
     @Primary
     fun apiValidatesToolInputs(): McpSyncServerCustomizer =
         McpSyncServerCustomizer { it.immediateExecution(true).validateToolInputs(false) }
+
+    /**
+     * O mapper do protocolo, no lugar do que o Spring AI registra com este nome: igual ao dele (campo nulo de mensagem
+     * do protocolo não é escrito), menos no conteúdo de mapas, que mantém o `null`. O SDK converte os `params` de
+     * cada chamada com este mapper, e o do Spring AI tirava dos argumentos toda chave com `null`: `signature: null`
+     * chegaria à ferramenta como campo ausente, e o `update_url` não teria como desligar nada.
+     */
+    @Bean(name = ["mcpServerJsonMapper"], defaultCandidate = false)
+    fun mcpServerJsonMapper(): JsonMapper =
+        JsonMapper
+            .builder()
+            .enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT)
+            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+            .addModules(JacksonUtils.instantiateAvailableModules())
+            .changeDefaultPropertyInclusion { JsonInclude.Value.construct(JsonInclude.Include.NON_NULL, JsonInclude.Include.ALWAYS) }
+            .build()
 
     @Bean
     fun urlTools(
@@ -117,16 +145,14 @@ class McpTools {
             kit.tool(
                 ToolDefinition(
                     "update_url",
-                    "Replace a webhook URL's settings, as PUT /token/{id}: fields left out go back to their defaults, " +
-                        "except the signature secret, which is kept when omitted. The URL's read secret is never changed " +
-                        "here: read_secret is only the access to a protected URL.",
+                    UPDATE_URL,
                     objectSchema("$TOKEN_ID,$SETTINGS", "token_id"),
                     readOnly = false,
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                urls.open(id, args.readSecret())
-                service.update(id, jsonInput(args.body().toByteArray(), jsonMapper)).map { it.forApi() }
+                val current = urls.open(id, args.readSecret()).settings(jsonMapper)
+                service.update(id, jsonInput(args.bodyOver(current).toByteArray(), jsonMapper)).map { it.forApi() }
             },
             kit.tool(
                 ToolDefinition(
@@ -378,6 +404,22 @@ class McpTools {
             },
         )
     }
+}
+
+/** Os campos da URL que o `PUT /token/{id}` (e o `update_url`) definem. */
+private val URL_SETTINGS =
+    listOf("default_status", "default_content", "default_content_type", "timeout", "retry_after", "auto_cleanup", "signature", "schema")
+
+/**
+ * A configuração de agora como o corpo de um `PUT /token/{id}` que não mudaria nada: os [URL_SETTINGS] com valor. O
+ * bloco `signature` vai sem o segredo, que o `PUT` mantém quando omitido (ele não precisa sair do Redis para isso).
+ */
+private fun Token.settings(jsonMapper: JsonMapper): Map<String, Any?> {
+    @Suppress("UNCHECKED_CAST")
+    val stored = jsonMapper.convertValue(this, Map::class.java) as Map<String, Any?>
+    return stored
+        .filter { (name, value) -> name in URL_SETTINGS && value != null }
+        .mapValues { (name, value) -> if (name == "signature" && value is Map<*, *>) value - "secret" else value }
 }
 
 /** Transforma o valor válido, mantendo os erros. */

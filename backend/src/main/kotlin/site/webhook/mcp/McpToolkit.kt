@@ -34,6 +34,16 @@ class ToolArguments(
     /** Os argumentos sem os UUIDs do caminho e sem o segredo de acesso, como o corpo JSON da rota da API. */
     fun body(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id", READ_SECRET))
 
+    /**
+     * O corpo do `PUT /token/{id}` que muda só o que foi enviado: [current] (a configuração de agora, como o corpo
+     * do `PUT` a escreveria) com os argumentos por cima. O campo enviado como `null` sai do corpo, e no `PUT` campo
+     * ausente é o padrão (ou desligado).
+     */
+    fun bodyOver(current: Map<String, Any?>): String {
+        val sent = values - setOf("token_id", "request_id", READ_SECRET)
+        return jsonMapper.writeValueAsString((current + sent).filterKeys { it !in sent || sent[it] != null })
+    }
+
     /** O corpo do `create_url`: nele `read_secret` é o segredo que a URL nova passa a exigir. */
     fun createBody(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id"))
 

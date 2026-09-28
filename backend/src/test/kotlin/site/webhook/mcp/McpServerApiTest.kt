@@ -11,6 +11,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.data.redis.core.StringRedisTemplate
 import site.webhook.support.AiApiTest
 import site.webhook.support.ApiClient
 import site.webhook.support.JSON_BODY
@@ -50,6 +51,7 @@ private val TOOLS =
 class McpServerApiTest(
     @LocalServerPort private val port: Int,
     private val jsonMapper: JsonMapper,
+    private val redis: StringRedisTemplate,
 ) {
     private val api = ApiClient(port, jsonMapper)
     private val client: McpSyncClient =
@@ -68,6 +70,10 @@ class McpServerApiTest(
         tool: String,
         arguments: Map<String, Any?>,
     ): CallToolResult = client.callTool(CallToolRequest(tool, arguments))
+
+    /** O segredo de assinatura como está gravado no Redis (a API só o mostra mascarado). */
+    private fun redisSecretOf(tokenId: String): String =
+        api.tree(redis.opsForValue().get("token:$tokenId").orEmpty())["signature"]["secret"].asString()
 
     private fun CallToolResult.json(): JsonNode = jsonMapper.readTree((content().single() as TextContent).text())
 
@@ -164,6 +170,40 @@ class McpServerApiTest(
             ),
         )
         assertThat(api.json(api.send("GET", "/token/$tokenId/rules", headers = JSON_CLIENT))).isEqualTo(salvas)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL com assinatura, schema e timeout, quando o update_url manda um campo só, então os outros ficam; null " +
+            "explícito desliga; valor inválido não muda nada",
+    )
+    fun updateUrl_umCampo_devePreservarOResto() {
+        val tokenId =
+            api.tokenId(
+                """{"default_status":201,"default_content":"oi","timeout":1,"retry_after":7,"auto_cleanup":1000,""" +
+                    """"signature":{"provider":"github","secret":"segredo-do-update"},"schema":{"type":"object"}}""",
+            )
+
+        val updated = call("update_url", mapOf("token_id" to tokenId, "default_status" to 418)).json()
+        val invalid = call("update_url", mapOf("token_id" to tokenId, "timeout" to 11, "default_content" to "x"))
+        val afterInvalid = api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))
+        call("update_url", mapOf("token_id" to tokenId, "schema" to null, "timeout" to null))
+        val afterNull = api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))
+
+        assertThat(updated["default_status"].asInt()).isEqualTo(418)
+        assertThat(updated.toString()).doesNotContain("segredo-do-update")
+        assertThat(invalid.isError).isTrue()
+        assertThat(afterInvalid["default_status"].asInt()).isEqualTo(418)
+        assertThat(afterInvalid["default_content"].asString()).isEqualTo("oi")
+        assertThat(afterInvalid["timeout"].asInt()).isEqualTo(1)
+        assertThat(afterInvalid["retry_after"].asInt()).isEqualTo(7)
+        assertThat(afterInvalid["auto_cleanup"].asInt()).isEqualTo(1000)
+        assertThat(afterInvalid["signature"]["provider"].asString()).isEqualTo("github")
+        assertThat(afterInvalid["schema"]).isEqualTo(api.tree("""{"type":"object"}"""))
+        assertThat(afterNull["schema"].isNull).isTrue()
+        assertThat(afterNull["timeout"].asInt()).isZero()
+        assertThat(afterNull["signature"]["provider"].asString()).isEqualTo("github")
+        assertThat(redisSecretOf(tokenId)).isEqualTo("segredo-do-update")
     }
 
     @Test
