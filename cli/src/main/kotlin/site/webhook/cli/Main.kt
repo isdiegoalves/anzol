@@ -28,7 +28,7 @@ private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
 /** O `main` do Clikt, com uma troca: uso inválido do `wait-for` sai com 2, porque o 1 dele é "não casou". */
 fun main(args: Array<String>) {
-    val anzol = Anzol().subcommands(Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
+    val anzol = Anzol().subcommands(Cursor(), Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
     try {
         anzol.parse(args)
     } catch (e: UsageError) {

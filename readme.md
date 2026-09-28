@@ -15,7 +15,7 @@ da API e do webhook (licença MIT, ver [`LICENSE`](LICENSE)):
 | Tela | Angular 22 + Angular Material | `frontend/` |
 | Armazenamento | Redis 8.10 (tokens expiram em 7 dias) | serviço `redis` do compose |
 | Contrato caixa-preta da API e do evento | Playwright | `tests/contract/` |
-| CLI (`anzol listen`, `replay`, `rules`, `send`, `wait-for`) | Kotlin 2.4 + Clikt; roda em Java 21 ou mais novo (o build usa o JDK 25) | `cli/` |
+| CLI (`anzol listen`, `replay`, `rules`, `send`, `wait-for`, `cursor`) | Kotlin 2.4 + Clikt; roda em Java 21 ou mais novo (o build usa o JDK 25) | `cli/` |
 
 Uma imagem só (`Dockerfile` da raiz): o Node constrói o Angular, o Gradle embute o build no jar
 e o Spring Boot serve a API e a tela na mesma porta.
@@ -733,6 +733,9 @@ São 15 ferramentas:
 | `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search`, `POST .../requests/wait` |
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
 | `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
+
+O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
+ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão.
 | `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
@@ -984,6 +987,11 @@ anzol wait-for --token <uuid> --method POST --path /pedidos --json-path '$.statu
 
 # 3 webhooks que casam o match de uma regra (inline ou de arquivo), só os que chegarem daqui em diante
 anzol wait-for --token <uuid> --match-file match.json --count 3 --new
+
+# num teste: lê a posição da fila ANTES de disparar e espera a partir dela (sem corrida)
+CURSOR=$(anzol cursor <uuid>)
+curl -s -X POST http://localhost:8084/<uuid>/pedidos -d '{"status":"pago"}'
+anzol wait-for --token <uuid> --after "$CURSOR" --path /pedidos --timeout 10000
 ```
 
 ```
@@ -1006,6 +1014,10 @@ closest: #1790438428567114 bbe0928d-1e7f-4684-961c-9a2e86c4980d
 | `--count N` | `1` | Quantas mensagens que casam são necessárias (1 a 100) |
 | `--timeout ms` | `30000` | Quanto esperar por mensagens novas (0 a 300000; `0` só olha o histórico) |
 | `--after <seq>` / `--new` | todo o histórico | Só mensagens com `seq` maior; `--new` usa o `seq` da mais nova no momento em que o comando começa. Um ou outro |
+
+`anzol cursor <token>` imprime no stdout só o `seq` da mensagem mais nova da URL (`0` sem mensagens), com saída 0;
+token inexistente dá `Token not found` no stderr e saída 1. Num teste, o `--new` perde o disparo que chega antes de o
+`wait-for` começar; ler o cursor antes de disparar e esperar com `--after` não tem essa corrida.
 
 Os atalhos montam o `match` e se somam ao `--match`: atalho de mesma chave de topo substitui a do
 `--match` (`--method` troca `method`; `--body-contains` e `--json-path` juntos formam o `body`), e todas as
