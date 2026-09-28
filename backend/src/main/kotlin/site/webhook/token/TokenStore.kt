@@ -1,11 +1,23 @@
 package site.webhook.token
 
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.redis.core.StringRedisTemplate
+import org.springframework.data.redis.core.script.RedisScript
 import org.springframework.stereotype.Component
 import site.webhook.RedisKeys
 import site.webhook.TokenId
 import site.webhook.WebhookProperties
 import tools.jackson.databind.json.JsonMapper
+import java.nio.charset.StandardCharsets.UTF_8
+
+private val REPLACE =
+    RedisScript.of(ClassPathResource("redis/token-replace.lua").getContentAsString(UTF_8), Long::class.javaObjectType)
+
+/** Um token lido e o JSON exato que estava gravado. */
+data class StoredToken(
+    val token: Token,
+    val json: String,
+)
 
 /**
  * `token:{uuid}` no Redis, no formato que o app antigo lê e grava. Cada leitura renova o TTL,
@@ -23,6 +35,24 @@ class TokenStore(
         if (json.isNullOrEmpty()) return null
         redis.expire(key, properties.expiry)
         return jsonMapper.readValue(json, Token::class.java)
+    }
+
+    /** O token e o JSON dele como está gravado, para a troca condicional ([replace]). */
+    fun read(id: TokenId): StoredToken? {
+        val json = redis.opsForValue().get(RedisKeys.token(id))
+        return if (json.isNullOrEmpty()) null else StoredToken(jsonMapper.readValue(json, Token::class.java), json)
+    }
+
+    /**
+     * Grava [token] só se o que está no Redis ainda é o que foi lido ([read]); `false` quando outra gravação chegou
+     * antes (ou a URL foi apagada) e nada foi gravado. Atômico no Redis, entre instâncias.
+     */
+    fun replace(
+        read: StoredToken,
+        token: Token,
+    ): Boolean {
+        val keys = listOf(RedisKeys.token(token.uuid))
+        return redis.execute(REPLACE, keys, read.json, jsonMapper.writeValueAsString(token), properties.expiry.seconds.toString()) == 1L
     }
 
     fun store(token: Token): Token {

@@ -1,6 +1,8 @@
 package site.webhook.token
 
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
+import org.springframework.web.server.ResponseStatusException
 import site.webhook.TokenId
 import site.webhook.capture.RequestStore
 import site.webhook.http.LegacyInput
@@ -13,6 +15,9 @@ import site.webhook.stream.RequestStream
 import site.webhook.telemetry.WebhookTelemetry
 import java.time.Clock
 import java.util.UUID
+
+/** Cada tentativa perdida é outra gravação da mesma URL que chegou antes; esgotar é erro (500), nunca mudança perdida. */
+private const val MAX_PATCH_ATTEMPTS = 50
 
 /**
  * Criar, editar e apagar a URL, com a validação do `POST`/`PUT /token`: o que a API HTTP e as ferramentas do MCP
@@ -74,13 +79,57 @@ class TokenService(
         val current = tokens.findOrGone(id)
         val settings = input.toTokenSettings()
         return withSignature(settings.signature, current.signature) { signature ->
-            val updated = tokens.store(current.withSettings(settings, signature).withReadSecret(settings.readSecret))
-            telemetry.cleanupRemoved(requests.trim(updated).size)
-            if (updated.secretVersion != current.secretVersion) {
-                shares.revokeAll(id)
-                stream.disconnect(id)
+            tokens.store(current.changed(settings, signature)).also { applied(current, it) }
+        }
+    }
+
+    /**
+     * Muda só parte da configuração (o `update_url` do MCP): [body] monta o corpo do `PUT` a partir do token de agora,
+     * e a gravação só vale se ninguém gravou a URL desde a leitura ([TokenStore.replace]); se gravou, relê e monta de
+     * novo. Duas mudanças simultâneas de campos diferentes ficam as duas, também entre instâncias. A validação e os
+     * efeitos são os de [update].
+     */
+    fun patch(
+        id: TokenId,
+        body: (Token) -> LegacyInput,
+    ): Parsed<Token> {
+        repeat(MAX_PATCH_ATTEMPTS) {
+            val read = tokens.read(id) ?: throw ResponseStatusException(HttpStatus.GONE, "Token not found")
+            val changed = changed(read.token, body(read.token))
+            if (changed !is Parsed.Valid) return changed
+            if (tokens.replace(read, changed.value)) {
+                applied(read.token, changed.value)
+                return changed
             }
-            updated
+        }
+        error("token $id changed on $MAX_PATCH_ATTEMPTS attempts in a row")
+    }
+
+    /** [current] com a configuração de [input], validada e com a assinatura resolvida; nada é gravado. */
+    private fun changed(
+        current: Token,
+        input: LegacyInput,
+    ): Parsed<Token> {
+        val errors = input.validateTokenSettings()
+        if (errors.isNotEmpty()) return Parsed.Invalid(errors)
+        val settings = input.toTokenSettings()
+        return withSignature(settings.signature, current.signature) { current.changed(settings, it) }
+    }
+
+    private fun Token.changed(
+        settings: TokenSettings,
+        signature: SignatureConfig?,
+    ): Token = withSettings(settings, signature).withReadSecret(settings.readSecret)
+
+    /** Depois de gravar: o limite menor corta as mensagens excedentes, e o segredo de leitura trocado corta os acessos. */
+    private fun applied(
+        current: Token,
+        updated: Token,
+    ) {
+        telemetry.cleanupRemoved(requests.trim(updated).size)
+        if (updated.secretVersion != current.secretVersion) {
+            shares.revokeAll(updated.uuid)
+            stream.disconnect(updated.uuid)
         }
     }
 

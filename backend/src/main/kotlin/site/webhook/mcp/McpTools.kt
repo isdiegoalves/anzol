@@ -151,8 +151,8 @@ class McpTools {
                 ),
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                val current = urls.open(id, args.readSecret()).settings(jsonMapper)
-                service.update(id, jsonInput(args.bodyOver(current).toByteArray(), jsonMapper)).map { it.forApi() }
+                urls.open(id, args.readSecret())
+                service.patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }.map { it.forApi() }
             },
             kit.tool(
                 ToolDefinition(

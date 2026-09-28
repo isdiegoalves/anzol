@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture
 
 private const val SECRET = "segredo-do-mcp-Wn4t"
 private const val READ_SECRET = "leitura-do-mcp-8Hj"
+private const val CONCURRENT_PAIRS = 50
 
 /** As 14 ferramentas da §1 do plano "ia-local" e o `diff_rules` (E-07 da UX de Regras). */
 private val TOOLS =
@@ -204,6 +205,39 @@ class McpServerApiTest(
         assertThat(afterNull["timeout"].asInt()).isZero()
         assertThat(afterNull["signature"]["provider"].asString()).isEqualTo("github")
         assertThat(redisSecretOf(tokenId)).isEqualTo("segredo-do-update")
+    }
+
+    @Test
+    @DisplayName(
+        "Dado dois agentes mudando campos diferentes da mesma URL ao mesmo tempo, quando os dois update_url respondem sucesso, " +
+            "então as duas mudanças ficam, em 50 pares",
+    )
+    fun updateUrl_simultaneos_naoDevemPerderMudanca() {
+        val other =
+            McpClient
+                .sync(HttpClientStreamableHttpTransport.builder("http://localhost:$port").endpoint("/mcp").build())
+                .requestTimeout(Duration.ofSeconds(60))
+                .build()
+                .also { it.initialize() }
+        val lost =
+            try {
+                (1..CONCURRENT_PAIRS).count {
+                    val tokenId = api.tokenId()
+                    val status = CompletableFuture.supplyAsync { call("update_url", mapOf("token_id" to tokenId, "default_status" to 418)) }
+                    val signature =
+                        CompletableFuture.supplyAsync {
+                            val block = mapOf("provider" to "github", "secret" to "segredo-da-corrida")
+                            other.callTool(CallToolRequest("update_url", mapOf("token_id" to tokenId, "signature" to block)))
+                        }
+                    assertThat(listOf(status.join(), signature.join()).map { result -> result.isError }).doesNotContain(true)
+                    val token = api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))
+                    token["default_status"].asInt() != 418 || token["signature"].isNull
+                }
+            } finally {
+                other.closeGracefully()
+            }
+
+        assertThat(lost).isZero()
     }
 
     @Test
