@@ -53,7 +53,8 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(detalhes(page)).toContainText(requestId);
     await expectCorpo(page, 'ao vivo');
     const segunda = await tokens.send(tokenId, { data: 'segunda' });
-    await expect(page).toHaveTitle('(1) Anzol');
+    // Patamar, B1 (guia-combinacao §3.1, UX-21): o título diz o destino e a URL.
+    await expect(page).toHaveTitle(`(1) Inbox · URL ${tokenId.substring(0, 5)} · Anzol`);
     // Com a primeira aberta, a segunda não rouba o detalhe: entra na lista e na pílula.
     await expect(item(page, segunda)).toBeVisible();
     await expect(page.getByRole('button', { name: /\b1 new request\b/ })).toBeVisible();

@@ -2,7 +2,10 @@ import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { abrirChecks } from './support/checks';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
-import { filtro, item, itens } from './support/inbox';
+import { filtro, item, itens, abrirFiltros } from './support/inbox';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Decisões do Anzol, M1 — a Entrada filtra pelo motivo exato (`.docs-arquivo/decisoes-anzol/api.md`): a busca ganha
 // `signature_reason` (o `reason` sem o parêntese final, como o Health mostra) e `schema_path` (JSON Pointer), e o
@@ -92,6 +95,7 @@ async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Pro
 
 /** Remove o chip do filtro: o `button "Remove …"` se existir, senão o próprio chip. */
 async function removerChip(page: Page, texto: string): Promise<void> {
+  await abrirFiltros(page);
   const chip = chipDo(page, texto);
   const remover = page.getByRole('group', { name: 'Filters' }).getByRole('button', {
     name: new RegExp(`^Remove\\b.*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
@@ -116,6 +120,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
     await mostrarNaEntrada(page, c.tokenId, /timestamp outside tolerance/);
 
     await expect(page).toHaveURL(naQuery('timestamp outside tolerance'));
+    await abrirFiltros(page);
     await expect(chipDo(page, 'timestamp outside tolerance')).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -140,6 +145,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
     await mostrarNaEntrada(page, c.tokenId, /\/valor/);
 
     await expect(page).toHaveURL(naQuery('/valor'));
+    await abrirFiltros(page);
     await expect(chipDo(page, '/valor')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(2);
     await expect(item(page, c.velhaValor)).toBeVisible();
@@ -155,6 +161,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
 
     await mostrarNaEntrada(page, c.tokenId, /\/id\b/);
 
+    await abrirFiltros(page);
     await expect(chipDo(page, '/id')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
     await expect(item(page, c.trocadaId)).toBeVisible();
@@ -170,6 +177,7 @@ test.describe('Dado a Entrada filtrada por um motivo exato (M1)', () => {
     await page.reload();
 
     await expect(page).toHaveURL(naQuery('timestamp outside tolerance'));
+    await abrirFiltros(page);
     await expect(chipDo(page, 'timestamp outside tolerance')).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -186,8 +194,10 @@ test.describe('Dado a Entrada filtrada por um motivo exato (M1)', () => {
     await mostrarNaEntrada(page, c.tokenId, /timestamp outside tolerance/);
     await expect(itens(page)).toHaveCount(2);
 
+    await abrirFiltros(page);
     await removerChip(page, 'timestamp outside tolerance');
 
+    await abrirFiltros(page);
     await expect(chipDo(page, 'timestamp outside tolerance')).toHaveCount(0);
     await expect(page).not.toHaveURL(naQuery('timestamp outside tolerance'));
     await expect(item(page, c.trocadaId)).toBeVisible();
@@ -202,12 +212,15 @@ test.describe('Dado a Entrada filtrada por um motivo exato (M1)', () => {
     await mostrarNaEntrada(page, c.tokenId, /\/valor/);
     await expect(itens(page)).toHaveCount(2);
 
+    await abrirFiltros(page);
     await removerChip(page, '/valor');
 
+    await abrirFiltros(page);
     await expect(chipDo(page, '/valor')).toHaveCount(0);
     await expect(page).not.toHaveURL(naQuery('/valor'));
     await expect(item(page, c.trocadaId)).toBeVisible();
     // O filtro largo continua, se ficou (SUPOSIÇÃO): "Schema invalid" ligado não esconde as de schema errado.
+    await abrirFiltros(page);
     if ((await filtro(page, 'Schema invalid').getAttribute('aria-pressed')) === 'true') {
       await expect(item(page, c.velhaValida)).toHaveCount(0);
     }

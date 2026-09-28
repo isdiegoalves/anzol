@@ -4,8 +4,11 @@ import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
 import { abrirChecks, escolherProvedor, secao } from './support/checks';
 import { TokenTracker, expect, test } from './support/fixtures';
-import { filtro, itens } from './support/inbox';
+import { filtro, itens, abrirFiltros } from './support/inbox';
 import { seedStorage } from './support/storage';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Item 14.1, fatia F2 (fidelidade ao protótipo C): Checks e Outbound. Cada teste cobre um item de
 // `.docs-arquivo/fidelidade-prototipo/desvios.json` (decisão "corrigir") e respeita as Travas do 00-STATUS.
@@ -207,6 +210,7 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
       await expect(page).toHaveURL(
         new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?${parametro}(&|$)`),
       );
+      await abrirFiltros(page);
       await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', 'true');
       await expect(itens(page)).toHaveCount(1);
     });

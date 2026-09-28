@@ -12,9 +12,13 @@ import {
   item,
   itens,
   lista,
+  abrirFiltros,
 } from './support/inbox';
 import { destino, secoes } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Item 14.1, fatia F1 (fidelidade ao protótipo C): shell, Inbox, celular e Compare. Cada teste cobre um item de
 // `.docs-arquivo/fidelidade-prototipo/desvios.json` (decisão "corrigir") e respeita as Travas do 00-STATUS.
@@ -211,7 +215,9 @@ test.describe('Dado o cabeçalho da URL (INBOX-03/04, CHECKS-22)', () => {
 });
 
 test.describe('Dado os chips de filtro (INBOX-09, trava 4)', () => {
-  test('deve mostrar os chips do protótipo começando por POST e os demais em "More filters"', async ({
+  // Patamar, B1 (guia-combinacao §3.1 e §7): o `button "More filters"` some; os chips de hoje, inclusive os quatro
+  // que ele guardava (PATCH, DELETE, Signature valid, Schema valid), ficam no `group "Filters"`, começando por POST.
+  test('deve mostrar os chips do protótipo começando por POST, todos no painel de filtros', async ({
     page,
     tokens,
   }) => {
@@ -222,26 +228,24 @@ test.describe('Dado os chips de filtro (INBOX-09, trava 4)', () => {
     const grupo = page.getByRole('group', { name: 'Filters' });
     await expect(itens(page)).toHaveCount(2);
 
-    const principais = [
-      'POST',
+    await abrirFiltros(page);
+    const visiveis = await grupo
+      .getByRole('button', { pressed: false })
+      .filter({ visible: true })
+      .allInnerTexts();
+    expect(visiveis[0].trim()).toBe('POST');
+    await expect(page.getByRole('button', { name: 'More filters' })).toHaveCount(0);
+    for (const nome of [
       'GET',
       'PUT',
       'Signature invalid',
       'Signature absent',
       'Schema invalid',
-    ];
-    const visiveis = await grupo
-      .getByRole('button', { pressed: false })
-      .filter({ visible: true })
-      .allInnerTexts();
-    expect(visiveis.map((t) => t.trim()).slice(0, principais.length)).toEqual(principais);
-    await expect(filtro(page, 'PATCH')).toBeHidden();
-
-    const mais = page.getByRole('button', { name: 'More filters' });
-    await expect(mais).toHaveAttribute('aria-expanded', 'false');
-    await mais.click();
-    await expect(mais).toHaveAttribute('aria-expanded', 'true');
-    for (const nome of ['PATCH', 'DELETE', 'Signature valid', 'Schema valid']) {
+      'PATCH',
+      'DELETE',
+      'Signature valid',
+      'Schema valid',
+    ]) {
       await expect(filtro(page, nome)).toBeVisible();
     }
     const porPatch = buscaCom(page, '"PATCH"');
@@ -268,7 +272,8 @@ test.describe('Dado o resumo do corpo no item (INBOX-11)', () => {
     await page.goto(`/#/${tokenId}`);
 
     await expect(item(page, comTipo)).toContainText('payment_intent.succeeded');
-    await expect(item(page, semTipo)).toContainText('agente-de-teste/1.0');
+    // Patamar, B1 (guia-combinacao §3.1, lista densa): o agente sai da linha do item e fica só no detalhe.
+    await expect(item(page, semTipo)).not.toContainText('agente-de-teste/1.0');
   });
 });
 
@@ -287,12 +292,15 @@ test.describe('Dado filtros na rota da Inbox', () => {
 
     await page.goto(`/#/${tokenId}?signature=invalid&methods=POST&q=abc`);
 
+    await abrirFiltros(page);
     await expect(filtro(page, 'Signature invalid')).toHaveAttribute('aria-pressed', 'true');
+    await abrirFiltros(page);
     await expect(filtro(page, 'POST')).toHaveAttribute('aria-pressed', 'true');
     await expect(campoDeBusca(page)).toHaveValue('abc');
     await expect(itens(page)).toHaveCount(1);
     await expect(item(page, casa)).toBeVisible();
 
+    await abrirFiltros(page);
     await filtro(page, 'Schema invalid').click();
     await expect(page).toHaveURL(/[?&]schema=invalid\b/);
     await expect(page).toHaveURL(/[?&]signature=invalid\b/);
@@ -300,6 +308,7 @@ test.describe('Dado filtros na rota da Inbox', () => {
     await page.goto(`/#/${tokenId}?signature=talvez`);
     await expect(itens(page)).toHaveCount(3);
     for (const chip of ['Signature invalid', 'Signature absent']) {
+      await abrirFiltros(page);
       await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', 'false');
     }
   });

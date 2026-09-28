@@ -1,8 +1,11 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { itens, lista } from './support/inbox';
+import { itens, lista, abrirFiltros } from './support/inbox';
 import { abrirRegras, gravarRegras, linhaDaRegra } from './support/regras';
 import { estadoAoVivo } from './support/shell';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // UX de Regras, tela de C2 — filtros por desfecho na Entrada e ponto no rail (WM-27, WM-01; guia-ux §3.10; CA-9 na
 // parte da Entrada filtrada). Os chips "Answered by rule…", "Near miss of…" e "Default response" no `group
@@ -51,9 +54,11 @@ test.describe('Dado a Entrada com mensagens de desfechos diferentes (WM-27)', ()
     await abrirEntrada(page, tokenId);
     await expect(itens(page)).toHaveCount(2);
 
+    await abrirFiltros(page);
     await chip(page, 'Answered by rule…').click();
     await page.getByRole('menuitem', { name: 'Pix pago', exact: true }).click();
 
+    await abrirFiltros(page);
     await expect(chip(page, /^Answered by: Pix pago/)).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
     await expect(itens(page).first().getByRole('button').first()).toHaveAccessibleName(
@@ -71,17 +76,22 @@ test.describe('Dado a Entrada com mensagens de desfechos diferentes (WM-27)', ()
     const { perto } = await tres(tokens, tokenId);
     await abrirEntrada(page, tokenId);
 
+    await abrirFiltros(page);
     await chip(page, 'Near miss of…').click();
     await page.getByRole('menuitem', { name: 'Pix pago', exact: true }).click();
+    await abrirFiltros(page);
     await expect(chip(page, /^Near miss of: Pix pago/)).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
     await expect(itens(page).first().getByRole('button').first()).toHaveAccessibleName(
       new RegExp(`#${perto.substring(0, 5)}`),
     );
 
+    await abrirFiltros(page);
     await chip(page, /^Near miss of: Pix pago/).click();
     await expect(itens(page)).toHaveCount(2);
+    await abrirFiltros(page);
     await chip(page, 'Default response').click();
+    await abrirFiltros(page);
     await expect(chip(page, 'Default response')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
   });
@@ -102,6 +112,7 @@ test.describe('Dado os acertos na lista de Regras (WM-27; CA-9)', () => {
       .getByRole('link', { name: 'Answered 1 of the last 2' })
       .click();
 
+    await abrirFiltros(page);
     await expect(chip(page, /^Answered by: Pix pago/)).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
   });
@@ -120,6 +131,7 @@ test.describe('Dado os acertos na lista de Regras (WM-27; CA-9)', () => {
       .getByRole('link', { name: /1 near miss(es)?/ })
       .click();
 
+    await abrirFiltros(page);
     await expect(chip(page, /^Near miss of: Pix pago/)).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
   });
@@ -154,6 +166,7 @@ test.describe('Dado mensagens sem regra desde a última visita a Regras (WM-01)'
     await expect(page.getByRole('link', { name: /^Rules\b/ })).toHaveAccessibleName('Rules');
 
     await aviso.click();
+    await abrirFiltros(page);
     await expect(chip(page, 'Default response')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
   });

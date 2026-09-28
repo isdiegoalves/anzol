@@ -6,7 +6,6 @@ import {
   aba,
   abrirAba,
   abrirMensagem,
-  busca,
   campoDeBusca,
   detalhes,
   filtro,
@@ -15,8 +14,12 @@ import {
   itens,
   lista,
   verificacoes,
+  abrirFiltros,
 } from './support/inbox';
 import { seedStorage } from './support/storage';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Item 14, E4: o que a Inbox nova acrescenta e as specs de hoje não cobrem — split redimensionável, apagar com
 // "Undo", "Copy as webhook wait-for" (S10), a linha do header de assinatura em partes, o cartão de assinatura que
@@ -57,14 +60,16 @@ function matchDe(comando: string): unknown {
 }
 
 /** A confirmação do "Copy as webhook wait-for" (com o aviso do texto que ficou de fora, quando há). */
+// Patamar, B1 (guia-combinacao §3.1 e §7): o "Copy as anzol wait-for" sai da `search` e vai para a linha do cabeçalho
+// da lista; o botão e a confirmação são procurados na `region "Request list"`.
 function confirmacao(page: Page): Locator {
-  return busca(page)
+  return lista(page)
     .getByRole('status')
     .filter({ hasText: /^Copied/ });
 }
 
 async function copiarWaitFor(page: Page): Promise<string> {
-  await busca(page)
+  await lista(page)
     .getByRole('button', { name: /^Copy as (webhook|anzol) wait-for$/ })
     .click();
   await expect(confirmacao(page)).toBeVisible();
@@ -139,8 +144,10 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     await expect(itens(page)).toHaveCount(2);
     const origem = new URL(page.url()).origin;
 
+    await abrirFiltros(page);
     await filtro(page, 'POST').click();
     const busca2 = searchRequest(page, '"absent"');
+    await abrirFiltros(page);
     await filtro(page, 'Signature absent').click();
     const { match } = (await busca2).postDataJSON() as { match: unknown };
     const comando = await copiarWaitFor(page);
@@ -172,6 +179,7 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     await page.getByRole('button', { name: 'Unlock' }).click();
     await expect(itens(page)).toHaveCount(1);
 
+    await abrirFiltros(page);
     await filtro(page, 'POST').click();
     const comando = await copiarWaitFor(page);
 

@@ -1,8 +1,11 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
-import { filtro, itens } from './support/inbox';
+import { filtro, itens, abrirFiltros } from './support/inbox';
 import { abrirRegra, abrirRegras, linhaDaRegra, metodo, novaRegra, parte } from './support/regras';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Item 14.1, fase 2, fatia F3-2 (fidelidade ao protótipo C): os itens "discutir" de Rules e Insights que o dono
 // decidiu adotar (`.docs-arquivo/fidelidade-prototipo/discutir-decididos.json`), com o ajuste do `porque` nos
@@ -262,6 +265,7 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
     // Na janela larga a Inbox abre sozinha uma mensagem, e a rota ganha o id dela: em vez da rota exata, espera o
     // filtro aplicado (o chip pressionado e só a mensagem de assinatura inválida na lista).
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[^?]*)?\\?signature=invalid$`));
+    await abrirFiltros(page);
     await expect(filtro(page, 'Signature invalid')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
   });

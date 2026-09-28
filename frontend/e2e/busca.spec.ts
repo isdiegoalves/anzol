@@ -1,7 +1,17 @@
 import { createHmac } from 'node:crypto';
 import { Page, Request } from '@playwright/test';
 import { Webhook, expect, test } from './support/fixtures';
-import { campoDeBusca, detalhes, filtro, item as itemDe, itens } from './support/inbox';
+import {
+  campoDeBusca,
+  detalhes,
+  filtro,
+  item as itemDe,
+  itens,
+  abrirFiltros,
+} from './support/inbox';
+
+// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
+// abre o painel antes de usar um chip.
 
 // Busca e filtros rápidos (CA-5): o texto e os filtros Method, Signature e Schema reduzem a
 // lista; com filtro ativo, a mensagem nova que casa aparece e a que não casa não; "Clear
@@ -51,7 +61,9 @@ function searchRequest(page: Page, fragment: string): Promise<Request> {
 
 /** Liga ou desliga um chip de filtro e confere o `aria-pressed`. */
 async function toggle(page: Page, chip: string, pressed: boolean) {
+  await abrirFiltros(page);
   await filtro(page, chip).click();
+  await abrirFiltros(page);
   await expect(filtro(page, chip)).toHaveAttribute('aria-pressed', String(pressed));
 }
 
@@ -97,6 +109,7 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await screenshot(page, '01-busca-por-texto');
 
     const porMetodo = searchRequest(page, '"method"');
+    await abrirFiltros(page);
     await expect(filtro(page, 'GET')).toHaveAttribute('aria-pressed', 'false');
     await toggle(page, 'GET', true);
 
@@ -115,6 +128,7 @@ test.describe('Dado a lista de uma URL com mensagens de vários tipos', () => {
     await expect(items(page)).toHaveCount(3);
     await expect(counter(page)).toHaveCount(0);
     await expect(campoDeBusca(page)).toHaveValue('');
+    await abrirFiltros(page);
     await expect(filtro(page, 'GET')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('heading', { name: 'Requests (3)' })).toBeVisible();
   });
