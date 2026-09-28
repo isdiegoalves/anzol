@@ -223,18 +223,28 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     localStorage.clear();
   });
 
-  it('deve reler a URL antes do PUT e manter o schema gravado lá fora Quando salva a resposta (CA-11)', async () => {
+  // B3: com uma barra só, a página inteira é o rascunho; outro campo mudado lá fora também avisa.
+  it('deve recusar sem PUT Quando outro campo da URL mudou lá fora, e manter o que mudou no "Save anyway" (CA-11)', async () => {
     const lida = token({ schema: null, default_status: 200 });
     TestBed.inject(Preferences).token.set(lida);
+    const fora = token({ schema: { type: 'object' }, default_status: 200 });
 
     const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida);
-    const reler = await vi.waitFor(() =>
-      http.expectOne((r) => r.method === 'GET' && r.url === URL),
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      fora,
     );
-    reler.flush(token({ schema: { type: 'object' }, default_status: 200 }));
+    await expect(saved).rejects.toMatchObject({ fields: ['schema'] });
+    http.expectNone((r) => r.method === 'PUT');
+
+    const forced = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida, {
+      force: true,
+    });
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      fora,
+    );
     const put = await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL));
     put.flush(token({ schema: { type: 'object' }, default_status: 201 }));
-    await saved;
+    await forced;
 
     expect(put.request.body).toMatchObject({ default_status: '201', schema: { type: 'object' } });
   });
@@ -254,7 +264,7 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     http.expectNone((r) => r.method === 'PUT');
   });
 
-  it('deve recusar sem chamada Quando o CORS pedido mudou lá fora', async () => {
+  it('deve recusar sem chamada Quando o CORS mudou lá fora', async () => {
     const lida = token({ cors: false });
     TestBed.inject(Preferences).token.set(lida);
 

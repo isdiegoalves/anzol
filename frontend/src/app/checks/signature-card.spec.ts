@@ -62,8 +62,8 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
 
     expect(attention()).toBe('2 fields need attention: Signature header, Secret');
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Signature header' }));
-    // O cartão continua a dizer o que falta, no status dele.
-    expect(note()).toBe('To save, fill in: Signature header, Secret');
+    // Quem fala agora é o alert da barra: o status do cartão se cala, para não dizer duas vezes.
+    expect(within(card()).queryByText(/^To save/)).toBeNull();
     expect(screen.getByText('The header is required.')).toBeTruthy();
     http.expectNone(() => true);
   });

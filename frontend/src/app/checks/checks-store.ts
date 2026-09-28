@@ -10,7 +10,7 @@ import { Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
-import { changedFields, cutsRequests, withChanges } from './url-settings';
+import { changedElsewhere, cutsRequests, withChanges } from './url-settings';
 
 /**
  * Chamadas da página Checks. Toda escrita vai por `HttpClient` com corpo JSON, da própria origem
@@ -26,10 +26,11 @@ export class ChecksStore {
   private readonly snackBar = inject(MatSnackBar);
 
   /**
-   * Salva as alterações de Verificações (CA-11, B3). `base` é a URL como a página a leu. Antes do `PUT`, relê a URL no
-   * servidor: outra aba, o CLI ou o MCP podem ter gravado nesse meio-tempo. O corpo é a URL relida
-   * com as mudanças do cartão por cima, então o que o cartão não edita segue como está no servidor.
-   * Se um campo do próprio cartão mudou lá fora, não sobrescreve: `ChangedElsewhere`.
+   * Salva as alterações de Verificações (CA-11, B3). `base` é a URL como a página a leu. Antes do
+   * `PUT`, relê a URL no servidor: outra aba, o CLI ou o MCP podem ter gravado nesse meio-tempo. Se
+   * a URL mudou lá fora, não grava: `ChangedElsewhere` (a barra oferece "Reload" e "Save anyway").
+   * O corpo é a URL relida com os campos mudados aqui por cima, então o que a página não mudou
+   * segue como está no servidor, também no "Save anyway" (`force`).
    * Com segredo de leitura novo, destranca com ele antes de publicar a URL salva: publicar dispara
    * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. Com a limpeza
    * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
@@ -39,12 +40,8 @@ export class ChecksStore {
     const url = `/token/${base.uuid}`;
     const fresh = await firstValueFrom(this.http.get<Token>(url));
     const cors = options.cors ?? null;
-    const changed: string[] = options.force
-      ? []
-      : [
-          ...changedFields(base, fresh, changes),
-          ...(cors !== null && (base.cors ?? false) !== (fresh.cors ?? false) ? ['cors'] : []),
-        ];
+    // Com uma barra só, a página inteira é o rascunho: qualquer campo mudado lá fora é conflito.
+    const changed = options.force ? [] : changedElsewhere(base, fresh);
     if (changed.length > 0) {
       throw new ChangedElsewhere(changed);
     }

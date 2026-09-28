@@ -101,12 +101,17 @@
     padding: 8px 12px;
   }
 
+  // Os botões entram na linha da barra: contagem e Discard em cima, o Save embaixo, na largura.
   .actions {
-    flex: 1 0 100%;
+    display: contents;
 
     button {
       min-height: 48px;
     }
+  }
+
+  .summary {
+    flex: 1 1 0;
   }
 
   .save {

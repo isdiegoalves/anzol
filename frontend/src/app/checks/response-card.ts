@@ -102,8 +102,12 @@ export class ResponseCard implements ChecksSection {
     return this.draft.dirtySections().includes(this.id);
   }
 
+  /**
+   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
+   * o `alert` da barra, uma vez só: o resumo daqui se cala.
+   */
   protected pending(): string {
-    return pendingSummary(this.fields());
+    return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
 
   /** Leitura do slider para o leitor de tela: "2 seconds" (CHECKS-21). */
@@ -138,9 +142,14 @@ export class ResponseCard implements ChecksSection {
     return pendingLabels(this.fields());
   }
 
+  /**
+   * Só os campos que a pessoa mudou: o resto segue como a URL relida o tem (o que outra aba gravou
+   * num campo que esta não tocou continua lá).
+   */
   settings(): TokenSettings {
     const value = this.form.getRawValue();
-    return {
+    const was = this.saved;
+    const all: TokenSettings = {
       default_status: value.default_status,
       // Em branco é o padrão do servidor, como o campo ausente no app atual.
       default_content_type: value.default_content_type || 'text/plain',
@@ -151,6 +160,10 @@ export class ResponseCard implements ChecksSection {
       auto_cleanup:
         value.auto_cleanup === 'off' ? null : (Number(value.auto_cleanup) as AutoCleanup),
     };
+    const changed = (Object.keys(all) as (keyof typeof was & keyof TokenSettings)[]).filter(
+      (field) => (value[field] ?? 0) !== (was[field] ?? 0),
+    );
+    return Object.fromEntries(changed.map((field) => [field, all[field]]));
   }
 
   cors(): boolean | null {

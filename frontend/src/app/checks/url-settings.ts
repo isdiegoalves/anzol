@@ -106,21 +106,20 @@ export function pendingSummary(fields: readonly PendingField[]): string {
 }
 
 /**
- * Campos que o cartão manda (`changes`) e que mudaram no servidor (`fresh`) desde que o cartão leu a
- * URL (`base`). O segredo de leitura não volta na API: compara-se o `protected`.
+ * Campos que mudaram no servidor (`fresh`) desde que a página leu a URL (`base`). O segredo de
+ * leitura não volta na API: compara-se o `protected`. O CORS tem rota própria e entra como `cors`.
  */
-export function changedFields(
-  base: Token,
-  fresh: Token,
-  changes: TokenSettings,
-): (keyof TokenSettings)[] {
+export function changedElsewhere(base: Token, fresh: Token): string[] {
   const before = savedSettings(base);
   const now = savedSettings(fresh);
-  return (Object.keys(changes) as (keyof TokenSettings)[]).filter((field) =>
-    field === 'read_secret'
-      ? (base.protected ?? false) !== (fresh.protected ?? false)
-      : JSON.stringify(before[field] ?? null) !== JSON.stringify(now[field] ?? null),
+  const fields = (Object.keys(now) as (keyof TokenSettings)[]).filter(
+    (field) => JSON.stringify(before[field] ?? null) !== JSON.stringify(now[field] ?? null),
   );
+  return [
+    ...fields,
+    ...((base.protected ?? false) !== (fresh.protected ?? false) ? ['read_secret'] : []),
+    ...((base.cors ?? false) !== (fresh.cors ?? false) ? ['cors'] : []),
+  ];
 }
 
 /**

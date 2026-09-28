@@ -89,6 +89,7 @@ interface SectionState {
   host: {
     '(document:keydown)': 'saveByKey($event)',
     '(window:beforeunload)': 'warnBeforeUnload($event)',
+    '(focusin)': 'uncover($event.target)',
   },
 })
 export class ChecksPage {
@@ -145,6 +146,12 @@ export class ChecksPage {
       }
     });
     this.watchSections();
+    // A barra aparece com a primeira alteração: o campo em que se está digitando sai de trás dela.
+    afterRenderEffect(() => {
+      if (this.draft.dirty()) {
+        this.uncover(document.activeElement);
+      }
+    });
     inject(DestroyRef).onDestroy(() => this.draft.flush());
   }
 
@@ -242,27 +249,53 @@ export class ChecksPage {
     }
   }
 
-  /** Marca no índice a seção à vista (sem `IntersectionObserver`, fica a do `?section=`). */
+  /**
+   * A barra de salvar e o índice são fixos: o campo com foco nunca fica atrás deles (WCAG 2.4.11).
+   * O foco do navegador só rola o que está fora da área; o que está coberto, rola aqui.
+   */
+  protected uncover(target: EventTarget | null): void {
+    const page = this.host.nativeElement;
+    const cards = page.querySelector('.cards');
+    if (!(target instanceof HTMLElement) || !cards?.contains(target)) {
+      return;
+    }
+    const field = target.getBoundingClientRect();
+    const bar = page.querySelector('app-changes-bar.shown .bar')?.getBoundingClientRect();
+    const index = page.querySelector('.jump')?.getBoundingClientRect();
+    const below = bar ? field.bottom + COVER_GAP - bar.top : 0;
+    // Só a faixa do índice, no topo, cobre os cartões; à esquerda da coluna ele não cobre nada.
+    const above = index && index.right > field.left ? index.bottom + COVER_GAP - field.top : 0;
+    if (below > 0) {
+      scrollerOf(page).scrollBy({ top: below });
+    } else if (above > 0 && index && field.top < index.bottom + field.height) {
+      scrollerOf(page).scrollBy({ top: -above });
+    }
+  }
+
+  /**
+   * Marca no índice a seção à vista: a do `?section=` enquanto estiver na tela; senão, a primeira à
+   * vista. Sem `IntersectionObserver`, fica a da rota.
+   */
   private watchSections(): void {
     if (typeof IntersectionObserver === 'undefined') {
       return;
     }
     const visible = new Set<string>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            visible.add(entry.target.id);
-          } else {
-            visible.delete(entry.target.id);
-          }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          visible.add(entry.target.id);
+        } else {
+          visible.delete(entry.target.id);
         }
-        const first = this.sections.find(({ id }) => visible.has(`checks-${id}`));
-        this.inView.set(first?.id ?? null);
-      },
-      // A faixa do topo da área que rola: o cartão que a cruza é o que se está lendo.
-      { rootMargin: '-10% 0px -60% 0px' },
-    );
+      }
+      const target = this.target();
+      const first =
+        target && visible.has(`checks-${target}`)
+          ? target
+          : this.sections.find(({ id }) => visible.has(`checks-${id}`))?.id;
+      this.inView.set(first ?? null);
+    });
     afterRenderEffect(() => {
       if (this.ready()) {
         observer.disconnect();
@@ -272,6 +305,20 @@ export class ChecksPage {
     });
     inject(DestroyRef).onDestroy(() => observer.disconnect());
   }
+}
+
+/** Folga entre o campo com foco e a barra (ou o índice) que o cobriria. */
+const COVER_GAP = 12;
+
+/** O elemento que rola a página: o ancestral com rolagem, ou a janela. */
+function scrollerOf(element: HTMLElement): Element | Window {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    const overflow = getComputedStyle(parent).overflowY;
+    if (/auto|scroll/.test(overflow) && parent.scrollHeight > parent.clientHeight) {
+      return parent;
+    }
+  }
+  return window;
 }
 
 /** O estado salvo de cada seção, como o índice e o cabeçalho recolhível o dizem. */

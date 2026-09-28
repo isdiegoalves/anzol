@@ -158,14 +158,3 @@ h3 {
     display: none;
   }
 }
-
-// A barra de salvar e o índice são fixos: o campo com foco não fica atrás deles (WCAG 2.4.11).
-input,
-textarea,
-button,
-a,
-mat-select,
-mat-slide-toggle,
-mat-button-toggle-group {
-  scroll-margin-block: 72px 160px;
-}

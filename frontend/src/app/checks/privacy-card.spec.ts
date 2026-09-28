@@ -54,12 +54,14 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     await userEvent.click(toggle());
     await userEvent.type(screen.getByLabelText('Secret to view'), 'curto');
     await userEvent.type(screen.getByLabelText('Confirm secret'), 'outro');
-    await userEvent.click(save());
 
-    expect(attention()).toBe('2 fields need attention: Secret to view, Confirm secret');
     expect(within(card()).getByRole('status').textContent?.trim()).toBe(
       'To save, fix: Secret to view, Confirm secret',
     );
+    await userEvent.click(save());
+
+    expect(attention()).toBe('2 fields need attention: Secret to view, Confirm secret');
+    expect(within(card()).queryByText(/^To save/)).toBeNull();
     expect(screen.getByText('The secret must have 8 to 256 characters.')).toBeTruthy();
     expect(screen.getByText('The secrets do not match.')).toBeTruthy();
     http.expectNone((sent) => sent.method === 'PUT');

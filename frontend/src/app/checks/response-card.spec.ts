@@ -69,6 +69,7 @@ describe('Dado o cartão "Response" de Checks', () => {
     );
     await userEvent.click(save());
 
+    // A URL inteira vai no PUT: o que mudou aqui por cima do que o servidor tem.
     const put = await expectPut(http);
     expect(put.request.body).toEqual({
       default_status: '201',
@@ -160,6 +161,27 @@ describe('Dado o cartão "Response" de Checks', () => {
     (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
     await vi.waitFor(() => expect(box('Default status code').value).toBe('404'));
     expect(changesBar()).toBeNull();
+  });
+
+  it('deve gravar só o que mudou aqui por cima do que a outra aba gravou Quando "Save anyway"', async () => {
+    const { http } = await renderCard(ResponseCard, SALVA);
+    const fora = { ...SALVA, default_content: 'mudou em outra aba' };
+
+    await userEvent.clear(box('Default status code'));
+    await userEvent.type(box('Default status code'), '429');
+    await userEvent.click(save());
+    (await expectGet(http)).flush(fora);
+    await userEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+    (await expectGet(http)).flush(fora);
+
+    const put = await vi.waitFor(() => http.expectOne((sent) => sent.method === 'PUT'));
+    expect(put.request.body).toMatchObject({
+      default_status: '429',
+      default_content: 'mudou em outra aba',
+    });
+    put.flush({ ...fora, default_status: 429 });
+    await vi.waitFor(() => expect(changesBar()).toBeNull());
+    expect(box('Response body').value).toBe('mudou em outra aba');
   });
 
   it('deve oferecer "Try again", manter o digitado e salvar de novo Quando a rede falha no Save (E10)', async () => {

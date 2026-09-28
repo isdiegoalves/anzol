@@ -86,8 +86,12 @@ export class PrivacyCard implements ChecksSection {
     return this.draft.dirtySections().includes(this.id);
   }
 
+  /**
+   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
+   * o `alert` da barra, uma vez só: o resumo daqui se cala.
+   */
   protected pending(): string {
-    return pendingSummary(this.fields());
+    return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
 
   changes(): ChangeLine[] {

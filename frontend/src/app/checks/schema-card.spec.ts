@@ -91,8 +91,8 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     await vi.waitFor(() =>
       expect(screen.getByText('The schema is invalid: $ref is not internal.')).toBeTruthy(),
     );
-    expect(note()).toBe('To save, fix: JSON Schema');
     expect(attention()).toBe('1 field needs attention: JSON Schema');
+    expect(within(card()).queryByText(/^To save/)).toBeNull();
   });
 
   it('deve esvaziar e mandar schema nulo Quando "Clear schema" é salvo', async () => {
