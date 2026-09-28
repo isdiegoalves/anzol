@@ -770,6 +770,49 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     dá o mesmo score a mensagens do mesmo segundo. Não se semeia pela API e fica com o teste do backend, com o Redis em
     container.
 
+- **Patamar, fatia D1: defeitos de servidor** (DX-01, DX-02, DX-14, DX-28, DX-29; aprovados pelo dono em 2026-09-28;
+  desenho em `.docs-arquivo/patamar/api-defeitos.md`). Escritos antes do backend.
+  - *JSON quebrado* (`token-json.spec.ts`, DX-02): com `Content-Type` JSON (`application/json`, com `charset` e
+    `+json`), o corpo com bytes que não é um objeto JSON → 400 no envelope de erro (`success: false`, `error.id: null`,
+    `error.message` citando `JSON`), com e sem `Accept`. Dez corpos: truncado, chave sem aspas, lixo depois do objeto,
+    texto solto, lista, lista de objetos, texto JSON, número, booleano e `null`. No `POST /token` nada é criado; no
+    `PUT /token/{id}` a URL fica igual (o `GET` antes e depois de cada um), e uma captura assinada confere que status,
+    corpo, `Retry-After`, segredo e schema continuam valendo. Guardas: corpo vazio, `{}`, pedido sem `Content-Type` e
+    `text/plain` com JSON truncado criam com os padrões; `PUT` vazio e `PUT {}` voltam aos padrões.
+  - *422 no lugar do 302* (`token-json.spec.ts`, DX-01): pedido com `Content-Type` JSON, sem `Accept` e com `Accept:
+    */*`, recebe exatamente o 422 de sempre em `POST /token`, `PUT /token/{id}` (a URL não muda) e `GET
+    /token/{id}/requests?after=abc`. Os pedidos vão por HTTP cru, porque o `fetch` e o Playwright mandam `Accept` por
+    conta própria. Guardas: formulário inválido sem `Accept` → 302 para a raiz ou para o `Referer`; `PUT` por
+    formulário, query string e `GET …/requests` sem `Content-Type` → 302; formulário com `Accept` JSON ou
+    `X-Requested-With` → 422.
+  - *`update_url` do MCP* (`ia-mcp-update.spec.ts`, DX-28): campo ausente fica como está. Com um campo só
+    (`default_status`, `default_content`, `default_content_type`, `timeout`, `retry_after`, `auto_cleanup`), e sem
+    campo nenhum, a URL é a de antes mais o campo enviado, e uma captura assinada confere a assinatura e o schema.
+    `schema` sozinho troca o schema; bloco `signature` sem `secret` troca o provedor e mantém o segredo; com `secret`,
+    troca. `null` explícito desliga `signature` e `schema` e volta cada um dos outros ao padrão, só ele. Valor inválido
+    é erro de ferramenta com a mensagem da API e nada muda. A descrição cita `null` e não diz mais `go back to their
+    defaults`. O `PUT` da REST não muda.
+  - *Cursor do wait-for* (`wait-for-cursor.spec.ts`, DX-14): **guarda, verde hoje**. O cursor é o `seq` de
+    `GET …/requests?sorting=newest&per_page=1` (lista vazia = 0); a espera com `after: <cursor>` acha o disparo que
+    chegou antes de ela começar e não a mensagem antiga; o cursor lido antes de a mais nova ser apagada continua
+    valendo. O comando `anzol cursor` está em `tests/cli`.
+  - *Suggest com `check`* (`ia-suggest-check.spec.ts`, DX-29 e UX-41): a resposta 200 tem exatamente `{rule,
+    explanation, attempts, check}` e `check` exatamente `{example, recent, warnings}`. O LLM falso devolve as regras
+    erradas do estudo. `example` é `null` sem `request_id`; com ele, `{matches, failed, conditions}` iguais aos do
+    `rules/test`. `recent` é `{evaluated, matched}`. Avisos `{code, message}`: `example_not_matched`;
+    `template_disabled` (`{{` no corpo ou num cabeçalho com `template` falso ou ausente; com `template: true` e com
+    chaves de JSON, não); `path_never_seen` (`equals`, `prefix`, `regex` e outra caixa; não quando o caminho existe e
+    outra condição falha, nem numa URL vazia); `sequence_as_single_rule` (os dois pedidos de exemplo, pt e en; não com
+    `scenario` na regra, nem em pedido comum). Os quatro somados. `explanation` é o texto do modelo e `attempts` 1, com
+    um pedido só ao LLM mesmo com avisos; regras, cenário e mensagens não mudam. O 422 sem regra válida vem sem `check`.
+
+  Leituras assumidas: JSON válido que não é objeto dá o mesmo 400 do JSON que não se lê; o envelope do 400 é o dos
+  outros erros da API e o texto da mensagem é livre, desde que cite `JSON`; `null` no `update_url` vale para todo campo
+  de configuração; a conferência do suggest não devolve os `failed` ao modelo; a forma de sequência é fixada pelos
+  exemplos, não pelo detector. **Fora do contrato:** corpo só com espaços; a ordem entre o 400 e o 410 ou 401;
+  `Content-Type` JSON com `Accept: text/html`; as outras rotas com corpo JSON; ferramenta `patch_url`; o suggest
+  devolver várias regras; o `explain` que chama de rejeição uma resposta 2xx (DX-30).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada
@@ -805,6 +848,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Link só-leitura com a mensagem inteira (`token_id` e a `url` com o UUID da URL); `redact` mascarava só a lista fixa de headers; trocar o segredo mantinha os links | Link sem `token_id` e com `[redacted]` no lugar do UUID da `url`, com ou sem `redact`; `redact` também mascara headers de nome com `token`, `key`, `secret`, `password` ou `auth`; definir, trocar ou remover o segredo revoga todos os links da URL | Correções da refutação do item 12 (fatia 05, decisões do dono, 2026-09-26): o link entregava o UUID da URL (quem o tem enviava à URL e, numa URL aberta, lia tudo), credenciais em header próprio escapavam da máscara e trocar o segredo não cortava quem tinha link. Mudou só `privacidade-share.spec.ts`: "numa URL protegida: cria com os padrões…", o teste de forma da máscara (`x-auth-token` e `x-api-keys` passaram de comuns a mascarados; entraram `x-client-secret`, `x-db-password`, `x-authenticated-user`, `x-monkey` e o comum `x-tok`) e "redact false…" passaram a comparar com a mensagem sem o UUID da URL; o `lerLinkOk` local exige as chaves da mensagem menos `token_id`; dois testes novos (o link não entrega a URL; trocar o segredo revoga) |
 | Resposta da captura sem `Content-Security-Policy` | Toda resposta da captura (padrão da URL, regra, `malformed_chunk`) com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, acrescentado depois dos cabeçalhos da regra (um CSP da regra se soma, não o tira) | Reauditoria do item 12 (decisão N2 do dono, 2026-09-26): a captura serve pelo mesmo endereço da tela, e um HTML com script respondido por uma URL rodava na origem da tela (lia o `localStorage` e chamava a API com o cookie). Teste novo: `privacidade-captura-sandbox.spec.ts`. Nenhum teste antigo mudou: nenhum trava o conjunto de cabeçalhos da captura (os de CORS usam `toMatchObject`, que aceita cabeçalhos a mais; o de `malformed_chunk` só confere a forma de cada linha). Na mesma rodada, sem teste de contrato novo (cobertos pelos testes do backend): o link público troca o UUID da URL no JSON inteiro (cabeçalhos, query, `request`, corpo), também com maiúsculas e `%hh`; o link guarda a `secret_version` e só abre com a atual; corpo de formulário sem `Origin` e com o cookie `wh_access` → 403 `form not allowed`; `redact` também mascara headers de nome com `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (nenhum teste de contrato tinha header com esses nomes) |
 | Mensagem sem o que foi respondido; regras sem trace, sem prévia da resposta nem diferença antes de gravar; busca sem filtro por desfecho | `response` (`{status}` ou `{fault}`) em toda mensagem nova; `GET …/request/{rid}/rules/trace`; `outcome` na busca; `render=1..3` no `rules/test`; helper `hmac` com o segredo da URL; ferramenta MCP `diff_rules` e `anzol rules push --dry-run` | UX de Regras (C1–C5 e E-07, decisão do dono de 2026-09-27): explicar cada resposta e avisar o erro antes dele acontecer. Tudo aditivo, menos a chave `response`, que entrou em `CHAVES_MENSAGEM` (mudaram só os testes de forma que já comparavam as chaves: `mensagem.spec.ts`, `assinatura-config.spec.ts` e `privacidade-share.spec.ts`, pela constante). Sem o campo novo pedido, toda resposta é a de antes |
+| JSON quebrado ou JSON que não é objeto no `POST /token` criava a URL com os padrões (201), e no `PUT /token/{id}` voltava a URL inteira aos padrões (200); a validação de pedido JSON sem `Accept` respondia 302; `update_url` do MCP com um campo apagava os outros; `rules/suggest` devolvia `{rule, explanation, attempts}` | 400 no envelope de erro, sem criar nem alterar; 422 em JSON para pedido com `Content-Type` JSON; no `update_url`, campo ausente fica e `null` desliga; `check` no suggest | Patamar, fatia D1 (defeitos graves, decisão do dono de 2026-09-28): o `PUT` com JSON truncado perdia a configuração sem erro; o 302 escondia o erro de quem integra por script; o agente desligava assinatura e schema sem saber; 3 de 4 sugestões do estudo eram válidas na forma e erradas no sentido. Nenhum teste antigo mudou: nenhum mandava JSON quebrado nem pedido JSON sem `Accept`, e os do suggest não travam o conjunto de chaves. A exclusão "Validação para cliente não JSON" foi reescrita: o pedido JSON saiu dela |
 
 ## Defeitos do legado (`bugDoLegado`)
 
