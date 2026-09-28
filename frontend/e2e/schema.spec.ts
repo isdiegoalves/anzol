@@ -1,7 +1,14 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { abrirChecks, pendenteAlerta, salvar, botaoSalvar } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
-import { abrirMensagem, acoes, marcasDeSchema, porque, verificacoes } from './support/inbox';
+import {
+  abrirMensagem,
+  acoes,
+  marcasDeSchema,
+  porque,
+  verificacoes,
+  acaoDaMensagem,
+} from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
@@ -172,13 +179,19 @@ test.describe('Dado "Create schema from this request"', () => {
 
     await openRequest(page, tokenId, formulario);
     await expect(acoes(page)).toBeVisible();
+    // Patamar, R1 (§5.3): "Create schema" fica no More; sem corpo JSON, não está na barra nem no menu.
     await expect(page.getByRole('button', { name: 'Create schema from this request' })).toHaveCount(
       0,
     );
+    await page.getByRole('button', { name: /^More(:|$)/ }).click();
+    await expect(
+      page.getByRole('menuitem', { name: 'Create schema from this request' }),
+    ).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await expect(verificacoes(page)).not.toContainText(/Schema (valid|invalid)/);
 
     await openRequest(page, tokenId, exemplo);
-    await page.getByRole('button', { name: 'Create schema from this request' }).click();
+    await acaoDaMensagem(page, 'Create schema from this request');
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks\\?schema-from=${exemplo}$`));
     const dialog = page.getByRole('region', { name: 'Schema validation', exact: true });
     await expect(dialog).toBeVisible();

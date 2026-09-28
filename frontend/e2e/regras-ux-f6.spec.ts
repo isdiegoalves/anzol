@@ -12,6 +12,7 @@ import {
   metodo,
   parte,
   snackbar,
+  voltarALista,
 } from './support/regras';
 
 // UX de Regras, fatia F6 — cenários: assistente de sequência (WM-32, E-09, WM-33; guia-ux §3.6; CA-8). O modelo "Fail
@@ -27,11 +28,17 @@ import {
 
 const CATCH_ALL = { name: 'Tudo o resto', priority: 9, response: { status: 404 } };
 
-/** Abre o assistente pelo modelo "Fail N times, then accept" do menu de modelos (F2). */
+/**
+ * Abre o `dialog "Sequence"` pelo `button "Sequence…"` da aba Scenario de uma regra nova. Patamar, R1
+ * (guia-combinacao §3.7 e §7): o modelo "Fail N times, then accept" passa a abrir o roteiro "Test a retry" (conferido
+ * no patamar-r1.spec); o diálogo continua existindo para quem vem de Regras, e ganha o campo "Retry-After (s)".
+ */
 async function abrirSequencia(page: Page, tokenId: string): Promise<Locator> {
   await abrirRegras(page, tokenId);
-  await page.getByRole('button', { name: 'New rule from template' }).click();
-  await page.getByRole('menuitem', { name: 'Fail N times, then accept', exact: true }).click();
+  await page.getByRole('button', { name: 'New rule', exact: true }).click();
+  const regra = editor(page);
+  await parte(regra, 'Scenario');
+  await regra.getByRole('button', { name: 'Sequence…' }).click();
   const assistente = dialogo(page, 'Sequence');
   await expect(assistente).toBeVisible();
   return assistente;
@@ -70,6 +77,8 @@ test.describe('Dado o assistente "Fail N times, then accept" (WM-32, E-09; CA-8)
     await assistente.getByRole('button', { name: 'Create 3 rules' }).click();
 
     await expect(assistente).toBeHidden();
+    // No celular a folha da regra nova (por onde o diálogo foi aberto) cobre a lista: volta a ela.
+    await voltarALista(page, editor(page));
     await expect(anuncios(page).filter({ hasText: /^3 rules created$/ })).toHaveCount(1);
     for (const nome of ['entrega 1/3', 'entrega 2/3', 'entrega 3/3']) {
       await expect(linhaDaRegra(page, nome)).toHaveClass(/\bjust-created\b/);
@@ -98,6 +107,35 @@ test.describe('Dado o assistente "Fail N times, then accept" (WM-32, E-09; CA-8)
     ]);
     expect((regras[2]['scenario'] as { newState?: string | null }).newState ?? null).toBeNull();
     expect(await statusDe(page, tokenId, 4)).toEqual([503, 503, 200, 200]);
+  });
+
+  // Patamar, R1 (guia-combinacao §3.7): o diálogo ganha o `spinbutton "Retry-After (s)"`, vazio por padrão ("Empty:
+  // no header."); preenchido, as respostas que recusam levam o cabeçalho.
+  test('deve pôr o Retry-After nas respostas que recusam Quando o campo é preenchido', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const assistente = await abrirSequencia(page, tokenId);
+    await assistente.getByRole('textbox', { name: 'Path', exact: true }).fill('/entrega');
+    const espera = assistente.getByRole('spinbutton', { name: 'Retry-After (s)' });
+    await expect(espera).toHaveValue('');
+    await expect(assistente).toContainText('Empty: no header.');
+
+    await espera.fill('5');
+    await assistente.getByRole('button', { name: 'Create 3 rules' }).click();
+
+    await expect
+      .poll(async () =>
+        (await lerRegras(request, tokenId)).map(
+          (r) => (r['response'] as { headers?: Record<string, string> }).headers?.['Retry-After'],
+        ),
+      )
+      .toEqual(['5', '5', undefined]);
+    const recusa = await request.post(`/${tokenId}/entrega`);
+    expect(recusa.status()).toBe(503);
+    expect(recusa.headers()['retry-after']).toBe('5');
   });
 
   test('deve pôr as regras antes da pega-tudo, com a prioridade dela', async ({

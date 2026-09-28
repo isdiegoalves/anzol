@@ -1,7 +1,14 @@
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acaoDaMensagem } from './support/inbox';
-import { dialogo, editor, gravarRegras, lerRegras, parte, snackbar } from './support/regras';
+import {
+  editor,
+  gravarRegras,
+  lerRegras,
+  parte,
+  snackbar,
+  folhaDeCriarRegra,
+} from './support/regras';
 
 // UX de Regras, fatia F5 — criar regra da mensagem sem superajustar (WM-31, E-03, WM-28; guia-ux §3.5; CA-6).
 // "Create rule from this request" abre a folha com as condições em caixas (id, datas e UUIDs desmarcados), a
@@ -37,7 +44,8 @@ function caixa(folha: Locator, nome: RegExp): Locator {
 async function abrirFolha(page: Page, tokenId: string, id: string): Promise<Locator> {
   await abrirMensagem(page, tokenId, id);
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  const folha = dialogo(page, 'Create rule from this request');
+  // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
+  const folha = folhaDeCriarRegra(page);
   await expect(folha).toBeVisible();
   return folha;
 }

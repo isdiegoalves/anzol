@@ -3,7 +3,7 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
 import { seedStorage } from './support/storage';
-import { abrirRegras, novaRegra, parte, snackbar } from './support/regras';
+import { abrirRegras, novaRegra, parte, snackbar, folhaDeCriarRegra } from './support/regras';
 
 // IA local na tela (item 13, CA-4): "Describe the rule" preenche o editor sem salvar, "Explain"
 // mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
@@ -222,10 +222,8 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await openRequest(page, tokenId, requestId);
     await page.getByRole('button', { name: 'Create rule from this request' }).click();
     // UX de Regras, WM-31: a folha "Create rule from this request" vem antes; "Open in editor" leva ao editor.
-    await page
-      .getByRole('dialog', { name: 'Create rule from this request' })
-      .getByRole('button', { name: 'Open in editor' })
-      .click();
+    // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
+    await folhaDeCriarRegra(page).getByRole('button', { name: 'Open in editor' }).click();
     const dialog = page.getByRole('region', { name: 'New rule', exact: true });
     await expect(dialog).toBeVisible();
     llm.program({ content: suggestion({ ...RULE_429, name: 'Pedidos' }, 'Matches the order.') });

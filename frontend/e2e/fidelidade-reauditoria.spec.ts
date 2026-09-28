@@ -232,8 +232,13 @@ test.describe('Dado o foco depois das ações (reauditoria)', () => {
     await replay.getByRole('textbox', { name: 'Target URL' }).fill('http://169.254.169.254/x');
     await replay.getByRole('button', { name: 'Replay', exact: true }).click();
 
-    const resultado = page.getByRole('region', { name: 'Outbound detail' });
-    await expect(resultado.getByRole('alert')).toContainText('Blocked');
+    // Patamar, R1 (guia-combinacao §3.7): o Replay pelo detalhe mostra o resultado no `status "Action result"` do
+    // painel de ação (antes, na `region "Outbound detail"` da página de Outbound).
+    const resultado = page
+      .getByRole('region', { name: 'Outbound detail' })
+      .getByRole('alert')
+      .or(page.getByRole('status', { name: 'Action result' }));
+    await expect(resultado.first()).toContainText('Blocked');
     await expect.poll(focoNoResultado(page), { message: 'foco no resultado do Replay' }).toBe(true);
   });
 

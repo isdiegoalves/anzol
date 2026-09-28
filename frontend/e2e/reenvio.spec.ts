@@ -2,7 +2,7 @@ import { IncomingHttpHeaders, Server, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirMensagem, verificacoes } from './support/inbox';
+import { abrirMensagem, verificacoes, acaoDaMensagem } from './support/inbox';
 
 // Reenvio pelo servidor e envio pela tela (CA-5): Replay na mensagem, Send na barra da URL (com e
 // sem assinatura), "Send as new…" e a aba Outbound. Precisa do backend com
@@ -100,9 +100,13 @@ async function parteDoResultado(
   return detail.getByRole('table', { name: nome });
 }
 
-/** "Replay…" no detalhe: leva ao compositor de Outbound com a mensagem escolhida. */
+/**
+ * O compositor de Outbound com a mensagem escolhida. Patamar, R1 (guia-combinacao §3.7 e §7): o "Replay…" do detalhe
+ * abre a aba Replay do painel de ação (conferido no patamar-r1.spec); a rota `/outbound?replay=` continua valendo
+ * por link, e é por ela que estes testes chegam ao compositor e ao resultado na página de Outbound.
+ */
 async function openReplay(page: Page, tokenId: string, requestId: string): Promise<Locator> {
-  await page.getByRole('button', { name: /^Replay/ }).click();
+  await page.goto(`/#/${tokenId}/outbound?replay=${requestId}`);
   await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?replay=${requestId}$`));
   const dialog = page.getByRole('region', { name: 'Replay request' });
   await expect(dialog).toBeVisible();
@@ -185,7 +189,8 @@ test.describe('Dado uma mensagem recebida', () => {
     });
     await openRequest(page, tokenId, requestId);
 
-    await page.getByRole('button', { name: /^Send as new/ }).click();
+    // Patamar, R1 (§5.3): "Send as new…" sai da barra e fica no More; o helper procura nos dois.
+    await acaoDaMensagem(page, 'Send as new…');
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?send-from=${requestId}$`));
     const dialog = page.getByRole('region', { name: 'Send request' });

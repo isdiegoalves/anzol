@@ -1,7 +1,7 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { detalhes } from './support/inbox';
-import { parte } from './support/regras';
+import { parte, folhaDeCriarRegra } from './support/regras';
 
 // Fidelidade ao C (item 14.1, F3): Methods vira `group "Methods"` de chips (RULES-17) e o resumo do teste diz "N of
 // the M most recent requests would match" (RULES-20).
@@ -42,7 +42,8 @@ async function createRuleFrom(
     await screenshot(page, shot);
   }
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  const folha = page.getByRole('dialog', { name: 'Create rule from this request' });
+  // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
+  const folha = folhaDeCriarRegra(page);
   await marcar?.(folha);
   await folha.getByRole('button', { name: 'Open in editor' }).click();
   await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules/new`));

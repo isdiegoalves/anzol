@@ -210,6 +210,17 @@ export function snackbar(page: Page, texto: string | RegExp): Locator {
   );
 }
 
+/**
+ * A folha "Create rule from this request". Patamar, R1 (guia-combinacao §3.7 e §7): ela passa a ser a aba "Create
+ * rule" do painel de ação, com os mesmos nomes dentro; antes era o `dialog "Create rule from this request"`. Vale
+ * qualquer um dos dois.
+ */
+export function folhaDeCriarRegra(page: Page): Locator {
+  return page
+    .getByRole('dialog', { name: 'Create rule from this request' })
+    .or(page.getByRole('tabpanel', { name: 'Create rule' }));
+}
+
 /** Um diálogo (MatDialog) pelo título. */
 export function dialogo(page: Page, nome: string | RegExp): Locator {
   return page.getByRole('dialog', { name: nome });

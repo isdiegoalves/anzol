@@ -34,11 +34,24 @@ async function openRequest(page: Page, tokenId: string, requestId: string) {
 /** "Compare with…" na aberta e clique na B da lista; devolve a vista da comparação. */
 async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
   await page.getByRole('button', { name: 'Compare with…' }).click();
-  // Escopado: o chip "Live" do cabeçalho da URL (E3) também é `status`.
-  await expect(page.getByRole('status').filter({ hasText: 'Choose a request' })).toContainText(
-    `Choose a request to compare with #${a.substring(0, 5)}`,
-  );
+  // Patamar, R1 (guia-combinacao §3.7 e §7): escolher na lista abre a aba Compare do painel de ação, com a frase
+  // "Pick a request in the list to compare with #…" (antes "Choose a request to compare with #…"); a rota
+  // `/compare/{a}/{b}` continua valendo pelo `link "Open full comparison"`.
+  await expect(
+    page.getByText(
+      new RegExp(
+        `(Choose a request|Pick a request in the list) to compare with #${a.substring(0, 5)}`,
+      ),
+    ),
+  ).toBeVisible();
   await item(page, b).getByRole('button').first().click();
+  const inteira = page.getByRole('link', { name: 'Open full comparison' });
+  await expect(
+    inteira.or(page.getByRole('region', { name: 'Compare requests' })).first(),
+  ).toBeVisible();
+  if (await inteira.isVisible()) {
+    await inteira.click();
+  }
   await expect(page).toHaveURL(new RegExp(`#/[^/]+/compare/${a}/${b}$`));
   const view = page.getByRole('region', { name: 'Compare requests' });
   await expect(view).toBeVisible();
@@ -170,9 +183,16 @@ test.describe('Dado duas entregas do mesmo evento', () => {
     await openRequest(page, tokenId, a);
 
     await page.getByRole('button', { name: 'Compare with…' }).click();
-    await page.getByRole('status').getByRole('button', { name: 'Cancel' }).click();
+    // Patamar, R1: o modo de escolher fica na aba Compare; sai por "Cancel" ou fechando o painel.
+    await page
+      .getByRole('button', { name: 'Cancel', exact: true })
+      .or(page.getByRole('button', { name: 'Close panel' }))
+      .first()
+      .click();
 
-    await expect(page.getByText(/Choose a request to compare with/)).toBeHidden();
+    await expect(
+      page.getByText(/(Choose a request|Pick a request in the list) to compare with/),
+    ).toBeHidden();
     await expect(page.getByRole('region', { name: 'Compare requests' })).toHaveCount(0);
     await expect(detalhes(page)).toContainText(a);
   });
