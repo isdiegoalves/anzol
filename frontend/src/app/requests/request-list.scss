@@ -280,6 +280,25 @@
   height: 64px;
 }
 
+// Densidade compacta (S17): as duas linhas em 52 px.
+:host(.dense) {
+  .item {
+    height: 52px;
+  }
+
+  .select {
+    gap: 0;
+  }
+
+  .delete {
+    top: 6px;
+  }
+
+  .item.unread::before {
+    top: 14px;
+  }
+}
+
 .order-line {
   display: none;
 }

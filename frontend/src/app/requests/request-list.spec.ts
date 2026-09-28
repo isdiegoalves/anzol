@@ -14,7 +14,14 @@ import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
-import { ITEM_HEIGHT, ITEM_HEIGHT_TOUCH, RequestList, UNDO_MS, bodySummary } from './request-list';
+import {
+  ITEM_HEIGHT,
+  ITEM_HEIGHT_COMPACT,
+  ITEM_HEIGHT_TOUCH,
+  RequestList,
+  UNDO_MS,
+  bodySummary,
+} from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -86,22 +93,28 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()).toHaveLength(1);
   });
 
-  it('deve usar itens de duas linhas e 60 px em qualquer densidade, e 64 px no celular (B1)', async () => {
+  it('deve usar itens de duas linhas: 60 px, 52 px na densidade compacta e 64 px no celular (B1, S17)', async () => {
     const height = () =>
       (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight();
-    TestBed.inject(ShellSettings).density.set('compact');
     await load([webhookRequest(1)]);
 
     expect(fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))).toBeTruthy();
     expect([ITEM_HEIGHT, height()]).toEqual([60, 60]);
-    TestBed.inject(ShellSettings).density.set('comfortable');
-    expect(height()).toBe(60);
+    expect(element().classList).not.toContain('dense');
+
+    TestBed.inject(ShellSettings).density.set('compact');
+    await fixture.whenStable();
+    expect([ITEM_HEIGHT_COMPACT, height()]).toEqual([52, 52]);
+    expect(element().classList).toContain('dense');
+    // As mesmas duas linhas, com o mesmo conteúdo.
     expect(items()[0].querySelectorAll('.select > .line')).toHaveLength(2);
 
+    // No celular o alvo de toque manda: 64 px em qualquer densidade.
     windowClass.set('compact');
     await fixture.whenStable();
     expect([ITEM_HEIGHT_TOUCH, height()]).toEqual([64, 64]);
     expect(element().classList).toContain('touch');
+    expect(element().classList).not.toContain('dense');
   });
 
   it('deve cortar o caminho no meio, com ele inteiro no title e no nome do item (B1)', async () => {

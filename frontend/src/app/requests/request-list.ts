@@ -73,7 +73,12 @@ export function bodySummary(request: WebhookRequest): string {
 
 /** Altura fixa de um item de duas linhas (B1, lista densa), para a rolagem virtual. */
 export const ITEM_HEIGHT = 60;
-/** No celular, o item de duas linhas tem alvo de toque maior. */
+/**
+ * Na densidade compacta de Settings (S17), as mesmas duas linhas em 52 px: o conteúdo cabe inteiro
+ * (20 px + 16 px de linha) e o alvo do item e o da lixeira (40 px) seguem acima de 24 px.
+ */
+export const ITEM_HEIGHT_COMPACT = 52;
+/** No celular, o item de duas linhas tem alvo de toque maior, em qualquer densidade. */
 export const ITEM_HEIGHT_TOUCH = 64;
 /** Quanto do fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
 export const ROUTE_TAIL = 14;
@@ -124,7 +129,7 @@ interface ItemView {
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
-  host: { '[class.touch]': 'touch()' },
+  host: { '[class.touch]': 'touch()', '[class.dense]': 'dense()' },
 })
 export class RequestList {
   protected readonly store = inject(RequestStore);
@@ -143,7 +148,11 @@ export class RequestList {
   readonly openedByKey = output<WebhookRequest>();
   /** Celular: o item de duas linhas tem 64 px. */
   protected readonly touch = computed(() => this.windowClass() === 'compact');
-  protected readonly itemHeight = computed(() => (this.touch() ? ITEM_HEIGHT_TOUCH : ITEM_HEIGHT));
+  /** Densidade compacta de Settings, fora do celular. */
+  protected readonly dense = computed(() => !this.touch() && this.settings.density() === 'compact');
+  protected readonly itemHeight = computed(() =>
+    this.touch() ? ITEM_HEIGHT_TOUCH : this.dense() ? ITEM_HEIGHT_COMPACT : ITEM_HEIGHT,
+  );
   /** O item em que o foco do teclado está (ou esteve por último). */
   protected readonly cursor = signal<string | null>(null);
   /** A parada do Tab: o item do cursor; sem ele na lista, o aberto; sem ele, o primeiro. */
