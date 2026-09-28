@@ -47,8 +47,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew check installDist -PtestJavaVersion=${{ matrix.java }}
         working-directory: cli
+      # Sem a variável do setup-java, o script do anzol usaria o java do PATH (o 25) e o passo passaria sem testar
+      # nada: falha explicitamente, e confere a versão do Java que de fato roda.
       - name: O CLI instalado roda no Java ${{ matrix.java }}
-        run: JAVA_HOME="$JAVA_HOME_${{ matrix.java }}_X64" cli/build/install/anzol/bin/anzol --help
+        env:
+          JAVA_DA_MATRIZ: JAVA_HOME_${{ matrix.java }}_X64
+        run: |
+          export JAVA_HOME="${!JAVA_DA_MATRIZ:?o setup-java não definiu $JAVA_DA_MATRIZ: sem ele o passo rodaria no Java do PATH}"
+          "$JAVA_HOME/bin/java" -version 2>&1 | grep -F '"${{ matrix.java }}.'
+          cli/build/install/anzol/bin/anzol --help
 
   frontend:
     runs-on: ubuntu-latest
