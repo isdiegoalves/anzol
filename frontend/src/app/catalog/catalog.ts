@@ -7,6 +7,7 @@ import { CopyField } from '../ui/copy-field';
 import { EmptyState } from '../ui/empty-state';
 import { ICON_NAMES, Icon } from '../ui/icon';
 import { KvTable } from '../ui/kv-table';
+import { LiveRegion } from '../ui/live-region';
 import { LiveState, LiveStatus } from '../ui/live-status';
 import { MarkdownView } from '../ui/markdown-view';
 import { MethodBadge } from '../ui/method-badge';
@@ -29,6 +30,7 @@ import { StatusCode } from '../ui/status-code';
     EmptyState,
     Icon,
     KvTable,
+    LiveRegion,
     LiveStatus,
     MarkdownView,
     MethodBadge,
