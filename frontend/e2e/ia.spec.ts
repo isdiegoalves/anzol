@@ -149,9 +149,9 @@ function sugestao(dialog: Locator): Locator {
     .or(dialog.getByRole('status', { name: 'Suggestion' }));
 }
 
-/** `status "AI progress"`: a região viva da espera da IA (patamar, B4). */
+/** `group "AI progress"` › `status`: a região viva da espera da IA (patamar, B4). */
 function andamento(page: Page): Locator {
-  return page.getByRole('status', { name: 'AI progress' });
+  return page.getByRole('group', { name: 'AI progress' }).getByRole('status');
 }
 
 /**

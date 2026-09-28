@@ -71,9 +71,9 @@ export function listaDeUrls(urls: { uuid: string; nickname?: string }[]): string
   );
 }
 
-/** `status "Connection"`: a região viva da faixa "sem conexão", abaixo do cabeçalho da URL. */
+/** `group "Connection"` › `status`: a região viva da faixa "sem conexão", abaixo do cabeçalho da URL. */
 export function conexao(page: Page): Locator {
-  return page.getByRole('status', { name: 'Connection' });
+  return page.getByRole('group', { name: 'Connection' }).getByRole('status');
 }
 
 /** `button "Filters"` (o nome ganha ", {n} active" com filtros ligados). */
@@ -148,9 +148,9 @@ export async function comHoras(
   });
 }
 
-/** `status "Request notice"`: a região viva do topo do detalhe (B2). */
+/** `group "Request notice"` › `status`: a região viva do topo do detalhe (B2). */
 export function avisoDaRequisicao(page: Page): Locator {
-  return page.getByRole('status', { name: 'Request notice' });
+  return page.getByRole('group', { name: 'Request notice' }).getByRole('status');
 }
 
 /** Itens inteiros dentro da janela: o retângulo do item cabe todo na área visível. */

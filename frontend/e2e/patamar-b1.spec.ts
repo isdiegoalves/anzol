@@ -471,6 +471,13 @@ test.describe('Dado os filtros da Entrada numa linha (UX-04; CA-9)', () => {
     await expectUmAnuncio(page, /^2 requests match/);
     await expectSemAnuncio(page, /Searching|Buscando/);
 
+    // Guia §3.1 (revisado): desligar o último filtro troca o texto da região, que nunca é esvaziada.
+    await limparAnuncios(page);
+    await filtro(page, 'POST').click();
+    await expectUmAnuncio(page, /^No filter\. 3 requests\.$/);
+    await filtro(page, 'POST').click();
+    await expect(filtro(page, 'POST')).toHaveAttribute('aria-pressed', 'true');
+
     await verResultado(page);
     await limparAnuncios(page);
     await campoDeBusca(page).pressSequentially('/a', { delay: 80 });

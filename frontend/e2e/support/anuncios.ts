@@ -9,11 +9,16 @@ import { expect } from './fixtures';
  * viva muda para um texto não vazio. Região viva: `role="status"`, `role="alert"`, `aria-live="polite|assertive"`. O
  * que está dentro de `aria-hidden="true"` não conta (o snackbar fica assim quando a frase já saiu por uma região; a
  * contagem regressiva fica assim para não falar a cada segundo).
+ *
+ * Guia §4.3 (revisado): a região viva não tem nome; quem leva o nome é um `role="group"` em volta dela (`group
+ * "Connection"` › `status`), e é por esse grupo que os testes acham a região.
  */
 export interface Anuncio {
   texto: string;
-  /** Nome acessível da região (`aria-label` ou o texto do `aria-labelledby`), ou "". */
+  /** Nome do `role="group"` em volta da região viva (`aria-label` ou o texto do `aria-labelledby`), ou "". */
   regiao: string;
+  /** Nome acessível da própria região viva; o guia (§4.3) pede que ela não tenha nome. */
+  nome: string;
   papel: string;
   /** A região apareceu no DOM já com o texto: o leitor de tela não a anuncia. */
   nasceuComTexto: boolean;
@@ -56,7 +61,8 @@ export async function escutarAnuncios(page: Page): Promise<void> {
         if (atual) {
           janela.__anuncios.push({
             texto: atual,
-            regiao: nome(el),
+            regiao: nome(el.closest('[role="group"]') ?? el),
+            nome: nome(el),
             papel: el.getAttribute('role') ?? `aria-live=${el.getAttribute('aria-live')}`,
             nasceuComTexto: antes === undefined,
           });
@@ -114,7 +120,10 @@ export async function expectUmAnuncio(
   const [anuncio] = achados;
   expect(anuncio.nasceuComTexto, 'a região viva existe vazia antes de receber o texto').toBe(false);
   if (regiao) {
-    expect(anuncio.regiao, 'a região que anuncia').toMatch(regiao);
+    // Guia §4.3 (revisado): a região viva não tem nome; o nome é do `role="group"` em volta dela. Região viva com
+    // nome faz o leitor de tela falar o nome no lugar do texto.
+    expect(anuncio.nome, 'a região viva não tem nome').toBe('');
+    expect(anuncio.regiao, 'o grupo em volta da região que anuncia').toMatch(regiao);
   }
   return anuncio;
 }

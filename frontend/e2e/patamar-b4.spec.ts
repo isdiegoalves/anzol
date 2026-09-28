@@ -135,7 +135,7 @@ function conferencias(regra: Locator): Locator {
 }
 
 function andamento(page: Page): Locator {
-  return page.getByRole('status', { name: 'AI progress' });
+  return page.getByRole('group', { name: 'AI progress' }).getByRole('status');
 }
 
 test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA-8)', () => {
