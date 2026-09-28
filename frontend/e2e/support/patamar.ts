@@ -96,6 +96,58 @@ export async function verResultado(page: Page): Promise<void> {
   }
 }
 
+/** Fecha a folha de filtros do celular, se ela estiver aberta (o `button "Show {n} requests"` do rodapé). */
+export async function verResultadoSeAberto(page: Page): Promise<void> {
+  const mostrar = page.getByRole('button', { name: /^Show \d+ requests?$/ });
+  if (compacto(page) && (await mostrar.isVisible())) {
+    await mostrar.click();
+  }
+}
+
+/** `created_at` como a API grava: "AAAA-MM-DD HH:MM:SS", em UTC. */
+export function horaDaApi(ms: number): string {
+  return new Date(ms).toISOString().replace('T', ' ').substring(0, 19);
+}
+
+/**
+ * Troca o `created_at` das requisições que a tela lê (lista, busca e a requisição sozinha), por uuid. Serve para
+ * fixar o intervalo entre as tentativas de um evento sem esperar de verdade: a hora é guardada por segundo, e o
+ * envio real cairia em segundos que o teste não controla. Chame depois do `seedStorage` (com a rota ativa, a ida
+ * ao favicon.ico da semente é abortada).
+ */
+export async function comHoras(
+  page: Page,
+  tokenId: string,
+  horas: Record<string, string>,
+): Promise<void> {
+  const trocar = (no: unknown): void => {
+    if (Array.isArray(no)) {
+      no.forEach(trocar);
+      return;
+    }
+    if (no && typeof no === 'object') {
+      const objeto = no as Record<string, unknown>;
+      const hora = typeof objeto['uuid'] === 'string' ? horas[objeto['uuid']] : undefined;
+      if (hora) {
+        objeto['created_at'] = hora;
+        objeto['updated_at'] = hora;
+      }
+      Object.values(objeto).forEach(trocar);
+    }
+  };
+  await page.route(new RegExp(`/token/${tokenId}/requests?(/[^?]*)?(\\?.*)?$`), async (rota) => {
+    const resposta = await rota.fetch();
+    const tipo = resposta.headers()['content-type'] ?? '';
+    if (!resposta.ok() || !tipo.includes('json')) {
+      await rota.fulfill({ response: resposta });
+      return;
+    }
+    const corpo = (await resposta.json()) as unknown;
+    trocar(corpo);
+    await rota.fulfill({ response: resposta, json: corpo });
+  });
+}
+
 /** `status "Request notice"`: a região viva do topo do detalhe (B2). */
 export function avisoDaRequisicao(page: Page): Locator {
   return page.getByRole('status', { name: 'Request notice' });
