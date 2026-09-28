@@ -721,8 +721,37 @@ test.describe('Dado os roteiros (CA-13)', () => {
       'Wait asked: Retry-After: 1, as configured now. Times are kept to the second.',
     );
     await expect(conferencia(folha)).not.toContainText('came before the asked wait');
+    // Com 2,3 s entre as tentativas (mais que o 1,5 s da leva), sai uma fala por tentativa, cada uma com o resumo.
+    await expectUmAnuncio(page, /^2 requests arrived\. Answers: 429, 429\./, /^Retry check$/);
+    await expectUmAnuncio(page, /^3 requests arrived\. Answers: 429, 429, 200, as programmed\./);
     // A folha continua aberta, com a conferência nela.
     await expect(folha).toBeVisible();
+  });
+
+  // Decisões do orquestrador: o `group "Methods"` do roteiro escolhe um método só, com POST de padrão; sem caminho, a
+  // conferência espera por qualquer caminho.
+  test('deve escolher um método só, com POST de padrão, e esperar por qualquer caminho sem o Path', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
+    const metodos = folha.getByRole('group', { name: 'Methods' });
+
+    await expect(metodos.locator('[aria-pressed="true"]')).toHaveText(['POST']);
+    await metodos.getByRole('button', { name: 'PUT', exact: true }).click();
+    await expect(metodos.locator('[aria-pressed="true"]')).toHaveText(['PUT']);
+    await metodos.getByRole('button', { name: 'POST', exact: true }).click();
+    await expect(metodos.locator('[aria-pressed="true"]')).toHaveText(['POST']);
+
+    await folha.getByRole('spinbutton', { name: 'Status' }).first().fill('429');
+    await folha.getByRole('spinbutton', { name: 'Times' }).fill('2');
+    await folha.getByRole('button', { name: 'Create 3 rules' }).click();
+    await expect(passo(folha, 'Create')).toContainText('3 rules created');
+
+    await expect(conferencia(folha)).toContainText('Waiting for POST (any path).');
   });
 
   test('nunca deve dizer "as programmed" Quando as requisições chegaram antes da espera pedida', async ({
@@ -755,8 +784,11 @@ test.describe('Dado os roteiros (CA-13)', () => {
     );
     await expect(check).not.toContainText(/as programmed/i);
     await expect(folha).not.toContainText(/as programmed|as scheduled|como programado/i);
-    // Uma fala por requisição que chega, com a trilha até ali, e o resumo no fim: nenhuma diz "as programmed".
-    await expectUmAnuncio(page, /^Attempt 2 arrived\. Answers: 429, 429\.$/, /^Retry check$/);
+    // Decisão do orquestrador (guia §3.7): uma fala por LEVA, 1,5 s depois da última chegada, com o resumo até ali.
+    // Numa rajada de três sai uma fala só, a do resumo final; nenhuma por requisição, e nenhuma diz "as programmed".
+    await expectUmAnuncio(page, /^3 requests arrived\. Answers: 429, 429, 200\b/, /^Retry check$/);
+    await expectSemAnuncio(page, /^[12] requests? arrived\b/);
+    await expectSemAnuncio(page, /^Attempt \d+ arrived\b/);
     await expectSemAnuncio(page, /as programmed/i);
   });
 
