@@ -153,7 +153,12 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
-  host: { '(document:visibilitychange)': 'refreshIfStale()' },
+  // UX-21: a página é o `main` do destino, com nome (o editor aberto sozinho não tem o `h1`).
+  host: {
+    role: 'main',
+    '[attr.aria-label]': 'mainLabel',
+    '(document:visibilitychange)': 'refreshIfStale()',
+  },
 })
 export class RulesPage {
   protected readonly store = inject(RuleStore);
@@ -172,6 +177,8 @@ export class RulesPage {
   private readonly intents = inject(RuleIntents);
   protected readonly ai = inject(AiClient);
   private readonly rulesSeen = inject(RulesSeen);
+  /** O nome do `main` desta página (UX-21). */
+  protected readonly mainLabel = $localize`Rules`;
   /** Chegou mensagem com a aba em segundo plano: relê ao voltar (WM-38). */
   private liveStale = false;
 

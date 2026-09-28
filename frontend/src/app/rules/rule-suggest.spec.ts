@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { TOKEN_ID } from '../../testing/fixtures';
@@ -24,6 +25,32 @@ describe('Dado o "Describe the rule" recolhido', () => {
 
     expect(details.open).toBe(true);
     expect(await screen.findByRole('textbox', { name: 'Describe the rule' })).toBeTruthy();
+  });
+
+  // O `import()` do formulário termina depois de o editor fechar: nada a criar, nenhum erro solto.
+  it('não deve criar o formulário, nem soltar erro, Quando é destruído antes de o formulário chegar', async () => {
+    const loose: unknown[] = [];
+    const catcher = (reason: unknown) => loose.push(reason);
+    process.on('unhandledRejection', catcher);
+    try {
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      const fixture = TestBed.createComponent(RuleSuggest);
+      fixture.componentRef.setInput('tokenId', TOKEN_ID);
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+
+      // O editor fecha (e a tela inteira sai) com o `import()` ainda a caminho.
+      fixture.destroy();
+      TestBed.resetTestingModule();
+      await import('./rule-suggest-form');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(loose).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', catcher);
+    }
   });
 
   it('deve vir aberto e com o formulário Quando pedido (o cartão da lista vazia)', async () => {

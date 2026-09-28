@@ -175,6 +175,16 @@ describe('Dado a página Rules', () => {
     expect(await screen.findByText('Hits over the last 1 request kept.')).toBeTruthy();
   });
 
+  // UX-21: cada destino tem um `main` com nome.
+  it('deve ser o main da tela, com o nome do destino', async () => {
+    await open([rule(1)]);
+
+    expect(screen.getByRole('main', { name: 'Rules' })).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual([
+      'Rules',
+    ]);
+  });
+
   it('deve explicar que não há regras Quando a lista está vazia', async () => {
     await open([]);
     await flushLatest([]);

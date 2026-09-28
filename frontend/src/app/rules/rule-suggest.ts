@@ -1,6 +1,7 @@
 import {
   Component,
   ComponentRef,
+  DestroyRef,
   Injector,
   ViewContainerRef,
   effect,
@@ -59,6 +60,7 @@ export interface SuggestionApply {
 })
 export class RuleSuggest {
   private readonly injector = inject(Injector);
+  private destroyed = false;
 
   readonly tokenId = input.required<string>();
   /** Mensagem aberta, oferecida como exemplo ao modelo. */
@@ -75,6 +77,7 @@ export class RuleSuggest {
   private form: ComponentRef<RuleSuggestForm> | null = null;
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
     // Aberto de saída (openSuggest): o formulário vem já.
     effect(() => {
       if (this.open()) {
@@ -107,7 +110,8 @@ export class RuleSuggest {
 
   private async load(): Promise<void> {
     const { RuleSuggestForm } = await import('./rule-suggest-form');
-    if (this.form) {
+    // O `import()` pode terminar depois de o editor fechar: sem componente, não há onde criar.
+    if (this.form || this.destroyed) {
       return;
     }
     this.form = this.host().createComponent(RuleSuggestForm, { injector: this.injector });
