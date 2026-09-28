@@ -256,7 +256,9 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
     for (const [regiao, motivo, parametro] of casos) {
       await expect(
         page.getByRole('region', { name: regiao, exact: true }).getByRole('link', { name: motivo }),
-      ).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}$`));
+        // Patamar, F1 (guia-combinacao §3.6 e §7; UX-18): o link de Métricas leva também o filtro exato
+        // (`signatureReason=`, `schemaPath=`), como o de Saúde.
+      ).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}(&|$)`));
     }
     await page
       .getByRole('region', { name: 'Signature', exact: true })
@@ -264,7 +266,7 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
       .click();
     // Na janela larga a Inbox abre sozinha uma mensagem, e a rota ganha o id dela: em vez da rota exata, espera o
     // filtro aplicado (o chip pressionado e só a mensagem de assinatura inválida na lista).
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[^?]*)?\\?signature=invalid$`));
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[^?]*)?\\?signature=invalid(&|$)`));
     await abrirFiltros(page);
     await expect(filtro(page, 'Signature invalid')).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);

@@ -64,12 +64,22 @@ async function cenario(tokens: TokenTracker): Promise<Cenario> {
   };
 }
 
-/** O chip do filtro ativo com o motivo ou o caminho no nome. */
+/**
+ * O chip do filtro ativo com o motivo ou o caminho. Patamar, B1 e F1 (guia-combinacao §3.1 e §3.6): o filtro ligado
+ * é um item da `list "Active filters"` ("signature: {motivo}", "schema error at {caminho}"); antes era um botão
+ * pressionado do `group "Filters"`. Vale qualquer um dos dois.
+ */
 function chipDo(page: Page, texto: string): Locator {
-  const escapado = texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapado = new RegExp(texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return page
-    .getByRole('group', { name: 'Filters' })
-    .getByRole('button', { name: new RegExp(escapado) })
+    .getByRole('list', { name: 'Active filters' })
+    .getByRole('listitem')
+    .filter({ hasText: escapado })
+    .or(
+      page
+        .getByRole('group', { name: 'Filters' })
+        .getByRole('button', { name: escapado, pressed: true }),
+    )
     .first();
 }
 
@@ -97,7 +107,7 @@ async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Pro
 async function removerChip(page: Page, texto: string): Promise<void> {
   await abrirFiltros(page);
   const chip = chipDo(page, texto);
-  const remover = page.getByRole('group', { name: 'Filters' }).getByRole('button', {
+  const remover = page.getByRole('button', {
     name: new RegExp(`^Remove\\b.*${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
   });
   if ((await remover.count()) > 0) {
@@ -121,10 +131,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
 
     await expect(page).toHaveURL(naQuery('timestamp outside tolerance'));
     await abrirFiltros(page);
-    await expect(chipDo(page, 'timestamp outside tolerance')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expect(chipDo(page, 'timestamp outside tolerance')).toBeVisible();
     await expect(itens(page)).toHaveCount(2);
     await expect(item(page, c.velhaValida)).toBeVisible();
     await expect(item(page, c.velhaValor)).toBeVisible();
@@ -146,7 +153,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
 
     await expect(page).toHaveURL(naQuery('/valor'));
     await abrirFiltros(page);
-    await expect(chipDo(page, '/valor')).toHaveAttribute('aria-pressed', 'true');
+    await expect(chipDo(page, '/valor')).toBeVisible();
     await expect(itens(page)).toHaveCount(2);
     await expect(item(page, c.velhaValor)).toBeVisible();
     await expect(item(page, c.certaValor)).toBeVisible();
@@ -162,7 +169,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
     await mostrarNaEntrada(page, c.tokenId, /\/id\b/);
 
     await abrirFiltros(page);
-    await expect(chipDo(page, '/id')).toHaveAttribute('aria-pressed', 'true');
+    await expect(chipDo(page, '/id')).toBeVisible();
     await expect(itens(page)).toHaveCount(1);
     await expect(item(page, c.trocadaId)).toBeVisible();
   });
@@ -178,10 +185,7 @@ test.describe('Dado a Entrada filtrada por um motivo exato (M1)', () => {
 
     await expect(page).toHaveURL(naQuery('timestamp outside tolerance'));
     await abrirFiltros(page);
-    await expect(chipDo(page, 'timestamp outside tolerance')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expect(chipDo(page, 'timestamp outside tolerance')).toBeVisible();
     await expect(itens(page)).toHaveCount(2);
     await expect(item(page, c.trocadaId)).toHaveCount(0);
   });
