@@ -42,6 +42,8 @@ export class RequestStore {
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
+  /** O filtro mudou e o resultado dele ainda não chegou: o que a lista mostra é do filtro anterior. */
+  readonly searching = signal(false);
   /**
    * Ordem da lista (INBOX-01, protótipo C): a mais nova no topo por padrão, como o `sorting=newest`
    * da API; o botão do cabeçalho inverte. A página 1 é sempre a da ponta de cima.
@@ -91,6 +93,7 @@ export class RequestStore {
    */
   async load(tokenId: string, page = 1, filter: RequestFilter = NO_FILTER): Promise<void> {
     this.generation++;
+    this.searching.set(false);
     this.activeFilter.set(filter);
     this.loading.set(true);
     try {
@@ -120,13 +123,20 @@ export class RequestStore {
     }
     this.activeFilter.set(filter);
     const generation = ++this.generation;
-    const result = await this.fetchPage(tokenId, 1);
-    if (generation !== this.generation) {
-      return;
+    this.searching.set(true);
+    try {
+      const result = await this.fetchPage(tokenId, 1);
+      if (generation !== this.generation) {
+        return;
+      }
+      this.pages.set([{ page: result.current_page, data: result.data }]);
+      this.lastPageReached.set(result.is_last_page);
+      this.countPage(result);
+    } finally {
+      if (generation === this.generation) {
+        this.searching.set(false);
+      }
     }
-    this.pages.set([{ page: result.current_page, data: result.data }]);
-    this.lastPageReached.set(result.is_last_page);
-    this.countPage(result);
   }
 
   /**
@@ -148,6 +158,7 @@ export class RequestStore {
     if (generation !== this.generation) {
       return undefined;
     }
+    this.searching.set(false);
     const last = results[results.length - 1];
     this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
     this.lastPageReached.set(last.is_last_page);
@@ -291,6 +302,7 @@ export class RequestStore {
     if (generation !== this.generation) {
       return undefined;
     }
+    this.searching.set(false);
     this.pages.set([{ page: result.current_page, data: result.data }]);
     this.lastPageReached.set(result.is_last_page);
     this.total.set(total);

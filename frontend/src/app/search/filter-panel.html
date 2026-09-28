@@ -1,0 +1,68 @@
+@if (compact()) {
+  <div class="scrim" aria-hidden="true"></div>
+}
+<div class="panel" [id]="panelId()">
+  <div class="groups" role="group" aria-label="Filters" i18n-aria-label>
+    @for (group of chips.groups(); track group.id; let g = $index) {
+      <div class="group" role="group" [attr.aria-labelledby]="'filters-' + group.id">
+        <span class="name" [id]="'filters-' + group.id">{{ group.label }}</span>
+        <div class="chips">
+          @for (chip of group.chips; track chip.label; let c = $index) {
+            @let index = offsets()[g] + c;
+            @if (chip.menu; as menu) {
+              <button
+                type="button"
+                class="chip"
+                aria-pressed="false"
+                [attr.tabindex]="tabStop() === index ? 0 : -1"
+                [matMenuTriggerFor]="menu === 'rule' ? answeredMenu : nearMenu"
+                (focus)="stop.set(index)"
+                (menuOpened)="loadRules()"
+              >
+                {{ chip.label }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="chip"
+                [attr.aria-pressed]="chip.pressed"
+                [attr.tabindex]="tabStop() === index ? 0 : -1"
+                (focus)="stop.set(index)"
+                (click)="chip.toggle()"
+              >
+                {{ chip.label }}
+                @if (chip.removable) {
+                  <span aria-hidden="true">✕</span>
+                }
+              </button>
+            }
+          }
+        </div>
+      </div>
+    }
+  </div>
+  @if (compact()) {
+    <div class="foot">
+      <app-wait-for-button [text]="true" />
+      <button type="button" class="show" (click)="closed.emit()">{{ showLabel() }}</button>
+    </div>
+  }
+</div>
+<mat-menu #answeredMenu="matMenu" aria-label="Rules" i18n-aria-label>
+  <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'rule' }" />
+</mat-menu>
+<mat-menu #nearMenu="matMenu" aria-label="Rules" i18n-aria-label>
+  <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'near_miss' }" />
+</mat-menu>
+
+<ng-template #ruleItems let-type="type">
+  @if (rules(); as list) {
+    @for (rule of list; track rule.id ?? $index) {
+      <button mat-menu-item type="button" (click)="chooseRule(type, rule)">{{ rule.name }}</button>
+    } @empty {
+      <button mat-menu-item type="button" disabled i18n>This URL has no rules.</button>
+    }
+  } @else {
+    <button mat-menu-item type="button" disabled i18n>Loading the rules…</button>
+  }
+</ng-template>

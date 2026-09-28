@@ -10,6 +10,8 @@ function shortcuts(): readonly { keys: string; action: string }[] {
     },
     { keys: 'C', action: $localize`Copy the webhook URL` },
     { keys: 'N', action: $localize`New URL` },
+    { keys: 'U', action: $localize`Switch URL` },
+    { keys: 'F', action: $localize`Open or close the filters of the Inbox` },
     { keys: '/', action: $localize`Search requests` },
     { keys: '?', action: $localize`This help` },
     { keys: 'Esc', action: $localize`Close this panel` },

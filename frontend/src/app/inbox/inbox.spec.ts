@@ -11,6 +11,7 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { routes } from '../app.routes';
 import { Preferences } from '../settings/preferences';
 import { RequestStore } from '../requests/request-store';
+import { WebhookRequest } from '../requests/webhook-request';
 import { NO_FILTER } from '../search/request-filter';
 import { Redirector } from '../settings/redirect';
 import { RequestList } from '../requests/request-list';
@@ -169,6 +170,63 @@ describe('Dado a tela principal', () => {
         schemaPath: '',
       }),
     );
+  });
+
+  describe('Dado um filtro que deixa a requisição aberta de fora (B1, UX-05)', () => {
+    const root = () => harness.routeNativeElement as HTMLElement;
+    const note = () => root().querySelector('.detail-pane .outside');
+    const filterBy = async (found: WebhookRequest[]) => {
+      const applied = TestBed.inject(RequestStore).applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      await flush(`/token/${TOKEN_ID}/requests/search`, requestPage(found));
+      await applied;
+      await harness.fixture.whenStable();
+    };
+
+    it('deve manter a aberta, dizer que ela está fora do filtro e oferecer o primeiro resultado', async () => {
+      await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
+      await vi.waitFor(() => expect(text()).toContain(R2.uuid));
+      expect(note()).toBeNull();
+
+      await filterBy([R1]);
+
+      expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1?methods=POST`);
+      expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R2.uuid);
+      expect(note()?.textContent).toContain('This request is not in the current filter.');
+
+      note()?.querySelector('button')?.click();
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?methods=POST`));
+      await vi.waitFor(() => expect(note()).toBeNull());
+    });
+
+    it('não deve oferecer o primeiro resultado Quando nada casa, nem avisar Quando a aberta casa', async () => {
+      await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
+      await vi.waitFor(() => expect(text()).toContain(R2.uuid));
+
+      await filterBy([]);
+      expect(note()?.textContent).toContain('This request is not in the current filter.');
+      expect(note()?.querySelector('button')).toBeNull();
+
+      const applied = TestBed.inject(RequestStore).applyFilter({ ...NO_FILTER, methods: ['GET'] });
+      await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R2]));
+      await applied;
+      await harness.fixture.whenStable();
+      expect(note()).toBeNull();
+    });
+  });
+
+  it('deve pôr o "Copy as anzol wait-for" na linha do cabeçalho da lista, e não no celular (INBOX-10)', async () => {
+    await openToken(`/${TOKEN_ID}`);
+    await vi.waitFor(() => expect(text()).toContain(R1.uuid));
+    const tools = () => (harness.routeNativeElement as HTMLElement).querySelector('.list-tools');
+
+    expect(tools()?.querySelector('app-wait-for-button button')?.getAttribute('aria-label')).toBe(
+      'Copy as anzol wait-for',
+    );
+
+    windowClass.set('compact');
+    await harness.fixture.whenStable();
+    expect(tools()?.querySelector('app-wait-for-button')).toBeNull();
   });
 
   it('deve abrir a mensagem do link Quando o link traz token, mensagem e página', async () => {

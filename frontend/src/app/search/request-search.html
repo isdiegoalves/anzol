@@ -1,160 +1,73 @@
 <div class="search" role="search" aria-label="Filter requests" i18n-aria-label>
-  <label class="pill">
-    <app-icon name="search" [size]="18" />
-    <input
-      #box
-      class="text"
-      type="text"
-      name="search"
-      aria-label="Search"
-      i18n-aria-label
-      placeholder="Search path, IP, header or body"
-      i18n-placeholder
-      maxlength="200"
-      autocomplete="off"
-      enterkeyhint="search"
-      title="Search (/)"
-      i18n-title
-      [value]="draft()"
-      (input)="draft.set(box.value)"
-    />
-    <!-- INBOX-08: o atalho que já existe, à vista (o title do campo também o diz). -->
-    <kbd class="key" aria-hidden="true">/</kbd>
-  </label>
-  <div class="chips" role="group" aria-label="Filters" i18n-aria-label>
-    @for (chip of chips().main; track chip.label) {
-      <button type="button" class="chip" [attr.aria-pressed]="chip.pressed" (click)="chip.toggle()">
-        {{ chip.label }}
-      </button>
-    }
-    <!-- M1: o motivo exato e o caminho do schema (o "Show in Inbox" do Health), tirados pelo ✕. -->
-    @if (reasonChip(); as label) {
-      <button
-        type="button"
-        class="chip exact"
-        aria-pressed="true"
-        [attr.title]="removeHint"
-        (click)="clearExact('signatureReason')"
-      >
-        {{ label }} <span aria-hidden="true">✕</span>
-      </button>
-    }
-    @if (pathChip(); as label) {
-      <button
-        type="button"
-        class="chip exact"
-        aria-pressed="true"
-        [attr.title]="removeHint"
-        (click)="clearExact('schemaPath')"
-      >
-        {{ label }} <span aria-hidden="true">✕</span>
-      </button>
-    }
-    <!-- C2: pelo desfecho (uma regra escolhida no menu, ou a resposta padrão), um por vez. -->
-    @if (answeredBy(); as label) {
-      <button type="button" class="chip" aria-pressed="true" (click)="setOutcome(null)">
-        {{ label }} <span aria-hidden="true">✕</span>
-      </button>
-    } @else {
-      <button
-        type="button"
-        class="chip"
-        aria-pressed="false"
-        [matMenuTriggerFor]="answeredMenu"
-        (menuOpened)="loadRules()"
-        i18n="filter chip|Messages a rule answered; opens the list of rules"
-      >
-        Answered by rule…
-      </button>
-    }
-    @if (nearMissOf(); as label) {
-      <button type="button" class="chip" aria-pressed="true" (click)="setOutcome(null)">
-        {{ label }} <span aria-hidden="true">✕</span>
-      </button>
-    } @else {
-      <button
-        type="button"
-        class="chip"
-        aria-pressed="false"
-        [matMenuTriggerFor]="nearMenu"
-        (menuOpened)="loadRules()"
-        i18n="filter chip|Messages that almost matched a rule; opens the list of rules"
-      >
-        Near miss of…
-      </button>
-    }
-    <button
-      type="button"
-      class="chip"
-      [attr.aria-pressed]="outcome()?.type === 'default'"
-      (click)="toggleDefault()"
-      i18n="filter chip|Messages the URL's default response answered"
-    >
-      Default response
-    </button>
-    <mat-menu #answeredMenu="matMenu" aria-label="Rules" i18n-aria-label>
-      <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'rule' }" />
-    </mat-menu>
-    <mat-menu #nearMenu="matMenu" aria-label="Rules" i18n-aria-label>
-      <ng-container
-        [ngTemplateOutlet]="ruleItems"
-        [ngTemplateOutletContext]="{ type: 'near_miss' }"
+  <div class="line">
+    <label class="pill">
+      <app-icon name="search" [size]="18" />
+      <input
+        #box
+        class="text"
+        type="text"
+        name="search"
+        aria-label="Search"
+        i18n-aria-label
+        placeholder="Search path, IP, header or body"
+        i18n-placeholder
+        maxlength="200"
+        autocomplete="off"
+        enterkeyhint="search"
+        title="Search (/)"
+        i18n-title
+        [value]="draft()"
+        (input)="draft.set(box.value)"
       />
-    </mat-menu>
+      <!-- INBOX-08: o atalho que já existe, à vista (o title do campo também o diz). -->
+      <kbd class="key" aria-hidden="true">/</kbd>
+    </label>
+    <!-- B1 (UX-04): os chips ficam atrás deste botão; só os ligados ficam à vista, abaixo. -->
     <button
-      i18n
       type="button"
-      class="chip more"
-      [attr.aria-expanded]="moreOpen()"
-      (click)="moreOpen.set(!moreOpen())"
+      class="filters"
+      aria-keyshortcuts="F"
+      title="Filters (F)"
+      i18n-title
+      [class.on]="chips.active().length > 0"
+      [attr.aria-expanded]="open()"
+      [attr.aria-controls]="open() ? panelId : null"
+      [attr.aria-label]="filtersName()"
+      (click)="toggle(false)"
     >
-      More filters
+      {{ filtersText() }}
+      <app-icon [name]="open() ? 'up' : 'down'" [size]="16" />
     </button>
-    @for (chip of chips().more; track chip.label) {
-      @if (moreOpen() || chip.pressed) {
-        <button
-          type="button"
-          class="chip"
-          [attr.aria-pressed]="chip.pressed"
-          (click)="chip.toggle()"
-        >
-          {{ chip.label }}
-        </button>
+  </div>
+  @if (open()) {
+    <app-filter-panel [panelId]="panelId" (closed)="close()" />
+  }
+  @if (active().length > 0) {
+    <ul class="active" aria-label="Active filters" i18n-aria-label>
+      @for (item of active(); track item.label) {
+        <li class="item">
+          <span class="label">{{ item.label }}</span>
+          <button
+            type="button"
+            class="remove"
+            [attr.aria-label]="removeLabel(item.label)"
+            [attr.title]="removeHint"
+            (click)="item.remove()"
+          >
+            <app-icon name="close" [size]="14" />
+          </button>
+        </li>
       }
-    }
-  </div>
-  <div class="row">
-    <!-- INBOX-25: sem resultado, o "Clear filters" é o do estado vazio da lista. -->
-    @if (!nothingMatches()) {
-      <button
-        i18n
-        type="button"
-        class="link"
-        [disabled]="!store.filtering() && draft() === ''"
-        (click)="clearFilters()"
-      >
-        Clear filters
-      </button>
-    }
-    <button i18n type="button" class="link" (click)="copyWaitFor()">Copy as anzol wait-for</button>
-  </div>
-  @if (copied(); as message) {
-    <p class="note" role="status">{{ message }}</p>
+      <!-- INBOX-25: sem resultado, o "Clear filters" é o do estado vazio da lista. -->
+      @if (!nothingMatches()) {
+        <li>
+          <button i18n type="button" class="link" (click)="clearFilters()">Clear filters</button>
+        </li>
+      }
+    </ul>
   }
-  <!-- INBOX-10: só com filtro; e diz que a busca é no servidor, sobre a URL inteira. -->
-  @if (store.filtering()) {
-    <p class="count" role="status">{{ statusLine() }}</p>
-  }
+  <!-- INBOX-10: só com filtro; diz que a busca é no servidor, sobre a URL inteira. Região viva
+       persistente: recebe só o resultado, uma vez, depois que os filtros param de mudar. -->
+  <app-live-region class="count" [text]="result()" />
+  <app-live-region class="note" [text]="waitFor.copied() ?? ''" />
 </div>
-
-<ng-template #ruleItems let-type="type">
-  @if (rules(); as list) {
-    @for (rule of list; track rule.id ?? $index) {
-      <button mat-menu-item type="button" (click)="chooseRule(type, rule)">{{ rule.name }}</button>
-    } @empty {
-      <button mat-menu-item type="button" disabled i18n>This URL has no rules.</button>
-    }
-  } @else {
-    <button mat-menu-item type="button" disabled i18n>Loading the rules…</button>
-  }
-</ng-template>

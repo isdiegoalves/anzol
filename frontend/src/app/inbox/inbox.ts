@@ -27,6 +27,7 @@ import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { filterFromParams, filterToParams, sameFilter } from '../search/request-filter';
+import { WaitForButton } from '../search/wait-for';
 import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
@@ -64,6 +65,7 @@ export const RECEIVED_NOTICE_MS = 4000;
     RequestDetail,
     RequestList,
     Split,
+    WaitForButton,
   ],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
@@ -120,6 +122,16 @@ export class Inbox {
   /** Lista e detalhe lado a lado (classes expandida em diante); abaixo, um painel por vez. */
   protected readonly twoPanes = computed(() =>
     ['expanded', 'large', 'extra-large'].includes(this.viewport.windowClass()),
+  );
+  protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
+  /** A requisição aberta não está no resultado do filtro de agora (UX-05). */
+  protected readonly outsideFilter = computed(
+    () =>
+      this.requests.filtering() &&
+      !this.requests.searching() &&
+      !this.requests.loading() &&
+      !!this.requests.selected() &&
+      this.requests.selectedIndex() < 0,
   );
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);

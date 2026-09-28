@@ -1500,10 +1500,6 @@ export const translations: Record<string, string> = {
   '3185098119447169060': 'Buscar (/)',
   // Filters
   '4163272119298020373': 'Filtros',
-  //  More filters
-  '1642449050488603077': ' Mais filtros ',
-  //  Clear filters
-  '6634790566400449864': ' Limpar filtros ',
   // Copy as anzol wait-for
   '1673917569694962048': 'Copiar como anzol wait-for',
   // 1 request matches · search runs on the server over all {$total}
@@ -2509,12 +2505,6 @@ export const translations: Record<string, string> = {
   '1399707326815643504': '1 requisição sem regra desde {$time} — ver',
   // {$count} requests without a rule since {$time} — see them
   '4918300128465595845': '{$count} requisições sem regra desde {$time} — ver',
-  //  Answered by rule…
-  '4526684745563814750': ' Respondidas por regra… ',
-  //  Near miss of…
-  '8767848550805852377': ' Quase acerto de… ',
-  //  Default response
-  '1303534027367842386': ' Resposta padrão ',
   // Near miss of: {$name}
   '2282262815863593717': 'Quase acerto de: {$name}',
   // {$destination} · 1 request without a rule
@@ -2844,4 +2834,40 @@ export const translations: Record<string, string> = {
   '2071123639523165657': 'Trocar para outra URL',
   // Remove from this browser
   '4323343669166253624': 'Tirar deste navegador',
+  // This request is not in the current filter.
+  '6750321599802887800': 'Esta requisição não está no filtro atual.',
+  // Open the first result
+  '8935977311033141693': 'Abrir o primeiro resultado',
+  // Answer
+  '4669216542007588508': 'Resposta',
+  // Answered by rule…
+  '2990063144930561403': 'Respondidas por regra…',
+  // Near miss of…
+  '3985861356657946810': 'Quase acerto de…',
+  // Default response
+  '9069767196486974269': 'Resposta padrão',
+  // Show 1 request
+  '6671799649393310300': 'Mostrar 1 requisição',
+  // Show {$count} requests
+  '8052346497025257180': 'Mostrar {$count} requisições',
+  // Filters (F)
+  '2473449691218981136': 'Filtros (F)',
+  // Active filters
+  '1540693748364941000': 'Filtros ligados',
+  // Remove this filter: {$filter}
+  '2079715007977872465': 'Tirar este filtro: {$filter}',
+  // Filters · {$count}
+  '8817799166454017318': 'Filtros · {$count}',
+  // Filters, {$count} active
+  '2125536548958201660': 'Filtros, {$count} ligados',
+  // Search: {$text}
+  '7736249514208329990': 'Busca: {$text}',
+  // Filters cleared. 1 request.
+  '5705298799624087866': 'Filtros limpos. 1 requisição.',
+  // Filters cleared. {$count} requests.
+  '8474352744567911550': 'Filtros limpos. {$count} requisições.',
+  // Switch URL
+  '7206950408817526226': 'Trocar de URL',
+  // Open or close the filters of the Inbox
+  '2339541821310133786': 'Abrir ou fechar os filtros da Entrada',
 };

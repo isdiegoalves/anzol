@@ -49,6 +49,35 @@
   overflow: auto;
 }
 
+.outside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-body-medium);
+}
+
+.first {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: var(--mat-sys-label-large);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
 .list-tools {
   display: flex;
   align-items: center;

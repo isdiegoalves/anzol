@@ -1,251 +1,212 @@
-import { Clipboard } from '@angular/cdk/clipboard';
-import { DOCUMENT } from '@angular/common';
-import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
-import { TokenStore } from '../token/token-store';
-import { ScreenState } from '../shell/screen-state';
-import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { NgTemplateOutlet } from '@angular/common';
-import { Rule, evaluationOrder } from '../rules/rule';
-import { RuleStore } from '../rules/rule-store';
+import { isTyping } from '../shell/hotkeys';
+import { ShellSettings } from '../shell/shell-settings';
 import { Icon } from '../ui/icon';
-import {
-  NO_FILTER,
-  OutcomeFilter,
-  RequestFilter,
-  SchemaFilter,
-  SignatureFilter,
-  outsideWaitFor,
-  sameFilter,
-  waitForCommand,
-} from './request-filter';
+import { LiveRegion } from '../ui/live-region';
+import { FilterChips } from './filter-chips';
+import { FilterPanel } from './filter-panel';
+import { WaitFor } from './wait-for';
 
 /** Espera depois da última tecla antes de buscar. */
 export const SEARCH_DEBOUNCE_MS = 300;
+/** O resultado é dito uma vez, depois que os filtros param de mudar (guia da combinação, B1). */
+export const RESULT_ANNOUNCE_MS = 600;
+/** Quanto tempo "Filters cleared. 34 requests." fica na região. */
+export const CLEARED_NOTE_MS = 5000;
 
-/** Um chip do grupo "Filters": o nome acessível é o texto, o estado é o `aria-pressed`. */
-interface Chip {
-  label: string;
-  pressed: boolean;
-  toggle: () => void;
-}
+let nextId = 0;
 
 /**
- * Busca em pílula e os filtros como chips (um clique cada, C §2.3), no lugar dos três `MatSelect`
- * (fora do pacote da Inbox): método (vários), assinatura válida/inválida/ausente e schema
- * válido/inválido (um de cada). Mapeiam 1:1 no `match` da busca. Com filtro, o contador
- * "N of M requests"; e o "Copy as anzol wait-for" com os mesmos filtros. No celular (INBOX-31),
- * só a linha de chips: a pílula e a linha Clear/Copy vêm pela lupa da barra do topo ou com filtro.
+ * A busca da lista numa linha (B1, UX-04): a pílula do texto e o `button "Filters"`, que abre o
+ * painel dos chips (tecla F). Só os filtros ligados ficam à vista, na `list "Active filters"`, cada
+ * um com o seu "Remove this filter", e o "Clear filters" no fim. A linha do resultado só existe com
+ * filtro, e é ela que o leitor de tela ouve: uma vez, 600 ms depois da última mudança; nada de
+ * "Searching…" a cada tecla.
  */
 @Component({
   selector: 'app-request-search',
-  imports: [Icon, MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet],
+  imports: [FilterPanel, Icon, LiveRegion],
   templateUrl: './request-search.html',
   styleUrl: './request-search.scss',
-  host: { '[class.collapsed]': "!screen.searchOpen() && !store.filtering() && draft() === ''" },
+  host: { '(document:keydown)': 'toggleByKey($event)' },
 })
 export class RequestSearch {
   protected readonly store = inject(RequestStore);
-  private readonly tokens = inject(TokenStore);
-  private readonly clipboard = inject(Clipboard);
-  private readonly origin = inject(DOCUMENT).location.origin;
-  protected readonly screen = inject(ScreenState);
-  private readonly rulesStore = inject(RuleStore);
+  protected readonly chips = inject(FilterChips);
+  protected readonly waitFor = inject(WaitFor);
+  private readonly settings = inject(ShellSettings);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly panel = viewChild(FilterPanel);
 
-  /** As regras da URL, para os menus "Answered by rule…" e "Near miss of…" (C2); lidas ao abrir. */
-  protected readonly rules = signal<readonly Rule[] | null>(null);
-  private rulesToken: string | null = null;
-  /** O desfecho ligado, para o nome do chip ("Answered by: Pix"). */
-  protected readonly outcome = computed(() => this.store.filter().outcome ?? null);
-  protected readonly answeredBy = computed(() => {
-    const outcome = this.outcome();
-    return outcome?.type === 'rule'
-      ? $localize`:filter chip|Active filter, messages the rule answered:Answered by: ${outcome.name}:name:`
-      : null;
-  });
+  protected readonly panelId = `filters-panel-${nextId++}`;
+  protected readonly open = signal(false);
   protected readonly removeHint = $localize`Remove this filter`;
-  /** M1: o motivo exato e o caminho do schema, vindos do Health, como chips que se tiram. */
-  protected readonly reasonChip = computed(() => {
-    const reason = this.store.filter().signatureReason;
-    return reason == null ? null : $localize`Signature: ${reason}:reason:`;
-  });
-  protected readonly pathChip = computed(() => {
-    const path = this.store.filter().schemaPath;
-    return path == null
-      ? null
-      : $localize`Schema error at: ${path === '' ? $localize`(root)` : path}:path:`;
-  });
-  protected readonly nearMissOf = computed(() => {
-    const outcome = this.outcome();
-    return outcome?.type === 'near_miss' ? $localize`Near miss of: ${outcome.name}:name:` : null;
-  });
+  protected readonly removeLabel = (filter: string) =>
+    $localize`Remove this filter: ${filter}:filter:`;
 
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
+  /** "Filters · 2" à vista; "Filters, 2 active" no nome acessível. */
+  protected readonly filtersText = computed(() => {
+    const count = this.chips.active().length;
+    return count === 0 ? $localize`Filters` : $localize`Filters · ${count}:count:`;
+  });
+  protected readonly filtersName = computed(() => {
+    const count = this.chips.active().length;
+    return count === 0 ? $localize`Filters` : $localize`Filters, ${count}:count: active`;
+  });
+  /** Os filtros ligados e, com texto na busca, o texto: cada um se tira sozinho. */
+  protected readonly active = computed(() => {
+    const text = this.store.filter().text;
+    return [
+      ...(text
+        ? [
+            {
+              label: $localize`:active filter, the text being searched:Search: ${text}:text:`,
+              remove: () => this.removeText(),
+            },
+          ]
+        : []),
+      ...this.chips.active().map((chip) => ({ label: chip.label, remove: chip.toggle })),
+    ];
+  });
   /** Com filtro e sem resultado: o estado vazio da lista tem o seu "Clear filters" (INBOX-25). */
   protected readonly nothingMatches = computed(
-    () => this.store.filtering() && this.store.requests().length === 0,
+    () => this.store.filtering() && !this.store.searching() && this.store.requests().length === 0,
   );
   /** "2 requests match · search runs on the server over all 3" (INBOX-10). */
-  protected readonly statusLine = computed(() => {
+  private readonly statusLine = computed(() => {
     const [matched, total] = [this.store.matched(), this.store.total()];
     return matched === 1
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
       : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
   });
-  /** O que o "Copy as anzol wait-for" copiou, com o aviso do texto que ficou de fora. */
-  protected readonly copied = signal<string | null>(null);
-
-  /** Rótulos dos chips (os nomes acessíveis da E4 em inglês), traduzidos na instância. */
-  private readonly signatureLabels: Record<Exclude<SignatureFilter, 'any'>, string> = {
-    valid: $localize`Signature valid`,
-    invalid: $localize`Signature invalid`,
-    absent: $localize`Signature absent`,
-  };
-  private readonly schemaLabels: Record<Exclude<SchemaFilter, 'any'>, string> = {
-    valid: $localize`Schema valid`,
-    invalid: $localize`Schema invalid`,
-  };
-
-  /**
-   * Os chips na ordem do protótipo C (INBOX-09): os principais à vista e os demais atrás de "More
-   * filters" (trava 4: nenhum filtro some). Um chip escondido que está ligado continua à vista.
-   */
-  protected readonly chips = computed<{ main: Chip[]; more: Chip[] }>(() => {
-    const filter = this.store.filter();
-    const method = (method: string): Chip => ({
-      label: method,
-      pressed: filter.methods.includes(method),
-      toggle: () =>
-        this.apply({
-          methods: filter.methods.includes(method)
-            ? filter.methods.filter((chosen) => chosen !== method)
-            : [...filter.methods, method],
-        }),
-    });
-    const signature = (value: 'valid' | 'invalid' | 'absent'): Chip => ({
-      label: this.signatureLabels[value],
-      pressed: filter.signature === value,
-      toggle: () => this.apply({ signature: filter.signature === value ? 'any' : value }),
-    });
-    const schema = (value: 'valid' | 'invalid'): Chip => ({
-      label: this.schemaLabels[value],
-      pressed: filter.schema === value,
-      toggle: () => this.apply({ schema: filter.schema === value ? 'any' : value }),
-    });
-    return {
-      main: [
-        method('POST'),
-        method('GET'),
-        method('PUT'),
-        signature('invalid'),
-        signature('absent'),
-        schema('invalid'),
-      ],
-      more: [method('PATCH'), method('DELETE'), signature('valid'), schema('valid')],
-    };
-  });
-  /** "More filters" aberto; nasce aberto quando um dos filtros de lá está ligado (um link, a rota). */
-  protected readonly moreOpen = linkedSignal<boolean, boolean>({
-    source: () => this.chips().more.some((chip) => chip.pressed),
-    computation: (pressedMore, previous) => pressedMore || (previous?.value ?? false),
-  });
+  /** O que a região do resultado diz agora. */
+  protected readonly result = signal('');
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private wasFiltering = false;
+  private tokenId: string | null = null;
 
   constructor() {
     toObservable(this.draft)
       .pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed())
-      .subscribe((text) => this.apply({ text }));
+      .subscribe((text) => {
+        // Se o texto mudou por fora durante a espera (a rota, o "Clear filters"), vale o de agora.
+        if (text === untracked(this.draft)) {
+          this.chips.apply({ text });
+        }
+      });
+
+    // O resultado, uma vez: espera a busca voltar e os filtros pararem de mudar.
+    effect(() => {
+      const filtering = this.store.filtering();
+      const waiting = this.store.searching() || this.store.loading();
+      const line = filtering ? this.statusLine() : '';
+      const tokenId = this.store.tokenId();
+      this.store.filter();
+      untracked(() => {
+        if (tokenId !== this.tokenId) {
+          // Outra URL: o que se disse da anterior não vale, e nada foi "limpo".
+          this.tokenId = tokenId;
+          this.wasFiltering = false;
+          this.result.set('');
+        }
+        this.say(filtering, waiting, line);
+      });
+    });
+    inject(DestroyRef).onDestroy(() => this.stopTimer());
   }
 
-  /** Lê as regras da URL na primeira vez que um dos menus abre. */
-  protected async loadRules(): Promise<void> {
-    const tokenId = this.store.tokenId();
-    if (!tokenId || (this.rulesToken === tokenId && this.rules() !== null)) {
+  /** O botão e a tecla F; pela tecla, o foco vai ao primeiro chip. */
+  protected toggle(byKey: boolean): void {
+    if (this.open()) {
+      this.close();
       return;
     }
-    this.rulesToken = tokenId;
-    this.rules.set(null);
-    try {
-      const rules = await this.rulesStore.listRules(tokenId);
-      this.rules.set(evaluationOrder(rules).map((index) => rules[index]));
-    } catch {
-      this.rules.set([]);
+    this.open.set(true);
+    if (byKey) {
+      afterNextRender(() => this.panel()?.focusFirst(), { injector: this.injector });
     }
   }
 
-  /** Tira o motivo exato ou o caminho do schema (o ✕ do chip). */
-  protected clearExact(field: 'signatureReason' | 'schemaPath'): void {
-    this.apply({ [field]: null });
+  /** Fecha o painel e devolve o foco ao botão. */
+  protected close(): void {
+    this.open.set(false);
+    this.host.querySelector<HTMLElement>('.filters')?.focus();
   }
 
-  /** Um desfecho por vez; `null` tira o filtro. */
-  protected setOutcome(outcome: OutcomeFilter | null): void {
-    this.apply({ outcome });
-  }
-
-  protected chooseRule(type: 'rule' | 'near_miss', rule: Rule): void {
-    if (rule.id) {
-      this.setOutcome({ type, rule: rule.id, name: rule.name });
+  protected toggleByKey(event: KeyboardEvent): void {
+    if (
+      event.key.toLowerCase() !== 'f' ||
+      !this.settings.shortcuts() ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      isTyping(event)
+    ) {
+      return;
     }
-  }
-
-  protected toggleDefault(): void {
-    this.setOutcome(this.outcome()?.type === 'default' ? null : { type: 'default' });
+    event.preventDefault();
+    this.toggle(true);
   }
 
   protected clearFilters(): void {
     this.draft.set('');
-    this.copied.set(null);
-    void this.store.applyFilter(NO_FILTER);
+    this.chips.clear();
   }
 
-  /** S10: só o `match` vai para o comando; com a URL protegida, o segredo vem da variável. */
-  protected copyWaitFor(): void {
-    const token = this.tokens.token();
-    if (!token) {
+  private removeText(): void {
+    this.draft.set('');
+    this.chips.apply({ text: '' });
+  }
+
+  private say(filtering: boolean, waiting: boolean, line: string): void {
+    this.stopTimer();
+    if (waiting) {
       return;
     }
-    const filter = { ...this.store.filter(), text: this.draft() };
-    this.clipboard.copy(
-      waitForCommand(filter, {
-        server: this.origin,
-        tokenId: token.uuid,
-        protected: token.protected === true,
-      }),
-    );
-    this.copied.set(copiedMessage(outsideWaitFor(filter)));
-  }
-
-  /** O "Copied…" só sai quando o filtro muda de fato (o debounce da busca reaplica o mesmo). */
-  private apply(change: Partial<RequestFilter>): void {
-    const next = { ...this.store.filter(), ...change };
-    if (!sameFilter(next, this.store.filter())) {
-      this.copied.set(null);
+    const cleared = this.wasFiltering && !filtering;
+    if (!filtering && !cleared) {
+      // Sem filtro (a carga, a troca de URL): a região fica vazia; o aviso de "limpo" sai sozinho.
+      return;
     }
-    void this.store.applyFilter(next);
+    this.timer = setTimeout(() => {
+      this.wasFiltering = filtering;
+      this.result.set(cleared ? this.clearedLine() : line);
+      if (cleared) {
+        this.timer = setTimeout(() => this.result.set(''), CLEARED_NOTE_MS);
+      }
+    }, RESULT_ANNOUNCE_MS);
   }
-}
 
-/**
- * O aviso do "Copy as anzol wait-for": o comando só leva o `match`, então diz o que ficou de fora
- * (o texto, o desfecho, o motivo exato e o caminho do schema, M1), para não sugerir um filtro que o
- * wait-for não entende.
- */
-function copiedMessage(outside: ReturnType<typeof outsideWaitFor>): string {
-  if (outside.length === 0) {
-    return $localize`Copied the anzol wait-for command.`;
+  private clearedLine(): string {
+    const total = this.store.total();
+    return total === 1
+      ? $localize`Filters cleared. 1 request.`
+      : $localize`Filters cleared. ${total}:count: requests.`;
   }
-  if (outside.length === 1 && outside[0] === 'text') {
-    return $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`;
+
+  private stopTimer(): void {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
   }
-  const names = {
-    text: $localize`the text search`,
-    outcome: $localize`the answered-by filter`,
-    reason: $localize`the signature reason`,
-    path: $localize`the schema error path`,
-  };
-  const left = outside.map((part) => names[part]).join(', ');
-  return $localize`Copied. wait-for only reads --match, so these filters were left out: ${left}:filters:.`;
 }

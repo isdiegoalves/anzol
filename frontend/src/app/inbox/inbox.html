@@ -54,6 +54,10 @@
         (change)="preferences.autoNavEnable.set($event.checked)"
         >Follow new</mat-slide-toggle
       >
+      <!-- INBOX-10: à vista sem filtro; no celular, fica no painel de filtros. -->
+      @if (requests.hasRequests() && !compact()) {
+        <app-wait-for-button />
+      }
       @if (requests.hasRequests()) {
         <button
           mat-icon-button
@@ -81,6 +85,17 @@
   @let request = requests.selected();
   @let token = tokens.token();
   @if (request && token) {
+    <!-- UX-05: filtrar não troca a requisição aberta; o detalhe diz que ela ficou de fora. -->
+    @if (outsideFilter()) {
+      <p class="outside">
+        <span i18n>This request is not in the current filter.</span>
+        @if (requests.requests()[0]; as first) {
+          <button type="button" class="first" (click)="openFromList(first)">
+            <span i18n>Open the first result</span>
+          </button>
+        }
+      </p>
+    }
     <app-request-detail
       [request]="request"
       [token]="token"

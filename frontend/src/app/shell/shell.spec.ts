@@ -337,7 +337,13 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await user.click(screen.getByRole('button', { name: 'Help' }));
 
     const help = await screen.findByRole('dialog', { name: 'Help' });
-    expect(within(help).getByRole('table', { name: 'Keyboard shortcuts' })).toBeTruthy();
+    const keys = within(help).getByRole('table', { name: 'Keyboard shortcuts' });
+    // B1: as teclas novas (o seletor de URLs e o painel de filtros) estão na folha.
+    expect(
+      within(keys)
+        .getAllByRole('row')
+        .map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' ')),
+    ).toEqual(expect.arrayContaining(['U Switch URL', 'F Open or close the filters of the Inbox']));
     expect(
       within(help)
         .getAllByRole('link')

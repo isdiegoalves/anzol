@@ -1,6 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
@@ -8,28 +9,51 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
-import { ScreenState } from '../shell/screen-state';
+import { ShellSettings } from '../shell/shell-settings';
+import { Viewport, WindowClass } from '../shell/viewport';
 import { NO_FILTER } from './request-filter';
-import { RequestSearch, SEARCH_DEBOUNCE_MS } from './request-search';
+import { RequestSearch } from './request-search';
+import { WaitFor } from './wait-for';
 
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+const listUrl = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
+const THREE = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
 
-describe('Dado a busca e os filtros em chips da lista', () => {
+describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (B1)', () => {
   let http: HttpTestingController;
   let store: RequestStore;
-  let clipboard: Clipboard;
   let container: HTMLElement;
+  const windowClass = signal<WindowClass>('large');
 
   const searches = () => http.match({ method: 'POST', url: searchUrl });
-  const chip = (name: string) =>
-    within(screen.getByRole('group', { name: 'Filters' })).getByRole('button', { name });
-  const count = () =>
-    screen.queryByText(/^\d+ requests? match(es)? · search runs on the server over all \d+$/)
-      ?.textContent;
+  const filters = () => screen.getByRole('button', { name: /^Filters/ });
+  const group = () => screen.queryByRole('group', { name: 'Filters' });
+  const openPanel = async () => {
+    if (!group()) {
+      await userEvent.click(filters());
+    }
+  };
+  const chip = (name: string | RegExp) =>
+    within(group() as HTMLElement).getByRole('button', { name });
+  /** A região do resultado e a do "Copied…", as duas sempre no DOM. */
+  const regions = () => screen.getAllByRole('status').map((status) => status.textContent ?? '');
+  const result = () => regions()[0];
+  const activeFilters = () => screen.queryByRole('list', { name: 'Active filters' });
+  /** Liga um chip e responde à busca dele. */
+  const press = async (name: string, found = THREE.slice(0, 1)) => {
+    await openPanel();
+    await userEvent.click(chip(name));
+    searches().forEach((search) => search.flush(requestPage(found, { total: found.length })));
+  };
 
   beforeEach(async () => {
+    windowClass.set('large');
     const view = await render(RequestSearch, {
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
+      ],
       configureTestBed: (testBed) => {
         testBed.inject(Preferences).token.set(token());
         http = testBed.inject(HttpTestingController);
@@ -37,12 +61,9 @@ describe('Dado a busca e os filtros em chips da lista', () => {
       },
     });
     const loaded = store.load(TOKEN_ID);
-    http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
-      .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
+    http.expectOne(listUrl).flush(requestPage(THREE));
     await loaded;
     await view.fixture.whenStable();
-    clipboard = view.fixture.debugElement.injector.get(Clipboard);
     container = view.container as HTMLElement;
   });
 
@@ -51,28 +72,78 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     localStorage.clear();
   });
 
-  it('deve ter a busca, os chips de método, assinatura e schema, e passar no axe', async () => {
-    expect(within(container).getByRole('search')).toBeTruthy();
+  it('deve mostrar só a busca e o botão "Filters" recolhido, sem chips nem linha de resultado', async () => {
+    expect(within(container).getByRole('search', { name: 'Filter requests' })).toBeTruthy();
+    expect(filters().getAttribute('aria-label')).toBe('Filters');
+    expect(filters().textContent?.trim()).toBe('Filters');
+    expect(filters().getAttribute('aria-expanded')).toBe('false');
+    expect(filters().hasAttribute('aria-controls')).toBe(false);
+    expect(group()).toBeNull();
+    expect(activeFilters()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+    expect(regions()).toEqual(['', '']);
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve abrir o painel com todos os chips de hoje em quatro subgrupos, sem "More filters"', async () => {
+    await userEvent.click(filters());
+
+    expect(filters().getAttribute('aria-expanded')).toBe('true');
+    expect(document.getElementById(filters().getAttribute('aria-controls') ?? '')).not.toBeNull();
     expect(
-      within(container)
-        .getAllByRole('button', { pressed: false })
-        .map((button) => button.textContent?.trim()),
+      within(group() as HTMLElement)
+        .getAllByRole('group')
+        .map((subgroup) => [
+          subgroup.getAttribute('aria-labelledby') &&
+            document.getElementById(subgroup.getAttribute('aria-labelledby') ?? '')?.textContent,
+          within(subgroup)
+            .getAllByRole('button')
+            .map((button) => button.textContent?.trim()),
+        ]),
     ).toEqual([
-      'POST',
-      'GET',
-      'PUT',
-      'Signature invalid',
-      'Signature absent',
-      'Schema invalid',
-      'Answered by rule…',
-      'Near miss of…',
-      'Default response',
+      ['Method', ['POST', 'GET', 'PUT', 'DELETE', 'PATCH']],
+      ['Signature', ['Signature invalid', 'Signature absent', 'Signature valid']],
+      ['Schema', ['Schema invalid', 'Schema valid']],
+      ['Answer', ['Answered by rule…', 'Near miss of…', 'Default response']],
+    ]);
+    expect(screen.queryByRole('button', { name: 'More filters' })).toBeNull();
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(filters());
+    expect(group()).toBeNull();
+  });
+
+  it('deve contar os filtros no botão, listá-los em "Active filters" e tirar um por vez', async () => {
+    await press('POST');
+    await press('Default response');
+
+    expect(filters().getAttribute('aria-label')).toBe('Filters, 2 active');
+    expect(filters().textContent?.trim()).toBe('Filters · 2');
+    const list = activeFilters() as HTMLElement;
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent?.trim()),
+    ).toEqual([
+      'Remove this filter: POST',
+      'Remove this filter: Default response',
+      'Clear filters',
     ]);
     await expectNoAxeViolations(container);
+
+    await userEvent.click(
+      within(list).getByRole('button', { name: 'Remove this filter: Default response' }),
+    );
+    expect(searches()[0].request.body).toMatchObject({ match: { method: ['POST'] } });
+    expect(searches()).toHaveLength(0);
+    http.expectNone(listUrl);
+    expect(store.filter().outcome ?? null).toBeNull();
+    expect(filters().getAttribute('aria-label')).toBe('Filters, 1 active');
   });
 
   // C2 (WM-27): o desfecho vai na busca, fora do `match`; o chip ativo diz a regra.
   it('deve filtrar pelas respondidas por uma regra escolhida no menu, e tirar ao clicar de novo', async () => {
+    await openPanel();
     await userEvent.click(chip('Answered by rule…'));
     http.expectOne(`/token/${TOKEN_ID}/rules`).flush([
       { id: '11111111-2222-4333-8444-555555555555', name: 'Pix', priority: 1 },
@@ -93,41 +164,15 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     });
     search.flush(requestPage([webhookRequest(1)]));
 
-    const ativo = await screen.findByRole('button', { name: /^Answered by: Pix/ });
+    const ativo = await vi.waitFor(() => chip(/^Answered by: Pix/));
     expect(ativo.getAttribute('aria-pressed')).toBe('true');
     await userEvent.click(ativo);
     expect(store.filter().outcome ?? null).toBeNull();
     // Sem filtro, a lista volta à página 1 sem busca.
-    await vi.waitFor(() =>
-      http
-        .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
-        .flush(requestPage([webhookRequest(1)])),
-    );
+    await vi.waitFor(() => http.expectOne(listUrl).flush(requestPage([webhookRequest(1)])));
   });
 
-  it('deve filtrar pelas da resposta padrão com o chip "Default response"', async () => {
-    await userEvent.click(chip('Default response'));
-
-    const [search] = searches();
-    expect(search.request.body).toMatchObject({ outcome: { type: 'default' } });
-    search.flush(requestPage([]));
-    expect(chip('Default response').getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('deve mostrar os demais filtros em "More filters", sem perder nenhum (INBOX-09, trava 4)', async () => {
-    const more = screen.getByRole('button', { name: 'More filters' });
-    expect(more.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByRole('button', { name: 'PATCH' })).toBeNull();
-
-    await userEvent.click(more);
-
-    expect(more.getAttribute('aria-expanded')).toBe('true');
-    for (const name of ['PATCH', 'DELETE', 'Signature valid', 'Schema valid']) {
-      expect(chip(name).getAttribute('aria-pressed')).toBe('false');
-    }
-  });
-
-  it('deve buscar uma vez só, depois da pausa na digitação Quando o texto é digitado', async () => {
+  it('deve buscar uma vez só, depois da pausa na digitação, e listar o texto entre os ligados', async () => {
     await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'pedido');
     expect(searches()).toHaveLength(0);
 
@@ -139,17 +184,23 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     expect(call.request.body).toMatchObject({ text: 'pedido', match: {} });
     call.flush(requestPage([webhookRequest(2)], { total: 1 }));
 
-    await vi.waitFor(() =>
-      expect(count()).toBe('1 request matches · search runs on the server over all 3'),
+    await vi.waitFor(
+      () => expect(result()).toBe('1 request matches · search runs on the server over all 3'),
+      { timeout: 2000 },
     );
+    // O texto não conta no botão, mas se tira como os filtros.
+    expect(filters().getAttribute('aria-label')).toBe('Filters');
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Remove this filter: Search: pedido' }),
+    );
+    http.expectOne(listUrl).flush(requestPage(THREE));
+    expect((screen.getByRole('textbox', { name: 'Search' }) as HTMLInputElement).value).toBe('');
   });
 
-  it('deve buscar na hora com o match das regras e marcar o chip Quando método, assinatura e schema são escolhidos', async () => {
-    await userEvent.click(chip('POST'));
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await userEvent.click(chip('Signature absent'));
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await userEvent.click(screen.getByRole('button', { name: 'More filters' }));
+  it('deve buscar na hora com o match das regras Quando método, assinatura e schema são escolhidos', async () => {
+    await press('POST', []);
+    await press('Signature absent', []);
+    await openPanel();
     await userEvent.click(chip('Schema valid'));
     const [last] = searches();
 
@@ -157,71 +208,62 @@ describe('Dado a busca e os filtros em chips da lista', () => {
       match: { method: ['POST'], signature: 'absent', schema: 'valid' },
     });
     last.flush(requestPage([], { total: 0 }));
-    await vi.waitFor(() =>
-      expect(count()).toBe('0 requests match · search runs on the server over all 3'),
+    await vi.waitFor(
+      () => expect(result()).toBe('0 requests match · search runs on the server over all 3'),
+      { timeout: 2000 },
     );
     expect(chip('POST').getAttribute('aria-pressed')).toBe('true');
     expect(chip('Signature absent').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('deve deixar um só resultado de assinatura e desligar no segundo clique', async () => {
-    await userEvent.click(screen.getByRole('button', { name: 'More filters' }));
-    await userEvent.click(chip('Signature valid'));
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await userEvent.click(chip('Signature invalid'));
-    searches()[0].flush(requestPage([], { total: 0 }));
+    await press('Signature valid', []);
+    await press('Signature invalid', []);
     expect(chip('Signature valid').getAttribute('aria-pressed')).toBe('false');
     expect(chip('Signature invalid').getAttribute('aria-pressed')).toBe('true');
 
     await userEvent.click(chip('Signature invalid'));
-    http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
-      .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
+    http.expectOne(listUrl).flush(requestPage(THREE));
 
     await vi.waitFor(() => expect(store.filtering()).toBe(false));
   });
 
-  it('deve voltar à lista completa, zerar os campos e sumir com o contador Quando "Clear filters" é clicado', async () => {
-    const clear = screen.getByRole('button', { name: 'Clear filters' });
-    expect(clear).toHaveProperty('disabled', true);
-    await userEvent.click(chip('Schema invalid'));
-    searches()[0].flush(requestPage([webhookRequest(2)], { total: 1 }));
+  it('deve dizer só o resultado, uma vez, depois que os filtros param de mudar', async () => {
+    await openPanel();
+    await userEvent.click(chip('POST'));
+    // A busca ainda não voltou: nada de "Searching…", e a região segue vazia.
+    expect(regions()).toEqual(['', '']);
+    searches()[0].flush(requestPage(THREE.slice(0, 2), { total: 2 }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(result()).toBe('');
 
-    await userEvent.click(clear);
-    http
-      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
-      .flush(requestPage([webhookRequest(1), webhookRequest(2), webhookRequest(3)]));
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await vi.waitFor(
+      () => expect(result()).toBe('2 requests match · search runs on the server over all 3'),
+      { timeout: 2000 },
+    );
+  });
 
+  it('deve voltar à lista completa, zerar os campos e dizer "Filters cleared" Quando "Clear filters" é clicado', async () => {
+    await press('Schema invalid', THREE.slice(1, 2));
+    await vi.waitFor(() => expect(result()).toMatch(/^1 request matches/), { timeout: 2000 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    http.expectOne(listUrl).flush(requestPage(THREE));
+
+    await vi.waitFor(() => expect(result()).toBe('Filters cleared. 3 requests.'), {
+      timeout: 2000,
+    });
     expect(searches()).toHaveLength(0);
     expect(store.filtering()).toBe(false);
     expect(store.requests()).toHaveLength(3);
     expect((screen.getByRole('textbox', { name: 'Search' }) as HTMLInputElement).value).toBe('');
+    expect(activeFilters()).toBeNull();
+    await openPanel();
     expect(chip('Schema invalid').getAttribute('aria-pressed')).toBe('false');
-    expect(count()).toBeUndefined();
   });
 
-  it('deve copiar o anzol wait-for só com o match e avisar que o texto ficou de fora', async () => {
-    const copy = vi.spyOn(clipboard, 'copy').mockReturnValue(true);
-    await userEvent.click(chip('GET'));
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'pedido');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
-
-    expect(copy).toHaveBeenCalledWith(
-      `anzol wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"method":["GET"]}'`,
-    );
-    expect(
-      screen
-        .getAllByRole('status')
-        .some((status) => status.textContent?.includes('The text search is not part of wait-for')),
-    ).toBe(true);
-    await vi.waitFor(() => searches()[0].flush(requestPage([], { total: 0 })));
-  });
-
-  // M1: o motivo exato e o caminho vêm do Health; a Entrada os mostra como chips que se tiram.
-  it('deve mostrar o motivo exato e o caminho do schema como chips removíveis (M1)', async () => {
+  // M1: o motivo exato e o caminho vêm do Health; a Entrada os mostra como filtros que se tiram.
+  it('deve mostrar o motivo exato e o caminho do schema no painel e entre os ligados (M1)', async () => {
     const applied = store.applyFilter({
       ...NO_FILTER,
       signatureReason: 'signature mismatch',
@@ -229,15 +271,15 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     });
     searches()[0].flush(requestPage([], { total: 0 }));
     await applied;
+    await openPanel();
 
-    const motivo = await screen.findByRole('button', { name: /^Signature: signature mismatch/ });
+    const motivo = await vi.waitFor(() => chip(/^Signature: signature mismatch/));
     expect(motivo.getAttribute('aria-pressed')).toBe('true');
+    expect(chip(/^Schema error at: \(root\)/).getAttribute('aria-pressed')).toBe('true');
+    expect(filters().getAttribute('aria-label')).toBe('Filters, 2 active');
     expect(
-      screen
-        .getByRole('button', { name: /^Schema error at: \(root\)/ })
-        .getAttribute('aria-pressed'),
-    ).toBe('true');
-    expect(screen.getByRole('status').textContent).toContain('0 requests match');
+      screen.getByRole('button', { name: 'Remove this filter: Signature: signature mismatch' }),
+    ).toBeTruthy();
     await expectNoAxeViolations(container);
 
     await userEvent.click(motivo);
@@ -248,61 +290,96 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     expect(store.filter().signatureReason ?? null).toBeNull();
   });
 
-  it('deve copiar o wait-for sem o motivo e o caminho, e dizer que ficaram de fora (M1)', async () => {
-    const copy = vi.spyOn(clipboard, 'copy').mockReturnValue(true);
-    const applied = store.applyFilter({
-      ...NO_FILTER,
-      signature: 'invalid',
-      signatureReason: 'signature mismatch',
-      schemaPath: '/valor',
-    });
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await applied;
+  it('deve mostrar o aviso do "Copy as anzol wait-for", na região que já existia', async () => {
+    vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
+    TestBed.inject(WaitFor).copy();
 
-    expect(copy).toHaveBeenCalledWith(
-      `anzol wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"signature":"invalid"}'`,
+    await vi.waitFor(() => expect(regions()[1]).toBe('Copied the anzol wait-for command.'));
+  });
+
+  // INBOX-10/25: sem resultado, o "Clear filters" é o do estado vazio da lista (dois com o mesmo
+  // nome confundem o leitor de tela).
+  it('deve tirar o "Clear filters" da busca Quando o filtro não acha nada', async () => {
+    await press('PUT', []);
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull(),
     );
-    expect(
-      screen
-        .getAllByRole('status')
-        .some(
-          (status) =>
-            status.textContent?.trim() ===
-            'Copied. wait-for only reads --match, so these filters were left out: the signature reason, the schema error path.',
-        ),
-    ).toBe(true);
+    expect(screen.getByRole('button', { name: 'Remove this filter: PUT' })).toBeTruthy();
   });
 
-  it('deve manter o "Copied…" Quando o debounce da busca dispara sem mudar o filtro (E11)', async () => {
-    vi.spyOn(clipboard, 'copy').mockReturnValue(true);
+  describe('Dado o teclado', () => {
+    it('deve abrir pela tecla F com o foco no primeiro chip, e fechar por ela devolvendo o foco ao botão', async () => {
+      await userEvent.keyboard('f');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
-    await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 100));
+      await vi.waitFor(() => expect(document.activeElement).toBe(chip('POST')));
+      await userEvent.keyboard('f');
+      expect(group()).toBeNull();
+      expect(document.activeElement).toBe(filters());
+    });
 
-    expect(
-      screen
-        .getAllByRole('status')
-        .some((status) => status.textContent?.includes('Copied the anzol wait-for command.')),
-    ).toBe(true);
-    expect(searches()).toHaveLength(0);
+    it('não deve abrir pela tecla F digitada na busca, nem com os atalhos desligados', async () => {
+      await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'f');
+      expect(group()).toBeNull();
+      await vi.waitFor(() => searches().forEach((search) => search.flush(requestPage([]))));
+
+      (document.activeElement as HTMLElement).blur();
+      TestBed.inject(ShellSettings).shortcuts.set(false);
+      await userEvent.keyboard('f');
+      expect(group()).toBeNull();
+    });
+
+    it('deve andar entre os chips com as setas, como uma parada só do Tab, e fechar com Esc', async () => {
+      await userEvent.keyboard('f');
+      await vi.waitFor(() => expect(document.activeElement).toBe(chip('POST')));
+
+      await userEvent.keyboard('{ArrowRight}');
+      expect(document.activeElement).toBe(chip('GET'));
+      await userEvent.keyboard('{End}');
+      expect(document.activeElement).toBe(chip('Default response'));
+      await userEvent.keyboard('{ArrowRight}');
+      expect(document.activeElement).toBe(chip('POST'));
+      await userEvent.keyboard('{ArrowLeft}{Home}{ArrowDown}');
+      expect(document.activeElement).toBe(chip('GET'));
+      expect(
+        within(group() as HTMLElement)
+          .getAllByRole('button')
+          .filter((button) => button.tabIndex >= 0),
+      ).toEqual([chip('GET')]);
+
+      await userEvent.keyboard(' ');
+      expect(chip('GET').getAttribute('aria-pressed')).toBe('true');
+      searches().forEach((search) => search.flush(requestPage([])));
+
+      await userEvent.keyboard('{Escape}');
+      expect(group()).toBeNull();
+      expect(document.activeElement).toBe(filters());
+    });
   });
 
-  // INBOX-31: no celular, só a linha de chips; a pílula da busca e a linha Clear/Copy aparecem pela
-  // lupa da barra do topo ou com filtro ativo (a classe liga o CSS abaixo de 600 px).
-  it('deve recolher a pílula no celular até a lupa abrir a busca ou haver filtro', async () => {
-    const collapsed = () => container.classList.contains('collapsed');
-    expect(collapsed()).toBe(true);
+  describe('Dado o celular', () => {
+    beforeEach(() => windowClass.set('compact'));
 
-    TestBed.inject(ScreenState).searchOpen.set(true);
-    await vi.waitFor(() => expect(collapsed()).toBe(false));
-    TestBed.inject(ScreenState).searchOpen.set(false);
-    await vi.waitFor(() => expect(collapsed()).toBe(true));
+    it('deve abrir os filtros como folha, com "Show {n} requests" e o wait-for dentro dela', async () => {
+      await press('POST', THREE.slice(0, 2));
 
-    await userEvent.click(chip('POST'));
-    searches().forEach((search) => search.flush(requestPage([webhookRequest(1)])));
-    await vi.waitFor(() => expect(collapsed()).toBe(false));
+      expect(container.querySelector('app-filter-panel')?.classList).toContain('sheet');
+      expect(screen.getByRole('button', { name: 'Copy as anzol wait-for' })).toBeTruthy();
+      await expectNoAxeViolations(container);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Show 2 requests' }));
+      expect(group()).toBeNull();
+      expect(document.activeElement).toBe(filters());
+    });
+
+    it('deve dizer "Show 1 request" no singular, e o total da URL sem filtro', async () => {
+      await openPanel();
+      expect(screen.getByRole('button', { name: 'Show 3 requests' })).toBeTruthy();
+
+      await press('POST');
+      expect(await screen.findByRole('button', { name: 'Show 1 request' })).toBeTruthy();
+    });
   });
 
   // INBOX-08: o texto diz o que a busca do servidor olha, e o "/" do atalho fica à vista.
@@ -310,20 +387,5 @@ describe('Dado a busca e os filtros em chips da lista', () => {
     const box = screen.getByRole('textbox', { name: 'Search' });
     expect(box.getAttribute('placeholder')).toBe('Search path, IP, header or body');
     expect(container.querySelector('[role="search"] kbd')?.textContent).toBe('/');
-  });
-
-  // INBOX-10/25: a linha de status só com filtro; sem resultado, o "Clear filters" é o do estado
-  // vazio da lista (dois com o mesmo nome confundem o leitor de tela).
-  it('deve tirar o "Clear filters" da busca Quando o filtro não acha nada, e manter o "Copy as"', async () => {
-    expect(count()).toBeUndefined();
-    await userEvent.click(chip('PUT'));
-    searches()[0].flush(requestPage([], { total: 0 }));
-    await vi.waitFor(() => expect(store.requests()).toHaveLength(0));
-
-    await vi.waitFor(() =>
-      expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull(),
-    );
-    expect(count()).toBe('0 requests match · search runs on the server over all 3');
-    expect(screen.getByRole('button', { name: 'Copy as anzol wait-for' })).toBeTruthy();
   });
 });
