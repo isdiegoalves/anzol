@@ -11,7 +11,8 @@ import { expect } from './fixtures';
  * contagem regressiva fica assim para não falar a cada segundo).
  *
  * Guia §4.3 (revisado): a região viva não tem nome; quem leva o nome é um `role="group"` em volta dela (`group
- * "Connection"` › `status`), e é por esse grupo que os testes acham a região.
+ * "Connection"` › `status`), e é por esse grupo que os testes acham a região. Dentro do grupo a região é achada por
+ * `[role="status"]`, e não por `getByRole`: vazia, ela não ocupa espaço e o `getByRole` não a enxerga.
  */
 export interface Anuncio {
   texto: string;

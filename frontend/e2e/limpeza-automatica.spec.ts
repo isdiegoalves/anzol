@@ -111,7 +111,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     // Patamar, B2 (guia-combinacao §3.2 e §7; CA-5): a requisição aberta que a limpeza corta vira aviso, com a cópia
     // carregada; a tela não abre a seguinte no lugar dela.
     await expect(
-      page.getByRole('group', { name: 'Request notice' }).getByRole('status'),
+      page.getByRole('group', { name: 'Request notice' }).locator('[role="status"]'),
     ).toContainText('deleted from the server by auto cleanup (keeps the newest 500)');
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${antiga.uuid}/\\d+$`));
     await expect(details).toContainText(antiga.uuid);

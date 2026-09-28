@@ -91,7 +91,7 @@ function aba(page: Page, nome: 'Replay' | 'Compare' | 'Create rule' | 'Explain')
 }
 
 function resultado(page: Page): Locator {
-  return painel(page).getByRole('group', { name: 'Action result' }).getByRole('status');
+  return painel(page).getByRole('group', { name: 'Action result' }).locator('[role="status"]');
 }
 
 /** JSON com método, caminho e corpo de pedido. */
@@ -541,7 +541,7 @@ test.describe('Dado os roteiros (CA-13)', () => {
   }
 
   function conferencia(folha: Locator): Locator {
-    return folha.getByRole('group', { name: 'Retry check' }).getByRole('status');
+    return folha.getByRole('group', { name: 'Retry check' }).locator('[role="status"]');
   }
 
   /** Preenche o roteiro de retry e cria as regras. */

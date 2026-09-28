@@ -73,7 +73,7 @@ export function listaDeUrls(urls: { uuid: string; nickname?: string }[]): string
 
 /** `group "Connection"` › `status`: a região viva da faixa "sem conexão", abaixo do cabeçalho da URL. */
 export function conexao(page: Page): Locator {
-  return page.getByRole('group', { name: 'Connection' }).getByRole('status');
+  return page.getByRole('group', { name: 'Connection' }).locator('[role="status"]');
 }
 
 /** `button "Filters"` (o nome ganha ", {n} active" com filtros ligados). */
@@ -150,7 +150,7 @@ export async function comHoras(
 
 /** `group "Request notice"` › `status`: a região viva do topo do detalhe (B2). */
 export function avisoDaRequisicao(page: Page): Locator {
-  return page.getByRole('group', { name: 'Request notice' }).getByRole('status');
+  return page.getByRole('group', { name: 'Request notice' }).locator('[role="status"]');
 }
 
 /** Itens inteiros dentro da janela: o retângulo do item cabe todo na área visível. */

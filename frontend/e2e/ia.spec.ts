@@ -151,7 +151,7 @@ function sugestao(dialog: Locator): Locator {
 
 /** `group "AI progress"` › `status`: a região viva da espera da IA (patamar, B4). */
 function andamento(page: Page): Locator {
-  return page.getByRole('group', { name: 'AI progress' }).getByRole('status');
+  return page.getByRole('group', { name: 'AI progress' }).locator('[role="status"]');
 }
 
 /**
@@ -473,14 +473,16 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     );
   });
 
-  test('deve dizer quando tentar de novo Quando o servidor responde 429 com Retry-After', async ({
+  // Patamar, B4 (guia-combinacao §3.4; UX-52): depois do 429 o "Suggest" espera o Retry-After, desligado
+  // (`aria-disabled`) e com a contagem à vista; antes ficava habilitado logo em seguida.
+  test('deve dizer quando tentar de novo e segurar o "Suggest" Quando o servidor responde 429 com Retry-After', async ({
     page,
     tokens,
   }) => {
     await page.route(/\/token\/[^/]+\/rules\/suggest$/, (route) =>
       route.fulfill({
         status: 429,
-        headers: { 'Retry-After': '30' },
+        headers: { 'Retry-After': '3' },
         json: { error: 'Too many AI calls' },
       }),
     );
@@ -491,8 +493,10 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
     await expect(dialog.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
-      'Try again in 30 s.',
+      /Try again in [1-3] s\./,
     );
-    await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeEnabled();
+    const sugerir = dialog.getByRole('button', { name: /^(Suggest|Try again)\b/ });
+    await expect(sugerir).toHaveAttribute('aria-disabled', 'true');
+    await expect(sugerir).not.toHaveAttribute('aria-disabled', 'true', { timeout: 8_000 });
   });
 });

@@ -23,6 +23,8 @@ import { readStorage, seedStorage } from './support/storage';
 // - SUPOSIÇÃO: o botão primário se distingue por `data-primary` ou por ser o último dos três; o teste só confere a
 //   ordem do guia (Apply conditions only, Apply all, Dismiss) e que todos continuam habilitados.
 // - SUPOSIÇÃO: sem histórico neste navegador, a espera diz "about 5 s" no Suggest e "about 9 s" no Explain.
+// - SUPOSIÇÃO: a região da espera existe vazia desde que o bloco "Describe the rule" abre (recolhido, o bloco
+//   inteiro fica fora da tela).
 // - SUPOSIÇÃO: o contador de segundos e a barra da espera ficam dentro de um ancestral `aria-hidden="true"`.
 // - Sem teste: "The local model did not answer in 90 s." (pede 90 s de espera por caso).
 
@@ -135,7 +137,7 @@ function conferencias(regra: Locator): Locator {
 }
 
 function andamento(page: Page): Locator {
-  return page.getByRole('group', { name: 'AI progress' }).getByRole('status');
+  return page.getByRole('group', { name: 'AI progress' }).locator('[role="status"]');
 }
 
 test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA-8)', () => {
@@ -292,6 +294,21 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
     await expect(conferencias(regra).filter({ hasText: 'example request' })).toHaveCount(0);
   });
 
+  test('deve desligar a caixa do exemplo, com a razão, Quando não há requisição aberta', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId } = await editorComExemplo(page, tokens);
+    await seedStorage(page, {});
+    const regra = await abrirEditor(page, tokenId);
+    await regra.getByText('Describe the rule', { exact: true }).click();
+
+    const caixa = regra.getByRole('checkbox', { name: /Use the open request as example/ });
+    await expect(caixa).toHaveAttribute('aria-disabled', 'true');
+    await expect(caixa).not.toBeChecked();
+    await expect(regra).toContainText('Open a request in the Inbox to use it as example.');
+  });
+
   test('deve apontar o template desligado, a regra sem condição e o caminho que nunca chegou', async ({
     page,
     tokens,
@@ -421,12 +438,10 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
   }) => {
     const { tokenId } = await editorComExemplo(page, tokens);
     await seedStorage(page, {});
-    await ia(
-      page,
-      tokenId,
-      'suggest',
-      sugestao(REGRA_CERTA, { example: null, recent: { evaluated: 1, matched: 1 }, warnings: [] }),
-    );
+    // SUPOSIÇÃO: a conferência com o histórico vem do bloco `check` do servidor ou do `rules/test`; aqui faltam os dois.
+    await ia(page, tokenId, 'suggest', {
+      corpo: { rule: REGRA_CERTA, explanation: 'Texto do modelo.', attempts: 1 },
+    });
     await page.route(new RegExp(`/token/${tokenId}/rules/test(\\?.*)?$`), (rota) =>
       rota.fulfill({ status: 500, json: { error: 'boom' } }),
     );
@@ -456,8 +471,8 @@ test.describe('Dado a espera da IA (UX-42)', () => {
       corpo: { rule: REGRA_CERTA, explanation: 'x', attempts: 1, check: null },
     });
     const regra = await abrirEditor(page, tokenId);
-    await expect(andamento(page)).toHaveText('');
     await descrever(regra, 'Responder 202 para pedidos pagos');
+    await expect(andamento(page)).toHaveText('');
     await limparAnuncios(page);
 
     await regra.getByRole('button', { name: 'Suggest' }).click();
@@ -669,8 +684,8 @@ test.describe('Dado o idioma da tela e o do navegador (UX-43)', () => {
 
     await page.goto(`/#/${tokenId}/rules/new`);
     const regra = page.getByRole('region', { name: 'Nova regra', exact: true });
-    await regra.getByText('Descrever a regra', { exact: true }).click();
-    await regra.getByRole('textbox', { name: 'Descrever a regra' }).fill('responder 202');
+    await regra.getByText('Descreva a regra', { exact: true }).click();
+    await regra.getByRole('textbox', { name: 'Descreva a regra' }).fill('responder 202');
     await regra.getByRole('button', { name: 'Sugerir', exact: true }).click();
     await expect.poll(() => sugestoes.length).toBe(1);
     expect(sugestoes[0].postDataJSON()).toMatchObject({ lang: 'pt-BR' });
@@ -706,7 +721,7 @@ test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
     await expect(regra.getByRole('link', { name: 'How to turn it on' })).toBeVisible();
   });
 
-  test('deve desligar "Try again" com a contagem à vista até poder tentar de novo', async ({
+  test('deve segurar o pedido seguinte com a contagem à vista até poder tentar de novo', async ({
     page,
     tokens,
   }) => {
@@ -731,7 +746,8 @@ test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
     await expect(regra.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
       'Too many AI calls for this URL',
     );
-    const denovo = regra.getByRole('button', { name: /^Try again\b/ });
+    // O guia chama o botão de "Try again"; a tela segura o próprio "Suggest". Vale qualquer um dos dois nomes.
+    const denovo = regra.getByRole('button', { name: /^(Try again|Suggest)\b/ });
     await expect(denovo).toHaveAttribute('aria-disabled', 'true');
     await expect(regra.getByText(/\b[1-4] s\b/).first()).toBeVisible();
     await expect(denovo).not.toHaveAttribute('aria-disabled', 'true', { timeout: 8_000 });
@@ -747,7 +763,14 @@ test.describe('Dado uma sugestão aplicada (CA-8)', () => {
     tokens,
   }) => {
     const { tokenId, exemplo } = await editorComExemplo(page, tokens);
+    // A sugestão (prioridade 5) entra entre as duas; na frente de todas seria um problema (conferência 4).
     await gravarRegras(request, tokenId, [
+      {
+        name: 'Primeiro',
+        priority: 1,
+        match: { path: { equals: '/outra' } },
+        response: { status: 200 },
+      },
       { name: 'Tudo o resto', priority: 9, response: { status: 404 } },
     ]);
     await seedStorage(page, {});
@@ -765,17 +788,21 @@ test.describe('Dado uma sugestão aplicada (CA-8)', () => {
     await descrever(regra, 'Responder 202 para pedidos pagos', true);
     await regra.getByRole('button', { name: 'Suggest' }).click();
     await expect(
-      conferencias(regra).filter({ hasText: /Enters at position 1 of 2, before "Tudo o resto"/ }),
+      conferencias(regra).filter({ hasText: /Enters at position 2 of 3, before "Tudo o resto"/ }),
     ).toHaveText(/^\s*OK\b/);
 
     const aplicar = proposta(regra).getByRole('button', { name: 'Apply all' });
     await expect(aplicar).not.toHaveAttribute('aria-disabled', 'true');
     await aplicar.click();
-    expect((await lerRegras(request, tokenId)).map((r) => r.name)).toEqual(['Tudo o resto']);
+    expect((await lerRegras(request, tokenId)).map((r) => r.name)).toEqual([
+      'Primeiro',
+      'Tudo o resto',
+    ]);
     await regra.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(regra).toBeHidden();
 
     expect((await lerRegras(request, tokenId)).map((r) => r.name)).toEqual([
+      'Primeiro',
       'Pedido pago',
       'Tudo o resto',
     ]);
