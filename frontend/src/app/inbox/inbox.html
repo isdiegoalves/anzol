@@ -26,7 +26,7 @@
         <ng-container [ngTemplateOutlet]="detailPane" />
       </section>
     </app-split>
-  } @else if (showDetail() && requests.selected()) {
+  } @else if (guideName() || (showDetail() && requests.selected())) {
     <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
       <ng-container [ngTemplateOutlet]="detailPane" />
     </section>
@@ -86,6 +86,24 @@
 </ng-template>
 
 <ng-template #detailPane>
+  <!-- R1: o roteiro abre no lugar do detalhe (`?guide=first|retry`), carregado sob demanda. -->
+  @if (guideName(); as name) {
+    @if (tokens.token(); as open) {
+      @defer {
+        <app-guide
+          [name]="name"
+          [tokenId]="open.uuid"
+          (closed)="closeGuide()"
+          (openRequest)="openFromGuide($event)"
+        />
+      }
+    }
+  } @else {
+    <ng-container [ngTemplateOutlet]="detailBody" />
+  }
+</ng-template>
+
+<ng-template #detailBody>
   @let request = requests.selected();
   @let token = tokens.token();
   @if (request && token) {

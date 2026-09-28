@@ -20,6 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
+import { Guide, GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
@@ -58,6 +59,7 @@ export const RECEIVED_NOTICE_MS = 4000;
 @Component({
   selector: 'app-inbox',
   imports: [
+    Guide,
     Icon,
     MatIconButton,
     MatSlideToggle,
@@ -104,6 +106,12 @@ export class Inbox {
   /** M1: o motivo exato de assinatura e o caminho do erro de schema (`?signatureReason=&schemaPath=`). */
   readonly signatureReason = input<string>();
   readonly schemaPath = input<string>();
+  /** R1: o roteiro aberto no lugar do detalhe (`?guide=first|retry`). */
+  readonly guide = input<string>();
+  protected readonly guideName = computed((): GuideName | null => {
+    const guide = this.guide();
+    return guide === 'first' || guide === 'retry' ? guide : null;
+  });
   private readonly routeFilter = computed(() =>
     filterFromParams({
       signature: this.signature(),
@@ -255,6 +263,23 @@ export class Inbox {
       replaceUrl,
       queryParamsHandling: 'preserve',
     });
+  }
+
+  /** "Close guide": o endereço perde o `?guide=` e o detalhe volta. */
+  protected closeGuide(): Promise<boolean> {
+    return this.router.navigate([], {
+      queryParams: { guide: null },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  /** "Open it" do roteiro: abre a requisição e fecha o roteiro. */
+  protected openFromGuide(request: WebhookRequest): Promise<boolean> {
+    this.showDetail.set(true);
+    return this.router.navigate(
+      ['/', request.token_id, request.uuid, this.requests.pageOf(request.uuid)],
+      { queryParams: { guide: null }, queryParamsHandling: 'merge' },
+    );
   }
 
   /** Clicar na lista fecha a comparação aberta e abre a mensagem (em tela cheia, no celular). */
