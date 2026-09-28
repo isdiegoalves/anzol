@@ -1,0 +1,61 @@
+:host {
+  display: block;
+}
+
+.phrase {
+  margin: 8px 0 4px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// Barra indeterminada: diz que está em curso, não quanto falta.
+.bar {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.run {
+  position: absolute;
+  inset: 0 60% 0 0;
+  border-radius: 2px;
+  background: var(--mat-sys-primary);
+  animation: run 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes run {
+  to {
+    inset: 0 0 0 60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run {
+    inset: 0;
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.seconds {
+  min-width: 4ch;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+@media (pointer: coarse) {
+  .cancel {
+    min-height: 48px;
+  }
+}

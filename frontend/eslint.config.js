@@ -273,6 +273,8 @@ module.exports = defineConfig([
         // Componente que uma feature publica para outra: a mensagem só-leitura do detalhe, que a
         // página do link (share/) mostra igual. A lista "legado" do item 14 zerou na E11.
         { category: 'public', pattern: 'src/app/request-detail/request-view.ts' },
+        // A espera de um pedido de IA (B4), a mesma no Suggest de Regras e no Explain do detalhe.
+        { category: 'public', pattern: 'src/app/ai/ai-wait.ts' },
       ],
     },
     rules: {

@@ -70,8 +70,16 @@ describe('Dado o interceptador das chamadas da URL', () => {
     sessionStorage.setItem(urlDraftKey(TOKEN_ID, 'rule:r1'), '{}');
     sessionStorage.setItem(urlDraftKey(TOKEN_ID, 'rule:new'), '{}');
     sessionStorage.setItem(urlDraftKey('outra', 'rule:r1'), '{}');
+    // Patamar: o rascunho de Verificações (B3) e as explicações da IA guardadas (B4).
+    sessionStorage.setItem(`anzol.checksDraft.${TOKEN_ID}`, '{}');
+    sessionStorage.setItem(`anzol.ai.${TOKEN_ID}.r1.en`, '{}');
+    sessionStorage.setItem('anzol.ai.outra.r1.en', '{}');
 
     lock.lock(TOKEN_ID);
+
+    expect(sessionStorage.getItem(`anzol.checksDraft.${TOKEN_ID}`)).toBeNull();
+    expect(sessionStorage.getItem(`anzol.ai.${TOKEN_ID}.r1.en`)).toBeNull();
+    expect(sessionStorage.getItem('anzol.ai.outra.r1.en')).toBe('{}');
 
     expect(sessionStorage.getItem(urlDraftKey(TOKEN_ID, 'rule:r1'))).toBeNull();
     expect(sessionStorage.getItem(urlDraftKey(TOKEN_ID, 'rule:new'))).toBeNull();

@@ -41,12 +41,18 @@ export function urlDraftKey(tokenId: string, name: string): string {
 }
 
 /**
- * Trancar a URL leva junto o que se escreveu nela e não foi salvo: os rascunhos das regras e o de
- * Verificações (`anzol.checksDraft.{uuid}`, guia da combinação §4.1).
+ * Trancar a URL leva junto o que se escreveu nela e não foi salvo, e o que se guardou dela: os
+ * rascunhos das regras, o de Verificações (`anzol.checksDraft.{uuid}`) e as explicações da IA
+ * (`anzol.ai.{uuid}.…`), como no guia da combinação §4.1.
  */
 function clearUrlDrafts(tokenId: string): void {
   try {
-    const prefixes = [draftPrefix(tokenId), `anzol.checksDraft.${tokenId}`];
+    const prefixes = [
+      draftPrefix(tokenId),
+      `anzol.checksDraft.${tokenId}`,
+      // As explicações da IA guardadas para as requisições da URL (B4).
+      `anzol.ai.${tokenId}.`,
+    ];
     const keys = Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i));
     keys
       .filter((key) => prefixes.some((prefix) => key?.startsWith(prefix)))

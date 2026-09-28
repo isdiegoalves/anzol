@@ -36,7 +36,7 @@ describe('Dado o painel do "Explain"', () => {
     const element = await render();
 
     const call = explain();
-    expect(call.request.body).toEqual({ lang: navigator.language });
+    expect(call.request.body).toEqual({ lang: 'en' });
     expect(element.querySelector('[role=status]')?.textContent?.trim()).toBe(AI_WAIT_HINT);
 
     call.flush({ explanation: 'A assinatura **não confere**:\n\n- header `X-Sig`', facts: {} });
@@ -67,7 +67,7 @@ describe('Dado o painel do "Explain"', () => {
 
     await vi.waitFor(() =>
       expect(element.querySelector('[role=alert]')?.textContent).toContain(
-        'Set WEBHOOK_AI_* to enable',
+        'This server has no local AI.',
       ),
     );
     const loader = TestbedHarnessEnvironment.loader(fixture);

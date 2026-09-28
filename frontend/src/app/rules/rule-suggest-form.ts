@@ -1,20 +1,38 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { WebhookRequest } from '../requests/webhook-request';
-import { PathMatcher, RULE_DEFAULT_STATUS, Rule, ValueMatcher } from './rule';
-import { SuggestionApply } from './rule-suggest';
 import {
+  AI_DOCS_URL,
   AI_OFF_HINT,
-  AI_WAIT_HINT,
+  AiCancelled,
   AiClient,
   RuleSuggestion,
   aiErrorMessages,
+  aiRetrySeconds,
 } from '../ai/ai-client';
+import { AiWait } from '../ai/ai-wait';
+import { WebhookRequest } from '../requests/webhook-request';
+import { Icon } from '../ui/icon';
 import { MarkdownView } from '../ui/markdown-view';
+import { PathMatcher, RULE_DEFAULT_STATUS, Rule, ValueMatcher } from './rule';
+import { RuleStore } from './rule-store';
+import { SuggestionApply } from './rule-suggest';
+import { ruleInWords } from './rule-words';
+import { CheckLine, Verdict, suggestionChecks, suggestionSummary } from './suggestion-checks';
 
 /** Teto do `prompt` no servidor (`rules/suggest`). */
 export const PROMPT_MAX_LENGTH = 2000;
@@ -117,9 +135,18 @@ export function suggestionChanges(current: Rule, proposed: Rule): string[] {
   return changes;
 }
 
+/** A sugestão como a tela a guarda: com o exemplo que ela usou, se usou. */
+interface Proposal {
+  suggestion: RuleSuggestion;
+  example: WebhookRequest | null;
+}
+
 /**
- * O formulário do "Describe the rule" (carregado quando o `<details>` abre, ver `RuleSuggest`): a descrição em linguagem natural vai para
- * `rules/suggest` e a regra sugerida sai por `suggested`, para o editor preencher. Nada é gravado
+ * O formulário do "Describe the rule" (carregado quando o `<details>` abre, ver `RuleSuggest`): a
+ * descrição em linguagem natural vai para `rules/suggest` e a regra sugerida vira proposta. Antes
+ * dos botões de aplicar, a tela **confere** a regra sem a IA (B4, UX-41): o que o servidor conferiu
+ * (exemplo, histórico) e o que ela mesma sabe (campos, forma, posição), a regra em palavras e a
+ * nota fixa do que uma regra não faz; o texto do modelo vem por último, recolhido. Nada é gravado
  * aqui: quem salva é o dono, no "Save" do editor.
  */
 @Component({
@@ -133,12 +160,17 @@ export function suggestionChanges(current: Rule, proposed: Rule): string[] {
     MatLabel,
     MatInput,
     MarkdownView,
+    AiWait,
+    Icon,
   ],
   templateUrl: './rule-suggest-form.html',
   styleUrl: './rule-suggest-form.scss',
 })
 export class RuleSuggestForm {
   private readonly ai = inject(AiClient);
+  private readonly store = inject(RuleStore);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   readonly tokenId = input.required<string>();
   /** Mensagem aberta, oferecida como exemplo ao modelo. */
@@ -150,18 +182,53 @@ export class RuleSuggestForm {
   protected readonly prompt = signal('');
   protected readonly useExample = signal(false);
   protected readonly loading = signal(false);
-  protected readonly result = signal<RuleSuggestion | null>(null);
+  private readonly proposal = signal<Proposal | null>(null);
+  protected readonly result = computed(() => this.proposal()?.suggestion ?? null);
   /** A proposta ainda não foi aplicada: a lista de mudanças e os botões ficam à vista. */
   protected readonly pending = signal(false);
   protected readonly changes = computed(() => {
     const suggestion = this.result();
     return suggestion ? suggestionChanges(this.current() ?? { name: '' }, suggestion.rule) : [];
   });
+  /** As conferências da proposta, sem a IA. */
+  protected readonly checks = computed((): CheckLine[] => {
+    const proposal = this.proposal();
+    return proposal
+      ? suggestionChecks({
+          rule: proposal.suggestion.rule,
+          check: proposal.suggestion.check,
+          example: proposal.example,
+          rules: this.store.rules(),
+        })
+      : [];
+  });
+  protected readonly problems = computed(
+    () => this.checks().filter(({ verdict }) => verdict === 'problem').length,
+  );
+  protected readonly summary = computed(() => {
+    const proposal = this.proposal();
+    return proposal
+      ? suggestionSummary(this.checks(), proposal.suggestion.check, proposal.example !== null)
+      : '';
+  });
+  /** O que a regra faz, escrito pela tela e não pelo modelo. */
+  protected readonly words = computed(() => {
+    const suggestion = this.result();
+    return suggestion ? ruleInWords(suggestion.rule) : '';
+  });
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly disabled = this.ai.disabled;
+  /** Segundos até poder pedir de novo depois do 429 da IA (UX-52); 0 libera. */
+  protected readonly retryIn = signal(0);
   protected readonly canSuggest = computed(() => {
     const length = this.prompt().trim().length;
-    return !this.loading() && !this.disabled() && length > 0 && length <= PROMPT_MAX_LENGTH;
+    return (
+      !this.loading() &&
+      !this.disabled() &&
+      this.retryIn() === 0 &&
+      length > 0 &&
+      length <= PROMPT_MAX_LENGTH
+    );
   });
   /**
    * A descrição cita o token da URL (colaram a URL inteira): a regra sugerida tende a trazer o token
@@ -172,29 +239,79 @@ export class RuleSuggestForm {
     return tokenId !== '' && this.prompt().toLowerCase().includes(tokenId);
   });
   protected readonly maxLength = PROMPT_MAX_LENGTH;
-  protected readonly waitHint = AI_WAIT_HINT;
   protected readonly offHint = AI_OFF_HINT;
+  protected readonly docsUrl = AI_DOCS_URL;
+  protected readonly verdicts: Record<Verdict, { label: string; icon: 'ok' | 'info' | 'bad' }> = {
+    ok: { label: $localize`:verdict of a check:OK`, icon: 'ok' },
+    attention: { label: $localize`:verdict of a check:Attention`, icon: 'info' },
+    problem: { label: $localize`:verdict of a check:Problem`, icon: 'bad' },
+  };
+
+  /** O pedido em curso, para o "Cancel". */
+  private request: AbortController | null = null;
+  /** As sugestões desta abertura do editor, pelo texto do pedido (e o exemplo usado). */
+  private readonly kept = new Map<string, Proposal>();
+  private retryTimer: ReturnType<typeof setInterval> | undefined;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.request?.abort();
+      clearInterval(this.retryTimer);
+    });
+  }
+
+  /** `Enter` no campo do pedido aciona "Suggest"; `Shift+Enter` quebra a linha. */
+  protected suggestByKey(event: Event): void {
+    if (!(event as KeyboardEvent).shiftKey) {
+      event.preventDefault();
+      void this.suggest();
+    }
+  }
 
   protected async suggest(): Promise<void> {
     if (!this.canSuggest()) {
       return;
     }
-    const example = this.useExample() ? this.example()?.uuid : undefined;
-    this.loading.set(true);
-    this.result.set(null);
+    const prompt = this.prompt().trim();
+    const example = (this.useExample() && this.example()) || null;
+    const key = `${example?.uuid ?? ''}\n${prompt}`;
     this.errors.set([]);
+    const kept = this.kept.get(key);
+    if (kept) {
+      this.show(kept);
+      return;
+    }
+    this.loading.set(true);
+    this.proposal.set(null);
+    this.request = new AbortController();
     try {
-      const suggestion = await this.ai.suggestRule(this.tokenId(), this.prompt().trim(), example);
-      this.result.set(suggestion);
-      this.pending.set(true);
+      const suggestion = await this.ai.suggestRule(
+        this.tokenId(),
+        prompt,
+        example?.uuid,
+        this.request.signal,
+      );
+      const proposal = { suggestion, example };
+      this.kept.set(key, proposal);
+      this.show(proposal);
     } catch (error) {
-      this.errors.set(aiErrorMessages(error));
+      // Cancelado: a tela fica como antes; quem avisa é a região da espera.
+      if (!(error instanceof AiCancelled)) {
+        this.errors.set(aiErrorMessages(error));
+        this.waitToRetry(aiRetrySeconds(error));
+      }
     } finally {
+      this.request = null;
       this.loading.set(false);
     }
   }
 
-  /** "Apply all" / "Apply conditions only": o editor aplica; a explicação continua à vista. */
+  /** "Cancel" (ou `Esc`) durante a espera: aborta o pedido. */
+  protected cancel(): void {
+    this.request?.abort();
+  }
+
+  /** "Apply all" / "Apply conditions only": o editor aplica; a conferência continua à vista. */
   protected apply(conditionsOnly: boolean): void {
     const suggestion = this.result();
     if (suggestion) {
@@ -206,6 +323,35 @@ export class RuleSuggestForm {
   /** "Dismiss": a proposta sai sem mudar nada. */
   protected dismiss(): void {
     this.pending.set(false);
-    this.result.set(null);
+    this.proposal.set(null);
+  }
+
+  /** "Open the sequence assistant": o `dialog "Sequence"` de Regras. */
+  protected async openSequence(): Promise<void> {
+    const { openSequence } = await import('./scenario-sequence');
+    await openSequence(this.injector);
+  }
+
+  /** A proposta conferida aparece e o foco vai ao resumo dela. */
+  private show(proposal: Proposal): void {
+    this.proposal.set(proposal);
+    this.pending.set(true);
+    afterNextRender(() => this.host.querySelector<HTMLElement>('.summary')?.focus(), {
+      injector: this.injector,
+    });
+  }
+
+  private waitToRetry(seconds: number | null): void {
+    clearInterval(this.retryTimer);
+    if (!seconds) {
+      return;
+    }
+    this.retryIn.set(seconds);
+    this.retryTimer = setInterval(() => {
+      this.retryIn.update((left) => Math.max(0, left - 1));
+      if (this.retryIn() === 0) {
+        clearInterval(this.retryTimer);
+      }
+    }, 1000);
   }
 }

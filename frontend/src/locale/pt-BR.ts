@@ -2,15 +2,11 @@
 // Chaves: os ids de `messages.json`, gerado por `npx ng extract-i18n`; o comentário é o texto
 // em inglês. Placeholders ({$…}) e ICU iguais aos da fonte; o locale.spec.ts confere.
 export const translations: Record<string, string> = {
-  // Set WEBHOOK_AI_* to enable
-  '6919457226990862417': 'Defina WEBHOOK_AI_* para ligar',
   // Asking the local model… The first call can take up to ~30 s while the model loads.
   '7864755981149570932':
     'Consultando o modelo local… A primeira chamada pode levar até ~30 s enquanto o modelo carrega.',
   // The AI call failed (unknown).
   '2216355350989627843': 'A chamada à IA falhou (desconhecido).',
-  // AI is not configured on this server. {$PH}.
-  '1545994642428997207': 'A IA não está configurada neste servidor. {$PH}.',
   // The local model did not answer{$PH}
   '5706520732481627001': 'O modelo local não respondeu{$PH}',
   // Check that it is running and reachable from the server, then try again.
@@ -2929,4 +2925,90 @@ export const translations: Record<string, string> = {
   '444478121034528836': '{$rate} % válido',
   // Signatures {$signature} · Schema {$schema}, over the newest {$count}
   '1415018692366075249': 'Assinaturas {$signature} · Schema {$schema}, nas {$count} mais novas',
+  // This server has no local AI.
+  '7068960708670219253': 'Este servidor não tem IA local.',
+  // The local model did not answer in {$seconds} s.
+  '7104052009364981188': 'O modelo local não respondeu em {$seconds} s.',
+  // AI progress
+  '4880010500669150524': 'Andamento da IA',
+  //  Cancel
+  '2330577642930707695': ' Cancelar ',
+  // Still waiting. It can take up to 90 s.
+  '8066438826652779829': 'Ainda esperando. Pode levar até 90 s.',
+  // Asking the local model. It usually takes about {$seconds} s.
+  '7584494609528040457': 'Consultando o modelo local. Costuma levar uns {$seconds} s.',
+  // Cancelled. Nothing was changed.
+  '1121134393989312430': 'Cancelado. Nada foi alterado.',
+  // How to turn it on
+  '7910589373338593747': 'Como ligar',
+  // Use the open request as example
+  '1884523766341567100': 'Usar a requisição aberta como exemplo',
+  // Open a request in the Inbox to use it as example.
+  '5433192229016445458': 'Abra uma requisição na Entrada para usá-la como exemplo.',
+  // Checks on this suggestion
+  '1864616300923821113': 'Conferências desta sugestão',
+  //  Open the sequence assistant
+  '1738472425812493958': ' Abrir o assistente de sequência ',
+  // What this rule does
+  '854737549236501305': 'O que esta regra faz',
+  // Rule in words
+  '1737559912978522222': 'Regra em palavras',
+  //  A rule only chooses the answer to a request: status, headers, body, delay or a network fault. It does not send e-mail, write to a database or call another service.
+  '1354577027139222235':
+    ' Uma regra só escolhe a resposta de uma requisição: status, cabeçalhos, corpo, atraso ou falha de rede. Ela não manda e-mail, não grava em banco e não chama outro serviço. ',
+  // What the model wrote
+  '1244579015447124023': 'O que o modelo escreveu',
+  // Not checked. The rule above is what counts.
+  '3673518146887921042': 'Não conferido. O que vale é a regra acima.',
+  // Apply conditions only
+  '4736996876565591306': 'Aplicar só as condições',
+  // OK
+  '8998179362936748717': 'OK',
+  // Attention
+  '5871928281314022227': 'Atenção',
+  // Problem
+  '8567992300546355012': 'Problema',
+  // 1 problem found. Review before applying.
+  '3892049111927339592': '1 problema encontrado. Revise antes de aplicar.',
+  // {$count} problems found. Review before applying.
+  '842207861771704787': '{$count} problemas encontrados. Revise antes de aplicar.',
+  // Could not check against the history.
+  '934337390594568172': 'Não foi possível conferir com o histórico.',
+  // Checked: matches the example and {$count} of the last {$window}.
+  '2478760070108804814': 'Conferido: casa com o exemplo e com {$count} das últimas {$window}.',
+  // Checked: matches {$count} of the last {$window}. No example request was used.
+  '6225663337273242969':
+    'Conferido: casa com {$count} das últimas {$window}. Nenhuma requisição de exemplo foi usada.',
+  // Matches the example request.
+  '928152315882124874': 'Casa com a requisição de exemplo.',
+  // Does not match the example request: {$reason}
+  '783219791614417644': 'Não casa com a requisição de exemplo: {$reason}',
+  // No requests yet to check against.
+  '2254750423768124066': 'Ainda não há requisições para conferir.',
+  // Would match none of the last {$count} requests.
+  '2802692465666960198': 'Não casaria com nenhuma das últimas {$count} requisições.',
+  // Too specific: only this request would match (of the last {$window}).
+  '7240208236563247245': 'Específica demais: só esta requisição casaria (das últimas {$window}).',
+  // Would match {$count} of the last {$window} requests.
+  '7180781872638632893': 'Casaria com {$count} das últimas {$window} requisições.',
+  // {$field} is not in the example request.
+  '4792486099026131612': '{$field} não está na requisição de exemplo.',
+  // Path {$path} was never received.
+  '1323767854421339258': 'O caminho {$path} nunca foi recebido.',
+  // Every field in the conditions is in the example request.
+  '6547744609295354733': 'Todo campo das condições está na requisição de exemplo.',
+  // The body has {{…}} but Template is off: it would be sent as text.
+  '3673280776752648568':
+    'O corpo tem {{…}} mas o Template está desligado: seria mandado como texto.',
+  // No conditions: it would answer every request.
+  '504929995822926231': 'Sem condições: responderia toda requisição.',
+  // Priority {$priority}: it would be checked before all {$count} rules.
+  '6465384780389154490':
+    'Prioridade {$priority}: seria conferida antes de todas as {$count} regras.',
+  // Enters at position {$position} of {$total}, before "{$name}".
+  '2658163456512654840': 'Entra na posição {$position} de {$total}, antes de "{$name}".',
+  // Enters at position {$position} of {$total}.
+  '9033191985661609231': 'Entra na posição {$position} de {$total}.',
+  // You asked for steps in sequence. One rule cannot do that.
+  '1340771433969030793': 'Você pediu passos em sequência. Uma regra só não faz isso.',
 };

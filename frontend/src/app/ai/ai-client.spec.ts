@@ -3,7 +3,14 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
-import { AiClient, aiErrorMessages } from './ai-client';
+import {
+  AiCancelled,
+  AiClient,
+  AiTimedOut,
+  EXPLANATION_KEY,
+  aiErrorMessages,
+  aiRetrySeconds,
+} from './ai-client';
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -19,15 +26,23 @@ describe('Dado o cliente das rotas de IA', () => {
     ai = TestBed.inject(AiClient);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    vi.useRealTimers();
+    document.documentElement.lang = '';
+    sessionStorage.clear();
+    localStorage.clear();
+  });
 
-  it('deve mandar prompt, idioma do navegador e a mensagem de exemplo Quando pede uma regra', async () => {
+  // B4 (UX-15): o idioma pedido é o escolhido na tela, não o do navegador.
+  it('deve mandar prompt, o idioma da tela e a mensagem de exemplo Quando pede uma regra', async () => {
+    document.documentElement.lang = 'pt-BR';
     const answer = ai.suggestRule(TOKEN_ID, 'responda 429', REQUEST_ID);
 
     const call = http.expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/rules/suggest` });
     expect(call.request.body).toEqual({
       prompt: 'responda 429',
-      lang: navigator.language,
+      lang: 'pt-BR',
       request_id: REQUEST_ID,
     });
     call.flush({ rule: rule(1), explanation: 'ok', attempts: 2 });
@@ -38,20 +53,74 @@ describe('Dado o cliente das rotas de IA', () => {
     void ai.suggestRule(TOKEN_ID, 'x');
 
     const call = http.expectOne(`/token/${TOKEN_ID}/rules/suggest`);
-    expect(call.request.body).toEqual({ prompt: 'x', lang: navigator.language });
+    expect(call.request.body).toEqual({ prompt: 'x', lang: 'en' });
     call.flush({ rule: rule(1), explanation: '', attempts: 1 });
   });
 
-  it('deve mandar o idioma do navegador Quando pede o diagnóstico da mensagem', async () => {
+  it('deve mandar o idioma da tela e guardar a explicação na aba, com a hora e a duração', async () => {
+    vi.useFakeTimers({ now: new Date('2026-09-28T21:31:00Z') });
+    expect(ai.keptExplanation(TOKEN_ID, REQUEST_ID)).toBeNull();
     const answer = ai.explain(TOKEN_ID, REQUEST_ID);
 
     const call = http.expectOne({
       method: 'POST',
       url: `/token/${TOKEN_ID}/request/${REQUEST_ID}/explain`,
     });
-    expect(call.request.body).toEqual({ lang: navigator.language });
+    expect(call.request.body).toEqual({ lang: 'en' });
+    vi.advanceTimersByTime(8800);
     call.flush({ explanation: 'texto', facts: {} });
-    expect((await answer).explanation).toBe('texto');
+
+    const kept = await answer;
+    expect(kept).toMatchObject({ explanation: 'texto', seconds: 8.8 });
+    expect(kept.answeredAt).toBe(new Date('2026-09-28T21:31:08.800Z').getTime());
+    expect(sessionStorage.getItem(EXPLANATION_KEY(TOKEN_ID, REQUEST_ID, 'en'))).not.toBeNull();
+    expect(ai.keptExplanation(TOKEN_ID, REQUEST_ID)).toEqual(kept);
+    // Outro idioma é outra explicação.
+    document.documentElement.lang = 'pt-BR';
+    expect(ai.keptExplanation(TOKEN_ID, REQUEST_ID)).toBeNull();
+  });
+
+  it('deve abortar o pedido e rejeitar com AiCancelled Quando "Cancel"', async () => {
+    const cancel = new AbortController();
+    const answer = ai.suggestRule(TOKEN_ID, 'x', undefined, cancel.signal);
+    const call = http.expectOne(`/token/${TOKEN_ID}/rules/suggest`);
+
+    cancel.abort();
+
+    await expect(answer).rejects.toBeInstanceOf(AiCancelled);
+    expect(call.cancelled).toBe(true);
+  });
+
+  it('deve desistir em 90 s, abortando o pedido', async () => {
+    vi.useFakeTimers();
+    const answer = ai.explain(TOKEN_ID, REQUEST_ID);
+    const call = http.expectOne(`/token/${TOKEN_ID}/request/${REQUEST_ID}/explain`);
+    const failed = expect(answer).rejects.toBeInstanceOf(AiTimedOut);
+
+    vi.advanceTimersByTime(90_000);
+
+    await failed;
+    expect(call.cancelled).toBe(true);
+    expect(aiErrorMessages(new AiTimedOut())).toEqual(['The local model did not answer in 90 s.']);
+  });
+
+  it('deve dizer quanto o pedido costuma levar: o p50 medido sem histórico, a mediana das últimas 5 depois', async () => {
+    vi.useFakeTimers();
+    expect(ai.usualSeconds('explain')).toBe(9);
+    expect(ai.usualSeconds('suggest')).toBe(5);
+
+    for (const seconds of [30, 2, 4, 3, 20, 1]) {
+      const answer = ai.suggestRule(TOKEN_ID, 'x');
+      vi.advanceTimersByTime(seconds * 1000);
+      http
+        .expectOne(`/token/${TOKEN_ID}/rules/suggest`)
+        .flush({ rule: rule(1), explanation: '', attempts: 1 });
+      await answer;
+    }
+
+    // As últimas 5: 2, 4, 3, 20, 1 → mediana 3. O Explain não muda.
+    expect(ai.usualSeconds('suggest')).toBe(3);
+    expect(ai.usualSeconds('explain')).toBe(9);
   });
 
   it('deve ficar desligado Quando o servidor responde 503', async () => {
@@ -62,6 +131,14 @@ describe('Dado o cliente das rotas de IA', () => {
 
     await expect(answer).rejects.toBeInstanceOf(HttpErrorResponse);
     expect(ai.disabled()).toBe(true);
+    // Sem rota de capacidades, a sondagem é o primeiro pedido: vale pelo resto da sessão da aba.
+    expect(sessionStorage.getItem('anzol.ai.off')).toBe('1');
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    expect(TestBed.inject(AiClient).disabled()).toBe(true);
   });
 
   it('deve seguir ligado Quando o erro é outro (502)', async () => {
@@ -79,9 +156,15 @@ describe('Dado um erro de uma rota de IA', () => {
   const error = (status: number, body: unknown, headers?: Record<string, string>) =>
     new HttpErrorResponse({ status, error: body, headers: new HttpHeaders(headers) });
 
-  it('deve dar a dica de configuração Quando é 503', () => {
+  it('deve dizer os segundos do Retry-After do 429, para a contagem regressiva', () => {
+    expect(aiRetrySeconds(error(429, {}, { 'Retry-After': '12' }))).toBe(12);
+    expect(aiRetrySeconds(error(429, {}))).toBeNull();
+    expect(aiRetrySeconds(error(502, {}, { 'Retry-After': '12' }))).toBeNull();
+  });
+
+  it('deve dizer que o servidor não tem IA local Quando é 503', () => {
     expect(aiErrorMessages(error(503, { error: 'AI is not configured' }))).toEqual([
-      'AI is not configured on this server. Set WEBHOOK_AI_* to enable.',
+      'This server has no local AI.',
     ]);
   });
 

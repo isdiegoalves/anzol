@@ -342,7 +342,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       const call = await vi.waitFor(() =>
         http.expectOne({ method: 'POST', url: explainUrl(request) }),
       );
-      expect(call.request.body).toEqual({ lang: navigator.language });
+      expect(call.request.body).toEqual({ lang: 'en' });
       call.flush({ explanation: 'Assinatura **válida**.', facts: {} });
       await vi.waitFor(() =>
         expect(container.querySelector('app-explain-panel strong')?.textContent).toBe('válida'),
@@ -381,7 +381,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
       await vi.waitFor(() =>
         expect(container.querySelector('.ai-off')?.textContent?.trim()).toBe(
-          'Set WEBHOOK_AI_* to enable',
+          'This server has no local AI.',
         ),
       );
       await userEvent.click(explainButton());
