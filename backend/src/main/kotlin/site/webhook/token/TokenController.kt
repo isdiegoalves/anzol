@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
-import site.webhook.http.legacyInput
+import site.webhook.http.requireJsonObject
 import site.webhook.http.validationFailure
 import site.webhook.rules.Parsed
 import java.time.Clock
@@ -43,7 +43,14 @@ class TokenController(
 
     @PostMapping
     fun create(request: HttpServletRequest): ResponseEntity<Any> =
-        when (val created = service.create(request.legacyInput(), ip = request.remoteAddr, userAgent = request.getHeader("User-Agent"))) {
+        when (
+            val created =
+                service.create(
+                    request.requireJsonObject(),
+                    ip = request.remoteAddr,
+                    userAgent = request.getHeader("User-Agent"),
+                )
+        ) {
             is Parsed.Valid -> ResponseEntity.status(HttpStatus.CREATED).body(created.value.forApi())
             is Parsed.Invalid -> request.validationFailure(created.errors)
         }
@@ -66,7 +73,7 @@ class TokenController(
         @PathVariable tokenId: TokenId,
         request: HttpServletRequest,
     ): ResponseEntity<Any> =
-        when (val updated = service.update(tokenId, request.legacyInput())) {
+        when (val updated = service.update(tokenId, request.requireJsonObject())) {
             is Parsed.Valid -> ResponseEntity.ok(updated.value.forApi())
             is Parsed.Invalid -> request.validationFailure(updated.errors)
         }

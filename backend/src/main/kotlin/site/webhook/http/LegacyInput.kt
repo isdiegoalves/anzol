@@ -6,6 +6,7 @@ import site.webhook.legacy.parseMultipart
 import site.webhook.legacy.parseStr
 import site.webhook.legacy.phpMultipartBoundary
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
@@ -25,13 +26,20 @@ class LegacyInput(
     val contentType: String,
     val query: PhpArray,
     val form: PhpArray,
-    private val jsonBody: Map<String, Any?>,
+    private val jsonBody: Map<String, Any?>?,
 ) {
     /** `Request::isJson()` do Laravel. */
     val isJson: Boolean = isLaravelJson(contentType)
 
+    /**
+     * O `Content-Type` é JSON e o corpo tem bytes que não são um objeto JSON (truncado, ou lista, texto, número,
+     * `null`). O Laravel lia isso como entrada vazia, e é assim que [inputBag] o mostra; as rotas que gravam a
+     * configuração da URL o recusam ([requireJsonObject]).
+     */
+    val malformedJson: Boolean = isJson && jsonBody == null
+
     /** O que `$request->request` guarda: o JSON do corpo ou o formulário. */
-    fun inputBag(): Map<String, Any?> = if (isJson) jsonBody else form
+    fun inputBag(): Map<String, Any?> = if (isJson) jsonBody.orEmpty() else form
 
     /** `$request->get($key)` do Symfony: a query vence o corpo. */
     fun get(key: String): Any? = query[key] ?: inputBag()[key]
@@ -96,13 +104,24 @@ private fun phpPostContentType(contentType: String?): String =
         .split(';', ',', ' ')
         .first()
 
+/** O objeto JSON do corpo; vazio quando o corpo não tem nada (ou só espaços) e `null` quando não é um objeto JSON. */
 @Suppress("UNCHECKED_CAST")
 private fun jsonObject(
     body: ByteArray,
     jsonMapper: JsonMapper,
-): Map<String, Any?> =
+): Map<String, Any?>? =
     try {
-        (jsonMapper.readValue(body, Any::class.java) as? Map<String, Any?>).orEmpty()
+        if (body.all { it.toInt().toChar().isWhitespace() }) {
+            emptyMap()
+        } else {
+            objectReader(
+                jsonMapper,
+            ).readValue<Any?>(body) as? Map<String, Any?>
+        }
     } catch (_: JacksonException) {
-        emptyMap()
+        null
     }
+
+/** Lê um valor só: o que sobra depois dele (`{"a":1} x`) é erro. */
+private fun objectReader(jsonMapper: JsonMapper) =
+    jsonMapper.readerFor(Any::class.java).with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)

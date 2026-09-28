@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.util.HtmlUtils
 
 /** `default_mimetype` do PHP-FPM: o Content-Type das páginas e das respostas em que o Symfony não põe um. */
@@ -21,6 +22,17 @@ data class ErrorDetail(
     val message: String,
     val id: String?,
 )
+
+/** Mensagem do 400 de um pedido JSON cujo corpo não é um objeto JSON. */
+const val MALFORMED_JSON_MESSAGE = "The body must be a valid JSON object."
+
+/**
+ * Recusa (400, no envelope de erro) o pedido com `Content-Type` JSON cujo corpo não é um objeto JSON, antes de
+ * qualquer leitura ou gravação: lido como entrada vazia, o `POST /token` criaria com os padrões e o `PUT` voltaria a
+ * URL inteira aos padrões.
+ */
+fun HttpServletRequest.requireJsonObject(): LegacyInput =
+    legacyInput().also { if (it.malformedJson) throw ResponseStatusException(HttpStatus.BAD_REQUEST, MALFORMED_JSON_MESSAGE) }
 
 /** `$request->ajax() || $request->wantsJson() || $request->isJson()`: quem recebe erro em JSON. */
 fun HttpServletRequest.wantsJsonError(): Boolean = isAjax() || wantsJson() || isLaravelJson(contentType.orEmpty())
