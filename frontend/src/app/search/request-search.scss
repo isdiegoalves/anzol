@@ -146,6 +146,15 @@
   font: var(--mat-sys-body-small);
 }
 
+.quiet {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 // Celular: alvos de toque de 44 px ou mais.
 @media (width < 600px) {
   .pill,

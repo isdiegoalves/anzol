@@ -355,7 +355,8 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
   });
 
   describe('Dado a faixa "sem conexão" (B1, UX-16)', () => {
-    const region = () => screen.getByRole('status', { name: 'Connection' });
+    const region = () =>
+      within(screen.getByRole('group', { name: 'Connection' })).getByRole('status');
 
     it('deve existir vazia desde a carga, sem botão nem contagem', async () => {
       const { container } = await renderAt(`/${TOKEN_ID}/checks`);
@@ -752,7 +753,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
 
       await user.click(screen.getByRole('button', { name: /Switch URL$/ }));
-      await user.click(screen.getByRole('menuitemradio', { name: /^Pagamentos/ }));
+      await user.click(await screen.findByRole('menuitemradio', { name: /^Pagamentos/ }));
 
       await vi.waitFor(() => expect(router.url).toBe(`/${OTHER}/rules`));
       expect(announce).not.toHaveBeenCalled();
@@ -770,7 +771,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
 
       await user.click(screen.getByRole('button', { name: /Switch URL$/ }));
-      await user.click(screen.getByRole('menuitemradio', { name: /^Pagamentos/ }));
+      await user.click(await screen.findByRole('menuitemradio', { name: /^Pagamentos/ }));
       await vi.waitFor(() => expect(router.url).toBe(`/${OTHER}`));
       TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
       await fixture.whenStable();

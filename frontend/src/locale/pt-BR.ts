@@ -2862,10 +2862,6 @@ export const translations: Record<string, string> = {
   '2125536548958201660': 'Filtros, {$count} ligados',
   // Search: {$text}
   '7736249514208329990': 'Busca: {$text}',
-  // Filters cleared. 1 request.
-  '5705298799624087866': 'Filtros limpos. 1 requisição.',
-  // Filters cleared. {$count} requests.
-  '8474352744567911550': 'Filtros limpos. {$count} requisições.',
   // Switch URL
   '7206950408817526226': 'Trocar de URL',
   // Open or close the filters of the Inbox
@@ -2889,4 +2885,8 @@ export const translations: Record<string, string> = {
   '5572606818235964803': 'Não deu para abrir {$destination}',
   // Choose a URL
   '4989615607784125989': 'Escolher uma URL',
+  // Filters cleared. {$requests}.
+  '196162360584832288': 'Filtros limpos. {$requests}.',
+  // No filter. {$requests}.
+  '4610618820518753401': 'Sem filtro. {$requests}.',
 };

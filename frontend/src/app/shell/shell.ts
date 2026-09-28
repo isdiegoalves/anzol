@@ -1,4 +1,3 @@
-import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import {
   Component,
@@ -78,7 +77,6 @@ export class Shell {
   private readonly rulesSeen = inject(RulesSeen);
   protected readonly screen = inject(ScreenState);
   private readonly known = inject(KnownUrls);
-  private readonly announcer = inject(LiveAnnouncer);
   private readonly title = inject(Title);
   private readonly stream = inject(RequestStream);
   private readonly connection = inject(Connection);
@@ -237,7 +235,7 @@ export class Shell {
       }
       untracked(() => {
         this.switching.set(null);
-        void this.announcer.announce(this.openedText(uuid, inbox));
+        void this.announce(this.openedText(uuid, inbox));
       });
     });
 
@@ -281,6 +279,12 @@ export class Shell {
     const destination = this.current() ?? DESTINATIONS[0];
     this.switching.set(uuid);
     void this.router.navigate(this.link(destination, uuid));
+  }
+
+  /** O `LiveAnnouncer` (e o a11y do CDK com ele) vem sob demanda: fica fora do pacote inicial. */
+  private async announce(text: string): Promise<void> {
+    const { LiveAnnouncer } = await import('@angular/cdk/a11y');
+    await this.injector.get(LiveAnnouncer).announce(text);
   }
 
   private openedText(uuid: string, inbox: boolean): string {

@@ -255,6 +255,8 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     await vi.waitFor(() => expect(result()).toBe('Filters cleared. 3 requests.'), {
       timeout: 2000,
     });
+    // Fica só para o leitor de tela, e não é esvaziada depois.
+    expect(screen.getAllByRole('status')[0].classList).toContain('quiet');
     expect(searches()).toHaveLength(0);
     expect(store.filtering()).toBe(false);
     expect(store.requests()).toHaveLength(3);
@@ -262,6 +264,16 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     expect(activeFilters()).toBeNull();
     await openPanel();
     expect(chip('Schema invalid').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('deve dizer "No filter. {n} requests." Quando o último filtro é desligado', async () => {
+    await press('POST', THREE.slice(0, 2));
+    await vi.waitFor(() => expect(result()).toMatch(/^2 requests match/), { timeout: 2000 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove this filter: POST' }));
+    http.expectOne(listUrl).flush(requestPage(THREE));
+
+    await vi.waitFor(() => expect(result()).toBe('No filter. 3 requests.'), { timeout: 2000 });
   });
 
   // M1: o motivo exato e o caminho vêm do Health; a Entrada os mostra como filtros que se tiram.

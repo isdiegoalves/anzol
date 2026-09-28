@@ -68,6 +68,7 @@
   }
   <!-- INBOX-10: só com filtro; diz que a busca é no servidor, sobre a URL inteira. Região viva
        persistente: recebe só o resultado, uma vez, depois que os filtros param de mudar. -->
-  <app-live-region class="count" [text]="result()" />
+  <!-- Sem filtro, a frase ("No filter. 34 requests.") fica só para o leitor de tela. -->
+  <app-live-region class="count" [class.quiet]="!store.filtering()" [text]="result()" />
   <app-live-region class="note" [text]="waitFor.copied() ?? ''" />
 </div>

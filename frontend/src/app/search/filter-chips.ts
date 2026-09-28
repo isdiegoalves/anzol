@@ -35,6 +35,7 @@ export interface ChipGroup {
 @Injectable({ providedIn: 'root' })
 export class FilterChips {
   private readonly store = inject(RequestStore);
+  private cleared = false;
 
   private readonly groupLabels: Record<ChipGroup['id'], string> = {
     method: $localize`:filter group:Method`,
@@ -135,8 +136,17 @@ export class FilterChips {
     void this.store.applyFilter({ ...this.store.filter(), ...change });
   }
 
+  /** "Clear filters": a busca da lista diz "Filters cleared" (e não "No filter"). */
   clear(): void {
+    this.cleared = this.store.filtering();
     void this.store.applyFilter(NO_FILTER);
+  }
+
+  /** O filtro saiu por "Clear filters"? Responde uma vez. */
+  takeCleared(): boolean {
+    const cleared = this.cleared;
+    this.cleared = false;
+    return cleared;
   }
 
   private answer(outcome: OutcomeFilter | null): FilterChip[] {

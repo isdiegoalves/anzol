@@ -27,8 +27,6 @@ import { WaitFor } from './wait-for';
 export const SEARCH_DEBOUNCE_MS = 300;
 /** O resultado é dito uma vez, depois que os filtros param de mudar (guia da combinação, B1). */
 export const RESULT_ANNOUNCE_MS = 600;
-/** Quanto tempo "Filters cleared. 34 requests." fica na região. */
-export const CLEARED_NOTE_MS = 5000;
 
 let nextId = 0;
 
@@ -184,23 +182,23 @@ export class RequestSearch {
     }
     const cleared = this.wasFiltering && !filtering;
     if (!filtering && !cleared) {
-      // Sem filtro (a carga, a troca de URL): a região fica vazia; o aviso de "limpo" sai sozinho.
+      // Sem filtro desde a carga (ou a troca de URL): nada a dizer.
       return;
     }
+    // A região nunca é esvaziada para falar de novo: trocar o texto basta (guia §4.3).
     this.timer = setTimeout(() => {
       this.wasFiltering = filtering;
-      this.result.set(cleared ? this.clearedLine() : line);
-      if (cleared) {
-        this.timer = setTimeout(() => this.result.set(''), CLEARED_NOTE_MS);
-      }
+      this.result.set(cleared ? this.withoutFilter(this.chips.takeCleared()) : line);
     }, RESULT_ANNOUNCE_MS);
   }
 
-  private clearedLine(): string {
+  /** "Filters cleared. 34 requests." pelo botão; "No filter. 34 requests." ao desligar o último. */
+  private withoutFilter(byButton: boolean): string {
     const total = this.store.total();
-    return total === 1
-      ? $localize`Filters cleared. 1 request.`
-      : $localize`Filters cleared. ${total}:count: requests.`;
+    const count = total === 1 ? $localize`1 request` : $localize`${total}:count: requests`;
+    return byButton
+      ? $localize`Filters cleared. ${count}:requests:.`
+      : $localize`No filter. ${count}:requests:.`;
   }
 
   private stopTimer(): void {

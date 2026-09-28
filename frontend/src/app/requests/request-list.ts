@@ -34,7 +34,7 @@ import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
 import { SkeletonList } from '../ui/skeleton-list';
 import { NewPill } from './new-pill';
-import { NO_FILTER } from '../search/request-filter';
+import { FilterChips } from '../search/filter-chips';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -129,6 +129,7 @@ interface ItemView {
 export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
+  private readonly chips = inject(FilterChips);
   private readonly tokens = inject(TokenStore);
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
@@ -214,7 +215,7 @@ export class RequestList {
 
   /** O "Clear filters" do estado vazio (INBOX-25): a lista completa de volta. */
   protected clearFilters(): void {
-    void this.store.applyFilter(NO_FILTER);
+    this.chips.clear();
   }
 
   protected changeOrder(): void {

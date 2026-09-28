@@ -35,6 +35,11 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     });
   };
   const trigger = () => screen.getByRole('button', { name: /Switch URL$/ });
+  /** O painel vem sob demanda: abre e espera os itens. */
+  const open = async () => {
+    await userEvent.click(trigger());
+    await screen.findAllByRole('menuitemradio');
+  };
   const items = () =>
     screen.getAllByRole('menuitemradio').map((item) => item.getAttribute('aria-label'));
 
@@ -74,7 +79,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
       url(B, '', 5),
     ]);
 
-    await userEvent.click(trigger());
+    await open();
 
     expect(trigger().getAttribute('aria-expanded')).toBe('true');
     expect(items()).toEqual([
@@ -107,7 +112,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     TestBed.inject(UrlLock).lock(B);
     TestBed.inject(UrlMissing).mark(C);
 
-    await userEvent.click(trigger());
+    await open();
 
     expect(items()).toEqual([
       'URL d0620, d0620, open now',
@@ -118,7 +123,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
 
   it('deve avisar a URL escolhida, fechar e devolver o foco ao botão', async () => {
     await show([url(A, 'Pagamentos', 0), url(B, 'Retry', 5)]);
-    await userEvent.click(trigger());
+    await open();
 
     await userEvent.click(screen.getByRole('menuitemradio', { name: /^Retry/ }));
 
@@ -129,7 +134,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
 
   it('não deve avisar nada Quando a escolhida é a que já está aberta', async () => {
     await show([url(A, 'Pagamentos', 0)]);
-    await userEvent.click(trigger());
+    await open();
 
     await userEvent.click(screen.getByRole('menuitemradio', { name: /^Pagamentos/ }));
 
@@ -138,7 +143,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
 
   it('deve andar com as setas, dar a volta, e fechar com Esc devolvendo o foco', async () => {
     await show([url(A, 'Pagamentos', 0), url(B, 'Retry', 5)]);
-    await userEvent.click(trigger());
+    await open();
     const radios = screen.getAllByRole('menuitemradio');
     const actions = screen.getAllByRole('menuitem');
     await vi.waitFor(() => expect(document.activeElement).toBe(radios[0]));
@@ -163,7 +168,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     ['Forget a URL…', 'forget'],
   ] as const)('deve pedir "%s" e fechar o menu', async (name, event) => {
     await show([url(A, '', 0)]);
-    await userEvent.click(trigger());
+    await open();
 
     await userEvent.click(screen.getByRole('menuitem', { name: new RegExp(`^${name}`) }));
 
@@ -176,7 +181,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
       url(`${n}0000000-1111-4111-8111-111111111111`, `Loja ${n}`, n + 1),
     );
     await show([url(A, 'Pagamentos', 0), ...muitas]);
-    await userEvent.click(trigger());
+    await open();
 
     // Um campo não cabe num `menu`: com a busca, a caixa é um `dialog` (não modal) com o menu dentro.
     const caixa = screen.getByRole('dialog', { name: 'URLs in this browser' });
@@ -212,7 +217,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     });
     vi.restoreAllMocks();
 
-    await userEvent.click(trigger());
+    await open();
 
     expect(items()).toEqual(['URL d0620, d0620, open now']);
     expect(screen.getByText('This browser does not keep a list of URLs.')).toBeTruthy();
@@ -222,7 +227,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     windowClass.set('compact');
     const { container } = await show([url(A, 'Pagamentos', 0)]);
 
-    await userEvent.click(trigger());
+    await open();
 
     const folha = screen.getByRole('dialog', { name: 'URLs in this browser' });
     expect(folha.getAttribute('aria-modal')).toBe('true');
