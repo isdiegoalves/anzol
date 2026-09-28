@@ -18,7 +18,7 @@ import java.time.Clock
 import java.util.UUID
 
 /** Cada tentativa perdida é outra gravação da mesma URL que chegou antes; esgotar é erro (500), nunca mudança perdida. */
-private const val MAX_PATCH_ATTEMPTS = 50
+private const val MAX_CHANGE_ATTEMPTS = 50
 
 /**
  * Criar, editar e apagar a URL, com a validação do `POST`/`PUT /token`: o que a API HTTP e as ferramentas do MCP
@@ -70,40 +70,53 @@ class TokenService(
      * nenhum, 422. Trocar o segredo de leitura (definir, trocar, remover) fecha o SSE e as esperas abertas — quem
      * voltar passa de novo pelo acesso, com o segredo novo (o cookie antigo deixou de valer) — e revoga todos os
      * links só-leitura da URL: quem troca o segredo quer cortar quem tinha acesso, e um link é acesso.
+     *
+     * O que o `PUT` mantém (cors, segredo de assinatura omitido, segredo de leitura) sai do token lido, e a gravação
+     * só vale se ninguém gravou a URL desde a leitura ([changing]).
      */
     fun update(
         id: TokenId,
         input: LegacyInput,
     ): Parsed<Token> {
         val errors = input.validateTokenSettings()
-        if (errors.isNotEmpty()) return Parsed.Invalid(errors)
-        val current = tokens.findOrGone(id)
-        val settings = input.toTokenSettings()
-        return withSignature(settings.signature, current.signature) { signature ->
-            tokens.store(current.changed(settings, signature)).also { applied(current, it) }
-        }
+        return if (errors.isNotEmpty()) Parsed.Invalid(errors) else changing(id) { changed(it, input) }
     }
 
     /**
-     * Muda só parte da configuração (o `update_url` do MCP): [body] monta o corpo do `PUT` a partir do token de agora,
-     * e a gravação só vale se ninguém gravou a URL desde a leitura ([TokenStore.replace]); se gravou, relê e monta de
-     * novo. Duas mudanças simultâneas de campos diferentes ficam as duas, também entre instâncias. A validação e os
-     * efeitos são os de [update].
+     * Muda só parte da configuração (o `update_url` do MCP): [body] monta o corpo do `PUT` a partir do token de agora.
+     * Duas mudanças simultâneas de campos diferentes ficam as duas. A validação e os efeitos são os de [update].
      */
     fun patch(
         id: TokenId,
         body: (Token) -> LegacyInput,
+    ): Parsed<Token> = changing(id) { changed(it, body(it)) }
+
+    /** Liga e desliga o CORS da URL. O app antigo só ligava (`isset` em atributo mágico); o contrato exige o toggle real. */
+    fun toggleCors(id: TokenId): Token =
+        when (val toggled = changing(id) { Parsed.Valid(it.copy(cors = !it.cors)) }) {
+            is Parsed.Valid -> toggled.value
+            is Parsed.Invalid -> error("toggle do CORS não valida nada: ${toggled.errors}")
+        }
+
+    /**
+     * Toda mudança de uma URL que existe: lê o token, calcula o novo com [change] e grava só se o que está no Redis
+     * ainda é o que foi lido ([TokenStore.replace]); se outra gravação chegou antes, relê e calcula de novo. Nenhuma
+     * mudança simultânea se perde nem se mistura com um token velho, também entre instâncias. URL inexistente: 410.
+     */
+    private fun changing(
+        id: TokenId,
+        change: (Token) -> Parsed<Token>,
     ): Parsed<Token> {
-        repeat(MAX_PATCH_ATTEMPTS) {
+        repeat(MAX_CHANGE_ATTEMPTS) {
             val read = tokens.read(id) ?: throw ResponseStatusException(HttpStatus.GONE, "Token not found")
-            val changed = changed(read.token, body(read.token))
+            val changed = change(read.token)
             if (changed !is Parsed.Valid) return changed
             if (tokens.replace(read, changed.value)) {
                 applied(read.token, changed.value)
                 return changed
             }
         }
-        error("token $id changed on $MAX_PATCH_ATTEMPTS attempts in a row")
+        error("token $id changed on $MAX_CHANGE_ATTEMPTS attempts in a row")
     }
 
     /** [current] com a configuração de [input], validada e com a assinatura resolvida; nada é gravado. */

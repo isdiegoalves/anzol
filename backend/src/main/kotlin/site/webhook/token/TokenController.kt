@@ -78,13 +78,12 @@ class TokenController(
             is Parsed.Invalid -> request.validationFailure(updated.errors)
         }
 
-    /** Liga e desliga. O app antigo só ligava (`isset` em atributo mágico); o contrato exige o toggle real. */
+    /** Liga e desliga ([TokenService.toggleCors]). */
     @PutMapping("/{tokenId:$UUID_PATTERN}/cors/toggle")
     fun toggleCors(
         @PathVariable tokenId: TokenId,
     ): CorsState {
-        val token = tokens.findOrGone(tokenId).let { it.copy(cors = !it.cors) }
-        tokens.store(token)
+        val token = service.toggleCors(tokenId)
         log.info("[CORS] {} toggle", tokenId)
         return CorsState(enabled = token.cors)
     }

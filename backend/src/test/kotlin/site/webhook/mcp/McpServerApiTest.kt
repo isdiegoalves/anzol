@@ -242,6 +242,63 @@ class McpServerApiTest(
 
     @Test
     @DisplayName(
+        "Dado um cors/toggle e um update_url simultâneos na mesma URL, quando os dois respondem sucesso, então as duas " +
+            "mudanças ficam, em 50 pares",
+    )
+    fun corsToggle_simultaneoAoUpdateUrl_naoDevePerderMudanca() {
+        val lost =
+            (1..CONCURRENT_PAIRS).count {
+                val tokenId = api.tokenId()
+                val toggle = CompletableFuture.supplyAsync { api.send("PUT", "/token/$tokenId/cors/toggle", headers = JSON_CLIENT) }
+                val update = CompletableFuture.supplyAsync { call("update_url", mapOf("token_id" to tokenId, "default_status" to 418)) }
+                assertThat(toggle.join().statusCode()).isEqualTo(200)
+                assertThat(update.join().isError).isNotEqualTo(true)
+                val token = api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))
+                !token["cors"].asBoolean() || token["default_status"].asInt() != 418
+            }
+
+        assertThat(lost).isZero()
+    }
+
+    @Test
+    @DisplayName(
+        "Dado um PUT (sem o segredo no bloco) e um update_url que troca o segredo, simultâneos, quando os dois respondem " +
+            "sucesso, então fica o PUT inteiro com o segredo novo, e a senha de leitura e o cors ficam, em 50 pares",
+    )
+    fun put_simultaneoAoUpdateUrl_deveFicarCoerente() {
+        val access = mapOf("X-Webhook-Secret" to READ_SECRET)
+        val incoherent =
+            (1..CONCURRENT_PAIRS).mapNotNull {
+                val tokenId =
+                    api.tokenId(
+                        """{"default_status":418,"timeout":1,"read_secret":"$READ_SECRET",""" +
+                            """"signature":{"provider":"github","secret":"segredo-antigo"}}""",
+                    )
+                api.send("PUT", "/token/$tokenId/cors/toggle", headers = JSON_CLIENT + access)
+                val body = """{"default_status":201,"signature":{"provider":"github"}}"""
+                val put = CompletableFuture.supplyAsync { api.send("PUT", "/token/$tokenId", body.toByteArray(), JSON_BODY + access) }
+                val update =
+                    CompletableFuture.supplyAsync {
+                        val block = mapOf("provider" to "github", "secret" to "segredo-novo")
+                        call("update_url", mapOf("token_id" to tokenId, "read_secret" to READ_SECRET, "signature" to block))
+                    }
+                assertThat(put.join().statusCode()).isEqualTo(200)
+                assertThat(update.join().isError).isNotEqualTo(true)
+                val stored = api.tree(redis.opsForValue().get("token:$tokenId").orEmpty())
+                val coherent =
+                    stored["default_status"].asInt() == 201 &&
+                        stored["timeout"].asInt() == 0 &&
+                        stored["signature"]["secret"].asString() == "segredo-novo" &&
+                        stored["cors"].asBoolean() &&
+                        !stored["read_secret_hash"].isNull
+                stored.toString().takeUnless { coherent }
+            }
+
+        assertThat(incoherent).isEmpty()
+    }
+
+    @Test
+    @DisplayName(
         "Dado signature ou schema como texto (vazio ou não) no update_url, quando chama, então erro na chave do campo e nada " +
             "muda: só null desliga",
     )
