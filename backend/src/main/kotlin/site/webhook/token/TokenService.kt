@@ -8,6 +8,7 @@ import site.webhook.capture.RequestStore
 import site.webhook.http.LegacyInput
 import site.webhook.rules.Parsed
 import site.webhook.share.ShareStore
+import site.webhook.signature.MASKED_SECRET
 import site.webhook.signature.MISSING_SECRET
 import site.webhook.signature.SignatureConfig
 import site.webhook.signature.SignatureDraft
@@ -139,13 +140,20 @@ class TokenService(
         stream.end(id)
     }
 
-    /** [save] com a assinatura resolvida contra a atual, ou o 422 quando não há segredo novo nem atual. */
+    /**
+     * [save] com a assinatura resolvida contra a atual, ou o 422: o segredo enviado é uma máscara que não é a do atual,
+     * ou não há segredo novo nem atual.
+     */
     private fun withSignature(
         draft: SignatureDraft?,
         current: SignatureConfig?,
         save: (SignatureConfig?) -> Token,
     ): Parsed<Token> {
         val resolved = draft?.resolve(current)
-        return if (draft != null && resolved == null) Parsed.Invalid(MISSING_SECRET) else Parsed.Valid(save(resolved))
+        return when {
+            draft != null && draft.hasForeignMask(current) -> Parsed.Invalid(MASKED_SECRET)
+            draft != null && resolved == null -> Parsed.Invalid(MISSING_SECRET)
+            else -> Parsed.Valid(save(resolved))
+        }
     }
 }

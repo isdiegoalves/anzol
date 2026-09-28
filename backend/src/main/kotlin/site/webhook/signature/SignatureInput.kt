@@ -29,11 +29,26 @@ data class SignatureDraft(
         return chosen?.let { SignatureConfig(provider, it) }
     }
 
+    /**
+     * O segredo enviado tem a cara do que a API devolve no lugar do segredo ([SECRET_MASK] na frente) e não é a
+     * máscara do segredo de [current]: a de outra URL, ou editada. Gravá-lo faria dele o segredo, que a API passaria a
+     * devolver quase inteiro.
+     */
+    fun hasForeignMask(current: SignatureConfig?): Boolean =
+        secret != null && secret.startsWith(SECRET_MASK) && secret != current?.secret?.masked()
+
     override fun toString(): String = "SignatureDraft(provider=$provider)"
 }
 
 /** 422 de `signature.secret` quando não há segredo novo nem atual. */
 val MISSING_SECRET = mapOf("signature.secret" to listOf("The signature.secret field is required."))
+
+/** 422 de `signature.secret` quando o segredo enviado é uma máscara que não é a do segredo atual. */
+val MASKED_SECRET =
+    mapOf(
+        "signature.secret" to
+            listOf("The signature.secret is a masked value, not a secret: send the secret, or leave it out to keep the current one."),
+    )
 
 /**
  * Lê `signature` (JSON da API, formulário ou o gravado no Redis) com as mensagens do Laravel, chave
