@@ -90,7 +90,11 @@ interface LeaveGuarded {
   canLeave(): Promise<boolean>;
 }
 
-const askBeforeLeaving: CanDeactivateFn<LeaveGuarded> = (page) => page.canLeave();
+/**
+ * Sem a página na tela não há o que perguntar: com a URL inexistente ou trancada, o shell põe outra
+ * tela no lugar do `router-outlet`, e a rota fica sem componente (`null`).
+ */
+const askBeforeLeaving: CanDeactivateFn<LeaveGuarded | null> = (page) => page?.canLeave() ?? true;
 
 /**
  * Todas as rotas da interface nova (§1 do plano do item 14), declaradas na E3: as fatias seguintes
