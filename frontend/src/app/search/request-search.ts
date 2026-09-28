@@ -112,6 +112,10 @@ export class RequestSearch {
         }
       });
 
+    // O "Copy as anzol wait-for" avisa do texto que está no campo, já aplicado ou não.
+    effect(() => this.waitFor.typed.set(this.draft()));
+    inject(DestroyRef).onDestroy(() => this.waitFor.typed.set(null));
+
     // O resultado, uma vez: espera a busca voltar e os filtros pararem de mudar.
     effect(() => {
       const filtering = this.store.filtering();

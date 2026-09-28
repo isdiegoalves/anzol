@@ -1,6 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT } from '@angular/common';
-import { Component, Injectable, inject, input, linkedSignal } from '@angular/core';
+import { Component, Injectable, inject, input, linkedSignal, signal } from '@angular/core';
 import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -24,12 +24,15 @@ export class WaitFor {
     computation: () => null,
   });
 
+  /** O texto que está na busca agora, mesmo antes de a busca rodar (a espera da digitação). */
+  readonly typed = signal<string | null>(null);
+
   copy(): void {
     const token = this.tokens.token();
     if (!token) {
       return;
     }
-    const filter = this.store.filter();
+    const filter = { ...this.store.filter(), text: this.typed() ?? this.store.filter().text };
     this.clipboard.copy(
       waitForCommand(filter, {
         server: this.origin,

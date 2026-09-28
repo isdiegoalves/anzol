@@ -304,6 +304,20 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     expect(store.filter().signatureReason ?? null).toBeNull();
   });
 
+  it('deve avisar do texto que ficou de fora Quando o wait-for é copiado antes de a busca rodar', async () => {
+    vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'pedido');
+
+    TestBed.inject(WaitFor).copy();
+
+    await vi.waitFor(() =>
+      expect(regions()[1]).toBe(
+        'Copied. The text search is not part of wait-for: only the filters went into --match.',
+      ),
+    );
+    await vi.waitFor(() => searches().forEach((search) => search.flush(requestPage([]))));
+  });
+
   it('deve mostrar o aviso do "Copy as anzol wait-for", na região que já existia', async () => {
     vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
 
