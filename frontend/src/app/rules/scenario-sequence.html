@@ -74,6 +74,19 @@
           (input)="times.set(value($event))"
         />
       </mat-form-field>
+      <mat-form-field class="wait" subscriptSizing="dynamic">
+        <mat-label i18n>Retry-After (s)</mat-label>
+        <input
+          matInput
+          id="sequence-retry-after"
+          type="number"
+          min="0"
+          max="3600"
+          [value]="retryAfter()"
+          (input)="retryAfter.set(value($event))"
+        />
+        <mat-hint i18n>Empty: no header.</mat-hint>
+      </mat-form-field>
     </div>
   </fieldset>
 

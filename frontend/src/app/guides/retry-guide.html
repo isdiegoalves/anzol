@@ -1,0 +1,202 @@
+<p class="lead" i18n>
+  Make this URL refuse a few times and then accept, and see what your sender does.
+</p>
+<div class="steps" role="list">
+  <app-guide-step [number]="1" name="Which requests" i18n-name [state]="steps()[0]">
+    <div class="row">
+      <div class="methods" role="group" aria-label="Methods" i18n-aria-label>
+        @for (option of allMethods; track option) {
+          <button
+            type="button"
+            class="method"
+            [attr.aria-pressed]="method() === option"
+            (click)="chooseMethod(option)"
+          >
+            {{ option }}
+          </button>
+        }
+      </div>
+      <mat-form-field class="path" subscriptSizing="dynamic">
+        <mat-label i18n>Path</mat-label>
+        <input matInput id="retry-path" [value]="path()" (input)="path.set(value($event))" />
+        <mat-hint i18n="path hint in the Sequence dialog|Empty path matches any path"
+          >Empty: any path. After the URL's token.</mat-hint
+        >
+      </mat-form-field>
+    </div>
+    @if (commonText()) {
+      <p class="hint">{{ commonText() }}</p>
+    }
+  </app-guide-step>
+
+  <app-guide-step [number]="2" name="What to answer first" i18n-name [state]="steps()[1]">
+    <div class="row">
+      <mat-form-field class="number" subscriptSizing="dynamic">
+        <mat-label i18n>Status</mat-label>
+        <input
+          matInput
+          id="retry-first-status"
+          type="number"
+          min="100"
+          max="599"
+          [value]="firstStatus()"
+          (input)="firstStatus.set(value($event))"
+        />
+      </mat-form-field>
+      <mat-form-field class="number" subscriptSizing="dynamic">
+        <mat-label i18n>Times</mat-label>
+        <input
+          matInput
+          id="retry-times"
+          type="number"
+          min="1"
+          max="20"
+          [value]="times()"
+          (input)="times.set(value($event))"
+        />
+      </mat-form-field>
+      <mat-form-field class="wait" subscriptSizing="dynamic">
+        <mat-label i18n>Retry-After (s)</mat-label>
+        <input
+          matInput
+          id="retry-after"
+          type="number"
+          min="0"
+          max="3600"
+          [value]="retryAfter()"
+          (input)="retryAfter.set(value($event))"
+        />
+        <mat-hint i18n>Empty: no header.</mat-hint>
+      </mat-form-field>
+    </div>
+  </app-guide-step>
+
+  <app-guide-step [number]="3" name="What to answer after" i18n-name [state]="steps()[2]">
+    <div class="row">
+      <mat-form-field class="number" subscriptSizing="dynamic">
+        <mat-label i18n>Status</mat-label>
+        <input
+          matInput
+          id="retry-final-status"
+          type="number"
+          min="100"
+          max="599"
+          [value]="finalStatus()"
+          (input)="finalStatus.set(value($event))"
+        />
+      </mat-form-field>
+      <span class="stays" i18n="the final answer of a sequence stays|It does not change anymore"
+        >stays</span
+      >
+    </div>
+  </app-guide-step>
+
+  <app-guide-step
+    [number]="4"
+    name="Create"
+    i18n-name="guide step|Step that creates the rules"
+    [state]="steps()[3]"
+  >
+    @if (created()) {
+      <p class="made">
+        <span>{{ createdText() }}</span>
+        <button mat-stroked-button type="button" (click)="startOver()" i18n>Start over</button>
+      </p>
+    } @else {
+      <section class="preview" aria-labelledby="retry-preview-title">
+        <h4 id="retry-preview-title" i18n>Preview</h4>
+        <ol>
+          @for (line of preview(); track $index) {
+            <li>{{ line }}</li>
+          }
+        </ol>
+      </section>
+      @if (exceeds()) {
+        <p class="hint" role="note" i18n>Would exceed 100 rules.</p>
+      }
+      <button
+        mat-flat-button
+        type="button"
+        [attr.aria-busy]="saving()"
+        [disabled]="exceeds()"
+        (click)="create()"
+      >
+        {{ createLabel() }}
+      </button>
+    }
+    @if (errors().length > 0) {
+      <div role="alert">
+        <ul class="errors">
+          @for (message of errors(); track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+    }
+  </app-guide-step>
+
+  <app-guide-step [number]="5" name="Send and check" i18n-name [state]="steps()[4]">
+    <div class="row">
+      <button
+        mat-flat-button
+        type="button"
+        disabledInteractive
+        [disabled]="!created() || sending()"
+        (click)="send()"
+      >
+        {{ sendLabel() }}
+      </button>
+      <button
+        mat-button
+        type="button"
+        disabledInteractive
+        [disabled]="!created()"
+        (click)="copyLoop()"
+        i18n
+      >
+        Copy curl loop
+      </button>
+    </div>
+    @if (sentNote()) {
+      <p class="hint">{{ sentNote() }}</p>
+    }
+    <!-- O nome fica no grupo; a região viva, dentro dele, não tem nome e existe desde a carga. -->
+    <div class="check" role="group" aria-label="Retry check" i18n-aria-label>
+      @if (arriving()) {
+        <p class="arriving" aria-hidden="true">{{ arriving() }}</p>
+      }
+      <div role="status" class="said">
+        @if (waitingText()) {
+          <p>{{ waitingText() }}</p>
+        }
+        @if (check().rows.length > 0) {
+          <p class="summary">{{ check().summary }}</p>
+          @if (check().early) {
+            <p class="early">{{ check().early }}</p>
+          }
+          <ol class="attempts">
+            @for (row of check().rows; track row.attempt) {
+              <li [class.before]="row.wait?.verdict === 'before'">
+                <span class="attempt" i18n>Attempt {{ row.attempt }}</span>
+                <span class="time">{{ timeOf(row.at) }}</span>
+                @if (row.gap !== null) {
+                  <span class="gap" i18n>+{{ row.gap }} s</span>
+                }
+                <span class="answer">{{ row.answer }}</span>
+                @if (row.rule) {
+                  <span class="rule">{{ row.rule }}</span>
+                }
+                @if (row.phrase) {
+                  <span class="verdict">{{ row.phrase }}</span>
+                }
+              </li>
+            }
+          </ol>
+          @if (check().caveat) {
+            <p class="caveat">{{ check().caveat }}</p>
+          }
+        }
+      </div>
+    </div>
+  </app-guide-step>
+</div>

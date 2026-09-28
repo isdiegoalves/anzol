@@ -1,0 +1,93 @@
+<p class="lead" i18n>
+  Requests sent to this URL show up here instantly, without reloading the page.
+</p>
+<div class="steps" role="list">
+  @for (step of steps(); track step.id; let i = $index) {
+    <app-guide-step [number]="i + 1" [name]="step.name" [state]="step.state">
+      @switch (step.id) {
+        @case ('send') {
+          <mat-tab-group class="ways" animationDuration="0ms">
+            <mat-tab label="cURL" i18n-label>
+              <div class="way">
+                <p i18n>From a terminal:</p>
+                <p class="command">
+                  <code>{{ curl() }}</code>
+                </p>
+                <button mat-stroked-button type="button" (click)="copyCurl()">
+                  <app-icon class="button-icon" name="copy" [size]="18" />
+                  <ng-container i18n>Copy curl command</ng-container>
+                </button>
+              </div>
+            </mat-tab>
+            <mat-tab label="From a provider" i18n-label>
+              <div class="way">
+                <p i18n>Paste the URL where the provider asks for the webhook address:</p>
+                <p class="command">
+                  <code>{{ url() }}</code>
+                </p>
+                <dl class="providers">
+                  <dt i18n>Stripe</dt>
+                  <dd i18n>Developers › Webhooks › Add endpoint, as the endpoint URL.</dd>
+                  <dt i18n>GitHub</dt>
+                  <dd i18n>
+                    Repository › Settings › Webhooks › Add webhook, as the Payload URL, with content
+                    type application/json.
+                  </dd>
+                  <dt i18n>Shopify</dt>
+                  <dd i18n>Settings › Notifications › Webhooks › Create webhook.</dd>
+                  <dt i18n>Slack</dt>
+                  <dd i18n>
+                    Your app › Event Subscriptions › Request URL. Slack first sends a
+                    url_verification challenge; a rule can answer it.
+                  </dd>
+                </dl>
+              </div>
+            </mat-tab>
+            <mat-tab label="CLI" i18n-label>
+              <div class="way">
+                <p i18n>Forward each request to your app while it runs on your machine:</p>
+                <p class="command">
+                  <code>{{ cli() }}</code>
+                </p>
+              </div>
+            </mat-tab>
+          </mat-tab-group>
+          <div class="test">
+            <button mat-flat-button type="button" [disabled]="sending()" (click)="sendTest()" i18n>
+              Send a test request
+            </button>
+            <p class="result" role="status">{{ sent() }}</p>
+          </div>
+        }
+        @case ('arrive') {
+          @if (arrived(); as request) {
+            <p class="arrived">
+              <span class="what">{{ arrivedText() }}</span>
+              <button mat-stroked-button type="button" (click)="openRequest.emit(request)" i18n>
+                Open it
+              </button>
+            </p>
+          } @else {
+            <p class="hint" i18n>Nothing arrived yet. It shows up here as soon as it does.</p>
+          }
+        }
+        @case ('signature') {
+          <a [routerLink]="step.link?.commands" [queryParams]="step.link?.queryParams" i18n
+            >Open the signature check</a
+          >
+        }
+        @case ('answer') {
+          <a [routerLink]="step.link?.commands" i18n>Open a new rule</a>
+        }
+        @case ('retry') {
+          <a
+            [routerLink]="step.link?.commands"
+            [queryParams]="step.link?.queryParams"
+            i18n="link that opens the guide Test a retry|Opens the other guide"
+            >Open the retry guide</a
+          >
+        }
+      }
+    </app-guide-step>
+  }
+</div>

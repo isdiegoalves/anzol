@@ -13,87 +13,21 @@ import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { firstValueFrom } from 'rxjs';
-import {
-  PathMatcher,
-  RULE_DEFAULT_PRIORITY,
-  RULE_DEFAULT_STATUS,
-  Rule,
-  SCENARIO_STARTED,
-  scenarioNames,
-} from './rule';
+import { RULE_DEFAULT_STATUS, scenarioNames } from './rule';
 import { RuleIntents } from './rule-intents';
-import { catchAllPlacement } from './rule-shadow';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
+import {
+  RETRY_AFTER_MAX,
+  RULES_MAX,
+  SCENARIO_NAME_MAX,
+  SequenceSpec,
+  TIMES_MAX,
+  insertSequence,
+  sequenceStates,
+  suggestScenarioName,
+} from './sequence';
 
-/** O que o assistente pede (WM-32): as condições uma vez, "responder A por N vezes, depois B". */
-export interface SequenceSpec {
-  methods: string[];
-  path: PathMatcher | null;
-  /** Quantas vezes a primeira resposta sai antes da final (1–20). */
-  times: number;
-  first: { status: number; body: string };
-  /** A resposta que fica: a última regra não define estado novo. */
-  final: { status: number; body: string };
-  scenario: string;
-}
-
-/** Teto de regras por URL (o servidor responde 422 acima dele). */
-const RULES_MAX = 100;
-const TIMES_MAX = 20;
-/** "{scenario} 20/21" cabe nos 100 caracteres do nome da regra. */
-const SCENARIO_NAME_MAX = 94;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-
-/** Os estados da sequência: Started, "{name} 2" … "{name} N+1" (nomes de estado não se traduzem). */
-function sequenceStates(scenario: string, count: number): string[] {
-  return Array.from({ length: count }, (_, i) =>
-    i === 0 ? SCENARIO_STARTED : `${scenario} ${i + 1}`,
-  );
-}
-
-/**
- * As N+1 regras encadeadas: "{name} i/n" exige o estado i e leva ao i+1; a última exige o estado
- * a que a penúltima leva e não define estado novo, então a resposta final fica (contrato de
- * cenário). Todas com a mesma prioridade e as mesmas condições.
- */
-export function sequenceRules(spec: SequenceSpec, priority: number): Rule[] {
-  const count = spec.times + 1;
-  const states = sequenceStates(spec.scenario, count);
-  return states.map((state, i) => {
-    const last = i === count - 1;
-    const answer = last ? spec.final : spec.first;
-    return {
-      name: `${spec.scenario} ${i + 1}/${count}`,
-      enabled: true,
-      priority,
-      match: { method: spec.methods, path: spec.path, query: {}, headers: {}, body: [] },
-      scenario: last
-        ? { name: spec.scenario, requiredState: state }
-        : { name: spec.scenario, requiredState: state, newState: states[i + 1] },
-      response: { status: answer.status, headers: {}, body: answer.body },
-    };
-  });
-}
-
-/** O nome do cenário sugerido: o último pedaço do caminho ("/api/pagamentos" → "pagamentos"). */
-export function suggestScenarioName(path: string): string {
-  return path.split('/').filter(Boolean).at(-1) ?? 'sequence';
-}
-
-/**
- * A lista com as regras da sequência contíguas, antes da primeira pega-tudo ligada e com a
- * prioridade dela (E-01), ou no fim com P5.
- */
-export function insertSequence(
-  rules: readonly Rule[],
-  spec: SequenceSpec,
-): { rules: Rule[]; priority: number } {
-  const placement = catchAllPlacement(rules);
-  const priority = placement?.priority ?? RULE_DEFAULT_PRIORITY;
-  const next = [...rules];
-  next.splice(placement?.index ?? next.length, 0, ...sequenceRules(spec, priority));
-  return { rules: next, priority };
-}
 
 type PathMode = 'any' | 'equals' | 'prefix' | 'regex';
 
@@ -139,6 +73,8 @@ export class ScenarioSequence {
   protected readonly times = signal('2');
   protected readonly firstStatus = signal('503');
   protected readonly firstBody = signal('');
+  /** Segundos do `Retry-After` das respostas que recusam; vazio, sem o cabeçalho (R1). */
+  protected readonly retryAfter = signal('');
   protected readonly finalStatus = signal(String(RULE_DEFAULT_STATUS));
   protected readonly finalBody = signal('');
   /** O nome digitado; até alguém digitar, o nome acompanha o caminho ("/entrega" → "entrega"). */
@@ -254,7 +190,11 @@ export class ScenarioSequence {
               ? { prefix: path }
               : { regex: path },
       times: Number(this.times()),
-      first: { status: Number(this.firstStatus()), body: this.firstBody() },
+      first: {
+        status: Number(this.firstStatus()),
+        body: this.firstBody(),
+        retryAfter: this.retryAfter().trim() === '' ? null : Number(this.retryAfter()),
+      },
       final: { status: Number(this.finalStatus()), body: this.finalBody() },
       scenario: this.scenario().trim(),
     };
@@ -282,6 +222,11 @@ export class ScenarioSequence {
         id: 'sequence-times',
         label: $localize`Times (1–20)`,
         ok: integer(this.times(), 1, TIMES_MAX),
+      },
+      {
+        id: 'sequence-retry-after',
+        label: $localize`Retry-After (0–${RETRY_AFTER_MAX}:max:)`,
+        ok: this.retryAfter().trim() === '' || integer(this.retryAfter(), 0, RETRY_AFTER_MAX),
       },
       {
         id: 'sequence-final-status',

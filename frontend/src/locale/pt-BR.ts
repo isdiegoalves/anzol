@@ -3026,4 +3026,116 @@ export const translations: Record<string, string> = {
   '1232550950075785189': 'Explicação pronta.',
   // Suggest
   '5320136382998259826': 'Sugerir',
+  //  Requests sent to this URL show up here instantly, without reloading the page.
+  '8138564294754979260':
+    ' As requisições mandadas para esta URL aparecem aqui na hora, sem recarregar a página.\n',
+  // Copy curl command
+  '870274556331514269': 'Copiar o comando curl',
+  //  Open it
+  '7943845711648992952': ' Abrir ',
+  // Nothing arrived yet. It shows up here as soon as it does.
+  '4762573553516586348': 'Nada chegou ainda. Aparece aqui assim que chegar.',
+  // Open the signature check
+  '1869256605991588144': 'Abrir a verificação de assinatura',
+  // Open a new rule
+  '3285491115436237556': 'Abrir uma regra nova',
+  // Open the retry guide
+  '1982129478068923839': 'Abrir o roteiro de retry',
+  // {$method} {$path}, at {$time}.
+  '8301129789587842799': '{$method} {$path}, às {$time}.',
+  // Command copied. It has this URL, which is a secret.
+  '7416015124255239910': 'Comando copiado. Ele tem esta URL, que é um segredo.',
+  // done
+  '6608890834230007808': 'feito',
+  // to do
+  '2984799506684715632': 'falta',
+  // optional
+  '4166774598423340967': 'opcional',
+  // Send a request
+  '4978029334199195744': 'Mandar uma requisição',
+  // See it arrive
+  '4374266784233071018': 'Ver ela chegar',
+  // Check the provider's signature
+  '8330956694183366348': 'Conferir a assinatura do provedor',
+  // Choose the answer
+  '833293779024791270': 'Escolher a resposta',
+  // Test a retry
+  '2528763963435679040': 'Testar um retry',
+  // Close guide
+  '8345334258582014743': 'Fechar o roteiro',
+  // First webhook
+  '5981944048959947106': 'Primeiro webhook',
+  // Guide: {$name}
+  '6858753259371437221': 'Roteiro: {$name}',
+  // 1 request came before the asked wait of {$asked} s.
+  '2635089868568940743': '1 requisição chegou antes da espera pedida de {$asked} s.',
+  // {$count} requests came before the asked wait of {$asked} s.
+  '1039230917711493728': '{$count} requisições chegaram antes da espera pedida de {$asked} s.',
+  // 1 request arrived. Answers: {$trail}
+  '8749884057350443520': '1 requisição chegou. Respostas: {$trail}',
+  // {$count} requests arrived. Answers: {$trail}
+  '523967820852876500': '{$count} requisições chegaram. Respostas: {$trail}',
+  // {$arrived}. Programmed: {$expected}.
+  '820510369025858786': '{$arrived}. Programado: {$expected}.',
+  // {$arrived}, as programmed.
+  '2242979637206419025': '{$arrived}, como programado.',
+  //  Make this URL refuse a few times and then accept, and see what your sender does.
+  '4192414966276023752':
+    ' Faça esta URL recusar algumas vezes e depois aceitar, e veja o que o seu remetente faz.\n',
+  // Which requests
+  '4257089478461499283': 'Quais requisições',
+  // What to answer first
+  '8814643182392645942': 'O que responder primeiro',
+  // Retry-After (s)
+  '1383441937650891318': 'Retry-After (s)',
+  // Empty: no header.
+  '5934847549179195783': 'Vazio: sem o cabeçalho.',
+  // What to answer after
+  '2901512282513937291': 'O que responder depois',
+  // stays
+  '1055819287593553384': 'fica',
+  // Create
+  '1710278196506983304': 'Criar',
+  // Start over
+  '763434360141362050': 'Recomeçar',
+  // Send and check
+  '2605852370196739930': 'Mandar e conferir',
+  //  Copy curl loop
+  '7746792139359704378': ' Copiar o laço de curl ',
+  // Retry check
+  '2132221897326012086': 'Conferência do retry',
+  // Attempt {$INTERPOLATION}
+  '5724306736011437599': 'Tentativa {$INTERPOLATION}',
+  // +{$INTERPOLATION} s
+  '2865391584899672648': '+{$INTERPOLATION} s',
+  // Starts at the most common: {$method}, {$count} of {$total}.
+  '6490810650501315836': 'Começa no mais comum: {$method}, {$count} de {$total}.',
+  // {$count} rules created · scenario "{$name}"
+  '378328566973426481': '{$count} regras criadas · cenário "{$name}"',
+  // (any path)
+  '2894766746158019845': '(qualquer caminho)',
+  // Arriving: {$trail}
+  '2094621065270066430': 'Chegando: {$trail}',
+  // Waiting for {$target}. Nothing arrived yet.
+  '6559590418845380926': 'Esperando {$target}. Nada chegou ainda.',
+  // Send {$count} test requests
+  '6727056494125901404': 'Mandar {$count} requisições de teste',
+  // {$count} rules created.
+  '3022137233878357464': '{$count} regras criadas.',
+  // Sent from this browser, {$seconds} s apart. This checks the rules, not your sender.
+  '6638281695338567350':
+    'Mandadas deste navegador, a cada {$seconds} s. Isto confere as regras, não o seu remetente.',
+  // Retry-After (0–{$max})
+  '4749208494832048739': 'Retry-After (0–{$max})',
+  // Came {$seconds} s after the previous answer. It asked to wait {$asked} s.
+  '8424115092357568360':
+    'Chegou {$seconds} s depois da resposta anterior. Ela pedia para esperar {$asked} s.',
+  // Came about {$asked} s after. Times are kept to the second, so this cannot be told apart from {$asked} s.
+  '997921781507708810':
+    'Chegou cerca de {$asked} s depois. As horas são guardadas por segundo, então não dá para distinguir de {$asked} s.',
+  // Waited {$seconds} s. It asked to wait {$asked} s.
+  '2350130687248509203': 'Esperou {$seconds} s. Ela pedia para esperar {$asked} s.',
+  // Wait asked: Retry-After: {$asked}, as configured now. Times are kept to the second.
+  '524192982117577614':
+    'Espera pedida: Retry-After: {$asked}, como está configurado agora. As horas são guardadas por segundo.',
 };

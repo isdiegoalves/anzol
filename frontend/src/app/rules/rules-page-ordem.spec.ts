@@ -586,7 +586,8 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       });
     });
 
-    it('deve abrir o assistente "Sequence" pelo modelo "Fail N times, then accept"', async () => {
+    // R1: o modelo abre o roteiro "Test a retry"; o diálogo "Sequence" fica no "Sequence…" da aba Scenario.
+    it('deve abrir o roteiro "Test a retry" pelo modelo "Fail N times, then accept"', async () => {
       await open([rule(1)]);
 
       await userEvent.click(screen.getByRole('button', { name: 'New rule from template' }));
@@ -594,35 +595,8 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
         await screen.findByRole('menuitem', { name: 'Fail N times, then accept' }),
       );
 
-      const dialog = await screen.findByRole('dialog', { name: 'Sequence' });
-      // L8: o foco começa no caminho, e não no chip GET.
-      await vi.waitFor(() =>
-        expect(document.activeElement).toBe(within(dialog).getByRole('textbox', { name: 'Path' })),
-      );
-    });
-
-    // M6: o item do menu que abriu o assistente some; o foco vai à primeira regra criada.
-    it('deve levar o foco à primeira regra criada Quando "Create 3 rules" grava', async () => {
-      await open([rule(1)]);
-
-      await userEvent.click(screen.getByRole('button', { name: 'New rule from template' }));
-      await userEvent.click(
-        await screen.findByRole('menuitem', { name: 'Fail N times, then accept' }),
-      );
-      const dialog = await screen.findByRole('dialog', { name: 'Sequence' });
-      await userEvent.type(within(dialog).getByRole('textbox', { name: 'Path' }), '/entrega');
-      await userEvent.click(within(dialog).getByRole('button', { name: 'Create 3 rules' }));
-      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
-      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
-      put.flush((put.request.body as Rule[]).map((r, i) => ({ ...r, id: r.id ?? `n${i}` })));
-
-      await vi.waitFor(() =>
-        expect(document.activeElement).toBe(row('n1').querySelector('td.item button')),
-      );
-      // A lista agora tem cenário: a página lê os estados.
-      await vi.waitFor(() =>
-        http.expectOne({ method: 'GET', url: `/token/${TOKEN_ID}/scenarios` }).flush([]),
-      );
+      expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID], { queryParams: { guide: 'retry' } });
+      expect(screen.queryByRole('dialog', { name: 'Sequence' })).toBeNull();
     });
   });
 

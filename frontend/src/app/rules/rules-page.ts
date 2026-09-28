@@ -65,7 +65,6 @@ import { matchLine, ruleInWords, scenarioTransition } from './rule-words';
 import { RulesSeen } from './rules-seen';
 import { SCENARIO_NOTICE_MS } from './scenario-notice';
 import { ScenarioGroup } from './scenario-group';
-import { openSequence } from './scenario-sequence';
 import { ScenarioStore } from './scenario-store';
 import { RuleEditor, RuleEditorData } from './rule-editor';
 import { newRule } from './rule-form';
@@ -678,19 +677,10 @@ export class RulesPage {
       this.intents.request({ draft: template.draft });
       this.openNew();
     } else {
-      // "Fail N times, then accept": o assistente grava as regras e a lista as destaca (F6).
-      void this.createSequence();
+      // "Fail N times, then accept": o roteiro "Test a retry", na Entrada (R1). O diálogo
+      // "Sequence" continua no "Sequence…" da aba Scenario.
+      void this.router.navigate(['/', this.tokenId()], { queryParams: { guide: 'retry' } });
     }
-  }
-
-  /**
-   * Depois de "Create {n} rules" o foco vai à primeira regra criada (o item do menu que abriu o
-   * assistente já não existe; sem isso ele cairia no `body`, M6); cancelado, ao "New rule".
-   */
-  private async createSequence(): Promise<void> {
-    const created = await openSequence(this.injector);
-    const first = created ? this.intents.created()?.ids[0] : undefined;
-    this.store.pendingFocus.set({ rule: first ?? null });
   }
 
   /** "Describe it in words" (WM-02): a regra nova com o Describe aberto só desta vez. */

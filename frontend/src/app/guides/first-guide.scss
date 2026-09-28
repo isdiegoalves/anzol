@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+p {
+  margin: 0;
+}
+
+.lead,
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.lead {
+  margin-bottom: 12px;
+}
+
+.way {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.command {
+  max-width: 100%;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-high);
+  font-family: var(--app-code-family);
+}
+
+.button-icon {
+  margin-inline-end: 8px;
+  vertical-align: middle;
+}
+
+.providers {
+  margin: 0;
+
+  dt {
+    font: var(--mat-sys-title-small);
+  }
+
+  dd {
+    margin: 0 0 8px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.test,
+.arrived {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.what {
+  font-family: var(--app-code-family);
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
+
+@media (width < 600px) {
+  .test button,
+  .way button {
+    width: 100%;
+    min-height: 48px;
+  }
+}

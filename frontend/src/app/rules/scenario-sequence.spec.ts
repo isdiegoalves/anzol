@@ -13,12 +13,8 @@ import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { RuleIntents } from './rule-intents';
 import { RuleStore } from './rule-store';
-import {
-  ScenarioSequence,
-  insertSequence,
-  sequenceRules,
-  suggestScenarioName,
-} from './scenario-sequence';
+import { ScenarioSequence } from './scenario-sequence';
+import { insertSequence, sequenceRules, suggestScenarioName } from './sequence';
 
 const spec = {
   methods: ['POST'],
@@ -57,6 +53,16 @@ describe('Dado o assistente de sequência (sequenceRules, WM-32)', () => {
     expect(rules[0].response?.body).toBe('tente de novo');
     expect(rules[2].response?.body).toBe('{"ok":true}');
     expect(rules[2].scenario).not.toHaveProperty('newState');
+  });
+
+  it('deve pôr o Retry-After só nas respostas que recusam (R1)', () => {
+    const rules = sequenceRules({ ...spec, first: { ...spec.first, retryAfter: 5 } }, 5);
+
+    expect(rules.map((r) => r.response?.headers)).toEqual([
+      { 'Retry-After': '5' },
+      { 'Retry-After': '5' },
+      {},
+    ]);
   });
 
   it('deve gerar 2 regras Quando N é 1', () => {
@@ -209,6 +215,36 @@ describe('Dado o diálogo "Sequence" (WM-32)', () => {
     await vi.waitFor(() => expect(marca).toHaveBeenCalledWith(['n1', 'n2', 'n3']));
     expect(announce).toHaveBeenCalledWith('3 rules created');
     expect(close).toHaveBeenCalledWith(true);
+  });
+
+  it('deve ter o "Retry-After (s)" vazio, sem o cabeçalho, e gravá-lo Quando preenchido (R1)', async () => {
+    await show([]);
+    const espera = screen.getByRole('spinbutton', { name: 'Retry-After (s)' });
+    expect((espera as HTMLInputElement).value).toBe('');
+    expect(screen.getByText('Empty: no header.')).toBeTruthy();
+
+    await userEvent.type(espera, '5');
+    await userEvent.click(screen.getByRole('button', { name: 'Create 3 rules' }));
+    await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([]));
+    const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+
+    expect((put.request.body as Rule[]).map((r) => r.response?.headers)).toEqual([
+      { 'Retry-After': '5' },
+      { 'Retry-After': '5' },
+      {},
+    ]);
+    put.flush([]);
+  });
+
+  it('deve recusar o "Retry-After (s)" fora de 0 a 3600', async () => {
+    await show();
+    const espera = screen.getByRole('spinbutton', { name: 'Retry-After (s)' });
+
+    await userEvent.type(espera, '4000');
+    await userEvent.click(screen.getByRole('button', { name: /^Create/ }));
+
+    expect(screen.getByRole('alert').textContent).toContain('To create, fix: Retry-After (0–3600)');
+    expect(document.activeElement).toBe(espera);
   });
 
   it('não deve gravar e deve dizer o que corrigir Quando o formulário é inválido', async () => {

@@ -263,6 +263,7 @@ module.exports = defineConfig([
             'src/app/requests/webhook-request.ts',
             'src/app/token/token.ts',
             'src/app/rules/rule.ts',
+            'src/app/rules/sequence.ts',
             'src/app/stats/stats.ts',
             'src/app/share/share.ts',
             'src/app/outbound/outbound.ts',
@@ -275,6 +276,9 @@ module.exports = defineConfig([
         { category: 'public', pattern: 'src/app/request-detail/request-view.ts' },
         // A espera de um pedido de IA (B4), a mesma no Suggest de Regras e no Explain do detalhe.
         { category: 'public', pattern: 'src/app/ai/ai-wait.ts' },
+        // Os roteiros (R1): a folha que a Entrada põe no lugar do detalhe, e os passos dela.
+        { category: 'public', pattern: 'src/app/guides/guide.ts' },
+        { category: 'model', pattern: 'src/app/guides/guide-steps.ts' },
       ],
     },
     rules: {
