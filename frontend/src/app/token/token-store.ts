@@ -4,6 +4,7 @@ import { Injectable, computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Preferences } from '../settings/preferences';
 import { KnownUrls } from './known-urls';
+import { UrlMissing } from './url-missing';
 import { Token, TokenSettings } from './token';
 
 /** URL de webhook aberta na tela e as chamadas de `/token`. */
@@ -13,6 +14,7 @@ export class TokenStore {
   private readonly preferences = inject(Preferences);
   private readonly location = inject(DOCUMENT).location;
   private readonly known = inject(KnownUrls);
+  private readonly missing = inject(UrlMissing);
 
   /** Token aberto; começa com o do localStorage, como no app atual. */
   readonly token = this.preferences.token.asReadonly();
@@ -53,6 +55,7 @@ export class TokenStore {
   private keep(token: Token): Token {
     this.preferences.token.set(token);
     this.known.opened(token.uuid);
+    this.missing.clear(token.uuid);
     return token;
   }
 }

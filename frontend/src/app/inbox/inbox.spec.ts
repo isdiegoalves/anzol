@@ -230,18 +230,19 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
   });
 
-  // E10 (C §2.11): o aviso sai do snackbar de 10 s e vai para o onboarding da URL criada no lugar.
-  it('deve criar outra URL e dizer no onboarding dela qual não existe mais Quando o token do link sumiu (410)', async () => {
+  // B1 (P1 decidida): nenhuma tela cria URL sem a pessoa pedir; a página única de URL inexistente
+  // (no shell) assume.
+  it('não deve criar outra URL nem sair do endereço Quando o token do link sumiu (410)', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}`);
 
     await flush(`/token/${TOKEN_ID}`, { success: false }, { status: 410, statusText: 'Gone' });
-    await flush('/token', token({ uuid: NOVO_TOKEN }));
-    await flush(`/token/${NOVO_TOKEN}`, token({ uuid: NOVO_TOKEN }));
-    await flush(`/token/${NOVO_TOKEN}/requests?page=1&sorting=newest`, requestPage([]));
+    await new Promise((resolve) => setTimeout(resolve));
 
-    await vi.waitFor(() => expect(text()).toContain(`The URL ${TOKEN_ID} doesn't exist anymore`));
-    expect(router.url).toBe(`/${NOVO_TOKEN}`);
+    http.expectNone('/token');
+    http.expectNone(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`);
+    expect(router.url).toBe(`/${TOKEN_ID}`);
     expect(snack).not.toHaveBeenCalled();
+    expect(FakeEventSource.instances).toHaveLength(0);
   });
 
   it('não deve criar outra URL nem avisar Quando o token do link é protegido e o acesso falta (401)', async () => {

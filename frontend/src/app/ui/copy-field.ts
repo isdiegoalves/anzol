@@ -21,18 +21,26 @@ import { Icon } from './icon';
       (click)="selectAll($event)"
       (keyup.enter)="selectAll($event)"
     />
-    <button
-      type="button"
-      class="copy"
-      [attr.aria-label]="buttonLabel()"
-      [attr.title]="hint()"
-      [cdkCopyToClipboard]="value()"
-      (cdkCopyToClipboardCopied)="copied.emit($event)"
-    >
-      <app-icon name="copy" [size]="20" />
-    </button>
+    @if (disabled()) {
+      <!-- Desligado continua focável (aria-disabled) e não copia. -->
+      <button type="button" class="copy" aria-disabled="true" [attr.aria-label]="buttonLabel()">
+        <app-icon name="copy" [size]="20" />
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="copy"
+        [attr.aria-label]="buttonLabel()"
+        [attr.title]="hint()"
+        [cdkCopyToClipboard]="value()"
+        (cdkCopyToClipboardCopied)="copied.emit($event)"
+      >
+        <app-icon name="copy" [size]="20" />
+      </button>
+    }
   `,
   styleUrl: './copy-field.scss',
+  host: { '[class.disabled]': 'disabled()' },
 })
 export class CopyField {
   readonly value = input.required<string>();
@@ -41,6 +49,8 @@ export class CopyField {
   readonly buttonLabel = input($localize`Copy`);
   /** Dica do botão, como o atalho ("Copy URL (C)"). */
   readonly hint = input<string | null>(null);
+  /** O endereço de uma URL que não existe mais: riscado, e o botão não copia. */
+  readonly disabled = input(false);
   /** `true` quando a cópia deu certo. */
   readonly copied = output<boolean>();
 

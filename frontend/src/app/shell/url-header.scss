@@ -37,6 +37,17 @@
   }
 }
 
+.gone {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font: var(--mat-sys-label-medium);
+}
+
 .keeps {
   font-weight: 500;
 }

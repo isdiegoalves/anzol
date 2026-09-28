@@ -14,13 +14,6 @@
     </button>
   </header>
 
-  @if (missing(); as old) {
-    <p class="notice" role="status" i18n>
-      The URL {{ old }} doesn't exist anymore, so this new one was created. A URL expires after a
-      period without use (7 days by default) or when someone deletes it.
-    </p>
-  }
-
   <p class="lead" i18n>
     Requests sent to this URL show up here instantly, without reloading the page.
   </p>

@@ -62,3 +62,20 @@
     outline-offset: 2px;
   }
 }
+
+:host(.disabled) {
+  .value {
+    color: var(--mat-sys-on-surface-variant);
+    text-decoration: line-through;
+  }
+
+  .link {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .copy {
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    cursor: not-allowed;
+  }
+}

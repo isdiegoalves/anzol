@@ -15,6 +15,7 @@ import {
   compareMatcher,
   inboxMatcher,
   insightsMatcher,
+  malformedMatcher,
   outboundMatcher,
   rulesMatcher,
 } from '../app.routes';
@@ -23,6 +24,7 @@ import { Preferences } from '../settings/preferences';
 import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
 import { TokenActions } from '../token/token-actions';
 import { UrlLock } from '../token/url-lock';
+import { UrlMissing } from '../token/url-missing';
 import { ScreenState } from './screen-state';
 import { Shell } from './shell';
 
@@ -45,6 +47,8 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
           { matcher: insightsMatcher, component: Page },
           { matcher: compareMatcher, component: Page },
           { matcher: inboxMatcher, component: Page },
+          { matcher: malformedMatcher, children: [] },
+          { path: 'share/:shareId', component: Page },
         ]),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -345,6 +349,131 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(screen.queryByRole('dialog', { name: 'Help' })).toBeNull();
   });
 
+  describe('Dado uma URL que não existe (B1, UX-16)', () => {
+    const OTHER = 'c4291aaa-2222-4222-8222-222222222222';
+    const gone = async (url: string) => {
+      const view = await renderAt(url, false);
+      TestBed.inject(UrlMissing).mark(TOKEN_ID);
+      await screen.findByRole('heading', { name: 'This URL no longer exists', level: 1 });
+      return view;
+    };
+
+    it.each([
+      ['a Entrada', `/${TOKEN_ID}`],
+      ['Regras', `/${TOKEN_ID}/rules`],
+      ['o Compare', `/${TOKEN_ID}/compare/${REQUEST}/${REQUEST}`],
+    ])('deve trocar a página de %s pela página única, com o shell em volta', async (_caso, url) => {
+      const { container } = await gone(url);
+
+      expect(screen.queryByText('página da rota')).toBeNull();
+      const main = screen.getByRole('main');
+      expect(main.textContent).toContain('It was deleted, or it expired after 7 days without use.');
+      expect(main.textContent).toContain('Whoever sends to it gets 410 Gone.');
+      expect(within(main).getByRole('button', { name: 'Create a new URL' })).toBeTruthy();
+      expect(document.title).toBe('URL not found · Anzol');
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve mostrar no cabeçalho o endereço pedido, riscado e sem copiar, com o selo "deleted"', async () => {
+      const { container, fixture } = await gone(`/${TOKEN_ID}/checks`);
+      // A URL que o navegador guardava (outra) não aparece no lugar da pedida.
+      TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
+      await fixture.whenStable();
+
+      const address = screen.getByRole('textbox', { name: 'Webhook URL' });
+      expect((address as HTMLInputElement).value).toBe(`${location.origin}/${TOKEN_ID}`);
+      expect(screen.getByRole('button', { name: 'Copy' }).getAttribute('aria-disabled')).toBe(
+        'true',
+      );
+      expect(container.querySelector('app-url-header .gone')?.textContent).toBe('deleted');
+      expect(container.querySelector('app-copy-field')?.classList).toContain('disabled');
+      expect(screen.getByRole('button', { name: /Switch URL$/ })).toHaveProperty('disabled', false);
+      // Nada do que é da URL aberta: nem "Send", nem o menu da URL.
+      expect(screen.queryByRole('button', { name: 'More URL actions' })).toBeNull();
+    });
+
+    it('deve desligar os destinos do rail, focáveis e com a razão', async () => {
+      await gone(`/${TOKEN_ID}/rules`);
+
+      const links = within(sections() as HTMLElement).getAllByRole('link');
+      expect(links).toHaveLength(5);
+      for (const link of links) {
+        expect(link.getAttribute('aria-disabled')).toBe('true');
+        expect(link.hasAttribute('href')).toBe(false);
+        expect(link.tabIndex).toBe(0);
+        const reason = document.getElementById(link.getAttribute('aria-describedby') ?? '');
+        expect(reason?.textContent).toBe('This URL no longer exists');
+      }
+    });
+
+    it('deve abrir o "Create New URL" só Quando "Create a new URL" é clicado', async () => {
+      await gone(`/${TOKEN_ID}`);
+      expect(createUrl).not.toHaveBeenCalled();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Create a new URL' }));
+
+      await vi.waitFor(() => expect(createUrl).toHaveBeenCalledTimes(1));
+    });
+
+    it('deve oferecer "Switch to another URL" só com outra URL na lista, e abrir o seletor', async () => {
+      await gone(`/${TOKEN_ID}`);
+      expect(screen.queryByRole('button', { name: 'Switch to another URL' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Remove from this browser' })).toBeNull();
+
+      TestBed.inject(KnownUrls).opened(OTHER);
+      TestBed.inject(KnownUrls).opened(TOKEN_ID);
+      await userEvent.click(await screen.findByRole('button', { name: 'Switch to another URL' }));
+
+      const menu = await screen.findByRole('menu', { name: 'URLs in this browser' });
+      expect(
+        within(menu)
+          .getAllByRole('menuitemradio')
+          .map((item) => item.getAttribute('aria-label')),
+      ).toEqual([
+        `URL ${TOKEN_ID.slice(0, 5)}, ${TOKEN_ID.slice(0, 5)}, deleted`,
+        expect.stringMatching(/^URL c4291, c4291, opened /),
+      ]);
+      TestBed.inject(ScreenState).switcherOpen.set(false);
+    });
+
+    it('deve tirar a URL da lista do navegador e dizer que tirou', async () => {
+      await gone(`/${TOKEN_ID}`);
+      TestBed.inject(KnownUrls).opened(TOKEN_ID);
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Remove from this browser' }),
+      );
+
+      expect(TestBed.inject(KnownUrls).urls()).toEqual([]);
+      expect(screen.queryByRole('button', { name: 'Remove from this browser' })).toBeNull();
+      expect(screen.getByRole('main').textContent).toContain('Removed from this browser.');
+      expect(document.activeElement).toBe(screen.getByRole('main'));
+    });
+
+    it('deve voltar à página da rota Quando a URL aberta passa a ser outra', async () => {
+      const { fixture } = await gone(`/${TOKEN_ID}/rules`);
+
+      await fixture.debugElement.injector.get(Router).navigateByUrl(`/${OTHER}/rules`);
+      TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
+
+      expect(await screen.findByText('página da rota')).toBeTruthy();
+      expect(screen.queryByRole('heading', { name: 'This URL no longer exists' })).toBeNull();
+    });
+
+    it('deve dizer que o endereço não é um id de URL Quando ele vem malformado, sem redirecionar', async () => {
+      const { fixture } = await renderAt('/12345/rules', false);
+
+      const main = await screen.findByRole('main');
+      expect(main.textContent).toContain('This address is not a valid URL id.');
+      expect(main.textContent).not.toContain('410 Gone');
+      expect(fixture.debugElement.injector.get(Router).url).toBe('/12345/rules');
+      expect(document.title).toBe('URL not found · Anzol');
+      expect((screen.getByRole('textbox', { name: 'Webhook URL' }) as HTMLInputElement).value).toBe(
+        `${location.origin}/12345`,
+      );
+    });
+  });
+
   describe('Dado o título da aba (B1, UX-21)', () => {
     it.each([
       ['Inbox', `/${TOKEN_ID}`],
@@ -377,6 +506,12 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       TestBed.inject(UrlLock).lock(TOKEN_ID);
       await fixture.whenStable();
       expect(document.title).toBe('Locked · Anzol');
+    });
+
+    it('deve ser "Shared request · Anzol" no link só-leitura', async () => {
+      await renderAt('/share/abc', false);
+
+      await vi.waitFor(() => expect(document.title).toBe('Shared request · Anzol'));
     });
 
     it('deve ser "Anzol" Quando nenhuma URL está aberta', async () => {

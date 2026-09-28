@@ -1,5 +1,6 @@
 @let token = tokens.token();
-@let open = token && !locked() ? token : null;
+@let gone = missing();
+@let open = token && !locked() && !gone ? token : null;
 <div class="rail" [class.on-detail]="screen.detailFullscreen()">
   <a class="brand" routerLink="/" aria-label="Anzol" i18n-aria-label title="Anzol" i18n-title>
     <app-icon name="hook" [size]="24" />
@@ -47,14 +48,22 @@
   >
     <app-icon name="plus" [size]="24" />
   </button>
-  @if (open) {
+  @if (open || gone) {
     <nav class="destinations" aria-label="URL sections" i18n-aria-label>
+      @if (gone) {
+        <span id="destination-off" hidden i18n>This URL no longer exists</span>
+      }
       @for (destination of destinations; track destination.label) {
         @let here = current() === destination;
-        @let status = statusOf(destination);
+        @let status = open ? statusOf(destination) : null;
+        <!-- URL inexistente: os destinos ficam desligados, focáveis e com a razão. -->
         <a
           class="destination"
-          [routerLink]="link(destination, open.uuid)"
+          [routerLink]="open ? link(destination, open.uuid) : null"
+          [attr.role]="open ? null : 'link'"
+          [attr.tabindex]="open ? null : 0"
+          [attr.aria-disabled]="open ? null : 'true'"
+          [attr.aria-describedby]="open ? null : 'destination-off'"
           [class.current]="here"
           [attr.aria-current]="here ? 'page' : null"
           [attr.aria-label]="status?.name ?? null"
@@ -100,8 +109,9 @@
   </button>
 </div>
 <div class="workspace">
-  @if (open) {
+  @if (open || gone) {
     <app-url-header
+      [missing]="gone"
       [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()"
       (switchTo)="switchTo($event)"
       (newUrl)="createUrl()"
@@ -109,7 +119,8 @@
   }
   <div class="content">
     <ng-container #unlockHost />
-    @if (!locked()) {
+    <ng-container #missingHost />
+    @if (!locked() && !gone) {
       <router-outlet />
     }
   </div>

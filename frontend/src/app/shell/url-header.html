@@ -1,4 +1,23 @@
-@if (tokens.token(); as token) {
+@if (missing(); as gone) {
+  <!-- URL inexistente (B1): o endereço pedido, riscado, e o seletor para sair dela. -->
+  <app-url-switcher
+    [current]="gone.id"
+    (chosen)="switchTo.emit($event)"
+    (newUrl)="newUrl.emit()"
+    (rename)="renameUrl(gone.id)"
+    (forget)="forgetUrls()"
+  />
+  <app-copy-field
+    class="url"
+    label="Webhook URL"
+    i18n-label
+    [value]="missingUrl()"
+    [disabled]="true"
+  />
+  @if (gone.reason === 'gone') {
+    <span class="gone" i18n="state of a URL in the switcher">deleted</span>
+  }
+} @else if (tokens.token(); as token) {
   <app-url-switcher
     [current]="token.uuid"
     (chosen)="switchTo.emit($event)"

@@ -571,9 +571,6 @@ export const translations: Record<string, string> = {
   '6958916196237326012': 'Sua URL está pronta',
   // Hide this panel while the URL has requests
   '776911038843722187': 'Esconder este painel enquanto a URL tiver requisições',
-  //  The URL {$INTERPOLATION} doesn't exist anymore, so this new one was created. A URL expires after a period without use (7 days by default) or when someone deletes it.
-  '6266008912956111437':
-    ' A URL {$INTERPOLATION} não existe mais, então esta nova foi criada. Uma URL expira depois de um tempo sem uso (7 dias, por padrão) ou quando alguém a apaga. ',
   //  Requests sent to this URL show up here instantly, without reloading the page.
   '7746033190483067356':
     ' As requisições mandadas para esta URL aparecem aqui na hora, sem recarregar a página. ',
@@ -2827,4 +2824,24 @@ export const translations: Record<string, string> = {
   '8369573811157422938': 'Esquecer não apaga a URL no servidor.',
   // Forget
   '4324014649445417243': 'Esquecer',
+  // This URL no longer exists
+  '8039439248004008986': 'Esta URL não existe mais',
+  // URL not found · Anzol
+  '1980921594499245572': 'URL não encontrada · Anzol',
+  // Shared request · Anzol
+  '6258065545959765662': 'Requisição compartilhada · Anzol',
+  // This address is not a valid URL id.
+  '6471129166427164540': 'Este endereço não é um identificador de URL válido.',
+  // It was deleted, or it expired after 7 days without use.
+  '4610501835605438098': 'Ela foi apagada, ou expirou depois de 7 dias sem uso.',
+  // Whoever sends to it gets 410 Gone.
+  '6965947420408597039': 'Quem manda para ela recebe 410 Gone.',
+  // Create a new URL
+  '7786936735789676703': 'Criar uma URL nova',
+  // Removed from this browser.
+  '2163451178499135035': 'Tirada deste navegador.',
+  // Switch to another URL
+  '2071123639523165657': 'Trocar para outra URL',
+  // Remove from this browser
+  '4323343669166253624': 'Tirar deste navegador',
 };

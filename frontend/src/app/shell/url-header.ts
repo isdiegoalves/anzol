@@ -1,4 +1,5 @@
-import { Component, Injector, computed, inject, output } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, Injector, computed, inject, input, output } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
@@ -6,6 +7,7 @@ import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
 import type { TokenActions } from '../token/token-actions';
 import { TokenStore } from '../token/token-store';
+import { MissingUrl } from '../token/url-missing';
 import { CopyField } from '../ui/copy-field';
 import { Icon } from '../ui/icon';
 import { LiveState, LiveStatus } from '../ui/live-status';
@@ -31,13 +33,19 @@ export class UrlHeader {
   private readonly injector = inject(Injector);
   private readonly requests = inject(RequestStore);
   private readonly router = inject(Router);
+  private readonly location = inject(DOCUMENT).location;
   private readonly copyCliCommand = injectCopyCliCommand();
 
+  /** A URL da rota não existe: o cabeçalho mostra o endereço pedido, nunca o de outra URL. */
+  readonly missing = input<MissingUrl | null>(null);
   /** Outra URL escolhida no seletor: o shell a abre no mesmo destino. */
   readonly switchTo = output<string>();
   /** "New URL…" do seletor: o diálogo "Create New URL" de sempre. */
   readonly newUrl = output<void>();
 
+  protected readonly missingUrl = computed(
+    () => `${this.location.protocol}//${this.location.host}/${this.missing()?.id ?? ''}`,
+  );
   protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly signatureLabel = (provider: string) =>

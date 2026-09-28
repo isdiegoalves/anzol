@@ -1,4 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { TestBed } from '@angular/core/testing';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -178,6 +179,25 @@ describe('Dado o bloco de código (app-code-view)', () => {
     const { container } = await render(CodeView, { inputs: { label: 'Request body', text: '' } });
 
     expect(screen.getByText('(no body content)')).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('Dado o campo de copiar desligado (URL que não existe mais)', () => {
+  it('deve riscar o valor e não copiar, com o botão focável e aria-disabled', async () => {
+    const { container } = await render(
+      '<app-copy-field value="http://localhost/abc" label="Webhook URL" [disabled]="true" />',
+      { imports: [CopyField] },
+    );
+    const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy');
+    const button = screen.getByRole('button', { name: 'Copy' });
+
+    await userEvent.click(button);
+
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button).toHaveProperty('disabled', false);
+    expect(copy).not.toHaveBeenCalled();
+    expect(container.querySelector('app-copy-field')?.classList).toContain('disabled');
     await expectNoAxeViolations(container);
   });
 });

@@ -73,7 +73,7 @@
 
 <ng-template #onboarding>
   @if (tokens.token(); as token) {
-    <app-onboarding [url]="tokens.webhookUrl()" [tokenId]="token.uuid" [missing]="missingNote()" />
+    <app-onboarding [url]="tokens.webhookUrl()" [tokenId]="token.uuid" />
   }
 </ng-template>
 

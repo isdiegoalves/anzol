@@ -23,6 +23,7 @@ import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
+import { MissingUrl, UrlMissing } from '../token/url-missing';
 import { Icon } from '../ui/icon';
 import { Menu, MenuItem } from '../ui/menu';
 import { DESTINATIONS, Destination, placeOf } from './destinations';
@@ -59,6 +60,7 @@ export class Shell {
   protected readonly settings = inject(ShellSettings);
   private readonly router = inject(Router);
   private readonly urlLock = inject(UrlLock);
+  private readonly urlMissing = inject(UrlMissing);
   private readonly injector = inject(Injector);
   private readonly clipboard = inject(Clipboard);
   private readonly requests = inject(RequestStore);
@@ -69,6 +71,7 @@ export class Shell {
   private readonly title = inject(Title);
   private readonly copyCliCommand = injectCopyCliCommand();
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
+  private readonly missingHost = viewChild.required('missingHost', { read: ViewContainerRef });
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
 
   protected readonly destinations = DESTINATIONS;
@@ -103,7 +106,34 @@ export class Shell {
     return tokenId !== null && this.place().tokenId === tokenId ? tokenId : null;
   });
 
+  /**
+   * A URL da rota não existe (o servidor disse 410), ou o endereço não é id de URL: a página única
+   * de URL inexistente entra no lugar da página da rota, em qualquer destino (B1).
+   */
+  protected readonly missing = computed<MissingUrl | null>(() => {
+    const { tokenId, first } = this.place();
+    if (!tokenId) {
+      return first && !['share', '_catalog'].includes(first)
+        ? { id: first, reason: 'malformed' }
+        : null;
+    }
+    const missing = this.urlMissing.missing();
+    return missing?.id === tokenId ? missing : null;
+  });
+
   constructor() {
+    effect(async () => {
+      const missing = this.missing();
+      const host = this.missingHost();
+      host.clear();
+      if (missing) {
+        const { UrlMissingPage } = await import('./url-missing-page');
+        if (this.missing() === missing && host.length === 0) {
+          host.createComponent(UrlMissingPage).setInput('missing', missing);
+        }
+      }
+    });
+
     // A tela de desbloqueio vem sob demanda: quem nunca abre uma URL protegida não a baixa.
     effect(async () => {
       const tokenId = this.locked();
@@ -149,7 +179,7 @@ export class Shell {
         help: () => this.sheet.set('help'),
         search: () => this.openSearch(),
         switchUrl: () => {
-          if (this.tokens.token() && !this.locked()) {
+          if ((this.tokens.token() && !this.locked()) || this.missing()) {
             this.screen.switcherOpen.set(true);
           }
         },
@@ -185,12 +215,15 @@ export class Shell {
 
   /** `{destino} · {apelido ou URL xxxxx} · Anzol`, com as não lidas na frente. */
   private readonly pageTitle = computed(() => {
+    if (this.missing()) {
+      return $localize`:browser tab title:URL not found · Anzol`;
+    }
     if (this.locked()) {
       return $localize`:browser tab title:Locked · Anzol`;
     }
-    const { tokenId, destination, compare } = this.place();
+    const { tokenId, destination, compare, first } = this.place();
     if (!tokenId) {
-      return 'Anzol';
+      return first === 'share' ? $localize`:browser tab title:Shared request · Anzol` : 'Anzol';
     }
     const where = compare ? this.compareLabel : destination ? this.label(destination) : null;
     const unread = this.unread() > 0 ? `(${this.unread()}) ` : '';
@@ -250,8 +283,9 @@ export class Shell {
   /** O ⋮ da barra do celular: o que a barra do topo e o cabeçalho da URL deixam de mostrar. */
   protected readonly topActions = computed<MenuItem[]>(() => {
     const token = this.tokens.token();
+    const open = !this.locked() && !this.missing();
     const url: MenuItem[] =
-      token && !this.locked()
+      token && open
         ? [
             {
               label: $localize`:action|Botão que manda a requisição:Send`,
@@ -264,7 +298,7 @@ export class Shell {
           ]
         : [];
     const more: MenuItem[] =
-      token && !this.locked()
+      token && open
         ? [
             {
               label: $localize`Edit URL`,
@@ -347,7 +381,7 @@ export class Shell {
 
   private goTo(destination: Destination | undefined): void {
     const token = this.tokens.token();
-    if (destination && token && !this.locked()) {
+    if (destination && token && !this.locked() && !this.missing()) {
       void this.router.navigate(this.link(destination, token.uuid));
     }
   }

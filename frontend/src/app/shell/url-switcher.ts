@@ -44,7 +44,9 @@ let nextId = 0;
   templateUrl: './url-switcher.html',
   styleUrl: './url-switcher.scss',
   host: {
-    '(document:click)': 'closeOutside($event)',
+    // No `pointerdown`, antes do clique: o botão de fora que abre o seletor ("Switch to another
+    // URL") não o fecha no mesmo gesto.
+    '(document:pointerdown)': 'closeOutside($event)',
     '(keydown)': 'move($event)',
   },
 })
@@ -188,7 +190,7 @@ export class UrlSwitcher {
     }
   }
 
-  protected closeOutside(event: MouseEvent): void {
+  protected closeOutside(event: Event): void {
     if (this.open() && !this.host.contains(event.target as Node)) {
       this.close(false);
     }

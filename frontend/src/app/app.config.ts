@@ -3,6 +3,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.routes';
 import { urlLockInterceptor } from './token/url-lock';
+import { urlMissingInterceptor } from './token/url-missing';
 
 // Sem `MAT_SNACK_BAR_DEFAULT_OPTIONS` aqui: importar o token traria o snackbar e o `Overlay` para o
 // pacote inicial (docs/padroes-angular.md §7). Cada `open()` diz a própria duração.
@@ -11,7 +12,8 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Hash: `/{uuid}` é a URL que recebe webhooks e não pode ser rota da SPA.
     provideRouter(routes, withHashLocation(), withComponentInputBinding()),
-    // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio.
-    provideHttpClient(withInterceptors([urlLockInterceptor])),
+    // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio; 410 (URL que não
+    // existe), pela página única de URL inexistente.
+    provideHttpClient(withInterceptors([urlLockInterceptor, urlMissingInterceptor])),
   ],
 };

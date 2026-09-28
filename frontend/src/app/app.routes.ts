@@ -72,6 +72,16 @@ export function compareMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   return valid ? { consumed: segments, posParams: { tokenId: token, a, b } } : null;
 }
 
+/**
+ * Endereço cujo primeiro segmento não é id de URL (`#/12345/rules`): cai na página única de URL
+ * inexistente, que o shell mostra no lugar da rota (B1). Não redireciona nem cria URL.
+ */
+export function malformedMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  const [first] = segments;
+  const known = !first || UUID.test(first.path) || ['share', '_catalog'].includes(first.path);
+  return known ? null : { consumed: segments };
+}
+
 /** Página que pergunta antes de sair (Rules com alterações não salvas no editor, E-04). */
 interface LeaveGuarded {
   canLeave(): Promise<boolean>;
@@ -118,5 +128,7 @@ export const routes: Routes = [
     path: 'share/:shareId',
     loadComponent: () => import('./share/share-page').then((m) => m.SharePage),
   },
+  // Sem página: o shell põe a de URL inexistente no lugar do `router-outlet`.
+  { matcher: malformedMatcher, children: [] },
   { path: '**', redirectTo: '' },
 ];

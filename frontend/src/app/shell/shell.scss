@@ -134,6 +134,14 @@
   background: var(--mat-sys-surface-container-highest);
 }
 
+.destination[aria-disabled='true'] {
+  cursor: not-allowed;
+
+  .label {
+    text-decoration: line-through;
+  }
+}
+
 .destination.current {
   color: var(--mat-sys-on-surface);
 

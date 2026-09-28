@@ -11,10 +11,10 @@ const TOKEN_ID = '3dbd68f4-8890-4f56-affb-c7c9b297e666';
 const URL = `http://localhost:4200/${TOKEN_ID}`;
 
 describe('Dado o onboarding "Your URL is ready"', () => {
-  const renderWith = (missing: string | null = null) =>
+  const renderWith = () =>
     render(Onboarding, {
       providers: [provideRouter([])],
-      inputs: { url: URL, tokenId: TOKEN_ID, missing },
+      inputs: { url: URL, tokenId: TOKEN_ID },
     });
 
   afterEach(() => {
@@ -83,15 +83,6 @@ describe('Dado o onboarding "Your URL is ready"', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send a test request' }));
 
     expect(await screen.findByText(/Could not send the test request/)).toBeTruthy();
-  });
-
-  it('deve dizer qual URL não existia mais Quando a tela criou esta no lugar dela', async () => {
-    const antiga = '11111111-1111-4111-8111-111111111111';
-    await renderWith(antiga);
-
-    expect(screen.getByText(/doesn't exist anymore/).textContent).toContain(
-      `The URL ${antiga} doesn't exist anymore`,
-    );
   });
 
   it('deve montar o corpo de teste como JSON', () => {

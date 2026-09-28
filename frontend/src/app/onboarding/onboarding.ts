@@ -33,8 +33,6 @@ export class Onboarding {
   /** A URL do webhook (`{origem}/{uuid}`). */
   readonly url = input.required<string>();
   readonly tokenId = input.required<string>();
-  /** A URL pedida que não existia mais e foi trocada por esta (a tela avisa aqui, não num snackbar). */
-  readonly missing = input<string | null>(null);
 
   protected readonly curl = computed(
     () => `curl -X POST -H 'Content-Type: application/json' -d '{"hello":"world"}' ${this.url()}`,

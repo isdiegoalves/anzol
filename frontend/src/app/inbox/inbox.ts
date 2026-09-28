@@ -1,6 +1,5 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -125,14 +124,6 @@ export class Inbox {
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
   protected readonly listWidth = signal(380);
-  /** A URL pedida que não existia mais e a que a tela criou no lugar (C §2.11). */
-  private readonly replaced = signal<{ missing: string; token: string } | null>(null);
-  /** O onboarding da URL criada no lugar diz qual não existia mais. */
-  protected readonly missingNote = computed(() => {
-    const replaced = this.replaced();
-    return replaced && replaced.token === this.tokenId() ? replaced.missing : null;
-  });
-
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
@@ -387,11 +378,9 @@ export class Inbox {
     this.compare.close();
     try {
       await this.tokens.load(tokenId);
-    } catch (error) {
-      // URL protegida sem acesso: a tela de desbloqueio assume (`UrlLock`); não é URL apagada.
-      if (!isProtectedError(error)) {
-        await this.replaceMissingToken(tokenId, error);
-      }
+    } catch {
+      // URL protegida sem acesso: a tela de desbloqueio assume (`UrlLock`). URL que não existe: a
+      // página única de URL inexistente (`UrlMissing`). Nenhuma das duas cria outra URL (B1).
       return false;
     }
     try {
@@ -413,19 +402,6 @@ export class Inbox {
     const token = saved ?? (await this.tokens.create());
     if (!saved) {
       this.requests.resetUnread();
-    }
-    await this.router.navigate(['/', token.uuid], { replaceUrl: true });
-  }
-
-  /**
-   * URL apagada ou inválida: cria outra, como o app atual, e o onboarding dela diz qual não
-   * existia mais e por quê (C §2.11), no lugar do snackbar de 10 s.
-   */
-  private async replaceMissingToken(missing: string, error: unknown): Promise<void> {
-    const token = await this.tokens.create();
-    this.requests.resetUnread();
-    if (error instanceof HttpErrorResponse && (error.status === 404 || error.status === 410)) {
-      this.replaced.set({ missing, token: token.uuid });
     }
     await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
