@@ -41,6 +41,11 @@ export class TokenActions {
     await firstValueFrom(dialog.afterClosed());
   }
 
+  /** "Create a new URL" da página de URL inexistente: sem perguntar nada, como a primeira visita. */
+  async createDefaultUrl(): Promise<void> {
+    await this.create({});
+  }
+
   /** "Rename this URL…" do seletor: o apelido, só neste navegador. */
   async renameUrl(uuid: string): Promise<void> {
     const { renameUrl } = await import('./url-list-dialogs');

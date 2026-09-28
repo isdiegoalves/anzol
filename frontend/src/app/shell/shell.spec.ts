@@ -37,9 +37,11 @@ const REQUEST = '0691864a-71ef-4de5-953b-518660fe6287';
 
 describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
   let createUrl: ReturnType<typeof vi.fn>;
+  let createDefaultUrl: ReturnType<typeof vi.fn>;
 
   const renderAt = async (url: string, withToken = true) => {
     createUrl = vi.fn().mockResolvedValue(undefined);
+    createDefaultUrl = vi.fn().mockResolvedValue(undefined);
     const view = await render(Shell, {
       providers: [
         provideRouter([
@@ -54,7 +56,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
         ]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: TokenActions, useValue: { createUrl } },
+        { provide: TokenActions, useValue: { createUrl, createDefaultUrl } },
       ],
       configureTestBed: (testBed) => {
         if (withToken) {
@@ -620,13 +622,14 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       }
     });
 
-    it('deve abrir o "Create New URL" só Quando "Create a new URL" é clicado', async () => {
+    it('deve criar a URL, sem perguntar nada, só Quando "Create a new URL" é clicado', async () => {
       await gone(`/${TOKEN_ID}`);
-      expect(createUrl).not.toHaveBeenCalled();
+      expect(createDefaultUrl).not.toHaveBeenCalled();
 
       await userEvent.click(screen.getByRole('button', { name: 'Create a new URL' }));
 
-      await vi.waitFor(() => expect(createUrl).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(createDefaultUrl).toHaveBeenCalledTimes(1));
+      expect(createUrl).not.toHaveBeenCalled();
     });
 
     it('deve oferecer "Switch to another URL" só com outra URL na lista, e abrir o seletor', async () => {
@@ -638,7 +641,8 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       TestBed.inject(KnownUrls).opened(TOKEN_ID);
       await userEvent.click(await screen.findByRole('button', { name: 'Switch to another URL' }));
 
-      const menu = await screen.findByRole('menu', { name: 'URLs in this browser' });
+      // O jsdom não tem `matchMedia`: o seletor abre como no celular (folha).
+      const menu = await screen.findByRole('dialog', { name: 'URLs in this browser' });
       expect(
         within(menu)
           .getAllByRole('menuitemradio')

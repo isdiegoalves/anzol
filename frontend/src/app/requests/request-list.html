@@ -21,9 +21,9 @@
   </button>
   <ng-content select="[listTools]" />
 </div>
-<!-- Com filtro ativo fica à vista mesmo com a URL vazia, para dar como limpar o filtro. -->
+<!-- À vista também na URL vazia: "Search requests" leva o foco a ela em todo destino (UX-11). -->
 <!-- No modo Compare (RULES-35), a lista só escolhe a B: sem a busca. -->
-@if ((store.hasRequests() || store.filtering()) && !compare.pair()) {
+@if (!compare.pair()) {
   <app-request-search class="search" />
 }
 <app-compare-band />

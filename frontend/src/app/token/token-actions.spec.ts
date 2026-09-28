@@ -190,6 +190,20 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
       });
     });
 
+    it('deve criar a URL com a resposta padrão e abri-la, sem diálogo, em "Create a new URL"', async () => {
+      const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+
+      const done = TestBed.inject(TokenActions).createDefaultUrl();
+      const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/token' }));
+      expect(call.request.body).toEqual({});
+      call.flush(token({ uuid: 'novo' }));
+      await done;
+
+      expect(open).not.toHaveBeenCalled();
+      expect(navigate).toHaveBeenCalledWith(['/', 'novo']);
+      expect(snack).toHaveBeenCalledWith('New URL created', undefined, { duration: 4000 });
+    });
+
     it('não deve apagar nada Quando a confirmação é cancelada', async () => {
       TestBed.inject(Preferences).token.set(token());
       confirm(false);

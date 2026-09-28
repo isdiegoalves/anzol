@@ -56,10 +56,10 @@ export class UrlMissingPage {
   );
   protected readonly note = signal('');
 
-  /** O "Create New URL" de sempre; a URL nova abre no lugar desta página. */
+  /** A pessoa pediu: cria a URL (com a resposta padrão de sempre) e a abre no lugar desta página. */
   protected async create(): Promise<void> {
     const { TokenActions } = await import('../token/token-actions');
-    await this.injector.get(TokenActions).createUrl();
+    await this.injector.get(TokenActions).createDefaultUrl();
   }
 
   protected switchUrl(): void {

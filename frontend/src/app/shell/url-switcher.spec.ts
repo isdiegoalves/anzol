@@ -36,9 +36,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
   };
   const trigger = () => screen.getByRole('button', { name: /Switch URL$/ });
   const items = () =>
-    within(screen.getByRole('menu', { name: 'URLs in this browser' }))
-      .getAllByRole('menuitemradio')
-      .map((item) => item.getAttribute('aria-label'));
+    screen.getAllByRole('menuitemradio').map((item) => item.getAttribute('aria-label'));
 
   beforeEach(() => {
     localStorage.clear();
@@ -92,7 +90,12 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
       'Rename this URL…',
       'Forget a URL…',
     ]);
-    expect(screen.getByText('Kept only in this browser.')).toBeTruthy();
+    // O rodapé e a busca ficam dentro do menu.
+    expect(
+      within(screen.getByRole('menu', { name: 'URLs in this browser' })).getByText(
+        'Kept only in this browser.',
+      ),
+    ).toBeTruthy();
     // Sem busca com menos de 8 URLs.
     expect(screen.queryByRole('searchbox')).toBeNull();
     await vi.waitFor(() => expect(document.activeElement).toBe(aberta));
@@ -175,7 +178,12 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     await show([url(A, 'Pagamentos', 0), ...muitas]);
     await userEvent.click(trigger());
 
-    const busca = screen.getByRole('searchbox', { name: 'Find a URL' });
+    // Um campo não cabe num `menu`: com a busca, a caixa é um `dialog` (não modal) com o menu dentro.
+    const caixa = screen.getByRole('dialog', { name: 'URLs in this browser' });
+    expect(caixa.hasAttribute('aria-modal')).toBe(false);
+    expect(within(caixa).getByRole('menu', { name: 'Choose a URL' })).toBeTruthy();
+    const busca = within(caixa).getByRole('searchbox', { name: 'Find a URL' });
+    await expectNoAxeViolations(document.body);
     await userEvent.type(busca, 'loja 3');
     expect(items()).toEqual(['Loja 3, 30000, opened 4 minutes ago']);
 
@@ -218,6 +226,9 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
 
     const folha = screen.getByRole('dialog', { name: 'URLs in this browser' });
     expect(folha.getAttribute('aria-modal')).toBe('true');
+    // Um só elemento com o nome "URLs in this browser": o menu de dentro tem outro.
+    expect(within(folha).getByRole('menu', { name: 'Choose a URL' })).toBeTruthy();
+    expect(screen.queryByRole('menu', { name: 'URLs in this browser' })).toBeNull();
     const fechar = within(folha).getByRole('button', { name: 'Close' });
     const ultimo = within(folha).getByRole('menuitem', { name: /^Forget a URL/ });
     ultimo.focus();

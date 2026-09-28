@@ -12,7 +12,7 @@ import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { NO_FILTER } from './request-filter';
-import { RequestSearch } from './request-search';
+import { RESULT_ANNOUNCE_MS, RequestSearch } from './request-search';
 import { WaitFor } from './wait-for';
 
 const searchUrl = `/token/${TOKEN_ID}/requests/search`;
@@ -231,7 +231,9 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
   it('deve dizer só o resultado, uma vez, depois que os filtros param de mudar', async () => {
     await openPanel();
     await userEvent.click(chip('POST'));
-    // A busca ainda não voltou: nada de "Searching…", e a região segue vazia.
+    // A busca ainda não voltou: nada de "Searching…", e a região segue vazia, demore o que demorar.
+    expect(regions()).toEqual(['', '']);
+    await new Promise((resolve) => setTimeout(resolve, RESULT_ANNOUNCE_MS + 100));
     expect(regions()).toEqual(['', '']);
     searches()[0].flush(requestPage(THREE.slice(0, 2), { total: 2 }));
     await new Promise((resolve) => setTimeout(resolve, 100));

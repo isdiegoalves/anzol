@@ -473,9 +473,9 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()[0].classList.contains('fresh')).toBe(true);
   });
 
-  it('deve mostrar a busca acima da lista Quando a URL tem mensagens', async () => {
+  it('deve mostrar a busca acima da lista, também na URL vazia (UX-11)', async () => {
     await load([]);
-    expect(element().querySelector('app-request-search')).toBeNull();
+    expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();
 
     await load([webhookRequest(1)]);
     expect(element().querySelector('app-request-search [role="search"]')).not.toBeNull();

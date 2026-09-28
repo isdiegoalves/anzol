@@ -73,11 +73,18 @@ export class UrlSwitcher {
   /** Celular: folha inferior modal, com "Close". */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
   protected readonly available = this.known.available;
+  /**
+   * O painel é o próprio `menu`, salvo quando leva mais que itens de menu: a folha do celular (com
+   * "Close") e a lista com busca. Aí ele é um `dialog` com o menu dentro.
+   */
+  protected readonly boxed = computed(() => this.compact() || this.searchable());
 
   protected readonly name = computed(() => this.known.nameOf(this.current()));
   /** O nome acessível começa pelo rótulo visível (WCAG 2.5.3). */
   protected readonly triggerLabel = computed(() => $localize`${this.name()}:name:. Switch URL`);
   protected readonly triggerHint = $localize`Switch URL (U)`;
+  protected readonly menuLabel = $localize`URLs in this browser`;
+  protected readonly chooseLabel = $localize`Choose a URL`;
 
   /** A aberta primeiro; as outras pela última abertura. */
   private readonly entries = computed<Entry[]>(() => {

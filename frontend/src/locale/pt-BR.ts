@@ -2887,4 +2887,6 @@ export const translations: Record<string, string> = {
   '8338815686281471068': 'O servidor não respondeu. Nada foi alterado.',
   // Could not open {$destination}
   '5572606818235964803': 'Não deu para abrir {$destination}',
+  // Choose a URL
+  '4989615607784125989': 'Escolher uma URL',
 };

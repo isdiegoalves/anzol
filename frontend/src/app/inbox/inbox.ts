@@ -147,6 +147,8 @@ export class Inbox {
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A maior `seq` que a tela já viu nesta URL: de onde a volta da conexão retoma. */
+  private lastSeq = 0;
 
   constructor() {
     // O detalhe em tela cheia (um painel por vez) tira o cartão da URL e a barra do topo (INBOX-30).
@@ -184,6 +186,16 @@ export class Inbox {
           });
         }
       });
+    });
+
+    effect(() => {
+      const seen = this.requests.requests().map((request) => request.seq ?? 0);
+      this.lastSeq = Math.max(this.lastSeq, ...seen);
+    });
+    effect(() => {
+      // Outra URL: a contagem recomeça.
+      this.tokenId();
+      this.lastSeq = 0;
     });
 
     // A conexão voltou: o que chegou no intervalo entra na lista e na pílula, sem mover nada.
@@ -459,23 +471,29 @@ export class Inbox {
     if (!this.listReady()) {
       return;
     }
+    if (this.lastSeq === 0) {
+      // Mensagens antigas, sem `seq`: relê o que a lista mostra.
+      if (this.requests.filtering()) {
+        this.searchRefresh.next();
+      } else {
+        await this.requests.reload();
+      }
+      return;
+    }
+    const { data, total } = await this.requests.arrivedAfter(this.lastSeq);
+    for (const request of data.filter((arrived) => !this.listed(arrived.uuid))) {
+      if (this.requests.filtering()) {
+        // Só a busca diz se ela casa: conta agora, e a busca é refeita em seguida.
+        this.requests.countArrival(request, total);
+      } else {
+        this.requests.append(request, total);
+      }
+      this.lastSeq = Math.max(this.lastSeq, request.seq ?? 0);
+      this.list()?.receive(request, false);
+      this.announceArrival();
+    }
     if (this.requests.filtering()) {
       this.searchRefresh.next();
-      return;
-    }
-    const seq = Math.max(0, ...this.requests.requests().map((request) => request.seq ?? 0));
-    if (seq === 0 && this.requests.hasRequests()) {
-      // Mensagens antigas, sem `seq`: relê a primeira página.
-      await this.requests.reload();
-      return;
-    }
-    const { data, total } = await this.requests.arrivedAfter(seq);
-    for (const request of data) {
-      if (!this.listed(request.uuid)) {
-        this.requests.append(request, total);
-        this.list()?.receive(request, false);
-        this.announceArrival();
-      }
     }
   }
 

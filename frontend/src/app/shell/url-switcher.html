@@ -21,8 +21,10 @@
   <div
     class="panel"
     [class.sheet]="compact()"
-    [attr.role]="compact() ? 'dialog' : null"
+    [id]="id"
+    [attr.role]="boxed() ? 'dialog' : 'menu'"
     [attr.aria-modal]="compact() ? 'true' : null"
+    [attr.aria-label]="compact() ? null : menuLabel"
     [attr.aria-labelledby]="compact() ? id + '-title' : null"
   >
     @if (compact()) {
@@ -52,13 +54,12 @@
         (input)="search($event)"
       />
     }
+    <!-- Na folha do celular e com a busca (um campo não cabe num `menu`), "URLs in this browser" é
+         o nome da caixa, e o menu de dentro tem o dele. -->
     <div
       class="menu"
-      role="menu"
-      tabindex="-1"
-      [id]="id"
-      aria-label="URLs in this browser"
-      i18n-aria-label
+      [attr.role]="boxed() ? 'menu' : 'none'"
+      [attr.aria-label]="boxed() ? chooseLabel : null"
     >
       @for (entry of shown(); track entry.uuid) {
         <button
@@ -91,7 +92,7 @@
         <span class="name" i18n>Forget a URL…</span>
       </button>
     </div>
-    <p class="foot">
+    <p class="foot" role="none">
       @if (available()) {
         <span i18n>Kept only in this browser.</span>
       } @else {

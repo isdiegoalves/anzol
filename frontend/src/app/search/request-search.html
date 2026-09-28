@@ -45,7 +45,7 @@
   @if (active().length > 0) {
     <ul class="active" aria-label="Active filters" i18n-aria-label>
       @for (item of active(); track item.label) {
-        <li class="item">
+        <li class="on">
           <span class="label">{{ item.label }}</span>
           <button
             type="button"

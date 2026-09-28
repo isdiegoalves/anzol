@@ -22,7 +22,7 @@ import { Component, input } from '@angular/core';
     }
 
     :host(.empty) {
-      display: contents;
+      position: absolute;
     }
   `,
   host: {
