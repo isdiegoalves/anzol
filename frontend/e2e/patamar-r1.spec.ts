@@ -35,8 +35,9 @@ import { readStorage, seedStorage } from './support/storage';
 // - SUPOSIÇÃO: a conferência considera "chegou antes" com a hora real das requisições; o teste manda as três em
 //   sequência, sem espera (intervalo de 0 ou 1 s, contra 5 s pedidos), e espera 2,3 s entre elas no caso em que a
 //   espera de 1 s é respeitada.
-// - SUPOSIÇÃO: no celular a barra mostra "Replay…" e "Create rule" (INBOX-33); o "Copy payload" pode estar nela ou no
-//   More, e o teste não fixa.
+// - Decisões do orquestrador (2026-09-28): o modelo "Fail N times, then accept" abre o roteiro (o diálogo "Sequence"
+//   fica só no "Sequence…" da aba Scenario); no celular a barra tem "Replay…", "Create rule", "Copy payload" e o
+//   More.
 
 const RECEIVER_HOST = process.env['E2E_RECEIVER_HOST'] ?? 'host.docker.internal';
 const BARRA = [
@@ -139,7 +140,7 @@ test.describe('Dado a barra de ações do detalhe (§5.3, INBOX-19)', () => {
     });
   }
 
-  test('deve mostrar "Replay…", "Create rule" e o More na barra do celular', async ({
+  test('deve mostrar "Replay…", "Create rule", "Copy payload" e o More na barra do celular', async ({
     page,
     tokens,
   }) => {
@@ -153,6 +154,9 @@ test.describe('Dado a barra de ações do detalhe (§5.3, INBOX-19)', () => {
     await expect(
       acoes(page).getByRole('button', { name: 'Create rule from this request' }),
     ).toBeVisible();
+    // Decisão do orquestrador (2026-09-28): "Copy payload" continua na barra do celular (fidelidade ao protótipo).
+    await expect(acoes(page).getByRole('button', { name: 'Copy payload' })).toBeVisible();
+    await expect(acoes(page).getByRole('button')).toHaveCount(3);
     await detalhe(page)
       .getByRole('button', { name: /^More(:|$)/ })
       .click();
