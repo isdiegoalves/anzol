@@ -862,10 +862,11 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
 - **Perto do teto de 32 KB de cabeçalhos** (N4): ~31,5 KB dá 400 no nginx e 200 no novo; `TRACE`
   sai com o envelope do app em vez da página 405 do nginx.
 
-- **Validação para cliente não JSON** (sem `Accept: application/json`, sem `X-Requested-With`):
-  o Laravel devolve 302 para a home com os erros na sessão. É artefato do formulário web do
-  Laravel; nenhum cliente da API depende disso. Note que corpo `application/json` sem `Accept`
-  também cai no 302 (a validação olha `expectsJson`, não o Content-Type).
+- **Corpo HTML do 302 da validação para cliente que não manda JSON** (formulário ou query string,
+  sem `Accept: application/json` e sem `X-Requested-With`): o Laravel devolvia 302 para a página
+  anterior com os erros na sessão. O status e o `Location` passaram a ser fixados como guarda em
+  `token-json.spec.ts`; a página do corpo fica fora. O pedido com `Content-Type` JSON saiu desta
+  exclusão: recebe 422 (ver "Mudanças de comportamento decididas pelo dono").
 - **Corpo HTML das páginas de erro**, e os campos de depuração do envelope JSON (`exception`,
   `trace`, `file`, `line`, presentes porque o app roda com `APP_DEBUG=true`).
 - **Status 1xx pelo caminho** (`/{token}/100`, `/{token}/199`): o app responde uma resposta
