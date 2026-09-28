@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
-import site.webhook.http.legacyInput
+import site.webhook.http.requireJsonObject
 import site.webhook.telemetry.WebhookTelemetry
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
@@ -40,8 +40,8 @@ class UnlockController(
 ) {
     /**
      * `{"secret": "..."}`. Certo: 204 com o cookie. Errado: 401. Acima de 10 falhas no minuto (somando cabeçalho e
-     * MCP): 429 com `Retry-After`. Sem `secret` em texto: 422. URL sem proteção: 204 sem cookie (não há o que
-     * desbloquear). URL inexistente: 410.
+     * MCP): 429 com `Retry-After`. Sem `secret` em texto: 422. Corpo JSON que não é objeto: 400. URL sem proteção:
+     * 204 sem cookie (não há o que desbloquear). URL inexistente: 410.
      */
     @WithoutReadAccess
     @PostMapping("/unlock")
@@ -50,7 +50,7 @@ class UnlockController(
         request: HttpServletRequest,
     ): ResponseEntity<Any> {
         val token = tokens.findOrGone(tokenId)
-        return when (val secret = request.legacyInput().inputBag()["secret"]) {
+        return when (val secret = request.requireJsonObject().inputBag()["secret"]) {
             null, "" -> unprocessable("The secret field is required.")
             !is String -> unprocessable("The secret must be a string.")
             else -> if (token.isProtected()) answer(request, token, access.verify(token, secret)) else noContent()

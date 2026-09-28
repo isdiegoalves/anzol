@@ -18,7 +18,7 @@ import site.webhook.UUID_PATTERN
 import site.webhook.capture.RequestStore
 import site.webhook.capture.findOrNotFound
 import site.webhook.http.PHP_DEFAULT_CONTENT_TYPE
-import site.webhook.http.legacyInput
+import site.webhook.http.requireJsonObject
 import site.webhook.rules.Parsed
 import site.webhook.telemetry.WebhookTelemetry
 import site.webhook.token.Token
@@ -166,7 +166,7 @@ class ShareController(
     ): ResponseEntity<Any> {
         val token = tokens.findOrGone(tokenId)
         requests.findOrNotFound(token, requestId)
-        return when (val parsed = parseShareRequest(request.legacyInput().inputBag())) {
+        return when (val parsed = parseShareRequest(request.requireJsonObject().inputBag())) {
             is Parsed.Valid -> create(token, requestId, parsed.value)
             is Parsed.Invalid -> unprocessable(parsed.errors)
         }

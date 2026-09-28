@@ -27,9 +27,12 @@ data class ErrorDetail(
 const val MALFORMED_JSON_MESSAGE = "The body must be a valid JSON object."
 
 /**
- * Recusa (400, no envelope de erro) o pedido com `Content-Type` JSON cujo corpo não é um objeto JSON, antes de
- * qualquer leitura ou gravação: lido como entrada vazia, o `POST /token` criaria com os padrões e o `PUT` voltaria a
- * URL inteira aos padrões.
+ * O ponto único por onde uma rota de gestão lê os campos do corpo ([LegacyInput.inputBag]). Recusa (400, no envelope
+ * de erro) o pedido com `Content-Type` JSON cujo corpo não é um objeto JSON, antes de qualquer leitura ou gravação:
+ * lido como entrada vazia, o `POST /token` criaria com os padrões, o `PUT` voltaria a URL inteira aos padrões e o
+ * link só-leitura nasceria com os padrões. As rotas que leem o corpo cru e o validam por conta própria (regras, busca,
+ * espera, envio, IA) respondem o 422 delas. O `MalformedJsonCoverageApiTest` percorre os mapeamentos para provar que
+ * nenhuma rota aceita JSON quebrado.
  */
 fun HttpServletRequest.requireJsonObject(): LegacyInput =
     legacyInput().also { if (it.malformedJson) throw ResponseStatusException(HttpStatus.BAD_REQUEST, MALFORMED_JSON_MESSAGE) }
