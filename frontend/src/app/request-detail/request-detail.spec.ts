@@ -42,6 +42,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     windowClass.set('large');
   });
 
@@ -361,9 +362,12 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       await userEvent.click(explainButton());
       await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).toBeNull());
 
+      // Reaberto, o painel mostra a explicação guardada, sem outro pedido (B4).
       await userEvent.click(explainButton());
-      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({ explanation: 'x' });
-      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).not.toBeNull());
+      await vi.waitFor(() =>
+        expect(container.querySelector('app-explain-panel app-markdown')?.textContent).toBe('x'),
+      );
+      http.expectNone(explainUrl(request));
       fixture.componentRef.setInput('request', webhookRequest(7));
       await fixture.whenStable();
       expect(container.querySelector('app-explain-panel')).toBeNull();

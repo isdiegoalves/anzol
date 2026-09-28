@@ -62,9 +62,13 @@
     [disabled]="!canSuggest()"
     [attr.aria-describedby]="disabled() ? 'suggest-off' : null"
     (click)="suggest()"
-    i18n
   >
-    Suggest
+    <!-- Depois do 429 o botão é o "Try again", desligado até a contagem acabar (UX-52). -->
+    @if (limited()) {
+      <ng-container i18n>Try again</ng-container>
+    } @else {
+      <ng-container i18n>Suggest</ng-container>
+    }
   </button>
 </div>
 <!-- A espera: a região viva existe desde que o bloco abre, vazia (§4.3). -->

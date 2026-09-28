@@ -7,12 +7,6 @@ import { Rule } from '../rules/rule';
 /** Razão dos controles de IA desligados: o servidor respondeu 503 "not configured". */
 export const AI_OFF_HINT = $localize`This server has no local AI.`;
 
-/**
- * A frase fixa de antes da B4, ainda usada pelo painel Explain da Entrada até ele trocar pela espera
- * do `app-ai-wait`.
- */
-export const AI_WAIT_HINT = $localize`Asking the local model… The first call can take up to ~30 s while the model loads.`;
-
 /** Documentação de como ligar a IA local, para quem opera o servidor. */
 export const AI_DOCS_URL = 'https://github.com/isdiegoalves/anzol#ia-local';
 
@@ -27,7 +21,8 @@ const TIMINGS_KEPT = 5;
 export const AI_TIMEOUT_SECONDS = 90;
 
 const OFF_KEY = 'anzol.ai.off';
-const TIMING_KEY = (kind: AiKind) => `anzol.ai.timing.${kind}`;
+/** Fora do prefixo `anzol.ai.`, que é o das explicações guardadas na aba. */
+const TIMING_KEY = (kind: AiKind) => `anzol.aiTiming.${kind}`;
 /** Chave da explicação guardada (guia da combinação, §4.1). */
 export const EXPLANATION_KEY = (tokenId: string, requestId: string, lang: string) =>
   `anzol.ai.${tokenId}.${requestId}.${lang}`;

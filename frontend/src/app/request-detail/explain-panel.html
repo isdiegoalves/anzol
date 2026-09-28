@@ -1,26 +1,52 @@
-<section class="panel" aria-label="Explanation" i18n-aria-label>
-  <header class="title">
-    <h3 i18n>Explain</h3>
-    <span i18n class="note"
-      >Written by the local model; check the facts before acting on them.</span
-    >
-  </header>
-  @if (loading()) {
-    <p class="wait" role="status">{{ waitHint }}</p>
+<div class="panel">
+  <h3 i18n>Explain</h3>
+  <!-- O que as verificações dizem fica fora da região da explicação do modelo. -->
+  @if (checks().length > 0) {
+    <h4 i18n>What the checks say</h4>
+    <ul class="checks">
+      @for (line of checks(); track $index) {
+        <li>{{ line }}</li>
+      }
+    </ul>
   }
-  @if (errors().length > 0) {
-    <div role="alert">
-      <ul class="errors">
-        @for (message of errors(); track $index) {
-          <li>{{ message }}</li>
-        }
-      </ul>
-    </div>
-    @if (!disabled()) {
-      <button i18n mat-stroked-button type="button" (click)="retry()">Try again</button>
+  <section aria-label="Explanation" i18n-aria-label>
+    <header class="title">
+      <h4 i18n>Explanation by the local model</h4>
+      <span i18n class="note"
+        >Written by the local model; check the facts before acting on them.</span
+      >
+    </header>
+    <!-- A espera: a região viva existe desde que o painel abre, vazia (§4.3). -->
+    <app-ai-wait
+      [kind]="'explain'"
+      [waiting]="waiting()"
+      [outcome]="outcome()"
+      (cancelled)="cancel()"
+    />
+    @if (disabled()) {
+      <!-- IA desligada: a razão à vista e, para quem opera o servidor, como ligar. -->
+      <p class="off">
+        {{ offHint }}
+        <a [href]="docsUrl" target="_blank" rel="noopener" i18n>How to turn it on</a>
+      </p>
+    } @else if (errors().length > 0) {
+      <div role="alert">
+        <ul class="errors">
+          @for (message of errors(); track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+      <button i18n mat-stroked-button type="button" (click)="askAgain()">Try again</button>
+    } @else if (cancelled()) {
+      <button i18n mat-stroked-button type="button" (click)="askAgain()">Ask again</button>
     }
-  }
-  @if (explanation(); as text) {
-    <app-markdown class="text" [text]="text" />
-  }
-</section>
+    @if (kept(); as answer) {
+      <app-markdown class="text" [text]="answer.explanation" />
+      <p class="answered">
+        {{ answered() }}
+        <button i18n mat-button type="button" (click)="askAgain()">Ask again</button>
+      </p>
+    }
+  </section>
+</div>

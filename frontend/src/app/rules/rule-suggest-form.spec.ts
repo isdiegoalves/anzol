@@ -384,7 +384,10 @@ describe('Dado o "Describe the rule"', () => {
       (await post()).flush({ rule: rule(8), explanation: '', attempts: 1, check: CHECK });
     });
 
-    it('deve segurar o "Suggest" com a contagem à vista Quando a IA responde 429 (UX-52)', async () => {
+    it('deve trocar o "Suggest" por "Try again", com a contagem à vista, Quando a IA responde 429 (UX-52)', async () => {
+      const again = () => loader.getHarness(MatButtonHarness.with({ text: 'Try again' }));
+      const off = async (button: MatButtonHarness) =>
+        (await (await button.host()).getAttribute('aria-disabled')) === 'true';
       vi.useFakeTimers({ shouldAdvanceTime: true });
       const element = await render();
       await describeRule('x');
@@ -401,11 +404,15 @@ describe('Dado o "Describe the rule"', () => {
       const countdown = element.querySelector('.countdown') as HTMLElement;
       expect(text(countdown)).toBe('3 s');
       expect(countdown.getAttribute('aria-hidden')).toBe('true');
-      expect(await suggestOff()).toBe(true);
+      expect(await off(await again())).toBe(true);
       await vi.advanceTimersByTimeAsync(3000);
 
       expect(element.querySelector('.countdown')).toBeNull();
-      expect(await suggestOff()).toBe(false);
+      expect(await off(await again())).toBe(false);
+      // Pedido de novo, o botão volta a ser o "Suggest".
+      await (await again()).click();
+      (await post()).flush({ rule: rule(8), explanation: '', attempts: 1, check: CHECK });
+      await vi.waitFor(async () => expect(await suggestOff()).toBe(false));
     });
   });
 

@@ -2,9 +2,6 @@
 // Chaves: os ids de `messages.json`, gerado por `npx ng extract-i18n`; o comentário é o texto
 // em inglês. Placeholders ({$…}) e ICU iguais aos da fonte; o locale.spec.ts confere.
 export const translations: Record<string, string> = {
-  // Asking the local model… The first call can take up to ~30 s while the model loads.
-  '7864755981149570932':
-    'Consultando o modelo local… A primeira chamada pode levar até ~30 s enquanto o modelo carrega.',
   // The AI call failed (unknown).
   '2216355350989627843': 'A chamada à IA falhou (desconhecido).',
   // The local model did not answer{$PH}
@@ -1272,8 +1269,6 @@ export const translations: Record<string, string> = {
     ' A descrição cita esta URL. O caminho da regra é só o que vem depois de /{$INTERPOLATION}: descreva como /payments, não como a URL inteira. ',
   // Use the open request as example ({$INTERPOLATION})
   '6865598316148725689': 'Usar a requisição aberta como exemplo ({$INTERPOLATION})',
-  //  Suggest
-  '159796731387745428': ' Sugerir ',
   // Suggestion errors
   '7525535972409983324': 'Erros da sugestão',
   // Suggestion
@@ -3011,4 +3006,24 @@ export const translations: Record<string, string> = {
   '9033191985661609231': 'Entra na posição {$position} de {$total}.',
   // You asked for steps in sequence. One rule cannot do that.
   '1340771433969030793': 'Você pediu passos em sequência. Uma regra só não faz isso.',
+  // What the checks say
+  '5491324759980656309': 'O que as verificações dizem',
+  // Explanation by the local model
+  '6685975473562896761': 'Explicação do modelo local',
+  // Ask again
+  '3455113651738349214': 'Perguntar de novo',
+  // Explanation for #{$id} is ready.
+  '242311052496414437': 'A explicação da #{$id} está pronta.',
+  // Open
+  '1892281640132108689': 'Abrir',
+  // Answered with the network fault {$fault}.
+  '4187134368516566005': 'Respondida com a falha de rede {$fault}.',
+  // Answered {$status} with the default response.
+  '7557983095218865496': 'Respondida com {$status} pela resposta padrão.',
+  // Answered at {$time}, in {$seconds} s.
+  '4792786251807402944': 'Respondida às {$time}, em {$seconds} s.',
+  // Explanation ready.
+  '1232550950075785189': 'Explicação pronta.',
+  // Suggest
+  '5320136382998259826': 'Sugerir',
 };

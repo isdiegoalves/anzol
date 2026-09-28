@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -220,6 +221,8 @@ export class RuleSuggestForm {
   protected readonly disabled = this.ai.disabled;
   /** Segundos até poder pedir de novo depois do 429 da IA (UX-52); 0 libera. */
   protected readonly retryIn = signal(0);
+  /** O último pedido bateu no limite (429): o botão é o "Try again" até pedir de novo. */
+  protected readonly limited = signal(false);
   protected readonly canSuggest = computed(() => {
     const length = this.prompt().trim().length;
     return (
@@ -282,6 +285,7 @@ export class RuleSuggestForm {
       return;
     }
     this.loading.set(true);
+    this.limited.set(false);
     this.proposal.set(null);
     this.request = new AbortController();
     try {
@@ -298,6 +302,7 @@ export class RuleSuggestForm {
       // Cancelado: a tela fica como antes; quem avisa é a região da espera.
       if (!(error instanceof AiCancelled)) {
         this.errors.set(aiErrorMessages(error));
+        this.limited.set(error instanceof HttpErrorResponse && error.status === 429);
         this.waitToRetry(aiRetrySeconds(error));
       }
     } finally {

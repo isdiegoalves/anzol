@@ -41,7 +41,7 @@ describe('Dado a espera de um pedido de IA (B4, UX-42)', () => {
   });
 
   it('deve usar a mediana das últimas chamadas deste navegador', async () => {
-    localStorage.setItem('anzol.ai.timing.explain', '[12, 14, 40]');
+    localStorage.setItem('anzol.aiTiming.explain', '[12, 14, 40]');
 
     await show({ kind: 'explain', waiting: true });
 
@@ -74,6 +74,24 @@ describe('Dado a espera de um pedido de IA (B4, UX-42)', () => {
 
     expect(cancelled).toHaveBeenCalledTimes(1);
     expect(progress().textContent).toBe('Cancelled. Nothing was changed.');
+  });
+
+  it('deve cancelar com Esc antes de quem já escutava o teclado, que recebe o evento tratado', async () => {
+    // O editor de regra escuta o `keydown` do documento desde antes e fecharia com o mesmo Esc.
+    const earlier = vi.fn((event: KeyboardEvent) => event.defaultPrevented);
+    document.addEventListener('keydown', earlier);
+    const { fixture } = await show({ kind: 'suggest', waiting: true });
+    const cancelled = vi.fn();
+    fixture.componentInstance.cancelled.subscribe(cancelled);
+    const field = document.body.appendChild(document.createElement('textarea'));
+    field.focus();
+
+    await userEvent.keyboard('{Escape}');
+    document.removeEventListener('keydown', earlier);
+    field.remove();
+
+    expect(cancelled).toHaveBeenCalledTimes(1);
+    expect(earlier.mock.results.map(({ value }) => value as boolean)).toEqual([true]);
   });
 
   it('deve dizer o desfecho que a tela pede Quando o pedido termina', async () => {

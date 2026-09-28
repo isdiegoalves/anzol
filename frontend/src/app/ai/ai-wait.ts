@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -38,10 +39,10 @@ import { AiClient, AiKind } from './ai-client';
     </div>
   `,
   styleUrl: './ai-wait.scss',
-  host: { '(document:keydown.escape)': 'cancelByKey($event)' },
 })
 export class AiWait {
   private readonly ai = inject(AiClient);
+  private readonly document = inject(DOCUMENT);
 
   readonly kind = input.required<AiKind>();
   /** O pedido está em curso. */
@@ -73,7 +74,14 @@ export class AiWait {
         this.timer = setInterval(() => this.elapsed.update((seconds) => seconds + 1), 1000);
       }
     });
-    inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
+    // Na captura: o editor de regra escuta o `keydown` do documento desde antes e fecharia com o
+    // mesmo Esc; assim ele recebe o evento já tratado.
+    const byKey = (event: KeyboardEvent) => this.cancelByKey(event);
+    this.document.addEventListener('keydown', byKey, true);
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(this.timer);
+      this.document.removeEventListener('keydown', byKey, true);
+    });
   }
 
   protected cancel(): void {
@@ -82,8 +90,8 @@ export class AiWait {
   }
 
   /** `Esc` durante a espera é "Cancel" (e não fecha mais nada). */
-  protected cancelByKey(event: Event): void {
-    if (this.waiting() && !event.defaultPrevented) {
+  private cancelByKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.waiting() && !event.defaultPrevented) {
       event.preventDefault();
       this.cancel();
     }
