@@ -149,6 +149,21 @@ function sugestao(dialog: Locator): Locator {
     .or(dialog.getByRole('status', { name: 'Suggestion' }));
 }
 
+/** `status "AI progress"`: a região viva da espera da IA (patamar, B4). */
+function andamento(page: Page): Locator {
+  return page.getByRole('status', { name: 'AI progress' });
+}
+
+/**
+ * Patamar, B4 (guia-combinacao §3.4 e §7): as conferências da sugestão terminam antes de os botões de aplicar ficarem
+ * disponíveis (o botão fica `aria-disabled` por menos de 1 s); espera por isso e aplica tudo.
+ */
+async function aplicarTudo(dialog: Locator): Promise<void> {
+  const aplicar = sugestao(dialog).getByRole('button', { name: 'Apply all' });
+  await expect(aplicar).not.toHaveAttribute('aria-disabled', 'true');
+  await aplicar.click();
+}
+
 async function newRuleDialog(page: Page, tokenId: string) {
   await abrirRegras(page, tokenId);
   return novaRegra(page);
@@ -175,11 +190,12 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await (await descrever(dialog)).fill(prompt);
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
-    await expect(dialog.getByRole('status').filter({ hasText: 'up to ~30 s' })).toBeVisible();
+    // Patamar, B4 (espera honesta): a frase fixa dos ~30 s sai; a espera diz o tempo de costume.
+    await expect(andamento(page)).toContainText('Asking the local model. It usually takes about');
     // E-13: nada muda no editor até "Apply all".
     await expect(sugestao(dialog)).toContainText('status 200 → 429');
     await expect(dialog.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue('');
-    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
+    await aplicarTudo(dialog);
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue(
       'Pagamentos 429',
     );
@@ -240,7 +256,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     expect(call.postDataJSON()).toEqual(
       expect.objectContaining({ prompt: 'Igual a esta mensagem', request_id: requestId }),
     );
-    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
+    await aplicarTudo(dialog);
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Pedidos');
     expect(llm.prompt(0)).toContain('e2e-exemplo-7731');
   });
@@ -286,7 +302,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await expect(status).toHaveValue('200');
 
     await dialog.getByRole('button', { name: 'Suggest' }).click();
-    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
+    await aplicarTudo(dialog);
     await expect(status).toHaveValue('201');
     await expect(snackbar(page, 'Suggestion applied')).toBeVisible();
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -330,7 +346,7 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
 
     await (await descrever(dialog)).fill('429 em pagamentos');
     await dialog.getByRole('button', { name: 'Suggest' }).click();
-    await sugestao(dialog).getByRole('button', { name: 'Apply all' }).click();
+    await aplicarTudo(dialog);
 
     const aviso = dialog
       .getByRole('alert')
@@ -364,14 +380,15 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
 test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => {
   test.use({ locale: 'pt-BR' });
 
-  test('deve pedir o diagnóstico em pt-BR e mostrar o markdown sem executar o HTML do modelo Quando "Explain" é clicado', async ({
+  // Patamar, B4 (guia-combinacao §3.4 e §7; UX-43): o `lang` segue o idioma da tela, não o do navegador.
+  test('deve pedir o diagnóstico no idioma da tela e mostrar o markdown sem executar o HTML do modelo Quando "Explain" é clicado', async ({
     page,
     tokens,
   }) => {
     const tokenId = await tokens.create();
     const requestId = await tokens.send(tokenId, { data: '{"valor":10}' });
     // Item 14, E10: com o navegador em pt-BR a tela abriria em pt-BR (CA-4); a tela fica em inglês pela escolha em
-    // Settings, e o `lang` do Explain continua o do navegador.
+    // Settings, e o `lang` do Explain é o da tela.
     await seedStorage(page, { language: '"en"' });
     await openRequest(page, tokenId, requestId);
     llm.program({
@@ -396,9 +413,9 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
       acoes(page).getByRole('button', { name: 'Explain' }).click(),
     ]);
 
-    expect(call.postDataJSON()).toEqual(expect.objectContaining({ lang: 'pt-BR' }));
+    expect(call.postDataJSON()).toEqual(expect.objectContaining({ lang: 'en' }));
     const panel = page.getByRole('region', { name: 'Explanation' });
-    await expect(panel.getByRole('status')).toContainText('up to ~30 s');
+    await expect(andamento(page)).toContainText('Asking the local model. It usually takes about');
     await expect(panel.locator('strong')).toHaveText('resposta padrão');
     await expect(panel.getByRole('listitem')).toHaveText([
       'nenhuma regra casou',
@@ -411,13 +428,20 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
       undefined,
     );
 
-    await acoes(page).getByRole('button', { name: 'Hide explanation' }).click();
+    // Patamar, R1: a explicação fica na aba Explain do painel de ação; esconde-se fechando o painel.
+    await page
+      .getByRole('button', { name: 'Hide explanation' })
+      .or(page.getByRole('button', { name: 'Close panel' }))
+      .first()
+      .click();
     await expect(panel).toBeHidden();
   });
 });
 
 test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', () => {
-  test('deve desabilitar "Explain" e o "Describe the rule" com a dica WEBHOOK_AI_* Quando o servidor responde 503', async ({
+  // Patamar, B4 (guia-combinacao §3.4 e §7; UX-15): com a IA desligada os botões ficam `aria-disabled` com a razão
+  // "This server has no local AI."; a frase com WEBHOOK_AI_* sai da tela.
+  test('deve desligar "Explain" e "Suggest" com a razão Quando o servidor responde 503', async ({
     page,
     tokens,
   }) => {
@@ -430,19 +454,23 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
 
     await acoes(page).getByRole('button', { name: 'Explain' }).click();
 
-    await expect(
-      page.getByRole('region', { name: 'Explanation' }).getByRole('alert'),
-    ).toContainText('Set WEBHOOK_AI_* to enable');
-    await expect(acoes(page)).toContainText('Set WEBHOOK_AI_* to enable');
-    await acoes(page).getByRole('button', { name: 'Hide explanation' }).click();
-    await expect(acoes(page).getByRole('button', { name: 'Explain' })).toBeDisabled();
+    await expect(page.getByText('This server has no local AI.').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'How to turn it on' }).first()).toBeVisible();
+    await expect(page.getByText(/WEBHOOK_AI/)).toHaveCount(0);
+    const explicar = acoes(page).getByRole('button', { name: 'Explain' });
+    await expect(explicar).toHaveAttribute('aria-disabled', 'true');
+    await expect(explicar).toHaveAccessibleDescription(/This server has no local AI\./);
 
     // A mesma sessão da tela (só o hash muda): o editor já abre com a IA desligada.
     const dialog = await newRuleDialog(page, tokenId);
     // A dica e o campo ficam dentro do Suggest recolhido (RULES-16): abre antes.
-    await expect(await descrever(dialog)).toBeDisabled();
-    await expect(dialog.getByText('Set WEBHOOK_AI_* to enable')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Suggest' })).toBeDisabled();
+    await descrever(dialog);
+    await expect(dialog.getByText('This server has no local AI.')).toBeVisible();
+    await expect(dialog.getByText(/WEBHOOK_AI/)).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Suggest' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   test('deve dizer quando tentar de novo Quando o servidor responde 429 com Retry-After', async ({
