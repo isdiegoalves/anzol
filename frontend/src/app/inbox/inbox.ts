@@ -249,6 +249,19 @@ export class Inbox {
     void this.openRequest(request);
   }
 
+  /** Aberta pelo teclado (Enter no item): o foco vai ao título do detalhe. */
+  protected focusDetail(): void {
+    const focus = (left: number) => {
+      const title = this.document.querySelector<HTMLElement>('.detail-pane h2.route');
+      if (title) {
+        title.focus();
+      } else if (left > 0) {
+        setTimeout(() => focus(left - 1), 20);
+      }
+    };
+    afterNextRender(() => focus(10), { injector: this.injector });
+  }
+
   /** Volta à lista com o foco no item de onde se saiu (sem ele, o foco cairia no body). */
   protected backToList(): void {
     this.showDetail.set(false);
@@ -265,6 +278,10 @@ export class Inbox {
 
   private navigateByKey(event: KeyboardEvent): void {
     const key = event.key.toLowerCase();
+    if (key === 'escape') {
+      this.escapeToList(event);
+      return;
+    }
     if (
       (key !== 'j' && key !== 'k') ||
       !this.settings.shortcuts() ||
@@ -283,6 +300,14 @@ export class Inbox {
       } else {
         detail.showNewer();
       }
+    }
+  }
+
+  /** Esc no detalhe (sem nada por cima que o trate antes): o foco volta ao item da lista. */
+  private escapeToList(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!event.defaultPrevented && target?.closest('.detail-pane') && this.twoPanes()) {
+      this.list()?.focusSelected();
     }
   }
 
@@ -308,6 +333,8 @@ export class Inbox {
     const list = this.requests.requests();
     if (requestId && list.some((request) => request.uuid === requestId)) {
       this.requests.select(requestId, requestId !== this.keepUnread);
+      // J, K, Newer e Older: a parada do Tab da lista (e o foco, se estava nela) acompanha.
+      this.list()?.follow(requestId);
       // Link permanente, Newer/Older, Follow new: no celular, o detalhe vem para a frente.
       if (requestId !== this.chosenByScreen) {
         this.showDetail.set(true);

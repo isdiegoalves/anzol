@@ -14,13 +14,7 @@ import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
-import {
-  ITEM_HEIGHT,
-  ITEM_HEIGHT_COMPACT,
-  RequestList,
-  UNDO_MS,
-  bodySummary,
-} from './request-list';
+import { ITEM_HEIGHT, ITEM_HEIGHT_TOUCH, RequestList, UNDO_MS, bodySummary } from './request-list';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
 
@@ -92,17 +86,41 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()).toHaveLength(1);
   });
 
-  it('deve usar itens de 60 px Quando a densidade é compacta (S17)', async () => {
+  it('deve usar itens de duas linhas e 60 px em qualquer densidade, e 64 px no celular (B1)', async () => {
+    const height = () =>
+      (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight();
     TestBed.inject(ShellSettings).density.set('compact');
     await load([webhookRequest(1)]);
 
     expect(fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))).toBeTruthy();
-    expect(
-      (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight(),
-    ).toBe(ITEM_HEIGHT_COMPACT);
+    expect([ITEM_HEIGHT, height()]).toEqual([60, 60]);
+    TestBed.inject(ShellSettings).density.set('comfortable');
+    expect(height()).toBe(60);
+    expect(items()[0].querySelectorAll('.select > .line')).toHaveLength(2);
+
+    windowClass.set('compact');
+    await fixture.whenStable();
+    expect([ITEM_HEIGHT_TOUCH, height()]).toEqual([64, 64]);
+    expect(element().classList).toContain('touch');
   });
 
-  it('deve mostrar a mais nova no topo, com método, rota e tempo relativo, e o resumo, o IP e o #id embaixo (INBOX-01/11)', async () => {
+  it('deve cortar o caminho no meio, com ele inteiro no title e no nome do item (B1)', async () => {
+    const path = '/pedidos/2026/09/loja-centro/confirmacoes/pagamento-aprovado';
+    await load([webhookRequest(1, { url: `http://localhost:8084/${TOKEN_ID}${path}` })]);
+
+    const route = items()[0].querySelector('.route') as HTMLElement;
+    expect(route.getAttribute('title')).toBe(path);
+    expect(route.textContent?.trim()).toBe(path);
+    expect(route.querySelector('.head')?.textContent).toBe(
+      ' /pedidos/2026/09/loja-centro/confirmacoes/paga',
+    );
+    expect(route.querySelector('.tail')?.textContent).toBe('mento-aprovado');
+    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
+      new RegExp(`^POST ${path}, #`),
+    );
+  });
+
+  it('deve mostrar a mais nova no topo, com método, rota e tempo relativo, e os selos, o tipo e o #id embaixo, sem IP nem agente (INBOX-01/11, B1)', async () => {
     await load([
       webhookRequest(1, { method: 'GET', url: `http://localhost:8084/${TOKEN_ID}/a?b=1` }),
     ]);
@@ -121,10 +139,13 @@ describe('Dado a lista lateral de mensagens', () => {
       expect.stringMatching(/^POST \/ .+ ago$/),
       expect.stringMatching(/^GET \/a\?b=1 .+ ago$/),
     ]);
-    expect(text('.meta')).toEqual([
-      'payment_intent.succeeded · 192.168.0.1 · #00000',
-      `${webhookRequest(1).user_agent} · 192.168.0.1 · #00000`,
-    ]);
+    expect(text('.meta')).toEqual(['payment_intent.succeeded #00000', '#00000']);
+    expect(element().textContent).not.toContain('192.168.0.1');
+    expect(element().textContent).not.toContain('Stripe/1.0');
+    // O IP fica no nome acessível.
+    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
+      'from 192.168.0.1',
+    );
     // A data absoluta fica fora da linha: no title do tempo relativo e no nome do item (trava 2).
     expect(items()[0].textContent).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
     expect(items()[0].querySelector('.ago')?.getAttribute('title')).toMatch(/^[A-Z][a-z]{2} \d/);
@@ -140,6 +161,78 @@ describe('Dado a lista lateral de mensagens', () => {
     ['o user-agent sem JSON', 'texto', 'curl/8'],
   ])('deve resumir o corpo pelo %s', (_caso, content, summary) => {
     expect(bodySummary(webhookRequest(1, { content, user_agent: 'curl/8' }))).toBe(summary);
+  });
+
+  describe('Dado o teclado na lista (B1): uma parada só do Tab', () => {
+    const [A, B, C] = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
+    const selects = () => items().map((item) => item.querySelector('.select') as HTMLElement);
+    const stops = (selector: string) =>
+      items().map((item) => (item.querySelector(selector) as HTMLElement).tabIndex);
+    const press = async (key: string) => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+      );
+      await fixture.whenStable();
+    };
+
+    it('deve ter o Tab só no primeiro item, e na requisição aberta Quando há uma', async () => {
+      await load([A, B, C]);
+      expect(stops('.select')).toEqual([0, -1, -1]);
+      expect(stops('.delete')).toEqual([0, -1, -1]);
+
+      store.select(B.uuid);
+      await fixture.whenStable();
+      expect(stops('.select')).toEqual([-1, 0, -1]);
+    });
+
+    it('deve andar com ↑, ↓, Home e End sem abrir, parando nas pontas', async () => {
+      const opened = vi.fn();
+      fixture.componentInstance.openRequest.subscribe(opened);
+      await load([A, B, C]);
+      selects()[0].focus();
+
+      await press('ArrowDown');
+      expect(document.activeElement).toBe(selects()[1]);
+      expect(stops('.select')).toEqual([-1, 0, -1]);
+      await press('End');
+      expect(document.activeElement).toBe(selects()[2]);
+      await press('ArrowDown');
+      expect(document.activeElement).toBe(selects()[2]);
+      await press('Home');
+      await press('ArrowUp');
+      expect(document.activeElement).toBe(selects()[0]);
+      expect(opened).not.toHaveBeenCalled();
+    });
+
+    it('deve abrir com Enter e avisar que foi pelo teclado; pelo ponteiro, só abrir', async () => {
+      const [opened, byKey] = [vi.fn(), vi.fn()];
+      fixture.componentInstance.openRequest.subscribe(opened);
+      fixture.componentInstance.openedByKey.subscribe(byKey);
+      await load([A, B]);
+
+      // Enter num botão chega como clique sem ponteiro (`detail` 0).
+      selects()[1].dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+      expect(opened).toHaveBeenCalledWith(B);
+      expect(byKey).toHaveBeenCalledWith(B);
+
+      selects()[0].dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      expect(opened).toHaveBeenLastCalledWith(A);
+      expect(byKey).toHaveBeenCalledTimes(1);
+    });
+
+    it('deve levar a parada do Tab ao item aberto por J ou K, e o foco só se ele estava na lista', async () => {
+      await load([A, B, C]);
+
+      fixture.componentInstance.follow(C.uuid);
+      await fixture.whenStable();
+      expect(stops('.select')).toEqual([-1, -1, 0]);
+      expect(document.activeElement).not.toBe(selects()[2]);
+
+      selects()[2].focus();
+      fixture.componentInstance.follow(A.uuid);
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(selects()[0]);
+    });
   });
 
   it('deve inverter a ordem pelo botão do cabeçalho', async () => {
@@ -346,6 +439,10 @@ describe('Dado a lista lateral de mensagens', () => {
     store.append(nova, 21);
     expect(list.receive(nova)).toBe(false);
     await fixture.whenStable();
+    // UX-10: a pílula fica numa faixa própria, antes da lista: não cobre item nenhum.
+    const pill = element().querySelector('app-new-pill') as HTMLElement;
+    expect(pill.closest('.list')).toBeNull();
+    expect(pill.nextElementSibling?.classList).toContain('list');
     expect(element().querySelector('.new-pill')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       '↑1 new request',
     );
@@ -505,14 +602,12 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(seal?.textContent?.trim()).toBe(esperado);
   });
 
-  // INBOX-32/34: no celular, itens de duas linhas (os selos sobem, como na densidade compacta), sem
-  // o IP, e a linha "N requests · newest first" no lugar visível do heading, que fica no documento.
-  it('deve usar o item de duas linhas, sem o IP, e dizer a contagem e a ordem Quando a janela é compacta', async () => {
+  // INBOX-34: no celular, a linha "N requests · newest first" no lugar visível do heading, que fica
+  // no documento.
+  it('deve dizer a contagem e a ordem Quando a janela é compacta', async () => {
     windowClass.set('compact');
     await load([webhookRequest(1), webhookRequest(2)]);
 
-    expect(element().classList).toContain('compact');
-    expect(items()[0].querySelector('.meta .ip')?.textContent).toContain(webhookRequest(1).ip);
     const line = element().querySelector('.order-line');
     expect(line?.textContent?.trim()).toBe('2 requests · newest first');
     expect(line?.getAttribute('aria-hidden')).toBe('true');

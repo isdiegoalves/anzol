@@ -20,6 +20,11 @@
   font-family: var(--app-code-family);
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
 }
 
 .spacer {

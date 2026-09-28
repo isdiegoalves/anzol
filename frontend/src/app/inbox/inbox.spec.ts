@@ -559,6 +559,30 @@ describe('Dado a tela principal', () => {
     expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
   });
 
+  it('deve levar o foco ao título do detalhe Quando o item é aberto pelo teclado, e de volta ao item com Esc (B1)', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+    await vi.waitFor(() => expect(root.querySelectorAll('.item .select')).toHaveLength(2));
+    const second = root.querySelectorAll<HTMLButtonElement>('.item .select')[1];
+
+    // Enter num botão chega como clique sem ponteiro (`detail` 0).
+    second.focus();
+    second.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(root.querySelector('.detail-pane h2.route')),
+    );
+
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(root.querySelector('.item .select[aria-current="true"]')),
+    );
+    expect(document.activeElement?.getAttribute('data-uuid')).toBe(R2.uuid);
+  });
+
   it('deve mostrar um painel por vez: a lista ao abrir a URL, o detalhe pelo link permanente ou pelo clique, e "Back to requests"', async () => {
     windowClass.set('compact');
     await openToken(`/${TOKEN_ID}`);

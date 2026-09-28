@@ -64,17 +64,19 @@ export function eventType(request: WebhookRequest): string | null {
 }
 
 /**
- * O resumo do corpo na linha 2 do item (protótipo C, INBOX-11): o tipo do evento do JSON, senão o
- * user-agent.
+ * O resumo do corpo (protótipo C, INBOX-11): o tipo do evento do JSON, senão o user-agent. Na lista
+ * (B1) só o tipo aparece; o agente fica no detalhe e no Compare.
  */
 export function bodySummary(request: WebhookRequest): string {
   return eventType(request) ?? request.user_agent ?? '';
 }
 
-/** Altura fixa de um item (três linhas: rota, origem e data, selos), para a rolagem virtual. */
-export const ITEM_HEIGHT = 84;
-/** Na densidade compacta (S17, C §3.6), os selos sobem para a linha da origem. */
-export const ITEM_HEIGHT_COMPACT = 60;
+/** Altura fixa de um item de duas linhas (B1, lista densa), para a rolagem virtual. */
+export const ITEM_HEIGHT = 60;
+/** No celular, o item de duas linhas tem alvo de toque maior. */
+export const ITEM_HEIGHT_TOUCH = 64;
+/** Quanto do fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
+export const ROUTE_TAIL = 14;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
 export const FRESH_MS = 3000;
 /** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
@@ -84,9 +86,12 @@ export const UNDO_MS = 4000;
 interface ItemView {
   request: WebhookRequest;
   route: string;
+  /** O caminho em duas partes: o começo cede (reticências) e o fim fica. */
+  head: string;
+  tail: string;
   /** Tempo relativo ("a few seconds ago"), na linha 1. */
   ago: string;
-  /** Resumo do corpo na linha 2 (INBOX-11). */
+  /** O tipo do evento do JSON, na linha 2 (INBOX-11); vazio sem ele. */
   summary: string;
   /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
   seals: CheckResult[];
@@ -94,9 +99,10 @@ interface ItemView {
 }
 
 /**
- * Lista da Inbox: itens de três linhas (método, `#id` e rota; origem e data; selos de assinatura,
- * schema e regra), busca e filtros, rodapé "1–50 of N" com as páginas, não lidas, a lixeira com
- * "Undo" e a pílula das novas que chegaram fora da vista. No "Compare with…", clicar escolhe a B.
+ * Lista da Inbox: itens de duas linhas e 60 px (método, caminho e tempo; selos, tipo do evento e
+ * `#id`), busca e filtros, rodapé "1–50 of N" com as páginas, não lidas, a lixeira com "Undo" e a
+ * pílula das novas, numa faixa acima da lista. A lista é uma parada só do Tab: ↑ e ↓ andam entre os
+ * itens sem abrir, Enter abre. No "Compare with…", clicar escolhe a B.
  */
 @Component({
   selector: 'app-request-list',
@@ -118,7 +124,7 @@ interface ItemView {
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
-  host: { '[class.compact]': 'twoLineItems()' },
+  host: { '[class.touch]': 'touch()' },
 })
 export class RequestList {
   protected readonly store = inject(RequestStore);
@@ -132,16 +138,22 @@ export class RequestList {
   private readonly viewport = viewChild(CdkVirtualScrollViewport);
 
   readonly openRequest = output<WebhookRequest>();
-  /**
-   * Itens de duas linhas, com os selos na linha da origem: a densidade compacta (S17) e o celular
-   * (INBOX-32), onde o dobro de mensagens cabe na tela.
-   */
-  protected readonly twoLineItems = computed(
-    () => this.settings.density() === 'compact' || this.windowClass() === 'compact',
-  );
-  protected readonly itemHeight = computed(() =>
-    this.twoLineItems() ? ITEM_HEIGHT_COMPACT : ITEM_HEIGHT,
-  );
+  /** Aberta pelo teclado (Enter no item): o foco vai ao título do detalhe. */
+  readonly openedByKey = output<WebhookRequest>();
+  /** Celular: o item de duas linhas tem 64 px. */
+  protected readonly touch = computed(() => this.windowClass() === 'compact');
+  protected readonly itemHeight = computed(() => (this.touch() ? ITEM_HEIGHT_TOUCH : ITEM_HEIGHT));
+  /** O item em que o foco do teclado está (ou esteve por último). */
+  protected readonly cursor = signal<string | null>(null);
+  /** A parada do Tab: o item do cursor; sem ele na lista, o aberto; sem ele, o primeiro. */
+  protected readonly stop = computed(() => {
+    const listed = this.store.requests();
+    const has = (uuid: string | null | undefined) =>
+      !!uuid && listed.some((request) => request.uuid === uuid);
+    const cursor = this.cursor();
+    const selected = this.store.selected()?.uuid;
+    return has(cursor) ? cursor : has(selected) ? selected : listed[0]?.uuid;
+  });
   /** A linha visível do celular (INBOX-34): "57 requests · newest first". */
   protected readonly orderLine = computed(() => {
     const total = this.store.total();
@@ -214,11 +226,47 @@ export class RequestList {
     return this.unreadIds().has(request.uuid);
   }
 
-  protected choose(request: WebhookRequest): void {
+  protected choose(request: WebhookRequest, event?: MouseEvent): void {
     if (this.compare.picking()) {
       this.compare.choose(request);
+      return;
+    }
+    this.openRequest.emit(request);
+    // Enter e Espaço chegam como clique sem ponteiro (`detail` 0).
+    if (event?.detail === 0) {
+      this.openedByKey.emit(request);
+    }
+  }
+
+  /** ↑ e ↓ (e Home e End) levam o foco a outro item, sem abrir. */
+  protected move(event: KeyboardEvent, index: number): void {
+    const last = this.store.requests().length - 1;
+    const to: Record<string, number> = {
+      ArrowDown: Math.min(index + 1, last),
+      ArrowUp: Math.max(index - 1, 0),
+      Home: 0,
+      End: last,
+    };
+    if (!(event.key in to) || event.ctrlKey || event.altKey || event.metaKey) {
+      return;
+    }
+    event.preventDefault();
+    const target = this.store.requests()[to[event.key]];
+    if (target) {
+      this.focusItem(target.uuid, to[event.key]);
+    }
+  }
+
+  /** O item aberto mudou por J ou K: a parada do Tab (e o foco, se estava na lista) acompanha. */
+  follow(uuid: string): void {
+    const index = this.store.requests().findIndex((request) => request.uuid === uuid);
+    if (index < 0) {
+      return;
+    }
+    if (this.host.contains(this.host.ownerDocument.activeElement)) {
+      this.focusItem(uuid, index);
     } else {
-      this.openRequest.emit(request);
+      this.cursor.set(uuid);
     }
   }
 
@@ -250,16 +298,28 @@ export class RequestList {
     return inView;
   }
 
-  /** Põe o foco no item aberto (a volta do detalhe em tela cheia), rolando até ele. */
+  /** Põe o foco no item aberto (a volta do detalhe em tela cheia, o Esc), rolando até ele. */
   focusSelected(): void {
     const index = this.store.selectedIndex();
-    if (index < 0) {
+    const selected = this.store.selected();
+    if (index >= 0 && selected) {
+      this.focusItem(selected.uuid, index, true);
+    }
+  }
+
+  /** Leva o foco ao item; se a lista virtual ainda não o desenhou, rola até ele antes. */
+  private focusItem(uuid: string, index: number, scroll = false): void {
+    this.cursor.set(uuid);
+    const find = () => this.host.querySelector<HTMLElement>(`.item .select[data-uuid="${uuid}"]`);
+    const drawn = find();
+    if (drawn && !scroll) {
+      drawn.focus();
       return;
     }
     this.viewport()?.scrollToIndex(index);
     // A lista virtual desenha os itens alguns quadros depois de medir o viewport.
     const tryFocus = (left: number) => {
-      const button = this.host.querySelector<HTMLElement>('.item .select[aria-current="true"]');
+      const button = find();
       if (button) {
         button.focus();
       } else if (left > 0) {
@@ -355,11 +415,14 @@ export class RequestList {
       ...(this.isUnread(request) ? [$localize`unread`] : []),
       ...this.compareRole(request),
     ].join(', ');
+    const cut = Math.max(pipeline.route.length - ROUTE_TAIL, 0);
     return {
       request,
       route: pipeline.route,
+      head: pipeline.route.slice(0, cut),
+      tail: pipeline.route.slice(cut),
       ago: fromNow(request.created_at, now),
-      summary: bodySummary(request),
+      summary: eventType(request) ?? '',
       seals,
       label,
     };

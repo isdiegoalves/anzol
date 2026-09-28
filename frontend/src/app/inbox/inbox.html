@@ -44,7 +44,7 @@
 </main>
 
 <ng-template #listPane>
-  <app-request-list (openRequest)="openFromList($event)">
+  <app-request-list (openRequest)="openFromList($event)" (openedByKey)="focusDetail()">
     <div class="list-tools" listTools>
       <mat-slide-toggle
         i18n
