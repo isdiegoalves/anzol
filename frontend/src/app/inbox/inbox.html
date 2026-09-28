@@ -87,17 +87,8 @@
 
 <ng-template #detailPane>
   <!-- R1: o roteiro abre no lugar do detalhe (`?guide=first|retry`), carregado sob demanda. -->
-  @if (guideName(); as name) {
-    @if (tokens.token(); as open) {
-      @defer {
-        <app-guide
-          [name]="name"
-          [tokenId]="open.uuid"
-          (closed)="closeGuide()"
-          (openRequest)="openFromGuide($event)"
-        />
-      }
-    }
+  @if (guideName()) {
+    <ng-container #guideHost />
   } @else {
     <ng-container [ngTemplateOutlet]="detailBody" />
   }

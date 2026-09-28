@@ -12,6 +12,7 @@ import {
   signal,
   untracked,
   viewChild,
+  ViewContainerRef,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
@@ -20,7 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
-import { Guide, GuideName } from '../guides/guide';
+import type { GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
@@ -59,7 +60,6 @@ export const RECEIVED_NOTICE_MS = 4000;
 @Component({
   selector: 'app-inbox',
   imports: [
-    Guide,
     Icon,
     MatIconButton,
     MatSlideToggle,
@@ -112,6 +112,8 @@ export class Inbox {
     const guide = this.guide();
     return guide === 'first' || guide === 'retry' ? guide : null;
   });
+  /** Onde o roteiro entra, criado à mão: a folha vem num pedaço à parte, por `import()`. */
+  private readonly guideHost = viewChild('guideHost', { read: ViewContainerRef });
   private readonly routeFilter = computed(() =>
     filterFromParams({
       signature: this.signature(),
@@ -159,6 +161,12 @@ export class Inbox {
   private lastSeq = 0;
 
   constructor() {
+    effect((onCleanup) => {
+      const [host, name, tokenId] = [this.guideHost(), this.guideName(), this.tokens.token()?.uuid];
+      if (host && name && tokenId) {
+        onCleanup(untracked(() => this.showGuide(host, name, tokenId)));
+      }
+    });
     // O detalhe em tela cheia (um painel por vez) tira o cartão da URL e a barra do topo (INBOX-30).
     effect(() =>
       this.screen.detailFullscreen.set(
@@ -263,6 +271,25 @@ export class Inbox {
       replaceUrl,
       queryParamsHandling: 'preserve',
     });
+  }
+
+  /** Monta o roteiro pedido no endereço; o pedaço dele só é baixado aqui. */
+  private showGuide(host: ViewContainerRef, name: GuideName, tokenId: string): () => void {
+    let gone = false;
+    void import('../guides/guide').then(({ Guide }) => {
+      if (gone) {
+        return;
+      }
+      const guide = host.createComponent(Guide);
+      guide.setInput('name', name);
+      guide.setInput('tokenId', tokenId);
+      guide.instance.closed.subscribe(() => void this.closeGuide());
+      guide.instance.openRequest.subscribe((request) => void this.openFromGuide(request));
+    });
+    return () => {
+      gone = true;
+      host.clear();
+    };
   }
 
   /** "Close guide": o endereço perde o `?guide=` e o detalhe volta. */

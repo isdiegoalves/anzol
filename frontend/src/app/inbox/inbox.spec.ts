@@ -82,6 +82,26 @@ describe('Dado a tela principal', () => {
     expect(text()).toContain(R1.uuid);
   });
 
+  it('deve abrir o roteiro do endereço no lugar do detalhe e fechá-lo tirando o ?guide= (R1)', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/1?guide=retry`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(`/token/${TOKEN_ID}/rules`, []);
+    const root = harness.routeNativeElement as HTMLElement;
+
+    const guide = await vi.waitFor(() => {
+      const region = root.querySelector('section[aria-label="Guide: Test a retry"]');
+      expect(region).not.toBeNull();
+      return region as HTMLElement;
+    });
+    expect(root.querySelector('app-request-detail')).toBeNull();
+    guide.querySelector<HTMLButtonElement>('button[aria-label="Close guide"]')?.click();
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    await vi.waitFor(() => expect(root.querySelector('app-request-detail')).not.toBeNull());
+    expect(root.querySelector('section[aria-label^="Guide"]')).toBeNull();
+  });
+
   it('deve deixar como não lida a mensagem que a tela abriu sozinha e marcá-la Quando ela é clicada (INBOX-02)', async () => {
     const preferences = TestBed.inject(Preferences);
     preferences.unread.set([R1.uuid, R2.uuid]);
