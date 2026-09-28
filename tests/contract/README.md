@@ -809,6 +809,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
       inteiro copiado do `GET` (ou do `get_url`) de outra URL, e a URL sem assinatura. Uma captura confere que o
       segredo de antes continua valendo e que o texto mascarado não virou segredo. Guardas: a máscara do segredo
       atual mantém o segredo, e o segredo novo com `•` no meio é aceito.
+    - **Máscara na criação.** No `POST /token` e no `create_url` não há segredo atual: `signature.secret` que começa
+      com `••••` (a máscara de um segredo, a máscara sozinha, a máscara seguida de um segredo inteiro e o bloco copiado
+      de outra URL) → 422 só com a chave `signature.secret` (no MCP, erro de ferramenta que a cita), e a URL não é
+      criada: a resposta não traz `uuid`. Guarda: o segredo novo com `•` no meio cria a URL e confere.
     - **`create_url` com `null`.** `default_status`, `default_content`, `default_content_type` e `timeout` com `null`,
       um a um e os quatro juntos ao lado de `retry_after: 9`: a URL nasce com os padrões. Valor inválido continua erro
       de ferramenta.
@@ -834,7 +838,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   Leituras assumidas: JSON válido que não é objeto dá o mesmo 400 do JSON que não se lê; o envelope do 400 é o dos
   outros erros da API e o texto da mensagem é livre, desde que cite `JSON`; `null` no `update_url` vale para todo campo
   de configuração; a conferência do suggest não devolve os `failed` ao modelo; a forma de sequência é fixada pelos
-  exemplos, não pelo detector; o corpo quebrado no unlock não conta como segredo errado (decisão do orquestrador). **Fora do contrato:** texto mascarado no `POST /token` e no `create_url`; `signature: ""` e `schema: ""` no `PUT` da REST; `PUT` simultâneos na REST; corpo só com espaços; a ordem entre o 400 e o 410 ou 401;
+  exemplos, não pelo detector; o corpo quebrado no unlock não conta como segredo errado (decisão do orquestrador). **Fora do contrato:** `signature: ""` e `schema: ""` no `PUT` da REST; `PUT` simultâneos na REST; corpo só com espaços; a ordem entre o 400 e o 410 ou 401;
   `Content-Type` JSON com `Accept: text/html`; as rotas que leem o corpo cru (regras, cenários, busca, espera, envio,
   reenvio, IA), que já recusavam com o 422 delas; ferramenta `patch_url`; o suggest
   devolver várias regras; o `explain` que chama de rejeição uma resposta 2xx (DX-30).

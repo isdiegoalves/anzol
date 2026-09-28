@@ -9,7 +9,9 @@ import { erros422 } from '../../support/regras.js';
 // 1. Máscara gravada como segredo: no `PUT /token/{id}` e no `update_url` do MCP, `signature.secret` que começa com
 //    a máscara (`••••`) e não é a máscara do segredo atual → 422 em `signature.secret`, e nada muda. Antes, o texto
 //    mascarado virava o segredo novo: copiar o bloco que a API mostra de outra URL trocava o segredo por `••••abcd`,
-//    que qualquer um que leu a outra URL conhece. A máscara certa do segredo atual continua mantendo o segredo.
+//    que qualquer um que leu a outra URL conhece. A máscara certa do segredo atual continua mantendo o segredo. Na
+//    criação (`POST /token` e `create_url`) não há segredo atual: todo texto que começa com a máscara → 422, e a URL
+//    não é criada.
 // 2. `create_url` do MCP: `null` nos opcionais de primeiro nível vale como ausente.
 // 3. `update_url`: `signature: ""` e `schema: ""` → 422; só `null` desliga.
 // 4. `update_url` simultâneo na mesma URL: as duas mudanças ficam gravadas.
@@ -137,6 +139,66 @@ test.describe('máscara gravada como segredo: update_url do MCP', () => {
     await mcp.chamarOk('update_url', { timeout: 2, signature: bloco }, token.uuid);
     expect(await lerToken(request, token.uuid)).toMatchObject({ timeout: 2, signature: { provider: 'github', secret: mascarado(SEGREDO) } });
     expect(await confere(request, token.uuid, SEGREDO)).toBe(true);
+  });
+});
+
+/** Na criação não há segredo atual: todo texto que começa com a máscara é recusado. */
+const MASCARAS_NA_CRIACAO: Array<[string, string]> = [
+  ['a máscara de um segredo (o bloco que a API mostra)', mascarado(SEGREDO_DE_OUTRA)],
+  ['a máscara sozinha', MASCARA],
+  ['a máscara seguida de um segredo inteiro', `${MASCARA}${SEGREDO_DE_OUTRA}`],
+];
+
+test.describe('máscara gravada como segredo: criação da URL', () => {
+  for (const [caso, secret] of MASCARAS_NA_CRIACAO) {
+    test(`POST /token, ${caso}: 422 em signature.secret, e a URL não é criada`, async ({ request, tokens }) => {
+      const res = await request.post('/token', { data: { default_status: 201, signature: { provider: 'github', secret } }, headers: JSON_ACCEPT });
+      const corpo = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      // Se o servidor criou mesmo assim, a URL é registrada para limpeza antes de o teste falhar.
+      if (typeof corpo.uuid === 'string') tokens.registrar(corpo.uuid);
+      const erros = await erros422(res);
+      expect(Object.keys(erros), JSON.stringify(erros)).toEqual(['signature.secret']);
+      expect(erros['signature.secret'][0]).toMatch(/^[A-Z].*\.$/s);
+      expect(corpo).not.toHaveProperty('uuid');
+    });
+  }
+
+  test('POST /token com o bloco mascarado copiado do GET de outra URL: 422, e a URL não é criada', async ({ request, tokens }) => {
+    const outra = await tokens.criar({ signature: { provider: 'github', secret: SEGREDO_DE_OUTRA } });
+    const bloco = (await lerToken(request, outra.uuid)).signature!;
+    const res = await request.post('/token', { data: { signature: bloco }, headers: JSON_ACCEPT });
+    const corpo = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (typeof corpo.uuid === 'string') tokens.registrar(corpo.uuid);
+    expect(await erros422(res)).toHaveProperty('signature.secret');
+  });
+
+  test('continua valendo: POST /token com segredo novo que tem • no meio cria a URL e confere com ele', async ({ request, tokens }) => {
+    const comPonto = 'senha•com••••ponto-8Jc3';
+    const token = await tokens.criar({ signature: { provider: 'github', secret: comPonto } });
+    expect(await confere(request, token.uuid, comPonto)).toBe(true);
+  });
+});
+
+test.describe('máscara gravada como segredo: create_url do MCP', () => {
+  test.skip(MODO_MCP !== 'ligado', `CONTRATO_MCP=${MODO_MCP}`);
+
+  for (const [caso, secret] of MASCARAS_NA_CRIACAO) {
+    test(`${caso}: erro em signature.secret, e a URL não é criada`, async ({ mcp, tokens }) => {
+      const resultado = await mcp.chamar('create_url', { default_status: 201, signature: { provider: 'github', secret } });
+      if (!resultado.isError) tokens.registrar(jsonDo<Token>(resultado).uuid);
+      expect(resultado.isError, `${caso}: ${textoDo(resultado).slice(0, 300)}`).toBe(true);
+      expect(textoDo(resultado)).toContain('signature.secret');
+      expect(textoDo(resultado), 'nenhuma URL no resultado').not.toMatch(/"uuid"/);
+    });
+  }
+
+  test('o bloco mascarado que o get_url mostra de outra URL: erro, e a URL não é criada', async ({ mcp, tokens }) => {
+    const outra = await tokens.criar({ signature: { provider: 'github', secret: SEGREDO_DE_OUTRA } });
+    const bloco = (await mcp.chamarOk<Token>('get_url', {}, outra.uuid)).signature!;
+    const resultado = await mcp.chamar('create_url', { signature: bloco });
+    if (!resultado.isError) tokens.registrar(jsonDo<Token>(resultado).uuid);
+    expect(resultado.isError, textoDo(resultado).slice(0, 300)).toBe(true);
+    expect(textoDo(resultado)).toContain('signature.secret');
   });
 });
 
