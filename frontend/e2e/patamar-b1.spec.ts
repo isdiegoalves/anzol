@@ -53,8 +53,9 @@ import { seedStorage } from './support/storage';
 // - SUPOSIÇÃO: o cabeçalho da URL inexistente mantém o `textbox "Webhook URL"` (só leitura, riscado) com o endereço
 //   pedido.
 // - SUPOSIÇÃO: o anúncio da troca de URL começa por "{nome} opened." e segue com o destino ("Rules…" em Regras).
-// - SUPOSIÇÃO: o modo compacto da lista (uma linha, 44 px) não tem controle nomeado no guia; fica sem teste até o guia
-//   dizer onde se escolhe.
+// - Decisões do orquestrador (2026-09-28): a linha 1 do item mostra o tempo relativo, com a hora exata no `title`; o
+//   modo compacto da lista não entra nesta feature; depois de "Delete URL" abre a próxima URL conhecida do seletor
+//   e, sem nenhuma, cria uma URL como na primeira visita.
 // - SUPOSIÇÃO: a contagem regressiva "Trying again in {n} s" fica dentro de um ancestral `aria-hidden="true"`.
 // - SUPOSIÇÃO: o item de `menu` some do DOM ao fechar; no celular o seletor é `dialog` com `button "Close"`.
 
@@ -286,6 +287,69 @@ test.describe('Dado o seletor de URLs no cabeçalho (UX-01; CA-9)', () => {
   });
 });
 
+test.describe('Dado "Delete URL" com e sem outra URL conhecida (decisão de 2026-09-28)', () => {
+  async function apagarAUrl(page: Page): Promise<void> {
+    await (
+      compacto(page)
+        ? page.getByRole('button', { name: 'More actions', exact: true })
+        : page.getByRole('button', { name: 'More URL actions' })
+    ).click();
+    await page.getByRole('menuitem', { name: 'Delete URL' }).click();
+    await page
+      .getByRole('dialog', { name: 'Delete this URL?' })
+      .getByRole('button', { name: 'Delete URL' })
+      .click();
+  }
+
+  test('deve abrir a próxima URL conhecida do seletor, sem criar outra', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const outra = await tokens.create();
+    const apagada = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${outra}`);
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(outra)}. Switch URL`);
+    await page.goto(`/#/${apagada}`);
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(apagada)}. Switch URL`);
+    const criadas: string[] = [];
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && new URL(r.url()).pathname === '/token') {
+        criadas.push(r.url());
+      }
+    });
+
+    await apagarAUrl(page);
+
+    await expect(page).toHaveURL(new RegExp(`#/${outra}$`));
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(outra)}. Switch URL`);
+    expect((await request.get(`/token/${apagada}`)).status()).not.toBe(200);
+    expect((await urlsConhecidas(page)).map((u) => u.uuid)).toEqual([outra]);
+    expect(criadas, 'nenhuma URL criada: havia outra conhecida').toEqual([]);
+  });
+
+  test('deve criar uma URL, como na primeira visita, Quando não há outra conhecida', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const apagada = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${apagada}`);
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(apagada)}. Switch URL`);
+
+    await apagarAUrl(page);
+
+    await expect(page).not.toHaveURL(new RegExp(apagada));
+    await expect(page).toHaveURL(/#\/[0-9a-f-]{36}$/);
+    const nova = /#\/([0-9a-f-]{36})/.exec(page.url())![1];
+    tokens.track(nova);
+    expect((await request.get(`/token/${nova}`)).status()).toBe(200);
+    expect((await urlsConhecidas(page)).map((u) => u.uuid)).toEqual([nova]);
+  });
+});
+
 test.describe('Dado os filtros da Entrada numa linha (UX-04; CA-9)', () => {
   /** POST /a, GET /b e POST /c (a mais nova). */
   async function tres(tokens: {
@@ -514,8 +578,11 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
       Math.abs(altura - esperada),
       `item de ${esperada} px, tem ${altura}`,
     ).toBeLessThanOrEqual(1);
-    // SUPOSIÇÃO: "hora" na linha 1 é a hora do relógio (wireframe) ou o tempo relativo de hoje (INBOX-11, trava 2).
-    await expect(linha).toContainText(/a few seconds ago|\d+ s ago|just now|\b\d{1,2}:\d{2}\b/);
+    // Decisão do orquestrador (2026-09-28): a linha 1 mostra o tempo relativo, como hoje (INBOX-11), com a hora
+    // exata no `title`.
+    const quando = linha.getByText(/^\s*(a few seconds ago|\d+ s ago|just now|a minute ago)\s*$/);
+    await expect(quando).toBeVisible();
+    await expect(quando).toHaveAttribute('title', /\b\d{1,2}:\d{2}\b/);
     await expect(linha).toContainText(`#${id5(id)}`);
     await expect(linha).not.toContainText(ip);
     await expect(linha).not.toContainText('agente-de-teste/1.0');

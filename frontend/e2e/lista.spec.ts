@@ -60,9 +60,7 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
       );
       await expect(linha.locator('app-method-badge')).toHaveText(method);
       await expect(linha.locator('app-method-badge')).toHaveClass(new RegExp(COLOR[method]));
-      // Patamar, B1 (guia-combinacao §3.1, lista densa): a linha 1 mostra a hora. SUPOSIÇÃO: o guia diz "hora"
-      // (21:24:07 no wireframe) e a trava 2 da INBOX-11 diz tempo relativo; vale qualquer um dos dois.
-      await expect(linha).toContainText(/a few seconds ago|\d+ s ago|just now|\b\d{1,2}:\d{2}\b/);
+      await expect(linha).toContainText(/a few seconds ago|\d+ s ago|just now/);
       await expect(linha).not.toContainText(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
     }
   });
