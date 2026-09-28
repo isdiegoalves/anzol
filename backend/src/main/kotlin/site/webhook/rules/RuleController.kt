@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 import site.webhook.RequestId
 import site.webhook.TokenId
 import site.webhook.UUID_PATTERN
+import site.webhook.capture.CapturedRequest
 import site.webhook.capture.RequestStore
 import site.webhook.capture.Sorting
 import site.webhook.http.legacyInput
@@ -52,6 +53,9 @@ data class RuleTestResult(
     val rendered: List<RenderedResponse>? = null,
 )
 
+/** As mensagens da janela do `rules/test` (as [TEST_WINDOW] mais recentes da URL), da mais nova para a mais antiga. */
+fun RequestStore.recent(token: Token): List<CapturedRequest> = page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST)
+
 /** Pedido de render do `rules/test`: quantas mensagens ([count]) e o instante do `{{now}}`. */
 data class RenderRequest(
     val count: Int,
@@ -67,7 +71,7 @@ fun RequestStore.test(
     rule: Rule,
     render: RenderRequest? = null,
 ): RuleTestResult {
-    val messages = page(token, page = 1, perPage = TEST_WINDOW, sorting = Sorting.NEWEST)
+    val messages = recent(token)
     val evaluated = messages.map { message -> message to rule.failures(message.toMatchInput()) }
     val matched = evaluated.filter { (_, failed) -> failed.isEmpty() }.map { (message) -> message }
     return RuleTestResult(

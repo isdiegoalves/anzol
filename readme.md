@@ -758,11 +758,16 @@ oMLX do Mac, em `host.docker.internal:8000`). Os payloads não saem da máquina,
 LLM nunca grava nada.
 
 - `POST /token/{id}/rules/suggest` `{"prompt": "responda 429 com Retry-After 5 para POST em /pagamentos", "lang"?:
-  "pt-BR", "request_id"?: "<uuid de uma mensagem de exemplo>"}` → `{"rule", "explanation", "attempts"}`. O modelo
+  "pt-BR", "request_id"?: "<uuid de uma mensagem de exemplo>"}` → `{"rule", "explanation", "attempts", "check"}`. O modelo
   responde com saída estruturada (`json_schema` estrito com a forma da regra) e o mesmo validador do `PUT /rules`
   decide; se a regra for inválida, os erros voltam ao modelo, até 3 tentativas. Sem regra válida: 422
   `{"error", "errors", "attempts"}` com os erros da última. A regra não é gravada: a tela a mostra no editor e quem
-  salva é o dono. `prompt` tem de 1 a 2000 caracteres (422 em `prompt`).
+  salva é o dono. `prompt` tem de 1 a 2000 caracteres (422 em `prompt`). A resposta traz também `check`, a regra
+  conferida pelo servidor, sem o modelo: `example` (a regra contra a mensagem do `request_id`, com as frases do
+  `rules/test`; `null` sem ele), `recent` (`{"evaluated", "matched"}` sobre as 500 mensagens mais novas) e `warnings`,
+  uma lista de `{"code", "message"}` com `example_not_matched`, `template_disabled` (`{{…}}` com `template` falso),
+  `path_never_seen` (nenhuma mensagem recente tem o caminho da regra) e `sequence_as_single_rule` (o pedido descreve
+  uma sequência e a regra não tem cenário). Os avisos não geram nova tentativa.
 - `POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos (resultado
   da assinatura com o motivo, erros do schema, regra que respondeu ou near miss com as frases, status dado, cabeçalhos
   relevantes e até 4 KB do corpo) e o modelo só redige, em markdown simples, no idioma de `lang` (padrão `en`).

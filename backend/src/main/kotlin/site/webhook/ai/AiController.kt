@@ -18,16 +18,21 @@ import site.webhook.http.legacyInput
 import site.webhook.rules.Parsed
 import site.webhook.rules.Rule
 import site.webhook.rules.RuleStore
+import site.webhook.rules.recent
 import site.webhook.token.Token
 import site.webhook.token.TokenStore
 import site.webhook.token.findOrGone
 import java.nio.charset.StandardCharsets.UTF_8
 
-/** Resposta do `rules/suggest`: a regra validada (não gravada), a explicação do modelo e quantas tentativas levou. */
+/**
+ * Resposta do `rules/suggest`: a regra validada (não gravada), a explicação do modelo, quantas tentativas levou e a
+ * conferência da regra feita pelo servidor ([checkSuggestion]).
+ */
 data class SuggestResponse(
     val rule: Rule,
     val explanation: String,
     val attempts: Int,
+    val check: SuggestionCheck,
 )
 
 /** Resposta do `explain`: o texto do modelo (markdown simples) e os fatos que o backend deu a ele. */
@@ -88,7 +93,8 @@ class AiController(
             when (val suggestion = suggester.suggest(input, example)) {
                 is Suggestion.Suggested -> {
                     log.info("[AI] {} suggest ok ({} attempts)", tokenId, suggestion.attempts)
-                    ResponseEntity.ok(SuggestResponse(suggestion.rule, suggestion.explanation, suggestion.attempts))
+                    val check = checkSuggestion(suggestion.rule, input.prompt, example, requests.recent(token))
+                    ResponseEntity.ok(SuggestResponse(suggestion.rule, suggestion.explanation, suggestion.attempts, check))
                 }
 
                 is Suggestion.NoValidRule -> {
