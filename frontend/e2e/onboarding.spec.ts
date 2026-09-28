@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { Page, Route } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
-import { abrirChecks } from './support/checks';
+import { abrirChecks, botaoSalvar } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
 import { campoDeBusca, itens, lista } from './support/inbox';
 import { acaoDoShell, compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Item 14, E10: onboarding, estados vazios, de erro e de carregamento (C §2.10 e §2.11) e o Settings completo.
 // Fixo na §1: "Your URL is ready" com as abas cURL, From a provider e CLI; "Send a test request" é um `fetch` da
@@ -198,9 +201,10 @@ test.describe('Dado um erro de rede ao salvar em Checks', () => {
     });
 
     await resposta.getByLabel('Response body').fill('depois');
-    await resposta.getByRole('button', { name: 'Save response', exact: true }).click();
+    await botaoSalvar(page).click();
 
-    const retry = page.getByRole('button', { name: 'Retry', exact: true });
+    // B3: o erro de rede ao salvar fica na barra, com "Try again" (antes "Retry" no cartão).
+    const retry = page.getByRole('button', { name: /^(Try again|Retry)$/ });
     await expect(retry).toBeVisible();
     await expect(resposta.getByLabel('Response body')).toHaveValue('depois');
     const put = page.waitForResponse(

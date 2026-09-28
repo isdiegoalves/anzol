@@ -1,9 +1,12 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
-import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
+import { abrirChecks, pendenteAlerta, salvar, botaoSalvar } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 import { abrirMensagem, acoes, marcasDeSchema, porque, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Validação de schema por URL (CA-5, o que é da tela): configurar pela tela, selo na
 // mensagem com os erros, gerar o schema de uma mensagem e condição "Schema" no editor de regras.
@@ -51,7 +54,7 @@ async function openEditUrl(page: Page, tokenId: string): Promise<Locator> {
 
 /** Clica em "Save schema" e devolve o corpo do `PUT /token/{id}`. */
 async function submitEdit(page: Page, dialog: Locator, tokenId: string) {
-  return salvar(page, dialog, 'Save schema', tokenId);
+  return salvar(page, tokenId);
 }
 
 async function openRequest(page: Page, tokenId: string, requestId: string) {
@@ -82,7 +85,7 @@ test.describe('Dado o cartão "Schema validation" de Checks', () => {
     await field.fill('{"type": ');
     await field.blur();
     await expect(dialog.getByText(/^Invalid JSON: /)).toBeVisible();
-    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
+    await botaoSalvar(page).click();
     await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: JSON Schema');
     await expect(field).toBeFocused();
     await field.fill(JSON.stringify(PEDIDO, null, 2));
@@ -130,12 +133,12 @@ test.describe('Dado o cartão "Schema validation" de Checks', () => {
     const recusa = page.waitForResponse(
       (response) => response.request().method() === 'PUT' && response.status() === 422,
     );
-    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
+    await botaoSalvar(page).click();
     await recusa;
 
     await expect(dialog.getByText(/^The schema is invalid: /)).toBeVisible();
     await expect(field).toHaveValue('{"$ref": "https://exemplo.com/pedido.json"}');
-    await dialog.getByRole('button', { name: 'Save schema', exact: true }).click();
+    await botaoSalvar(page).click();
     await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: JSON Schema');
     await field.scrollIntoViewIfNeeded();
     await screenshot(page, '04-edit-url-erro-do-servidor');

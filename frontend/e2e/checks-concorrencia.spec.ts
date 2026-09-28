@@ -1,8 +1,11 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page, Response } from '@playwright/test';
-import { abrirChecks, secao } from './support/checks';
+import { abrirChecks, secao, botaoSalvar, barraDeSalvar } from './support/checks';
 import { expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Item 14, E5 — refutação independente (CA-12), transformada em spec: o que a refutação provou que a E5 quebra.
 // (a) CA-11 entre abas: o que outra aba (ou o CLI, ou o MCP) gravou no `PUT /token` depois que esta aba leu a URL
@@ -49,16 +52,11 @@ function conflito(page: Page): Locator {
  * Clica no Save e espera o desfecho sem espera fixa: o `PUT /token/{id}` responder, ou o aviso de conflito aparecer
  * (quando a tela prefere não gravar). Devolve a resposta do PUT, se houve.
  */
-async function salvarEsperando(
-  page: Page,
-  regiao: Locator,
-  botao: string,
-  tokenId: string,
-): Promise<Response | null> {
+async function salvarEsperando(page: Page, tokenId: string): Promise<Response | null> {
   const put = page.waitForResponse(
     (r) => r.request().method() === 'PUT' && r.url().endsWith(`/token/${tokenId}`),
   );
-  await regiao.getByRole('button', { name: botao, exact: true }).click();
+  await botaoSalvar(page).click();
   return Promise.race([
     put,
     conflito(page)
@@ -86,7 +84,7 @@ test.describe('Dado outra aba que grava a URL depois que esta leu (CA-11 entre a
 
     await gravarEmOutraAba(request, tokenId, { schema: { type: 'object' } });
     await resposta.getByLabel('Response body').fill('depois');
-    const put = await salvarEsperando(page, resposta, 'Save response', tokenId);
+    const put = await salvarEsperando(page, tokenId);
 
     const depois = await tokens.read(tokenId);
     expect(depois['schema'], 'o schema da outra aba continua').toEqual({ type: 'object' });
@@ -110,7 +108,7 @@ test.describe('Dado outra aba que grava a URL depois que esta leu (CA-11 entre a
 
     await gravarEmOutraAba(request, tokenId, { signature: { provider: 'github', secret: SECRET } });
     await schema.getByRole('textbox', { name: 'JSON Schema' }).fill('{"type":"object"}');
-    const put = await salvarEsperando(page, schema, 'Save schema', tokenId);
+    const put = await salvarEsperando(page, tokenId);
 
     expect(await tokens.read(tokenId)).toMatchObject({ signature: { provider: 'github' } });
     if (put) {
@@ -184,12 +182,14 @@ test.describe('Dado uma URL protegida aberta nesta tela, com um rascunho em outr
         .catch(() => undefined);
       await route.continue();
     });
-    const put = await salvarEsperando(page, privacy, 'Save privacy', tokenId);
+    const put = await salvarEsperando(page, tokenId);
     tokens.protectedWith(tokenId, SEGREDO_NOVO);
 
     expect(put?.status()).toBe(200);
     // Soft: um defeito não esconde os outros.
-    await expect.soft(privacy.getByText('Saved.')).toBeVisible();
+    // B3: o salvar é um só; o aviso é o snackbar "URL updated!" e a barra some.
+    await expect.soft(page.getByText('URL updated!').last()).toBeVisible();
+    await expect.soft(barraDeSalvar(page)).toBeHidden();
     await expect.soft(corpo).toHaveValue('rascunho-que-fica');
     expect.soft(recusas, 'nenhuma chamada da tela volta 401').toEqual([]);
     expect
@@ -220,7 +220,7 @@ test.describe('Dado o slider Timeout levado a 0 no cartão Response', () => {
     await timeout.focus();
     await page.keyboard.press('Home');
     await expect(timeout).toHaveValue('0');
-    const put = await salvarEsperando(page, resposta, 'Save response', tokenId);
+    const put = await salvarEsperando(page, tokenId);
 
     expect(put, 'o Save manda o PUT').not.toBeNull();
     const corpo = put!.request().postDataJSON() as Record<string, unknown>;

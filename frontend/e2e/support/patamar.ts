@@ -96,11 +96,6 @@ export async function verResultado(page: Page): Promise<void> {
   }
 }
 
-/** `region "Unsaved changes"`: a barra de salvar de Verificações (B3). */
-export function barraDeSalvar(page: Page): Locator {
-  return page.getByRole('region', { name: 'Unsaved changes' });
-}
-
 /** `status "Request notice"`: a região viva do topo do detalhe (B2). */
 export function avisoDaRequisicao(page: Page): Locator {
   return page.getByRole('status', { name: 'Request notice' });

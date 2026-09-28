@@ -8,9 +8,13 @@ import {
   pendenteAlerta,
   salvar,
   secao,
+  botaoSalvar,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 import { compacto, maisAcoes } from './support/shell';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Item 14, E5: a página Checks (`#/{token}/checks`). CA-11 (o Save de um cartão manda o token salvo mais só aquele
 // cartão: os outros campos não voltam ao padrão nem levam o que foi digitado e não salvo), Health por
@@ -49,7 +53,9 @@ async function ultima(api: APIRequestContext, tokenId: string) {
 }
 
 test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', () => {
-  test('deve salvar só o schema, sem resetar a assinatura, o segredo e a resposta nem levar o que não foi salvo', async ({
+  // Patamar, B3 (CA-6): com uma barra só, o salvar leva todas as alterações pendentes (o status digitado no cartão
+  // Response vai junto com o schema); o que não foi mexido não volta ao padrão (CA-11).
+  test('deve salvar o schema e o status pendentes num PUT só, sem resetar a assinatura, o segredo e o resto da resposta', async ({
     page,
     request,
     tokens,
@@ -65,20 +71,19 @@ test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', (
     const schema = await abrirChecks(page, tokenId, 'Schema validation');
     const resposta = secao(page, 'Response');
     await expect(resposta.getByLabel('Default status code')).toHaveValue('202');
-    // Digitado e não salvo no cartão Response: não pode ir no PUT do Schema.
     await resposta.getByLabel('Default status code').fill('418');
 
     await schema.getByRole('textbox', { name: 'JSON Schema' }).fill(JSON.stringify(SCHEMA_B));
-    const put = await salvar(page, schema, 'Save schema', tokenId);
+    const put = await salvar(page, tokenId);
 
     expect(put['schema']).toEqual(SCHEMA_B);
-    expect(String(put['default_status'])).toBe('202');
+    expect(String(put['default_status'])).toBe('418');
     expect(put['default_content']).toBe('padrão');
     expect(String(put['retry_after'])).toBe('30');
     expect(put['auto_cleanup']).toBe(500);
     expect(put['signature']).toEqual({ provider: 'github', secret: MASKED });
     expect(await tokens.read(tokenId)).toMatchObject({
-      default_status: 202,
+      default_status: 418,
       default_content: 'padrão',
       auto_cleanup: 500,
       signature: { provider: 'github', secret: MASKED },
@@ -103,7 +108,7 @@ test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', (
     const resposta = await abrirChecks(page, tokenId, 'Response');
 
     await resposta.getByLabel('Response body').fill('novo corpo');
-    const put = await salvar(page, resposta, 'Save response', tokenId);
+    const put = await salvar(page, tokenId);
 
     expect(put['default_content']).toBe('novo corpo');
     expect(put['schema']).toEqual(SCHEMA_A);
@@ -190,7 +195,7 @@ test.describe('Dado o cartão Schema validation', () => {
       JSON.stringify(inferido, null, 2),
     );
     expect(await tokens.read(tokenId)).toMatchObject({ schema: null });
-    const put = await salvar(page, schema, 'Save schema', tokenId);
+    const put = await salvar(page, tokenId);
     expect(put['schema']).toEqual(inferido);
   });
 
@@ -228,10 +233,9 @@ test.describe('Dado o cartão Signature verification', () => {
 
     await escolherProvedor(assinatura, 'Generic');
 
-    const save = assinatura.getByRole('button', { name: 'Save signature', exact: true });
+    const save = botaoSalvar(page);
     await expect(save).toBeEnabled();
     await expect(pendente(assinatura)).toHaveText('To save, fill in: Signature header, Secret');
-    await expect(save).toHaveAccessibleDescription('To save, fill in: Signature header, Secret');
     await save.click();
     await expect(pendenteAlerta(assinatura)).toHaveText(
       '2 fields need attention: Signature header, Secret',
@@ -284,7 +288,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
           `Checks Generic, ${colorScheme}, ${viewport.width} px`,
         );
 
-        await assinatura.getByRole('button', { name: 'Save signature', exact: true }).click();
+        await botaoSalvar(page).click();
         await expect(pendenteAlerta(assinatura)).toBeVisible();
         await expectSemViolacoesGraves(
           page,

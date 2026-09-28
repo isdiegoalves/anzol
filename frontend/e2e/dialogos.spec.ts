@@ -1,6 +1,9 @@
 import { abrirChecks, abrirCreate, pendenteAlerta, salvar } from './support/checks';
 import { UUID, expect, test, tokenInUrl } from './support/fixtures';
 
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
+
 // Checklist 4 e 5. Item 14, E5: o "Create New URL" fica curto, com os campos da resposta no painel recolhido
 // "Customize response" (S2); o "Edit URL" deixa de existir e os mesmos campos vão para o cartão `region
 // "Response"` de Checks, com "Save response". SUPOSIÇÕES em `support/checks.ts`.
@@ -78,7 +81,7 @@ test.describe('Dado o cartão "Response" de Checks (checklist 5)', () => {
     await expect(dialog.getByLabel('Response body')).toHaveValue('antes');
     await dialog.getByLabel('Default status code').fill('201');
     await dialog.getByLabel('Response body').fill('depois');
-    await salvar(page, dialog, 'Save response', tokenId);
+    await salvar(page, tokenId);
 
     const token = (await (await request.get(`/token/${tokenId}`)).json()) as Record<
       string,

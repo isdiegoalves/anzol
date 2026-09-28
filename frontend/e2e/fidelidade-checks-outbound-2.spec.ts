@@ -1,7 +1,16 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { abrirChecks, escolherProvedor, pendente, pendenteAlerta } from './support/checks';
+import {
+  abrirChecks,
+  escolherProvedor,
+  pendente,
+  pendenteAlerta,
+  botaoSalvar,
+} from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Item 14.1, fase 2, fatia F2-2 (fidelidade ao protótipo C): os itens "discutir" de Checks e Outbound que o dono
 // decidiu adotar (`.docs-arquivo/fidelidade-prototipo/discutir-decididos.json`), com o ajuste do `porque` nos
@@ -98,7 +107,7 @@ test.describe('Dado o cartão Signature verification (CHECKS-07/09/10/13)', () =
     await escolherProvedor(assinatura, 'Generic');
 
     await expect(pendente(assinatura)).toHaveText('To save, fill in: Signature header, Secret');
-    await assinatura.getByRole('button', { name: 'Save signature', exact: true }).click();
+    await botaoSalvar(page).click();
     await expect(pendenteAlerta(assinatura)).toHaveText(
       '2 fields need attention: Signature header, Secret',
     );

@@ -3,6 +3,9 @@ import { abrirChecks, abrirCreate, escolherLimpeza, salvar } from './support/che
 import { expect, test, tokenInUrl } from './support/fixtures';
 import { item, itens } from './support/inbox';
 
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
+
 // Limpeza automática: campo nos diálogos da URL, contador com o limite e lista ao vivo
 // coerente com o corte FIFO do servidor. Precisa do backend com `auto_cleanup` e `removed`.
 // Item 14, E5: o `mat-select` vira `radiogroup "Auto cleanup"` (C §2.6), no "Customize response" do Create e no
@@ -79,7 +82,7 @@ test.describe('Dado o campo "Auto cleanup" do Create e de Checks', () => {
         .getByRole('radio', { name: '500', exact: true }),
     ).toBeChecked();
     await escolherLimpeza(dialog, 'Disabled');
-    const put = await salvar(page, dialog, 'Save response', tokenId);
+    const put = await salvar(page, tokenId);
 
     expect(put).toMatchObject({ auto_cleanup: null, retry_after: null });
     expect(await tokens.read(tokenId)).toMatchObject({ auto_cleanup: null });
@@ -139,7 +142,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
 
     const resposta = await abrirChecks(page, tokenId, 'Response');
     await escolherLimpeza(resposta, '500');
-    await salvar(page, resposta, 'Save response', tokenId);
+    await salvar(page, tokenId);
     await openInbox(page);
 
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();

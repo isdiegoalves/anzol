@@ -2,10 +2,13 @@ import { createHmac } from 'node:crypto';
 import { IncomingHttpHeaders, Server, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
-import { abrirChecks, escolherProvedor, secao } from './support/checks';
+import { abrirChecks, escolherProvedor, secao, botaoSalvar } from './support/checks';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { filtro, itens, abrirFiltros } from './support/inbox';
 import { seedStorage } from './support/storage';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
 // abre o painel antes de usar um chip.
@@ -120,7 +123,7 @@ test.describe('Dado o cartão Signature com um provedor salvo (CHECKS-06, 11, 12
     const put = page.waitForRequest(
       (sent) => sent.method() === 'PUT' && sent.url().endsWith(`/token/${tokenId}`),
     );
-    await assinatura.getByRole('button', { name: 'Save signature', exact: true }).click();
+    await botaoSalvar(page).click();
 
     expect((await put).postDataJSON()).toMatchObject({ signature: null });
   });

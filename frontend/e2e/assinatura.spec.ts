@@ -8,10 +8,14 @@ import {
   resumo,
   salvar,
   secao,
+  botaoSalvar,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 import { abrirAba, abrirItem, abrirMensagem, item, porque, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
+
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pela tela, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
@@ -75,7 +79,7 @@ async function openEditUrl(page: Page, tokenId: string): Promise<Locator> {
 
 /** Clica em "Save signature" e devolve o corpo do `PUT /token/{id}`. */
 async function submitEdit(page: Page, dialog: Locator, tokenId: string) {
-  return salvar(page, dialog, 'Save signature', tokenId);
+  return salvar(page, tokenId);
 }
 
 /** A linha "Expected header: …" (a anatomia do header do provedor escolhido). */
@@ -199,7 +203,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     // Editar a URL sem mexer no segredo: agora pelo cartão Response (o PUT leva a assinatura salva, CA-11).
     const resposta = secao(page, 'Response');
     await resposta.getByRole('textbox', { name: 'Default status code' }).fill('202');
-    const put = await salvar(page, resposta, 'Save response', tokenId);
+    const put = await salvar(page, tokenId);
 
     // O mascarado volta como veio: o servidor mantém o segredo, que não sai da tela.
     expect(put['signature']).toEqual({ provider: 'github', secret: MASKED });
@@ -243,7 +247,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await escolherProvedor(dialog, 'Generic');
     const header = dialog.getByRole('textbox', { name: 'Signature header' });
     const secret = dialog.getByLabel('Secret', { exact: true });
-    const save = dialog.getByRole('button', { name: 'Save signature', exact: true });
+    const save = botaoSalvar(page);
     await expect(header).toHaveAttribute('required', '');
     await expect(secret).toHaveAttribute('required', '');
     await expect(dialog.getByRole('textbox', { name: 'Prefix' })).not.toHaveAttribute('required');
@@ -263,9 +267,6 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await expect(header).toBeFocused();
     await expect(dialog.getByText('The header is required.')).toBeVisible();
     await expect(dialog.getByText('The secret is required, up to 256 characters.')).toBeVisible();
-    await expect(save).toHaveAccessibleDescription(
-      '2 fields need attention: Signature header, Secret',
-    );
     expect(puts).toEqual([]);
     await screenshot(page, '09-generico-o-que-falta');
 
@@ -314,7 +315,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
       'placeholder',
       MASKED,
     );
-    await dialog.getByRole('button', { name: 'Save signature', exact: true }).click();
+    await botaoSalvar(page).click();
     await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: Secret');
     await expect(dialog.getByLabel('Secret', { exact: true })).toBeFocused();
     await screenshot(page, '10-troca-de-provedor');

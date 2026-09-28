@@ -4,6 +4,9 @@ import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
 import { abrirAba, acoes, expectCorpo, item, linhas } from './support/inbox';
 import { seedStorage } from './support/storage';
 
+// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
+// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
+
 // Item 12 (privacidade), CA-5 da tela: proteger, desbloquear, Lock, compartilhar e a página do
 // link. Precisa do backend do item 12 (`read_secret`, `unlock`/`lock`, `share`).
 
@@ -54,7 +57,7 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
     await dialog.getByLabel('Secret to view', { exact: true }).fill(SEGREDO);
     await dialog.getByLabel('Confirm secret', { exact: true }).fill(SEGREDO);
     tokens.protectedWith(tokenId, SEGREDO);
-    await salvar(page, dialog, 'Save privacy', tokenId);
+    await salvar(page, tokenId);
 
     const semSegredo = await request.get(`/token/${tokenId}`);
     expect(semSegredo.status()).toBe(401);
@@ -108,7 +111,13 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
     await expect(
       dialog.getByText('This URL is protected. Leave the fields blank to keep the current secret.'),
     ).toBeVisible();
-    await salvar(page, dialog, 'Save privacy', tokenId);
+    // B3: a barra de salvar só aparece com alteração pendente; a alteração é noutro cartão, e os campos do segredo
+    // ficam em branco.
+    await page
+      .getByRole('region', { name: 'Response', exact: true })
+      .getByLabel('Response body')
+      .fill('segue protegida');
+    await salvar(page, tokenId);
     expect((await request.get(`/token/${tokenId}`)).status()).toBe(401);
     const comSegredo = await request.get(`/token/${tokenId}`, {
       headers: { 'X-Webhook-Secret': SEGREDO },
@@ -118,7 +127,7 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
 
     await dialog.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
     await expect(dialog.getByText('Saving removes the secret')).toBeVisible();
-    await salvar(page, dialog, 'Save privacy', tokenId);
+    await salvar(page, tokenId);
 
     const aberta = await request.get(`/token/${tokenId}`);
     expect(aberta.status()).toBe(200);
