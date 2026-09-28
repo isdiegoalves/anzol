@@ -89,11 +89,12 @@ private fun errorPage(
 }
 
 /**
- * Falha de validação do `FormRequest`: 422 com `{campo: [mensagens]}` para quem espera JSON;
- * para os demais, 302 para a página anterior (Referer) ou para a raiz, como o Laravel faz.
+ * Falha de validação do `FormRequest`: 422 com `{campo: [mensagens]}` para quem espera JSON ou manda JSON (o
+ * `Content-Type` JSON já basta para receber os outros erros em JSON, ver [wantsJsonError]); para os demais (o
+ * formulário e a query string sem `Accept`), 302 para a página anterior (Referer) ou para a raiz, como o Laravel faz.
  */
 fun HttpServletRequest.validationFailure(errors: Map<String, List<String>>): ResponseEntity<Any> {
-    if (expectsJson()) {
+    if (expectsJson() || isLaravelJson(contentType.orEmpty())) {
         return ResponseEntity.unprocessableContent().contentType(MediaType.APPLICATION_JSON).body(errors)
     }
     val target = previousUrl()

@@ -124,21 +124,38 @@ class TokenApiTest(
     }
 
     @Test
-    @DisplayName("Dado um cliente que não pede JSON, quando a validação falha, então redireciona 302 para o Referer")
-    fun create_clienteHtmlInvalido_deveRedirecionar() {
-        val comReferer =
-            api.send(
-                "POST",
-                "/token",
-                "timeout=11".toByteArray(),
-                mapOf("Referer" to "http://exemplo.test/x?y", "Content-Type" to "application/x-www-form-urlencoded"),
-            )
-        val semReferer = api.send("POST", "/token", """{"timeout":11}""".toByteArray(), mapOf("Content-Type" to "application/json"))
+    @DisplayName("Dado um formulário sem Accept JSON, quando a validação falha, então redireciona 302 para o Referer ou para a raiz")
+    fun create_formularioInvalido_deveRedirecionar() {
+        val form = mapOf("Content-Type" to "application/x-www-form-urlencoded")
+        val comReferer = api.send("POST", "/token", "timeout=11".toByteArray(), form + ("Referer" to "http://exemplo.test/x?y"))
+        val semReferer = api.send("POST", "/token", "timeout=11".toByteArray(), form)
 
         assertThat(comReferer.statusCode()).isEqualTo(302)
         assertThat(comReferer.headers().firstValue("Location")).hasValue("http://exemplo.test/x?y")
         assertThat(semReferer.statusCode()).isEqualTo(302)
         assertThat(semReferer.headers().firstValue("Location")).hasValue(api.base)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado um pedido com Content-Type JSON e sem Accept, quando a validação falha, então 422 em JSON (e não 302), no POST, " +
+            "no PUT e na listagem",
+    )
+    fun validacao_pedidoJsonSemAccept_deveResponder422() {
+        val json = mapOf("Content-Type" to "application/vnd.api+json; charset=utf-8")
+        val tokenId = api.tokenId("""{"timeout":2}""")
+
+        val post = api.send("POST", "/token", """{"timeout":11}""".toByteArray(), json)
+        val put = api.send("PUT", "/token/$tokenId", """{"timeout":11}""".toByteArray(), json)
+        val list = api.send("GET", "/token/$tokenId/requests?after=abc", headers = json)
+
+        val timeout = api.tree("""{"timeout":["The timeout may not be greater than 10."]}""")
+        assertThat(listOf(post, put, list).map { it.statusCode() }).containsOnly(422)
+        assertThat(listOf(post, put, list).map { it.headers().firstValue("Location").isPresent }).containsOnly(false)
+        assertThat(api.json(post)).isEqualTo(timeout)
+        assertThat(api.json(put)).isEqualTo(timeout)
+        assertThat(api.json(list)).isEqualTo(api.tree("""{"after":["The after must be an integer."]}"""))
+        assertThat(api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT))["timeout"].asInt()).isEqualTo(2)
     }
 
     @Test
