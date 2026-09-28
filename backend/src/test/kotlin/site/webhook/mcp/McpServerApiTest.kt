@@ -207,6 +207,76 @@ class McpServerApiTest(
     }
 
     @Test
+    @DisplayName("Dado null nos campos do create_url, quando cria a URL, então vale como ausente: cria com os padrões")
+    fun createUrl_comNull_deveCriarComOsPadroes() {
+        val settings = listOf("default_status", "default_content", "default_content_type", "timeout", "retry_after", "auto_cleanup")
+        val arguments = (settings + listOf("signature", "schema", "read_secret")).associateWith { null }
+
+        val created = call("create_url", arguments)
+
+        assertThat(created.isError).`as`(created.content().toString()).isNotEqualTo(true)
+        val token = created.json()
+        assertThat(token["default_status"].asInt()).isEqualTo(200)
+        assertThat(token["default_content"].asString()).isEmpty()
+        assertThat(token["default_content_type"].asString()).isEqualTo("text/plain")
+        assertThat(token["timeout"].asInt()).isZero()
+        assertThat(token["signature"].isNull).isTrue()
+        assertThat(token["protected"].asBoolean()).isFalse()
+    }
+
+    @Test
+    @DisplayName(
+        "Dado null em cada argumento opcional, quando chama as outras ferramentas, então vale como ausente (também dentro de " +
+            "um objeto): nenhuma fica mais restrita",
+    )
+    fun ferramentas_opcionalNull_deveValerComoAusente() {
+        val tokenId = api.tokenId()
+        val requestId = api.capture(tokenId, "POST", "/pedidos", "corpo".toByteArray())["uuid"].asString()
+        val id = mapOf("token_id" to tokenId, "read_secret" to null)
+        val rule =
+            mapOf("name" to "r", "priority" to null, "match" to mapOf("path" to null, "method" to listOf("POST")), "scenario" to null)
+        val calls =
+            mapOf(
+                "get_url" to id,
+                "list_requests" to id + mapOf("page" to null, "per_page" to null, "sorting" to null, "after" to null),
+                "search_requests" to
+                    id + mapOf("text" to null, "match" to null, "sorting" to null, "page" to null, "per_page" to null, "outcome" to null),
+                "get_request" to id + mapOf("request_id" to requestId),
+                "wait_for_request" to id + mapOf("match" to mapOf("path" to null), "after" to null, "count" to null, "timeout" to 0),
+                "get_rules" to id,
+                "test_rule" to id + mapOf("rule" to rule),
+                "diff_rules" to id + mapOf("rules" to listOf(rule)),
+                "set_rules" to id + mapOf("rules" to listOf(rule)),
+                "replay_request" to
+                    id +
+                    mapOf(
+                        "request_id" to requestId,
+                        "url" to "http://localhost:$port/$tokenId",
+                        "keep_path" to null,
+                        "timeout" to null,
+                    ),
+                "send_request" to
+                    id +
+                    mapOf(
+                        "url" to "http://localhost:$port/$tokenId",
+                        "method" to null,
+                        "headers" to null,
+                        "body" to null,
+                        "sign" to null,
+                        "timeout" to null,
+                    ),
+                "get_outbound" to id,
+                "update_url" to id + mapOf("signature" to mapOf("provider" to "github", "secret" to "segredo-gh", "prefix" to null)),
+                "delete_url" to id,
+            )
+
+        val errors = calls.mapValues { (tool, arguments) -> call(tool, arguments) }.filterValues { it.isError == true }
+
+        assertThat(calls.keys + "create_url").containsExactlyInAnyOrderElementsOf(TOOLS)
+        assertThat(errors.mapValues { (it.value.content().single() as TextContent).text() }).isEmpty()
+    }
+
+    @Test
     @DisplayName("Dados argumentos inválidos, quando chama a ferramenta, então é erro de ferramenta com as mensagens da API")
     fun erroDeValidacao_deveVirarErroDeFerramenta() {
         val tokenId = api.tokenId()

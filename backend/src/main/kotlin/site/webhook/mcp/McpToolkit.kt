@@ -17,11 +17,17 @@ import java.util.UUID
 private val UUID_TEXT = Regex(UUID_PATTERN)
 private const val READ_SECRET = "read_secret"
 
-/** Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). */
+/**
+ * Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). O argumento de primeiro
+ * nível enviado como `null` vale como ausente em toda ferramenta (é o que os agentes mandam num opcional que não
+ * usam); só o `update_url` lhe dá sentido próprio ([bodyOver]).
+ */
 class ToolArguments(
-    private val values: Map<String, Any?>,
+    private val sent: Map<String, Any?>,
     private val jsonMapper: JsonMapper,
 ) {
+    private val values: Map<String, Any?> = sent.filterValues { it != null }
+
     fun tokenId(): TokenId? = uuid("token_id")?.let(::TokenId)
 
     fun requestId(): RequestId? = uuid("request_id")?.let(::RequestId)
@@ -40,8 +46,8 @@ class ToolArguments(
      * ausente é o padrão (ou desligado).
      */
     fun bodyOver(current: Map<String, Any?>): String {
-        val sent = values - setOf("token_id", "request_id", READ_SECRET)
-        return jsonMapper.writeValueAsString((current + sent).filterKeys { it !in sent || sent[it] != null })
+        val changed = sent - setOf("token_id", "request_id", READ_SECRET)
+        return jsonMapper.writeValueAsString((current + changed).filterKeys { it !in changed || changed[it] != null })
     }
 
     /** O corpo do `create_url`: nele `read_secret` é o segredo que a URL nova passa a exigir. */
