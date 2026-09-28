@@ -29,7 +29,12 @@ import { RequestDetail } from '../request-detail/request-detail';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
-import { filterFromParams, filterToParams, sameFilter } from '../search/request-filter';
+import {
+  RequestFilter,
+  filterFromParams,
+  filterToParams,
+  sameFilter,
+} from '../search/request-filter';
 import { WaitForButton } from '../search/wait-for';
 import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
@@ -45,6 +50,8 @@ import { Split } from '../ui/split';
 
 /** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
 export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
+/** Quanto tempo a tela espera o eco de uma navegação que ela mesma fez. */
+export const ECHO_MS = 5000;
 /** Chegadas somadas num anúncio só para o leitor de tela (WCAG 4.1.3, sem inundar). */
 export const ANNOUNCE_EVERY_MS = 5000;
 /** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
@@ -157,6 +164,8 @@ export class Inbox {
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Os filtros que a tela mandou para a rota e cujo eco ainda não voltou. */
+  private readonly pushed: { filter: RequestFilter; at: number }[] = [];
   /** A maior `seq` que a tela já viu nesta URL: de onde a volta da conexão retoma. */
   private lastSeq = 0;
 
@@ -183,23 +192,26 @@ export class Inbox {
 
     // Filtros na rota: a query muda (um link, o "Show in Inbox" do Health) → a lista filtra; a busca
     // muda na tela → a query acompanha (replaceUrl), para o link ser compartilhável.
+    // O eco da própria navegação pode chegar atrasado, com a tela já em outro filtro (a pessoa
+    // seguiu digitando): ele não desfaz o filtro da tela; a rota é que volta a acompanhá-la.
     effect(() => {
       const filter = this.routeFilter();
       untracked(() => {
-        if (this.listReady()) {
-          void this.requests.applyFilter(filter);
+        if (!this.listReady()) {
+          return;
         }
+        if (!this.takeEcho(filter)) {
+          void this.requests.applyFilter(filter);
+          return;
+        }
+        this.pushToRoute(this.requests.filter());
       });
     });
     effect(() => {
       const filter = this.requests.filter();
       untracked(() => {
-        if (this.listReady() && !sameFilter(filter, this.routeFilter())) {
-          void this.router.navigate([], {
-            queryParams: filterToParams(filter),
-            queryParamsHandling: 'merge',
-            replaceUrl: true,
-          });
+        if (this.listReady()) {
+          this.pushToRoute(filter);
         }
       });
     });
@@ -250,6 +262,34 @@ export class Inbox {
       if (this.announceTimer) {
         clearTimeout(this.announceTimer);
       }
+    });
+  }
+
+  /**
+   * A rota que chegou é o eco de uma navegação da própria tela? Cada eco vale uma vez. O que foi
+   * mandado há mais de `ECHO_MS` não volta mais (a navegação foi cancelada por outra).
+   */
+  private takeEcho(filter: RequestFilter): boolean {
+    const since = Date.now() - ECHO_MS;
+    const waiting = this.pushed.filter((pushed) => pushed.at >= since);
+    const echo = waiting.findIndex((pushed) => sameFilter(pushed.filter, filter));
+    if (echo >= 0) {
+      waiting.splice(echo, 1);
+    }
+    this.pushed.splice(0, this.pushed.length, ...waiting);
+    return echo >= 0;
+  }
+
+  /** A rota passa a dizer o filtro da tela (`replaceUrl`), para o link ser compartilhável. */
+  private pushToRoute(filter: RequestFilter): void {
+    if (sameFilter(filter, this.routeFilter())) {
+      return;
+    }
+    this.pushed.push({ filter, at: Date.now() });
+    void this.router.navigate([], {
+      queryParams: filterToParams(filter),
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
     });
   }
 

@@ -193,6 +193,39 @@ describe('Dado a tela principal', () => {
     );
   });
 
+  // A rota acompanha o filtro da tela, e o eco dessa navegação chega depois: se a tela já mudou de
+  // novo (a pessoa digitou na busca), o eco não pode desfazer o que ela fez.
+  it('não deve desfazer o filtro da tela com o eco atrasado da própria navegação', async () => {
+    await openToken(`/${TOKEN_ID}`);
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    const store = TestBed.inject(RequestStore);
+    const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+    // A primeira navegação (a rota acompanhando o filtro) fica presa, como numa máquina lenta.
+    const real = router.navigate.bind(router);
+    const navigate = vi
+      .spyOn(router, 'navigate')
+      .mockImplementationOnce(() => Promise.resolve(true))
+      .mockImplementation(real);
+
+    const first = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    await flush(searchUrl, requestPage([R1, R2]));
+    await first;
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
+    const second = store.applyFilter({ ...NO_FILTER, methods: ['POST'], text: '/a' });
+    await flush(searchUrl, requestPage([R1]));
+    await second;
+    await vi.waitFor(() => expect(router.url).toContain('q=%2Fa'));
+
+    // Só agora a rota da primeira mudança chega.
+    await router.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/1?methods=POST`);
+    await harness.fixture.whenStable();
+
+    expect(store.filter()).toMatchObject({ methods: ['POST'], text: '/a' });
+    http.expectNone(searchUrl);
+    // E a rota volta a dizer o filtro que está na tela.
+    await vi.waitFor(() => expect(router.url).toContain('q=%2Fa'));
+  });
+
   describe('Dado um filtro que deixa a requisição aberta de fora (B1, UX-05)', () => {
     const root = () => harness.routeNativeElement as HTMLElement;
     const note = () => root().querySelector('.detail-pane .outside');
