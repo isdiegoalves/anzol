@@ -6,6 +6,7 @@ import {
   pendente,
   pendenteAlerta,
   botaoSalvar,
+  abrirSaude,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 
@@ -150,7 +151,8 @@ test.describe('Dado os cartões Health e Response (CHECKS-18/21)', () => {
   }) => {
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
     await tokens.send(tokenId, { data: 'x' });
-    const health = await abrirChecks(page, tokenId, 'Health');
+    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
+    const health = await abrirSaude(page, tokenId);
 
     const janela = health.getByRole('combobox', { name: 'Window' });
     await expect(janela).toContainText('Last 200');

@@ -69,6 +69,21 @@ export async function abrirChecks(page: Page, tokenId: string, nome: Secao): Pro
   return regiao;
 }
 
+/**
+ * Abre Verificações no cartão Health e mostra o painel. Patamar, B3 (guia-combinacao §3.3): o Health fica por último
+ * e recolhido, com uma linha das duas taxas; o `button "Show health"` (`aria-expanded`) abre o painel de antes. Na
+ * tela sem o botão (a de antes) não faz nada.
+ */
+export async function abrirSaude(page: Page, tokenId: string): Promise<Locator> {
+  const saude = await abrirChecks(page, tokenId, 'Health');
+  const mostrar = saude.getByRole('button', { name: 'Show health' });
+  if ((await mostrar.count()) === 1 && (await mostrar.getAttribute('aria-expanded')) === 'false') {
+    await mostrar.click();
+    await expect(mostrar).toHaveAttribute('aria-expanded', 'true');
+  }
+  return saude;
+}
+
 /** `region "Unsaved changes"`: a barra de salvar de Verificações (B3), que só existe com alteração pendente. */
 export function barraDeSalvar(page: Page): Locator {
   return page.getByRole('region', { name: 'Unsaved changes' });

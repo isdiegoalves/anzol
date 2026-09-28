@@ -279,7 +279,14 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
     await page.goto(`/#/${tokenId}/checks`);
     await expect(
       page.getByRole('navigation', { name: 'Nesta página' }).getByRole('link'),
-    ).toHaveText(['Assinatura', 'Schema', 'Resposta', 'Privacidade', 'Saúde']);
+      // Patamar, B3 (guia-combinacao §3.3): o atalho mostra o estado ao lado do nome ("Assinatura · Desligada").
+    ).toHaveText([
+      /^\s*Assinatura( · .+)?\s*$/,
+      /^\s*Schema( · .+)?\s*$/,
+      /^\s*Resposta( · .+)?\s*$/,
+      /^\s*Privacidade( · .+)?\s*$/,
+      /^\s*Saúde( · .+)?\s*$/,
+    ]);
   });
 });
 

@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { abrirChecks } from './support/checks';
+// Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
+import { abrirSaude } from './support/checks';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
 import { filtro, item, itens, abrirFiltros } from './support/inbox';
 
@@ -96,7 +97,7 @@ function naQuery(texto: string): RegExp {
 
 /** Clica no "Show in Inbox" da linha do Health e espera a Entrada. */
 async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Promise<void> {
-  const health = await abrirChecks(page, tokenId, 'Health');
+  const health = await abrirSaude(page, tokenId);
   const link = health.getByRole('link', { name: linha });
   await expect(link).toContainText('Show in Inbox');
   await link.click();
@@ -123,7 +124,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
     tokens,
   }) => {
     const c = await cenario(tokens);
-    const health = await abrirChecks(page, c.tokenId, 'Health');
+    const health = await abrirSaude(page, c.tokenId);
     const link = health.getByRole('link', { name: /timestamp outside tolerance/ });
     await expect(link).toHaveAttribute('href', naQuery('timestamp outside tolerance'));
 
@@ -143,7 +144,7 @@ test.describe('Dado o Health com motivos de assinatura e caminhos de schema (M1)
     tokens,
   }) => {
     const c = await cenario(tokens);
-    const health = await abrirChecks(page, c.tokenId, 'Health');
+    const health = await abrirSaude(page, c.tokenId);
     await expect(health.getByRole('link', { name: /\/valor/ })).toHaveAttribute(
       'href',
       naQuery('/valor'),

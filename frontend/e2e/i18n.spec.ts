@@ -101,10 +101,17 @@ test.describe('Dado o idioma pt-BR escolhido em Settings', () => {
     // Fidelidade ao C (F1, CHECKS-23): o nome ganha ", precisa de atenção" quando há falha, como o `destino()`.
     await secoes.getByRole('link', { name: /^Verificações(, .+)?$/ }).click();
     await expect(page.getByRole('heading', { name: 'Verificações', level: 1 })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Verificação de assinatura' })).toBeVisible();
+    // Patamar, B3 (guia-combinacao §3.3 e §7): o "Salvar assinatura" do cartão sai; salvar é o `button "Salvar
+    // alterações"` da `region "Alterações não salvas"`, que só aparece com alteração pendente.
+    await page
+      .getByRole('region', { name: 'Resposta', exact: true })
+      .getByLabel('Status padrão')
+      .fill('418');
     await expect(
       page
-        .getByRole('region', { name: 'Verificação de assinatura' })
-        .getByRole('button', { name: 'Salvar assinatura', exact: true }),
+        .getByRole('region', { name: 'Alterações não salvas' })
+        .getByRole('button', { name: /^Salvar alterações\b/ }),
     ).toBeVisible();
 
     // Rules.

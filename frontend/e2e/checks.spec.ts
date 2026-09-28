@@ -9,6 +9,8 @@ import {
   salvar,
   secao,
   botaoSalvar,
+  abrirSaude,
+  abrirCartao,
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 import { compacto, maisAcoes } from './support/shell';
@@ -69,6 +71,8 @@ test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', (
       schema: SCHEMA_A,
     });
     const schema = await abrirChecks(page, tokenId, 'Schema validation');
+    // Patamar, B3: no celular os cartões são recolhíveis; o Response é aberto antes de mexer nele.
+    await abrirCartao(page, 'Response');
     const resposta = secao(page, 'Response');
     await expect(resposta.getByLabel('Default status code')).toHaveValue('202');
     await resposta.getByLabel('Default status code').fill('418');
@@ -141,7 +145,8 @@ test.describe('Dado o cartão Health de uma URL com mensagens verificadas', () =
       );
 
     const padrao = pedido('200');
-    const health = await abrirChecks(page, tokenId, 'Health');
+    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
+    const health = await abrirSaude(page, tokenId);
     await padrao;
 
     const janela = health.getByRole('combobox', { name: 'Window' });

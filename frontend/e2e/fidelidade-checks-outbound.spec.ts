@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { IncomingHttpHeaders, Server, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
-import { abrirChecks, escolherProvedor, secao, botaoSalvar } from './support/checks';
+import { abrirChecks, escolherProvedor, secao, botaoSalvar, abrirSaude } from './support/checks';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { filtro, itens, abrirFiltros } from './support/inbox';
 import { seedStorage } from './support/storage';
@@ -93,7 +93,9 @@ async function cabeNaAltura(page: Page): Promise<boolean> {
 }
 
 test.describe('Dado a página Checks a 1400×900 (CHECKS-01)', () => {
-  test('deve pôr Health e Response numa coluna de ~400 px e caber na altura da tela', async ({
+  // Patamar, B3 (guia-combinacao §3.3): as duas colunas do CHECKS-01 saem; em todas as larguras os cartões ficam numa
+  // coluna só, com 880 px no máximo, na ordem do índice (Health por último).
+  test('deve pôr os cartões numa coluna só, de até 880 px, com o Health por último', async ({
     page,
     tokens,
   }) => {
@@ -106,11 +108,12 @@ test.describe('Dado a página Checks a 1400×900 (CHECKS-01)', () => {
     const health = (await secao(page, 'Health').boundingBox())!;
     const resposta = (await secao(page, 'Response').boundingBox())!;
     const assinatura = (await secao(page, 'Signature verification').boundingBox())!;
-    expect(health.width).toBeGreaterThanOrEqual(380);
-    expect(health.width).toBeLessThanOrEqual(420);
-    expect(Math.round(resposta.x)).toBe(Math.round(health.x));
-    expect(assinatura.x).toBeLessThan(health.x);
-    expect(await cabeNaAltura(page), 'colunas rolam por dentro').toBe(true);
+    for (const cartao of [assinatura, resposta, health]) {
+      expect(cartao.width).toBeLessThanOrEqual(880);
+      expect(Math.round(cartao.x)).toBe(Math.round(assinatura.x));
+    }
+    expect(assinatura.y).toBeLessThan(resposta.y);
+    expect(resposta.y).toBeLessThan(health.y);
   });
 });
 
@@ -186,7 +189,8 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
       data: '{"id":2}',
     });
     await tokens.send(tokenId, github(SECRET, '{"id":"3"}'));
-    const health = await abrirChecks(page, tokenId, 'Health');
+    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
+    const health = await abrirSaude(page, tokenId);
     await expect(health).toContainText('Click a line to see those requests in the Inbox.');
     return { tokenId, health };
   }
