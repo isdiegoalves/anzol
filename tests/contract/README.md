@@ -801,6 +801,22 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     troca. `null` explícito desliga `signature` e `schema` e volta cada um dos outros ao padrão, só ele. Valor inválido
     é erro de ferramenta com a mensagem da API e nada muda. A descrição cita `null` e não diz mais `go back to their
     defaults`. O `PUT` da REST não muda.
+  - *Revisão de segurança da D1* (`seguranca-d1.spec.ts`):
+    - **Máscara gravada como segredo.** No `PUT /token/{id}` e no `update_url`, `signature.secret` que começa com
+      `••••` e não é a máscara do segredo atual → 422 só com a chave `signature.secret` (no MCP, erro de ferramenta que
+      a cita), sem o segredo na resposta, e a URL fica igual. Cinco textos: a máscara de outra URL, a máscara sozinha,
+      com outros 4 caracteres, a certa com algo a mais e a máscara seguida de um segredo inteiro. Também o bloco
+      inteiro copiado do `GET` (ou do `get_url`) de outra URL, e a URL sem assinatura. Uma captura confere que o
+      segredo de antes continua valendo e que o texto mascarado não virou segredo. Guardas: a máscara do segredo
+      atual mantém o segredo, e o segredo novo com `•` no meio é aceito.
+    - **`create_url` com `null`.** `default_status`, `default_content`, `default_content_type` e `timeout` com `null`,
+      um a um e os quatro juntos ao lado de `retry_after: 9`: a URL nasce com os padrões. Valor inválido continua erro
+      de ferramenta.
+    - **`update_url` com texto vazio.** `signature: ""` e `schema: ""` → erro que cita o campo, e nada muda (nem o
+      `timeout` enviado junto); `null` desliga aquele e o outro fica.
+    - **`update_url` simultâneo.** 20 rodadas, cada uma numa URL nova: uma chamada liga a assinatura e outra muda o
+      `timeout`, ao mesmo tempo. As duas respondem sucesso e, no fim, assinatura, `timeout` e o `default_status` de
+      antes estão gravados.
   - *Cursor do wait-for* (`wait-for-cursor.spec.ts`, DX-14): **guarda, verde hoje**. O cursor é o `seq` de
     `GET …/requests?sorting=newest&per_page=1` (lista vazia = 0); a espera com `after: <cursor>` acha o disparo que
     chegou antes de ela começar e não a mensagem antiga; o cursor lido antes de a mais nova ser apagada continua
@@ -818,7 +834,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   Leituras assumidas: JSON válido que não é objeto dá o mesmo 400 do JSON que não se lê; o envelope do 400 é o dos
   outros erros da API e o texto da mensagem é livre, desde que cite `JSON`; `null` no `update_url` vale para todo campo
   de configuração; a conferência do suggest não devolve os `failed` ao modelo; a forma de sequência é fixada pelos
-  exemplos, não pelo detector; o corpo quebrado no unlock não conta como segredo errado. **Fora do contrato:** corpo só com espaços; a ordem entre o 400 e o 410 ou 401;
+  exemplos, não pelo detector; o corpo quebrado no unlock não conta como segredo errado (decisão do orquestrador). **Fora do contrato:** texto mascarado no `POST /token` e no `create_url`; `signature: ""` e `schema: ""` no `PUT` da REST; `PUT` simultâneos na REST; corpo só com espaços; a ordem entre o 400 e o 410 ou 401;
   `Content-Type` JSON com `Accept: text/html`; as rotas que leem o corpo cru (regras, cenários, busca, espera, envio,
   reenvio, IA), que já recusavam com o 422 delas; ferramenta `patch_url`; o suggest
   devolver várias regras; o `explain` que chama de rejeição uma resposta 2xx (DX-30).
