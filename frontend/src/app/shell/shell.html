@@ -101,7 +101,11 @@
 </div>
 <div class="workspace">
   @if (open) {
-    <app-url-header [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()" />
+    <app-url-header
+      [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()"
+      (switchTo)="switchTo($event)"
+      (newUrl)="createUrl()"
+    />
   }
   <div class="content">
     <ng-container #unlockHost />

@@ -2,6 +2,7 @@ import { RulesSeen } from '../rules/rules-seen';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
@@ -19,6 +20,7 @@ import {
 } from '../app.routes';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
+import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
 import { TokenActions } from '../token/token-actions';
 import { UrlLock } from '../token/url-lock';
 import { ScreenState } from './screen-state';
@@ -341,6 +343,132 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Help' })).toBeNull();
+  });
+
+  describe('Dado o título da aba (B1, UX-21)', () => {
+    it.each([
+      ['Inbox', `/${TOKEN_ID}`],
+      ['Inbox', `/${TOKEN_ID}/${REQUEST}/1`],
+      ['Rules', `/${TOKEN_ID}/rules`],
+      ['Checks', `/${TOKEN_ID}/checks`],
+      ['Outbound', `/${TOKEN_ID}/outbound`],
+      ['Insights', `/${TOKEN_ID}/insights`],
+      ['Compare', `/${TOKEN_ID}/compare/${REQUEST}/${REQUEST}`],
+    ])('deve ser "%s · URL {id5} · Anzol" em %s', async (destination, url) => {
+      await renderAt(url);
+
+      await vi.waitFor(() =>
+        expect(document.title).toBe(`${destination} · URL ${TOKEN_ID.slice(0, 5)} · Anzol`),
+      );
+    });
+
+    it('deve levar o apelido e as não lidas na frente', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+
+      TestBed.inject(KnownUrls).rename(TOKEN_ID, 'Pagamentos');
+      TestBed.inject(Preferences).unread.set(['a', 'b', 'c']);
+      await fixture.whenStable();
+
+      expect(document.title).toBe('(3) Rules · Pagamentos · Anzol');
+    });
+
+    it('deve ser "Locked · Anzol" com a URL trancada', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}`);
+      TestBed.inject(UrlLock).lock(TOKEN_ID);
+      await fixture.whenStable();
+      expect(document.title).toBe('Locked · Anzol');
+    });
+
+    it('deve ser "Anzol" Quando nenhuma URL está aberta', async () => {
+      await renderAt('/', false);
+
+      await vi.waitFor(() => expect(document.title).toBe('Anzol'));
+    });
+  });
+
+  describe('Dado o seletor de URLs no cabeçalho (B1)', () => {
+    const OTHER = 'c4291aaa-2222-4222-8222-222222222222';
+    const known = (nickname: string) =>
+      localStorage.setItem(
+        KNOWN_URLS_KEY,
+        JSON.stringify([
+          { uuid: TOKEN_ID, nickname: '', openedAt: '2026-09-28T12:00:00.000Z' },
+          { uuid: OTHER, nickname, openedAt: '2026-09-28T11:00:00.000Z' },
+        ]),
+      );
+
+    it('deve abrir a outra URL no mesmo destino e anunciar quando ela abriu', async () => {
+      known('Pagamentos');
+      const user = userEvent.setup();
+      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+      const router = fixture.debugElement.injector.get(Router);
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+
+      await user.click(screen.getByRole('button', { name: /Switch URL$/ }));
+      await user.click(screen.getByRole('menuitemradio', { name: /^Pagamentos/ }));
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${OTHER}/rules`));
+      expect(announce).not.toHaveBeenCalled();
+      TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
+      await vi.waitFor(() => expect(announce).toHaveBeenCalledWith('Pagamentos opened. Rules.'));
+      expect(announce).toHaveBeenCalledTimes(1);
+    });
+
+    it('deve dizer o total de requisições no anúncio Quando o destino é a Entrada', async () => {
+      known('Pagamentos');
+      const user = userEvent.setup();
+      const { fixture } = await renderAt(`/${TOKEN_ID}`);
+      const router = fixture.debugElement.injector.get(Router);
+      const store = TestBed.inject(RequestStore);
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+
+      await user.click(screen.getByRole('button', { name: /Switch URL$/ }));
+      await user.click(screen.getByRole('menuitemradio', { name: /^Pagamentos/ }));
+      await vi.waitFor(() => expect(router.url).toBe(`/${OTHER}`));
+      TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
+      await fixture.whenStable();
+      expect(announce).not.toHaveBeenCalled();
+
+      const load = store.load(OTHER);
+      TestBed.inject(HttpTestingController)
+        .match((req) => req.url === `/token/${OTHER}/requests`)
+        .forEach((req) => req.flush(requestPage([webhookRequest(1), webhookRequest(2)])));
+      await load;
+
+      await vi.waitFor(() =>
+        expect(announce).toHaveBeenCalledWith('Pagamentos opened. Inbox, 2 requests.'),
+      );
+    });
+
+    it('deve abrir o seletor com U, e o "New URL…" dele abrir o "Create New URL"', async () => {
+      known('');
+      const user = userEvent.setup();
+      await renderAt(`/${TOKEN_ID}`);
+
+      await user.keyboard('u');
+      await user.click(await screen.findByRole('menuitem', { name: /^New URL…/ }));
+
+      await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
+      TestBed.inject(ScreenState).switcherOpen.set(false);
+    });
+
+    it('deve esquecer todas as URLs pelo botão de Settings', async () => {
+      known('Pagamentos');
+      const user = userEvent.setup();
+      const { container } = await renderAt(`/${TOKEN_ID}`);
+
+      await user.click(screen.getByRole('button', { name: 'Settings' }));
+      await user.click(await screen.findByRole('button', { name: 'Forget all URLs' }));
+
+      expect(TestBed.inject(KnownUrls).urls()).toEqual([]);
+      expect(localStorage.getItem(KNOWN_URLS_KEY)).toBe('[]');
+      expect(
+        within(screen.getByRole('dialog', { name: 'Settings' })).getByText(
+          'This browser keeps no URL.',
+        ),
+      ).toBeTruthy();
+      await expectNoAxeViolations(container);
+    });
   });
 
   it('deve ir a Checks com G e C, e não Quando os atalhos estão desligados', async () => {

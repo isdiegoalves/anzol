@@ -1,5 +1,7 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component, ElementRef, afterNextRender, inject, output } from '@angular/core';
 import { LANGUAGES, Language } from '../../locale/locale';
+import { KnownUrls } from '../token/known-urls';
 import { Icon } from '../ui/icon';
 import { DENSITIES, Density, ShellSettings, THEMES, Theme } from './shell-settings';
 
@@ -7,7 +9,7 @@ import { DENSITIES, Density, ShellSettings, THEMES, Theme } from './shell-settin
 const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', 'pt-BR': 'Português (Brasil)' };
 
 /**
- * Settings: tema, densidade, idioma e atalhos de uma tecla. Folha lateral não modal, carregada sob
+ * Settings: tema, densidade, idioma, atalhos de uma tecla e a lista de URLs do navegador. Folha lateral não modal, carregada sob
  * demanda; Esc ou "Close" fecham e o foco volta ao botão do rail.
  */
 @Component({
@@ -18,9 +20,14 @@ const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', 'pt-BR': 'Por
 })
 export class SettingsSheet {
   protected readonly settings = inject(ShellSettings);
+  /** A lista de URLs guarda endereços que são segredo: "Forget all URLs" a esvazia (B1). */
+  protected readonly known = inject(KnownUrls);
+  private readonly announcer = inject(LiveAnnouncer);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly closed = output<void>();
+
+  protected readonly noUrl = $localize`This browser keeps no URL.`;
 
   // Rótulos traduzidos na instância, não no módulo: o `$localize` só vale depois da tradução.
   private readonly themeLabels: Record<Theme, string> = {
@@ -63,6 +70,11 @@ export class SettingsSheet {
 
   protected toggleShortcuts(event: Event): void {
     this.settings.shortcuts.set((event.target as HTMLInputElement).checked);
+  }
+
+  protected forgetAll(): void {
+    this.known.forgetAll();
+    void this.announcer.announce(this.noUrl);
   }
 
   protected reload(): void {

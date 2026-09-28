@@ -26,6 +26,13 @@ describe('Dado a rota aberta (placeOf)', () => {
 
     expect([place.tokenId, place.destination?.label ?? null]).toEqual([tokenId, label]);
   });
+
+  it('deve dizer que é o Compare e guardar o primeiro segmento como veio (B1)', () => {
+    expect(placeOf([TOKEN_ID, 'compare', REQUEST, REQUEST]).compare).toBe(true);
+    expect(placeOf([TOKEN_ID, 'rules']).compare).toBe(false);
+    expect(placeOf(['nao-e-uuid', 'rules'])).toMatchObject({ tokenId: null, first: 'nao-e-uuid' });
+    expect(placeOf([]).first).toBeNull();
+  });
 });
 
 describe('Dado a largura da janela (windowClassOf)', () => {
@@ -52,6 +59,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
     newUrl: Mock<() => void>;
     help: Mock<() => void>;
     search: Mock<() => void>;
+    switchUrl: Mock<() => void>;
     close: Mock<() => boolean>;
     enabled: Mock<() => boolean>;
   };
@@ -75,6 +83,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
       newUrl: vi.fn(),
       help: vi.fn(),
       search: vi.fn(),
+      switchUrl: vi.fn(),
       close: vi.fn(() => false),
       enabled: vi.fn(() => true),
     };
@@ -108,6 +117,7 @@ describe('Dado os atalhos globais (Hotkeys)', () => {
     ['n', 'newUrl'],
     ['?', 'help'],
     ['/', 'search'],
+    ['u', 'switchUrl'],
   ] as const)('deve chamar a ação Quando "%s" é pressionado', (key, action) => {
     press(key);
 

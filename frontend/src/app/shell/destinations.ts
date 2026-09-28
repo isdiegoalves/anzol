@@ -27,14 +27,18 @@ const UUID = /^[a-f\d]{8}-([a-f\d]{4}-){3}[a-f\d]{12}$/i;
 export function placeOf(segments: readonly string[]): {
   tokenId: string | null;
   destination: Destination | null;
+  /** `/{token}/compare/{a}/{b}`: sem destino no rail, mas com nome no título da aba. */
+  compare: boolean;
+  /** O primeiro segmento como veio (o endereço malformado aparece na página de URL inexistente). */
+  first: string | null;
 } {
   const [first, second] = segments;
   if (!first || !UUID.test(first)) {
-    return { tokenId: null, destination: null };
+    return { tokenId: null, destination: null, compare: false, first: first ?? null };
   }
   const inbox = segments.length === 1 || (segments.length === 3 && UUID.test(second));
   const destination = inbox
     ? DESTINATIONS[0]
     : (DESTINATIONS.find((candidate) => candidate.path === second) ?? null);
-  return { tokenId: first, destination };
+  return { tokenId: first, destination, compare: !inbox && second === 'compare', first };
 }

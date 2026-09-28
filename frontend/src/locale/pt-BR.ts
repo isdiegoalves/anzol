@@ -2767,4 +2767,64 @@ export const translations: Record<string, string> = {
   // Copied. wait-for only reads --match, so these filters were left out: {$filters}.
   '5715478624325180190':
     'Copiado. O wait-for só lê o --match, então estes filtros ficaram de fora: {$filters}.',
+  // URLs in this browser
+  '1420223674501820857': 'URLs neste navegador',
+  // Forget all URLs
+  '4036736979449925541': 'Esquecer todas as URLs',
+  // This browser keeps no URL.
+  '1624912463664143510': 'Este navegador não guarda nenhuma URL.',
+  // {$name} opened. {$destination}.
+  '6303705556815657799': '{$name} aberta. {$destination}.',
+  // {$name} opened. {$destination}, 1 request.
+  '1701679191436093296': '{$name} aberta. {$destination}, 1 requisição.',
+  // {$name} opened. {$destination}, {$count} requests.
+  '400677308965091713': '{$name} aberta. {$destination}, {$count} requisições.',
+  // Locked · Anzol
+  '6702304759840597563': 'Trancada · Anzol',
+  // Find a URL
+  '8927650353574476551': 'Achar uma URL',
+  // New URL…
+  '952550687544504597': 'Nova URL…',
+  // Rename this URL…
+  '1573761292761070106': 'Dar um apelido a esta URL…',
+  // Forget a URL…
+  '2232671604462752651': 'Esquecer uma URL…',
+  // Kept only in this browser.
+  '5605026589357116232': 'Guardado só neste navegador.',
+  // This browser does not keep a list of URLs.
+  '7976746003970762703': 'Este navegador não guarda a lista de URLs.',
+  // {$name}. Switch URL
+  '7245409839690326348': '{$name}. Trocar de URL',
+  // Switch URL (U)
+  '4523328322717728643': 'Trocar de URL (U)',
+  // {$name}, {$id}, {$state}
+  '1330717471217071990': '{$name}, {$id}, {$state}',
+  // deleted
+  '588230151780724018': 'apagada',
+  // locked
+  '1870560040946711505': 'trancada',
+  // open now
+  '2610775498865168001': 'aberta agora',
+  // opened {$time}
+  '7580833839488927113': 'aberta {$time}',
+  // URL {$id}
+  '5993660627004756475': 'URL {$id}',
+  // URL deleted. {$name} is open.
+  '6777769258177567893': 'URL apagada. {$name} está aberta.',
+  // Rename this URL
+  '8277164463205500247': 'Dar um apelido a esta URL',
+  // Nickname
+  '5506569422969383542': 'Apelido',
+  // Only you see it, in this browser.
+  '3265072182635430832': 'Só você vê, neste navegador.',
+  // Save nickname
+  '2887532306631886876': 'Salvar apelido',
+  // Nickname saved.
+  '3341314895600241596': 'Apelido salvo.',
+  // Forget a URL
+  '3870527098434719022': 'Esquecer uma URL',
+  // Forgetting does not delete the URL on the server.
+  '8369573811157422938': 'Esquecer não apaga a URL no servidor.',
+  // Forget
+  '4324014649445417243': 'Esquecer',
 };

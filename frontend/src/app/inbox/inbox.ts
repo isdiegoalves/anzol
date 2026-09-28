@@ -18,7 +18,6 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
@@ -80,7 +79,6 @@ export class Inbox {
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly announcer = inject(LiveAnnouncer);
-  private readonly title = inject(Title);
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
   private readonly settings = inject(ShellSettings);
@@ -152,11 +150,6 @@ export class Inbox {
         !this.twoPanes() && this.showDetail() && !!this.requests.selected(),
       ),
     );
-
-    effect(() => {
-      const unread = this.requests.unread().length;
-      this.title.setTitle(unread > 0 ? `(${unread}) Anzol` : 'Anzol');
-    });
 
     effect(() => {
       const tokenId = this.tokenId();

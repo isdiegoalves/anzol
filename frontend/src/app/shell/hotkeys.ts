@@ -13,6 +13,8 @@ export interface HotkeyActions {
   help(): void;
   /** /: foco na busca, se a página tiver. */
   search(): void;
+  /** U: o seletor de URLs do cabeçalho. */
+  switchUrl(): void;
   /** Esc: fecha a folha aberta; `true` quando havia uma (o Esc não serve a mais ninguém). */
   close(): boolean;
   /** Liga/desliga os atalhos de uma tecla (Settings). O Esc vale sempre. */
@@ -60,6 +62,7 @@ export class Hotkeys {
       g: () => (this.goPressedAt = event.timeStamp || 1),
       c: () => actions.copyUrl(),
       n: () => actions.newUrl(),
+      u: () => actions.switchUrl(),
       '?': () => actions.help(),
       '/': () => actions.search(),
     };

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Preferences } from '../settings/preferences';
+import { KnownUrls } from './known-urls';
 import { Token, TokenSettings } from './token';
 
 /** URL de webhook aberta na tela e as chamadas de `/token`. */
@@ -11,6 +12,7 @@ export class TokenStore {
   private readonly http = inject(HttpClient);
   private readonly preferences = inject(Preferences);
   private readonly location = inject(DOCUMENT).location;
+  private readonly known = inject(KnownUrls);
 
   /** Token aberto; começa com o do localStorage, como no app atual. */
   readonly token = this.preferences.token.asReadonly();
@@ -47,8 +49,10 @@ export class TokenStore {
     return enabled;
   }
 
+  /** A URL abriu (ou foi criada, ou salva): fica na tela e entra na lista deste navegador (B1). */
   private keep(token: Token): Token {
     this.preferences.token.set(token);
+    this.known.opened(token.uuid);
     return token;
   }
 }

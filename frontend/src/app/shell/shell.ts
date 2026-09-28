@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import {
   Component,
@@ -14,10 +15,12 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { RulesSeen } from '../rules/rules-seen';
 import { RequestStore } from '../requests/request-store';
 import { injectCopyCliCommand } from '../token/copy-cli-command';
+import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
 import { Icon } from '../ui/icon';
@@ -61,6 +64,9 @@ export class Shell {
   private readonly requests = inject(RequestStore);
   private readonly rulesSeen = inject(RulesSeen);
   protected readonly screen = inject(ScreenState);
+  private readonly known = inject(KnownUrls);
+  private readonly announcer = inject(LiveAnnouncer);
+  private readonly title = inject(Title);
   private readonly copyCliCommand = injectCopyCliCommand();
   private readonly unlockHost = viewChild.required('unlockHost', { read: ViewContainerRef });
   private readonly sheetHost = viewChild.required('sheetHost', { read: ViewContainerRef });
@@ -74,6 +80,9 @@ export class Shell {
     Outbound: $localize`Outbound`,
     Insights: $localize`Insights`,
   };
+  private readonly compareLabel = $localize`Compare`;
+  /** A URL escolhida no seletor, até ela abrir: o anúncio sai uma vez, com ela já na tela. */
+  private readonly switching = signal<string | null>(null);
   protected readonly sheet = signal<Sheet | null>(null);
   private opener: HTMLElement | null = null;
 
@@ -113,6 +122,25 @@ export class Shell {
       untracked(() => void this.showSheet(sheet));
     });
 
+    // O título da aba por destino (UX-21): "(3) Inbox · Pagamentos · Anzol".
+    effect(() => this.title.setTitle(this.pageTitle()));
+
+    // "Pagamentos opened. Inbox, 34 requests.": uma vez, quando a URL escolhida já abriu.
+    effect(() => {
+      const uuid = this.switching();
+      if (!uuid || this.tokens.token()?.uuid !== uuid) {
+        return;
+      }
+      const inbox = this.current()?.path === null;
+      if (inbox && (this.requests.tokenId() !== uuid || this.requests.loading())) {
+        return;
+      }
+      untracked(() => {
+        this.switching.set(null);
+        void this.announcer.announce(this.openedText(uuid, inbox));
+      });
+    });
+
     inject(Hotkeys).register(
       {
         goTo: (key) => this.goTo(DESTINATIONS.find((destination) => destination.key === key)),
@@ -120,6 +148,11 @@ export class Shell {
         newUrl: () => void this.createUrl(),
         help: () => this.sheet.set('help'),
         search: () => this.openSearch(),
+        switchUrl: () => {
+          if (this.tokens.token() && !this.locked()) {
+            this.screen.switcherOpen.set(true);
+          }
+        },
         close: () => {
           const open = this.sheet() !== null;
           this.sheet.set(null);
@@ -130,6 +163,40 @@ export class Shell {
       inject(DestroyRef),
     );
   }
+
+  /** Escolhida no seletor: a mesma tela (Regras segue em Regras) na outra URL, com histórico. */
+  protected switchTo(uuid: string): void {
+    const destination = this.current() ?? DESTINATIONS[0];
+    this.switching.set(uuid);
+    void this.router.navigate(this.link(destination, uuid));
+  }
+
+  private openedText(uuid: string, inbox: boolean): string {
+    const name = this.known.nameOf(uuid);
+    const destination = this.label(this.current() ?? DESTINATIONS[0]);
+    if (!inbox) {
+      return $localize`${name}:name: opened. ${destination}:destination:.`;
+    }
+    const total = this.requests.total();
+    return total === 1
+      ? $localize`${name}:name: opened. ${destination}:destination:, 1 request.`
+      : $localize`${name}:name: opened. ${destination}:destination:, ${total}:count: requests.`;
+  }
+
+  /** `{destino} · {apelido ou URL xxxxx} · Anzol`, com as não lidas na frente. */
+  private readonly pageTitle = computed(() => {
+    if (this.locked()) {
+      return $localize`:browser tab title:Locked · Anzol`;
+    }
+    const { tokenId, destination, compare } = this.place();
+    if (!tokenId) {
+      return 'Anzol';
+    }
+    const where = compare ? this.compareLabel : destination ? this.label(destination) : null;
+    const unread = this.unread() > 0 ? `(${this.unread()}) ` : '';
+    const name = this.known.nameOf(tokenId);
+    return where ? `${unread}${where} · ${name} · Anzol` : `${unread}${name} · Anzol`;
+  });
 
   protected label(destination: Destination): string {
     return this.labels[destination.label];

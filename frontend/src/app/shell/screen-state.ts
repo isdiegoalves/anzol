@@ -9,4 +9,6 @@ import { Injectable, signal } from '@angular/core';
 export class ScreenState {
   readonly detailFullscreen = signal(false);
   readonly searchOpen = signal(false);
+  /** O seletor de URLs do cabeçalho, aberto também pela tecla U e por "Switch to another URL". */
+  readonly switcherOpen = signal(false);
 }

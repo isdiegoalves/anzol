@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RequestStore } from '../requests/request-store';
+import { KnownUrls } from './known-urls';
 import { TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
@@ -25,6 +26,7 @@ export class TokenActions {
   private readonly router = inject(Router);
   private readonly http = inject(HttpClient);
   private readonly injector = inject(Injector);
+  private readonly known = inject(KnownUrls);
 
   /** O aviso do "Copy CLI command", que copia no clique (`injectCopyCliCommand`). */
   cliCommandCopied(): void {
@@ -39,6 +41,18 @@ export class TokenActions {
     await firstValueFrom(dialog.afterClosed());
   }
 
+  /** "Rename this URL…" do seletor: o apelido, só neste navegador. */
+  async renameUrl(uuid: string): Promise<void> {
+    const { renameUrl } = await import('./url-list-dialogs');
+    await renameUrl(this.injector, uuid);
+  }
+
+  /** "Forget a URL…" do seletor. */
+  async forgetUrls(): Promise<void> {
+    const { forgetUrls } = await import('./url-list-dialogs');
+    await forgetUrls(this.injector);
+  }
+
   /** "Lock": tira o acesso deste navegador à URL protegida; a tela de desbloqueio assume. */
   async lockUrl(): Promise<void> {
     const token = this.tokens.token();
@@ -50,7 +64,8 @@ export class TokenActions {
 
   /**
    * "Delete URL" (menu da URL, protótipo C): confirma, apaga no servidor (mensagens, regras e
-   * histórico vão junto) e abre uma URL nova no lugar, como a tela faz com uma URL que sumiu.
+   * histórico vão junto) e abre a próxima URL que o navegador conhece; sem nenhuma, cria uma, como
+   * na primeira visita.
    */
   async deleteUrl(): Promise<void> {
     const token = this.tokens.token();
@@ -63,8 +78,18 @@ export class TokenActions {
     }
     try {
       await firstValueFrom(this.http.delete(`/token/${token.uuid}`));
-      const created = await this.tokens.create();
+      this.known.forget([token.uuid]);
+      const [next] = this.known.urls();
       this.requests.resetUnread();
+      if (next) {
+        const name = this.known.nameOf(next.uuid);
+        await this.router.navigate(['/', next.uuid]);
+        this.snackBar.open($localize`URL deleted. ${name}:name: is open.`, undefined, {
+          duration: 4000,
+        });
+        return;
+      }
+      const created = await this.tokens.create();
       await this.router.navigate(['/', created.uuid]);
       this.snackBar.open($localize`URL deleted. A new URL is open.`, undefined, { duration: 4000 });
     } catch (error) {

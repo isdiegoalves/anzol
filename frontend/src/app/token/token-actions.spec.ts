@@ -9,6 +9,7 @@ import type { MockInstance } from 'vitest';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Preferences } from '../settings/preferences';
 import { TokenSettings } from './token';
+import { KnownUrls } from './known-urls';
 import { TokenActions, createError } from './token-actions';
 import { TokenDialogData } from './token-dialog';
 import { UrlLock } from './url-lock';
@@ -162,6 +163,29 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
       expect(navigate).toHaveBeenCalledWith(['/', 'novo']);
       expect(TestBed.inject(Preferences).unread()).toEqual([]);
       expect(snack).toHaveBeenCalledWith('URL deleted. A new URL is open.', undefined, {
+        duration: 4000,
+      });
+    });
+
+    it('deve abrir a próxima URL conhecida, sem criar outra, Quando o navegador guarda mais uma', async () => {
+      const outra = 'c4291aaa-2222-4222-8222-222222222222';
+      TestBed.inject(Preferences).token.set(token());
+      const known = TestBed.inject(KnownUrls);
+      known.opened(outra);
+      known.rename(outra, 'Pagamentos');
+      known.opened(TOKEN_ID);
+      confirm(true);
+
+      const done = TestBed.inject(TokenActions).deleteUrl();
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}` }).flush(null, NO_CONTENT),
+      );
+      await done;
+
+      http.expectNone({ method: 'POST', url: '/token' });
+      expect(navigate).toHaveBeenCalledWith(['/', outra]);
+      expect(known.urls().map((url) => url.uuid)).toEqual([outra]);
+      expect(snack).toHaveBeenCalledWith('URL deleted. Pagamentos is open.', undefined, {
         duration: 4000,
       });
     });

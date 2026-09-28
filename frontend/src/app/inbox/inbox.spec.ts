@@ -3,7 +3,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Title } from '@angular/platform-browser';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { MockInstance } from 'vitest';
@@ -323,7 +322,7 @@ describe('Dado a tela principal', () => {
       );
     });
 
-    it('deve listar e contar como não lida no título, sem aviso, Quando chega request.created com o fim da lista à vista', async () => {
+    it('deve listar e contar como não lida, sem aviso, Quando chega request.created com o fim da lista à vista', async () => {
       const nova = webhookRequest(3);
 
       FakeEventSource.latest().emit('request.created', {
@@ -332,8 +331,8 @@ describe('Dado a tela principal', () => {
         truncated: false,
       });
 
-      await vi.waitFor(() => expect(TestBed.inject(Title).getTitle()).toBe('(1) Anzol'));
-      expect(text()).toContain('Requests (3)');
+      await vi.waitFor(() => expect(TestBed.inject(RequestStore).unread()).toEqual([nova.uuid]));
+      await vi.waitFor(() => expect(text()).toContain('Requests (3)'));
       expect(text()).toContain(`#${nova.uuid.substring(0, 5)}`);
       expect(snack).not.toHaveBeenCalledWith(
         expect.stringMatching(/^Request received/),

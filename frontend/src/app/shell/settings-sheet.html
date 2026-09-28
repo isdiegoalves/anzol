@@ -74,4 +74,11 @@
       Single-key shortcuts (G then I, C, N, ?…). They never fire while typing.
     </p>
   </div>
+  <div class="group">
+    <p i18n class="group-label">URLs in this browser</p>
+    <button type="button" class="link" (click)="forgetAll()" i18n>Forget all URLs</button>
+    @if (known.urls().length === 0) {
+      <p class="note">{{ noUrl }}</p>
+    }
+  </div>
 </section>

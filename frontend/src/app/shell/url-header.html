@@ -1,4 +1,11 @@
 @if (tokens.token(); as token) {
+  <app-url-switcher
+    [current]="token.uuid"
+    (chosen)="switchTo.emit($event)"
+    (newUrl)="newUrl.emit()"
+    (rename)="renameUrl(token.uuid)"
+    (forget)="forgetUrls()"
+  />
   <app-copy-field
     class="url"
     label="Webhook URL"

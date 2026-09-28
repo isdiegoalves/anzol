@@ -1,4 +1,4 @@
-import { Component, Injector, computed, inject } from '@angular/core';
+import { Component, Injector, computed, inject, output } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
@@ -10,6 +10,7 @@ import { CopyField } from '../ui/copy-field';
 import { Icon } from '../ui/icon';
 import { LiveState, LiveStatus } from '../ui/live-status';
 import { Menu, MenuItem } from '../ui/menu';
+import { UrlSwitcher } from './url-switcher';
 
 /**
  * Cabeçalho fixo da URL aberta, em todo destino: o campo com Copy, o chip do tempo real (só com o
@@ -20,7 +21,7 @@ import { Menu, MenuItem } from '../ui/menu';
  */
 @Component({
   selector: 'app-url-header',
-  imports: [CopyField, Icon, LiveStatus, Menu, RouterLink],
+  imports: [CopyField, Icon, LiveStatus, Menu, RouterLink, UrlSwitcher],
   templateUrl: './url-header.html',
   styleUrl: './url-header.scss',
 })
@@ -31,6 +32,11 @@ export class UrlHeader {
   private readonly requests = inject(RequestStore);
   private readonly router = inject(Router);
   private readonly copyCliCommand = injectCopyCliCommand();
+
+  /** Outra URL escolhida no seletor: o shell a abre no mesmo destino. */
+  readonly switchTo = output<string>();
+  /** "New URL…" do seletor: o diálogo "Create New URL" de sempre. */
+  readonly newUrl = output<void>();
 
   protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
@@ -103,6 +109,14 @@ export class UrlHeader {
       },
     ];
   });
+
+  protected renameUrl(uuid: string): Promise<void> {
+    return this.withActions((actions) => actions.renameUrl(uuid));
+  }
+
+  protected forgetUrls(): Promise<void> {
+    return this.withActions((actions) => actions.forgetUrls());
+  }
 
   protected lockUrl(): Promise<void> {
     return this.withActions((actions) => actions.lockUrl());
