@@ -36,10 +36,24 @@ export function exigirIaDesligada(): void {
 /** Até 3 tentativas contra o LLM, cada uma com timeout de leitura de 90 s no app: o cliente espera mais. */
 const PRAZO_DO_CLIENTE = 120_000;
 
+/** Códigos de aviso da conferência do suggest (patamar, D1, DX-29): conjunto fechado. */
+export type CodigoDeAviso = 'example_not_matched' | 'template_disabled' | 'path_never_seen' | 'sequence_as_single_rule';
+
+/**
+ * `check` do suggest (patamar, D1, DX-29): a regra devolvida conferida pelo servidor, sem o modelo — contra a mensagem
+ * de exemplo (`null` sem `request_id`), contra as mensagens recentes (a janela do `rules/test`) e os avisos.
+ */
+export interface Conferencia {
+  example: { matches: boolean; failed: string[]; conditions: string[] } | null;
+  recent: { evaluated: number; matched: number };
+  warnings: Array<{ code: CodigoDeAviso; message: string }>;
+}
+
 export interface Sugestao {
   rule: Record<string, unknown>;
   explanation: string;
   attempts: number;
+  check?: Conferencia;
 }
 
 export interface Diagnostico {
