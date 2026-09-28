@@ -122,6 +122,8 @@ describe('Dado a página Checks', () => {
     await harness.fixture.whenStable();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Checks' })).toBeTruthy();
+    // UX-21: o `main` da página tem nome (o do título).
+    expect(screen.getByRole('main', { name: 'Checks' })).toBeTruthy();
     // CHECKS-03: cada cartão abre com o ícone tonal de 40 px, na cor do papel (protótipo C).
     for (const [name, tone] of [
       ['Signature verification', 'primary'],

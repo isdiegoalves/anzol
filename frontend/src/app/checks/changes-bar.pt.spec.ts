@@ -6,8 +6,9 @@ import { token } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { ResponseCard } from './response-card';
 
-// Em arquivo próprio: o texto do template é traduzido quando o componente é criado pela primeira
-// vez, então a tradução tem de estar carregada antes de qualquer teste montar o cartão.
+// O texto do template é traduzido quando o componente é criado pela primeira vez no processo de
+// teste, então aqui só se confere o que é montado em tempo de execução (`$localize` no código): o
+// nome da região, o resumo e as linhas de alteração. Os campos são achados pelo formulário.
 describe('Dado a barra de salvar de Verificações com a tela em pt-BR', () => {
   beforeEach(() => loadTranslations(translations));
   afterEach(() => {
@@ -17,23 +18,23 @@ describe('Dado a barra de salvar de Verificações com a tela em pt-BR', () => {
   });
 
   it('deve dizer a barra e as alterações em português', async () => {
-    await renderCard(ResponseCard, token());
+    const { container } = await renderCard(ResponseCard, token());
+    const field = (name: string) =>
+      container.querySelector(`[formcontrolname="${name}"]`) as HTMLElement;
 
-    await userEvent.clear(screen.getByRole('textbox', { name: 'Status padrão' }));
-    await userEvent.click(screen.getByRole('switch', { name: 'Ligar CORS' }));
+    await userEvent.clear(field('default_status'));
+    await userEvent.type(field('default_status'), '429');
+    await userEvent.click(field('cors').querySelector('button') as HTMLElement);
 
     const bar = screen.getByRole('region', { name: 'Alterações não salvas' });
     expect(bar.querySelector('.summary .full')?.textContent).toBe(
       '2 alterações não salvas: Status padrão, CORS',
     );
     expect(bar.querySelector('.summary .count')?.textContent).toBe('2 alterações não salvas');
-    expect(
-      screen.getByRole('button', { name: 'Salvar alterações' }).querySelector('.keys')?.textContent,
-    ).toBe('· Ctrl+S');
-    expect(screen.getByRole('button', { name: 'Descartar' })).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'Conferir as alterações' }));
-    expect(
-      screen.getByRole('list', { name: 'Alterações a salvar' }).textContent?.replace(/\s+/g, ' '),
-    ).toContain('CORS: desligado → ligado');
+    await userEvent.click(bar.querySelector('.review') as HTMLElement);
+    expect([...bar.querySelectorAll('.changes li')].map((item) => item.textContent)).toEqual([
+      'Status padrão: 200 → 429',
+      'CORS: desligado → ligado',
+    ]);
   });
 });

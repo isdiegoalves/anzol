@@ -151,10 +151,16 @@ h3 {
   }
 }
 
+// Recolhido sem `display: none`: voltar de `none` reinicia a animação de entrada das dicas do
+// Material (opacidade), e o texto passa um instante sem contraste. `visibility: hidden` também tira
+// o corpo da árvore de acessibilidade e do foco.
 :host(.closed) {
   padding-bottom: 8px;
 
   .card-body {
-    display: none;
+    display: block;
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
   }
 }
