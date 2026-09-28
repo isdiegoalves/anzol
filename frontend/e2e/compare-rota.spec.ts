@@ -7,7 +7,8 @@ import { Webhook, expect, test } from './support/fixtures';
 // a lado e o que explica o desfecho contra o ruído por provedor (S9, só com sinais do servidor). SUPOSIÇÕES
 // (contrato da E8, além das de diff.spec.ts):
 // - a `region "Compare requests"` abre direto pela rota, também depois de recarregar;
-// - `table "Checks"` com as linhas "Signature", "Schema" e "Rule" (`rowheader`) e as colunas "A" e "B", com o
+// - `table "Checks"` com as linhas "Signature", "Schema" e "Answer" (`rowheader`; patamar, B2: era "Rule", e a
+//   linha nova é conferida no patamar-b2.spec) e as colunas "A" e "B", com o
 //   título de cada verificação ("Signature invalid", "Schema valid"…);
 // - o que explica o desfecho fica numa seção com o heading "{N} change(s) explain(s) the outcome", um item por
 //   causa, com o sinal do servidor (o `signature.reason`, o caminho de `schema.errors[].path`, a frase do

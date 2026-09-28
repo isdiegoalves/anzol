@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Page, Route } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
 import { abrirChecks, botaoSalvar } from './support/checks';
-import { expect, test, tokenInUrl } from './support/fixtures';
+import { expect, test } from './support/fixtures';
 import { campoDeBusca, itens, lista } from './support/inbox';
 import { acaoDoShell, compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
@@ -127,16 +127,20 @@ test.describe('Dado uma URL nova, sem mensagens', () => {
 });
 
 test.describe('Dado um link para uma URL que não existe', () => {
-  test('deve criar outra, como hoje, e explicar no onboarding dela', async ({ page, tokens }) => {
+  // Patamar, B1 (guia-combinacao §3.1 e §7; UX-16, P1 decidida): a Entrada não cria outra URL sozinha; mostra a
+  // página única de URL inexistente, com o endereço pedido.
+  test('deve mostrar a página de URL inexistente, sem criar outra', async ({ page }) => {
     const antiga = randomUUID();
     await seedStorage(page, {});
 
     await page.goto(`/#/${antiga}`);
 
-    await expect(page).not.toHaveURL(new RegExp(antiga));
-    const nova = tokenInUrl(page);
-    tokens.track(nova);
-    await expect(onboarding(page)).toContainText(`The URL ${antiga} doesn't exist anymore`);
+    await expect(
+      page.getByRole('heading', { name: 'This URL no longer exists', level: 1 }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`#/${antiga}$`));
+    await expect(page.getByRole('button', { name: 'Create a new URL' })).toBeVisible();
+    await expect(onboarding(page)).toHaveCount(0);
   });
 });
 

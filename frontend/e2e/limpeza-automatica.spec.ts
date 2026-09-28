@@ -108,8 +108,13 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
 
     await tokens.send(tokenId);
 
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${seguinte.uuid}/\\d+$`));
-    await expect(details).toContainText(seguinte.uuid);
+    // Patamar, B2 (guia-combinacao §3.2 e §7; CA-5): a requisição aberta que a limpeza corta vira aviso, com a cópia
+    // carregada; a tela não abre a seguinte no lugar dela.
+    await expect(page.getByRole('status', { name: 'Request notice' })).toContainText(
+      'deleted from the server by auto cleanup (keeps the newest 500)',
+    );
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${antiga.uuid}/\\d+$`));
+    await expect(details).toContainText(antiga.uuid);
     await maisAntigasPrimeiro(page);
     await expect(itens(page).first()).toContainText(`#${seguinte.uuid.substring(0, 5)}`);
     await expect(page.getByRole('button', { name: `Delete request ${antiga.uuid}` })).toHaveCount(
@@ -117,8 +122,10 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     );
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
 
+    // Recarregar o link da que foi cortada mostra o estado vazio, e não a seguinte.
     await page.reload();
-    await expect(details).toContainText(seguinte.uuid);
+    await expect(page.getByText('This request no longer exists.')).toBeVisible();
+    await expect(details).toHaveCount(0);
     await expect(page.getByRole('button', { name: `Delete request ${antiga.uuid}` })).toHaveCount(
       0,
     );
@@ -146,8 +153,11 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await openInbox(page);
 
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/${primeiraQueFica.uuid}/\\d+)?$`));
-    await expect(details).toContainText(primeiraQueFica.uuid);
+    // Patamar, B2 (CA-5): ao voltar à Entrada, a requisição cortada não está mais aberta; qual abre no lugar não é
+    // o que este teste confere.
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?$`));
+    await expect(page).not.toHaveURL(new RegExp(antiga.uuid));
+    await expect(details).not.toContainText(antiga.uuid);
     await maisAntigasPrimeiro(page);
     await expect(item(page, primeiraQueFica.uuid)).toBeVisible();
     await expect(itens(page).first()).toContainText(`#${primeiraQueFica.uuid.substring(0, 5)}`);

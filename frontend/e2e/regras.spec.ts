@@ -12,6 +12,10 @@ import {
   parte,
 } from './support/regras';
 
+// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
+// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
+// {motivo}".
+
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
 // Item 14, E6: o editor sai do diálogo e vira a `region "New rule"` ao lado da lista, com as abas Match, Response,
@@ -132,7 +136,7 @@ test.describe('Dado a aba "Rules" de uma URL sem regras', () => {
     }
     // Item 14, E4: o selo da regra é o cartão do `group "Checks on this request"`.
     // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
-    await expect(verificacoes(page)).toContainText(/Answered by rule · 201\s*Pix pago/);
+    await expect(verificacoes(page)).toContainText(/Answered 201 · by rule\s*Pix pago/);
   });
 
   test('deve mostrar o erro 422 do servidor no campo Path e não fechar Quando a regex é inválida', async ({
@@ -250,7 +254,9 @@ test.describe('Dado uma URL com regras salvas', () => {
     });
 
     await page.goto(`/#/${tokenId}/${requestId}/1`);
-    await expect(verificacoes(page)).toContainText(/No rule matched.*Closest: Pix pago/);
+    await expect(verificacoes(page)).toContainText(
+      /Answered 200 · default response.*Closest rule: Pix pago/,
+    );
     const why = porque(page);
     await why.click();
 
@@ -261,7 +267,11 @@ test.describe('Dado uma URL com regras salvas', () => {
     await expect(failed.filter({ hasText: /^body \$\.status: .*pendente/ })).toHaveCount(1);
   });
 
-  test('não deve mostrar selo Quando a URL não tem regras', async ({ page, tokens }) => {
+  // Patamar, B2 (CA-7): sem regras, o cartão diz o status da resposta padrão, e nada de regra.
+  test('deve dizer o status da resposta padrão, e nada de regra, Quando a URL não tem regras', async ({
+    page,
+    tokens,
+  }) => {
     const tokenId = await tokens.create();
     const requestId = await tokens.send(tokenId);
 
@@ -269,7 +279,8 @@ test.describe('Dado uma URL com regras salvas', () => {
 
     await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(requestId);
     await expect(verificacoes(page)).toBeVisible();
-    await expect(verificacoes(page)).not.toContainText(/Answered by rule|No rule matched/);
+    await expect(verificacoes(page)).toContainText('Answered 200 · default response');
+    await expect(verificacoes(page)).not.toContainText(/by rule|Closest rule/);
   });
 });
 

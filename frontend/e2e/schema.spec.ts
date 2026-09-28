@@ -5,6 +5,10 @@ import { abrirMensagem, acoes, marcasDeSchema, porque, verificacoes } from './su
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
+// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
+// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
+// {motivo}".
+
 // Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
 // changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
 
@@ -258,7 +262,7 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     await expect(verificacoes(page)).toContainText('Schema invalid');
     // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
     await expect(verificacoes(page)).toContainText(
-      /Answered by rule · 400\s*Recusa fora do schema/,
+      /Answered 400 · by rule\s*Recusa fora do schema/,
     );
     await screenshot(page, '07-selo-invalido-com-regra-400');
 
@@ -266,7 +270,7 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     await expect(verificacoes(page)).toContainText('Schema valid');
     // INBOX-18: com uma condição só, a frase fica no cartão e o "Why? (n)" não aparece.
     await expect(verificacoes(page)).toContainText(
-      /Closest: Recusa fora do schema · schema: expected invalid, got valid/,
+      /Closest rule: Recusa fora do schema — schema: expected invalid, got valid/,
     );
     await expect(porque(page)).toHaveCount(0);
     await screenshot(page, '08-selo-valido-near-miss');

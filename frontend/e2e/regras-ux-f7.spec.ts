@@ -10,6 +10,10 @@ import {
   parte,
 } from './support/regras';
 
+// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
+// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
+// {motivo}".
+
 // UX de Regras, fatia F7 — Entrada ↔ Regras e atualização ao vivo (WM-10, WM-38; guia-ux §3.7; CA-9 na parte do
 // link). Da mensagem se chega à regra (link no cartão, no "Closest" e na prévia S8) e de volta ("Back to request");
 // a lista de Regras atualiza acertos e estado sozinha, sem mexer no editor. SUPOSIÇÕES:
@@ -76,11 +80,13 @@ test.describe('Dado uma mensagem que nenhuma regra respondeu (WM-10)', () => {
     const id = await tokens.send(tokenId, { method: 'GET', path: '/pagamentos' });
     await abrirMensagem(page, tokenId, id);
 
-    await expect(verificacoes(page)).toContainText(/Closest: Pix pago/);
+    await expect(verificacoes(page)).toContainText(/Closest rule: Pix pago/);
     await expect(
       verificacoes(page).getByRole('link', { name: 'Pix pago', exact: true }),
     ).toHaveAttribute('href', new RegExp(`#/${tokenId}/rules/${pix.id}`));
-    await expect(page.getByRole('link', { name: 'Default response', exact: true })).toHaveAttribute(
+    // Patamar, B2: a primeira linha do cartão é "Answered {status} · default response"; o link continua, com a
+    // caixa que a frase tiver.
+    await expect(page.getByRole('link', { name: /^default response$/i })).toHaveAttribute(
       'href',
       new RegExp(`#/${tokenId}/checks\\?section=response`),
     );
