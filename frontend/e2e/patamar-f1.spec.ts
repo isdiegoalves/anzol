@@ -90,10 +90,19 @@ function busca(page: Page, tokenId: string): Promise<Request> {
   );
 }
 
-/** Mostra a lista (no celular o detalhe fica por cima) e devolve os chips dos filtros ligados. */
+/**
+ * Mostra a lista e devolve os chips dos filtros ligados. No celular, depois de filtrar pelo valor o
+ * detalhe fica por cima; chegando por um link de contagem, a lista já está à frente.
+ */
 async function chips(page: Page): Promise<Locator> {
   if (compacto(page)) {
-    await mostrarLista(page);
+    const voltar = page
+      .getByRole('region', { name: 'Request detail' })
+      .getByRole('button', { name: 'Back to requests' });
+    await expect(lista(page).or(voltar).first()).toBeVisible();
+    if (await voltar.isVisible()) {
+      await mostrarLista(page);
+    }
   }
   return filtrosLigados(page);
 }

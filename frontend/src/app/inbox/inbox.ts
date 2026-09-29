@@ -281,6 +281,7 @@ export class Inbox {
   private arrivals = 0;
   /** A mensagem que a própria tela abriu por último (sem o usuário pedir). */
   private chosenByScreen: string | null = null;
+  private left = false;
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -389,6 +390,7 @@ export class Inbox {
     const keys = (event: KeyboardEvent) => this.navigateByKey(event);
     this.document.addEventListener('keydown', keys);
     inject(DestroyRef).onDestroy(() => {
+      this.left = true;
       this.screen.detailFullscreen.set(false);
       this.screen.searchOpen.set(false);
       this.document.removeEventListener('keydown', keys);
@@ -436,6 +438,10 @@ export class Inbox {
     replaceUrl = false,
     read = !replaceUrl,
   ): Promise<boolean> {
+    // A resposta de uma busca pode chegar depois de a pessoa ter ido a outro destino.
+    if (this.left) {
+      return Promise.resolve(false);
+    }
     this.chosenByScreen = replaceUrl ? request.uuid : null;
     this.keepUnread = read ? null : request.uuid;
     const page = this.requests.pageOf(request.uuid);

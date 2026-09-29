@@ -973,6 +973,24 @@ describe('Dado a tela principal', () => {
     expect(root.querySelector('app-request-detail')).toBeNull();
   });
 
+  it('não deve voltar à Entrada Quando a requisição reaberta chega depois de a pessoa sair dela', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/1?signature=invalid`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R2], { total: 1 }));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
+    await vi.waitFor(() => expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R1.uuid));
+
+    await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid`);
+    const kept = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/request/${R1.uuid}`));
+    await harness.navigateByUrl(`/${TOKEN_ID}/insights`);
+    kept.flush(R1);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    http.match(() => true).forEach((call) => call.flush({}));
+
+    expect(router.url).toBe(`/${TOKEN_ID}/insights`);
+  });
+
   it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {
     windowClass.set('compact');
     await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);
