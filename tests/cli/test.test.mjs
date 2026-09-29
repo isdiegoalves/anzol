@@ -8,30 +8,19 @@ import { iniciarCli } from './support/cli.mjs';
 import { aoFinal, limparTudo } from './support/limpeza.mjs';
 import { buscarMensagem, criarToken, statusDoToken } from './support/servidor.mjs';
 
-// Patamar, fatia C1 (CA-11): `anzol test` faz o teste de CI num comando, só com as rotas de hoje. Cria a URL (ou usa
-// a do `--token`), sobe as regras, lê o cursor ANTES do gatilho, deixa o servidor recusar o `match` antes de o gatilho
-// rodar, roda o gatilho com `{url}` trocado pela URL, espera as mensagens que chegaram depois do cursor com as
-// condições do `wait-for`, confere o status respondido e apaga a URL que criou, passe ou falhe. Saída: 0 casou; 1 não
-// casou (ou o status não bateu); 2 erro; 3 o gatilho falhou.
-
 afterEach(limparTudo);
 after(limparTudo);
 
-/** `WEBHOOK_SERVER` que o CLI herda: porta fechada. Só o `--server` depois do subcomando leva ao app. */
+/** O CLI herda `WEBHOOK_SERVER` numa porta fechada: só o `--server` depois do subcomando leva ao app. */
 const SERVIDOR_MORTO = 'http://127.0.0.1:9';
 const SEM_COMANDO = /^Usage:|no such (sub)?command|no such option|unknown (command|option)|unexpected extra argument|missing argument/im;
 const URL_CRIADA = new RegExp(`${literal(SERVIDOR)}/(${UUID.source})`);
 
-/**
- * O gatilho: um processo que manda um POST para `{url}<caminho>` e sai com 0 (o Node do próprio teste, para não
- * depender de curl). O CLI troca `{url}` pela URL antes de rodá-lo.
- */
 function gatilho(caminho, corpo) {
   const js = `fetch(process.argv[1] + ${JSON.stringify(caminho)}, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: ${JSON.stringify(corpo)} }).then((r) => r.arrayBuffer()).then(() => process.exit(0), (e) => { console.error(e); process.exit(9); })`;
   return [process.execPath, '-e', js, '{url}'];
 }
 
-/** Roda `anzol test <opções> -- <gatilho>` até o fim; comando ou opção que não existe vira falha com mensagem clara. */
 async function rodar(opcoes, comando = [], prazo = 60_000) {
   const anterior = process.env.WEBHOOK_SERVER;
   process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
@@ -52,14 +41,12 @@ async function rodar(opcoes, comando = [], prazo = 60_000) {
   return r;
 }
 
-/** O uuid da URL que o CLI criou, lido da saída (a primeira `<servidor>/<uuid>` impressa). */
 function urlCriada(r) {
   const achada = r.cli.linhas.map((l) => URL_CRIADA.exec(l.texto)).find(Boolean);
   assert.ok(achada, `o CLI não imprimiu a URL criada\n${r.cli.descricao()}`);
   return achada[1];
 }
 
-/** O stdout inteiro como o array JSON das mensagens que casaram. */
 function casadas(r) {
   try {
     return JSON.parse(r.stdout.join('\n'));
