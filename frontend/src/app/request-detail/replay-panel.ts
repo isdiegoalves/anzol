@@ -2,21 +2,26 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   OutboundResult,
+  ReplayChaos,
   TIMEOUT_DEFAULT_S,
   TIMEOUT_MAX_S,
   TIMEOUT_MIN_S,
+  injectedList,
   outboundErrorText,
   pathSuffix,
   requestErrorText,
+  statusText,
 } from '../outbound/outbound';
 import { OutboundStore } from '../outbound/outbound-store';
 import { WebhookRequest } from '../requests/webhook-request';
-import { reasonPhrase } from '../ui/status-code';
 import { ActionPanelStore } from './action-panel-store';
 
 /** A mesma chave da Saída: os dois lembram o mesmo destino. */
 const REPLAY_TARGETS_KEY = 'replayTargets';
 const BODY_SHOWN = 200;
+/** Teto do atraso e da desistência injetados (o do servidor). */
+const CHAOS_MAX_MS = 30_000;
+const SLOW_BODY_MAX_BPS = 1_048_576;
 
 function rememberedTargets(): Record<string, string> {
   try {
@@ -111,6 +116,84 @@ function hostOf(url: string): string {
           />
         </label>
       </div>
+      <label class="switch">
+        <input
+          type="checkbox"
+          role="switch"
+          [checked]="inject()"
+          (change)="inject.set(!inject())"
+        />
+        <span i18n>Inject failure</span>
+      </label>
+      @if (inject()) {
+        <fieldset class="chaos">
+          <legend i18n>Failures to inject</legend>
+          <div class="row">
+            <label class="field">
+              <span i18n>Delay before sending (ms)</span>
+              <input
+                #delay
+                type="number"
+                min="0"
+                [max]="chaosMaxMs"
+                aria-label="Delay before sending (ms)"
+                i18n-aria-label
+                [value]="delayMs() ?? ''"
+                (input)="delayMs.set(numberOrNull(delay))"
+              />
+            </label>
+            <label class="field">
+              <span i18n>Slow body (bytes/s)</span>
+              <input
+                #slow
+                type="number"
+                min="1"
+                [max]="slowBodyMax"
+                aria-label="Slow body (bytes/s)"
+                i18n-aria-label
+                [value]="slowBodyBps() ?? ''"
+                (input)="slowBodyBps.set(numberOrNull(slow))"
+              />
+            </label>
+            <label class="field">
+              <span i18n>Give up after (ms)</span>
+              <input
+                #giveUp
+                type="number"
+                min="1"
+                [max]="giveUpMax()"
+                aria-label="Give up after (ms)"
+                i18n-aria-label
+                [value]="giveUpMs() ?? ''"
+                (input)="giveUpMs.set(numberOrNull(giveUp))"
+              />
+            </label>
+          </div>
+          <div class="row">
+            <label class="check">
+              <input
+                type="checkbox"
+                [checked]="duplicate()"
+                (change)="duplicate.set(!duplicate())"
+              />
+              <span i18n>Send twice</span>
+            </label>
+            <label class="check">
+              <input
+                type="checkbox"
+                [checked]="abortMidBody() && hasBody()"
+                [disabled]="!hasBody()"
+                [attr.aria-describedby]="hasBody() ? null : 'replay-no-body'"
+                (change)="abortMidBody.set(!abortMidBody())"
+              />
+              <span i18n>Cut the body in half</span>
+            </label>
+            @if (!hasBody()) {
+              <p class="hint" id="replay-no-body" i18n>This request has no body.</p>
+            }
+          </div>
+        </fieldset>
+      }
       @if (invalid()) {
         <p class="error" role="alert" i18n>The target must be an http:// or https:// address.</p>
       }
@@ -131,6 +214,18 @@ export class ReplayPanel {
   protected readonly timeout = signal(TIMEOUT_DEFAULT_S);
   protected readonly sending = signal(false);
   protected readonly invalid = signal(false);
+  /** "Inject failure": ligado, o replay leva `chaos` com o que foi preenchido ou marcado. */
+  protected readonly inject = signal(false);
+  protected readonly delayMs = signal<number | null>(null);
+  protected readonly slowBodyBps = signal<number | null>(null);
+  protected readonly giveUpMs = signal<number | null>(null);
+  protected readonly duplicate = signal(false);
+  protected readonly abortMidBody = signal(false);
+  protected readonly hasBody = computed(() => !!this.request().content);
+  protected readonly chaosMaxMs = CHAOS_MAX_MS;
+  protected readonly slowBodyMax = SLOW_BODY_MAX_BPS;
+  /** A desistência vem antes do Timeout do replay (e nunca passa de 30 s). */
+  protected readonly giveUpMax = computed(() => Math.min(CHAOS_MAX_MS, this.timeoutMs() - 1));
   private readonly last = signal<{ typed: string; result: OutboundResult } | null>(null);
 
   protected readonly target = computed(
@@ -150,6 +245,28 @@ export class ReplayPanel {
       ? $localize`You typed ${typed}:typed:. The server reaches it as ${reached}:resolved:.`
       : '';
   });
+
+  protected numberOrNull(input: HTMLInputElement): number | null {
+    return input.value === '' || Number.isNaN(input.valueAsNumber) ? null : input.valueAsNumber;
+  }
+
+  private timeoutMs(): number {
+    return Math.min(Math.max(this.timeout() || TIMEOUT_DEFAULT_S, 1), 30) * 1000;
+  }
+
+  private chaos(): ReplayChaos | null {
+    if (!this.inject()) {
+      return null;
+    }
+    const [delay, slow, giveUp] = [this.delayMs(), this.slowBodyBps(), this.giveUpMs()];
+    return {
+      ...(delay !== null && { delay_ms: delay }),
+      ...(this.duplicate() && { duplicate: true }),
+      ...(this.abortMidBody() && this.hasBody() && { abort_mid_body: true }),
+      ...(slow !== null && { slow_body_bps: slow }),
+      ...(giveUp !== null && { timeout_ms: giveUp }),
+    };
+  }
 
   protected setTarget(value: string): void {
     this.panel.target.set(value);
@@ -175,11 +292,13 @@ export class ReplayPanel {
     } catch {
       // Sem localStorage, o destino fica só no painel.
     }
+    const chaos = this.chaos();
     try {
       const result = await this.outbound.replay(request.token_id, request.uuid, {
         url,
         keep_path: this.keepPath(),
-        timeout: Math.min(Math.max(this.timeout() || TIMEOUT_DEFAULT_S, 1), 30) * 1000,
+        timeout: this.timeoutMs(),
+        ...(chaos && { chaos }),
       });
       this.last.set({ typed, result });
       this.panel.result.set(resultText(result));
@@ -193,16 +312,30 @@ export class ReplayPanel {
   }
 }
 
+/**
+ * O que o app respondeu (ou por que não houve resposta) e, com caos, o que foi injetado:
+ * "Replay result: 201 Created in 12 ms. Injected: delay 300 ms. {corpo}".
+ */
 function resultText(result: OutboundResult): string {
+  const list = injectedList(result.chaos);
+  const injected = list ? $localize`Injected: ${list}:injected:` : null;
   if (result.error) {
     const reason =
       result.error.kind === 'blocked'
         ? $localize`Blocked: this server only sends to public addresses.`
         : (({ title, detail }) => `${title}: ${detail}`)(outboundErrorText(result.error));
-    return $localize`Replay did not get an answer: ${reason}:reason:`;
+    const line = $localize`Replay did not get an answer: ${reason}:reason:`;
+    return injected ? `${line}. ${injected}.` : line;
   }
-  const status = `${result.status ?? ''} ${reasonPhrase(result.status ?? 0) ?? ''}`.trim();
+  if (!result.status) {
+    const line = $localize`Replay result: no answer read.`;
+    return injected ? `${line} ${injected}.` : line;
+  }
   const body = (result.body ?? '').slice(0, BODY_SHOWN);
-  const line = $localize`Replay result: ${status}:status: in ${result.duration_ms}:ms: ms`;
-  return body ? `${line}. ${body}` : line;
+  const line = $localize`Replay result: ${statusText(result.status)}:status: in ${result.duration_ms}:ms: ms`;
+  const head = injected ? `${line}. ${injected}.` : `${line}.`;
+  if (body) {
+    return `${head} ${body}`;
+  }
+  return injected ? head : line;
 }

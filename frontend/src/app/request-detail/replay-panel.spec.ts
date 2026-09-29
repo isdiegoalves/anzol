@@ -2,11 +2,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { render, screen } from '@testing-library/angular';
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
-import { OutboundResult } from '../outbound/outbound';
+import { translations } from '../../locale/pt-BR';
+import { ChaosResult, OutboundResult } from '../outbound/outbound';
+import { WebhookRequest } from '../requests/webhook-request';
 import { ActionPanelStore } from './action-panel-store';
 import { ReplayPanel, withScheme } from './replay-panel';
 
@@ -24,9 +27,9 @@ describe('Dado o destino do Replay', () => {
 describe('Dado a aba Replay do painel de ação', () => {
   const request = webhookRequest(3, { url: `http://localhost:8084/${TOKEN_ID}/pedidos?x=1` });
   const replayUrl = `/token/${TOKEN_ID}/request/${request.uuid}/replay`;
-  const show = async () => {
+  const show = async (shown: WebhookRequest = request) => {
     const view = await render(ReplayPanel, {
-      inputs: { request },
+      inputs: { request: shown },
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
     return {
@@ -118,6 +121,180 @@ describe('Dado a aba Replay do painel de ação', () => {
       'The target must be an http:// or https:// address.',
     );
     http.expectNone(replayUrl);
+  });
+
+  describe('Dado "Inject failure"', () => {
+    const falhas = () => screen.queryByRole('group', { name: 'Failures to inject' });
+    const ligar = async () =>
+      userEvent.click(screen.getByRole('switch', { name: 'Inject failure' }));
+    const reenviar = async (http: HttpTestingController) => {
+      await userEvent.click(screen.getByRole('button', { name: 'Replay' }));
+      return http.expectOne({ method: 'POST', url: replayUrl });
+    };
+    const caos = (fields: Partial<ChaosResult>): ChaosResult => ({
+      delay_ms: 0,
+      duplicate: false,
+      abort_mid_body: false,
+      slow_body_bps: null,
+      timeout_ms: null,
+      injected: [],
+      body_bytes_sent: null,
+      duplicate_result: null,
+      ...fields,
+    });
+
+    beforeEach(() =>
+      localStorage.setItem('replayTargets', JSON.stringify({ [TOKEN_ID]: 'http://app.local' })),
+    );
+
+    it('deve vir desligado, sem as falhas à vista, e reenviar sem chaos', async () => {
+      const { http } = await show();
+
+      expect(
+        (screen.getByRole('switch', { name: 'Inject failure' }) as HTMLInputElement).checked,
+      ).toBe(false);
+      expect(falhas()).toBeNull();
+      const call = await reenviar(http);
+
+      expect(call.request.body).not.toHaveProperty('chaos');
+    });
+
+    it('deve mandar só as falhas preenchidas e dizer o que foi injetado e o que o app respondeu', async () => {
+      const { http, panel, container } = await show();
+
+      await ligar();
+      const grupo = falhas() as HTMLElement;
+      await userEvent.type(
+        within(grupo).getByRole('spinbutton', { name: 'Delay before sending (ms)' }),
+        '300',
+      );
+      await userEvent.click(within(grupo).getByRole('checkbox', { name: 'Send twice' }));
+      await expectNoAxeViolations(container);
+      const call = await reenviar(http);
+
+      expect(call.request.body).toEqual({
+        url: 'http://app.local',
+        keep_path: true,
+        timeout: 10_000,
+        chaos: { delay_ms: 300, duplicate: true },
+      });
+      call.flush(
+        result({
+          status: 201,
+          body: '{"ok":true}',
+          chaos: caos({
+            delay_ms: 300,
+            duplicate: true,
+            injected: ['delay_ms', 'duplicate'],
+            duplicate_result: { status: 409, duration_ms: 4, error: null },
+          }),
+        }),
+      );
+      await vi.waitFor(() =>
+        expect(panel.result()).toBe(
+          'Replay result: 201 Created in 12 ms. Injected: delay 300 ms, sent twice (second: 409 Conflict). {"ok":true}',
+        ),
+      );
+    });
+
+    it('deve mandar corpo lento, corte e desistência', async () => {
+      const { http } = await show();
+
+      await ligar();
+      const grupo = falhas() as HTMLElement;
+      await userEvent.type(
+        within(grupo).getByRole('spinbutton', { name: 'Slow body (bytes/s)' }),
+        '100',
+      );
+      await userEvent.click(within(grupo).getByRole('checkbox', { name: 'Cut the body in half' }));
+      await userEvent.type(
+        within(grupo).getByRole('spinbutton', { name: 'Give up after (ms)' }),
+        '500',
+      );
+      const call = await reenviar(http);
+
+      expect((call.request.body as { chaos: unknown }).chaos).toEqual({
+        abort_mid_body: true,
+        slow_body_bps: 100,
+        timeout_ms: 500,
+      });
+    });
+
+    it.each<[string, Partial<OutboundResult>, string]>([
+      [
+        'o corpo foi cortado',
+        {
+          chaos: caos({ abort_mid_body: true, injected: ['abort_mid_body'], body_bytes_sent: 18 }),
+        },
+        'Replay result: no answer read. Injected: body cut after 18 bytes.',
+      ],
+      [
+        'o Anzol desistiu de esperar',
+        { chaos: caos({ timeout_ms: 500, injected: ['timeout_ms'] }) },
+        'Replay result: no answer read. Injected: gave up after 500 ms.',
+      ],
+      [
+        'nada foi injetado (o app respondeu antes do prazo)',
+        { status: 200, chaos: caos({ timeout_ms: 5000 }) },
+        'Replay result: 200 OK in 12 ms',
+      ],
+      [
+        'o destino foi recusado',
+        { error: { kind: 'blocked', message: 'private' }, chaos: caos({ delay_ms: 3000 }) },
+        'Replay did not get an answer: Blocked: this server only sends to public addresses.',
+      ],
+    ])('deve dizer o resultado Quando %s', async (_caso, overrides, texto) => {
+      const { http, panel } = await show();
+
+      await ligar();
+      (await reenviar(http)).flush(result(overrides));
+
+      await vi.waitFor(() => expect(panel.result()).toBe(texto));
+    });
+
+    it('deve desabilitar o corte e dizer por quê Quando a mensagem não tem corpo', async () => {
+      const { container } = await show(webhookRequest(4, { method: 'GET', content: '' }));
+
+      await ligar();
+      const grupo = falhas() as HTMLElement;
+      const corte = within(grupo).getByRole('checkbox', { name: 'Cut the body in half' });
+
+      expect((corte as HTMLInputElement).disabled).toBe(true);
+      expect(corte.getAttribute('aria-describedby')).toBeTruthy();
+      expect(
+        container.querySelector(`#${corte.getAttribute('aria-describedby') ?? ''}`)?.textContent,
+      ).toContain('This request has no body.');
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve dizer o resultado em pt-BR', async () => {
+      loadTranslations(translations);
+      try {
+        const { http, panel } = await show();
+
+        await userEvent.click(screen.getByRole('switch', { name: 'Injetar falha' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Reenviar' }));
+        http.expectOne(replayUrl).flush(
+          result({
+            status: 201,
+            chaos: caos({
+              delay_ms: 300,
+              duplicate: true,
+              injected: ['delay_ms', 'duplicate'],
+              duplicate_result: { status: null, duration_ms: 4, error: null },
+            }),
+          }),
+        );
+
+        await vi.waitFor(() =>
+          expect(panel.result()).toBe(
+            'Resultado do reenvio: 201 Created em 12 ms. Injetado: atraso de 300 ms, enviada duas vezes (segunda: nenhuma resposta lida).',
+          ),
+        );
+      } finally {
+        clearTranslations();
+      }
+    });
   });
 
   it('deve começar com o último destino desta URL, o mesmo que a Saída lembra', async () => {

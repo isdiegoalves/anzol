@@ -6,7 +6,7 @@ import {
   createServer as createTcpServer,
 } from 'node:net';
 import { Locator, Page } from '@playwright/test';
-import { escutarAnuncios, expectUmAnuncio, limparAnuncios } from './support/anuncios';
+import { escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { abrirMensagem, acoes } from './support/inbox';
 import { compacto } from './support/shell';
@@ -130,7 +130,7 @@ test.describe('Dado a aba Replay do painel com "Inject failure"', () => {
     const texto =
       /^Replay result: 201 Created in \d+ ms\. Injected: delay 300 ms, sent twice \(second: 201 Created\)\./;
     await expect(resultado(page)).toContainText(texto);
-    await expectUmAnuncio(page, texto, /^Action result$/);
+    await expectSoEstaFala(page, texto, /^Action result$/);
     expect(destino.recebidas).toEqual(['POST /webhooks/pedidos', 'POST /webhooks/pedidos']);
   });
 

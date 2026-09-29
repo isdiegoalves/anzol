@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { WebhookRequest } from '../requests/webhook-request';
 import { SIGNATURE_PROVIDER_LABELS, SignatureConfig, Token } from '../token/token';
+import { reasonPhrase } from '../ui/status-code';
 
 /** Métodos que o `POST /token/{id}/send` aceita. */
 export const OUTBOUND_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
@@ -43,6 +44,34 @@ export interface OutboundResult {
   error?: OutboundError | null;
   /** Mensagem reenviada (só no replay). */
   source_request?: string | null;
+  /** Só no replay pedido com `chaos`. Com corte ou desistência injetados, sem `status` nem `error`. */
+  chaos?: ChaosResult | null;
+}
+
+/** Falhas a injetar num replay; campo ausente = desligado. */
+export interface ReplayChaos {
+  delay_ms?: number;
+  duplicate?: boolean;
+  abort_mid_body?: boolean;
+  slow_body_bps?: number;
+  timeout_ms?: number;
+}
+
+/** O caos do resultado: o pedido com os padrões preenchidos e o que de fato aconteceu. */
+export interface ChaosResult {
+  delay_ms: number;
+  duplicate: boolean;
+  abort_mid_body: boolean;
+  slow_body_bps: number | null;
+  timeout_ms: number | null;
+  /** Na ordem `delay_ms`, `slow_body_bps`, `abort_mid_body`, `timeout_ms`, `duplicate`. */
+  injected: string[];
+  body_bytes_sent: number | null;
+  duplicate_result: {
+    status: number | null;
+    duration_ms: number;
+    error: OutboundError | null;
+  } | null;
 }
 
 /** Corpo do `POST /token/{id}/request/{rid}/replay`. */
@@ -50,6 +79,55 @@ export interface ReplayPayload {
   url: string;
   keep_path: boolean;
   timeout: number;
+  chaos?: ReplayChaos;
+}
+
+/**
+ * O que o replay injetou, na ordem do servidor: "delay 300 ms, sent twice (second: 201 Created)";
+ * `null` sem nada injetado.
+ */
+export function injectedList(chaos: ChaosResult | null | undefined): string | null {
+  const items = (chaos?.injected ?? []).map((kind) => injectedItem(kind, chaos as ChaosResult));
+  return items.length > 0 ? items.join(', ') : null;
+}
+
+function injectedItem(kind: string, chaos: ChaosResult): string {
+  switch (kind) {
+    case 'delay_ms':
+      return $localize`delay ${chaos.delay_ms}:ms: ms`;
+    case 'slow_body_bps':
+      return $localize`slow body at ${chaos.slow_body_bps}:bps: bytes/s`;
+    case 'abort_mid_body':
+      return $localize`body cut after ${chaos.body_bytes_sent}:bytes: bytes`;
+    case 'timeout_ms':
+      return $localize`gave up after ${chaos.timeout_ms}:ms: ms`;
+    case 'duplicate':
+      return $localize`sent twice (second: ${secondCopy(chaos.duplicate_result)}:second:)`;
+    default:
+      return kind;
+  }
+}
+
+function secondCopy(second: ChaosResult['duplicate_result']): string {
+  if (second?.status) {
+    return statusText(second.status);
+  }
+  return second?.error ? outboundErrorText(second.error).title : noAnswerRead();
+}
+
+/** "201 Created": o status com a frase do protocolo, quando ela é conhecida. */
+export function statusText(status: number): string {
+  return `${status} ${reasonPhrase(status) ?? ''}`.trim();
+}
+
+/** No lugar do status, quando o corte ou a desistência injetados não deixaram ler a resposta. */
+export function noAnswerRead(): string {
+  return $localize`no answer read`;
+}
+
+/** O mesmo, sozinho no lugar do status (o detalhe e a lista da página Outbound). */
+export function noAnswerReadTitle(): string {
+  return $localize`No answer read`;
 }
 
 /** Corpo do `POST /token/{id}/send`. */

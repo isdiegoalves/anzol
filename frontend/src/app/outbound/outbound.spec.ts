@@ -1,10 +1,12 @@
 import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import {
+  ChaosResult,
   ageText,
   apiDate,
   draftFromRequest,
   headerEntries,
+  injectedList,
   outboundErrorText,
   pathSuffix,
   curlOf,
@@ -260,5 +262,75 @@ describe('Dado o erro de saída com o tipo repetido na mensagem (OUTBOUND-10)', 
     ['connect', 'Connection refused', 'Connection refused'],
   ])('deve tirar o "%s:" do começo do detalhe', (kind, message, detail) => {
     expect(outboundErrorText({ kind, message }).detail).toBe(detail);
+  });
+});
+
+describe('Dado o caos devolvido por um replay (o que foi injetado)', () => {
+  const caos = (fields: Partial<ChaosResult>): ChaosResult => ({
+    delay_ms: 0,
+    duplicate: false,
+    abort_mid_body: false,
+    slow_body_bps: null,
+    timeout_ms: null,
+    injected: [],
+    body_bytes_sent: null,
+    duplicate_result: null,
+    ...fields,
+  });
+
+  it.each<[string, ChaosResult, string]>([
+    [
+      'atraso e duplicata respondida',
+      caos({
+        delay_ms: 300,
+        duplicate: true,
+        injected: ['delay_ms', 'duplicate'],
+        duplicate_result: { status: 201, duration_ms: 9, error: null },
+      }),
+      'delay 300 ms, sent twice (second: 201 Created)',
+    ],
+    [
+      'corpo lento e corte',
+      caos({
+        slow_body_bps: 100,
+        abort_mid_body: true,
+        injected: ['slow_body_bps', 'abort_mid_body'],
+        body_bytes_sent: 18,
+      }),
+      'slow body at 100 bytes/s, body cut after 18 bytes',
+    ],
+    ['desistência', caos({ timeout_ms: 500, injected: ['timeout_ms'] }), 'gave up after 500 ms'],
+    [
+      'duplicata sem resposta lida',
+      caos({
+        duplicate: true,
+        injected: ['duplicate'],
+        duplicate_result: { status: null, duration_ms: 3, error: null },
+      }),
+      'sent twice (second: no answer read)',
+    ],
+    [
+      'duplicata com erro de saída',
+      caos({
+        duplicate: true,
+        injected: ['duplicate'],
+        duplicate_result: {
+          status: null,
+          duration_ms: 3,
+          error: { kind: 'connect', message: 'refused' },
+        },
+      }),
+      'sent twice (second: Connection failed)',
+    ],
+    ['falha que a tela não conhece', caos({ injected: ['drop'] }), 'drop'],
+  ])('deve dizer %s na ordem do servidor', (_caso, chaos, texto) => {
+    expect(injectedList(chaos)).toBe(texto);
+  });
+
+  it.each([
+    ['sem caos', undefined],
+    ['caos sem nada injetado', caos({ timeout_ms: 500 })],
+  ])('não deve dizer nada Quando é %s', (_caso, chaos) => {
+    expect(injectedList(chaos)).toBeNull();
   });
 });

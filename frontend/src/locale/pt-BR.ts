@@ -3515,6 +3515,40 @@ export const translations: Record<string, string> = {
   '1167334649637784152': 'Bloqueado: este servidor só manda para endereços públicos.',
   // Replay result: {$status} in {$ms} ms
   '4712297722375301309': 'Resultado do reenvio: {$status} em {$ms} ms',
+  // Replay result: no answer read.
+  '5203105364598487691': 'Resultado do reenvio: nenhuma resposta lida.',
+  // Injected: {$injected}
+  '1330869951499924324': 'Injetado: {$injected}',
+  // Inject failure
+  '2688133808215704884': 'Injetar falha',
+  // Failures to inject
+  '4860644148516703400': 'Falhas a injetar',
+  // Delay before sending (ms)
+  '5200061733063355553': 'Atraso antes de enviar (ms)',
+  // Slow body (bytes/s)
+  '7519411338503731798': 'Corpo lento (bytes/s)',
+  // Give up after (ms)
+  '4223135404164756482': 'Desistir depois de (ms)',
+  // Send twice
+  '4223032021996869123': 'Enviar duas vezes',
+  // Cut the body in half
+  '7545010710041060638': 'Cortar o corpo ao meio',
+  // This request has no body.
+  '5922727402286406435': 'Esta requisição não tem corpo.',
+  // delay {$ms} ms
+  '812950331830617105': 'atraso de {$ms} ms',
+  // slow body at {$bps} bytes/s
+  '7993793070121249502': 'corpo lento a {$bps} bytes/s',
+  // body cut after {$bytes} bytes
+  '5251806133287995800': 'corpo cortado depois de {$bytes} bytes',
+  // gave up after {$ms} ms
+  '5213147227173408522': 'desistiu depois de {$ms} ms',
+  // sent twice (second: {$second})
+  '4636930357835628269': 'enviada duas vezes (segunda: {$second})',
+  // no answer read
+  '1774731303607671886': 'nenhuma resposta lida',
+  // No answer read
+  '337505396291553368': 'Nenhuma resposta lida',
   // Replay (R)
   '5217318402138337552': 'Reenviar (R)',
   // Compare with… (D)
