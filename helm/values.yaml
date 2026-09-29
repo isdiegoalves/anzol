@@ -52,6 +52,9 @@ webhook:
   maxRequests: 10000
   # WEBHOOK_EXPIRY: segundos até um token e suas mensagens expirarem (renovado a cada uso).
   expiry: 604800
+  # WEBHOOK_FAULT_HOLD_MAX: segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a
+  # conexão; ela fecha antes se o cliente desistir.
+  faultHoldMax: 300
   outbound:
     # WEBHOOK_OUTBOUND_ALLOW_PRIVATE: replay e send também para loopback e redes privadas. No cluster, isso inclui
     # o Redis, a API do Kubernetes e todo Service: deixe false com o app publicado.

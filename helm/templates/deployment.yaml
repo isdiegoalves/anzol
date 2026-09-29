@@ -53,6 +53,8 @@ spec:
               value: {{ .Values.webhook.maxRequests | quote }}
             - name: WEBHOOK_EXPIRY
               value: {{ .Values.webhook.expiry | quote }}
+            - name: WEBHOOK_FAULT_HOLD_MAX
+              value: {{ .Values.webhook.faultHoldMax | quote }}
             - name: WEBHOOK_OUTBOUND_ALLOW_PRIVATE
               value: {{ .Values.webhook.outbound.allowPrivate | quote }}
             - name: WEBHOOK_OUTBOUND_LOCALHOST_ALIAS
