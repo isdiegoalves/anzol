@@ -30,7 +30,7 @@
   h2 {
     margin: 0;
     font: var(--mat-sys-title-large);
-    font-size: 22px;
+    font-size: var(--mat-sys-title-large-size);
     font-weight: 600;
     font-variation-settings: var(--app-heading-variation);
   }

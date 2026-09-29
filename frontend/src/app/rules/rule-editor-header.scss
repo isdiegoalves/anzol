@@ -54,7 +54,7 @@
   background: transparent;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-title-large);
-  font-size: 22px;
+  font-size: var(--mat-sys-title-large-size);
 
   &:focus-visible {
     outline: none;
