@@ -58,7 +58,7 @@
         </thead>
         <tbody>
           @for (item of store.history(); track item.id) {
-            @let error = item.error ? errorTitle(item.error).title : null;
+            @let error = failureOf(item);
             @let here = item.id === selected()?.id;
             <tr
               tabindex="0"

@@ -100,6 +100,60 @@ describe('Dado a página Outbound', () => {
     await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);
   });
 
+  it('deve mostrar no detalhe o que o replay injetou e o que o app respondeu', async () => {
+    const harness = await open('', {
+      history: [
+        outboundResult(1, {
+          chaos: {
+            delay_ms: 200,
+            duplicate: true,
+            abort_mid_body: false,
+            slow_body_bps: null,
+            timeout_ms: null,
+            injected: ['delay_ms', 'duplicate'],
+            body_bytes_sent: null,
+            duplicate_result: { status: 409, duration_ms: 3, error: null },
+          },
+        }),
+      ],
+    });
+
+    const detail = screen.getByRole('region', { name: 'Outbound detail' });
+    expect(
+      within(detail).getByText('Injected: delay 200 ms, sent twice (second: 409 Conflict)'),
+    ).toBeTruthy();
+    expect(detail.querySelector('.big-status')?.textContent?.trim()).toBe('201');
+    await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);
+  });
+
+  it('deve dizer "No answer read" no lugar do status Quando o corte injetado não deixou ler a resposta', async () => {
+    await open('', {
+      history: [
+        outboundResult(1, {
+          status: undefined,
+          headers: undefined,
+          body: undefined,
+          chaos: {
+            delay_ms: 0,
+            duplicate: false,
+            abort_mid_body: true,
+            slow_body_bps: null,
+            timeout_ms: null,
+            injected: ['abort_mid_body'],
+            body_bytes_sent: 12,
+            duplicate_result: null,
+          },
+        }),
+      ],
+    });
+
+    const detail = screen.getByRole('region', { name: 'Outbound detail' });
+    expect(detail.querySelector('.big-status')?.textContent?.trim()).toBe('No answer read');
+    expect(within(detail).getByText('Injected: body cut after 12 bytes')).toBeTruthy();
+    const linha = screen.getByRole('table', { name: 'Outbound history' }).querySelector('tbody tr');
+    expect(linha?.textContent).toContain('No answer read');
+  });
+
   it('deve reenviar a mensagem da rota e mostrar o resultado no detalhe Quando Replay é clicado', async () => {
     await open(`?replay=${PEDIDO.uuid}`);
 

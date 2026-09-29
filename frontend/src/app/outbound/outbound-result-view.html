@@ -2,7 +2,9 @@
 @let failure = error();
 <div class="head">
   <h2 class="title" tabindex="-1" i18n>Result</h2>
-  <span [class]="'big-status ' + family()">{{ current.status ?? failure?.title }}</span>
+  <span [class]="'big-status ' + family()">{{
+    current.status ?? failure?.title ?? noAnswer()
+  }}</span>
   <span class="meta">
     <strong i18n>{{ current.duration_ms }} ms</strong>
     <span>
@@ -31,6 +33,9 @@
 </p>
 @if (redirectedHost(); as host) {
   <p i18n class="note">Sent to {{ host }}</p>
+}
+@if (injected(); as text) {
+  <p class="injected">{{ text }}</p>
 }
 @if (failure) {
   <div class="error" role="alert">

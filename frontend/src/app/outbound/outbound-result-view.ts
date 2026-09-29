@@ -4,7 +4,14 @@ import { localDate } from '../request-detail/dates';
 import { Icon } from '../ui/icon';
 import { KvRow, KvTable } from '../ui/kv-table';
 import { MethodBadge } from '../ui/method-badge';
-import { OutboundResult, apiDate, headerEntries, outboundErrorText } from './outbound';
+import {
+  OutboundResult,
+  apiDate,
+  headerEntries,
+  injectedList,
+  noAnswerReadTitle,
+  outboundErrorText,
+} from './outbound';
 
 /** Abas do resultado (OUTBOUND-09). */
 type Tab = 'body' | 'response' | 'sent';
@@ -39,6 +46,15 @@ export class OutboundResultView {
     const error = this.result().error;
     return error ? outboundErrorText(error) : null;
   });
+  /** "Injected: delay 200 ms, …" num replay com caos; `null` sem nada injetado. */
+  protected readonly injected = computed(() => {
+    const list = injectedList(this.result().chaos);
+    return list ? $localize`Injected: ${list}:injected:` : null;
+  });
+  /** O corte ou a desistência injetados não deixaram ler resposta: não há status nem erro. */
+  protected readonly noAnswer = computed(() =>
+    !this.result().status && !this.result().error ? noAnswerReadTitle() : null,
+  );
   protected readonly requestHeaders = computed(() => rows(this.result().request_headers));
   protected readonly responseHeaders = computed(() => rows(this.result().headers));
   protected readonly redirectedHost = computed(() => {
@@ -48,7 +64,10 @@ export class OutboundResultView {
   /** Família do status (`s2`…`s5`) para a cor do número grande. */
   protected readonly family = computed(() => {
     const status = this.result().status;
-    return status ? `s${Math.floor(status / 100)}` : 'failed';
+    if (status) {
+      return `s${Math.floor(status / 100)}`;
+    }
+    return this.noAnswer() ? 'none' : 'failed';
   });
   protected readonly date = computed(() => localDate(apiDate(this.result().at)));
 
