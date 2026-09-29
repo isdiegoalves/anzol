@@ -203,7 +203,7 @@ function resultText(result: OutboundResult): string {
         : (({ title, detail }) => `${title}: ${detail}`)(outboundErrorText(result.error));
     return $localize`Replay did not get an answer: ${reason}:reason:`;
   }
-  const status = `${result.status ?? ''} ${reasonPhrase(result.status ?? 0)}`.trim();
+  const status = `${result.status ?? ''} ${reasonPhrase(result.status ?? 0) ?? ''}`.trim();
   const body = (result.body ?? '').slice(0, BODY_SHOWN);
   const line = $localize`Replay result: ${status}:status: in ${result.duration_ms}:ms: ms`;
   return body ? `${line}. ${body}` : line;

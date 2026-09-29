@@ -23,9 +23,9 @@ const REASONS: Record<number, string> = {
   504: 'Gateway Timeout',
 };
 
-/** A frase do protocolo, sem tradução ("Too Many Requests"); vazia fora da tabela. */
-export function reasonPhrase(status: number): string {
-  return REASONS[status] ?? '';
+/** A frase do protocolo de um status comum ("Too Many Requests"), em inglês; `null` para os outros. */
+export function reasonPhrase(status: number): string | null {
+  return REASONS[status] ?? null;
 }
 
 /**
