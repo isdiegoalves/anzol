@@ -13,6 +13,7 @@
   background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   scroll-margin-top: 16px;
+  container-type: inline-size;
 
   // Campos contornados de 48 px (densidade -2): com o contorno, o rótulo continua à vista.
   @include mat.form-field-overrides(
@@ -86,6 +87,7 @@ h3 {
 }
 
 .hint {
+  max-width: 72ch;
   margin: 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);

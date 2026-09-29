@@ -23,21 +23,24 @@ h1 {
 
 .lead,
 .loading {
+  max-width: 72ch;
   margin: 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-medium);
 }
 
+// Os cartões usam a largura da janela até um teto; a medida curta fica só nos parágrafos.
 .layout {
   display: grid;
   flex: 1 0 auto;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px 24px;
   align-items: start;
+  max-width: 1600px;
   padding-bottom: 24px;
 
   @media (width >= 1200px) {
-    grid-template-columns: 220px minmax(0, 880px);
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 }
 
@@ -113,7 +116,6 @@ h1 {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-  max-width: 880px;
 }
 
 // O índice fixo não cobre o cartão rolado até a vista.

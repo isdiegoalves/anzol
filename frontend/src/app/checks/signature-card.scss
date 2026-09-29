@@ -156,8 +156,13 @@
   gap: 16px 24px;
   align-items: start;
 
-  @media (width >= 1000px) {
+  @container (width >= 720px) {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  // Cartão largo: a anatomia em cima, em duas colunas, e a configuração numa linha embaixo.
+  @container (width >= 1100px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -165,6 +170,17 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  @container (width >= 1100px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 24px;
+    align-items: start;
+
+    h3 {
+      grid-column: 1 / -1;
+    }
+  }
 }
 
 // Header de exemplo em partes coloridas por papel, e a mesma cor na chave da legenda (CHECKS-11).
@@ -241,24 +257,48 @@
   gap: 8px;
 }
 
+// Os campos quebram linha quando não cabem, e o segmentado fica na largura do conteúdo: o rótulo
+// dele nunca corta.
 .pair,
-.triple {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-
-// Os campos quebram linha quando não cabem; o segmentado não encolhe abaixo do conteúdo. Em três
-// colunas iguais, o grupo do algoritmo encolhia e cortava a última opção (o SHA-512 sumia).
 .triple {
   display: flex;
   flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.pair > mat-form-field {
+  flex: 1 1 13rem;
+  min-width: 0;
 }
 
 .triple > mat-form-field {
   flex: 1 1 8rem;
   min-width: 0;
+}
+
+.segmented {
+  flex: none;
+}
+
+@container (width >= 1100px) {
+  .fields {
+    flex-flow: row wrap;
+    gap: 8px 12px;
+    align-items: flex-start;
+  }
+
+  .settings-head {
+    flex-basis: 100%;
+  }
+
+  .pair {
+    flex: 2 1 26rem;
+  }
+
+  .triple {
+    flex: 3 1 28rem;
+  }
 }
 
 @media (width < 600px) {

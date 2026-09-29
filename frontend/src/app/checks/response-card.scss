@@ -52,3 +52,13 @@ mat-button-toggle-group {
   justify-content: space-between;
   gap: 12px;
 }
+
+// Cartão largo: o formulário em duas colunas, na ordem de leitura, em vez de campos de 1.300 px.
+@container (width >= 1100px) {
+  .fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 24px;
+    align-items: start;
+  }
+}
