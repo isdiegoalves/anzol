@@ -87,7 +87,7 @@ async function cabeNaAltura(page: Page): Promise<boolean> {
 }
 
 test.describe('Dado a página Checks a 1400×900 (CHECKS-01)', () => {
-  test('deve pôr os cartões numa coluna só, de até 880 px, com o Health por último', async ({
+  test('deve pôr os cartões numa coluna só, na largura da página, com o Health por último', async ({
     page,
     tokens,
   }) => {
@@ -101,7 +101,8 @@ test.describe('Dado a página Checks a 1400×900 (CHECKS-01)', () => {
     const resposta = (await secao(page, 'Response').boundingBox())!;
     const assinatura = (await secao(page, 'Signature verification').boundingBox())!;
     for (const cartao of [assinatura, resposta, health]) {
-      expect(cartao.width).toBeLessThanOrEqual(880);
+      expect(cartao.width).toBeGreaterThan(880);
+      expect(Math.round(cartao.width)).toBe(Math.round(assinatura.width));
       expect(Math.round(cartao.x)).toBe(Math.round(assinatura.x));
     }
     expect(assinatura.y).toBeLessThan(resposta.y);

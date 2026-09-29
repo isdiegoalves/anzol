@@ -502,7 +502,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     'Health',
   ];
 
-  test('deve mostrar os cartões na ordem do índice, numa coluna de até 880 px', async ({
+  test('deve mostrar os cartões na ordem do índice, numa coluna na largura da página', async ({
     page,
     tokens,
   }) => {
@@ -519,8 +519,12 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     expect(topos, 'os cartões descem na ordem do índice').toEqual([...topos].sort((a, b) => a - b));
     expect(new Set(topos).size, 'uma coluna: nenhum cartão ao lado de outro').toBe(5);
     expect(new Set(caixas.map((c) => Math.round(c.x))).size).toBe(1);
+    const pagina = (await page.getByRole('main', { name: 'Checks' }).boundingBox())!;
     for (const caixa of caixas) {
-      expect(caixa.width).toBeLessThanOrEqual(880);
+      expect(
+        pagina.x + pagina.width - (caixa.x + caixa.width),
+        'o cartão vai até a margem direita da página',
+      ).toBeLessThanOrEqual(25);
     }
     const atalhos = page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
     await expect(atalhos).toHaveCount(5);
