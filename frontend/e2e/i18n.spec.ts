@@ -114,6 +114,9 @@ test.describe('Dado o idioma pt-BR escolhido em Settings', () => {
 
     // Rules.
     await secoes.getByRole('link', { name: 'Regras', exact: true }).click();
+    const guarda = page.getByRole('dialog', { name: 'Descartar as alterações?' });
+    await expect(guarda).toContainText('Status padrão: 200 → 418');
+    await guarda.getByRole('button', { name: 'Descartar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Regras', level: 1 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Nova regra', exact: true })).toBeVisible();
 
