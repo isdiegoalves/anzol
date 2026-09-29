@@ -70,7 +70,7 @@
 
 .unsaved {
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--mat-sys-corner-small);
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
   font: var(--mat-sys-label-large);

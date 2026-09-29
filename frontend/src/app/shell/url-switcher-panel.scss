@@ -118,7 +118,7 @@ kbd {
   flex: none;
   padding: 0 6px;
   border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 4px;
+  border-radius: var(--mat-sys-corner-extra-small);
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-small);
   font-family: var(--app-code-family);

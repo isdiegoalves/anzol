@@ -23,7 +23,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-radius: 20px;
+  border-radius: var(--app-pane-shape);
   background: var(--mat-sys-surface-container-lowest);
 }
 

@@ -30,7 +30,7 @@
 .pill {
   padding: 4px 12px;
   border: 1px solid var(--mat-sys-outline);
-  border-radius: 16px;
+  border-radius: var(--mat-sys-corner-large);
   font: var(--mat-sys-label-large);
   font-family: var(--app-code-family);
 

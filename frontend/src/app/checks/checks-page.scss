@@ -128,7 +128,7 @@ h1 {
 
 .skeleton {
   min-height: 160px;
-  border-radius: 20px;
+  border-radius: var(--app-pane-shape);
   background: var(--mat-sys-surface-container-lowest);
   opacity: 0.6;
 }

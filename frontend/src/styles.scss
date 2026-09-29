@@ -59,6 +59,7 @@ html {
   --app-warning-container: light-dark(#ffdf9e, #5c4300);
   --app-on-warning-container: light-dark(#5c4300, #ffdf9e);
   --app-code-family: #{'"Google Sans Code", ui-monospace, "SFMono-Regular", Menlo, monospace'};
+  --app-pane-shape: 20px;
 
   @media (prefers-contrast: more) {
     @include harbor.high-contrast-overrides(color-scheme);

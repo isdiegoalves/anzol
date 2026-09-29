@@ -11,7 +11,7 @@ h1 {
 
 .url {
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: var(--mat-sys-corner-extra-small);
   background: var(--mat-sys-surface-container-high);
   word-break: break-all;
 }

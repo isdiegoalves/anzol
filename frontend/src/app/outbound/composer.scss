@@ -150,7 +150,7 @@ code {
   height: 48px;
   padding: 0 12px;
   border: 1px solid var(--mat-sys-outline);
-  border-radius: 8px;
+  border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
@@ -243,7 +243,7 @@ code {
   height: 36px;
   padding: 0 8px;
   border: 1px solid var(--mat-sys-outline);
-  border-radius: 8px;
+  border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   font: 12.5px var(--app-code-family);

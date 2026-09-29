@@ -32,7 +32,7 @@
   height: 262px;
   overflow: hidden;
   border: 1px solid var(--mat-sys-outline);
-  border-radius: 12px;
+  border-radius: var(--mat-sys-corner-medium);
   background: var(--mat-sys-surface-container-lowest);
 
   &:focus-within {
@@ -87,7 +87,7 @@ textarea {
 // "Generate from a message" num painel tonal (CHECKS-16).
 .panel {
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--mat-sys-corner-large);
   background: var(--mat-sys-surface-container);
 }
 

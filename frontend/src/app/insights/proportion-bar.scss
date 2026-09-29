@@ -6,7 +6,7 @@
   display: block;
   width: 100%;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-high);
 }
 

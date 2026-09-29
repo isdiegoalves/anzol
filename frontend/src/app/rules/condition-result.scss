@@ -8,7 +8,7 @@
 
 .feedback {
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--mat-sys-corner-small);
   font: var(--mat-sys-label-medium);
   white-space: nowrap;
 

@@ -1,7 +1,7 @@
 // Os três passos num painel tonal, com os números em tertiary-container (CHECKS-07).
 .steps-panel {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--mat-sys-corner-large);
   background: var(--mat-sys-surface-container);
 }
 
@@ -65,7 +65,7 @@
   width: 100%;
   min-height: 48px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--mat-sys-corner-medium);
   background: transparent;
   color: inherit;
   font: var(--mat-sys-body-small);
@@ -169,7 +169,7 @@
 .example {
   display: block;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--mat-sys-corner-medium);
   background: var(--mat-sys-surface-container);
   font: 13px / 22px var(--app-code-family);
   word-break: break-all;
@@ -181,7 +181,7 @@
 .part.sig,
 .key {
   padding: 1px 3px;
-  border-radius: 4px;
+  border-radius: var(--mat-sys-corner-extra-small);
 }
 
 .prefix {
