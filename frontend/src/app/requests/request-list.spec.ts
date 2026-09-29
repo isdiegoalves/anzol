@@ -94,18 +94,18 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()).toHaveLength(1);
   });
 
-  it('deve usar itens de duas linhas: 60 px, 52 px na densidade compacta e 64 px no celular (B1, S17)', async () => {
+  it('deve usar itens de duas linhas: 40 px, 36 px na densidade compacta e 64 px no celular (B1, S17)', async () => {
     const height = () =>
       (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight();
     await load([webhookRequest(1)]);
 
     expect(fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))).toBeTruthy();
-    expect([ITEM_HEIGHT, height()]).toEqual([60, 60]);
+    expect([ITEM_HEIGHT, height()]).toEqual([40, 40]);
     expect(element().classList).not.toContain('dense');
 
     TestBed.inject(ShellSettings).density.set('compact');
     await fixture.whenStable();
-    expect([ITEM_HEIGHT_COMPACT, height()]).toEqual([52, 52]);
+    expect([ITEM_HEIGHT_COMPACT, height()]).toEqual([36, 36]);
     expect(element().classList).toContain('dense');
     // As mesmas duas linhas, com o mesmo conteúdo.
     expect(items()[0].querySelectorAll('.select > .line')).toHaveLength(2);

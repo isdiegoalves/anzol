@@ -77,12 +77,12 @@ export function bodySummary(request: WebhookRequest): string {
 }
 
 /** Altura fixa de um item de duas linhas (B1, lista densa), para a rolagem virtual. */
-export const ITEM_HEIGHT = 60;
+export const ITEM_HEIGHT = 40;
 /**
- * Na densidade compacta de Settings (S17), as mesmas duas linhas em 52 px: o conteúdo cabe inteiro
- * (20 px + 16 px de linha) e o alvo do item e o da lixeira (40 px) seguem acima de 24 px.
+ * Na densidade compacta de Settings (S17), as mesmas duas linhas em 36 px: o conteúdo cabe inteiro
+ * (17 px + 18 px de linha) e o alvo do item e o da lixeira (32 px) seguem acima de 24 px.
  */
-export const ITEM_HEIGHT_COMPACT = 52;
+export const ITEM_HEIGHT_COMPACT = 36;
 /** No celular, o item de duas linhas tem alvo de toque maior, em qualquer densidade. */
 export const ITEM_HEIGHT_TOUCH = 64;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
@@ -109,7 +109,7 @@ export interface ItemView {
 }
 
 /**
- * Lista da Inbox: itens de duas linhas e 60 px (método, caminho e tempo; selos, tipo do evento e
+ * Lista da Inbox: itens de duas linhas e 40 px (método, caminho e tempo; selos, tipo do evento e
  * `#id`), busca e filtros, rodapé "1–50 of N" com as páginas, não lidas, a lixeira com "Undo" e a
  * pílula das novas, numa faixa acima da lista. A lista é uma parada só do Tab: ↑ e ↓ andam entre os
  * itens sem abrir, Enter abre. No "Compare with…", clicar escolhe a B.

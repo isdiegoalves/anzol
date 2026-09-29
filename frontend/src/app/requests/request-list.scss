@@ -91,14 +91,15 @@
   min-height: 0;
 }
 
-// Item de duas linhas e 60 px (B1); o botão da linha cobre o item inteiro.
-// `contain: inline-size`: o conteúdo não alarga o item; sem isso, a lista virtual cresce até a
-// largura da linha mais longa, e as reticências nunca aparecem.
+// Item de duas linhas e 40 px (B1): 20 px de caminho e 18 de selos, embaixo da régua de 1 px; o
+// botão da linha cobre o item inteiro.
+// `container-type: inline-size`: o conteúdo não alarga o item; sem isso, a lista virtual cresce até
+// a largura da linha mais longa, e as reticências nunca aparecem.
 .item {
   position: relative;
-  contain: inline-size;
+  container-type: inline-size;
   box-sizing: border-box;
-  height: 60px;
+  height: 40px;
   padding: 0;
 
   &.unread .route-line {
@@ -108,7 +109,7 @@
   &.unread::before {
     content: '';
     position: absolute;
-    top: 15px;
+    top: 8px;
     left: 6px;
     width: 6px;
     height: 6px;
@@ -156,8 +157,8 @@ app-event-line {
 .item:has(app-check-chip.bad)::after {
   content: '';
   position: absolute;
-  top: 9px;
-  bottom: 9px;
+  top: 6px;
+  bottom: 6px;
   left: 0;
   width: var(--app-note-rule);
   background: var(--mat-sys-error);
@@ -168,11 +169,11 @@ app-event-line {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 0 48px 0 16px;
+  padding: 0 40px 0 16px;
   border: 0;
   border-radius: 0;
   background: none;
@@ -204,6 +205,10 @@ app-event-line {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.route-line {
+  line-height: 20px;
 }
 
 .id {
@@ -275,7 +280,7 @@ app-event-line {
 }
 
 .meta {
-  gap: 6px;
+  gap: 4px;
 
   .id {
     flex: none;
@@ -286,7 +291,7 @@ app-event-line {
 .seals {
   display: flex;
   flex: 0 1 auto;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
   overflow: hidden;
 
@@ -294,23 +299,28 @@ app-event-line {
   // inteiros (uma fração de pixel tirada já os troca por reticências).
   app-check-chip {
     flex: none;
+    gap: 4px;
+    padding: 0 2px;
   }
 
+  // O filtro por status fica por cima deste selo, e em 40 px ele alcança a altura do meio do item:
+  // o selo termina antes do meio da linha, onde o clique abre a requisição.
   .mini[data-kind='rule'] {
     flex: 0 1 auto;
-    min-width: 72px;
+    min-width: 60px;
+    max-width: calc(50cqw - 32px);
   }
 }
 
 .delete {
   position: absolute;
-  top: 10px;
-  right: 6px;
+  top: 4px;
+  right: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: var(--mat-sys-corner-full);
@@ -336,27 +346,63 @@ app-event-line {
   }
 }
 
-// Celular: o item de duas linhas com 64 px.
-:host(.touch) .item {
-  height: 64px;
-}
-
-// Densidade compacta (S17): as duas linhas em 52 px.
-:host(.dense) {
+// Celular: o item de duas linhas com 64 px, e a lixeira com alvo de toque.
+:host(.touch) {
   .item {
-    height: 52px;
-  }
-
-  .select {
-    gap: 0;
-  }
-
-  .delete {
-    top: 6px;
+    height: 64px;
   }
 
   .item.unread::before {
-    top: 14px;
+    top: 16px;
+  }
+
+  .item:has(app-check-chip.bad)::after {
+    top: 10px;
+    bottom: 10px;
+  }
+
+  .select {
+    gap: 4px;
+    padding-right: 52px;
+  }
+
+  .route-line {
+    line-height: inherit;
+  }
+
+  .delete {
+    top: 12px;
+    right: 6px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+// Densidade compacta (S17): as duas linhas em 36 px.
+:host(.dense) {
+  .item {
+    height: 36px;
+  }
+
+  .route-line {
+    line-height: 17px;
+  }
+
+  app-method-badge {
+    height: 17px;
+  }
+
+  .delete {
+    top: 2px;
+  }
+
+  .item.unread::before {
+    top: 6px;
+  }
+
+  .item:has(app-check-chip.bad)::after {
+    top: 4px;
+    bottom: 4px;
   }
 }
 
