@@ -35,6 +35,18 @@
   dd {
     margin: 0;
   }
+
+  // No celular o helper mais longo, em fonte de código, ocupa a largura toda e a descrição ficaria
+  // com zero: a descrição vai embaixo do helper.
+  @media (width < 600px) {
+    dl {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    dd {
+      margin-bottom: 6px;
+    }
+  }
 }
 
 .insert {
