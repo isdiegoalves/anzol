@@ -168,6 +168,22 @@ describe('Dado o painel de ação acoplado ao detalhe', () => {
     http.expectNone(explainUrl(other.uuid));
   });
 
+  it('deve andar para um par do mesmo evento sem a aberta, e trocar o par ao abrir outra requisição', async () => {
+    const { fixture } = await show('compare');
+    const compare = TestBed.inject(CompareStore);
+    const [first, second] = [webhookRequest(7), webhookRequest(8)];
+
+    compare.showInPanel(first, second);
+    await fixture.whenStable();
+    expect(compare.inPanel()).toEqual({ a: first, b: second });
+    expect(fixture.nativeElement.querySelector('app-request-compare')).not.toBeNull();
+
+    fixture.componentRef.setInput('request', webhookRequest(9));
+    await fixture.whenStable();
+    expect(compare.picking()).toEqual(webhookRequest(9));
+    expect(fixture.nativeElement.querySelector('app-request-compare')).toBeNull();
+  });
+
   it('deve fechar Quando a escolha na lista é cancelada sem par', async () => {
     const { store, fixture } = await show('compare');
 

@@ -93,6 +93,7 @@
           <a
             class="link"
             [routerLink]="['/', shown.a.token_id, 'compare', shown.a.uuid, shown.b.uuid]"
+            (click)="compare.returnTo(request())"
             i18n
             >Open full comparison</a
           >

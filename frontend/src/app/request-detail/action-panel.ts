@@ -45,7 +45,7 @@ const RESIZE_STEP_PX = 40;
 })
 export class ActionPanel {
   protected readonly store = inject(ActionPanelStore);
-  private readonly compare = inject(CompareStore);
+  protected readonly compare = inject(CompareStore);
   private readonly grouping = inject(EventGrouping);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -73,11 +73,7 @@ export class ActionPanel {
   protected readonly id5 = computed(() => this.request().uuid.slice(0, 5));
   private readonly explainAsked = computed(() => this.store.explainFor() === this.request().uuid);
 
-  protected readonly pair = computed(() => {
-    const pair = this.compare.inPanel();
-    const uuid = this.request().uuid;
-    return pair && (pair.a.uuid === uuid || pair.b.uuid === uuid) ? pair : null;
-  });
+  protected readonly pair = this.compare.inPanel;
 
   private readonly ruleHost = viewChild('ruleHost', { read: ViewContainerRef });
   private readonly explainHost = viewChild('explainHost', { read: ViewContainerRef });
@@ -92,7 +88,8 @@ export class ActionPanel {
           }
           return;
         }
-        if (this.pair()) {
+        const pair = this.pair();
+        if (pair && (pair.a.uuid === request.uuid || pair.b.uuid === request.uuid)) {
           return;
         }
         const attempts = this.grouping.attemptsOf(request);

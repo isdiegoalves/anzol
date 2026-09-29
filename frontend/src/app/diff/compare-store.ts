@@ -29,6 +29,9 @@ export class CompareStore {
 
   start(a: WebhookRequest, where: 'page' | 'panel' = 'page'): void {
     this.toPanel = where === 'panel';
+    if (this.toPanel) {
+      this.panelPair.set(null);
+    }
     this.pickingA.set(a);
   }
 
@@ -49,6 +52,11 @@ export class CompareStore {
   showInPanel(a: WebhookRequest, b: WebhookRequest): void {
     this.pickingA.set(null);
     this.panelPair.set({ a, b });
+  }
+
+  /** "Open full comparison" no painel: o "Close" da página volta à requisição aberta. */
+  returnTo(request: WebhookRequest): void {
+    this.origin = request;
   }
 
   /**

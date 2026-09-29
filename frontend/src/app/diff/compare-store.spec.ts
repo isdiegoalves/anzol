@@ -73,6 +73,16 @@ describe('Dado o "Compare with…" e a página do Compare', () => {
       expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, A.uuid, 1]);
     });
 
+    it('deve voltar à requisição do painel de ação Quando a página veio do "Open full comparison"', () => {
+      compare.forget();
+      compare.returnTo(B);
+      compare.show(B, A);
+
+      compare.close();
+
+      expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, B.uuid, 1]);
+    });
+
     it('deve voltar à Inbox com a A aberta Quando fecha (link direto)', () => {
       compare.close();
 
