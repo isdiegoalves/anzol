@@ -298,9 +298,12 @@ html.compact {
   );
 }
 
-// Com toque, o interruptor do Material tem 44 px de alvo (o trilho de 32 fica centrado nele).
-@media (pointer: coarse) {
-  .mat-mdc-slide-toggle .mdc-switch {
+// O trilho do tema tem 20 px: o interruptor do Material fica com 24 px de alvo, e 44 com toque, com o
+// trilho centrado nele.
+.mat-mdc-slide-toggle .mdc-switch {
+  height: 24px;
+
+  @media (pointer: coarse) {
     height: 44px;
   }
 }

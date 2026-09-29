@@ -140,11 +140,15 @@ button.check {
   min-width: 0;
 }
 
+// Centrado na altura do cabeçalho das abas, que o Material só declara na densidade compacta.
 .pretty {
   position: absolute;
   z-index: 2;
-  top: 4px;
+  top: 0;
   right: 0;
+  display: flex;
+  align-items: center;
+  height: var(--mat-tab-container-height, 48px);
 }
 
 .schema-note {
@@ -165,6 +169,7 @@ button.check {
 
   .pretty {
     position: static;
+    height: auto;
     margin-bottom: 4px;
   }
 
