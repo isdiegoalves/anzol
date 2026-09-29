@@ -2,7 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
-import { OutboundResult, ReplayPayload, Repeat, SendPayload, TIMEOUT_DEFAULT_S } from './outbound';
+import {
+  OutboundResult,
+  ReplayPayload,
+  Repeat,
+  SendPayload,
+  TIMEOUT_DEFAULT_S,
+  requestedChaos,
+} from './outbound';
 
 /** O servidor guarda as últimas 50 respostas de cada URL. */
 const HISTORY_SIZE = 50;
@@ -56,7 +63,8 @@ export class OutboundStore {
 
   /**
    * Como repetir o disparo: o que esta tela mandou; ou, no replay do histórico, a mesma mensagem
-   * para o alvo efetivo (que já traz o caminho). O send do histórico não guarda o corpo: `null`.
+   * para o alvo efetivo (que já traz o caminho), com o mesmo caos. O send do histórico não guarda
+   * o corpo: `null`.
    */
   repeatOf(result: OutboundResult): Repeat | null {
     const known = this.repeats.get(result.id);
@@ -64,13 +72,23 @@ export class OutboundStore {
       return known;
     }
     const source = result.source_request;
-    return result.kind === 'replay' && isRequestId(source)
-      ? {
-          kind: 'replay',
-          requestId: source,
-          payload: { url: result.target, keep_path: false, timeout: TIMEOUT_DEFAULT_S * 1000 },
-        }
-      : null;
+    if (result.kind !== 'replay' || !isRequestId(source)) {
+      return null;
+    }
+    const chaos = result.chaos;
+    // O histórico não guarda o timeout do replay, e o servidor recusa desistência que não fique
+    // abaixo dele; com a desistência pedida, o timeout nunca chega a valer.
+    const timeout = Math.max(TIMEOUT_DEFAULT_S * 1000, (chaos?.timeout_ms ?? 0) + 1);
+    return {
+      kind: 'replay',
+      requestId: source,
+      payload: {
+        url: result.target,
+        keep_path: false,
+        timeout,
+        ...(chaos ? { chaos: requestedChaos(chaos) } : {}),
+      },
+    };
   }
 
   /** "Run again": repete o replay ou o send; o resultado novo entra no topo do histórico. */

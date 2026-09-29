@@ -236,4 +236,35 @@ test.describe('Dado um replay com caos feito pela API', () => {
       'Injected: delay 200 ms',
     );
   });
+
+  test('deve repetir com o mesmo caos Quando "Run again" é clicado no histórico', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const id = await pedido(tokens, tokenId);
+    const resposta = await request.post(`/token/${tokenId}/request/${id}/replay`, {
+      data: {
+        url: `http://${RECEIVER_HOST}:${destino.porta}`,
+        chaos: { delay_ms: 200, duplicate: true },
+      },
+    });
+    expect(resposta.status(), await resposta.text()).toBe(200);
+    await page.goto(`/#/${tokenId}/outbound`);
+    const detalhe = page.getByRole('region', { name: 'Outbound detail' });
+    await expect(detalhe).toContainText('Injected: delay 200 ms');
+
+    const enviado = page.waitForRequest((r) => r.url().endsWith(`/request/${id}/replay`));
+    await detalhe.getByRole('button', { name: 'Run again' }).click();
+
+    expect((await enviado).postDataJSON()).toMatchObject({
+      chaos: { delay_ms: 200, duplicate: true },
+    });
+    await expect(
+      page.getByRole('table', { name: 'Outbound history' }).locator('tbody tr'),
+    ).toHaveCount(2);
+    await expect(detalhe).toContainText('Injected: delay 200 ms, sent twice (second: 201 Created)');
+    expect(destino.recebidas).toHaveLength(4);
+  });
 });

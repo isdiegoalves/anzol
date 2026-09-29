@@ -81,6 +81,17 @@ export interface ReplayPayload {
   chaos?: ReplayChaos;
 }
 
+/** O caos pedido, lido do eco do resultado: os campos no padrão (desligados) ficam de fora. */
+export function requestedChaos(chaos: ChaosResult): ReplayChaos {
+  return {
+    ...(chaos.delay_ms ? { delay_ms: chaos.delay_ms } : {}),
+    ...(chaos.duplicate ? { duplicate: true } : {}),
+    ...(chaos.abort_mid_body ? { abort_mid_body: true } : {}),
+    ...(chaos.slow_body_bps !== null ? { slow_body_bps: chaos.slow_body_bps } : {}),
+    ...(chaos.timeout_ms !== null ? { timeout_ms: chaos.timeout_ms } : {}),
+  };
+}
+
 /**
  * O que o replay injetou, na ordem do servidor: "delay 300 ms, sent twice (second: 201 Created)";
  * `null` sem nada injetado.

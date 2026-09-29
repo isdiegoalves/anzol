@@ -436,6 +436,70 @@ describe('Dado a página Outbound', () => {
       await vi.waitFor(() => expect(detail().textContent).toContain('/app/pedidos?n=5'));
     });
 
+    it('OUTBOUND-08: deve repetir com o mesmo caos Quando o replay do histórico foi feito com caos', async () => {
+      await open('', {
+        history: [
+          outboundResult(1, {
+            chaos: {
+              delay_ms: 200,
+              duplicate: true,
+              abort_mid_body: false,
+              slow_body_bps: 512,
+              timeout_ms: null,
+              injected: ['delay_ms', 'slow_body_bps', 'duplicate'],
+              body_bytes_sent: null,
+              duplicate_result: { status: 201, duration_ms: 3, error: null },
+            },
+          }),
+        ],
+      });
+
+      await userEvent.click(within(detail()).getByRole('button', { name: 'Run again' }));
+
+      const call = http.expectOne(
+        `/token/${TOKEN_ID}/request/00000000-0000-4000-8000-000000000001/replay`,
+      );
+      expect(call.request.body).toEqual({
+        url: 'http://host.docker.internal:3000/app/pedidos?n=1',
+        keep_path: false,
+        timeout: 10_000,
+        chaos: { delay_ms: 200, duplicate: true, slow_body_bps: 512 },
+      });
+      call.flush(outboundResult(5));
+    });
+
+    it('OUTBOUND-08: deve repetir a desistência do caos com um timeout acima dela Quando ela passa do timeout padrão', async () => {
+      await open('', {
+        history: [
+          outboundResult(1, {
+            status: undefined,
+            chaos: {
+              delay_ms: 0,
+              duplicate: false,
+              abort_mid_body: true,
+              slow_body_bps: null,
+              timeout_ms: 15_000,
+              injected: ['abort_mid_body'],
+              body_bytes_sent: 7,
+              duplicate_result: null,
+            },
+          }),
+        ],
+      });
+
+      await userEvent.click(within(detail()).getByRole('button', { name: 'Run again' }));
+
+      const call = http.expectOne(
+        `/token/${TOKEN_ID}/request/00000000-0000-4000-8000-000000000001/replay`,
+      );
+      expect(call.request.body).toMatchObject({
+        timeout: 15_001,
+        chaos: { abort_mid_body: true, timeout_ms: 15_000 },
+      });
+      expect(call.request.body.chaos).not.toHaveProperty('delay_ms');
+      call.flush(outboundResult(5));
+    });
+
     it('OUTBOUND-08: deve repetir o send com o mesmo corpo Quando o send foi feito nesta página', async () => {
       await open('?send=new');
       const send = await screen.findByRole('region', { name: 'Send request' });
