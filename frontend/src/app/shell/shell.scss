@@ -249,7 +249,7 @@
       // Com toque, 44 px de alvo; o quadrado à vista continua com 36.
       @media (pointer: coarse) {
         padding: 4px;
-        border-radius: 16px;
+        border-radius: calc(var(--mat-sys-corner-medium) + 4px);
         background-clip: content-box;
       }
     }

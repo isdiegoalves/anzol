@@ -135,7 +135,7 @@ import { RequestStore } from './request-store';
     kbd {
       padding: 0 4px;
       border: 1px solid var(--mat-sys-outline);
-      border-radius: 4px;
+      border-radius: var(--mat-sys-corner-extra-small);
       font-family: var(--app-code-family);
       line-height: 12px;
     }
