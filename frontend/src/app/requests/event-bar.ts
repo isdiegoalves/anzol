@@ -1,4 +1,5 @@
 import { Component, Injector, computed, inject } from '@angular/core';
+import { Icon } from '../ui/icon';
 import { EventGrouping, NO_GROUPING, eventsIn, groupedBy } from './event-grouping';
 import { RequestStore } from './request-store';
 
@@ -8,6 +9,7 @@ import { RequestStore } from './request-store';
  */
 @Component({
   selector: 'app-event-bar',
+  imports: [Icon],
   template: `
     @if (grouping.key(); as key) {
       <p class="state">
@@ -23,22 +25,48 @@ import { RequestStore } from './request-store';
         </button>
       </p>
     } @else if (grouping.offer(); as field) {
+      <!-- Numa linha só, para a oferta não tirar da primeira tela as requisições; a frase inteira
+           fica para o leitor de tela e no title. -->
       <section class="offer" aria-label="Group by event" i18n-aria-label>
-        <p i18n>
+        <p class="visually-hidden" i18n>
           Some requests repeat the same <code>{{ field }}</code
           >. Group them by event?
         </p>
-        <div class="actions">
-          <button type="button" class="primary" (click)="grouping.choose(field)">
-            <ng-container i18n>Group by event</ng-container>
-          </button>
-          <button type="button" class="link" (click)="change()">
-            <ng-container i18n>Choose another field…</ng-container>
-          </button>
-          <button type="button" class="link" (click)="grouping.choose(off)">
-            <ng-container i18n>Not now</ng-container>
-          </button>
-        </div>
+        <span class="short" aria-hidden="true" [title]="sentence(field)"
+          ><code>{{ field }}</code
+          >&ngsp;<ng-container i18n>repeats</ng-container></span
+        >
+        <button
+          type="button"
+          class="primary"
+          aria-label="Group by event"
+          i18n-aria-label
+          (click)="grouping.choose(field)"
+        >
+          <ng-container i18n="action|Groups the list by the chosen key">Group</ng-container>
+        </button>
+        <button
+          type="button"
+          class="icon"
+          aria-label="Choose another field…"
+          i18n-aria-label
+          title="Choose another field…"
+          i18n-title
+          (click)="change()"
+        >
+          <app-icon name="more" [size]="18" />
+        </button>
+        <button
+          type="button"
+          class="icon"
+          aria-label="Not now"
+          i18n-aria-label
+          title="Not now"
+          i18n-title
+          (click)="grouping.choose(off)"
+        >
+          <app-icon name="close" [size]="18" />
+        </button>
       </section>
     }
   `,
@@ -63,24 +91,34 @@ import { RequestStore } from './request-store';
     }
 
     .offer {
-      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 4px 4px 12px;
       border-radius: var(--mat-sys-corner-medium);
       background: var(--mat-sys-surface-container-high);
       font: var(--mat-sys-body-medium);
+    }
 
-      p {
-        margin: 0 0 8px;
-      }
+    .short {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     code {
       font-family: var(--app-code-family);
     }
 
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px 8px;
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
 
     button {
@@ -98,8 +136,20 @@ import { RequestStore } from './request-store';
     }
 
     .primary {
+      flex: none;
       background: var(--mat-sys-primary);
       color: var(--mat-sys-on-primary);
+    }
+
+    .icon {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      padding: 0;
+      background: none;
+      color: var(--mat-sys-on-surface-variant);
     }
 
     .link {
@@ -111,6 +161,10 @@ import { RequestStore } from './request-store';
     @media (width < 600px) {
       button {
         min-height: 44px;
+      }
+
+      .icon {
+        width: 44px;
       }
     }
   `,
@@ -131,6 +185,10 @@ export class EventBar {
       ? $localize`No loaded request has ${key}:key:. Showing requests one by one.`
       : `${groupedBy(key)} · ${eventsIn(events, this.grouping.context().length || this.store.requests().length)}`;
   });
+
+  protected sentence(field: string): string {
+    return $localize`Some requests repeat the same ${field}:field:. Group them by event?`;
+  }
 
   protected change(): void {
     void this.grouping.openDialog(this.injector);

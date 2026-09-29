@@ -3478,4 +3478,10 @@ export const translations: Record<string, string> = {
   '8831648283178564529': "{$destination}, 1 schema inválido desde {$time}",
   // {$destination}, {$count} invalid schemas since {$time}
   '3636672581074851539': "{$destination}, {$count} schemas inválidos desde {$time}",
+  // repeats
+  '2365282192455083444': "se repete",
+  // Group
+  '3953128085929585273': "Agrupar",
+  // Some requests repeat the same {$field}. Group them by event?
+  '2088030634394823354': "Algumas requisições repetem o mesmo {$field}. Agrupar por evento?",
 };

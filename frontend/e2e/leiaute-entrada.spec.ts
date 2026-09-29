@@ -115,6 +115,53 @@ test.describe('Dado caminhos que não cabem na largura da lista', () => {
   });
 });
 
+/** Os itens inteiros dentro da janela da lista. */
+async function inteirosNaTela(page: Page): Promise<number> {
+  return page.locator('cdk-virtual-scroll-viewport').evaluate((janela) => {
+    const caixa = janela.getBoundingClientRect();
+    return [...janela.querySelectorAll('.item, app-event-line')].filter((item) => {
+      const b = item.getBoundingClientRect();
+      return b.top >= caixa.top - 1 && b.bottom <= caixa.bottom + 1;
+    }).length;
+  });
+}
+
+test.describe('Dado a oferta de agrupar por evento na primeira tela', () => {
+  test('deve deixar 9 requisições inteiras à vista a 1440×900, com a oferta aberta', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(compacto(page), 'a primeira tela do desktop');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const tokenId = await tokens.create();
+    for (const [n, evento] of [
+      'a',
+      'b',
+      'a',
+      'c',
+      'b',
+      'c',
+      'd',
+      'd',
+      'e',
+      'e',
+      'f',
+      'f',
+    ].entries()) {
+      await tokens.send(tokenId, {
+        path: '/webhooks/pagamentos',
+        headers: { 'Content-Type': 'application/json' },
+        data: JSON.stringify({ event_id: `evt_${evento}`, n }),
+      });
+    }
+    await emPortugues(page);
+    await page.goto(`/#/${tokenId}`);
+    await expect(page.getByRole('region', { name: 'Agrupar por evento' })).toBeVisible();
+
+    expect(await inteirosNaTela(page)).toBeGreaterThanOrEqual(9);
+  });
+});
+
 test.describe('Dado a linha de um evento com muitas tentativas', () => {
   test('deve mostrar inteira a contagem e a última resposta, perdendo as mais antigas da trilha', async ({
     page,
