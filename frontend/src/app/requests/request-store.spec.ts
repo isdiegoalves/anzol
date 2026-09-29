@@ -77,7 +77,7 @@ describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
   });
 });
 
-describe('Dado um GET da requisição aberta que responde 404 (B2, caminho 3)', () => {
+describe('Dado um GET da requisição aberta que responde 404', () => {
   let http: HttpTestingController;
   let store: RequestStore;
   const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
@@ -277,7 +277,6 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.hasRequests()).toBe(false);
       expect(store.total()).toBe(0);
       expect(store.unread()).toEqual([]);
-      // B2: a aberta segue na tela como cópia, com o aviso de que esta aba a apagou.
       expect(store.selected()).toEqual(webhookRequest(2));
       expect(store.gone()).toMatchObject({ id: webhookRequest(2).uuid, cause: 'deleted' });
     });
@@ -313,7 +312,6 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.gone()).toBeNull();
     });
 
-    // B2 (UX-38, CA-5): a aberta que a limpeza corta vira cópia com aviso; nenhuma outra entra.
     it.each([
       ['só ela', [R1.uuid]],
       ['um bloco', [R1.uuid, R2.uuid]],
@@ -379,7 +377,7 @@ describe('Dado o RequestStore da URL aberta', () => {
     });
   });
 
-  describe('Dado a requisição aberta apagada por esta aba (B2, UX-38)', () => {
+  describe('Dado a requisição aberta apagada por esta aba', () => {
     const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
 
     beforeEach(async () => {
@@ -423,7 +421,7 @@ describe('Dado o RequestStore da URL aberta', () => {
     });
   });
 
-  describe('Dado o link para uma requisição que não abre (B2, CA-5)', () => {
+  describe('Dado o link para uma requisição que não abre', () => {
     it.each(['missing', 'failed'] as const)(
       'deve ficar sem seleção e guardar o motivo (%s), sem abrir outra',
       async (reason) => {
@@ -663,8 +661,7 @@ describe('Dado o RequestStore da URL aberta', () => {
   });
 });
 
-// B2 (UX-02): a busca do servidor não filtra por status; o filtro roda no navegador, sobre as
-// mais novas, em páginas de 100, até 500 (e mais 500 a cada "Look in older requests").
+// A busca do servidor não filtra por status: o filtro roda no navegador, sobre as mais novas.
 describe('Dado o filtro pelo status respondido', () => {
   let http: HttpTestingController;
   let store: RequestStore;

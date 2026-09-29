@@ -27,7 +27,7 @@ function attempt(
   });
 }
 
-describe('Dado a chave do evento (E1)', () => {
+describe('Dado a chave do evento', () => {
   it.each([
     ['x-loja-event-id', true],
     ['X-GitHub-Delivery', true],

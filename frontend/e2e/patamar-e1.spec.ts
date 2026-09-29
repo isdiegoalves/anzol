@@ -20,23 +20,6 @@ import { gravarRegras } from './support/regras';
 import { compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia E1 — agrupar por evento (UX-40; guia-combinacao §3.5 e §5.1; CA-10). O agrupamento
-// só existe com a chave do evento, escolhida pela pessoa e guardada no navegador; a linha de evento mostra a trilha
-// de respostas, sem selo de julgamento; o intervalo entre as tentativas é conferido contra o Retry-After com três
-// vereditos; comparar "com a anterior" vale só dentro do evento. SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: o candidato da oferta precisa de 3 valores diferentes, cada um repetido em 2 ou mais requisições (a
-//   leitura mais estrita de "se repete em 2 ou mais requisições, em pelo menos 3 valores diferentes"); os casos
-//   negativos ficam longe da fronteira (nenhuma repetição; o mesmo valor em todas; só 2 valores).
-// - SUPOSIÇÃO: cada status da trilha é um elemento com o texto do status ("429", "200", "429✗"), dentro do botão da
-//   linha de evento.
-// - SUPOSIÇÃO: os vereditos e a ressalva ficam dentro da `region "Request list"`, no evento expandido.
-// - SUPOSIÇÃO: a comparação aberta por "Compare with attempt {n}" mostra os dois `#id` na `region "Compare
-//   requests"`, esteja ela no painel de ação (R1) ou na rota de hoje.
-// - SUPOSIÇÃO: o plural das somas segue o ICU ("1 signature does not match" / "2 signatures do not match"); os
-//   testes aceitam as duas formas.
-// - Sem teste: "N attempts kept" no teto da limpeza automática e "Load older attempts" entre páginas (pedem 500 ou
-//   mais requisições por teste); ficam para a rodada com a tela.
-
 const CHAVE = 'x-loja-event-id';
 const SECRET = 'segredo-do-patamar-e1';
 const ACEITA = {
@@ -110,22 +93,19 @@ async function intercalados(tokens: TokenTracker, page: Page): Promise<Cenario> 
   return { tokenId, a: [a1, a2, a3], b: [b1, b2], c: [c1, c2], saude };
 }
 
-/** A faixa de oferta acima da lista. */
 function oferta(page: Page): Locator {
   return page.getByRole('region', { name: 'Group by event' });
 }
 
-/** O botão da linha de um evento (abre a tentativa mais nova). */
 function evento(page: Page, valor: string): Locator {
   return lista(page).getByRole('button', { name: new RegExp(`^Event ${valor}, `) });
 }
 
-/** O chevron que mostra e esconde as tentativas. */
 function tentativas(page: Page, valor: string): Locator {
   return lista(page).getByRole('button', { name: `Attempts of ${valor}`, exact: true });
 }
 
-/** Agrupa pela chave, pelo diálogo, digitando o campo (vale com ou sem candidato achado). */
+/** Digita o campo: vale com ou sem candidato achado. */
 async function agruparPor(page: Page, campo: string): Promise<void> {
   await abrirFiltros(page);
   await page.getByRole('button', { name: 'Group by event…' }).click();
@@ -138,9 +118,8 @@ async function agruparPor(page: Page, campo: string): Promise<void> {
 }
 
 /**
- * SUPOSIÇÃO (corrigida no spec): no celular, a Entrada abre a primeira requisição e o endereço passa a apontar para
- * ela; recarregado, esse endereço é um link para ela, e o detalhe vem para a frente (B1). A lista volta pelo "Back to
- * requests".
+ * No celular, a Entrada abre a primeira requisição e o endereço passa a apontar para ela; recarregado, esse endereço
+ * é um link para ela, e o detalhe vem para a frente.
  */
 async function listaDepoisDeRecarregar(page: Page): Promise<void> {
   if (compacto(page)) {
@@ -169,7 +148,7 @@ function fundo(alvo: Locator): Promise<string> {
   });
 }
 
-test.describe('Dado a oferta de agrupar por evento (UX-40; CA-10)', () => {
+test.describe('Dado a oferta de agrupar por evento', () => {
   test('deve oferecer o agrupamento Quando as requisições repetem o mesmo campo, uma vez por URL', async ({
     page,
     tokens,
@@ -237,7 +216,7 @@ test.describe('Dado a oferta de agrupar por evento (UX-40; CA-10)', () => {
   });
 });
 
-test.describe('Dado a Entrada agrupada pela chave do evento (UX-40; CA-10)', () => {
+test.describe('Dado a Entrada agrupada pela chave do evento', () => {
   test('deve agrupar pela oferta, dizer o estado no cabeçalho, anunciar uma vez e guardar a chave no navegador', async ({
     page,
     tokens,
@@ -470,7 +449,7 @@ test.describe('Dado a Entrada agrupada pela chave do evento (UX-40; CA-10)', () 
   });
 });
 
-test.describe('Dado o intervalo entre as tentativas e o Retry-After (UX-40; CA-10)', () => {
+test.describe('Dado o intervalo entre as tentativas e o Retry-After', () => {
   /**
    * Um evento com quatro tentativas respondidas pela resposta padrão (429, Retry-After 3), e as horas fixadas: a
    * segunda chega 1 s depois (antes da espera), a terceira 3 s depois (no limite) e a quarta 5 s depois (esperou).
@@ -497,9 +476,8 @@ test.describe('Dado o intervalo entre as tentativas e o Retry-After (UX-40; CA-1
       quando += (i === 0 ? 0 : intervalos[i - 1]) * 1000;
       horas[uuid] = horaDaApi(quando);
     });
-    // SUPOSIÇÃO (corrigida no spec): os outros eventos também têm hora fixa, 10 s entre as tentativas
-    // (esperaram). Mandados em sequência, chegariam a 0 s um do outro contra 3 s pedidos, e a linha
-    // deles diria, com razão, que uma chegou antes da espera (guia §3.5).
+    // Os outros eventos também têm hora fixa, 10 s entre as tentativas: mandados em sequência,
+    // chegariam a 0 s um do outro contra 3 s pedidos, e a linha deles diria que uma chegou antes.
     outros.forEach((uuid, i) => {
       horas[uuid] = horaDaApi(base + 60_000 + i * 10_000);
     });
@@ -581,7 +559,7 @@ test.describe('Dado o intervalo entre as tentativas e o Retry-After (UX-40; CA-1
   });
 });
 
-test.describe('Dado uma entrega longa (UX-40)', () => {
+test.describe('Dado uma entrega longa', () => {
   test('deve comprimir a trilha e recolher as tentativas do meio', async ({ page, tokens }) => {
     test.skip(compacto(page), 'os números são os do desktop; o celular recolhe acima de 4');
     const tokenId = await tokens.create({ default_status: '429' });
@@ -632,7 +610,7 @@ test.describe('Dado uma entrega longa (UX-40)', () => {
   });
 });
 
-test.describe('Dado comparar com a tentativa anterior do mesmo evento (UX-40; CA-10)', () => {
+test.describe('Dado comparar com a tentativa anterior do mesmo evento', () => {
   function comparacao(page: Page): Locator {
     return page.getByRole('region', { name: 'Compare requests' });
   }

@@ -12,15 +12,12 @@ import {
   valueLabel,
 } from './request-filter';
 
-/** F1: o valor clicado na requisição aberta (ou no selo da lista), e o filtro que ele cria. */
 export interface ValueTarget {
   kind: 'method' | 'path' | 'header' | 'query' | 'body' | 'status';
-  /** O cabeçalho, o parâmetro ou o JSONPath do corpo; vazio nos outros. */
   name: string;
   value: string;
 }
 
-/** As classes do status respondido, com chip próprio no subgrupo "Answer" (B2). */
 const ANSWERED_CLASSES: readonly string[] = ['2xx', '3xx', '4xx', '5xx'];
 
 /** Um chip do grupo "Filters": o nome acessível é o texto, o estado é o `aria-pressed`. */
@@ -32,7 +29,7 @@ export interface FilterChip {
   menu?: 'rule' | 'near_miss';
   /** Filtro que só existe ligado (o motivo exato, a regra escolhida): o chip mostra o ✕. */
   removable?: boolean;
-  /** O texto na lista "Active filters", quando é outro ("method POST" do chip "POST", F1). */
+  /** O texto na lista "Active filters", quando é outro ("method POST" do chip "POST"). */
   active?: string;
   /** O texto à vista, quando é mais curto que o nome acessível ("4xx" de "Answered 4xx"). */
   short?: string;
@@ -56,7 +53,7 @@ export class FilterChips {
   private readonly store = inject(RequestStore);
   private readonly announcer = inject(LiveAnnouncer);
   private cleared = false;
-  /** Quantas linhas de resultado da lista estão na tela (no celular, com o detalhe à frente, nenhuma). */
+  /** No celular, com o detalhe à frente, nenhuma linha de resultado está na tela. */
   private listening = 0;
 
   private readonly groupLabels: Record<ChipGroup['id'], string> = {
@@ -155,10 +152,7 @@ export class FilterChips {
     ...this.valueChips(this.store.filter().values ?? []),
   ]);
 
-  /**
-   * F1: o filtro por valor que o servidor recusou (422): a lista voltou ao filtro anterior, e o chip
-   * fica à vista, marcado "not accepted", até sair.
-   */
+  /** O chip recusado fica à vista, marcado "not accepted", até sair. */
   readonly rejected = computed(() =>
     this.store.rejected().map((filter): FilterChip => ({
       label: $localize`${valueLabel(filter)}:filter: — not accepted`,
@@ -168,16 +162,11 @@ export class FilterChips {
     })),
   );
 
-  /** F1: o link trouxe filtros por valor que esta aba não tem (os valores não vão no endereço). */
   readonly missingValues = signal(0);
 
-  /** O que o último filtro ligado por um valor acrescentou, para o resultado dizer "Filtered by …". */
   private added: string | null = null;
 
-  /**
-   * F1: o valor clicado vira filtro ("Filter by this value"), ou o exclui onde o `match` nega (o
-   * método). O mesmo campo troca de valor; os outros somam.
-   */
+  /** Excluir só onde o `match` nega (o método). O mesmo campo troca de valor; os outros somam. */
   filterByValue(target: ValueTarget, exclude = false): void {
     const filter = this.store.filter();
     const before = new Set(this.activeTexts());
@@ -203,7 +192,6 @@ export class FilterChips {
     }
   }
 
-  /** A linha do resultado da lista está na tela: é ela que fala o resultado do filtro. */
   listen(): () => void {
     this.listening++;
     return () => this.listening--;
@@ -223,17 +211,14 @@ export class FilterChips {
     void this.announcer.announce($localize`Filtered by ${added}:filter:. ${found}:result:`);
   }
 
-  /** O filtro acrescentado pelo último clique num valor; responde uma vez. */
+  /** Responde uma vez. */
   takeAdded(): string | null {
     const added = this.added;
     this.added = null;
     return added;
   }
 
-  /**
-   * "Filtered by …" ao chegar por um link: o que está ligado, sem o veredito largo quando o motivo
-   * ou o caminho exato está junto (o link de Métricas e de Saúde leva os dois).
-   */
+  /** Sem o veredito largo quando o motivo ou o caminho exato está junto: o link leva os dois. */
   describe(): string {
     const filter = this.store.filter();
     const broad = [
@@ -248,7 +233,6 @@ export class FilterChips {
     return [...text, ...this.activeTexts().filter((label) => !broad.includes(label))].join(', ');
   }
 
-  /** Os textos da lista "Active filters", sem o da busca. */
   private activeTexts(): string[] {
     return this.active().map((chip) => chip.active ?? chip.label);
   }
@@ -285,10 +269,6 @@ export class FilterChips {
     return cleared;
   }
 
-  /**
-   * B2 (UX-02): as classes do status respondido e, ligado pela F1, o status exato, com o texto das
-   * condições de Regras ("answered 429"). Filtram no navegador (`RequestStore.scan`).
-   */
   private answered(answered: readonly string[]): FilterChip[] {
     const toggle = (value: string) => () =>
       this.apply({

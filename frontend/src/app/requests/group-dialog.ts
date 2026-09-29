@@ -14,21 +14,15 @@ import { NO_GROUPING } from './event-grouping';
 import { EventKey, KeyCandidate, eventCount, isBodyKey, isEventKey } from './event-key';
 import { WebhookRequest } from './webhook-request';
 
-/** O que o diálogo recebe: as carregadas, os candidatos achados nelas e a chave de agora. */
 export interface GroupDialogData {
   requests: readonly WebhookRequest[];
   candidates: readonly KeyCandidate[];
   current: EventKey | null;
 }
 
-/** A escolha: a chave, ou `off` ("Do not group"). */
 export type GroupChoice = EventKey | typeof NO_GROUPING;
 
-/**
- * `dialog "Group by event"` (E1): os candidatos com a prévia ("17 values in 50"), um campo livre
- * para outro cabeçalho ou JSONPath, e "Do not group". O pé diz em quantos eventos as carregadas
- * viram. Chave que não é cabeçalho nem JSONPath: um `alert`, e o diálogo fica aberto.
- */
+/** Chave que não é cabeçalho nem JSONPath: um `alert`, e o diálogo fica aberto. */
 @Component({
   selector: 'app-group-dialog',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
@@ -170,7 +164,6 @@ export class GroupDialog {
   );
   protected readonly invalid = signal(false);
 
-  /** A chave que "Group" aplicaria; `null` sem nenhuma válida. */
   private readonly choice = computed((): GroupChoice | null => {
     const picked = this.picked();
     if (picked !== this.other) {
@@ -213,7 +206,7 @@ export class GroupDialog {
   }
 }
 
-/** Abre o diálogo (carregado sob demanda, com o `MatDialog`); `undefined` é "Cancel". */
+/** `undefined` é "Cancel". */
 export async function openGroupDialog(
   injector: Injector,
   data: GroupDialogData,

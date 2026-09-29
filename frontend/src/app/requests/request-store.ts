@@ -17,15 +17,12 @@ import { RequestPage, WebhookRequest } from './webhook-request';
 /** Mensagens por página da listagem (e da busca). */
 const REQUESTS_PER_PAGE = 50;
 
-/** B2: o filtro por status varre as mais novas em páginas de 100 (o teto da busca)… */
+/** O teto de página da busca. */
 export const SCAN_PAGE = 100;
-/** …até 500 de cada vez: a mesma janela de Métricas. */
+/** A mesma janela de Métricas. */
 export const SCAN_WINDOW = 500;
 
-/**
- * O alcance do filtro por status respondido (B2, UX-02), que roda no navegador: quantas das mais
- * novas foram olhadas, de quantas o servidor tem para os outros filtros, e se a varredura acabou.
- */
+/** O alcance do filtro que roda no navegador: a tela nunca diz "0" sem dizer onde procurou. */
 export interface StatusScan {
   scanned: number;
   total: number;
@@ -35,9 +32,8 @@ export interface StatusScan {
 }
 
 /**
- * A requisição aberta sumiu do servidor com a cópia dela na tela (B2, UX-38): a limpeza automática
- * a cortou, esta aba a apagou, ou um `GET` dela respondeu 404. `at` é a hora do navegador quando
- * ele soube; `index` é onde ela estava na lista, para "Newer" e "Older" saírem da cópia.
+ * A requisição aberta sumiu do servidor com a cópia dela na tela. `at` é a hora do navegador
+ * quando ele soube; `index` é onde ela estava, para "Newer" e "Older" saírem da cópia.
  */
 export interface GoneRequest {
   id: string;
@@ -46,7 +42,6 @@ export interface GoneRequest {
   index: number;
 }
 
-/** O link pede uma requisição que não abriu: não existe (404), ou o servidor não respondeu. */
 export interface UnopenedRequest {
   id: string;
   reason: 'missing' | 'failed';
@@ -78,18 +73,14 @@ export class RequestStore {
   private generation = 0;
 
   private readonly goneState = signal<GoneRequest | null>(null);
-  /** A requisição aberta que sumiu do servidor; a tela segue com a cópia e avisa. */
   readonly gone = computed(() => {
     const gone = this.goneState();
     return gone && gone.id === this.selection()?.id ? gone : null;
   });
-  /** A requisição do link que não abriu; nenhuma outra é aberta no lugar. */
   readonly unopened = signal<UnopenedRequest | null>(null);
-  /** F1: os filtros por valor que a busca recusou (422); a lista voltou ao filtro anterior. */
+  /** Os filtros por valor que a busca recusou (422); a lista voltou ao filtro anterior. */
   readonly rejected = signal<readonly ValueFilter[]>([]);
-  /** O alcance do filtro por status; `null` sem ele. */
   readonly scan = signal<StatusScan | null>(null);
-  /** Quantas das mais novas o filtro por status olha ("Look in older requests" soma 500). */
   private scanLimit = SCAN_WINDOW;
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
@@ -229,7 +220,6 @@ export class RequestStore {
     try {
       await this.reapply(tokenId);
     } catch (error) {
-      // F1: o servidor recusou o `match` de um valor; a lista volta ao filtro anterior.
       if (!(error instanceof HttpErrorResponse) || error.status !== 422) {
         throw error;
       }
@@ -240,7 +230,6 @@ export class RequestStore {
     }
   }
 
-  /** "Look in older requests": o filtro por status olha mais 500. */
   async lookOlder(): Promise<void> {
     const tokenId = this.tokenId();
     if (!tokenId || !this.scan()) {
@@ -250,7 +239,6 @@ export class RequestStore {
     await this.reapply(tokenId);
   }
 
-  /** Refaz a primeira página com o filtro ativo. */
   private async reapply(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     this.searching.set(true);
@@ -345,16 +333,12 @@ export class RequestStore {
     this.markAsRead(request.uuid);
   }
 
-  /**
-   * O link pede uma requisição que não abriu (B2, CA-5): nada fica selecionado, e nenhuma outra é
-   * aberta no lugar.
-   */
+  /** Nada fica selecionado, e nenhuma outra é aberta no lugar. */
   leaveUnopened(requestId: string, reason: UnopenedRequest['reason']): void {
     this.selection.set(undefined);
     this.unopened.set({ id: requestId, reason });
   }
 
-  /** Um `GET` da requisição aberta respondeu 404: ela sumiu, e a tela segue com a cópia. */
   noticeGone(requestId: string): void {
     const selection = this.selection();
     if (selection?.id === requestId && selection.request && !this.gone()) {
@@ -534,7 +518,6 @@ export class RequestStore {
     this.preferences.unread.set([]);
   }
 
-  /** A limpeza automática cortou a aberta? Então ela vira cópia, com o aviso. */
   private noticeCut(removed: readonly string[]): void {
     const selection = this.selection();
     if (selection && removed.includes(selection.id) && this.goneState()?.id !== selection.id) {
@@ -543,7 +526,6 @@ export class RequestStore {
     }
   }
 
-  /** Guarda a causa, a hora em que o navegador soube e onde a aberta estava na lista. */
   private markGone(cause: GoneRequest['cause']): void {
     const id = this.selection()?.id;
     if (id) {
@@ -657,10 +639,7 @@ export class RequestStore {
     };
   }
 
-  /**
-   * E1: a primeira página sem filtro, para a trilha de um evento que o filtro pega só em parte vir
-   * inteira.
-   */
+  /** Para a trilha de um evento que o filtro pega só em parte vir inteira. */
   unfilteredPage(tokenId: string): Promise<RequestPage> {
     return this.fetchList(tokenId, 1);
   }
@@ -677,10 +656,7 @@ export class RequestStore {
 /** `GET /token/{id}/request/{rid}` e o que vem embaixo dele (o trace, o raw). */
 const REQUEST_CALL = /^\/token\/[^/?]+\/request\/([^/?]+)([/?].*)?$/;
 
-/**
- * B2 (caminho 3): qualquer `GET` da requisição aberta que responde 404 diz que ela sumiu do
- * servidor. A tela mostra o aviso e mantém a cópia que tinha carregado.
- */
+/** Qualquer `GET` da requisição aberta que responde 404 diz que ela sumiu do servidor. */
 export const requestGoneInterceptor: HttpInterceptorFn = (request, next) => {
   const requestId = request.method === 'GET' ? REQUEST_CALL.exec(request.url)?.[1] : undefined;
   if (!requestId) {

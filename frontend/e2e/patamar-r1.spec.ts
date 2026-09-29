@@ -22,23 +22,6 @@ import { abrirRegras, lerRegras, metodo } from './support/regras';
 import { compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia R1 — roteiros e painel de ação acoplado (variações 3 e 2; guia-combinacao §3.7 e
-// §5.3; CA-13). As ações que tiravam a pessoa da requisição abrem no `region "Action panel"`, na base da coluna do
-// detalhe (folha de tela cheia abaixo de 840 px); a barra tem seis botões e o resto fica no More; os roteiros são
-// folhas com todos os passos à vista, e a conferência do retry nunca diz "as programmed" quando a espera pedida não
-// foi respeitada. SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: o `button "Guides"` fica no cabeçalho da lista (`region "Request list"`); no celular, no `⋮` "More
-//   actions" da barra do topo, como `menuitem "Guides"`.
-// - SUPOSIÇÃO: o passo do roteiro é um item cujo nome acessível leva o nome do passo e o estado ("Send a request,
-//   done"); o teste procura pelo texto dos dois no mesmo item de lista.
-// - SUPOSIÇÃO: o painel lembrado (`anzol.actionPanel`) reabre na última aba ao abrir outra requisição.
-// - SUPOSIÇÃO: a conferência considera "chegou antes" com a hora real das requisições; o teste manda as três em
-//   sequência, sem espera (intervalo de 0 ou 1 s, contra 5 s pedidos), e espera 2,3 s entre elas no caso em que a
-//   espera de 1 s é respeitada.
-// - Decisões do orquestrador (2026-09-28): o modelo "Fail N times, then accept" abre o roteiro (o diálogo "Sequence"
-//   fica só no "Sequence…" da aba Scenario); no celular a barra tem "Replay…", "Create rule", "Copy payload" e o
-//   More.
-
 const RECEIVER_HOST = process.env['E2E_RECEIVER_HOST'] ?? 'host.docker.internal';
 const BARRA = [
   'Replay…',
@@ -107,7 +90,7 @@ async function pedido(
   });
 }
 
-test.describe('Dado a barra de ações do detalhe (§5.3, INBOX-19)', () => {
+test.describe('Dado a barra de ações do detalhe', () => {
   for (const largura of [1440, 1024]) {
     test(`deve ter seis botões numa linha e o resto no More, a ${largura} px`, async ({
       page,
@@ -154,7 +137,6 @@ test.describe('Dado a barra de ações do detalhe (§5.3, INBOX-19)', () => {
     await expect(
       acoes(page).getByRole('button', { name: 'Create rule from this request' }),
     ).toBeVisible();
-    // Decisão do orquestrador (2026-09-28): "Copy payload" continua na barra do celular (fidelidade ao protótipo).
     await expect(acoes(page).getByRole('button', { name: 'Copy payload' })).toBeVisible();
     await expect(acoes(page).getByRole('button')).toHaveCount(3);
     await detalhe(page)
@@ -166,7 +148,7 @@ test.describe('Dado a barra de ações do detalhe (§5.3, INBOX-19)', () => {
   });
 });
 
-test.describe('Dado o painel de ação acoplado (CA-13)', () => {
+test.describe('Dado o painel de ação acoplado', () => {
   test('deve abrir na base do detalhe, sem sair da requisição, com as quatro abas', async ({
     page,
     tokens,
@@ -318,7 +300,7 @@ test.describe('Dado o painel de ação acoplado (CA-13)', () => {
   });
 });
 
-test.describe('Dado a aba Replay do painel (CA-13)', () => {
+test.describe('Dado a aba Replay do painel', () => {
   let destino: Awaited<ReturnType<typeof receptor>>;
 
   test.beforeEach(async () => {
@@ -423,7 +405,7 @@ test.describe('Dado a aba Replay do painel (CA-13)', () => {
   });
 });
 
-test.describe('Dado as abas Compare, Create rule e Explain do painel (CA-13)', () => {
+test.describe('Dado as abas Compare, Create rule e Explain do painel', () => {
   test('deve comparar com a requisição escolhida na lista, no painel, com o link da comparação inteira', async ({
     page,
     tokens,
@@ -520,7 +502,7 @@ test.describe('Dado as abas Compare, Create rule e Explain do painel (CA-13)', (
   });
 });
 
-test.describe('Dado os roteiros (CA-13)', () => {
+test.describe('Dado os roteiros', () => {
   /** Abre o menu "Guides" e escolhe o roteiro. */
   async function abrirRoteiro(
     page: Page,
@@ -730,8 +712,6 @@ test.describe('Dado os roteiros (CA-13)', () => {
     await expect(folha).toBeVisible();
   });
 
-  // Decisões do orquestrador: o `group "Methods"` do roteiro escolhe um método só, com POST de padrão; sem caminho, a
-  // conferência espera por qualquer caminho.
   test('deve escolher um método só, com POST de padrão, e esperar por qualquer caminho sem o Path', async ({
     page,
     tokens,
@@ -786,8 +766,7 @@ test.describe('Dado os roteiros (CA-13)', () => {
     );
     await expect(check).not.toContainText(/as programmed/i);
     await expect(folha).not.toContainText(/as programmed|as scheduled|como programado/i);
-    // Decisão do orquestrador (guia §3.7): uma fala por LEVA, 1,5 s depois da última chegada, com o resumo até ali.
-    // Numa rajada de três sai uma fala só, a do resumo final; nenhuma por requisição, e nenhuma diz "as programmed".
+    // Uma fala por leva, 1,5 s depois da última chegada: numa rajada de três sai só a do resumo final.
     await expectUmAnuncio(page, /^3 requests arrived\. Answers: 429, 429, 200\b/, /^Retry check$/);
     await expectSemAnuncio(page, /^[12] requests? arrived\b/);
     await expectSemAnuncio(page, /^Attempt \d+ arrived\b/);

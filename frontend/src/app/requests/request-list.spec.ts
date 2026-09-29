@@ -252,7 +252,6 @@ describe('Dado a lista lateral de mensagens', () => {
     });
   });
 
-  // F1 (CA-12): no desktop, o selo do status filtra direto, sem menu; no toque, o item só abre.
   it('deve filtrar pelo selo do status, sem abrir a requisição, e não ter o selo clicável no toque', async () => {
     const opened = vi.fn();
     fixture.componentInstance.openRequest.subscribe(opened);
@@ -274,8 +273,7 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(seals()).toEqual([]);
   });
 
-  // E1 (UX-40): com a chave do evento no navegador, as tentativas viram uma linha de evento.
-  describe('Dado a lista agrupada pela chave do evento (E1)', () => {
+  describe('Dado a lista agrupada pela chave do evento', () => {
     const KEY = 'x-loja-event-id';
     const attempt = (n: number, event: string | null, seconds: number, status = 429) =>
       webhookRequest(n, {
@@ -479,7 +477,6 @@ describe('Dado a lista lateral de mensagens', () => {
       }),
     ]);
 
-    // B2: o status respondido é sempre o primeiro selo.
     expect(
       [...items()[0].querySelectorAll('.seals app-check-chip')].map((chip) =>
         chip.textContent?.trim(),
@@ -487,7 +484,7 @@ describe('Dado a lista lateral de mensagens', () => {
     ).toEqual(['429 · Default response', 'GitHub', '1 schema error']);
   });
 
-  // B2 (UX-02): o selo e o trecho do nome acessível dizem a mesma coisa, com o status e a origem.
+  // O selo e o trecho do nome acessível dizem a mesma coisa.
   it.each([
     [
       'a resposta padrão',
@@ -801,8 +798,6 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('app-compare-band .band')).toBeNull();
   });
 
-  // INBOX-13, C3 e B2: o selo da regra que respondeu diz o status gravado ("201 · Pix"), o tipo da
-  // falha de rede e, na mensagem antiga sem a resposta, "not recorded".
   it.each([
     [{ status: 201 }, '201 · Pix'],
     [{ fault: 'connection_reset' }, '— · Connection reset'],

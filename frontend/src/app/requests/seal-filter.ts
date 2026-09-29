@@ -9,14 +9,12 @@ import {
 } from '@angular/core';
 import { FilterChips } from '../search/filter-chips';
 
-/** O alvo do selo no desktop (WCAG 2.5.8): 24 px de altura, no mínimo. */
+/** WCAG 2.5.8. */
 const TARGET_MIN = 24;
 
 /**
- * O selo do status respondido do item da lista, que filtra direto, sem menu (F1). O selo à vista é
- * o de dentro do botão do item (um botão não cabe dentro de outro): este botão fica por cima dele,
- * do tamanho dele (com 24 px de alvo, no mínimo), e diz o que faz no nome. Só com ponteiro fino: no
- * toque, o item inteiro abre a requisição.
+ * O selo à vista é o de dentro do botão do item, e um botão não cabe dentro de outro: este botão
+ * fica por cima dele, do tamanho dele. Só com ponteiro fino: no toque, o item inteiro abre.
  */
 @Component({
   selector: 'app-seal-filter',
@@ -63,7 +61,6 @@ export class SealFilter {
   protected readonly chips = inject(FilterChips);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
-  /** O status respondido que o selo mostra. */
   readonly status = input.required<string>();
 
   protected readonly label = computed(

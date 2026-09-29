@@ -296,7 +296,6 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
     expect(outsideWaitFor({ ...NO_FILTER, methods: ['GET'] })).toEqual([]);
   });
 
-  // B2 (UX-02): o status respondido filtra no navegador; a classe (2xx…5xx) e o status exato (F1).
   describe('Dado o filtro pelo status respondido', () => {
     it('deve ler da rota as classes e o status exato, e ignorar o resto', () => {
       expect(filterFromParams({ answered: '4xx,429,2xx' }).answered).toEqual(['4xx', '429', '2xx']);
@@ -357,8 +356,7 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
   });
 });
 
-// F1 (CA-12): o valor clicado vira filtro com o `match` que a busca já aceita; não vai para o endereço.
-describe('Dado os filtros por valor (F1)', () => {
+describe('Dado os filtros por valor', () => {
   const values: ValueFilter[] = [
     { kind: 'path', name: '', value: '/pedidos' },
     { kind: 'header', name: 'x-loja-event-id', value: 'evt_1' },

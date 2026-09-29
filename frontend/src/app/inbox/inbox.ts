@@ -62,7 +62,7 @@ import { Split } from '../ui/split';
 
 const GUIDES_KEY = (tokenId: string) => `anzol.guides.${tokenId}`;
 
-/** F1: os filtros por valor de cada URL, na aba (o dado da requisição não vai para o endereço). */
+/** Os filtros por valor ficam na aba: o dado da requisição não vai para o endereço. */
 const VALUE_FILTERS_KEY = (tokenId: string) => `anzol.valueFilters.${tokenId}`;
 
 function readValueFilters(tokenId: string): ValueFilter[] {
@@ -89,7 +89,6 @@ function writeValueFilters(tokenId: string | null, values: readonly ValueFilter[
   }
 }
 
-/** B2: o `GET` da requisição pedida pelo link que passa disto ganha "Loading request #…". */
 export const LOADING_NOTICE_MS = 1000;
 
 /** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
@@ -155,7 +154,6 @@ export class Inbox {
   protected readonly firstArrival = signal<{ method: string; path: string; time: string } | null>(
     null,
   );
-  /** F1: "This link does not carry 1 filter by value." (os valores não vão no endereço). */
   protected readonly missingValues = computed(() => {
     const missing = this.chips.missingValues();
     if (missing === 0) {
@@ -170,7 +168,7 @@ export class Inbox {
   readonly tokenId = input<string>();
   readonly requestId = input<string>();
   readonly page = input<string>();
-  /** B2: o `created_at` que o link permanente leva, para dizer de quando era a que sumiu. */
+  /** O `created_at` que o link permanente leva, para dizer de quando era a que sumiu. */
   readonly at = input<string>();
   /** Filtros da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). */
   readonly signature = input<string>();
@@ -184,18 +182,13 @@ export class Inbox {
   /** M1: o motivo exato de assinatura e o caminho do erro de schema (`?signatureReason=&schemaPath=`). */
   readonly signatureReason = input<string>();
   readonly schemaPath = input<string>();
-  /** B2: o status respondido, por classe ou exato (`?answered=4xx,429`), filtrado no navegador. */
   readonly answered = input<string>();
-  /** F1: quantos filtros por valor a tela tinha; os valores ficam no `sessionStorage` da aba. */
+  /** Quantos filtros por valor a tela tinha; os valores ficam no `sessionStorage` da aba. */
   readonly values = input<string>();
   readonly window = input<string>();
-  /**
-   * E1: o link da requisição agrupada leva o valor do evento e o nome da chave
-   * (`?event=evt_48213&key=x-loja-event-id`); num navegador sem a chave, a oferta a propõe.
-   */
+  /** O valor do evento e o nome da chave; num navegador sem a chave, a oferta a propõe. */
   readonly event = input<string>();
   readonly key = input<string>();
-  /** R1: o roteiro aberto no lugar do detalhe (`?guide=first|retry`). */
   readonly guide = input<string>();
   protected readonly guideName = computed((): GuideName | null => {
     const guide = this.guide();
@@ -218,7 +211,6 @@ export class Inbox {
       window: this.window(),
     }),
   );
-  /** O filtro da rota com os valores que esta aba guardou (o endereço só diz quantos são). */
   private readonly routeFilterWithValues = computed((): RequestFilter => {
     const filter = this.routeFilter();
     const count = Number(this.values() ?? 0);
@@ -244,10 +236,6 @@ export class Inbox {
       !!this.requests.selected() &&
       this.requests.selectedIndex() < 0,
   );
-  /**
-   * B2 (UX-38): o aviso da requisição aberta que sumiu do servidor, com a causa e a hora em que o
-   * navegador soube. Vazio enquanto ela existe.
-   */
   protected readonly notice = computed(() => {
     const gone = this.requests.gone();
     const loading = this.loadingRequest();
@@ -270,7 +258,6 @@ export class Inbox {
     };
     return `${causes[gone.cause]} ${leaves}`;
   });
-  /** O link pede uma requisição cujo `GET` passou de 1 s: o aviso diz que ela está a caminho. */
   private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
@@ -310,7 +297,6 @@ export class Inbox {
       const page = Number(this.page() ?? 1);
       untracked(() => void this.openRoute(tokenId, requestId, page));
     });
-    // E1: a chave que o link trouxe vira a oferta, num navegador que ainda não decidiu.
     effect(() => {
       const key = this.key();
       untracked(() => this.grouping.linkKey.set(key && isEventKey(key) ? key : null));
@@ -337,13 +323,12 @@ export class Inbox {
       const filter = this.requests.filter();
       untracked(() => {
         if (this.listReady()) {
-          // F1: os valores ficam na aba, antes da rota, para o eco dela os achar.
+          // Antes da rota: o eco dela procura os valores na aba.
           writeValueFilters(this.requests.tokenId(), filter.values ?? []);
           this.pushToRoute(filter);
         }
       });
     });
-    // F1: o link diz que a tela tinha filtros por valor que esta aba não guardou: a tela avisa.
     effect(() => {
       const count = Number(this.values() ?? 0);
       const tokenId = this.tokenId();
@@ -574,7 +559,7 @@ export class Inbox {
   /** Esc no detalhe (sem nada por cima que o trate antes): o foco volta ao item da lista. */
   private escapeToList(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
-    // O Esc de um menu que abriu sobre o botão (o do valor, F1) é do menu: o foco volta ao botão.
+    // O Esc de um menu que abriu sobre o botão é do menu: o foco volta ao botão.
     const popupOpen = target?.getAttribute('aria-expanded') === 'true';
     if (
       !event.defaultPrevented &&
@@ -627,7 +612,7 @@ export class Inbox {
         await this.openRequest(again, true);
       }
     } else if (requestId !== undefined) {
-      // B2 (CA-5): o link diz qual abrir; se ela não abre, nenhuma outra entra no lugar.
+      // Se a do link não abre, nenhuma outra entra no lugar.
       await this.openOutsideList(tokenId, requestId);
     } else if (list.length > 0) {
       await this.openRequest(list[0], true);
@@ -646,8 +631,8 @@ export class Inbox {
   /**
    * Link permanente para uma mensagem fora da página carregada (com a mais nova no topo, as novas
    * empurram as outras de página): busca pela API. Se ela não existe (404) ou o servidor não
-   * responde, o detalhe diz isso e **nenhuma outra é aberta no lugar** (B2, CA-5). Se a rota mudou
-   * enquanto isso, a nova rota decide.
+   * responde, o detalhe diz isso e **nenhuma outra é aberta no lugar**. Se a rota mudou enquanto
+   * isso, a nova rota decide.
    */
   private async openOutsideList(tokenId: string, requestId: string): Promise<void> {
     let request: WebhookRequest;
@@ -674,7 +659,6 @@ export class Inbox {
     }
   }
 
-  /** "Try again" do detalhe que não carregou. */
   protected async retryUnopened(): Promise<void> {
     const tokenId = this.tokenId();
     const unopened = this.requests.unopened();
@@ -684,8 +668,8 @@ export class Inbox {
   }
 
   /**
-   * "Open the event" (B2 com a E1): o link de uma requisição que não existe mais trouxe o evento;
-   * abre a tentativa mais nova dele que está carregada, com o evento expandido.
+   * "Open the event": o link de uma requisição que não existe mais trouxe o evento; abre a
+   * tentativa mais nova dele que está carregada, com o evento expandido.
    */
   protected openEvent(value: string): void {
     const key = this.grouping.key() ?? this.grouping.linkKey();
@@ -741,7 +725,7 @@ export class Inbox {
   }
 
   private async fetchToken(tokenId: string, page: number): Promise<boolean> {
-    // O "Choose another request" do Compare (B2) chega aqui com a A esperando a outra escolha.
+    // O "Choose another request" do Compare chega aqui com a A esperando a outra escolha.
     if (this.compare.picking()?.token_id !== tokenId) {
       this.compare.close();
     }
@@ -828,7 +812,7 @@ export class Inbox {
     }
     const first = !this.requests.hasRequests() && !this.guideDismissed('first');
     // A limpeza automática pode ter cortado a mensagem aberta: ela segue na tela, como cópia, com o
-    // aviso (B2); nenhuma outra é aberta no lugar.
+    // aviso; nenhuma outra é aberta no lugar.
     this.requests.append(complete, total, removed);
     const list = this.requests.requests();
     if (first) {

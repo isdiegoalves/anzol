@@ -40,7 +40,7 @@ export type Tab = (typeof TABS)[number];
 
 /** O cartão de cada verificação leva à aba onde está o que ela conferiu. */
 const TAB_OF_CHECK: Partial<Record<CheckKind, Tab>> = { signature: 'headers', schema: 'body' };
-/** F1: acima disto, o corpo não tem clique por linha; os campos vão para o "Filter by a field…". */
+/** Acima disto, o corpo não tem clique por linha; os campos vão para o "Filter by a field…". */
 export const BODY_CLICK_MAX = 100 * 1024;
 
 /**
@@ -153,8 +153,8 @@ export class RequestView {
     return rule.state === 'default' ? toChecks : null;
   });
   /**
-   * B2: embaixo do status, o que a tela sabe com a ressalva certa. Os cabeçalhos respondidos não
-   * são gravados: o `Retry-After` da resposta padrão é o de agora, e o texto diz isso.
+   * Os cabeçalhos respondidos não são gravados: o `Retry-After` da resposta padrão é o de agora, e
+   * o texto diz isso.
    */
   protected readonly answerNotes = computed(() => {
     const state = this.pipeline().rule.state;
@@ -275,7 +275,7 @@ export class RequestView {
   });
 
   protected readonly query = computed(() => rowsOf(this.request().query));
-  /** F1: o caminho, que vira filtro, e a query, que fica como texto ao lado dele no título. */
+  /** Só o caminho vira filtro; a query fica como texto ao lado dele no título. */
   protected readonly routeParts = computed(() => {
     const route = this.pipeline().route;
     const at = route.indexOf('?');
@@ -287,11 +287,9 @@ export class RequestView {
   protected readonly missingHeader = computed(
     () => this.pipeline().signatureHeaders?.missing?.name ?? null,
   );
-  /** Corpo acima de 100 KB: sem clique por linha (F1). */
   protected readonly bodyTooLarge = computed(
     () => (this.request().content?.length ?? 0) > BODY_CLICK_MAX,
   );
-  /** O status respondido no título do cartão da resposta, que vira filtro (F1). */
   protected statusValue(
     template: TemplateRef<{ $implicit: string }>,
   ): { text: string; template: TemplateRef<{ $implicit: string }> } | null {

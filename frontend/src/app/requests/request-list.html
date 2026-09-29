@@ -24,7 +24,6 @@
 </div>
 <!-- À vista também na URL vazia: "Search requests" leva o foco a ela em todo destino (UX-11). -->
 <!-- No modo Compare (RULES-35), a lista só escolhe a B: sem a busca. -->
-<!-- E1: a oferta de agrupar por evento, ou o estado "Grouped by …", acima da busca. -->
 <app-event-bar />
 @if (!compare.pair()) {
   <app-request-search class="search" />
@@ -71,8 +70,7 @@
               [class.fresh]="fresh().has(item.request.uuid)"
             >
               <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
-              <!-- E1: a tentativa, recuada sob o evento; com filtro, a que casa leva a marca à
-                   esquerda (no estilo da linha: o da lista está no teto do orçamento). -->
+              <!-- Estilo na linha: o arquivo de estilo da lista está no teto do orçamento. -->
               <button
                 type="button"
                 class="select"
@@ -87,7 +85,6 @@
                 (click)="choose(item.request, $event)"
               >
                 @if (row.attempt; as attempt) {
-                  <!-- E1: a tentativa recuada, com o número, a hora com segundos e o intervalo. -->
                   <span class="line route-line">
                     <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
                     <span class="ago" [title]="localDate(item.request.created_at)">{{
@@ -118,9 +115,8 @@
                   </span>
                 }
                 <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do
-                     evento do JSON e, à direita, o #id (ou, no evento de uma tentativa só, o valor
-                     da chave). O IP, o agente e a data por extenso ficam no nome acessível e no
-                     detalhe. -->
+                     evento do JSON e, à direita, o #id. O IP, o agente e a data por extenso ficam no nome
+                     acessível e no detalhe. -->
                 <span class="line meta">
                   <span class="seals" aria-hidden="true">
                     @for (seal of item.seals; track seal.kind) {
@@ -135,7 +131,6 @@
                   >
                 </span>
               </button>
-              <!-- F1: o selo do status filtra direto, sem menu; só com ponteiro fino. -->
               @if (item.status !== null && !touch() && !compare.picking()) {
                 <app-seal-filter [status]="item.status" />
               }

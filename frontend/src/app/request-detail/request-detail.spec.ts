@@ -24,7 +24,7 @@ import { ActionPanelStore } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RequestDetail } from './request-detail';
 
-describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
+describe('Dado a requisição aberta que sumiu do servidor', () => {
   const windowClass = signal<WindowClass>('large');
   const REASON = 'The server no longer has this request.';
   const [older, open, newer] = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
@@ -266,7 +266,6 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ]);
     const links = [...document.querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')];
     expect(links.map((link) => link.href)).toEqual([
-      // B2: o link leva o `created_at`, para o estado vazio dizer de quando era a requisição.
       `${location.origin}/#/${TOKEN_ID}/${request.uuid}/2?at=2026-09-26%2000%3A43%3A49`,
       `${location.origin}/token/${TOKEN_ID}/request/${request.uuid}/raw`,
     ]);
@@ -462,7 +461,6 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     );
   });
 
-  // B2 (R5 da medição): com a pega-tudo, a regra que chegou mais perto vem do trace, com a ressalva.
   describe('Dado o cartão da resposta com a regra que chegou mais perto', () => {
     const traceUrl = (request: WebhookRequest) =>
       `/token/${TOKEN_ID}/request/${request.uuid}/rules/trace`;

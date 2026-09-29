@@ -1,11 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { Icon } from '../ui/icon';
 
-/**
- * As linhas curtas do evento expandido (E1): o veredito do intervalo contra o `Retry-After` (só
- * "chegou antes" no papel de aviso, com ícone e texto; "no limite" e "esperou" neutros), o "… N
- * more attempts" da entrega longa e a ressalva de que a espera é a configurada agora.
- */
+/** Só "chegou antes" fica no papel de aviso; "no limite" e "esperou" são neutros. */
 @Component({
   selector: 'app-event-note',
   imports: [Icon],

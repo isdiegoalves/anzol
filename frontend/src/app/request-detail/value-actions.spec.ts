@@ -10,7 +10,7 @@ import { EventGrouping } from '../requests/event-grouping';
 import { FilterChips, ValueTarget } from '../search/filter-chips';
 import { ValueActions } from './value-actions';
 
-describe('Dado um valor da requisição aberta que vira filtro (F1)', () => {
+describe('Dado um valor da requisição aberta que vira filtro', () => {
   const show = async (target: ValueTarget, label: string) => {
     const view = await render(
       `<app-value [target]="target" [label]="label">{{ text }}</app-value>`,
@@ -69,7 +69,7 @@ describe('Dado um valor da requisição aberta que vira filtro (F1)', () => {
     expect(announce).toHaveBeenCalledWith('Value copied.');
   });
 
-  it('deve copiar o caminho e agrupar pelo campo (E1)', async () => {
+  it('deve copiar o caminho e agrupar pelo campo', async () => {
     await show(header, 'X-Loja-Event-Id');
     const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
     const choose = vi.spyOn(TestBed.inject(EventGrouping), 'choose').mockReturnValue();

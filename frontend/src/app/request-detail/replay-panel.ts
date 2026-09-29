@@ -29,7 +29,6 @@ function rememberedTargets(): Record<string, string> {
   }
 }
 
-/** O destino com o esquema: sem `http://`, a tela põe. */
 export function withScheme(target: string): string {
   const trimmed = target.trim();
   return /^https?:\/\//i.test(trimmed) || trimmed === '' ? trimmed : `http://${trimmed}`;
@@ -137,7 +136,6 @@ export class ReplayPanel {
   protected readonly target = computed(
     () => this.panel.target() ?? rememberedTargets()[this.request().token_id] ?? '',
   );
-  /** "Sends to http://localhost:3000/webhooks/pedidos". */
   protected readonly sendsTo = computed(() => {
     const url = withScheme(this.target()).replace(/\/+$/, '');
     return this.keepPath() ? `${url}${pathSuffix(this.request())}` : url;

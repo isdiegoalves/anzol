@@ -1,10 +1,7 @@
 import { RetryWait, fixedRetryAfter, retryWait, secondsBetween } from '../pipeline/retry-wait';
 import { CapturedRequest, WebhookRequest, signatureState } from './webhook-request';
 
-/**
- * A chave do evento (E1, UX-40): o nome de um cabeçalho (`x-loja-event-id`) ou um JSONPath do corpo
- * (`$.id`) cujo valor identifica o evento. Escolhida pela pessoa e guardada só no navegador.
- */
+/** O nome de um cabeçalho (`x-loja-event-id`) ou um JSONPath do corpo (`$.id`). */
 export type EventKey = string;
 
 const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
@@ -13,7 +10,7 @@ const FIELD = /^[A-Za-z_$][\w$-]*$/;
 const SEGMENT = /\.([A-Za-z_$][\w$-]*)|\[(\d+)\]/g;
 /** Corpo acima disto não é lido na lista (o parse custaria a cada linha desenhada). */
 const BODY_MAX = 100_000;
-/** Cabeçalhos do transporte: repetem entre requisições sem dizer nada do evento. */
+/** Repetem entre requisições sem dizer nada do evento. */
 const TRANSPORT = new Set([
   'accept',
   'accept-encoding',
@@ -36,7 +33,7 @@ const TRANSPORT = new Set([
   'x-real-ip',
 ]);
 
-/** Um nome de cabeçalho ou um JSONPath como `$.id` (sem filtro nem curinga). */
+/** JSONPath sem filtro nem curinga. */
 export function isEventKey(text: string): boolean {
   const key = text.trim();
   return key.startsWith('$') ? JSON_PATH.test(key) : HEADER_NAME.test(key);
@@ -93,7 +90,6 @@ export function eventValueOf(request: CapturedRequest, key: EventKey): string | 
   return scalar(node);
 }
 
-/** Um campo que parece identificar o evento, com quantos valores diferentes e um exemplo. */
 export interface KeyCandidate {
   key: EventKey;
   values: number;
@@ -147,26 +143,24 @@ export function keyCandidates(requests: readonly CapturedRequest[]): KeyCandidat
     .map(({ key, values, example }) => ({ key, values, example: example ?? '' }));
 }
 
-/** Quantos eventos (valores diferentes da chave) há nas requisições. */
 export function eventCount(requests: readonly CapturedRequest[], key: EventKey): number {
   return new Set(
     requests.map((request) => eventValueOf(request, key)).filter((value) => value !== null),
   ).size;
 }
 
-/** Uma entrada da lista agrupada: a requisição solta, ou o evento com 2 ou mais tentativas. */
+/** O evento tem 2 ou mais tentativas; com uma só, a requisição fica solta. */
 export type Grouped =
   | { kind: 'request'; request: WebhookRequest; value: string | null }
   | {
       kind: 'event';
       value: string;
-      /** As tentativas carregadas, da mais antiga para a mais nova. */
       attempts: WebhookRequest[];
-      /** As que a lista mostra (casam com o filtro); sem filtro, todas. */
+      /** As que casam com o filtro; sem filtro, todas. */
       matching: ReadonlySet<string>;
     };
 
-/** Ordem de chegada: a hora gravada e, no mesmo segundo, a `seq` (só para ordenar). */
+/** A `seq` só desempata no mesmo segundo. */
 export function chronological(a: WebhookRequest, b: WebhookRequest): number {
   return a.created_at.localeCompare(b.created_at) || (a.seq ?? 0) - (b.seq ?? 0);
 }
@@ -216,20 +210,15 @@ export function groupByEvent(
   return grouped;
 }
 
-/** Um selo da trilha de respostas. */
 export interface TrailSeal {
-  /** O status respondido, ou "—" na falha de rede e na resposta sem registro. */
   text: string;
-  /** Quantas tentativas iguais seguidas o selo resume (acima de 8 tentativas). */
+  /** Quantas tentativas iguais seguidas o selo resume. */
   count: number;
-  /** Assinatura ou schema inválido em alguma delas. */
   mark: boolean;
   fault: boolean;
-  /** A resposta que vale agora. */
   last: boolean;
 }
 
-/** Acima disto, as sequências iguais da trilha viram "429 ×14". */
 const TRAIL_MAX = 8;
 
 function troubled(request: CapturedRequest): boolean {
@@ -239,7 +228,6 @@ function troubled(request: CapturedRequest): boolean {
   );
 }
 
-/** A trilha das respostas, da mais antiga para a mais nova. */
 export function trailOf(attempts: readonly CapturedRequest[]): TrailSeal[] {
   const seals = attempts.map((request, i): TrailSeal => {
     const status = request.response?.status;
@@ -263,19 +251,14 @@ export function trailOf(attempts: readonly CapturedRequest[]): TrailSeal[] {
   }, []);
 }
 
-/** O intervalo de uma tentativa desde a anterior, e a conferência contra a espera pedida. */
 export interface AttemptWait {
   gap: number | null;
-  /** O veredito; `null` sem `Retry-After` fixo na resposta anterior. */
+  /** `null` sem `Retry-After` fixo na resposta anterior. */
   wait: RetryWait | null;
-  /** A resposta anterior pedia uma espera que não é um número fixo de segundos. */
   notFixed: boolean;
 }
 
-/**
- * O intervalo de cada tentativa (a primeira não tem) e a conferência contra o `Retry-After` que a
- * resposta anterior pedia, pela configuração de agora (`askedBy`).
- */
+/** O `Retry-After` vem da configuração de agora (`askedBy`), não do que foi respondido. */
 export function waitsOf(
   attempts: readonly CapturedRequest[],
   askedBy: (answer: CapturedRequest) => unknown,

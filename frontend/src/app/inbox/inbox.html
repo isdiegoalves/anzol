@@ -49,8 +49,6 @@
   }
 </main>
 
-<!-- F1: o link não leva os valores; esta aba não os tem. Na lista e, com um painel por vez, no
-     detalhe também. -->
 <ng-template #missingNote>
   @if (missingValues(); as note) {
     <p class="missing">{{ note }}</p>
@@ -175,7 +173,7 @@
   @if (!twoPanes()) {
     <ng-container [ngTemplateOutlet]="missingNote" />
   }
-  <!-- B2 (UX-38): a região viva existe vazia desde a carga; recebe o aviso da que sumiu. -->
+  <!-- Fora de @if: região viva criada já com texto não é anunciada. -->
   <div class="gone" [class.shown]="!!requests.gone()">
     <app-live-region class="gone-text" label="Request notice" i18n-label [text]="notice()" />
     @if (requests.gone() && requests.newest()) {
@@ -185,7 +183,6 @@
     }
   </div>
   @if (requests.unopened(); as unopened) {
-    <!-- O Back do detalhe em tela cheia (um painel por vez). -->
     @if (!twoPanes()) {
       <button
         mat-icon-button

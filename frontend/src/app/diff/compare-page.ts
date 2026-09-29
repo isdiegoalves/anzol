@@ -131,7 +131,7 @@ export class ComparePage {
       this.state.set({ kind: 'failed', status: failed });
       return;
     }
-    // B2 (CA-5): nunca outra requisição no lugar; diz qual lado falta.
+    // Nunca outra requisição no lugar da que falta.
     const sides = [
       resultA.status === 'rejected'
         ? $localize`Request A (#${a.slice(0, 5)}:id:) no longer exists.`

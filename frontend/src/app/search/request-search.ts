@@ -89,7 +89,7 @@ export class RequestSearch {
         label: chip.active ?? chip.label,
         remove: chip.toggle,
       })),
-      // F1: o valor que o servidor recusou fica à vista, marcado, até sair (não conta nos ligados).
+      // O recusado fica à vista, marcado, mas não conta nos ligados.
       ...this.chips.rejected().map((chip) => ({ label: chip.label, remove: chip.toggle })),
     ];
   });
@@ -108,12 +108,12 @@ export class RequestSearch {
       return $localize`${found}:found:. Counted over the newest ${scan.window}:window:, as in Insights.`;
     }
     if (scan) {
-      // B2: o status filtra no navegador; a linha diz onde procurou, nunca "0" sem o alcance.
+      // Nunca "0" sem dizer onde procurou.
       return $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`;
     }
     const key = this.grouping.key();
     if (key) {
-      // E1: a busca vale sobre requisições; a tela agrupa o resultado e diz em quantos eventos.
+      // A busca conta requisições; a tela agrupa o resultado e diz em quantos eventos.
       const events = eventCount(this.store.requests(), key);
       const found =
         matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
@@ -125,14 +125,12 @@ export class RequestSearch {
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
       : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
   });
-  /** "Look in older requests": a varredura acabou e a URL guarda mais que as olhadas. */
   protected readonly olderLeft = computed(() => {
     const scan = this.store.scan();
     return (
       !!scan && scan.done && !scan.window && !this.store.searching() && scan.total > scan.scanned
     );
   });
-  /** "Looking in 100 of 505…", enquanto a varredura anda; fora da região viva (guia §4.3). */
   protected readonly looking = computed(() => {
     const scan = this.store.scan();
     return scan && !scan.done
@@ -144,7 +142,7 @@ export class RequestSearch {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private wasFiltering = false;
   private tokenId: string | null = null;
-  /** A URL abriu já filtrada (um link de Métricas, de Saúde): o primeiro resultado diz o filtro. */
+  /** Aberta por um link filtrado (Métricas, Saúde): o primeiro resultado diz o filtro. */
   private arrivedFiltered = false;
 
   constructor() {
@@ -181,10 +179,9 @@ export class RequestSearch {
     });
     inject(DestroyRef).onDestroy(() => this.stopTimer());
 
-    // F1: com esta linha na tela, é ela que fala o resultado do filtro por valor.
+    // Com esta linha na tela, é ela que fala o resultado do filtro por valor, e não o anunciador.
     inject(DestroyRef).onDestroy(this.chips.listen());
 
-    // E1: agrupar e desagrupar falam pela região do resultado da lista, uma vez.
     effect(() => {
       const said = this.grouping.said();
       if (said) {
@@ -253,10 +250,7 @@ export class RequestSearch {
     }, RESULT_ANNOUNCE_MS);
   }
 
-  /**
-   * F1: o resultado diz o filtro que o clique num valor ligou ("Filtered by header x = v. 5 requests
-   * match…") e, na chegada por um link filtrado, onde a pessoa está ("Inbox. Filtered by …").
-   */
+  /** Na chegada por um link filtrado, diz também onde a pessoa está ("Inbox. Filtered by …"). */
   private said(line: string): string {
     const added = this.chips.takeAdded();
     if (this.arrivedFiltered) {

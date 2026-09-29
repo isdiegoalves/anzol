@@ -6,19 +6,17 @@ import {
 import { Directive, effect, forwardRef, input } from '@angular/core';
 import { Subject, distinctUntilChanged } from 'rxjs';
 
-/** Quanto a lista desenha além do que está à vista, em cada ponta. */
 const BUFFER_PX = 600;
 
 /**
- * Rolagem virtual com uma altura por linha (E1): a lista agrupada mistura o item de requisição, a
- * linha de evento (84 px no celular) e as linhas curtas de veredito e de ressalva. Faz o que a
- * `FixedSizeVirtualScrollStrategy` do CDK faz, com as posições somadas linha a linha.
+ * A `FixedSizeVirtualScrollStrategy` do CDK com uma altura por linha: a lista agrupada mistura
+ * linhas de alturas diferentes.
  */
 export class RowSizeStrategy implements VirtualScrollStrategy {
   private readonly index = new Subject<number>();
   readonly scrolledIndexChange = this.index.pipe(distinctUntilChanged());
   private viewport: CdkVirtualScrollViewport | null = null;
-  /** Onde cada linha começa; a última posição é a altura total. */
+  /** A última posição é a altura total. */
   private offsets: number[] = [0];
 
   setSizes(sizes: readonly number[]): void {
@@ -30,7 +28,6 @@ export class RowSizeStrategy implements VirtualScrollStrategy {
     this.update();
   }
 
-  /** Onde a linha começa. */
   offsetOf(index: number): number {
     return this.offsets[Math.max(0, Math.min(index, this.offsets.length - 1))];
   }
@@ -84,7 +81,6 @@ export class RowSizeStrategy implements VirtualScrollStrategy {
     this.index.next(this.rowAt(top));
   }
 
-  /** A linha em que o deslocamento cai (busca binária nas posições). */
   private rowAt(offset: number): number {
     let [low, high] = [0, Math.max(0, this.offsets.length - 2)];
     while (low < high) {
@@ -99,7 +95,6 @@ export class RowSizeStrategy implements VirtualScrollStrategy {
   }
 }
 
-/** `cdk-virtual-scroll-viewport[appRowSizes]`: a altura de cada linha, na ordem dos dados. */
 @Directive({
   selector: 'cdk-virtual-scroll-viewport[appRowSizes]',
   providers: [

@@ -3,7 +3,7 @@ import { CapturedRequest } from '../requests/webhook-request';
 import { FilterChips } from '../search/filter-chips';
 import { FILTER_VALUE_MAX } from './value-actions';
 
-/** Quantos campos o painel mostra, e até que profundidade do corpo (o "From this request" de Regras). */
+/** Os mesmos tetos do "From this request" de Regras. */
 const FIELDS_MAX = 60;
 const DEPTH_MAX = 4;
 
@@ -15,7 +15,6 @@ interface BodyField {
   value: string;
 }
 
-/** As folhas do corpo JSON (até 4 níveis, no máximo 60), com o JSONPath de cada uma. */
 function bodyFields(content: string | null): BodyField[] {
   let body: unknown;
   try {
@@ -51,7 +50,7 @@ function bodyFields(content: string | null): BodyField[] {
 }
 
 /**
- * "Filter by a field…" (F1): com o corpo acima de 100 KB, o clique por linha sai; os campos do corpo
+ * "Filter by a field…": com o corpo acima de 100 KB, o clique por linha sai; os campos do corpo
  * ficam numa lista com busca, e o escolhido vira o filtro `body {caminho} = {valor}`.
  */
 @Component({

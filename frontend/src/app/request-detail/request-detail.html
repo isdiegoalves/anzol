@@ -42,7 +42,6 @@
     <mat-menu #moreMenu="matMenu">
       <!-- Celular (INBOX-33, trava 5): as ações que saem da barra vêm para cá. -->
       @if (compact()) {
-        <!-- B2: desligada, a ação sai da barra do celular e fica aqui, com a razão. -->
         @if (gone()) {
           <button
             mat-menu-item
@@ -177,7 +176,6 @@
     [class.narrow]="narrow()"
   >
     <div class="group">
-      <!-- B2: no celular a barra mostra só o que funciona; a desligada vai para o "More". -->
       @if (!(compact() && gone())) {
         <button
           mat-flat-button
@@ -209,7 +207,6 @@
         >
           <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
         </button>
-        <!-- E1: com evento, a comparação com a tentativa anterior do mesmo evento, ao lado. -->
         @if (previousAttempt(); as previous) {
           <button
             mat-button
@@ -295,7 +292,6 @@
     </p>
   }
   @if (gone()) {
-    <!-- B2: a razão das ações desligadas, à vista e como descrição acessível de cada uma. -->
     <p class="gone-reason" [id]="goneReasonId" i18n>The server no longer has this request.</p>
   }
 </app-request-view>

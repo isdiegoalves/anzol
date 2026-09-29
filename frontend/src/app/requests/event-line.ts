@@ -4,10 +4,8 @@ import { MethodBadge } from '../ui/method-badge';
 import { EventView } from './list-rows';
 
 /**
- * A linha de evento da lista agrupada (E1): o corpo abre a tentativa mais nova; o chevron, fora da
- * ordem do Tab, mostra e esconde as tentativas sem abrir nenhuma. Linha 2: a trilha de respostas,
- * da mais antiga para a mais nova, com selos neutros (só a falha de rede no papel de erro), a
- * contagem e os problemas somados. Nenhum selo de julgamento. No celular, três linhas em 84 px.
+ * A linha de evento: o corpo abre a tentativa mais nova; o chevron, fora da ordem do Tab, mostra e
+ * esconde as tentativas sem abrir nenhuma. Nenhum selo de julgamento: o Anzol relata.
  */
 @Component({
   selector: 'app-event-line',
@@ -71,7 +69,6 @@ export class EventLine {
   readonly view = input.required<EventView>();
   readonly height = input.required<number>();
   readonly compact = input(false);
-  /** A parada do Tab da lista está nesta linha. */
   readonly stop = input(false);
 
   readonly opened = output<MouseEvent>();

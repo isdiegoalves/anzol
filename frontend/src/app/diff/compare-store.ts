@@ -59,10 +59,7 @@ export class CompareStore {
     this.origin = request;
   }
 
-  /**
-   * E1: abre a comparação de um par pronto (a tentativa anterior do mesmo evento com a aberta); o
-   * "Close" volta à aberta.
-   */
+  /** Um par pronto (a tentativa anterior do mesmo evento com a aberta); o "Close" volta à aberta. */
   openPair(a: WebhookRequest, b: WebhookRequest): void {
     this.pickingA.set(null);
     this.origin = b;

@@ -84,10 +84,6 @@ export class RequestDetail {
   readonly openRequest = output<WebhookRequest>();
 
   protected readonly aiOffHint = AI_OFF_HINT;
-  /**
-   * B4 (UX-15): o "Explain" com a IA desligada (um 503 nesta sessão) fica `aria-disabled`, focável,
-   * com a razão na descrição acessível. Com a requisição que sumiu (B2), a razão é a dela.
-   */
   protected readonly aiReasonId = `ai-reason-${nextId++}`;
   protected readonly explainReason = computed(() =>
     this.gone() ? this.goneReasonId : this.ai.disabled() ? this.aiReasonId : null,
@@ -96,9 +92,8 @@ export class RequestDetail {
   protected readonly formats = COPY_FORMATS;
 
   /**
-   * B2: quando quem respondeu foi uma regra pega-tudo, a regra que chegou mais perto vem do trace,
-   * com a ressalva de que ele reavalia as regras de agora. Com a resposta padrão, vem do
-   * `near_miss` gravado (o cartão já o mostra).
+   * Só com uma regra pega-tudo: a regra que chegou mais perto vem do trace, com a ressalva de que
+   * ele reavalia as regras de agora. Com a resposta padrão, o cartão já mostra o `near_miss` gravado.
    */
   protected readonly closest = signal<readonly string[]>([]);
 
@@ -120,19 +115,15 @@ export class RequestDetail {
       }
     });
   }
-  /**
-   * B2 (UX-38): a requisição aberta sumiu do servidor e a tela mostra a cópia. O que precisa do
-   * servidor fica desligado (`aria-disabled`, focável), com a razão na descrição acessível.
-   */
+  /** Sumiu do servidor: o que precisa dele fica `aria-disabled`, focável, com a razão descrita. */
   protected readonly gone = computed(() => this.requests.gone()?.id === this.request().uuid);
   protected readonly goneReasonId = `gone-reason-${nextId++}`;
   protected readonly goneReason = computed(() => (this.gone() ? this.goneReasonId : null));
-  /** O "Explain" desligado: a IA do servidor está desligada, ou a requisição sumiu. */
   protected readonly explainOff = computed(() => this.ai.disabled() || this.gone());
 
   /**
-   * E1: com a chave do evento, a tentativa anterior do mesmo evento (nunca a vizinha da lista, que
-   * pode ser de outro); na primeira tentativa, `request` é `null` e o botão fica desligado.
+   * A tentativa anterior do mesmo evento, nunca a vizinha da lista, que pode ser de outro; na
+   * primeira tentativa, `request` é `null` e o botão fica desligado.
    */
   protected readonly previousAttempt = computed(() => {
     const request = this.request();
@@ -233,10 +224,7 @@ export class RequestDetail {
     }
   }
 
-  /**
-   * B2: o link leva `?at=`, para o estado vazio dizer de quando era a requisição que sumiu; E1: com
-   * a chave do evento, leva também o valor e o nome dela (`&event=&key=`).
-   */
+  /** `?at=` deixa o estado vazio dizer de quando era a requisição, se ela sumir. */
   protected readonly permalink = computed(() => {
     const request = this.request();
     const key = this.grouping.key();
@@ -356,7 +344,7 @@ export class RequestDetail {
     });
   }
 
-  /** "Test a variation" (WM-28): o Send da mensagem apontado para a própria URL e caminho. */
+  /** O Send da mensagem apontado para a própria URL e caminho. */
   protected async testVariation(): Promise<void> {
     if (this.gone()) {
       return;

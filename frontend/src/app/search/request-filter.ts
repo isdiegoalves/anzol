@@ -31,28 +31,27 @@ export interface RequestFilter {
   /** M1: o caminho (JSON Pointer) de um erro de schema; `''` é a raiz. `null` ou ausente, sem ele. */
   schemaPath?: string | null;
   /**
-   * B2 (UX-02): o status respondido, por classe (`4xx`) ou exato (`429`, F1). A busca do servidor
-   * não filtra por status: roda no navegador, sobre as mais novas (`RequestStore.scan`).
+   * Por classe (`4xx`) ou exato (`429`). A busca do servidor não filtra por status: roda no
+   * navegador, sobre as mais novas (`RequestStore.scan`).
    */
   answered?: readonly string[] | null;
   /**
-   * F1 (CA-12): valores clicados na requisição (caminho, cabeçalho, query, campo do corpo), com o
-   * `match` que a busca já aceita. Ficam no estado da tela e no `sessionStorage` da aba: o dado da
-   * requisição não vai para o endereço, que diz só quantos são (`?values=2`).
+   * Ficam no estado da tela e no `sessionStorage` da aba: o dado da requisição não vai para o
+   * endereço, que diz só quantos são (`?values=2`).
    */
   values?: readonly ValueFilter[] | null;
   /** Conta só sobre as n mais novas da URL, como a contagem de Métricas e de Saúde que trouxe aqui. */
   window?: number | null;
 }
 
-/** Um valor clicado que vira filtro: `name` é o cabeçalho, o parâmetro ou o JSONPath do corpo. */
+/** `name` é o cabeçalho, o parâmetro ou o JSONPath do corpo. */
 export interface ValueFilter {
   kind: 'path' | 'header' | 'query' | 'body';
   name: string;
   value: string;
 }
 
-/** O texto do chip, igual à frase das condições de Regras: "header x-loja-event-id = evt_48213". */
+/** Igual à frase das condições de Regras: "header x-loja-event-id = evt_48213". */
 export function valueLabel({ kind, name, value }: ValueFilter): string {
   switch (kind) {
     case 'path':
@@ -84,7 +83,7 @@ export interface FilterParams {
   signatureReason?: string | null;
   schemaPath?: string | null;
   answered?: string | null;
-  /** F1: quantos filtros por valor a tela tinha (os valores ficam na aba, não no endereço). */
+  /** Quantos filtros por valor a tela tinha: os valores ficam na aba, não no endereço. */
   values?: string | null;
   window?: string | null;
 }
@@ -128,10 +127,9 @@ export function filterFromParams(params: FilterParams): RequestFilter {
   };
 }
 
-/** Uma classe (`2xx` a `5xx`) ou um status exato de três dígitos. */
 const ANSWERED = /^([1-5]xx|[1-5]\d\d)$/;
 
-/** A requisição respondeu um dos status pedidos? Sem status gravado (falha de rede, antiga), não. */
+/** Sem status gravado (falha de rede, gravada antes do campo), não casa. */
 export function answeredMatches(request: CapturedRequest, answered: readonly string[]): boolean {
   const status = request.response?.status;
   if (status === undefined) {

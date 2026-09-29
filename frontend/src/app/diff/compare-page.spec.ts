@@ -100,7 +100,6 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     expect(page().querySelector('app-request-list')).toBeNull();
   });
 
-  // B2 (CA-5): a comparação não abre com outra no lugar; diz qual lado falta.
   it('deve dizer qual lado não existe mais, sem comparar, Quando a API responde 404 para ele', async () => {
     await open();
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
@@ -118,7 +117,7 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   });
 
   it('deve voltar à Inbox com o lado que existe esperando a outra escolha Quando "Choose another request" é clicado', async () => {
-    // A Inbox abre o tempo real.
+    // A Inbox abre o tempo real, e o jsdom não tem EventSource.
     vi.stubGlobal('EventSource', FakeEventSource);
     await open();
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);

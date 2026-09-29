@@ -111,7 +111,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
           'Answered by rule…',
           'Near miss of…',
           'Default response',
-          // B2: à vista só a classe; o nome acessível é "Answered 2xx".
+          // À vista só a classe; o nome acessível é "Answered 2xx".
           '2xx',
           '3xx',
           '4xx',
@@ -258,7 +258,6 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     );
   });
 
-  // B2 (UX-02): o status roda no navegador; a linha do resultado diz onde procurou.
   describe('Dado o filtro pelo status respondido', () => {
     const scanUrl = (page: number) =>
       `/token/${TOKEN_ID}/requests?page=${page}&per_page=100&sorting=newest`;
@@ -320,7 +319,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       expect(screen.queryByRole('button', { name: 'Look in older requests' })).toBeNull();
     });
 
-    it('deve mostrar o status exato (F1) ligado, com o texto das condições, e tirá-lo', async () => {
+    it('deve mostrar o status exato ligado, com o texto das condições, e tirá-lo', async () => {
       const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'] });
       await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(requestPage([answered(1, 429)])));
       await applied;
@@ -337,7 +336,6 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     });
   });
 
-  // F1 (CA-12): o valor clicado na requisição vira chip, com o `match` que a busca já aceita.
   describe('Dado um filtro por valor', () => {
     const chips = () => TestBed.inject(FilterChips);
     const header = { kind: 'header' as const, name: 'x-loja-event-id', value: 'evt_1' };

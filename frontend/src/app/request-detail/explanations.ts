@@ -4,12 +4,11 @@ import { Router } from '@angular/router';
 import { AiClient, KeptExplanation } from '../ai/ai-client';
 import { RequestStore } from '../requests/request-store';
 
-/** Quanto o aviso "Explanation for #… is ready." fica na tela. */
 const READY_NOTICE_MS = 10_000;
 
 /**
  * Os pedidos de explicação em curso, um por requisição. Ficam fora do painel porque trocar de
- * requisição (ou esconder o painel) **não cancela** o pedido (B4): a resposta é guardada para a
+ * requisição (ou esconder o painel) **não cancela** o pedido: a resposta é guardada para a
  * requisição que a pediu e, sem o painel dela à vista, um aviso com "Open" diz que ficou pronta.
  */
 @Injectable({ providedIn: 'root' })
@@ -23,7 +22,6 @@ export class Explanations {
     string,
     { answer: Promise<KeptExplanation>; abort: AbortController }
   >();
-  /** A requisição cujo painel está à vista. */
   private watched: string | null = null;
   /**
    * A requisição cuja explicação a pessoa pediu para abrir pelo "Open" do aviso: quem monta o
@@ -44,7 +42,6 @@ export class Explanations {
     }
   }
 
-  /** O pedido desta requisição: o que já está em curso, ou um novo. */
   ask(tokenId: string, requestId: string): Promise<KeptExplanation> {
     const running = this.running.get(requestId);
     if (running) {

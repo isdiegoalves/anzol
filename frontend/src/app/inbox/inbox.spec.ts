@@ -133,8 +133,8 @@ describe('Dado a tela principal', () => {
 
     await vi.waitFor(() => expect(text()).toContain('201 · Pix'));
     http.expectNone(`/token/${TOKEN_ID}/rules`);
-    // B2: o detalhe pede o trace da aberta, para achar a regra mais perto quando quem respondeu
-    // foi uma pega-tudo. A regra com condições não ganha a frase.
+    // O detalhe pede o trace da aberta, para achar a regra mais perto quando quem respondeu foi
+    // uma pega-tudo. A regra com condições não ganha a frase.
     await flush(`/token/${TOKEN_ID}/request/${answered.uuid}/rules/trace`, {
       request: answered.uuid,
       responded_by: { id: 'r1', name: 'Pix' },
@@ -346,7 +346,6 @@ describe('Dado a tela principal', () => {
     expect(store.selected()?.uuid).toBe(R9.uuid);
   });
 
-  // B2 (CA-5): o link diz qual abrir; se ela não existe, o detalhe diz isso e nenhuma outra entra.
   it('deve mostrar o estado vazio, sem abrir outra nem mudar o endereço, Quando a requisição do link não existe (404)', async () => {
     const R9 = webhookRequest(9);
 
@@ -591,7 +590,7 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
     });
 
-    it('deve tirar as cortadas e manter a aberta como cópia, com o aviso, Quando ela sai pela limpeza automática (B2)', async () => {
+    it('deve tirar as cortadas e manter a aberta como cópia, com o aviso, Quando ela sai pela limpeza automática', async () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
       const nova = webhookRequest(3);
 
@@ -606,7 +605,7 @@ describe('Dado a tela principal', () => {
         expect(text()).toContain('This request was deleted from the server by auto cleanup'),
       );
       const store = TestBed.inject(RequestStore);
-      // A mais nova no topo (INBOX-01): a nova entra antes das que ficaram; nenhuma outra abre.
+      // A mais nova no topo: a nova entra antes das que ficaram; nenhuma outra abre.
       expect(store.requests().map((request) => request.uuid)).toEqual([nova.uuid, R2.uuid]);
       expect(store.selected()?.uuid).toBe(R1.uuid);
       expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);

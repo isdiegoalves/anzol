@@ -19,21 +19,6 @@ import { gravarRegras } from './support/regras';
 import { compacto } from './support/shell';
 import { seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia F1 — clicar num valor vira filtro; os números de Saúde e de Métricas levam ao mesmo
-// filtro (variação 4; guia-combinacao §3.6; CA-12). Sem sintaxe de consulta: todo filtro novo é um chip da `list
-// "Active filters"`, criado por clique, com o `match` que o servidor já aceita. SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: o {label} do valor clicável é o nome do cabeçalho ou do parâmetro como a requisição gravou; no corpo,
-//   o JSONPath ("$.status"); no cabeçalho do detalhe e nos cartões, um rótulo que o teste não fixa (o nome acessível
-//   acaba em "{valor}. Value actions").
-// - SUPOSIÇÃO: o {value} do corpo vem como o valor escalar, com ou sem as aspas do JSON.
-// - SUPOSIÇÃO: o rascunho dos filtros por valor fica no `sessionStorage` da aba (o guia não dá a chave); o teste só
-//   exige que o valor não esteja no endereço.
-// - SUPOSIÇÃO: o aviso "This link does not carry 1 filter by value." aparece ao abrir, noutra aba, o endereço que a
-//   tela mostrava com o filtro por valor ligado.
-// - SUPOSIÇÃO: o link de contagem de um motivo de assinatura usa a frase crua do servidor em inglês ("timestamp
-//   outside tolerance"), que é o texto-fonte; a tradução é só do pt-BR.
-// - Sem teste: a nota "Counted over the newest 500, as in Insights." (pede mais de 500 requisições).
-
 const SECRET = 'segredo-do-patamar-f1';
 const CHAVE = 'x-loja-event-id';
 const esc = (texto: string) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -77,13 +62,11 @@ function valor(page: Page, nome: RegExp): Locator {
   return page.getByRole('region', { name: 'Request detail' }).getByRole('button', { name: nome });
 }
 
-/** Clica no valor e escolhe um item do `menu "Value actions"`. */
 async function acaoDoValor(page: Page, alvo: Locator, acao: string): Promise<void> {
   await alvo.click();
   await page.getByRole('menuitem', { name: acao, exact: true }).click();
 }
 
-/** Espera a busca do servidor que o filtro dispara e devolve o corpo dela. */
 function busca(page: Page, tokenId: string): Promise<Request> {
   return page.waitForRequest(
     (r) => r.method() === 'POST' && r.url().endsWith(`/token/${tokenId}/requests/search`),
@@ -101,7 +84,7 @@ async function chips(page: Page, detalhePorCima = true): Promise<Locator> {
   return filtrosLigados(page);
 }
 
-test.describe('Dado um valor da requisição aberta (CA-12)', () => {
+test.describe('Dado um valor da requisição aberta', () => {
   test('deve virar chip o valor de um cabeçalho, filtrar no servidor e anunciar uma vez', async ({
     page,
     tokens,
@@ -355,7 +338,7 @@ test.describe('Dado um valor da requisição aberta (CA-12)', () => {
   });
 });
 
-test.describe('Dado os selos do item da lista (CA-12)', () => {
+test.describe('Dado os selos do item da lista', () => {
   test('deve filtrar direto, sem menu, pelo selo do status', async ({ page, tokens }) => {
     test.skip(compacto(page), 'no toque os selos da lista não são clicáveis');
     const c = await cenario(tokens);
@@ -390,7 +373,7 @@ test.describe('Dado os selos do item da lista (CA-12)', () => {
   });
 });
 
-test.describe('Dado um filtro por valor ligado (CA-12)', () => {
+test.describe('Dado um filtro por valor ligado', () => {
   test('não deve levar o valor no link: outra aba abre sem o filtro e avisa', async ({
     page,
     context,
@@ -444,7 +427,7 @@ test.describe('Dado um filtro por valor ligado (CA-12)', () => {
   });
 });
 
-test.describe('Dado os números de Saúde e de Métricas (CA-12, UX-18)', () => {
+test.describe('Dado os números de Saúde e de Métricas', () => {
   function stripe(secret: string, body: string, t: number): Webhook {
     const v1 = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
     return {
@@ -558,7 +541,7 @@ test.describe('Dado os números de Saúde e de Métricas (CA-12, UX-18)', () => 
   });
 });
 
-test.describe('Dado as horas de Métricas (UX-19)', () => {
+test.describe('Dado as horas de Métricas', () => {
   test.use({ timezoneId: 'America/Sao_Paulo' });
 
   test('deve mostrar a hora local, com o UTC no title, e dizer o fuso na legenda do gráfico', async ({

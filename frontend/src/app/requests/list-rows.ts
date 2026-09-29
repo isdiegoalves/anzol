@@ -4,25 +4,22 @@ import { localDate, parseUtc } from '../request-detail/dates';
 import { Grouped, TrailSeal, trailOf, waitsOf } from './event-key';
 import { CapturedRequest, WebhookRequest, signatureState } from './webhook-request';
 
-/** Quanto do fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
+/** O fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
 export const ROUTE_TAIL = 14;
 
-/** A tentativa, na linha 1 do item recuado: "attempt 3", a hora com segundos e "+5 s". */
 export interface AttemptView {
   number: string;
   time: string;
   gap: string;
-  /** O início do nome acessível: "Attempt 3 of 3, 5 s after the previous, ". */
   prefix: string;
   /** No teto da limpeza, o número é a posição entre as guardadas. */
   title: string | null;
 }
 
-/** A linha de um evento com 2 ou mais tentativas carregadas. */
 export interface EventView {
   value: string;
   newest: WebhookRequest;
-  /** As tentativas carregadas (para achar a linha de uma requisição recolhida no evento). */
+  /** Para achar a linha de uma requisição recolhida no evento. */
   ids: string[];
   method: string;
   route: string;
@@ -31,26 +28,22 @@ export interface EventView {
   time: string;
   when: string;
   trail: TrailSeal[];
-  /** "3 attempts in 12 s" (ou "kept", ou "loaded · more may be on the next page"). */
   count: string;
-  /** Os problemas somados, a parte que casa com o filtro, as que chegaram antes da espera. */
   notes: string[];
   label: string;
   expanded: boolean;
 }
 
-/** Uma linha da lista virtual; `id` é a chave do `trackBy` e do foco. */
+/** `id` é a chave do `trackBy` e do foco. */
 export type ListRow<Item> =
   | {
       kind: 'item';
       id: string;
       item: Item;
-      /** O valor da chave, no lugar do `#id` (evento de uma tentativa só). */
+      /** No lugar do `#id`, num evento de uma tentativa só. */
       value: string | null;
       attempt: AttemptView | null;
-      /** O evento a que a tentativa pertence (linha recuada). */
       event: string | null;
-      /** A tentativa casa com o filtro (com filtro, as que casam ficam destacadas). */
       hit: boolean;
     }
   | { kind: 'event'; id: string; event: EventView }
@@ -58,16 +51,15 @@ export type ListRow<Item> =
   | { kind: 'more'; id: string; event: string; text: string }
   | { kind: 'note'; id: string; text: string };
 
-/** O que a montagem das linhas precisa saber da tela. */
 export interface RowContext<Item> {
   itemOf: (request: WebhookRequest) => Item;
   expanded: ReadonlySet<string>;
   showingAll: ReadonlySet<string>;
   compact: boolean;
   filtering: boolean;
-  /** A URL está no teto da limpeza automática: as tentativas mais antigas podem ter sido cortadas. */
+  /** No teto da limpeza automática, as tentativas mais antigas podem ter sido cortadas. */
   kept: boolean;
-  /** A requisição mais antiga carregada, quando há página seguinte (o evento pode continuar nela). */
+  /** A mais antiga carregada, quando há página seguinte: o evento pode continuar nela. */
   cut: string | null;
   askedBy: (answer: CapturedRequest) => unknown;
   language: string;
@@ -81,7 +73,6 @@ export function timeOf(at: string, language: string): string {
   }).format(parseUtc(at));
 }
 
-/** "22 s", "4 min", "3 h". */
 function duration(seconds: number): string {
   if (seconds < 120) {
     return $localize`${seconds}:seconds: s`;
@@ -91,7 +82,6 @@ function duration(seconds: number): string {
     : $localize`${Math.round(seconds / 3600)}:hours: h`;
 }
 
-/** O selo como a tela o escreve: "429", "429✗", "429 ×14". */
 export function sealText(seal: TrailSeal, marked: boolean): string {
   return `${seal.text}${marked && seal.mark ? '✗' : ''}${seal.count > 1 ? ` ×${seal.count}` : ''}`;
 }
@@ -115,7 +105,6 @@ function countOf(attempts: readonly WebhookRequest[], context: RowContext<unknow
   return $localize`${n}:count: attempts in ${duration(seconds)}:duration:`;
 }
 
-/** Os problemas de verificação somados, sem julgar: o Anzol relata. */
 function problemsOf(attempts: readonly CapturedRequest[]): string[] {
   const state = (request: CapturedRequest) =>
     request.signature ? signatureState(request.signature) : null;
@@ -142,9 +131,8 @@ function problemsOf(attempts: readonly CapturedRequest[]): string[] {
 }
 
 /**
- * As linhas da lista agrupada: o item solto; o evento, e embaixo dele, expandido, as tentativas da
- * mais nova para a mais antiga (com o veredito do `Retry-After`) e a ressalva. Com mais de 6
- * tentativas (4 no celular), a expansão mostra as mais novas, "… N more attempts" e as mais antigas.
+ * Expandido, o evento mostra as tentativas da mais nova para a mais antiga. Com mais de 6 (4 no
+ * celular), mostra as mais novas, "… N more attempts" e as mais antigas.
  */
 export function rowsOf<Item>(
   grouped: readonly Grouped[],

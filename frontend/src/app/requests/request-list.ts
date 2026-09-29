@@ -104,7 +104,7 @@ export interface ItemView {
   /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
   seals: CheckResult[];
   label: string;
-  /** O status respondido, que o selo filtra (F1); `null` na falha de rede e sem registro. */
+  /** `null` na falha de rede e sem registro: não há status para filtrar. */
   status: string | null;
 }
 
@@ -213,10 +213,6 @@ export class RequestList {
 
   /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
   private readonly now = signal(Date.now());
-  /**
-   * As linhas da lista virtual: sem chave do evento, um item por requisição (a lista plana da B1);
-   * com ela (E1), o evento no lugar das tentativas, e as tentativas por baixo dele, expandido.
-   */
   protected readonly rows = computed((): ListRow<ItemView>[] => {
     const now = this.now();
     const requests = this.store.requests();
@@ -247,7 +243,6 @@ export class RequestList {
       language: this.document.documentElement.lang || 'en',
     });
   });
-  /** A altura de cada linha, na ordem: a lista virtual soma as posições. */
   protected readonly sizes = computed(() => {
     const [item, touch] = [this.itemHeight(), this.touch()];
     const heights: Record<ListRow<ItemView>['kind'], number> = {
@@ -360,7 +355,6 @@ export class RequestList {
     this.focusItem(rows[to].id, to);
   }
 
-  /** O que o Tab e as setas alcançam: o item, a linha de evento e o "Show all". */
   protected focusable(row: ListRow<ItemView>): boolean {
     return row.kind === 'item' || row.kind === 'event' || row.kind === 'more';
   }
@@ -524,7 +518,7 @@ export class RequestList {
 
   private itemOf(request: WebhookRequest, now: number): ItemView {
     const pipeline = pipelineOf(request);
-    // B2: o status respondido vem primeiro e aparece sempre; os outros, só quando dizem algo.
+    // O status respondido aparece sempre; os outros, só quando dizem algo.
     const seals = [
       pipeline.rule,
       ...[pipeline.signature, pipeline.schema].filter((check) => check.tone !== 'none'),

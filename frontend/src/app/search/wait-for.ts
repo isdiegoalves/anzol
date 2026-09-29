@@ -43,7 +43,6 @@ export class WaitFor {
     this.copied.set(copiedMessage(outsideWaitFor(filter)));
   }
 
-  /** "Copy CI test": o `anzol test` com o `match` em vigor. */
   copyCiTest(): void {
     const filter = { ...this.store.filter(), text: this.typed() ?? this.store.filter().text };
     this.clipboard.copy(ciTestCommand(filter, this.origin));

@@ -99,7 +99,6 @@ export class FilterPanel {
     }
   }
 
-  /** "Group by event…" (E1): o diálogo da chave do evento. */
   protected groupByEvent(): void {
     void this.grouping.openDialog(this.injector);
   }

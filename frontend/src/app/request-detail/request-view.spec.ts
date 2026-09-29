@@ -146,7 +146,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
   });
 
   // INBOX-26: as abas vazias no padrão dos estados vazios.
-  // F1: filtrar pela lista traz a mesma requisição num objeto novo (o da busca); a aba não volta ao Body.
+  // Filtrar pela lista traz a mesma requisição num objeto novo (o da busca).
   it('deve manter a aba aberta Quando a mesma requisição chega de novo, e voltar ao Body Quando é outra', async () => {
     const request = webhookRequest(1, { content: '{"a":1}' });
     const { fixture } = await show(request);

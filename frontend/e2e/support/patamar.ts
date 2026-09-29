@@ -3,13 +3,7 @@ import { Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
 import { compacto } from './shell';
 
-/*
- * Patamar (a combinação), base comum B1–B3: nomes acessíveis novos do guia `.docs-arquivo/patamar/guia-combinacao.md`
- * (§3.1 a §3.3), em inglês (texto-fonte do `$localize`). O que o guia não fixa está marcado SUPOSIÇÃO no spec da
- * fatia (`patamar-b*.spec.ts`).
- */
-
-/** Chave do `localStorage` com as URLs conhecidas do navegador (guia §4.1). */
+/** Chave do `localStorage` com as URLs conhecidas do navegador. */
 export const CHAVE_URLS = 'anzol.urls';
 
 export interface UrlConhecida {
@@ -151,7 +145,7 @@ export async function comHoras(
   });
 }
 
-/** `group "Request notice"` › `status`: a região viva do topo do detalhe (B2). */
+/** `group "Request notice"` › `status`: a região viva do topo do detalhe. */
 export function avisoDaRequisicao(page: Page): Locator {
   return page.getByRole('group', { name: 'Request notice' }).locator('[role="status"]');
 }

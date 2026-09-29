@@ -25,20 +25,6 @@ import { gravarRegras } from './support/regras';
 import { compacto } from './support/shell';
 import { seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia B2 — a requisição que some vira aviso, e o status respondido aparece em todo lugar
-// (UX-38, UX-02, UX-39; guia-combinacao §3.2; CA-5 e CA-7). Nunca outra requisição é aberta no lugar: os testes
-// conferem que o `#id` do detalhe é o do endereço, ou que o detalhe não tem `#id`. SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: as ações desligadas ficam `aria-disabled="true"` com a razão na descrição acessível; na barra ou no
-//   `More`, conforme a largura e a §5.3 (o helper `acaoDoDetalhe()` procura nos dois).
-// - SUPOSIÇÃO: os nomes das ações são os de hoje ("Compare with…", "Share read-only link…", "Create rule from this
-//   request", "Copy As", "Permalink", "Raw content", "Delete request").
-// - SUPOSIÇÃO: o selo do item é um elemento só, com o texto "{status} · {origem}"; a falha de rede mostra o rótulo do
-//   tipo ("Connection reset").
-// - SUPOSIÇÃO: o lado que falta na comparação é dito por "A" ou "B" ("Request B (#xxxxx) no longer exists.").
-// - SUPOSIÇÃO: o "Look in older requests" só aparece quando a URL guarda mais do que as 500 já varridas.
-// - SUPOSIÇÃO: a linha de Métricas leva à Entrada com o filtro do status; o parâmetro da rota é da F1 e o teste só
-//   exige que o link vá para a Entrada desta URL.
-
 const RAZAO = 'The server no longer has this request.';
 const PIX = {
   name: 'Pedido pago',
@@ -47,19 +33,15 @@ const PIX = {
   response: { status: 201 },
 };
 
-/** O detalhe (`region "Request detail"`). */
 function detalhe(page: Page): Locator {
   return page.getByRole('region', { name: 'Request detail' });
 }
 
-/** O `More` do detalhe. */
 function mais(page: Page): Locator {
   return detalhe(page).getByRole('button', { name: /^More(:|$)/ });
 }
 
-/**
- * Uma ação do detalhe, na barra ou no `More` (que esta função abre). Devolve o elemento e se o menu ficou aberto.
- */
+/** Na barra ou no `More`, conforme a largura; devolve também se o menu ficou aberto. */
 async function acaoDoDetalhe(
   page: Page,
   nome: string,
@@ -88,7 +70,6 @@ async function expectAcao(page: Page, nome: string, ligada: boolean): Promise<vo
   }
 }
 
-/** Apaga a requisição aberta pelo `More` › "Delete request" (INBOX-20). */
 async function apagarAAberta(page: Page): Promise<void> {
   await mais(page).click();
   await page.getByRole('menuitem', { name: 'Delete request' }).click();
@@ -106,7 +87,7 @@ const DESLIGADAS = [
 ];
 const LIGADAS = ['Copy payload', 'Create rule from this request', 'Copy As'];
 
-test.describe('Dado uma requisição apagada enquanto está aberta (UX-38; CA-5)', () => {
+test.describe('Dado uma requisição apagada enquanto está aberta', () => {
   test('deve manter a cópia carregada com o aviso, sem abrir outra, e desligar o que precisa do servidor', async ({
     page,
     tokens,
@@ -259,7 +240,7 @@ test.describe('Dado uma requisição apagada enquanto está aberta (UX-38; CA-5)
   });
 });
 
-test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)', () => {
+test.describe('Dado um link para uma requisição que não existe', () => {
   async function comDuas(tokens: TokenTracker) {
     const tokenId = await tokens.create();
     const velha = await tokens.send(tokenId, { path: '/velha' });
@@ -303,8 +284,7 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
     await page.goto(`/#/${tokenId}/${falta}/1`);
 
     await detalhe(page).getByRole('button', { name: 'Search for this id' }).click();
-    // SUPOSIÇÃO (corrigida no spec): no celular o próprio "Search for this id" volta à lista, onde a busca fica; o
-    // "Back to requests" some no meio do clique.
+    // No celular o próprio "Search for this id" volta à lista, onde a busca fica.
     await expect(campoDeBusca(page)).toHaveValue(falta);
 
     await page.goto(`/#/${tokenId}/${falta}/1`);
@@ -341,8 +321,8 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
     page,
     tokens,
   }) => {
-    // SUPOSIÇÃO (corrigida no spec): a requisição que está na página carregada abre da lista, sem `GET` próprio;
-    // o `GET` do link (e a falha dele) só acontece com ela fora da página: a mais antiga, atrás de outras 50.
+    // A que está na página carregada abre da lista, sem `GET` próprio: só a mais antiga, atrás de outras 50,
+    // passa pelo `GET` do link.
     const tokenId = await tokens.create();
     const antiga = await tokens.send(tokenId, { path: '/antiga' });
     await tokens.sendMany(tokenId, 50);
@@ -393,7 +373,7 @@ async function mostrarListaSePreciso(page: Page): Promise<void> {
   }
 }
 
-test.describe('Dado o status respondido no item e no detalhe (UX-02, UX-39; CA-7)', () => {
+test.describe('Dado o status respondido no item e no detalhe', () => {
   /** URL com padrão 429 e Retry-After 5, a regra "Pedido pago" (201 em POST /pago) e uma de falha de rede. */
   async function urlComRespostas(tokens: TokenTracker, page: Page) {
     const tokenId = await tokens.create({ default_status: '429', retry_after: '5' });
@@ -603,7 +583,7 @@ test.describe('Dado o status respondido no item e no detalhe (UX-02, UX-39; CA-7
   });
 });
 
-test.describe('Dado o filtro pela classe do status respondido (UX-02; CA-7)', () => {
+test.describe('Dado o filtro pela classe do status respondido', () => {
   test('deve filtrar no navegador, dizer o alcance e anunciar o resultado uma vez', async ({
     page,
     tokens,
@@ -665,7 +645,7 @@ test.describe('Dado o filtro pela classe do status respondido (UX-02; CA-7)', ()
   });
 });
 
-test.describe('Dado Métricas com respostas de status diferentes (UX-02; CA-7)', () => {
+test.describe('Dado Métricas com respostas de status diferentes', () => {
   test('deve contar as respostas por status exato, com a origem, e levar à Entrada', async ({
     page,
     tokens,
@@ -701,7 +681,7 @@ test.describe('Dado Métricas com respostas de status diferentes (UX-02; CA-7)',
   });
 });
 
-test.describe('Dado a comparação de duas requisições (UX-02; CA-7)', () => {
+test.describe('Dado a comparação de duas requisições', () => {
   test('deve ter a linha "Answer" com o status dos dois lados, no lugar de "Rule"', async ({
     page,
     tokens,
@@ -719,8 +699,7 @@ test.describe('Dado a comparação de duas requisições (UX-02; CA-7)', () => {
       .getByRole('table', { name: 'Checks' });
     await expect(tabela.getByRole('rowheader', { name: 'Answer', exact: true })).toBeVisible();
     await expect(tabela.getByRole('rowheader', { name: 'Rule', exact: true })).toHaveCount(0);
-    // SUPOSIÇÃO (corrigida no spec): no celular a tabela põe o cabeçalho da linha numa `tr` própria, dentro de um
-    // `rowgroup` por verificação; as células ficam na `tr` seguinte do mesmo grupo.
+    // No celular o cabeçalho da linha fica numa `tr` própria, e as células na `tr` seguinte do mesmo `rowgroup`.
     const cabecalho = page.getByRole('rowheader', { name: 'Answer', exact: true });
     const linha = compacto(page)
       ? tabela.getByRole('rowgroup').filter({ has: cabecalho })

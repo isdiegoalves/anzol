@@ -92,8 +92,8 @@
   font: var(--mat-sys-body-small);
 }
 
-// Todo status é neutro, do 200 ao 503; só a falha de rede fica no papel de erro (B2). O último é a
-// resposta que vale agora: borda mais forte.
+// Todo status é neutro, do 200 ao 503; só a falha de rede fica no papel de erro. O último é a
+// resposta que vale agora.
 .seal {
   padding: 0 4px;
   border: 1px solid transparent;
@@ -117,7 +117,6 @@
   color: var(--mat-sys-error);
 }
 
-// Celular: três linhas em 84 px, chevron de 48 px, e a trilha quebra de linha em vez de rolar.
 :host(.touch) {
   padding: 0 4px 0 0;
 

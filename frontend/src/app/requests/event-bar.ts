@@ -3,10 +3,8 @@ import { EventGrouping, NO_GROUPING, eventsIn, groupedBy } from './event-groupin
 import { RequestStore } from './request-store';
 
 /**
- * Acima da lista (E1): sem chave, a faixa que oferece agrupar, uma vez por URL, quando as
- * carregadas repetem um campo ("Some requests repeat the same x-loja-event-id"); com chave, o
- * estado "Grouped by … · 17 events in the 50 loaded" e o "Change". Sem chave e sem candidato, nada:
- * nenhuma palavra sobre evento.
+ * Sem chave, a oferta de agrupar, uma vez por URL; com chave, o estado e o "Change". Sem chave e
+ * sem candidato, nenhuma palavra sobre evento.
  */
 @Component({
   selector: 'app-event-bar',
@@ -123,7 +121,6 @@ export class EventBar {
   private readonly injector = inject(Injector);
 
   protected readonly off = NO_GROUPING;
-  /** "Grouped by x · 17 events in the 50 loaded", ou a nota de que nenhuma carregada tem o campo. */
   protected readonly state = computed(() => {
     const key = this.grouping.key();
     if (!key) {

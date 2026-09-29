@@ -83,8 +83,8 @@ export class RequestCompare {
   protected readonly right = computed(() => (this.swapped() ? this.a() : this.b()));
 
   /**
-   * E1: quando A e B são tentativas seguidas do mesmo evento, o par anterior e o seguinte dentro
-   * dele; `null` fora de evento.
+   * Quando A e B são tentativas seguidas do mesmo evento, o par anterior e o seguinte dentro dele;
+   * `null` fora de evento.
    */
   protected readonly pairs = computed(() => {
     const [a, b] = [this.a(), this.b()];
