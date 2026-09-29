@@ -1,9 +1,9 @@
-// Na grade dos cartões, a linha toda: o botão embaixo do cartão da regra e o trace abaixo dele.
+// Na fila dos cartões, a linha toda: o botão embaixo do cartão da regra e o trace abaixo dele.
 :host {
   display: flex;
+  flex: 1 0 100%;
   flex-direction: column;
   align-items: flex-start;
-  grid-column: 1 / -1;
   gap: 4px;
   min-width: 0;
 }

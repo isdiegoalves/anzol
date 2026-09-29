@@ -89,10 +89,15 @@ a {
 }
 
 .checks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px 20px;
-  align-items: start;
+  align-items: flex-start;
+}
+
+// O cartão dentro do invólucro também leva a classe `check`: a base da fila é só do invólucro.
+.checks > .check {
+  flex: 1 1 220px;
 }
 
 .check {
