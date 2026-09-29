@@ -11,6 +11,8 @@
 
 // Fontes auto-hospedadas (o app roda local e pode ficar offline): woff2 variável, subconjunto
 // latino, servidas pelo backend em /fonts/*.woff2. Só a da interface tem `preload` (index.html).
+// O zero das duas Next foi redesenhado aberto (a original corta o zero, e datas e prosa ficavam
+// "2Ø26"): trocar o arquivo pelo do Google Fonts traz o corte de volta. O cortado é só da Mono.
 @font-face {
   font-family: 'Atkinson Hyperlegible Next';
   font-style: normal;
