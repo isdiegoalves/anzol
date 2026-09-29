@@ -57,6 +57,11 @@ export class RequestStream {
     });
   }
 
+  /** Fecha a conexão da URL sem esquecer quem assina; o `retry()` a reabre. */
+  pause(tokenId: string): void {
+    this.streams.get(tokenId)?.source.close();
+  }
+
   /** Reabre as conexões sem esperar a próxima tentativa do navegador. */
   retry(): void {
     for (const [tokenId, shared] of this.streams) {

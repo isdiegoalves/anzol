@@ -7,7 +7,10 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideRouter } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
@@ -345,6 +348,83 @@ describe('Dado o segredo de leitura trocado e o unlock recusado depois do PUT', 
 
     await expect(saved).rejects.toBeInstanceOf(UnlockFailed);
     await expect(saved).rejects.toMatchObject({ status: 429 });
+  });
+});
+
+describe('Dado o tempo real aberto e o segredo de leitura trocado', () => {
+  let http: HttpTestingController;
+  let live: Subscription;
+  const URL = `/token/${TOKEN_ID}`;
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource);
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    live = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
+    FakeEventSource.latest().open();
+  });
+
+  afterEach(() => {
+    live.unsubscribe();
+    vi.unstubAllGlobals();
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve fechar o tempo real antes do PUT e reabrir só depois de destrancar com o segredo novo', async () => {
+    const lida = token({ protected: true });
+    TestBed.inject(Preferences).token.set(lida);
+    const antes = FakeEventSource.latest();
+
+    const saved = TestBed.inject(ChecksStore).save({ read_secret: 'segredo-novo' }, lida);
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      lida,
+    );
+    const put = await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL));
+
+    expect(antes.readyState).toBe(FakeEventSource.CLOSED);
+    put.flush(token({ protected: true }));
+    const unlock = await vi.waitFor(() => http.expectOne(`${URL}/unlock`));
+    expect(FakeEventSource.instances).toEqual([antes]);
+    unlock.flush(null, { status: 204, statusText: 'No Content' });
+    await saved;
+
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.latest().url).toBe(`${URL}/stream`);
+    expect(FakeEventSource.latest().readyState).not.toBe(FakeEventSource.CLOSED);
+  });
+
+  it('deve reabrir o tempo real Quando o PUT com o segredo novo falha', async () => {
+    const lida = token({ protected: true });
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ read_secret: 'segredo-novo' }, lida);
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'GET' && r.url === URL))).flush(
+      lida,
+    );
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL))).flush(
+      { read_secret: ['bad'] },
+      { status: 422, statusText: 'Unprocessable Entity' },
+    );
+
+    await expect(saved).rejects.toMatchObject({ status: 422 });
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(FakeEventSource.latest().readyState).not.toBe(FakeEventSource.CLOSED);
+  });
+
+  it('não deve mexer no tempo real Quando o segredo de leitura não muda', async () => {
+    const lida = token();
+    TestBed.inject(Preferences).token.set(lida);
+
+    const saved = TestBed.inject(ChecksStore).save({ default_status: '201' }, lida);
+    (await expectPutAfterRead(http)).flush(token({ default_status: 201 }));
+    await saved;
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(FakeEventSource.latest().readyState).toBe(FakeEventSource.OPEN);
   });
 });
 

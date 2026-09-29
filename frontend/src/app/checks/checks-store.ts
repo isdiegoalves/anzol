@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { Rule } from '../rules/rule';
@@ -23,6 +24,7 @@ export class ChecksStore {
   private readonly urlLock = inject(UrlLock);
   private readonly preferences = inject(Preferences);
   private readonly requests = inject(RequestStore);
+  private readonly stream = inject(RequestStream);
   private readonly snackBar = inject(MatSnackBar);
 
   /**
@@ -30,8 +32,10 @@ export class ChecksStore {
    * o MCP podem ter gravado nesse meio-tempo. Se ela mudou lá fora, não grava (`ChangedElsewhere`),
    * a não ser com `force`.
    * Com segredo de leitura novo, destranca com ele antes de publicar a URL salva: publicar dispara
-   * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. Com a limpeza
-   * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
+   * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. O tempo real fica
+   * fechado até lá: o servidor o derruba ao trocar o segredo, e o navegador reconectaria com o
+   * cookie antigo. Com a limpeza reduzida, a lista da Inbox vem de novo do servidor (o corte não
+   * gera evento).
    */
   async save(changes: TokenSettings, base: Token, options: SaveOptions = {}): Promise<Token> {
     this.snackBar.dismiss();
@@ -43,14 +47,25 @@ export class ChecksStore {
     if (changed.length > 0) {
       throw new ChangedElsewhere(changed);
     }
-    // O `PUT` troca a configuração inteira: vai a URL relida completa, com as mudanças por cima.
-    let updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
-    if (typeof changes.read_secret === 'string') {
-      try {
-        await this.unlock(base.uuid, changes.read_secret);
-      } catch (error) {
-        // A URL já foi salva: o erro diz isso, e não "Error updating token".
-        throw new UnlockFailed(error instanceof HttpErrorResponse ? error.status : null);
+    const secret = changes.read_secret;
+    if (typeof secret === 'string') {
+      this.stream.pause(base.uuid);
+    }
+    let updated: Token;
+    try {
+      // O `PUT` troca a configuração inteira: vai a URL relida completa, com as mudanças por cima.
+      updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
+      if (typeof secret === 'string') {
+        try {
+          await this.unlock(base.uuid, secret);
+        } catch (error) {
+          // A URL já foi salva: o erro diz isso, e não "Error updating token".
+          throw new UnlockFailed(error instanceof HttpErrorResponse ? error.status : null);
+        }
+      }
+    } finally {
+      if (typeof secret === 'string') {
+        this.stream.retry();
       }
     }
     // Depois do `PUT` e do destrancar; sem pedido, volta ao CORS que a URL já tinha.
