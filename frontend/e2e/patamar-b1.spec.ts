@@ -957,7 +957,7 @@ test.describe('Dado o rail e o cabeçalho da URL em todos os destinos', () => {
       await page.goto(`/#/${tokenId}${rota}`);
       await expect(destino(page, nome)).toHaveAttribute('aria-current', 'page');
       await expect(estadoAoVivo(page), nome).toContainText('Live');
-      await expect(page.getByRole('link', { name: '2 requests' }), nome).toBeVisible();
+      await expect(page.getByRole('link', { name: '2 requests', exact: true }), nome).toBeVisible();
       await expect(page.getByRole('button', { name: 'Search requests' }), nome).toBeVisible();
       lugares.push(Math.round((await destino(page, 'Inbox').boundingBox())!.y));
     }
