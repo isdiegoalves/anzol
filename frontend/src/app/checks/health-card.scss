@@ -62,7 +62,7 @@
   margin: 0;
   font: var(--mat-sys-body-small);
 
-  // F1: o número leva à Entrada com o filtro exato; alvo de 24 px.
+  // F1: o número leva à Entrada com o filtro exato; alvo de 24 px, 44 px no toque.
   a {
     display: inline-flex;
     align-items: center;
@@ -70,6 +70,11 @@
     min-width: 24px;
     min-height: 24px;
     color: var(--mat-sys-primary);
+
+    @media (pointer: coarse) {
+      min-width: 44px;
+      min-height: 44px;
+    }
   }
 }
 
