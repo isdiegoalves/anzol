@@ -34,8 +34,9 @@
   flex: 1;
 }
 
+// O selo do método na mensagem a reenviar também tem a classe `method`: a largura é só do campo.
 .timeout,
-.method {
+mat-form-field.method {
   width: 140px;
 }
 
@@ -111,7 +112,7 @@ code {
 // Replay numa linha (OUTBOUND-05): a mensagem, o alvo, o timeout e o botão; embaixo, o caminho.
 .replay-line {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) 110px auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) 136px auto;
   gap: 4px 12px;
   align-items: start;
 
@@ -195,7 +196,7 @@ code {
 // Send (OUTBOUND-07): método, URL, timeout e o botão numa linha; headers e corpo lado a lado.
 .send-line {
   display: grid;
-  grid-template-columns: 124px minmax(0, 1fr) 110px auto;
+  grid-template-columns: 124px minmax(0, 1fr) 136px auto;
   gap: 4px 12px;
   align-items: start;
 
