@@ -249,13 +249,22 @@
   align-items: start;
 }
 
+// Os campos quebram linha quando não cabem; o segmentado não encolhe abaixo do conteúdo. Em três
+// colunas iguais, o grupo do algoritmo encolhia e cortava a última opção (o SHA-512 sumia).
 .triple {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.triple > mat-form-field {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 @media (width < 600px) {
   .pair,
   .triple {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
 }
