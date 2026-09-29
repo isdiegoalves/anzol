@@ -6,23 +6,23 @@ export { expect };
 
 // Privacidade e segurança da API (§1 do plano "privacidade", item 12):
 // - segredo de leitura por URL (`read_secret` no `POST`/`PUT /token`, nunca devolvido; `protected` no token);
-// - acesso a uma URL protegida pelo header `X-Webhook-Secret` ou pelo cookie `wh_access` do `unlock`;
+// - acesso a uma URL protegida pelo header `X-Anzol-Secret` ou pelo cookie `anzol_access` do `unlock`;
 // - links só-leitura de uma mensagem (`/token/{id}/request/{rid}/share`, `/token/{id}/shares`, `/share/{sid}`);
-// - `Host` e `Origin` conferidos nas rotas de gestão contra `webhook.allowed-hosts`.
+// - `Host` e `Origin` conferidos nas rotas de gestão contra `anzol.allowed-hosts`.
 //
 // Os testes daqui falam HTTP pelo `fetch` do Node, e não pelo `request` do Playwright: o contexto do Playwright
 // guarda cookies (o `Set-Cookie` do `unlock` iria sozinho nas chamadas seguintes), e aqui cada chamada diz
 // exatamente que credencial leva. `Host` diferente só por HTTP cru (`httpCruCompleto`).
 
-export const HEADER_SEGREDO = 'X-Webhook-Secret';
-export const COOKIE_DE_ACESSO = 'wh_access';
+export const HEADER_SEGREDO = 'X-Anzol-Secret';
+export const COOKIE_DE_ACESSO = 'anzol_access';
 
 /** Corpo do 401 de toda rota de gestão de uma URL protegida sem acesso (§1). */
 export const ERRO_PROTEGIDA = { error: 'This URL is protected', protected: true };
 export const ERRO_HOST = { error: 'host not allowed' };
 export const ERRO_ORIGEM = { error: 'origin not allowed' };
 
-/** Com `WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal` (o stack do `./ci.sh`). */
+/** Com `ANZOL_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal` (o stack do `./ci.sh`). */
 export const HOSTS_PERMITIDOS = ['localhost', '127.0.0.1', '[::1]', 'host.docker.internal'];
 export const PORTA = new URL(BASE_URL).port || '80';
 
@@ -424,7 +424,7 @@ export function lerSetCookie(linha: string): CookieLido {
   return { nome: par.slice(0, i).trim(), valor: par.slice(i + 1).trim(), atributos };
 }
 
-/** O `Set-Cookie` de `wh_access` da resposta (exatamente um). */
+/** O `Set-Cookie` de `anzol_access` da resposta (exatamente um). */
 export function cookieDeAcesso(res: Resposta): CookieLido {
   const cookies = res.setCookies.map(lerSetCookie).filter((c) => c.nome === COOKIE_DE_ACESSO);
   expect(cookies.length, `Set-Cookie ${COOKIE_DE_ACESSO} em ${JSON.stringify(res.setCookies)}`).toBe(1);

@@ -19,7 +19,7 @@ service:
 ingress:
   enabled: false
   className: nginx
-  # Hosts do Ingress (nome, sem esquema nem porta). Cada um entra sozinho no WEBHOOK_ALLOWED_HOSTS (ver `webhook`).
+  # Hosts do Ingress (nome, sem esquema nem porta). Cada um entra sozinho no ANZOL_ALLOWED_HOSTS (ver `webhook`).
   hosts: []
   #  - anzol.example.com
   # tls:
@@ -39,51 +39,51 @@ ingress:
     # Uma regra de resposta põe até 8 KiB num cabeçalho; com o buffer padrão (4 KiB) o nginx responderia 502.
     nginx.ingress.kubernetes.io/proxy-buffer-size: "64k"
 
-# Variáveis WEBHOOK_* do app (seção "Configuração" do readme.md, docs/privacidade.md e docs/mcp-e-ia.md).
-webhook:
-  # WEBHOOK_ALLOWED_HOSTS: nomes aceitos no Host de /token, /share e /mcp (contra DNS rebinding) e no Origin dos
+# Variáveis ANZOL_* do app (seção "Configuração" do readme.md, docs/privacidade.md e docs/mcp-e-ia.md).
+anzol:
+  # ANZOL_ALLOWED_HOSTS: nomes aceitos no Host de /token, /share e /mcp (contra DNS rebinding) e no Origin dos
   # métodos que mudam estado (contra CSRF). Sem o nome pelo qual o navegador chega, a tela abre mas a API (criar
   # URL, ler mensagens) responde 403 {"error":"host not allowed"} ou {"error":"origin not allowed"}.
   # O chart monta a lista: localhost, 127.0.0.1 e [::1] (o port-forward), cada host de `ingress.hosts` (e, se ele
   # estiver em `ingress.tls`, também `host:443`, porque o Ingress fala HTTP com o pod) e os nomes daqui.
   # Acrescente aqui o nome de um acesso que não seja o Ingress (ex. um LoadBalancer). "*" desliga a conferência: inseguro.
   allowedHosts: []
-  # WEBHOOK_MAX_REQUESTS: mensagens por URL sem `auto_cleanup`; acima disso sai a mais antiga.
+  # ANZOL_MAX_REQUESTS: mensagens por URL sem `auto_cleanup`; acima disso sai a mais antiga.
   maxRequests: 10000
-  # WEBHOOK_EXPIRY: segundos até um token e suas mensagens expirarem (renovado a cada uso).
+  # ANZOL_EXPIRY: segundos até um token e suas mensagens expirarem (renovado a cada uso).
   expiry: 604800
-  # WEBHOOK_FAULT_HOLD_MAX: segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a
+  # ANZOL_FAULT_HOLD_MAX: segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a
   # conexão; ela fecha antes se o cliente desistir.
   faultHoldMax: 300
   outbound:
-    # WEBHOOK_OUTBOUND_ALLOW_PRIVATE: replay e send também para loopback e redes privadas. No cluster, isso inclui
+    # ANZOL_OUTBOUND_ALLOW_PRIVATE: replay e send também para loopback e redes privadas. No cluster, isso inclui
     # o Redis, a API do Kubernetes e todo Service: deixe false com o app publicado.
     allowPrivate: false
-    # WEBHOOK_OUTBOUND_LOCALHOST_ALIAS: nome que substitui localhost no alvo do replay e do send. Vazio: nenhum.
+    # ANZOL_OUTBOUND_LOCALHOST_ALIAS: nome que substitui localhost no alvo do replay e do send. Vazio: nenhum.
     localhostAlias: ""
   mcp:
-    # WEBHOOK_MCP_ENABLED: servidor MCP em /mcp. Não tem autenticação: não ligue com o app publicado.
+    # ANZOL_MCP_ENABLED: servidor MCP em /mcp. Não tem autenticação: não ligue com o app publicado.
     enabled: false
   ai:
-    # WEBHOOK_AI_ENABLED: rotas rules/suggest e explain com um LLM OpenAI-compatível. Desligada, respondem 503.
+    # ANZOL_AI_ENABLED: rotas rules/suggest e explain com um LLM OpenAI-compatível. Desligada, respondem 503.
     enabled: false
-    # WEBHOOK_AI_BASE_URL: raiz do servidor, sem o /v1.
+    # ANZOL_AI_BASE_URL: raiz do servidor, sem o /v1.
     baseUrl: http://localhost:8000
     modelJson: NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
     modelText: KAT-Coder-V2.5-Dev-oQ4e-mtp
-    # WEBHOOK_AI_API_KEY sempre por Secret, nunca em texto no Deployment. Ou o nome de um Secret já existente
+    # ANZOL_AI_API_KEY sempre por Secret, nunca em texto no Deployment. Ou o nome de um Secret já existente
     # (existingSecret, chave existingSecretKey), ou a chave na instalação, que vira o Secret <release>-ai:
-    #   helm install anzol ./helm -f valores.yaml --set-string webhook.ai.apiKey="$WEBHOOK_AI_API_KEY"
+    #   helm install anzol ./helm -f valores.yaml --set-string anzol.ai.apiKey="$ANZOL_AI_API_KEY"
     # Nunca escreva a chave num arquivo de values versionado. Sem as duas, o pedido ao LLM sai sem Authorization.
     existingSecret: ""
-    existingSecretKey: WEBHOOK_AI_API_KEY
+    existingSecretKey: ANZOL_AI_API_KEY
     apiKey: ""
 
 # Métricas, traces e logs por OTLP: as variáveis OTEL_* padrão do OpenTelemetry, que o Spring Boot lê. Vazio (o
 # padrão) nada é exportado; com o coletor fora do ar o app segue normal. Ex.:
 #   OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy.monitoring:4318
 #   OTEL_METRICS_EXPORTER: otlp
-#   OTEL_SERVICE_NAME: webhook-site
+#   OTEL_SERVICE_NAME: anzol
 #   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=k8s
 otel: {}
 

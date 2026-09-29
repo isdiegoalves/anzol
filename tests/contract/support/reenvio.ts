@@ -14,8 +14,8 @@ import { BASE_URL, JSON_ACCEPT, expect, expectContentType, test as base } from '
 export const ALVO_HOST = process.env.ALVO_HOST ?? 'host.docker.internal';
 
 /**
- * O `webhook.outbound.localhost-alias` do app sob teste: `localhost` e `127.0.0.1` no alvo viram esse nome.
- * O `./ci.sh` sobe o stack com `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal`.
+ * O `anzol.outbound.localhost-alias` do app sob teste: `localhost` e `127.0.0.1` no alvo viram esse nome.
+ * O `./ci.sh` sobe o stack com `ANZOL_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal`.
  */
 export const ALIAS_LOCALHOST = process.env.ALIAS_LOCALHOST ?? 'host.docker.internal';
 

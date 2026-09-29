@@ -9,7 +9,7 @@ import { abrirRegras, novaRegra, parte, snackbar, folhaDeCriarRegra } from './su
 // mostra o diagnóstico, e a IA desligada (503) desabilita os controles com a dica.
 //
 // O app precisa estar ligado a um LLM falso OpenAI-compatível no host:
-// WEBHOOK_AI_ENABLED=true e WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099. O falso sobe
+// ANZOL_AI_ENABLED=true e ANZOL_AI_BASE_URL=http://host.docker.internal:18099. O falso sobe
 // aqui, neste processo, na porta 18099 (troque com E2E_LLM_PORT), e cada teste programa as
 // respostas. Os testes deste arquivo rodam em sequência num só worker: o falso é um só.
 // Os estados 503 e 429 são simulados na rota (page.route): o CI roda com a IA ligada.
@@ -446,7 +446,7 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
 
     await expect(page.getByText('This server has no local AI.').first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'How to turn it on' }).first()).toBeVisible();
-    await expect(page.getByText(/WEBHOOK_AI/)).toHaveCount(0);
+    await expect(page.getByText(/ANZOL_AI/)).toHaveCount(0);
     const explicar = acoes(page).getByRole('button', { name: 'Explain' });
     await expect(explicar).toHaveAttribute('aria-disabled', 'true');
     await expect(explicar).toHaveAccessibleDescription(/This server has no local AI\./);
@@ -456,7 +456,7 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     // A dica e o campo ficam dentro do Suggest recolhido (RULES-16): abre antes.
     await descrever(dialog);
     await expect(dialog.getByText('This server has no local AI.')).toBeVisible();
-    await expect(dialog.getByText(/WEBHOOK_AI/)).toHaveCount(0);
+    await expect(dialog.getByText(/ANZOL_AI/)).toHaveCount(0);
     await expect(dialog.getByRole('button', { name: 'Suggest' })).toHaveAttribute(
       'aria-disabled',
       'true',

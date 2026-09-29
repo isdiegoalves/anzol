@@ -847,7 +847,7 @@ test.describe('Dado a faixa "sem conexão"', () => {
         'a contagem regressiva fica fora da região viva',
       ).toBe(true);
     }
-    await expect(conexao(page)).not.toContainText(/docker|WEBHOOK_|compose/i);
+    await expect(conexao(page)).not.toContainText(/docker|ANZOL_|compose/i);
     await expect(campoDeBusca(page)).toHaveValue('antes');
 
     await limparAnuncios(page);

@@ -15,7 +15,7 @@ after(limparTudo);
 const JSON_API = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
 /**
- * `WEBHOOK_SERVER` que o CLI herda nestes testes: porta fechada. Só o `--server` depois do
+ * `ANZOL_SERVER` que o CLI herda nestes testes: porta fechada. Só o `--server` depois do
  * subcomando leva ao app real, então um CLI que o ignore falha em todos.
  */
 const SERVIDOR_MORTO = 'http://127.0.0.1:9';
@@ -84,19 +84,19 @@ function pastaTemporaria() {
 }
 
 /**
- * Roda `webhook <args>` até o fim, com `WEBHOOK_SERVER` apontando para uma porta fechada. Erro de
+ * Roda `webhook <args>` até o fim, com `ANZOL_SERVER` apontando para uma porta fechada. Erro de
  * uso do CLI (comando que não existe, argumento a mais) falha aqui, com a saída, para que os casos
  * de erro não passem por acaso contra um CLI sem `rules pull|push`.
  */
 async function rodar(args) {
-  const anterior = process.env.WEBHOOK_SERVER;
-  process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
+  const anterior = process.env.ANZOL_SERVER;
+  process.env.ANZOL_SERVER = SERVIDOR_MORTO;
   let cli;
   try {
     cli = await iniciarCli(args);
   } finally {
-    if (anterior === undefined) delete process.env.WEBHOOK_SERVER;
-    else process.env.WEBHOOK_SERVER = anterior;
+    if (anterior === undefined) delete process.env.ANZOL_SERVER;
+    else process.env.ANZOL_SERVER = anterior;
   }
   const { codigo } = await cli.esperarSaida(30_000);
   const fluxo = (f) => cli.linhas.filter((l) => l.fluxo === f).map((l) => l.texto).join('\n');

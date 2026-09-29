@@ -14,21 +14,21 @@ import { buscarMensagem, criarToken, criarTokenProtegido, statusDoToken } from '
 afterEach(limparTudo);
 after(limparTudo);
 
-/** `WEBHOOK_SERVER` que o CLI herda: porta fechada. Só o `--server` depois dos argumentos leva ao app. */
+/** `ANZOL_SERVER` que o CLI herda: porta fechada. Só o `--server` depois dos argumentos leva ao app. */
 const SERVIDOR_MORTO = 'http://127.0.0.1:9';
 const SEM_COMANDO = /^Usage:|no such (sub)?command|no such option|unknown (command|option)|unexpected extra argument|missing argument/im;
 const JSON_ACCEPT = { Accept: 'application/json' };
 
 /** Roda o CLI até o fim; comando ou opção que não existe vira falha com mensagem clara. */
 async function rodar(args, prazo = 60_000) {
-  const anterior = process.env.WEBHOOK_SERVER;
-  process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
+  const anterior = process.env.ANZOL_SERVER;
+  process.env.ANZOL_SERVER = SERVIDOR_MORTO;
   let cli;
   try {
     cli = await iniciarCli(args);
   } finally {
-    if (anterior === undefined) delete process.env.WEBHOOK_SERVER;
-    else process.env.WEBHOOK_SERVER = anterior;
+    if (anterior === undefined) delete process.env.ANZOL_SERVER;
+    else process.env.ANZOL_SERVER = anterior;
   }
   const { codigo } = await cli.esperarSaida(prazo);
   const fluxo = (f) => cli.linhas.filter((l) => l.fluxo === f).map((l) => l.texto);
@@ -100,7 +100,7 @@ describe('anzol cursor', () => {
     const token = await criarTokenProtegido(segredo);
     const res = await fetch(`${SERVIDOR}/${token}/protegida`, { method: 'POST', body: 'x' });
     await res.arrayBuffer();
-    const esperado = await cursorPelaApi(token, { 'X-Webhook-Secret': segredo });
+    const esperado = await cursorPelaApi(token, { 'X-Anzol-Secret': segredo });
     assert.ok(esperado.seq > 0, 'pré-condição: a URL tem uma mensagem');
 
     const com = await cursor(token, '--read-secret', segredo);

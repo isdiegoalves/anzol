@@ -16,10 +16,10 @@ spec:
     metadata:
       labels:
         {{- include "anzol.selectorLabels" (dict "ctx" . "component" "app") | nindent 8 }}
-      {{- if and .Values.webhook.ai.apiKey (not .Values.webhook.ai.existingSecret) }}
+      {{- if and .Values.anzol.ai.apiKey (not .Values.anzol.ai.existingSecret) }}
       annotations:
         # Chave nova no upgrade reinicia o pod (a variável só é lida na partida).
-        checksum/ai-secret: {{ .Values.webhook.ai.apiKey | sha256sum }}
+        checksum/ai-secret: {{ .Values.anzol.ai.apiKey | sha256sum }}
       {{- end }}
     spec:
       automountServiceAccountToken: false
@@ -28,7 +28,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        # O usuário `webhook` do Dockerfile.
+        # O usuário `anzol` do Dockerfile.
         runAsNonRoot: true
         runAsUser: 999
         runAsGroup: 999
@@ -47,34 +47,34 @@ spec:
               value: {{ .Values.redis.external.host | default (include "anzol.redisName" .) | quote }}
             - name: REDIS_PORT
               value: {{ ternary .Values.redis.external.port 6379 (ne .Values.redis.external.host "") | quote }}
-            - name: WEBHOOK_ALLOWED_HOSTS
+            - name: ANZOL_ALLOWED_HOSTS
               value: {{ include "anzol.allowedHosts" . | quote }}
-            - name: WEBHOOK_MAX_REQUESTS
-              value: {{ .Values.webhook.maxRequests | quote }}
-            - name: WEBHOOK_EXPIRY
-              value: {{ .Values.webhook.expiry | quote }}
-            - name: WEBHOOK_FAULT_HOLD_MAX
-              value: {{ .Values.webhook.faultHoldMax | quote }}
-            - name: WEBHOOK_OUTBOUND_ALLOW_PRIVATE
-              value: {{ .Values.webhook.outbound.allowPrivate | quote }}
-            - name: WEBHOOK_OUTBOUND_LOCALHOST_ALIAS
-              value: {{ .Values.webhook.outbound.localhostAlias | quote }}
-            - name: WEBHOOK_MCP_ENABLED
-              value: {{ .Values.webhook.mcp.enabled | quote }}
-            - name: WEBHOOK_AI_ENABLED
-              value: {{ .Values.webhook.ai.enabled | quote }}
-            - name: WEBHOOK_AI_BASE_URL
-              value: {{ .Values.webhook.ai.baseUrl | quote }}
-            - name: WEBHOOK_AI_MODEL_JSON
-              value: {{ .Values.webhook.ai.modelJson | quote }}
-            - name: WEBHOOK_AI_MODEL_TEXT
-              value: {{ .Values.webhook.ai.modelText | quote }}
+            - name: ANZOL_MAX_REQUESTS
+              value: {{ .Values.anzol.maxRequests | quote }}
+            - name: ANZOL_EXPIRY
+              value: {{ .Values.anzol.expiry | quote }}
+            - name: ANZOL_FAULT_HOLD_MAX
+              value: {{ .Values.anzol.faultHoldMax | quote }}
+            - name: ANZOL_OUTBOUND_ALLOW_PRIVATE
+              value: {{ .Values.anzol.outbound.allowPrivate | quote }}
+            - name: ANZOL_OUTBOUND_LOCALHOST_ALIAS
+              value: {{ .Values.anzol.outbound.localhostAlias | quote }}
+            - name: ANZOL_MCP_ENABLED
+              value: {{ .Values.anzol.mcp.enabled | quote }}
+            - name: ANZOL_AI_ENABLED
+              value: {{ .Values.anzol.ai.enabled | quote }}
+            - name: ANZOL_AI_BASE_URL
+              value: {{ .Values.anzol.ai.baseUrl | quote }}
+            - name: ANZOL_AI_MODEL_JSON
+              value: {{ .Values.anzol.ai.modelJson | quote }}
+            - name: ANZOL_AI_MODEL_TEXT
+              value: {{ .Values.anzol.ai.modelText | quote }}
             {{- if $aiSecret }}
-            - name: WEBHOOK_AI_API_KEY
+            - name: ANZOL_AI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ $aiSecret }}
-                  key: {{ ternary .Values.webhook.ai.existingSecretKey "WEBHOOK_AI_API_KEY" (ne .Values.webhook.ai.existingSecret "") }}
+                  key: {{ ternary .Values.anzol.ai.existingSecretKey "ANZOL_AI_API_KEY" (ne .Values.anzol.ai.existingSecret "") }}
             {{- end }}
             {{- range $name, $value := .Values.otel }}
             - name: {{ $name }}

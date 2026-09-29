@@ -19,12 +19,12 @@ const httpError = (status: number, error: unknown = null, headers: Record<string
   new HttpErrorResponse({ status, error, headers: new HttpHeaders(headers) });
 
 describe('Dado um erro de saída (error.kind)', () => {
-  it('deve dizer que foi bloqueado e orientar sobre WEBHOOK_OUTBOUND_ALLOW_PRIVATE Quando é blocked', () => {
+  it('deve dizer que foi bloqueado e orientar sobre ANZOL_OUTBOUND_ALLOW_PRIVATE Quando é blocked', () => {
     const text = outboundErrorText({ kind: 'blocked', message: 'private address 10.0.0.5' });
 
     expect(text.title).toBe('Blocked');
     expect(text.detail).toBe('private address 10.0.0.5');
-    expect(text.hint).toContain('WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true');
+    expect(text.hint).toContain('ANZOL_OUTBOUND_ALLOW_PRIVATE=true');
   });
 
   it.each([

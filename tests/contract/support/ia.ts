@@ -6,7 +6,7 @@ import { pedidosAoLlm, type PedidoAoLlm } from './llm-falso.js';
 // com o LLM falso de `llm-falso.ts` no lugar do oMLX.
 //
 // IA e MCP são ligados ou desligados no app inteiro, não por URL. O contrato roda num modo por execução:
-// - `CONTRATO_IA=falso` (padrão): o app sob teste aponta `WEBHOOK_AI_BASE_URL` para o LLM falso
+// - `CONTRATO_IA=falso` (padrão): o app sob teste aponta `ANZOL_AI_BASE_URL` para o LLM falso
 //   (`http://host.docker.internal:18099`); os testes de 503 são pulados.
 // - `CONTRATO_IA=desligada`: stack com a IA desligada; só os testes de 503 rodam.
 // - `CONTRATO_MCP=ligado` (padrão) ou `desligado` (só o teste do 404 em `/mcp` roda).
@@ -16,7 +16,7 @@ import { pedidosAoLlm, type PedidoAoLlm } from './llm-falso.js';
 export const MODO_IA = process.env.CONTRATO_IA ?? 'falso';
 export const MODO_MCP = process.env.CONTRATO_MCP ?? 'ligado';
 
-/** Modelos da §1 (`WEBHOOK_AI_MODEL_JSON` e `WEBHOOK_AI_MODEL_TEXT`); declarar se o stack sob teste mudou. */
+/** Modelos da §1 (`ANZOL_AI_MODEL_JSON` e `ANZOL_AI_MODEL_TEXT`); declarar se o stack sob teste mudou. */
 export const MODELO_JSON = process.env.IA_MODELO_JSON ?? 'NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit';
 export const MODELO_TEXTO = process.env.IA_MODELO_TEXTO ?? 'KAT-Coder-V2.5-Dev-oQ4e-mtp';
 

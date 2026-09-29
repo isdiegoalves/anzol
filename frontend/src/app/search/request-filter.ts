@@ -319,7 +319,7 @@ export function waitForCommand(filter: RequestFilter, target: WaitForTarget): st
     ...matchArgs(filter),
   ];
   if (target.protected) {
-    parts.push('--read-secret "$WEBHOOK_READ_SECRET"');
+    parts.push('--read-secret "$ANZOL_READ_SECRET"');
   }
   return parts.join(' ');
 }

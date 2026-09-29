@@ -40,8 +40,8 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
 
 1. **Sem stack:** `backend` → `./gradlew check`; `cli` → `./gradlew check installDist`;
    `frontend` → `npm ci`, `ng lint`, `prettier --check .`, `ng test --watch=false`, `ng build`.
-2. **Stack isolado:** `docker compose -p webhookci` com o override `docker-compose.ci.yml` sobe o
-   app na porta 8088, com Redis `webhookci-redis` e volume `webhookci_redis-data` próprios. O app da
+2. **Stack isolado:** `docker compose -p anzolci` com o override `docker-compose.ci.yml` sobe o
+   app na porta 8088, com Redis `anzolci-redis` e volume `anzolci_redis-data` próprios. O app da
    8084 e o Redis `anzol-redis` (dados reais) não são tocados.
 3. **Integração contra a 8088:** contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E da tela
    (`frontend/e2e`) e aceite do CLI (`tests/cli`, com o CLI do passo 1).

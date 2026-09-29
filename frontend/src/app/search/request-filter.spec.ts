@@ -92,7 +92,7 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
 
   it('deve ler o segredo da variável, nunca o escrever, Quando a URL é protegida', () => {
     expect(waitForCommand(NO_FILTER, { ...target, protected: true })).toBe(
-      `anzol wait-for --server 'http://localhost:8084' --token tok-1 --read-secret "$WEBHOOK_READ_SECRET"`,
+      `anzol wait-for --server 'http://localhost:8084' --token tok-1 --read-secret "$ANZOL_READ_SECRET"`,
     );
   });
 

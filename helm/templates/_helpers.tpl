@@ -26,16 +26,16 @@ helm.sh/chart: {{ printf "%s-%s" .ctx.Chart.Name .ctx.Chart.Version }}
 
 {{/* Secret da chave de IA: o existente ou o criado pelo chart; vazio quando não há chave. */}}
 {{- define "anzol.aiSecretName" -}}
-{{- if .Values.webhook.ai.existingSecret -}}
-{{- .Values.webhook.ai.existingSecret -}}
-{{- else if .Values.webhook.ai.apiKey -}}
+{{- if .Values.anzol.ai.existingSecret -}}
+{{- .Values.anzol.ai.existingSecret -}}
+{{- else if .Values.anzol.ai.apiKey -}}
 {{- printf "%s-ai" (include "anzol.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
 {{/*
-WEBHOOK_ALLOWED_HOSTS: loopback (port-forward), os hosts do Ingress (com :443 os que têm TLS, porque o Origin
-https://host chega ao pod por HTTP) e os nomes de webhook.allowedHosts.
+ANZOL_ALLOWED_HOSTS: loopback (port-forward), os hosts do Ingress (com :443 os que têm TLS, porque o Origin
+https://host chega ao pod por HTTP) e os nomes de anzol.allowedHosts.
 */}}
 {{- define "anzol.allowedHosts" -}}
 {{- $hosts := list "localhost" "127.0.0.1" "[::1]" -}}
@@ -47,6 +47,6 @@ https://host chega ao pod por HTTP) e os nomes de webhook.allowedHosts.
 {{- end -}}
 {{- end -}}
 {{- end -}}
-{{- $hosts = concat $hosts .Values.webhook.allowedHosts -}}
+{{- $hosts = concat $hosts .Values.anzol.allowedHosts -}}
 {{- $hosts | uniq | join "," -}}
 {{- end -}}

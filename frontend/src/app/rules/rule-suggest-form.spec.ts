@@ -447,7 +447,7 @@ describe('Dado o "Describe the rule"', () => {
     expect(off.querySelector('a')?.getAttribute('href')).toBe(
       'https://github.com/isdiegoalves/anzol#ia-local',
     );
-    expect(element.textContent).not.toContain('WEBHOOK_AI');
+    expect(element.textContent).not.toContain('ANZOL_AI');
     const button = element.querySelector('.actions button') as HTMLElement;
     expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.getAttribute('aria-describedby')).toBe('suggest-off');

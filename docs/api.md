@@ -281,7 +281,7 @@ Para testar o timeout, a retentativa e o tratamento de erro de quem envia o webh
 | `delay` | espera antes de responder: `{"fixed": ms}`, `{"uniform": {"min": ms, "max": ms}}` (inteiros, sorteio no intervalo fechado) ou `{"lognormal": {"median": ms, "sigma": s}}` (mediana 1–60000, sigma 0–10, cortado em 60 s). Teto 60000 ms |
 | `dribble` | `{"chunks": 1..100, "durationMs": 0..60000}`: status e cabeçalhos na hora e o corpo dividido em `chunks` pedaços, um a cada `durationMs / chunks` ms, com flush (`Transfer-Encoding: chunked`) |
 | `fault` | a conexão falha no lugar da resposta: `connection_reset` (RST TCP), `empty_response` (fecha sem mandar nenhum byte), `malformed_chunk` (`HTTP/1.1 200 OK` chunked com um tamanho de chunk inválido, e fecha), `random_data_then_close` (1 KiB aleatório, e fecha) |
-| `fault: "hang"` | lê a requisição e não manda nenhum byte até o cliente desistir (percebido em até 5 s) ou até o teto `WEBHOOK_FAULT_HOLD_MAX` (padrão 300 s), e fecha: testa o timeout de leitura (socket) de quem envia |
+| `fault: "hang"` | lê a requisição e não manda nenhum byte até o cliente desistir (percebido em até 5 s) ou até o teto `ANZOL_FAULT_HOLD_MAX` (padrão 300 s), e fecha: testa o timeout de leitura (socket) de quem envia |
 | `fault: "stall_after_headers"` | manda o `status` e os `headers` da regra, com o `Content-Length` do `body`, e nenhum byte do corpo; fica presa como no `hang` |
 | `fault: "truncated_body"` | manda o `status`, os `headers` com o `Content-Length` do `body` inteiro e a primeira metade do corpo, e fecha: quem envia vê o corpo acabar antes da hora |
 
@@ -466,7 +466,7 @@ URL protegida sem acesso dá 401, como toda rota `/token/{id}/...`.
 ## Reenvio e envio pelo servidor
 
 > **Aviso de SSRF.** Aqui o servidor abre conexão para uma URL escolhida por quem usa a API. Com
-> `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` (o `docker-compose.yml` local) ele alcança a sua máquina e a rede privada em
+> `ANZOL_OUTBOUND_ALLOW_PRIVATE=true` (o `docker-compose.yml` local) ele alcança a sua máquina e a rede privada em
 > que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço público. Pelo mesmo motivo
 > o `docker-compose.yml` publica a porta só no loopback (`"127.0.0.1:8084:8080"`): publicada em todas as interfaces
 > (`"8084:8080"`) com `allow-private=true`, qualquer um na mesma rede, sem credencial, usaria o send como proxy para
@@ -533,7 +533,7 @@ vale o IP que os navegadores leem; IPv4 embutido em IPv6 (`::ffff:a.b.c.d`, `::a
 | IPs para os quais o `localhost-alias` resolve naquele disparo (o OrbStack põe `host.docker.internal` em `0.250.250.254`) | regra da faixa | liberado (menos `0.0.0.0` e `::`) |
 | demais (públicos) | liberado | liberado |
 
-Com `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS`, alvo cujos IPs são todos loopback (`localhost`, `127.0.0.1`, `[::1]`) vai
+Com `ANZOL_OUTBOUND_LOCALHOST_ALIAS`, alvo cujos IPs são todos loopback (`localhost`, `127.0.0.1`, `[::1]`) vai
 para o alias, que aparece em `target`: dentro do container, o `localhost` é o do container, não o do Mac.
 
 O comportamento exato (status, erros, limpeza automática e corpo de até 1 MiB) está descrito em

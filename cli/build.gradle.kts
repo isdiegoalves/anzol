@@ -6,7 +6,7 @@ plugins {
     id("dev.detekt") version "2.0.0-alpha.6"
 }
 
-group = "site.webhook"
+group = "anzol"
 version = "0.0.1-SNAPSHOT"
 
 // Constrói com o JDK 25 e roda em Java 21 (o LTS das máquinas de dev e de CI): classes no formato do 21 e, com o
@@ -48,7 +48,7 @@ dependencies {
 
 application {
     applicationName = "anzol"
-    mainClass = "site.webhook.cli.MainKt"
+    mainClass = "anzol.cli.MainKt"
 }
 
 // -PtestJavaVersion=21 roda os testes (e o CLI que eles disparam como processo) nesse Java; sem a propriedade, no do

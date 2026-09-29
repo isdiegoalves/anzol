@@ -258,7 +258,7 @@ test.describe('máscara (CA-3)', () => {
       cookie: `sessao=${v('cookie')}`,
       'set-cookie': `id=${v('setcookie')}`,
       'x-api-key': v('apikey'),
-      'x-webhook-secret': v('whsecret'),
+      'x-anzol-secret': v('whsecret'),
       // Pelo nome (fatia 05): contém token, key, secret, password ou auth.
       'x-auth-token': v('xauthtoken'),
       'x-api-keys': v('xapikeys'),

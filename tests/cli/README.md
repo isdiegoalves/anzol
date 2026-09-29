@@ -19,8 +19,8 @@ nome); use o glob acima ou rode de dentro da pasta.
 
 | Variável | Padrão | Uso |
 |---|---|---|
-| `WEBHOOK_CLI` | `cli/build/install/anzol/bin/anzol` (relativo à raiz do repo) | Script do CLI sob teste |
-| `WEBHOOK_SERVER` | `http://localhost:8084` | App real (só `http://`); também herdado pelo CLI |
+| `ANZOL_CLI` | `cli/build/install/anzol/bin/anzol` (relativo à raiz do repo) | Script do CLI sob teste |
+| `ANZOL_SERVER` | `http://localhost:8084` | App real (só `http://`); também herdado pelo CLI |
 
 Sem o CLI, cada teste falha com `CLI não encontrado em …; rode ./gradlew installDist`; sem o app,
 com `servidor Anzol não responde em …`.
@@ -47,7 +47,7 @@ temporária do sistema, apagada ao fim de cada teste.
   hop-by-hop, chunked) e assinatura do SSE; `rajada` (N POSTs com no máximo P em voo) e
   `mensagensPorSeq` (todas as mensagens por `after=<seq>` a partir de 0, a ordem que o reenvio deve
   seguir; falha se a API não devolve `seq`); `criarTokenProtegido(segredo)` cria uma URL com `read_secret` e a
-  apaga ao fim com o header `X-Webhook-Secret` (`apagarToken` aceita os cabeçalhos).
+  apaga ao fim com o header `X-Anzol-Secret` (`apagarToken` aceita os cabeçalhos).
 - `conferencia.mjs`: a regra de reenvio conferida contra a mensagem gravada, lida pela API.
 - `receptor.mjs`: o app local dos testes de caos, servidor HTTP que registra também a requisição cortada no meio do
   corpo (`completa: false`, com o `Content-Length` declarado e os bytes que chegaram), a hora dos cabeçalhos
@@ -94,7 +94,7 @@ temporária do sistema, apagada ao fim de cada teste.
 | `wait-for.test.mjs` saída (CA-6) | stdout inteiro é um array JSON com as mensagens que casaram, cada uma igual ao `GET /token/{id}/request/{id}`; stderr `matched <n>/<count> in <ms> ms`; prazo de 1500 sem casar → saída 1, `[]`, `timed out after <ms ≥ 1400> ms: 0/1 matched`, `closest: #<seq> <uuid>` da mensagem e uma linha `  - method … POST … PUT`; 2 de 3 → saída 1, as 2 no stdout, `2/3`, sem `closest`; `--count 3` com 4 → as 3 de menor `seq`; URL vazia com `--timeout 2500` → espera ≥ 2400 ms e sai com 1 (o prazo HTTP do CLI tem folga), sem `closest` |
 | `wait-for.test.mjs` código 2 (CA-6) | sem `--token`; `--after` com `--new`; `--match` e `--match-file` que não são JSON; arquivo inexistente; `--count` 0 e 101; 422 da API (regex inválida); token inexistente; servidor fora (`--server http://127.0.0.1:9`): saída 2 com mensagem no stderr |
 | `wait-for.test.mjs` `--new` e `--after` (CA-6) | `--new --timeout 0` com só uma antiga que casa → saída 1 e `[]`; `--new` com uma nova a cada 400 ms → saída 0 com uma das novas (nunca a antiga), antes do prazo; `--after <seq da 1ª> --count 2` → 2ª e 3ª; `--after <seq da mais nova>` → saída 1 |
-| `privacidade.test.mjs` com segredo (item 12, CA-5) | numa URL protegida (pré-condição: `GET /token/{id}` sem o header dá 401), com `--read-secret` e, em outro teste, com `WEBHOOK_READ_SECRET`: `listen` imprime `Listening on …` e entrega o POST (linha com o status do app); `replay` entrega a mensagem e sai com 0; `wait-for --path --timeout 0` sai com 0 e o stdout é a mensagem igual à da API; `rules push` grava (`Pushed 1 rule(s)`, conferido pela API) e `rules pull` devolve o que a API tem. Em toda execução o segredo não aparece no stdout nem no stderr |
+| `privacidade.test.mjs` com segredo (item 12, CA-5) | numa URL protegida (pré-condição: `GET /token/{id}` sem o header dá 401), com `--read-secret` e, em outro teste, com `ANZOL_READ_SECRET`: `listen` imprime `Listening on …` e entrega o POST (linha com o status do app); `replay` entrega a mensagem e sai com 0; `wait-for --path --timeout 0` sai com 0 e o stdout é a mensagem igual à da API; `rules push` grava (`Pushed 1 rule(s)`, conferido pela API) e `rules pull` devolve o que a API tem. Em toda execução o segredo não aparece no stdout nem no stderr |
 | `privacidade.test.mjs` sem segredo | `listen`, `replay`, `wait-for` e `rules pull` sem o segredo e com `--read-secret` errado: saída ≠ 0, nada chega ao app local, nenhum dos dois segredos na saída, a mensagem continua na URL |
 | `caos.test.mjs` duplicata e descarte | `listen --chaos-duplicate 50 --chaos-seed 7` com 8 mensagens: as da linha `[chaos: duplicate]` chegam duas vezes, a cópia logo depois da original, com os mesmos cabeçalhos (inclusive o `X-Request-Id` gravado) e o mesmo corpo; `Chaos: duplicate 50%; seed 7`; outra URL com a mesma semente duplica as mesmas posições. `--chaos-drop 50 --chaos-seed 11`: as da linha `-> dropped [chaos: drop]` não chegam, as outras sim, e a semente repete |
 | `caos.test.mjs` atraso, ordem, corte, gotejamento e prazo | `--chaos-delay 300..0.6s`: `[chaos: delay <ms>]` na faixa e a chegada pelo menos esse tempo depois do envio; `--chaos-reorder 3`: `held 1..3 of 3`, as três chegam noutra ordem e cada linha diz `reordered (arrived k of 3)`; com só 2, saem trocadas ~2 s depois; `--chaos-abort 100`: `cut after 500 of 1000 bytes`, o app vê `Content-Length: 1000`, os primeiros 500 bytes e a conexão fechada; `--chaos-slow 50`: 100 bytes em ≥ 5 pedaços ao longo de ≥ 1,5 s, inteiros; `--chaos-timeout 500ms` com o app demorando 5 s: `error: timed out after 500 ms [chaos: timeout]` em menos de 4 s |
@@ -118,7 +118,7 @@ temporária do sistema, apagada ao fim de cada teste.
   `GET /token/{id}/requests` (é onde o proxy apaga).
 - CA-13: o cursor apagado não conta como perdido: `Reconnected; forwarding 1 missed request(s)`.
 - `rules pull|push`: `--server` depois dos argumentos (`anzol rules pull <token> --server …`, a ordem
-  do Anexo C). O CLI herda `WEBHOOK_SERVER` apontando para uma porta fechada (`127.0.0.1:9`): só o
+  do Anexo C). O CLI herda `ANZOL_SERVER` apontando para uma porta fechada (`127.0.0.1:9`): só o
   `--server` leva ao app.
 - `rules pull` "formatado" = JSON com uma linha por campo e recuo; o conteúdo é comparado como JSON
   com o `GET` (a ordem das chaves não conta), mas a ida e volta compara os dois arquivos byte a byte.
@@ -135,15 +135,15 @@ temporária do sistema, apagada ao fim de cada teste.
   dele. O código de saída do erro fica livre, desde que não seja 0. Sem o comando, cada teste falha com `falta
   \`anzol cursor\` ou alguma opção dele?`.
 - `test`: o gatilho vem depois do `--`, `{url}` num argumento vira a URL; `--server` vem depois do
-  subcomando, e o CLI herda `WEBHOOK_SERVER` numa porta fechada. A URL criada é lida da primeira `<servidor>/<uuid>`
+  subcomando, e o CLI herda `ANZOL_SERVER` numa porta fechada. A URL criada é lida da primeira `<servidor>/<uuid>`
   que o CLI imprime, no stdout ou no stderr. Códigos: 0 casou, 1 não casou ou `--status` diferente, 2 erro, 3 o gatilho
   falhou; o texto das linhas é livre, menos o resumo do `wait-for` (`timed out after <ms> ms: <n>/<count> matched` e
   `closest: #<seq> …`) e a chave do 422 (`match.path.regex: …`). Sem o comando, cada teste falha com `falta \`anzol
   test\` ou alguma opção dele?`.
-- `bytecode.test.mjs`: a pasta `lib` é a irmã da pasta do script (`<WEBHOOK_CLI>/../../lib`). Classes em
+- `bytecode.test.mjs`: a pasta `lib` é a irmã da pasta do script (`<ANZOL_CLI>/../../lib`). Classes em
   `META-INF/versions/N/` com N > 21 são ignoradas (o Java 21 não as carrega). O teste não prova que o CLI roda num
   Java 21 de verdade, só que o bytecode permite: rodar fica com a matriz de JDK do CI.
-- `send`: `--to` é o alvo; não usa `--server` nem `WEBHOOK_SERVER`. Linhas casadas por inteiro, no stdout
+- `send`: `--to` é o alvo; não usa `--server` nem `ANZOL_SERVER`. Linhas casadas por inteiro, no stdout
   ou no stderr; `HH:mm:ss` é a hora local e o `(<ms> ms)` da tentativa não é conferido. Outras linhas
   são livres, mas toda linha com ` attempt ` ou ` attempt(s)` tem de seguir o formato da §1.
 - `send`: `<total>` = `--retries` + 1; a espera impressa é exata: `initial × 2^(n-1)` (sem jitter) ou
@@ -163,7 +163,7 @@ temporária do sistema, apagada ao fim de cada teste.
   (`Usage:`, `unexpected extra argument`, `no such subcommand`…). Esse erro de uso falha qualquer teste
   de `regras.test.mjs` com `o CLI em … recusou a linha de comando; falta anzol rules …?`, para os casos
   de erro não passarem contra um CLI sem os comandos.
-- `wait-for`: `--server` depois do subcomando; o CLI herda `WEBHOOK_SERVER` numa porta fechada. Os testes
+- `wait-for`: `--server` depois do subcomando; o CLI herda `ANZOL_SERVER` numa porta fechada. Os testes
   exigem o app com `POST /token/{id}/requests/wait` (ver `tests/contract/README.md`).
 - `wait-for`: o resumo são linhas do stderr casadas por inteiro: `matched <n>/<count> in <ms> ms`, ou
   `timed out after <ms> ms: <n>/<count> matched` seguida de `closest: #<seq> <uuid>` e de uma linha

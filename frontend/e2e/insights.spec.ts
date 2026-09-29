@@ -15,7 +15,7 @@ import { seedStorage } from './support/storage';
 //   com uma coluna "Requests";
 // - `region "Signature"` com os motivos (`signature.reasons`), `region "Schema"` com os caminhos
 //   (`schema.paths`, "(root)" para a raiz) e `region "Rules"` com as regras que responderam;
-// - `link "Open in Grafana"` para o dashboard `/d/webhook-site`.
+// - `link "Open in Grafana"` para o dashboard `/d/anzol`.
 
 const SECRET = 'segredo-dos-insights';
 
@@ -154,7 +154,7 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
 
     await expect(page.getByRole('link', { name: 'Open in Grafana' })).toHaveAttribute(
       'href',
-      /\/d\/webhook-site(\/|\?|$)/,
+      /\/d\/anzol(\/|\?|$)/,
     );
   });
 });

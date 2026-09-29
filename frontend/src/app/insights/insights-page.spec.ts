@@ -183,7 +183,7 @@ describe('Dado a página Insights', () => {
 
     const grafana = screen.getByRole('link', { name: 'Open in Grafana' });
     expect(grafana.getAttribute('href')).toBe(
-      `${location.protocol}//${location.hostname}:3000/d/webhook-site`,
+      `${location.protocol}//${location.hostname}:3000/d/anzol`,
     );
     expect(grafana.getAttribute('target')).toBe('_blank');
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));

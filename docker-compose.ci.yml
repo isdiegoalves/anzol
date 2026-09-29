@@ -1,28 +1,28 @@
 # Stack isolado do ./ci.sh, ao lado do app do dono (porta 8084, Redis `anzol-redis` com dados reais):
-#   docker compose -p webhookci -f docker-compose.yml -f docker-compose.ci.yml ...
-# O `-p webhookci` dá rede e volume próprios (webhookci_default, webhookci_redis-data), que o
+#   docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml ...
+# O `-p anzolci` dá rede e volume próprios (anzolci_default, anzolci_redis-data), que o
 # ./ci.sh apaga no fim com `down -v`. Aqui só muda o que o compose fixa e colidiria, e a exportação de
 # observabilidade sai: o tráfego do contrato não vai para o stack de observabilidade do dono.
 services:
   app:
     ports: !override
-      # Só no loopback, como o da 8084: com WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true o send alcança a LAN.
+      # Só no loopback, como o da 8084: com ANZOL_OUTBOUND_ALLOW_PRIVATE=true o send alcança a LAN.
       - "127.0.0.1:8088:8080"
     environment: !override
       - REDIS_HOST=redis
       # O contrato do reenvio sobe um receptor no host: o app precisa sair para ele (host.docker.internal).
-      - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
-      - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
+      - ANZOL_OUTBOUND_ALLOW_PRIVATE=true
+      - ANZOL_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
       # MCP e IA ligados, a IA no LLM falso OpenAI-compatível que o contrato (globalSetup) e o E2E sobem no host, na
       # 18099: o CI nunca fala com o oMLX. A chave é qualquer uma.
-      - WEBHOOK_MCP_ENABLED=true
-      - WEBHOOK_AI_ENABLED=true
-      - WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099
-      - WEBHOOK_AI_API_KEY=ci-fake
+      - ANZOL_MCP_ENABLED=true
+      - ANZOL_AI_ENABLED=true
+      - ANZOL_AI_BASE_URL=http://host.docker.internal:18099
+      - ANZOL_AI_API_KEY=ci-fake
       # Host e Origin conferidos como no compose da 8084 (o padrão do app; o contrato de privacidade depende da lista).
-      - WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
+      - ANZOL_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
       # Teto curto das conexões presas (hang, stall_after_headers): o teste do teto não espera os 300 s do padrão. O
       # contrato recebe o mesmo valor (ci.sh); abaixo de 30 s ele fecharia conexões que outros testes ainda conferem.
-      - WEBHOOK_FAULT_HOLD_MAX=30
+      - ANZOL_FAULT_HOLD_MAX=30
   redis:
-    container_name: webhookci-redis
+    container_name: anzolci-redis

@@ -165,7 +165,7 @@ export interface ErrorText {
 const ERROR_TEXTS: Record<OutboundErrorKind, Omit<ErrorText, 'detail'>> = {
   blocked: {
     title: $localize`Blocked`,
-    hint: $localize`The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.`,
+    hint: $localize`The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with ANZOL_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.`,
   },
   dns: {
     title: $localize`DNS lookup failed`,

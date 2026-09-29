@@ -4,11 +4,11 @@ import {
 
 // Limpeza automática (plano de features, itens 03 e 05). Substitui o antigo "limite de 500 → 410"
 // por decisão do dono: a URL nunca para de receber; mantém as N mais recentes (janela FIFO), com
-// N = auto_cleanup ?? WEBHOOK_MAX_REQUESTS do servidor.
+// N = auto_cleanup ?? ANZOL_MAX_REQUESTS do servidor.
 
 const MENSAGEM = 'The selected auto cleanup is invalid.';
 
-/** WEBHOOK_MAX_REQUESTS do app sob teste (padrão do servidor: 10000). Ver README. */
+/** ANZOL_MAX_REQUESTS do app sob teste (padrão do servidor: 10000). Ver README. */
 const TETO_PADRAO = Number(process.env.TETO_PADRAO ?? 10_000);
 
 /** Envia uma a uma (ordem de chegada garantida) e devolve os X-Request-Id. */

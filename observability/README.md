@@ -6,12 +6,12 @@ no Tempo e logs no Loki. Este diretório tem o dashboard desses dados e o script
 
 | Arquivo | O que é |
 |---|---|
-| `grafana/webhook-site.json` | Dashboard `webhook.site` (uid `webhook-site`): capturas, respostas (regras, assinatura, schema, falhas de rede), latência, 507 e limpeza, SSE e esperas, erros 5xx do app, JVM, logs e traces |
-| `import-dashboard.sh` | Cria ou atualiza o dashboard pela API do Grafana, na pasta `webhook.site` |
+| `grafana/anzol.json` | Dashboard `Anzol` (uid `anzol`): capturas, respostas (regras, assinatura, schema, falhas de rede), latência, 507 e limpeza, SSE e esperas, erros 5xx do app, JVM, logs e traces |
+| `import-dashboard.sh` | Cria ou atualiza o dashboard pela API do Grafana, na pasta `Anzol` |
 
 O dashboard espera os datasources com os uids `prometheus` (Mimir), `tempo` e `loki`, os do
 `observability-stack/grafana/datasources/grafana-datasources.yml`. A variável **Instância** separa o app do
-`docker-compose.yml` (`webhook-site-local`, o padrão) dos stacks de teste (`webhook-site-dev`).
+`docker-compose.yml` (`anzol-local`, o padrão) dos stacks de teste (`anzol-dev`).
 
 ## Importar pela API
 
@@ -31,9 +31,9 @@ uma pasta. No `observability-stack/docker-compose.yml`, serviço `grafana`, acre
 ao `observability-stack`; ajuste se os repositórios não forem vizinhos):
 
 ```yaml
-      - ../webhook.site/observability/grafana:/etc/grafana/provisioning/dashboards/webhook.site
+      - ../anzol/observability/grafana:/etc/grafana/provisioning/dashboards/anzol
 ```
 
-e recrie o Grafana (`docker compose up -d grafana`). O dashboard aparece na pasta `webhook.site` e
+e recrie o Grafana (`docker compose up -d grafana`). O dashboard aparece na pasta `anzol` e
 acompanha o arquivo a cada 10 s. Use uma forma só: com os dois, o provisionado e o importado disputam o
 mesmo uid.

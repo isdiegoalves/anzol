@@ -116,7 +116,7 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
     await salvar(page, tokenId);
     expect((await request.get(`/token/${tokenId}`)).status()).toBe(401);
     const comSegredo = await request.get(`/token/${tokenId}`, {
-      headers: { 'X-Webhook-Secret': SEGREDO },
+      headers: { 'X-Anzol-Secret': SEGREDO },
     });
     expect(comSegredo.status()).toBe(200);
     expect(await comSegredo.json()).toMatchObject({ protected: true });

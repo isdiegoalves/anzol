@@ -84,7 +84,7 @@ export class TokenTracker {
   async cleanup(): Promise<void> {
     for (const id of this.ids) {
       const secret = this.secrets.get(id);
-      const headers = secret ? { 'X-Webhook-Secret': secret } : undefined;
+      const headers = secret ? { 'X-Anzol-Secret': secret } : undefined;
       await this.api.delete(`/token/${id}/request`, { headers });
       await this.api.delete(`/token/${id}`, { headers });
     }

@@ -440,7 +440,7 @@ test.describe('Dado a aba Replay do painel', () => {
     await painel(page).getByRole('button', { name: 'Replay', exact: true }).click();
 
     await expect(resultado(page)).toContainText('Blocked');
-    await expect(resultado(page)).not.toContainText(/WEBHOOK_|docker|compose/i);
+    await expect(resultado(page)).not.toContainText(/ANZOL_|docker|compose/i);
   });
 });
 

@@ -396,7 +396,7 @@ jobs:
       redis:
         image: redis:8.10.2-alpine
       anzol:
-        image: ghcr.io/isdiegoalves/anzol:0.2.0
+        image: ghcr.io/isdiegoalves/anzol:0.3.0
         ports: ["8084:8080"]
         env:
           REDIS_HOST: redis
@@ -405,7 +405,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: isdiegoalves/anzol
-          ref: v0.2.0
+          ref: v0.3.0
           path: .anzol
       - uses: actions/setup-java@v4
         with:
@@ -426,10 +426,10 @@ Os serviços se acham pelo nome (`REDIS_HOST: redis`), e o CLI e o gatilho, que 
 
 ## Servidor
 
-`--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
+`--server <url>`, senão a variável `ANZOL_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
 `replay`, `rules`, `wait-for`, `cursor` e `test` (o `send` fala direto com o `--to`) e vem depois do subcomando: `anzol listen --server https://hooks.exemplo --forward …`,
 `anzol rules pull <token> --server https://hooks.exemplo`. URL protegida: `--read-secret`, na mesma posição, ou
-`WEBHOOK_READ_SECRET` (ver [Privacidade](privacidade.md#cli-e-mcp)).
+`ANZOL_READ_SECRET` (ver [Privacidade](privacidade.md#cli-e-mcp)).
 
 ## O que é reenviado
 

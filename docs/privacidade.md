@@ -36,7 +36,7 @@ Sem acesso, **toda** rota `/token/{id}/...` (o token, `DELETE`, mensagens, raw, 
 saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected","protected":true}`; só `unlock` e
 `lock` respondem. A captura `/{id}/...` não muda. Acesso é um destes:
 
-- cabeçalho `X-Webhook-Secret: <segredo>` (CLI, scripts);
+- cabeçalho `X-Anzol-Secret: <segredo>` (CLI, scripts);
 - o cookie de desbloqueio (a tela).
 
 No Redis fica só o PBKDF2-HMAC-SHA256 (sal aleatório de 16 bytes, 210.000 iterações) e `secret_version`, que muda a
@@ -50,7 +50,7 @@ segredo abre como não protegido.
 ### Cookie de desbloqueio
 
 `POST /token/{id}/unlock {"secret": "..."}` → `204` com
-`Set-Cookie: wh_access=<dia>.<HMAC-SHA256(chave do servidor, id:versão:dia)>; Path=/token/{id}; Max-Age=2592000;
+`Set-Cookie: anzol_access=<dia>.<HMAC-SHA256(chave do servidor, id:versão:dia)>; Path=/token/{id}; Max-Age=2592000;
 HttpOnly; SameSite=Strict` (e `Secure` quando a requisição chega em HTTPS, direto ou com `X-Forwarded-Proto: https`).
 Errado: `401 {"error":"Wrong secret"}`; sem `secret`: 422; URL sem proteção: `204` sem cookie. O cookie abre toda rota
 da URL, inclusive o SSE, sem o segredo passar pelo JavaScript. `POST /token/{id}/lock` apaga o cookie (`204`).
@@ -60,7 +60,7 @@ mesmo que o navegador ainda o mande. É o dia, e não o instante, para que dois 
 cookie; o prazo nunca passa de 30 dias (encurta menos de um dia). Cookies do formato anterior (sem o dia) deixaram de
 valer: quem os tinha desbloqueia de novo.
 
-A chave do servidor são 32 bytes aleatórios em `webhook:server-key` no Redis, criados no primeiro uso com `SET NX`
+A chave do servidor são 32 bytes aleatórios em `anzol:server-key` no Redis, criados no primeiro uso com `SET NX`
 (duas instâncias ficam com a mesma) e sem TTL: sobrevive a restart. Trocar ou remover o segredo muda a versão, então
 os cookies antigos param de valer (inclusive se o segredo for definido de novo), as conexões SSE e esperas abertas
 da URL são fechadas (quem reconectar passa de novo pelo acesso) e **todos os links só-leitura da URL são revogados**
@@ -68,13 +68,13 @@ da URL são fechadas (quem reconectar passa de novo pelo acesso) e **todos os li
 
 ### CLI e MCP
 
-No CLI, `--read-secret <segredo>` (depois do subcomando, como o `--server`) ou a variável `WEBHOOK_READ_SECRET` põe o
+No CLI, `--read-secret <segredo>` (depois do subcomando, como o `--server`) ou a variável `ANZOL_READ_SECRET` põe o
 cabeçalho em `listen`, `replay`, `wait-for`, `rules`, `cursor` e `test`. URL protegida sem o segredo certo: `This URL is
-protected: pass --read-secret or set WEBHOOK_READ_SECRET` no stderr e saída 1 (2 no `wait-for` e no `test`). O segredo
+protected: pass --read-secret or set ANZOL_READ_SECRET` no stderr e saída 1 (2 no `wait-for` e no `test`). O segredo
 nunca é impresso. Só ASCII imprimível: o cliente HTTP do Java troca os demais caracteres por `?` num cabeçalho.
 
 ```bash
-WEBHOOK_READ_SECRET='meu-segredo' anzol listen --token <uuid> --forward http://localhost:3000
+ANZOL_READ_SECRET='meu-segredo' anzol listen --token <uuid> --forward http://localhost:3000
 anzol rules pull <uuid> --read-secret 'meu-segredo'
 ```
 
@@ -105,7 +105,7 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
 - Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela. O link guarda a `secret_version`
   da URL na criação e só abre enquanto ela for a atual: um link criado no mesmo instante da troca também morre.
 - `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
-  `set-cookie`, `x-api-key`, `x-webhook-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`,
+  `set-cookie`, `x-api-key`, `x-anzol-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`,
   `auth`, `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (sem diferenciar maiúsculas: `X-Auth-Token`,
   `X-Api-Keys`, `X-Session-Id`) e do cabeçalho de assinatura do provedor
   configurado na URL, e os
@@ -121,8 +121,8 @@ O id são 128 bits aleatórios em base62; no Redis, `share:{sid}` com TTL igual 
 
 Uma página maliciosa aberta no navegador pode tentar usar a API local: por DNS rebinding (o nome dela passa a apontar
 para `127.0.0.1`, e o navegador manda `Host: nome-do-atacante`) ou por CSRF (um formulário de outro site, inclusive de
-outro app em outra porta do `localhost`: o `SameSite` do cookie não separa portas). Com `WEBHOOK_ALLOWED_HOSTS`
-(`webhook.allowed-hosts`, lista separada por vírgula; padrão fechado `localhost,127.0.0.1,[::1],host.docker.internal`),
+outro app em outra porta do `localhost`: o `SameSite` do cookie não separa portas). Com `ANZOL_ALLOWED_HOSTS`
+(`anzol.allowed-hosts`, lista separada por vírgula; padrão fechado `localhost,127.0.0.1,[::1],host.docker.internal`),
 as rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
 
 - `Host` fora da lista → `403 {"error":"host not allowed"}` (nome sem porta na lista casa qualquer porta);
@@ -135,7 +135,7 @@ as rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
 - `_method` num POST (campo de formulário ou query, que transformaria o POST de um `<form>` em PUT ou DELETE) →
   `403 {"error":"_method not allowed"}`, com ou sem `Origin`;
 - corpo de formulário (`application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain`, os que um `<form>`
-  manda sem preflight) com `Origin` ou com o cookie de desbloqueio `wh_access` (que só um navegador manda sozinho,
+  manda sem preflight) com `Origin` ou com o cookie de desbloqueio `anzol_access` (que só um navegador manda sozinho,
   mesmo quando omite o `Origin`) → `403 {"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` e sem o
   cookie (CLI, curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415, porque o tipo é aceito: o que se
   recusa é o formulário vindo de um navegador.

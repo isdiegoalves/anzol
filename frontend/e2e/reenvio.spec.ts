@@ -7,7 +7,7 @@ import { abrirMensagem, verificacoes, acaoDaMensagem } from './support/inbox';
 // Reenvio pelo servidor e envio pela tela (CA-5): Replay na mensagem, Send na barra da URL (com e
 // sem assinatura), "Send as new…" e a aba Outbound. Precisa do backend com
 // `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound`,
-// e de `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` no stack: o receptor roda neste processo (no host) e
+// e de `ANZOL_OUTBOUND_ALLOW_PRIVATE=true` no stack: o receptor roda neste processo (no host) e
 // o app, no container, o alcança por `host.docker.internal` (troque com E2E_RECEIVER_HOST).
 //
 // Item 14, E7: os diálogos Replay e Send viram o compositor da página Outbound (`region "Replay request"` e
@@ -157,7 +157,7 @@ test.describe('Dado uma mensagem recebida', () => {
     );
   });
 
-  test('deve mostrar o bloqueio com a orientação de WEBHOOK_OUTBOUND_ALLOW_PRIVATE Quando o destino é o endereço de metadados', async ({
+  test('deve mostrar o bloqueio com a orientação de ANZOL_OUTBOUND_ALLOW_PRIVATE Quando o destino é o endereço de metadados', async ({
     page,
     tokens,
   }) => {
@@ -173,7 +173,7 @@ test.describe('Dado uma mensagem recebida', () => {
 
     const alert = outboundDetail(page).getByRole('alert');
     await expect(alert).toContainText('Blocked');
-    await expect(alert).toContainText('WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true');
+    await expect(alert).toContainText('ANZOL_OUTBOUND_ALLOW_PRIVATE=true');
   });
 
   test('deve abrir o Send já preenchido com método, headers e corpo Quando "Send as new…" é clicado', async ({

@@ -26,7 +26,7 @@ export function garantirCli() {
     ok = false;
   }
   if (!ok) {
-    throw new Error(`CLI não encontrado em ${CLI}; rode ./gradlew installDist (cd cli && ./gradlew installDist) ou aponte WEBHOOK_CLI para o script`);
+    throw new Error(`CLI não encontrado em ${CLI}; rode ./gradlew installDist (cd cli && ./gradlew installDist) ou aponte ANZOL_CLI para o script`);
   }
 }
 

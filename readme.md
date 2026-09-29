@@ -35,7 +35,7 @@ docker network create anzol
 docker run -d --name anzol-db --network anzol -v anzol-db:/data redis:8.10.2-alpine \
   redis-server --maxmemory 1gb --maxmemory-policy noeviction
 docker run -d --name anzol --network anzol -p 127.0.0.1:8084:8080 -e REDIS_HOST=anzol-db \
-  ghcr.io/isdiegoalves/anzol:0.2.0
+  ghcr.io/isdiegoalves/anzol:0.3.0
 ```
 
 Ou a partir do repositório, com MCP, IA local e saída para a rede local já ligados:
@@ -151,7 +151,7 @@ Todas as rotas, os formatos e os erros estão em [`docs/api.md`](docs/api.md); o
 
 ### MCP
 
-Com `WEBHOOK_MCP_ENABLED=true`, o app é um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` com 15
+Com `ANZOL_MCP_ENABLED=true`, o app é um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` com 15
 ferramentas sobre a mesma API ([detalhes](docs/mcp-e-ia.md#mcp)):
 
 ```bash
@@ -160,7 +160,7 @@ claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
 
 ### IA local
 
-Com `WEBHOOK_AI_ENABLED=true`, um LLM local OpenAI-compatível sugere uma regra a partir de uma descrição e explica
+Com `ANZOL_AI_ENABLED=true`, um LLM local OpenAI-compatível sugere uma regra a partir de uma descrição e explica
 por que uma mensagem deu o resultado que deu. O payload não sai da máquina, e o LLM nunca grava nada. Variáveis,
 riscos e limites em [`docs/mcp-e-ia.md`](docs/mcp-e-ia.md#ia-local).
 
@@ -196,14 +196,14 @@ Todas as opções `--chaos-*` em [`docs/cli.md`](docs/cli.md#falhas-na-entrega-l
 
 | Variável (serviço `app`) | Padrão | O que faz |
 |---|---|---|
-| `WEBHOOK_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
-| `WEBHOOK_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
-| `WEBHOOK_FAULT_HOLD_MAX` | `300` | Segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a conexão; ela fecha antes se o cliente desistir |
-| `WEBHOOK_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](docs/api.md#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga e por isso publica a porta só em `127.0.0.1` (`"127.0.0.1:8084:8080"`); **deixe `false` ao publicar** |
-| `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app local) |
-| `WEBHOOK_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](docs/mcp-e-ia.md#mcp)). O `docker-compose.yml` liga |
-| `WEBHOOK_AI_ENABLED`, `WEBHOOK_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](docs/mcp-e-ia.md#ia-local)). O `docker-compose.yml` liga, apontando para o oMLX do Mac |
-| `WEBHOOK_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],host.docker.internal` | Nomes aceitos no `Host` das rotas de gestão e do `/mcp`, contra DNS rebinding; o `Origin` dos métodos que mudam estado só passa na mesma porta do `Host` ou com `nome:porta` na lista, contra CSRF (ver [Proteção contra DNS rebinding/CSRF](docs/privacidade.md#proteção-contra-dns-rebindingcsrf)). Vazio vale o padrão. `*` desliga a conferência da gestão: **inseguro** |
+| `ANZOL_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
+| `ANZOL_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
+| `ANZOL_FAULT_HOLD_MAX` | `300` | Segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a conexão; ela fecha antes se o cliente desistir |
+| `ANZOL_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](docs/api.md#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga e por isso publica a porta só em `127.0.0.1` (`"127.0.0.1:8084:8080"`); **deixe `false` ao publicar** |
+| `ANZOL_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app local) |
+| `ANZOL_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](docs/mcp-e-ia.md#mcp)). O `docker-compose.yml` liga |
+| `ANZOL_AI_ENABLED`, `ANZOL_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](docs/mcp-e-ia.md#ia-local)). O `docker-compose.yml` liga, apontando para o oMLX do Mac |
+| `ANZOL_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],host.docker.internal` | Nomes aceitos no `Host` das rotas de gestão e do `/mcp`, contra DNS rebinding; o `Origin` dos métodos que mudam estado só passa na mesma porta do `Host` ou com `nome:porta` na lista, contra CSRF (ver [Proteção contra DNS rebinding/CSRF](docs/privacidade.md#proteção-contra-dns-rebindingcsrf)). Vazio vale o padrão. `*` desliga a conferência da gestão: **inseguro** |
 
 Memória do Redis, observabilidade (OTLP para Grafana) e Kubernetes: [`docs/operacao.md`](docs/operacao.md) e
 [`docs/helm.md`](docs/helm.md).

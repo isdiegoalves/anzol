@@ -6,7 +6,7 @@ import {
 } from '../../support/privacidade.js';
 
 // CA-2 do item 12 (§1 do plano "privacidade"): `POST /token/{id}/unlock {"secret"}` com o segredo certo → 204 e
-// `Set-Cookie: wh_access=…; Path=/token/{id}; HttpOnly; SameSite=Strict; Max-Age=30 dias` (sem `Secure` em HTTP),
+// `Set-Cookie: anzol_access=…; Path=/token/{id}; HttpOnly; SameSite=Strict; Max-Age=30 dias` (sem `Secure` em HTTP),
 // que dá acesso às rotas de gestão, inclusive ao SSE. Errado → 401; 10 falhas por minuto por URL → 429 com
 // `Retry-After` na 11ª. Trocar o segredo invalida o cookie. `lock` apaga o cookie. No `PUT`, `read_secret` ausente
 // mantém a proteção e `null` a remove. O navegador mandaria o cookie pelo `Path`; aqui ele vai à mão.

@@ -11,7 +11,7 @@ import { buscarMensagem, criarToken, statusDoToken } from './support/servidor.mj
 afterEach(limparTudo);
 after(limparTudo);
 
-/** O CLI herda `WEBHOOK_SERVER` numa porta fechada: só o `--server` depois do subcomando leva ao app. */
+/** O CLI herda `ANZOL_SERVER` numa porta fechada: só o `--server` depois do subcomando leva ao app. */
 const SERVIDOR_MORTO = 'http://127.0.0.1:9';
 const SEM_COMANDO = /^Usage:|no such (sub)?command|no such option|unknown (command|option)|unexpected extra argument|missing argument/im;
 const URL_CRIADA = new RegExp(`${literal(SERVIDOR)}/(${UUID.source})`);
@@ -22,14 +22,14 @@ function gatilho(caminho, corpo) {
 }
 
 async function rodar(opcoes, comando = [], prazo = 60_000) {
-  const anterior = process.env.WEBHOOK_SERVER;
-  process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
+  const anterior = process.env.ANZOL_SERVER;
+  process.env.ANZOL_SERVER = SERVIDOR_MORTO;
   let cli;
   try {
     cli = await iniciarCli(['test', ...opcoes, '--server', SERVIDOR, ...(comando.length ? ['--', ...comando] : [])]);
   } finally {
-    if (anterior === undefined) delete process.env.WEBHOOK_SERVER;
-    else process.env.WEBHOOK_SERVER = anterior;
+    if (anterior === undefined) delete process.env.ANZOL_SERVER;
+    else process.env.ANZOL_SERVER = anterior;
   }
   const inicio = Date.now();
   const { codigo } = await cli.esperarSaida(prazo);
@@ -139,14 +139,14 @@ describe('anzol test: URL criada pelo comando', () => {
   });
 
   test('sem gatilho: mostra a URL e espera o webhook mandado de fora', { timeout: 90_000 }, async () => {
-    const anterior = process.env.WEBHOOK_SERVER;
-    process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
+    const anterior = process.env.ANZOL_SERVER;
+    process.env.ANZOL_SERVER = SERVIDOR_MORTO;
     let cli;
     try {
       cli = await iniciarCli(['test', '--path', '/de-fora', '--timeout', '20000', '--server', SERVIDOR]);
     } finally {
-      if (anterior === undefined) delete process.env.WEBHOOK_SERVER;
-      else process.env.WEBHOOK_SERVER = anterior;
+      if (anterior === undefined) delete process.env.ANZOL_SERVER;
+      else process.env.ANZOL_SERVER = anterior;
     }
     const [, token] = await cli.esperarLinha(URL_CRIADA, { prazo: 20_000 });
     await disparar(token, '/de-fora', '{}');

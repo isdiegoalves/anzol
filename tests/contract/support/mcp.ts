@@ -21,7 +21,7 @@ export type Ferramenta = Awaited<ReturnType<Client['listTools']>>['tools'][numbe
 export type ResultadoDeFerramenta = Awaited<ReturnType<Client['callTool']>>;
 
 export async function conectar(): Promise<Client> {
-  const cliente = new Client({ name: 'contrato-webhook-site', version: '1.0.0' });
+  const cliente = new Client({ name: 'contrato-anzol', version: '1.0.0' });
   try {
     await cliente.connect(new StreamableHTTPClientTransport(new URL('/mcp', BASE_URL)));
   } catch (erro) {

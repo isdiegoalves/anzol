@@ -30,7 +30,7 @@ import { seedStorage } from './support/storage';
 //   dizer "anzol wait-for")
 //   `anzol wait-for --server '<origem>' --token <uuid> --match '<o match da busca em JSON>'` e confirma num
 //   `status` que começa por "Copied"; com texto na busca, a confirmação avisa "The text search is not part of
-//   wait-for"; com a URL protegida, o comando leva `--read-secret "$WEBHOOK_READ_SECRET"` (nunca o segredo);
+//   wait-for"; com a URL protegida, o comando leva `--read-secret "$ANZOL_READ_SECRET"` (nunca o segredo);
 // - abaixo de 840 px aparece um painel por vez; o link permanente da mensagem abre o detalhe, com "Back to
 //   requests";
 // - a linha do header de assinatura mostra cada parte do valor num elemento próprio (`t=…`, `v1=…` no Stripe);
@@ -178,7 +178,7 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     await filtro(page, 'POST').click();
     const comando = await copiarWaitFor(page);
 
-    expect(comando).toContain('--read-secret "$WEBHOOK_READ_SECRET"');
+    expect(comando).toContain('--read-secret "$ANZOL_READ_SECRET"');
     expect(comando).not.toContain(SEGREDO_DE_LEITURA);
     expect(matchDe(comando)).toEqual({ method: ['POST'] });
   });

@@ -29,8 +29,8 @@ import { ProportionBar } from './proportion-bar';
 
 /** Porta do Grafana do stack de observabilidade local (`observability/README.md`). */
 const GRAFANA_PORT = 3000;
-/** O dashboard `observability/grafana/webhook-site.json` (uid `webhook-site`). */
-const GRAFANA_DASHBOARD = '/d/webhook-site';
+/** O dashboard `observability/grafana/anzol.json` (uid `anzol`). */
+const GRAFANA_DASHBOARD = '/d/anzol';
 
 /**
  * Insights (`#/{token}/insights`): KPIs e gráficos da URL a partir de `GET /token/{id}/stats`, com

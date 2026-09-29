@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Importa (cria ou atualiza) o dashboard grafana/webhook-site.json no Grafana pela API, na pasta "webhook.site".
+# Importa (cria ou atualiza) o dashboard grafana/anzol.json no Grafana pela API, na pasta "Anzol".
 # Credenciais só por variável de ambiente (nunca neste arquivo); a senha vai ao curl pela entrada padrão,
 # fora da linha de comando (não aparece no `ps`).
 #
 #   GRAFANA_URL=http://localhost:3000 GRAFANA_USER=admin GRAFANA_PASSWORD=... ./observability/import-dashboard.sh
 #
-# Requer curl e python3. Rodar de novo atualiza o mesmo dashboard (uid fixo `webhook-site`).
+# Requer curl e python3. Rodar de novo atualiza o mesmo dashboard (uid fixo `anzol`).
 
 set -euo pipefail
 
@@ -14,9 +14,9 @@ set -euo pipefail
 : "${GRAFANA_PASSWORD:?defina GRAFANA_PASSWORD}"
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DASHBOARD="$AQUI/grafana/webhook-site.json"
-PASTA_UID="webhook-site"
-PASTA_TITULO="webhook.site"
+DASHBOARD="$AQUI/grafana/anzol.json"
+PASTA_UID="anzol"
+PASTA_TITULO="Anzol"
 URL="${GRAFANA_URL%/}"
 
 TMP="$(mktemp -d)"

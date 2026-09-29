@@ -11,14 +11,14 @@ import { aoFinal, limparTudo } from './support/limpeza.mjs';
 import { caminhoGravado, criarTokenProtegido, enviarCru } from './support/servidor.mjs';
 
 // Aceite do segredo de leitura no CLI (item 12, §1 do plano "privacidade", CA-5): opção `--read-secret` (depois do
-// subcomando, como `--server`) ou env `WEBHOOK_READ_SECRET` → header `X-Webhook-Secret` em `listen`, `replay`,
+// subcomando, como `--server`) ou env `ANZOL_READ_SECRET` → header `X-Anzol-Secret` em `listen`, `replay`,
 // `wait-for` e `rules`. Contra uma URL protegida, o comando funciona com o segredo e não finge sucesso sem ele. O
 // segredo nunca aparece no stdout nem no stderr.
 
 afterEach(limparTudo);
 after(limparTudo);
 
-const HEADER = 'X-Webhook-Secret';
+const HEADER = 'X-Anzol-Secret';
 const USO_RECUSADO = /^Usage:|no such option|unknown option|unexpected extra argument|no such (sub)?command/im;
 
 function novoSegredo() {
@@ -85,7 +85,7 @@ async function rodar(args, env = {}, prazo = 60_000) {
 /** As duas formas de passar o segredo: a opção e a variável de ambiente. */
 const FORMAS = [
   { nome: '--read-secret', args: (s) => ['--read-secret', s], env: () => ({}) },
-  { nome: 'WEBHOOK_READ_SECRET', args: () => [], env: (s) => ({ WEBHOOK_READ_SECRET: s }) },
+  { nome: 'ANZOL_READ_SECRET', args: () => [], env: (s) => ({ ANZOL_READ_SECRET: s }) },
 ];
 
 describe('segredo de leitura no CLI', () => {
@@ -138,7 +138,7 @@ describe('segredo de leitura no CLI', () => {
 
     test(`rules push e pull com ${forma.nome}: gravam e leem as regras da URL protegida; o segredo não aparece`, { timeout: 60_000 }, async () => {
       const { token, segredo } = await urlProtegida();
-      const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'webhook-priv-'));
+      const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'anzol-priv-'));
       aoFinal(() => fs.rmSync(pasta, { recursive: true, force: true }));
       const arquivo = path.join(pasta, 'regras.json');
       fs.writeFileSync(arquivo, JSON.stringify([{ name: 'privada', match: { path: { equals: '/x' } }, response: { status: 202 } }]));

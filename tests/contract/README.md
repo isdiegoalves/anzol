@@ -31,12 +31,12 @@ npm run typecheck
 | `BASE_URL` | `http://localhost:8084` | App sob teste |
 | `EVENT_ADAPTER` | `sse` | Transporte do evento; `sse` é o único (o adaptador `redis` do app Laravel saiu com ele) |
 | `CONTRATO_ALVO` | `novo` | `novo` exige o comportamento corrigido nos defeitos do legado (abaixo); `legado` os marca `test.fail`, como quando o app Laravel era o alvo |
-| `TETO_PADRAO` | `10000` | O `WEBHOOK_MAX_REQUESTS` com que o app sob teste foi iniciado (limite das URLs sem `auto_cleanup`). O contrato não descobre esse valor pela API: rodar contra um app com outro teto exige declarar aqui (ex.: app com `WEBHOOK_MAX_REQUESTS=50` e `TETO_PADRAO=50` deixa o teste do teto rápido) |
-| `WEBHOOK_FAULT_HOLD_MAX` | `300` | O teto (s) de conexão presa com que o app sob teste foi iniciado. O teste do teto em `regras-falhas-conexao.spec.ts` espera por ele; o `./ci.sh` usa 30 (app e contrato). Abaixo de 30 o arquivo recusa rodar: os outros testes dele conferem conexões presas por até ~20 s |
-| `CONTRATO_IA` | `falso` | `falso`: o app sob teste usa o LLM falso (`WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`); `desligada`: stack com a IA desligada, onde só rodam os testes do 503. Sem a variável e com `BASE_URL` na 8084 (ligada ao oMLX real), os testes que chamam o LLM são pulados |
+| `TETO_PADRAO` | `10000` | O `ANZOL_MAX_REQUESTS` com que o app sob teste foi iniciado (limite das URLs sem `auto_cleanup`). O contrato não descobre esse valor pela API: rodar contra um app com outro teto exige declarar aqui (ex.: app com `ANZOL_MAX_REQUESTS=50` e `TETO_PADRAO=50` deixa o teste do teto rápido) |
+| `ANZOL_FAULT_HOLD_MAX` | `300` | O teto (s) de conexão presa com que o app sob teste foi iniciado. O teste do teto em `regras-falhas-conexao.spec.ts` espera por ele; o `./ci.sh` usa 30 (app e contrato). Abaixo de 30 o arquivo recusa rodar: os outros testes dele conferem conexões presas por até ~20 s |
+| `CONTRATO_IA` | `falso` | `falso`: o app sob teste usa o LLM falso (`ANZOL_AI_BASE_URL=http://host.docker.internal:18099`); `desligada`: stack com a IA desligada, onde só rodam os testes do 503. Sem a variável e com `BASE_URL` na 8084 (ligada ao oMLX real), os testes que chamam o LLM são pulados |
 | `CONTRATO_MCP` | `ligado` | `desligado`: stack com o MCP desligado, onde só roda o teste do 404 em `/mcp` |
 | `LLM_FALSO_PORTA` | `18099` | Porta do host onde o `globalSetup` sobe o LLM falso |
-| `IA_MODELO_JSON` / `IA_MODELO_TEXTO` | os padrões da §1 | O `WEBHOOK_AI_MODEL_JSON` / `WEBHOOK_AI_MODEL_TEXT` do app sob teste, se o stack os mudou |
+| `IA_MODELO_JSON` / `IA_MODELO_TEXTO` | os padrões da §1 | O `ANZOL_AI_MODEL_JSON` / `ANZOL_AI_MODEL_TEXT` do app sob teste, se o stack os mudou |
 
 Os testes de volume (`limpeza.spec.ts`, `volume.spec.ts`) mandam de 500 a ~10.000 webhooks por teste;
 o de volume grava ~150 MB no Redis do app sob teste e apaga tudo ao fim. Contra um app com dados
@@ -112,7 +112,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   5000 ou 10000 (número ou string; volta como número; `""` vale como ausente). Outro valor → 422
   `{"auto_cleanup": ["The selected auto cleanup is invalid."]}` (a mensagem da regra `in` do Laravel).
   `PUT` sem o campo volta a `null`. A URL **nunca** responde 410 por volume: guarda as N mais recentes
-  (janela FIFO), com N = `auto_cleanup ?? WEBHOOK_MAX_REQUESTS` (`TETO_PADRAO`). Casos: 510
+  (janela FIFO), com N = `auto_cleanup ?? ANZOL_MAX_REQUESTS` (`TETO_PADRAO`). Casos: 510
   mensagens com 500 → `total` 500, as 10 primeiras dão 404, a última é a mais nova; reduzir de 1000
   para 500 pelo `PUT` com 600 gravadas corta na hora, sem mensagem nova; 600 requisições com 20 em
   paralelo numa URL com 500 → exatamente 500 na listagem e no `total`; sem `auto_cleanup`, a 501ª
@@ -246,7 +246,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     gravada com a regra e `response: {status: 503}`, enquanto outra URL ainda prende; 200 `hang` simultâneos em 20 URLs
     → de 120 a 128 presas, o resto 503 com `128 held connections on this server`, e uma URL sem regra responde em menos
     de 2 s; a vaga volta depois que o cliente fecha. Sem o cliente desistir, `hang` e `stall_after_headers` fecham no
-    teto (`WEBHOOK_FAULT_HOLD_MAX`, de −5 s a +30 s), o `hang` sem nenhum byte (**teste lento**: espera o teto inteiro,
+    teto (`ANZOL_FAULT_HOLD_MAX`, de −5 s a +30 s), o `hang` sem nenhum byte (**teste lento**: espera o teto inteiro,
     300 s no padrão e 30 s no `./ci.sh`). Todo teste que prende conexão fica neste arquivo, que roda em sequência num
     worker: nenhuma outra spec pode mandar requisição a uma regra `hang` ou `stall_after_headers`.
   - *Sorteio* (`regras-chance.spec.ts`): `chance` 1, 50 e 100 vão e voltam; ausente ou `null`, a chave não aparece; 0,
@@ -456,7 +456,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   plano "reenvio-servidor"). O app sai com a requisição, então cada teste sobe um **receptor** HTTP em Node numa porta
   livre do host (escutando em `0.0.0.0`) e passa ao app o alvo `http://{ALVO_HOST}:{porta}`; o receptor guarda método,
   alvo cru, headers e corpo em bytes, e responde o que o teste pedir (status, headers, corpo, atraso). O stack de
-  teste roda com `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true` e `WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal` (o
+  teste roda com `ANZOL_OUTBOUND_ALLOW_PRIVATE=true` e `ANZOL_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal` (o
   `./ci.sh` liga os dois no `docker-compose.ci.yml`); sem eles o receptor é bloqueado e quase tudo falha.
 
   | Variável | Padrão | Uso |
@@ -541,7 +541,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   controlado). No OrbStack `host.docker.internal` resolve para `0.250.250.254`, dentro de `0.0.0.0/8`: o receptor só é
   alcançável porque a §1 libera os IPs do alias com `allow-private=true` (decisão de 2026-09-26); o contrato continua
   exigindo `0.0.0.0` bloqueado. Também fora: o formato de `at`, o texto de `error.message`, o contador
-  `webhook.outbound` (observabilidade), HTTPS/TLS e SNI (sem receptor TLS), o Retry-After exato, a expiração do
+  `anzol.outbound` (observabilidade), HTTPS/TLS e SNI (sem receptor TLS), o Retry-After exato, a expiração do
   histórico junto com o token (não observável no tempo de um teste), a chave `token:{id}:outbound` no Redis (apagar a
   URL só é observável como 410), `method` ausente no send, `keep_path` que não é booleano, alvo com query própria
   somada à da mensagem no replay e a tela (CA-5, E2E do frontend).
@@ -555,7 +555,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   repete a última): regra (o falso obedece ao `response_format`: com a propriedade `rule` no schema, responde
   `{rule, explanation}`; sem ela, a regra sozinha), conteúdo cru (com `reasoning_content` opcional), erro HTTP,
   conexão fechada ou atraso. O falso guarda cada pedido (corpo, headers, início e fim) para o teste conferir o prompt.
-  O stack sob teste precisa de IA e MCP ligados e `WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`.
+  O stack sob teste precisa de IA e MCP ligados e `ANZOL_AI_BASE_URL=http://host.docker.internal:18099`.
   - *MCP* (`ia-mcp.spec.ts`, CA-1): cliente do SDK oficial (`@modelcontextprotocol/sdk`, Streamable HTTP em
     `{BASE_URL}/mcp`). As 14 ferramentas da §1 listadas, com descrição e `inputSchema` de objeto, e todas menos
     `create_url` com o argumento do UUID da URL. Fluxo: `create_url` com opções (conferidas pelo `GET /token`) →
@@ -567,7 +567,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     `POST` e `GET /mcp` → 404.
   - *Suggest* (`ia-suggest.spec.ts`, CA-2): resposta válida → 200 `{rule, explanation, attempts: 1}`, a regra igual à
     do modelo, nada gravado (as regras existentes continuam), e a sugestão salva pelo `PUT /rules` funciona; o pedido
-    ao LLM usa `WEBHOOK_AI_MODEL_JSON`, `temperature` 0 e `response_format` `json_schema` estrito com um schema que
+    ao LLM usa `ANZOL_AI_MODEL_JSON`, `temperature` 0 e `response_format` `json_schema` estrito com um schema que
     fala de `match` e `response`, e leva o prompt do dono. Uma inválida e depois válida → `attempts: 2`, e o 2º pedido
     contém as mensagens com que o parser recusou a 1ª (as mesmas do 422 do `rules/test`). Conteúdo que não é JSON conta
     como tentativa inválida. Três inválidas, cada uma por um motivo → 422 cujo corpo contém as mensagens da última,
@@ -580,7 +580,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     Mensagem com assinatura errada, `id` fora do schema e near miss da regra → `explanation` é exatamente o `content`
     do modelo (sem o `reasoning_content`); `facts` contém o motivo da assinatura, `path` e `message` de cada erro do
     schema, o nome e as frases do near miss, o status 226, o header `x-hub-signature-256` e o início do corpo, e não
-    contém o segredo; o pedido ao LLM usa `WEBHOOK_AI_MODEL_TEXT`, leva os mesmos fatos e não leva o segredo; o corpo
+    contém o segredo; o pedido ao LLM usa `ANZOL_AI_MODEL_TEXT`, leva os mesmos fatos e não leva o segredo; o corpo
     (com uma injeção "IGNORE ALL PREVIOUS INSTRUCTIONS") vai fora da mensagem `system`, com texto antes e depois
     dele, e o resto do prompt diz que o conteúdo é não confiável e proíbe seguir instruções dele; a mensagem gravada
     não muda. Mensagem que casou a regra, com assinatura e schema válidos → o nome da regra e o 202 nos fatos, sem
@@ -606,7 +606,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   ligados no app inteiro, não por URL. O `./ci.sh` sobe um stack só, com os dois ligados, então no CI esses casos ficam
   com os testes do backend; o contrato os cobre quando roda com `CONTRATO_IA=desligada` / `CONTRATO_MCP=desligado`.
   Também ficam fora: o timeout de leitura de 90 s (lento demais para um teste), a chave de API
-  (`WEBHOOK_AI_API_KEY`, que no CI é qualquer uma), a métrica `webhook.ai.calls` e o span (observabilidade),
+  (`ANZOL_AI_API_KEY`, que no CI é qualquer uma), a métrica `anzol.ai.calls` e o span (observabilidade),
   `lang` no suggest, `request_id` inexistente no suggest, as ferramentas MCP além do fluxo do CA-1 (`update_url`,
   `list_requests`, `search_requests`, `get_request`, `get_rules`, `replay_request`, `send_request`,
   `get_outbound`: só o nome e o schema são exigidos) e a tela (CA-4, E2E do frontend).
@@ -614,10 +614,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
 - **Privacidade e segurança da API** (`specs/api/privacidade-*.spec.ts`, helpers em `support/privacidade.ts`; §1 do
   plano "privacidade", item 12). Os testes falam HTTP pelo `fetch` do Node, não pelo `request` do Playwright, porque o
   contexto do Playwright guarda cookies e o `Set-Cookie` do `unlock` iria sozinho nas chamadas seguintes: aqui cada
-  chamada diz que credencial leva (nenhuma, `X-Webhook-Secret` ou `Cookie: wh_access=…`). `Host` diferente vai por
+  chamada diz que credencial leva (nenhuma, `X-Anzol-Secret` ou `Cookie: anzol_access=…`). `Host` diferente vai por
   HTTP cru (`httpCruCompleto`, que também lê o corpo). A fixture `urls` cria URLs protegidas e as apaga ao fim com o
   segredo (a limpeza do `tokens` apaga sem credencial, o que numa URL protegida dá 401). O stack sob teste precisa de
-  `WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal` (o `./ci.sh` e o compose da 8084 a definem);
+  `ANZOL_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal` (o `./ci.sh` e o compose da 8084 a definem);
   a porta dos `Host` e `Origin` válidos vem do `BASE_URL`.
   - *Acesso* (`privacidade-acesso.spec.ts`, CA-1): numa URL protegida, as 25 rotas de gestão de `/token/{id}/**` (token
     `GET`/`PUT`/`DELETE`, `cors/toggle`, `requests`, `request/{rid}`, `raw`, `search`, `wait`, `rules`, `rules/test`,
@@ -631,13 +631,13 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     `protected` (`false` sem segredo, `true` com) e as chaves de sempre; o segredo não aparece no `POST`, `GET`, `PUT`
     (nem o novo nem o antigo, ao trocar), na mensagem, na listagem nem no 401. `read_secret` de 8 e 256 caracteres
     protege; 7 e 257 → 422 com a chave `read_secret`, no `POST` e no `PUT` (e o segredo anterior continua valendo).
-  - *Cookie* (`privacidade-cookie.spec.ts`, CA-2): `unlock` certo → 204 sem corpo e um `Set-Cookie` `wh_access` com
+  - *Cookie* (`privacidade-cookie.spec.ts`, CA-2): `unlock` certo → 204 sem corpo e um `Set-Cookie` `anzol_access` com
     `HttpOnly`, `SameSite=Strict`, `Path=/token/{id}`, `Max-Age=2592000`, sem `Secure` (HTTP) e sem `Domain`; o valor
     não contém o segredo e é o mesmo em dois unlocks (HMAC de id:versão). O cookie dá acesso a `GET`, `PUT`, `rules` e
     ao SSE (o evento chega); forjado, vazio ou de outra URL protegida → 401 (inclusive no SSE). Errado → 401 sem cookie;
     10 falhas e a 11ª → 429 com `Retry-After` inteiro de 1 a 60 e sem cookie; outra URL segue (401 errado, 204 certo).
     Trocar o segredo pelo `PUT` → o cookie e o header antigos dão 401, o novo abre, o unlock com o antigo dá 401 e o
-    novo cookie é outro. `lock` (com ou sem cookie) → 2xx com `Set-Cookie` `wh_access` de mesmo `Path`, expirado
+    novo cookie é outro. `lock` (com ou sem cookie) → 2xx com `Set-Cookie` `anzol_access` de mesmo `Path`, expirado
     (`Max-Age` ≤ 0 ou `Expires` no passado). `unlock` e `lock` respondem sem acesso. `PUT` sem `read_secret` (e `PUT
     {}`) → `protected` continua `true` e o segredo vale; `read_secret: null` → `protected: false` e tudo abre sem
     credencial (inclusive o SSE); `PUT` com texto numa URL aberta protege de novo.
@@ -654,7 +654,7 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     libera a vaga. **404 igual**: revogado, mensagem apagada, todas as mensagens apagadas e URL apagada respondem
     exatamente o 404 (status, Content-Type e corpo) de um id que nunca existiu; `GET /shares` da URL apagada → 410;
     ids fora do formato → 404. **Máscara** (mensagem gravada por HTTP cru): com `redact`, os valores de
-    `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-webhook-secret`, dos headers cujo
+    `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-anzol-secret`, dos headers cujo
     nome contém `token`, `key`, `secret`, `password` ou `auth` (`x-auth-token`, `x-api-keys`, `x-client-secret`,
     `x-db-password`, `x-authenticated-user`, `x-monkey`) e do header de assinatura do provedor configurado
     (`x-hub-signature-256` no GitHub; o `header` do `generic`) viram `["[redacted]"]`, e os valores de query cujo nome
@@ -703,9 +703,9 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   1 h; o link expirado some pelo TTL de `share:{sid}` e fica igual ao que nunca existiu, que é o que o contrato
   compara; o corte no tempo fica com os testes do backend), a lista vazia de `allowed-hosts` (padrão do app, sem
   checagem: outro stack), `Secure` no cookie sob HTTPS (o stack é HTTP), a comparação em tempo constante, o cache de
-  PBKDF2, o formato gravado no Redis (PBKDF2, `secret_version`, `webhook:server-key`, `share:{sid}`,
+  PBKDF2, o formato gravado no Redis (PBKDF2, `secret_version`, `anzol:server-key`, `share:{sid}`,
   `token:{id}:shares`) e o token antigo sem o campo (não protegido: lê o Redis, testes do backend), as métricas
-  `webhook.privacy.unlock` e `webhook.share` e "nenhum segredo em log" (observabilidade), `read_secret` no
+  `anzol.privacy.unlock` e `anzol.share` e "nenhum segredo em log" (observabilidade), `read_secret` no
   `create_url` do MCP e a tela (CA-5, E2E do frontend).
 
 - **UX de Regras: contrato novo** (C1–C5 e E-07, aprovados pelo dono em 2026-09-27; fonte única no
@@ -912,7 +912,7 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 
 | Antes | Agora | Por quê |
 |---|---|---|
-| 500 mensagens por URL; a 501ª recebia 410 `Too many requests, please create a new URL/token` e não era gravada (`limite.spec.ts`, removido) | Nunca 410 por volume: janela FIFO de `auto_cleanup ?? WEBHOOK_MAX_REQUESTS` (padrão 10000) | Queixa dos usuários: ao chegar em 500 a URL parava de receber. Decisões D1 (FIFO) e D2 (teto global) do plano |
+| 500 mensagens por URL; a 501ª recebia 410 `Too many requests, please create a new URL/token` e não era gravada (`limite.spec.ts`, removido) | Nunca 410 por volume: janela FIFO de `auto_cleanup ?? ANZOL_MAX_REQUESTS` (padrão 10000) | Queixa dos usuários: ao chegar em 500 a URL parava de receber. Decisões D1 (FIFO) e D2 (teto global) do plano |
 | Token sem `retry_after` e `auto_cleanup` | Campos novos, `null` por padrão, no JSON do token | Retry-After configurável por URL (requisito essencial do dono) e limpeza escolhida na tela |
 | Evento `{request, total, truncated}` | `{request, total, truncated, removed}` | A aba aberta tira da lista o que o servidor cortou |
 | Ordem indefinida entre mensagens do mesmo segundo | Ordem de chegada | Índice ordenado da listagem (item 02); a exclusão correspondente saiu |
@@ -926,9 +926,9 @@ os testes abaixo falhavam no app da época (antes das mudanças) e são o juiz d
 | Achar uma mensagem exigia rolar a listagem | `POST /token/{id}/requests/search` (texto sem diferenciar maiúsculas + `match` das regras, paginado como a listagem) | Feature "busca, filtro e diff" (2026-09-26): achar a mensagem que interessa entre milhares. Rota nova; nada do que existia muda |
 | Reenviar uma mensagem ou montar uma requisição só pelo CLI, do host | `POST /token/{id}/request/{rid}/replay`, `POST /token/{id}/send` e `GET /token/{id}/outbound` (o servidor sai, com proteções contra SSRF, 30 disparos por minuto e histórico das últimas 50) | Feature "reenvio pelo servidor e envio pela tela" (2026-09-26): reenviar da tela para o app do dono e ver a resposta. Rotas novas; nada do que existia muda |
 | Nenhuma IA nem MCP | Servidor MCP em `/mcp`, `POST /token/{id}/rules/suggest` e `POST /token/{id}/request/{rid}/explain`, com o LLM local do dono (desligados por padrão) | Feature "IA local" (item 13, 2026-09-26): agentes operam o Anzol por MCP, regra a partir de linguagem natural e diagnóstico da mensagem, sem o payload sair da máquina. Rotas novas; nada do que existia muda |
-| Quem tem o UUID lê e gere a URL; token sem `protected`; qualquer `Host` e `Origin` na API | `read_secret` opcional por URL: sem acesso, toda rota `/token/{id}/**` (fora `unlock`/`lock`) dá 401 `{"error":"This URL is protected","protected":true}`; `protected` no token; links só-leitura de uma mensagem (`/share/{sid}`); com `webhook.allowed-hosts` definido, `Host` fora da lista → 403 nas rotas de gestão e `Origin` fora da lista → 403 nos métodos que mudam estado | Item 12, "privacidade e segurança" (2026-09-26): pré-requisito para publicar. URL sem `read_secret` responde como antes. `protected` entrou em `CHAVES_TOKEN` (e no tipo `Token`), então os quatro testes que comparam as chaves do token passam a exigi-lo: `token.spec.ts` "sem campos: 201 com os padrões e exatamente as chaves do token", `schema-config.spec.ts` "POST com schema: 201 devolve o schema como enviado, e o GET também" e os dois de `assinatura-config.spec.ts` ("POST com signature: GET devolve o provedor e o segredo mascarado…" e "token com signature null; mensagem com signature null…"). Nenhum outro teste antigo mudou: nenhum manda `Host` fora da lista a uma rota de gestão nem `Origin` a um método de gestão (os `Host` e `Origin` estranhos dos testes antigos vão para a captura) |
+| Quem tem o UUID lê e gere a URL; token sem `protected`; qualquer `Host` e `Origin` na API | `read_secret` opcional por URL: sem acesso, toda rota `/token/{id}/**` (fora `unlock`/`lock`) dá 401 `{"error":"This URL is protected","protected":true}`; `protected` no token; links só-leitura de uma mensagem (`/share/{sid}`); com `anzol.allowed-hosts` definido, `Host` fora da lista → 403 nas rotas de gestão e `Origin` fora da lista → 403 nos métodos que mudam estado | Item 12, "privacidade e segurança" (2026-09-26): pré-requisito para publicar. URL sem `read_secret` responde como antes. `protected` entrou em `CHAVES_TOKEN` (e no tipo `Token`), então os quatro testes que comparam as chaves do token passam a exigi-lo: `token.spec.ts` "sem campos: 201 com os padrões e exatamente as chaves do token", `schema-config.spec.ts` "POST com schema: 201 devolve o schema como enviado, e o GET também" e os dois de `assinatura-config.spec.ts` ("POST com signature: GET devolve o provedor e o segredo mascarado…" e "token com signature null; mensagem com signature null…"). Nenhum outro teste antigo mudou: nenhum manda `Host` fora da lista a uma rota de gestão nem `Origin` a um método de gestão (os `Host` e `Origin` estranhos dos testes antigos vão para a captura) |
 | Link só-leitura com a mensagem inteira (`token_id` e a `url` com o UUID da URL); `redact` mascarava só a lista fixa de headers; trocar o segredo mantinha os links | Link sem `token_id` e com `[redacted]` no lugar do UUID da `url`, com ou sem `redact`; `redact` também mascara headers de nome com `token`, `key`, `secret`, `password` ou `auth`; definir, trocar ou remover o segredo revoga todos os links da URL | Correções da refutação do item 12 (fatia 05, decisões do dono, 2026-09-26): o link entregava o UUID da URL (quem o tem enviava à URL e, numa URL aberta, lia tudo), credenciais em header próprio escapavam da máscara e trocar o segredo não cortava quem tinha link. Mudou só `privacidade-share.spec.ts`: "numa URL protegida: cria com os padrões…", o teste de forma da máscara (`x-auth-token` e `x-api-keys` passaram de comuns a mascarados; entraram `x-client-secret`, `x-db-password`, `x-authenticated-user`, `x-monkey` e o comum `x-tok`) e "redact false…" passaram a comparar com a mensagem sem o UUID da URL; o `lerLinkOk` local exige as chaves da mensagem menos `token_id`; dois testes novos (o link não entrega a URL; trocar o segredo revoga) |
-| Resposta da captura sem `Content-Security-Policy` | Toda resposta da captura (padrão da URL, regra, `malformed_chunk`) com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, acrescentado depois dos cabeçalhos da regra (um CSP da regra se soma, não o tira) | Reauditoria do item 12 (decisão N2 do dono, 2026-09-26): a captura serve pelo mesmo endereço da tela, e um HTML com script respondido por uma URL rodava na origem da tela (lia o `localStorage` e chamava a API com o cookie). Teste novo: `privacidade-captura-sandbox.spec.ts`. Nenhum teste antigo mudou: nenhum trava o conjunto de cabeçalhos da captura (os de CORS usam `toMatchObject`, que aceita cabeçalhos a mais; o de `malformed_chunk` só confere a forma de cada linha). Na mesma rodada, sem teste de contrato novo (cobertos pelos testes do backend): o link público troca o UUID da URL no JSON inteiro (cabeçalhos, query, `request`, corpo), também com maiúsculas e `%hh`; o link guarda a `secret_version` e só abre com a atual; corpo de formulário sem `Origin` e com o cookie `wh_access` → 403 `form not allowed`; `redact` também mascara headers de nome com `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (nenhum teste de contrato tinha header com esses nomes) |
+| Resposta da captura sem `Content-Security-Policy` | Toda resposta da captura (padrão da URL, regra, `malformed_chunk`) com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, acrescentado depois dos cabeçalhos da regra (um CSP da regra se soma, não o tira) | Reauditoria do item 12 (decisão N2 do dono, 2026-09-26): a captura serve pelo mesmo endereço da tela, e um HTML com script respondido por uma URL rodava na origem da tela (lia o `localStorage` e chamava a API com o cookie). Teste novo: `privacidade-captura-sandbox.spec.ts`. Nenhum teste antigo mudou: nenhum trava o conjunto de cabeçalhos da captura (os de CORS usam `toMatchObject`, que aceita cabeçalhos a mais; o de `malformed_chunk` só confere a forma de cada linha). Na mesma rodada, sem teste de contrato novo (cobertos pelos testes do backend): o link público troca o UUID da URL no JSON inteiro (cabeçalhos, query, `request`, corpo), também com maiúsculas e `%hh`; o link guarda a `secret_version` e só abre com a atual; corpo de formulário sem `Origin` e com o cookie `anzol_access` → 403 `form not allowed`; `redact` também mascara headers de nome com `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (nenhum teste de contrato tinha header com esses nomes) |
 | Mensagem sem o que foi respondido; regras sem trace, sem prévia da resposta nem diferença antes de gravar; busca sem filtro por desfecho | `response` (`{status}` ou `{fault}`) em toda mensagem nova; `GET …/request/{rid}/rules/trace`; `outcome` na busca; `render=1..3` no `rules/test`; helper `hmac` com o segredo da URL; ferramenta MCP `diff_rules` e `anzol rules push --dry-run` | UX de Regras (C1–C5 e E-07, decisão do dono de 2026-09-27): explicar cada resposta e avisar o erro antes dele acontecer. Tudo aditivo, menos a chave `response`, que entrou em `CHAVES_MENSAGEM` (mudaram só os testes de forma que já comparavam as chaves: `mensagem.spec.ts`, `assinatura-config.spec.ts` e `privacidade-share.spec.ts`, pela constante). Sem o campo novo pedido, toda resposta é a de antes |
 | JSON quebrado ou JSON que não é objeto no `POST /token` criava a URL com os padrões (201), no `PUT /token/{id}` voltava a URL inteira aos padrões (200), no `POST …/share` criava o link com os padrões (201) e no `unlock` era lido como pedido sem `secret` (422); a validação de pedido JSON sem `Accept` respondia 302; `update_url` do MCP com um campo apagava os outros; `rules/suggest` devolvia `{rule, explanation, attempts}` | 400 no envelope de erro, sem criar nem alterar; 422 em JSON para pedido com `Content-Type` JSON; no `update_url`, campo ausente fica e `null` desliga; `check` no suggest | Patamar, fatia D1 (defeitos graves, decisão do dono de 2026-09-28): o `PUT` com JSON truncado perdia a configuração sem erro; o 302 escondia o erro de quem integra por script; o agente desligava assinatura e schema sem saber; 3 de 4 sugestões do estudo eram válidas na forma e erradas no sentido. Nenhum teste antigo mudou: nenhum mandava JSON quebrado nem pedido JSON sem `Accept`, e os do suggest não travam o conjunto de chaves. A exclusão "Validação para cliente não JSON" foi reescrita: o pedido JSON saiu dela |
 
@@ -1001,7 +1001,7 @@ ser aceitos pelo backend (commit `d5234e8`); hoje são testes comuns.
   (`application`), detalhe de infraestrutura.
 - **`page`/`per_page` zero, negativos ou não numéricos**: resultado degenerado do
   `Collection::forPage` (ex.: `per_page=-1` devolve todas menos a última). Nenhum cliente manda.
-- **Expiração de 7 dias** (`WEBHOOK_EXPIRY`): não observável no tempo de um teste.
+- **Expiração de 7 dias** (`ANZOL_EXPIRY`): não observável no tempo de um teste.
 - **`GET /token/{id}/request/latest`**: existe no `master` upstream mas não no app que roda
   hoje (lá responde 404). Fica fora até alguém decidir se entra.
 - **Valor exato de `ip`** (depende da rede do Docker; o contrato exige string não vazia e que

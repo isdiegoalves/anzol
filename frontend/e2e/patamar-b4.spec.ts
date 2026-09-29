@@ -688,7 +688,7 @@ test.describe('Dado a IA desligada ou no limite', () => {
 
     await expect(page.getByText('This server has no local AI.').first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'How to turn it on' }).first()).toBeVisible();
-    expect(await page.locator('body').innerText()).not.toMatch(/WEBHOOK_AI|docker/);
+    expect(await page.locator('body').innerText()).not.toMatch(/ANZOL_AI|docker/);
     await expect(page.getByRole('heading', { name: 'What the checks say' })).toBeVisible();
 
     const regra = await abrirEditor(page, tokenId);

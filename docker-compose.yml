@@ -5,7 +5,7 @@ services:
   app:
     build: .
     ports:
-      # Só no loopback do host: com WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true (abaixo), publicar em todas as interfaces
+      # Só no loopback do host: com ANZOL_OUTBOUND_ALLOW_PRIVATE=true (abaixo), publicar em todas as interfaces
       # ("8084:8080") transforma o send num proxy para a LAN, para a rede do Docker (o Redis) e para o próprio Mac,
       # aberto a qualquer um na mesma rede, sem credencial (o POST /token é aberto).
       - "127.0.0.1:8084:8080"
@@ -15,26 +15,26 @@ services:
       # host). Sem estas variáveis, o padrão do app, nada é exportado; com o Alloy fora do ar, o app segue normal.
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
       - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_SERVICE_NAME=webhook-site
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.instance.id=webhook-site-local
+      - OTEL_SERVICE_NAME=anzol
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.instance.id=anzol-local
       # Replay e send pelo servidor (uso local): liberam loopback e redes privadas como destino, e o `localhost` do
       # alvo vira o host do Docker (o Mac, onde roda o app do dono). O padrão do app, sem estas duas, só sai para
       # endereço público: é o que vale ao publicar.
-      - WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true
-      - WEBHOOK_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
+      - ANZOL_OUTBOUND_ALLOW_PRIVATE=true
+      - ANZOL_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
       # MCP em /mcp e IA local (oMLX do dono no Mac, porta 8000). Os dois são desligados no padrão do app; aqui ligam
       # porque a porta só escuta no loopback. A chave vem do `.env` ao lado deste arquivo (fora do git, permissão 600):
       # nunca aqui. Sem ela, ou com o oMLX fora do ar, o app sobe igual e só as rotas de IA respondem 502.
-      - WEBHOOK_MCP_ENABLED=true
-      - WEBHOOK_AI_ENABLED=true
-      - WEBHOOK_AI_BASE_URL=http://host.docker.internal:8000
-      - WEBHOOK_AI_API_KEY=${WEBHOOK_AI_API_KEY:-}
-      - WEBHOOK_AI_MODEL_JSON=NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
-      - WEBHOOK_AI_MODEL_TEXT=KAT-Coder-V2.5-Dev-oQ4e-mtp
+      - ANZOL_MCP_ENABLED=true
+      - ANZOL_AI_ENABLED=true
+      - ANZOL_AI_BASE_URL=http://host.docker.internal:8000
+      - ANZOL_AI_API_KEY=${ANZOL_AI_API_KEY:-}
+      - ANZOL_AI_MODEL_JSON=NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
+      - ANZOL_AI_MODEL_TEXT=KAT-Coder-V2.5-Dev-oQ4e-mtp
       # Contra DNS rebinding e CSRF (o padrão do app, escrito aqui para quem quiser acrescentar um nome): Host de
       # /token, /share e /mcp só com estes nomes, em qualquer porta; Origin dos métodos que mudam estado só na porta do
       # Host (ou nome:porta na lista). A captura e a tela não conferem. "*" desliga: inseguro.
-      - WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
+      - ANZOL_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
     extra_hosts:
       # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
       - "host.docker.internal:host-gateway"
@@ -47,7 +47,7 @@ services:
     image: "redis:8.10.2-alpine"
     # Teto de memória: cheio, o Redis recusa gravação (o webhook responde 507) em vez de despejar
     # chaves; nenhum token some. O que já está gravado continua legível. A limpeza por URL
-    # (auto_cleanup / WEBHOOK_MAX_REQUESTS) é o que mantém o uso abaixo do teto.
+    # (auto_cleanup / ANZOL_MAX_REQUESTS) é o que mantém o uso abaixo do teto.
     command: ["redis-server", "--maxmemory", "1gb", "--maxmemory-policy", "noeviction"]
     volumes:
       # Tokens e mensagens sobrevivem a `docker compose down` (o Redis grava o dump.rdb em /data).

@@ -19,7 +19,7 @@ afterEach(limparTudo);
 after(limparTudo);
 
 /**
- * `WEBHOOK_SERVER` que o CLI herda: porta fechada. Só o `--server` depois do subcomando leva ao app,
+ * `ANZOL_SERVER` que o CLI herda: porta fechada. Só o `--server` depois do subcomando leva ao app,
  * então um CLI que o ignore falha em todos.
  */
 const SERVIDOR_MORTO = 'http://127.0.0.1:9';
@@ -38,15 +38,15 @@ const LINHA_FRASE = /^ {2}- (.+)$/;
  * tempo de parede. Erro de uso por comando/opção inexistente vira falha com mensagem clara.
  */
 async function waitFor(args, { servidor = SERVIDOR, prazo = 60_000 } = {}) {
-  const anterior = process.env.WEBHOOK_SERVER;
-  process.env.WEBHOOK_SERVER = SERVIDOR_MORTO;
+  const anterior = process.env.ANZOL_SERVER;
+  process.env.ANZOL_SERVER = SERVIDOR_MORTO;
   let cli;
   const inicio = Date.now();
   try {
     cli = await iniciarCli(['wait-for', ...args, '--server', servidor]);
   } finally {
-    if (anterior === undefined) delete process.env.WEBHOOK_SERVER;
-    else process.env.WEBHOOK_SERVER = anterior;
+    if (anterior === undefined) delete process.env.ANZOL_SERVER;
+    else process.env.ANZOL_SERVER = anterior;
   }
   const { codigo } = await cli.esperarSaida(prazo);
   const ms = Date.now() - inicio;

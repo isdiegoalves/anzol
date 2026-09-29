@@ -7,7 +7,7 @@ import { SERVIDOR, pausa } from './ambiente.mjs';
 import { aoFinal } from './limpeza.mjs';
 
 const ALVO = new URL(SERVIDOR);
-if (ALVO.protocol !== 'http:') throw new Error(`WEBHOOK_SERVER precisa ser http:// (recebido ${SERVIDOR})`);
+if (ALVO.protocol !== 'http:') throw new Error(`ANZOL_SERVER precisa ser http:// (recebido ${SERVIDOR})`);
 const PORTA = Number(ALVO.port || 80);
 const JSON_ACCEPT = { Accept: 'application/json' };
 
@@ -19,14 +19,14 @@ export async function verificarServidor() {
   try {
     await fetch(`${SERVIDOR}/token/00000000-0000-0000-0000-000000000000`, { headers: JSON_ACCEPT });
   } catch (e) {
-    throw new Error(`servidor Anzol não responde em ${SERVIDOR} (${e.cause?.code ?? e.message}); suba com \`docker compose up -d\` ou aponte WEBHOOK_SERVER`);
+    throw new Error(`servidor Anzol não responde em ${SERVIDOR} (${e.cause?.code ?? e.message}); suba com \`docker compose up -d\` ou aponte ANZOL_SERVER`);
   }
   verificado = true;
 }
 
 /**
  * Apaga mensagens e depois o token (a ordem do contrato). Token inexistente responde 410: ok. `cabecalhos`
- * leva o segredo de uma URL protegida (`X-Webhook-Secret`).
+ * leva o segredo de uma URL protegida (`X-Anzol-Secret`).
  */
 export async function apagarToken(uuid, cabecalhos = {}) {
   await fetch(`${SERVIDOR}/token/${uuid}/request`, { method: 'DELETE', headers: { ...JSON_ACCEPT, ...cabecalhos } });
@@ -43,7 +43,7 @@ export async function criarTokenProtegido(segredo) {
   });
   if (res.status !== 201) throw new Error(`POST /token com read_secret respondeu ${res.status}: ${await res.text()}`);
   const { uuid } = await res.json();
-  aoFinal(() => apagarToken(uuid, { 'X-Webhook-Secret': segredo }));
+  aoFinal(() => apagarToken(uuid, { 'X-Anzol-Secret': segredo }));
   return uuid;
 }
 

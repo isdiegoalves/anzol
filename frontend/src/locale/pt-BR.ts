@@ -667,9 +667,9 @@ export const translations: Record<string, string> = {
   '1976452198769794416': 'Cabeçalhos enviados',
   // Blocked
   '9081463435738465430': 'Bloqueado',
-  // The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.
-  '2165560999562533130':
-    'O servidor não manda para endereços privados, de loopback ou link-local. Para um destino na sua máquina ou rede, suba o servidor com WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. Link-local (metadados de nuvem), multicast e 0.0.0.0 continuam bloqueados.',
+  // The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with ANZOL_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.
+  '2280768893811336375':
+    'O servidor não manda para endereços privados, de loopback ou link-local. Para um destino na sua máquina ou rede, suba o servidor com ANZOL_OUTBOUND_ALLOW_PRIVATE=true. Link-local (metadados de nuvem), multicast e 0.0.0.0 continuam bloqueados.',
   // DNS lookup failed
   '4373110240384910796': 'Falha na consulta DNS',
   // Check the host name of the target URL.

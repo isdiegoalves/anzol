@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 // LLM falso OpenAI-compatível para a IA local (§1 do plano "ia-local"). Sobe no host numa porta fixa
 // (`LLM_FALSO_PORTA`, padrão 18099) no `globalSetup` do Playwright, no processo do runner, e vale para
-// todos os workers; o app sob teste chega a ele por `WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`.
+// todos os workers; o app sob teste chega a ele por `ANZOL_AI_BASE_URL=http://host.docker.internal:18099`.
 //
 // Como os testes rodam em paralelo contra o mesmo falso, cada teste inventa um MARCADOR (texto sem
 // espaço nem aspas, que sai igual no JSON) e o põe no prompt do suggest ou no corpo da mensagem do

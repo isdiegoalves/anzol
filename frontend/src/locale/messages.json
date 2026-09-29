@@ -535,7 +535,7 @@
     "1774731303607671886": "no answer read",
     "337505396291553368": "No answer read",
     "9081463435738465430": "Blocked",
-    "2165560999562533130": "The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.",
+    "2280768893811336375": "The server does not send to private, loopback or link-local addresses. For a target on your machine or network, start the server with ANZOL_OUTBOUND_ALLOW_PRIVATE=true. Link-local (cloud metadata), multicast and 0.0.0.0 stay blocked.",
     "4373110240384910796": "DNS lookup failed",
     "2800780815474659104": "Check the host name of the target URL.",
     "4448321183127826742": "Connection failed",

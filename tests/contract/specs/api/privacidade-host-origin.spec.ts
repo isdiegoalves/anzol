@@ -6,8 +6,8 @@ import {
   test,
 } from '../../support/privacidade.js';
 
-// CA-4 do item 12 (§1 do plano "privacidade"): com `webhook.allowed-hosts` definido (o stack do `./ci.sh` roda com
-// `WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal`), as rotas de gestão (`/token`,
+// CA-4 do item 12 (§1 do plano "privacidade"): com `anzol.allowed-hosts` definido (o stack do `./ci.sh` roda com
+// `ANZOL_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal`), as rotas de gestão (`/token`,
 // `/token/**`, `/share/**`, `/mcp`) recusam `Host` fora da lista com 403 `{"error":"host not allowed"}`, e os
 // métodos que mudam estado (POST, PUT, PATCH, DELETE) recusam `Origin` presente de host fora da lista com 403
 // `{"error":"origin not allowed"}`. A captura `/{id}/**` e os arquivos da tela não mudam. O `Host` sai por HTTP

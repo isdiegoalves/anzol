@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # CI local: roda o que um pipeline rodaria. Unidade, lint e build de backend, cli e frontend; depois
-# contrato, E2E da tela, regressão visual e aceite do CLI contra um stack isolado (projeto compose `webhookci`, porta
+# contrato, E2E da tela, regressão visual e aceite do CLI contra um stack isolado (projeto compose `anzolci`, porta
 # 8088, Redis e volume próprios), que é derrubado no fim com `down -v`, mesmo com falha ou Ctrl+C.
 # Uma etapa que falha não interrompe as seguintes; o resumo mostra o quadro inteiro e a saída é
 # diferente de 0 se alguma falhou ou não rodou.
@@ -14,7 +14,7 @@ cd "$RAIZ" || exit 1
 
 PORTA=8088
 URL="http://localhost:$PORTA"
-COMPOSE=(docker compose -p webhookci -f docker-compose.yml -f docker-compose.ci.yml)
+COMPOSE=(docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml)
 export CI=true
 
 NOMES=()
@@ -85,7 +85,7 @@ STACK_NO_AR=0
 derrubar_stack() {
   [ "$STACK_NO_AR" -eq 1 ] || return 0
   STACK_NO_AR=0
-  printf '\n\033[1m==> derrubando o stack isolado (webhookci)\033[0m\n'
+  printf '\n\033[1m==> derrubando o stack isolado (anzolci)\033[0m\n'
   "${COMPOSE[@]}" down -v --rmi local --remove-orphans
 }
 
@@ -112,7 +112,7 @@ subir_stack() {
 
 contrato() {
   (cd tests/contract && npm ci --no-audit --no-fund &&
-    BASE_URL="$URL" TETO_PADRAO=10000 WEBHOOK_FAULT_HOLD_MAX=30 npx playwright test)
+    BASE_URL="$URL" TETO_PADRAO=10000 ANZOL_FAULT_HOLD_MAX=30 npx playwright test)
 }
 
 e2e_frontend() {
@@ -120,14 +120,14 @@ e2e_frontend() {
 }
 
 # Regressão visual (item 14, E11) na imagem Docker do Playwright da versão instalada: os pixels só batem com a mesma
-# fonte e o mesmo rasterizador. O container chega ao stack por host.docker.internal (na lista de WEBHOOK_ALLOWED_HOSTS).
+# fonte e o mesmo rasterizador. O container chega ao stack por host.docker.internal (na lista de ANZOL_ALLOWED_HOSTS).
 # Baselines em frontend/e2e/visual.spec.ts-snapshots; para regravar: (cd frontend && ./e2e-visual.sh <URL> -u).
 regressao_visual() {
   (cd frontend && ./e2e-visual.sh "$URL")
 }
 
 aceite_cli() {
-  (cd tests/cli && WEBHOOK_SERVER="$URL" WEBHOOK_CLI=cli/build/install/anzol/bin/anzol node --test)
+  (cd tests/cli && ANZOL_SERVER="$URL" ANZOL_CLI=cli/build/install/anzol/bin/anzol node --test)
 }
 
 # --- Resumo ---------------------------------------------------------------------------------------

@@ -189,7 +189,7 @@ describe('Dado o painel do "Explain"', () => {
     expect(screen.getByRole('link', { name: 'How to turn it on' }).getAttribute('href')).toContain(
       '#ia-local',
     );
-    expect(element.textContent).not.toMatch(/WEBHOOK_AI|docker/);
+    expect(element.textContent).not.toMatch(/ANZOL_AI|docker/);
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 

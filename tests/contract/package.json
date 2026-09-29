@@ -1,5 +1,5 @@
 {
-  "name": "webhook-site-contrato",
+  "name": "anzol-contrato",
   "private": true,
   "description": "Contrato de paridade caixa-preta da API HTTP e do evento request.created do Anzol",
   "type": "module",

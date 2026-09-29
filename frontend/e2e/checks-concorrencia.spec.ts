@@ -197,7 +197,7 @@ test.describe('Dado uma URL protegida aberta nesta tela, com um rascunho em outr
       )
       .toBe(false);
     const comNovo = await request.get(`/token/${tokenId}`, {
-      headers: { 'X-Webhook-Secret': SEGREDO_NOVO },
+      headers: { 'X-Anzol-Secret': SEGREDO_NOVO },
     });
     expect(comNovo.status()).toBe(200);
   });

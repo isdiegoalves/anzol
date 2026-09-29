@@ -2,7 +2,7 @@
 
 ## MCP
 
-Com `WEBHOOK_MCP_ENABLED=true` (ligado no `docker-compose.yml`), o app é um servidor
+Com `ANZOL_MCP_ENABLED=true` (ligado no `docker-compose.yml`), o app é um servidor
 [MCP](https://modelcontextprotocol.io) em `/mcp` (Streamable HTTP, Spring AI 2.0): agentes de IA operam o
 Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude Code:
 
@@ -28,17 +28,17 @@ rota devolveria, com o segredo de assinatura mascarado. Validação, URL ou mens
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 
-Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `WEBHOOK_ALLOWED_HOSTS` (ver [Proteção contra
+Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `ANZOL_ALLOWED_HOSTS` (ver [Proteção contra
 DNS rebinding/CSRF](privacidade.md#proteção-contra-dns-rebindingcsrf)); com `*` na lista, só o padrão (`localhost`, `127.0.0.1`,
 `[::1]` e `host.docker.internal`). URL protegida exige o argumento `read_secret` (ver [Privacidade](privacidade.md#privacidade)).
 
 O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs sem segredo de
-leitura, inclusive o `send` para a rede local quando `WEBHOOK_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica
+leitura, inclusive o `send` para a rede local quando `ANZOL_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica
 só em `127.0.0.1`; não ligue o MCP num app publicado.
 
 ## IA local
 
-Com `WEBHOOK_AI_ENABLED=true`, duas rotas usam um LLM local OpenAI-compatível (no `docker-compose.yml`, o
+Com `ANZOL_AI_ENABLED=true`, duas rotas usam um LLM local OpenAI-compatível (no `docker-compose.yml`, o
 oMLX do Mac, em `host.docker.internal:8000`). Os payloads não saem da máquina, e o
 LLM nunca grava nada.
 
@@ -59,15 +59,15 @@ LLM nunca grava nada.
 
 | Variável | Padrão | O que faz |
 |---|---|---|
-| `WEBHOOK_AI_ENABLED` | `false` | Liga as rotas; desligada, respondem `503 {"error": "AI is not configured"}` e o resto da API segue igual |
-| `WEBHOOK_AI_BASE_URL` | `http://localhost:8000` | Raiz do servidor, sem o `/v1` (o app chama `{base}/v1/chat/completions`). No compose, `http://host.docker.internal:8000` |
-| `WEBHOOK_AI_API_KEY` | vazia | `Authorization: Bearer`; vazia, o pedido sai sem o cabeçalho. O compose lê de um `.env` ao lado dele, fora do git (permissão 600): **nunca** no compose, no repositório ou no log |
-| `WEBHOOK_AI_MODEL_JSON` | `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` | Modelo do suggest (saída estruturada) |
-| `WEBHOOK_AI_MODEL_TEXT` | `KAT-Coder-V2.5-Dev-oQ4e-mtp` | Modelo do explain |
+| `ANZOL_AI_ENABLED` | `false` | Liga as rotas; desligada, respondem `503 {"error": "AI is not configured"}` e o resto da API segue igual |
+| `ANZOL_AI_BASE_URL` | `http://localhost:8000` | Raiz do servidor, sem o `/v1` (o app chama `{base}/v1/chat/completions`). No compose, `http://host.docker.internal:8000` |
+| `ANZOL_AI_API_KEY` | vazia | `Authorization: Bearer`; vazia, o pedido sai sem o cabeçalho. O compose lê de um `.env` ao lado dele, fora do git (permissão 600): **nunca** no compose, no repositório ou no log |
+| `ANZOL_AI_MODEL_JSON` | `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` | Modelo do suggest (saída estruturada) |
+| `ANZOL_AI_MODEL_TEXT` | `KAT-Coder-V2.5-Dev-oQ4e-mtp` | Modelo do explain |
 
 ```bash
 # .env na raiz do repositório (ignorado pelo git): a chave do oMLX
-echo 'WEBHOOK_AI_API_KEY=<chave>' > .env && chmod 600 .env
+echo 'ANZOL_AI_API_KEY=<chave>' > .env && chmod 600 .env
 ```
 
 Cada chamada tem até 90 s (temperatura 0, sem retentativa); o app lê só o `content` da resposta (o

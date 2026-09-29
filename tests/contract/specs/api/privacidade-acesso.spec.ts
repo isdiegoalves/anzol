@@ -7,7 +7,7 @@ import {
 
 // CA-1 do item 12 (§1 do plano "privacidade"): numa URL protegida, toda rota `/token/{id}/**` (fora `unlock` e
 // `lock`) responde 401 `{"error":"This URL is protected","protected":true}` sem acesso e com o header errado, e
-// responde como numa URL aberta com o header `X-Webhook-Secret` certo. A captura `/{id}/**` não muda. O token
+// responde como numa URL aberta com o header `X-Anzol-Secret` certo. A captura `/{id}/**` não muda. O token
 // informa `protected` e o segredo nunca volta.
 //
 // As varreduras usam uma URL nova a cada 8 rotas: a §1 limita as falhas de segredo a 10 por minuto por URL (429

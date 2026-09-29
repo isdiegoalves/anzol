@@ -1,0 +1,212 @@
+package anzol.cli
+
+import com.github.ajalt.clikt.core.BaseCliktCommand
+import com.github.ajalt.clikt.core.CliktError
+import com.github.ajalt.clikt.core.Context
+import com.github.ajalt.clikt.core.CoreCliktCommand
+import com.github.ajalt.clikt.core.CoreNoOpCliktCommand
+import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.core.UsageError
+import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.parse
+import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.convert
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.validate
+import sun.misc.Signal
+import java.io.IOException
+import java.net.http.HttpClient
+import java.time.Duration
+import kotlin.system.exitProcess
+
+private const val DEFAULT_SERVER = "http://localhost:8084"
+private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
+private val REORDER_RELEASE: Duration = Duration.ofSeconds(2)
+
+/**
+ * O `main` do Clikt, com uma troca: uso inválido do `wait-for` e do `test` sai com 2, porque o 1 deles é "não casou"; e
+ * uma opção de caos inválida no `listen` e no `replay` também.
+ */
+fun main(args: Array<String>) {
+    val anzol =
+        Anzol().subcommands(
+            Cursor(),
+            Listen(),
+            Replay(),
+            Rules().subcommands(RulesPull(), RulesPush()),
+            Send(),
+            TestCycle(),
+            WaitFor(),
+        )
+    try {
+        anzol.parse(args)
+    } catch (e: UsageError) {
+        anzol.echoFormattedHelp(e)
+        exitProcess(usageStatus(e))
+    } catch (e: CliktError) {
+        anzol.echoFormattedHelp(e)
+        exitProcess(e.statusCode)
+    }
+}
+
+private fun usageStatus(error: UsageError): Int {
+    val command = error.context?.command
+    return when {
+        command is WaitFor || command is TestCycle -> WAIT_FOR_ERROR
+        (command is Listen || command is Replay) && error.concernsChaos() -> CHAOS_USAGE_ERROR
+        else -> error.statusCode
+    }
+}
+
+/**
+ * O `clikt-core` (sem o Mordant, que no JDK 25 avisa sobre acesso nativo no stderr) não lê
+ * variável de ambiente, não separa stderr e não encerra o processo: os três ficam ligados aqui.
+ */
+class Anzol : CoreNoOpCliktCommand(name = "anzol") {
+    init {
+        context {
+            readEnvvar = System::getenv
+            exitProcess = { status -> kotlin.system.exitProcess(status) }
+            echoMessage = { _, message, trailingNewline, err ->
+                val stream = if (err) System.err else System.out
+                stream.print(if (trailingNewline) "$message\n" else message)
+                stream.flush()
+            }
+        }
+    }
+
+    override fun help(context: Context) =
+        "Delivers the webhooks captured by Anzol to an app running locally, or sends webhooks to it as a provider would."
+}
+
+/** HTTP/1.1 sempre: o padrão do `java.net.http` tentaria upgrade para h2c no app local. */
+fun httpClient(connectTimeout: Duration = CONNECT_TIMEOUT): HttpClient =
+    HttpClient
+        .newBuilder()
+        .version(HttpClient.Version.HTTP_1_1)
+        .connectTimeout(connectTimeout)
+        .build()
+
+/** `--server`, senão `ANZOL_SERVER`, senão o app local da porta 8084. */
+fun BaseCliktCommand<*>.serverOption() =
+    option("--server", envvar = "ANZOL_SERVER", help = "Anzol server (default $DEFAULT_SERVER)").default(DEFAULT_SERVER)
+
+/** Caracteres que o `HttpClient` do JDK manda num cabeçalho: os demais ele troca por `?` sem avisar. */
+private val HEADER_TEXT = ' '..'~'
+
+/**
+ * `--read-secret`, senão `ANZOL_READ_SECRET`: o segredo de leitura de uma URL protegida. Nunca é impresso, nem no
+ * erro de validação. Só ASCII imprimível: o cabeçalho do `HttpClient` não leva outro caractere.
+ */
+fun BaseCliktCommand<*>.readSecretOption() =
+    option(
+        "--read-secret",
+        envvar = "ANZOL_READ_SECRET",
+        help = "Read secret of a protected URL, sent as $SECRET_HEADER (or set ANZOL_READ_SECRET)",
+    ).validate { secret ->
+        require(secret.all { it in HEADER_TEXT }) { "the read secret must be printable ASCII to go in the $SECRET_HEADER header" }
+    }
+
+/** O que dizer quando a URL não dá acesso; nulo quando dá. */
+fun TokenAccess.failure(): String? =
+    when (this) {
+        TokenAccess.OPEN -> null
+        TokenAccess.PROTECTED -> "This URL is protected: pass --read-secret or set ANZOL_READ_SECRET"
+        TokenAccess.LIMITED -> "Too many wrong read secrets for this URL; try again in a minute"
+        TokenAccess.NOT_FOUND -> "Token not found"
+    }
+
+/** Confere o acesso à URL antes de começar: protegida sem o segredo certo ou inexistente sai com [status]. */
+fun BaseCliktCommand<*>.requireAccess(
+    site: AnzolServer,
+    token: TokenId,
+    status: Int = 1,
+) {
+    reaching(site, status) { site.access(token) }.failure()?.let { fail(it, status) }
+}
+
+/** Mensagem no stderr e saída [status]. */
+fun BaseCliktCommand<*>.fail(
+    message: String,
+    status: Int = 1,
+): Nothing {
+    echo(message, err = true)
+    throw ProgramResult(status)
+}
+
+fun BaseCliktCommand<*>.echoErrors(errors: Map<String, List<String>>) =
+    errors.forEach { (key, messages) -> messages.forEach { echo("$key: $it", err = true) } }
+
+/** Servidor fora do ar na partida vira mensagem curta, não stack trace, e saída [status]. */
+fun <T> BaseCliktCommand<*>.reaching(
+    site: AnzolServer,
+    status: Int = 1,
+    call: () -> T,
+): T =
+    try {
+        call()
+    } catch (e: IOException) {
+        fail("Could not reach ${site.base}: ${e.reason()}", status)
+    }
+
+class Listen : CoreCliktCommand(name = "listen") {
+    private val forward by option("--forward", help = "Local URL that receives each request, e.g. http://localhost:3000").required()
+    private val token by option("--token", help = "Existing Anzol token (uuid); without it a new URL is created")
+        .convert { TokenId(it) }
+    private val server by serverOption()
+    private val readSecret by readSecretOption()
+    private val chaosOptions by ChaosOptions()
+
+    override fun help(context: Context) = "Forwards every request that arrives at the URL to a local app, optionally with injected faults."
+
+    override fun run() {
+        val chaos = chaosOptions.chaos()
+        requireCuttable(forward, chaos)
+        val http = httpClient()
+        val site = AnzolServer(server, http, readSecret)
+        val listening = token ?: reaching(site) { site.createToken() }
+        requireAccess(site, listening)
+        val newest = reaching(site) { site.newestSeq(listening) } ?: fail("Token not found")
+        Signal.handle(Signal("INT")) { exitProcess(0) }
+        val forwarder = Forwarder(forward, http, chaos.slow?.let(::Drip), chaos.timeout)
+        val deliveries = Deliveries(forwarder, listening, chaos, REORDER_RELEASE) { echo(it) }
+        Listener(site, listening, deliveries, cursor = newest) { echo(it) }.run {
+            echo("Listening on ${site.base}/$listening (forwarding to $forward)")
+            chaos.summary()?.let { echo(it) }
+        }
+        fail(reaching(site) { site.access(listening) }.failure() ?: "Token not found")
+    }
+}
+
+class Replay : CoreCliktCommand(name = "replay") {
+    private val token by argument("token", help = "Anzol token (uuid)").convert { TokenId(it) }
+    private val requestIds by argument("requestId", help = "Stored request (uuid); several are delivered in the given order")
+        .convert { RequestId(it) }
+        .multiple(required = true)
+    private val to by option("--to", help = "Local URL that receives the request, e.g. http://localhost:3000").required()
+    private val server by serverOption()
+    private val readSecret by readSecretOption()
+    private val chaosOptions by ChaosOptions()
+
+    override fun help(context: Context) = "Forwards stored requests to a local app, optionally with injected faults."
+
+    override fun run() {
+        val chaos = chaosOptions.chaos()
+        requireCuttable(to, chaos)
+        val http = httpClient()
+        val site = AnzolServer(server, http, readSecret)
+        requireAccess(site, token)
+        val messages = requestIds.map { id -> reaching(site) { site.find(token, id) } ?: fail("Request not found") }
+        chaos.summary()?.let { echo(it) }
+        val deliveries = Deliveries(Forwarder(to, http, chaos.slow?.let(::Drip), chaos.timeout), token, chaos) { echo(it) }
+        messages.forEach(deliveries::accept)
+        deliveries.flush()
+        if (deliveries.unanswered > 0) throw ProgramResult(1)
+    }
+}

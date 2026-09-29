@@ -51,7 +51,7 @@ describe('Dado a conexão com o servidor', () => {
     expect(notice).toMatch(
       /^No connection to the server since \d{1,2}:\d{2}.*\. What you typed is kept\.$/,
     );
-    expect(notice).not.toMatch(/docker|WEBHOOK_|compose/i);
+    expect(notice).not.toMatch(/docker|ANZOL_|compose/i);
     expect(connection.countdown()).toBe(5);
 
     const since = connection.downSince();

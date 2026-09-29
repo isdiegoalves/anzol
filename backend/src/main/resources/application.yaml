@@ -1,6 +1,6 @@
 spring:
   application:
-    name: webhook-site
+    name: anzol
   threads:
     virtual:
       enabled: true
@@ -72,46 +72,46 @@ server:
     max-part-header-size: 1MB
     max-parameter-count: -1
 
-webhook:
+anzol:
   # Nomes aceitos no Host de /token, /token/**, /share/** e /mcp, contra DNS rebinding (sem porta casa qualquer porta).
   # O Origin dos métodos que mudam estado só passa na mesma porta do Host (ou com nome:porta na lista), contra CSRF.
   # Padrão fechado: loopback e host.docker.internal (vazio também vale o padrão). "*" desliga a conferência de Host e
   # Origin da gestão: INSEGURO, qualquer página aberta no navegador passa a usar a API (o /mcp continua no padrão).
-  allowed-hosts: "${WEBHOOK_ALLOWED_HOSTS:localhost,127.0.0.1,[::1],host.docker.internal}"
+  allowed-hosts: "${ANZOL_ALLOWED_HOSTS:localhost,127.0.0.1,[::1],host.docker.internal}"
   # Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo); acima disso saem as mais antigas.
-  max-requests: ${WEBHOOK_MAX_REQUESTS:10000}
-  expiry: ${WEBHOOK_EXPIRY:604800}
+  max-requests: ${ANZOL_MAX_REQUESTS:10000}
+  expiry: ${ANZOL_EXPIRY:604800}
   stream:
     # Comentário periódico no SSE: mantém a conexão viva e descobre quem fechou a aba.
     heartbeat: 15s
   # Teto, em segundos, da conexão presa pelas falhas `hang` e `stall_after_headers` das regras (fecha antes se o
   # cliente desistir).
   fault:
-    hold-max: ${WEBHOOK_FAULT_HOLD_MAX:300}
+    hold-max: ${ANZOL_FAULT_HOLD_MAX:300}
   # Replay e send pelo servidor. Padrão seguro para publicar: só destinos públicos. O docker-compose.yml (uso local)
   # libera loopback e redes privadas e troca o `localhost` do alvo pelo host do Docker.
   outbound:
-    allow-private: ${WEBHOOK_OUTBOUND_ALLOW_PRIVATE:false}
-    localhost-alias: ${WEBHOOK_OUTBOUND_LOCALHOST_ALIAS:}
+    allow-private: ${ANZOL_OUTBOUND_ALLOW_PRIVATE:false}
+    localhost-alias: ${ANZOL_OUTBOUND_LOCALHOST_ALIAS:}
   # Servidor MCP em /mcp (Streamable HTTP) e IA local (LLM OpenAI-compatível, o oMLX do dono): os dois DESLIGADOS por
   # padrão (testes e ./ci.sh sem o LLM falso). Quem liga é o docker-compose.yml, que só publica no loopback. Sem chave ou
   # sem o LLM no ar o app sobe igual: o LLM só é chamado nas rotas de IA, que respondem 502 quando ele falha.
   mcp:
-    enabled: ${WEBHOOK_MCP_ENABLED:false}
+    enabled: ${ANZOL_MCP_ENABLED:false}
   ai:
-    enabled: ${WEBHOOK_AI_ENABLED:false}
+    enabled: ${ANZOL_AI_ENABLED:false}
     # Raiz do servidor, sem o /v1: o cliente chama {base-url}/v1/chat/completions.
-    base-url: ${WEBHOOK_AI_BASE_URL:http://localhost:8000}
+    base-url: ${ANZOL_AI_BASE_URL:http://localhost:8000}
     # Nunca em arquivo versionado nem em log; vazio = sem cabeçalho Authorization.
-    api-key: ${WEBHOOK_AI_API_KEY:}
+    api-key: ${ANZOL_AI_API_KEY:}
     # Regra sugerida (saída estruturada) e diagnóstico em texto: os modelos recomendados na descoberta do oMLX.
-    model-json: ${WEBHOOK_AI_MODEL_JSON:NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit}
-    model-text: ${WEBHOOK_AI_MODEL_TEXT:KAT-Coder-V2.5-Dev-oQ4e-mtp}
+    model-json: ${ANZOL_AI_MODEL_JSON:NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit}
+    model-text: ${ANZOL_AI_MODEL_TEXT:KAT-Coder-V2.5-Dev-oQ4e-mtp}
     # Prazo da chamada inteira: modelo frio no oMLX leva de 9 a 31 s para carregar antes do primeiro token.
     timeout: 90s
 
 spring.ai.mcp.server:
-  enabled: ${webhook.mcp.enabled}
+  enabled: ${anzol.mcp.enabled}
   protocol: STREAMABLE
   type: SYNC
   name: anzol
@@ -120,7 +120,7 @@ spring.ai.mcp.server:
     Operates Anzol: create webhook URLs (tokens), read and wait for the requests they capture, set response
     rules, and replay or send requests through the server. Every tool takes the URL by its UUID (token_id); the
     webhook itself is any HTTP request to /{token_id} on this server.
-  # Ferramentas registradas à mão (site.webhook.mcp), com o schema e os erros da API: sem varredura de anotações.
+  # Ferramentas registradas à mão (anzol.mcp), com o schema e os erros da API: sem varredura de anotações.
   annotation-scanner:
     enabled: false
   streamable-http:

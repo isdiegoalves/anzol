@@ -12,27 +12,27 @@ Acesso
   e abra http://localhost:8090/
 {{- end }}
 
-Nomes aceitos (WEBHOOK_ALLOWED_HOSTS): {{ include "anzol.allowedHosts" . }}
+Nomes aceitos (ANZOL_ALLOWED_HOSTS): {{ include "anzol.allowedHosts" . }}
   O navegador só usa a API (criar URL, ler mensagens) por um nome desta lista; por outro, a tela abre mas a API
   responde 403 {"error":"host not allowed"} ou {"error":"origin not allowed"}. Os hosts do Ingress entram sozinhos;
-  outro nome (um LoadBalancer, um DNS a mais) vai em webhook.allowedHosts.
-{{- if has "*" .Values.webhook.allowedHosts }}
+  outro nome (um LoadBalancer, um DNS a mais) vai em anzol.allowedHosts.
+{{- if has "*" .Values.anzol.allowedHosts }}
 
-ATENÇÃO: "*" em webhook.allowedHosts desliga a proteção contra DNS rebinding e CSRF da API: qualquer página
+ATENÇÃO: "*" em anzol.allowedHosts desliga a proteção contra DNS rebinding e CSRF da API: qualquer página
 aberta no navegador passa a usá-la.
 {{- end }}
-{{- if .Values.webhook.outbound.allowPrivate }}
+{{- if .Values.anzol.outbound.allowPrivate }}
 
-ATENÇÃO: webhook.outbound.allowPrivate=true deixa o replay e o send saírem para a rede do cluster (o Redis, a API
+ATENÇÃO: anzol.outbound.allowPrivate=true deixa o replay e o send saírem para a rede do cluster (o Redis, a API
 do Kubernetes, qualquer Service), sem credencial. Só com o app fora do alcance de terceiros.
 {{- end }}
-{{- if .Values.webhook.mcp.enabled }}
+{{- if .Values.anzol.mcp.enabled }}
 
 ATENÇÃO: o MCP em /mcp está ligado e não tem autenticação: quem alcança o app opera todas as URLs sem segredo de
 leitura. Não ligue com o app publicado.
 {{- end }}
-{{- if and .Values.webhook.ai.enabled (not (include "anzol.aiSecretName" .)) }}
+{{- if and .Values.anzol.ai.enabled (not (include "anzol.aiSecretName" .)) }}
 
-IA ligada sem chave: os pedidos a {{ .Values.webhook.ai.baseUrl }} saem sem Authorization. Para mandar a chave, use
-webhook.ai.existingSecret ou --set-string webhook.ai.apiKey=... na instalação.
+IA ligada sem chave: os pedidos a {{ .Values.anzol.ai.baseUrl }} saem sem Authorization. Para mandar a chave, use
+anzol.ai.existingSecret ou --set-string anzol.ai.apiKey=... na instalação.
 {{- end }}

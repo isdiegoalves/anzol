@@ -22,8 +22,8 @@ RUN ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
-RUN useradd --system --no-create-home webhook
+RUN useradd --system --no-create-home anzol
 COPY --from=backend /src/build/libs/backend-*.jar app.jar
-USER webhook
+USER anzol
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
