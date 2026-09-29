@@ -160,7 +160,7 @@ test.describe('Dado a aba Replay do painel com "Inject failure"', () => {
       .getByRole('button', { name: 'Reenviar…' })
       .click();
     const painelPt = compacto(page)
-      ? page.getByRole('dialog', { name: 'Ações nesta requisição' })
+      ? page.getByRole('dialog', { name: 'Ações sobre esta requisição' })
       : page.getByRole('region', { name: 'Painel de ação' });
 
     await painelPt.getByRole('switch', { name: 'Injetar falha' }).click();
