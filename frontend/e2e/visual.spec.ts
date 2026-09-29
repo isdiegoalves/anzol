@@ -60,9 +60,9 @@ function mascarasComuns(page: Page): Locator[] {
   ];
 }
 
-/** Itens da lista: o `#` do UUID, o IP e a data. */
+/** Itens da lista: o `#` do UUID (o IP e a data ficam só no nome acessível e no detalhe). */
 function mascarasDaLista(page: Page): Locator[] {
-  return [page.locator('.item .id'), page.locator('.item .meta')];
+  return [page.locator('.item .id')];
 }
 
 /** CSS só das fotos (a altura fixa dos metadados no compacto); ver o arquivo. */
