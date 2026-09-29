@@ -108,7 +108,8 @@
           </p>
         }
         @if (current.body) {
-          <pre class="body" tabindex="0" aria-label="Response body" i18n-aria-label>{{
+          <!-- O leitor ignora aria-label num <pre> sem papel. -->
+          <pre class="body" role="region" tabindex="0" aria-label="Response body" i18n-aria-label>{{
             current.body
           }}</pre>
         } @else {

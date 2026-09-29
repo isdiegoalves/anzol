@@ -130,7 +130,8 @@ test.describe('Dado o cartão Signature com um provedor salvo (CHECKS-06, 11, 12
     const tokenId = await tokens.create({ signature: { provider: 'stripe', secret: SECRET } });
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
 
-    const exemplo = assinatura.getByLabel('Example header');
+    // Nome num papel que o leitor lê: aria-label num <code> sem papel é ignorado.
+    const exemplo = assinatura.getByRole('group', { name: 'Example header' });
     await expect(exemplo.getByText(/^t=\d+,?$/)).toBeVisible();
     await expect(exemplo.getByText(/^v1=[0-9a-f…]+$/)).toBeVisible();
     await expect(assinatura.getByText(/^Expected header:/)).toBeVisible();
@@ -305,6 +306,7 @@ test.describe('Dado a página Outbound', () => {
 
     await expect(detail).toContainText(`Replay · #${requestId.substring(0, 5)}`);
     await expect(detail.getByRole('tab', { name: 'Response body' })).toBeVisible();
+    await expect(detail.getByRole('region', { name: 'Response body' })).toBeVisible();
     await expect(detail.getByRole('tab', { name: /^Response headers \(\d+\)$/ })).toBeVisible();
     await expect(detail.getByRole('tab', { name: /^Sent headers \(\d+\)$/ })).toBeVisible();
 

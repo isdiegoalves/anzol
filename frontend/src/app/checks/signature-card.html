@@ -129,7 +129,8 @@
     <div class="setup">
       <div class="explain">
         <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
-        <code class="example" aria-label="Example header" i18n-aria-label>
+        <!-- O leitor ignora aria-label num <code> sem papel. -->
+        <code class="example" role="group" aria-label="Example header" i18n-aria-label>
           @for (part of example(); track $index) {
             <span
               class="part"
