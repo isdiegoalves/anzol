@@ -65,7 +65,6 @@ describe('Dado a lista de Regras ao vivo (WM-38)', () => {
 
   afterEach(() => {
     http.verify();
-    localStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();

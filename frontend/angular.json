@@ -99,7 +99,9 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "runnerConfig": true
+            "runnerConfig": true,
+            "isolate": true,
+            "setupFiles": ["src/testing/setup.ts"]
           }
         },
         "lint": {

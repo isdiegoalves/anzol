@@ -133,10 +133,7 @@ describe('Dado o editor de regra', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => {
-    http.verify();
-    localStorage.clear();
-  });
+  afterEach(() => http.verify());
 
   it('deve acrescentar a regra montada no formulário e salvar a lista inteira Quando "Save" é clicado', async () => {
     await open({ index: null });
