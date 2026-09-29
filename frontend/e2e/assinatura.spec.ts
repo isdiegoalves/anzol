@@ -141,7 +141,10 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await openRequest(page, tokenId, certa);
     await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
     await expect(abrirItem(page, certa)).toHaveAccessibleName(/\bSignature valid: GitHub\b/);
-    await expect(item(page, certa)).toContainText('GitHub');
+    // O selo da assinatura que passou é só o ícone; o provedor fica no title.
+    await expect(
+      item(page, certa).locator('app-check-chip[data-kind="signature"]'),
+    ).toHaveAttribute('title', 'Signature valid: GitHub');
     await expect(abrirItem(page, errada)).toHaveAccessibleName(
       /\bSignature invalid: signature mismatch\b/,
     );

@@ -427,7 +427,7 @@ describe('Dado a lista lateral de mensagens', () => {
       'válida',
       { provider: 'github', valid: true, reason: null },
       'ok',
-      'GitHub',
+      '',
       'Signature valid: GitHub',
     ],
     [
@@ -445,7 +445,7 @@ describe('Dado a lista lateral de mensagens', () => {
       'Signature absent: header X-Hub-Signature-256 absent',
     ],
   ] as const)(
-    'deve mostrar o selo com ícone e texto, e o veredito completo no nome do item, Quando a assinatura é %s',
+    'deve mostrar o selo (só o ícone, quando passou) e o veredito completo no title e no nome do item, Quando a assinatura é %s',
     async (_caso, signature, tone, texto, rotulo) => {
       await load([webhookRequest(1, { signature })]);
 
@@ -481,7 +481,7 @@ describe('Dado a lista lateral de mensagens', () => {
       [...items()[0].querySelectorAll('.seals app-check-chip')].map((chip) =>
         chip.textContent?.trim(),
       ),
-    ).toEqual(['429 · Default response', 'GitHub', '1 schema error']);
+    ).toEqual(['429 · Default response', '', '1 schema error']);
   });
 
   // O selo e o trecho do nome acessível dizem a mesma coisa.

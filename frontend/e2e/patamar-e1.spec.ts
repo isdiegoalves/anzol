@@ -308,9 +308,9 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
     const de429 = await fundo(linha.getByText('429', { exact: true }).first());
     expect(de200, 'o 200 da trilha tem a mesma cor do 429').toBe(de429);
     await tentativas(page, 'evt_a').click();
-    const assinaturaValida = item(page, a[2])
-      .getByText(/^(Sig OK|GitHub|Sig ✓)/)
-      .first();
+    const assinaturaValida = item(page, a[2]).locator(
+      'app-check-chip[data-kind="signature"][data-state="valid"]',
+    );
     await expect(assinaturaValida).toBeVisible();
     expect(de200, 'a trilha não usa o verde').not.toBe(await fundo(assinaturaValida));
   });

@@ -120,7 +120,7 @@
                 <span class="line meta">
                   <span class="seals" aria-hidden="true">
                     @for (seal of item.seals; track seal.kind) {
-                      <app-check-chip [result]="seal" />
+                      <app-check-chip [result]="seal" [quiet]="true" />
                     }
                   </span>
                   @if (item.summary) {

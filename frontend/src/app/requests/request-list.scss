@@ -247,9 +247,15 @@
   min-width: 0;
   overflow: hidden;
 
+  // Só o selo do status cede, pelo nome de quem respondeu: o número e o texto de um erro ficam
+  // inteiros (uma fração de pixel tirada já os troca por reticências).
   app-check-chip {
+    flex: none;
+  }
+
+  .mini[data-kind='rule'] {
     flex: 0 1 auto;
-    min-width: 0;
+    min-width: 72px;
   }
 }
 

@@ -52,6 +52,28 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
     expect(container.textContent?.trim()).toBe('201 · Pix pago');
   });
 
+  const [, , byRule] = checksOf(
+    webhookRequest(1, { rule: { id: 'r', name: 'Pix pago' }, response: { status: 201 } }),
+  );
+
+  it.each([
+    ['válida', valid, false],
+    ['inválida', invalid, true],
+    ['quase (near miss)', near, true],
+    ['respondida por regra, com o status', byRule, true],
+    ['não verificada', unchecked, false],
+  ] as [string, CheckResult, boolean][])(
+    'deve mostrar só o ícone da verificação que passou no selo quieto, e o texto das outras (%s)',
+    async (_caso, result, text) => {
+      const { container } = await render(CheckChip, { inputs: { result, quiet: true } });
+
+      const chip = container as HTMLElement;
+      expect(!!chip.querySelector('.text')).toBe(text);
+      expect(chip.querySelector('app-icon')).not.toBeNull();
+      expect(chip.getAttribute('title')).toBe(result.spoken ?? `${result.title}: ${result.detail}`);
+    },
+  );
+
   it('deve mostrar o título e o motivo no cartão Quando o tamanho é "card"', async () => {
     const { container } = await render(CheckChip, { inputs: { result: invalid, size: 'card' } });
 

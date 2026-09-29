@@ -82,6 +82,10 @@
   max-width: 160px;
 }
 
+:host(.icon-only) {
+  padding: 2px 6px;
+}
+
 :host(.card) .title {
   font: var(--mat-sys-title-small);
   white-space: normal;

@@ -174,10 +174,16 @@ test.describe('Dado os selos da lista (INBOX-13)', () => {
     await page.goto(`/#/${tokenId}`);
     await expect(itens(page)).toHaveCount(4);
 
-    await expect(selo(page, certa, 'signature')).toHaveText('GitHub');
+    // O que passou é só o ícone, com o veredito no title; o texto vai para o que pede atenção.
+    await expect(selo(page, certa, 'signature')).toHaveText('');
+    await expect(selo(page, certa, 'signature')).toHaveAttribute(
+      'title',
+      'Signature valid: GitHub',
+    );
     await expect(selo(page, errada, 'signature')).toHaveText('Mismatch');
     await expect(selo(page, sem, 'signature')).toHaveText('No signature');
-    await expect(selo(page, certa, 'schema')).toHaveText('Schema');
+    await expect(selo(page, certa, 'schema')).toHaveText('');
+    await expect(selo(page, certa, 'schema')).toHaveAttribute('title', /^Schema valid/);
     await expect(selo(page, errada, 'schema')).toHaveText('2 schema errors');
     await expect(selo(page, pix, 'schema')).toHaveText('1 schema error');
     await expect(selo(page, sem, 'schema')).toHaveText('Not JSON');

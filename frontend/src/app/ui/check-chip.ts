@@ -28,47 +28,51 @@ export interface ChipLink {
       [name]="size() === 'card' ? result().tone : kindIcons[result().kind]"
       [size]="size() === 'card' ? 22 : 16"
     />
-    <span class="text">
-      @if (size() === 'card') {
-        @let target = link();
-        @if (titleParts(); as parts) {
-          <!-- F1: o trecho do título que vira valor clicável (o status); o resto segue o link. -->
-          <!-- prettier-ignore -->
-          <span class="title">{{ parts.before }}<ng-container [ngTemplateOutlet]="parts.template" [ngTemplateOutletContext]="{ $implicit: parts.value }" />{{ parts.separator }}@if (target?.part === 'title') {<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{ parts.after }}</a>} @else {{{ parts.after }}}</span>
-        } @else if (target?.part === 'title') {
-          <a
-            class="title link"
-            [routerLink]="target?.commands"
-            [queryParams]="target?.queryParams"
-            >{{ result().title }}</a
-          >
+    @if (!iconOnly()) {
+      <span class="text">
+        @if (size() === 'card') {
+          @let target = link();
+          @if (titleParts(); as parts) {
+            <!-- F1: o trecho do título que vira valor clicável (o status); o resto segue o link. -->
+            <!-- prettier-ignore -->
+            <span class="title">{{ parts.before }}<ng-container [ngTemplateOutlet]="parts.template" [ngTemplateOutletContext]="{ $implicit: parts.value }" />{{ parts.separator }}@if (target?.part === 'title') {<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{ parts.after }}</a>} @else {{{ parts.after }}}</span>
+          } @else if (target?.part === 'title') {
+            <a
+              class="title link"
+              [routerLink]="target?.commands"
+              [queryParams]="target?.queryParams"
+              >{{ result().title }}</a
+            >
+          } @else {
+            <span class="title">{{ result().title }}</span>
+          }
+          @if (detailParts(); as parts) {
+            <span class="detail"
+              >{{ parts[0]
+              }}<a
+                class="link"
+                [routerLink]="target?.commands"
+                [queryParams]="target?.queryParams"
+                >{{ parts[1] }}</a
+              >{{ parts[2] }}</span
+            >
+          } @else {
+            <span class="detail">{{ result().detail }}</span>
+          }
+          <!-- B2: o que mais a tela sabe, com a ressalva certa ("Retry-After: 5 (as configured now)"). -->
+          @for (note of notes(); track note) {
+            <span class="note">{{ note }}</span>
+          }
+          @if (extra(); as more) {
+            <a class="extra link" [routerLink]="more.commands" [queryParams]="more.queryParams">{{
+              more.text
+            }}</a>
+          }
         } @else {
-          <span class="title">{{ result().title }}</span>
+          <span class="title">{{ result().short }}</span>
         }
-        @if (detailParts(); as parts) {
-          <span class="detail"
-            >{{ parts[0]
-            }}<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{
-              parts[1]
-            }}</a
-            >{{ parts[2] }}</span
-          >
-        } @else {
-          <span class="detail">{{ result().detail }}</span>
-        }
-        <!-- B2: o que mais a tela sabe, com a ressalva certa ("Retry-After: 5 (as configured now)"). -->
-        @for (note of notes(); track note) {
-          <span class="note">{{ note }}</span>
-        }
-        @if (extra(); as more) {
-          <a class="extra link" [routerLink]="more.commands" [queryParams]="more.queryParams">{{
-            more.text
-          }}</a>
-        }
-      } @else {
-        <span class="title">{{ result().short }}</span>
-      }
-    </span>
+      </span>
+    }
   `,
   styleUrl: './check-chip.scss',
   host: {
@@ -76,6 +80,7 @@ export interface ChipLink {
     '[attr.data-kind]': 'result().kind',
     '[attr.data-state]': 'result().state',
     '[attr.title]': 'size() === "mini" ? spoken() : null',
+    '[class.icon-only]': 'iconOnly()',
   },
 })
 export class CheckChip {
@@ -100,6 +105,15 @@ export class CheckChip {
 
   /** Linhas a mais no cartão, embaixo do motivo. */
   readonly notes = input<readonly string[]>([]);
+  /**
+   * A verificação que passou ou que não roda fica só no ícone (o veredito no `title`): o texto vai
+   * para o que pede atenção. O status respondido é sempre texto.
+   */
+  readonly quiet = input(false);
+  protected readonly iconOnly = computed(() => {
+    const { tone, kind } = this.result();
+    return this.quiet() && (tone === 'ok' || tone === 'none') && kind !== 'rule';
+  });
 
   /** O veredito inteiro, no `title` do selo. */
   protected readonly spoken = computed(() => spokenOf(this.result()));

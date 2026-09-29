@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { compacto } from './support/shell';
@@ -111,6 +112,54 @@ test.describe('Dado caminhos que não cabem na largura da lista', () => {
     await page.reload();
     await expect(lista.locator('app-event-line')).toHaveCount(1);
     await conferirCaminhos(lista.locator('app-event-line .line').first(), '.value, .time');
+  });
+});
+
+test.describe('Dado a segunda linha do item, com o status e os selos', () => {
+  test('deve mostrar inteiros o número do status e o texto de cada erro, e só o ícone do que passou', async ({
+    page,
+    tokens,
+  }) => {
+    const segredo = 'segredo-do-leiaute';
+    const assinado = (chave: string, corpo: string) => ({
+      path: '/webhooks/pagamentos/confirmacoes',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hub-Signature-256': `sha256=${createHmac('sha256', chave).update(corpo).digest('hex')}`,
+      },
+      data: corpo,
+    });
+    const tokenId = await tokens.create({
+      signature: { provider: 'github', secret: segredo },
+      default_status: '401',
+    });
+    await tokens.send(tokenId, assinado(segredo, '{"id":1}'));
+    await tokens.send(tokenId, assinado('outro-segredo', '{"id":2}'));
+    await emPortugues(page);
+    await page.goto(`/#/${tokenId}`);
+    const selos = page
+      .getByRole('region', { name: 'Lista de requisições', exact: true })
+      .locator('.item .seals app-check-chip');
+    await expect(selos).toHaveCount(4);
+
+    const cortados = await selos.evaluateAll((chips) =>
+      chips.flatMap((chip) => {
+        const titulo = chip.querySelector<HTMLElement>('.title');
+        const texto = titulo?.textContent?.trim() ?? '';
+        if (chip.classList.contains('ok') && chip.getAttribute('data-kind') !== 'rule') {
+          return titulo ? [`"${texto}" aparece num selo que passou`] : [];
+        }
+        if (!titulo) {
+          return [`selo ${chip.getAttribute('data-kind')} sem texto`];
+        }
+        if (chip.getAttribute('data-kind') === 'rule') {
+          // "401 ·" em fonte de código: quatro caracteres de ~8 px.
+          return titulo.clientWidth < 32 ? [`o status "${texto}" não cabe`] : [];
+        }
+        return titulo.scrollWidth > titulo.clientWidth + 1 ? [`"${texto}" cortado`] : [];
+      }),
+    );
+    expect(cortados).toEqual([]);
   });
 });
 
