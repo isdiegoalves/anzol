@@ -63,7 +63,9 @@
         <button
           mat-menu-item
           type="button"
-          [disabled]="ai.disabled() && !explaining()"
+          disabledInteractive
+          [disabled]="ai.disabled()"
+          [attr.aria-describedby]="explainReason()"
           (click)="toggleExplain()"
         >
           <ng-container [ngTemplateOutlet]="explainLabel" />
@@ -156,26 +158,28 @@
           type="button"
           title="Ask the local model why signature, schema and rules gave this result"
           i18n-title
-          [disabled]="ai.disabled() && !explaining()"
+          disabledInteractive
+          [disabled]="ai.disabled()"
+          [attr.aria-describedby]="explainReason()"
           (click)="toggleExplain()"
         >
           <ng-container [ngTemplateOutlet]="explainLabel" />
         </button>
         @if (ai.disabled()) {
-          <span class="ai-off">{{ aiOffHint }}</span>
+          <span class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</span>
         }
       </div>
     }
   </div>
   @if (compact() && ai.disabled()) {
     <!-- O "Explain" desabilitado fica no menu: a dica de configuração continua à vista. -->
-    <p class="ai-off">{{ aiOffHint }}</p>
+    <p class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</p>
   }
   <ng-container #explainHost />
 </app-request-view>
 
 <ng-template #explainLabel>
-  @if (explaining()) {
+  @if (explaining() && !ai.disabled()) {
     <ng-container i18n>Hide explanation</ng-container>
   } @else {
     <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>

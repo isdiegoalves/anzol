@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { Provider, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -16,6 +17,7 @@ import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { ShareDialog } from '../share/share-dialog';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { Explanations } from './explanations';
 import { RequestDetail } from './request-detail';
 
 describe('Dado o detalhe de uma mensagem com as ações', () => {
@@ -388,9 +390,27 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
           'This server has no local AI.',
         ),
       );
-      await userEvent.click(explainButton());
-      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).toBeNull());
-      expect(explainButton()).toHaveProperty('disabled', true);
+      // B4 (UX-15): o botão volta a se chamar "Explain", desligado mas focável, com a razão na
+      // descrição acessível.
+      const explain = action('Explain');
+      expect(explain).toHaveProperty('disabled', false);
+      expect(explain.getAttribute('aria-disabled')).toBe('true');
+      expect(
+        document.getElementById(explain.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toBe('This server has no local AI.');
+    });
+
+    it('deve abrir o painel Quando o "Open" do aviso pede a explicação desta requisição (B4)', async () => {
+      const request = webhookRequest(6);
+      const { container, http } = await show(request);
+
+      TestBed.inject(Explanations).wanted.set(request.uuid);
+
+      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).not.toBeNull());
+      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({
+        explanation: 'ok',
+      });
+      await vi.waitFor(() => expect(TestBed.inject(Explanations).wanted()).toBeNull());
     });
   });
 });

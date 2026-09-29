@@ -30,8 +30,11 @@ import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
+import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
+
+let nextId = 0;
 
 /** Os formatos do "Copy As" (o conversor vem sob demanda, no primeiro uso). */
 const COPY_FORMATS: readonly CopyFormat[] = ['curl', 'HAR'];
@@ -70,6 +73,7 @@ export class RequestDetail {
   protected readonly ai = inject(AiClient);
   private readonly viewport = inject(Viewport);
   private readonly rules = inject(RuleStore);
+  private readonly explanations = inject(Explanations);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -85,6 +89,12 @@ export class RequestDetail {
   /** Onde o painel entra, criado à mão (o painel vem num pedaço à parte). */
   private readonly explainHost = viewChild.required('explainHost', { read: ViewContainerRef });
   protected readonly aiOffHint = AI_OFF_HINT;
+  /**
+   * B4 (UX-15): o "Explain" com a IA desligada (um 503 nesta sessão) fica `aria-disabled`, focável,
+   * com a razão na descrição acessível.
+   */
+  protected readonly aiReasonId = `ai-reason-${nextId++}`;
+  protected readonly explainReason = computed(() => (this.ai.disabled() ? this.aiReasonId : null));
 
   protected readonly formats = COPY_FORMATS;
 
@@ -127,6 +137,16 @@ export class RequestDetail {
   protected readonly hasOlder = computed(() => this.neighbour(false) >= 0);
 
   constructor() {
+    // B4: o "Open" do aviso "Explanation for #id is ready." abre o painel da requisição pedida.
+    effect(() => {
+      if (this.explanations.wanted() === this.request().uuid) {
+        untracked(() => {
+          if (!this.explaining()) {
+            void this.toggleExplain();
+          }
+        });
+      }
+    });
     effect(() => {
       const { uuid, token_id: tokenId, rule, response } = this.request();
       untracked(() => {

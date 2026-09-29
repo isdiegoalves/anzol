@@ -9,7 +9,8 @@ import { Subject } from 'rxjs';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
-import { ExplainPanel, Explanations, whatTheChecksSay } from './explain-panel';
+import { ExplainPanel, whatTheChecksSay } from './explain-panel';
+import { Explanations } from './explanations';
 
 const REQUEST_ID = '00000000-0000-4000-8000-000000000001';
 const URL_EXPLAIN = `/token/${TOKEN_ID}/request/${REQUEST_ID}/explain`;
@@ -199,7 +200,7 @@ describe('Dado o painel do "Explain"', () => {
     expect(whatTheChecksSay(request)).toEqual([
       'Signature invalid: signature mismatch',
       'Schema not checked: This URL did not validate a schema',
-      'Default response: No rule answered',
+      'Answered 429 · default response: No rule answered',
       'Answered 429 with the default response.',
     ]);
   });
