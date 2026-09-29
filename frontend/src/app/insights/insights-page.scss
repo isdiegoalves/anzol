@@ -143,13 +143,14 @@ app-pane {
 
   th {
     padding: 4px 6px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    border-bottom: 1px solid var(--mat-sys-outline);
     text-align: left;
     font: var(--mat-sys-label-large);
   }
 
   td {
     padding: 4px 6px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
   }
 
   .number {
@@ -177,7 +178,7 @@ app-pane {
   }
 
   rect.primary {
-    fill: var(--mat-sys-primary);
+    fill: var(--mat-sys-on-surface-variant);
   }
 
   rect.none {

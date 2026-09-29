@@ -5,7 +5,7 @@
 .bar {
   display: block;
   width: 100%;
-  height: 16px;
+  height: 10px;
   border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-high);
 }
@@ -47,14 +47,16 @@
 }
 
 .swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--mat-sys-corner-extra-small);
 }
 
-// Papel de cor de cada fatia (sempre com o rótulo ao lado).
+// Papel de cor de cada fatia (sempre com o rótulo ao lado): o que passou em cinza, a cor só no que
+// pede atenção, e o não verificado tracejado, como no selo.
 rect.ok {
-  fill: var(--app-success);
+  fill: var(--mat-sys-on-surface-variant);
 }
 
 rect.bad {
@@ -66,15 +68,18 @@ rect.near {
 }
 
 rect.none {
-  fill: var(--mat-sys-outline);
+  fill: none;
+  stroke: var(--mat-sys-outline);
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
 }
 
 rect.primary {
-  fill: var(--mat-sys-primary);
+  fill: var(--mat-sys-on-surface-variant);
 }
 
 .swatch.ok {
-  background: var(--app-success);
+  background: var(--mat-sys-on-surface-variant);
 }
 
 .swatch.bad {
@@ -86,9 +91,9 @@ rect.primary {
 }
 
 .swatch.none {
-  background: var(--mat-sys-outline);
+  border: 1px dashed var(--mat-sys-outline);
 }
 
 .swatch.primary {
-  background: var(--mat-sys-primary);
+  background: var(--mat-sys-on-surface-variant);
 }
