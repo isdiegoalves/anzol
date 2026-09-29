@@ -105,7 +105,7 @@
 
 // O estado atual acabou de mudar: pisca uma vez (E-09), sem movimento se o sistema pede menos.
 .pill.changed {
-  animation: state-changed 1.2s ease-out 1;
+  animation: state-changed var(--app-motion-long) ease-out 1;
 }
 
 @keyframes state-changed {

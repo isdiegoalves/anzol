@@ -33,7 +33,7 @@
 
 .chevron {
   display: inline-block;
-  transition: transform 150ms;
+  transition: transform var(--app-motion-short) var(--app-motion-easing);
 
   &.open {
     transform: rotate(90deg);

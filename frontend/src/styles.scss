@@ -66,6 +66,9 @@ html {
   --app-focus-color: var(--mat-sys-primary);
   --app-focus-width: 3px;
   --app-focus-offset: 2px;
+  --app-motion-short: 150ms;
+  --app-motion-long: 1.2s;
+  --app-motion-easing: ease;
 
   @media (prefers-contrast: more) {
     @include harbor.high-contrast-overrides(color-scheme);
