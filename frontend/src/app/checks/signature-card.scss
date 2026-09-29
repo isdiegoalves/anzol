@@ -156,13 +156,8 @@
   gap: 16px 24px;
   align-items: start;
 
-  @container (width >= 720px) {
+  @container (720px <= width < 1100px) {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  }
-
-  // Cartão largo: a anatomia em cima, em duas colunas, e a configuração numa linha embaixo.
-  @container (width >= 1100px) {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -170,17 +165,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-
-  @container (width >= 1100px) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 24px;
-    align-items: start;
-
-    h3 {
-      grid-column: 1 / -1;
-    }
-  }
 }
 
 // Header de exemplo em partes coloridas por papel, e a mesma cor na chave da legenda (CHECKS-11).
@@ -257,7 +241,7 @@
   gap: 8px;
 }
 
-// Os campos quebram linha quando não cabem, e o segmentado fica na largura do conteúdo: o rótulo
+// Os campos quebram linha quando não cabem; o segmentado não encolhe abaixo do conteúdo, e o rótulo
 // dele nunca corta.
 .pair,
 .triple {
@@ -267,37 +251,37 @@
   align-items: flex-start;
 }
 
-.pair > mat-form-field {
-  flex: 1 1 13rem;
-  min-width: 0;
-}
-
+.pair > *,
 .triple > mat-form-field {
   flex: 1 1 8rem;
   min-width: 0;
 }
 
-.segmented {
-  flex: none;
-}
-
+// Cartão largo: a anatomia em cima, em duas colunas, e a configuração numa linha embaixo.
 @container (width >= 1100px) {
+  .explain {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  h3 {
+    grid-column: 1 / -1;
+  }
+
   .fields {
-    flex-flow: row wrap;
-    gap: 8px 12px;
-    align-items: flex-start;
+    flex-flow: wrap;
+    column-gap: 12px;
   }
 
   .settings-head {
     flex-basis: 100%;
   }
 
-  .pair {
-    flex: 2 1 26rem;
-  }
-
+  .pair,
   .triple {
-    flex: 3 1 28rem;
+    flex: 1 1 26rem;
   }
 }
 
