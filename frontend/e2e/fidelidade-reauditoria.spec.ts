@@ -278,11 +278,11 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
     await expect(
       page.getByRole('navigation', { name: 'Nesta página' }).getByRole('link'),
     ).toHaveText([
-      /^\s*Assinatura( · .+)?\s*$/,
-      /^\s*Schema( · .+)?\s*$/,
-      /^\s*Resposta( · .+)?\s*$/,
-      /^\s*Privacidade( · .+)?\s*$/,
-      /^\s*Saúde( · .+)?\s*$/,
+      /^\s*Assinatura(\s*· .+)?\s*$/,
+      /^\s*Schema(\s*· .+)?\s*$/,
+      /^\s*Resposta(\s*· .+)?\s*$/,
+      /^\s*Privacidade(\s*· .+)?\s*$/,
+      /^\s*Saúde(\s*· .+)?\s*$/,
     ]);
   });
 });
