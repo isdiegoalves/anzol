@@ -19,14 +19,20 @@
   min-height: 0;
 }
 
+// Com os painéis colados, a alça de 12 px não tem mais a folga da calha em volta: o alvo cresce
+// para 24 px por cima do respiro do painel da direita (WCAG 2.5.8), sem mover a régua nem a alça.
 .separator {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: none;
   align-items: center;
-  justify-content: center;
-  width: 12px;
-  background: linear-gradient(var(--mat-sys-outline-variant), var(--mat-sys-outline-variant))
-    center / 1px 100% no-repeat;
+  width: 24px;
+  margin-right: -12px;
+  padding-left: 4.5px;
+  box-sizing: border-box;
+  background: linear-gradient(var(--mat-sys-outline-variant), var(--mat-sys-outline-variant)) 5.5px
+    0 / 1px 100% no-repeat;
   cursor: col-resize;
   touch-action: none;
 
