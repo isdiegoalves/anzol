@@ -36,7 +36,8 @@ enum class OutboundKind(
 
 /**
  * Um replay ou send, como a chamada devolve e `token:{id}:outbound` guarda. Com [error] não há resposta
- * ([status], [headers], [body] e [truncated] ficam de fora); [sourceRequest] só no replay.
+ * ([status], [headers], [body] e [truncated] ficam de fora); [sourceRequest] só no replay; [chaos] só no replay pedido
+ * com caos, e com o corpo cortado ou a desistência injetados não há resposta nem [error].
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -55,6 +56,7 @@ data class OutboundResult(
     val durationMs: Long,
     val error: OutboundError? = null,
     val sourceRequest: RequestId? = null,
+    val chaos: ChaosReport? = null,
 ) {
     /** A label `outcome` da métrica: a classe do status, `blocked` ou `error`. */
     fun outcome(): String =

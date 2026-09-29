@@ -20,11 +20,12 @@ class OutboundConfiguration {
     fun outboundClient(properties: OutboundProperties): OutboundClient = OutboundClient(properties)
 }
 
-/** Um disparo que terminou (com resposta ou recusa): quando começou, o que deu e quanto levou. */
+/** Um disparo que terminou (com resposta ou recusa): quando começou, o que deu, quanto levou e o caos pedido. */
 data class Attempt(
     val at: LocalDateTime,
     val exchange: Exchange,
     val duration: Duration,
+    val chaos: ChaosReport? = null,
 )
 
 /**
@@ -50,6 +51,20 @@ class OutboundService(
         val started = System.nanoTime()
         val exchange = client.exchange(request)
         return record(token, kind, request, Attempt(at, exchange, Duration.ofNanos(System.nanoTime() - started)), source)
+    }
+
+    /** O replay com [chaos]: a primeira cópia nos campos de sempre, o caos (e a segunda cópia) no `chaos` do resultado. */
+    fun replay(
+        token: Token,
+        request: OutboundRequest,
+        source: RequestId,
+        chaos: Chaos,
+    ): OutboundResult {
+        val at = clock.legacyNow()
+        val delivery = client.exchange(request, chaos)
+        val first = delivery.first
+        val attempt = Attempt(at, Exchange(delivery.target, first.answer), first.duration, delivery.report(chaos, request.body.size))
+        return record(token, OutboundKind.REPLAY, request, attempt, source)
     }
 
     /** O destino conferido sem sair (ver [OutboundClient.refused]): a recusa, a gravar com [record], ou nula. */
@@ -85,6 +100,7 @@ class OutboundService(
                 durationMs = duration.toMillis(),
                 error = (exchange.answer as? Checked.Refused)?.error,
                 sourceRequest = source,
+                chaos = attempt.chaos,
             )
         store.record(token.uuid, result)
         telemetry.outbound(kind.id, result.outcome())

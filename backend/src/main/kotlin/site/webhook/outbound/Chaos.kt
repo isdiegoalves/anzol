@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonValue
 import site.webhook.rules.Violations
 import site.webhook.rules.given
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 
 private val DELAY_MS = 0L..30_000L
 private val SLOW_BODY_BPS = 1L..1_048_576L
@@ -30,6 +32,52 @@ enum class Injection(
     ABORT_MID_BODY("abort_mid_body"),
     TIMEOUT_MS("timeout_ms"),
     DUPLICATE("duplicate"),
+}
+
+/** A segunda cópia do `duplicate`: sem `status` nem `error` quando o caos cortou o corpo ou desistiu. */
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class DuplicateResult(
+    val status: Int?,
+    val durationMs: Long,
+    val error: OutboundError?,
+)
+
+/** O `chaos` do resultado: o pedido com os padrões, o que foi injetado, os bytes antes do corte e a segunda cópia. */
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class ChaosReport(
+    val delayMs: Long,
+    val duplicate: Boolean,
+    val abortMidBody: Boolean,
+    val slowBodyBps: Long?,
+    val timeoutMs: Long?,
+    val injected: List<Injection>,
+    val bodyBytesSent: Int?,
+    val duplicateResult: DuplicateResult?,
+)
+
+/** O relatório do [chaos] pedido para este disparo; [bodySize] é o corpo inteiro, em bytes. */
+fun Delivery.report(
+    chaos: Chaos,
+    bodySize: Int,
+): ChaosReport {
+    val injected = injected()
+    return ChaosReport(
+        delayMs = chaos.delayMs,
+        duplicate = chaos.duplicate,
+        abortMidBody = chaos.abortMidBody,
+        slowBodyBps = chaos.slowBodyBps,
+        timeoutMs = chaos.timeoutMs,
+        injected = injected,
+        bodyBytesSent = if (Injection.ABORT_MID_BODY in injected) bodySize / 2 else null,
+        duplicateResult =
+            second?.let { copy ->
+                DuplicateResult(
+                    status = (copy.answer as? Checked.Ok)?.value?.status,
+                    durationMs = copy.duration.toMillis(),
+                    error = (copy.answer as? Checked.Refused)?.error,
+                )
+            },
+    )
 }
 
 /**

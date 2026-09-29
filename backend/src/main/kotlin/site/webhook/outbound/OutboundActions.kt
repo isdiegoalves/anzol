@@ -61,7 +61,14 @@ class OutboundActions(
         }
         val url = if (input.keepPath) message.keepPathTarget(input.url, token.uuid) else input.url
         val outgoing = OutboundRequest(message.method, url, message.replayHeaders(), body, input.timeout)
-        return limited(token) ?: Dispatch.Done(outbound.dispatch(token, OutboundKind.REPLAY, outgoing, source = message.uuid))
+        val chaos = input.chaos
+        return limited(token) ?: Dispatch.Done(
+            if (chaos == null) {
+                outbound.dispatch(token, OutboundKind.REPLAY, outgoing, source = message.uuid)
+            } else {
+                outbound.replay(token, outgoing, message.uuid, chaos)
+            },
+        )
     }
 
     /** [body] é o JSON do pedido (`{"url", "method"?, "headers"?, "body"?, "sign"?, "timeout"?}`). */
