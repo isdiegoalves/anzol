@@ -10,7 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { CapturedRequest, WebhookRequest } from '../requests/webhook-request';
@@ -26,7 +26,7 @@ import { RequestCompare } from './request-compare';
 type CompareState =
   | { kind: 'loading' }
   | { kind: 'loaded'; a: WebhookRequest; b: WebhookRequest }
-  | { kind: 'missing' }
+  | { kind: 'missing'; text: string; kept: WebhookRequest | null }
   | { kind: 'failed'; status: number | string };
 
 /**
@@ -37,7 +37,7 @@ type CompareState =
  */
 @Component({
   selector: 'app-compare-page',
-  imports: [EmptyState, RequestCompare, RequestList, RouterLink, Split],
+  imports: [EmptyState, RequestCompare, RequestList, Split],
   templateUrl: './compare-page.html',
   styleUrl: './compare-page.scss',
 })
@@ -46,6 +46,7 @@ export class ComparePage {
   private readonly requests = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
+  private readonly router = inject(Router);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input.required<string>();
@@ -105,23 +106,63 @@ export class ComparePage {
     if (this.requests.tokenId() !== tokenId) {
       this.requests.load(tokenId).catch(() => undefined);
     }
-    try {
-      const [requestA, requestB] = await Promise.all([
-        this.requests.fetchOne(tokenId, a),
-        this.requests.fetchOne(tokenId, b),
-      ]);
-      if (this.a() === a && this.b() === b) {
-        this.compare.show(requestA, requestB);
-        this.state.set({ kind: 'loaded', a: requestA, b: requestB });
-      }
-    } catch (error) {
-      if (isProtectedError(error)) {
-        return;
-      }
-      const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.state.set(
-        status === 404 || status === 410 ? { kind: 'missing' } : { kind: 'failed', status },
-      );
+    const [resultA, resultB] = await Promise.allSettled([
+      this.requests.fetchOne(tokenId, a),
+      this.requests.fetchOne(tokenId, b),
+    ]);
+    if (this.a() !== a || this.b() !== b) {
+      return;
     }
+    if (resultA.status === 'fulfilled' && resultB.status === 'fulfilled') {
+      this.compare.show(resultA.value, resultB.value);
+      this.state.set({ kind: 'loaded', a: resultA.value, b: resultB.value });
+      return;
+    }
+    const errors = [resultA, resultB].flatMap((result) =>
+      result.status === 'rejected' ? [result.reason as unknown] : [],
+    );
+    if (errors.some(isProtectedError)) {
+      return;
+    }
+    const statusOf = (error: unknown) =>
+      error instanceof HttpErrorResponse ? error.status : 'unknown';
+    const failed = errors.map(statusOf).find((status) => status !== 404 && status !== 410);
+    if (failed !== undefined) {
+      this.state.set({ kind: 'failed', status: failed });
+      return;
+    }
+    // B2 (CA-5): nunca outra requisição no lugar; diz qual lado falta.
+    const sides = [
+      resultA.status === 'rejected'
+        ? $localize`Request A (#${a.slice(0, 5)}:id:) no longer exists.`
+        : '',
+      resultB.status === 'rejected'
+        ? $localize`Request B (#${b.slice(0, 5)}:id:) no longer exists.`
+        : '',
+    ].filter(Boolean);
+    const kept =
+      resultA.status === 'fulfilled'
+        ? resultA.value
+        : resultB.status === 'fulfilled'
+          ? resultB.value
+          : null;
+    this.state.set({
+      kind: 'missing',
+      text: [...sides, $localize`Nothing was compared.`].join(' '),
+      kept,
+    });
+  }
+
+  /**
+   * "Choose another request": volta à Inbox com o lado que existe aberto e a lista esperando a
+   * outra escolha; sem nenhum, só a Inbox.
+   */
+  protected async chooseAnother(kept: WebhookRequest | null): Promise<void> {
+    if (!kept) {
+      await this.router.navigate(['/', this.tokenId()]);
+      return;
+    }
+    this.compare.start(kept);
+    await this.router.navigate(['/', kept.token_id, kept.uuid, this.requests.pageOf(kept.uuid)]);
   }
 }

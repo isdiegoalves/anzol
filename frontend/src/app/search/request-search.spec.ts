@@ -104,7 +104,19 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       ['Method', ['POST', 'GET', 'PUT', 'DELETE', 'PATCH']],
       ['Signature', ['Signature invalid', 'Signature absent', 'Signature valid']],
       ['Schema', ['Schema invalid', 'Schema valid']],
-      ['Answer', ['Answered by rule…', 'Near miss of…', 'Default response']],
+      [
+        'Answer',
+        [
+          'Answered by rule…',
+          'Near miss of…',
+          'Default response',
+          // B2: à vista só a classe; o nome acessível é "Answered 2xx".
+          '2xx',
+          '3xx',
+          '4xx',
+          '5xx',
+        ],
+      ],
     ]);
     expect(screen.queryByRole('button', { name: 'More filters' })).toBeNull();
     await expectNoAxeViolations(container);
@@ -245,6 +257,67 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     );
   });
 
+  // B2 (UX-02): o status roda no navegador; a linha do resultado diz onde procurou.
+  describe('Dado o filtro pelo status respondido', () => {
+    const scanUrl = (page: number) =>
+      `/token/${TOKEN_ID}/requests?page=${page}&per_page=100&sorting=newest`;
+    const answered = (n: number, status: number) => webhookRequest(n, { response: { status } });
+
+    it('deve dizer quantas casam entre as mais novas, uma vez, sem "Look in older requests"', async () => {
+      await openPanel();
+      await userEvent.click(chip('Answered 4xx'));
+      expect(chip('Answered 4xx').getAttribute('aria-pressed')).toBe('true');
+      await vi.waitFor(() =>
+        http
+          .expectOne(scanUrl(1))
+          .flush(requestPage([answered(3, 201), answered(2, 429), answered(1, 404)])),
+      );
+
+      await vi.waitFor(() => expect(result()).toBe('2 match among the newest 3'), {
+        timeout: 2000,
+      });
+      expect(screen.queryByRole('button', { name: 'Look in older requests' })).toBeNull();
+      expect(within(activeFilters() as HTMLElement).getByText('Answered 4xx')).toBeTruthy();
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve oferecer "Look in older requests" Quando a URL guarda mais que as varridas', async () => {
+      const page = (n: number) =>
+        requestPage(
+          Array.from({ length: 100 }, (_, i) => answered(n * 1000 + i, 200)),
+          { total: 505, per_page: 100, current_page: n, is_last_page: false },
+        );
+      await openPanel();
+      await userEvent.click(chip('Answered 5xx'));
+      for (const n of [1, 2, 3, 4, 5]) {
+        await vi.waitFor(() => http.expectOne(scanUrl(n)).flush(page(n)));
+      }
+
+      await vi.waitFor(() => expect(result()).toBe('0 match among the newest 500'), {
+        timeout: 2000,
+      });
+      const older = vi.spyOn(store, 'lookOlder').mockResolvedValue();
+      await userEvent.click(screen.getByRole('button', { name: 'Look in older requests' }));
+      expect(older).toHaveBeenCalledOnce();
+    });
+
+    it('deve mostrar o status exato (F1) ligado, com o texto das condições, e tirá-lo', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'] });
+      await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(requestPage([answered(1, 429)])));
+      await applied;
+      await openPanel();
+
+      expect(chip('answered 429').getAttribute('aria-pressed')).toBe('true');
+      await userEvent.click(
+        within(activeFilters() as HTMLElement).getByRole('button', {
+          name: 'Remove this filter: answered 429',
+        }),
+      );
+      await vi.waitFor(() => http.expectOne(listUrl).flush(requestPage(THREE)));
+      expect(store.filter().answered ?? []).toEqual([]);
+    });
+  });
+
   it('deve voltar à lista completa, zerar os campos e dizer "Filters cleared" Quando "Clear filters" é clicado', async () => {
     await press('Schema invalid', THREE.slice(1, 2));
     await vi.waitFor(() => expect(result()).toMatch(/^1 request matches/), { timeout: 2000 });
@@ -365,7 +438,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       await userEvent.keyboard('{ArrowRight}');
       expect(document.activeElement).toBe(chip('GET'));
       await userEvent.keyboard('{End}');
-      expect(document.activeElement).toBe(chip('Default response'));
+      expect(document.activeElement).toBe(chip('Answered 5xx'));
       await userEvent.keyboard('{ArrowRight}');
       expect(document.activeElement).toBe(chip('POST'));
       await userEvent.keyboard('{ArrowLeft}{Home}{ArrowDown}');

@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
@@ -74,6 +75,7 @@ export class RequestDetail {
   private readonly viewport = inject(Viewport);
   private readonly rules = inject(RuleStore);
   private readonly explanations = inject(Explanations);
+  private readonly announcer = inject(LiveAnnouncer);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -91,10 +93,12 @@ export class RequestDetail {
   protected readonly aiOffHint = AI_OFF_HINT;
   /**
    * B4 (UX-15): o "Explain" com a IA desligada (um 503 nesta sessão) fica `aria-disabled`, focável,
-   * com a razão na descrição acessível.
+   * com a razão na descrição acessível. Com a requisição que sumiu (B2), a razão é a dela.
    */
   protected readonly aiReasonId = `ai-reason-${nextId++}`;
-  protected readonly explainReason = computed(() => (this.ai.disabled() ? this.aiReasonId : null));
+  protected readonly explainReason = computed(() =>
+    this.gone() ? this.goneReasonId : this.ai.disabled() ? this.aiReasonId : null,
+  );
 
   protected readonly formats = COPY_FORMATS;
 
@@ -107,14 +111,32 @@ export class RequestDetail {
 
   /** INBOX-20: o "Delete request" do "More", com o Undo da lixeira da lista. */
   protected deleteRequest(): void {
+    if (this.gone()) {
+      return;
+    }
     const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
       duration: UNDO_MS,
     });
     const undo = firstValueFrom(notice.afterDismissed()).then(
       ({ dismissedByAction }) => dismissedByAction,
     );
-    void this.requests.deleteRequest(this.request(), undo);
+    void this.requests.deleteRequest(this.request(), undo).then((deleted) => {
+      if (!deleted) {
+        // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
+        void this.announcer.announce($localize`Request restored.`);
+      }
+    });
   }
+  /**
+   * B2 (UX-38): a requisição aberta sumiu do servidor e a tela mostra a cópia. O que precisa do
+   * servidor fica desligado (`aria-disabled`, focável), com a razão na descrição acessível.
+   */
+  protected readonly gone = computed(() => this.requests.gone()?.id === this.request().uuid);
+  protected readonly goneReasonId = `gone-reason-${nextId++}`;
+  protected readonly goneReason = computed(() => (this.gone() ? this.goneReasonId : null));
+  /** O "Explain" desligado: a IA do servidor está desligada, ou a requisição sumiu. */
+  protected readonly explainOff = computed(() => this.ai.disabled() || this.gone());
+
   /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
 
@@ -122,16 +144,31 @@ export class RequestDetail {
     this.requests.requests().findIndex((request) => request.uuid === this.request().uuid),
   );
   /**
+   * A vizinha na lista: da cópia (a requisição saiu da lista), a que ficou no lugar dela é a
+   * vizinha de um lado, e a anterior, a do outro.
+   */
+  private neighbour(newer: boolean): number {
+    const list = this.requests.requests();
+    const step = this.step(newer);
+    const gone = this.requests.gone();
+    const next =
+      gone && gone.id === this.request().uuid
+        ? gone.index < 0
+          ? -1
+          : step > 0
+            ? gone.index
+            : gone.index - 1
+        : this.index() < 0
+          ? -1
+          : this.index() + step;
+    return next >= 0 && next < list.length ? next : -1;
+  }
+  /**
    * Passo na lista até a vizinha mais nova (+1) ou mais antiga: com a mais nova no topo (INBOX-01),
    * a mais nova fica acima (índice menor).
    */
   private step(newer: boolean): number {
     return newer === this.requests.newestFirst() ? -1 : 1;
-  }
-  private neighbour(newer: boolean): number {
-    const index = this.index();
-    const next = index + this.step(newer);
-    return index >= 0 && next >= 0 && next < this.requests.requests().length ? next : -1;
   }
   protected readonly hasNewer = computed(() => this.neighbour(true) >= 0);
   protected readonly hasOlder = computed(() => this.neighbour(false) >= 0);
@@ -186,9 +223,11 @@ export class RequestDetail {
     }
   }
 
-  protected readonly permalink = computed(
-    () => `${this.origin}/#/${this.token().uuid}/${this.request().uuid}/${this.page()}`,
-  );
+  /** B2: o link leva `?at=`, para o estado vazio dizer de quando era a requisição que sumiu. */
+  protected readonly permalink = computed(() => {
+    const { uuid, created_at: at } = this.request();
+    return `${this.origin}/#/${this.token().uuid}/${uuid}/${this.page()}?at=${encodeURIComponent(at)}`;
+  });
   protected readonly rawUrl = computed(
     () => `${this.origin}/token/${this.token().uuid}/request/${this.request().uuid}/raw`,
   );
@@ -238,6 +277,9 @@ export class RequestDetail {
    * (`#/{token}/compare/{a}/{b}`, link compartilhável) pelo `CompareStore`.
    */
   protected compareWith(): void {
+    if (this.gone()) {
+      return;
+    }
     this.compare.start(this.request());
   }
 
@@ -255,6 +297,9 @@ export class RequestDetail {
    * `explain-panel`) e faz a chamada ao abrir.
    */
   protected async toggleExplain(): Promise<void> {
+    if (this.gone()) {
+      return;
+    }
     if (this.explaining()) {
       this.explaining.set(false);
       return;
@@ -277,6 +322,9 @@ export class RequestDetail {
 
   /** O diálogo do link só-leitura vem sob demanda (pedaço do `share-dialog`). */
   protected async shareRequest(): Promise<void> {
+    if (this.gone()) {
+      return;
+    }
     const { openShareDialog } = await import('../share/share-dialog');
     openShareDialog(this.injector, this.request());
   }
@@ -288,6 +336,9 @@ export class RequestDetail {
 
   /** "Test a variation" (WM-28): o Send da mensagem apontado para a própria URL e caminho. */
   protected async testVariation(): Promise<void> {
+    if (this.gone()) {
+      return;
+    }
     const request = this.request();
     await this.router.navigate(['/', request.token_id, 'outbound'], {
       queryParams: { 'send-from': request.uuid, to: 'self' },
@@ -295,6 +346,9 @@ export class RequestDetail {
   }
 
   private async openOutbound(param: 'replay' | 'send-from'): Promise<void> {
+    if (this.gone()) {
+      return;
+    }
     const request = this.request();
     await this.router.navigate(['/', request.token_id, 'outbound'], {
       queryParams: { [param]: request.uuid },

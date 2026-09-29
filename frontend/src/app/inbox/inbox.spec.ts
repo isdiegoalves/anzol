@@ -324,9 +324,8 @@ describe('Dado a tela principal', () => {
     expect(store.selected()?.uuid).toBe(R9.uuid);
   });
 
-  // A limpeza automática corta as mais antigas: a vizinha da que sumiu é a mais antiga que ficou
-  // (a primeira da lista quando a ordem era a da API).
-  it('deve abrir a mais antiga que ficou Quando a mensagem do link permanente não existe mais (404)', async () => {
+  // B2 (CA-5): o link diz qual abrir; se ela não existe, o detalhe diz isso e nenhuma outra entra.
+  it('deve mostrar o estado vazio, sem abrir outra nem mudar o endereço, Quando a requisição do link não existe (404)', async () => {
     const R9 = webhookRequest(9);
 
     await openToken(`/${TOKEN_ID}/${R9.uuid}/1`);
@@ -336,13 +335,33 @@ describe('Dado a tela principal', () => {
       { status: 404, statusText: 'Not Found' },
     );
 
-    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    await vi.waitFor(() => expect(text()).toContain('This request no longer exists.'));
+    expect(text()).toContain('No other request was opened in its place.');
+    expect(router.url).toBe(`/${TOKEN_ID}/${R9.uuid}/1`);
+    expect(TestBed.inject(RequestStore).selected()).toBeUndefined();
   });
 
-  it('deve abrir a mais antiga que ficou Quando a aberta pelo link permanente, fora da lista, é cortada ao vivo', async () => {
+  it('deve dizer que não carregou, e não que não existe, Quando o servidor não responde ao link', async () => {
+    const R9 = webhookRequest(9);
+
+    await openToken(`/${TOKEN_ID}/${R9.uuid}/1`);
+    await flush(`/token/${TOKEN_ID}/request/${R9.uuid}`, {}, { status: 0, statusText: '' });
+
+    await vi.waitFor(() =>
+      expect(text()).toContain('Could not load this request. The server did not answer.'),
+    );
+    expect(text()).not.toContain('no longer exists');
+    (harness.routeNativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('app-request-unopened button')
+      ?.click();
+    await flush(`/token/${TOKEN_ID}/request/${R9.uuid}`, R9);
+    await vi.waitFor(() => expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R9.uuid));
+  });
+
+  it('deve manter a cópia com o aviso da limpeza Quando a aberta pelo link permanente, fora da lista, é cortada ao vivo', async () => {
     const [R0, R3] = [webhookRequest(10), webhookRequest(3)];
     await harness.navigateByUrl(`/${TOKEN_ID}/${R0.uuid}/1`);
-    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}`, token({ auto_cleanup: 500 }));
     await flush(
       `/token/${TOKEN_ID}/requests?page=1&sorting=newest`,
       requestPage([R2, R1], { total: 3, is_last_page: false }),
@@ -356,9 +375,14 @@ describe('Dado a tela principal', () => {
       truncated: false,
       removed: [R0.uuid],
     });
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=oldest`, requestPage([R1]));
 
-    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    await vi.waitFor(() =>
+      expect(text()).toMatch(
+        /This request was deleted from the server by auto cleanup \(keeps the newest 500\), noticed at/,
+      ),
+    );
+    expect(router.url).toBe(`/${TOKEN_ID}/${R0.uuid}/1`);
+    expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R0.uuid);
   });
 
   // B1 (P1 decidida): nenhuma tela cria URL sem a pessoa pedir; a página única de URL inexistente
@@ -545,7 +569,7 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
     });
 
-    it('deve tirar as cortadas e abrir a mais próxima Quando a mensagem aberta sai pela limpeza automática', async () => {
+    it('deve tirar as cortadas e manter a aberta como cópia, com o aviso, Quando ela sai pela limpeza automática (B2)', async () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
       const nova = webhookRequest(3);
 
@@ -556,11 +580,14 @@ describe('Dado a tela principal', () => {
         removed: [R1.uuid],
       });
 
-      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+      await vi.waitFor(() =>
+        expect(text()).toContain('This request was deleted from the server by auto cleanup'),
+      );
       const store = TestBed.inject(RequestStore);
-      // A mais nova no topo (INBOX-01): a nova entra antes das que ficaram.
+      // A mais nova no topo (INBOX-01): a nova entra antes das que ficaram; nenhuma outra abre.
       expect(store.requests().map((request) => request.uuid)).toEqual([nova.uuid, R2.uuid]);
-      expect(store.selected()?.uuid).toBe(R2.uuid);
+      expect(store.selected()?.uuid).toBe(R1.uuid);
+      expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
       expect(text()).toContain('Requests (2)');
     });
 

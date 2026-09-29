@@ -42,14 +42,52 @@
     <mat-menu #moreMenu="matMenu">
       <!-- Celular (INBOX-33, trava 5): as ações que saem da barra vêm para cá. -->
       @if (compact()) {
-        <button i18n mat-menu-item type="button" (click)="sendAsNew()">Send as new&hellip;</button>
+        <!-- B2: desligada, a ação sai da barra do celular e fica aqui, com a razão. -->
+        @if (gone()) {
+          <button
+            mat-menu-item
+            type="button"
+            disabledInteractive
+            [disabled]="gone()"
+            [attr.aria-describedby]="goneReason()"
+            (click)="replayRequest()"
+          >
+            <ng-container i18n>Replay&hellip;</ng-container>
+          </button>
+        }
+        <button
+          mat-menu-item
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="sendAsNew()"
+        >
+          <ng-container i18n>Send as new&hellip;</ng-container>
+        </button>
       }
       <!-- WM-28: o "Send as new…" apontado para a própria URL; no "More" também no desktop, para a
            barra caber numa linha (INBOX-19). -->
-      <button i18n mat-menu-item type="button" (click)="testVariation()">Test a variation</button>
+      <button
+        mat-menu-item
+        type="button"
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        (click)="testVariation()"
+      >
+        <ng-container i18n>Test a variation</ng-container>
+      </button>
       @if (compact()) {
-        <button i18n mat-menu-item type="button" (click)="compareWith()">
-          Compare with&hellip;
+        <button
+          mat-menu-item
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="compareWith()"
+        >
+          <ng-container i18n>Compare with&hellip;</ng-container>
         </button>
         @if (jsonBody()) {
           <button i18n mat-menu-item type="button" (click)="createSchema()">
@@ -57,35 +95,86 @@
           </button>
         }
         <button i18n mat-menu-item type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
-        <button i18n mat-menu-item type="button" (click)="shareRequest()">
-          Share read-only link&hellip;
+        <button
+          mat-menu-item
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="shareRequest()"
+        >
+          <ng-container i18n>Share read-only link&hellip;</ng-container>
         </button>
         <button
           mat-menu-item
           type="button"
           disabledInteractive
-          [disabled]="ai.disabled()"
+          [disabled]="explainOff()"
           [attr.aria-describedby]="explainReason()"
           (click)="toggleExplain()"
         >
           <ng-container [ngTemplateOutlet]="explainLabel" />
         </button>
       }
-      <a i18n mat-menu-item [href]="permalink()">Permalink</a>
-      <a i18n mat-menu-item target="_blank" rel="noopener" [href]="rawUrl()">Raw content</a>
+      <a
+        i18n
+        mat-menu-item
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        [attr.href]="gone() ? null : permalink()"
+        >Permalink</a
+      >
+      <a
+        i18n
+        mat-menu-item
+        target="_blank"
+        rel="noopener"
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        [attr.href]="gone() ? null : rawUrl()"
+        >Raw content</a
+      >
       <!-- INBOX-20: apagar a aberta sem voltar à lista, com o Undo de hoje. -->
-      <button i18n mat-menu-item type="button" (click)="deleteRequest()">Delete request</button>
+      <button
+        mat-menu-item
+        type="button"
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        (click)="deleteRequest()"
+      >
+        <ng-container i18n>Delete request</ng-container>
+      </button>
     </mat-menu>
   </div>
 
   <!-- INBOX-19: rótulos curtos com ícone; o visível é o começo do nome acessível (WCAG 2.5.3). -->
   <div class="actions" role="toolbar" aria-label="Request actions" i18n-aria-label viewActions>
     <div class="group">
-      <button mat-flat-button type="button" (click)="replayRequest()">
-        <app-icon name="replay" [size]="18" /><ng-container i18n>Replay&hellip;</ng-container>
-      </button>
+      <!-- B2: no celular a barra mostra só o que funciona; a desligada vai para o "More". -->
+      @if (!(compact() && gone())) {
+        <button
+          mat-flat-button
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="replayRequest()"
+        >
+          <app-icon name="replay" [size]="18" /><ng-container i18n>Replay&hellip;</ng-container>
+        </button>
+      }
       @if (!compact()) {
-        <button mat-button type="button" (click)="sendAsNew()">
+        <button
+          mat-button
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="sendAsNew()"
+        >
           <app-icon name="outbound" [size]="18" /><ng-container i18n
             >Send as new&hellip;</ng-container
           >
@@ -95,6 +184,9 @@
           type="button"
           aria-label="Compare with…"
           i18n-aria-label
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
           (click)="compareWith()"
         >
           <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
@@ -149,6 +241,9 @@
           type="button"
           aria-label="Share read-only link…"
           i18n-aria-label
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
           (click)="shareRequest()"
         >
           <ng-container i18n>Share</ng-container>
@@ -159,7 +254,7 @@
           title="Ask the local model why signature, schema and rules gave this result"
           i18n-title
           disabledInteractive
-          [disabled]="ai.disabled()"
+          [disabled]="explainOff()"
           [attr.aria-describedby]="explainReason()"
           (click)="toggleExplain()"
         >
@@ -174,6 +269,10 @@
   @if (compact() && ai.disabled()) {
     <!-- O "Explain" desabilitado fica no menu: a dica de configuração continua à vista. -->
     <p class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</p>
+  }
+  @if (gone()) {
+    <!-- B2: a razão das ações desligadas, à vista e como descrição acessível de cada uma. -->
+    <p class="gone-reason" [id]="goneReasonId" i18n>The server no longer has this request.</p>
   }
   <ng-container #explainHost />
 </app-request-view>

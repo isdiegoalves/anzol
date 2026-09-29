@@ -125,6 +125,7 @@ function copiedMessage(outside: ReturnType<typeof outsideWaitFor>): string {
     outcome: $localize`the answered-by filter`,
     reason: $localize`the signature reason`,
     path: $localize`the schema error path`,
+    answered: $localize`the answered status`,
   };
   const left = outside.map((part) => names[part]).join(', ');
   return $localize`Copied. wait-for only reads --match, so these filters were left out: ${left}:filters:.`;

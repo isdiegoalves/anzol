@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -7,7 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -15,10 +16,164 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { CompareStore } from '../diff/compare-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
+import { RuleTrace } from '../rules/rule';
 import { ShareDialog } from '../share/share-dialog';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Explanations } from './explanations';
 import { RequestDetail } from './request-detail';
+
+describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
+  const windowClass = signal<WindowClass>('large');
+  const REASON = 'The server no longer has this request.';
+  const [older, open, newer] = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
+
+  const showGone = async (list = [newer, open, older]) => {
+    const view = await render(RequestDetail, {
+      inputs: { request: open, token: token(), page: 1 },
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`).flush(requestPage(list));
+    await loaded;
+    store.select(open.uuid);
+    const deleted = store.deleteRequest(open);
+    http
+      .expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${open.uuid}` })
+      .flush(null);
+    await deleted;
+    await view.fixture.whenStable();
+    return { ...view, store };
+  };
+  const toolbar = () => screen.getByRole('toolbar', { name: 'Request actions' });
+  const described = (element: HTMLElement) =>
+    document.getElementById(element.getAttribute('aria-describedby') ?? '')?.textContent?.trim();
+
+  beforeEach(() => windowClass.set('large'));
+  afterEach(() => localStorage.clear());
+
+  it('deve desligar na barra o que precisa do servidor, focável e com a razão, e manter o resto', async () => {
+    const { container } = await showGone();
+
+    for (const name of ['Replay…', 'Send as new…', 'Compare with…', 'Share read-only link…']) {
+      const button = within(toolbar()).getByRole('button', { name });
+      expect([name, button.getAttribute('aria-disabled')]).toEqual([name, 'true']);
+      expect(button).toHaveProperty('disabled', false);
+      expect(described(button)).toBe(REASON);
+    }
+    expect(
+      within(toolbar()).getByRole('button', { name: 'Explain' }).getAttribute('aria-disabled'),
+    ).toBe('true');
+    for (const name of ['Copy payload', 'Create rule from this request', 'Copy As']) {
+      const button = within(toolbar()).getByRole('button', { name });
+      expect([name, button.getAttribute('aria-disabled')]).toEqual([name, null]);
+    }
+    expect(screen.getByText(REASON)).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve desligar no "More" o link permanente, o conteúdo cru e o apagar', async () => {
+    await showGone();
+
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+
+    for (const name of ['Test a variation', 'Permalink', 'Raw content', 'Delete request']) {
+      const item = await screen.findByRole('menuitem', { name });
+      expect([name, item.getAttribute('aria-disabled')]).toEqual([name, 'true']);
+      expect(described(item)).toBe(REASON);
+      expect(item.hasAttribute('href')).toBe(false);
+    }
+  });
+
+  it('não deve navegar nem abrir nada Quando uma ação desligada é clicada', async () => {
+    await showGone();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const start = vi.spyOn(TestBed.inject(CompareStore), 'start');
+
+    within(toolbar()).getByRole('button', { name: 'Replay…' }).click();
+    within(toolbar()).getByRole('button', { name: 'Compare with…' }).click();
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('deve sair da cópia para a vizinha que existe, de um lado e do outro', async () => {
+    const view = await showGone();
+    const opened: WebhookRequest[] = [];
+    view.fixture.componentInstance.openRequest.subscribe((request) => opened.push(request));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Older' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Newer' }));
+
+    expect(opened).toEqual([older, newer]);
+  });
+
+  it('não deve oferecer a vizinha que não existe', async () => {
+    await showGone([open, older]);
+
+    expect(screen.getByRole('button', { name: 'Newer' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Older' })).toHaveProperty('disabled', false);
+  });
+
+  it('deve tirar a ação desligada da barra do celular e deixá-la no "More"', async () => {
+    windowClass.set('compact');
+    await showGone();
+
+    expect(within(toolbar()).queryByRole('button', { name: 'Replay…' })).toBeNull();
+    expect(
+      within(toolbar()).getByRole('button', { name: 'Create rule from this request' }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    const replay = await screen.findByRole('menuitem', { name: 'Replay…' });
+    expect(replay.getAttribute('aria-disabled')).toBe('true');
+    expect(described(replay)).toBe(REASON);
+  });
+
+  it('deve religar as ações e anunciar "Request restored." Quando o apagar é desfeito', async () => {
+    const view = await render(RequestDetail, {
+      inputs: { request: open, token: token(), page: 1 },
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass } },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([open, older]));
+    await loaded;
+    store.select(open.uuid);
+    const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+    const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete request' }));
+    await view.fixture.whenStable();
+    expect(
+      within(toolbar()).getByRole('button', { name: 'Replay…' }).getAttribute('aria-disabled'),
+    ).toBe('true');
+
+    snack.mock.results[0].value.dismissWithAction();
+
+    await vi.waitFor(() => expect(announce.mock.calls).toEqual([['Request restored.']]));
+    await view.fixture.whenStable();
+    expect(store.gone()).toBeNull();
+    expect(
+      within(toolbar()).getByRole('button', { name: 'Replay…' }).getAttribute('aria-disabled'),
+    ).toBeNull();
+    http.expectNone({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${open.uuid}` });
+  });
+});
 
 describe('Dado o detalhe de uma mensagem com as ações', () => {
   /** Janela larga por padrão; o jsdom não tem `matchMedia`. */
@@ -111,7 +266,8 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ]);
     const links = [...document.querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')];
     expect(links.map((link) => link.href)).toEqual([
-      `${location.origin}/#/${TOKEN_ID}/${request.uuid}/2`,
+      // B2: o link leva o `created_at`, para o estado vazio dizer de quando era a requisição.
+      `${location.origin}/#/${TOKEN_ID}/${request.uuid}/2?at=2026-09-26%2000%3A43%3A49`,
       `${location.origin}/token/${TOKEN_ID}/request/${request.uuid}/raw`,
     ]);
   });
@@ -296,6 +452,88 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
         expect.objectContaining({ data: { request } }),
       ),
     );
+  });
+
+  // B2 (R5 da medição): com a pega-tudo, a regra que chegou mais perto vem do trace, com a ressalva.
+  describe('Dado o cartão da resposta com a regra que chegou mais perto', () => {
+    const traceUrl = (request: WebhookRequest) =>
+      `/token/${TOKEN_ID}/request/${request.uuid}/rules/trace`;
+    const checks = () => screen.getByRole('group', { name: 'Checks on this request' });
+    const trace = (answeredBy: string, conditions: string[]): RuleTrace => ({
+      request: 'x',
+      responded_by: { id: answeredBy, name: 'Tudo o resto' },
+      rules: [
+        {
+          id: 'r1',
+          name: 'Pedido pago',
+          enabled: true,
+          position: 1,
+          matches: answeredBy === 'r1',
+          failed: answeredBy === 'r1' ? [] : ['method: expected POST, got GET'],
+          conditions: ['match.method'],
+        },
+        {
+          id: 'r9',
+          name: 'Tudo o resto',
+          enabled: true,
+          position: 2,
+          matches: true,
+          failed: [],
+          conditions,
+        },
+      ],
+    });
+
+    it('deve dizer a regra mais perto, com a ressalva do trace, Quando uma pega-tudo respondeu', async () => {
+      const request = webhookRequest(1, {
+        rule: { id: 'r9', name: 'Tudo o resto' },
+        response: { status: 404 },
+      });
+      const { http, fixture, container } = await show(request);
+
+      http.expectOne(traceUrl(request)).flush(trace('r9', []));
+      await fixture.whenStable();
+
+      expect(checks().textContent).toContain('Answered 404 · by rule');
+      expect(checks().textContent).toContain(
+        'Closest rule: Pedido pago — method: expected POST, got GET',
+      );
+      expect(checks().textContent).toContain('Checked against the rules as they are now.');
+      await expectNoAxeViolations(container);
+    });
+
+    it('não deve dizer regra mais perto Quando respondeu uma regra com condições', async () => {
+      const request = webhookRequest(1, {
+        rule: { id: 'r9', name: 'Tudo o resto' },
+        response: { status: 404 },
+      });
+      const { http, fixture } = await show(request);
+
+      http.expectOne(traceUrl(request)).flush(trace('r9', ['match.path']));
+      await fixture.whenStable();
+
+      expect(checks().textContent).toContain('Answered 404 · by rule');
+      expect(checks().textContent).not.toContain('Closest rule');
+      expect(checks().textContent).not.toContain('Checked against the rules as they are now.');
+    });
+
+    it('não deve pedir o trace sem regra, nem ficar com a frase de outra requisição', async () => {
+      const first = webhookRequest(1, {
+        rule: { id: 'r9', name: 'Tudo o resto' },
+        response: { status: 404 },
+      });
+      const { http, fixture } = await show(first);
+      const pending = http.expectOne(traceUrl(first));
+
+      fixture.componentRef.setInput('request', webhookRequest(2, { response: { status: 429 } }));
+      await fixture.whenStable();
+      pending.flush(trace('r9', []));
+      await fixture.whenStable();
+
+      http.expectNone((call) => call.url.endsWith('/rules/trace'));
+      expect(checks().textContent).toContain('Answered 429 · default response');
+      expect(checks().textContent).not.toContain('Closest rule');
+    });
   });
 
   describe('Dado Newer e Older (a lista vai da mais nova, no topo, para a mais antiga; INBOX-01)', () => {

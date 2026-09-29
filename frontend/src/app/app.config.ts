@@ -3,6 +3,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.routes';
 import { connectionInterceptor } from './realtime/connection-store';
+import { requestGoneInterceptor } from './requests/request-store';
 import { urlLockInterceptor } from './token/url-lock';
 import { urlMissingInterceptor } from './token/url-missing';
 
@@ -15,7 +16,12 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withHashLocation(), withComponentInputBinding()),
     // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio.
     provideHttpClient(
-      withInterceptors([connectionInterceptor, urlLockInterceptor, urlMissingInterceptor]),
+      withInterceptors([
+        connectionInterceptor,
+        urlLockInterceptor,
+        urlMissingInterceptor,
+        requestGoneInterceptor,
+      ]),
     ),
   ],
 };

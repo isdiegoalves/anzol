@@ -140,6 +140,10 @@
   }
 }
 
+.older {
+  align-self: flex-start;
+}
+
 .note,
 .count {
   color: var(--mat-sys-on-surface-variant);
@@ -160,6 +164,10 @@
   .pill,
   .filters {
     height: 44px;
+  }
+
+  .older {
+    min-height: 44px;
   }
 
   .on {

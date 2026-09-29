@@ -49,6 +49,23 @@
   overflow: auto;
 }
 
+// B2: o aviso da requisição que sumiu; vazio, não ocupa altura.
+.gone.shown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+  font: var(--mat-sys-body-medium);
+}
+
+.gone-text {
+  flex: 1 1 320px;
+}
+
 .outside {
   display: flex;
   flex-wrap: wrap;

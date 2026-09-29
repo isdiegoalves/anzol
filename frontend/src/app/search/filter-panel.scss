@@ -14,6 +14,15 @@
   gap: 6px;
 }
 
+// Na janela larga o painel empurra a lista: alto demais, rola por dentro, e o cabeçalho da lista
+// fica à vista. O respiro guarda o contorno de foco dos chips.
+:host(:not(.sheet)) .groups {
+  max-height: 40vh;
+  margin: -5px;
+  padding: 5px;
+  overflow-y: auto;
+}
+
 .group {
   display: flex;
   align-items: baseline;

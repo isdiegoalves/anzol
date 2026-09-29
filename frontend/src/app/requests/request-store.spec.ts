@@ -1,9 +1,9 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { NO_FILTER } from '../search/request-filter';
-import { RequestStore } from './request-store';
+import { RequestStore, requestGoneInterceptor } from './request-store';
 import { RequestPage } from './webhook-request';
 
 const listUrl = `/token/${TOKEN_ID}/requests`;
@@ -74,6 +74,74 @@ describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
       .flush(requestPage([webhookRequest(2), webhookRequest(3)], { total: 3 }));
 
     expect(await arrived).toEqual({ data: [webhookRequest(2), webhookRequest(3)], total: 3 });
+  });
+});
+
+describe('Dado um GET da requisição aberta que responde 404 (B2, caminho 3)', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
+  const get = (url: string) =>
+    TestBed.inject(HttpClient)
+      .get(url)
+      .subscribe({ error: () => undefined });
+  const notFound = { status: 404, statusText: 'Not Found' };
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([requestGoneInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([R1, R2]));
+    await loaded;
+    store.select(R1.uuid);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it.each([
+    ['a própria requisição', ''],
+    ['o trace das regras', '/rules/trace'],
+    ['o conteúdo cru', '/raw'],
+  ])('deve avisar, com a cópia na tela, Quando %s responde 404', (_caso, rest) => {
+    const url = `/token/${TOKEN_ID}/request/${R1.uuid}${rest}`;
+
+    get(url);
+    http.expectOne(url).flush(null, notFound);
+
+    expect(store.gone()).toMatchObject({ id: R1.uuid, cause: 'unknown' });
+    expect(store.selected()).toEqual(R1);
+  });
+
+  it.each([
+    ['é de outra requisição', 'GET', `/token/${TOKEN_ID}/request/${R2.uuid}`, notFound],
+    ['não é 404', 'GET', `/token/${TOKEN_ID}/request/${R1.uuid}`, { status: 500, statusText: 'x' }],
+    ['não é de um GET', 'DELETE', `/token/${TOKEN_ID}/request/${R1.uuid}`, notFound],
+  ])('não deve avisar Quando a resposta %s', (_caso, method, url, answer) => {
+    TestBed.inject(HttpClient)
+      .request(method, url)
+      .subscribe({ error: () => undefined });
+    http.expectOne(url).flush(null, answer);
+
+    expect(store.gone()).toBeNull();
+  });
+
+  it('deve manter a causa já sabida Quando o 404 chega depois do aviso', () => {
+    store.append(webhookRequest(3), 2, [R1.uuid]);
+    const url = `/token/${TOKEN_ID}/request/${R1.uuid}/rules/trace`;
+
+    get(url);
+    http.expectOne(url).flush(null, notFound);
+
+    expect(store.gone()?.cause).toBe('cleanup');
   });
 });
 
@@ -208,8 +276,10 @@ describe('Dado o RequestStore da URL aberta', () => {
 
       expect(store.hasRequests()).toBe(false);
       expect(store.total()).toBe(0);
-      expect(store.selected()).toBeUndefined();
       expect(store.unread()).toEqual([]);
+      // B2: a aberta segue na tela como cópia, com o aviso de que esta aba a apagou.
+      expect(store.selected()).toEqual(webhookRequest(2));
+      expect(store.gone()).toMatchObject({ id: webhookRequest(2).uuid, cause: 'deleted' });
     });
   });
 
@@ -234,21 +304,56 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(JSON.parse(localStorage.getItem('unread') ?? '[]')).toEqual([webhookRequest(5).uuid]);
     });
 
-    it('não deve indicar outra mensagem Quando a aberta continua na lista', () => {
+    it('não deve avisar nada Quando a aberta continua na lista', () => {
       store.select(R3.uuid);
 
-      expect(store.append(R4, 3, [R1.uuid])).toBeUndefined();
+      store.append(R4, 3, [R1.uuid]);
+
       expect(store.selected()?.uuid).toBe(R3.uuid);
+      expect(store.gone()).toBeNull();
     });
 
+    // B2 (UX-38, CA-5): a aberta que a limpeza corta vira cópia com aviso; nenhuma outra entra.
     it.each([
-      ['a seguinte que ficou', [R1.uuid], R2],
-      ['a mais próxima depois de um bloco cortado', [R1.uuid, R2.uuid], R3],
-      ['a nova, se todas as carregadas saíram', [R1.uuid, R2.uuid, R3.uuid], R4],
-    ])('deve indicar %s Quando a mensagem aberta é cortada', (_caso, removed, esperada) => {
-      store.select(R1.uuid);
+      ['só ela', [R1.uuid]],
+      ['um bloco', [R1.uuid, R2.uuid]],
+      ['todas as carregadas', [R1.uuid, R2.uuid, R3.uuid]],
+    ])(
+      'deve manter a aberta como cópia, com o aviso, Quando a limpeza corta %s',
+      (_caso, removed) => {
+        vi.useFakeTimers({ now: new Date('2026-09-28T21:29:00'), toFake: ['Date'] });
+        store.select(R1.uuid);
 
-      expect(store.append(R4, 3, removed)).toEqual(esperada);
+        store.append(R4, 3, removed);
+
+        expect(store.selected()).toEqual(R1);
+        expect(store.requests().some((request) => request.uuid === R1.uuid)).toBe(false);
+        expect(store.gone()).toEqual({
+          id: R1.uuid,
+          cause: 'cleanup',
+          at: new Date('2026-09-28T21:29:00'),
+          index: 0,
+        });
+        vi.useRealTimers();
+      },
+    );
+
+    it('deve avisar do corte também com filtro, quando a chegada só conta', () => {
+      store.select(R2.uuid);
+
+      store.countArrival(R4, 3, [R2.uuid]);
+
+      expect(store.gone()).toMatchObject({ id: R2.uuid, cause: 'cleanup', index: 1 });
+    });
+
+    it('deve tirar o aviso Quando outra requisição é aberta', () => {
+      store.select(R1.uuid);
+      store.append(R4, 3, [R1.uuid]);
+
+      store.select(R2.uuid);
+
+      expect(store.gone()).toBeNull();
+      expect(store.selected()).toEqual(R2);
     });
 
     it('deve buscar de novo a primeira página e manter a aberta Quando a lista é recarregada', async () => {
@@ -257,20 +362,83 @@ describe('Dado o RequestStore da URL aberta', () => {
       const reloaded = store.reload();
       http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3, R4], { total: 2 }));
 
-      expect(await reloaded).toBeUndefined();
+      await reloaded;
       expect(store.requests()).toEqual([R3, R4]);
       expect(store.total()).toBe(2);
       expect(store.selected()?.uuid).toBe(R3.uuid);
     });
 
-    it('deve indicar a mais próxima que ficou Quando a aberta foi cortada no recarregamento', async () => {
+    it('deve manter a aberta, sem trocar por outra, Quando ela sai da lista no recarregamento', async () => {
       store.select(R1.uuid);
 
       const reloaded = store.reload();
       http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3, R4], { total: 2 }));
+      await reloaded;
 
-      expect(await reloaded).toEqual(R3);
+      expect(store.selected()).toEqual(R1);
     });
+  });
+
+  describe('Dado a requisição aberta apagada por esta aba (B2, UX-38)', () => {
+    const [R1, R2] = [webhookRequest(1), webhookRequest(2)];
+
+    beforeEach(async () => {
+      await respond(store.load(TOKEN_ID, 1), 1, requestPage([R1, R2], { total: 2 }));
+      store.select(R2.uuid);
+    });
+
+    it('deve manter a cópia com o aviso "deleted" e tirar o item da lista', async () => {
+      const deleted = store.deleteRequest(R2);
+      http
+        .expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${R2.uuid}` })
+        .flush(null);
+      await deleted;
+
+      expect(store.requests()).toEqual([R1]);
+      expect(store.selected()).toEqual(R2);
+      expect(store.selectedIndex()).toBe(-1);
+      expect(store.gone()).toMatchObject({ id: R2.uuid, cause: 'deleted', index: 1 });
+    });
+
+    it('deve tirar o aviso e devolver o item Quando o apagar é desfeito', async () => {
+      const deleted = store.deleteRequest(R2, Promise.resolve(true));
+      expect(store.gone()?.cause).toBe('deleted');
+
+      expect(await deleted).toBe(false);
+
+      expect(store.gone()).toBeNull();
+      expect(store.requests()).toEqual([R1, R2]);
+      expect(store.selectedIndex()).toBe(1);
+    });
+
+    it('não deve avisar nada Quando a apagada não é a aberta', async () => {
+      const deleted = store.deleteRequest(R1);
+      http
+        .expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request/${R1.uuid}` })
+        .flush(null);
+      await deleted;
+
+      expect(store.gone()).toBeNull();
+      expect(store.selected()).toEqual(R2);
+    });
+  });
+
+  describe('Dado o link para uma requisição que não abre (B2, CA-5)', () => {
+    it.each(['missing', 'failed'] as const)(
+      'deve ficar sem seleção e guardar o motivo (%s), sem abrir outra',
+      async (reason) => {
+        await respond(store.load(TOKEN_ID, 1), 1, requestPage([webhookRequest(1)]));
+        store.select(webhookRequest(1).uuid);
+
+        store.leaveUnopened('falta', reason);
+
+        expect(store.selected()).toBeUndefined();
+        expect(store.unopened()).toEqual({ id: 'falta', reason });
+
+        store.select(webhookRequest(1).uuid);
+        expect(store.unopened()).toBeNull();
+      },
+    );
   });
 
   it('deve carregar a página anterior no começo Quando o deep link abriu a página 2', async () => {
@@ -492,5 +660,104 @@ describe('Dado o RequestStore da URL aberta', () => {
 
       expect((await store.oldestKept())?.uuid).toBe(webhookRequest(8).uuid);
     });
+  });
+});
+
+// B2 (UX-02): a busca do servidor não filtra por status; o filtro roda no navegador, sobre as
+// mais novas, em páginas de 100, até 500 (e mais 500 a cada "Look in older requests").
+describe('Dado o filtro pelo status respondido', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const answered = (n: number, status: number) => webhookRequest(n, { response: { status } });
+  const listPage = (page: number) => `${listUrl}?page=${page}&per_page=100&sorting=newest`;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([answered(1, 200)]));
+    await loaded;
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve varrer as mais novas pela listagem, filtrar no navegador e dizer o alcance', async () => {
+    const [ok, recusa, outra] = [answered(3, 201), answered(2, 429), answered(1, 404)];
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['4xx'] });
+    await vi.waitFor(() => http.expectOne(listPage(1)).flush(requestPage([ok, recusa, outra])));
+    await applied;
+
+    expect(store.requests()).toEqual([recusa, outra]);
+    expect(store.matched()).toBe(2);
+    expect(store.scan()).toEqual({ scanned: 3, total: 3, done: true });
+    expect(store.hasNextPage()).toBe(false);
+  });
+
+  it('deve parar em 500 e procurar mais 500 Quando pedem as mais antigas', async () => {
+    const page = (n: number, total: number) =>
+      requestPage(
+        Array.from({ length: 100 }, (_, i) => answered(n * 1000 + i, 200)),
+        { total, per_page: 100, current_page: n, is_last_page: false },
+      );
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['5xx'] });
+    await vi.waitFor(() => http.expectOne(listPage(1)).flush(page(1, 505)));
+    for (const n of [2, 3, 4, 5]) {
+      await vi.waitFor(() => http.expectOne(listPage(n)).flush(page(n, 505)));
+    }
+    await applied;
+    expect(store.matched()).toBe(0);
+    expect(store.scan()).toEqual({ scanned: 500, total: 505, done: true });
+
+    const older = store.lookOlder();
+    for (const n of [1, 2, 3, 4, 5]) {
+      await vi.waitFor(() => http.expectOne(listPage(n)).flush(page(n, 505)));
+    }
+    const antiga = answered(9, 503);
+    await vi.waitFor(() =>
+      http.expectOne(listPage(6)).flush(
+        requestPage([5, 6, 7, 8].map((n) => answered(n, 200)).concat(antiga), {
+          total: 505,
+          current_page: 6,
+        }),
+      ),
+    );
+    await older;
+
+    expect(store.requests()).toEqual([antiga]);
+    expect(store.scan()).toEqual({ scanned: 505, total: 505, done: true });
+  });
+
+  it('deve varrer pela busca do servidor Quando há outros filtros junto', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'], answered: ['2xx'] });
+    const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+    expect(call.request.body).toEqual({
+      match: { method: ['POST'] },
+      sorting: 'newest',
+      page: 1,
+      per_page: 100,
+    });
+    call.flush(requestPage([answered(2, 204), answered(1, 500)], { total: 2 }));
+    await applied;
+
+    expect(store.requests()).toEqual([answered(2, 204)]);
+    expect(store.scan()).toEqual({ scanned: 2, total: 2, done: true });
+  });
+
+  it('não deve ter alcance Quando o filtro não tem status', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    await vi.waitFor(() =>
+      http.expectOne({ method: 'POST', url: searchUrl }).flush(requestPage([])),
+    );
+    await applied;
+
+    expect(store.scan()).toBeNull();
   });
 });

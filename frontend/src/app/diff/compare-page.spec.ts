@@ -5,9 +5,11 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { CompareStore } from './compare-store';
 
 const [R1, R2, R3] = [1, 2, 3].map((n) => webhookRequest(n));
 
@@ -98,14 +100,59 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     expect(page().querySelector('app-request-list')).toBeNull();
   });
 
-  it('deve dizer que uma delas sumiu Quando a API responde 404', async () => {
+  // B2 (CA-5): a comparação não abre com outra no lugar; diz qual lado falta.
+  it('deve dizer qual lado não existe mais, sem comparar, Quando a API responde 404 para ele', async () => {
     await open();
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
     await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, { error: 'Not found' }, 404);
 
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
-      expect(page().textContent).toContain('One of these requests is gone');
+      expect(page().textContent).toContain(
+        `Request B (#${R2.uuid.substring(0, 5)}) no longer exists. Nothing was compared.`,
+      );
+    });
+    expect(page().textContent).not.toContain(`Request A (#`);
+    expect(page().querySelector('app-request-compare')).toBeNull();
+    await expectNoAxeViolations(page());
+  });
+
+  it('deve voltar à Inbox com o lado que existe esperando a outra escolha Quando "Choose another request" é clicado', async () => {
+    // A Inbox abre o tempo real.
+    vi.stubGlobal('EventSource', FakeEventSource);
+    await open();
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
+    await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, { error: 'Not found' }, 404);
+    const choose = await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      const button = [...page().querySelectorAll<HTMLButtonElement>('button')].find(
+        (candidate) => candidate.textContent?.trim() === 'Choose another request',
+      );
+      expect(button).toBeDefined();
+      return button as HTMLButtonElement;
+    });
+
+    choose.click();
+
+    const router = TestBed.inject(Router);
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R3]));
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(CompareStore).picking()?.uuid).toBe(R1.uuid);
+    vi.unstubAllGlobals();
+  });
+
+  it('deve dizer os dois lados Quando nenhum existe mais', async () => {
+    await open();
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, { error: 'Not found' }, 404);
+    await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, { error: 'Not found' }, 404);
+
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(page().textContent).toContain(
+        `Request A (#${R1.uuid.substring(0, 5)}) no longer exists. Request B (#${R2.uuid.substring(0, 5)}) no longer exists. Nothing was compared.`,
+      );
     });
   });
 

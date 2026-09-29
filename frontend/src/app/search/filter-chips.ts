@@ -8,6 +8,9 @@ import {
   SignatureFilter,
 } from './request-filter';
 
+/** As classes do status respondido, com chip próprio no subgrupo "Answer" (B2). */
+const ANSWERED_CLASSES: readonly string[] = ['2xx', '3xx', '4xx', '5xx'];
+
 /** Um chip do grupo "Filters": o nome acessível é o texto, o estado é o `aria-pressed`. */
 export interface FilterChip {
   label: string;
@@ -17,6 +20,8 @@ export interface FilterChip {
   menu?: 'rule' | 'near_miss';
   /** Filtro que só existe ligado (o motivo exato, a regra escolhida): o chip mostra o ✕. */
   removable?: boolean;
+  /** O texto à vista, quando é mais curto que o nome acessível ("4xx" de "Answered 4xx"). */
+  short?: string;
 }
 
 /** Um subgrupo do painel, com o rótulo à vista. */
@@ -118,7 +123,11 @@ export class FilterChips {
               ]),
         ],
       },
-      { id: 'answer', label: this.groupLabels.answer, chips: this.answer(filter.outcome ?? null) },
+      {
+        id: 'answer',
+        label: this.groupLabels.answer,
+        chips: [...this.answer(filter.outcome ?? null), ...this.answered(filter.answered ?? [])],
+      },
     ];
   });
 
@@ -147,6 +156,36 @@ export class FilterChips {
     const cleared = this.cleared;
     this.cleared = false;
     return cleared;
+  }
+
+  /**
+   * B2 (UX-02): as classes do status respondido e, ligado pela F1, o status exato, com o texto das
+   * condições de Regras ("answered 429"). Filtram no navegador (`RequestStore.scan`).
+   */
+  private answered(answered: readonly string[]): FilterChip[] {
+    const toggle = (value: string) => () =>
+      this.apply({
+        answered: answered.includes(value)
+          ? answered.filter((chosen) => chosen !== value)
+          : [...answered, value],
+      });
+    return [
+      ...ANSWERED_CLASSES.map((value) => ({
+        label: $localize`:filter chip|Requests answered with a status of this class:Answered ${value}:class:`,
+        // Os quatro cabem numa linha do subgrupo "Answer"; o nome acessível leva o "Answered".
+        short: value,
+        pressed: answered.includes(value),
+        toggle: toggle(value),
+      })),
+      ...answered
+        .filter((value) => !ANSWERED_CLASSES.includes(value))
+        .map((value) => ({
+          label: $localize`:filter chip|Active filter, requests answered with this exact status:answered ${value}:status:`,
+          pressed: true,
+          removable: true,
+          toggle: toggle(value),
+        })),
+    ];
   }
 
   private answer(outcome: OutcomeFilter | null): FilterChip[] {

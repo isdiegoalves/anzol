@@ -283,8 +283,6 @@ export const translations: Record<string, string> = {
   '3856815953527229917': 'Redimensionar lista e comparação',
   // Request list
   '15212477353048134': 'Lista de requisições',
-  // One of these requests is gone
-  '557626220119457341': 'Uma dessas requisições sumiu',
   // It may have been deleted or cut by auto cleanup.
   '2796858137804922317': 'Ela pode ter sido apagada ou cortada pela limpeza automática.',
   // Back to the Inbox
@@ -800,22 +798,10 @@ export const translations: Record<string, string> = {
   '7486164292966200940': '{$count} erros de schema',
   // Answered by rule
   '2958936185065128502': 'Respondida por regra',
-  // Answered by rule · {$status}
-  '9088845257789269247': 'Respondida por regra · {$status}',
-  // No rule matched
-  '5200969779460711724': 'Nenhuma regra casou',
-  // Closest: {$rule} · {$condition}
-  '2994867950786199670': 'Mais perto: {$rule} · {$condition}',
-  // Closest: {$rule} ({$count} conditions failed)
-  '445548468782510116': 'Mais perto: {$rule} ({$count} condições falharam)',
-  // Near miss
-  '9202118846510819044': 'Quase acerto',
   // Received before rules
   '2479848593142434231': 'Recebida antes das regras',
   // No rule answered
   '2294482763688392758': 'Nenhuma regra respondeu',
-  // Default
-  '5607669932062416162': 'Padrão',
   // Timestamp signed with the body
   '5284952865465031727': 'Timestamp assinado junto com o corpo',
   // HMAC-SHA256 of "{t}.{raw body}"
@@ -856,12 +842,8 @@ export const translations: Record<string, string> = {
   '3672300871929116043': 'Link permanente, conteúdo bruto',
   // Send as new…
   '7130825112248571070': 'Mandar como nova…',
-  //  Compare with…
-  '5731842205788585435': ' Comparar com… ',
   //  Create schema from this request
   '3050372262779981936': ' Criar schema a partir desta requisição ',
-  //  Share read-only link…
-  '4627804049049897994': ' Compartilhar link só-leitura… ',
   // Permalink
   '2390582664692406528': 'Link permanente',
   // Raw content
@@ -2447,8 +2429,6 @@ export const translations: Record<string, string> = {
   '3523141136168498829': 'Nenhuma regra leva ao estado "{$state}" — provável erro de digitação.',
   // Enable rule {$rule}
   '4770561319318769665': 'Ligar a regra {$rule}',
-  // Rule: {$rule}
-  '4152048553367390961': 'Regra: {$rule}',
   // Loading the rules…
   '376406299257554731': 'Carregando as regras…',
   // This URL has no rules.
@@ -3171,4 +3151,85 @@ export const translations: Record<string, string> = {
   // Wait asked: Retry-After: {$asked}, as configured now. Times are kept to the second.
   '524192982117577614':
     'Espera pedida: Retry-After: {$asked}, como está configurado agora. As horas são guardadas por segundo.',
+  // Choose another request
+  '1489808353545983136': 'Escolher outra requisição',
+  // Request A (#{$id}) no longer exists.
+  '4195017405011090073': 'A requisição A (#{$id}) não existe mais.',
+  // Request B (#{$id}) no longer exists.
+  '2680638928772326002': 'A requisição B (#{$id}) não existe mais.',
+  // Nothing was compared.
+  '2948659986953822115': 'Nada foi comparado.',
+  // Request notice
+  '6332235221655261516': 'Aviso da requisição',
+  // Open the newest request
+  '7627733301374734916': 'Abrir a requisição mais nova',
+  // Loading request #{$id}…
+  '3059349265274800799': 'Carregando a requisição #{$id}…',
+  // You are seeing the copy this page had loaded.
+  '4747150425800960017': 'Você está vendo a cópia que esta página tinha carregado.',
+  // This copy goes away when you leave it.
+  '2271896899361152623': 'Esta cópia some quando você sair dela.',
+  // This request was deleted from the server by auto cleanup (keeps the newest {$limit}), noticed at {$time}. {$copy}
+  '1216006690166364016':
+    'Esta requisição foi apagada do servidor pela limpeza automática (guarda as {$limit} mais novas), percebido às {$time}. {$copy}',
+  // This request was deleted from the server by auto cleanup, noticed at {$time}. {$copy}
+  '963071689171665060':
+    'Esta requisição foi apagada do servidor pela limpeza automática, percebido às {$time}. {$copy}',
+  // You deleted this request at {$time}. {$copy}
+  '3520060693784969119': 'Você apagou esta requisição às {$time}. {$copy}',
+  // This request is no longer on the server, noticed at {$time}. It may have been deleted or cut by auto cleanup.
+  '56780826527671468':
+    'Esta requisição não está mais no servidor, percebido às {$time}. Ela pode ter sido apagada ou cortada pela limpeza automática.',
+  // Connection reset
+  '1755383718055848550': 'Conexão reiniciada',
+  // Closest rule: {$rule} — {$reason}{$more}
+  '686882120115347084': 'Regra que chegou mais perto: {$rule} — {$reason}{$more}',
+  // Network fault · {$fault}
+  '6971063513701035037': 'Falha de rede · {$fault}',
+  // Network fault by rule: {$fault}: {$rule}
+  '7913267087440531484': 'Falha de rede por regra: {$fault}: {$rule}',
+  // Answered {$status} · by rule
+  '3651774791336490256': 'Respondeu {$status} · pela regra',
+  // — · not recorded
+  '7013986684116090892': '— · sem registro',
+  // Answered by rule · {$status}: {$rule}
+  '7482772772898741860': 'Respondida por regra · {$status}: {$rule}',
+  // Answer not recorded, by rule {$rule}
+  '8671415770375958661': 'Resposta sem registro, pela regra {$rule}',
+  // Answered {$status} · default response
+  '1632889250580930909': 'Respondeu {$status} · resposta padrão',
+  // {$status} · Default response
+  '3603420320165745482': '{$status} · Resposta padrão',
+  // Default response · {$status}
+  '4762015500217354798': 'Resposta padrão · {$status}',
+  // Answer not recorded
+  '546447634607016272': 'Resposta sem registro',
+  // The server no longer has this request.
+  '2106765886275018133': 'O servidor não tem mais esta requisição.',
+  // Request restored.
+  '8505713565664755746': 'Requisição restaurada.',
+  // Checked against the rules as they are now.
+  '5397359920811842463': 'Conferido com as regras como estão agora.',
+  // No other request was opened in its place.
+  '4813557657527501326': 'Nenhuma outra requisição foi aberta no lugar dela.',
+  // Search for this id
+  '1304787567684709449': 'Buscar por este identificador',
+  // Could not load this request. The server did not answer.
+  '7152006975872720851': 'Não foi possível carregar esta requisição. O servidor não respondeu.',
+  // It was received on {$date}.
+  '5045762088893355178': 'Ela foi recebida em {$date}.',
+  // Retry-After: {$value} (as configured now)
+  '3550688370858859981': 'Retry-After: {$value} (como está configurado agora)',
+  // Answered {$class}
+  '2178342429442273342': 'Respondeu {$class}',
+  // answered {$status}
+  '924699136068025743': 'respondeu {$status}',
+  // Look in older requests
+  '5564639954442159945': 'Procurar nas mais antigas',
+  // {$count} match among the newest {$scanned}
+  '8256896967558960134': '{$count} casam entre as {$scanned} mais novas',
+  // Looking in {$scanned} of {$total}…
+  '9194493308386689993': 'Procurando em {$scanned} de {$total}…',
+  // the answered status
+  '7064010877324652228': 'o status respondido',
 };

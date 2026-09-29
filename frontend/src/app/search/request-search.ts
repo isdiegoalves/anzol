@@ -92,9 +92,26 @@ export class RequestSearch {
   /** "2 requests match · search runs on the server over all 3" (INBOX-10). */
   private readonly statusLine = computed(() => {
     const [matched, total] = [this.store.matched(), this.store.total()];
+    const scan = this.store.scan();
+    if (scan) {
+      // B2: o status filtra no navegador; a linha diz onde procurou, nunca "0" sem o alcance.
+      return $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`;
+    }
     return matched === 1
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
       : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
+  });
+  /** "Look in older requests": a varredura acabou e a URL guarda mais que as olhadas. */
+  protected readonly olderLeft = computed(() => {
+    const scan = this.store.scan();
+    return !!scan && scan.done && !this.store.searching() && scan.total > scan.scanned;
+  });
+  /** "Looking in 100 of 505…", enquanto a varredura anda; fora da região viva (guia §4.3). */
+  protected readonly looking = computed(() => {
+    const scan = this.store.scan();
+    return scan && !scan.done
+      ? $localize`Looking in ${scan.scanned}:scanned: of ${scan.total}:total:…`
+      : '';
   });
   /** O que a região do resultado diz agora. */
   protected readonly result = signal('');

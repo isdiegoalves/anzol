@@ -26,14 +26,16 @@
       }
     }
     @case ('missing') {
+      <!-- B2 (CA-5): a comparação não abre com outra no lugar; diz qual lado falta. -->
       <app-empty-state
         icon="search"
-        heading="One of these requests is gone"
-        i18n-heading
+        [heading]="current.text"
         text="It may have been deleted or cut by auto cleanup."
         i18n-text
       >
-        <a i18n [routerLink]="['/', tokenId()]">Back to the Inbox</a>
+        <button type="button" (click)="chooseAnother(current.kept)">
+          <span i18n>Choose another request</span>
+        </button>
       </app-empty-state>
     }
     @case ('failed') {

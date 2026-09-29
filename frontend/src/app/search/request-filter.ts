@@ -1,3 +1,4 @@
+import type { CapturedRequest } from '../requests/webhook-request';
 import type { RuleMatch, SchemaCondition, SignatureCondition } from '../rules/rule';
 
 /** Métodos oferecidos no filtro rápido "Method". */
@@ -29,6 +30,11 @@ export interface RequestFilter {
   signatureReason?: string | null;
   /** M1: o caminho (JSON Pointer) de um erro de schema; `''` é a raiz. `null` ou ausente, sem ele. */
   schemaPath?: string | null;
+  /**
+   * B2 (UX-02): o status respondido, por classe (`4xx`) ou exato (`429`, F1). A busca do servidor
+   * não filtra por status: roda no navegador, sobre as mais novas (`RequestStore.scan`).
+   */
+  answered?: readonly string[] | null;
 }
 
 /** O `outcome` da busca, com o nome da regra para o chip ("Answered by: Pix"). */
@@ -48,6 +54,7 @@ export interface FilterParams {
   ruleName?: string | null;
   signatureReason?: string | null;
   schemaPath?: string | null;
+  answered?: string | null;
 }
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
@@ -65,6 +72,10 @@ export function filterFromParams(params: FilterParams): RequestFilter {
   const outcome = outcomeFromParams(params);
   // Os tetos do servidor (422 acima): o motivo vazio não filtra nada; o caminho vazio é a raiz.
   const reason = params.signatureReason?.slice(0, REASON_MAX) || null;
+  const answered = (params.answered ?? '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter((value, index, all) => ANSWERED.test(value) && all.indexOf(value) === index);
   const path =
     params.schemaPath != null &&
     isPointer(params.schemaPath) &&
@@ -79,7 +90,22 @@ export function filterFromParams(params: FilterParams): RequestFilter {
     ...(outcome && { outcome }),
     ...(reason !== null && { signatureReason: reason }),
     ...(path !== null && { schemaPath: path }),
+    ...(answered.length > 0 && { answered }),
   };
+}
+
+/** Uma classe (`2xx` a `5xx`) ou um status exato de três dígitos. */
+const ANSWERED = /^([1-5]xx|[1-5]\d\d)$/;
+
+/** A requisição respondeu um dos status pedidos? Sem status gravado (falha de rede, antiga), não. */
+export function answeredMatches(request: CapturedRequest, answered: readonly string[]): boolean {
+  const status = request.response?.status;
+  if (status === undefined) {
+    return false;
+  }
+  return answered.some((wanted) =>
+    wanted.endsWith('xx') ? `${Math.floor(status / 100)}xx` === wanted : `${status}` === wanted,
+  );
 }
 
 const REASON_MAX = 200;
@@ -116,6 +142,7 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     ruleName: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.name : null,
     signatureReason: filter.signatureReason ?? null,
     schemaPath: filter.schemaPath ?? null,
+    answered: filter.answered?.length ? filter.answered.join(',') : null,
   };
 }
 
@@ -142,7 +169,8 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.schema !== 'any' ||
     !!filter.outcome ||
     filter.signatureReason != null ||
-    filter.schemaPath != null
+    filter.schemaPath != null ||
+    !!filter.answered?.length
   );
 }
 
@@ -155,7 +183,8 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     a.methods.every((method) => b.methods.includes(method)) &&
     sameOutcome(a.outcome ?? null, b.outcome ?? null) &&
     (a.signatureReason ?? null) === (b.signatureReason ?? null) &&
-    (a.schemaPath ?? null) === (b.schemaPath ?? null)
+    (a.schemaPath ?? null) === (b.schemaPath ?? null) &&
+    (a.answered ?? []).join() === (b.answered ?? []).join()
   );
 }
 
@@ -209,12 +238,15 @@ export function searchBody(
  * O que o filtro tem e o `wait-for` não entende (ele só lê o `match`): o texto, o desfecho (C2) e o
  * motivo e o caminho do M1. O comando sai sem eles, e a tela diz quais ficaram de fora.
  */
-export function outsideWaitFor(filter: RequestFilter): ('text' | 'outcome' | 'reason' | 'path')[] {
+export function outsideWaitFor(
+  filter: RequestFilter,
+): ('text' | 'outcome' | 'reason' | 'path' | 'answered')[] {
   return [
     ...(filter.text.trim() ? (['text'] as const) : []),
     ...(filter.outcome ? (['outcome'] as const) : []),
     ...(filter.signatureReason != null ? (['reason'] as const) : []),
     ...(filter.schemaPath != null ? (['path'] as const) : []),
+    ...(filter.answered?.length ? (['answered'] as const) : []),
   ];
 }
 

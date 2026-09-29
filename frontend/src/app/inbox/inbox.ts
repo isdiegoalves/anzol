@@ -1,5 +1,6 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -26,10 +27,12 @@ import { routeOf } from '../pipeline/pipeline';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
+import { RequestUnopened } from '../request-detail/request-unopened';
 import { RequestList } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import {
+  NO_FILTER,
   RequestFilter,
   filterFromParams,
   filterToParams,
@@ -46,7 +49,11 @@ import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
 import { isProtectedError } from '../token/url-lock';
 import { Icon } from '../ui/icon';
+import { LiveRegion } from '../ui/live-region';
 import { Split } from '../ui/split';
+
+/** B2: o `GET` da requisição pedida pelo link que passa disto ganha "Loading request #…". */
+export const LOADING_NOTICE_MS = 1000;
 
 /** Com filtro ativo, espera a rajada de mensagens novas acabar antes de refazer a busca. */
 export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
@@ -73,7 +80,9 @@ export const RECEIVED_NOTICE_MS = 4000;
     NgTemplateOutlet,
     Onboarding,
     RequestDetail,
+    LiveRegion,
     RequestList,
+    RequestUnopened,
     Split,
     WaitForButton,
   ],
@@ -101,6 +110,8 @@ export class Inbox {
   readonly tokenId = input<string>();
   readonly requestId = input<string>();
   readonly page = input<string>();
+  /** B2: o `created_at` que o link permanente leva, para dizer de quando era a que sumiu. */
+  readonly at = input<string>();
   /** Filtros da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). */
   readonly signature = input<string>();
   readonly schema = input<string>();
@@ -113,6 +124,8 @@ export class Inbox {
   /** M1: o motivo exato de assinatura e o caminho do erro de schema (`?signatureReason=&schemaPath=`). */
   readonly signatureReason = input<string>();
   readonly schemaPath = input<string>();
+  /** B2: o status respondido, por classe ou exato (`?answered=4xx,429`), filtrado no navegador. */
+  readonly answered = input<string>();
   /** R1: o roteiro aberto no lugar do detalhe (`?guide=first|retry`). */
   readonly guide = input<string>();
   protected readonly guideName = computed((): GuideName | null => {
@@ -132,6 +145,7 @@ export class Inbox {
       ruleName: this.ruleName(),
       signatureReason: this.signatureReason(),
       schemaPath: this.schemaPath(),
+      answered: this.answered(),
     }),
   );
 
@@ -152,6 +166,34 @@ export class Inbox {
       !!this.requests.selected() &&
       this.requests.selectedIndex() < 0,
   );
+  /**
+   * B2 (UX-38): o aviso da requisição aberta que sumiu do servidor, com a causa e a hora em que o
+   * navegador soube. Vazio enquanto ela existe.
+   */
+  protected readonly notice = computed(() => {
+    const gone = this.requests.gone();
+    const loading = this.loadingRequest();
+    if (!gone) {
+      return loading ? $localize`Loading request #${loading.slice(0, 5)}:id:…` : '';
+    }
+    const time = gone.at.toLocaleTimeString(this.document.documentElement.lang || 'en', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const copy = $localize`You are seeing the copy this page had loaded.`;
+    const leaves = $localize`This copy goes away when you leave it.`;
+    const keeps = this.tokens.token()?.auto_cleanup;
+    const causes: Record<typeof gone.cause, string> = {
+      cleanup: keeps
+        ? $localize`This request was deleted from the server by auto cleanup (keeps the newest ${keeps}:limit:), noticed at ${time}:time:. ${copy}:copy:`
+        : $localize`This request was deleted from the server by auto cleanup, noticed at ${time}:time:. ${copy}:copy:`,
+      deleted: $localize`You deleted this request at ${time}:time:. ${copy}:copy:`,
+      unknown: $localize`This request is no longer on the server, noticed at ${time}:time:. It may have been deleted or cut by auto cleanup.`,
+    };
+    return `${causes[gone.cause]} ${leaves}`;
+  });
+  /** O link pede uma requisição cujo `GET` passou de 1 s: o aviso diz que ela está a caminho. */
+  private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
   protected readonly listWidth = signal(380);
@@ -246,11 +288,7 @@ export class Inbox {
         switchMap(() => this.requests.refreshSearch()),
         takeUntilDestroyed(),
       )
-      .subscribe((replacement) => {
-        if (replacement) {
-          void this.openRequest(replacement, true);
-        }
-      });
+      .subscribe();
 
     // J e K: a mensagem mais antiga e a mais nova (C §3.2), fora dos campos e se ligados.
     const keys = (event: KeyboardEvent) => this.navigateByKey(event);
@@ -464,11 +502,11 @@ export class Inbox {
       if (again) {
         await this.openRequest(again, true);
       }
-    } else {
-      const opened = requestId !== undefined && (await this.openOutsideList(tokenId, requestId));
-      if (!opened && list.length > 0) {
-        await this.openRequest(list[0], true);
-      }
+    } else if (requestId !== undefined) {
+      // B2 (CA-5): o link diz qual abrir; se ela não abre, nenhuma outra entra no lugar.
+      await this.openOutsideList(tokenId, requestId);
+    } else if (list.length > 0) {
+      await this.openRequest(list[0], true);
     }
   }
 
@@ -483,32 +521,60 @@ export class Inbox {
 
   /**
    * Link permanente para uma mensagem fora da página carregada (com a mais nova no topo, as novas
-   * empurram as outras de página): busca pela API. Sumida (404, cortada pela limpeza automática),
-   * abre a mais antiga que ficou; se a rota mudou enquanto isso, a nova rota decide. Devolve se
-   * abriu alguma.
+   * empurram as outras de página): busca pela API. Se ela não existe (404) ou o servidor não
+   * responde, o detalhe diz isso e **nenhuma outra é aberta no lugar** (B2, CA-5). Se a rota mudou
+   * enquanto isso, a nova rota decide.
    */
-  private async openOutsideList(tokenId: string, requestId: string): Promise<boolean> {
-    const request = await this.fetchKept(tokenId, requestId);
-    if (!request) {
-      const oldest = await this.requests.oldestKept();
-      return oldest !== undefined && this.openRequest(oldest, true);
+  private async openOutsideList(tokenId: string, requestId: string): Promise<void> {
+    let request: WebhookRequest;
+    const slow = setTimeout(() => this.loadingRequest.set(requestId), LOADING_NOTICE_MS);
+    try {
+      request = await this.requests.fetchOne(tokenId, requestId);
+    } catch (error) {
+      if (this.requestId() === requestId && !isProtectedError(error)) {
+        const missing = error instanceof HttpErrorResponse && error.status === 404;
+        this.requests.leaveUnopened(requestId, missing ? 'missing' : 'failed');
+        this.showDetail.set(true);
+      }
+      return;
+    } finally {
+      clearTimeout(slow);
+      this.loadingRequest.set(null);
     }
     if (this.requestId() === requestId) {
       this.requests.selectOutsideList(request);
       this.showDetail.set(true);
     }
-    return true;
   }
 
-  /** A aberta fora da lista saiu pela limpeza automática: a vizinha é a mais antiga que ficou. */
-  private async replaceCutOutsideList(
-    removed: readonly string[] = [],
-  ): Promise<WebhookRequest | undefined> {
-    const selected = this.requests.selected();
-    if (!selected || this.requests.selectedIndex() >= 0 || !removed.includes(selected.uuid)) {
-      return undefined;
+  /** "Try again" do detalhe que não carregou. */
+  protected async retryUnopened(): Promise<void> {
+    const tokenId = this.tokenId();
+    const unopened = this.requests.unopened();
+    if (tokenId && unopened) {
+      await this.openOutsideList(tokenId, unopened.id);
     }
-    return this.requests.oldestKept();
+  }
+
+  /** "Open the newest request": só quando a pessoa pede. */
+  protected openNewest(): void {
+    const newest = this.requests.newest();
+    if (newest) {
+      this.openFromList(newest);
+    }
+  }
+
+  /**
+   * "Search for this id": o identificador vai para a busca da lista, e o endereço deixa o link que
+   * não abriu (sem requisição nenhuma aberta; a busca, sem resultado, não abre a primeira).
+   */
+  protected async searchFor(requestId: string): Promise<void> {
+    this.showDetail.set(false);
+    await this.requests.applyFilter({ ...NO_FILTER, text: requestId });
+    this.requests.unopened.set(null);
+    await this.router.navigate(['/', this.tokenId()], {
+      queryParams: filterToParams(this.requests.filter()),
+    });
   }
 
   /** A lista da URL da rota já está carregada (os filtros da rota e da tela podem conversar). */
@@ -527,7 +593,10 @@ export class Inbox {
   }
 
   private async fetchToken(tokenId: string, page: number): Promise<boolean> {
-    this.compare.close();
+    // O "Choose another request" do Compare (B2) chega aqui com a A esperando a outra escolha.
+    if (this.compare.picking()?.token_id !== tokenId) {
+      this.compare.close();
+    }
     try {
       await this.tokens.load(tokenId);
     } catch {
@@ -609,13 +678,11 @@ export class Inbox {
       this.notify(complete, false);
       return;
     }
-    // A limpeza automática pode ter cortado a mensagem aberta: abre a mais próxima que ficou.
-    const replacement =
-      this.requests.append(complete, total, removed) ?? (await this.replaceCutOutsideList(removed));
+    // A limpeza automática pode ter cortado a mensagem aberta: ela segue na tela, como cópia, com o
+    // aviso (B2); nenhuma outra é aberta no lugar.
+    this.requests.append(complete, total, removed);
     const list = this.requests.requests();
-    if (replacement) {
-      await this.openRequest(replacement, true);
-    } else if (!this.requests.selected()) {
+    if (!this.requests.selected() && !this.requests.unopened()) {
       // A primeira de uma Inbox vazia é a tela que abre (como a primeira ao abrir a URL): no celular
       // a lista fica à frente, e quem mandou (o "Send a test request") a vê chegar; na janela larga,
       // o detalhe a mostra ao lado, e ela conta como lida.

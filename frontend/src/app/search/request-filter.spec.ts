@@ -1,4 +1,6 @@
+import { webhookRequest } from '../../testing/fixtures';
 import {
+  answeredMatches,
   outsideWaitFor,
   filterFromParams,
   filterToParams,
@@ -125,6 +127,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       ruleName: null,
       signatureReason: null,
       schemaPath: null,
+      answered: null,
     });
     expect(filterToParams(NO_FILTER)).toEqual({
       signature: null,
@@ -136,6 +139,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       ruleName: null,
       signatureReason: null,
       schemaPath: null,
+      answered: null,
     });
   });
 });
@@ -219,6 +223,7 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
     expect(filterToParams(motivo)).toMatchObject({
       signatureReason: 'timestamp outside tolerance',
       schemaPath: null,
+      answered: null,
     });
     expect(filterToParams(raiz)).toMatchObject({ signatureReason: null, schemaPath: '' });
     expect(filterFromParams({ signatureReason: 'signature mismatch', schemaPath: '' })).toEqual({
@@ -264,5 +269,43 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
     expect(command).not.toContain('schema_path');
     expect(outsideWaitFor(tudo)).toEqual(['text', 'outcome', 'reason', 'path']);
     expect(outsideWaitFor({ ...NO_FILTER, methods: ['GET'] })).toEqual([]);
+  });
+
+  // B2 (UX-02): o status respondido filtra no navegador; a classe (2xx…5xx) e o status exato (F1).
+  describe('Dado o filtro pelo status respondido', () => {
+    it('deve ler da rota as classes e o status exato, e ignorar o resto', () => {
+      expect(filterFromParams({ answered: '4xx,429,2xx' }).answered).toEqual(['4xx', '429', '2xx']);
+      expect(filterFromParams({ answered: '9xx,42,abc,,1000' })).toEqual(NO_FILTER);
+      expect(filterToParams({ ...NO_FILTER, answered: ['5xx', '503'] }).answered).toBe('5xx,503');
+      expect(filterToParams(NO_FILTER).answered).toBeNull();
+    });
+
+    it('deve ser filtro ativo, fora do corpo da busca e fora do wait-for', () => {
+      const filter = { ...NO_FILTER, methods: ['POST'], answered: ['4xx'] };
+
+      expect(isFilterActive({ ...NO_FILTER, answered: ['2xx'] })).toBe(true);
+      expect(sameFilter(filter, { ...filter, answered: ['5xx'] })).toBe(false);
+      expect(sameFilter(filter, { ...filter })).toBe(true);
+      expect(searchBody(filter, 1)).not.toHaveProperty('answered');
+      expect(outsideWaitFor(filter)).toEqual(['answered']);
+    });
+
+    it.each([
+      [['4xx'], 429, true],
+      [['4xx'], 201, false],
+      [['2xx', '5xx'], 503, true],
+      [['429'], 429, true],
+      [['429'], 428, false],
+    ])('deve casar %j com o status %d: %s', (answered, status, expected) => {
+      expect(answeredMatches(webhookRequest(1, { response: { status } }), answered)).toBe(expected);
+    });
+
+    it('não deve casar a requisição sem status gravado (falha de rede, gravada antes do campo)', () => {
+      const classes = ['2xx', '3xx', '4xx', '5xx'];
+      expect(
+        answeredMatches(webhookRequest(1, { response: { fault: 'connection_reset' } }), classes),
+      ).toBe(false);
+      expect(answeredMatches(webhookRequest(1, { response: null }), classes)).toBe(false);
+    });
   });
 });

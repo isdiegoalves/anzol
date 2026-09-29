@@ -26,7 +26,7 @@
         <ng-container [ngTemplateOutlet]="detailPane" />
       </section>
     </app-split>
-  } @else if (guideName() || (showDetail() && requests.selected())) {
+  } @else if (guideName() || (showDetail() && (requests.selected() || requests.unopened()))) {
     <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
       <ng-container [ngTemplateOutlet]="detailPane" />
     </section>
@@ -97,6 +97,37 @@
 <ng-template #detailBody>
   @let request = requests.selected();
   @let token = tokens.token();
+  <!-- B2 (UX-38): a região viva existe vazia desde a carga; recebe o aviso da que sumiu. -->
+  <div class="gone" [class.shown]="!!requests.gone()">
+    <app-live-region class="gone-text" label="Request notice" i18n-label [text]="notice()" />
+    @if (requests.gone() && requests.newest()) {
+      <button type="button" class="first" (click)="openNewest()">
+        <span i18n>Open the newest request</span>
+      </button>
+    }
+  </div>
+  @if (requests.unopened(); as unopened) {
+    <!-- O Back do detalhe em tela cheia (um painel por vez). -->
+    @if (!twoPanes()) {
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Back to requests"
+        i18n-aria-label
+        (click)="backToList()"
+      >
+        <app-icon name="back" />
+      </button>
+    }
+    <app-request-unopened
+      [unopened]="unopened"
+      [at]="at() ?? null"
+      [hasNewest]="!!requests.newest()"
+      (newest)="openNewest()"
+      (searchId)="searchFor(unopened.id)"
+      (again)="retryUnopened()"
+    />
+  }
   @if (request && token) {
     <!-- UX-05: filtrar não troca a requisição aberta; o detalhe diz que ela ficou de fora. -->
     @if (outsideFilter()) {

@@ -303,7 +303,8 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
     await page.goto(`/#/${tokenId}/${falta}/1`);
 
     await detalhe(page).getByRole('button', { name: 'Search for this id' }).click();
-    await mostrarListaSePreciso(page);
+    // SUPOSIÇÃO (corrigida no spec): no celular o próprio "Search for this id" volta à lista, onde a busca fica; o
+    // "Back to requests" some no meio do clique.
     await expect(campoDeBusca(page)).toHaveValue(falta);
 
     await page.goto(`/#/${tokenId}/${falta}/1`);
@@ -340,10 +341,14 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
     page,
     tokens,
   }) => {
-    const { tokenId, nova } = await comDuas(tokens);
+    // SUPOSIÇÃO (corrigida no spec): a requisição que está na página carregada abre da lista, sem `GET` próprio;
+    // o `GET` do link (e a falha dele) só acontece com ela fora da página: a mais antiga, atrás de outras 50.
+    const tokenId = await tokens.create();
+    const antiga = await tokens.send(tokenId, { path: '/antiga' });
+    await tokens.sendMany(tokenId, 50);
     await seedStorage(page, {});
     let falhar = true;
-    await page.route(`**/token/${tokenId}/request/${nova}`, async (rota) => {
+    await page.route(`**/token/${tokenId}/request/${antiga}`, async (rota) => {
       if (falhar) {
         await rota.abort('failed');
         return;
@@ -351,7 +356,7 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
       await rota.continue();
     });
 
-    await page.goto(`/#/${tokenId}/${nova}/1`);
+    await page.goto(`/#/${tokenId}/${antiga}/1`);
 
     await expect(detalhe(page)).toContainText(
       'Could not load this request. The server did not answer.',
@@ -359,7 +364,7 @@ test.describe('Dado um link para uma requisição que não existe (UX-38; CA-5)'
     await expect(detalhe(page)).not.toContainText('no longer exists');
     falhar = false;
     await detalhe(page).getByRole('button', { name: 'Try again', exact: true }).click();
-    await expect(detalhes(page)).toContainText(nova);
+    await expect(detalhes(page)).toContainText(antiga);
   });
 
   test('não deve comparar com outra requisição Quando um lado da comparação não existe', async ({
@@ -714,9 +719,12 @@ test.describe('Dado a comparação de duas requisições (UX-02; CA-7)', () => {
       .getByRole('table', { name: 'Checks' });
     await expect(tabela.getByRole('rowheader', { name: 'Answer', exact: true })).toBeVisible();
     await expect(tabela.getByRole('rowheader', { name: 'Rule', exact: true })).toHaveCount(0);
-    const linha = tabela
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader', { name: 'Answer', exact: true }) });
+    // SUPOSIÇÃO (corrigida no spec): no celular a tabela põe o cabeçalho da linha numa `tr` própria, dentro de um
+    // `rowgroup` por verificação; as células ficam na `tr` seguinte do mesmo grupo.
+    const cabecalho = page.getByRole('rowheader', { name: 'Answer', exact: true });
+    const linha = compacto(page)
+      ? tabela.getByRole('rowgroup').filter({ has: cabecalho })
+      : tabela.getByRole('row').filter({ has: cabecalho });
     await expect(linha.getByRole('cell').first()).toContainText('201');
     await expect(linha.getByRole('cell').nth(1)).toContainText('429');
   });

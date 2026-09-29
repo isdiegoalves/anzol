@@ -1,0 +1,65 @@
+:host {
+  display: block;
+  padding: 24px 8px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font: var(--mat-sys-title-large);
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 4px;
+  }
+}
+
+p {
+  margin: 0 0 4px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-large);
+}
+
+code {
+  font-family: var(--app-code-family);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+button {
+  min-height: 40px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--mat-sys-corner-full);
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+.primary {
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+}
+
+.tonal {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}
+
+@media (width < 600px) {
+  button {
+    min-height: 48px;
+  }
+}

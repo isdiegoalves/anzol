@@ -103,9 +103,11 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
 
+    // Patamar, B2 (guia §3.2): o link permanente leva `?at={created_at}`, para o estado vazio dizer de quando era a
+    // requisição que sumiu.
     await expect(page.getByRole('menuitem', { name: 'Permalink' })).toHaveAttribute(
       'href',
-      `${origin}/#/${tokenId}/${requestId}/1`,
+      new RegExp(`^${origin}/#/${tokenId}/${requestId}/1\\?at=\\d{4}-`),
     );
     const raw = await page.getByRole('menuitem', { name: 'Raw content' }).getAttribute('href');
     expect(await (await request.get(raw ?? '')).text()).toBe(

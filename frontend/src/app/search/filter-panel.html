@@ -26,11 +26,12 @@
                 type="button"
                 class="chip"
                 [attr.aria-pressed]="chip.pressed"
+                [attr.aria-label]="chip.short ? chip.label : null"
                 [attr.tabindex]="tabStop() === index ? 0 : -1"
                 (focus)="stop.set(index)"
                 (click)="chip.toggle()"
               >
-                {{ chip.label }}
+                {{ chip.short ?? chip.label }}
                 @if (chip.removable) {
                   <span aria-hidden="true">✕</span>
                 }

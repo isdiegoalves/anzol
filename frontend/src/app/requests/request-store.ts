@@ -1,10 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, tap } from 'rxjs';
 import {
   NO_FILTER,
   RequestFilter,
   RequestSorting,
+  answeredMatches,
   isFilterActive,
   sameFilter,
   searchBody,
@@ -14,6 +15,39 @@ import { RequestPage, WebhookRequest } from './webhook-request';
 
 /** Mensagens por página da listagem (e da busca). */
 const REQUESTS_PER_PAGE = 50;
+
+/** B2: o filtro por status varre as mais novas em páginas de 100 (o teto da busca)… */
+export const SCAN_PAGE = 100;
+/** …até 500 de cada vez: a mesma janela de Métricas. */
+export const SCAN_WINDOW = 500;
+
+/**
+ * O alcance do filtro por status respondido (B2, UX-02), que roda no navegador: quantas das mais
+ * novas foram olhadas, de quantas o servidor tem para os outros filtros, e se a varredura acabou.
+ */
+export interface StatusScan {
+  scanned: number;
+  total: number;
+  done: boolean;
+}
+
+/**
+ * A requisição aberta sumiu do servidor com a cópia dela na tela (B2, UX-38): a limpeza automática
+ * a cortou, esta aba a apagou, ou um `GET` dela respondeu 404. `at` é a hora do navegador quando
+ * ele soube; `index` é onde ela estava na lista, para "Newer" e "Older" saírem da cópia.
+ */
+export interface GoneRequest {
+  id: string;
+  cause: 'cleanup' | 'deleted' | 'unknown';
+  at: Date;
+  index: number;
+}
+
+/** O link pede uma requisição que não abriu: não existe (404), ou o servidor não respondeu. */
+export interface UnopenedRequest {
+  id: string;
+  reason: 'missing' | 'failed';
+}
 
 /** Uma página da API já carregada na lista lateral. */
 interface LoadedPage {
@@ -39,6 +73,19 @@ export class RequestStore {
   private readonly activeFilter = signal<RequestFilter>(NO_FILTER);
   /** Só vale a resposta da carga mais recente: o filtro pode mudar com uma busca a caminho. */
   private generation = 0;
+
+  private readonly goneState = signal<GoneRequest | null>(null);
+  /** A requisição aberta que sumiu do servidor; a tela segue com a cópia e avisa. */
+  readonly gone = computed(() => {
+    const gone = this.goneState();
+    return gone && gone.id === this.selection()?.id ? gone : null;
+  });
+  /** A requisição do link que não abriu; nenhuma outra é aberta no lugar. */
+  readonly unopened = signal<UnopenedRequest | null>(null);
+  /** O alcance do filtro por status; `null` sem ele. */
+  readonly scan = signal<StatusScan | null>(null);
+  /** Quantas das mais novas o filtro por status olha ("Look in older requests" soma 500). */
+  private scanLimit = SCAN_WINDOW;
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
@@ -147,6 +194,8 @@ export class RequestStore {
       const result = await this.fetchPage(tokenId, page);
       this.tokenId.set(tokenId);
       this.selection.set(undefined);
+      this.goneState.set(null);
+      this.unopened.set(null);
       this.pages.set([{ page: result.current_page, data: result.data }]);
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
@@ -169,6 +218,22 @@ export class RequestStore {
       return;
     }
     this.activeFilter.set(filter);
+    this.scanLimit = SCAN_WINDOW;
+    await this.reapply(tokenId);
+  }
+
+  /** "Look in older requests": o filtro por status olha mais 500. */
+  async lookOlder(): Promise<void> {
+    const tokenId = this.tokenId();
+    if (!tokenId || !this.scan()) {
+      return;
+    }
+    this.scanLimit += SCAN_WINDOW;
+    await this.reapply(tokenId);
+  }
+
+  /** Refaz a primeira página com o filtro ativo. */
+  private async reapply(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     this.searching.set(true);
     try {
@@ -188,29 +253,26 @@ export class RequestStore {
 
   /**
    * Com filtro ativo, refaz a busca das páginas carregadas (chegou mensagem nova, que pode casar
-   * ou não). A mensagem aberta continua aberta; se a limpeza automática a cortou, devolve a mais
-   * próxima que ficou, para a tela abri-la.
+   * ou não). A mensagem aberta continua aberta, mesmo fora do resultado.
    */
-  async refreshSearch(): Promise<WebhookRequest | undefined> {
+  async refreshSearch(): Promise<void> {
     const tokenId = this.tokenId();
     if (!tokenId || !this.filtering()) {
-      return undefined;
+      return;
     }
-    const before = this.requests();
     const generation = ++this.generation;
     const loaded = this.pages().map((page) => page.page);
     const results = await Promise.all(
       (loaded.length > 0 ? loaded : [1]).map((page) => this.fetchPage(tokenId, page)),
     );
     if (generation !== this.generation) {
-      return undefined;
+      return;
     }
     this.searching.set(false);
     const last = results[results.length - 1];
     this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
     this.lastPageReached.set(last.is_last_page);
     this.matched.set(last.total);
-    return this.nearestToSelected(before);
   }
 
   async loadPreviousPage(): Promise<void> {
@@ -248,6 +310,7 @@ export class RequestStore {
    * substituiu a cortada): ninguém a leu ainda, e ela segue contando nas não lidas (INBOX-02).
    */
   select(requestId: string, read = true): void {
+    this.unopened.set(null);
     this.selection.set({ id: requestId, request: this.find(requestId) });
     if (read) {
       this.markAsRead(requestId);
@@ -259,8 +322,26 @@ export class RequestStore {
    * a levaram para outra página): ela vem da API e fica aberta sem entrar na lista.
    */
   selectOutsideList(request: WebhookRequest): void {
+    this.unopened.set(null);
     this.selection.set({ id: request.uuid, request });
     this.markAsRead(request.uuid);
+  }
+
+  /**
+   * O link pede uma requisição que não abriu (B2, CA-5): nada fica selecionado, e nenhuma outra é
+   * aberta no lugar.
+   */
+  leaveUnopened(requestId: string, reason: UnopenedRequest['reason']): void {
+    this.selection.set(undefined);
+    this.unopened.set({ id: requestId, reason });
+  }
+
+  /** Um `GET` da requisição aberta respondeu 404: ela sumiu, e a tela segue com a cópia. */
+  noticeGone(requestId: string): void {
+    const selection = this.selection();
+    if (selection?.id === requestId && selection.request && !this.gone()) {
+      this.markGone('unknown');
+    }
   }
 
   /**
@@ -294,15 +375,11 @@ export class RequestStore {
    * Mensagem nova chegando em tempo real: entra na ponta das novas (o topo, com a mais nova
    * primeiro; o fim, na ordem inversa) e fica como não lida. As que a
    * limpeza automática cortou (`removed`) saem da lista e das não lidas. Se a mensagem aberta
-   * saiu, devolve a mais próxima que ficou, para a tela abri-la.
+   * saiu, ela segue na tela como cópia, com o aviso (`gone`); nenhuma outra é aberta.
    */
-  append(
-    request: WebhookRequest,
-    total: number,
-    removed: readonly string[] = [],
-  ): WebhookRequest | undefined {
-    const before = this.requests();
+  append(request: WebhookRequest, total: number, removed: readonly string[] = []): void {
     const cut = new Set(removed);
+    this.noticeCut(removed);
     this.pages.update((pages) => {
       const kept = pages.map((page) => ({
         ...page,
@@ -316,7 +393,6 @@ export class RequestStore {
       return [...kept.slice(0, -1), { ...last, data: [...last.data, request] }];
     });
     this.countArrival(request, total, removed);
-    return this.nearestToSelected(before);
   }
 
   /**
@@ -325,6 +401,7 @@ export class RequestStore {
    */
   countArrival(request: WebhookRequest, total: number, removed: readonly string[] = []): void {
     const cut = new Set(removed);
+    this.noticeCut(removed);
     this.total.set(total);
     this.preferences.unread.update((unread) => [
       ...unread.filter((id) => !cut.has(id)),
@@ -334,27 +411,25 @@ export class RequestStore {
 
   /**
    * Busca de novo a primeira página, mantendo a mensagem aberta: depois de reduzir a limpeza
-   * automática no `PUT`, que corta sem gerar evento. Se a aberta foi cortada, devolve a mais
-   * próxima que ficou. Com filtro, o total da URL vem da listagem sem filtro.
+   * automática no `PUT`, que corta sem gerar evento. Com filtro, o total da URL vem da listagem
+   * sem filtro.
    */
-  async reload(): Promise<WebhookRequest | undefined> {
+  async reload(): Promise<void> {
     const tokenId = this.tokenId();
     if (!tokenId) {
-      return undefined;
+      return;
     }
-    const before = this.requests();
     const generation = ++this.generation;
     const result = await this.fetchPage(tokenId, 1);
     const total = this.filtering() ? (await this.fetchList(tokenId, 1)).total : result.total;
     if (generation !== this.generation) {
-      return undefined;
+      return;
     }
     this.searching.set(false);
     this.pages.set([{ page: result.current_page, data: result.data }]);
     this.lastPageReached.set(result.is_last_page);
     this.total.set(total);
     this.countPage(result);
-    return this.nearestToSelected(before);
   }
 
   /**
@@ -369,6 +444,12 @@ export class RequestStore {
     const position = this.pages()[pageIndex]?.data.findIndex((r) => r.uuid === request.uuid) ?? -1;
     const listed = pageIndex >= 0;
     const counted = listed && this.filtering();
+    // A aberta: a cópia fica na tela, com o aviso de que foi esta aba que a apagou.
+    const open = this.selection()?.id === request.uuid;
+    if (open) {
+      this.selection.set({ id: request.uuid, request });
+      this.markGone('deleted');
+    }
     this.pages.update((pages) =>
       pages.map((page) => ({ ...page, data: page.data.filter((r) => r.uuid !== request.uuid) })),
     );
@@ -392,6 +473,9 @@ export class RequestStore {
       if (counted) {
         this.matched.update((matched) => matched + 1);
       }
+      if (this.goneState()?.id === request.uuid) {
+        this.goneState.set(null);
+      }
       return false;
     }
     await firstValueFrom(this.http.delete(`/token/${request.token_id}/request/${request.uuid}`));
@@ -412,11 +496,16 @@ export class RequestStore {
 
   async deleteAll(): Promise<void> {
     const tokenId = this.tokenId();
+    // A aberta segue na tela como cópia, com o aviso.
+    const open = this.selected();
+    if (open) {
+      this.selection.set({ id: open.uuid, request: open });
+      this.markGone('deleted');
+    }
     this.pages.set([]);
     this.lastPageReached.set(true);
     this.total.set(0);
     this.matched.set(0);
-    this.selection.set(undefined);
     this.resetUnread();
     if (tokenId) {
       await firstValueFrom(this.http.delete(`/token/${tokenId}/request`));
@@ -427,21 +516,21 @@ export class RequestStore {
     this.preferences.unread.set([]);
   }
 
-  /**
-   * Com a mensagem aberta fora da lista atual, a mais próxima dela na lista anterior que ficou:
-   * primeiro as seguintes (a limpeza corta as mais antigas), depois as anteriores; sem nenhuma,
-   * a primeira da lista.
-   */
-  private nearestToSelected(before: readonly WebhookRequest[]): WebhookRequest | undefined {
-    const id = this.selection()?.id;
-    const after = this.requests();
-    const kept = new Set(after.map((request) => request.uuid));
-    const index = before.findIndex((request) => request.uuid === id);
-    if (index < 0 || kept.has(before[index].uuid)) {
-      return undefined;
+  /** A limpeza automática cortou a aberta? Então ela vira cópia, com o aviso. */
+  private noticeCut(removed: readonly string[]): void {
+    const selection = this.selection();
+    if (selection && removed.includes(selection.id) && this.goneState()?.id !== selection.id) {
+      this.selection.set({ id: selection.id, request: this.selected() });
+      this.markGone('cleanup');
     }
-    const around = [...before.slice(index + 1), ...before.slice(0, index).reverse()];
-    return around.find((request) => kept.has(request.uuid)) ?? after[0];
+  }
+
+  /** Guarda a causa, a hora em que o navegador soube e onde a aberta estava na lista. */
+  private markGone(cause: GoneRequest['cause']): void {
+    const id = this.selection()?.id;
+    if (id) {
+      this.goneState.set({ id, cause, at: new Date(), index: this.selectedIndex() });
+    }
   }
 
   private find(requestId: string): WebhookRequest | undefined {
@@ -464,6 +553,10 @@ export class RequestStore {
 
   /** Página da lista: pela busca com filtro ativo, pela listagem sem ele. */
   private fetchPage(tokenId: string, page: number): Promise<RequestPage> {
+    if (this.activeFilter().answered?.length) {
+      return this.scanAnswered(tokenId);
+    }
+    this.scan.set(null);
     if (!this.filtering()) {
       return this.fetchList(tokenId, page);
     }
@@ -475,6 +568,47 @@ export class RequestStore {
     );
   }
 
+  /**
+   * B2: o filtro por status, no navegador. Pede as mais novas em páginas de 100 (pela busca, com
+   * os outros filtros; pela listagem, sem eles) até o teto, e devolve as que casam numa página só.
+   */
+  private async scanAnswered(tokenId: string): Promise<RequestPage> {
+    const filter = this.activeFilter();
+    const answered = filter.answered ?? [];
+    const others = { ...filter, answered: null };
+    const newest = (page: number) =>
+      isFilterActive(others)
+        ? firstValueFrom(
+            this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
+              ...searchBody(others, page, 'newest'),
+              per_page: SCAN_PAGE,
+            }),
+          )
+        : firstValueFrom(
+            this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+              params: { page, per_page: SCAN_PAGE, sorting: 'newest' },
+            }),
+          );
+    const first = await newest(1);
+    const pages = Math.ceil(Math.min(first.total, this.scanLimit) / SCAN_PAGE);
+    this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => newest(i + 2)),
+    );
+    const scanned = [first, ...rest].flatMap((page) => page.data).slice(0, this.scanLimit);
+    const matches = scanned.filter((request) => answeredMatches(request, answered));
+    this.scan.set({ scanned: scanned.length, total: first.total, done: true });
+    return {
+      data: this.newestFirst() ? matches : [...matches].reverse(),
+      total: matches.length,
+      per_page: SCAN_PAGE,
+      current_page: 1,
+      is_last_page: true,
+      from: 1,
+      to: matches.length,
+    };
+  }
+
   private fetchList(tokenId: string, page: number): Promise<RequestPage> {
     return firstValueFrom(
       this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
@@ -483,3 +617,27 @@ export class RequestStore {
     );
   }
 }
+
+/** `GET /token/{id}/request/{rid}` e o que vem embaixo dele (o trace, o raw). */
+const REQUEST_CALL = /^\/token\/[^/?]+\/request\/([^/?]+)([/?].*)?$/;
+
+/**
+ * B2 (caminho 3): qualquer `GET` da requisição aberta que responde 404 diz que ela sumiu do
+ * servidor. A tela mostra o aviso e mantém a cópia que tinha carregado.
+ */
+export const requestGoneInterceptor: HttpInterceptorFn = (request, next) => {
+  const requestId = request.method === 'GET' ? REQUEST_CALL.exec(request.url)?.[1] : undefined;
+  if (!requestId) {
+    return next(request);
+  }
+  const store = inject(RequestStore);
+  return next(request).pipe(
+    tap({
+      error: (error: unknown) => {
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          store.noticeGone(decodeURIComponent(requestId));
+        }
+      },
+    }),
+  );
+};
