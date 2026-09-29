@@ -237,7 +237,8 @@ test.describe('Dado o foco depois das ações (reauditoria)', () => {
       .getByRole('alert')
       .or(page.getByRole('group', { name: 'Action result' }).locator('[role="status"]'));
     await expect(resultado.first()).toContainText('Blocked');
-    await expect.poll(focoNoResultado(page), { message: 'foco no resultado do Replay' }).toBe(true);
+    // No painel de ação o resultado é dito pela região viva; o foco fica no Replay, para mandar de novo.
+    await expect(replay.getByRole('button', { name: 'Replay', exact: true })).toBeFocused();
   });
 
   test('deve levar o foco ao resultado depois do Send', async ({ page, tokens }) => {
