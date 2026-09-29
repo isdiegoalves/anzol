@@ -64,7 +64,7 @@ private class IdleWatchdog(
 class Listener(
     private val site: WebhookServer,
     private val token: TokenId,
-    private val forwarder: Forwarder,
+    private val deliveries: Deliveries,
     private var cursor: Long,
     private val idleLimit: Duration = IDLE_LIMIT,
     private val out: (String) -> Unit,
@@ -113,7 +113,7 @@ class Listener(
 
     /** Reenvia e avança o cursor, também quando o app local não respondeu (a linha diz `error:`). */
     private fun process(message: CapturedRequest) {
-        out(forwarder.forward(token, message).line)
+        deliveries.accept(message)
         cursor = message.seq
     }
 

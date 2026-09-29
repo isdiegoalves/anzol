@@ -12,6 +12,8 @@ import com.github.ajalt.clikt.core.parse
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
@@ -25,8 +27,12 @@ import kotlin.system.exitProcess
 
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
+private val REORDER_RELEASE: Duration = Duration.ofSeconds(2)
 
-/** O `main` do Clikt, com uma troca: uso inválido do `wait-for` e do `test` sai com 2, porque o 1 deles é "não casou". */
+/**
+ * O `main` do Clikt, com uma troca: uso inválido do `wait-for` e do `test` sai com 2, porque o 1 deles é "não casou"; e
+ * uma opção de caos inválida no `listen` e no `replay` também.
+ */
 fun main(args: Array<String>) {
     val anzol =
         Anzol().subcommands(
@@ -42,11 +48,19 @@ fun main(args: Array<String>) {
         anzol.parse(args)
     } catch (e: UsageError) {
         anzol.echoFormattedHelp(e)
-        val command = e.context?.command
-        exitProcess(if (command is WaitFor || command is TestCycle) WAIT_FOR_ERROR else e.statusCode)
+        exitProcess(usageStatus(e))
     } catch (e: CliktError) {
         anzol.echoFormattedHelp(e)
         exitProcess(e.statusCode)
+    }
+}
+
+private fun usageStatus(error: UsageError): Int {
+    val command = error.context?.command
+    return when {
+        command is WaitFor || command is TestCycle -> WAIT_FOR_ERROR
+        (command is Listen || command is Replay) && error.concernsChaos() -> CHAOS_USAGE_ERROR
+        else -> error.statusCode
     }
 }
 
@@ -147,18 +161,24 @@ class Listen : CoreCliktCommand(name = "listen") {
         .convert { TokenId(it) }
     private val server by serverOption()
     private val readSecret by readSecretOption()
+    private val chaosOptions by ChaosOptions()
 
-    override fun help(context: Context) = "Forwards every request that arrives at the URL to a local app."
+    override fun help(context: Context) = "Forwards every request that arrives at the URL to a local app, optionally with injected faults."
 
     override fun run() {
+        val chaos = chaosOptions.chaos()
+        requireCuttable(forward, chaos)
         val http = httpClient()
         val site = WebhookServer(server, http, readSecret)
         val listening = token ?: reaching(site) { site.createToken() }
         requireAccess(site, listening)
         val newest = reaching(site) { site.newestSeq(listening) } ?: fail("Token not found")
         Signal.handle(Signal("INT")) { exitProcess(0) }
-        Listener(site, listening, Forwarder(forward, http), cursor = newest) { echo(it) }.run {
+        val forwarder = Forwarder(forward, http, chaos.slow?.let(::Drip), chaos.timeout)
+        val deliveries = Deliveries(forwarder, listening, chaos, REORDER_RELEASE) { echo(it) }
+        Listener(site, listening, deliveries, cursor = newest) { echo(it) }.run {
             echo("Listening on ${site.base}/$listening (forwarding to $forward)")
+            chaos.summary()?.let { echo(it) }
         }
         fail(reaching(site) { site.access(listening) }.failure() ?: "Token not found")
     }
@@ -166,20 +186,27 @@ class Listen : CoreCliktCommand(name = "listen") {
 
 class Replay : CoreCliktCommand(name = "replay") {
     private val token by argument("token", help = "Anzol token (uuid)").convert { TokenId(it) }
-    private val requestId by argument("requestId", help = "Stored request (uuid)").convert { RequestId(it) }
+    private val requestIds by argument("requestId", help = "Stored request (uuid); several are delivered in the given order")
+        .convert { RequestId(it) }
+        .multiple(required = true)
     private val to by option("--to", help = "Local URL that receives the request, e.g. http://localhost:3000").required()
     private val server by serverOption()
     private val readSecret by readSecretOption()
+    private val chaosOptions by ChaosOptions()
 
-    override fun help(context: Context) = "Forwards one stored request to a local app."
+    override fun help(context: Context) = "Forwards stored requests to a local app, optionally with injected faults."
 
     override fun run() {
+        val chaos = chaosOptions.chaos()
+        requireCuttable(to, chaos)
         val http = httpClient()
         val site = WebhookServer(server, http, readSecret)
         requireAccess(site, token)
-        val message = reaching(site) { site.find(token, requestId) } ?: fail("Request not found")
-        val forwarding = Forwarder(to, http).forward(token, message)
-        echo(forwarding.line)
-        if (!forwarding.delivered) throw ProgramResult(1)
+        val messages = requestIds.map { id -> reaching(site) { site.find(token, id) } ?: fail("Request not found") }
+        chaos.summary()?.let { echo(it) }
+        val deliveries = Deliveries(Forwarder(to, http, chaos.slow?.let(::Drip), chaos.timeout), token, chaos) { echo(it) }
+        messages.forEach(deliveries::accept)
+        deliveries.flush()
+        if (deliveries.unanswered > 0) throw ProgramResult(1)
     }
 }

@@ -37,7 +37,7 @@ class ListenerIdleTest {
             Listener(
                 WebhookServer(site.base, http),
                 TokenId(token),
-                Forwarder(app.url, http),
+                Deliveries(Forwarder(app.url, http), TokenId(token), Chaos()) { output += it },
                 cursor = 0,
                 idleLimit = Duration.ofSeconds(1),
             ) { output += it }
