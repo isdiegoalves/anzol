@@ -219,6 +219,26 @@ test.describe('Dado o editor de regra na aba Match: chance e janela de tempo', (
     );
   });
 
+  test('deve dizer a janela e a chance na regra em palavras', async ({ page, request, tokens }) => {
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [
+      {
+        name: 'Instável na janela',
+        chance: 30,
+        active_from: '2026-09-29T12:00:00Z',
+        active_until: '2099-01-01T00:00:00Z',
+        response: { status: 503 },
+      },
+    ]);
+    await abrirRegras(page, tokenId);
+    const regiao = await abrirRegra(page, 'Instável na janela');
+
+    await expect(regiao.getByLabel('Rule in plain words')).toHaveText(
+      'When any request, from 2026-09-29T12:00:00Z until 2099-01-01T00:00:00Z, ' +
+        'in 30% of the matching requests, answer 503.',
+    );
+  });
+
   test('deve mostrar as falhas novas e a seção de chance em pt-BR', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await seedStorage(page, { language: '"pt-BR"' });

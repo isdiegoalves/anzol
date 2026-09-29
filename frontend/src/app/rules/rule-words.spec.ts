@@ -174,6 +174,40 @@ describe('Dado uma regra (ruleInWords)', () => {
       },
       'When a GET, fail with connection reset (TCP RST).',
     ],
+    [
+      'com chance',
+      {
+        name: 'instável',
+        chance: 30,
+        match: { method: ['POST'], path: { equals: '/pagamentos' } },
+        response: { status: 503 },
+      },
+      'When a POST to /pagamentos, in 30% of the matching requests, answer 503.',
+    ],
+    [
+      'com cenário, janela e chance',
+      {
+        name: 'manutenção',
+        chance: 50,
+        active_from: '2026-09-29T12:00:00Z',
+        active_until: '2026-09-29T13:00:00Z',
+        scenario: { name: 'entrega', requiredState: 'Started', newState: 'falhou 1' },
+        response: { status: 503 },
+      },
+      'When any request, while scenario entrega is in "Started", from 2026-09-29T12:00:00Z ' +
+        'until 2026-09-29T13:00:00Z, in 50% of the matching requests, answer 503 and moves ' +
+        'scenario entrega to "falhou 1".',
+    ],
+    [
+      'com a janela aberta no fim',
+      { name: 'x', active_from: '2026-09-29T12:00:00Z', response: { status: 503 } },
+      'When any request, starting at 2026-09-29T12:00:00Z, answer 503.',
+    ],
+    [
+      'com a janela aberta no começo',
+      { name: 'x', active_until: '2026-09-29T13:00:00Z', response: { status: 503 } },
+      'When any request, until 2026-09-29T13:00:00Z, answer 503.',
+    ],
   ])('deve descrever em palavras a regra %s', (_caso, rule, words) => {
     expect(ruleInWords(rule)).toBe(words);
   });
@@ -196,6 +230,39 @@ describe('Dado uma regra (ruleInWords)', () => {
       expect(words).toBe(
         'Quando um POST para /pagamentos tiver uma assinatura válida, responder 201.',
       );
+    } finally {
+      clearTranslations();
+    }
+  });
+
+  it.each<[string, Partial<Rule>, string]>([
+    [
+      'janela e chance',
+      { chance: 30, active_from: '2026-09-29T12:00:00Z', active_until: '2026-09-29T13:00:00Z' },
+      'Quando um POST para /pagamentos, de 2026-09-29T12:00:00Z até 2026-09-29T13:00:00Z, ' +
+        'em 30% das requisições que casam, responder 503.',
+    ],
+    [
+      'a janela aberta no fim',
+      { active_from: '2026-09-29T12:00:00Z' },
+      'Quando um POST para /pagamentos, a partir de 2026-09-29T12:00:00Z, responder 503.',
+    ],
+    [
+      'a janela aberta no começo',
+      { active_until: '2026-09-29T13:00:00Z' },
+      'Quando um POST para /pagamentos, até 2026-09-29T13:00:00Z, responder 503.',
+    ],
+  ])('deve dizer em pt-BR %s da regra', (_caso, extra, words) => {
+    loadTranslations(translations);
+    try {
+      expect(
+        ruleInWords({
+          name: 'x',
+          match: { method: ['POST'], path: { equals: '/pagamentos' } },
+          response: { status: 503 },
+          ...extra,
+        }),
+      ).toBe(words);
     } finally {
       clearTranslations();
     }

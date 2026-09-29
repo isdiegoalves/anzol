@@ -1294,10 +1294,18 @@ export const translations: Record<string, string> = {
   '7728608720362041319': ' tiver {$conditions}',
   // , while scenario {$scenario} is in {$state}
   '7427457293979710682': ', enquanto o cenário {$scenario} estiver em {$state}',
+  // , in {$chance}% of the matching requests
+  '280051474596829594': ', em {$chance}% das requisições que casam',
   // , {$response}
   '2116228078712248832': ', {$response}',
   //  and moves scenario {$scenario} to {$state}
   '5612461601284425645': ' e levar o cenário {$scenario} para {$state}',
+  // , from {$from} until {$until}
+  '7852927927290231760': ', de {$from} até {$until}',
+  // , starting at {$from}
+  '2562815811429817030': ', a partir de {$from}',
+  // , until {$until}
+  '2834321984474819290': ', até {$until}',
   // a valid signature
   '2366840414129770031': 'uma assinatura válida',
   // an invalid signature

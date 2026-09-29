@@ -85,12 +85,24 @@ function buildWords(rule: Rule): string {
     scenario?.requiredState
       ? $localize`, while scenario ${scenario.name}:scenario: is in ${quoted(scenario.requiredState)}:state:`
       : '',
+    windowWords(rule.active_from, rule.active_until),
+    rule.chance ? $localize`, in ${rule.chance}:chance:% of the matching requests` : '',
     $localize`, ${responseWords(rule)}:response:`,
     scenario?.newState
       ? $localize` and moves scenario ${scenario.name}:scenario: to ${quoted(scenario.newState)}:state:`
       : '',
     '.',
   ].join('');
+}
+
+function windowWords(from: string | null | undefined, until: string | null | undefined): string {
+  if (from && until) {
+    return $localize`, from ${from}:from: until ${until}:until:`;
+  }
+  if (from) {
+    return $localize`, starting at ${from}:from:`;
+  }
+  return until ? $localize`, until ${until}:until:` : '';
 }
 
 function signatureWords(signature: 'valid' | 'invalid' | 'absent'): string {
