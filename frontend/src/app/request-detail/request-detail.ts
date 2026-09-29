@@ -290,7 +290,10 @@ export class RequestDetail {
     }
   }
 
-  /** Enter e espaço chegam como clique sem ponteiro (`detail` 0): aí o foco vai para o painel. */
+  /**
+   * Enter e espaço chegam como clique sem ponteiro (`detail` 0): aí o foco vai para o painel. No
+   * Replay vai sempre: o próximo passo de quem abre é digitar o destino.
+   */
   protected openPanel(tab: ActionTab, event?: MouseEvent): void {
     if (this.gone() && tab !== 'rule') {
       return;
@@ -299,7 +302,7 @@ export class RequestDetail {
     if (tab === 'explain') {
       this.panel.explainFor.set(this.request().uuid);
     }
-    this.panel.show(tab, opener, event?.detail === 0);
+    this.panel.show(tab, opener, event?.detail === 0 || tab === 'replay');
   }
 
   openByKey(tab: ActionTab | 'toggle'): void {

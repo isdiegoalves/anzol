@@ -312,6 +312,20 @@ test.describe('Dado a aba Replay do painel', () => {
     await new Promise((resolve) => destino.server.close(resolve));
   });
 
+  test('deve levar o foco a "Target URL" Quando o Replay abre pelo clique', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const id = await pedido(tokens, tokenId);
+    await seedStorage(page, {});
+    await abrirMensagem(page, tokenId, id);
+
+    await acoes(page).getByRole('button', { name: 'Replay…' }).click();
+
+    await expect(painel(page).getByRole('textbox', { name: 'Target URL' })).toBeFocused();
+  });
+
   test('deve reenviar sem sair da requisição, aceitar o destino sem http:// e anunciar o resultado uma vez', async ({
     page,
     tokens,
