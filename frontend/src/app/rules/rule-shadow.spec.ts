@@ -153,6 +153,18 @@ describe('Dado duas regras A (antes) e B (depois) (shadows, E-01)', () => {
     expect(shadows(com({}, { enabled: false }), com({ method: ['GET'] }))).toBe(false);
   });
 
+  it.each<[string, Partial<Rule>]>([
+    ['chance', { chance: 30 }],
+    ['janela com começo', { active_from: '2026-09-29T12:00:00Z' }],
+    ['janela com fim', { active_until: '2099-01-01T00:00:00Z' }],
+  ])('não deve sombrear Quando A tem %s (deixa passar parte do que casa)', (_caso, campos) => {
+    expect(shadows(com({}, campos), com({ method: ['GET'] }))).toBe(false);
+  });
+
+  it('deve sombrear Quando só B tem chance ou janela', () => {
+    expect(shadows(com({}), com({ method: ['GET'] }, { chance: 30, active_from: 'x' }))).toBe(true);
+  });
+
   it.each<[string, Rule['scenario'], Rule['scenario'], boolean]>([
     ['A sem cenário', null, { name: 'e', requiredState: 'x' }, true],
     [
@@ -229,6 +241,9 @@ describe('Dado uma regra sem condições (isCatchAll, WM-30)', () => {
     ['com estado exigido', com({}, { scenario: { name: 'e', requiredState: 'x' } }), false],
     ['com assinatura', com({ signature: 'valid' }), false],
     ['com condição desconhecida', com({ futura: true }), false],
+    ['com chance', com({}, { chance: 50 }), false],
+    ['com janela', com({}, { active_until: '2099-01-01T00:00:00Z' }), false],
+    ['com chance de 100%', com({}, { chance: 100 }), true],
   ])('%s → %s', (_caso, regra, esperado) => {
     expect(isCatchAll(regra)).toBe(esperado);
   });

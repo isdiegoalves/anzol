@@ -25,6 +25,7 @@ const KNOWN_MATCH = new Set(['method', 'path', 'query', 'headers', 'body', 'sign
 export function isCatchAll(rule: Rule): boolean {
   const match = rule.match ?? {};
   return (
+    !letsSomeThrough(rule) &&
     !rule.scenario?.requiredState &&
     !match.method?.length &&
     !match.path &&
@@ -42,7 +43,7 @@ export function isCatchAll(rule: Rule): boolean {
  * duas fica com quem chama (`shadowedBy`).
  */
 export function shadows(a: Rule, b: Rule): boolean {
-  if (a.enabled === false) {
+  if (a.enabled === false || letsSomeThrough(a)) {
     return false;
   }
   const ma = a.match ?? {};
@@ -58,6 +59,11 @@ export function shadows(a: Rule, b: Rule): boolean {
     (!ma.schema || ma.schema === mb.schema) &&
     scenarioImplied(a.scenario, b.scenario)
   );
+}
+
+/** Com chance ou janela, parte do que a regra casa segue para as regras seguintes. */
+function letsSomeThrough(rule: Rule): boolean {
+  return (rule.chance ?? 100) < 100 || !!rule.active_from || !!rule.active_until;
 }
 
 /**
