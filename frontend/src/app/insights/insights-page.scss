@@ -173,6 +173,11 @@ app-pane {
   rect.none {
     fill: var(--mat-sys-outline);
   }
+
+  // A 320 px a barra não cabe ao lado dos números (WCAG 1.4.10); a parte continua na coluna ao lado.
+  @media (width < 400px) {
+    display: none;
+  }
 }
 
 .visually-hidden {

@@ -2,7 +2,8 @@ import { createHmac } from 'node:crypto';
 import { APIRequestContext, Page } from '@playwright/test';
 import { alvosMenores, expectSemViolacoesGraves } from './support/a11y';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
-import { compacto } from './support/shell';
+import { compacto, rolaNaHorizontal } from './support/shell';
+import { seedStorage } from './support/storage';
 
 // Item 14, E9: Insights (`#/{token}/insights`) a partir de `GET /token/{id}/stats` (B2): KPIs com a janela
 // explícita, gráficos em SVG com tabela de dados alternativa (S19) e o link para o Grafana. SUPOSIÇÕES (combinadas
@@ -111,6 +112,21 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     await expect(page.getByRole('region', { name: 'Requests per hour' })).toBeVisible();
 
     expect(await alvosMenores(page.getByRole('main'), 24)).toEqual([]);
+  });
+
+  test('não deve rolar de lado a 320 px, com os rótulos mais compridos do pt-BR', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await urlComMensagens(tokens, request);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await seedStorage(page, { language: '"pt-BR"' });
+
+    await page.goto(`/#/${tokenId}/insights`);
+    await expect(page.getByRole('table', { name: 'Quem respondeu' })).toBeVisible();
+
+    expect(await rolaNaHorizontal(page)).toBe(false);
   });
 
   test('deve levar ao dashboard do Grafana pelo link "Open in Grafana"', async ({
