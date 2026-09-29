@@ -91,9 +91,9 @@
   }
 }
 
-// Celular (INBOX-30, VarC-Mobile): o cartão da URL (campo e copiar; embaixo, Live, a contagem e os
-// provedores). Send, Lock e o ⋮ vão para o ⋮ da barra do topo; no detalhe em tela cheia, o cartão
-// sai.
+// Celular: o cartão da URL em duas linhas (o seletor e o endereço; embaixo, Live e a contagem). A
+// assinatura e o schema ficam em Checks; Send, Lock e o ⋮ vão para o ⋮ da barra do topo; no
+// detalhe em tela cheia, o cartão sai.
 @media (width < 600px) {
   :host {
     margin: 0 8px 8px;
@@ -108,11 +108,13 @@
     display: none;
   }
 
+  // Largura de base que só cabe ao lado do seletor: Live e a contagem descem para a segunda linha.
   .url {
-    flex-basis: 100%;
+    flex: 1 1 55%;
     max-width: none;
   }
 
+  .check,
   .spacer,
   .actions {
     display: none;

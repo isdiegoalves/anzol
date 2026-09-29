@@ -36,6 +36,7 @@ const MOBILE = [
   'regras[^/]*',
   'fidelidade-rules[^/]*',
   'patamar[^/]*',
+  'leiaute[^/]*',
 ].map((nome) => new RegExp(`/${nome}\\.spec\\.ts$`));
 
 export default defineConfig({

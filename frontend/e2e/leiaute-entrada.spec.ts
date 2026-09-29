@@ -85,6 +85,7 @@ test.describe('Dado caminhos que não cabem na largura da lista', () => {
     page,
     tokens,
   }) => {
+    test.skip(compacto(page), 'a linha do desktop; no celular o valor da chave desce');
     const tokenId = await tokens.create();
     for (const [evento, n] of [
       ['evt_pf_7Q2K1010', 1],
@@ -162,11 +163,36 @@ test.describe('Dado a oferta de agrupar por evento na primeira tela', () => {
   });
 });
 
+test.describe('Dado o celular', () => {
+  test('deve ter o cartão da URL em duas linhas e 5 requisições inteiras com a oferta aberta', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(!compacto(page), 'só no celular');
+    const tokenId = await tokens.create({ signature: { provider: 'github', secret: 's' } });
+    for (const [n, evento] of ['a', 'b', 'a', 'c', 'b', 'c', 'd', 'd'].entries()) {
+      await tokens.send(tokenId, {
+        path: '/webhooks/pagamentos',
+        headers: { 'Content-Type': 'application/json' },
+        data: JSON.stringify({ event_id: `evt_${evento}`, n }),
+      });
+    }
+    await emPortugues(page);
+    await page.goto(`/#/${tokenId}`);
+    await expect(page.getByRole('region', { name: 'Agrupar por evento' })).toBeVisible();
+
+    const cartao = (await page.locator('app-url-header').boundingBox())!;
+    expect(cartao.height, 'o cartão da URL').toBeLessThanOrEqual(120);
+    expect(await inteirosNaTela(page)).toBeGreaterThanOrEqual(5);
+  });
+});
+
 test.describe('Dado a linha de um evento com muitas tentativas', () => {
   test('deve mostrar inteira a contagem e a última resposta, perdendo as mais antigas da trilha', async ({
     page,
     tokens,
   }) => {
+    test.skip(compacto(page), 'no celular a trilha quebra linha');
     const tokenId = await tokens.create();
     for (let n = 1; n <= 7; n++) {
       await tokens.send(tokenId, {

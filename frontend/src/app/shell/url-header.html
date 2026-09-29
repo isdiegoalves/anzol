@@ -51,7 +51,7 @@
   }
   @if (token.signature; as signature) {
     <a
-      class="chip"
+      class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'signature' }"
       [attr.aria-label]="signatureLabel(providerLabels[signature.provider])"
@@ -61,7 +61,7 @@
   }
   @if (token.schema) {
     <a
-      class="chip"
+      class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'schema' }"
       aria-label="Schema validation on. Open Checks"
