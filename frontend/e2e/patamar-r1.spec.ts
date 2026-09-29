@@ -4,6 +4,7 @@ import { Locator, Page } from '@playwright/test';
 import {
   escutarAnuncios,
   expectSemAnuncio,
+  expectSoEstaFala,
   expectUmAnuncio,
   limparAnuncios,
 } from './support/anuncios';
@@ -463,7 +464,7 @@ test.describe('Dado as abas Compare, Create rule e Explain do painel', () => {
     await limparAnuncios(page);
     await painel(page).getByRole('button', { name: 'Create rule', exact: true }).click();
 
-    await expectUmAnuncio(
+    await expectSoEstaFala(
       page,
       /^Rule created: POST \/pedidos\. It answers 1 of the last 500\.$/,
       /^Action result$/,

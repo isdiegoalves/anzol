@@ -275,7 +275,8 @@ export class RuleFromRequestDialog {
         .rules()
         .map(({ id }) => id)
         .filter((id): id is string => !!id && !before.has(id));
-      this.intents.markCreated(created);
+      // No painel, quem anuncia é o resultado da ação.
+      this.intents.markCreated(created, !this.inPanel);
       if (this.inPanel) {
         this.inPanel({ name: rule.name ?? '', count: this.count() });
         return;
@@ -283,7 +284,7 @@ export class RuleFromRequestDialog {
       // R2-M1: a lista abre com o foco na regra criada (o botão da Entrada que abriu a folha some).
       this.store.pendingFocus.set({ rule: created[0] ?? null });
       this.dialog.close();
-      this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
+      this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000, politeness: 'off' });
       await this.router.navigate(['/', tokenId, 'rules']);
     } catch (error) {
       this.errors.set(

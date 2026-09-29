@@ -171,7 +171,10 @@ describe('Dado a folha "Create rule from this request"', () => {
     });
     put.flush([{ ...lista[0], id: 'novo' }, tudo]);
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules']));
-    expect(snack).toHaveBeenCalledWith('Rule saved', undefined, { duration: 4000 });
+    expect(snack).toHaveBeenCalledWith('Rule saved', undefined, {
+      duration: 4000,
+      politeness: 'off',
+    });
     expect(TestBed.inject(RuleIntents).created()?.ids).toEqual(['novo']);
     // R2-M1: a lista abre com o foco na linha da regra criada, e não no body.
     expect(TestBed.inject(RuleStore).pendingFocus()).toEqual({ rule: 'novo' });

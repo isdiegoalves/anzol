@@ -116,6 +116,19 @@ export async function expectUmAnuncio(
   return anuncio;
 }
 
+/**
+ * Uma ação, uma fala: a frase saiu uma vez e nenhuma outra região falou junto desde o `limparAnuncios`. A região que
+ * nasce já com texto não conta, como para o leitor de tela.
+ */
+export async function expectSoEstaFala(page: Page, texto: RegExp, regiao?: RegExp): Promise<void> {
+  await expectUmAnuncio(page, texto, regiao);
+  const falas = (await anunciados(page)).filter((anuncio) => !anuncio.nasceuComTexto);
+  expect(
+    falas.map((a) => `${a.papel} "${a.regiao}": ${a.texto}`),
+    `só uma fala: ${String(texto)}`,
+  ).toHaveLength(1);
+}
+
 export async function expectSemAnuncio(page: Page, texto: RegExp): Promise<void> {
   const achados = await comTexto(page, texto);
   expect(

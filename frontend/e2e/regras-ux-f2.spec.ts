@@ -1,4 +1,5 @@
 import { Locator, Page } from '@playwright/test';
+import { escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
 import { expect, test } from './support/fixtures';
 import { anuncios } from './support/inbox';
 import {
@@ -475,6 +476,22 @@ test.describe('Dado uma regra recém-criada (WM-35)', () => {
     await expect(linha).toHaveClass(/\bjust-created\b/);
     await expect(anuncios(page).filter({ hasText: /^1 rules? created$/ })).toHaveCount(1);
     await expect(linha).not.toHaveClass(/\bjust-created\b/, { timeout: 8_000 });
+  });
+
+  test('deve falar só "1 rule created" ao salvar, com o "Rule saved" calado', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await abrirRegras(page, tokenId);
+    const nova = await novaRegra(page);
+    await nova.getByRole('textbox', { name: 'Name', exact: true }).fill('Recém');
+    await limparAnuncios(page);
+
+    await salvarRegra(page, nova, tokenId);
+
+    await expectSoEstaFala(page, /^1 rule created$/);
   });
 });
 

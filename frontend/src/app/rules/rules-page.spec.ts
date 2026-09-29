@@ -629,7 +629,10 @@ describe('Dado a página Rules', () => {
       call.flush([rule(1), rule(2, { name: 'Nova' })]);
 
       await vi.waitFor(() =>
-        expect(snack).toHaveBeenCalledWith('Rule saved', undefined, { duration: 4000 }),
+        expect(snack).toHaveBeenCalledWith('Rule saved', undefined, {
+          duration: 4000,
+          politeness: 'off',
+        }),
       );
       expect(navigate).toHaveBeenLastCalledWith(['/', TOKEN_ID, 'rules']);
     });

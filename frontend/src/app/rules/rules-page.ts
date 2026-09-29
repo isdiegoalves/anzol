@@ -774,11 +774,15 @@ export class RulesPage {
   }
 
   protected closeEditor(saved: boolean): void {
+    const ruleId = this.ruleId();
     if (saved) {
-      this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000 });
+      // A regra nova já é anunciada ("1 rule created"): o snackbar fica calado para não falar duas vezes.
+      this.snackBar.open($localize`Rule saved`, undefined, {
+        duration: 4000,
+        politeness: ruleId === 'new' ? 'off' : 'polite',
+      });
       this.refreshScenarios();
     }
-    const ruleId = this.ruleId();
     if (saved && ruleId === 'new') {
       const created = this.store
         .rules()
