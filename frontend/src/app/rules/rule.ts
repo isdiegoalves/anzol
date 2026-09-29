@@ -7,6 +7,11 @@ export interface Rule {
   name: string;
   enabled?: boolean;
   priority?: number;
+  /** 1–100: a regra só responde essa porcentagem das que casam; ausente = todas. */
+  chance?: number | null;
+  /** Janela em que a regra vale, ISO-8601 em UTC; cada ponta ausente = aberta. */
+  active_from?: string | null;
+  active_until?: string | null;
   match?: RuleMatch;
   scenario?: RuleScenario | null;
   response?: RuleResponse;
@@ -265,40 +270,63 @@ export function matchSummary(rule: Rule): string {
  */
 export interface RuleFlag {
   label:
-    'template' | 'delay' | 'fault' | 'scenario' | 'catch-all' | 'never' | 'shadowed' | 'likely';
+    | 'template'
+    | 'delay'
+    | 'fault'
+    | 'chance'
+    | 'window'
+    | 'scenario'
+    | 'catch-all'
+    | 'never'
+    | 'shadowed'
+    | 'likely';
   text: string;
   detail: string;
 }
 
 /**
- * Indicadores de template, atraso, falha e cenário. Com falha, template e atraso não aparecem:
- * o servidor os ignora.
+ * Indicadores de template, atraso, falha, chance, janela e cenário. Com falha, o atraso não
+ * aparece, e o template só nas falhas que mandam o corpo: o servidor ignora o resto.
  */
 export function ruleFlags(rule: Rule): RuleFlag[] {
   const response = rule.response ?? {};
+  const fault = response.fault;
   const flags: RuleFlag[] = [];
-  if (response.fault) {
-    const label = FAULT_LABELS[response.fault] ?? response.fault;
+  if (fault) {
+    const label = FAULT_LABELS[fault] ?? fault;
     flags.push({
       label: 'fault',
       text: $localize`:rule flag|Network fault instead of a response:Fault`,
       detail: $localize`Fault: ${label[0].toLowerCase()}${label.slice(1)}`,
     });
-  } else {
-    if (response.template) {
-      flags.push({
-        label: 'template',
-        text: $localize`:rule flag|The response is a Handlebars template:Template`,
-        detail: $localize`Body and header values are templates`,
-      });
-    }
-    if (response.delay) {
-      flags.push({
-        label: 'delay',
-        text: $localize`:rule flag|The response waits before answering:Delay`,
-        detail: $localize`Delay: ${describeDelay(response.delay)}`,
-      });
-    }
+  }
+  if (response.template && (!fault || FAULTS_WITH_RESPONSE.includes(fault))) {
+    flags.push({
+      label: 'template',
+      text: $localize`:rule flag|The response is a Handlebars template:Template`,
+      detail: $localize`Body and header values are templates`,
+    });
+  }
+  if (response.delay && !fault) {
+    flags.push({
+      label: 'delay',
+      text: $localize`:rule flag|The response waits before answering:Delay`,
+      detail: $localize`Delay: ${describeDelay(response.delay)}`,
+    });
+  }
+  if (rule.chance) {
+    flags.push({
+      label: 'chance',
+      text: $localize`:rule flag|The rule answers only a share of the matching requests:Chance`,
+      detail: $localize`Chance: ${rule.chance}:chance:% of the matching requests`,
+    });
+  }
+  if (rule.active_from || rule.active_until) {
+    flags.push({
+      label: 'window',
+      text: $localize`:rule flag|The rule only answers within a time window:Window`,
+      detail: windowDetail(rule.active_from, rule.active_until),
+    });
   }
   if (rule.scenario?.name) {
     const { name, requiredState, newState } = rule.scenario;
@@ -309,6 +337,15 @@ export function ruleFlags(rule: Rule): RuleFlag[] {
     });
   }
   return flags;
+}
+
+function windowDetail(from: string | null | undefined, until: string | null | undefined): string {
+  if (from && until) {
+    return $localize`Active from ${from}:from: until ${until}:until: (UTC)`;
+  }
+  return from
+    ? $localize`Active from ${from}:from: (UTC)`
+    : $localize`Active until ${until}:until: (UTC)`;
 }
 
 function describeDelay(delay: RuleDelay): string {

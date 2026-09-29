@@ -82,6 +82,11 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
       ],
       signature: 'any',
       schema: 'any',
+      chance: null,
+      windowMode: 'always',
+      windowMinutes: 15,
+      activeFrom: '',
+      activeUntil: '',
       status: 201,
       responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
       responseBody: '{"ok":true}',
@@ -301,6 +306,107 @@ describe('Dado a condição de schema no formulário', () => {
     const texto = JSON.stringify({ name: 'a', match: { schema: condicao } });
 
     expect(parseRuleJson(texto).errors).toEqual(['match.schema: The selected schema is invalid.']);
+  });
+});
+
+describe('Dado a chance e a janela de tempo no formulário', () => {
+  const AGORA = Date.parse('2026-09-29T12:00:30.750Z');
+
+  it('deve abrir com a chance e com as datas em "Between dates" Quando a regra tem janela', () => {
+    const regra = {
+      ...completa,
+      chance: 30,
+      active_from: '2026-09-29T12:00:00Z',
+      active_until: '2099-01-01T00:00:00Z',
+    };
+
+    expect(toFormValue(regra)).toMatchObject({
+      chance: 30,
+      windowMode: 'dates',
+      activeFrom: '2026-09-29T12:00:00Z',
+      activeUntil: '2099-01-01T00:00:00Z',
+    });
+    expect(fromFormValue(toFormValue(regra), regra)).toEqual(regra);
+  });
+
+  it('deve abrir em "Between dates" Quando a regra só tem o fim da janela', () => {
+    expect(toFormValue({ ...completa, active_until: '2099-01-01T00:00:00Z' })).toMatchObject({
+      windowMode: 'dates',
+      activeFrom: '',
+      activeUntil: '2099-01-01T00:00:00Z',
+    });
+  });
+
+  it('deve tirar as chaves da regra, e não gravá-las nulas, Quando a chance fica vazia e a janela volta a "Always"', () => {
+    const regra = { ...completa, chance: 30, active_from: '2026-09-29T12:00:00Z' };
+    const form: RuleFormValue = { ...toFormValue(regra), chance: null, windowMode: 'always' };
+
+    const gravada = fromFormValue(form, regra);
+
+    expect(gravada).toEqual(completa);
+    expect(Object.keys(gravada)).not.toContain('chance');
+    expect(Object.keys(gravada)).not.toContain('active_from');
+  });
+
+  it('deve gravar "For the next minutes" como agora, no segundo, até agora mais N minutos', () => {
+    const form: RuleFormValue = {
+      ...toFormValue(completa),
+      windowMode: 'minutes',
+      windowMinutes: 15,
+    };
+
+    expect(fromFormValue(form, completa, AGORA)).toMatchObject({
+      active_from: '2026-09-29T12:00:30Z',
+      active_until: '2026-09-29T12:15:30Z',
+    });
+  });
+
+  it('deve gravar só a ponta preenchida e aparar os espaços Quando é "Between dates"', () => {
+    const form: RuleFormValue = {
+      ...toFormValue(completa),
+      windowMode: 'dates',
+      activeFrom: ' 2026-09-29T09:00:00-03:00 ',
+      activeUntil: '',
+    };
+
+    const gravada = fromFormValue(form, { ...completa, active_until: '2099-01-01T00:00:00Z' });
+
+    expect(gravada['active_from']).toBe('2026-09-29T09:00:00-03:00');
+    expect(Object.keys(gravada)).not.toContain('active_until');
+  });
+
+  it('deve gravar a chance como número', () => {
+    const form: RuleFormValue = { ...toFormValue(completa), chance: 30 };
+
+    expect(fromFormValue(form, completa)['chance']).toBe(30);
+  });
+
+  it.each([
+    ['chance', { field: 'chance' }],
+    ['active_from', { field: 'activeFrom' }],
+    ['active_until', { field: 'activeUntil' }],
+  ])('deve apontar o 422 de "%s" para o campo da janela', (chave, campo) => {
+    expect(locateError(chave, toFormValue(completa))).toEqual(campo);
+  });
+
+  it.each([
+    ['chance zero', '{"name":"a","chance":0}', 'chance: The chance must be between 1 and 100.'],
+    ['chance 101', '{"name":"a","chance":101}', 'chance: The chance must be between 1 and 100.'],
+    ['chance fracionária', '{"name":"a","chance":1.5}', 'chance: The chance must be an integer.'],
+    ['chance em texto', '{"name":"a","chance":"20"}', 'chance: The chance must be an integer.'],
+    [
+      'início que não é texto',
+      '{"name":"a","active_from":1759147200}',
+      'active_from: The active from must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.',
+    ],
+  ])('deve recusar no JSON a %s', (_caso, texto, erro) => {
+    expect(parseRuleJson(texto).errors).toEqual([erro]);
+  });
+
+  it('deve aceitar no JSON chance e janela nulas', () => {
+    const texto = '{"name":"a","chance":null,"active_from":null,"active_until":null}';
+
+    expect(parseRuleJson(texto).errors).toEqual([]);
   });
 });
 

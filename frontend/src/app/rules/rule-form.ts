@@ -62,6 +62,14 @@ export interface RuleFormValue {
   signature: SignatureOption;
   /** `any` = sem condição (a chave fica fora do match). */
   schema: SchemaOption;
+  /** Vazio = toda requisição que casa (a chave fica fora da regra). */
+  chance: number | null;
+  windowMode: WindowMode;
+  /** "For the next minutes": a janela vai da hora do Save até N minutos depois. */
+  windowMinutes: number;
+  /** "Between dates": vazio = ponta aberta. */
+  activeFrom: string;
+  activeUntil: string;
   status: number;
   responseHeaders: HeaderRow[];
   responseBody: string;
@@ -89,6 +97,12 @@ export type SignatureOption = 'any' | SignatureCondition;
 export type SchemaOption = 'any' | SchemaCondition;
 export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
 export type FaultOption = 'none' | RuleFault;
+/** Sem janela, os próximos N minutos, ou as datas dadas. */
+export type WindowMode = 'always' | 'minutes' | 'dates';
+
+export const WINDOW_MINUTES_DEFAULT = 15;
+/** Uma semana. */
+export const WINDOW_MINUTES_MAX = 10_080;
 
 /** Valores que o editor sugere ao escolher um tipo de atraso ou ligar o dribble. */
 const PHASE_B_DEFAULTS = {
@@ -129,6 +143,11 @@ export function toFormValue(rule: Rule): RuleFormValue {
     body: (match.body ?? []).map(bodyRow),
     signature: match.signature ?? 'any',
     schema: match.schema ?? 'any',
+    chance: rule.chance ?? null,
+    windowMode: rule.active_from || rule.active_until ? 'dates' : 'always',
+    windowMinutes: WINDOW_MINUTES_DEFAULT,
+    activeFrom: rule.active_from ?? '',
+    activeUntil: rule.active_until ?? '',
     status: rule.response?.status ?? RULE_DEFAULT_STATUS,
     responseHeaders: Object.entries(rule.response?.headers ?? {}).map(([name, value]) => ({
       name,
@@ -190,13 +209,39 @@ function scenarioOf(form: RuleFormValue): RuleScenario | null {
   };
 }
 
+/** As pontas da janela como a regra as grava; "For the next minutes" conta a partir de `now`. */
+function windowOf(form: RuleFormValue, now: number): Pick<Rule, 'active_from' | 'active_until'> {
+  switch (form.windowMode) {
+    case 'minutes': {
+      const from = Math.floor(now / 1000) * 1000;
+      return {
+        active_from: isoSecond(from),
+        active_until: isoSecond(from + Number(form.windowMinutes) * 60_000),
+      };
+    }
+    case 'dates':
+      return {
+        active_from: form.activeFrom.trim() || null,
+        active_until: form.activeUntil.trim() || null,
+      };
+    default:
+      return { active_from: null, active_until: null };
+  }
+}
+
+/** `2026-09-29T12:00:30Z`: o formato em que o servidor devolve as pontas da janela. */
+export function isoSecond(time: number): string {
+  return new Date(time).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
 /**
  * Regra com os valores do formulário por cima de `base`: o que a tela não edita (`id` e campos
  * que ela não conhece) segue como veio. O match e a resposta saem no formato normalizado do
  * servidor, com as seções vazias em vez de ausentes. Com falha, atraso e dribble vão nulos (o
  * servidor os ignoraria); status, headers e corpo ficam, para a regra voltar a eles sem a falha.
+ * Chance e janela vazias saem da regra, como o servidor as devolve.
  */
-export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
+export function fromFormValue(form: RuleFormValue, base: Rule, now: number = Date.now()): Rule {
   const faulted = form.fault !== 'none';
   const match = {
     ...base.match,
@@ -216,11 +261,13 @@ export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
   if (match.schema === undefined) {
     delete match.schema;
   }
-  return {
+  const rule: Rule = {
     ...base,
     name: form.name,
     enabled: form.enabled,
     priority: Number(form.priority),
+    chance: form.chance === null ? null : Number(form.chance),
+    ...windowOf(form, now),
     match,
     scenario: scenarioOf(form),
     response: {
@@ -237,6 +284,12 @@ export function fromFormValue(form: RuleFormValue, base: Rule): Rule {
       fault: form.fault === 'none' ? null : form.fault,
     },
   };
+  for (const key of ['chance', 'active_from', 'active_until'] as const) {
+    if (rule[key] === null || rule[key] === undefined) {
+      delete rule[key];
+    }
+  }
+  return rule;
 }
 
 function conditionRows(conditions: Record<string, ValueMatcher> | undefined): ConditionRow[] {
@@ -345,6 +398,9 @@ const SINGLE_FIELDS: [string, SingleField][] = (
     ['scenario.requiredState', 'requiredState'],
     ['scenario.newState', 'newState'],
     ['scenario', 'scenarioName'],
+    ['chance', 'chance'],
+    ['active_from', 'activeFrom'],
+    ['active_until', 'activeUntil'],
   ] as [string, SingleField][]
 ).sort(([a], [b]) => b.length - a.length);
 
@@ -464,6 +520,25 @@ function ruleFieldErrors(rule: Record<string, unknown>): string[] {
   const priority = rule['priority'];
   if (priority !== undefined && !(Number.isInteger(priority) && (priority as number) >= 1)) {
     errors.push('priority: The priority must be an integer of at least 1.');
+  }
+  const chance = rule['chance'];
+  if (chance !== undefined && chance !== null) {
+    if (!Number.isInteger(chance)) {
+      errors.push('chance: The chance must be an integer.');
+    } else if ((chance as number) < 1 || (chance as number) > 100) {
+      errors.push('chance: The chance must be between 1 and 100.');
+    }
+  }
+  for (const [key, field] of [
+    ['active_from', 'active from'],
+    ['active_until', 'active until'],
+  ]) {
+    const value = rule[key];
+    if (value !== undefined && value !== null && typeof value !== 'string') {
+      errors.push(
+        `${key}: The ${field} must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.`,
+      );
+    }
   }
   return errors;
 }

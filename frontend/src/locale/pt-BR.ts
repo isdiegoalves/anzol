@@ -1370,6 +1370,18 @@ export const translations: Record<string, string> = {
   '5220783512275914726': 'O corpo e os valores dos cabeçalhos são templates',
   // Delay: {$PH}
   '1806199785485314113': 'Atraso: {$PH}',
+  // Chance
+  '1183797493670218572': 'Chance',
+  // Chance: {$chance}% of the matching requests
+  '5242297083211751360': 'Chance: {$chance}% das requisições que casam',
+  // Window
+  '1551676159021844754': 'Janela',
+  // Active from {$from} until {$until} (UTC)
+  '555038280772081166': 'Ativa de {$from} até {$until} (UTC)',
+  // Active from {$from} (UTC)
+  '2167757105873429137': 'Ativa a partir de {$from} (UTC)',
+  // Active until {$until} (UTC)
+  '7737695945172037268': 'Ativa até {$until} (UTC)',
   // Scenario {$scenario}: {$from} → {$to}
   '391099507236654123': 'Cenário {$scenario}: {$from} → {$to}',
   // any state
@@ -2314,6 +2326,33 @@ export const translations: Record<string, string> = {
   '4867317813871861421': ' Exigir assinatura inválida ',
   // Never matches: this URL has no schema.
   '3211926513376260686': 'Nunca casa: esta URL não tem schema.',
+  // Chance and time window
+  '1570693796396288182': 'Chance e janela de tempo',
+  // Chance (%)
+  '8506713964359095244': 'Chance (%)',
+  //  Empty: every matching request. Otherwise the rule answers this share of them; the others go on to the next rule.
+  '764316158307088158':
+    ' Vazio: toda requisição que casa. Senão, a regra responde essa fração delas; as outras seguem para a próxima regra. ',
+  // Time window
+  '3846175638346913423': 'Janela de tempo',
+  // Always
+  '9212449559226155586': 'Sempre',
+  // For the next minutes
+  '2211720859590569956': 'Pelos próximos minutos',
+  // Between dates
+  '5310955674355818712': 'Entre datas',
+  // Minutes
+  '5531237363767747080': 'Minutos',
+  // An integer between 1 and {$max}.
+  '3942265491156030663': 'Um inteiro entre 1 e {$max}.',
+  // Active until {$time} UTC once saved.
+  '9032348715368376559': 'Ativa até {$time} UTC depois de salvar.',
+  // Active from (UTC)
+  '738949923430773766': 'Ativa a partir de (UTC)',
+  // Active until (UTC)
+  '4653375036582078715': 'Ativa até (UTC)',
+  //  Like 2026-09-29T12:00:00Z; either may be empty.
+  '2706666733288577206': ' Como 2026-09-29T12:00:00Z; qualquer um pode ficar vazio. ',
   // To go back to the form, fix: {$INTERPOLATION}
   '8101346880063119588': 'Para voltar ao formulário, corrija: {$INTERPOLATION}',
   // matches regex (whole value)

@@ -122,6 +122,58 @@ describe('Dado os indicadores da regra na lista', () => {
 
     expect(flags.map((flag) => flag.label)).toEqual(['fault', 'scenario']);
   });
+
+  it('deve indicar o template Quando a falha manda o corpo da regra (truncated_body)', () => {
+    const flags = ruleFlags(
+      rule({
+        response: response({ template: true, delay: { fixed: 10 }, fault: 'truncated_body' }),
+      }),
+    );
+
+    expect(flags.map((flag) => flag.label)).toEqual(['fault', 'template']);
+  });
+
+  it.each([
+    [
+      'a chance',
+      { chance: 30 },
+      { label: 'chance', text: 'Chance', detail: 'Chance: 30% of the matching requests' },
+    ],
+    [
+      'a janela com as duas pontas',
+      { active_from: '2026-09-29T12:00:00Z', active_until: '2026-09-29T12:15:00Z' },
+      {
+        label: 'window',
+        text: 'Window',
+        detail: 'Active from 2026-09-29T12:00:00Z until 2026-09-29T12:15:00Z (UTC)',
+      },
+    ],
+    [
+      'a janela só com o começo',
+      { active_from: '2026-09-29T12:00:00Z' },
+      { label: 'window', text: 'Window', detail: 'Active from 2026-09-29T12:00:00Z (UTC)' },
+    ],
+    [
+      'a janela só com o fim',
+      { active_until: '2026-09-29T12:15:00Z' },
+      { label: 'window', text: 'Window', detail: 'Active until 2026-09-29T12:15:00Z (UTC)' },
+    ],
+  ])('deve indicar %s com o detalhe no título', (_caso, campos, flag) => {
+    expect(ruleFlags(rule(campos))).toEqual([flag]);
+  });
+
+  it('deve indicar chance e janela junto da falha, que não as anula', () => {
+    const flags = ruleFlags(
+      rule({
+        chance: 50,
+        active_until: '2026-09-29T12:15:00Z',
+        scenario: { name: 'Retry' },
+        response: response({ fault: 'hang' }),
+      }),
+    );
+
+    expect(flags.map((flag) => flag.label)).toEqual(['fault', 'chance', 'window', 'scenario']);
+  });
 });
 
 describe('Dado as sugestões de cenário do editor', () => {

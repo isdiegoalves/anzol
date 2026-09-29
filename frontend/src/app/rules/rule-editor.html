@@ -486,6 +486,110 @@
                   [recorded]="recordedMisses('match.schema')"
                 />
               </div>
+
+              <div class="cond when">
+                <h3 i18n>Chance and time window</h3>
+                <div class="controls">
+                  <mat-form-field class="short" subscriptSizing="dynamic">
+                    <mat-label i18n>Chance (%)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      min="1"
+                      max="100"
+                      formControlName="chance"
+                      aria-label="Chance (%)"
+                      i18n-aria-label
+                      aria-describedby="rule-chance-hint"
+                    />
+                    <mat-error>{{ errorOf(form.controls.chance, messages.chance) }}</mat-error>
+                  </mat-form-field>
+                  <p class="origin" id="rule-chance-hint" i18n>
+                    Empty: every matching request. Otherwise the rule answers this share of them;
+                    the others go on to the next rule.
+                  </p>
+                </div>
+                <app-condition-result
+                  [key]="'chance'"
+                  [result]="result('chance', form.controls.chance.value !== null)"
+                  [recorded]="recordedMisses('chance')"
+                />
+                <div class="controls">
+                  <mat-radio-group
+                    class="window-modes"
+                    formControlName="windowMode"
+                    aria-label="Time window"
+                    i18n-aria-label
+                  >
+                    @for (option of windowModes; track option.value) {
+                      <mat-radio-button [value]="option.value">{{ option.label }}</mat-radio-button>
+                    }
+                  </mat-radio-group>
+                  @switch (form.controls.windowMode.value) {
+                    @case ('minutes') {
+                      <div class="line window-fields">
+                        <mat-form-field class="short" subscriptSizing="dynamic">
+                          <mat-label i18n>Minutes</mat-label>
+                          <input
+                            matInput
+                            type="number"
+                            min="1"
+                            [max]="windowMinutesMax"
+                            formControlName="windowMinutes"
+                            aria-label="Minutes"
+                            i18n-aria-label
+                            aria-describedby="rule-window-until"
+                          />
+                          <mat-error>{{
+                            errorOf(form.controls.windowMinutes, messages.minutes)
+                          }}</mat-error>
+                        </mat-form-field>
+                        <p class="origin" id="rule-window-until">
+                          @if (form.controls.windowMinutes.valid) {
+                            {{ activeUntilOnSave() }}
+                          }
+                        </p>
+                      </div>
+                    }
+                    @case ('dates') {
+                      <div class="line window-fields">
+                        <mat-form-field class="grow" subscriptSizing="dynamic">
+                          <mat-label i18n>Active from (UTC)</mat-label>
+                          <input
+                            matInput
+                            class="mono"
+                            formControlName="activeFrom"
+                            aria-label="Active from (UTC)"
+                            i18n-aria-label
+                            aria-describedby="rule-window-hint"
+                          />
+                          <mat-error>{{ errorOf(form.controls.activeFrom, '') }}</mat-error>
+                        </mat-form-field>
+                        <mat-form-field class="grow" subscriptSizing="dynamic">
+                          <mat-label i18n>Active until (UTC)</mat-label>
+                          <input
+                            matInput
+                            class="mono"
+                            formControlName="activeUntil"
+                            aria-label="Active until (UTC)"
+                            i18n-aria-label
+                            aria-describedby="rule-window-hint"
+                          />
+                          <mat-error>{{ errorOf(form.controls.activeUntil, '') }}</mat-error>
+                        </mat-form-field>
+                      </div>
+                      <p class="origin" id="rule-window-hint" i18n>
+                        Like 2026-09-29T12:00:00Z; either may be empty.
+                      </p>
+                    }
+                  }
+                </div>
+                <app-condition-result
+                  [key]="'window'"
+                  [result]="result(windowKeys, form.controls.windowMode.value !== 'always')"
+                  [recorded]="recordedMisses(windowKeys)"
+                />
+              </div>
             </div>
             <div class="side">
               <app-rule-from-request-panel [request]="example()" (picked)="useField($event)" />

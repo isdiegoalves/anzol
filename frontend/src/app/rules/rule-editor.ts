@@ -33,6 +33,7 @@ import { ErrorStateMatcher } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { Subscription, merge } from 'rxjs';
@@ -76,7 +77,11 @@ import {
   SchemaOption,
   SignatureOption,
   ValueOperator,
+  WINDOW_MINUTES_DEFAULT,
+  WINDOW_MINUTES_MAX,
+  WindowMode,
   fromFormValue,
+  isoSecond,
   locateError,
   newRule,
   parseRuleJson,
@@ -190,6 +195,8 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     MatButton,
     MatButtonToggleGroup,
     MatButtonToggle,
+    MatRadioGroup,
+    MatRadioButton,
     HistoryTestPanel,
     RuleSuggest,
     NgTemplateOutlet,
@@ -268,6 +275,15 @@ export class RuleEditor {
     body: this.formBuilder.array<BodyGroup>([]),
     signature: ['any' as SignatureOption],
     schema: ['any' as SchemaOption],
+    chance: [null as number | null, [Validators.min(1), Validators.max(100), integer]],
+    windowMode: ['always' as WindowMode],
+    windowMinutes: [
+      WINDOW_MINUTES_DEFAULT,
+      [Validators.required, Validators.min(1), Validators.max(WINDOW_MINUTES_MAX), integer],
+    ],
+    // O formato das datas o servidor confere (422 no campo).
+    activeFrom: [''],
+    activeUntil: [''],
     status: [0, [Validators.required, Validators.min(100), Validators.max(599), integer]],
     responseHeaders: this.formBuilder.array<HeaderGroup>([]),
     responseBody: ['', bodyWhenFaultSendsIt],
@@ -459,6 +475,13 @@ export class RuleEditor {
     { value: 'valid', label: $localize`Valid` },
     { value: 'invalid', label: $localize`Invalid` },
   ];
+  protected readonly windowModes: { value: WindowMode; label: string }[] = [
+    { value: 'always', label: $localize`Always` },
+    { value: 'minutes', label: $localize`For the next minutes` },
+    { value: 'dates', label: $localize`Between dates` },
+  ];
+  /** As duas pontas da janela, que o resultado do teste soma num chip só. */
+  protected readonly windowKeys: readonly ConditionKey[] = ['active_from', 'active_until'];
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
     { value: 'none', label: $localize`None` },
     { value: 'fixed', label: $localize`Fixed` },
@@ -470,6 +493,7 @@ export class RuleEditor {
     ...RULE_FAULTS.map((fault) => ({ value: fault, label: FAULT_LABELS[fault] })),
   ];
   protected readonly delayMax = DELAY_MAX_MS;
+  protected readonly windowMinutesMax = WINDOW_MINUTES_MAX;
   protected readonly msError = $localize`An integer between 0 and ${DELAY_MAX_MS} (ms).`;
   /** Mensagens de validação quando o servidor não mandou a dele (`errorOf`). */
   protected readonly messages = {
@@ -483,6 +507,8 @@ export class RuleEditor {
     chunks: $localize`An integer between 1 and 100.`,
     upTo100: $localize`Up to 100 characters.`,
     bodyRequired: $localize`A body is required for this fault.`,
+    chance: $localize`An integer between 1 and 100.`,
+    minutes: $localize`An integer between 1 and ${WINDOW_MINUTES_MAX}:max:.`,
   };
   protected readonly showAtOnce = showAtOnce;
   protected readonly formView = FORM_VIEW;
@@ -493,9 +519,15 @@ export class RuleEditor {
    * escreve. Liga quando a regra abre sem nome; desliga no primeiro valor digitado.
    */
   private autoName = false;
+  /**
+   * Início dos "próximos N minutos" fora do Save: com a hora corrente, a regra mudaria a cada
+   * leitura e o teste contra o histórico nunca ficaria em dia.
+   */
+  private windowStart = Date.now();
 
   constructor() {
-    const { fault, delayType, dribble, scenarioName, delayMin, delayMax } = this.form.controls;
+    const { fault, delayType, dribble, scenarioName, delayMin, delayMax, windowMode } =
+      this.form.controls;
     // A sugestão entra sem evento: toda emissão do nome é da pessoa (ou do loadForm, que reavalia).
     this.form.controls.name.valueChanges
       .pipe(takeUntilDestroyed())
@@ -504,6 +536,12 @@ export class RuleEditor {
       control.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncResponse());
     }
     scenarioName.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.syncScenario());
+    windowMode.valueChanges.pipe(takeUntilDestroyed()).subscribe((mode) => {
+      if (mode === 'minutes') {
+        this.windowStart = Date.now();
+      }
+      this.syncWindow();
+    });
     delayMin.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => delayMax.updateValueAndValidity());
@@ -874,9 +912,13 @@ export class RuleEditor {
 
   /**
    * O chip de uma condição (RULES-18): sem condição, "No condition"; com ela, depois de um teste,
-   * "Passes 196/200" ou "Fails on 4/200"; antes do teste, nada.
+   * "Passes 196/200" ou "Fails on 4/200"; antes do teste, nada. A janela passa as duas pontas: uma
+   * mensagem só pode falhar numa delas.
    */
-  protected result(key: ConditionKey, hasCondition: boolean): ConditionResult | null {
+  protected result(
+    key: ConditionKey | readonly ConditionKey[],
+    hasCondition: boolean,
+  ): ConditionResult | null {
     if (!hasCondition) {
       return { kind: 'none', text: $localize`No condition` };
     }
@@ -884,7 +926,7 @@ export class RuleEditor {
     if (!tested) {
       return null;
     }
-    const failed = tested.tally.counts.get(key) ?? 0;
+    const failed = keysOf(key).reduce((sum, one) => sum + (tested.tally.counts.get(one) ?? 0), 0);
     const total = tested.tested;
     return failed > 0
       ? { kind: 'fails', text: $localize`Fails on ${failed}:failed:/${total}:tested:` }
@@ -931,8 +973,18 @@ export class RuleEditor {
   }
 
   /** Quantos near misses gravados desta regra falharam na condição. */
-  protected recordedMisses(key: ConditionKey): number {
-    return this.recorded()?.counts.get(key) ?? 0;
+  protected recordedMisses(key: ConditionKey | readonly ConditionKey[]): number {
+    const counts = this.recorded()?.counts;
+    return keysOf(key).reduce((sum, one) => sum + (counts?.get(one) ?? 0), 0);
+  }
+
+  /** "Active until 2026-09-29 12:15 UTC once saved.": a janela conta da hora do Save. */
+  protected activeUntilOnSave(): string {
+    const minutes = this.form.controls.windowMinutes.value;
+    const until = isoSecond(Date.now() + Number(minutes) * 60_000)
+      .slice(0, 16)
+      .replace('T', ' ');
+    return $localize`Active until ${until}:time: UTC once saved.`;
   }
 
   protected rowKey(list: 'query' | 'headers', row: AbstractControl): ConditionKey {
@@ -1425,7 +1477,7 @@ export class RuleEditor {
     if (this.saving()) {
       return;
     }
-    const rule = this.editedValid() ? this.editedRule() : undefined;
+    const rule = this.editedValid() ? this.editedRule(Date.now()) : undefined;
     if (!rule) {
       this.block('save');
       return;
@@ -1487,8 +1539,8 @@ export class RuleEditor {
     return index < 0 ? null : index;
   }
 
-  private formRule(): Rule {
-    return fromFormValue(this.form.getRawValue() as RuleFormValue, this.base);
+  private formRule(now = this.windowStart): Rule {
+    return fromFormValue(this.form.getRawValue() as RuleFormValue, this.base, now);
   }
 
   private editedValid(): boolean {
@@ -1496,8 +1548,8 @@ export class RuleEditor {
   }
 
   /** A regra na visão aberta: a do formulário, ou o JSON como foi escrito. */
-  private editedRule(): Rule | undefined {
-    return this.view() === JSON_VIEW ? parseRuleJson(this.json.value).rule : this.formRule();
+  private editedRule(now?: number): Rule | undefined {
+    return this.view() === JSON_VIEW ? parseRuleJson(this.json.value).rule : this.formRule(now);
   }
 
   private loadForm(rule: Rule): void {
@@ -1513,6 +1565,7 @@ export class RuleEditor {
     this.form.setValue(value);
     this.syncResponse();
     this.syncScenario();
+    this.syncWindow();
     this.autoName = !value.name.trim();
   }
 
@@ -1562,6 +1615,14 @@ export class RuleEditor {
       setEnabled(control, on);
     }
     c.responseBody.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Os minutos e as datas só valem no modo deles. */
+  private syncWindow(): void {
+    const c = this.form.controls;
+    setEnabled(c.windowMinutes, c.windowMode.value === 'minutes');
+    setEnabled(c.activeFrom, c.windowMode.value === 'dates');
+    setEnabled(c.activeUntil, c.windowMode.value === 'dates');
   }
 
   /** Os estados só fazem sentido com o nome do cenário. */
@@ -1650,9 +1711,15 @@ export class RuleEditor {
   }
 }
 
-/** As condições da regra como texto, para saber se mudaram desde o teste. */
+/** As condições da regra (com chance e janela) como texto, para saber se mudaram desde o teste. */
 function matchKey(rule: Rule | undefined): string | null {
-  return rule ? JSON.stringify(rule.match ?? null) : null;
+  return rule
+    ? JSON.stringify([rule.match ?? null, rule.chance, rule.active_from, rule.active_until])
+    : null;
+}
+
+function keysOf(key: ConditionKey | readonly ConditionKey[]): readonly ConditionKey[] {
+  return typeof key === 'string' ? [key] : key;
 }
 
 function withoutId(rule: Rule): Rule {

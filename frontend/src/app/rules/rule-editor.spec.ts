@@ -18,6 +18,7 @@ import {
 import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { MatInputHarness } from '@angular/material/input/testing';
+import { MatRadioGroupHarness } from '@angular/material/radio/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -699,6 +700,147 @@ describe('Dado o editor de regra', () => {
     });
   });
 
+  describe('Dado a seção "Chance and time window" na aba Match', () => {
+    const savedRule = async () => {
+      await save();
+      const call = await put();
+      call.flush(call.request.body);
+      return (call.request.body as Rule[])[0];
+    };
+    const janela = () =>
+      loader.getHarness(MatRadioGroupHarness.with({ selector: '[aria-label="Time window"]' }));
+    const modo = async () => (await (await janela()).getCheckedRadioButton())?.getLabelText();
+    const escolherModo = async (texto: string) =>
+      (await janela()).checkRadioButton({ label: texto });
+    const secao = () => root().querySelector('#rule-panel-match .when') as HTMLElement;
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('deve vir com a chance vazia e a janela em "Always", sem acrescentar nada à regra', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      expect(secao().querySelector('h3')?.textContent?.trim()).toBe('Chance and time window');
+      expect(await (await input('Chance (%)')).getValue()).toBe('');
+      expect(secao().textContent).toContain(
+        'Empty: every matching request. Otherwise the rule answers this share of them; the others go on to the next rule.',
+      );
+      const radios = await (await janela()).getRadioButtons();
+      expect(await Promise.all(radios.map((radio) => radio.getLabelText()))).toEqual([
+        'Always',
+        'For the next minutes',
+        'Between dates',
+      ]);
+      expect(await modo()).toBe('Always');
+      await expectNoAxeViolations(root());
+      expect(await savedRule()).toEqual(rule(1));
+    });
+
+    it('deve gravar a chance', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await (await input('Chance (%)')).setValue('30');
+
+      expect(await savedRule()).toEqual({ ...rule(1), chance: 30 });
+    });
+
+    it.each(['0', '101', '2.5'])(
+      'não deve salvar e deve focar a chance Quando ela é %s',
+      async (valor) => {
+        await open({ index: 0 }, [rule(1)]);
+
+        await (await input('Chance (%)')).setValue(valor);
+        await save();
+
+        expect(blockedText()).toBe('To save, fix: Chance (%) (1–100)');
+        expect(await (await field('Chance (%)')).getTextErrors()).toEqual([
+          'An integer between 1 and 100.',
+        ]);
+        await vi.waitFor(() =>
+          expect(document.activeElement?.getAttribute('aria-label')).toBe('Chance (%)'),
+        );
+      },
+    );
+
+    it('deve gravar "For the next minutes" da hora do Save até N minutos depois', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      const agora = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T12:00:30.500Z'));
+
+      await escolherModo('For the next minutes');
+
+      expect(await (await input('Minutes')).getValue()).toBe('15');
+      expect(secao().textContent).toContain('Active until 2026-09-29 12:15 UTC once saved.');
+      await (await input('Minutes')).setValue('60');
+      agora.mockReturnValue(Date.parse('2026-09-29T12:05:00Z'));
+      expect(await savedRule()).toEqual({
+        ...rule(1),
+        active_from: '2026-09-29T12:05:00Z',
+        active_until: '2026-09-29T13:05:00Z',
+      });
+    });
+
+    it('não deve salvar Quando os minutos passam de uma semana', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await escolherModo('For the next minutes');
+      await (await input('Minutes')).setValue('10081');
+      await save();
+
+      expect(blockedText()).toBe('To save, fix: Minutes (1–10080)');
+      expect(await (await field('Minutes')).getTextErrors()).toEqual([
+        'An integer between 1 and 10080.',
+      ]);
+    });
+
+    it('deve abrir a regra com janela em "Between dates" com as datas guardadas e gravar a nova', async () => {
+      await open({ index: 0 }, [
+        rule(1, { active_from: '2026-09-29T12:00:00Z', active_until: '2099-01-01T00:00:00Z' }),
+      ]);
+
+      expect(await modo()).toBe('Between dates');
+      expect(await (await input('Active from (UTC)')).getValue()).toBe('2026-09-29T12:00:00Z');
+      expect(await (await input('Active until (UTC)')).getValue()).toBe('2099-01-01T00:00:00Z');
+      expect(secao().textContent).toContain('Like 2026-09-29T12:00:00Z; either may be empty.');
+      await (await input('Active from (UTC)')).setValue('');
+
+      expect(await savedRule()).toEqual({ ...rule(1), active_until: '2099-01-01T00:00:00Z' });
+    });
+
+    it('deve tirar a janela da regra Quando volta para "Always"', async () => {
+      await open({ index: 0 }, [rule(1, { active_until: '2099-01-01T00:00:00Z', chance: 5 })]);
+
+      await escolherModo('Always');
+      await (await input('Chance (%)')).setValue('');
+
+      expect(await savedRule()).toEqual(rule(1));
+    });
+
+    it('deve mostrar no campo da data o 422 do servidor, traduzido em pt-BR', async () => {
+      loadTranslations(translations);
+      try {
+        await open({ index: 0 }, [rule(1, { active_from: 'amanhã' })]);
+
+        await (await button('Salvar')).click();
+        (await put()).flush(
+          {
+            '0.active_from': [
+              'The active from must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.',
+            ],
+          },
+          { status: 422, statusText: 'Unprocessable Entity' },
+        );
+
+        const campo = await field('Ativa a partir de (UTC)');
+        await vi.waitFor(async () =>
+          expect(await campo.getTextErrors()).toEqual([
+            'O campo active from deve ser uma data-hora ISO-8601 com fuso, como 2026-09-29T12:00:00Z.',
+          ]),
+        );
+      } finally {
+        clearTranslations();
+      }
+    });
+  });
+
   describe('Dado a seção "Scenario"', () => {
     const outras = [
       rule(1, { scenario: { name: 'Retry', requiredState: 'Started', newState: 'falhou-1' } }),
@@ -1293,13 +1435,77 @@ describe('Dado o editor de regra', () => {
         ['match.body.0', 'Passes 2/2'],
         ['match.signature', 'No condition'],
         ['match.schema', 'No condition'],
+        ['chance', 'No condition'],
+        ['window', 'No condition'],
       ]);
       // O estilo vem do resultado (a classe), não do texto, que muda com o idioma.
       expect(
         [...root().querySelectorAll('.feedback')].map((element) =>
           ['passes', 'fails', 'none'].find((kind) => element.classList.contains(kind)),
         ),
-      ).toEqual(['fails', 'passes', 'none', 'fails', 'passes', 'none', 'none']);
+      ).toEqual(['fails', 'passes', 'none', 'fails', 'passes', 'none', 'none', 'none', 'none']);
+    });
+
+    it('deve dizer quantas o sorteio pulou e quantas chegaram fora da janela', async () => {
+      await open({ index: 0 }, [
+        rule(1, {
+          chance: 30,
+          active_from: '2026-09-29T12:00:00Z',
+          active_until: '2099-01-01T00:00:00Z',
+        }),
+      ]);
+
+      await (await button('Test against history')).click();
+      (await testCall()).flush({
+        matches: [{ uuid: 'm0', seq: 4 }],
+        misses: [
+          {
+            uuid: 'm1',
+            seq: 3,
+            failed: ['chance 30%: rolled 57, not applied'],
+            conditions: ['chance'],
+          },
+          {
+            uuid: 'm2',
+            seq: 2,
+            failed: ['window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T11:00:00Z'],
+            conditions: ['active_from'],
+          },
+          {
+            uuid: 'm3',
+            seq: 1,
+            failed: ['window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T10:00:00Z'],
+            conditions: null,
+          },
+        ],
+      });
+      (await countCall()).flush({ data: [], total: 4 });
+      (await recentCall()).flush(requestPage([]));
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      const chip = (key: string) =>
+        root().querySelector(`.feedback[data-condition="${key}"]`)?.textContent?.trim();
+      expect(chip('chance')).toBe('Fails on 1/4');
+      expect(chip('window')).toBe('Fails on 2/4');
+    });
+
+    it('deve rerodar o teste Quando a chance muda', async () => {
+      await open({ index: 0 }, [rule(1)]);
+      await (await button('Test against history')).click();
+      (await testCall()).flush({ matches: [], misses: [{ uuid: MISS, seq: 2, failed: ['x'] }] });
+      (await countCall()).flush({ data: [], total: 1 });
+      (await recentCall()).flush(requestPage([]));
+      await vi.waitFor(() => expect(panel()).not.toBeNull());
+
+      await (await input('Chance (%)')).setValue('40');
+
+      expect(text('[aria-label="History test"] .stale')).toEqual(['Out of date']);
+      const rerun = await vi.waitFor(
+        () => http.expectOne({ method: 'POST', url: `${URL_REGRAS}/test` }),
+        { timeout: 3000 },
+      );
+      expect((rerun.request.body as Rule).chance).toBe(40);
+      rerun.flush({ matches: [], misses: [] });
     });
   });
 

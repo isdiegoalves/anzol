@@ -1,5 +1,6 @@
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { DELAY_MAX_MS, DRIBBLE_MAX_CHUNKS } from './rule';
+import { WINDOW_MINUTES_MAX } from './rule-form';
 import { EditorTab } from './rule-tabs';
 
 /** Campo inválido do editor, na ordem da tela: onde está (aba, ou o cabeçalho) e como se chama. */
@@ -27,6 +28,11 @@ function sections(): Record<string, Section> {
     path: { tab: 'match', label: $localize`Path` },
     signature: { tab: 'match', label: $localize`Signature` },
     schema: { tab: 'match', label: $localize`Schema` },
+    chance: { tab: 'match', label: $localize`Chance (%)`, range: '1–100' },
+    windowMode: { tab: 'match', label: $localize`Time window` },
+    windowMinutes: { tab: 'match', label: $localize`Minutes`, range: `1–${WINDOW_MINUTES_MAX}` },
+    activeFrom: { tab: 'match', label: $localize`Active from (UTC)` },
+    activeUntil: { tab: 'match', label: $localize`Active until (UTC)` },
     status: { tab: 'response', label: $localize`Status`, range: '100–599' },
     responseBody: { tab: 'response', label: $localize`Response body` },
     template: { tab: 'response', label: $localize`Template` },
