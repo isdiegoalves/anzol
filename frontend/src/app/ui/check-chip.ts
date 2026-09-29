@@ -33,7 +33,7 @@ export interface ChipLink {
         @if (size() === 'card') {
           @let target = link();
           @if (titleParts(); as parts) {
-            <!-- F1: o trecho do título que vira valor clicável (o status); o resto segue o link. -->
+            <!-- O trecho do título que vira valor clicável (o status); o resto segue o link. -->
             <!-- prettier-ignore -->
             <span class="title">{{ parts.before }}<ng-container [ngTemplateOutlet]="parts.template" [ngTemplateOutletContext]="{ $implicit: parts.value }" />{{ parts.separator }}@if (target?.part === 'title') {<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{ parts.after }}</a>} @else {{{ parts.after }}}</span>
           } @else if (target?.part === 'title') {
@@ -59,7 +59,7 @@ export interface ChipLink {
           } @else {
             <span class="detail">{{ result().detail }}</span>
           }
-          <!-- B2: o que mais a tela sabe, com a ressalva certa ("Retry-After: 5 (as configured now)"). -->
+          <!-- O que mais a tela sabe, com a ressalva certa ("Retry-After: 5 (as configured now)"). -->
           @for (note of notes(); track note) {
             <span class="note">{{ note }}</span>
           }
