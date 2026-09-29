@@ -1,4 +1,5 @@
 import { Clipboard } from '@angular/cdk/clipboard';
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -32,6 +33,7 @@ import { Menu, MenuItem } from '../ui/menu';
 import { DESTINATIONS, Destination, placeOf } from './destinations';
 import { Hotkeys } from './hotkeys';
 import { ScreenState } from './screen-state';
+import { ChecksSeen } from './checks-seen';
 import { ShellSettings } from './shell-settings';
 import { SkipLink } from './skip-link';
 import type { TokenActions } from '../token/token-actions';
@@ -75,6 +77,8 @@ export class Shell {
   private readonly clipboard = inject(Clipboard);
   private readonly requests = inject(RequestStore);
   private readonly rulesSeen = inject(RulesSeen);
+  private readonly checksSeen = inject(ChecksSeen);
+  private readonly document = inject(DOCUMENT);
   protected readonly screen = inject(ScreenState);
   private readonly known = inject(KnownUrls);
   private readonly title = inject(Title);
@@ -172,6 +176,7 @@ export class Shell {
         this.failedUrl.set(event.url);
       } else if (event instanceof NavigationEnd) {
         this.failedUrl.set(null);
+        this.seeChecks(event.urlAfterRedirects);
       }
     });
 
@@ -330,20 +335,37 @@ export class Shell {
   private readonly unread = computed(() => this.requests.unread().length);
   /** WM-01: mensagens sem regra desde a última visita a Regras (o ponto em "Rules"). */
   private readonly unruled = computed(() => this.rulesSeen.unseen().length);
-  /**
-   * Checks pede atenção quando alguma mensagem carregada desta URL tem a assinatura ou o schema
-   * inválidos (o que o Health contaria como falha).
-   */
+  /** O que pede atenção em Checks: as assinaturas inválidas não vistas; sem elas, os schemas. */
   private readonly attention = computed(() => {
     const token = this.tokens.token();
-    return (
-      !!token &&
-      this.requests.tokenId() === token.uuid &&
-      this.requests
-        .requests()
-        .some((request) => request.signature?.valid === false || request.schema?.valid === false)
+    if (!token || this.requests.tokenId() !== token.uuid) {
+      return null;
+    }
+    const unseen = this.checksSeen.unseen();
+    const signatures = unseen.filter((request) => request.signature?.valid === false);
+    const found = signatures.length > 0 ? signatures : unseen;
+    if (found.length === 0) {
+      return null;
+    }
+    const oldest = found.map((request) => request.created_at).sort()[0];
+    // A API grava "Y-m-d H:i:s" em UTC.
+    const since = new Date(`${oldest.replace(' ', 'T')}Z`).toLocaleTimeString(
+      this.document.documentElement.lang || 'en',
+      { hour: 'numeric', minute: '2-digit' },
     );
+    return { signatures: signatures.length > 0, count: found.length, since };
   });
+
+  /** Abrir Checks, ou a Entrada filtrada pela assinatura inválida, apaga o ponto. */
+  private seeChecks(url: string): void {
+    const tree = this.router.parseUrl(url);
+    const [tokenId, section] = (tree.root.children['primary']?.segments ?? []).map(
+      (segment) => segment.path,
+    );
+    if (tokenId && (section === 'checks' || tree.queryParams['signature'] === 'invalid')) {
+      this.checksSeen.markSeen(tokenId);
+    }
+  }
 
   /** O badge ou o ponto do destino, com o nome acessível que diz o que ele quer dizer. */
   protected statusOf(destination: Destination): { name: string; badge: number | null } | null {
@@ -360,8 +382,17 @@ export class Shell {
           : $localize`${label}:destination: · ${count}:count: requests without a rule`;
       return { name, badge: null };
     }
-    if (destination.path === 'checks' && this.attention()) {
-      return { name: $localize`${label}:destination:, needs attention`, badge: null };
+    const attention = this.attention();
+    if (destination.path === 'checks' && attention) {
+      const { count, since } = attention;
+      const name = attention.signatures
+        ? count === 1
+          ? $localize`${label}:destination:, 1 invalid signature since ${since}:time:`
+          : $localize`${label}:destination:, ${count}:count: invalid signatures since ${since}:time:`
+        : count === 1
+          ? $localize`${label}:destination:, 1 invalid schema since ${since}:time:`
+          : $localize`${label}:destination:, ${count}:count: invalid schemas since ${since}:time:`;
+      return { name, badge: null };
     }
     return null;
   }

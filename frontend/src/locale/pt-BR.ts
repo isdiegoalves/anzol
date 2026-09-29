@@ -1612,8 +1612,6 @@ export const translations: Record<string, string> = {
   '1735799584802064851': '{$destination} (G e depois {$key})',
   // {$destination}, {$count} unread
   '814164756853505191': '{$destination}, {$count} não lidas',
-  // {$destination}, needs attention
-  '1469418318150552308': '{$destination}, pede atenção',
   // Edit URL
   '5639322219019388338': 'Configurar a URL',
   // Copy CLI command
@@ -3472,4 +3470,12 @@ export const translations: Record<string, string> = {
   // Copied. anzol test only reads --match, so these filters were left out: {$filters}.
   '2974323848043602907':
     'Copiado. O anzol test só lê o --match, então estes filtros ficaram de fora: {$filters}.',
+  // {$destination}, 1 invalid signature since {$time}
+  '4592034369818190987': "{$destination}, 1 assinatura inválida desde {$time}",
+  // {$destination}, {$count} invalid signatures since {$time}
+  '4791511819252126960': "{$destination}, {$count} assinaturas inválidas desde {$time}",
+  // {$destination}, 1 invalid schema since {$time}
+  '8831648283178564529': "{$destination}, 1 schema inválido desde {$time}",
+  // {$destination}, {$count} invalid schemas since {$time}
+  '3636672581074851539': "{$destination}, {$count} schemas inválidos desde {$time}",
 };

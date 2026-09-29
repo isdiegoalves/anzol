@@ -201,21 +201,62 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await screen.findByRole('link', { name: 'Rules' });
   });
 
-  it('deve marcar Checks com "needs attention" Quando uma mensagem da lista tem assinatura ou schema inválido (CHECKS-23)', async () => {
-    const { container } = await renderAt(`/${TOKEN_ID}`);
-    const store = TestBed.inject(RequestStore);
-    expect(screen.getByRole('link', { name: 'Checks' })).toBeTruthy();
-
-    store.tokenId.set(TOKEN_ID);
-    store.append(
-      webhookRequest(1, {
+  describe('Dado o ponto de atenção de Checks', () => {
+    const invalid = (n: number, created_at: string) =>
+      webhookRequest(n, {
+        created_at,
         signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
-      }),
-      1,
-    );
+      });
+    const hour = (created_at: string) =>
+      new Date(`${created_at.replace(' ', 'T')}Z`).toLocaleTimeString('en', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
 
-    await screen.findByRole('link', { name: 'Checks, needs attention' });
-    expect(container.querySelector('.destination .dot')).not.toBeNull();
+    it('deve dizer quantas assinaturas inválidas e desde quando, pela mais antiga', async () => {
+      const { container } = await renderAt(`/${TOKEN_ID}`);
+      const store = TestBed.inject(RequestStore);
+      expect(screen.getByRole('link', { name: 'Checks' })).toBeTruthy();
+
+      store.tokenId.set(TOKEN_ID);
+      store.append(invalid(1, '2026-09-26 21:10:05'), 1);
+      store.append(invalid(2, '2026-09-26 21:40:00'), 2);
+
+      await screen.findByRole('link', {
+        name: `Checks, 2 invalid signatures since ${hour('2026-09-26 21:10:05')}`,
+      });
+      expect(container.querySelector('.destination .dot')).not.toBeNull();
+    });
+
+    it('deve dizer o schema inválido Quando nenhuma assinatura falhou', async () => {
+      await renderAt(`/${TOKEN_ID}`);
+      const store = TestBed.inject(RequestStore);
+
+      store.tokenId.set(TOKEN_ID);
+      store.append(webhookRequest(1, { schema: { valid: false, errors: [] } }), 1);
+
+      await screen.findByRole('link', {
+        name: `Checks, 1 invalid schema since ${hour(webhookRequest(1).created_at)}`,
+      });
+    });
+
+    it('deve apagar ao abrir Checks, ou a Entrada filtrada pela assinatura inválida, e voltar com a próxima', async () => {
+      const { navigate } = await renderAt(`/${TOKEN_ID}`);
+      const store = TestBed.inject(RequestStore);
+      store.tokenId.set(TOKEN_ID);
+      store.append(invalid(1, '2026-09-26 21:10:05'), 1);
+      await screen.findByRole('link', { name: /^Checks, 1 invalid signature since/ });
+
+      await navigate(`/${TOKEN_ID}/checks`);
+      await screen.findByRole('link', { name: 'Checks' });
+
+      store.append(invalid(2, '2999-01-01 00:00:00'), 2);
+      await screen.findByRole('link', { name: /^Checks, 1 invalid signature since/ });
+      vi.useFakeTimers({ now: new Date('3000-01-01T00:00:00Z'), toFake: ['Date'] });
+      await navigate(`/${TOKEN_ID}?signature=invalid`);
+      vi.useRealTimers();
+      await screen.findByRole('link', { name: 'Checks' });
+    });
   });
 
   it('deve abrir e fechar a busca da lista pela lupa da barra do celular (INBOX-29/31)', async () => {

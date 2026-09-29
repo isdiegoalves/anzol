@@ -26,7 +26,7 @@ export function secoes(page: Page): Locator {
 
 /**
  * Um destino do rail. Fidelidade ao C (INBOX-02, CHECKS-23): o nome ganha o sufixo do contador ("Inbox, 3 unread") ou
- * da atenção ("Checks, needs attention").
+ * da atenção ("Checks, 1 invalid signature since 21:10").
  */
 export function destino(page: Page, nome: Destino): Locator {
   return secoes(page).getByRole('link', { name: new RegExp(`^${nome}(, .+)?$`) });

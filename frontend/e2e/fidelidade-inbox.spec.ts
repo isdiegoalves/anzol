@@ -23,8 +23,8 @@ import { readStorage, seedStorage } from './support/storage';
 // - INBOX-01: `button "Sorted newest first. Change order"` no cabeçalho da lista; ao clicar vira "Sorted oldest
 //   first. Change order" e a lista inverte; a pílula de novas começa com "↑";
 // - INBOX-02/CHECKS-23: o destino Inbox do rail (e da barra inferior) mostra o número de não lidas e se chama
-//   "Inbox, N unread"; o destino Checks se chama "Checks, needs attention" quando o `stats` da URL tem assinatura ou
-//   schema inválidos;
+//   "Inbox, N unread"; o destino Checks se chama "Checks, 1 invalid signature since 21:10" quando a URL tem
+//   assinatura ou schema inválidos;
 // - INBOX-03/CHECKS-22: `link "N requests, auto cleanup keeps the M most recent"` no cabeçalho da URL, com o texto
 //   "N · keeps M", levando a `#/{token}/checks?section=response`;
 // - INBOX-04: sai o "Edit" à vista; `button "More URL actions"` abre um menu com `menuitem` "Edit URL", "Open in new
@@ -140,7 +140,9 @@ test.describe('Dado o rail com mensagens não lidas e verificações inválidas 
 
     await expect(destino(page, 'Inbox')).toHaveAccessibleName('Inbox, 2 unread');
     await expect(destino(page, 'Inbox')).toContainText('2');
-    await expect(destino(page, 'Checks')).toHaveAccessibleName('Checks, needs attention');
+    await expect(destino(page, 'Checks')).toHaveAccessibleName(
+      /^Checks, 1 invalid signature since \d{1,2}:\d{2}/,
+    );
   });
 
   test('não deve marcar Checks nem contar Quando está tudo lido e válido', async ({
