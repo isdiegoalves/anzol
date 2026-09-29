@@ -33,7 +33,8 @@
   margin-right: 8px;
 }
 
-// A 1024 px a coluna do detalhe tem ~500 px: sem os ícones dos rótulos, os seis cabem numa linha.
+// A 1024 px a coluna do detalhe tem ~500 px, e com o "Compare with attempt n" o rótulo cresce: sem
+// os ícones dos rótulos, os seis cabem numa linha.
 .actions.narrow {
   @include mat.button-overrides(
     (

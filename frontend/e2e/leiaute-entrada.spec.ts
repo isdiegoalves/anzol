@@ -163,6 +163,43 @@ test.describe('Dado a oferta de agrupar por evento na primeira tela', () => {
   });
 });
 
+test.describe('Dado a barra de ações de uma tentativa de evento', () => {
+  test('deve ter os seis botões numa linha a 1440 px, com "Comparar com a tentativa 1"', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(compacto(page), 'a barra do desktop');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const tokenId = await tokens.create();
+    const ids: string[] = [];
+    for (const n of [1, 2]) {
+      ids.push(
+        await tokens.send(tokenId, {
+          path: '/webhooks/pagamentos',
+          headers: { 'Content-Type': 'application/json' },
+          data: JSON.stringify({ event_id: 'evt_pf_7Q2K1010', n }),
+        }),
+      );
+    }
+    await emPortugues(page);
+    await page.goto('/favicon.ico');
+    await page.evaluate(
+      (chave) => localStorage.setItem(chave, '$.event_id'),
+      `anzol.eventKey.${tokenId}`,
+    );
+    await page.goto(`/#/${tokenId}/${ids[1]}/1`);
+    const barra = page.getByRole('toolbar', { name: 'Ações da requisição' });
+    await expect(barra.getByRole('button', { name: 'Comparar com a tentativa 1' })).toBeVisible();
+
+    const botoes = barra.getByRole('button');
+    await expect(botoes).toHaveCount(6);
+    const topos = await botoes.evaluateAll((nos) =>
+      nos.map((no) => Math.round(no.getBoundingClientRect().top)),
+    );
+    expect(new Set(topos).size, 'os seis numa linha só').toBe(1);
+  });
+});
+
 test.describe('Dado o celular', () => {
   test('deve ter o cartão da URL em duas linhas e 5 requisições inteiras com a oferta aberta', async ({
     page,

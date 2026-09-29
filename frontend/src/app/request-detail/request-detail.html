@@ -98,6 +98,17 @@
         >
           <ng-container [ngTemplateOutlet]="explainLabel" />
         </button>
+      } @else if (previousAttempt()) {
+        <button
+          mat-menu-item
+          type="button"
+          disabledInteractive
+          [disabled]="gone()"
+          [attr.aria-describedby]="goneReason()"
+          (click)="openPanel('compare', $event)"
+        >
+          <ng-container i18n>Compare with&hellip;</ng-container>
+        </button>
       }
       <button
         mat-menu-item
@@ -173,7 +184,7 @@
     aria-label="Request actions"
     i18n-aria-label
     viewActions
-    [class.narrow]="narrow()"
+    [class.narrow]="tight()"
   >
     <div class="group">
       @if (!(compact() && gone())) {
@@ -192,21 +203,7 @@
         </button>
       }
       @if (!compact()) {
-        <button
-          mat-button
-          type="button"
-          aria-label="Compare with…"
-          i18n-aria-label
-          aria-keyshortcuts="D"
-          title="Compare with… (D)"
-          i18n-title
-          disabledInteractive
-          [disabled]="gone()"
-          [attr.aria-describedby]="goneReason()"
-          (click)="openPanel('compare', $event)"
-        >
-          <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
-        </button>
+        <!-- Com evento, a tentativa anterior toma o lugar: sete botões não cabem numa linha. -->
         @if (previousAttempt(); as previous) {
           <button
             mat-button
@@ -219,7 +216,23 @@
             "
             (click)="compareWithPrevious($event)"
           >
-            {{ previous.label }}
+            <app-icon name="compare" [size]="18" />{{ previous.label }}
+          </button>
+        } @else {
+          <button
+            mat-button
+            type="button"
+            aria-label="Compare with…"
+            i18n-aria-label
+            aria-keyshortcuts="D"
+            title="Compare with… (D)"
+            i18n-title
+            disabledInteractive
+            [disabled]="gone()"
+            [attr.aria-describedby]="goneReason()"
+            (click)="openPanel('compare', $event)"
+          >
+            <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
           </button>
         }
       }
@@ -247,14 +260,14 @@
           type="button"
           aria-label="Share read-only link…"
           i18n-aria-label
-          [class.icon-only]="narrow()"
+          [class.icon-only]="tight()"
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
           (click)="shareRequest()"
         >
           <app-icon name="link" [size]="18" />
-          @if (!narrow()) {
+          @if (!tight()) {
             <ng-container i18n>Share</ng-container>
           }
         </button>
@@ -266,13 +279,13 @@
           i18n-title
           disabledInteractive
           [disabled]="explainOff()"
-          [class.icon-only]="narrow()"
-          [attr.aria-label]="narrow() ? explainName : null"
+          [class.icon-only]="tight()"
+          [attr.aria-label]="tight() ? explainName : null"
           [attr.aria-describedby]="explainReason()"
           (click)="openExplain($event)"
         >
           <app-icon name="info" [size]="18" />
-          @if (!narrow()) {
+          @if (!tight()) {
             <ng-container [ngTemplateOutlet]="explainLabel" />
           }
         </button>

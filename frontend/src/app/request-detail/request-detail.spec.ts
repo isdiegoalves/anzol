@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
+import { EventGrouping } from '../requests/event-grouping';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RuleTrace } from '../rules/rule';
@@ -636,5 +637,57 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
         request.uuid,
       ]);
     });
+  });
+});
+
+describe('Dado a requisição de um evento agrupado', () => {
+  const attempt = (n: number, created: string) =>
+    webhookRequest(n, {
+      headers: { 'x-loja-event-id': ['evt_1'] },
+      created_at: created,
+    });
+  const [primeira, segunda] = [
+    attempt(1, '2026-09-26 00:40:00'),
+    attempt(2, '2026-09-26 00:40:05'),
+  ];
+
+  it('deve trocar o "Compare with…" da barra pela tentativa anterior, e levar o outro ao "More"', async () => {
+    const view = await render(RequestDetail, {
+      inputs: { request: segunda, token: token(), page: 1 },
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Viewport, useValue: { windowClass: signal<WindowClass>('large') } },
+      ],
+      configureTestBed: async (testBed) => {
+        const store = testBed.inject(RequestStore);
+        const loaded = store.load(TOKEN_ID);
+        testBed
+          .inject(HttpTestingController)
+          .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+          .flush(requestPage([segunda, primeira]));
+        await loaded;
+        testBed.inject(EventGrouping).choose('x-loja-event-id');
+      },
+    });
+    await view.fixture.whenStable();
+    const toolbar = screen.getByRole('toolbar', { name: 'Request actions' });
+
+    expect(
+      within(toolbar)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent?.trim()),
+    ).toEqual([
+      'Replay…',
+      'Compare with attempt 1',
+      'Create rule from this request',
+      'Copy payload',
+      'Share read-only link…',
+      'Explain',
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    expect(await screen.findByRole('menuitem', { name: 'Compare with…' })).toBeTruthy();
+    localStorage.clear();
   });
 });

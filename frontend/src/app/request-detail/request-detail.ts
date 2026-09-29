@@ -144,7 +144,10 @@ export class RequestDetail {
 
   /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
-  protected readonly narrow = computed(() => this.viewport.windowClass() === 'expanded');
+  /** Abaixo de 1200 px, ou com o botão a mais da tentativa anterior: a barra sem os ícones dos rótulos. */
+  protected readonly tight = computed(
+    () => this.viewport.windowClass() === 'expanded' || !!this.previousAttempt(),
+  );
   protected readonly explainName = $localize`:action|Botão que pede a explicação ao modelo:Explain`;
 
   private readonly index = computed(() =>
