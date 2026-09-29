@@ -3484,4 +3484,18 @@ export const translations: Record<string, string> = {
   '3953128085929585273': 'Agrupar',
   // Some requests repeat the same {$field}. Group them by event?
   '2088030634394823354': 'Algumas requisições repetem o mesmo {$field}. Agrupar por evento?',
+  // filters
+  '206662866298476658': 'filtros',
+  // move
+  '5792985922408638829': 'andar',
+  // open
+  '5856915257480984473': 'abrir',
+  // replay
+  '2465451770912214844': 'reenviar',
+  // compare
+  '3409383318324670942': 'comparar',
+  // switch URL
+  '845106705521905169': 'trocar de URL',
+  // all
+  '2089017016852932432': 'todos',
 };

@@ -334,3 +334,61 @@ test.describe('Dado a Entrada em pt-BR, com os rótulos mais compridos', () => {
     expect(cruzados(await caixas(filtros.locator('.chip')))).toEqual([]);
   });
 });
+
+test.describe('Dado a linha de dicas no pé da lista', () => {
+  function dicas(page: Page): Locator {
+    return page.locator('app-list-footer p');
+  }
+
+  test('deve mostrar as sete teclas em até duas linhas a 1440 px, sem nome no parágrafo', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(compacto(page), 'no celular a linha some');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId);
+    await emPortugues(page);
+    await page.goto(`/#/${tokenId}`);
+
+    await expect(dicas(page)).toHaveText(
+      'F filtros ↑↓ andar Enter abrir R reenviar D comparar U trocar de URL ? todos',
+    );
+    expect(await dicas(page).locator('kbd').allTextContents()).toEqual([
+      'F',
+      '↑',
+      '↓',
+      'Enter',
+      'R',
+      'D',
+      'U',
+      '?',
+    ]);
+    // A coluna da lista tem ~400 px a 1440: as sete dicas pedem ~560 px e quebram em duas linhas.
+    const [linha] = await caixas(dicas(page));
+    expect(linha.base - linha.topo).toBeLessThanOrEqual(32);
+    await expect(dicas(page)).not.toHaveAttribute('aria-label');
+  });
+
+  test('deve sumir com os atalhos de uma tecla desligados', async ({ page, tokens }) => {
+    test.skip(compacto(page), 'no celular a linha já some');
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId);
+    await seedStorage(page, { shortcuts: 'false' });
+    await page.goto(`/#/${tokenId}`);
+
+    await expect(page.getByText('1–1 of 1')).toBeVisible();
+    await expect(dicas(page)).toHaveCount(0);
+  });
+
+  test('deve sumir no celular', async ({ page, tokens }) => {
+    test.skip(!compacto(page), 'só no celular');
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId);
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+
+    await expect(page.getByText('1–1 of 1')).toBeVisible();
+    await expect(dicas(page)).toBeHidden();
+  });
+});
