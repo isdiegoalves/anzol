@@ -95,11 +95,12 @@ function naQuery(texto: string): RegExp {
   return new RegExp(`\\?.*${partes}`, 'i');
 }
 
-/** Clica no "Show in Inbox" da linha do Health e espera a Entrada. */
+/** Clica no link de contagem ("… Open in the Inbox") da linha do Health e espera a Entrada. */
 async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Promise<void> {
   const health = await abrirSaude(page, tokenId);
   const link = health.getByRole('link', { name: linha });
-  await expect(link).toContainText('Show in Inbox');
+  // Patamar, F1 (guia-combinacao §3.6): o link de contagem diz "Open in the Inbox", no nome e à vista.
+  await expect(link).toContainText('Open in the Inbox');
   await link.click();
   await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?`));
 }

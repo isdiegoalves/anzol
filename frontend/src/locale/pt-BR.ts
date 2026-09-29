@@ -55,6 +55,12 @@ export const translations: Record<string, string> = {
   '443654800196707711': '{$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$INTERPOLATION} válidas',
   // {$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$INTERPOLATION} invalid
   '5610687243505618203': '{$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$INTERPOLATION} inválidas',
+  // {$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$START_LINK}{$INTERPOLATION}{$CLOSE_LINK} valid
+  '9060021169051208683':
+    '{$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$START_LINK}{$INTERPOLATION}{$CLOSE_LINK} válidas',
+  // {$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$START_LINK}{$INTERPOLATION}{$CLOSE_LINK} invalid
+  '7174448461388720825':
+    '{$START_TAG_SPAN}{$CLOSE_TAG_SPAN}{$START_LINK}{$INTERPOLATION}{$CLOSE_LINK} inválidas',
   // {$INTERPOLATION} not checked
   '994463048896196371': '{$INTERPOLATION} não verificadas',
   // Loading…
@@ -1707,6 +1713,10 @@ export const translations: Record<string, string> = {
   '4820442917323397437': 'Não foi possível destrancar a URL ({$status}).',
   // Copy
   '4323470180912194028': 'Copiar',
+  // {$what}, 1 request. Open in the Inbox
+  '9133523512567191017': '{$what}, 1 requisição. Abrir na Entrada',
+  // {$what}, {$count} requests. Open in the Inbox
+  '1722199096429218269': '{$what}, {$count} requisições. Abrir na Entrada',
   // Nothing here.
   '4451967922263063703': 'Nada aqui.',
   // Live
@@ -1762,8 +1772,8 @@ export const translations: Record<string, string> = {
   '8710897513934450078': 'Texto opcional antes da assinatura, tirado antes de comparar.',
   // HMAC-{$algorithm} of the raw body in {$encoding}.
   '7311316083823946136': 'HMAC-{$algorithm} do corpo bruto em {$encoding}.',
-  // Show in Inbox
-  '2774826830441714180': 'Mostrar na Entrada',
+  // Open in the Inbox
+  '2812107648188046488': 'Abrir na Entrada',
   //  From the result recorded on each request. Click a line to see those requests in the Inbox.
   '629890697824617560':
     ' Do resultado gravado em cada requisição. Clique numa linha para ver essas requisições na Entrada. ',

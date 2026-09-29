@@ -7,6 +7,7 @@ import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
+import { CountFilter, CountLink, schemaPathFilter, signatureReasonFilter } from '../ui/count-link';
 import { Icon } from '../ui/icon';
 import { CardFold } from './card-fold';
 import { ChecksStore } from './checks-store';
@@ -17,23 +18,19 @@ export interface HealthItem {
   count: number;
   /**
    * Query da Inbox já filtrada: o estado largo de hoje (`?signature=invalid|absent`,
-   * `?schema=invalid`) e o motivo exato ou o caminho do erro (`&signatureReason=`, `&schemaPath=`, M1).
+   * `?schema=invalid`) e o motivo exato ou o caminho do erro (`&signatureReason=`, `&schemaPath=`, M1),
+   * montada pelas mesmas funções de Métricas (F1: os dois links saem iguais).
    */
-  filter: Record<string, string>;
+  filter: CountFilter;
   /** Largura da barra, proporcional ao maior da lista (`"50%"`). */
   share: string;
 }
 
 /** Linhas com a barra proporcional ao maior valor da lista. */
-function items(
-  list: { label: string; count: number; filter: Record<string, string> }[],
-): HealthItem[] {
+function items(list: { label: string; count: number; filter: CountFilter }[]): HealthItem[] {
   const max = Math.max(1, ...list.map((item) => item.count));
   return list.map((item) => ({ ...item, share: `${Math.round((item.count / max) * 100)}%` }));
 }
-
-/** O header ausente é "Signature absent" na Inbox; o resto, "Signature invalid". */
-const ABSENT = /^header \S+ absent$/;
 
 /** Uma linha do Health: quantas passaram, quantas não, e os motivos mais comuns. */
 export interface HealthLine {
@@ -45,6 +42,9 @@ export interface HealthLine {
   unchecked: number;
   /** Percentual de válidas entre as verificadas, com uma casa; `null` sem nenhuma verificada. */
   percent: string | null;
+  /** F1: os filtros exatos da Entrada para as válidas e as inválidas; `null` quando não há um só. */
+  validFilter: CountFilter | null;
+  invalidFilter: CountFilter | null;
 }
 
 type WindowSize = (typeof STATS_WINDOWS)[number];
@@ -58,7 +58,16 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  */
 @Component({
   selector: 'app-health-card',
-  imports: [Icon, RouterLink, MatButton, MatFormField, MatIconButton, MatOption, MatSelect],
+  imports: [
+    CountLink,
+    Icon,
+    RouterLink,
+    MatButton,
+    MatFormField,
+    MatIconButton,
+    MatOption,
+    MatSelect,
+  ],
   templateUrl: './health-card.html',
   styleUrls: ['./card.scss', './health-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'health-title' },
@@ -71,6 +80,11 @@ export class HealthCard {
   protected readonly windows = STATS_WINDOWS;
   protected readonly window = signal<WindowSize>(200);
   protected readonly stats = signal<TokenStats | null>(null);
+  /** Sobre o que os números foram contados: o `window=` dos links quando a janela corta (F1). */
+  protected readonly scope = computed(() => {
+    const stats = this.stats();
+    return stats ? { evaluated: stats.evaluated, total: stats.total } : null;
+  });
   protected readonly loading = signal(false);
   protected readonly failure = signal<string | null>(null);
   /** "Show health": o painel inteiro; recolhido, só a linha das duas taxas. */
@@ -107,12 +121,12 @@ export class HealthCard {
               count,
               // M1: a Entrada pelo motivo exato, junto do filtro largo de hoje (o chip do motivo se
               // tira e fica o "Signature invalid"/"absent").
-              filter: {
-                signature: ABSENT.test(reason) ? 'absent' : 'invalid',
-                signatureReason: reason,
-              },
+              filter: signatureReasonFilter(reason),
             })),
           ),
+          { signature: 'valid' },
+          // Inválidas e ausentes juntas não são um filtro só da Entrada: os motivos levam a cada uma.
+          null,
         )
       : null;
   });
@@ -129,9 +143,11 @@ export class HealthCard {
               label: path === '' ? $localize`(root)` : path,
               count,
               // M1: pelo caminho do erro (JSON Pointer; '' é a raiz), junto do "Schema invalid".
-              filter: { schema: 'invalid', schemaPath: path },
+              filter: schemaPathFilter(path),
             })),
           ),
+          { schema: 'valid' },
+          { schema: 'invalid' },
         )
       : null;
   });
@@ -139,8 +155,20 @@ export class HealthCard {
   protected readonly barLabel = (valid: number, invalid: number) =>
     $localize`${valid}:valid: valid, ${invalid}:invalid: invalid`;
   protected readonly metrics = computed(() => [
-    { title: $localize`Signature`, why: $localize`Why invalid`, data: this.signature() },
-    { title: $localize`Schema`, why: $localize`Failing paths`, data: this.schema() },
+    {
+      title: $localize`Signature`,
+      why: $localize`Why invalid`,
+      valid: $localize`Signature valid`,
+      invalid: $localize`Signature invalid`,
+      data: this.signature(),
+    },
+    {
+      title: $localize`Schema`,
+      why: $localize`Failing paths`,
+      valid: $localize`Schema valid`,
+      invalid: $localize`Schema invalid`,
+      data: this.schema(),
+    },
   ]);
 
   constructor() {
@@ -190,6 +218,8 @@ export function line(
   invalid: number,
   unchecked: number,
   failed: HealthLine['failed'],
+  validFilter: CountFilter | null = null,
+  invalidFilter: CountFilter | null = null,
 ): HealthLine {
   const checked = valid + invalid;
   return {
@@ -198,5 +228,7 @@ export function line(
     unchecked,
     failed,
     percent: checked === 0 ? null : `${((valid / checked) * 100).toFixed(1)}%`,
+    validFilter,
+    invalidFilter,
   };
 }

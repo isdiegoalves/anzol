@@ -129,6 +129,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     const { http } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(
       stats({
+        total: 128,
         schema: { valid: 0, invalid: 2, unchecked: 0, paths: [{ path: '', count: 2 }] },
       }),
     );
@@ -142,6 +143,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     const { http, container } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(
       stats({
+        total: 128,
         schema: { valid: 1, invalid: 4, unchecked: 0, paths: [{ path: '/id', count: 4 }] },
       }),
     );
@@ -152,7 +154,11 @@ describe('Dado o cartão "Health" de Checks', () => {
     expect(mismatch.getAttribute('href')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`,
     );
-    expect(mismatch.textContent).toContain('Show in Inbox');
+    // F1: o link de contagem diz à vista o que o nome acessível diz ("… Open in the Inbox").
+    expect(mismatch.textContent).toContain('Open in the Inbox');
+    expect(mismatch.getAttribute('aria-label')).toBe(
+      'signature mismatch, 6 requests. Open in the Inbox',
+    );
     expect(
       screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
     ).toBe(`/${TOKEN_ID}?signature=absent&signatureReason=header%20stripe-signature%20absent`);
@@ -166,6 +172,28 @@ describe('Dado o cartão "Health" de Checks', () => {
         'From the result recorded on each request. Click a line to see those requests in the Inbox.',
       ),
     ).toBeTruthy();
+  });
+
+  it('F1: deve levar cada número à Entrada com o filtro exato, com window= Quando a URL guarda mais que a janela', async () => {
+    const { http, container } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(stats());
+    await show();
+
+    const link = (name: string) =>
+      screen.getByRole('link', { name: `${name}. Open in the Inbox` }).getAttribute('href');
+    await vi.waitFor(() =>
+      expect(link('Signature valid, 110 requests')).toBe(`/${TOKEN_ID}?signature=valid&window=128`),
+    );
+    expect(link('Schema valid, 100 requests')).toBe(`/${TOKEN_ID}?schema=valid&window=128`);
+    expect(link('Schema invalid, 20 requests')).toBe(`/${TOKEN_ID}?schema=invalid&window=128`);
+    expect(link('signature mismatch, 6 requests')).toBe(
+      `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=128`,
+    );
+    // Inválidas e ausentes somadas não são um filtro só da Entrada: o número fica sem link.
+    expect(screen.queryByRole('link', { name: /^Signature invalid,/ })).toBeNull();
+    // O número é o link: o texto à vista dele está no nome acessível (WCAG 2.5.3).
+    expect(screen.getByRole('link', { name: /^Signature valid,/ }).textContent?.trim()).toBe('110');
+    await expectNoAxeViolations(container);
   });
 
   it('CHECKS-18: deve pôr a janela no cabeçalho, o Refresh em ícone e a barra com vão entre as partes', async () => {

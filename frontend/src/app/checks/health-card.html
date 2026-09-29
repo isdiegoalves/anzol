@@ -1,4 +1,6 @@
 @let current = stats();
+@let uuid = tokens.token()?.uuid ?? '';
+@let within = scope();
 <!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
 <ng-content />
 <div class="card-body">
@@ -91,13 +93,44 @@
                   <span class="bad" [style.flex-grow]="data.invalid"></span>
                 </div>
                 <p class="counts">
-                  <span i18n
-                    ><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span
-                  >
-                  <span i18n
-                    ><span class="dot bad" aria-hidden="true"></span
-                    >{{ data.invalid }} invalid</span
-                  >
+                  <!-- F1: o número é o link, e o nome acessível começa pelo que ele conta (2.5.3). -->
+                  @if (data.validFilter; as filter) {
+                    <span i18n
+                      ><span class="dot ok" aria-hidden="true"></span
+                      ><a
+                        [appCountLink]="uuid"
+                        [countFilter]="filter"
+                        [count]="data.valid"
+                        [what]="part.valid"
+                        [countScope]="within"
+                        >{{ data.valid }}</a
+                      >
+                      valid</span
+                    >
+                  } @else {
+                    <span i18n
+                      ><span class="dot ok" aria-hidden="true"></span>{{ data.valid }} valid</span
+                    >
+                  }
+                  @if (data.invalidFilter; as filter) {
+                    <span i18n
+                      ><span class="dot bad" aria-hidden="true"></span
+                      ><a
+                        [appCountLink]="uuid"
+                        [countFilter]="filter"
+                        [count]="data.invalid"
+                        [what]="part.invalid"
+                        [countScope]="within"
+                        >{{ data.invalid }}</a
+                      >
+                      invalid</span
+                    >
+                  } @else {
+                    <span i18n
+                      ><span class="dot bad" aria-hidden="true"></span
+                      >{{ data.invalid }} invalid</span
+                    >
+                  }
                   @if (data.unchecked > 0) {
                     <span i18n>{{ data.unchecked }} not checked</span>
                   }
@@ -110,10 +143,13 @@
                     <li>
                       <a
                         class="reason"
-                        [routerLink]="['/', tokens.token()?.uuid]"
-                        [queryParams]="item.filter"
+                        [appCountLink]="uuid"
+                        [countFilter]="item.filter"
+                        [count]="item.count"
+                        [what]="item.label"
+                        [countScope]="within"
                         ><code>{{ item.label }}</code
-                        ><span class="show" i18n>Show in Inbox</span
+                        ><span class="show" i18n>Open in the Inbox</span
                         ><span class="count">{{ item.count }}</span></a
                       >
                       <span class="track" aria-hidden="true"

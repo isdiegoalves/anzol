@@ -207,7 +207,8 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
     }) => {
       const { tokenId, health } = await urlComFalhas(page, tokens);
       const link = health.getByRole('link', { name: motivo });
-      await expect(link).toContainText('Show in Inbox');
+      // Patamar, F1 (guia-combinacao §3.6): o texto à vista acompanha o nome do link, "… Open in the Inbox".
+      await expect(link).toContainText('Open in the Inbox');
       // Decisões do Anzol, M1: o link leva também o motivo ou o caminho exato, num parâmetro a mais.
       await expect(link).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}(&|$)`));
 

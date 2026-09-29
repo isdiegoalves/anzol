@@ -61,6 +61,16 @@
   gap: 4px 16px;
   margin: 0;
   font: var(--mat-sys-body-small);
+
+  // F1: o número leva à Entrada com o filtro exato; alvo de 24 px.
+  a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    color: var(--mat-sys-primary);
+  }
 }
 
 .dot {
@@ -78,7 +88,7 @@ h4 {
   text-transform: uppercase;
 }
 
-// Cada motivo leva à Inbox filtrada ("Show in Inbox"), com a barra proporcional ao maior.
+// Cada motivo leva à Inbox filtrada ("Open in the Inbox", F1), com a barra proporcional ao maior.
 .reasons {
   display: flex;
   flex-direction: column;
