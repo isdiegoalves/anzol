@@ -1,4 +1,4 @@
-import { Component, computed, input, output } from '@angular/core';
+import { Component, computed, input, output, viewChild } from '@angular/core';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Icon } from '../ui/icon';
 import { FirstGuide } from './first-guide';
@@ -49,4 +49,11 @@ export class Guide {
     this.name() === 'retry' ? $localize`Test a retry` : $localize`First webhook`,
   );
   protected readonly label = computed(() => $localize`Guide: ${this.title()}:name:`);
+
+  private readonly retry = viewChild(RetryGuide);
+
+  /** A chegada é da conferência do retry, que a anuncia. */
+  claims(request: WebhookRequest): boolean {
+    return this.retry()?.claims(request) ?? false;
+  }
 }

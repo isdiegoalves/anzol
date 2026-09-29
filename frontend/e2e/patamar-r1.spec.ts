@@ -526,7 +526,7 @@ test.describe('Dado os roteiros', () => {
   }
 
   function conferencia(folha: Locator): Locator {
-    return folha.getByRole('group', { name: 'Retry check' }).locator('[role="status"]');
+    return folha.getByRole('group', { name: 'Retry check' });
   }
 
   /** Preenche o roteiro de retry e cria as regras. */
@@ -674,7 +674,7 @@ test.describe('Dado os roteiros', () => {
 
     await criarRetry(page, folha, '1');
 
-    await expectUmAnuncio(page, /^3 rules created\.$/);
+    await expectSoEstaFala(page, /^3 rules created\.$/);
     const regras = await lerRegras(request, tokenId);
     expect(regras).toHaveLength(3);
     expect(
@@ -706,11 +706,72 @@ test.describe('Dado os roteiros', () => {
       'Wait asked: Retry-After: 1, as configured now. Times are kept to the second.',
     );
     await expect(conferencia(folha)).not.toContainText('came before the asked wait');
-    // Com 2,3 s entre as tentativas (mais que o 1,5 s da leva), sai uma fala por tentativa, cada uma com o resumo.
-    await expectUmAnuncio(page, /^2 requests arrived\. Answers: 429, 429\./, /^Retry check$/);
-    await expectUmAnuncio(page, /^3 requests arrived\. Answers: 429, 429, 200, as programmed\./);
+    await expectUmAnuncio(
+      page,
+      /^3 requests arrived\. Answers: 429, 429, 200, as programmed\.$/,
+      /^Retry check$/,
+    );
     // A folha continua aberta, com a conferência nela.
     await expect(folha).toBeVisible();
+  });
+
+  test('deve falar a trilha uma vez só, no fim, Quando cada tentativa chega dentro da espera pedida', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    test.setTimeout(60_000);
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    const stream = page.waitForResponse((r) => r.url().endsWith(`/token/${tokenId}/stream`));
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    await stream;
+    const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
+    await criarRetry(page, folha, '2');
+    await expectUmAnuncio(page, /^3 rules created\.$/);
+    await limparAnuncios(page);
+
+    // O remetente espera o pedido, 2 s, e mais um pouco: as três são uma leva, sem fala no meio.
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) {
+        await page.waitForTimeout(2_200);
+      }
+      await request.post(`/${tokenId}/cobrancas`);
+    }
+
+    await expect(conferencia(folha)).toContainText('3 requests arrived. Answers: 429, 429, 200');
+    await expectSoEstaFala(page, /^3 requests arrived\. Answers: 429, 429, 200\b/, /^Retry check$/);
+  });
+
+  test('deve falar de novo a cada leva Quando o remetente demora mais que a espera pedida', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    test.setTimeout(60_000);
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    const stream = page.waitForResponse((r) => r.url().endsWith(`/token/${tokenId}/stream`));
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    await stream;
+    const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
+    await criarRetry(page, folha, '1');
+    await expectUmAnuncio(page, /^3 rules created\.$/);
+    await limparAnuncios(page);
+
+    await request.post(`/${tokenId}/cobrancas`);
+    await expectUmAnuncio(page, /^1 request arrived\. Answers: 429\.$/, /^Retry check$/);
+    await request.post(`/${tokenId}/cobrancas`);
+    await expectUmAnuncio(page, /^2 requests arrived\. Answers: 429, 429\.$/, /^Retry check$/);
+    await request.post(`/${tokenId}/cobrancas`);
+    await expectUmAnuncio(
+      page,
+      /^3 requests arrived\. Answers: 429, 429, 200, as programmed\.$/,
+      /^Retry check$/,
+    );
+    await expectSemAnuncio(page, /new requests? arrived/);
   });
 
   test('deve escolher um método só, com POST de padrão, e esperar por qualquer caminho sem o Path', async ({
@@ -750,6 +811,7 @@ test.describe('Dado os roteiros', () => {
     await stream;
     const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
     await criarRetry(page, folha, '5');
+    await expectUmAnuncio(page, /^3 rules created\.$/);
     await limparAnuncios(page);
 
     // O remetente não espera: as três chegam em sequência, a 0 ou 1 s uma da outra, contra 5 s pedidos.
@@ -768,7 +830,7 @@ test.describe('Dado os roteiros', () => {
     await expect(check).not.toContainText(/as programmed/i);
     await expect(folha).not.toContainText(/as programmed|as scheduled|como programado/i);
     // Uma fala por leva, 1,5 s depois da última chegada: numa rajada de três sai só a do resumo final.
-    await expectUmAnuncio(page, /^3 requests arrived\. Answers: 429, 429, 200\b/, /^Retry check$/);
+    await expectSoEstaFala(page, /^3 requests arrived\. Answers: 429, 429, 200\b/, /^Retry check$/);
     await expectSemAnuncio(page, /^[12] requests? arrived\b/);
     await expectSemAnuncio(page, /^Attempt \d+ arrived\b/);
     await expectSemAnuncio(page, /as programmed/i);

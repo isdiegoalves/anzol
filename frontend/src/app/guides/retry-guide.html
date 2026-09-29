@@ -165,38 +165,42 @@
       @if (arriving()) {
         <p class="arriving" aria-hidden="true">{{ arriving() }}</p>
       }
+      @if (waitingText()) {
+        <p>{{ waitingText() }}</p>
+      }
+      <!-- Só o resumo fala: a lista das tentativas, lida a cada leva, repetiria as anteriores. -->
       <div role="status" class="said">
-        @if (waitingText()) {
-          <p>{{ waitingText() }}</p>
-        }
         @if (check().rows.length > 0) {
           <p class="summary">{{ check().summary }}</p>
           @if (check().early) {
-            <p class="early">{{ check().early }}</p>
-          }
-          <ol class="attempts">
-            @for (row of check().rows; track row.attempt) {
-              <li [class.before]="row.wait?.verdict === 'before'">
-                <span class="attempt" i18n>Attempt {{ row.attempt }}</span>
-                <span class="time">{{ timeOf(row.at) }}</span>
-                @if (row.gap !== null) {
-                  <span class="gap" i18n>+{{ row.gap }} s</span>
-                }
-                <span class="answer">{{ row.answer }}</span>
-                @if (row.rule) {
-                  <span class="rule">{{ row.rule }}</span>
-                }
-                @if (row.phrase) {
-                  <span class="verdict">{{ row.phrase }}</span>
-                }
-              </li>
-            }
-          </ol>
-          @if (check().caveat) {
-            <p class="caveat">{{ check().caveat }}</p>
+            <!-- O espaço separa as duas frases na fala ("200. 2 requests…", e não "200.2"). -->
+            <p class="early">&#32;{{ check().early }}</p>
           }
         }
       </div>
+      @if (check().rows.length > 0) {
+        <ol class="attempts">
+          @for (row of check().rows; track row.attempt) {
+            <li [class.before]="row.wait?.verdict === 'before'">
+              <span class="attempt" i18n>Attempt {{ row.attempt }}</span>
+              <span class="time">{{ timeOf(row.at) }}</span>
+              @if (row.gap !== null) {
+                <span class="gap" i18n>+{{ row.gap }} s</span>
+              }
+              <span class="answer">{{ row.answer }}</span>
+              @if (row.rule) {
+                <span class="rule">{{ row.rule }}</span>
+              }
+              @if (row.phrase) {
+                <span class="verdict">{{ row.phrase }}</span>
+              }
+            </li>
+          }
+        </ol>
+        @if (check().caveat) {
+          <p class="caveat">{{ check().caveat }}</p>
+        }
+      }
     </div>
   </app-guide-step>
 </div>

@@ -127,8 +127,8 @@ describe('Dado um roteiro (R1)', () => {
   });
 
   describe('Dado o "Test a retry"', () => {
-    const check = () =>
-      within(screen.getByRole('group', { name: 'Retry check' })).getByRole('status');
+    const group = () => screen.getByRole('group', { name: 'Retry check' });
+    const check = () => within(group()).getByRole('status');
     const field = (name: string, index = 0) =>
       screen.getAllByRole('spinbutton', { name })[index] as HTMLInputElement;
     /** As três regras como o servidor as devolve depois do PUT. */
@@ -164,6 +164,8 @@ describe('Dado um roteiro (R1)', () => {
       });
     /** A espera da leva e a volta da tela. */
     const settle = () => vi.advanceTimersByTimeAsync(CHECK_SETTLE_MS + 100);
+    /** Com a sequência aberta, a leva espera também o Retry-After de 5 s. */
+    const settleOpen = () => vi.advanceTimersByTimeAsync(5_000 + CHECK_SETTLE_MS + 100);
 
     it('deve ser a região "Guide: Test a retry", com todos os passos à vista e os padrões do assistente', async () => {
       const { container, connect } = await show('retry');
@@ -248,7 +250,9 @@ describe('Dado um roteiro (R1)', () => {
       expect(announce).toHaveBeenCalledWith('3 rules created.');
       expect(text(step('Create'))).toContain('3 rules created · scenario "cobrancas"');
       expect(text(step('Create').querySelector('.state'))).toBe('done');
-      expect(text(check())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.');
+      expect(text(group())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.');
+      // A criação já foi anunciada: a espera fica à vista, fora da região viva.
+      expect(text(check())).toBe('');
     });
 
     it('deve dizer o que corrigir, sem gravar, Quando um campo é inválido', async () => {
@@ -280,7 +284,7 @@ describe('Dado um roteiro (R1)', () => {
       expect(screen.getByRole('button', { name: 'Create 3 rules' })).toBeTruthy();
     });
 
-    it('deve falar uma vez por leva de chegadas e dizer "as programmed" com a espera respeitada', async () => {
+    it('deve falar a trilha uma vez, ao fechar, Quando cada tentativa chega dentro da espera pedida', async () => {
       await show('retry');
       const rules = await create('5');
       vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -292,26 +296,37 @@ describe('Dado um roteiro (R1)', () => {
       });
 
       arrive(rules, 0, 2);
+      await vi.advanceTimersByTimeAsync(5_000);
       arrive(rules, 1, 7);
-      await vi.advanceTimersByTimeAsync(CHECK_SETTLE_MS - 100);
+      await vi.advanceTimersByTimeAsync(6_000);
       // A trilha à vista cresce na hora, fora da fala; a região ainda não mudou.
-      expect(text(screen.getByRole('group', { name: 'Retry check' }))).toContain(
-        'Arriving: 429 · 429',
-      );
+      expect(text(group())).toContain('Arriving: 429 · 429');
+      expect(text(group())).not.toContain('Waiting for');
       expect(said).toEqual([]);
-      await settle();
-      expect(text(check())).toContain('2 requests arrived. Answers: 429, 429.');
       arrive(rules, 2, 13);
       await settle();
 
-      expect(text(check())).toContain('3 requests arrived. Answers: 429, 429, 200, as programmed.');
-      expect(text(check())).toContain('Came about 5 s after.');
-      expect(text(check())).toContain('Waited 6 s. It asked to wait 5 s.');
-      expect(text(check())).toContain(
+      expect(text(check())).toBe('3 requests arrived. Answers: 429, 429, 200, as programmed.');
+      expect(text(group())).toContain('Came about 5 s after.');
+      expect(text(group())).toContain('Waited 6 s. It asked to wait 5 s.');
+      expect(text(group())).toContain(
         'Wait asked: Retry-After: 5, as configured now. Times are kept to the second.',
       );
-      expect(new Set(said.map((phrase) => phrase.slice(0, 20))).size).toBe(2);
+      expect(new Set(said.filter(Boolean)).size).toBe(1);
       expect(text(step('Send and check').querySelector('.state'))).toBe('done');
+    });
+
+    it('deve falar a leva Quando a espera pedida passa sem outra tentativa', async () => {
+      await show('retry');
+      const rules = await create('5');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      arrive(rules, 0, 2);
+      await settle();
+      expect(text(check())).toBe('');
+      await settleOpen();
+
+      expect(text(check())).toBe('1 request arrived. Answers: 429.');
     });
 
     it('nunca deve dizer "as programmed" Quando as requisições chegaram antes da espera pedida', async () => {
@@ -324,9 +339,10 @@ describe('Dado um roteiro (R1)', () => {
       arrive(rules, 2, 3);
       await settle();
 
-      expect(text(check())).toContain('3 requests arrived. Answers: 429, 429, 200.');
-      expect(text(check())).toContain('2 requests came before the asked wait of 5 s.');
-      expect(text(check())).toContain('Came 0 s after the previous answer. It asked to wait 5 s.');
+      expect(text(check())).toBe(
+        '3 requests arrived. Answers: 429, 429, 200. 2 requests came before the asked wait of 5 s.',
+      );
+      expect(text(group())).toContain('Came 0 s after the previous answer. It asked to wait 5 s.');
       expect(text(container)).not.toMatch(/as programmed/i);
       vi.useRealTimers();
       await expectNoAxeViolations(container);
@@ -351,9 +367,9 @@ describe('Dado um roteiro (R1)', () => {
         truncated: false,
       });
       arrive(rules, 0, 2);
-      await settle();
+      await settleOpen();
 
-      expect(text(check())).toContain('1 request arrived. Answers: 429.');
+      expect(text(check())).toBe('1 request arrived. Answers: 429.');
     });
 
     it('deve voltar o cenário ao começo e esvaziar a conferência Quando "Start over" é clicado', async () => {
@@ -361,7 +377,7 @@ describe('Dado um roteiro (R1)', () => {
       const rules = await create('5');
       vi.useFakeTimers({ shouldAdvanceTime: true });
       arrive(rules, 0, 2);
-      await settle();
+      await settleOpen();
       vi.useRealTimers();
       const scenarios = `/token/${TOKEN_ID}/scenarios`;
 
@@ -371,7 +387,7 @@ describe('Dado um roteiro (R1)', () => {
       await vi.waitFor(() => http.expectOne({ method: 'GET', url: scenarios }).flush([]));
 
       await vi.waitFor(() =>
-        expect(text(check())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.'),
+        expect(text(group())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.'),
       );
     });
 

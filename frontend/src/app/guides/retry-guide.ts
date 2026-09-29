@@ -37,7 +37,10 @@ import { StepState } from './guide-steps';
 import { Arrival, RetryCheck, retryCheck } from './retry-check';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
-/** A região fala uma vez por leva: espera este tempo depois da última chegada (§3.7). */
+/**
+ * A região fala uma vez por leva: espera este tempo depois da última chegada e, com a sequência
+ * ainda aberta, também a espera pedida, em que a próxima tentativa ainda cabe na mesma leva.
+ */
 export const CHECK_SETTLE_MS = 1500;
 /** Sem `Retry-After`, as requisições de teste saem com este intervalo, em segundos. */
 const DEFAULT_GAP = 1;
@@ -146,7 +149,7 @@ export class RetryGuide {
       : '';
   });
   protected readonly waitingText = computed(() =>
-    this.created() && this.check().rows.length === 0
+    this.created() && this.arrivals().length === 0
       ? $localize`Waiting for ${this.target()}:target:. Nothing arrived yet.`
       : '',
   );
@@ -290,15 +293,24 @@ export class RetryGuide {
     return path === '' || path.startsWith('/') ? path : `/${path}`;
   }
 
-  private arrive(request: WebhookRequest): void {
+  /** A requisição entra na conferência, e é ela que a anuncia: a Entrada não fala a chegada de novo. */
+  claims(request: WebhookRequest): boolean {
     const path = this.requestPath();
     const [route] = routeOf(request.url).split('?');
-    if (!this.created() || request.method !== this.method() || (path !== '' && route !== path)) {
+    return this.created() && request.method === this.method() && (path === '' || route === path);
+  }
+
+  private arrive(request: WebhookRequest): void {
+    if (!this.claims(request)) {
       return;
     }
     this.arrivals.update((arrivals) => [...arrivals, request]);
+    const open = this.arrivals().length < this.sequence().length;
     clearTimeout(this.settle);
-    this.settle = setTimeout(() => this.spoken.set(this.checkNow()), CHECK_SETTLE_MS);
+    this.settle = setTimeout(
+      () => this.spoken.set(this.checkNow()),
+      (open ? this.gap() * 1000 : 0) + CHECK_SETTLE_MS,
+    );
   }
 
   private checkNow(): RetryCheck {

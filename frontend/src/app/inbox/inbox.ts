@@ -23,7 +23,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
-import type { GuideName } from '../guides/guide';
+import type { Guide, GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
@@ -272,6 +272,8 @@ export class Inbox {
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** O roteiro aberto no lugar do detalhe; a conferência do retry anuncia as chegadas dela. */
+  private shownGuide: Guide | null = null;
   /** Os filtros que a tela mandou para a rota e cujo eco ainda não voltou. */
   private readonly pushed: { filter: RequestFilter; at: number }[] = [];
   /** A maior `seq` que a tela já viu nesta URL: de onde a volta da conexão retoma. */
@@ -449,9 +451,11 @@ export class Inbox {
       guide.setInput('tokenId', tokenId);
       guide.instance.closed.subscribe(() => void this.closeGuide());
       guide.instance.openRequest.subscribe((request) => void this.openFromGuide(request));
+      this.shownGuide = guide.instance;
     });
     return () => {
       gone = true;
+      this.shownGuide = null;
       host.clear();
     };
   }
@@ -844,6 +848,9 @@ export class Inbox {
     );
     const [path] = routeOf(request.url).split('?');
     this.firstArrival.set({ method: request.method, path, time });
+    if (this.claimed(request)) {
+      return;
+    }
     void this.announcer.announce(
       $localize`First request arrived: ${request.method}:method: ${path}:path:, at ${time}:time:.`,
       'polite',
@@ -890,7 +897,7 @@ export class Inbox {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(request);
     }
-    if (announce) {
+    if (announce && !this.claimed(request)) {
       this.announceArrival();
     }
     if (!inView) {
@@ -907,6 +914,10 @@ export class Inbox {
         .onAction()
         .subscribe(() => void this.viewNewest());
     }
+  }
+
+  private claimed(request: WebhookRequest): boolean {
+    return this.shownGuide?.claims(request) ?? false;
   }
 
   private async viewNewest(): Promise<void> {
