@@ -392,3 +392,36 @@ test.describe('Dado a linha de dicas no pé da lista', () => {
     await expect(dicas(page)).toBeHidden();
   });
 });
+
+test.describe('Dado a faixa "First request arrived"', () => {
+  test('deve ter o fundo e o respiro de faixa, e não o estilo de botão de texto', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(
+      compacto(page),
+      'no desktop a primeira requisição abre sozinha no detalhe, com a faixa',
+    );
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    const stream = page.waitForResponse((r) => r.url().endsWith(`/token/${tokenId}/stream`));
+    await page.goto(`/#/${tokenId}`);
+    await stream;
+
+    await tokens.send(tokenId, { path: '/primeira' });
+
+    const faixa = page.getByRole('region', { name: 'First request arrived' });
+    await expect(faixa).toBeVisible();
+    const estilo = await faixa.evaluate((el) => {
+      const css = getComputedStyle(el);
+      return {
+        fundo: css.backgroundColor,
+        respiro: css.paddingLeft,
+        sublinhado: css.textDecorationLine,
+      };
+    });
+    expect(estilo.fundo).not.toBe('rgba(0, 0, 0, 0)');
+    expect(estilo.respiro).toBe('16px');
+    expect(estilo.sublinhado).toBe('none');
+  });
+});

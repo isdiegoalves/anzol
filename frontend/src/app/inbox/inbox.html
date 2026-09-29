@@ -177,7 +177,7 @@
   <div class="gone" [class.shown]="!!requests.gone()">
     <app-live-region class="gone-text" label="Request notice" i18n-label [text]="notice()" />
     @if (requests.gone() && requests.newest()) {
-      <button type="button" class="first" (click)="openNewest()">
+      <button type="button" class="text-action" (click)="openNewest()">
         <span i18n>Open the newest request</span>
       </button>
     }
@@ -211,7 +211,7 @@
       <p class="outside">
         <span i18n>This request is not in the current filter.</span>
         @if (requests.requests()[0]; as first) {
-          <button type="button" class="first" (click)="openFromList(first)">
+          <button type="button" class="text-action" (click)="openFromList(first)">
             <span i18n>Open the first result</span>
           </button>
         }
