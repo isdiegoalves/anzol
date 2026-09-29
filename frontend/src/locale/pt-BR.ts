@@ -3461,4 +3461,15 @@ export const translations: Record<string, string> = {
   '3736637070280072810': 'Abrir ou fechar o painel de ação',
   //  Ask the local model
   '2811840060009190762': ' Perguntar ao modelo local ',
+  // More list actions
+  '5816888929010864485': 'Mais ações da lista',
+  // Copy CI test
+  '4969155208345973215': 'Copiar o teste de CI',
+  // {$found}. Counted over the newest {$window}, as in Insights.
+  '2381928169413285310': '{$found}. Contado nas {$window} mais novas, como em Métricas.',
+  // Copied the anzol test command.
+  '557794263741060364': 'Comando anzol test copiado.',
+  // Copied. anzol test only reads --match, so these filters were left out: {$filters}.
+  '2974323848043602907':
+    'Copiado. O anzol test só lê o --match, então estes filtros ficaram de fora: {$filters}.',
 };

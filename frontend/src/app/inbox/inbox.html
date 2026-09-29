@@ -60,6 +60,23 @@
 <ng-template #listPane>
   <ng-container [ngTemplateOutlet]="missingNote" />
   <app-request-list (openRequest)="openFromList($event)" (openedByKey)="focusDetail()">
+    <button
+      mat-icon-button
+      type="button"
+      listMenu
+      aria-label="More list actions"
+      i18n-aria-label
+      title="More list actions"
+      i18n-title
+      [matMenuTriggerFor]="listMenu"
+    >
+      <app-icon name="more" />
+    </button>
+    <mat-menu #listMenu="matMenu">
+      <button mat-menu-item type="button" (click)="waitFor.copyCiTest()">
+        <ng-container i18n>Copy CI test</ng-container>
+      </button>
+    </mat-menu>
     <div class="list-tools" listTools>
       <mat-slide-toggle
         i18n

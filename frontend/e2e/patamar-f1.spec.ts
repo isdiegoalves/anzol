@@ -515,7 +515,7 @@ test.describe('Dado os números de Saúde e de Métricas (CA-12, UX-18)', () => 
     for (const { nome, href } of contagens) {
       const n = Number(/, (\d+) requests?\. Open in the Inbox$/.exec(nome)![1]);
       await page.goto(href.replace(/^.*#/, '/#'));
-      await expect(page.getByRole('heading', { name: 'Requests (5)' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: `Requests (${n} of 5)` })).toBeVisible();
       await expect(itens(page), nome).toHaveCount(n);
     }
 

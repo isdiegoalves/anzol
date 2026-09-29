@@ -1,4 +1,5 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -212,6 +213,25 @@ describe('Dado a tela principal', () => {
         schemaPath: '',
       }),
     );
+  });
+
+  it('deve contar sobre as mesmas mais novas que o link de Métricas trouxe (?window=)', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid&window=1`);
+    await flush(`/token/${TOKEN_ID}`, token());
+
+    const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
+    expect(search.request.body).toMatchObject({ match: { signature: 'invalid' }, per_page: 100 });
+    search.flush(requestPage([R1, R2], { total: 2 }));
+    await flush(
+      `/token/${TOKEN_ID}/requests?page=1&per_page=100&sorting=newest`,
+      requestPage([R1, R2], { total: 2 }),
+    );
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+
+    const store = TestBed.inject(RequestStore);
+    await vi.waitFor(() => expect(store.requests()).toEqual([R1]));
+    expect(store.filter()).toMatchObject({ signature: 'invalid', window: 1 });
+    expect(store.scan()).toMatchObject({ window: 1 });
   });
 
   // A rota acompanha o filtro da tela, e o eco dessa navegação chega depois: se a tela já mudou de
@@ -886,6 +906,29 @@ describe('Dado a tela principal', () => {
 
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?guide=first`));
     await flush(`/token/${TOKEN_ID}/rules`, []);
+  });
+
+  it('deve copiar o teste de CI pelo ⋮ do cabeçalho da lista, com o filtro em vigor', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+    const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
+    const more = await vi.waitFor(() => {
+      const found = root.querySelector<HTMLButtonElement>(
+        'app-request-list button[aria-label="More list actions"]',
+      );
+      expect(found).not.toBeNull();
+      return found as HTMLButtonElement;
+    });
+
+    more.click();
+    await harness.fixture.whenStable();
+    const items = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    expect(items.map((item) => item.textContent?.trim())).toEqual(['Copy CI test']);
+    items[0].click();
+
+    expect(copy).toHaveBeenCalledWith(
+      `anzol test --server '${location.origin}' -- ./trigger.sh '{url}'`,
+    );
   });
 
   it('deve fechar o painel de ação com Esc, sem voltar à lista', async () => {

@@ -9,6 +9,7 @@ import {
   isFilterActive,
   sameFilter,
   searchBody,
+  ciTestCommand,
   valueLabel,
   waitForCommand,
 } from './request-filter';
@@ -102,6 +103,22 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
   });
 });
 
+describe('Dado o "Copy CI test"', () => {
+  it('deve montar o anzol test com o servidor e o match do filtro, sem token, e a URL entre aspas', () => {
+    const filter = { ...NO_FILTER, text: 'pedido', methods: ['POST'] };
+
+    expect(ciTestCommand(filter, 'http://localhost:8084')).toBe(
+      `anzol test --server 'http://localhost:8084' --match '{"method":["POST"]}' -- ./trigger.sh '{url}'`,
+    );
+  });
+
+  it('deve omitir o --match Quando não há filtro que vá nele', () => {
+    expect(ciTestCommand(NO_FILTER, 'http://localhost:8084')).toBe(
+      `anzol test --server 'http://localhost:8084' -- ./trigger.sh '{url}'`,
+    );
+  });
+});
+
 describe('Dado os filtros na query da rota da Inbox', () => {
   it('deve ler assinatura, schema, métodos e texto', () => {
     expect(
@@ -131,6 +148,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       schemaPath: null,
       answered: null,
       values: null,
+      window: null,
     });
     expect(filterToParams(NO_FILTER)).toEqual({
       signature: null,
@@ -144,6 +162,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       schemaPath: null,
       answered: null,
       values: null,
+      window: null,
     });
   });
 });
@@ -229,6 +248,7 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       schemaPath: null,
       answered: null,
       values: null,
+      window: null,
     });
     expect(filterToParams(raiz)).toMatchObject({ signatureReason: null, schemaPath: '' });
     expect(filterFromParams({ signatureReason: 'signature mismatch', schemaPath: '' })).toEqual({
@@ -303,6 +323,28 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       [['429'], 428, false],
     ])('deve casar %j com o status %d: %s', (answered, status, expected) => {
       expect(answeredMatches(webhookRequest(1, { response: { status } }), answered)).toBe(expected);
+    });
+
+    it('deve ler da rota a janela das mais novas, e ignorar a que não é um número positivo', () => {
+      expect(filterFromParams({ window: '500', signature: 'invalid' })).toEqual({
+        ...NO_FILTER,
+        signature: 'invalid',
+        window: 500,
+      });
+      for (const window of ['0', '-3', 'abc', '1.5', '']) {
+        expect(filterFromParams({ window })).toEqual(NO_FILTER);
+      }
+      expect(filterToParams({ ...NO_FILTER, window: 200 }).window).toBe('200');
+      expect(filterToParams(NO_FILTER).window).toBeNull();
+    });
+
+    it('deve contar a janela como filtro, fora do corpo da busca e fora do wait-for', () => {
+      const filter = { ...NO_FILTER, signature: 'invalid' as const, window: 500 };
+
+      expect(isFilterActive({ ...NO_FILTER, window: 500 })).toBe(true);
+      expect(sameFilter(filter, { ...filter, window: 200 })).toBe(false);
+      expect(searchBody(filter, 1)).not.toHaveProperty('window');
+      expect(outsideWaitFor(filter)).toEqual([]);
     });
 
     it('não deve casar a requisição sem status gravado (falha de rede, gravada antes do campo)', () => {

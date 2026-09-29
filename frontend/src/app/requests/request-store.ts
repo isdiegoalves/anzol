@@ -30,6 +30,8 @@ export interface StatusScan {
   scanned: number;
   total: number;
   done: boolean;
+  /** Com a janela pedida: ela, quando a URL guarda mais que ela; `null` quando não guarda. */
+  window?: number | null;
 }
 
 /**
@@ -569,8 +571,9 @@ export class RequestStore {
 
   /** Página da lista: pela busca com filtro ativo, pela listagem sem ele. */
   private fetchPage(tokenId: string, page: number): Promise<RequestPage> {
-    if (this.activeFilter().answered?.length) {
-      return this.scanAnswered(tokenId);
+    const { answered, window: span } = this.activeFilter();
+    if (answered?.length || span) {
+      return this.scanInBrowser(tokenId);
     }
     this.scan.set(null);
     if (!this.filtering()) {
@@ -585,35 +588,48 @@ export class RequestStore {
   }
 
   /**
-   * B2: o filtro por status, no navegador. Pede as mais novas em páginas de 100 (pela busca, com
-   * os outros filtros; pela listagem, sem eles) até o teto, e devolve as que casam numa página só.
+   * O status respondido e a janela das mais novas, no navegador: pede as mais novas em páginas de
+   * 100 (pela busca, com os outros filtros; pela listagem, sem eles) até o teto, e devolve as que
+   * casam numa página só. Com a janela e filtro do servidor, o resultado da busca fica só com as que
+   * estão entre as n mais novas da URL.
    */
-  private async scanAnswered(tokenId: string): Promise<RequestPage> {
+  private async scanInBrowser(tokenId: string): Promise<RequestPage> {
     const filter = this.activeFilter();
+    const span = filter.window ?? null;
+    const limit = span ?? this.scanLimit;
+    const others = { ...filter, answered: null, window: null };
+    const listed = (page: number) =>
+      firstValueFrom(
+        this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+          params: { page, per_page: SCAN_PAGE, sorting: 'newest' },
+        }),
+      );
+    const searched = (page: number) =>
+      firstValueFrom(
+        this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
+          ...searchBody(others, page, 'newest'),
+          per_page: SCAN_PAGE,
+        }),
+      );
+    const byServer = isFilterActive(others);
+    const found = await this.newestUpTo(byServer ? searched : listed, limit);
+    let [scanned, looked, total] = [found.data, found.data.length, found.total];
+    if (span !== null && byServer) {
+      const kept = await this.newestUpTo(listed, span);
+      const inWindow = new Set(kept.data.map((request) => request.uuid));
+      scanned = scanned.filter((request) => inWindow.has(request.uuid));
+      [looked, total] = [kept.data.length, kept.total];
+    }
     const answered = filter.answered ?? [];
-    const others = { ...filter, answered: null };
-    const newest = (page: number) =>
-      isFilterActive(others)
-        ? firstValueFrom(
-            this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
-              ...searchBody(others, page, 'newest'),
-              per_page: SCAN_PAGE,
-            }),
-          )
-        : firstValueFrom(
-            this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
-              params: { page, per_page: SCAN_PAGE, sorting: 'newest' },
-            }),
-          );
-    const first = await newest(1);
-    const pages = Math.ceil(Math.min(first.total, this.scanLimit) / SCAN_PAGE);
-    this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
-    const rest = await Promise.all(
-      Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => newest(i + 2)),
-    );
-    const scanned = [first, ...rest].flatMap((page) => page.data).slice(0, this.scanLimit);
-    const matches = scanned.filter((request) => answeredMatches(request, answered));
-    this.scan.set({ scanned: scanned.length, total: first.total, done: true });
+    const matches = answered.length
+      ? scanned.filter((request) => answeredMatches(request, answered))
+      : scanned;
+    this.scan.set({
+      scanned: looked,
+      total,
+      done: true,
+      ...(span !== null && { window: total > span ? span : null }),
+    });
     return {
       data: this.newestFirst() ? matches : [...matches].reverse(),
       total: matches.length,
@@ -622,6 +638,22 @@ export class RequestStore {
       is_last_page: true,
       from: 1,
       to: matches.length,
+    };
+  }
+
+  private async newestUpTo(
+    fetch: (page: number) => Promise<RequestPage>,
+    limit: number,
+  ): Promise<{ data: RequestPage['data']; total: number }> {
+    const first = await fetch(1);
+    const pages = Math.ceil(Math.min(first.total, limit) / SCAN_PAGE);
+    this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => fetch(i + 2)),
+    );
+    return {
+      data: [first, ...rest].flatMap((page) => page.data).slice(0, limit),
+      total: first.total,
     };
   }
 

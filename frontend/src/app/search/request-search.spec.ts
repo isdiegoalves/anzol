@@ -302,6 +302,24 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       expect(older).toHaveBeenCalledOnce();
     });
 
+    it('deve dizer que contou sobre as mais novas, como Métricas, sem "Look in older requests"', async () => {
+      const page = requestPage([answered(3, 429), answered(2, 429), answered(1, 200)], {
+        total: 812,
+        per_page: 100,
+        is_last_page: false,
+      });
+
+      const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
+      await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(page));
+      await applied;
+
+      await vi.waitFor(
+        () => expect(result()).toBe('2 requests match. Counted over the newest 3, as in Insights.'),
+        { timeout: 2000 },
+      );
+      expect(screen.queryByRole('button', { name: 'Look in older requests' })).toBeNull();
+    });
+
     it('deve mostrar o status exato (F1) ligado, com o texto das condições, e tirá-lo', async () => {
       const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'] });
       await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(requestPage([answered(1, 429)])));

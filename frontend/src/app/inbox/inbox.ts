@@ -46,7 +46,7 @@ import {
   filterToParams,
   sameFilter,
 } from '../search/request-filter';
-import { WaitForButton } from '../search/wait-for';
+import { WaitFor, WaitForButton } from '../search/wait-for';
 import { Onboarding } from '../onboarding/onboarding';
 import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
@@ -150,6 +150,7 @@ export class Inbox {
   private readonly connection = inject(Connection);
   protected readonly grouping = inject(EventGrouping);
   protected readonly panel = inject(ActionPanelStore);
+  protected readonly waitFor = inject(WaitFor);
   private readonly chips = inject(FilterChips);
   protected readonly firstArrival = signal<{ method: string; path: string; time: string } | null>(
     null,
@@ -187,6 +188,7 @@ export class Inbox {
   readonly answered = input<string>();
   /** F1: quantos filtros por valor a tela tinha; os valores ficam no `sessionStorage` da aba. */
   readonly values = input<string>();
+  readonly window = input<string>();
   /**
    * E1: o link da requisição agrupada leva o valor do evento e o nome da chave
    * (`?event=evt_48213&key=x-loja-event-id`); num navegador sem a chave, a oferta a propõe.
@@ -213,6 +215,7 @@ export class Inbox {
       signatureReason: this.signatureReason(),
       schemaPath: this.schemaPath(),
       answered: this.answered(),
+      window: this.window(),
     }),
   );
   /** O filtro da rota com os valores que esta aba guardou (o endereço só diz quantos são). */

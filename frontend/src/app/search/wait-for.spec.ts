@@ -94,6 +94,25 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
     );
   });
 
+  it('deve copiar o teste de CI com o match em vigor, sem token nem segredo, e dizer o que ficou de fora', async () => {
+    await filterBy({ ...NO_FILTER, methods: ['POST'], signatureReason: 'signature mismatch' });
+
+    TestBed.inject(WaitFor).copyCiTest();
+
+    expect(copy).toHaveBeenCalledWith(
+      `anzol test --server '${location.origin}' --match '{"method":["POST"]}' -- ./trigger.sh '{url}'`,
+    );
+    expect(copied()).toBe(
+      'Copied. anzol test only reads --match, so these filters were left out: the signature reason.',
+    );
+  });
+
+  it('deve dizer que copiou o teste de CI Quando nada fica de fora', () => {
+    TestBed.inject(WaitFor).copyCiTest();
+
+    expect(copied()).toBe('Copied the anzol test command.');
+  });
+
   it('deve manter o aviso Quando o mesmo filtro é reaplicado, e tirá-lo Quando o filtro muda (E11)', async () => {
     await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
 

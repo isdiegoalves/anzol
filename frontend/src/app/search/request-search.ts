@@ -102,6 +102,11 @@ export class RequestSearch {
   private readonly statusLine = computed(() => {
     const [matched, total] = [this.store.matched(), this.store.total()];
     const scan = this.store.scan();
+    if (scan?.window) {
+      const found =
+        matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
+      return $localize`${found}:found:. Counted over the newest ${scan.window}:window:, as in Insights.`;
+    }
     if (scan) {
       // B2: o status filtra no navegador; a linha diz onde procurou, nunca "0" sem o alcance.
       return $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`;
@@ -123,7 +128,9 @@ export class RequestSearch {
   /** "Look in older requests": a varredura acabou e a URL guarda mais que as olhadas. */
   protected readonly olderLeft = computed(() => {
     const scan = this.store.scan();
-    return !!scan && scan.done && !this.store.searching() && scan.total > scan.scanned;
+    return (
+      !!scan && scan.done && !scan.window && !this.store.searching() && scan.total > scan.scanned
+    );
   });
   /** "Looking in 100 of 505…", enquanto a varredura anda; fora da região viva (guia §4.3). */
   protected readonly looking = computed(() => {

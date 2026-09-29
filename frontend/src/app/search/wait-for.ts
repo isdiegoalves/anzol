@@ -4,7 +4,7 @@ import { Component, Injectable, inject, input, linkedSignal, signal } from '@ang
 import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
-import { outsideWaitFor, waitForCommand } from './request-filter';
+import { ciTestCommand, outsideWaitFor, waitForCommand } from './request-filter';
 
 /**
  * "Copy as anzol wait-for" (S10): copia o comando com os filtros ligados. Só o `match` vai para o
@@ -41,6 +41,18 @@ export class WaitFor {
       }),
     );
     this.copied.set(copiedMessage(outsideWaitFor(filter)));
+  }
+
+  /** "Copy CI test": o `anzol test` com o `match` em vigor. */
+  copyCiTest(): void {
+    const filter = { ...this.store.filter(), text: this.typed() ?? this.store.filter().text };
+    this.clipboard.copy(ciTestCommand(filter, this.origin));
+    const outside = outsideWaitFor(filter);
+    this.copied.set(
+      outside.length === 0
+        ? $localize`Copied the anzol test command.`
+        : $localize`Copied. anzol test only reads --match, so these filters were left out: ${leftOut(outside)}:filters:.`,
+    );
   }
 }
 
@@ -120,6 +132,10 @@ function copiedMessage(outside: ReturnType<typeof outsideWaitFor>): string {
   if (outside.length === 1 && outside[0] === 'text') {
     return $localize`Copied. The text search is not part of wait-for: only the filters went into --match.`;
   }
+  return $localize`Copied. wait-for only reads --match, so these filters were left out: ${leftOut(outside)}:filters:.`;
+}
+
+function leftOut(outside: ReturnType<typeof outsideWaitFor>): string {
   const names = {
     text: $localize`the text search`,
     outcome: $localize`the answered-by filter`,
@@ -127,6 +143,5 @@ function copiedMessage(outside: ReturnType<typeof outsideWaitFor>): string {
     path: $localize`the schema error path`,
     answered: $localize`the answered status`,
   };
-  const left = outside.map((part) => names[part]).join(', ');
-  return $localize`Copied. wait-for only reads --match, so these filters were left out: ${left}:filters:.`;
+  return outside.map((part) => names[part]).join(', ');
 }

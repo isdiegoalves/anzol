@@ -751,6 +751,51 @@ describe('Dado o filtro pelo status respondido', () => {
     expect(store.scan()).toEqual({ scanned: 2, total: 2, done: true });
   });
 
+  it('deve contar só sobre as mais novas da janela, pela listagem, e dizer a janela', async () => {
+    const recentes = [answered(9, 429), answered(8, 201), answered(7, 429)];
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 2 });
+    await vi.waitFor(() =>
+      http
+        .expectOne(listPage(1))
+        .flush(requestPage(recentes, { total: 3, per_page: 100, is_last_page: true })),
+    );
+    await applied;
+
+    expect(store.requests()).toEqual([answered(9, 429)]);
+    expect(store.matched()).toBe(1);
+    expect(store.scan()).toEqual({ scanned: 2, total: 3, done: true, window: 2 });
+  });
+
+  it('deve cortar o resultado da busca pelas mais novas da URL Quando há janela e filtro do servidor', async () => {
+    const [nova, velha] = [answered(9, 200), answered(3, 200)];
+
+    const applied = store.applyFilter({ ...NO_FILTER, signature: 'invalid', window: 2 });
+    const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+    expect(call.request.body).toMatchObject({ match: { signature: 'invalid' }, per_page: 100 });
+    call.flush(requestPage([nova, velha], { total: 2 }));
+    await vi.waitFor(() =>
+      http
+        .expectOne(listPage(1))
+        .flush(requestPage([nova, answered(8, 200), velha], { total: 3, per_page: 100 })),
+    );
+    await applied;
+
+    expect(store.requests()).toEqual([nova]);
+    expect(store.matched()).toBe(1);
+    expect(store.scan()).toEqual({ scanned: 2, total: 3, done: true, window: 2 });
+  });
+
+  it('não deve dizer a janela Quando a URL não guarda mais que ela', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, window: 500 });
+    await vi.waitFor(() =>
+      http.expectOne(listPage(1)).flush(requestPage([answered(2, 200)], { total: 1 })),
+    );
+    await applied;
+
+    expect(store.scan()).toEqual({ scanned: 1, total: 1, done: true, window: null });
+  });
+
   it('não deve ter alcance Quando o filtro não tem status', async () => {
     const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
     await vi.waitFor(() =>

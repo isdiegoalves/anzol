@@ -19,6 +19,7 @@
   >
     <app-icon name="sort" [size]="20" />
   </button>
+  <ng-content select="[listMenu]" />
   <ng-content select="[listTools]" />
 </div>
 <!-- À vista também na URL vazia: "Search requests" leva o foco a ela em todo destino (UX-11). -->

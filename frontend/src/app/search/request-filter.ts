@@ -41,6 +41,8 @@ export interface RequestFilter {
    * requisição não vai para o endereço, que diz só quantos são (`?values=2`).
    */
   values?: readonly ValueFilter[] | null;
+  /** Conta só sobre as n mais novas da URL, como a contagem de Métricas e de Saúde que trouxe aqui. */
+  window?: number | null;
 }
 
 /** Um valor clicado que vira filtro: `name` é o cabeçalho, o parâmetro ou o JSONPath do corpo. */
@@ -84,6 +86,7 @@ export interface FilterParams {
   answered?: string | null;
   /** F1: quantos filtros por valor a tela tinha (os valores ficam na aba, não no endereço). */
   values?: string | null;
+  window?: string | null;
 }
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
@@ -105,6 +108,7 @@ export function filterFromParams(params: FilterParams): RequestFilter {
     .split(',')
     .map((value) => value.trim().toLowerCase())
     .filter((value, index, all) => ANSWERED.test(value) && all.indexOf(value) === index);
+  const newest = /^[1-9]\d{0,5}$/.test(params.window ?? '') ? Number(params.window) : null;
   const path =
     params.schemaPath != null &&
     isPointer(params.schemaPath) &&
@@ -120,6 +124,7 @@ export function filterFromParams(params: FilterParams): RequestFilter {
     ...(reason !== null && { signatureReason: reason }),
     ...(path !== null && { schemaPath: path }),
     ...(answered.length > 0 && { answered }),
+    ...(newest !== null && { window: newest }),
   };
 }
 
@@ -173,6 +178,7 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     schemaPath: filter.schemaPath ?? null,
     answered: filter.answered?.length ? filter.answered.join(',') : null,
     values: filter.values?.length ? String(filter.values.length) : null,
+    window: filter.window ? String(filter.window) : null,
   };
 }
 
@@ -201,7 +207,8 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.signatureReason != null ||
     filter.schemaPath != null ||
     !!filter.answered?.length ||
-    !!filter.values?.length
+    !!filter.values?.length ||
+    !!filter.window
   );
 }
 
@@ -216,7 +223,8 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     (a.signatureReason ?? null) === (b.signatureReason ?? null) &&
     (a.schemaPath ?? null) === (b.schemaPath ?? null) &&
     (a.answered ?? []).join() === (b.answered ?? []).join() &&
-    JSON.stringify(a.values ?? []) === JSON.stringify(b.values ?? [])
+    JSON.stringify(a.values ?? []) === JSON.stringify(b.values ?? []) &&
+    (a.window ?? null) === (b.window ?? null)
   );
 }
 
@@ -306,19 +314,34 @@ export interface WaitForTarget {
  * fica de fora (a tela avisa). Valores entre aspas simples POSIX.
  */
 export function waitForCommand(filter: RequestFilter, target: WaitForTarget): string {
-  const { match } = searchBody(filter, 1);
   const parts = [
     'anzol wait-for',
     `--server ${shellQuote(target.server)}`,
     `--token ${target.tokenId}`,
+    ...matchArgs(filter),
   ];
-  if (Object.keys(match).length > 0) {
-    parts.push(`--match ${shellQuote(JSON.stringify(match))}`);
-  }
   if (target.protected) {
     parts.push('--read-secret "$WEBHOOK_READ_SECRET"');
   }
   return parts.join(' ');
+}
+
+/**
+ * "Copy CI test": o `anzol test` cria a própria URL, então vai sem `--token`. O `{url}` fica entre
+ * aspas simples: no zsh, `{url}` solto antes de um redirecionamento vira descritor de arquivo.
+ */
+export function ciTestCommand(filter: RequestFilter, server: string): string {
+  return [
+    'anzol test',
+    `--server ${shellQuote(server)}`,
+    ...matchArgs(filter),
+    "-- ./trigger.sh '{url}'",
+  ].join(' ');
+}
+
+function matchArgs(filter: RequestFilter): string[] {
+  const { match } = searchBody(filter, 1);
+  return Object.keys(match).length > 0 ? [`--match ${shellQuote(JSON.stringify(match))}`] : [];
 }
 
 function shellQuote(value: string): string {
