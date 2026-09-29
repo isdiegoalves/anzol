@@ -64,9 +64,11 @@ export const FILTER_VALUE_MAX = 200;
       display: inline;
     }
 
+    // O respiro alarga o alvo até 24 px (WCAG 2.5.8) sem mover o texto: a margem negativa o devolve.
     .value {
       display: inline;
-      padding: 0;
+      margin: -2px -8px;
+      padding: 2px 8px;
       border: 0;
       background: none;
       color: inherit;

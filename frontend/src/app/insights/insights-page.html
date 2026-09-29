@@ -306,7 +306,9 @@
                 @for (rule of nearMisses(); track rule.id) {
                   <tr>
                     <td>
-                      <a [routerLink]="['/', tokenId(), 'rules', rule.id]">{{ rule.name }}</a>
+                      <a class="rule" [routerLink]="['/', tokenId(), 'rules', rule.id]">{{
+                        rule.name
+                      }}</a>
                     </td>
                     <td class="number">
                       <a

@@ -240,6 +240,13 @@
       width: 36px;
       height: 36px;
       border-radius: var(--mat-sys-corner-medium);
+
+      // Com toque, 44 px de alvo; o quadrado à vista continua com 36.
+      @media (pointer: coarse) {
+        padding: 4px;
+        border-radius: 16px;
+        background-clip: content-box;
+      }
     }
 
     .rail-only {

@@ -108,7 +108,9 @@ app-pane {
 .data {
   margin-top: 12px;
 
+  // 24 px de alvo (WCAG 2.5.8) com a linha de 20.
   summary {
+    padding-block: 2px;
     cursor: pointer;
     color: var(--mat-sys-primary);
   }
@@ -188,6 +190,7 @@ app-pane {
 
 a.value,
 a.count,
+a.rule,
 .methods a,
 .answers a {
   display: inline-flex;

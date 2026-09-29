@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Request } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { alvosMenores, expectSemViolacoesGraves } from './support/a11y';
 import {
   abrirChecks,
   escolherProvedor,
@@ -244,6 +244,27 @@ test.describe('Dado o cartão Signature verification', () => {
 
 // Fidelidade ao C (item 14.1, INBOX-04/CHECKS-22): o "Edit" sai do cabeçalho e vira "Edit URL" no menu ⋮ "More URL
 // actions" (S2), que leva a Checks. SUPOSIÇÃO: o item é `menuitem "Edit URL"`.
+test.describe('Dado Checks no celular, com toque', () => {
+  test('deve ter alvos de 44 px na marca, no cabeçalho da URL e no interruptor de Privacy', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(!compacto(page), 'alvos de toque: celular');
+    const tokenId = await tokens.create();
+    const privacidade = await abrirChecks(page, tokenId, 'Privacy');
+    const interruptor = privacidade.getByRole('switch', {
+      name: 'Require a secret to view this URL',
+    });
+    await interruptor.click();
+    await expect(interruptor).toBeChecked();
+
+    expect(await alvosMenores(page.locator('app-url-header'), 44)).toEqual([]);
+    const marca = (await page.getByRole('link', { name: 'Anzol' }).boundingBox())!;
+    expect(Math.min(marca.width, marca.height), 'a marca').toBeGreaterThanOrEqual(44);
+    expect((await interruptor.boundingBox())!.height, 'o interruptor').toBeGreaterThanOrEqual(44);
+  });
+});
+
 test.describe('Dado o "Edit URL" do menu da URL', () => {
   test('deve abrir Checks, e não o diálogo "Edit URL"', async ({ page, tokens }) => {
     const tokenId = await tokens.create();

@@ -46,8 +46,10 @@
     gap: 4px;
   }
 
+  // 24 px de alvo (WCAG 2.5.8) com a linha de 20.
   .req-url {
     flex-basis: 100%;
+    padding-block: 2px;
     overflow-wrap: anywhere;
   }
 

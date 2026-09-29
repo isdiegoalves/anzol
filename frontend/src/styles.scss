@@ -95,6 +95,13 @@ html.compact {
   );
 }
 
+// Com toque, o interruptor do Material tem 44 px de alvo (o trilho de 32 fica centrado nele).
+@media (pointer: coarse) {
+  .mat-mdc-slide-toggle .mdc-switch {
+    height: 44px;
+  }
+}
+
 body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);

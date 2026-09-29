@@ -11,7 +11,11 @@
 
 .separator {
   flex: none;
-  height: 8px;
+  box-sizing: border-box;
+  // Alvo de 24 px (WCAG 2.5.8); a faixa que aparece continua com 8.
+  height: 24px;
+  padding-block: 8px;
+  background-clip: content-box;
   cursor: row-resize;
 
   &:hover,
@@ -113,7 +117,9 @@
 }
 
 .link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   margin-top: 8px;
   color: var(--mat-sys-primary);
   font: var(--mat-sys-label-large);

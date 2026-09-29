@@ -23,6 +23,10 @@
   &[aria-expanded='true'] {
     background: var(--mat-sys-surface-container-highest);
   }
+
+  @media (pointer: coarse) {
+    height: 44px;
+  }
 }
 
 .name {

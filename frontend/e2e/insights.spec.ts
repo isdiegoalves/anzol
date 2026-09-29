@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { alvosMenores, expectSemViolacoesGraves } from './support/a11y';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
+import { compacto } from './support/shell';
 
 // Item 14, E9: Insights (`#/{token}/insights`) a partir de `GET /token/{id}/stats` (B2): KPIs com a janela
 // explícita, gráficos em SVG com tabela de dados alternativa (S19) e o link para o Grafana. SUPOSIÇÕES (combinadas
@@ -100,6 +101,16 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     ).toHaveAttribute('href', /\?signature=invalid&signatureReason=signature%20mismatch$/);
     await expect(page.getByRole('region', { name: 'Schema', exact: true })).toContainText('(root)');
     await expect(page.getByRole('region', { name: 'Rules', exact: true })).toContainText('Pix');
+  });
+
+  test('deve ter alvos de 24 px ou mais com o mouse', async ({ page, request, tokens }) => {
+    test.skip(compacto(page), 'alvos de ponteiro: desktop');
+    const tokenId = await urlComMensagens(tokens, request);
+
+    await abrirInsights(page, tokenId);
+    await expect(page.getByRole('region', { name: 'Requests per hour' })).toBeVisible();
+
+    expect(await alvosMenores(page.getByRole('main'), 24)).toEqual([]);
   });
 
   test('deve levar ao dashboard do Grafana pelo link "Open in Grafana"', async ({

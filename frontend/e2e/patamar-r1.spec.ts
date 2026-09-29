@@ -8,6 +8,7 @@ import {
   expectUmAnuncio,
   limparAnuncios,
 } from './support/anuncios';
+import { alvosMenores } from './support/a11y';
 import { TokenTracker, expect, test } from './support/fixtures';
 import {
   abrirItem,
@@ -356,6 +357,29 @@ test.describe('Dado a aba Replay do painel', () => {
     expect(destino.recebidas).toEqual(['POST /webhooks/pedidos']);
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${id}/1`));
     await expect(detalhes(page)).toContainText(id);
+  });
+
+  test('deve ter alvos de 24 px ou mais no detalhe e no painel, com o resultado do reenvio', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(compacto(page), 'alvos de ponteiro: os de toque têm spec própria');
+    const tokenId = await tokens.create();
+    const id = await tokens.send(tokenId, {
+      path: '/pedidos',
+      headers: { 'Content-Type': 'application/json' },
+      data: '{"id":"evt_ped48001","itens":2}',
+    });
+    await seedStorage(page, {});
+    await abrirMensagem(page, tokenId, id);
+    await acoes(page).getByRole('button', { name: 'Replay…' }).click();
+    const alvo = painel(page).getByRole('textbox', { name: 'Target URL' });
+    await alvo.fill(`${RECEIVER_HOST}:${destino.porta}/webhooks`);
+    await alvo.press('Enter');
+    await expect(painel(page).getByRole('link', { name: 'Open in Outbound' })).toBeVisible();
+
+    expect(await alvosMenores(page.locator('app-action-panel'), 24)).toEqual([]);
+    expect(await alvosMenores(detalhe(page), 24)).toEqual([]);
   });
 
   test('deve mostrar o endereço digitado e como o servidor chega a ele', async ({

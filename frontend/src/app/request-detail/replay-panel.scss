@@ -92,7 +92,10 @@ code {
 }
 
 .link {
+  display: inline-flex;
   align-self: flex-start;
+  align-items: center;
+  min-height: 24px;
   color: var(--mat-sys-primary);
   font: var(--mat-sys-label-large);
 }

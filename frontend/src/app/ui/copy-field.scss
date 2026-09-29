@@ -16,8 +16,10 @@
   color: var(--mat-sys-primary);
 }
 
+// Da altura do campo: o toque em qualquer ponto dele seleciona a URL.
 .value {
   flex: 1;
+  align-self: stretch;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -60,6 +62,11 @@
   &:focus-visible {
     outline: 3px solid var(--mat-sys-primary);
     outline-offset: 2px;
+  }
+
+  @media (pointer: coarse) {
+    width: 44px;
+    height: 44px;
   }
 }
 

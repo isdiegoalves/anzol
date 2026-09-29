@@ -37,16 +37,19 @@
     <app-live-status [state]="state" />
   }
   @if (count(); as stored) {
+    <!-- O link em volta do chip: com toque, o alvo cresce sem o chip crescer (sem mudar a linha). -->
     <a
-      class="chip"
+      class="count"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'response' }"
       [attr.aria-label]="stored.label"
     >
-      <app-icon name="inbox" [size]="16" />{{ stored.total }}
-      @if (stored.keeps !== null) {
-        <span class="keeps" i18n>· keeps {{ stored.keeps }}</span>
-      }
+      <span class="chip">
+        <app-icon name="inbox" [size]="16" />{{ stored.total }}
+        @if (stored.keeps !== null) {
+          <span class="keeps" i18n>· keeps {{ stored.keeps }}</span>
+        }
+      </span>
     </a>
   }
   @if (token.signature; as signature) {
