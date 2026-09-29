@@ -60,6 +60,9 @@ describe('Dado uma frase de near miss sem "conditions" (mensagem antiga)', () =>
     ['schema: expected invalid, got valid', 'match.schema'],
     ['schema: expected valid, got not configured', 'match.schema'],
     ['scenario entrega: expected state "entregue", got "Started"', 'scenario'],
+    ['chance 30%: rolled 57, not applied', 'chance'],
+    ['window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T11:59:30Z', 'active_from'],
+    ['window: closed at 2026-09-29T13:00:00Z, received at 2026-09-29T13:00:05Z', 'active_until'],
   ])('deve achar a condição Quando a frase é %s', (phrase, key) => {
     expect(conditionOfPhrase(phrase, REGRA)).toBe(key);
   });

@@ -2587,6 +2587,12 @@ export const translations: Record<string, string> = {
   '3951080615472233541': 'schema: esperava {$expected}, veio {$got}',
   // scenario {$name}: expected state {$expected}, got {$got}
   '3953946883460574491': 'cenário {$name}: esperava o estado {$expected}, estava em {$got}',
+  // chance {$chance}%: rolled {$rolled}, not applied
+  '1173132669005150007': 'chance de {$chance}%: sorteou {$rolled}, não aplicou',
+  // window: opens at {$from}, received at {$received}
+  '5650594681904720699': 'janela: abre em {$from}, chegou em {$received}',
+  // window: closed at {$until}, received at {$received}
+  '6067454115892884404': 'janela: fechou em {$until}, chegou em {$received}',
   // The regex is invalid.
   '4314563148369354905': 'A regex é inválida.',
   // The status must be between {$min} and {$max}.
@@ -2619,6 +2625,13 @@ export const translations: Record<string, string> = {
   '3974144077387209997': 'O máximo deve ser maior ou igual ao mínimo.',
   // The equalToJson must be a valid JSON string.
   '2006144874960565238': 'O equalToJson deve ser um JSON válido.',
+  // The {$field} field is required when fault is {$fault}.
+  '4976552856285487820': 'O campo {$field} é obrigatório com a falha {$fault}.',
+  // The {$field} must be an ISO-8601 date-time with a time zone, like {$example}.
+  '7126490529915996773':
+    'O campo {$field} deve ser uma data-hora ISO-8601 com fuso, como {$example}.',
+  // The active until must be a date after active from.
+  '4044617024680091138': 'O campo active until deve ser uma data depois de active from.',
   // The selected {$field} is invalid.
   '10981317029088923': 'O {$field} escolhido é inválido.',
   // The {$field} field is required.

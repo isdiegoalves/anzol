@@ -4,7 +4,7 @@ import { BodyMatcher, Rule } from './rule';
  * Chave de uma condição da regra, no formato do 422 do `PUT /rules` sem o índice da lista e de
  * `near_miss.conditions` (B1): `match.method`, `match.path`, `match.query.<nome>`,
  * `match.headers.<nome como na regra>`, `match.body.<i>`, `match.signature`, `match.schema`,
- * `scenario`.
+ * `scenario`, `active_from`, `active_until` e `chance`.
  */
 export type ConditionKey = string;
 
@@ -34,9 +34,9 @@ export function failedConditions(
 /**
  * A condição que produziu a frase, pelo prefixo que o servidor escreve (`RuleMatching.kt`):
  * `method:`, `path:`, `query <nome>:`, `header <nome em minúsculas>:`, `body:`, `body <JSONPath>:`,
- * `signature:`, `schema:` e `scenario <nome>:`. Cabeçalho e corpo são achados na regra: o nome do
- * cabeçalho sem caixa, o JSONPath pelo caminho e as demais condições de corpo pelo tipo e pelo
- * valor citado na frase.
+ * `signature:`, `schema:`, `scenario <nome>:`, `chance ` e `window: opens`/`window: closed`.
+ * Cabeçalho e corpo são achados na regra: o nome do cabeçalho sem caixa, o JSONPath pelo caminho
+ * e as demais condições de corpo pelo tipo e pelo valor citado na frase.
  */
 export function conditionOfPhrase(phrase: string, rule: Rule | undefined): ConditionKey | null {
   for (const [prefix, key] of SINGLE_PREFIXES) {
@@ -67,6 +67,9 @@ const SINGLE_PREFIXES: readonly [string, ConditionKey][] = [
   ['path: ', 'match.path'],
   ['signature: ', 'match.signature'],
   ['schema: ', 'match.schema'],
+  ['chance ', 'chance'],
+  ['window: opens at ', 'active_from'],
+  ['window: closed at ', 'active_until'],
 ];
 
 /** A frase traz o cabeçalho em minúsculas; a chave, o nome como a regra o escreve. */

@@ -122,6 +122,21 @@ function conditionFamilies(): Family[] {
       (name, expected, got) =>
         $localize`scenario ${name}:name:: expected state ${expected}:expected:, got ${got}:got:`,
     ],
+    [
+      /^chance (\d+)%: rolled (\d+), not applied$/,
+      (chance, rolled) =>
+        $localize`chance ${chance}:chance:%: rolled ${rolled}:rolled:, not applied`,
+    ],
+    [
+      /^window: opens at (\S+), received at (\S+)$/,
+      (from, received) =>
+        $localize`window: opens at ${from}:from:, received at ${received}:received:`,
+    ],
+    [
+      /^window: closed at (\S+), received at (\S+)$/,
+      (until, received) =>
+        $localize`window: closed at ${until}:until:, received at ${received}:received:`,
+    ],
   ];
 }
 
@@ -183,6 +198,20 @@ function validationFamilies(): Family[] {
     [
       /^The equalToJson must be a valid JSON string\.$/,
       () => $localize`The equalToJson must be a valid JSON string.`,
+    ],
+    [
+      /^The (.+) field is required when fault is (.+)\.$/,
+      (field, fault) =>
+        $localize`The ${field}:field: field is required when fault is ${fault}:fault:.`,
+    ],
+    [
+      /^The (.+) must be an ISO-8601 date-time with a time zone, like (.+)\.$/,
+      (field, example) =>
+        $localize`The ${field}:field: must be an ISO-8601 date-time with a time zone, like ${example}:example:.`,
+    ],
+    [
+      /^The active until must be a date after active from\.$/,
+      () => $localize`The active until must be a date after active from.`,
     ],
     [
       /^The selected (.+) is invalid\.$/,

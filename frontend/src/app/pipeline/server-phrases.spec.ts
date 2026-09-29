@@ -57,6 +57,15 @@ const conditions: [string, string][] = [
     'scenario entrega: expected state "falhou 1", got "Started"',
     'cenário entrega: esperava o estado "falhou 1", estava em "Started"',
   ],
+  ['chance 30%: rolled 57, not applied', 'chance de 30%: sorteou 57, não aplicou'],
+  [
+    'window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T11:59:30Z',
+    'janela: abre em 2026-09-29T12:00:00Z, chegou em 2026-09-29T11:59:30Z',
+  ],
+  [
+    'window: closed at 2026-09-29T13:00:00Z, received at 2026-09-29T13:00:05Z',
+    'janela: fechou em 2026-09-29T13:00:00Z, chegou em 2026-09-29T13:00:05Z',
+  ],
 ];
 
 const validations: [string, string][] = [
@@ -79,6 +88,18 @@ const validations: [string, string][] = [
     'O campo condition deve ter exatamente um de: equals, contains.',
   ],
   ['The schema is invalid: bad type.', 'Schema inválido: bad type.'],
+  [
+    'The body field is required when fault is truncated_body.',
+    'O campo body é obrigatório com a falha truncated_body.',
+  ],
+  [
+    'The active from must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.',
+    'O campo active from deve ser uma data-hora ISO-8601 com fuso, como 2026-09-29T12:00:00Z.',
+  ],
+  [
+    'The active until must be a date after active from.',
+    'O campo active until deve ser uma data depois de active from.',
+  ],
 ];
 
 describe('server-phrases', () => {
