@@ -65,7 +65,11 @@ import { EventView } from './list-rows';
     </button>
   `,
   styleUrl: './event-line.scss',
-  host: { '[class.touch]': 'compact()', '[style.height.px]': 'height()' },
+  host: {
+    '[class.touch]': 'compact()',
+    '[class.early]': 'view().early',
+    '[style.height.px]': 'height()',
+  },
 })
 export class EventLine {
   readonly view = input.required<EventView>();

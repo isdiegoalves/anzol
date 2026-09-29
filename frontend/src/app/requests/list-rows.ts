@@ -41,6 +41,8 @@ export interface EventView {
   trail: TrailSeal[];
   count: string;
   notes: string[];
+  /** Alguma tentativa chegou antes da espera pedida. */
+  early: boolean;
   label: string;
   expanded: boolean;
 }
@@ -204,6 +206,7 @@ export function rowsOf<Item>(
         trail,
         count,
         notes,
+        early: early > 0,
         label: $localize`Event ${value}:value:, ${newest.method}:method: ${route}:route:, ${count}:count:, answers ${answers}:answers:, ${problems}:problems:newest at ${time}:time:. Open the newest attempt`,
         expanded,
       },

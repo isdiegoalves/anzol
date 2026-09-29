@@ -53,6 +53,7 @@ import { Icon } from '../ui/icon';
 
     .before {
       background: var(--app-warning-container);
+      box-shadow: inset var(--app-note-rule) 0 var(--app-warning);
       color: var(--app-on-warning-container);
     }
 

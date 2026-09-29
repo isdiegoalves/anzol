@@ -334,6 +334,20 @@ describe('Dado a lista lateral de mensagens', () => {
       await expectNoAxeViolations(element());
     });
 
+    it('deve marcar a linha do evento que teve tentativa antes da espera pedida, recolhido ou aberto', async () => {
+      await grouped();
+      const early = () =>
+        [...element().querySelectorAll('app-event-line')].map((line) =>
+          line.classList.contains('early'),
+        );
+
+      expect(early()).toEqual([false, true]);
+
+      chevron('evt_a')?.click();
+      await fixture.whenStable();
+      expect(early()).toEqual([false, true]);
+    });
+
     it('deve mostrar as tentativas pelo chevron, da mais nova para a mais antiga, com o veredito', async () => {
       await grouped();
 

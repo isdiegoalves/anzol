@@ -6,7 +6,9 @@
   contain: inline-size;
 }
 
-// O evento com uma tentativa anômala leva a marca de revisão na margem, como a requisição.
+// O evento com uma tentativa anômala leva a marca de revisão na margem, como a requisição; o que
+// teve tentativa antes da espera pedida, a marca âmbar, também recolhido. A anomalia prevalece.
+:host(.early)::after,
 :host(:has(.mark, .fault))::after {
   content: '';
   position: absolute;
@@ -14,8 +16,12 @@
   bottom: 6px;
   left: 0;
   width: var(--app-note-rule);
-  background: var(--mat-sys-error);
+  background: var(--app-warning);
   pointer-events: none;
+}
+
+:host(:has(.mark, .fault))::after {
+  background: var(--mat-sys-error);
 }
 
 .chevron,
