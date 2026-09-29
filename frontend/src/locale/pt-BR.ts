@@ -436,10 +436,10 @@ export const translations: Record<string, string> = {
   '8292387230824372572': '{$count} requisições novas chegaram',
   // peak {$INTERPOLATION}
   '7771802040576367067': 'pico {$INTERPOLATION}',
-  // {$hour} UTC: 1 request
-  '2744556763315132070': '{$hour} UTC: 1 requisição',
-  // {$hour} UTC: {$count} requests
-  '5607127967257180856': '{$hour} UTC: {$count} requisições',
+  // {$hour}: 1 request
+  '5496979186847827795': '{$hour}: 1 requisição',
+  // {$hour}: {$count} requests
+  '3054627359281954205': '{$hour}: {$count} requisições',
   // Insights
   '48442969542452939': 'Métricas',
   //  How this URL is doing, counted by the server over the most recent requests it keeps. Latency and errors of the whole instance are in Grafana.
@@ -455,9 +455,9 @@ export const translations: Record<string, string> = {
   '2398407606701767789': 'Requisições',
   // {$INTERPOLATION} of these requests
   '5474134307332322819': '{$INTERPOLATION} destas requisições',
-  //  The {$INTERPOLATION} most recent of the {$INTERPOLATION_1} requests this URL keeps, from {$INTERPOLATION_2} to {$INTERPOLATION_3} UTC.
-  '1808402613355783098':
-    ' As {$INTERPOLATION} mais recentes das {$INTERPOLATION_1} requisições que esta URL guarda, de {$INTERPOLATION_2} a {$INTERPOLATION_3} UTC. ',
+  //  The {$INTERPOLATION} most recent of the {$INTERPOLATION_1} requests this URL keeps, from {$START_TAG_TIME}{$INTERPOLATION_2}{$CLOSE_TAG_TIME} to {$START_TAG_TIME_1}{$INTERPOLATION_3}{$CLOSE_TAG_TIME}.
+  '2585615423957965856':
+    ' As {$INTERPOLATION} mais recentes das {$INTERPOLATION_1} requisições que esta URL guarda, de {$START_TAG_TIME}{$INTERPOLATION_2}{$CLOSE_TAG_TIME} a {$START_TAG_TIME_1}{$INTERPOLATION_3}{$CLOSE_TAG_TIME}. ',
   // Methods:
   '3388416697125145396': 'Métodos:',
   // No requests yet
@@ -466,14 +466,16 @@ export const translations: Record<string, string> = {
   '2524390348568148473': 'Mande uma requisição para esta URL e os números dela aparecem aqui.',
   // Requests per hour
   '1853040955264579548': 'Requisições por hora',
+  // local time (UTC{$INTERPOLATION})
+  '7943578839355815128': 'hora local (UTC{$INTERPOLATION})',
   // Data table
   '8269518462221334396': 'Tabela de dados',
   // Hourly data
   '7800763927527128894': 'Dados por hora',
   // Requests per hour data
   '1916612874706188972': 'Dados das requisições por hora',
-  // Hour (UTC)
-  '8983830793696805020': 'Hora (UTC)',
+  // Hour
+  '3284697869924237097': 'Hora',
   // Methods
   '563272627948836175': 'Métodos',
   // Signature failure reasons
@@ -498,6 +500,10 @@ export const translations: Record<string, string> = {
   '7753383578255871160': 'Quase acertos',
   // Closest rule when none matched
   '5614787940017710801': 'Regra mais próxima quando nenhuma casou',
+  // Closest rule: {$rule}
+  '3869916993611205037': 'Regra mais próxima: {$rule}',
+  // All requests
+  '4551006451537993722': 'Todas as requisições',
   // Counting the requests…
   '3233388020981412175': 'Contando as requisições…',
   // Answered by a rule
@@ -524,12 +530,12 @@ export const translations: Record<string, string> = {
   '9200874308594552657': 'Não verificada',
   // Requests per hour: no requests
   '8648078979539326856': 'Requisições por hora: nenhuma requisição',
-  // Requests per hour, 1 hour from {$from} to {$to} UTC; peak {$peak} at {$peakHour} UTC
-  '3780459167367922169':
-    'Requisições por hora, 1 hora, de {$from} a {$to} UTC; pico de {$peak} às {$peakHour} UTC',
-  // Requests per hour, {$count} hours from {$from} to {$to} UTC; peak {$peak} at {$peakHour} UTC
-  '7154938622917980390':
-    'Requisições por hora, {$count} horas, de {$from} a {$to} UTC; pico de {$peak} às {$peakHour} UTC',
+  // Requests per hour, 1 hour from {$from} to {$to}, local time; peak {$peak} at {$peakHour}
+  '3777714026261237248':
+    'Requisições por hora, 1 hora, de {$from} a {$to}, hora local; pico de {$peak} em {$peakHour}',
+  // Requests per hour, {$count} hours from {$from} to {$to}, local time; peak {$peak} at {$peakHour}
+  '3076982277501395605':
+    'Requisições por hora, {$count} horas, de {$from} a {$to}, hora local; pico de {$peak} em {$peakHour}',
   // Your URL is ready
   '6958916196237326012': 'Sua URL está pronta',
   // Hide this panel while the URL has requests

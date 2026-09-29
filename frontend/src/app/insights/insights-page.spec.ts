@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { tokenStats } from '../../testing/stats-fixtures';
+import { localDate } from '../request-detail/dates';
 import { Preferences } from '../settings/preferences';
 import { TokenStats } from '../stats/stats';
 import { InsightsPage } from './insights-page';
@@ -38,6 +39,9 @@ describe('Dado a página Insights', () => {
     await result.fixture.whenStable();
     return result;
   };
+  /** O link de contagem (F1) pelo nome, e o endereço dele. */
+  const href = (container: HTMLElement, name: string | RegExp) =>
+    within(container).getByRole('link', { name }).getAttribute('href');
   const region = (name: string) => screen.getByRole('region', { name });
 
   afterEach(() => http.verify());
@@ -50,9 +54,15 @@ describe('Dado a página Insights', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const summary = region('Summary');
     expect(summary.textContent).toContain('128 of the 128 kept');
+    // UX-19: a hora local por extenso, como a Entrada, com o UTC no `title`.
+    const from = localDate('2026-09-25 09:13:44');
+    const to = localDate('2026-09-26 14:02:07');
     expect(summary.textContent?.replace(/\s+/g, ' ')).toContain(
-      'The 128 most recent of the 128 requests this URL keeps, from 2026-09-25 09:13:44 to 2026-09-26 14:02:07 UTC.',
+      `The 128 most recent of the 128 requests this URL keeps, from ${from} to ${to}.`,
     );
+    expect(
+      [...summary.querySelectorAll('.window time')].map((time) => time.getAttribute('title')),
+    ).toEqual(['2026-09-25 09:13:44 UTC', '2026-09-26 14:02:07 UTC']);
     const kpis = [...summary.querySelectorAll('.kpi')].map((kpi) =>
       [...kpi.querySelectorAll('dt, .value, .of')]
         .map((part) => part.textContent?.replace(/\s+/g, ' ').trim())
@@ -67,7 +77,24 @@ describe('Dado a página Insights', () => {
       'Signature invalid or absent 12 9% of these requests',
       'Schema invalid 20 16% of these requests',
     ]);
-    expect(summary.textContent).toContain('Methods: POST 120, GET 8');
+    expect(summary.textContent?.replace(/\s+/g, ' ')).toContain('Methods: POST 120, GET 8');
+    // F1 (UX-18): cada número que conta requisições leva à Entrada com o filtro exato daquela contagem.
+    expect(href(summary, 'All requests, 128 requests. Open in the Inbox')).toBe(`/${TOKEN_ID}`);
+    expect(href(summary, 'Default response, 84 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?outcome=default`,
+    );
+    expect(href(summary, 'Signature valid, 110 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?signature=valid`,
+    );
+    expect(href(summary, 'Schema invalid, 20 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?schema=invalid`,
+    );
+    expect(href(summary, 'GET, 8 requests. Open in the Inbox')).toBe(`/${TOKEN_ID}?methods=GET`);
+    // Somas sem um filtro só na Entrada ficam sem link.
+    expect(within(summary).queryByRole('link', { name: /^Near misses,/ })).toBeNull();
+    expect(
+      within(summary).queryByRole('link', { name: /^Signature invalid or absent,/ }),
+    ).toBeNull();
 
     const perHour = region('Requests per hour');
     expect(within(perHour).getByRole('img').getAttribute('aria-label')).toContain('peak 12');
@@ -75,11 +102,15 @@ describe('Dado a página Insights', () => {
       .getAllByRole('row')
       .map(rowText);
     expect(rows).toEqual([
-      'Hour (UTC) Requests Methods',
-      '2026-09-26 12:00:00 5 POST 5',
-      '2026-09-26 13:00:00 0',
-      '2026-09-26 14:00:00 12 POST 10, GET 2',
+      'Hour Requests Methods',
+      `${localDate('2026-09-26 12:00:00')} 5 POST 5`,
+      `${localDate('2026-09-26 13:00:00')} 0`,
+      `${localDate('2026-09-26 14:00:00')} 12 POST 10, GET 2`,
     ]);
+    expect(perHour.querySelector('tbody time')?.getAttribute('title')).toBe(
+      '2026-09-26 12:00:00 UTC',
+    );
+    expect(perHour.textContent).toMatch(/local time \(UTC[+−]\d+(:\d{2})?\)/);
 
     expect(within(region('Signature')).getByRole('img').getAttribute('aria-label')).toBe(
       'Signature: Valid 110 (86%), Invalid 9 (7%), Absent 3 (2%), Not checked 6 (5%)',
@@ -88,27 +119,35 @@ describe('Dado a página Insights', () => {
       within(region('Signature')).getByRole('table', { name: 'Signature failure reasons' })
         .textContent,
     ).toContain('signature mismatch');
-    // Cada motivo e cada caminho levam à Inbox filtrada (RULES-38), como o Health de Checks.
-    expect(
-      within(region('Signature'))
-        .getByRole('link', { name: 'signature mismatch' })
-        .getAttribute('href'),
-    ).toBe(`/${TOKEN_ID}?signature=invalid`);
-    expect(
-      within(region('Schema')).getByRole('link', { name: '/amount' }).getAttribute('href'),
-    ).toBe(`/${TOKEN_ID}?schema=invalid`);
+    // F1 (UX-18): cada motivo e cada caminho levam ao filtro exato (M1), o mesmo do Health de Checks.
+    expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`,
+    );
+    expect(href(region('Signature'), 'Signature: Absent, 3 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?signature=absent`,
+    );
+    expect(within(region('Signature')).queryByRole('link', { name: /Not checked/ })).toBeNull();
+    expect(href(region('Schema'), '/amount, 4 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?schema=invalid&schemaPath=%2Famount`,
+    );
     expect(within(region('Schema')).getByRole('img').getAttribute('aria-label')).toBe(
       'Schema: Valid 100 (78%), Invalid 20 (16%), Not checked 8 (6%)',
     );
     const rules = within(region('Rules'));
     expect(rules.getAllByRole('row').slice(1, 4).map(rowText)).toEqual([
-      'Stripe payment OK 41 32%',
-      'Refund queued 3 2%',
-      'Default response 84 66%',
+      'Stripe payment OK 41 → 32%',
+      'Refund queued 3 → 2%',
+      'Default response 84 → 66%',
     ]);
     expect(rules.getByRole('link', { name: 'Refund queued' }).getAttribute('href')).toBe(
       `/${TOKEN_ID}/rules/a`,
     );
+    expect(href(region('Rules'), 'Stripe payment OK, 41 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?outcome=rule&rule=b&ruleName=Stripe%20payment%20OK`,
+    );
+    expect(
+      href(region('Rules'), 'Closest rule: Refund queued, 2 requests. Open in the Inbox'),
+    ).toBe(`/${TOKEN_ID}?outcome=near_miss&rule=a&ruleName=Refund%20queued`);
     // A tabela que rola de lado recebe foco pelo teclado (axe scrollable-region-focusable, E11).
     const rolagem = screen.getByRole('region', { name: 'Hourly data' });
     expect(rolagem.getAttribute('tabindex')).toBe('0');
@@ -171,6 +210,20 @@ describe('Dado a página Insights', () => {
     call.flush(tokenStats({ total: 1291, evaluated: 50, window: 50 }));
     await vi.waitFor(() =>
       expect(region('Summary').textContent).toContain('the newest 50 of 1291 kept'),
+    );
+  });
+
+  it('F1: deve levar window= Quando a URL guarda mais que a janela, para a Entrada contar sobre as mesmas', async () => {
+    await open(tokenStats({ total: 1291, evaluated: 500 }));
+
+    expect(href(region('Summary'), 'All requests, 500 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?window=500`,
+    );
+    expect(href(region('Summary'), 'Default response, 84 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?outcome=default&window=500`,
+    );
+    expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=500`,
     );
   });
 

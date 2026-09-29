@@ -5,6 +5,9 @@ import { MatFormField } from '@angular/material/form-field';
 import { RouterLink } from '@angular/router';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { TokenStore } from '../token/token-store';
+import { parseUtc } from '../request-detail/dates';
+import { FILTER_METHODS } from '../search/request-filter';
+import { CountFilter, CountLink, schemaPathFilter, signatureReasonFilter } from '../ui/count-link';
 import { EmptyState } from '../ui/empty-state';
 import { Pane } from '../ui/pane';
 import { HourlyChart } from './hourly-chart';
@@ -12,11 +15,12 @@ import {
   answeredParts,
   hourlyBars,
   keptText,
+  localHour,
   methodsText,
   percent,
-  reasonFilter,
   schemaParts,
   signatureParts,
+  utcOffset,
 } from './insights';
 import { InsightsStore } from './insights-store';
 import { STATS_MAX_WINDOW, STATS_WINDOWS } from '../stats/stats';
@@ -31,6 +35,8 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
  * Insights (`#/{token}/insights`): KPIs e gráficos da URL a partir de `GET /token/{id}/stats`, com
  * a janela explícita (as mensagens mais novas que a URL guarda, até 500). Gráficos em SVG próprio,
  * cada um com tabela de dados ao lado. Latência e erros são da instância inteira: ficam no Grafana.
+ * F1: todo número que a Entrada sabe filtrar leva a ela com o filtro exato (`CountLink`); as horas
+ * saem na hora local, com o UTC no `title` (UX-19).
  */
 @Component({
   selector: 'app-insights-page',
@@ -40,6 +46,7 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
     MatSelect,
     MatOption,
     RouterLink,
+    CountLink,
     EmptyState,
     Pane,
     HourlyChart,
@@ -77,25 +84,69 @@ export class InsightsPage {
     const stats = this.stats();
     return stats ? answeredParts(stats) : [];
   });
-  /** KPIs do resumo, todos sobre as `evaluated` mensagens mais novas. */
-  protected readonly kpis = computed(() => {
+  /**
+   * KPIs do resumo, todos sobre as `evaluated` mensagens mais novas. Sem `filter`, a soma não tem um
+   * filtro só na Entrada (várias regras, inválida ou ausente) e o número fica sem link.
+   */
+  protected readonly kpis = computed(
+    (): { label: string; count: number; filter?: CountFilter }[] => {
+      const stats = this.stats();
+      if (!stats) {
+        return [];
+      }
+      const answered = stats.rules.answered.reduce((sum, rule) => sum + rule.count, 0);
+      const nearMisses = stats.rules.near_miss.reduce((sum, rule) => sum + rule.count, 0);
+      return [
+        { label: $localize`Answered by a rule`, count: answered },
+        {
+          label: $localize`Default response`,
+          count: stats.rules.default,
+          filter: { outcome: 'default' },
+        },
+        { label: $localize`Near misses`, count: nearMisses },
+        {
+          label: $localize`Signature valid`,
+          count: stats.signature.valid,
+          filter: { signature: 'valid' },
+        },
+        {
+          label: $localize`Signature invalid or absent`,
+          count: stats.signature.invalid + stats.signature.absent,
+        },
+        {
+          label: $localize`Schema invalid`,
+          count: stats.schema.invalid,
+          filter: { schema: 'invalid' },
+        },
+      ];
+    },
+  );
+  /** Sobre o que os números do `/stats` foram contados: o `window=` do link quando cortam (F1). */
+  protected readonly scope = computed(() => {
     const stats = this.stats();
-    if (!stats) {
-      return [];
-    }
-    const answered = stats.rules.answered.reduce((sum, rule) => sum + rule.count, 0);
-    const nearMisses = stats.rules.near_miss.reduce((sum, rule) => sum + rule.count, 0);
-    return [
-      { label: $localize`Answered by a rule`, count: answered },
-      { label: $localize`Default response`, count: stats.rules.default },
-      { label: $localize`Near misses`, count: nearMisses },
-      { label: $localize`Signature valid`, count: stats.signature.valid },
-      {
-        label: $localize`Signature invalid or absent`,
-        count: stats.signature.invalid + stats.signature.absent,
-      },
-      { label: $localize`Schema invalid`, count: stats.schema.invalid },
-    ];
+    return stats ? { evaluated: stats.evaluated, total: stats.total } : null;
+  });
+  /** Os métodos do resumo; os que o filtro "Method" da Entrada conhece viram link. */
+  protected readonly methods = computed(() =>
+    Object.entries(this.stats()?.methods ?? {})
+      .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+      .map(([method, count]) => ({
+        method,
+        count,
+        filter: (FILTER_METHODS as readonly string[]).includes(method) ? { methods: method } : null,
+      })),
+  );
+  protected readonly nearMisses = computed(() =>
+    (this.stats()?.rules.near_miss ?? []).map((rule) => ({
+      ...rule,
+      what: $localize`Closest rule: ${rule.name}:rule:`,
+      filter: { outcome: 'near_miss', rule: rule.id, ruleName: rule.name },
+    })),
+  );
+  /** UX-19: o fuso da legenda do gráfico, na data da hora mais nova. */
+  protected readonly offset = computed(() => {
+    const newest = this.stats()?.newest_at;
+    return utcOffset(newest ? parseUtc(newest) : new Date());
   });
   protected readonly maxAnswered = computed(() =>
     Math.max(1, ...this.answered().map((part) => part.count)),
@@ -103,12 +154,15 @@ export class InsightsPage {
   protected readonly grafanaUrl = `${this.document.location.protocol}//${this.document.location.hostname}:${GRAFANA_PORT}${GRAFANA_DASHBOARD}`;
   protected readonly percent = percent;
   protected readonly keptText = keptText;
-  protected readonly reasonFilter = reasonFilter;
+  protected readonly signatureReasonFilter = signatureReasonFilter;
+  protected readonly schemaPathFilter = schemaPathFilter;
+  protected readonly localHour = localHour;
   /** Janela do resumo (RULES-38): as mesmas de Health, com 500 (a de E9) por padrão. */
   protected readonly windows = STATS_WINDOWS;
   protected readonly window = signal<number>(STATS_MAX_WINDOW);
   protected readonly rootLabel = $localize`(root)`;
   protected readonly methodsText = methodsText;
+  protected readonly allRequests = $localize`All requests`;
 
   constructor() {
     effect(() => {

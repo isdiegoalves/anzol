@@ -33,6 +33,7 @@
 }
 
 @if (stats(); as stats) {
+  @let statsScope = scope();
   <div class="grid">
     <app-pane class="summary wide" heading="Summary" i18n-heading>
       <div class="body">
@@ -41,7 +42,13 @@
             <dt i18n>Requests</dt>
             &ngsp;
             <dd>
-              <span class="value">{{ stats.evaluated }}</span
+              <a
+                class="value"
+                [appCountLink]="tokenId()"
+                [count]="stats.evaluated"
+                [what]="allRequests"
+                [countScope]="statsScope"
+                >{{ stats.evaluated }}</a
               >&ngsp;<span class="of">{{
                 keptText(stats.evaluated, stats.total, stats.window)
               }}</span>
@@ -54,8 +61,20 @@
                 <dt>{{ kpi.label }}</dt>
                 &ngsp;
                 <dd>
-                  <span class="value">{{ kpi.count }}</span
-                  >&ngsp;<span class="of" i18n
+                  @if (kpi.filter) {
+                    <a
+                      class="value"
+                      [appCountLink]="tokenId()"
+                      [countFilter]="kpi.filter"
+                      [count]="kpi.count"
+                      [what]="kpi.label"
+                      [countScope]="statsScope"
+                      >{{ kpi.count }}</a
+                    >
+                  } @else {
+                    <span class="value">{{ kpi.count }}</span>
+                  }
+                  &ngsp;<span class="of" i18n
                     >{{ percent(kpi.count, stats.evaluated) }} of these requests</span
                   >
                 </dd>
@@ -65,11 +84,34 @@
           }
         </dl>
         @if (stats.evaluated > 0) {
+          @let oldest = localHour(stats.oldest_at ?? '');
+          @let newest = localHour(stats.newest_at ?? '');
           <p class="window" i18n>
             The {{ stats.evaluated }} most recent of the {{ stats.total }} requests this URL keeps,
-            from {{ stats.oldest_at }} to {{ stats.newest_at }} UTC.
+            from <time [attr.datetime]="oldest.iso" [title]="oldest.utc">{{ oldest.text }}</time> to
+            <time [attr.datetime]="newest.iso" [title]="newest.utc">{{ newest.text }}</time
+            >.
           </p>
-          <p class="methods"><span i18n>Methods:</span>&ngsp;{{ methodsText(stats.methods) }}</p>
+          <p class="methods">
+            <span i18n>Methods:</span>&ngsp;
+            @for (entry of methods(); track entry.method; let last = $last) {
+              @if (entry.filter) {
+                <a
+                  [appCountLink]="tokenId()"
+                  [countFilter]="entry.filter"
+                  [count]="entry.count"
+                  [what]="entry.method"
+                  [countScope]="statsScope"
+                  >{{ entry.method }} {{ entry.count }}</a
+                >
+              } @else {
+                <span>{{ entry.method }} {{ entry.count }}</span>
+              }
+              @if (!last) {
+                <span>, </span>
+              }
+            }
+          </p>
         } @else {
           <app-empty-state
             icon="insights"
@@ -86,6 +128,7 @@
       <app-pane class="wide" heading="Requests per hour" i18n-heading>
         <div class="body">
           <app-hourly-chart [bars]="hourly()" />
+          <p class="legend" i18n>local time (UTC{{ offset() }})</p>
           <details class="data" open>
             <summary i18n>Data table</summary>
             <div
@@ -98,15 +141,18 @@
               <table class="table" aria-label="Requests per hour data" i18n-aria-label>
                 <thead>
                   <tr>
-                    <th i18n>Hour (UTC)</th>
+                    <th i18n>Hour</th>
                     <th class="number" i18n>Requests</th>
                     <th i18n>Methods</th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (bar of hourly(); track bar.hour) {
+                    @let hour = localHour(bar.hour);
                     <tr>
-                      <td>{{ bar.hour }}</td>
+                      <td>
+                        <time [attr.datetime]="hour.iso" [title]="hour.utc">{{ hour.text }}</time>
+                      </td>
                       <td class="number">{{ bar.count }}</td>
                       <td>{{ methodsText(bar.methods) }}</td>
                     </tr>
@@ -120,7 +166,13 @@
 
       <app-pane heading="Signature" i18n-heading>
         <div class="body">
-          <app-proportion-bar label="Signature" i18n-label [parts]="signature()" />
+          <app-proportion-bar
+            label="Signature"
+            i18n-label
+            [parts]="signature()"
+            [tokenId]="tokenId()"
+            [countScope]="statsScope"
+          />
           @if (stats.signature.reasons.length > 0) {
             <table class="table" aria-label="Signature failure reasons" i18n-aria-label>
               <thead>
@@ -133,13 +185,19 @@
                 @for (reason of stats.signature.reasons; track reason.reason) {
                   <tr>
                     <td>
+                      <code>{{ reason.reason }}</code>
+                    </td>
+                    <td class="number">
                       <a
-                        [routerLink]="['/', tokenId()]"
-                        [queryParams]="{ signature: reasonFilter(reason.reason) }"
-                        ><code>{{ reason.reason }}</code></a
+                        class="count"
+                        [appCountLink]="tokenId()"
+                        [countFilter]="signatureReasonFilter(reason.reason)"
+                        [count]="reason.count"
+                        [what]="reason.reason"
+                        [countScope]="statsScope"
+                        >{{ reason.count }}<span aria-hidden="true"> →</span></a
                       >
                     </td>
-                    <td class="number">{{ reason.count }}</td>
                   </tr>
                 }
               </tbody>
@@ -150,7 +208,13 @@
 
       <app-pane heading="Schema" i18n-heading>
         <div class="body">
-          <app-proportion-bar label="Schema" i18n-label [parts]="schema()" />
+          <app-proportion-bar
+            label="Schema"
+            i18n-label
+            [parts]="schema()"
+            [tokenId]="tokenId()"
+            [countScope]="statsScope"
+          />
           @if (stats.schema.paths.length > 0) {
             <table class="table" aria-label="Schema error paths" i18n-aria-label>
               <thead>
@@ -161,13 +225,22 @@
               </thead>
               <tbody>
                 @for (path of stats.schema.paths; track path.path) {
+                  @let label = path.path === '' ? rootLabel : path.path;
                   <tr>
                     <td>
-                      <a [routerLink]="['/', tokenId()]" [queryParams]="{ schema: 'invalid' }"
-                        ><code>{{ path.path === '' ? rootLabel : path.path }}</code></a
+                      <code>{{ label }}</code>
+                    </td>
+                    <td class="number">
+                      <a
+                        class="count"
+                        [appCountLink]="tokenId()"
+                        [countFilter]="schemaPathFilter(path.path)"
+                        [count]="path.count"
+                        [what]="label"
+                        [countScope]="statsScope"
+                        >{{ path.count }}<span aria-hidden="true"> →</span></a
                       >
                     </td>
-                    <td class="number">{{ path.count }}</td>
                   </tr>
                 }
               </tbody>
@@ -191,7 +264,21 @@
               @for (part of answered(); track part.label) {
                 <tr [class.default]="part.tone === 'none'">
                   <td>{{ part.label }}</td>
-                  <td class="number">{{ part.count }}</td>
+                  <td class="number">
+                    @if (part.filter) {
+                      <a
+                        class="count"
+                        [appCountLink]="tokenId()"
+                        [countFilter]="part.filter"
+                        [count]="part.count"
+                        [what]="part.label"
+                        [countScope]="statsScope"
+                        >{{ part.count }}<span aria-hidden="true"> →</span></a
+                      >
+                    } @else {
+                      {{ part.count }}
+                    }
+                  </td>
                   <td class="number">{{ percent(part.count, stats.evaluated) }}</td>
                   <td class="bar-cell">
                     <svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
@@ -216,12 +303,22 @@
                 </tr>
               </thead>
               <tbody>
-                @for (rule of stats.rules.near_miss; track rule.id) {
+                @for (rule of nearMisses(); track rule.id) {
                   <tr>
                     <td>
                       <a [routerLink]="['/', tokenId(), 'rules', rule.id]">{{ rule.name }}</a>
                     </td>
-                    <td class="number">{{ rule.count }}</td>
+                    <td class="number">
+                      <a
+                        class="count"
+                        [appCountLink]="tokenId()"
+                        [countFilter]="rule.filter"
+                        [count]="rule.count"
+                        [what]="rule.what"
+                        [countScope]="statsScope"
+                        >{{ rule.count }}<span aria-hidden="true"> →</span></a
+                      >
+                    </td>
                   </tr>
                 }
               </tbody>

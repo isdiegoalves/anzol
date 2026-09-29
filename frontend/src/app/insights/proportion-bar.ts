@@ -1,10 +1,12 @@
 import { Component, computed, input } from '@angular/core';
+import { CountLink, CountScope } from '../ui/count-link';
 import { Part, percent } from './insights';
 
 /**
  * Uma barra de proporção em SVG (assinatura, schema) com a legenda em texto: cada fatia tem cor e
  * também rótulo, número e percentual, então a cor nunca fala sozinha (WCAG 1.4.1). Para leitor de
- * tela, a barra é uma imagem com o mesmo resumo da legenda.
+ * tela, a barra é uma imagem com o mesmo resumo da legenda. Com `tokenId`, o número de cada fatia
+ * que a Entrada sabe filtrar é um link para ela (F1).
  */
 @Component({
   selector: 'app-proportion-bar',
@@ -22,23 +24,40 @@ import { Part, percent } from './insights';
         </rect>
       }
     </svg>
+    @let token = tokenId();
     <ul class="legend">
       @for (part of parts(); track part.label) {
         <li>
           <span class="swatch" [class]="part.tone" aria-hidden="true"></span>
           <span class="label">{{ part.label }}</span>
-          <span class="count">{{ part.count }}</span>
+          @if (token && part.filter) {
+            <a
+              class="count"
+              [appCountLink]="token"
+              [countFilter]="part.filter"
+              [count]="part.count"
+              [what]="label() + ': ' + part.label"
+              [countScope]="countScope()"
+              >{{ part.count }}</a
+            >
+          } @else {
+            <span class="count">{{ part.count }}</span>
+          }
           <span class="share">{{ share(part.count) }}</span>
         </li>
       }
     </ul>
   `,
+  imports: [CountLink],
   styleUrl: './proportion-bar.scss',
 })
 export class ProportionBar {
   /** Nome do que a barra mede ("Signature"), no começo do resumo. */
   readonly label = input.required<string>();
   readonly parts = input.required<readonly Part[]>();
+  /** A URL, para os números virarem link para a Entrada; sem ela, só texto. */
+  readonly tokenId = input<string | null>(null);
+  readonly countScope = input<CountScope | null>(null);
 
   private readonly total = computed(() => this.parts().reduce((sum, part) => sum + part.count, 0));
   protected readonly summary = computed(

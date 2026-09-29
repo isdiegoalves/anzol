@@ -1,15 +1,17 @@
 import { tokenStats } from '../../testing/stats-fixtures';
+import { localDate } from '../request-detail/dates';
 import {
   HOURLY_FILL_MAX,
   answeredParts,
   hourlyBars,
   hourlySummary,
+  localHour,
   methodsText,
   keptText,
   percent,
-  reasonFilter,
   schemaParts,
   signatureParts,
+  utcOffset,
 } from './insights';
 
 describe('Dado as horas com mensagem do stats (hourlyBars)', () => {
@@ -36,11 +38,32 @@ describe('Dado as horas com mensagem do stats (hourlyBars)', () => {
     expect(hourlySummary([])).toBe('Requests per hour: no requests');
   });
 
-  it('deve resumir o intervalo e o pico para leitor de tela', () => {
+  it('deve resumir o intervalo e o pico para leitor de tela, na hora local (UX-19)', () => {
+    const from = localDate('2026-09-26 12:00:00');
+    const to = localDate('2026-09-26 14:00:00');
     expect(hourlySummary(hourlyBars(tokenStats().hourly))).toBe(
-      'Requests per hour, 3 hours from 2026-09-26 12:00:00 to 2026-09-26 14:00:00 UTC; ' +
-        'peak 12 at 2026-09-26 14:00:00 UTC',
+      `Requests per hour, 3 hours from ${from} to ${to}, local time; peak 12 at ${to}`,
     );
+  });
+});
+
+describe('Dado a hora do servidor em Métricas (UX-19)', () => {
+  it('deve dar a hora local por extenso, com o UTC para o title e o ISO para o datetime', () => {
+    expect(localHour('2026-09-26 14:00:00')).toEqual({
+      text: localDate('2026-09-26 14:00:00'),
+      utc: '2026-09-26 14:00:00 UTC',
+      iso: '2026-09-26T14:00:00.000Z',
+    });
+    expect(localHour('2026-09-26 14:00:00').text).not.toMatch(/UTC|T\d{2}:|Z$/);
+  });
+
+  it.each([
+    [180, '−3'],
+    [-330, '+5:30'],
+    [0, '+0'],
+    [240, '−4'],
+  ])('deve escrever o fuso de getTimezoneOffset %i como UTC%s', (minutes, text) => {
+    expect(utcOffset({ getTimezoneOffset: () => minutes } as Date)).toBe(text);
   });
 });
 
@@ -58,17 +81,6 @@ describe('Dado quantas mensagens a URL guarda e a janela (keptText, RULES-39)', 
   );
 });
 
-describe('Dado um motivo de assinatura (reasonFilter, RULES-38)', () => {
-  it.each([
-    ['signature mismatch', 'invalid'],
-    ['timestamp outside tolerance', 'invalid'],
-    ['header X-Hub-Signature-256 absent', 'absent'],
-    ['header stripe-signature absent', 'absent'],
-  ])('deve filtrar a Inbox pelo estado certo Quando o motivo é %s', (reason, state) => {
-    expect(reasonFilter(reason)).toBe(state);
-  });
-});
-
 describe('Dado os agregados do stats', () => {
   it.each([
     [0, 0, '—'],
@@ -78,30 +90,40 @@ describe('Dado os agregados do stats', () => {
     expect(percent(count, total)).toBe(expected);
   });
 
-  it('deve separar a assinatura em válida, inválida, ausente e não verificada', () => {
+  it('deve separar a assinatura em válida, inválida, ausente e não verificada, com o filtro de cada uma', () => {
     expect(
-      signatureParts(tokenStats()).map(({ label, count, tone }) => [label, count, tone]),
+      signatureParts(tokenStats()).map(({ label, count, tone, filter }) => [
+        label,
+        count,
+        tone,
+        filter,
+      ]),
     ).toEqual([
-      ['Valid', 110, 'ok'],
-      ['Invalid', 9, 'bad'],
-      ['Absent', 3, 'near'],
-      ['Not checked', 6, 'none'],
+      ['Valid', 110, 'ok', { signature: 'valid' }],
+      ['Invalid', 9, 'bad', { signature: 'invalid' }],
+      ['Absent', 3, 'near', { signature: 'absent' }],
+      // F1: a Entrada não filtra "sem verificação"; o número fica sem link.
+      ['Not checked', 6, 'none', undefined],
     ]);
   });
 
-  it('deve separar o schema em válido, inválido e não verificado', () => {
-    expect(schemaParts(tokenStats()).map(({ label, count }) => [label, count])).toEqual([
-      ['Valid', 100],
-      ['Invalid', 20],
-      ['Not checked', 8],
+  it('deve separar o schema em válido, inválido e não verificado, com o filtro de cada um', () => {
+    expect(
+      schemaParts(tokenStats()).map(({ label, count, filter }) => [label, count, filter]),
+    ).toEqual([
+      ['Valid', 100, { schema: 'valid' }],
+      ['Invalid', 20, { schema: 'invalid' }],
+      ['Not checked', 8, undefined],
     ]);
   });
 
   it('deve listar quem respondeu da regra que mais respondeu, com a resposta padrão no fim', () => {
-    expect(answeredParts(tokenStats()).map(({ label, count }) => [label, count])).toEqual([
-      ['Stripe payment OK', 41],
-      ['Refund queued', 3],
-      ['Default response', 84],
+    expect(
+      answeredParts(tokenStats()).map(({ label, count, filter }) => [label, count, filter]),
+    ).toEqual([
+      ['Stripe payment OK', 41, { outcome: 'rule', rule: 'b', ruleName: 'Stripe payment OK' }],
+      ['Refund queued', 3, { outcome: 'rule', rule: 'a', ruleName: 'Refund queued' }],
+      ['Default response', 84, { outcome: 'default' }],
     ]);
   });
 

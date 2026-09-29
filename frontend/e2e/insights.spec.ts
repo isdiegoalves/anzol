@@ -93,6 +93,13 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     const assinatura = page.getByRole('region', { name: 'Signature', exact: true });
     await expect(assinatura).toContainText('signature mismatch');
     await expect(assinatura).toContainText('header X-Hub-Signature-256 absent');
+    // Patamar, F1 (guia-combinacao §3.6 e §7; UX-18): o número do motivo leva ao filtro exato (`signatureReason=`),
+    // o mesmo do Health, e não mais ao largo `?signature=invalid`.
+    await expect(
+      assinatura.getByRole('link', {
+        name: /^signature mismatch, 1 request\. Open in the Inbox$/,
+      }),
+    ).toHaveAttribute('href', /\?signature=invalid&signatureReason=signature%20mismatch$/);
     await expect(page.getByRole('region', { name: 'Schema', exact: true })).toContainText('(root)');
     await expect(page.getByRole('region', { name: 'Rules', exact: true })).toContainText('Pix');
   });

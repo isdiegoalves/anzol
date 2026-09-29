@@ -1,4 +1,6 @@
+import { localDate, parseUtc } from '../request-detail/dates';
 import { HourlyCount, TokenStats } from '../stats/stats';
+import { CountFilter } from '../ui/count-link';
 
 /** Papel de cor de uma fatia: sempre com rótulo em texto ao lado (WCAG 1.4.1). */
 export type Tone = 'ok' | 'bad' | 'near' | 'none' | 'primary';
@@ -8,6 +10,8 @@ export interface Part {
   label: string;
   count: number;
   tone: Tone;
+  /** F1: o filtro exato da Entrada que mostra estas requisições; ausente quando não há um. */
+  filter?: CountFilter;
 }
 
 /** Barra de uma hora: `count` é zero nas horas sem mensagem que o gráfico preenche. */
@@ -62,9 +66,10 @@ export function percent(count: number, total: number): string {
 export function signatureParts(stats: TokenStats): Part[] {
   const { valid, invalid, absent, unchecked } = stats.signature;
   return [
-    { label: $localize`Valid`, count: valid, tone: 'ok' },
-    { label: $localize`Invalid`, count: invalid, tone: 'bad' },
-    { label: $localize`Absent`, count: absent, tone: 'near' },
+    { label: $localize`Valid`, count: valid, tone: 'ok', filter: { signature: 'valid' } },
+    { label: $localize`Invalid`, count: invalid, tone: 'bad', filter: { signature: 'invalid' } },
+    { label: $localize`Absent`, count: absent, tone: 'near', filter: { signature: 'absent' } },
+    // A Entrada não filtra "sem verificação": o número fica sem link.
     { label: $localize`Not checked`, count: unchecked, tone: 'none' },
   ];
 }
@@ -73,8 +78,8 @@ export function signatureParts(stats: TokenStats): Part[] {
 export function schemaParts(stats: TokenStats): Part[] {
   const { valid, invalid, unchecked } = stats.schema;
   return [
-    { label: $localize`Valid`, count: valid, tone: 'ok' },
-    { label: $localize`Invalid`, count: invalid, tone: 'bad' },
+    { label: $localize`Valid`, count: valid, tone: 'ok', filter: { schema: 'valid' } },
+    { label: $localize`Invalid`, count: invalid, tone: 'bad', filter: { schema: 'invalid' } },
     { label: $localize`Not checked`, count: unchecked, tone: 'none' },
   ];
 }
@@ -84,8 +89,18 @@ export function answeredParts(stats: TokenStats): Part[] {
   return [
     ...[...stats.rules.answered]
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-      .map(({ name, count }) => ({ label: name, count, tone: 'primary' as const })),
-    { label: $localize`Default response`, count: stats.rules.default, tone: 'none' },
+      .map(({ id, name, count }) => ({
+        label: name,
+        count,
+        tone: 'primary' as const,
+        filter: { outcome: 'rule', rule: id, ruleName: name },
+      })),
+    {
+      label: $localize`Default response`,
+      count: stats.rules.default,
+      tone: 'none',
+      filter: { outcome: 'default' },
+    },
   ];
 }
 
@@ -97,17 +112,34 @@ export function methodsText(methods: Record<string, number>): string {
     .join(', ');
 }
 
-/** Resumo do gráfico por hora para leitor de tela (o `img` do SVG). */
+/** Resumo do gráfico por hora para leitor de tela (o `img` do SVG), na hora local (UX-19). */
 export function hourlySummary(bars: readonly HourBar[]): string {
   if (bars.length === 0) {
     return $localize`Requests per hour: no requests`;
   }
   const peak = bars.reduce((best, bar) => (bar.count > best.count ? bar : best), bars[0]);
-  const from = bars[0].hour;
-  const to = bars[bars.length - 1].hour;
+  const from = localDate(bars[0].hour);
+  const to = localDate(bars[bars.length - 1].hour);
+  const at = localDate(peak.hour);
   return bars.length === 1
-    ? $localize`Requests per hour, 1 hour from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`
-    : $localize`Requests per hour, ${bars.length}:count: hours from ${from}:from: to ${to}:to: UTC; peak ${peak.count}:peak: at ${peak.hour}:peakHour: UTC`;
+    ? $localize`Requests per hour, 1 hour from ${from}:from: to ${to}:to:, local time; peak ${peak.count}:peak: at ${at}:peakHour:`
+    : $localize`Requests per hour, ${bars.length}:count: hours from ${from}:from: to ${to}:to:, local time; peak ${peak.count}:peak: at ${at}:peakHour:`;
+}
+
+/**
+ * O fuso do navegador na data dada, como a legenda do gráfico o escreve (UX-19): "−3", "+5:30",
+ * "+0" (sinal de menos tipográfico, U+2212).
+ */
+export function utcOffset(date: Date): string {
+  const minutes = -date.getTimezoneOffset();
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const rest = Math.abs(minutes) % 60;
+  return `${minutes < 0 ? '−' : '+'}${hours}${rest ? `:${String(rest).padStart(2, '0')}` : ''}`;
+}
+
+/** Hora do servidor (UTC, formato de `created_at`) por extenso na hora local, e o UTC para o `title`. */
+export function localHour(value: string): { text: string; utc: string; iso: string } {
+  return { text: localDate(value), utc: `${value} UTC`, iso: parseUtc(value).toISOString() };
 }
 
 /**
@@ -119,9 +151,4 @@ export function keptText(evaluated: number, total: number, window: number): stri
   return total > window
     ? $localize`the newest ${evaluated}:evaluated: of ${total}:total: kept`
     : $localize`of the ${total}:total: kept`;
-}
-
-/** Que filtro de assinatura da Inbox mostra as mensagens de um motivo (RULES-38). */
-export function reasonFilter(reason: string): 'invalid' | 'absent' {
-  return /^header \S+ absent$/.test(reason) ? 'absent' : 'invalid';
 }
