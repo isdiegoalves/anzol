@@ -1,6 +1,6 @@
+import { faultName } from '../pipeline/pipeline';
 import { localDate, parseUtc } from '../request-detail/dates';
 import { RecordedResponse } from '../requests/webhook-request';
-import { FAULT_SHORT_LABELS, RuleFault } from '../rules/rule';
 import { HourlyCount, TokenStats } from '../stats/stats';
 import { CountFilter } from '../ui/count-link';
 import { reasonPhrase } from '../ui/status-code';
@@ -170,7 +170,7 @@ function answerLabel(status: number | null, fault: string | null): string {
     const phrase = reasonPhrase(status);
     return phrase ? `${status} ${phrase}` : String(status);
   }
-  const kind = fault === null ? null : (FAULT_SHORT_LABELS[fault as RuleFault] ?? fault);
+  const kind = fault === null ? null : faultName(fault);
   return `— ${kind ?? $localize`not recorded`}`;
 }
 

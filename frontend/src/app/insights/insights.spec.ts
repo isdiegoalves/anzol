@@ -165,7 +165,7 @@ describe('Dado as respostas das requisições mais novas (answerRows)', () => {
     expect(rows.map(({ text, filter }) => [text, filter])).toEqual([
       ['200 OK · 1 · default response', { answered: '200' }],
       ['— not recorded · 2 · default response', null],
-      ['— TCP RST · 1 · by rules', null],
+      ['— Connection reset · 1 · by rules', null],
     ]);
   });
 

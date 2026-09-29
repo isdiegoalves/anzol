@@ -243,7 +243,7 @@ function schemaResult(request: CapturedRequest, token: Token | null): CheckResul
 }
 
 /** O nome de cada falha de rede no selo e no nome acessível ("— · Connection reset"). */
-function faultName(fault: string): string {
+export function faultName(fault: string): string {
   const names: Record<string, string> = {
     connection_reset: $localize`:network fault:Connection reset`,
     empty_response: $localize`:network fault:Empty response`,
