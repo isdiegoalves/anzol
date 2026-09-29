@@ -32,6 +32,7 @@ private val DELAY_RANGE = 0..MAX_DELAY_MS
 private val MEDIAN_RANGE = BigDecimal.ONE..BigDecimal(MAX_DELAY_MS)
 private val SIGMA_RANGE = BigDecimal.ZERO..BigDecimal.TEN
 private val CHUNKS_RANGE = 1..100
+private val CHANCE_RANGE = 1L..100L
 
 private val jsonReader = JsonMapper.builder().build()
 
@@ -56,6 +57,12 @@ class RuleReader(
         val name = violations.name(node["name"], key(prefix, "name"))
         val enabled = violations.boolean(node["enabled"], key(prefix, "enabled"), default = true)
         val priority = priority(node["priority"], key(prefix, "priority"))
+        val chance = node["chance"].given()?.let { violations.whole(it, key(prefix, "chance"), CHANCE_RANGE, CHANCE_RANGE.last) }
+        val activeFrom = node["active_from"].given()?.let { violations.dateTime(it, key(prefix, "active_from")) }
+        val activeUntil = node["active_until"].given()?.let { violations.dateTime(it, key(prefix, "active_until")) }
+        if (activeFrom != null && activeUntil != null && activeUntil <= activeFrom) {
+            violations.fail(key(prefix, "active_until"), "The active until must be a date after active from.")
+        }
         val match = matchReader.match(node["match"], key(prefix, "match"))
         val scenario = scenarioReader.scenario(node["scenario"], key(prefix, "scenario"))
         val response = response(node["response"], key(prefix, "response"))
@@ -67,6 +74,9 @@ class RuleReader(
                 name = checkNotNull(name),
                 enabled = checkNotNull(enabled),
                 priority = checkNotNull(priority),
+                chance = chance?.toInt(),
+                activeFrom = activeFrom,
+                activeUntil = activeUntil,
                 match = checkNotNull(match),
                 scenario = scenario,
                 response = checkNotNull(response),

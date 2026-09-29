@@ -1,10 +1,17 @@
 package site.webhook.rules
 
 import tools.jackson.databind.JsonNode
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
 import java.util.regex.PatternSyntaxException
 
 /** Teto de regras por URL. */
 const val MAX_RULES = 100
+
+/** Data-hora da RFC 3339: segundos obrigatórios, fração opcional e fuso (`Z` ou `±hh:mm`). */
+private val DATE_TIME = Regex("\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?([Zz]|[+-]\\d{2}:\\d{2})")
 
 /** Resultado da leitura: as regras, ou os erros do 422 (chave em pontos → mensagens no estilo do Laravel). */
 sealed interface Parsed<out T> {
@@ -134,6 +141,21 @@ class Violations {
         node: JsonNode?,
         key: String,
     ): String? = node?.takeIf { it.isString }?.stringValue() ?: fail(key, "The ${attribute(key)} must be a string.")
+
+    /** Data-hora com fuso ([DATE_TIME]), em UTC e cortada no segundo. */
+    fun dateTime(
+        node: JsonNode,
+        key: String,
+    ): Instant? {
+        val text = node.takeIf { it.isString }?.stringValue()?.takeIf(DATE_TIME::matches)
+        val instant =
+            try {
+                text?.let { OffsetDateTime.parse(it).toInstant().truncatedTo(ChronoUnit.SECONDS) }
+            } catch (_: DateTimeParseException) {
+                null
+            }
+        return instant ?: fail(key, "The ${attribute(key)} must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.")
+    }
 
     fun regex(
         node: JsonNode?,

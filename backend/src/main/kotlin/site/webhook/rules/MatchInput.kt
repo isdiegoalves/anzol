@@ -1,5 +1,6 @@
 package site.webhook.rules
 
+import site.webhook.RequestId
 import site.webhook.capture.CapturedRequest
 import site.webhook.schema.SchemaResult
 import site.webhook.signature.SignatureResult
@@ -8,6 +9,8 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
+import java.time.Instant
+import java.time.ZoneOffset
 
 /** Leitor do corpo e das frases do `failed`: JSON puro, sem as configurações da API. */
 val bodyMapper: JsonMapper = JsonMapper.builder().build()
@@ -17,7 +20,8 @@ val bodyMapper: JsonMapper = JsonMapper.builder().build()
  * `rules/test`, a mesma visão): [path] é o caminho após o token, decodificado, sem a barra final
  * (como a `url` gravada) e `/` quando vazio; [query] e [headers] são os valores gravados (cabeçalho em
  * minúsculas, com `_` virando `-`); [signature] e [schema] são os resultados gravados da verificação HMAC e da
- * validação do corpo (nulos sem configuração).
+ * validação do corpo (nulos sem configuração). [request] (o uuid, para o sorteio da `chance`) e [receivedAt] (o
+ * `created_at`, para a janela) identificam a mensagem.
  */
 data class MatchInput(
     val method: String,
@@ -25,6 +29,8 @@ data class MatchInput(
     val query: Map<String, String>,
     val headers: Map<String, String>,
     val body: String,
+    val request: RequestId,
+    val receivedAt: Instant,
     val signature: SignatureResult? = null,
     val schema: SchemaResult? = null,
 ) {
@@ -53,6 +59,8 @@ fun CapturedRequest.toMatchInput(): MatchInput =
         query = query?.let(::queryValues).orEmpty(),
         headers = headers.mapValues { (_, values) -> values.lastOrNull().orEmpty() },
         body = content,
+        request = uuid,
+        receivedAt = createdAt.toInstant(ZoneOffset.UTC),
         signature = signature,
         schema = schema,
     )

@@ -151,10 +151,13 @@ class WebhookController(
     ) {
         val stopwatch = CaptureStopwatch()
         val token = tokens.findOrGone(tokenId)
-        val received = request.toCapturedRequest(tokenId, clock.instant(), token.signature, token.schema)
+        val receivedAt = clock.instant()
+        val received = request.toCapturedRequest(tokenId, receivedAt, token.signature, token.schema)
         val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
-        if (decision is Decision.Unmatched && token.timeout > 0) stopwatch.sleep(Duration.ofSeconds(token.timeout))
-        val arrival = clock.instant()
+        val waits = decision is Decision.Unmatched && token.timeout > 0
+        if (waits) stopwatch.sleep(Duration.ofSeconds(token.timeout))
+        // O created_at é a hora com que a janela das regras foi julgada; só a espera do timeout o adia.
+        val arrival = if (waits) clock.instant() else receivedAt
         val fault = decision.fault()
         val defaultStatus = responseStatus(request.secondSegment(), token.defaultStatus)
         val captured =

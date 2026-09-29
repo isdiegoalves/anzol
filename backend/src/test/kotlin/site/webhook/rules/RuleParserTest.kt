@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import tools.jackson.databind.json.JsonMapper
 import java.math.BigDecimal
+import java.time.Instant
 
 @DisplayName("Leitura e validação das regras (422 do Anexo A)")
 class RuleParserTest {
@@ -294,6 +295,119 @@ class RuleParserTest {
         @DisplayName("Dado um corpo que não é objeto no rules/test, quando lê, então a chave é rule")
         fun parseRule_naoObjeto_deveUsarChaveRule() {
             assertThat(parseRule(mapper.readTree("[]"))).isEqualTo(Parsed.Invalid(mapOf("rule" to listOf("The rule must be an object."))))
+        }
+    }
+
+    @Nested
+    @DisplayName("Chance e janela")
+    inner class ChanceAndWindow {
+        @Test
+        @DisplayName("Dado chance 1, 50 e 100, ausente ou nula, quando lê, então guarda o número ou nada")
+        fun parseRules_chance_deveGuardarONumero() {
+            val rules =
+                valid(
+                    """[{"name":"a","chance":1},{"name":"b","chance":50},{"name":"c","chance":100},{"name":"d"},""" +
+                        """{"name":"e","chance":null}]""",
+                )
+
+            assertThat(rules.map { it.chance }).containsExactly(1, 50, 100, null, null)
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado uma chance fora de 1..100 ou não inteira, quando lê, então recusa em 0.chance com a mensagem de cada caso")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            0     | The chance must be between 1 and 100.
+            101   | The chance must be between 1 and 100.
+            -5    | The chance must be between 1 and 100.
+            1.5   | The chance must be an integer.
+            "20"  | The chance must be an integer.
+            true  | The chance must be an integer.
+            {}    | The chance must be an integer.""",
+        )
+        fun parseRules_chanceInvalida_deveRecusar(
+            chance: String,
+            message: String,
+        ) {
+            assertThat(errorsOf("""[{"name":"x","chance":$chance}]""")).isEqualTo(mapOf("0.chance" to listOf(message)))
+        }
+
+        @ParameterizedTest(name = "{0} → {1}")
+        @DisplayName("Dado uma data-hora com fuso, com ou sem fração, quando lê, então guarda em UTC cortada no segundo")
+        @CsvSource(
+            "2026-09-29T12:00:00Z, 2026-09-29T12:00:00Z",
+            "2026-09-29T12:00:00.789Z, 2026-09-29T12:00:00Z",
+            "2026-09-29T09:00:00-03:00, 2026-09-29T12:00:00Z",
+            "2026-09-29T12:00:00+00:00, 2026-09-29T12:00:00Z",
+            "2026-09-29t12:00:00.123456789z, 2026-09-29T12:00:00Z",
+        )
+        fun parseRules_dataHora_deveGuardarEmUtcNoSegundo(
+            text: String,
+            expected: String,
+        ) {
+            val rule = valid("""[{"name":"x","active_from":"$text","active_until":"2099-01-01T00:00:00Z"}]""").single()
+
+            assertThat(rule.activeFrom).isEqualTo(Instant.parse(expected))
+            assertThat(rule.activeUntil).isEqualTo(Instant.parse("2099-01-01T00:00:00Z"))
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName(
+            "Dado um texto que não é data-hora com fuso, ou um valor que não é texto, quando lê, então recusa com a mensagem do formato",
+        )
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            "2026-09-29"
+            "2026-09-29T12:00:00"
+            "2026-09-29T12:00Z"
+            "2026-02-30T12:00:00Z"
+            "amanhã"
+            ""
+            1759147200
+            true""",
+        )
+        fun parseRules_dataHoraInvalida_deveRecusar(value: String) {
+            val format = "must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z."
+
+            assertThat(errorsOf("""[{"name":"x","active_from":$value}]"""))
+                .isEqualTo(mapOf("0.active_from" to listOf("The active from $format")))
+            assertThat(errorsOf("""[{"name":"x","active_until":$value}]"""))
+                .isEqualTo(mapOf("0.active_until" to listOf("The active until $format")))
+        }
+
+        @ParameterizedTest(name = "{0} → {1}")
+        @DisplayName(
+            "Dado active_until igual ou antes de active_from depois do corte no segundo, quando lê, então recusa em 0.active_until",
+        )
+        @CsvSource(
+            "2026-09-29T12:00:00Z, 2026-09-29T12:00:00Z",
+            "2026-09-29T12:00:00Z, 2026-09-29T11:00:00Z",
+            "2026-09-29T12:00:00.100Z, 2026-09-29T12:00:00.900Z",
+        )
+        fun parseRules_janelaInvertida_deveRecusar(
+            from: String,
+            until: String,
+        ) {
+            assertThat(errorsOf("""[{"name":"x","active_from":"$from","active_until":"$until"}]"""))
+                .isEqualTo(mapOf("0.active_until" to listOf("The active until must be a date after active from.")))
+        }
+
+        @Test
+        @DisplayName("Dado chance e janela inválidas no rules/test, quando lê, então as chaves vêm sem o índice")
+        fun parseRule_chanceEJanelaInvalidas_deveUsarChaveSemIndice() {
+            val parsed = parseRule(mapper.readTree("""{"name":"x","chance":0,"active_from":"amanhã"}"""))
+
+            assertThat(parsed).isEqualTo(
+                Parsed.Invalid(
+                    mapOf(
+                        "chance" to listOf("The chance must be between 1 and 100."),
+                        "active_from" to
+                            listOf("The active from must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z."),
+                    ),
+                ),
+            )
         }
     }
 }

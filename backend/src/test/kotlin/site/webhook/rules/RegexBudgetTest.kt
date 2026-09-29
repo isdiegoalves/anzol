@@ -89,6 +89,8 @@ class RegexBudgetTest {
                 query = mapOf("q" to SLOW_EXPONENTIAL),
                 headers = mapOf("x-a" to SLOW_EXPONENTIAL),
                 body = SLOW_POLYNOMIAL,
+                request = ANY_REQUEST,
+                receivedAt = ANY_TIME,
             )
 
         val failures = fast { matching(match).failures(input) }
@@ -101,8 +103,8 @@ class RegexBudgetTest {
     fun failures_valorComum_deveSeguirComoSempre() {
         val rule = matching("""{"query":{"q":{"regex":"$EXPONENTIAL"}}}""")
 
-        val casou = rule.failures(MatchInput("GET", "/", mapOf("q" to "aaaa"), emptyMap(), ""))
-        val falhou = rule.failures(MatchInput("GET", "/", mapOf("q" to "b"), emptyMap(), ""))
+        val casou = rule.failures(MatchInput("GET", "/", mapOf("q" to "aaaa"), emptyMap(), "", ANY_REQUEST, ANY_TIME))
+        val falhou = rule.failures(MatchInput("GET", "/", mapOf("q" to "b"), emptyMap(), "", ANY_REQUEST, ANY_TIME))
 
         assertThat(casou).isEmpty()
         assertThat(falhou.map { it.phrase }).containsExactly("query q: expected to match \"$EXPONENTIAL\", got \"b\"")

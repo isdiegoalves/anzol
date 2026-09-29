@@ -1,11 +1,14 @@
 package site.webhook.rules
 
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
 import com.jayway.jsonpath.JsonPath
 import site.webhook.schema.SchemaState
 import site.webhook.signature.SignatureState
 import tools.jackson.databind.JsonNode
+import java.time.Instant
 import java.util.UUID
 
 @JvmInline
@@ -19,12 +22,26 @@ value class RuleId(
  * Regra de resposta de uma URL, no formato do Anexo A do plano (fase A): condições em [match], todas
  * em E; a primeira regra ativa que casa, pela menor [priority] e depois pela ordem na lista, define a
  * resposta. Com [scenario], a regra só casa no estado exigido do cenário e o muda ao responder.
+ *
+ * [activeFrom] (inclusive) e [activeUntil] (exclusive) limitam a regra às mensagens gravadas nessa janela, em UTC e
+ * cortadas no segundo; [chance] (1 a 100) a limita a essa porcentagem das mensagens em que todo o resto casou. Os três
+ * são opcionais e, ausentes, nem aparecem no JSON: a regra gravada sem eles volta igual.
  */
 data class Rule(
     val id: RuleId,
     val name: String,
     val enabled: Boolean,
     val priority: Int,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val chance: Int? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    @field:JsonProperty("active_from")
+    @field:JsonFormat(shape = JsonFormat.Shape.STRING)
+    val activeFrom: Instant? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    @field:JsonProperty("active_until")
+    @field:JsonFormat(shape = JsonFormat.Shape.STRING)
+    val activeUntil: Instant? = null,
     val match: RuleMatch,
     val scenario: RuleScenario? = null,
     val response: RuleResponse,

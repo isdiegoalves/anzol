@@ -13,6 +13,7 @@ import site.webhook.schema.SchemaError
 import site.webhook.schema.SchemaResult
 import site.webhook.signature.SignatureResult
 import tools.jackson.databind.json.JsonMapper
+import java.time.Instant
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -37,19 +38,22 @@ private fun input(
     query: Map<String, String> = emptyMap(),
     headers: Map<String, String> = emptyMap(),
     body: String = "",
-) = MatchInput(method = method, path = path, query = query, headers = headers, body = body)
+) = MatchInput(method = method, path = path, query = query, headers = headers, body = body, request = ANY_REQUEST, receivedAt = ANY_TIME)
+
+/** Entrada que chegou em [receivedAt] (texto ISO-8601). */
+private fun receivedAt(instant: String) = input().copy(receivedAt = Instant.parse(instant))
 
 /** Entrada com o resultado da verificação gravado. */
 private fun signed(
     signature: SignatureResult?,
     body: String = "",
-) = MatchInput(method = "GET", path = "/", query = emptyMap(), headers = emptyMap(), body = body, signature = signature)
+) = input(body = body).copy(signature = signature)
 
 /** Entrada com o resultado da validação do schema gravado. */
 private fun validated(
     schema: SchemaResult?,
     signature: SignatureResult? = null,
-) = MatchInput(method = "GET", path = "/", query = emptyMap(), headers = emptyMap(), body = "", signature = signature, schema = schema)
+) = input().copy(signature = signature, schema = schema)
 
 /** Resultado com [count] erros (0 = válido). */
 private fun schemaResult(count: Int) = SchemaResult(valid = count == 0, errors = List(count) { SchemaError("/$it", "erro $it") })
@@ -573,6 +577,141 @@ b'                                                    | null""",
             assertThat(failures).containsExactly(
                 "signature: expected valid, got invalid (signature mismatch)",
                 "schema: expected valid, got invalid (1 errors)",
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("Janela de tempo")
+    inner class Window {
+        private val janela = rule("""{"name":"janela","active_from":"2026-09-29T12:00:00Z","active_until":"2026-09-29T13:00:00Z"}""")
+
+        @ParameterizedTest(name = "{0}")
+        @DisplayName("Dado a hora de chegada, quando avalia a janela, então vale de active_from (inclusive) até active_until (exclusive)")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            2026-09-29T11:59:59Z | active_from  | window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T11:59:59Z
+            2026-09-29T12:00:00Z |              |
+            2026-09-29T12:59:59Z |              |
+            2026-09-29T13:00:00Z | active_until | window: closed at 2026-09-29T13:00:00Z, received at 2026-09-29T13:00:00Z""",
+        )
+        fun failures_horaDeChegada_deveJulgarAJanela(
+            instant: String,
+            condition: String?,
+            phrase: String?,
+        ) {
+            val failures = janela.failures(receivedAt(instant))
+
+            assertThat(failures).isEqualTo(listOfNotNull(condition?.let { Failure(it, checkNotNull(phrase)) }))
+        }
+
+        @Test
+        @DisplayName("Dado só uma ponta da janela, quando avalia, então a outra fica aberta")
+        fun failures_umaPonta_deveDeixarAOutraAberta() {
+            val desde = rule("""{"name":"desde","active_from":"2026-09-29T12:00:00Z"}""")
+            val ate = rule("""{"name":"até","active_until":"2026-09-29T12:00:00Z"}""")
+
+            assertThat(desde.failures(receivedAt("2099-01-01T00:00:00Z"))).isEmpty()
+            assertThat(ate.failures(receivedAt("2000-01-01T00:00:00Z"))).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado condição, cenário e janela falhando, quando lista as falhas, então a janela vem por último")
+        fun failures_condicaoCenarioEJanela_deveListarAJanelaPorUltimo() {
+            val regra =
+                rule(
+                    """{"name":"x","active_until":"2026-09-29T12:00:00Z","match":{"method":["POST"]},""" +
+                        """"scenario":{"name":"fluxo","requiredState":"pago"}}""",
+                )
+
+            val failures = regra.failures(input(), states = emptyMap())
+
+            assertThat(failures.map { it.condition }).containsExactly("match.method", "scenario", "active_until")
+        }
+    }
+
+    @Nested
+    @DisplayName("Sorteio da chance")
+    inner class Chance {
+        private val regraId = RuleId(UUID.fromString("0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41"))
+
+        private fun withChance(
+            chance: Int,
+            id: RuleId = regraId,
+            match: String = "{}",
+        ) = rule("""{"id":"$id","name":"sorteio","chance":$chance,"match":$match}""")
+
+        private fun request(uuid: String) = RequestId(UUID.fromString(uuid))
+
+        @ParameterizedTest(name = "{0} com {1} → {2}")
+        @DisplayName("Dado a mensagem e a regra, quando sorteia, então é 1 + (8 primeiros bytes do SHA-256 de uuid:id, sem sinal) mod 100")
+        @CsvSource(
+            "3c2e0b6a-1f4d-4e8b-9a7c-5d6e7f8091a2, 0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41, 26",
+            "11111111-2222-4333-8444-555555555555, 0b7e3c1a-8f2d-4c55-9a10-3d2f7e6b5a41, 30",
+            "3c2e0b6a-1f4d-4e8b-9a7c-5d6e7f8091a2, aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee, 29",
+        )
+        fun roll_mensagemERegra_deveSerOSha256DosDois(
+            requestId: String,
+            ruleId: String,
+            expected: Int,
+        ) {
+            assertThat(roll(request(requestId), RuleId(UUID.fromString(ruleId)))).isEqualTo(expected)
+        }
+
+        @Test
+        @DisplayName("Dado 10 mil mensagens, quando sorteia, então todo número de 1 a 100 sai, e nenhum fora deles")
+        fun roll_muitasMensagens_deveCobrirDe1A100() {
+            val rolled = (1..10_000).map { roll(RequestId(UUID.randomUUID()), regraId) }.toSet()
+
+            assertThat(rolled).isEqualTo((1..100).toSet())
+        }
+
+        @Test
+        @DisplayName("Dado o número sorteado dentro da chance, quando avalia, então a regra casa sem falha")
+        fun failures_sorteioDentroDaChance_deveCasar() {
+            val failures = withChance(26).failures(input())
+
+            assertThat(failures).isEmpty()
+        }
+
+        @Test
+        @DisplayName("Dado o número sorteado acima da chance, quando avalia, então a única falha é o sorteio, com o número")
+        fun failures_sorteioAcimaDaChance_deveFalharComONumero() {
+            val failures = withChance(25).failures(input())
+
+            assertThat(failures).containsExactly(Failure("chance", "chance 25%: rolled 26, not applied"))
+        }
+
+        @Test
+        @DisplayName("Dado uma condição ou a janela falhando, quando avalia, então não há sorteio na lista")
+        fun failures_outraFalha_naoDeveSortear() {
+            val porCondicao = withChance(1, match = """{"method":["POST"]}""").failures(input())
+            val porJanela =
+                rule("""{"id":"$regraId","name":"x","chance":1,"active_from":"2099-01-01T00:00:00Z"}""").failures(input())
+
+            assertThat(porCondicao.map { it.condition }).containsExactly("match.method")
+            assertThat(porJanela.map { it.condition }).containsExactly("active_from")
+        }
+
+        @Test
+        @DisplayName("Dado a regra pulada pelo sorteio, quando decide, então a próxima responde e o near miss não é gravado")
+        fun decide_puladaPeloSorteio_deveSeguirParaAProxima() {
+            val pulada = rule("""{"id":"$regraId","name":"pulada","priority":1,"chance":25,"scenario":{"name":"f","newState":"x"}}""")
+            val proxima = rule("""{"name":"próxima","priority":2}""")
+
+            val decision = listOf(pulada, proxima).decide(input())
+
+            assertThat(decision).isEqualTo(Decision.Matched(proxima))
+        }
+
+        @Test
+        @DisplayName("Dado só a regra pulada pelo sorteio, quando decide, então não casa e o near miss é ela, com o sorteio")
+        fun decide_soAPulada_deveSerONearMiss() {
+            val decision = listOf(withChance(25)).decide(input())
+
+            assertThat(decision).isEqualTo(
+                Decision.Unmatched(NearMiss(regraId, "sorteio", listOf("chance 25%: rolled 26, not applied"), listOf("chance"))),
             )
         }
     }
