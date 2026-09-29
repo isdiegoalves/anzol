@@ -18,7 +18,6 @@ import kotlinx.serialization.json.jsonObject
 import java.io.IOException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
-import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 /** Indentação de 2 espaços e quebra de linha final, como o export da tela (`JSON.stringify(regras, null, 2)`). */
@@ -77,7 +76,7 @@ class RulesPush : CoreCliktCommand(name = "push") {
     override fun help(context: Context) = "Replaces all the rules of a URL with the list in a JSON file."
 
     override fun run() {
-        val rules = parse(read(file))
+        val rules = rulesFile(file) { fail(it) }
         val site = WebhookServer(server, httpClient(), readSecret)
         requireAccess(site, token)
         if (dryRun) {
@@ -94,7 +93,7 @@ class RulesPush : CoreCliktCommand(name = "push") {
             }
 
             is RulesReplaced.Invalid -> {
-                replaced.errors.forEach { (key, messages) -> messages.forEach { echo("$key: $it", err = true) } }
+                echoErrors(replaced.errors)
                 throw ProgramResult(1)
             }
         }
@@ -118,21 +117,15 @@ class RulesPush : CoreCliktCommand(name = "push") {
         System.out.flush()
         echo(DRY_RUN_NOTE, err = true)
     }
-
-    private fun read(file: String): String =
-        try {
-            Path.of(file).readText()
-        } catch (_: NoSuchFileException) {
-            fail("File not found: $file")
-        } catch (e: IOException) {
-            fail("Could not read $file: ${e.reason()}")
-        }
-
-    /** Só a sintaxe: se é lista de regras válidas, quem diz é o 422 do servidor. */
-    private fun parse(text: String): JsonElement =
-        try {
-            apiJson.parseToJsonElement(text)
-        } catch (e: SerializationException) {
-            fail("Invalid JSON in $file: ${e.message.orEmpty().lineSequence().first()}")
-        }
 }
+
+/** O JSON de um arquivo de regras, só a sintaxe: se é lista de regras válidas, quem diz é o 422 do servidor. */
+fun rulesFile(
+    file: String,
+    invalid: (String) -> Nothing,
+): JsonElement =
+    try {
+        apiJson.parseToJsonElement(readFile(file, invalid))
+    } catch (e: SerializationException) {
+        invalid("Invalid JSON in $file: ${e.message.orEmpty().lineSequence().first()}")
+    }

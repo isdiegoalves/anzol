@@ -26,7 +26,7 @@ Sem o CLI, cada teste falha com `CLI não encontrado em …; rode ./gradlew inst
 com `servidor Anzol não responde em …`.
 
 Cada teste cria os próprios tokens e os apaga ao fim, passe ou falhe (`DELETE /token/{id}/request`
-e depois `DELETE /token/{id}`), inclusive a URL que o `listen` sem `--token` cria: todo uuid que esse
+e depois `DELETE /token/{id}`), inclusive a URL que o `listen` e o `test` sem `--token` criam: todo uuid que esse
 CLI imprimiu atrás de uma barra é apagado. Os arquivos de regras de `regras.test.mjs` ficam numa pasta
 temporária do sistema, apagada ao fim de cada teste.
 
@@ -75,6 +75,8 @@ temporária do sistema, apagada ao fim de cada teste.
 | `regras.test.mjs` `--dry-run` (UX de Regras, E-07) | `rules push <token> --dry-run <arquivo>` com uma regra igual, duas alteradas (`response.status`, `priority`), uma removida e uma nova: saída 0, sem `Pushed`, regras intactas, e o resumo do `diff_rules` (JSON conferido item a item, ou texto com cada alterada numa linha com o campo e cada removida e nova citada); o arquivo do `pull` sem mudança → tudo igual; token inexistente → `Token not found` e saída 1, sem criar o token |
 | `cursor.test.mjs` cursor (patamar D1, DX-14) | `cursor <token>`: stdout é só o `seq` da mensagem mais nova (uma linha de dígitos; `0` numa URL vazia), igual ao da API, saída 0, e nada é gravado; token inexistente → `Token not found` no stderr, stdout vazio, saída ≠ 0; URL protegida → o número com `--read-secret`, e sem ele saída ≠ 0, stdout vazio e nenhum segredo na saída |
 | `cursor.test.mjs` roteiro (patamar D1, DX-14) | `cursor` → disparo → `wait-for --after <cursor>`, com o disparo **antes** de o `wait-for` começar: saída 0 em menos de 10 s só com a mensagem nova (a antiga que casa fica de fora); na mesma situação `--new --timeout 0` sai com 1 e `[]`; cursor `0` de URL vazia acha a primeira mensagem |
+| `test.test.mjs` URL criada (patamar C1, CA-11) | `test --method --path --json-path -- <gatilho> {url}`: o gatilho (o Node do teste, sem curl) manda o POST para a URL que recebeu; saída 0 antes do prazo, stdout só com essa mensagem (`token_id` e `url` da URL criada) e a URL apagada no fim (410); `--rules` com uma regra que responde 202: `--status 202` sai com 0 e `--status 201` com 1, o 201 citado no stderr e a URL apagada também na falha; prazo sem casar → saída 1, `[]`, `timed out after …` e `closest: #<seq>`; gatilho que sai com 5 → saída 3 sem esperar o prazo, stdout vazio; `match` que o servidor recusa (regex inválida) → saída 2, `match.path.regex: …` no stderr, o gatilho não roda; sem gatilho, a URL impressa recebe o POST de fora e o comando sai com 0 |
+| `test.test.mjs` `--token` (patamar C1, CA-11) | numa URL com uma mensagem antiga que casa, o gatilho manda outra: só a nova sai no stdout (o cursor foi lido antes do gatilho) e a URL continua (200); token inexistente → saída 2, `Token not found`, o gatilho não roda |
 | `bytecode.test.mjs` (patamar D1, DX-05) | toda classe dos `.jar` de `<instalação>/lib` tem bytecode de Java 21 ou anterior (`major` ≤ 65), lido do próprio arquivo, sem rodar Java; a falha lista o maior `major` de cada `.jar` |
 | `send.test.mjs` CA-1 | `send --method PUT` com query, 4 `--header` e `--data`: chega método, caminho+query, cabeçalhos e o corpo byte a byte com `{{uuid}}` (igual no cabeçalho e no corpo), `{{now}}` ISO-8601 UTC e `{{timestamp}}` na janela do envio, `{{seq}}` = 1, `{{random 1\|16\|256}}` alfanuméricos, `{{{{` → `{{`; `--data-file` com UTF-8 e CRLF, POST por padrão; linhas `#1 attempt 1/1 -> 201 (…)` e `#1 delivered after 1 attempt(s)`, saída 0 |
 | `send.test.mjs` CA-2 | stripe, github, shopify, slack e generic (padrões sha256/hex; sha512/base64/`hmac=`; sha1/hex): o receptor confere a assinatura com `node:crypto` sobre os bytes recebidos (timestamps a ≤ 5 s da chegada); prova cruzada: URL da 8084 com a mesma `signature` grava `{provider, valid: true, reason: null}` |
@@ -124,6 +126,12 @@ temporária do sistema, apagada ao fim de cada teste.
 - `cursor` (patamar D1): o token é posicional, como em `rules` e `replay`, e `--server` e `--read-secret` vêm depois
   dele. O código de saída do erro fica livre, desde que não seja 0. Sem o comando, cada teste falha com `falta
   \`anzol cursor\` ou alguma opção dele?`.
+- `test` (patamar C1): o gatilho vem depois do `--`, `{url}` num argumento vira a URL; `--server` vem depois do
+  subcomando, e o CLI herda `WEBHOOK_SERVER` numa porta fechada. A URL criada é lida da primeira `<servidor>/<uuid>`
+  que o CLI imprime, no stdout ou no stderr. Códigos: 0 casou, 1 não casou ou `--status` diferente, 2 erro, 3 o gatilho
+  falhou; o texto das linhas é livre, menos o resumo do `wait-for` (`timed out after <ms> ms: <n>/<count> matched` e
+  `closest: #<seq> …`) e a chave do 422 (`match.path.regex: …`). Sem o comando, cada teste falha com `falta \`anzol
+  test\` ou alguma opção dele?`.
 - `bytecode.test.mjs`: a pasta `lib` é a irmã da pasta do script (`<WEBHOOK_CLI>/../../lib`). Classes em
   `META-INF/versions/N/` com N > 21 são ignoradas (o Java 21 não as carrega). O teste não prova que o CLI roda num
   Java 21 de verdade, só que o bytecode permite: rodar fica com a matriz de JDK do CI.

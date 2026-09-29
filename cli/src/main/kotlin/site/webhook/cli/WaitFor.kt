@@ -1,8 +1,11 @@
 package site.webhook.cli
 
+import com.github.ajalt.clikt.core.BaseCliktCommand
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.CoreCliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -17,6 +20,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import java.io.IOException
@@ -94,10 +99,11 @@ private fun JsonElement.isStrict(): Boolean =
         is JsonPrimitive -> isString || content in JSON_LITERALS || JSON_NUMBER.matches(content)
     }
 
-class WaitFor : CoreCliktCommand(name = "wait-for") {
-    private val token by option("--token", help = "Anzol token (uuid)").convert { TokenId(it) }.required()
-    private val server by serverOption()
-    private val readSecret by readSecretOption()
+/**
+ * As opções da espera, as mesmas no `wait-for` e no `test`: o `match` (por `--match`, `--match-file` e os atalhos),
+ * quantas mensagens e por quanto tempo.
+ */
+class WaitOptions : OptionGroup() {
     private val match by option("--match", help = "JSON object in the format of a response rule's match")
     private val matchFile by option("--match-file", help = "File with the match JSON object")
     private val methods by option("--method", help = "Accepted method, repeatable").multiple()
@@ -106,10 +112,134 @@ class WaitFor : CoreCliktCommand(name = "wait-for") {
     private val bodyContains by option("--body-contains", help = "Body contains this text")
     private val jsonPaths by option("--json-path", help = "'<path>' exists or '<path>=<json>' equals in the JSON body, repeatable")
         .multiple()
-    private val count by option("--count", help = "How many matching requests are needed, 1 to 100 (default 1)").int().default(1)
-    private val timeout by option("--timeout", help = "How long to wait for new requests, ms (default 30000)")
+    val count by option("--count", help = "How many matching requests are needed, 1 to 100 (default 1)").int().default(1)
+    val timeout by option("--timeout", help = "How long to wait for new requests, ms (default 30000)")
         .long()
         .default(DEFAULT_TIMEOUT_MS)
+
+    /** O `match` montado: o objeto de `--match` ou `--match-file` (ou `{}`) com os atalhos por cima. */
+    fun match(invalid: (String) -> Nothing): JsonObject = shortcuts(invalid).applyTo(baseMatch(invalid))
+
+    /** O corpo do `requests/wait` com [match], [after] (quando há) e o `--count`; o `timeout` é o `--timeout`, ou o dado. */
+    fun body(
+        match: JsonObject,
+        after: Long?,
+        timeout: Long = this.timeout,
+    ): JsonObject =
+        buildJsonObject {
+            put("match", match)
+            after?.let { put("after", it) }
+            put("count", count)
+            put("timeout", timeout)
+        }
+
+    private fun shortcuts(invalid: (String) -> Nothing): MatchShortcuts =
+        MatchShortcuts(
+            methods = methods,
+            pathPrefix = path,
+            headers = headers.associate { header(it, invalid) },
+            bodyContains = bodyContains,
+            jsonPaths = jsonPaths,
+        )
+
+    private fun header(
+        raw: String,
+        invalid: (String) -> Nothing,
+    ): Pair<String, String> {
+        val name = raw.substringBefore(':', missingDelimiterValue = "").trim()
+        if (name.isEmpty()) invalid("Invalid header (expected \"Name: value\"): $raw")
+        return name to raw.substringAfter(':').trim()
+    }
+
+    /** O objeto de `--match` ou `--match-file`; sem os dois, `{}`. Se é um `match` válido, quem diz é o 422 do servidor. */
+    private fun baseMatch(invalid: (String) -> Nothing): JsonObject {
+        val file = matchFile
+        if (match != null && file != null) invalid("--match and --match-file cannot be used together")
+        val source = if (file == null) "--match" else file
+        val text = if (file == null) match else readFile(file, invalid)
+        if (text == null) return JsonObject(emptyMap())
+        val parsed = strictJson(text) ?: invalid("Invalid JSON in $source")
+        return parsed as? JsonObject ?: invalid("Invalid match in $source: expected a JSON object")
+    }
+}
+
+/** O texto de [file]; arquivo que não existe ou não se lê vai para [invalid]. */
+fun readFile(
+    file: String,
+    invalid: (String) -> Nothing,
+): String =
+    try {
+        Path.of(file).readText()
+    } catch (_: NoSuchFileException) {
+        invalid("File not found: $file")
+    } catch (e: IOException) {
+        invalid("Could not read $file: ${e.reason()}")
+    }
+
+/**
+ * `POST /token/{id}/requests/wait` com [match], [after] e as opções de [wait], impresso como o `wait-for` imprime: o
+ * stdout só com o array das que casaram (pronto para o `jq`), o resumo no stderr. 422, token inexistente e servidor
+ * fora saem com [WAIT_FOR_ERROR]; o "não casou" volta em [WaitResult.matched], para quem chama decidir.
+ */
+fun BaseCliktCommand<*>.awaitMatching(
+    site: WebhookServer,
+    token: TokenId,
+    match: JsonObject,
+    after: Long?,
+    wait: WaitOptions,
+): WaitResult {
+    val start = System.nanoTime()
+    val result = requestWait(site, token, wait.body(match, after))
+    report(result, wait.count, Duration.ofNanos(System.nanoTime() - start).toMillis())
+    return result
+}
+
+/**
+ * `POST /token/{id}/requests/wait` com [body] ([WaitOptions.body]), sem imprimir nada; o prazo HTTP é o `timeout` do
+ * corpo mais a folga. Com `timeout` 0 o servidor só olha o que já chegou e responde logo: é como o `test` confere o
+ * `match` antes do gatilho. 422, token inexistente e servidor fora saem com [WAIT_FOR_ERROR].
+ */
+fun BaseCliktCommand<*>.requestWait(
+    site: WebhookServer,
+    token: TokenId,
+    body: JsonObject,
+): WaitResult {
+    val deadline = Duration.ofMillis(body.getValue("timeout").jsonPrimitive.long).plus(HTTP_SLACK)
+    return when (val answer = reaching(site, WAIT_FOR_ERROR) { site.waitFor(token, body, deadline) }) {
+        is WaitAnswer.Answered -> {
+            answer.result
+        }
+
+        is WaitAnswer.Invalid -> {
+            echoErrors(answer.errors)
+            throw ProgramResult(WAIT_FOR_ERROR)
+        }
+
+        WaitAnswer.TokenNotFound -> {
+            fail("Token not found", WAIT_FOR_ERROR)
+        }
+    }
+}
+
+private fun BaseCliktCommand<*>.report(
+    result: WaitResult,
+    count: Int,
+    elapsed: Long,
+) {
+    System.out.write((result.requests.toString() + "\n").toByteArray(Charsets.UTF_8))
+    System.out.flush()
+    if (result.matched) return echo("matched ${result.count}/$count in $elapsed ms", err = true)
+    echo("timed out after $elapsed ms: ${result.count}/$count matched", err = true)
+    val closest = result.nearMiss ?: return
+    echo("closest: #${closest.seq} ${closest.uuid}", err = true)
+    closest.failed.forEach { echo("  - $it", err = true) }
+}
+
+class WaitFor : CoreCliktCommand(name = "wait-for") {
+    private val token by option("--token", help = "Anzol token (uuid)").convert { TokenId(it) }.required()
+    private val server by serverOption()
+    private val readSecret by readSecretOption()
+    private val wait by WaitOptions()
     private val after by option("--after", help = "Only requests with seq greater than this").long()
     private val new by option("--new", help = "Only requests that arrive after the command starts").flag()
 
@@ -118,50 +248,10 @@ class WaitFor : CoreCliktCommand(name = "wait-for") {
 
     override fun run() {
         if (after != null && new) invalid("--after and --new cannot be used together")
-        val matchJson = shortcuts().applyTo(baseMatch())
+        val match = wait.match(::invalid)
         val site = WebhookServer(server, httpClient(), readSecret)
         requireAccess(site, token, WAIT_FOR_ERROR)
-        val wait =
-            buildJsonObject {
-                put("match", matchJson)
-                cursor(site)?.let { put("after", it) }
-                put("count", count)
-                put("timeout", timeout)
-            }
-        val start = System.nanoTime()
-        val answer = reaching(site, WAIT_FOR_ERROR) { site.waitFor(token, wait, Duration.ofMillis(timeout).plus(HTTP_SLACK)) }
-        val elapsed = Duration.ofNanos(System.nanoTime() - start).toMillis()
-        when (answer) {
-            is WaitAnswer.Answered -> {
-                report(answer.result, elapsed)
-            }
-
-            is WaitAnswer.Invalid -> {
-                answer.errors.forEach { (key, messages) -> messages.forEach { echo("$key: $it", err = true) } }
-                throw ProgramResult(WAIT_FOR_ERROR)
-            }
-
-            WaitAnswer.TokenNotFound -> {
-                invalid("Token not found")
-            }
-        }
-    }
-
-    /** stdout só com o array das que casaram (pronto para o `jq`); o resumo vai para o stderr. */
-    private fun report(
-        result: WaitResult,
-        elapsed: Long,
-    ) {
-        System.out.write((result.requests.toString() + "\n").toByteArray(Charsets.UTF_8))
-        System.out.flush()
-        if (result.matched) return echo("matched ${result.count}/$count in $elapsed ms", err = true)
-        echo("timed out after $elapsed ms: ${result.count}/$count matched", err = true)
-        val closest = result.nearMiss
-        if (closest != null) {
-            echo("closest: #${closest.seq} ${closest.uuid}", err = true)
-            closest.failed.forEach { echo("  - $it", err = true) }
-        }
-        throw ProgramResult(1)
+        if (!awaitMatching(site, token, match, cursor(site), wait).matched) throw ProgramResult(1)
     }
 
     /** `--after`, ou com `--new` o `seq` da mensagem mais nova agora; sem os dois, o histórico inteiro. */
@@ -170,41 +260,6 @@ class WaitFor : CoreCliktCommand(name = "wait-for") {
             reaching(site, WAIT_FOR_ERROR) { site.newestSeq(token) } ?: invalid("Token not found")
         } else {
             after
-        }
-
-    private fun shortcuts(): MatchShortcuts =
-        MatchShortcuts(
-            methods = methods,
-            pathPrefix = path,
-            headers = headers.associate(::header),
-            bodyContains = bodyContains,
-            jsonPaths = jsonPaths,
-        )
-
-    private fun header(raw: String): Pair<String, String> {
-        val name = raw.substringBefore(':', missingDelimiterValue = "").trim()
-        if (name.isEmpty()) invalid("Invalid header (expected \"Name: value\"): $raw")
-        return name to raw.substringAfter(':').trim()
-    }
-
-    /** O objeto de `--match` ou `--match-file`; sem os dois, `{}`. Se é um `match` válido, quem diz é o 422 do servidor. */
-    private fun baseMatch(): JsonObject {
-        val file = matchFile
-        if (match != null && file != null) invalid("--match and --match-file cannot be used together")
-        val source = if (file == null) "--match" else file
-        val text = if (file == null) match else read(file)
-        if (text == null) return JsonObject(emptyMap())
-        val parsed = strictJson(text) ?: invalid("Invalid JSON in $source")
-        return parsed as? JsonObject ?: invalid("Invalid match in $source: expected a JSON object")
-    }
-
-    private fun read(file: String): String =
-        try {
-            Path.of(file).readText()
-        } catch (_: NoSuchFileException) {
-            invalid("File not found: $file")
-        } catch (e: IOException) {
-            invalid("Could not read $file: ${e.reason()}")
         }
 
     private fun invalid(message: String): Nothing = fail(message, WAIT_FOR_ERROR)

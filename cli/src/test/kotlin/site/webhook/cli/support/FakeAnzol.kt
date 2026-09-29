@@ -37,7 +37,7 @@ private const val UNAUTHORIZED = 401
 
 /**
  * Servidor Anzol falso, só com as rotas que o CLI usa, no formato de `tests/contract/`:
- * `POST /token`, `GET /token/{id}` (410 se não existe), o SSE `request.created`, a listagem
+ * `POST /token`, `GET`/`DELETE /token/{id}` (410 se não existe), o SSE `request.created`, a listagem
  * paginada (e a incremental, `after=<seq>`), `GET /token/{id}/request/{rid}`, `GET`/`PUT /token/{id}/rules` e o
  * `POST /token/{id}/requests/wait` (grava o corpo e responde [waitReply], sem avaliar nada).
  * Cada mensagem gravada ganha `seq` crescente, como o índice do servidor real.
@@ -60,6 +60,7 @@ class FakeAnzol : AutoCloseable {
     /** Status e corpo da resposta do `requests/wait`, depois de [waitDelay]. */
     @Volatile var waitReply: Pair<Int, String> = 200 to """{"matched":true,"count":0,"requests":[],"near_miss":null}"""
 
+    /** Atraso da resposta do `requests/wait`; com `timeout` 0 ele responde logo, como o real, que só olha o histórico. */
     @Volatile var waitDelay: Duration = Duration.ZERO
 
     /** Quantos `PUT /token/{id}/rules` chegaram, válidos ou não. */
@@ -73,6 +74,15 @@ class FakeAnzol : AutoCloseable {
 
     /** Roda a cada listagem (com a query dela), antes de responder: ex. um DELETE no meio da recuperação. */
     @Volatile var onList: ((String) -> Unit)? = null
+
+    /** Roda a cada `POST /token/{id}/requests/wait`, antes de responder. */
+    @Volatile var onWait: (() -> Unit)? = null
+
+    /** Roda a cada `PUT /token/{id}/rules`, antes de responder. */
+    @Volatile var onRulesPut: (() -> Unit)? = null
+
+    /** Tokens apagados pelo `DELETE /token/{id}`, em ordem. */
+    val deleted = CopyOnWriteArrayList<String>()
 
     val base: String get() = "http://127.0.0.1:${server.address.port}"
 
@@ -176,6 +186,7 @@ class FakeAnzol : AutoCloseable {
             method == "POST" && path == "/token" -> exchange.respond(201, """{"uuid":"${createToken()}"}""")
             method == "PUT" && RULES_ROUTE.matches(path) -> replaceRules(exchange, RULES_ROUTE.matchEntire(path)?.groupValues?.get(1))
             method == "POST" && WAIT_ROUTE.matches(path) -> wait(exchange, WAIT_ROUTE.matchEntire(path)?.groupValues?.get(1))
+            method == "DELETE" && TOKEN_ROUTE.matches(path) -> delete(exchange, token.orEmpty())
             method != "GET" -> exchange.respond(405, "")
             else -> handleGet(exchange, path)
         }
@@ -269,6 +280,7 @@ class FakeAnzol : AutoCloseable {
         token: String?,
     ) {
         rulePuts.incrementAndGet()
+        onRulesPut?.invoke()
         val body = exchange.requestBody.use { String(it.readAllBytes()) }
         val list = runCatching { Json.parseToJsonElement(body) }.getOrNull() as? JsonArray
         val missingName = list?.indices?.filter { "name" !in list[it].jsonObject }.orEmpty()
@@ -306,10 +318,23 @@ class FakeAnzol : AutoCloseable {
         token: String?,
     ) {
         if (token == null || !messages.containsKey(token)) return exchange.respond(410, TOKEN_NOT_FOUND)
-        waits += Json.parseToJsonElement(exchange.requestBody.use { String(it.readAllBytes()) }).jsonObject
-        Thread.sleep(waitDelay)
+        val wait = Json.parseToJsonElement(exchange.requestBody.use { String(it.readAllBytes()) }).jsonObject
+        waits += wait
+        onWait?.invoke()
+        if (wait["timeout"]?.jsonPrimitive?.long != 0L) Thread.sleep(waitDelay)
         val (status, body) = waitReply
         exchange.respond(status, body)
+    }
+
+    /** Como o servidor real: 204 e o token some (mensagens e regras juntas); 410 se não existe. */
+    private fun delete(
+        exchange: HttpExchange,
+        token: String,
+    ) {
+        if (messages.remove(token) == null) return exchange.respond(410, TOKEN_NOT_FOUND)
+        ruleLists.remove(token)
+        deleted += token
+        exchange.respond(204, "")
     }
 
     private fun JsonObject.withId(): JsonObject = if ("id" in this) this else with("id", JsonPrimitive(UUID.randomUUID().toString()))

@@ -18,6 +18,7 @@ import java.util.stream.Stream
 
 private const val OK = 200
 private const val CREATED = 201
+private const val NO_CONTENT = 204
 private const val UNAUTHORIZED = 401
 private const val NOT_FOUND = 404
 private const val GONE = 410
@@ -119,6 +120,12 @@ class WebhookServer(
         val response = send("POST", "/token")
         if (response.statusCode() != CREATED) throw unexpected(response)
         return apiJson.decodeFromString<NewToken>(response.body()).uuid
+    }
+
+    /** `DELETE /token/{id}`: a URL e as mensagens dela somem. Já apagada (404/410) conta como apagada. */
+    fun deleteToken(token: TokenId) {
+        val response = send("DELETE", "/token/$token")
+        if (response.statusCode() !in setOf(NO_CONTENT, OK, NOT_FOUND, GONE)) throw unexpected(response)
     }
 
     /** `GET /token/{id}/request/{rid}`: a mensagem inteira; `null` quando ela ou o token não existem. */

@@ -72,7 +72,7 @@ class ProcessoCli {
     aoFinal(async () => {
       ativos.delete(this);
       await this.encerrar();
-      // Sem --token o CLI cria a URL: todo uuid que ele imprimiu atrás de uma barra é apagado.
+      // Sem --token o CLI (listen, test) cria a URL: todo uuid que ele imprimiu atrás de uma barra é apagado.
       if (criaToken) {
         const vistos = new Set();
         for (const { texto } of this.linhas) for (const m of texto.matchAll(UUIDS_NA_URL)) vistos.add(m[1]);
@@ -172,7 +172,7 @@ class ProcessoCli {
 export async function iniciarCli(args) {
   garantirCli();
   await verificarServidor();
-  const criaToken = args[0] === 'listen' && !args.includes('--token');
+  const criaToken = ['listen', 'test'].includes(args[0]) && !args.includes('--token');
   return new ProcessoCli(args, { criaToken });
 }
 

@@ -26,14 +26,24 @@ import kotlin.system.exitProcess
 private const val DEFAULT_SERVER = "http://localhost:8084"
 private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
-/** O `main` do Clikt, com uma troca: uso inválido do `wait-for` sai com 2, porque o 1 dele é "não casou". */
+/** O `main` do Clikt, com uma troca: uso inválido do `wait-for` e do `test` sai com 2, porque o 1 deles é "não casou". */
 fun main(args: Array<String>) {
-    val anzol = Anzol().subcommands(Cursor(), Listen(), Replay(), Rules().subcommands(RulesPull(), RulesPush()), Send(), WaitFor())
+    val anzol =
+        Anzol().subcommands(
+            Cursor(),
+            Listen(),
+            Replay(),
+            Rules().subcommands(RulesPull(), RulesPush()),
+            Send(),
+            TestCycle(),
+            WaitFor(),
+        )
     try {
         anzol.parse(args)
     } catch (e: UsageError) {
         anzol.echoFormattedHelp(e)
-        exitProcess(if (e.context?.command is WaitFor) WAIT_FOR_ERROR else e.statusCode)
+        val command = e.context?.command
+        exitProcess(if (command is WaitFor || command is TestCycle) WAIT_FOR_ERROR else e.statusCode)
     } catch (e: CliktError) {
         anzol.echoFormattedHelp(e)
         exitProcess(e.statusCode)
@@ -115,6 +125,10 @@ fun BaseCliktCommand<*>.fail(
     echo(message, err = true)
     throw ProgramResult(status)
 }
+
+/** O 422 da API (chave em notação de ponto → mensagens): cada `chave: mensagem` numa linha do stderr. */
+fun BaseCliktCommand<*>.echoErrors(errors: Map<String, List<String>>) =
+    errors.forEach { (key, messages) -> messages.forEach { echo("$key: $it", err = true) } }
 
 /** Servidor fora do ar na partida vira mensagem curta, não stack trace, e saída [status]. */
 fun <T> BaseCliktCommand<*>.reaching(
