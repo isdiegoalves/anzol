@@ -277,7 +277,6 @@ class OutboundClient(
             }
         }
 
-    /** Cancela [outgoing] quando [after] vence. */
     private inner class Deadline(
         after: Duration,
         outgoing: Cancellable,
