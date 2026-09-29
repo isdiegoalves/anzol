@@ -79,7 +79,10 @@ data class RuleMatch(
     val schema: SchemaState? = null,
 )
 
-/** Com [fault], a conexão falha no lugar da resposta e os demais campos são ignorados. */
+/**
+ * Com [fault], a conexão falha no lugar da resposta, e [delay] e [dribble] são ignorados; status, cabeçalhos e corpo só
+ * valem nas falhas que começam a resposta ([Fault.startsResponse]).
+ */
 data class RuleResponse(
     val status: Int = DEFAULT_RESPONSE_STATUS,
     val headers: Map<String, String> = emptyMap(),

@@ -117,8 +117,8 @@ private fun HttpServletRequest.secondSegment(): String? =
         .filter { it.isNotEmpty() }
         .getOrNull(1)
 
-// Cada dependência é um passo da captura (token, mensagens, regras, cenários, hora, tempo real e métricas);
-// agrupá-las só para caber no limite criaria um tipo sem outro uso.
+// Cada dependência é um passo da captura (token, mensagens, regras, cenários, conexões presas, hora, tempo real e
+// métricas); agrupá-las só para caber no limite criaria um tipo sem outro uso.
 @Suppress("LongParameterList")
 @RestController
 class WebhookController(
@@ -126,6 +126,7 @@ class WebhookController(
     private val requests: RequestStore,
     private val rules: RuleStore,
     private val scenarios: ScenarioStore,
+    private val held: HeldConnections,
     private val clock: Clock,
     private val stream: RequestStream,
     private val telemetry: WebhookTelemetry,
@@ -135,7 +136,8 @@ class WebhookController(
      * casa responde (e muda o estado do cenário dela, junto com a escolha); sem ela, a resposta padrão da
      * URL de sempre (`default_*`, `timeout`, `retry_after` e o status pelo caminho). A mensagem grava qual
      * regra respondeu, ou a mais próxima. Cada captura respondida conta nas métricas de negócio, com o tempo
-     * gasto pelo app (sem as esperas programadas).
+     * gasto pelo app (sem as esperas programadas). A falha que prende a conexão só vale com vaga ([HeldConnections]);
+     * sem ela, a mensagem grava o 503 que o cliente recebe.
      */
     @RequestMapping(
         path = ["/{tokenId:$UUID_PATTERN}", "/{tokenId:$UUID_PATTERN}/**"],
@@ -160,43 +162,75 @@ class WebhookController(
         val arrival = if (waits) clock.instant() else receivedAt
         val fault = decision.fault()
         val defaultStatus = responseStatus(request.secondSegment(), token.defaultStatus)
-        val captured =
-            received.copy(
-                createdAt = arrival.toLegacyDateTime(),
-                updatedAt = arrival.toLegacyDateTime(),
-                rule = decision.ruleRef(),
-                nearMiss = decision.nearMiss(),
-                response = decision.recordedResponse(defaultStatus),
-            )
-        val stored = requests.store(token, captured, arrival)
-        telemetry.cleanupRemoved(stored.removed.size)
-        stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
-        // Status dado ao cliente; nulo quando a falha de rede da regra derrubou a conexão (nada mais vale).
-        val status =
-            when (decision) {
-                is Decision.Matched -> {
-                    if (fault != null) {
-                        request.clientConnection().fail(fault, captured)
-                        null
-                    } else {
-                        answerByRule(response, token, captured.copy(seq = stored.seq), decision.rule.response, stopwatch)
+        (if (fault?.holds == true) held.reserve(tokenId) else HoldSlot.NONE).use { slot ->
+            val captured =
+                received.copy(
+                    createdAt = arrival.toLegacyDateTime(),
+                    updatedAt = arrival.toLegacyDateTime(),
+                    rule = decision.ruleRef(),
+                    nearMiss = decision.nearMiss(),
+                    response = decision.recordedResponse(defaultStatus, slot.refused),
+                )
+            val stored = requests.store(token, captured, arrival)
+            telemetry.cleanupRemoved(stored.removed.size)
+            stream.publish(captured.copy(seq = stored.seq), stored.removed) { requests.count(token) }
+            // Status dado ao cliente; nulo quando a falha de rede da regra derrubou a conexão (nada mais vale).
+            val status =
+                when (decision) {
+                    is Decision.Matched -> {
+                        val answer = decision.rule.response
+                        answerMatched(request, response, token, captured.copy(seq = stored.seq), answer, slot.refused, stopwatch)
+                    }
+
+                    is Decision.Unmatched -> {
+                        defaultStatus.also { response.writeConfiguredResponse(token, captured, it) }
                     }
                 }
+            val outcome =
+                CaptureOutcome(
+                    method = request.method,
+                    status = status,
+                    ruleMatched = decision is Decision.Matched,
+                    signature = captured.signature?.state(),
+                    schema = captured.schema?.state(),
+                    fault = fault.takeIf { slot.refused == null },
+                )
+            telemetry.captured(request, tokenId, outcome, stopwatch.elapsed())
+        }
+    }
 
-                is Decision.Unmatched -> {
-                    defaultStatus.also { response.writeConfiguredResponse(token, captured, it) }
-                }
+    /**
+     * Resposta da regra que casou: o 503 do teto de conexões presas ([refused]), a resposta dela ([answerByRule]) ou a
+     * falha de rede, depois do status e dos cabeçalhos nas que começam a resposta. Devolve o status dado, ou nulo com a
+     * falha.
+     */
+    @Suppress("LongParameterList")
+    private fun answerMatched(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        token: Token,
+        captured: CapturedRequest,
+        answer: RuleResponse,
+        refused: HoldLimit?,
+        stopwatch: CaptureStopwatch,
+    ): Int? {
+        val fault = answer.fault
+        return when {
+            fault != null && refused != null -> {
+                response.writeHoldRefusal(token, captured, fault, refused)
+                HttpServletResponse.SC_SERVICE_UNAVAILABLE
             }
-        val outcome =
-            CaptureOutcome(
-                method = request.method,
-                status = status,
-                ruleMatched = decision is Decision.Matched,
-                signature = captured.signature?.state(),
-                schema = captured.schema?.state(),
-                fault = fault,
-            )
-        telemetry.captured(request, tokenId, outcome, stopwatch.elapsed())
+
+            fault == null -> {
+                answerByRule(response, token, captured, answer, stopwatch)
+            }
+
+            else -> {
+                if (fault.startsResponse) response.writeStartedResponse(token, captured, render(response, token, captured, answer), fault)
+                request.clientConnection().fail(fault, captured, held.holdMax, stopwatch)
+                null
+            }
+        }
     }
 
     /**
@@ -216,17 +250,25 @@ class WebhookController(
         stopwatch: CaptureStopwatch,
     ): Int {
         answer.delay?.let { stopwatch.sleep(Duration.ofMillis(it.millis())) }
-        val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant(), token.signature)
-        val rendered =
-            try {
-                answer.rendered(input)
-            } catch (e: ResponseStatusException) {
-                requests.replace(token, captured.copy(response = RecordedResponse(status = e.statusCode.value())))
-                response.setHeader("X-Request-Id", captured.uuid.toString())
-                throw e
-            }
+        val rendered = render(response, token, captured, answer)
         response.writeRuleResponse(token, captured, rendered, stopwatch)
         return rendered.status
+    }
+
+    private fun render(
+        response: HttpServletResponse,
+        token: Token,
+        captured: CapturedRequest,
+        answer: RuleResponse,
+    ): RuleResponse {
+        val input = TemplateInput(captured.toTemplateRequest(), checkNotNull(captured.seq), clock.instant(), token.signature)
+        return try {
+            answer.rendered(input)
+        } catch (e: ResponseStatusException) {
+            requests.replace(token, captured.copy(response = RecordedResponse(status = e.statusCode.value())))
+            response.setHeader("X-Request-Id", captured.uuid.toString())
+            throw e
+        }
     }
 
     private fun HttpServletResponse.writeConfiguredResponse(
@@ -254,14 +296,52 @@ class WebhookController(
         answer: RuleResponse,
         stopwatch: CaptureStopwatch,
     ) {
-        status = answer.status
+        writeRuleHead(token, captured, answer.status, answer.headers)
+        val dribble = answer.dribble
+        if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble, stopwatch)
+    }
+
+    private fun HttpServletResponse.writeRuleHead(
+        token: Token,
+        captured: CapturedRequest,
+        status: Int,
+        headers: Map<String, String>,
+    ) {
+        this.status = status
         setHeader("X-Request-Id", captured.uuid.toString())
         setHeader("X-Token-Id", token.uuid.toString())
         if (token.cors) CORS_HEADERS.forEach(::setHeader)
-        answer.headers.forEach(::setHeader)
+        headers.forEach(::setHeader)
         addCaptureSandbox()
-        val dribble = answer.dribble
-        if (dribble == null) writeBody(answer.body) else writeDribbled(answer.body, dribble, stopwatch)
+    }
+
+    /**
+     * Status e cabeçalhos da regra, com o `Content-Length` do corpo inteiro e, no `truncated_body`, a primeira metade
+     * dele; o resto é a falha na conexão.
+     */
+    private fun HttpServletResponse.writeStartedResponse(
+        token: Token,
+        captured: CapturedRequest,
+        answer: RuleResponse,
+        fault: Fault,
+    ) {
+        val body = answer.body.toByteArray(UTF_8)
+        writeRuleHead(token, captured, answer.status, answer.headers)
+        setContentLengthLong(body.size.toLong())
+        if (fault == Fault.TRUNCATED_BODY) outputStream.write(body, 0, body.size / 2)
+        flushBuffer()
+    }
+
+    /** O 503 no lugar da falha que prenderia a conexão além do teto ([limit]). */
+    private fun HttpServletResponse.writeHoldRefusal(
+        token: Token,
+        captured: CapturedRequest,
+        fault: Fault,
+        limit: HoldLimit,
+    ) {
+        val headers = mapOf("Content-Type" to "text/plain", "X-Fault-Limit" to limit.reason)
+        writeRuleHead(token, captured, HttpServletResponse.SC_SERVICE_UNAVAILABLE, headers)
+        writeBody("The ${fault.value} fault was not applied: ${limit.reason}.")
     }
 
     /**
@@ -304,14 +384,21 @@ private fun Decision.fault(): Fault? =
     }
 
 /**
- * O `response` gravado: a falha de rede da regra, o status dela (que o template não muda) ou o [defaultStatus] da URL
- * quando nenhuma regra respondeu.
+ * O `response` gravado: a falha de rede da regra, o 503 quando o teto de conexões presas a barrou ([refused]), o status
+ * dela (que o template não muda) ou o [defaultStatus] da URL quando nenhuma regra respondeu.
  */
-private fun Decision.recordedResponse(defaultStatus: Int): RecordedResponse =
+private fun Decision.recordedResponse(
+    defaultStatus: Int,
+    refused: HoldLimit?,
+): RecordedResponse =
     when (this) {
         is Decision.Matched -> {
             val fault = rule.response.fault
-            if (fault != null) RecordedResponse(fault = fault) else RecordedResponse(status = rule.response.status)
+            when {
+                refused != null -> RecordedResponse(status = HttpServletResponse.SC_SERVICE_UNAVAILABLE)
+                fault != null -> RecordedResponse(fault = fault)
+                else -> RecordedResponse(status = rule.response.status)
+            }
         }
 
         is Decision.Unmatched -> {

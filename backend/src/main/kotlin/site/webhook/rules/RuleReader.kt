@@ -135,6 +135,9 @@ class RuleReader(
         val delay = timingReader.delay(node["delay"], key(key, "delay"))
         val dribble = timingReader.dribble(node["dribble"], key(key, "dribble"))
         val fault = timingReader.fault(node["fault"], key(key, "fault"))
+        if (fault?.startsResponse == true && body.isEmpty() && !violations.hasErrorsUnder(key(key, "body"))) {
+            violations.fail(key(key, "body"), "The body field is required when fault is ${fault.value}.")
+        }
         return if (violations.hasErrorsUnder(
                 key,
             )

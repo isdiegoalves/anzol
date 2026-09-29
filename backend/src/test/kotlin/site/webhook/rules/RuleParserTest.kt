@@ -410,4 +410,48 @@ class RuleParserTest {
             )
         }
     }
+
+    @Nested
+    @DisplayName("Falhas que prendem ou cortam a resposta")
+    inner class HeldFaults {
+        @Test
+        @DisplayName("Dado hang, stall_after_headers e truncated_body, quando lê, então guarda cada falha; hang aceita corpo vazio")
+        fun parseRules_falhasNovas_deveGuardar() {
+            val rules =
+                valid(
+                    """[{"name":"a","response":{"fault":"hang"}},""" +
+                        """{"name":"b","response":{"body":"x","fault":"stall_after_headers"}},""" +
+                        """{"name":"c","response":{"body":"x","fault":"truncated_body"}}]""",
+                )
+
+            assertThat(rules.map { it.response.fault }).containsExactly(Fault.HANG, Fault.STALL_AFTER_HEADERS, Fault.TRUNCATED_BODY)
+        }
+
+        @ParameterizedTest(name = "{0} com {1}")
+        @DisplayName("Dado stall_after_headers ou truncated_body sem corpo, quando lê, então recusa em 0.response.body")
+        @CsvSource(
+            delimiter = '|',
+            textBlock = """
+            stall_after_headers | {"fault":"stall_after_headers"}
+            stall_after_headers | {"body":"","fault":"stall_after_headers"}
+            stall_after_headers | {"body":null,"fault":"stall_after_headers"}
+            truncated_body      | {"fault":"truncated_body"}
+            truncated_body      | {"body":"","fault":"truncated_body"}""",
+        )
+        fun parseRules_falhaSemCorpo_deveRecusar(
+            fault: String,
+            response: String,
+        ) {
+            assertThat(errorsOf("""[{"name":"x","response":$response}]"""))
+                .isEqualTo(mapOf("0.response.body" to listOf("The body field is required when fault is $fault.")))
+        }
+
+        @Test
+        @DisplayName("Dado um corpo que não é texto com stall_after_headers, quando lê, então só o erro do tipo aparece")
+        fun parseRules_corpoNaoTexto_deveDarSoOErroDoTipo() {
+            val errors = errorsOf("""[{"name":"x","response":{"body":1,"fault":"stall_after_headers"}}]""")
+
+            assertThat(errors).isEqualTo(mapOf("0.response.body" to listOf("The body must be a string.")))
+        }
+    }
 }

@@ -7,9 +7,12 @@ import org.apache.coyote.Request
 import org.apache.coyote.Response
 import org.apache.tomcat.util.net.NioChannel
 import org.apache.tomcat.util.net.SocketWrapperBase
+import java.io.IOException
 import java.net.StandardSocketOptions
+import java.nio.ByteBuffer
 
 private const val CONNECTION_ATTRIBUTE = "site.webhook.clientConnection"
+private const val PROBE_SIZE = 512
 
 /**
  * A conexão TCP do cliente, abaixo do Servlet, para as falhas de rede das regras. Cada operação
@@ -37,6 +40,17 @@ class ClientConnection(
         socket.flush(true)
         abort()
     }
+
+    /**
+     * O cliente já fechou a conexão (FIN ou RST)? Lê o socket sem bloquear; o que o cliente mandou depois da requisição
+     * é descartado, porque a conexão não serve outra requisição depois de uma falha.
+     */
+    fun closedByClient(): Boolean =
+        try {
+            socket.read(false, ByteBuffer.allocate(PROBE_SIZE)) < 0
+        } catch (_: IOException) {
+            true
+        }
 
     private fun abort() {
         response.action(ActionCode.CLOSE_NOW, null)

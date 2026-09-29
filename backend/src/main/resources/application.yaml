@@ -84,6 +84,10 @@ webhook:
   stream:
     # Comentário periódico no SSE: mantém a conexão viva e descobre quem fechou a aba.
     heartbeat: 15s
+  # Teto, em segundos, da conexão presa pelas falhas `hang` e `stall_after_headers` das regras (fecha antes se o
+  # cliente desistir).
+  fault:
+    hold-max: ${WEBHOOK_FAULT_HOLD_MAX:300}
   # Replay e send pelo servidor. Padrão seguro para publicar: só destinos públicos. O docker-compose.yml (uso local)
   # libera loopback e redes privadas e troca o `localhost` do alvo pelo host do Docker.
   outbound:

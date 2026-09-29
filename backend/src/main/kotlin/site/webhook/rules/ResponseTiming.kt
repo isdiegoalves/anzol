@@ -52,14 +52,23 @@ data class Dribble(
     val durationMs: Int,
 )
 
-/** Falha de rede no lugar da resposta; no JSON, o nome em minúsculas. */
+/**
+ * Falha de rede no lugar da resposta; no JSON, o nome em minúsculas. [holds]: a conexão fica presa até o cliente
+ * desistir ou o teto (conta no limite de conexões presas). [startsResponse]: manda o status e os cabeçalhos da regra
+ * antes de falhar, com o `Content-Length` do corpo, e por isso exige corpo.
+ */
 enum class Fault(
     @get:JsonValue val value: String,
+    val holds: Boolean = false,
+    val startsResponse: Boolean = false,
 ) {
     CONNECTION_RESET("connection_reset"),
     EMPTY_RESPONSE("empty_response"),
     MALFORMED_CHUNK("malformed_chunk"),
     RANDOM_DATA_THEN_CLOSE("random_data_then_close"),
+    HANG("hang", holds = true),
+    STALL_AFTER_HEADERS("stall_after_headers", holds = true, startsResponse = true),
+    TRUNCATED_BODY("truncated_body", startsResponse = true),
     ;
 
     companion object {
