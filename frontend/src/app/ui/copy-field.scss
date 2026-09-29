@@ -9,6 +9,10 @@
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-full);
   background: var(--mat-sys-surface-container-lowest);
+
+  @media (pointer: coarse) {
+    height: 44px;
+  }
 }
 
 .link {
@@ -33,9 +37,11 @@
     border-radius: var(--mat-sys-corner-extra-small);
   }
 
-  // Com toque, da altura do campo: tocar em qualquer ponto dele seleciona a URL.
+  // Com toque, da altura do campo, por cima da borda de 1 px (44 px de alvo): tocar em qualquer ponto
+  // dele seleciona a URL.
   @media (pointer: coarse) {
     align-self: stretch;
+    margin-block: -1px;
   }
 }
 
@@ -67,6 +73,7 @@
   @media (pointer: coarse) {
     width: 44px;
     height: 44px;
+    margin-block: -1px;
   }
 }
 
