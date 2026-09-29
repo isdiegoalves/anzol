@@ -19,6 +19,12 @@
   flex: none;
 }
 
+// Sem oferta de agrupar nem comparação, as faixas ficam vazias e dobrariam o vão entre os blocos.
+app-event-bar:empty,
+app-compare-band:empty {
+  display: none;
+}
+
 .order {
   display: inline-flex;
   flex: none;
