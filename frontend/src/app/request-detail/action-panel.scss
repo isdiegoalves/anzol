@@ -119,11 +119,19 @@
   font: var(--mat-sys-label-large);
 }
 
+// Uma faixa própria embaixo do conteúdo que rola: colada nele, a frase parecia escrita por cima.
 .result {
   flex: none;
-  padding: 0 16px 12px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container);
   font: var(--mat-sys-body-medium);
   overflow-wrap: anywhere;
+
+  &.empty {
+    padding: 0;
+    border: 0;
+  }
 }
 
 :host(.sheet) {
