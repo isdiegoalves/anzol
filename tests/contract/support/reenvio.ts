@@ -55,6 +55,36 @@ export interface ResultadoDeSaida {
   error?: ErroDeSaida | null;
   /** Só no replay: o uuid da mensagem reenviada. */
   source_request?: string | null;
+  /** Só no replay pedido com `chaos`. */
+  chaos?: CaosNoResultado;
+}
+
+/** O `chaos` do pedido de replay. */
+export interface Caos {
+  delay_ms?: number;
+  duplicate?: boolean;
+  abort_mid_body?: boolean;
+  slow_body_bps?: number;
+  timeout_ms?: number;
+}
+
+export type Injetado = 'delay_ms' | 'slow_body_bps' | 'abort_mid_body' | 'timeout_ms' | 'duplicate';
+
+export interface CaosNoResultado {
+  delay_ms: number;
+  duplicate: boolean;
+  abort_mid_body: boolean;
+  slow_body_bps: number | null;
+  timeout_ms: number | null;
+  injected: Injetado[];
+  body_bytes_sent: number | null;
+  duplicate_result: { status: number | null; duration_ms: number; error: ErroDeSaida | null } | null;
+}
+
+/** Sem resposta lida porque o próprio caos cortou o corpo ou desistiu de esperar. */
+function semRespostaPorCaos(r: ResultadoDeSaida): boolean {
+  const injetado = r.chaos?.injected ?? [];
+  return injetado.includes('abort_mid_body') || injetado.includes('timeout_ms');
 }
 
 /** Valor de um header sem distinção de caixa no nome; lista vira o último valor (como a mensagem gravada). */
@@ -97,7 +127,7 @@ export async function replay(
   request: APIRequestContext,
   tokenId: string,
   rid: string,
-  corpo: { url: string; keep_path?: boolean; timeout?: number },
+  corpo: { url: string; keep_path?: boolean; timeout?: number; chaos?: Caos },
 ): Promise<ResultadoDeSaida> {
   return resultadoOk(await chamarReplay(request, tokenId, rid, corpo), `replay ${JSON.stringify(corpo)}`);
 }
@@ -128,7 +158,8 @@ export async function historico(request: APIRequestContext, tokenId: string): Pr
 
 /**
  * Forma comum aos dois: `id` e `at` textos não vazios, `kind`, `target`, `method`, `request_headers`
- * objeto, `duration_ms` inteiro ≥ 0; com `error`, sem `status`; sem `error`, `status` inteiro.
+ * objeto, `duration_ms` inteiro ≥ 0; com `error`, sem `status`; sem `error`, `status` inteiro, menos quando o caos
+ * cortou o corpo ou desistiu (sem `status` e sem `error`).
  */
 export function expectFormaDoResultado(r: ResultadoDeSaida): void {
   const d = JSON.stringify(r).slice(0, 400);
@@ -143,6 +174,8 @@ export function expectFormaDoResultado(r: ResultadoDeSaida): void {
     expect(typeof r.error.kind, `error.kind: ${d}`).toBe('string');
     expect(typeof r.error.message, `error.message: ${d}`).toBe('string');
     expect(r.status ?? null, `com error não há status: ${d}`).toBeNull();
+  } else if (semRespostaPorCaos(r)) {
+    expect(r.status ?? null, `sem resposta lida não há status: ${d}`).toBeNull();
   } else {
     expect(Number.isInteger(r.status), `status: ${d}`).toBe(true);
   }
