@@ -5,7 +5,7 @@ import { rule } from '../../testing/rule-fixtures';
 import { Rule } from './rule';
 import { ScenarioDiagram, scenarioSteps } from './scenario-diagram';
 
-/** "falha 2×, depois 200", como no readme. */
+/** "falha 2×, depois 200", como no docs/api.md. */
 const ENTREGA: Rule[] = [
   rule(1, {
     name: 'falha 1',

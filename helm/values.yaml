@@ -1,5 +1,5 @@
 # Anzol: uma imagem só (API, webhook, tela, SSE em /token/{id}/stream e MCP em /mcp, na porta 8080) e o Redis 8,
-# único armazenamento. As variáveis do app estão na seção "Configuração" do readme.md da raiz.
+# único armazenamento. As variáveis do app estão na seção "Configuração" do readme.md da raiz; o uso, em docs/helm.md.
 
 image:
   repository: ghcr.io/isdiegoalves/anzol
@@ -39,7 +39,7 @@ ingress:
     # Uma regra de resposta põe até 8 KiB num cabeçalho; com o buffer padrão (4 KiB) o nginx responderia 502.
     nginx.ingress.kubernetes.io/proxy-buffer-size: "64k"
 
-# Variáveis WEBHOOK_* do app (readme.md, seções "Configuração", "Proteção contra DNS rebinding/CSRF", "MCP" e "IA local").
+# Variáveis WEBHOOK_* do app (seção "Configuração" do readme.md, docs/privacidade.md e docs/mcp-e-ia.md).
 webhook:
   # WEBHOOK_ALLOWED_HOSTS: nomes aceitos no Host de /token, /share e /mcp (contra DNS rebinding) e no Origin dos
   # métodos que mudam estado (contra CSRF). Sem o nome pelo qual o navegador chega, a tela abre mas a API (criar

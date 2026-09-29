@@ -25,7 +25,7 @@ const REGRA: Rule = rule(1, {
 });
 
 describe('Dado uma frase de near miss sem "conditions" (mensagem antiga)', () => {
-  // Todas as frases do readme ("Regras de resposta" e "Cenários") e as demais que o
+  // Todas as frases do docs/api.md ("Regras de resposta" e "Cenários") e as demais que o
   // `RuleMatching.kt` escreve, cada uma com a condição que a produziu.
   it.each([
     ['method: expected POST, got GET', 'match.method'],

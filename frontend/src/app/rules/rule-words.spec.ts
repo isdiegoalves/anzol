@@ -27,7 +27,7 @@ describe('Dado uma regra na linha 2 da lista (matchLine, RULES-02)', () => {
   it.each<[string, Rule, string]>([
     ['sem condições', { name: 'Tudo' }, 'any request'],
     [
-      'a do readme, com todas as condições',
+      'a do docs/api.md, com todas as condições',
       {
         name: 'pagamento aprovado',
         match: {
@@ -123,7 +123,7 @@ describe('Dado uma regra (ruleInWords)', () => {
   it.each<[string, Rule, string]>([
     ['sem condições', { name: 'Tudo' }, 'When any request, answer 200.'],
     [
-      'a do readme',
+      'a do docs/api.md',
       {
         name: 'pagamento aprovado',
         match: {
