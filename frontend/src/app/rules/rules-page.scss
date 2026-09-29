@@ -106,8 +106,15 @@
 }
 
 .hint {
+  max-width: 72ch;
   margin: 0 0 12px;
   color: var(--mat-sys-on-surface-variant);
+}
+
+// Sozinha na página, a lista para num teto: numa tela larga, o status e as setas ficariam longe do
+// nome da regra.
+:host > .list {
+  max-width: 1600px;
 }
 
 .actions {

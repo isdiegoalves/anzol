@@ -27,6 +27,7 @@ h3 {
 }
 
 p {
+  max-width: 72ch;
   margin: 0;
 }
 
@@ -103,6 +104,7 @@ p {
 
 .command {
   // Parágrafo, não <pre>: o detalhe da mensagem já tem o <pre> do corpo.
+  max-width: none;
   margin: 0;
   padding: 12px;
   border: 1px solid var(--mat-sys-outline-variant);
