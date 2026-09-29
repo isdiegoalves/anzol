@@ -532,9 +532,34 @@
               <mat-error>{{ errorOf(form.controls.fault, '') }}</mat-error>
             </mat-form-field>
           </div>
-          <p class="hint fault-note" role="note" [class.notice]="faulted()" i18n>
-            With a fault, the status, headers, body, delay and dribble are ignored: the request is
-            recorded, then the connection fails.
+          <p class="hint fault-note" role="note" [class.notice]="faulted()">
+            @switch (form.controls.fault.value) {
+              @case ('hang') {
+                <ng-container i18n>
+                  The request is recorded, then nothing is sent until the client gives up (at most 5
+                  minutes). The status, headers, body, delay and dribble are ignored.
+                </ng-container>
+              }
+              @case ('stall_after_headers') {
+                <ng-container i18n>
+                  The request is recorded; the status and headers are sent (with the body's
+                  Content-Length), then nothing until the client gives up (at most 5 minutes). Delay
+                  and dribble are ignored.
+                </ng-container>
+              }
+              @case ('truncated_body') {
+                <ng-container i18n>
+                  The request is recorded; the status, headers and half the body are sent, then the
+                  connection closes. Delay and dribble are ignored.
+                </ng-container>
+              }
+              @default {
+                <ng-container i18n>
+                  With a fault, the status, headers, body, delay and dribble are ignored: the
+                  request is recorded, then the connection fails.
+                </ng-container>
+              }
+            }
           </p>
           <h3 i18n>Headers</h3>
           <div formArrayName="responseHeaders">
@@ -562,7 +587,7 @@
                   mat-button
                   type="button"
                   [attr.aria-label]="responseHeaderLabels(i + 1).remove"
-                  [disabled]="faulted()"
+                  [disabled]="responseIgnored()"
                   (click)="removeRow('responseHeaders', i)"
                 >
                   &#x2715;
@@ -573,7 +598,7 @@
           <button
             mat-button
             type="button"
-            [disabled]="faulted()"
+            [disabled]="responseIgnored()"
             (click)="addResponseHeader({ name: '', value: '' })"
             i18n
           >
@@ -593,7 +618,7 @@
               aria-label="Response body"
               i18n-aria-label
             ></textarea>
-            <mat-error>{{ errorOf(form.controls.responseBody, '') }}</mat-error>
+            <mat-error>{{ errorOf(form.controls.responseBody, messages.bodyRequired) }}</mat-error>
           </mat-form-field>
           <app-rule-body-tools
             [body]="form.controls.responseBody.value"
@@ -601,7 +626,7 @@
             [hasContentType]="hasContentType()"
             [defaultType]="defaultContentType()"
             [helpersOpen]="wide()"
-            [disabled]="faulted()"
+            [disabled]="responseIgnored()"
             (formatted)="setBody($event)"
             (addHeader)="addResponseHeader($event)"
             (insert)="insertIntoBody($event)"

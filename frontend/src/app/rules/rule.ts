@@ -63,7 +63,10 @@ export interface RuleResponse {
   template?: boolean;
   delay?: RuleDelay | null;
   dribble?: RuleDribble | null;
-  /** Com falha, status, headers, corpo, atraso e dribble são ignorados pelo servidor. */
+  /**
+   * Com falha, atraso e dribble são ignorados pelo servidor; status, headers e corpo também, fora
+   * das falhas de `FAULTS_WITH_RESPONSE`.
+   */
   fault?: RuleFault | null;
   [field: string]: unknown;
 }
@@ -85,14 +88,23 @@ export const RULE_FAULTS = [
   'empty_response',
   'malformed_chunk',
   'random_data_then_close',
+  'hang',
+  'stall_after_headers',
+  'truncated_body',
 ] as const;
 export type RuleFault = (typeof RULE_FAULTS)[number];
+
+/** Falhas que mandam o status, os headers e o corpo da regra antes de parar; exigem corpo. */
+export const FAULTS_WITH_RESPONSE: readonly RuleFault[] = ['stall_after_headers', 'truncated_body'];
 
 export const FAULT_LABELS: Record<RuleFault, string> = {
   connection_reset: $localize`Connection reset (TCP RST)`,
   empty_response: $localize`Empty response (close without writing)`,
   malformed_chunk: $localize`Malformed chunk (valid status and headers)`,
   random_data_then_close: $localize`Random data, then close`,
+  hang: $localize`Hang (no response until the client gives up)`,
+  stall_after_headers: $localize`Stall after headers (status and headers, then nothing)`,
+  truncated_body: $localize`Truncated body (half the body, then close)`,
 };
 
 /** O tipo da falha em poucas palavras, no lugar do status na lista (L11). */
@@ -101,6 +113,9 @@ export const FAULT_SHORT_LABELS: Record<RuleFault, string> = {
   empty_response: $localize`:fault kind, short:Empty response`,
   malformed_chunk: $localize`:fault kind, short:Malformed chunk`,
   random_data_then_close: $localize`:fault kind, short:Random data`,
+  hang: $localize`:fault kind, short:Hang`,
+  stall_after_headers: $localize`:fault kind, short:Stall`,
+  truncated_body: $localize`:fault kind, short:Truncated`,
 };
 
 export const DELAY_MAX_MS = 60_000;

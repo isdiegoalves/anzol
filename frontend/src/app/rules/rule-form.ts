@@ -2,6 +2,7 @@ import {
   BodyMatcher,
   DELAY_MAX_MS,
   DRIBBLE_MAX_CHUNKS,
+  FAULTS_WITH_RESPONSE,
   PathMatcher,
   RULE_DEFAULT_PRIORITY,
   RULE_DEFAULT_STATUS,
@@ -601,6 +602,9 @@ function responseErrors(response: unknown): string[] {
   const fault = response['fault'];
   if (fault !== undefined && fault !== null && !RULE_FAULTS.includes(fault as RuleFault)) {
     errors.push(`response.fault: The fault must be one of ${RULE_FAULTS.join(', ')}.`);
+  }
+  if (FAULTS_WITH_RESPONSE.includes(fault as RuleFault) && !response['body']) {
+    errors.push(`response.body: The body field is required when fault is ${String(fault)}.`);
   }
   return errors;
 }

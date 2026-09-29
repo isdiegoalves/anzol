@@ -377,6 +377,16 @@ describe('Dado o JSON cru editado na aba "JSON"', () => {
   });
 
   it.each([
+    ['hang', ''],
+    ['stall_after_headers', '{"ok":true}'],
+    ['truncated_body', '{"ok":true}'],
+  ])('deve aceitar a falha "%s" Quando o corpo é "%s"', (fault, body) => {
+    const texto = JSON.stringify({ name: 'a', response: { fault, body } });
+
+    expect(parseRuleJson(texto).errors).toEqual([]);
+  });
+
+  it.each([
     ['JSON malformado', '{"name":', /^Invalid JSON/],
     ['uma lista', '[]', /^The rule must be a JSON object\.$/],
     ['sem nome', '{}', /^name: The name field is required\.$/],
@@ -452,6 +462,16 @@ describe('Dado o JSON cru editado na aba "JSON"', () => {
       'estado de cenário que não é texto',
       '{"name":"a","scenario":{"name":"s","requiredState":1}}',
       /^scenario\.requiredState: /,
+    ],
+    [
+      'a falha "stall_after_headers" sem corpo',
+      '{"name":"a","response":{"fault":"stall_after_headers"}}',
+      /^response\.body: The body field is required when fault is stall_after_headers\.$/,
+    ],
+    [
+      'a falha "truncated_body" com corpo vazio',
+      '{"name":"a","response":{"fault":"truncated_body","body":""}}',
+      /^response\.body: The body field is required when fault is truncated_body\.$/,
     ],
   ])('deve apontar o erro Quando o JSON tem %s', (_caso, texto, erro) => {
     const { errors } = parseRuleJson(texto);

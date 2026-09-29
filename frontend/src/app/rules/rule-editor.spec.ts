@@ -464,6 +464,83 @@ describe('Dado o editor de regra', () => {
       });
     });
 
+    it('deve desabilitar status e corpo e dizer que nada é enviado até o cliente desistir Quando a falha é "Hang"', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await choose('Fault', 'Hang (no response until the client gives up)');
+
+      expect(await (await input('Status')).isDisabled()).toBe(true);
+      expect(await (await input('Response body')).isDisabled()).toBe(true);
+      expect(await (await delayGroup()).isDisabled()).toBe(true);
+      const dica = root().querySelector('.fault-note') as HTMLElement;
+      expect(dica.textContent?.trim()).toBe(
+        'The request is recorded, then nothing is sent until the client gives up (at most 5 minutes). The status, headers, body, delay and dribble are ignored.',
+      );
+      expect(await savedResponse()).toMatchObject({ fault: 'hang', delay: null, dribble: null });
+    });
+
+    it.each([
+      [
+        'Stall after headers (status and headers, then nothing)',
+        "The request is recorded; the status and headers are sent (with the body's Content-Length), then nothing until the client gives up (at most 5 minutes). Delay and dribble are ignored.",
+      ],
+      [
+        'Truncated body (half the body, then close)',
+        'The request is recorded; the status, headers and half the body are sent, then the connection closes. Delay and dribble are ignored.',
+      ],
+    ])(
+      'deve manter status, cabeçalhos e corpo e desabilitar atraso e dribble Quando a falha é "%s"',
+      async (falha, nota) => {
+        await open({ index: 0 }, [rule(1, { response: { status: 200, body: '{"ok":true}' } })]);
+
+        await choose('Fault', falha);
+
+        expect(await (await input('Status')).isDisabled()).toBe(false);
+        expect(await (await input('Response body')).isDisabled()).toBe(false);
+        expect(await (await button('Add response header')).isDisabled()).toBe(false);
+        expect(await (await toggle('Template')).isDisabled()).toBe(false);
+        expect(await (await delayGroup()).isDisabled()).toBe(true);
+        expect(await (await toggle('Dribble')).isDisabled()).toBe(true);
+        expect(root().querySelector('.fault-note')?.textContent?.trim()).toBe(nota);
+        await expectNoAxeViolations(root());
+      },
+    );
+
+    it('não deve salvar e deve pedir o corpo Quando "Truncated body" fica sem corpo', async () => {
+      await open({ index: 0 }, [rule(1)]);
+
+      await choose('Fault', 'Truncated body (half the body, then close)');
+      await save();
+
+      expect(blockedText()).toBe('To save, fix: Response body (required)');
+      expect(await (await field('Response body')).getTextErrors()).toEqual([
+        'A body is required for this fault.',
+      ]);
+      await (await input('Response body')).setValue('{"ok":true}');
+      expect(blockedText()).toBeNull();
+      expect(await savedResponse()).toMatchObject({
+        fault: 'truncated_body',
+        body: '{"ok":true}',
+      });
+    });
+
+    it('deve dizer em pt-BR que a falha precisa de um corpo', async () => {
+      loadTranslations(translations);
+      try {
+        await open({ index: 0 }, [
+          rule(1, { response: { fault: 'stall_after_headers', body: '' } }),
+        ]);
+
+        await (await button('Salvar')).click();
+
+        expect(await (await field('Corpo da resposta')).getTextErrors()).toEqual([
+          'Esta falha precisa de um corpo.',
+        ]);
+      } finally {
+        clearTranslations();
+      }
+    });
+
     it('deve reabilitar a resposta Quando a falha volta para "None"', async () => {
       await open({ index: 0 }, [rule(1, { response: { fault: 'empty_response' } })]);
       expect(await (await input('Status')).isDisabled()).toBe(true);

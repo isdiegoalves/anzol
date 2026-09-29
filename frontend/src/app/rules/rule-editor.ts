@@ -50,6 +50,7 @@ import {
   DELAY_MAX_MS,
   DRIBBLE_MAX_CHUNKS,
   FAULT_LABELS,
+  FAULTS_WITH_RESPONSE,
   HISTORY_TEST_WINDOW,
   HistoryTest,
   RULE_DEFAULT_PRIORITY,
@@ -269,7 +270,7 @@ export class RuleEditor {
     schema: ['any' as SchemaOption],
     status: [0, [Validators.required, Validators.min(100), Validators.max(599), integer]],
     responseHeaders: this.formBuilder.array<HeaderGroup>([]),
-    responseBody: [''],
+    responseBody: ['', bodyWhenFaultSendsIt],
     template: [false],
     delayType: ['none' as DelayType],
     delayFixed: [0, ms],
@@ -481,6 +482,7 @@ export class RuleEditor {
     sigma: $localize`A number of at least 0.`,
     chunks: $localize`An integer between 1 and 100.`,
     upTo100: $localize`Up to 100 characters.`,
+    bodyRequired: $localize`A body is required for this fault.`,
   };
   protected readonly showAtOnce = showAtOnce;
   protected readonly formView = FORM_VIEW;
@@ -937,9 +939,19 @@ export class RuleEditor {
     return `match.${list}.${(row.get('name')?.value as string | undefined) ?? ''}`;
   }
 
-  /** Com falha escolhida, o servidor ignora status, headers, corpo, atraso e dribble. */
+  /** Com falha escolhida, o servidor ignora atraso e dribble. */
   protected faulted(): boolean {
     return this.form.controls.fault.value !== 'none';
+  }
+
+  /** A falha escolhida não manda status, headers nem corpo: o servidor os ignora. */
+  protected responseIgnored(): boolean {
+    return this.faulted() && !this.sendsResponse();
+  }
+
+  private sendsResponse(): boolean {
+    const fault = this.form.controls.fault.value;
+    return fault !== 'none' && FAULTS_WITH_RESPONSE.includes(fault);
   }
 
   protected addCondition(list: 'query' | 'headers'): void {
@@ -1520,20 +1532,22 @@ export class RuleEditor {
   }
 
   /**
-   * Habilita só o que vale para a resposta escolhida: com falha, nada além da falha; sem ela, os
-   * parâmetros do tipo de atraso escolhido e os do dribble quando ligado. Controle desabilitado
-   * não conta na validade, então parâmetro escondido não bloqueia o "Save".
+   * Habilita só o que vale para a resposta escolhida: com falha, só status, headers e corpo, e só
+   * nas falhas que os mandam; sem ela, os parâmetros do tipo de atraso escolhido e os do dribble
+   * quando ligado. Controle desabilitado não conta na validade, então parâmetro escondido não
+   * bloqueia o "Save".
    */
   private syncResponse(): void {
     const c = this.form.controls;
     const faulted = this.faulted();
+    const response = !this.responseIgnored();
     const delay = faulted ? 'none' : c.delayType.value;
     const dribble = !faulted && c.dribble.value;
     const enabled: [AbstractControl, boolean][] = [
-      [c.status, !faulted],
-      [c.responseHeaders, !faulted],
-      [c.responseBody, !faulted],
-      [c.template, !faulted],
+      [c.status, response],
+      [c.responseHeaders, response],
+      [c.responseBody, response],
+      [c.template, response],
       [c.delayType, !faulted],
       [c.dribble, !faulted],
       [c.delayFixed, delay === 'fixed'],
@@ -1547,6 +1561,7 @@ export class RuleEditor {
     for (const [control, on] of enabled) {
       setEnabled(control, on);
     }
+    c.responseBody.updateValueAndValidity({ emitEvent: false });
   }
 
   /** Os estados só fazem sentido com o nome do cenário. */
@@ -1679,6 +1694,13 @@ function jsonWhenEqualToJson(control: AbstractControl<string>): ValidationErrors
   } catch {
     return { json: true };
   }
+}
+
+/** As falhas que mandam a resposta e param no meio dela precisam de um corpo (o servidor exige). */
+function bodyWhenFaultSendsIt(control: AbstractControl<string>): ValidationErrors | null {
+  const fault = control.parent?.get('fault')?.value as FaultOption | undefined;
+  const needsBody = fault !== undefined && fault !== 'none' && FAULTS_WITH_RESPONSE.includes(fault);
+  return needsBody && control.value === '' ? { required: true } : null;
 }
 
 function requiredWhenJsonPath(control: AbstractControl<string>): ValidationErrors | null {

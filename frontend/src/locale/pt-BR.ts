@@ -1075,6 +1075,15 @@ export const translations: Record<string, string> = {
   //  With a fault, the status, headers, body, delay and dribble are ignored: the request is recorded, then the connection fails.
   '7512463070098652496':
     ' Com uma falha, o status, os cabeçalhos, o corpo, o atraso e o conta-gotas são ignorados: a requisição é gravada e a conexão falha. ',
+  //  The request is recorded, then nothing is sent until the client gives up (at most 5 minutes). The status, headers, body, delay and dribble are ignored.
+  '8706195172885417779':
+    ' A requisição é gravada e nada é enviado até o cliente desistir (no máximo 5 minutos). Status, cabeçalhos, corpo, atraso e conta-gotas são ignorados. ',
+  //  The request is recorded; the status and headers are sent (with the body's Content-Length), then nothing until the client gives up (at most 5 minutes). Delay and dribble are ignored.
+  '6103224503698173865':
+    ' A requisição é gravada; status e cabeçalhos são enviados (com o Content-Length do corpo) e depois nada até o cliente desistir (no máximo 5 minutos). Atraso e conta-gotas são ignorados. ',
+  //  The request is recorded; the status, headers and half the body are sent, then the connection closes. Delay and dribble are ignored.
+  '6526356406957568090':
+    ' A requisição é gravada; status, cabeçalhos e metade do corpo são enviados, e a conexão fecha. Atraso e conta-gotas são ignorados. ',
   //  Add response header
   '7844985063139280587': ' Adicionar cabeçalho da resposta ',
   // Template
@@ -1207,6 +1216,8 @@ export const translations: Record<string, string> = {
   '7746830683176421346': 'Um número de pelo menos 0.',
   // An integer between 1 and 100.
   '8088872202130126469': 'Um número inteiro de 1 a 100.',
+  // A body is required for this fault.
+  '7919303706590829193': 'Esta falha precisa de um corpo.',
   // Up to 100 characters.
   '7452353939910904225': 'Até 100 caracteres.',
   // Edit rule {$PH}
@@ -1347,6 +1358,12 @@ export const translations: Record<string, string> = {
   '2686611374263089455': 'Chunk malformado (status e cabeçalhos válidos)',
   // Random data, then close
   '591981001989807613': 'Dados aleatórios, depois fecha',
+  // Hang (no response until the client gives up)
+  '1158852838414144182': 'Travar (sem resposta até o cliente desistir)',
+  // Stall after headers (status and headers, then nothing)
+  '8981790536022781849': 'Parar depois dos cabeçalhos (status e cabeçalhos, depois nada)',
+  // Truncated body (half the body, then close)
+  '524222624119811788': 'Corpo cortado (metade do corpo, depois fecha)',
   // Fault: {$PH}{$PH_1}
   '1515005386435880546': 'Falha: {$PH}{$PH_1}',
   // Body and header values are templates
@@ -2693,6 +2710,12 @@ export const translations: Record<string, string> = {
   '83176253600131737': 'Chunk malformado',
   // Random data
   '1501759568592515471': 'Dados aleatórios',
+  // Hang
+  '7698540947590186219': 'Trava',
+  // Stall
+  '1024768233459301749': 'Parada',
+  // Truncated
+  '3992517163368458304': 'Cortado',
   // {VAR_PLURAL, plural, =0 {No requests yet: the hits start with the first one.} =1 {Hits over the last 1 request kept.} other {Hits over the last {INTERPOLATION} requests kept.}}
   '1357560753461228101':
     '{VAR_PLURAL, plural, =0 {Ainda sem requisições: os acertos começam com a primeira.} =1 {Acertos na última requisição guardada.} other {Acertos nas últimas {INTERPOLATION} requisições guardadas.}}',
