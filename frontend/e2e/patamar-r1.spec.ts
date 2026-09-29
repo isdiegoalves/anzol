@@ -247,11 +247,13 @@ test.describe('Dado o painel de ação acoplado (CA-13)', () => {
     await abrirMensagem(page, tokenId, outra);
     await expect(aba(page, 'Explain')).toHaveAttribute('aria-selected', 'true');
 
-    await acoes(page).getByRole('button', { name: 'Explain' }).focus();
+    // Pelo Replay: com o Explain, o Esc durante a espera do modelo cancela a espera antes de fechar.
+    await acoes(page).getByRole('button', { name: 'Replay…' }).focus();
     await page.keyboard.press('Enter');
+    await expect(painel(page).getByRole('textbox', { name: 'Target URL' })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(painel(page)).toBeHidden();
-    await expect(acoes(page).getByRole('button', { name: 'Explain' })).toBeFocused();
+    await expect(acoes(page).getByRole('button', { name: 'Replay…' })).toBeFocused();
 
     await acoes(page).getByRole('button', { name: 'Explain' }).click();
     await painel(page).getByRole('button', { name: 'Close panel' }).click();
