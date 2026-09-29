@@ -293,7 +293,10 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
     await expect(detalhes(page)).toContainText(a[2]);
   });
 
-  test('não deve ter selo de julgamento nem verde na linha de evento', async ({ page, tokens }) => {
+  test('não deve ter selo de julgamento, e deve pintar a trilha pela família do status', async ({
+    page,
+    tokens,
+  }) => {
     const { tokenId, a } = await intercalados(tokens, page);
     await seedStorage(page, {});
     await abrirEntrada(page, tokenId, 8);
@@ -308,16 +311,15 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
     );
     await expect(linha).toHaveAccessibleName(/1 signatures? (do|does) not match/);
 
-    // Os selos da trilha são neutros: o 200 tem o fundo do 429, e nenhum tem o verde do selo de assinatura válida.
     const de200 = await fundo(linha.getByText('200', { exact: true }));
     const de429 = await fundo(linha.getByText('429', { exact: true }).first());
-    expect(de200, 'o 200 da trilha tem a mesma cor do 429').toBe(de429);
+    expect(de200, 'o 200 e o 429 da trilha em cores próprias').not.toBe(de429);
     await tentativas(page, 'evt_a').click();
     const assinaturaValida = item(page, a[2]).locator(
       'app-check-chip[data-kind="signature"][data-state="valid"]',
     );
     await expect(assinaturaValida).toBeVisible();
-    expect(de200, 'a trilha não usa o verde').not.toBe(await fundo(assinaturaValida));
+    expect(de200, 'o 200 no verde claro da assinatura válida').toBe(await fundo(assinaturaValida));
   });
 
   test('deve mostrar o evento de uma tentativa só como item comum, com o valor da chave no lugar do #id', async ({

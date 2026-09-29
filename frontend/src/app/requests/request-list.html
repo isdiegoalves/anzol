@@ -103,7 +103,7 @@
                         <span i18n class="tag b">B</span>
                       }
                     }
-                    <app-method-badge [method]="item.request.method" />
+                    <app-method-badge class="tinted" [method]="item.request.method" />
                     <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
                     <!-- prettier-ignore -->
                     <span class="route" [title]="item.route"><span class="start"> {{ item.head }}</span><span class="end">{{ item.tail }}</span></span>
@@ -120,7 +120,11 @@
                 <span class="line meta">
                   <span class="seals" aria-hidden="true">
                     @for (seal of item.seals; track seal.kind) {
-                      <app-check-chip [result]="seal" [quiet]="true" />
+                      <app-check-chip
+                        [result]="seal"
+                        [quiet]="true"
+                        [attr.data-family]="seal.kind === 'rule' ? item.status?.charAt(0) : null"
+                      />
                     }
                   </span>
                   @if (item.summary) {

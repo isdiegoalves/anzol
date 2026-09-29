@@ -33,7 +33,7 @@ import { EventView } from './list-rows';
       (click)="opened.emit($event)"
     >
       <span class="line">
-        <app-method-badge [method]="event.method" />
+        <app-method-badge class="tinted" [method]="event.method" />
         <!-- prettier-ignore -->
         <span class="route" [title]="event.route"><span class="head">{{ event.head }}</span><span class="tail">{{ event.tail }}</span></span>
         @if (!compact()) {
@@ -52,7 +52,7 @@ import { EventView } from './list-rows';
           @for (seal of event.trail; track $index) {
             <!-- A marca ✗ e o "×14" ficam no selo; o nome acessível da linha diz os problemas. -->
             <!-- prettier-ignore -->
-            <span class="seal" [class.fault]="seal.fault" [class.last]="seal.last">{{ seal.text }}@if (seal.mark) {<span class="mark">✗</span>}@if (seal.count > 1) {<span> ×{{ seal.count }}</span>}</span>
+            <span class="seal" [class.fault]="seal.fault" [class.last]="seal.last" [attr.data-family]="seal.fault ? null : seal.text.charAt(0)">{{ seal.text }}@if (seal.mark) {<span class="mark">✗</span>}@if (seal.count > 1) {<span> ×{{ seal.count }}</span>}</span>
           }
         </span>
         @if (!compact()) {

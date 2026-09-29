@@ -423,7 +423,7 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     );
   });
 
-  test('deve usar cor neutra de 2xx a 4xx e a de erro na falha de rede, sempre com o texto', async ({
+  test('deve pintar o status pela família, 2xx e 4xx em cores próprias, e a falha de rede com a de erro', async ({
     page,
     tokens,
   }) => {
@@ -452,8 +452,9 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     );
     const deFalha = await fundo(item(page, comFalha).getByText(/^— · Connection reset/));
 
-    expect(de429, '4xx tem a cor neutra do 2xx').toBe(de201);
+    expect(de429, 'o 4xx tem cor própria, diferente do 2xx').not.toBe(de201);
     expect(deFalha, 'a falha de rede tem a cor de erro').not.toBe(de201);
+    expect(deFalha).not.toBe(de429);
   });
 
   test('deve dizer "not recorded" na requisição gravada antes do campo', async ({

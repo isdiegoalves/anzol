@@ -1,5 +1,5 @@
-// Estado é texto com glifo, sem caixa. O que passou fica em cinza, como o status respondido; o que
-// não foi verificado ganha contorno tracejado; a falha é a única com marca-texto além da cor.
+// Estado é texto com glifo. No detalhe, sem caixa: o que passou fica em cinza, o que não foi
+// verificado ganha contorno tracejado e a falha é a única com marca-texto. Na lista, tons claros.
 :host {
   display: inline-flex;
   align-items: center;
@@ -55,6 +55,44 @@
 
 :host(.mini[data-kind='rule']) {
   flex: none;
+}
+
+// Na lista (o selo mini), cada verificação num tom claro: verde a que passou, vermelho a que falhou,
+// cinza a ausente e a não conferida; o status respondido na cor da família, que a lista informa.
+:host(.mini.ok:not([data-kind='rule'])) {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+:host(.mini.ok:not([data-kind='rule'])) app-icon {
+  color: var(--app-success);
+}
+
+:host(.mini.none),
+:host(.mini[data-state='absent']) {
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+:host(.mini.none) app-icon,
+:host(.mini[data-state='absent']) app-icon {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+:host(.mini[data-family='2']) {
+  background: var(--app-success-container);
+}
+
+:host(.mini[data-family='3']) {
+  background: var(--mat-sys-primary-container);
+}
+
+:host(.mini[data-family='4']) {
+  background: var(--app-warning-container);
+}
+
+:host(.mini[data-family='5']) {
+  background: var(--mat-sys-error-container);
 }
 
 :host(.mini[data-kind='rule']) .title {

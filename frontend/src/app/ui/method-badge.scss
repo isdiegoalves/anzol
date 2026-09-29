@@ -15,3 +15,36 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+// Na lista da Entrada (a classe `tinted`), o método num tom claro, na cor do papel dele.
+:host(.tinted) {
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface-container-high);
+}
+
+:host(.tinted.info) {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+:host(.tinted.success) {
+  background: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+:host(.tinted.danger) {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+:host(.tinted.primary) {
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+:host(.tinted.warning) {
+  background: var(--app-warning-container);
+  color: var(--app-on-warning-container);
+}

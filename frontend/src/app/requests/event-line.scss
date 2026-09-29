@@ -143,9 +143,8 @@
   font: var(--mat-sys-body-small);
 }
 
-// A trilha é uma fila de células de código coladas, com a borda dividida. Todo status é neutro, do
-// 200 ao 503; só a falha de rede fica no papel de erro. A última é a resposta que vale agora: a
-// borda mais forte e a tinta cheia.
+// A trilha é uma fila de células de código coladas, com a borda dividida, cada status num tom claro
+// da família dele. A última é a resposta que vale agora: a borda mais forte e a tinta cheia.
 .seal {
   position: relative;
   margin-left: -1px;
@@ -164,6 +163,22 @@
 
   &:last-child {
     border-radius: 0 var(--mat-sys-corner-extra-small) var(--mat-sys-corner-extra-small) 0;
+  }
+
+  &[data-family='2'] {
+    background: var(--app-success-container);
+  }
+
+  &[data-family='3'] {
+    background: var(--mat-sys-primary-container);
+  }
+
+  &[data-family='4'] {
+    background: var(--app-warning-container);
+  }
+
+  &[data-family='5'] {
+    background: var(--mat-sys-error-container);
   }
 
   &.fault {
