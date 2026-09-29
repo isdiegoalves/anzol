@@ -559,6 +559,8 @@ class ReadSecretApiTest(
 
     /** `HMAC-SHA256(chave do servidor, texto)` em Base64 URL sem `=`, como o servidor assina. */
     private fun hmac(text: String): String {
+        // A chave nasce no primeiro uso pelo servidor: um desbloqueio garante que ela já está no Redis.
+        unlock(protectedToken(), SECRET)
         val key = Base64.getDecoder().decode(redis.opsForValue().get(SERVER_KEY).orEmpty())
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
         return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(text.toByteArray(UTF_8)))

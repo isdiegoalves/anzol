@@ -112,6 +112,8 @@ class PrivacyReauditApiTest(
 
     /** `HMAC-SHA256(chave do servidor, texto)` em Base64 URL sem `=`, como o servidor assina o cookie. */
     private fun hmac(text: String): String {
+        // A chave nasce no primeiro uso pelo servidor: um desbloqueio garante que ela já está no Redis.
+        api.send("POST", "/token/${protectedToken()}/unlock", """{"secret":"$SECRET"}""".toByteArray(), JSON_BODY)
         val key = Base64.getDecoder().decode(redis.opsForValue().get(SERVER_KEY).orEmpty())
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }
         return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(text.toByteArray(UTF_8)))
