@@ -49,6 +49,10 @@ temporária do sistema, apagada ao fim de cada teste.
   seguir; falha se a API não devolve `seq`); `criarTokenProtegido(segredo)` cria uma URL com `read_secret` e a
   apaga ao fim com o header `X-Webhook-Secret` (`apagarToken` aceita os cabeçalhos).
 - `conferencia.mjs`: a regra de reenvio conferida contra a mensagem gravada, lida pela API.
+- `receptor.mjs`: o app local dos testes de caos, servidor HTTP que registra também a requisição cortada no meio do
+  corpo (`completa: false`, com o `Content-Length` declarado e os bytes que chegaram), a hora dos cabeçalhos
+  (`inicio`) e a de cada pedaço do corpo (`pedacos`); `responder(requisicao, indice)` escolhe status, cabeçalhos e
+  atraso de cada resposta.
 
 ## O que cobre
 
@@ -92,6 +96,10 @@ temporária do sistema, apagada ao fim de cada teste.
 | `wait-for.test.mjs` `--new` e `--after` (CA-6) | `--new --timeout 0` com só uma antiga que casa → saída 1 e `[]`; `--new` com uma nova a cada 400 ms → saída 0 com uma das novas (nunca a antiga), antes do prazo; `--after <seq da 1ª> --count 2` → 2ª e 3ª; `--after <seq da mais nova>` → saída 1 |
 | `privacidade.test.mjs` com segredo (item 12, CA-5) | numa URL protegida (pré-condição: `GET /token/{id}` sem o header dá 401), com `--read-secret` e, em outro teste, com `WEBHOOK_READ_SECRET`: `listen` imprime `Listening on …` e entrega o POST (linha com o status do app); `replay` entrega a mensagem e sai com 0; `wait-for --path --timeout 0` sai com 0 e o stdout é a mensagem igual à da API; `rules push` grava (`Pushed 1 rule(s)`, conferido pela API) e `rules pull` devolve o que a API tem. Em toda execução o segredo não aparece no stdout nem no stderr |
 | `privacidade.test.mjs` sem segredo | `listen`, `replay`, `wait-for` e `rules pull` sem o segredo e com `--read-secret` errado: saída ≠ 0, nada chega ao app local, nenhum dos dois segredos na saída, a mensagem continua na URL |
+| `caos.test.mjs` duplicata e descarte | `listen --chaos-duplicate 50 --chaos-seed 7` com 8 mensagens: as da linha `[chaos: duplicate]` chegam duas vezes, a cópia logo depois da original, com os mesmos cabeçalhos (inclusive o `X-Request-Id` gravado) e o mesmo corpo; `Chaos: duplicate 50%; seed 7`; outra URL com a mesma semente duplica as mesmas posições. `--chaos-drop 50 --chaos-seed 11`: as da linha `-> dropped [chaos: drop]` não chegam, as outras sim, e a semente repete |
+| `caos.test.mjs` atraso, ordem, corte, gotejamento e prazo | `--chaos-delay 300..0.6s`: `[chaos: delay <ms>]` na faixa e a chegada pelo menos esse tempo depois do envio; `--chaos-reorder 3`: `held 1..3 of 3`, as três chegam noutra ordem e cada linha diz `reordered (arrived k of 3)`; com só 2, saem trocadas ~2 s depois; `--chaos-abort 100`: `cut after 500 of 1000 bytes`, o app vê `Content-Length: 1000`, os primeiros 500 bytes e a conexão fechada; `--chaos-slow 50`: 100 bytes em ≥ 5 pedaços ao longo de ≥ 1,5 s, inteiros; `--chaos-timeout 500ms` com o app demorando 5 s: `error: timed out after 500 ms [chaos: timeout]` em menos de 4 s |
+| `caos.test.mjs` retentativas | `--retries 2` com 503, 503, 200: `attempt 1/3 … retrying in <500..1000> ms`, `attempt 2/3 … <1000..2000> ms`, `attempt 3/3 -> 200`, três chegadas com os mesmos cabeçalhos e corpo, espaçadas pelo menos a espera impressa; 429 com `Retry-After: 1` → `retrying in 1000 ms (Retry-After)` |
+| `caos.test.mjs` inválidas e `replay` | valor inválido em `--chaos-drop`, `--chaos-delay`, `--chaos-reorder`, `--retries` e `--chaos-timeout`: saída 2, a opção citada, nada entregue; `replay <token> <id1> <id2> <id3> --chaos-reorder 3`: os três noutra ordem, saída 0; `--chaos-duplicate 100`: duas chegadas iguais, saída 0; `--chaos-abort 100`: chegada cortada, saída 1 |
 
 ## Leituras da especificação assumidas
 
@@ -177,3 +185,7 @@ temporária do sistema, apagada ao fim de cada teste.
   --read-secret (depois do subcomando)`. Os testes exigem o app com o item 12 (ver `tests/contract/README.md`).
 - Sem o segredo, ou com ele errado, a mensagem e o código de saída são livres, desde que o código não seja 0 e nada
   seja entregue: a §1 não fixa a mensagem do CLI para o 401.
+- Caos (`listen --forward` e `replay`): a linha de cada tentativa é casada por inteiro, com as falhas injetadas no fim,
+  em `[chaos: …]`; com `--retries`, `attempt n/total` vem antes do ` -> `. Sem o comando ou a opção, cada teste falha
+  com o erro de uso do CLI na saída. A reprodução da semente é conferida entre duas URLs no mesmo servidor (o teste não
+  conhece o gerador); com retentativas a semente também escolhe o jitter.
