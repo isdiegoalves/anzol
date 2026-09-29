@@ -9,6 +9,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoUnit
 
 /**
  * Os padrões que o servidor preenche ao gravar uma regra (os mesmos do `GET /token/{id}/rules`): sem eles, todo arquivo
@@ -52,15 +55,40 @@ private val RESPONSE_DEFAULTS =
 private const val DEFAULT_PRIORITY = 5
 private const val DEFAULT_STATUS = 200
 
+private val WINDOW_FIELDS = listOf("active_from", "active_until")
+
+/** Data-hora da RFC 3339 que o servidor aceita na janela: segundos obrigatórios, fração opcional e fuso. */
+private val DATE_TIME = Regex("\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?([Zz]|[+-]\\d{2}:\\d{2})")
+
+/** A data da janela como o servidor a grava (UTC, cortada no segundo); o que não é data-hora com fuso fica como veio. */
+private fun JsonElement.normalizedDateTime(): JsonElement {
+    val text = (this as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf(DATE_TIME::matches) ?: return this
+    return try {
+        JsonPrimitive(
+            OffsetDateTime
+                .parse(text)
+                .toInstant()
+                .truncatedTo(ChronoUnit.SECONDS)
+                .toString(),
+        )
+    } catch (_: DateTimeParseException) {
+        this
+    }
+}
+
 /** O objeto com os padrões no lugar do que falta ou é `null` (a comparação trata ausente e `null` como iguais). */
 private fun JsonObject.withDefaults(defaults: JsonObject): JsonObject =
     JsonObject((defaults.keys + keys).associateWith { name -> this[name]?.takeUnless { it is JsonNull } ?: defaults[name] ?: JsonNull })
 
-/** A regra como o servidor a gravaria, para comparar: padrões preenchidos em cima, em `match` e em `response`. */
+/**
+ * A regra como o servidor a gravaria, para comparar: padrões preenchidos em cima, em `match` e em `response`, e a
+ * janela em UTC.
+ */
 private fun JsonObject.normalizedRule(): JsonObject {
     val rule = withDefaults(RULE_DEFAULTS)
     return JsonObject(
         rule +
+            WINDOW_FIELDS.filter { it in rule }.associateWith { rule.getValue(it).normalizedDateTime() } +
             mapOf(
                 "match" to ((rule["match"] as? JsonObject)?.withDefaults(MATCH_DEFAULTS) ?: JsonNull),
                 "response" to ((rule["response"] as? JsonObject)?.withDefaults(RESPONSE_DEFAULTS) ?: JsonNull),

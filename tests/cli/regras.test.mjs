@@ -366,6 +366,30 @@ describe('anzol rules push --dry-run', () => {
     conferirResumo(r, { equal: antes.map(({ id, name }) => ({ id, name })), changed: [], removed: [], added: [] });
   });
 
+  test('janela escrita com fuso -03:00 e fração de segundo: igual à salva em UTC; deslocada, só active_from muda', { timeout: 60_000 }, async () => {
+    const token = await criarToken();
+    const janela = { active_from: '2026-09-29T09:00:00.750-03:00', active_until: '2026-09-29T12:30:00.500Z' };
+    const [igual, deslocada] = await gravarRegras(token, [
+      { name: 'manutenção', ...janela, response: { status: 503 } },
+      { name: 'manutenção-deslocada', ...janela },
+    ]);
+    assert.equal(igual.active_from, '2026-09-29T12:00:00Z', 'pré-condição: o servidor grava a janela em UTC');
+    const arquivo = path.join(pastaTemporaria(), 'regras.json');
+    fs.writeFileSync(arquivo, JSON.stringify([
+      { ...igual, ...janela },
+      { ...deslocada, ...janela, active_from: '2026-09-29T09:01:00-03:00' },
+    ]));
+
+    const r = await pushDryRun(token, arquivo);
+    assert.equal(r.codigo, 0, `código de saída\n${r.cli.descricao()}`);
+    conferirResumo(r, {
+      equal: [{ id: igual.id, name: 'manutenção' }],
+      changed: [{ id: deslocada.id, name: 'manutenção-deslocada', fields: ['active_from'] }],
+      removed: [],
+      added: [],
+    });
+  });
+
   test('token inexistente → "Token not found" no stderr e saída 1; não cria o token', { timeout: 60_000 }, async () => {
     // SUPOSIÇÃO: o erro de token é o do push de hoje; o api-contrato só fixa a saída 0 do caso que funciona.
     const token = randomUUID();
