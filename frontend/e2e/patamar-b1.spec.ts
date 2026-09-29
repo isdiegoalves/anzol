@@ -584,7 +584,7 @@ test.describe('Dado a lista densa', () => {
     });
   });
 
-  test('deve ter item de 52 px na densidade compacta (64 no celular, nas duas densidades)', async ({
+  test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({
     page,
     tokens,
   }) => {
@@ -594,14 +594,14 @@ test.describe('Dado a lista densa', () => {
     await abrirEntrada(page, tokenId, 1);
 
     const altura = (await item(page, id).boundingBox())!.height;
-    const esperada = compacto(page) ? 64 : 52;
+    const esperada = compacto(page) ? 64 : 36;
     expect(
       Math.abs(altura - esperada),
       `item de ${esperada} px, tem ${altura}`,
     ).toBeLessThanOrEqual(1);
   });
 
-  test('deve ter item de duas linhas e 60 px na densidade confortável (64 no celular), com hora e #id, sem IP nem agente na linha', async ({
+  test('deve ter item de duas linhas e 40 px na densidade confortável (64 no celular), com hora e #id, sem IP nem agente na linha', async ({
     page,
     request,
     tokens,
@@ -621,7 +621,7 @@ test.describe('Dado a lista densa', () => {
     const linha = item(page, id);
 
     const altura = (await linha.boundingBox())!.height;
-    const esperada = compacto(page) ? 64 : 60;
+    const esperada = compacto(page) ? 64 : 40;
     expect(
       Math.abs(altura - esperada),
       `item de ${esperada} px, tem ${altura}`,
