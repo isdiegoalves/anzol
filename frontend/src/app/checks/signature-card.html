@@ -191,7 +191,8 @@
               [placeholder]="keeps ? (savedConfig?.secret ?? '') : ''"
             />
             @if (keeps) {
-              <mat-hint i18n>Leave blank to keep the current secret</mat-hint>
+              <!-- A dica aparece ao salvar, e o pé do mat-form-field é região viva: o salvar já foi falado. -->
+              <mat-hint aria-hidden="true" i18n>Leave blank to keep the current secret</mat-hint>
             }
             <mat-error>
               @if (form.controls.secret.errors?.['server']; as server) {

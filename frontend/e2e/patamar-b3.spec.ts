@@ -3,6 +3,7 @@ import { Locator, Page, Request } from '@playwright/test';
 import {
   escutarAnuncios,
   expectSemAnuncio,
+  expectSoEstaFala,
   expectUmAnuncio,
   limparAnuncios,
 } from './support/anuncios';
@@ -13,6 +14,7 @@ import {
   barraDeSalvar,
   botaoSalvar,
   escolherProvedor,
+  pendente,
   secao,
 } from './support/checks';
 import { expect, test } from './support/fixtures';
@@ -22,6 +24,7 @@ import { seedStorage } from './support/storage';
 
 const SECRET = 'segredo-do-patamar-b3';
 const SEGREDO_NOVO = 'shpss_segredo_novo_b3';
+const SEGREDO_DE_LEITURA = 'leitura-do-b3-5678';
 
 function github(secret: string, body = '{"id":1}') {
   return {
@@ -151,6 +154,49 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
 
     await expectUmAnuncio(page, /^1 unsaved change: Response body\.?$/);
     await expectSemAnuncio(page, /^[2-9] unsaved/);
+  });
+
+  test('deve falar cada alteração só pelo resumo da barra, e não também pelo resumo do cartão', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
+    await limparAnuncios(page);
+
+    await escolherProvedor(assinatura, 'GitHub');
+
+    await expect(pendente(assinatura)).toHaveText('To save, fill in: Secret');
+    await expectSoEstaFala(page, /^1 unsaved change: Signature provider\.?$/);
+  });
+
+  test('deve falar só "Saved." ao gravar a assinatura e trancar a URL com um segredo de leitura', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
+    await escolherProvedor(assinatura, 'GitHub');
+    await assinatura.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await abrirCartao(page, 'Privacy');
+    const privacidade = secao(page, 'Privacy');
+    await privacidade.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
+    await privacidade.getByLabel('Secret to view', { exact: true }).fill(SEGREDO_DE_LEITURA);
+    await privacidade.getByLabel('Confirm secret', { exact: true }).fill(SEGREDO_DE_LEITURA);
+    await expectUmAnuncio(page, /^4 unsaved changes/);
+    await limparAnuncios(page);
+
+    await botaoSalvar(page).click();
+
+    await expect(barraDeSalvar(page)).toBeHidden();
+    await expect(assinatura.getByLabel('Secret', { exact: true })).toHaveAccessibleDescription(
+      'Leave blank to keep the current secret',
+    );
+    await expectSoEstaFala(page, /^Saved\. 4 changes\.$/);
   });
 
   test('deve listar o valor antigo e o novo em "Review changes", sem mostrar segredo', async ({

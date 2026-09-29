@@ -3,6 +3,7 @@ import { Locator, Page } from '@playwright/test';
 import {
   abrirChecks,
   escolherProvedor,
+  notaDoCartao,
   pendente,
   pendenteAlerta,
   botaoSalvar,
@@ -86,9 +87,7 @@ test.describe('Dado o cartão Signature verification (CHECKS-07/09/10/13)', () =
   }) => {
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
-    await expect(assinatura.getByRole('status').filter({ hasText: /^Saved\./ })).toHaveText(
-      'Saved. Leave the secret blank to keep it.',
-    );
+    await expect(notaDoCartao(assinatura)).toHaveText('Saved. Leave the secret blank to keep it.');
 
     await escolherProvedor(assinatura, 'Shopify');
     const aviso = assinatura.getByRole('status').filter({ hasText: 'switching from' });

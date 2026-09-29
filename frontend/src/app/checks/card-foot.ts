@@ -12,7 +12,8 @@ export interface CardNotice {
   template: `
     @let result = notice();
     @let saved = !summary() && !!result && !result.error;
-    <p class="note" [class.ok]="saved" [class.error]="!summary() && result?.error" role="status">
+    <!-- Não é região viva: a alteração e o salvar são falados pela barra de salvar. -->
+    <p class="note" [class.ok]="saved" [class.error]="!summary() && result?.error">
       @if (text()) {
         <app-icon [name]="saved ? 'ok' : 'info'" [size]="16" />
       }

@@ -55,7 +55,7 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     await userEvent.type(screen.getByLabelText('Secret to view'), 'curto');
     await userEvent.type(screen.getByLabelText('Confirm secret'), 'outro');
 
-    expect(within(card()).getByRole('status').textContent?.trim()).toBe(
+    expect(card().querySelector('app-card-foot .note')?.textContent?.trim()).toBe(
       'To save, fix: Secret to view, Confirm secret',
     );
     await userEvent.click(save());

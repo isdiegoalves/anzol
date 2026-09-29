@@ -127,7 +127,7 @@ describe('Dado o cartão "Response" de Checks', () => {
 
       await userEvent.clear(input);
       await userEvent.type(input, valor);
-      expect(within(card()).getByRole('status').textContent?.trim()).toBe(
+      expect(card().querySelector('app-card-foot .note')?.textContent?.trim()).toBe(
         'To save, fix: Retry-After',
       );
       await userEvent.click(save());

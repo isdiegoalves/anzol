@@ -101,9 +101,14 @@ export async function salvar(page: Page, tokenId: string): Promise<Record<string
   return body;
 }
 
-/** O resumo do que falta, antes de tentar salvar (`status`). */
+/** A nota no pé do cartão: o que falta para salvar, ou o resultado do último salvar. */
+export function notaDoCartao(regiao: Locator): Locator {
+  return regiao.locator('app-card-foot .note');
+}
+
+/** O resumo do que falta, antes de tentar salvar. */
 export function pendente(regiao: Locator): Locator {
-  return regiao.getByRole('status').filter({ hasText: /^To save, (fill in|fix):/ });
+  return notaDoCartao(regiao).filter({ hasText: /^To save, (fill in|fix):/ });
 }
 
 const ATENCAO = /^\d+ fields? needs? attention:/;
@@ -119,12 +124,9 @@ export function pendenteAlerta(regiao: Locator): Locator {
     .or(barraDeSalvar(regiao.page()).getByRole('alert').filter({ hasText: ATENCAO }));
 }
 
-/** O resumo do que falta, em `status` ou `alert` (o texto muda conforme os campos são preenchidos). */
+/** O resumo do que falta, na nota do cartão ou no `alert` (o texto muda conforme os campos são preenchidos). */
 export function resumo(regiao: Locator): Locator {
-  return regiao
-    .getByRole('status')
-    .filter({ hasText: /^To save, (fill in|fix):/ })
-    .or(pendenteAlerta(regiao));
+  return pendente(regiao).or(pendenteAlerta(regiao));
 }
 
 /** Escolhe o provedor na tabela que é também o seletor. */

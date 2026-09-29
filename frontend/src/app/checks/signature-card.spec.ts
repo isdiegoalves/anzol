@@ -20,7 +20,7 @@ const provider = (name: string) => screen.getByRole('radio', { name });
 const secret = () => screen.getByLabelText(/^Secret/);
 const save = saveButton;
 const card = () => screen.getByRole('region', { name: 'Signature verification' });
-const note = () => within(card()).getByRole('status').textContent?.trim();
+const note = () => card().querySelector('app-card-foot .note')?.textContent?.trim();
 
 describe('Dado o cartão "Signature verification" de Checks', () => {
   afterEach(() => localStorage.clear());
