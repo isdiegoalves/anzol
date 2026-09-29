@@ -6,7 +6,7 @@ import {
 
 // Envio montado (CA-2 do plano "reenvio-servidor", §1): `POST /token/{id}/send` `{url, method, headers, body,
 // sign, timeout?}` sai com o método, os headers e o corpo pedidos. `sign=true` assina com a `signature` da URL
-// como o CLI `send`; a prova é mandar para outra URL do próprio webhook.site com a mesma `signature` e ler
+// como o CLI `send`; a prova é mandar para outra URL do próprio Anzol com a mesma `signature` e ler
 // `valid: true` na mensagem gravada lá. O segredo não aparece na resposta nem no histórico.
 
 const METODOS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];

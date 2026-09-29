@@ -6,7 +6,7 @@ import { lerRegras, type RegraSalva, type ResultadoTesteDeRegra } from '../../su
 import type { ResultadoDaEspera } from '../../support/espera.js';
 
 // Servidor MCP (§1 do plano "ia-local", CA-1): um cliente MCP real (SDK oficial, Streamable HTTP em
-// `/mcp`) lista as ferramentas e opera o webhook.site sobre a API existente, com a mesma validação e os
+// `/mcp`) lista as ferramentas e opera o Anzol sobre a API existente, com a mesma validação e os
 // mesmos erros. O resultado de cada ferramenta é lido como o JSON da resposta da API (texto ou
 // `structuredContent`); o que as ferramentas fizeram é conferido de novo pela API HTTP.
 

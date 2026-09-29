@@ -1,7 +1,7 @@
 {
   "name": "webhook-site-contrato",
   "private": true,
-  "description": "Contrato de paridade caixa-preta da API HTTP e do evento request.created do webhook.site",
+  "description": "Contrato de paridade caixa-preta da API HTTP e do evento request.created do Anzol",
   "type": "module",
   "scripts": {
     "test": "playwright test",

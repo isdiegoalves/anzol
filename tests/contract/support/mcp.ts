@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { BASE_URL, expect, test as base } from './contrato.js';
 
-// Servidor MCP do webhook.site (§1 do plano "ia-local"): Streamable HTTP em `{BASE_URL}/mcp`, falado aqui
+// Servidor MCP do Anzol (§1 do plano "ia-local"): Streamable HTTP em `{BASE_URL}/mcp`, falado aqui
 // pelo SDK oficial (`@modelcontextprotocol/sdk`), como um agente de IA falaria.
 
 /** As 14 ferramentas da §1. */

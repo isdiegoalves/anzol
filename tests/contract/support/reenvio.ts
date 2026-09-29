@@ -19,7 +19,7 @@ export const ALVO_HOST = process.env.ALVO_HOST ?? 'host.docker.internal';
  */
 export const ALIAS_LOCALHOST = process.env.ALIAS_LOCALHOST ?? 'host.docker.internal';
 
-/** URL base do próprio webhook.site vista de dentro do container: o host, na porta publicada do `BASE_URL`. */
+/** URL base do próprio Anzol vista de dentro do container: o host, na porta publicada do `BASE_URL`. */
 export const APP_PELO_ALVO = process.env.APP_PELO_ALVO ?? `http://${ALVO_HOST}:${new URL(BASE_URL).port || '80'}`;
 
 /** Headers que o replay não repassa (§1), por nome exato ou prefixo (`proxy-`, `x-forwarded-`, `cf-`). */
