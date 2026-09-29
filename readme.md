@@ -225,6 +225,14 @@ Cada parte isolada, o que o `./ci.sh` faz e os padrões de código (Kotlin e Ang
 | Armazenamento | Redis 8.10 | serviço `redis` do compose |
 | Contrato caixa-preta da API | Playwright | `tests/contract/` |
 
+## Apoie
+
+Se o Anzol te ajuda:
+
+- deixe uma ⭐ no repositório;
+- abra uma [issue](https://github.com/isdiegoalves/anzol/issues) com bug, dúvida ou ideia;
+- conte para quem testa webhooks.
+
 ## Licença
 
 MIT, ver [`LICENSE`](LICENSE). Mantido por [Diego Alves](https://github.com/isdiegoalves).
