@@ -67,11 +67,13 @@ describe('Dado o chip do tempo real (app-live-status)', () => {
     ['reconnecting', 'Reconnecting…'],
     ['offline', 'Offline'],
   ] as [LiveState, string][])(
-    'deve anunciar "%s" como status e passar no axe',
+    'deve mostrar "%s" sem ser região viva e passar no axe',
     async (state, text) => {
       const { container } = await render(LiveStatus, { inputs: { state } });
 
-      expect(screen.getByRole('status').textContent?.trim()).toBe(text);
+      expect(container.textContent?.trim()).toBe(text);
+      // Abrir outra URL passa por "Connecting…": a queda e a volta, quem fala é a faixa "Connection".
+      expect(screen.queryByRole('status')).toBeNull();
       expect((container as HTMLElement).classList).toContain(state);
       await expectNoAxeViolations(container);
     },

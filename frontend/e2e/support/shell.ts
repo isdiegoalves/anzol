@@ -32,9 +32,12 @@ export function destino(page: Page, nome: Destino): Locator {
   return secoes(page).getByRole('link', { name: new RegExp(`^${nome}(, .+)?$`) });
 }
 
-/** `status` com "Live", "Reconnecting…" ou "Offline" no cabeçalho da URL. */
+/**
+ * O chip do tempo real no cabeçalho da URL ("Live", "Reconnecting…" ou "Offline"). Não é região viva, então não tem
+ * papel que o ache: vai pelo elemento.
+ */
 export function estadoAoVivo(page: Page): Locator {
-  return page.getByRole('status').filter({ hasText: /(^|\s)(Live|Reconnecting…|Offline)(\s|$)/ });
+  return page.locator('app-live-status');
 }
 
 /**

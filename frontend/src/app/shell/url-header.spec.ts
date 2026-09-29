@@ -191,7 +191,8 @@ describe('Dado o cabeçalho da URL aberta', () => {
     it('deve dizer "Live", "Reconnecting…" e "Offline" conforme a conexão, e sumir sem stream', async () => {
       const { fixture } = await renderWith(token());
       const stream = fixture.debugElement.injector.get(RequestStream);
-      const status = () => screen.queryByRole('status')?.textContent?.trim() ?? null;
+      const status = () =>
+        fixture.nativeElement.querySelector('app-live-status')?.textContent?.trim() ?? null;
       expect(status()).toBeNull();
 
       const subscription = stream.connect(TOKEN_ID).subscribe();

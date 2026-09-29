@@ -2,6 +2,7 @@ import { Page } from '@playwright/test';
 import {
   escutarAnuncios,
   expectSemAnuncio,
+  expectSoEstaFala,
   expectUmAnuncio,
   limparAnuncios,
 } from './support/anuncios';
@@ -117,6 +118,33 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
     await page.goBack();
     await expect(page).toHaveURL(new RegExp(`#/${b}/rules$`));
     await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
+  });
+
+  test('deve falar só a URL aberta na Entrada, sem o estado da conexão, e anunciar também a volta pelo navegador', async ({
+    page,
+    tokens,
+  }) => {
+    const a = await tokens.create();
+    const b = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, { [CHAVE_URLS]: listaDeUrls([{ uuid: a }, { uuid: b }]) });
+    await page.goto(`/#/${a}`);
+    await expect(estadoAoVivo(page)).toContainText('Live');
+    const painel = await abrirSeletor(page);
+    await limparAnuncios(page);
+
+    await urlNoSeletor(painel, b).click();
+
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
+    await expect(estadoAoVivo(page)).toContainText('Live');
+    await expectSoEstaFala(page, new RegExp(`^URL ${id5(b)} opened\\. Inbox, 0 requests\\.$`));
+    await limparAnuncios(page);
+
+    await page.goBack();
+
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(a)}. Switch URL`);
+    await expect(estadoAoVivo(page)).toContainText('Live');
+    await expectSoEstaFala(page, new RegExp(`^URL ${id5(a)} opened\\. Inbox, 0 requests\\.$`));
   });
 
   test('deve guardar o apelido só no navegador, usá-lo no botão e no título, e anunciar uma vez', async ({

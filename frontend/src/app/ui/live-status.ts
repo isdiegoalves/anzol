@@ -24,15 +24,14 @@ function textOf(state: LiveState): { text: string; hint: string } {
 }
 
 /**
- * Chip do tempo real no cabeçalho da URL: `role="status"` (a troca é anunciada sem roubar o foco,
- * WCAG 4.1.3), com o ponto e o texto; a cor nunca sozinha.
+ * Chip do tempo real no cabeçalho da URL, com o ponto e o texto; a cor nunca sozinha. Não é região
+ * viva: abrir outra URL passa por "Connecting…", e quem fala a queda e a volta é a faixa "Connection".
  */
 @Component({
   selector: 'app-live-status',
   template: '<span class="dot" aria-hidden="true"></span>{{ text() }}',
   styleUrl: './live-status.scss',
   host: {
-    role: 'status',
     '[class]': 'state()',
     '[attr.title]': 'hint()',
   },

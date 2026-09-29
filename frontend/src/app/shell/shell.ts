@@ -17,7 +17,14 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { NavigationEnd, NavigationError, Router, RouterLink, RouterOutlet } from '@angular/router';
+import {
+  NavigationEnd,
+  NavigationError,
+  NavigationStart,
+  Router,
+  RouterLink,
+  RouterOutlet,
+} from '@angular/router';
 import { EMPTY, map, switchMap } from 'rxjs';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
@@ -172,7 +179,17 @@ export class Shell {
     });
 
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
-      if (event instanceof NavigationError && CHUNK_ERROR.test(String(event.error))) {
+      if (event instanceof NavigationStart && event.navigationTrigger === 'popstate') {
+        // Voltar ou avançar para outra URL é uma troca de URL como a do seletor, e é anunciada igual.
+        const { tokenId } = placeOf(
+          this.router
+            .parseUrl(event.url)
+            .root.children['primary']?.segments.map((segment) => segment.path) ?? [],
+        );
+        if (tokenId && tokenId !== this.place().tokenId) {
+          this.switching.set(tokenId);
+        }
+      } else if (event instanceof NavigationError && CHUNK_ERROR.test(String(event.error))) {
         this.failedUrl.set(event.url);
       } else if (event instanceof NavigationEnd) {
         this.failedUrl.set(null);

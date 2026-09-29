@@ -336,7 +336,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       );
       FakeEventSource.latest().open();
 
-      expect((await screen.findByText('Live')).getAttribute('role')).toBe('status');
+      expect((await screen.findByText('Live')).closest('app-live-status')).not.toBeNull();
     });
 
     it('deve ler o total da URL à parte e contar as que chegam Quando a tela não é a Entrada', async () => {
