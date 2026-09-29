@@ -3471,17 +3471,17 @@ export const translations: Record<string, string> = {
   '2974323848043602907':
     'Copiado. O anzol test só lê o --match, então estes filtros ficaram de fora: {$filters}.',
   // {$destination}, 1 invalid signature since {$time}
-  '4592034369818190987': "{$destination}, 1 assinatura inválida desde {$time}",
+  '4592034369818190987': '{$destination}, 1 assinatura inválida desde {$time}',
   // {$destination}, {$count} invalid signatures since {$time}
-  '4791511819252126960': "{$destination}, {$count} assinaturas inválidas desde {$time}",
+  '4791511819252126960': '{$destination}, {$count} assinaturas inválidas desde {$time}',
   // {$destination}, 1 invalid schema since {$time}
-  '8831648283178564529': "{$destination}, 1 schema inválido desde {$time}",
+  '8831648283178564529': '{$destination}, 1 schema inválido desde {$time}',
   // {$destination}, {$count} invalid schemas since {$time}
-  '3636672581074851539': "{$destination}, {$count} schemas inválidos desde {$time}",
+  '3636672581074851539': '{$destination}, {$count} schemas inválidos desde {$time}',
   // repeats
-  '2365282192455083444': "se repete",
+  '2365282192455083444': 'se repete',
   // Group
-  '3953128085929585273': "Agrupar",
+  '3953128085929585273': 'Agrupar',
   // Some requests repeat the same {$field}. Group them by event?
-  '2088030634394823354': "Algumas requisições repetem o mesmo {$field}. Agrupar por evento?",
+  '2088030634394823354': 'Algumas requisições repetem o mesmo {$field}. Agrupar por evento?',
 };
