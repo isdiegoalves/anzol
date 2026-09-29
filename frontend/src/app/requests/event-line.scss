@@ -1,8 +1,21 @@
 :host {
+  position: relative;
   display: flex;
   box-sizing: border-box;
-  padding: 2px 8px 2px 4px;
+  padding: 0 0 0 4px;
   contain: inline-size;
+}
+
+// O evento com uma tentativa anômala leva a marca de revisão na margem, como a requisição.
+:host(:has(.mark, .fault))::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: var(--app-note-rule);
+  background: var(--mat-sys-error);
+  pointer-events: none;
 }
 
 .chevron,
@@ -43,7 +56,7 @@
   min-width: 0;
   padding: 0 12px 0 6px;
   overflow: hidden;
-  border-radius: var(--mat-sys-corner-medium);
+  border-radius: 0;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
   text-align: left;
@@ -120,21 +133,24 @@
 // Todo status é neutro, do 200 ao 503; só a falha de rede fica no papel de erro. O último é a
 // resposta que vale agora.
 .seal {
-  padding: 0 4px;
-  border: 1px solid transparent;
+  padding: 0 3px;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-extra-small);
-  background: var(--mat-sys-surface-container-highest);
-  color: var(--mat-sys-on-surface);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
   font-family: var(--app-code-family);
-  font-weight: 600;
+  font-weight: 500;
 
   &.fault {
+    border-color: transparent;
     background: var(--mat-sys-error-container);
     color: var(--mat-sys-on-error-container);
   }
 
   &.last {
     border-color: var(--mat-sys-outline);
+    color: var(--mat-sys-on-surface);
+    font-weight: 700;
   }
 }
 

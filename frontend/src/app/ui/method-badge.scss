@@ -1,41 +1,17 @@
+// O método é a primeira palavra da rota, como no título de uma referência de API: código, negrito,
+// em tinta e sem caixa. A largura mínima alinha os caminhos numa coluna.
 :host {
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
-  min-width: 48px;
-  height: 22px;
-  padding: 0 6px;
-  justify-content: center;
-  border-radius: var(--mat-sys-corner-extra-small);
-  background: var(--mat-sys-surface-container-highest);
+  min-width: 40px;
+  height: 20px;
+  padding: 0;
+  justify-content: flex-start;
+  background: transparent;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-label-medium);
   font-family: var(--app-code-family);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
-}
-
-:host(.info) {
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
-}
-
-:host(.success) {
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
-}
-
-:host(.danger) {
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
-}
-
-:host(.primary) {
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
-}
-
-:host(.warning) {
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
 }

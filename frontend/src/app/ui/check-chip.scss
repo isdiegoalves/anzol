@@ -1,54 +1,55 @@
+// Estado é texto com glifo, sem caixa: o glifo leva a cor do estado e o texto fica em tinta. A
+// falha é a única que ganha marca-texto (a lavagem clara) além da cor.
 :host {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   box-sizing: border-box;
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-high);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: transparent;
   color: var(--mat-sys-on-surface-variant);
 }
 
 :host(.mini) {
-  padding: 2px 8px 2px 6px;
+  padding: 1px 3px;
   font: var(--mat-sys-label-medium);
 }
 
-:host(.card) {
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--mat-sys-corner-medium);
-  font: var(--mat-sys-body-small);
+:host(.ok) app-icon {
+  color: var(--app-success);
 }
 
-:host(.ok) {
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
+:host(.near) app-icon {
+  color: var(--app-warning);
+}
+
+:host(.none) app-icon {
+  color: var(--mat-sys-outline);
 }
 
 :host(.bad) {
+  color: var(--mat-sys-error);
+}
+
+:host(.mini.bad) {
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
 }
 
-:host(.near) {
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
-}
-
-:host(.none) {
-  border-color: var(--mat-sys-outline-variant);
-  background: transparent;
+:host(.mini.bad) app-icon {
+  color: var(--mat-sys-error);
 }
 
 // B2 (UX-02, UX-09): o selo do status respondido é neutro de 2xx a 5xx (só a falha de rede tem a
 // cor de erro), com o número em fonte de código; ele não encolhe: quem cede é o nome da regra.
 :host(.mini[data-kind='rule']:not(.bad)) {
-  border-color: transparent;
-  background: var(--mat-sys-surface-container-highest);
   color: var(--mat-sys-on-surface);
+}
+
+:host(.mini[data-kind='rule']:not(.bad)) app-icon {
+  color: var(--mat-sys-on-surface-variant);
 }
 
 :host(.mini[data-kind='rule']) {
@@ -62,6 +63,7 @@
 
 .note {
   overflow-wrap: anywhere;
+  font-style: italic;
 }
 
 .text {
@@ -83,19 +85,51 @@
 }
 
 :host(.icon-only) {
-  padding: 2px 6px;
+  padding: 1px 2px;
+}
+
+// Cartão do detalhe como nota de margem: régua fina à esquerda, glifo, título em tinta e o motivo
+// embaixo. A anomalia engrossa a régua na cor dela.
+:host(.card) {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 2px 4px 4px 12px;
+  border: 0;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0;
+  font: var(--mat-sys-body-small);
 }
 
 :host(.card) .title {
+  color: var(--mat-sys-on-surface);
   font: var(--mat-sys-title-small);
   white-space: normal;
+}
+
+:host(.card.bad),
+:host(.card.near) {
+  padding-left: calc(13px - var(--app-note-rule));
+  border-left: var(--app-note-rule) solid var(--mat-sys-error);
+}
+
+:host(.card.near) {
+  border-left-color: var(--app-warning);
+}
+
+:host(.card.bad) .title {
+  color: var(--mat-sys-error);
+}
+
+// O status respondido é neutro também no detalhe: o 429 de propósito não é sucesso.
+:host(.card[data-kind='rule']:not(.bad, .near)) app-icon {
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .detail {
   overflow-wrap: anywhere;
 }
 
-// O nome da regra (ou "Default response") leva a ela (WM-10): sublinhado, na cor do tom; o link a
+// O nome da regra (ou "Default response") leva a ela (WM-10): sublinhado, na cor do link; o link a
 // mais (o "Default response" do near miss) numa linha própria.
 .extra {
   display: inline-flex;
@@ -104,9 +138,12 @@
   min-height: 24px;
 }
 
-.link {
-  color: inherit;
+.link,
+:host(.card) .link {
+  color: var(--mat-sys-primary);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 
   &:focus-visible {
     outline: calc(var(--app-focus-width) - 1px) solid currentcolor;

@@ -25,6 +25,8 @@
   align-items: center;
   justify-content: center;
   width: 12px;
+  background: linear-gradient(var(--mat-sys-outline-variant), var(--mat-sys-outline-variant)) center /
+    1px 100% no-repeat;
   cursor: col-resize;
   touch-action: none;
 
@@ -36,8 +38,8 @@
 }
 
 .grip {
-  width: 4px;
-  height: 48px;
+  width: 3px;
+  height: 32px;
   border-radius: 2px;
   background: var(--mat-sys-outline);
 }

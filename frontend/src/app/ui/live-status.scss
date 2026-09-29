@@ -1,38 +1,44 @@
+// "Ao vivo" é um ponto e uma palavra, não um selo: o ponto diz o estado, a palavra também.
 :host {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   height: 32px;
-  padding: 0 12px 0 10px;
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-high);
+  padding: 0 10px 0 8px;
+  border-radius: var(--mat-sys-corner-small);
+  background: transparent;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-large);
-  font-weight: 700;
   white-space: nowrap;
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentcolor;
 }
 
 :host(.live) {
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
+  color: var(--mat-sys-on-surface);
 }
 
-:host(.reconnecting) {
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
+:host(.live) .dot {
+  background: var(--app-success);
+}
+
+:host(.reconnecting) .dot {
+  background: var(--app-warning);
 }
 
 :host(.offline) {
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
+}
+
+:host(.offline) .dot {
+  background: var(--mat-sys-error);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -43,6 +49,6 @@
 
 @keyframes pulse {
   50% {
-    opacity: 0.4;
+    opacity: 0.35;
   }
 }

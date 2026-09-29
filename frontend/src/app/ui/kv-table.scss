@@ -29,26 +29,25 @@ code {
   overflow-wrap: anywhere;
 }
 
+// Linha anotada: régua na margem na cor do estado; só a falha e o "quase" ganham lavagem clara.
 tr.noted {
-  box-shadow: inset 3px 0 var(--mat-sys-outline);
+  box-shadow: inset 1px 0 var(--mat-sys-outline);
 }
 
 tr.ok {
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
-  box-shadow: inset 3px 0 var(--app-success);
+  box-shadow: inset var(--app-note-rule) 0 var(--app-success);
 }
 
 tr.bad {
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
-  box-shadow: inset 3px 0 var(--mat-sys-error);
+  box-shadow: inset var(--app-note-rule) 0 var(--mat-sys-error);
 }
 
 tr.near {
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
-  box-shadow: inset 3px 0 var(--app-warning);
+  box-shadow: inset var(--app-note-rule) 0 var(--app-warning);
 }
 
 tr.noted th {

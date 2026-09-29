@@ -1,12 +1,16 @@
+// Status como dado, não como alarme: número em código e a frase ao lado, numa moldura fina, do 200
+// ao 503. Só a falha sem resposta leva a cor de erro.
 :host {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  padding: 2px 8px;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-high);
+  padding: 1px 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: transparent;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-label-large);
+  font-weight: 400;
 }
 
 .code {
@@ -14,18 +18,9 @@
   font-weight: 700;
 }
 
-:host(.s2) {
-  background: var(--app-success-container);
-  color: var(--app-on-success-container);
-}
-
-:host(.s4) {
-  background: var(--app-warning-container);
-  color: var(--app-on-warning-container);
-}
-
-:host(.s5),
 :host(.failed) {
+  border-color: transparent;
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
+  font-weight: 600;
 }

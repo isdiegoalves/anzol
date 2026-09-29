@@ -1,30 +1,152 @@
 // Tema único da aplicação (docs/padroes-angular.md, §5): só `mat.theme`, `mat.theme-overrides` e
-// cores próprias como `--app-*`. Tema "Harbor" (estudo C §1.5): semente #1D6A73, terciário #8E4D2C;
-// as paletas estão em `_theme-colors.scss`, gerado por
-//   ng generate @angular/material:theme-color --primary-color="#1D6A73" --tertiary-color="#8E4D2C"
-//     --include-high-contrast --directory=src/ --is-scss
+// cores próprias como `--app-*`. Tema "Manual": papel branco-frio e tinta quase preta (no escuro,
+// papel ardósia), acento de tinta azul-petróleo; as paletas estão em `_theme-colors.scss`, gerado por
+//   ng generate @angular/material:theme-color --primary-color="#1B5A68" --secondary-color="#4B5694"
+//     --tertiary-color="#7A3E62" --neutral-color="#6B737C" --neutral-variant-color="#69737D"
+//     --error-color="#B42318" --include-high-contrast --directory=src/ --is-scss
+@use 'sass:map';
+@use 'sass:string';
 @use '@angular/material' as mat;
-@use './theme-colors' as harbor;
+@use './theme-colors' as manual;
 
 // Fontes auto-hospedadas (o app roda local e pode ficar offline): woff2 variável, subconjunto
-// latino, servidas pelo backend em /fonts/*.woff2. Só a Flex tem `preload` (index.html).
+// latino, servidas pelo backend em /fonts/*.woff2. Só a da interface tem `preload` (index.html).
 @font-face {
-  font-family: 'Google Sans Flex';
+  font-family: 'Atkinson Hyperlegible Next';
   font-style: normal;
-  font-weight: 1 1000;
+  font-weight: 200 800;
   font-display: swap;
-  src: url('/fonts/google-sans-flex-latin.woff2') format('woff2');
+  src: url('/fonts/atkinson-hyperlegible-next-latin.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: 'Google Sans Code';
-  font-style: normal;
-  font-weight: 300 800;
+  font-family: 'Atkinson Hyperlegible Next';
+  font-style: italic;
+  font-weight: 200 800;
   font-display: swap;
-  src: url('/fonts/google-sans-code-latin.woff2') format('woff2');
+  src: url('/fonts/atkinson-hyperlegible-next-italic-latin.woff2') format('woff2');
 }
 
-$plain-family: #{'"Google Sans Flex", system-ui, "Helvetica Neue", Arial, sans-serif'};
+@font-face {
+  font-family: 'Atkinson Hyperlegible Mono';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/atkinson-hyperlegible-mono-latin.woff2') format('woff2');
+}
+
+$plain-family: #{'"Atkinson Hyperlegible Next", system-ui, "Helvetica Neue", Arial, sans-serif'};
+
+// Escala com mais contraste de tamanho e de peso que a do M3: título de página grande e firme,
+// título de seção em 600, corpo com entrelinha folgada para a prosa das verificações.
+$type-scale: (
+  headline-large: 700 2rem #{'/'} 2.5rem $plain-family,
+  headline-large-size: 2rem,
+  headline-large-line-height: 2.5rem,
+  headline-large-weight: 700,
+  headline-medium: 700 1.875rem #{'/'} 2.375rem $plain-family,
+  headline-medium-size: 1.875rem,
+  headline-medium-line-height: 2.375rem,
+  headline-medium-weight: 700,
+  headline-medium-tracking: -0.01em,
+  headline-small: 600 1.5rem #{'/'} 2rem $plain-family,
+  headline-small-weight: 600,
+  title-large: 600 1.25rem #{'/'} 1.75rem $plain-family,
+  title-large-size: 1.25rem,
+  title-large-weight: 600,
+  title-medium: 700 1rem #{'/'} 1.5rem $plain-family,
+  title-medium-weight: 700,
+  title-medium-tracking: 0,
+  title-small: 700 0.875rem #{'/'} 1.25rem $plain-family,
+  title-small-weight: 700,
+  title-small-tracking: 0,
+  body-large: 400 1rem #{'/'} 1.625rem $plain-family,
+  body-large-line-height: 1.625rem,
+  body-large-tracking: 0,
+  body-medium: 400 0.875rem #{'/'} 1.3125rem $plain-family,
+  body-medium-line-height: 1.3125rem,
+  body-medium-tracking: 0,
+  body-small: 400 0.75rem #{'/'} 1.0625rem $plain-family,
+  body-small-line-height: 1.0625rem,
+  body-small-tracking: 0.005rem,
+  label-large: 600 0.875rem #{'/'} 1.25rem $plain-family,
+  label-large-weight: 600,
+  label-large-tracking: 0,
+  label-medium: 600 0.75rem #{'/'} 1rem $plain-family,
+  label-medium-weight: 600,
+  label-medium-tracking: 0.01rem,
+  label-small: 600 0.6875rem #{'/'} 1rem $plain-family,
+  label-small-weight: 600,
+);
+
+// Papel branco-frio e tinta (claro), papel ardósia (escuro): moldura e painéis no mesmo papel,
+// separados por régua fina; tons de papel só para o bloco de código, o passar do mouse e os selos.
+$paper: (
+  surface: light-dark(#fbfcfc, #1a1e23),
+  surface-bright: light-dark(#fbfcfc, #2a3037),
+  surface-dim: light-dark(#dbe0e4, #15191d),
+  surface-container-lowest: light-dark(#fbfcfc, #1a1e23),
+  surface-container-low: light-dark(#f3f5f7, #20252b),
+  surface-container: light-dark(#fbfcfc, #1a1e23),
+  surface-container-high: light-dark(#edf0f3, #262c33),
+  surface-container-highest: light-dark(#e4e8ec, #2e353d),
+  surface-variant: light-dark(#e4e8ec, #2e353d),
+  background: light-dark(#fbfcfc, #1a1e23),
+  on-background: light-dark(#15191e, #e2e6ea),
+  on-surface: light-dark(#15191e, #e2e6ea),
+  on-surface-variant: light-dark(#535c66, #a3acb6),
+  outline: light-dark(#78818b, #7c8691),
+  outline-variant: light-dark(#d6dce1, #353c44),
+  primary: light-dark(#1b5a68, #8cc8d6),
+  on-primary: light-dark(#fff, #0a2e37),
+  primary-container: light-dark(#dcebef, #1d4651),
+  on-primary-container: light-dark(#0e3c47, #c9e7ee),
+  surface-tint: light-dark(#1b5a68, #8cc8d6),
+  secondary: light-dark(#4b5694, #b3baf2),
+  on-secondary: light-dark(#fff, #1c2356),
+  secondary-container: light-dark(#e3edf0, #243a42),
+  on-secondary-container: light-dark(#102f37, #d4e8ee),
+  tertiary: light-dark(#7a3e62, #e5afcf),
+  on-tertiary: light-dark(#fff, #3d1830),
+  tertiary-container: light-dark(#f3e5ed, #4a2a3e),
+  on-tertiary-container: light-dark(#4e1f3c, #f6dcea),
+  error: light-dark(#b42318, #f2a59c),
+  on-error: light-dark(#fff, #4a1410),
+  error-container: light-dark(#fcebe9, #4a1f1c),
+  on-error-container: light-dark(#7c1a12, #ffd9d4),
+  inverse-surface: light-dark(#262b31, #e2e6ea),
+  inverse-on-surface: light-dark(#eef1f4, #22272d),
+  inverse-primary: light-dark(#8cc8d6, #1b5a68),
+  scrim: #000,
+);
+
+// Raio de 0 a 4 px: o papel não tem pílula. O "full" também vira 4 px, então botão, switch e campo
+// de busca do Material e os próprios ficam com a mesma aresta.
+$shape: (
+  corner-none: 0,
+  corner-extra-small: 2px,
+  corner-extra-small-top: 2px 2px 0 0,
+  corner-small: 3px,
+  corner-medium: 4px,
+  corner-large: 4px,
+  corner-large-end: 0 4px 4px 0,
+  corner-large-start: 4px 0 0 4px,
+  corner-large-top: 4px 4px 0 0,
+  corner-extra-large: 4px,
+  corner-extra-large-top: 4px 4px 0 0,
+  corner-full: 4px,
+);
+
+// Sem sombra no papel; só o que sobrepõe (menu, diálogo, arrasto) tem borda fina e sombra curta.
+$overlay-ring: '0 0 0 1px light-dark(#d6dce1, #3d454e)';
+$elevation: (
+  level0: none,
+  level1: none,
+  level2: string.unquote('#{$overlay-ring}, 0 6px 16px -4px light-dark(#15191e29, #0009)'),
+  level3: string.unquote('#{$overlay-ring}, 0 12px 28px -6px light-dark(#15191e33, #000a)'),
+  level4: string.unquote('#{$overlay-ring}, 0 12px 28px -6px light-dark(#15191e33, #000a)'),
+  level5: string.unquote('#{$overlay-ring}, 0 16px 36px -8px light-dark(#15191e3d, #000b)'),
+);
 
 html {
   height: 100%;
@@ -35,43 +157,111 @@ html {
   @include mat.theme(
     (
       color: (
-        primary: harbor.$primary-palette,
-        tertiary: harbor.$tertiary-palette,
+        primary: manual.$primary-palette,
+        tertiary: manual.$tertiary-palette,
         theme-type: color-scheme,
       ),
       typography: (
         plain-family: $plain-family,
         brand-family: $plain-family,
+        regular-weight: 400,
+        medium-weight: 600,
+        bold-weight: 700,
       ),
-      // Confortável (estudo C §3.6).
+      // Confortável: a lista de duas linhas e a prosa das verificações pedem ar.
       density: 0,
     )
   );
+  @include mat.theme-overrides(map.merge(map.merge(map.merge($paper, $type-scale), $shape), $elevation));
 
-  // Cores do produto que o M3 não tem, no padrão de nome dos tokens de sistema. Contraste dos
-  // pares `on-*` sobre o fundo: ≥ 7:1 (estudo C §1.5).
-  --app-success: light-dark(#2b6b45, #97d5a9);
-  --app-on-success: light-dark(#fff, #00391e);
-  --app-success-container: light-dark(#b3f1c4, #0e5230);
-  --app-on-success-container: light-dark(#0e5230, #b3f1c4);
-  --app-warning: light-dark(#7a5900, #f0c048);
-  --app-on-warning: light-dark(#fff, #402d00);
-  --app-warning-container: light-dark(#ffdf9e, #5c4300);
-  --app-on-warning-container: light-dark(#5c4300, #ffdf9e);
-  --app-code-family: #{'"Google Sans Code", ui-monospace, "SFMono-Regular", Menlo, monospace'};
+  // Cores do produto que o M3 não tem, no padrão de nome dos tokens de sistema. No Manual, estado é
+  // glifo na cor e texto em tinta; os contêineres são lavagens claras, só para anotação.
+  --app-success: light-dark(#2e6a44, #8dcb9f);
+  --app-on-success: light-dark(#fff, #0f2e1b);
+  --app-success-container: light-dark(#e7f3eb, #1c3326);
+  --app-on-success-container: light-dark(#1b4a2d, #c3e8ce);
+  --app-warning: light-dark(#8a5800, #e5b65c);
+  --app-on-warning: light-dark(#fff, #3a2800);
+  --app-warning-container: light-dark(#fdf1d6, #3a2e14);
+  --app-on-warning-container: light-dark(#5c3b00, #f5dda6);
+  --app-code-family: #{'"Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace'};
 
-  // O arredondado (eixo ROND) nos títulos é a assinatura visual do tema.
-  --app-heading-variation: 'ROND' 100;
-  --app-pane-shape: 20px;
+  // A voz dos títulos vem do peso e do tamanho; a família não tem eixo de arredondado.
+  --app-heading-variation: normal;
+  --app-pane-shape: 0;
   --app-focus-color: var(--mat-sys-primary);
   --app-focus-width: 3px;
   --app-focus-offset: 2px;
-  --app-motion-short: 150ms;
+  --app-motion-short: 120ms;
   --app-motion-long: 1.2s;
-  --app-motion-easing: ease;
+  --app-motion-easing: cubic-bezier(0.2, 0, 0, 1);
+
+  // Régua de anotação na margem: a falha em vermelho de revisão, o "quase" em âmbar.
+  --app-note-rule: 2px;
+
+  // Switch pequeno e retangular, como um interruptor de painel: o estado é a posição e o
+  // preenchimento, não o tamanho.
+  @include mat.slide-toggle-overrides(
+    (
+      track-height: 20px,
+      track-width: 36px,
+      track-outline-width: 1px,
+      selected-track-outline-width: 1px,
+      selected-handle-size: 14px,
+      unselected-handle-size: 12px,
+      with-icon-handle-size: 14px,
+      pressed-handle-size: 14px,
+      selected-icon-size: 10px,
+      unselected-icon-size: 10px,
+      selected-handle-horizontal-margin: 0 19px,
+      selected-with-icon-handle-horizontal-margin: 0 19px,
+      selected-pressed-handle-horizontal-margin: 0 19px,
+      unselected-handle-horizontal-margin: 0 4px,
+      unselected-with-icon-handle-horizontal-margin: 0 3px,
+      unselected-pressed-handle-horizontal-margin: 0 3px,
+      state-layer-size: 32px,
+      handle-shape: 2px,
+      track-shape: 3px,
+      unselected-track-color: var(--mat-sys-surface-container-lowest),
+      unselected-hover-track-color: var(--mat-sys-surface-container-high),
+      unselected-focus-track-color: var(--mat-sys-surface-container-high),
+      unselected-pressed-track-color: var(--mat-sys-surface-container-high),
+      unselected-icon-color: var(--mat-sys-surface-container-lowest),
+    )
+  );
+
+  // Abas como no índice de um manual: rótulo em tinta, régua de 2 px embaixo da escolhida.
+  @include mat.tabs-overrides(
+    (
+      active-indicator-height: 2px,
+      active-indicator-shape: 0,
+      divider-height: 1px,
+      divider-color: var(--mat-sys-outline-variant),
+      active-label-text-color: var(--mat-sys-on-surface),
+      active-focus-label-text-color: var(--mat-sys-on-surface),
+      active-hover-label-text-color: var(--mat-sys-on-surface),
+      label-text-weight: 600,
+    )
+  );
+
+  // Diálogo no papel, não no cinza do contêiner.
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--mat-sys-surface-container-lowest),
+    )
+  );
+
+  // Campo contornado na mesma borda do resto (3:1 no papel) e foco de 2 px.
+  @include mat.form-field-overrides(
+    (
+      outlined-outline-color: var(--mat-sys-outline),
+      outlined-hover-outline-color: var(--mat-sys-on-surface),
+      outlined-focus-outline-width: 2px,
+    )
+  );
 
   @media (prefers-contrast: more) {
-    @include harbor.high-contrast-overrides(color-scheme);
+    @include manual.high-contrast-overrides(color-scheme);
   }
 }
 
@@ -116,6 +306,7 @@ body {
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
+  font-variant-numeric: tabular-nums;
   margin: 0;
   height: 100%;
 }
@@ -126,13 +317,15 @@ h3 {
   font-variation-settings: var(--app-heading-variation);
 }
 
-// Título de página (Checks, Outbound, Rules, Insights e Compare; a Inbox usa o cabeçalho da lista): 28/36, peso 600, ROND.
+// Título de página (Checks, Outbound, Rules, Insights e Compare; a Inbox usa o cabeçalho da lista):
+// 30/38, peso 700, um pouco apertado, como a abertura de capítulo de um manual.
 .page-title {
   margin: 0;
   font: var(--mat-sys-headline-medium);
   font-size: var(--mat-sys-headline-medium-size);
-  font-weight: 600;
-  line-height: 36px;
+  font-weight: 700;
+  line-height: 38px;
+  letter-spacing: -0.01em;
   font-variation-settings: var(--app-heading-variation);
 }
 
@@ -146,6 +339,8 @@ samp {
 
 a {
   color: var(--mat-sys-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 // Realce do highlight.js (corpo JSON/XML do detalhe) com os tokens do tema, no lugar do tema
@@ -161,6 +356,7 @@ pre code.hljs {
 .hljs-meta,
 .hljs-quote {
   color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
 }
 
 .hljs-keyword,

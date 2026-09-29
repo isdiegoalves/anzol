@@ -4,8 +4,8 @@
   gap: 4px;
   box-sizing: border-box;
   min-width: 0;
-  height: 48px;
-  padding: 0 4px 0 14px;
+  height: 40px;
+  padding: 0 2px 0 12px;
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-full);
   background: var(--mat-sys-surface-container-lowest);
@@ -13,7 +13,7 @@
 
 .link {
   flex: none;
-  color: var(--mat-sys-primary);
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .value {
@@ -23,7 +23,7 @@
   border: 0;
   background: transparent;
   color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-large);
+  font: var(--mat-sys-body-medium);
   font-family: var(--app-code-family);
   text-overflow: ellipsis;
 
@@ -44,22 +44,19 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0 var(--mat-sys-corner-small) var(--mat-sys-corner-small) 0;
+  background: transparent;
+  color: var(--mat-sys-primary);
   font: var(--mat-sys-label-large);
   cursor: pointer;
 
   &:hover {
-    background: color-mix(
-      in srgb,
-      var(--mat-sys-primary-container),
-      var(--mat-sys-on-primary-container) 8%
-    );
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {

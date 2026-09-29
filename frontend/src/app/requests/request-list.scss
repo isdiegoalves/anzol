@@ -38,7 +38,6 @@
 .header {
   margin: 0;
   font: var(--mat-sys-title-medium);
-  font-variation-settings: var(--app-heading-variation);
 }
 
 .spacer {
@@ -82,7 +81,7 @@
   contain: inline-size;
   box-sizing: border-box;
   height: 60px;
-  padding: 2px 8px;
+  padding: 0;
 
   &.unread .route-line {
     font-weight: 700;
@@ -91,8 +90,8 @@
   &.unread::before {
     content: '';
     position: absolute;
-    top: 16px;
-    left: 12px;
+    top: 15px;
+    left: 6px;
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -122,6 +121,26 @@
   }
 }
 
+// Régua entre as entradas de primeiro nível (requisição e evento); as tentativas de um evento
+// aberto ficam embaixo dele, sem régua, como subitens.
+.item:has(app-method-badge),
+app-event-line {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+// A requisição com anomalia (assinatura que não confere, schema inválido, falha de rede) leva a
+// marca de revisão na margem, além do selo.
+.item:has(app-check-chip.bad)::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: var(--app-note-rule);
+  background: var(--mat-sys-error);
+  pointer-events: none;
+}
+
 .select {
   display: flex;
   flex-direction: column;
@@ -132,7 +151,7 @@
   height: 100%;
   padding: 0 48px 0 16px;
   border: 0;
-  border-radius: var(--mat-sys-corner-medium);
+  border-radius: 0;
   background: none;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
@@ -217,11 +236,12 @@
 }
 
 .new {
-  padding: 0 6px;
+  padding: 0 4px;
+  border: 1px solid currentcolor;
   border-radius: var(--mat-sys-corner-extra-small);
-  background: var(--mat-sys-tertiary);
-  color: var(--mat-sys-on-tertiary);
+  color: var(--mat-sys-primary);
   font: var(--mat-sys-label-small);
+  letter-spacing: 0.04em;
 }
 
 // O tipo do evento é o que cede primeiro, com reticências; depois, o texto dos selos (o veredito
@@ -262,7 +282,7 @@
 .delete {
   position: absolute;
   top: 10px;
-  right: 12px;
+  right: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

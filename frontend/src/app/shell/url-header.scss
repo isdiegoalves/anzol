@@ -20,10 +20,12 @@
   box-sizing: border-box;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-small);
+  border: 0;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-large);
+  font-weight: 400;
   text-decoration: none;
   white-space: nowrap;
 
@@ -85,22 +87,18 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
-  padding: 0 16px 0 12px;
-  border: 0;
+  height: 36px;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--mat-sys-outline);
   border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
+  background: transparent;
+  color: var(--mat-sys-on-surface);
   font: var(--mat-sys-label-large);
   text-decoration: none;
   cursor: pointer;
 
   &:hover {
-    background: color-mix(
-      in srgb,
-      var(--mat-sys-secondary-container),
-      var(--mat-sys-on-secondary-container) 8%
-    );
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {
@@ -114,11 +112,11 @@
 // detalhe em tela cheia, o cartão sai.
 @media (width < 600px) {
   :host {
-    margin: 0 8px 8px;
-    padding: 8px 12px;
-    border: 1px solid var(--mat-sys-outline-variant);
-    border-radius: var(--mat-sys-corner-large);
-    background: var(--mat-sys-surface-container-lowest);
+    margin: 0;
+    padding: 4px 12px 8px 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   // O detalhe em tela cheia ou a busca aberta (INBOX-30/31): a lista e o detalhe sobem.

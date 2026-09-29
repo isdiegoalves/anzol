@@ -12,14 +12,20 @@
   min-width: 0;
 }
 
+// O título é a rota em código, grande: o bloco de abertura da página. O caminho que não cabe some
+// num esmaecido, e não num corte seco que pareceria outro caminho.
 .route {
+  flex: 1 1 auto;
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font: var(--mat-sys-title-large);
+  font: var(--mat-sys-headline-small);
   font-family: var(--app-code-family);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
+  mask-image: linear-gradient(to left, transparent, currentcolor 24px);
 
   &:focus-visible {
     outline: var(--app-focus-width) solid var(--app-focus-color);
@@ -80,7 +86,7 @@ a {
 .checks {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
+  gap: 10px 20px;
 }
 
 .check {
@@ -88,7 +94,7 @@ a {
   min-width: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--mat-sys-corner-medium);
+  border-radius: 0;
   background: transparent;
   font: inherit;
   text-align: left;
@@ -101,8 +107,8 @@ a {
 button.check {
   cursor: pointer;
 
-  &:hover app-check-chip {
-    filter: brightness(0.97);
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {
@@ -142,6 +148,10 @@ button.check {
 }
 
 @media (width < 600px) {
+  .route {
+    font-size: var(--mat-sys-title-large-size);
+  }
+
   .pretty {
     position: static;
     margin-bottom: 4px;
@@ -197,7 +207,7 @@ button.check {
   height: 48px;
   padding: 0 12px;
   border: 0;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   background: none;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-title-small);
@@ -205,7 +215,7 @@ button.check {
 
   &[aria-selected='true'] {
     border-bottom-color: var(--mat-sys-primary);
-    color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-surface);
   }
 
   &:focus-visible {

@@ -7,7 +7,8 @@
   margin: 0;
   padding: 12px 0;
   overflow: auto;
-  border-radius: var(--mat-sys-corner-medium);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-low);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
@@ -31,8 +32,9 @@
     content: counter(line);
     display: inline-block;
     width: 3.5em;
-    margin-right: 12px;
-    padding-right: 8px;
+    margin-right: 14px;
+    padding-right: 10px;
+    border-right: 1px solid var(--mat-sys-outline-variant);
     color: var(--mat-sys-on-surface-variant);
     text-align: right;
     user-select: none;
@@ -41,7 +43,7 @@
   &.marked {
     background: var(--mat-sys-error-container);
     color: var(--mat-sys-on-error-container);
-    box-shadow: inset 3px 0 var(--mat-sys-error);
+    box-shadow: inset var(--app-note-rule) 0 var(--mat-sys-error);
   }
 
   &.empty {
@@ -56,10 +58,12 @@
 
 .mark {
   display: block;
-  padding: 2px 16px 6px calc(3.5em + 20px);
+  padding: 2px 16px 6px calc(3.5em + 24px);
   background: var(--mat-sys-error-container);
   color: var(--mat-sys-on-error-container);
+  box-shadow: inset var(--app-note-rule) 0 var(--mat-sys-error);
   font: var(--mat-sys-body-small);
+  font-style: italic;
   white-space: pre-wrap;
 }
 
