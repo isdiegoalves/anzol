@@ -79,9 +79,9 @@
 .words {
   margin: 0 0 12px;
   padding: 8px 12px;
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-primary-fixed);
-  color: var(--mat-sys-on-primary-fixed);
+  border-left: var(--app-note-rule) solid var(--mat-sys-primary);
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-large);
 
   code {
