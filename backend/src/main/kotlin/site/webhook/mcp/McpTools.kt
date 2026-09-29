@@ -56,6 +56,14 @@ private const val SETTINGS = """
     "signature": {"type": "object", "description": "HMAC verification: {provider: stripe|github|shopify|slack|generic, secret, header?, algorithm?, encoding?, prefix?, toleranceSeconds?}. The secret is never returned, only masked"},
     "schema": {"description": "JSON Schema (draft 7, 2019-09 or 2020-12) the request body is validated against"}"""
 
+private const val CHAOS =
+    """"chaos": {"type": "object", "description": "Failures to inject into this replay, every field optional. The result's chaos.injected lists what actually happened; with a cut body or a give-up there is no status and no error", "properties": {
+    "delay_ms": {"type": "integer", "description": "Wait before sending, 0 to 30000 ms"},
+    "duplicate": {"type": "boolean", "description": "Send the same request a second time right after the first"},
+    "abort_mid_body": {"type": "boolean", "description": "Send half the body, then close the connection"},
+    "slow_body_bps": {"type": "integer", "description": "Send the body at this many bytes per second, 1 to 1048576"},
+    "timeout_ms": {"type": "integer", "description": "Give up waiting for the answer after this many ms, 1 to 30000, below timeout"}}}"""
+
 /** O argumento do `set_rules` e do `diff_rules`: a lista inteira de regras. */
 private const val RULES_ARGUMENT = """$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}"""
 
@@ -359,7 +367,7 @@ class McpTools {
                         """$TOKEN_ID, $REQUEST_ID,
                         "url": {"type": "string", "description": "Absolute http(s) URL"},
                         "keep_path": {"type": "boolean"},
-                        "timeout": {"type": "integer", "description": "Milliseconds, 1000 to 30000 (default 10000)"}""",
+                        "timeout": {"type": "integer", "description": "Milliseconds, 1000 to 30000 (default 10000)"}, $CHAOS""",
                         "token_id",
                         "request_id",
                         "url",

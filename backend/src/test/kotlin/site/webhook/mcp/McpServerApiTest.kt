@@ -365,6 +365,7 @@ class McpServerApiTest(
                         "url" to "http://localhost:$port/$tokenId",
                         "keep_path" to null,
                         "timeout" to null,
+                        "chaos" to null,
                     ),
                 "send_request" to
                     id +
@@ -413,6 +414,42 @@ class McpServerApiTest(
         assertThat(gone.json()["status"].asInt()).isEqualTo(410)
         assertThat(gone.json()["error"].asString()).isEqualTo("Token not found")
         assertThat(noId.json()["errors"]["token_id"][0].asString()).isEqualTo("The token id must be a valid UUID.")
+    }
+
+    @Test
+    @DisplayName(
+        "Dado o replay_request, quando lista e chama com chaos, então o schema declara os cinco campos, o destino recusado não " +
+            "injeta nada e a validação vira erro de ferramenta",
+    )
+    fun replayRequest_comChaos() {
+        val tool = client.listTools().tools().single { it.name() == "replay_request" }
+        val tokenId = api.tokenId()
+        val requestId = api.capture(tokenId, "POST", "/pedidos", "corpo".toByteArray())["uuid"].asString()
+        val arguments = mapOf("token_id" to tokenId, "request_id" to requestId, "url" to "http://localhost:$port/$tokenId")
+
+        val refused = call("replay_request", arguments + mapOf("chaos" to mapOf("delay_ms" to 3_000, "duplicate" to true)))
+        val invalid = call("replay_request", arguments + mapOf("chaos" to mapOf("delay_ms" to -1)))
+
+        @Suppress("UNCHECKED_CAST")
+        val chaos = (tool.inputSchema()["properties"] as Map<String, Map<String, Any>>).getValue("chaos")
+        assertThat(chaos["type"]).isEqualTo("object")
+        @Suppress("UNCHECKED_CAST")
+        val fields = (chaos["properties"] as Map<String, Map<String, Any>>).mapValues { it.value["type"] }
+        assertThat(fields).isEqualTo(
+            mapOf(
+                "delay_ms" to "integer",
+                "duplicate" to "boolean",
+                "abort_mid_body" to "boolean",
+                "slow_body_bps" to "integer",
+                "timeout_ms" to "integer",
+            ),
+        )
+        assertThat(refused.isError).isNotEqualTo(true)
+        assertThat(refused.json()["error"]["kind"].asString()).isEqualTo("blocked")
+        assertThat(refused.json()["chaos"]["injected"].size()).isZero()
+        assertThat(refused.json()["chaos"]["delay_ms"].asInt()).isEqualTo(3_000)
+        assertThat(invalid.isError).isTrue()
+        assertThat(invalid.json()["errors"]["chaos.delay_ms"][0].asString()).isEqualTo("The delay ms must be between 0 and 30000.")
     }
 
     @Test
