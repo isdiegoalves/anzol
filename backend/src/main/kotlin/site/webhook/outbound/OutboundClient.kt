@@ -13,23 +13,30 @@ import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder
 import org.apache.hc.client5.http.io.DetachedSocketFactory
 import org.apache.hc.client5.http.io.HttpClientConnectionOperator
+import org.apache.hc.client5.http.io.ManagedHttpClientConnection
 import org.apache.hc.client5.http.protocol.HttpClientContext
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy
+import org.apache.hc.core5.concurrent.Cancellable
 import org.apache.hc.core5.http.ClassicHttpResponse
 import org.apache.hc.core5.http.Header
 import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.http.config.Http1Config
 import org.apache.hc.core5.http.config.RegistryBuilder
+import org.apache.hc.core5.http.io.SocketConfig
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity
+import org.apache.hc.core5.http.protocol.HttpContext
 import org.apache.hc.core5.io.CloseMode
+import org.apache.hc.core5.net.NamedEndpoint
 import org.apache.hc.core5.util.Timeout
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URI
 import java.net.UnknownHostException
 import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
@@ -82,11 +89,35 @@ data class Answer(
     val truncated: Boolean,
 )
 
-/** O que a saída deu: a URL efetiva (com o alias, se trocou) e a resposta, ou o motivo de não haver. */
+/**
+ * O que a saída deu: a URL efetiva (com o alias, se trocou) e a resposta, ou o motivo de não haver; nula quando o caos
+ * cortou o corpo ou desistiu de esperar (não há resposta lida nem falha de saída).
+ */
 data class Exchange(
     val target: String,
-    val answer: Checked<Answer>,
+    val answer: Checked<Answer>?,
 )
+
+/** Uma cópia do disparo: o que deu (como em [Exchange.answer]), quanto levou e o que o caos fez nela. */
+data class Shot(
+    val answer: Checked<Answer>?,
+    val duration: Duration,
+    val injected: Set<Injection> = emptySet(),
+)
+
+/** O disparo: o alvo, a primeira cópia (a do resultado), a segunda (com `duplicate`) e se esperou o `delay_ms`. */
+data class Delivery(
+    val target: String,
+    val first: Shot,
+    val second: Shot? = null,
+    val delayed: Boolean = false,
+) {
+    /** O que foi injetado, na ordem de [Injection]. */
+    fun injected(): List<Injection> {
+        val around = setOfNotNull(Injection.DELAY_MS.takeIf { delayed }, Injection.DUPLICATE.takeIf { second != null })
+        return (around + first.injected + second?.injected.orEmpty()).sorted()
+    }
+}
 
 /** Socket comum; os testes trocam para ver em que endereço o motor conecta. */
 val PLAIN_SOCKETS = DetachedSocketFactory { proxy -> if (proxy == null) Socket() else Socket(proxy) }
@@ -118,21 +149,25 @@ class OutboundClient(
     private val deadlines = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory())
     private val lookups = Executors.newVirtualThreadPerTaskExecutor()
 
+    fun exchange(request: OutboundRequest): Exchange = exchange(request, Chaos()).let { Exchange(it.target, it.first.answer) }
+
     /**
-     * O prazo ([OutboundRequest.timeout]) conta desde aqui: a resolução do nome (e a do alias) entra nele, e a
-     * conexão fica com o que sobrou.
+     * O disparo com [chaos]. O prazo ([OutboundRequest.timeout]) conta desde aqui: a resolução do nome (e a do alias)
+     * entra nele, e a conexão fica com o que sobrou. O destino é conferido antes de qualquer caos: recusado, nada é
+     * injetado. O `delay_ms` fica entre a conferência e a conexão, fora do prazo e da duração; a segunda cópia sai no
+     * mesmo IP validado, com o prazo inteiro.
      */
-    fun exchange(request: OutboundRequest): Exchange {
+    fun exchange(
+        request: OutboundRequest,
+        chaos: Chaos,
+    ): Delivery {
         val started = System.nanoTime()
         val (target, checked) = destination(request)
-        val destination =
-            when (checked) {
-                is Checked.Ok -> checked.value
-                is Checked.Refused -> return Exchange(target, checked)
-            }
-        val left = request.timeout - Duration.ofNanos(System.nanoTime() - started)
-        val answer = if (left < MIN_PHASE) Checked.Refused(timedOut(request.timeout)) else send(destination, request, left)
-        return Exchange(destination.url.toString(), answer)
+        val resolution = Duration.ofNanos(System.nanoTime() - started)
+        return when (checked) {
+            is Checked.Ok -> deliver(checked.value, request, chaos, resolution)
+            is Checked.Refused -> Delivery(target, Shot(checked, resolution))
+        }
     }
 
     /**
@@ -167,45 +202,101 @@ class OutboundClient(
         }
     }
 
+    private fun deliver(
+        destination: Destination,
+        request: OutboundRequest,
+        chaos: Chaos,
+        resolution: Duration,
+    ): Delivery {
+        val target = destination.url.toString()
+        val left = request.timeout - resolution
+        if (left < MIN_PHASE) return Delivery(target, Shot(Checked.Refused(timedOut(request.timeout)), resolution))
+        val delay = Duration.ofMillis(chaos.delayMs)
+        if (!delay.isZero) Thread.sleep(delay)
+        val first = send(destination, request, left, chaos)
+        val second = if (chaos.duplicate) send(destination, request, request.timeout, chaos) else null
+        return Delivery(target, first.copy(duration = resolution + first.duration), second, delayed = !delay.isZero)
+    }
+
     /**
-     * Um disparo com o prazo que sobrou ([left]): vale para cada fase (conexão, TLS, cada leitura) e, por cima,
-     * cancela o disparo inteiro quando vence (alvo que pinga um byte por vez não segura a thread).
+     * Uma cópia com o prazo que sobrou ([left]): vale para cada fase (conexão, TLS, cada leitura) e, por cima, cancela
+     * o disparo inteiro quando vence (alvo que pinga um byte por vez não segura a thread). O `timeout_ms` do [chaos]
+     * cancela do mesmo jeito, contado também do início da conexão.
      */
     private fun send(
         destination: Destination,
         request: OutboundRequest,
         left: Duration,
-    ): Checked<Answer> {
+        chaos: Chaos,
+    ): Shot {
+        val started = System.nanoTime()
         val url = destination.url
         val target = HttpHost(url.scheme, destination.address, url.host, url.port)
         val outgoing = HttpUriRequestBase(request.method, URI(url.toString()))
         request.headers.forEach { (name, value) -> outgoing.addHeader(name, value) }
-        if (request.body.isNotEmpty() || request.method in WITH_BODY) outgoing.entity = ByteArrayEntity(request.body, null)
         val context = HttpClientContext.create()
         context.requestConfig = requestConfig(Timeout.of(left))
-        val expired = AtomicBoolean(false)
-        val deadline =
+        val body = chaos.body(request.body, context)
+        if (body != null) {
+            outgoing.entity = body
+        } else if (request.body.isNotEmpty() || request.method in WITH_BODY) {
+            outgoing.entity = ByteArrayEntity(request.body, null)
+        }
+        val deadline = Deadline(left, outgoing)
+        val giveUp = chaos.timeoutMs?.let { Deadline(Duration.ofMillis(it), outgoing) }
+        val (answer, stopped) =
+            try {
+                execute(target, outgoing, context)
+            } catch (_: BodyCut) {
+                null to Injection.ABORT_MID_BODY
+            } catch (e: IOException) {
+                if (giveUp?.passed() == true) {
+                    null to Injection.TIMEOUT_MS
+                } else {
+                    Checked.Refused(e.toError(deadline.passed(), request.timeout, detailed = properties.allowPrivate)) to null
+                }
+            } finally {
+                deadline.cancel()
+                giveUp?.cancel()
+            }
+        val slow = Injection.SLOW_BODY_BPS.takeIf { body?.started == true && chaos.slowBodyBps != null }
+        return Shot(answer, Duration.ofNanos(System.nanoTime() - started), setOfNotNull(slow, stopped))
+    }
+
+    private fun execute(
+        target: HttpHost,
+        outgoing: HttpUriRequestBase,
+        context: HttpClientContext,
+    ): Pair<Checked<Answer>, Injection?> =
+        (http.executeOpen(target, outgoing, context) as CloseableHttpResponse).let { response ->
+            try {
+                Checked.Ok(response.answer()) to null
+            } finally {
+                // Sem drenar o resto do corpo: fecha a conexão na hora.
+                response.close(CloseMode.IMMEDIATE)
+            }
+        }
+
+    /** Cancela [outgoing] quando [after] vence. */
+    private inner class Deadline(
+        after: Duration,
+        outgoing: Cancellable,
+    ) {
+        private val passed = AtomicBoolean(false)
+        private val task =
             deadlines.schedule(
                 {
-                    expired.set(true)
+                    passed.set(true)
                     outgoing.cancel()
                 },
-                left.toMillis(),
+                after.toMillis(),
                 TimeUnit.MILLISECONDS,
             )
-        return try {
-            (http.executeOpen(target, outgoing, context) as CloseableHttpResponse).let { response ->
-                try {
-                    Checked.Ok(response.answer())
-                } finally {
-                    // Sem drenar o resto do corpo: fecha a conexão na hora.
-                    response.close(CloseMode.IMMEDIATE)
-                }
-            }
-        } catch (e: IOException) {
-            Checked.Refused(e.toError(expired.get(), request.timeout, detailed = properties.allowPrivate))
-        } finally {
-            deadline.cancel(false)
+
+        fun passed(): Boolean = passed.get()
+
+        fun cancel() {
+            task.cancel(false)
         }
     }
 
@@ -260,6 +351,33 @@ private fun IOException.toError(
         else -> OutboundError(ErrorKind.CONNECT, CONNECT_FAILED)
     }
 
+/** O operador de conexão do Apache, que ainda deixa o socket da conexão aberta no contexto ([CONNECTION_SOCKET]). */
+private class SocketInContext(
+    sockets: DetachedSocketFactory,
+    schemePortResolver: SchemePortResolver?,
+    tlsSocketStrategy: TlsSocketStrategy?,
+) : DefaultHttpClientConnectionOperator(
+        sockets,
+        schemePortResolver,
+        NoNameResolution,
+        RegistryBuilder.create<TlsSocketStrategy>().register("https", tlsSocketStrategy).build(),
+    ) {
+    override fun connect(
+        conn: ManagedHttpClientConnection,
+        endpointHost: HttpHost,
+        endpointName: NamedEndpoint?,
+        unixDomainSocket: Path?,
+        localAddress: InetSocketAddress?,
+        connectTimeout: Timeout?,
+        socketConfig: SocketConfig,
+        attachment: Any?,
+        context: HttpContext,
+    ) {
+        super.connect(conn, endpointHost, endpointName, unixDomainSocket, localAddress, connectTimeout, socketConfig, attachment, context)
+        context.setAttribute(CONNECTION_SOCKET, conn.socket)
+    }
+}
+
 private fun httpClient(sockets: DetachedSocketFactory): CloseableHttpClient {
     val builder =
         object : PoolingHttpClientConnectionManagerBuilder() {
@@ -267,13 +385,7 @@ private fun httpClient(sockets: DetachedSocketFactory): CloseableHttpClient {
                 schemePortResolver: SchemePortResolver?,
                 dnsResolver: DnsResolver?,
                 tlsSocketStrategy: TlsSocketStrategy?,
-            ): HttpClientConnectionOperator =
-                DefaultHttpClientConnectionOperator(
-                    sockets,
-                    schemePortResolver,
-                    NoNameResolution,
-                    RegistryBuilder.create<TlsSocketStrategy>().register("https", tlsSocketStrategy).build(),
-                )
+            ): HttpClientConnectionOperator = SocketInContext(sockets, schemePortResolver, tlsSocketStrategy)
         }
     val http1 =
         Http1Config
