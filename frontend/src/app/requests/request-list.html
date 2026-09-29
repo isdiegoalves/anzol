@@ -106,7 +106,7 @@
                     <app-method-badge [method]="item.request.method" />
                     <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
                     <!-- prettier-ignore -->
-                    <span class="route" [title]="item.route"><span class="head"> {{ item.head }}</span><span class="tail">{{ item.tail }}</span></span>
+                    <span class="route" [title]="item.route"><span class="start"> {{ item.head }}</span><span class="end">{{ item.tail }}</span></span>
                     @if (fresh().has(item.request.uuid)) {
                       <span class="new" i18n>NEW</span>
                     }

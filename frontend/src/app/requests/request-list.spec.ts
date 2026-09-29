@@ -125,10 +125,10 @@ describe('Dado a lista lateral de mensagens', () => {
     const route = items()[0].querySelector('.route') as HTMLElement;
     expect(route.getAttribute('title')).toBe(path);
     expect(route.textContent?.trim()).toBe(path);
-    expect(route.querySelector('.head')?.textContent).toBe(
-      ' /pedidos/2026/09/loja-centro/confirmacoes/paga',
+    expect(route.querySelector('.start')?.textContent).toBe(
+      ' /pedidos/2026/09/loja-centro/confirmacoes',
     );
-    expect(route.querySelector('.tail')?.textContent).toBe('mento-aprovado');
+    expect(route.querySelector('.end')?.textContent).toBe('/pagamento-aprovado');
     expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
       new RegExp(`^POST ${path}, #`),
     );

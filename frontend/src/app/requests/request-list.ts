@@ -37,7 +37,7 @@ import { EventGrouping } from './event-grouping';
 import { groupByEvent } from './event-key';
 import { EventLine } from './event-line';
 import { EventNote } from './event-note';
-import { ListRow, ROUTE_TAIL, rowsOf } from './list-rows';
+import { ListRow, routeCut, rowsOf } from './list-rows';
 import { RequestStore } from './request-store';
 import { RowSizes } from './row-sizes';
 import { SealFilter } from './seal-filter';
@@ -535,7 +535,7 @@ export class RequestList {
       ...(this.isUnread(request) ? [$localize`unread`] : []),
       ...this.compareRole(request),
     ].join(', ');
-    const cut = Math.max(pipeline.route.length - ROUTE_TAIL, 0);
+    const cut = routeCut(pipeline.route);
     return {
       request,
       route: pipeline.route,

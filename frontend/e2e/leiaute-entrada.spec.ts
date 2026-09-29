@@ -46,6 +46,74 @@ async function emPortugues(page: Page): Promise<void> {
   await seedStorage(page, { language: '"pt-BR"' });
 }
 
+/**
+ * O fim do caminho não sai da caixa dele (nem cobre o que vem depois), e o começo não tem recuo que
+ * esconda o texto.
+ */
+async function conferirCaminhos(linhas: Locator, depois: string): Promise<void> {
+  const problemas = await linhas.evaluateAll(
+    (nos, seletorDepois) =>
+      nos.flatMap((no) => {
+        const rota = no.querySelector<HTMLElement>('.route');
+        const fim = rota?.lastElementChild as HTMLElement | null;
+        const comeco = rota?.firstElementChild as HTMLElement | null;
+        const seguinte = no.querySelector<HTMLElement>(seletorDepois);
+        if (!rota || !fim || !comeco) {
+          return ['sem caminho'];
+        }
+        const [r, f] = [rota.getBoundingClientRect(), fim.getBoundingClientRect()];
+        const erros: string[] = [];
+        if (f.right > r.right + 1) {
+          erros.push(`o fim "${fim.textContent}" sai do caminho`);
+        }
+        if (seguinte && r.right > seguinte.getBoundingClientRect().left + 1) {
+          erros.push(`o caminho cobre "${seguinte.textContent?.trim()}"`);
+        }
+        if (getComputedStyle(comeco).paddingLeft !== '0px') {
+          erros.push(`o começo "${comeco.textContent}" tem recuo`);
+        }
+        return erros;
+      }),
+    depois,
+  );
+  expect(problemas).toEqual([]);
+}
+
+test.describe('Dado caminhos que não cabem na largura da lista', () => {
+  test('deve cortar no meio sem sobrepor, no item e na linha de evento', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    for (const [evento, n] of [
+      ['evt_pf_7Q2K1010', 1],
+      ['evt_pf_7Q2K1010', 2],
+      ['evt_pf_7Q2K1011', 1],
+    ] as const) {
+      await tokens.send(tokenId, {
+        path: '/webhooks/pagamentos/confirmacoes',
+        headers: { 'Content-Type': 'application/json' },
+        data: JSON.stringify({ event_id: evento, n }),
+      });
+    }
+    await tokens.send(tokenId, { path: '/webhooks/pagamentos/confirmacoes/saude', method: 'GET' });
+    await emPortugues(page);
+    await page.goto(`/#/${tokenId}`);
+    const lista = page.getByRole('region', { name: 'Lista de requisições', exact: true });
+    await expect(lista.locator('.item')).toHaveCount(4);
+
+    await conferirCaminhos(lista.locator('.item .route-line'), '.ago');
+
+    await page.evaluate(
+      (chave) => localStorage.setItem(chave, '$.event_id'),
+      `anzol.eventKey.${tokenId}`,
+    );
+    await page.reload();
+    await expect(lista.locator('app-event-line')).toHaveCount(1);
+    await conferirCaminhos(lista.locator('app-event-line .line').first(), '.value, .time');
+  });
+});
+
 test.describe('Dado a Entrada em pt-BR, com os rótulos mais compridos', () => {
   test('não deve sobrepor os chips do painel de filtros com dois ligados', async ({
     page,

@@ -4,8 +4,19 @@ import { localDate, parseUtc } from '../request-detail/dates';
 import { Grouped, TrailSeal, trailOf, waitsOf } from './event-key';
 import { CapturedRequest, WebhookRequest, signatureState } from './webhook-request';
 
-/** O fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
-export const ROUTE_TAIL = 14;
+const ROUTE_TAIL = 14;
+const SEGMENT_MAX = 24;
+
+/**
+ * Onde o caminho se parte: o fim fica sempre à vista e o corte, com reticências, é no meio. O fim é
+ * o último segmento inteiro; comprido demais, os últimos caracteres.
+ */
+export function routeCut(route: string): number {
+  const slash = route.lastIndexOf('/');
+  return slash > 0 && route.length - slash <= SEGMENT_MAX
+    ? slash
+    : Math.max(route.length - ROUTE_TAIL, 0);
+}
 
 export interface AttemptView {
   number: string;
@@ -157,7 +168,7 @@ export function rowsOf<Item>(
     const early = waits.filter((wait) => wait?.wait?.verdict === 'before').length;
     const newest = attempts[attempts.length - 1];
     const route = routeOf(newest.url);
-    const cut = Math.max(route.length - ROUTE_TAIL, 0);
+    const cut = routeCut(route);
     const trail = trailOf(attempts);
     const expanded = context.expanded.has(value);
     const notes = [

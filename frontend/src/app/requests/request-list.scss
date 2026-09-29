@@ -191,17 +191,18 @@
   display: flex;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   font-family: var(--app-code-family);
 }
 
-.head,
+.start,
 .summary {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tail {
+.end {
   flex: none;
 }
 
