@@ -22,8 +22,8 @@
   white-space: nowrap;
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 
@@ -106,8 +106,8 @@ button.check {
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 
@@ -179,8 +179,8 @@ button.check {
   white-space: pre;
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 
@@ -209,8 +209,8 @@ button.check {
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: -3px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: calc(-1 * var(--app-focus-width));
   }
 }
 

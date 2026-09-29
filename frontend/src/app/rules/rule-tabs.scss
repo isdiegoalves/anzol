@@ -32,8 +32,8 @@
   }
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: -2px;
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
+    outline-offset: calc(1px - var(--app-focus-width));
   }
 
   @media (width < 600px) {

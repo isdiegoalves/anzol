@@ -52,7 +52,7 @@
   }
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
   }
 
   code {

@@ -67,8 +67,8 @@
   container: rule-list / inline-size;
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 
@@ -212,7 +212,7 @@
   }
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
   }
 }
 
@@ -248,8 +248,8 @@
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: -3px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: calc(-1 * var(--app-focus-width));
   }
 }
 

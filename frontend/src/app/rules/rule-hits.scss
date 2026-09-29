@@ -21,7 +21,7 @@ a {
   text-decoration: underline;
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
     outline-offset: 1px;
   }
 }

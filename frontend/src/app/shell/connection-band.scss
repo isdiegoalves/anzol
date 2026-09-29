@@ -40,8 +40,8 @@
   cursor: pointer;
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
-    outline-offset: 2px;
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 

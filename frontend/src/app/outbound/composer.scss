@@ -157,7 +157,7 @@ code {
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
     outline-offset: -1px;
   }
 
@@ -249,7 +249,7 @@ code {
   font: 12.5px var(--app-code-family);
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
     outline-offset: -1px;
   }
 

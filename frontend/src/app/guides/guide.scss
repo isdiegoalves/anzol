@@ -37,6 +37,6 @@ h2 {
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
+    outline: var(--app-focus-width) solid var(--app-focus-color);
   }
 }

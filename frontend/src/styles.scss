@@ -60,6 +60,9 @@ html {
   --app-on-warning-container: light-dark(#5c4300, #ffdf9e);
   --app-code-family: #{'"Google Sans Code", ui-monospace, "SFMono-Regular", Menlo, monospace'};
   --app-pane-shape: 20px;
+  --app-focus-color: var(--mat-sys-primary);
+  --app-focus-width: 3px;
+  --app-focus-offset: 2px;
 
   @media (prefers-contrast: more) {
     @include harbor.high-contrast-overrides(color-scheme);

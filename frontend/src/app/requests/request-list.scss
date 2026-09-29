@@ -144,14 +144,14 @@
   }
 
   &:focus-visible {
-    outline-offset: -3px;
+    outline-offset: calc(-1 * var(--app-focus-width));
   }
 }
 
 .select,
 .delete {
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
+    outline: var(--app-focus-width) solid var(--app-focus-color);
   }
 }
 
