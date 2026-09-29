@@ -1,4 +1,13 @@
-import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  InjectionToken,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -32,6 +41,15 @@ import { catchAllPlacement } from './rule-shadow';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 
 type HeaderGroup = FormGroup<{ name: FormControl<string>; value: FormControl<string> }>;
+
+export interface CreatedRule {
+  name: string;
+  /** Quantas das últimas 500 ela responde; `null` se a contagem não voltou. */
+  count: number | null;
+}
+
+/** Presente, a folha está no painel de ação: criar a regra não leva a Regras. */
+export const RULE_CREATED = new InjectionToken<(created: CreatedRule) => void>('RULE_CREATED');
 
 /** Espera depois da última escolha antes de contar de novo (E-03). */
 const COUNT_DELAY_MS = 600;
@@ -74,6 +92,7 @@ export class RuleFromRequestDialog {
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly formBuilder = inject(NonNullableFormBuilder);
+  private readonly inPanel = inject(RULE_CREATED, { optional: true });
 
   protected readonly candidates = signal<readonly RuleCandidate[]>(ruleCandidates(this.request));
   /** Método, caminho, query e corpo: o que decide a regra, antes da Resposta. */
@@ -257,6 +276,10 @@ export class RuleFromRequestDialog {
         .map(({ id }) => id)
         .filter((id): id is string => !!id && !before.has(id));
       this.intents.markCreated(created);
+      if (this.inPanel) {
+        this.inPanel({ name: rule.name ?? '', count: this.count() });
+        return;
+      }
       // R2-M1: a lista abre com o foco na regra criada (o botão da Entrada que abriu a folha some).
       this.store.pendingFocus.set({ rule: created[0] ?? null });
       this.dialog.close();

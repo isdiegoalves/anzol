@@ -4,16 +4,13 @@ import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   Injector,
-  ViewContainerRef,
   computed,
   effect,
   inject,
   input,
-  linkedSignal,
   output,
   signal,
   untracked,
-  viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -33,6 +30,7 @@ import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
 import { EventGrouping } from '../requests/event-grouping';
 import { eventValueOf } from '../requests/event-key';
+import { ActionPanelStore, ActionTab } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
@@ -43,11 +41,9 @@ let nextId = 0;
 const COPY_FORMATS: readonly CopyFormat[] = ['curl', 'HAR'];
 
 /**
- * Detalhe da mensagem na Inbox: a visualização (`RequestView`) com as ações — Newer/Older e o menu
- * "More" (Permalink, Raw content) no cabeçalho; embaixo dos cartões, a barra "Request actions"
- * agrupada por intenção (reenviar e comparar; criar regra e schema; copiar; compartilhar e
- * explicar). Cada ação que leva a outra página ainda abre o fluxo de hoje até a fatia dela. No
- * celular, a barra é uma linha rolável com as principais, e as demais vão ao "More".
+ * Detalhe da mensagem na Inbox: a visualização (`RequestView`) com Newer/Older e o "More" no
+ * cabeçalho e, embaixo dos cartões, a barra "Request actions". Replay, Compare, Create rule e Explain
+ * abrem o painel de ação, que é da Inbox.
  */
 @Component({
   selector: 'app-request-detail',
@@ -79,6 +75,7 @@ export class RequestDetail {
   private readonly explanations = inject(Explanations);
   private readonly grouping = inject(EventGrouping);
   private readonly announcer = inject(LiveAnnouncer);
+  private readonly panel = inject(ActionPanelStore);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -86,15 +83,6 @@ export class RequestDetail {
   /** Newer/Older: a mensagem a abrir (a lista vai da mais antiga para a mais nova). */
   readonly openRequest = output<WebhookRequest>();
 
-  /** A requisição aberta, pelo id: o mesmo id num objeto novo (a busca refeita) não fecha nada. */
-  private readonly openId = computed(() => this.request().uuid);
-  /** Painel do "Explain" aberto; fecha ao abrir outra mensagem. */
-  protected readonly explaining = linkedSignal({
-    source: this.openId,
-    computation: () => false,
-  });
-  /** Onde o painel entra, criado à mão (o painel vem num pedaço à parte). */
-  private readonly explainHost = viewChild.required('explainHost', { read: ViewContainerRef });
   protected readonly aiOffHint = AI_OFF_HINT;
   /**
    * B4 (UX-15): o "Explain" com a IA desligada (um 503 nesta sessão) fica `aria-disabled`, focável,
@@ -165,6 +153,8 @@ export class RequestDetail {
 
   /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
+  protected readonly narrow = computed(() => this.viewport.windowClass() === 'expanded');
+  protected readonly explainName = $localize`:action|Botão que pede a explicação ao modelo:Explain`;
 
   private readonly index = computed(() =>
     this.requests.requests().findIndex((request) => request.uuid === this.request().uuid),
@@ -200,12 +190,12 @@ export class RequestDetail {
   protected readonly hasOlder = computed(() => this.neighbour(false) >= 0);
 
   constructor() {
-    // B4: o "Open" do aviso "Explanation for #id is ready." abre o painel da requisição pedida.
     effect(() => {
       if (this.explanations.wanted() === this.request().uuid) {
         untracked(() => {
-          if (!this.explaining()) {
-            void this.toggleExplain();
+          if (!this.gone()) {
+            this.panel.explainFor.set(this.request().uuid);
+            this.panel.show('explain');
           }
         });
       }
@@ -218,12 +208,6 @@ export class RequestDetail {
           void this.findClosest(tokenId, uuid, rule.id);
         }
       });
-    });
-    // Fechar (ou abrir outra mensagem) tira o painel.
-    effect(() => {
-      if (!this.explaining()) {
-        this.explainHost().clear();
-      }
     });
   }
 
@@ -307,69 +291,49 @@ export class RequestDetail {
     });
   }
 
-  /**
-   * A lista entra em modo de escolha da mensagem B; escolhida, abre a página do Compare
-   * (`#/{token}/compare/{a}/{b}`, link compartilhável) pelo `CompareStore`.
-   */
-  protected compareWith(): void {
-    if (this.gone()) {
-      return;
-    }
-    this.compare.start(this.request());
-  }
-
-  /** "Compare with attempt {n}" (E1, tecla D): a anterior do mesmo evento como A, a aberta como B. */
-  compareWithPrevious(): void {
+  compareWithPrevious(event?: MouseEvent): void {
     const previous = this.previousAttempt()?.request;
     if (previous && !this.gone()) {
-      this.compare.openPair(previous, this.request());
+      this.compare.showInPanel(previous, this.request());
+      this.openPanel('compare', event);
     }
   }
 
-  /** A tecla D: com evento, a tentativa anterior; sem ele, o "Compare with…" de escolher na lista. */
-  compareByKey(): void {
-    if (this.previousAttempt()) {
-      this.compareWithPrevious();
-    } else {
-      this.compareWith();
-    }
-  }
-
-  /**
-   * "Create rule from this request" (WM-31): a folha de Regras com as condições sugeridas e a
-   * contagem, que vem sob demanda (pedaço do `rule-actions`); grava ou leva ao editor.
-   */
-  protected async createRule(): Promise<void> {
-    const { openCreateRuleDialog } = await import('../rules/rule-actions');
-    openCreateRuleDialog(this.injector, this.request());
-  }
-
-  /**
-   * Abre ou fecha o diagnóstico da mensagem ("Explain"). O painel vem sob demanda (pedaço do
-   * `explain-panel`) e faz a chamada ao abrir.
-   */
-  protected async toggleExplain(): Promise<void> {
-    if (this.gone()) {
+  /** Enter e espaço chegam como clique sem ponteiro (`detail` 0): aí o foco vai para o painel. */
+  protected openPanel(tab: ActionTab, event?: MouseEvent): void {
+    if (this.gone() && tab !== 'rule') {
       return;
     }
-    if (this.explaining()) {
-      this.explaining.set(false);
-      return;
+    const opener = (event?.currentTarget as HTMLElement | null) ?? null;
+    if (tab === 'explain') {
+      this.panel.explainFor.set(this.request().uuid);
     }
-    const request = this.request();
-    const { ExplainPanel } = await import('./explain-panel');
-    if (this.request() !== request || this.explaining()) {
-      return;
-    }
-    const panel = this.explainHost().createComponent(ExplainPanel);
-    panel.setInput('tokenId', request.token_id);
-    panel.setInput('requestId', request.uuid);
-    this.explaining.set(true);
+    this.panel.show(tab, opener, event?.detail === 0);
   }
 
-  /** Outbound com o Replay desta mensagem (E7). */
-  protected async replayRequest(): Promise<void> {
-    await this.openOutbound('replay');
+  openByKey(tab: ActionTab | 'toggle'): void {
+    if (tab === 'toggle') {
+      this.panel.toggle(null);
+      return;
+    }
+    if (tab === 'explain' && this.explainOff()) {
+      return;
+    }
+    if (tab === 'compare' && this.previousAttempt()?.request) {
+      this.compare.showInPanel(this.previousAttempt()?.request as WebhookRequest, this.request());
+    }
+    if (!this.gone()) {
+      if (tab === 'explain') {
+        this.panel.explainFor.set(this.request().uuid);
+      }
+      this.panel.show(tab, null, true);
+    }
+  }
+
+  protected openExplain(event?: MouseEvent): void {
+    if (!this.explainOff()) {
+      this.openPanel('explain', event);
+    }
   }
 
   /** O diálogo do link só-leitura vem sob demanda (pedaço do `share-dialog`). */
@@ -383,7 +347,13 @@ export class RequestDetail {
 
   /** Outbound com o Send já preenchido com método, headers e corpo desta mensagem (E7). */
   protected async sendAsNew(): Promise<void> {
-    await this.openOutbound('send-from');
+    if (this.gone()) {
+      return;
+    }
+    const request = this.request();
+    await this.router.navigate(['/', request.token_id, 'outbound'], {
+      queryParams: { 'send-from': request.uuid },
+    });
   }
 
   /** "Test a variation" (WM-28): o Send da mensagem apontado para a própria URL e caminho. */
@@ -394,16 +364,6 @@ export class RequestDetail {
     const request = this.request();
     await this.router.navigate(['/', request.token_id, 'outbound'], {
       queryParams: { 'send-from': request.uuid, to: 'self' },
-    });
-  }
-
-  private async openOutbound(param: 'replay' | 'send-from'): Promise<void> {
-    if (this.gone()) {
-      return;
-    }
-    const request = this.request();
-    await this.router.navigate(['/', request.token_id, 'outbound'], {
-      queryParams: { [param]: request.uuid },
     });
   }
 

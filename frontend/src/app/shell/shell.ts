@@ -401,6 +401,20 @@ export class Shell {
               icon: 'copy',
               action: () => this.copyCli(),
             },
+            {
+              label: $localize`Guides`,
+              icon: 'help',
+              items: [
+                {
+                  label: $localize`First webhook`,
+                  action: () => this.openGuide(token.uuid, 'first'),
+                },
+                {
+                  label: $localize`Test a retry`,
+                  action: () => this.openGuide(token.uuid, 'retry'),
+                },
+              ],
+            },
             ...(token.protected
               ? [
                   {
@@ -425,6 +439,10 @@ export class Shell {
       { label: $localize`Help`, icon: 'help', action: () => this.sheet.set('help') },
     ];
   });
+
+  private openGuide(tokenId: string, guide: 'first' | 'retry'): void {
+    void this.router.navigate(['/', tokenId], { queryParams: { guide } });
+  }
 
   /**
    * "Search requests": na Entrada, mostra a busca da lista (com o foco nela) ou a recolhe; fora

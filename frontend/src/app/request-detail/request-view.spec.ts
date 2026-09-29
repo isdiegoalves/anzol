@@ -226,6 +226,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         ),
       );
       expect(container.querySelector('pre.xml .hljs-name')).not.toBeNull();
+      expect(screen.getByRole('region', { name: 'Request body' })).toBe(
+        container.querySelector('pre.xml'),
+      );
     });
 
     it('deve pôr cada erro de schema na linha do JSON Pointer', async () => {

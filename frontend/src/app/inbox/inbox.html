@@ -23,12 +23,14 @@
         <ng-container [ngTemplateOutlet]="listPane" />
       </section>
       <section splitEnd class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
-        <ng-container [ngTemplateOutlet]="detailPane" />
+        <div class="detail-scroll"><ng-container [ngTemplateOutlet]="detailPane" /></div>
+        <ng-container [ngTemplateOutlet]="actionPanel" />
       </section>
     </app-split>
   } @else if (guideName() || (showDetail() && (requests.selected() || requests.unopened()))) {
     <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
-      <ng-container [ngTemplateOutlet]="detailPane" />
+      <div class="detail-scroll"><ng-container [ngTemplateOutlet]="detailPane" /></div>
+      <ng-container [ngTemplateOutlet]="actionPanel" />
     </section>
   } @else {
     <section
@@ -71,6 +73,19 @@
       @if (requests.hasRequests() && !compact()) {
         <app-wait-for-button />
       }
+      @if (!compact()) {
+        <button mat-button type="button" class="guides" [matMenuTriggerFor]="guidesMenu">
+          <ng-container i18n>Guides</ng-container>
+        </button>
+        <mat-menu #guidesMenu="matMenu">
+          <button mat-menu-item type="button" (click)="openGuide('first')">
+            <ng-container i18n>First webhook</ng-container>
+          </button>
+          <button mat-menu-item type="button" (click)="openGuide('retry')">
+            <ng-container i18n>Test a retry</ng-container>
+          </button>
+        </mat-menu>
+      }
       @if (requests.hasRequests()) {
         <button
           mat-icon-button
@@ -103,9 +118,43 @@
   }
 </ng-template>
 
+<ng-template #actionPanel>
+  <!-- No celular, o aberto que ficou guardado não abre a folha de tela cheia sozinho. -->
+  @if (panel.open() && !guideName() && !requests.gone() && (twoPanes() || panel.askedHere())) {
+    @if (requests.selected(); as request) {
+      <app-action-panel [request]="request" [sheet]="!twoPanes()" />
+    }
+  }
+</ng-template>
+
 <ng-template #detailBody>
   @let request = requests.selected();
   @let token = tokens.token();
+  @if (firstArrival(); as first) {
+    <section class="first" aria-labelledby="first-arrival-title">
+      <h2 class="first-title" id="first-arrival-title" i18n>First request arrived</h2>
+      <p class="first-text" i18n>
+        {{ first.method }} {{ first.path }}, at {{ first.time }}. What next?
+      </p>
+      <div class="first-links">
+        @if (token) {
+          <a
+            [routerLink]="['/', token.uuid, 'checks']"
+            [queryParams]="{ section: 'signature' }"
+            i18n
+            >Check the provider's signature</a
+          >
+          <a [routerLink]="['/', token.uuid, 'rules', 'new']" i18n>Choose the answer</a>
+          <a [routerLink]="['/', token.uuid]" [queryParams]="{ guide: 'retry' }" i18n
+            >Test a retry</a
+          >
+        }
+        <button type="button" class="first-dismiss" (click)="dismissFirst()">
+          <ng-container i18n>Dismiss</ng-container>
+        </button>
+      </div>
+    </section>
+  }
   @if (!twoPanes()) {
     <ng-container [ngTemplateOutlet]="missingNote" />
   }
@@ -175,9 +224,7 @@
       }
     </app-request-detail>
   }
-  <!-- INBOX-06: o detalhe começa no topo; com mensagens, o onboarding (até o Close, hideTutorial)
-       fica abaixo dele. Na URL vazia, é ele o painel. -->
-  @if ((!requests.hasRequests() || !preferences.hideTutorial()) && !requests.loading()) {
+  @if (!requests.hasRequests() && !requests.loading()) {
     <ng-container [ngTemplateOutlet]="onboarding" />
   }
 </ng-template>

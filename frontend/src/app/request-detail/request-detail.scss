@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
   display: block;
   min-width: 0;
@@ -29,6 +31,33 @@
 // Ícone e rótulo nas ações (INBOX-19).
 .actions app-icon {
   margin-right: 8px;
+}
+
+// A 1024 px a coluna do detalhe tem ~500 px: sem os ícones dos rótulos, os seis cabem numa linha.
+.actions.narrow {
+  @include mat.button-overrides(
+    (
+      filled-horizontal-padding: 12px,
+      text-horizontal-padding: 10px,
+    )
+  );
+
+  button:not(.icon-only) app-icon {
+    display: none;
+  }
+
+  .icon-only {
+    min-width: 0;
+    padding: 0 8px;
+
+    app-icon {
+      margin-right: 0;
+    }
+  }
+
+  .group + .group > :first-child {
+    margin-left: 4px;
+  }
 }
 
 .ai-off {

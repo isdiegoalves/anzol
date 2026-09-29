@@ -59,6 +59,45 @@ describe('Dado o botão ⋮ com menu (app-menu)', () => {
     expect(Object.values(actions).every((action) => action.mock.calls.length === 0)).toBe(true);
   });
 
+  it('deve trocar pelos itens do nível abaixo, com o foco no primeiro, e rodar a ação do escolhido', async () => {
+    const user = userEvent.setup();
+    const first = vi.fn();
+    const { fixture } = await render(Menu, {
+      inputs: {
+        label: 'More actions',
+        items: [
+          { label: 'Settings', action: vi.fn() },
+          {
+            label: 'Guides',
+            items: [
+              { label: 'First webhook', action: first },
+              { label: 'Test a retry', action: vi.fn() },
+            ],
+          },
+        ],
+      },
+    });
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+
+    await user.click(trigger);
+    const guides = screen.getByRole('menuitem', { name: 'Guides' });
+    expect(guides.getAttribute('aria-haspopup')).toBe('menu');
+    await user.click(guides);
+    await fixture.whenStable();
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent?.trim())).toEqual([
+      'First webhook',
+      'Test a retry',
+    ]);
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'First webhook' }));
+    await user.keyboard('{Enter}');
+
+    expect(first).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('menu')).toBeNull();
+    await user.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'Guides' })).toBeTruthy();
+  });
+
   it('deve fechar com um clique fora', async () => {
     const user = userEvent.setup();
     await renderMenu();

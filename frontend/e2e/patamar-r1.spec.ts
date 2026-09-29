@@ -369,9 +369,9 @@ test.describe('Dado a aba Replay do painel (CA-13)', () => {
     await abrirMensagem(page, tokenId, id);
     await acoes(page).getByRole('button', { name: 'Replay…' }).click();
 
-    await painel(page)
-      .getByRole('textbox', { name: 'Target URL' })
-      .fill(`localhost:${destino.porta}/webhooks`);
+    const alvo = painel(page).getByRole('textbox', { name: 'Target URL' });
+    await alvo.fill(`localhost:${destino.porta}/webhooks`);
+    await alvo.press('Enter');
 
     await expect(painel(page)).toContainText(
       `You typed localhost:${destino.porta}. The server reaches it as host.docker.internal:${destino.porta}.`,

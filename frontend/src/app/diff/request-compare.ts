@@ -67,6 +67,8 @@ export class RequestCompare {
 
   readonly a = input.required<WebhookRequest>();
   readonly b = input.required<WebhookRequest>();
+  /** Dentro do painel de ação: trocar e andar pelos pares não muda a rota. */
+  readonly embedded = input(false);
 
   /**
    * "Swap A and B" troca na tela no mesmo evento do clique, antes da rota nova chegar; quando ela
@@ -97,7 +99,9 @@ export class RequestCompare {
   });
 
   protected openPair(pair: { a: WebhookRequest; b: WebhookRequest } | null): void {
-    if (pair) {
+    if (pair && this.embedded()) {
+      this.compare.showInPanel(pair.a, pair.b);
+    } else if (pair) {
       this.compare.openPair(pair.a, pair.b);
     }
   }
@@ -229,6 +233,10 @@ export class RequestCompare {
   }
 
   protected swap(): void {
+    if (this.embedded()) {
+      this.compare.showInPanel(this.b(), this.a());
+      return;
+    }
     this.swapped.update((swapped) => !swapped);
     this.changeDetector.detectChanges();
     this.compare.swap();

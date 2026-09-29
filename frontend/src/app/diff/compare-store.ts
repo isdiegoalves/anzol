@@ -17,13 +17,18 @@ export class CompareStore {
   private readonly shown = signal<{ a: WebhookRequest; b: WebhookRequest } | null>(null);
   /** A mensagem de onde o "Compare with…" saiu: o "Close" volta a ela, mesmo depois do "Swap". */
   private origin: WebhookRequest | null = null;
+  private toPanel = false;
+  private readonly panelPair = signal<{ a: WebhookRequest; b: WebhookRequest } | null>(null);
+  /** O par da aba Compare do painel de ação, que não muda a rota. */
+  readonly inPanel = this.panelPair.asReadonly();
 
   /** Mensagem A enquanto a lista da Inbox espera a escolha da B. */
   readonly picking = this.pickingA.asReadonly();
   /** As duas mensagens da página do Compare aberta. */
   readonly pair = this.shown.asReadonly();
 
-  start(a: WebhookRequest): void {
+  start(a: WebhookRequest, where: 'page' | 'panel' = 'page'): void {
+    this.toPanel = where === 'panel';
     this.pickingA.set(a);
   }
 
@@ -32,9 +37,18 @@ export class CompareStore {
     const a = this.pickingA();
     if (a && a.uuid !== b.uuid) {
       this.pickingA.set(null);
+      if (this.toPanel) {
+        this.showInPanel(a, { ...b, token_id: a.token_id });
+        return;
+      }
       this.origin = a;
       void this.router.navigate(['/', a.token_id, 'compare', a.uuid, b.uuid]);
     }
+  }
+
+  showInPanel(a: WebhookRequest, b: WebhookRequest): void {
+    this.pickingA.set(null);
+    this.panelPair.set({ a, b });
   }
 
   /**
@@ -73,6 +87,7 @@ export class CompareStore {
    */
   close(): void {
     this.pickingA.set(null);
+    this.panelPair.set(null);
     const pair = this.shown();
     if (pair) {
       const back = this.origin ?? pair.a;

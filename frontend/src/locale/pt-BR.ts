@@ -860,21 +860,12 @@ export const translations: Record<string, string> = {
   '4819705089003049508': 'Criar regra a partir desta requisição',
   // Create rule
   '5830995200961336312': 'Criar regra',
-  // Create schema from this request
-  '8719459080795725470': 'Criar schema a partir desta requisição',
-  // Create schema
-  '7492676639710188677': 'Criar schema',
   // Copy payload
   '324655176291010387': 'Copiar payload',
   // Copy As
   '6540883201841879405': 'Copiar como',
   // Share read-only link…
   '7056354008020030259': 'Compartilhar link só-leitura…',
-  // Ask the local model why signature, schema and rules gave this result
-  '4209809529690937932':
-    'Perguntar ao modelo local por que assinatura, schema e regras deram este resultado',
-  // Hide explanation
-  '2380217756304706466': 'Esconder a explicação',
   // Explain
   '5922533565893373062': 'Explicar',
   // Request deleted
@@ -3397,4 +3388,77 @@ export const translations: Record<string, string> = {
   '638729785399628401': 'Entrada. Filtrado por {$filters}. {$result}',
   // Filtered by {$filter}. {$result}
   '4283294568415281643': 'Filtrado por {$filter}. {$result}',
+  // Guides
+  '7423212324650924366': 'Roteiros',
+  // First request arrived
+  '7991283874369022473': 'Chegou a primeira requisição',
+  //  {$INTERPOLATION} {$INTERPOLATION_1}, at {$INTERPOLATION_2}. What next?
+  '4433444182437454270': ' {$INTERPOLATION} {$INTERPOLATION_1}, às {$INTERPOLATION_2}. E agora? ',
+  // First request arrived: {$method} {$path}, at {$time}.
+  '7933586283890613887': 'Chegou a primeira requisição: {$method} {$path}, às {$time}.',
+  // Resize action panel
+  '4169893092704266173': 'Redimensionar o painel de ação',
+  // Actions on this request
+  '8363986996106759418': 'Ações sobre esta requisição',
+  // Restore panel
+  '7504411833492915254': 'Restaurar o painel',
+  // Expand panel
+  '2036262215218789280': 'Expandir o painel',
+  // Close panel
+  '5449281378832055106': 'Fechar o painel',
+  // Close panel (Esc)
+  '4937753927922730541': 'Fechar o painel (Esc)',
+  // Open full comparison
+  '343669643178076026': 'Abrir a comparação inteira',
+  // Pick a request in the list to compare with #{$INTERPOLATION}.
+  '1599872129460748980': 'Escolha na lista uma requisição para comparar com a #{$INTERPOLATION}.',
+  // Action result
+  '1443763351215003012': 'Resultado da ação',
+  // Compared #{$a} with #{$b}. 1 change explains the outcome.
+  '7041601293769119360': '#{$a} comparada com #{$b}. 1 mudança explica o desfecho.',
+  // Compared #{$a} with #{$b}. {$count} changes explain the outcome.
+  '1208911136152438594': '#{$a} comparada com #{$b}. {$count} mudanças explicam o desfecho.',
+  // Rule created: {$name}.
+  '8636708114608722368': 'Regra criada: {$name}.',
+  // Rule created: {$name}. It answers {$count} of the last 500.
+  '6924471002653127079': 'Regra criada: {$name}. Ela responde {$count} das últimas 500.',
+  // Action panel
+  '4565505289790871368': 'Painel de ação',
+  // localhost:3000/webhooks
+  '9170785157558776618': 'localhost:3000/webhooks',
+  // Replaying…
+  '1852335941893285637': 'Reenviando…',
+  //  Sends to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}
+  '8398872837140518609': ' Manda para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}',
+  // The target must be an http:// or https:// address.
+  '5920490373486658236': 'O destino precisa ser um endereço http:// ou https://.',
+  // Open in Outbound
+  '7138826814784193820': 'Abrir na Saída',
+  // You typed {$typed}. The server reaches it as {$resolved}.
+  '7848879124497701686': 'Você digitou {$typed}. O servidor chega a ele como {$resolved}.',
+  // Replay did not get an answer: {$reason}
+  '7890191666559754116': 'O reenvio não teve resposta: {$reason}',
+  // Blocked: this server only sends to public addresses.
+  '1167334649637784152': 'Bloqueado: este servidor só manda para endereços públicos.',
+  // Replay result: {$status} in {$ms} ms
+  '4712297722375301309': 'Resultado do reenvio: {$status} em {$ms} ms',
+  // Replay (R)
+  '5217318402138337552': 'Reenviar (R)',
+  // Compare with… (D)
+  '5431255101454918695': 'Comparar com… (D)',
+  // Ask the local model why signature, schema and rules gave this result (E)
+  '1247052206257420938':
+    'Perguntar ao modelo local por que assinatura, schema e regras deram este resultado (E)',
+  // Older / newer request
+  '2370187144452646796': 'Requisição mais antiga / mais nova',
+  // Move in the list without opening · open
+  '1297608346856233638': 'Andar pela lista sem abrir · abrir',
+  // Expand or collapse an event
+  '7081442232695146453': 'Abrir ou recolher um evento',
+  // Replay, compare, explain the open request
+  '4267885476063672177': 'Reenviar, comparar, explicar a requisição aberta',
+  // Open or close the action panel
+  '3736637070280072810': 'Abrir ou fechar o painel de ação',
+  //  Ask the local model
+  '2811840060009190762': ' Perguntar ao modelo local ',
 };

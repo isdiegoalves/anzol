@@ -261,6 +261,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       'Edit URL',
       'Open in new tab',
       'Copy CLI command',
+      'Guides',
       'Delete URL',
       'Settings',
       'Help',
@@ -554,12 +555,23 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       within(keys)
         .getAllByRole('row')
         .map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' ')),
-    ).toEqual(expect.arrayContaining(['U Switch URL', 'F Open or close the filters of the Inbox']));
+    ).toEqual(
+      expect.arrayContaining([
+        'U Switch URL',
+        'F Open or close the filters of the Inbox',
+        'R · D · E Replay, compare, explain the open request',
+        'P Open or close the action panel',
+      ]),
+    );
     expect(
       within(help)
         .getAllByRole('link')
         .map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
-    ).toEqual([['GitHub', 'https://github.com/isdiegoalves/anzol']]);
+    ).toEqual([
+      ['First webhook', `/${TOKEN_ID}?guide=first`],
+      ['Test a retry', `/${TOKEN_ID}?guide=retry`],
+      ['GitHub', 'https://github.com/isdiegoalves/anzol'],
+    ]);
     await expectNoAxeViolations(container);
 
     await user.keyboard('{Escape}');

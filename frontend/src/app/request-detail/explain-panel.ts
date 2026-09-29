@@ -62,6 +62,8 @@ export class ExplainPanel {
 
   readonly tokenId = input.required<string>();
   readonly requestId = input.required<string>();
+  /** Sem guardada, pede ao abrir; `false` espera o "Ask the local model". */
+  readonly ask = input(true);
 
   protected readonly checks = computed(() => {
     const id = this.requestId();
@@ -84,7 +86,7 @@ export class ExplainPanel {
     const seconds = kept.seconds.toLocaleString(this.language, { maximumFractionDigits: 1 });
     return $localize`Answered at ${time}:time:, in ${seconds}:seconds: s.`;
   });
-  private readonly pending = signal(false);
+  protected readonly pending = signal(false);
   /**
    * A região viva da espera nasce vazia e só depois recebe a frase (§4.3): região criada já com o
    * texto não é anunciada.
@@ -114,7 +116,7 @@ export class ExplainPanel {
   }
 
   protected askAgain(): void {
-    void this.ask(this.tokenId(), this.requestId());
+    void this.explain(this.tokenId(), this.requestId());
   }
 
   /** "Cancel" (ou `Esc`) durante a espera: aborta o pedido e o painel fica como estava. */
@@ -129,12 +131,12 @@ export class ExplainPanel {
     this.errors.set([]);
     this.outcome.set('');
     this.cancelled.set(false);
-    if (!kept && !this.disabled()) {
-      void this.ask(tokenId, requestId);
+    if (!kept && !this.disabled() && this.ask()) {
+      void this.explain(tokenId, requestId);
     }
   }
 
-  private async ask(tokenId: string, requestId: string): Promise<void> {
+  private async explain(tokenId: string, requestId: string): Promise<void> {
     const current = () => !this.destroyed && this.requestId() === requestId;
     this.pending.set(true);
     this.kept.set(null);

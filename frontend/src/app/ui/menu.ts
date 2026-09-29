@@ -2,6 +2,7 @@ import {
   Component,
   ElementRef,
   afterNextRender,
+  computed,
   inject,
   Injector,
   input,
@@ -16,6 +17,8 @@ export interface MenuItem {
   /** Com `href`, o item é um link (abre em outra aba); sem, um botão que roda `action`. */
   href?: string;
   action?: () => void;
+  /** Um nível abaixo: escolher o item troca o menu pelos dele. */
+  items?: readonly MenuItem[];
 }
 
 let nextId = 0;
@@ -54,7 +57,7 @@ let nextId = 0;
         [attr.aria-label]="label()"
         (keydown)="move($event)"
       >
-        @for (item of items(); track item.label) {
+        @for (item of shown(); track item.label) {
           @if (item.href) {
             <a
               role="menuitem"
@@ -71,7 +74,14 @@ let nextId = 0;
               <span>{{ item.label }}</span>
             </a>
           } @else {
-            <button type="button" role="menuitem" tabindex="-1" class="item" (click)="choose(item)">
+            <button
+              type="button"
+              role="menuitem"
+              tabindex="-1"
+              class="item"
+              [attr.aria-haspopup]="item.items ? 'menu' : null"
+              (click)="choose(item)"
+            >
               @if (item.icon) {
                 <app-icon [name]="item.icon" [size]="18" />
               }
@@ -99,6 +109,9 @@ export class Menu {
 
   protected readonly id = `app-menu-${nextId++}`;
   protected readonly open = signal(false);
+  /** `null` é o primeiro nível. */
+  private readonly level = signal<readonly MenuItem[] | null>(null);
+  protected readonly shown = computed(() => this.level() ?? this.items());
 
   protected toggle(): void {
     if (this.open()) {
@@ -116,6 +129,11 @@ export class Menu {
   }
 
   protected choose(item: MenuItem): void {
+    if (item.items) {
+      this.level.set(item.items);
+      afterNextRender(() => this.focusItem(0), { injector: this.injector });
+      return;
+    }
     this.close(true);
     item.action?.();
   }
@@ -142,7 +160,8 @@ export class Menu {
   }
 
   protected closeOutside(event: MouseEvent): void {
-    if (this.open() && !this.host.contains(event.target as Node)) {
+    // O caminho do evento: o item que abriu um nível já saiu do DOM quando o clique chega aqui.
+    if (this.open() && !event.composedPath().includes(this.host)) {
       this.close(false);
     }
   }
@@ -156,6 +175,7 @@ export class Menu {
 
   private close(refocus: boolean): void {
     this.open.set(false);
+    this.level.set(null);
     if (refocus) {
       this.host.querySelector<HTMLButtonElement>('.trigger')?.focus();
     }

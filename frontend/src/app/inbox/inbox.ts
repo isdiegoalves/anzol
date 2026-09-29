@@ -16,17 +16,21 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import type { GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
 import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
+import { ActionPanel } from '../request-detail/action-panel';
+import { ActionPanelStore, ActionTab } from '../request-detail/action-panel-store';
 import { RequestDetail } from '../request-detail/request-detail';
+import { parseUtc } from '../request-detail/dates';
 import { RequestUnopened } from '../request-detail/request-unopened';
 import { RequestList } from '../requests/request-list';
 import { EventGrouping } from '../requests/event-grouping';
@@ -55,6 +59,8 @@ import { isProtectedError } from '../token/url-lock';
 import { Icon } from '../ui/icon';
 import { LiveRegion } from '../ui/live-region';
 import { Split } from '../ui/split';
+
+const GUIDES_KEY = (tokenId: string) => `anzol.guides.${tokenId}`;
 
 /** F1: os filtros por valor de cada URL, na aba (o dado da requisição não vai para o endereço). */
 const VALUE_FILTERS_KEY = (tokenId: string) => `anzol.valueFilters.${tokenId}`;
@@ -105,12 +111,18 @@ export const RECEIVED_NOTICE_MS = 4000;
 @Component({
   selector: 'app-inbox',
   imports: [
+    ActionPanel,
     Icon,
+    MatButton,
     MatIconButton,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
     MatSlideToggle,
     NgTemplateOutlet,
     Onboarding,
     RequestDetail,
+    RouterLink,
     LiveRegion,
     RequestList,
     RequestUnopened,
@@ -137,7 +149,11 @@ export class Inbox {
   private readonly screen = inject(ScreenState);
   private readonly connection = inject(Connection);
   protected readonly grouping = inject(EventGrouping);
+  protected readonly panel = inject(ActionPanelStore);
   private readonly chips = inject(FilterChips);
+  protected readonly firstArrival = signal<{ method: string; path: string; time: string } | null>(
+    null,
+  );
   /** F1: "This link does not carry 1 filter by value." (os valores não vão no endereço). */
   protected readonly missingValues = computed(() => {
     const missing = this.chips.missingValues();
@@ -341,6 +357,7 @@ export class Inbox {
       // Outra URL: a contagem recomeça.
       this.tokenId();
       this.lastSeq = 0;
+      this.firstArrival.set(null);
     });
 
     // A conexão voltou: o que chegou no intervalo entra na lista e na pílula, sem mover nada.
@@ -505,11 +522,18 @@ export class Inbox {
   private navigateByKey(event: KeyboardEvent): void {
     const key = event.key.toLowerCase();
     if (key === 'escape') {
+      const target = event.target as HTMLElement | null;
+      const popupOpen = target?.getAttribute('aria-expanded') === 'true';
+      if (this.panel.open() && !event.defaultPrevented && !popupOpen && this.detail()) {
+        event.preventDefault();
+        this.panel.close();
+        return;
+      }
       this.escapeToList(event);
       return;
     }
     if (
-      !['j', 'k', 'd'].includes(key) ||
+      !['j', 'k', 'd', 'r', 'e', 'p'].includes(key) ||
       event.defaultPrevented ||
       !this.settings.shortcuts() ||
       event.ctrlKey ||
@@ -522,13 +546,18 @@ export class Inbox {
     const detail = this.detail();
     if (detail) {
       event.preventDefault();
+      const tabs: Record<string, ActionTab | 'toggle'> = {
+        r: 'replay',
+        d: 'compare',
+        e: 'explain',
+        p: 'toggle',
+      };
       if (key === 'j') {
         detail.showOlder();
       } else if (key === 'k') {
         detail.showNewer();
       } else {
-        // D (E1): a tentativa anterior do mesmo evento; sem evento, o "Compare with…".
-        detail.compareByKey();
+        detail.openByKey(tabs[key]);
       }
     }
   }
@@ -785,10 +814,14 @@ export class Inbox {
       this.notify(complete, false);
       return;
     }
+    const first = !this.requests.hasRequests() && !this.guideDismissed('first');
     // A limpeza automática pode ter cortado a mensagem aberta: ela segue na tela, como cópia, com o
     // aviso (B2); nenhuma outra é aberta no lugar.
     this.requests.append(complete, total, removed);
     const list = this.requests.requests();
+    if (first) {
+      this.welcome(complete);
+    }
     if (!this.requests.selected() && !this.requests.unopened()) {
       // A primeira de uma Inbox vazia é a tela que abre (como a primeira ao abrir a URL): no celular
       // a lista fica à frente, e quem mandou (o "Send a test request") a vê chegar; na janela larga,
@@ -805,18 +838,65 @@ export class Inbox {
     // A que a tela abriu (a primeira numa Inbox vazia, ou a que substituiu a cortada) está à vista.
     const opened = this.requests.selected()?.uuid === complete.uuid;
     const inView = (this.list()?.receive(complete, opened) ?? true) || opened;
-    this.notify(complete, inView);
+    this.notify(complete, inView, !first);
+  }
+
+  private welcome(request: WebhookRequest): void {
+    const time = parseUtc(request.created_at).toLocaleTimeString(
+      this.document.documentElement.lang || 'en',
+      { hour: 'numeric', minute: '2-digit' },
+    );
+    const [path] = routeOf(request.url).split('?');
+    this.firstArrival.set({ method: request.method, path, time });
+    void this.announcer.announce(
+      $localize`First request arrived: ${request.method}:method: ${path}:path:, at ${time}:time:.`,
+      'polite',
+    );
+  }
+
+  protected dismissFirst(): void {
+    this.firstArrival.set(null);
+    const tokenId = this.tokenId();
+    if (!tokenId) {
+      return;
+    }
+    try {
+      const key = GUIDES_KEY(tokenId);
+      const dismissed = JSON.parse(localStorage.getItem(key) ?? '[]') as string[];
+      localStorage.setItem(key, JSON.stringify([...new Set([...dismissed, 'first'])]));
+    } catch {
+      // Sem localStorage, a faixa some só nesta visita.
+    }
+  }
+
+  private guideDismissed(name: string): boolean {
+    const tokenId = this.tokenId();
+    try {
+      const saved = tokenId ? localStorage.getItem(GUIDES_KEY(tokenId)) : null;
+      return (JSON.parse(saved ?? '[]') as string[]).includes(name);
+    } catch {
+      return false;
+    }
+  }
+
+  protected openGuide(name: GuideName): Promise<boolean> {
+    return this.router.navigate([], {
+      queryParams: { guide: name },
+      queryParamsHandling: 'merge',
+    });
   }
 
   /**
    * O redirect pelo navegador (se ligado), o anúncio somado e, com a nova fora da vista, o aviso
    * "Request received" com "View".
    */
-  private notify(request: WebhookRequest, inView: boolean): void {
+  private notify(request: WebhookRequest, inView: boolean, announce = true): void {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(request);
     }
-    this.announceArrival();
+    if (announce) {
+      this.announceArrival();
+    }
     if (!inView) {
       // INBOX-15: o método e a rota, para decidir se vale abrir sem sair do que está fazendo.
       const route = routeOf(request.url);

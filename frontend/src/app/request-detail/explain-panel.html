@@ -40,6 +40,10 @@
       <button i18n mat-stroked-button type="button" (click)="askAgain()">Try again</button>
     } @else if (cancelled()) {
       <button i18n mat-stroked-button type="button" (click)="askAgain()">Ask again</button>
+    } @else if (!kept() && !pending()) {
+      <button i18n mat-stroked-button type="button" (click)="askAgain()">
+        Ask the local model
+      </button>
     }
     @if (kept(); as answer) {
       <app-markdown class="text" [text]="answer.explanation" />

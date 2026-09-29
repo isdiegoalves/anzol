@@ -50,7 +50,7 @@
             disabledInteractive
             [disabled]="gone()"
             [attr.aria-describedby]="goneReason()"
-            (click)="replayRequest()"
+            (click)="openPanel('replay', $event)"
           >
             <ng-container i18n>Replay&hellip;</ng-container>
           </button>
@@ -61,31 +61,7 @@
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
-          (click)="sendAsNew()"
-        >
-          <ng-container i18n>Send as new&hellip;</ng-container>
-        </button>
-      }
-      <!-- WM-28: o "Send as new…" apontado para a própria URL; no "More" também no desktop, para a
-           barra caber numa linha (INBOX-19). -->
-      <button
-        mat-menu-item
-        type="button"
-        disabledInteractive
-        [disabled]="gone()"
-        [attr.aria-describedby]="goneReason()"
-        (click)="testVariation()"
-      >
-        <ng-container i18n>Test a variation</ng-container>
-      </button>
-      @if (compact()) {
-        <button
-          mat-menu-item
-          type="button"
-          disabledInteractive
-          [disabled]="gone()"
-          [attr.aria-describedby]="goneReason()"
-          (click)="compareWith()"
+          (click)="openPanel('compare', $event)"
         >
           <ng-container i18n>Compare with&hellip;</ng-container>
         </button>
@@ -98,17 +74,11 @@
             [attr.aria-describedby]="
               gone() ? goneReasonId : previous.request ? null : firstReasonId
             "
-            (click)="compareWithPrevious()"
+            (click)="compareWithPrevious($event)"
           >
             {{ previous.label }}
           </button>
         }
-        @if (jsonBody()) {
-          <button i18n mat-menu-item type="button" (click)="createSchema()">
-            Create schema from this request
-          </button>
-        }
-        <button i18n mat-menu-item type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
         <button
           mat-menu-item
           type="button"
@@ -125,11 +95,37 @@
           disabledInteractive
           [disabled]="explainOff()"
           [attr.aria-describedby]="explainReason()"
-          (click)="toggleExplain()"
+          (click)="openExplain($event)"
         >
           <ng-container [ngTemplateOutlet]="explainLabel" />
         </button>
       }
+      <button
+        mat-menu-item
+        type="button"
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        (click)="sendAsNew()"
+      >
+        <ng-container i18n>Send as new&hellip;</ng-container>
+      </button>
+      @if (jsonBody()) {
+        <button i18n mat-menu-item type="button" (click)="createSchema()">
+          Create schema from this request
+        </button>
+      }
+      <button i18n mat-menu-item type="button" [matMenuTriggerFor]="copyMenu">Copy As</button>
+      <button
+        mat-menu-item
+        type="button"
+        disabledInteractive
+        [disabled]="gone()"
+        [attr.aria-describedby]="goneReason()"
+        (click)="testVariation()"
+      >
+        <ng-container i18n>Test a variation</ng-container>
+      </button>
       <a
         i18n
         mat-menu-item
@@ -162,20 +158,37 @@
         <ng-container i18n>Delete request</ng-container>
       </button>
     </mat-menu>
+    <mat-menu #copyMenu="matMenu">
+      @for (format of formats; track format) {
+        <button mat-menu-item type="button" (click)="copyRequestAs(format)">
+          {{ format }}
+        </button>
+      }
+    </mat-menu>
   </div>
 
-  <!-- INBOX-19: rótulos curtos com ícone; o visível é o começo do nome acessível (WCAG 2.5.3). -->
-  <div class="actions" role="toolbar" aria-label="Request actions" i18n-aria-label viewActions>
+  <!-- O rótulo curto é o começo do nome acessível (WCAG 2.5.3); o atalho fica no title. -->
+  <div
+    class="actions"
+    role="toolbar"
+    aria-label="Request actions"
+    i18n-aria-label
+    viewActions
+    [class.narrow]="narrow()"
+  >
     <div class="group">
       <!-- B2: no celular a barra mostra só o que funciona; a desligada vai para o "More". -->
       @if (!(compact() && gone())) {
         <button
           mat-flat-button
           type="button"
+          aria-keyshortcuts="R"
+          title="Replay (R)"
+          i18n-title
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
-          (click)="replayRequest()"
+          (click)="openPanel('replay', $event)"
         >
           <app-icon name="replay" [size]="18" /><ng-container i18n>Replay&hellip;</ng-container>
         </button>
@@ -184,24 +197,15 @@
         <button
           mat-button
           type="button"
-          disabledInteractive
-          [disabled]="gone()"
-          [attr.aria-describedby]="goneReason()"
-          (click)="sendAsNew()"
-        >
-          <app-icon name="outbound" [size]="18" /><ng-container i18n
-            >Send as new&hellip;</ng-container
-          >
-        </button>
-        <button
-          mat-button
-          type="button"
           aria-label="Compare with…"
           i18n-aria-label
+          aria-keyshortcuts="D"
+          title="Compare with… (D)"
+          i18n-title
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
-          (click)="compareWith()"
+          (click)="openPanel('compare', $event)"
         >
           <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
         </button>
@@ -216,7 +220,7 @@
             [attr.aria-describedby]="
               gone() ? goneReasonId : previous.request ? null : firstReasonId
             "
-            (click)="compareWithPrevious()"
+            (click)="compareWithPrevious($event)"
           >
             {{ previous.label }}
           </button>
@@ -229,40 +233,15 @@
         type="button"
         aria-label="Create rule from this request"
         i18n-aria-label
-        (click)="createRule()"
+        (click)="openPanel('rule', $event)"
       >
         <app-icon name="bolt" [size]="18" /><ng-container i18n>Create rule</ng-container>
       </button>
-      @if (jsonBody() && !compact()) {
-        <button
-          mat-button
-          type="button"
-          aria-label="Create schema from this request"
-          i18n-aria-label
-          (click)="createSchema()"
-        >
-          <app-icon name="braces" [size]="18" /><ng-container i18n>Create schema</ng-container>
-        </button>
-      }
-    </div>
-    <div class="group">
       @if (current.content) {
         <button mat-button type="button" (click)="copyPayload()">
           <app-icon name="clipboard" [size]="18" /><ng-container i18n>Copy payload</ng-container>
         </button>
       }
-      @if (!compact()) {
-        <button mat-button type="button" [matMenuTriggerFor]="copyMenu">
-          <app-icon name="copy" [size]="18" /><ng-container i18n>Copy As</ng-container>
-        </button>
-      }
-      <mat-menu #copyMenu="matMenu">
-        @for (format of formats; track format) {
-          <button mat-menu-item type="button" (click)="copyRequestAs(format)">
-            {{ format }}
-          </button>
-        }
-      </mat-menu>
     </div>
     @if (!compact()) {
       <div class="group">
@@ -271,24 +250,34 @@
           type="button"
           aria-label="Share read-only link…"
           i18n-aria-label
+          [class.icon-only]="narrow()"
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
           (click)="shareRequest()"
         >
-          <ng-container i18n>Share</ng-container>
+          <app-icon name="link" [size]="18" />
+          @if (!narrow()) {
+            <ng-container i18n>Share</ng-container>
+          }
         </button>
         <button
           mat-button
           type="button"
-          title="Ask the local model why signature, schema and rules gave this result"
+          aria-keyshortcuts="E"
+          title="Ask the local model why signature, schema and rules gave this result (E)"
           i18n-title
           disabledInteractive
           [disabled]="explainOff()"
+          [class.icon-only]="narrow()"
+          [attr.aria-label]="narrow() ? explainName : null"
           [attr.aria-describedby]="explainReason()"
-          (click)="toggleExplain()"
+          (click)="openExplain($event)"
         >
-          <ng-container [ngTemplateOutlet]="explainLabel" />
+          <app-icon name="info" [size]="18" />
+          @if (!narrow()) {
+            <ng-container [ngTemplateOutlet]="explainLabel" />
+          }
         </button>
         @if (ai.disabled()) {
           <span class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</span>
@@ -309,13 +298,8 @@
     <!-- B2: a razão das ações desligadas, à vista e como descrição acessível de cada uma. -->
     <p class="gone-reason" [id]="goneReasonId" i18n>The server no longer has this request.</p>
   }
-  <ng-container #explainHost />
 </app-request-view>
 
 <ng-template #explainLabel>
-  @if (explaining() && !ai.disabled()) {
-    <ng-container i18n>Hide explanation</ng-container>
-  } @else {
-    <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>
-  }
+  <ng-container i18n="action|Botão que pede a explicação ao modelo">Explain</ng-container>
 </ng-template>

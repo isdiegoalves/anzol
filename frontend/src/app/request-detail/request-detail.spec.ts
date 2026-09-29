@@ -19,6 +19,8 @@ import { WebhookRequest } from '../requests/webhook-request';
 import { RuleTrace } from '../rules/rule';
 import { ShareDialog } from '../share/share-dialog';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { AiClient } from '../ai/ai-client';
+import { ActionPanelStore } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RequestDetail } from './request-detail';
 
@@ -61,7 +63,7 @@ describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
   it('deve desligar na barra o que precisa do servidor, focável e com a razão, e manter o resto', async () => {
     const { container } = await showGone();
 
-    for (const name of ['Replay…', 'Send as new…', 'Compare with…', 'Share read-only link…']) {
+    for (const name of ['Replay…', 'Compare with…', 'Share read-only link…']) {
       const button = within(toolbar()).getByRole('button', { name });
       expect([name, button.getAttribute('aria-disabled')]).toEqual([name, 'true']);
       expect(button).toHaveProperty('disabled', false);
@@ -70,7 +72,7 @@ describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
     expect(
       within(toolbar()).getByRole('button', { name: 'Explain' }).getAttribute('aria-disabled'),
     ).toBe('true');
-    for (const name of ['Copy payload', 'Create rule from this request', 'Copy As']) {
+    for (const name of ['Copy payload', 'Create rule from this request']) {
       const button = within(toolbar()).getByRole('button', { name });
       expect([name, button.getAttribute('aria-disabled')]).toEqual([name, null]);
     }
@@ -83,7 +85,13 @@ describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'More' }));
 
-    for (const name of ['Test a variation', 'Permalink', 'Raw content', 'Delete request']) {
+    for (const name of [
+      'Send as new…',
+      'Test a variation',
+      'Permalink',
+      'Raw content',
+      'Delete request',
+    ]) {
       const item = await screen.findByRole('menuitem', { name });
       expect([name, item.getAttribute('aria-disabled')]).toEqual([name, 'true']);
       expect(described(item)).toBe(REASON);
@@ -101,6 +109,7 @@ describe('Dado a requisição aberta que sumiu do servidor (B2, UX-38)', () => {
 
     expect(navigate).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
+    expect(TestBed.inject(ActionPanelStore).open()).toBe(false);
   });
 
   it('deve sair da cópia para a vizinha que existe, de um lado e do outro', async () => {
@@ -210,22 +219,11 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       within(toolbar())
         .getAllByRole('button')
         .map((button) => button.textContent?.trim()),
-    ).toEqual([
-      'Replay…',
-      'Send as new…',
-      'Compare',
-      'Create rule',
-      'Create schema',
-      'Copy payload',
-      'Copy As',
-      'Share',
-      'Explain',
-    ]);
+    ).toEqual(['Replay…', 'Compare', 'Create rule', 'Copy payload', 'Share', 'Explain']);
     // INBOX-19: o rótulo curto é o começo do nome acessível de hoje (WCAG 2.5.3).
     for (const name of [
       'Compare with…',
       'Create rule from this request',
-      'Create schema from this request',
       'Share read-only link…',
     ]) {
       expect(action(name)).toBeTruthy();
@@ -249,7 +247,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(remove).toHaveBeenCalledWith(request, expect.any(Promise));
   });
 
-  it('deve levar Permalink (com a página) e Raw content no menu "More"', async () => {
+  it('deve levar ao menu "More" o que sai da barra de seis, com Permalink (com a página) e Raw content', async () => {
     const request = webhookRequest(1);
     const { loader } = await show(request);
 
@@ -257,8 +255,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     await more.open();
     const items = await more.getItems();
 
-    // WM-28: "Test a variation" no "More" também no desktop, para a barra caber numa linha (INBOX-19).
     expect(await Promise.all(items.map((item) => item.getText()))).toEqual([
+      'Send as new…',
+      'Create schema from this request',
+      'Copy As',
       'Test a variation',
       'Permalink',
       'Raw content',
@@ -285,15 +285,14 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ).toEqual(['Replay…', 'Create rule', 'Copy payload']);
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
     await more.open();
-    // A 390 px, o Copy As não cabe na linha: vai ao "More", com os formatos no submenu (trava 5).
     expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
-      'Send as new…',
-      'Test a variation',
       'Compare with…',
-      'Create schema from this request',
-      'Copy As',
       'Share read-only link…',
       'Explain',
+      'Send as new…',
+      'Create schema from this request',
+      'Copy As',
+      'Test a variation',
       'Permalink',
       'Raw content',
       'Delete request',
@@ -301,7 +300,8 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     await expectNoAxeViolations(container);
 
     await more.clickItem({ text: 'Compare with…' });
-    expect(fixture.debugElement.injector.get(CompareStore).picking()).toEqual(request);
+    const panel = fixture.debugElement.injector.get(ActionPanelStore);
+    expect([panel.open(), panel.tab()]).toEqual([true, 'compare']);
   });
 
   it('deve copiar o curl e avisar Quando "Copy As > curl" é escolhido', async () => {
@@ -312,8 +312,8 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       .mockReturnValue(true);
     const open = vi.spyOn(fixture.debugElement.injector.get(MatSnackBar), 'open');
 
-    const menu = await loader.getHarness(MatMenuHarness.with({ triggerText: 'Copy As' }));
-    await menu.clickItem({ text: 'curl' });
+    const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+    await more.clickItem({ text: 'Copy As' }, { text: 'curl' });
 
     await vi.waitFor(() => expect(copy).toHaveBeenCalledWith(`curl -X 'POST' '${request.url}'`));
     expect(open).toHaveBeenCalledWith('Copied request as curl', undefined, { duration: 1000 });
@@ -346,19 +346,36 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     expect(within(cartoes).getByRole('button', { name: 'Why not rule…?' })).toBeTruthy();
   });
 
-  it('deve abrir a folha "Create rule from this request" de Regras com a mensagem (WM-31)', async () => {
-    const request = webhookRequest(3);
-    const { fixture } = await show(request);
-    const open = vi
-      .spyOn(fixture.debugElement.injector.get(MatDialog), 'open')
-      .mockReturnValue({} as never);
+  it.each([
+    ['Replay…', 'replay'],
+    ['Compare with…', 'compare'],
+    ['Create rule from this request', 'rule'],
+    ['Explain', 'explain'],
+  ] as const)(
+    'deve abrir o painel de ação na aba certa Quando "%s" é clicado',
+    async (name, tab) => {
+      const { fixture } = await show(webhookRequest(3));
+      const navigate = vi.spyOn(fixture.debugElement.injector.get(Router), 'navigate');
+      const dialog = vi.spyOn(fixture.debugElement.injector.get(MatDialog), 'open');
 
-    await userEvent.click(action('Create rule from this request'));
+      await userEvent.click(action(name));
 
-    await vi.waitFor(() => expect(open).toHaveBeenCalled());
-    const [component, config] = open.mock.calls[0];
-    expect(String((component as { name?: string }).name)).toContain('RuleFromRequestDialog');
-    expect(config).toMatchObject({ data: request });
+      const panel = fixture.debugElement.injector.get(ActionPanelStore);
+      expect([panel.open(), panel.tab()]).toEqual([true, tab]);
+      expect(navigate).not.toHaveBeenCalled();
+      expect(dialog).not.toHaveBeenCalled();
+    },
+  );
+
+  it('deve devolver o foco ao botão que abriu Quando o painel fecha', async () => {
+    const { fixture } = await show(webhookRequest(3));
+    const replay = action('Replay…');
+
+    await userEvent.click(replay);
+    (document.activeElement as HTMLElement | null)?.blur();
+    fixture.debugElement.injector.get(ActionPanelStore).close();
+
+    expect(document.activeElement).toBe(replay);
   });
 
   it('deve abrir o Send da mensagem apontado para a própria URL Quando "Test a variation" (WM-28)', async () => {
@@ -379,12 +396,13 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
   it('deve abrir Checks › Schema com a mensagem Quando "Create schema from this request" é clicado', async () => {
     const request = webhookRequest(3, { content: '{"id": 7}' });
-    const { fixture } = await show(request);
+    const { fixture, loader } = await show(request);
     const navigate = vi
       .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
       .mockResolvedValue(true);
 
-    await userEvent.click(action('Create schema from this request'));
+    const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+    await more.clickItem({ text: 'Create schema from this request' });
 
     await vi.waitFor(() =>
       expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'checks'], {
@@ -401,38 +419,28 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
   ])(
     'não deve oferecer "Create schema from this request" Quando o corpo é %s',
     async (_caso, content) => {
-      await show(webhookRequest(1, { content }));
+      const { loader } = await show(webhookRequest(1, { content }));
 
-      expect(
-        within(toolbar()).queryByRole('button', { name: 'Create schema from this request' }),
-      ).toBeNull();
+      const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+      await more.open();
+      const items = await Promise.all((await more.getItems()).map((item) => item.getText()));
+      expect(items).not.toContain('Create schema from this request');
     },
   );
 
-  it('deve pôr a lista em modo de escolha com a aberta como A Quando "Compare with…" é clicado', async () => {
-    const request = webhookRequest(4);
-    const { fixture } = await show(request);
-
-    await userEvent.click(action('Compare with…'));
-
-    expect(fixture.debugElement.injector.get(CompareStore).picking()).toEqual(request);
-  });
-
-  it.each([
-    ['Replay…', 'replay'],
-    ['Send as new…', 'send-from'],
-  ] as const)('deve abrir Outbound com a mensagem Quando "%s" é clicado', async (name, param) => {
+  it('deve abrir Outbound com a mensagem Quando "Send as new…" é escolhido no "More"', async () => {
     const request = webhookRequest(5);
-    const { fixture } = await show(request);
+    const { fixture, loader } = await show(request);
     const navigate = vi
       .spyOn(fixture.debugElement.injector.get(Router), 'navigate')
       .mockResolvedValue(true);
 
-    await userEvent.click(action(name));
+    const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
+    await more.clickItem({ text: 'Send as new…' });
 
     await vi.waitFor(() =>
       expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'outbound'], {
-        queryParams: { [param]: request.uuid },
+        queryParams: { 'send-from': request.uuid },
       }),
     );
   });
@@ -571,84 +579,64 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
   describe('Dado o "Explain"', () => {
     const explainUrl = (request: WebhookRequest) =>
       `/token/${TOKEN_ID}/request/${request.uuid}/explain`;
-    const explainButton = () => action(/^(Explain|Hide explanation)$/);
 
-    it('deve abrir o painel com o diagnóstico e trocar o botão para "Hide explanation"', async () => {
-      const request = webhookRequest(6);
-      const { container, http } = await show(request);
-      expect(container.querySelector('app-explain-panel')).toBeNull();
+    it('deve continuar "Explain" com o painel aberto, e abrir outra vez sem fechar', async () => {
+      const { fixture } = await show(webhookRequest(6));
+      const panel = fixture.debugElement.injector.get(ActionPanelStore);
 
-      await userEvent.click(explainButton());
+      await userEvent.click(action('Explain'));
+      await userEvent.click(action('Explain'));
 
-      const call = await vi.waitFor(() =>
-        http.expectOne({ method: 'POST', url: explainUrl(request) }),
-      );
-      expect(call.request.body).toEqual({ lang: 'en' });
-      call.flush({ explanation: 'Assinatura **válida**.', facts: {} });
-      await vi.waitFor(() =>
-        expect(container.querySelector('app-explain-panel strong')?.textContent).toBe('válida'),
-      );
-      expect(explainButton().textContent?.trim()).toBe('Hide explanation');
-      http.verify();
-    });
-
-    it('deve fechar o painel Quando "Hide explanation" é clicado ou outra mensagem é aberta', async () => {
-      const request = webhookRequest(6);
-      const { container, http, fixture } = await show(request);
-      await userEvent.click(explainButton());
-      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({ explanation: 'x' });
-      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).not.toBeNull());
-
-      await userEvent.click(explainButton());
-      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).toBeNull());
-
-      // Reaberto, o painel mostra a explicação guardada, sem outro pedido (B4).
-      await userEvent.click(explainButton());
-      await vi.waitFor(() =>
-        expect(container.querySelector('app-explain-panel app-markdown')?.textContent).toBe('x'),
-      );
-      http.expectNone(explainUrl(request));
-      fixture.componentRef.setInput('request', webhookRequest(7));
-      await fixture.whenStable();
-      expect(container.querySelector('app-explain-panel')).toBeNull();
-      expect(explainButton().textContent?.trim()).toBe('Explain');
+      expect([panel.open(), panel.tab(), panel.explainFor()]).toEqual([
+        true,
+        'explain',
+        webhookRequest(6).uuid,
+      ]);
+      expect(action('Explain').textContent?.trim()).toBe('Explain');
     });
 
     it('deve desabilitar o "Explain" com a dica de configuração Quando a IA está desligada (503)', async () => {
       const request = webhookRequest(6);
-      const { container, http } = await show(request);
-      await userEvent.click(explainButton());
-      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush(
-        { error: 'AI is not configured' },
-        { status: 503, statusText: 'Service Unavailable' },
-      );
+      const { container, http, fixture } = await show(request);
+      const asked = TestBed.inject(AiClient).explain(TOKEN_ID, request.uuid);
+      http
+        .expectOne(explainUrl(request))
+        .flush(
+          { error: 'AI is not configured' },
+          { status: 503, statusText: 'Service Unavailable' },
+        );
+      await expect(asked).rejects.toBeTruthy();
+      await fixture.whenStable();
 
-      await vi.waitFor(() =>
-        expect(container.querySelector('.ai-off')?.textContent?.trim()).toBe(
-          'This server has no local AI.',
-        ),
+      expect(container.querySelector('.ai-off')?.textContent?.trim()).toBe(
+        'This server has no local AI.',
       );
-      // B4 (UX-15): o botão volta a se chamar "Explain", desligado mas focável, com a razão na
-      // descrição acessível.
       const explain = action('Explain');
       expect(explain).toHaveProperty('disabled', false);
       expect(explain.getAttribute('aria-disabled')).toBe('true');
       expect(
         document.getElementById(explain.getAttribute('aria-describedby') ?? '')?.textContent,
       ).toBe('This server has no local AI.');
+      await userEvent.click(explain);
+      expect(fixture.debugElement.injector.get(ActionPanelStore).open()).toBe(false);
     });
 
-    it('deve abrir o painel Quando o "Open" do aviso pede a explicação desta requisição (B4)', async () => {
+    it('deve abrir a aba Explain Quando o "Open" do aviso pede a explicação desta requisição', async () => {
       const request = webhookRequest(6);
-      const { container, http } = await show(request);
+      const { fixture } = await show(request);
+      const panel = fixture.debugElement.injector.get(ActionPanelStore);
+
+      TestBed.inject(Explanations).wanted.set(webhookRequest(7).uuid);
+      await fixture.whenStable();
+      expect(panel.open()).toBe(false);
 
       TestBed.inject(Explanations).wanted.set(request.uuid);
-
-      await vi.waitFor(() => expect(container.querySelector('app-explain-panel')).not.toBeNull());
-      (await vi.waitFor(() => http.expectOne(explainUrl(request)))).flush({
-        explanation: 'ok',
-      });
-      await vi.waitFor(() => expect(TestBed.inject(Explanations).wanted()).toBeNull());
+      await fixture.whenStable();
+      expect([panel.open(), panel.tab(), panel.explainFor()]).toEqual([
+        true,
+        'explain',
+        request.uuid,
+      ]);
     });
   });
 });

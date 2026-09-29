@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Injector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, provideRouter } from '@angular/router';
 import { screen, within } from '@testing-library/angular';
@@ -11,7 +11,7 @@ import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Rule } from './rule';
-import { openCreateRuleDialog } from './rule-actions';
+import { RuleFromRequestDialog } from './rule-from-request-dialog';
 import { RuleIntents } from './rule-intents';
 import { RuleStore } from './rule-store';
 
@@ -53,7 +53,7 @@ describe('Dado a folha "Create rule from this request"', () => {
     }
   };
   const open = async (request: WebhookRequest = EVENTO) => {
-    openCreateRuleDialog(TestBed.inject(Injector), request);
+    TestBed.inject(MatDialog).open(RuleFromRequestDialog, { data: request });
     return screen.findByRole('dialog', { name: 'Create rule from this request' });
   };
   const box = (dialog: HTMLElement, name: string | RegExp) =>

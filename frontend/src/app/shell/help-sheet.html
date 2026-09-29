@@ -21,6 +21,30 @@
   </table>
   <p i18n class="note">Turn single-key shortcuts off in Settings.</p>
 
+  @if (tokenId(); as token) {
+    <h3 i18n>Guides</h3>
+    <ul class="links">
+      <li>
+        <a
+          [routerLink]="['/', token]"
+          [queryParams]="{ guide: 'first' }"
+          (click)="closed.emit()"
+          i18n
+          >First webhook</a
+        >
+      </li>
+      <li>
+        <a
+          [routerLink]="['/', token]"
+          [queryParams]="{ guide: 'retry' }"
+          (click)="closed.emit()"
+          i18n
+          >Test a retry</a
+        >
+      </li>
+    </ul>
+  }
+
   <h3 i18n>About</h3>
   <p i18n>Anzol, open source under the MIT license.</p>
   <ul class="links">

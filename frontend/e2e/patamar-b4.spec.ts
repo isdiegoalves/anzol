@@ -544,7 +544,14 @@ test.describe('Dado a explicação de uma requisição', () => {
   }
 
   async function esconder(page: Page): Promise<void> {
-    const fechar = page.getByRole('button', { name: 'Close panel' });
+    const fechar = page
+      .getByRole('region', { name: 'Action panel' })
+      .getByRole('button', { name: 'Close panel' })
+      .or(
+        page
+          .getByRole('dialog', { name: 'Actions on this request' })
+          .getByRole('button', { name: 'Close', exact: true }),
+      );
     if (await fechar.isVisible()) {
       await fechar.click();
       return;

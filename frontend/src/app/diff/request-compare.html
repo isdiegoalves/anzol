@@ -3,7 +3,9 @@
 <section class="compare" aria-label="Compare requests" i18n-aria-label>
   <!-- RULES-28: o título com o resumo das diferenças e, embaixo, A e B em cartões. -->
   <header class="heading">
-    <h1 i18n class="page-title">Compare</h1>
+    @if (!embedded()) {
+      <h1 i18n class="page-title">Compare</h1>
+    }
     <span class="summary">&ngsp;{{ summary() }}&ngsp;</span>
     <div class="actions">
       <mat-slide-toggle
@@ -34,7 +36,9 @@
         </button>
       }
       <button i18n mat-button type="button" (click)="swap()">Swap A and B</button>
-      <button i18n mat-button type="button" (click)="compare.close()">Close</button>
+      @if (!embedded()) {
+        <button i18n mat-button type="button" (click)="compare.close()">Close</button>
+      }
     </div>
   </header>
   <div class="cards">

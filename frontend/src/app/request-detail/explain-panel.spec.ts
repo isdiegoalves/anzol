@@ -74,6 +74,23 @@ describe('Dado o painel do "Explain"', () => {
     ).toEqual([`anzol.ai.${TOKEN_ID}.${REQUEST_ID}.en`]);
   });
 
+  it('não deve pedir ao modelo sem o pedido de quem abriu, e deve pedir pelo "Ask the local model"', async () => {
+    fixture = TestBed.createComponent(ExplainPanel);
+    fixture.componentRef.setInput('tokenId', TOKEN_ID);
+    fixture.componentRef.setInput('requestId', REQUEST_ID);
+    fixture.componentRef.setInput('ask', false);
+    await fixture.whenStable();
+    document.body.appendChild(fixture.nativeElement);
+
+    http.expectNone(URL_EXPLAIN);
+    await userEvent.click(screen.getByRole('button', { name: 'Ask the local model' }));
+
+    explain().flush({ explanation: 'ok', facts: {} });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Ask the local model' })).toBeNull(),
+    );
+  });
+
   it('deve mostrar a explicação guardada na hora, sem pedir, e pedir outra por "Ask again"', async () => {
     sessionStorage.setItem(
       `anzol.ai.${TOKEN_ID}.${REQUEST_ID}.en`,

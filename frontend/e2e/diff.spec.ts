@@ -35,11 +35,13 @@ async function openRequest(page: Page, tokenId: string, requestId: string) {
 async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
   await page.getByRole('button', { name: 'Compare with…' }).click();
   await expect(
-    page.getByText(
-      new RegExp(
-        `(Choose a request|Pick a request in the list) to compare with #${a.substring(0, 5)}`,
-      ),
-    ),
+    page
+      .getByText(
+        new RegExp(
+          `(Choose a request|Pick a request in the list) to compare with #${a.substring(0, 5)}`,
+        ),
+      )
+      .first(),
   ).toBeVisible();
   await item(page, b).getByRole('button').first().click();
   const inteira = page.getByRole('link', { name: 'Open full comparison' });
@@ -188,7 +190,7 @@ test.describe('Dado duas entregas do mesmo evento', () => {
 
     await expect(
       page.getByText(/(Choose a request|Pick a request in the list) to compare with/),
-    ).toBeHidden();
+    ).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Compare requests' })).toHaveCount(0);
     await expect(detalhes(page)).toContainText(a);
   });

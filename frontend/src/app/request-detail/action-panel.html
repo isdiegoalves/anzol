@@ -1,0 +1,113 @@
+@let tab = store.tab();
+@if (!sheet()) {
+  <div
+    class="separator"
+    role="separator"
+    tabindex="0"
+    aria-orientation="horizontal"
+    aria-label="Resize action panel"
+    i18n-aria-label
+    [attr.aria-valuemin]="minHeight"
+    [attr.aria-valuenow]="measured()"
+    (keydown)="resizeByKey($event)"
+    (pointerdown)="startDrag($event)"
+  ></div>
+}
+<section
+  class="panel"
+  [attr.role]="sheet() ? 'dialog' : 'region'"
+  [attr.aria-modal]="sheet() ? 'true' : null"
+  [attr.aria-label]="sheet() ? sheetName : regionName"
+  [cdkTrapFocus]="sheet()"
+  [cdkTrapFocusAutoCapture]="sheet()"
+>
+  <header class="head">
+    <div class="tabs" role="tablist" aria-label="Actions on this request" i18n-aria-label>
+      @for (item of tabs; track item.id) {
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [id]="tabId(item.id)"
+          [attr.aria-selected]="tab === item.id"
+          [attr.aria-controls]="panelId"
+          [attr.tabindex]="tab === item.id ? 0 : -1"
+          (click)="select(item.id)"
+          (keydown)="moveTab($event)"
+        >
+          {{ item.label }}
+        </button>
+      }
+    </div>
+    @if (sheet()) {
+      <button type="button" class="close text" (click)="store.close()">
+        <ng-container i18n>Close</ng-container>
+      </button>
+    } @else {
+      @if (store.expanded()) {
+        <button
+          type="button"
+          class="icon"
+          aria-label="Restore panel"
+          i18n-aria-label
+          title="Restore panel"
+          i18n-title
+          (click)="store.expanded.set(false)"
+        >
+          <app-icon name="down" [size]="20" />
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="icon"
+          aria-label="Expand panel"
+          i18n-aria-label
+          title="Expand panel"
+          i18n-title
+          (click)="store.expanded.set(true)"
+        >
+          <app-icon name="up" [size]="20" />
+        </button>
+      }
+      <button
+        type="button"
+        class="icon"
+        aria-label="Close panel"
+        i18n-aria-label
+        title="Close panel (Esc)"
+        i18n-title
+        (click)="store.close()"
+      >
+        <app-icon name="close" [size]="20" />
+      </button>
+    }
+  </header>
+  <div class="body" role="tabpanel" [id]="panelId" [attr.aria-labelledby]="tabId(tab)">
+    @switch (tab) {
+      @case ('replay') {
+        <app-replay-panel [request]="request()" />
+      }
+      @case ('compare') {
+        @if (pair(); as shown) {
+          <app-request-compare [a]="shown.a" [b]="shown.b" [embedded]="true" />
+          <a
+            class="link"
+            [routerLink]="['/', shown.a.token_id, 'compare', shown.a.uuid, shown.b.uuid]"
+            i18n
+            >Open full comparison</a
+          >
+        } @else {
+          <p class="pick" i18n>Pick a request in the list to compare with #{{ id5() }}.</p>
+        }
+      }
+      @case ('rule') {
+        <ng-container #ruleHost />
+      }
+      @default {
+        <ng-container #explainHost />
+      }
+    }
+  </div>
+  <!-- Fora de @if: região viva criada já com texto não é anunciada. -->
+  <app-live-region class="result" label="Action result" i18n-label [text]="store.result()" />
+</section>

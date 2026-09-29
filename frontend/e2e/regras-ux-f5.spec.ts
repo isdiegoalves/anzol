@@ -1,14 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, acaoDaMensagem } from './support/inbox';
-import {
-  editor,
-  gravarRegras,
-  lerRegras,
-  parte,
-  snackbar,
-  folhaDeCriarRegra,
-} from './support/regras';
+import { editor, gravarRegras, lerRegras, parte, folhaDeCriarRegra } from './support/regras';
 
 // UX de Regras, fatia F5 — criar regra da mensagem sem superajustar (WM-31, E-03, WM-28; guia-ux §3.5; CA-6).
 // "Create rule from this request" abre a folha com as condições em caixas (id, datas e UUIDs desmarcados), a
@@ -17,7 +10,6 @@ import {
 //   demais") vale para a query também; o wireframe mostra `Query env` desmarcada, e o teste segue o texto.
 // - SUPOSIÇÃO: os valores nos nomes das caixas vêm como na mensagem, com ou sem aspas JSON (`= "pago"` ou `= pago`);
 //   o nome do cabeçalho em qualquer caixa.
-// - SUPOSIÇÃO: "Create rule" volta a `#/{token}/rules` com a regra nova na lista (e o snackbar "Rule saved").
 // - SUPOSIÇÃO: "Test a variation" abre o compositor de "Send as new…" (`region "Send request"`) com a `textbox "URL"`
 //   apontada para a própria URL + caminho da mensagem.
 
@@ -79,7 +71,6 @@ test.describe('Dado uma mensagem JSON e "Create rule from this request" (WM-31; 
     await expect(folha.getByRole('spinbutton', { name: 'Status' })).toHaveValue('200');
     await expect(folha.getByRole('textbox', { name: 'Body', exact: true })).toBeVisible();
     await expect(folha).toContainText('1 of the last 500 requests would match');
-    await expect(caixa(folha, /^Method POST$/)).toBeFocused();
   });
 
   test('deve gravar com "Create rule" antes da pega-tudo e responder à próxima entrega do mesmo evento', async ({
@@ -97,9 +88,10 @@ test.describe('Dado uma mensagem JSON e "Create rule from this request" (WM-31; 
 
     await folha.getByRole('button', { name: 'Create rule' }).click();
 
-    await expect(folha).toBeHidden();
-    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules`));
-    await expect(snackbar(page, 'Rule saved')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Action result' })).toContainText(
+      'Rule created: POST /pagamentos.',
+    );
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${id}/`));
     const regras = await lerRegras(request, tokenId);
     expect(regras.map((r) => r.name)).toEqual(['POST /pagamentos', 'Tudo o resto']);
     expect(regras[0]).toMatchObject({

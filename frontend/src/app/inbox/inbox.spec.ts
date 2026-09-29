@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -9,6 +10,7 @@ import type { MockInstance } from 'vitest';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
+import { ANNOUNCE_EVERY_MS } from './inbox';
 import { Preferences } from '../settings/preferences';
 import { Connection } from '../realtime/connection-store';
 import { RequestStore } from '../requests/request-store';
@@ -653,13 +655,9 @@ describe('Dado a tela principal', () => {
     });
   });
 
-  it('deve abrir a página do Compare pela rota, com A e B marcadas na lista, e voltar à A Quando "Compare with…" é usado', async () => {
+  it('deve comparar no painel de ação e levar à página do Compare pelo "Open full comparison"', async () => {
     await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
     const root = () => harness.routeNativeElement as HTMLElement;
-    const button = (label: string) =>
-      [...root().querySelectorAll<HTMLButtonElement>('button')].find(
-        (candidate) => candidate.textContent?.trim() === label,
-      );
     // INBOX-19: o rótulo visível é "Compare"; o nome acessível, "Compare with…".
     const compareWith = () =>
       root().querySelector<HTMLButtonElement>('button[aria-label="Compare with…"]');
@@ -668,30 +666,25 @@ describe('Dado a tela principal', () => {
     compareWith()?.click();
     await harness.fixture.whenStable();
     expect(text()).toContain(`Choose a request to compare with #${R1.uuid.substring(0, 5)}`);
+    expect(text()).toContain(
+      `Pick a request in the list to compare with #${R1.uuid.substring(0, 5)}.`,
+    );
     root().querySelectorAll<HTMLButtonElement>('.item .select')[1].click();
 
-    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/compare/${R1.uuid}/${R2.uuid}`));
-    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
-    await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, R2);
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
-      expect(root().querySelector('app-request-compare .id-b')?.textContent).toBe(
+      expect(root().querySelector('app-action-panel app-request-compare .id-b')?.textContent).toBe(
         `#${R2.uuid.substring(0, 5)}`,
       );
     });
-    expect([...root().querySelectorAll('.item .tag')].map((tag) => tag.textContent)).toEqual([
-      'A',
-      'B',
-    ]);
-
-    button('Close')?.click();
-    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
-    await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
-    await vi.waitFor(async () => {
-      await harness.fixture.whenStable();
-      expect(root().querySelector('app-request-detail')).not.toBeNull();
-    });
+    expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+    expect(root().querySelector('app-request-detail')).not.toBeNull();
+    [...root().querySelectorAll<HTMLAnchorElement>('app-action-panel a')]
+      .find((link) => link.textContent?.trim() === 'Open full comparison')
+      ?.click();
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/compare/${R1.uuid}/${R2.uuid}`));
+    await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
+    await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, R2);
   });
 
   it('deve abrir a mais antiga com J e a mais nova com K, e não com o foco num campo', async () => {
@@ -807,6 +800,112 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(text()).toContain(R1.uuid));
     // Quem espera a primeira a vê chegar no detalhe, ao lado da lista.
     expect(TestBed.inject(Preferences).unread()).toEqual([]);
+  });
+
+  describe('Dado a primeira requisição de uma URL vazia', () => {
+    const arrive = async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([]));
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      await vi.waitFor(() => expect(text()).toContain('Your URL is ready'));
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const first = webhookRequest(1, { url: `http://localhost:8084/${TOKEN_ID}/pedidos?x=1` });
+      FakeEventSource.latest().emit('request.created', {
+        request: first,
+        total: 1,
+        truncated: false,
+      });
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${first.uuid}/1`));
+      await harness.fixture.whenStable();
+      vi.advanceTimersByTime(ANNOUNCE_EVERY_MS);
+      vi.useRealTimers();
+      return { announce, root: harness.routeNativeElement as HTMLElement };
+    };
+    const strip = (root: HTMLElement) => root.querySelector<HTMLElement>('section.first');
+
+    it('deve trocar o "Your URL is ready" pela faixa "First request arrived", com os passos 3 a 5, e anunciar uma vez', async () => {
+      const { announce, root } = await arrive();
+
+      await vi.waitFor(() => expect(strip(root)).not.toBeNull());
+      expect(strip(root)?.getAttribute('aria-labelledby')).toBe('first-arrival-title');
+      expect(strip(root)?.querySelector('h2')?.textContent?.trim()).toBe('First request arrived');
+      expect(strip(root)?.textContent).toContain('POST /pedidos, at');
+      expect(
+        [...(strip(root)?.querySelectorAll('a') ?? [])].map((link) => [
+          link.textContent?.trim(),
+          link.getAttribute('href'),
+        ]),
+      ).toEqual([
+        ["Check the provider's signature", `/${TOKEN_ID}/checks?section=signature`],
+        ['Choose the answer', `/${TOKEN_ID}/rules/new`],
+        ['Test a retry', `/${TOKEN_ID}?guide=retry`],
+      ]);
+      expect(text()).not.toContain('Your URL is ready');
+      const said = announce.mock.calls.map(([message]) => String(message));
+      expect(said.filter((message) => message.startsWith('First request arrived'))).toHaveLength(1);
+      expect(said).not.toContain('1 new request arrived');
+    });
+
+    it('deve sumir com "Dismiss" e não voltar nesta URL', async () => {
+      const { root } = await arrive();
+      await vi.waitFor(() => expect(strip(root)).not.toBeNull());
+
+      [...(strip(root)?.querySelectorAll('button') ?? [])]
+        .find((button) => button.textContent?.trim() === 'Dismiss')
+        ?.click();
+      await harness.fixture.whenStable();
+
+      expect(strip(root)).toBeNull();
+      expect(JSON.parse(localStorage.getItem(`anzol.guides.${TOKEN_ID}`) ?? '[]')).toEqual([
+        'first',
+      ]);
+    });
+  });
+
+  it('deve abrir os roteiros pelo "Guides" do cabeçalho da lista', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+    const guides = await vi.waitFor(() => {
+      const found = root.querySelector<HTMLButtonElement>('button.guides');
+      expect(found?.textContent?.trim()).toBe('Guides');
+      return found as HTMLButtonElement;
+    });
+
+    guides.click();
+    await harness.fixture.whenStable();
+    const items = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      'First webhook',
+      'Test a retry',
+    ]);
+    items[0].click();
+
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?guide=first`));
+    await flush(`/token/${TOKEN_ID}/rules`, []);
+  });
+
+  it('deve fechar o painel de ação com Esc, sem voltar à lista', async () => {
+    await openToken(`/${TOKEN_ID}/${R1.uuid}/1`);
+    const root = harness.routeNativeElement as HTMLElement;
+    await vi.waitFor(() => expect(root.querySelector('app-request-detail')).not.toBeNull());
+    const press = (key: string) =>
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+
+    press('p');
+    await vi.waitFor(async () => {
+      await harness.fixture.whenStable();
+      expect(root.querySelector('app-action-panel')).not.toBeNull();
+    });
+    press('Escape');
+    await harness.fixture.whenStable();
+
+    expect(root.querySelector('app-action-panel')).toBeNull();
+    expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`);
+    expect(root.querySelector('app-request-detail')).not.toBeNull();
   });
 
   it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {

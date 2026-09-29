@@ -224,8 +224,10 @@
       <app-field-picker [request]="current" />
     }
     @if (xmlHtml(); as html) {
+      <!-- O leitor ignora aria-label num <pre> sem papel. -->
       <pre
         class="xml"
+        role="region"
         tabindex="0"
         aria-label="Request body"
         i18n-aria-label
