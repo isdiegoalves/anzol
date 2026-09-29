@@ -36,10 +36,12 @@ private class IdleWatchdog(
     onIdle: () -> Unit,
 ) : AutoCloseable {
     @Volatile private var lastTouch = System.nanoTime()
+
+    @Volatile private var busy = false
     private val thread =
         Thread.ofVirtual().start {
             try {
-                while (System.nanoTime() - lastTouch < limit.toNanos()) Thread.sleep(limit.dividedBy(IDLE_CHECKS))
+                while (busy || System.nanoTime() - lastTouch < limit.toNanos()) Thread.sleep(limit.dividedBy(IDLE_CHECKS))
                 onIdle()
             } catch (_: InterruptedException) {
                 // A conexão terminou antes do limite.
@@ -48,6 +50,17 @@ private class IdleWatchdog(
 
     fun touch() {
         lastTouch = System.nanoTime()
+    }
+
+    /** Enquanto [work] roda (a entrega, na thread que lê o stream), nenhuma linha é lida: o tempo não conta. */
+    fun whileBusy(work: () -> Unit) {
+        busy = true
+        try {
+            work()
+        } finally {
+            touch()
+            busy = false
+        }
     }
 
     override fun close() = thread.interrupt()
@@ -100,7 +113,7 @@ class Listener(
         IdleWatchdog(idleLimit, stream::close).use { watchdog ->
             stream.forEach { line ->
                 watchdog.touch()
-                parser.feed(line)?.let(::handle)
+                parser.feed(line)?.let { event -> watchdog.whileBusy { handle(event) } }
             }
         }
     }

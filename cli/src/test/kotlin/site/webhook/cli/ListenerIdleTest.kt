@@ -50,4 +50,32 @@ class ListenerIdleTest {
         assertThat(app.received.map { it.path }).containsExactly("/muda")
         assertThat(output).contains("Reconnected; forwarding 1 missed request(s)")
     }
+
+    @Test
+    @DisplayName("Dado uma entrega mais longa que o limite (atraso do caos), quando termina, então a conexão viva não é dada como muda")
+    fun run_entregaLonga_naoDeveReconectar() {
+        val token = site.createToken()
+        val http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
+        val output = CopyOnWriteArrayList<String>()
+        val listening = CountDownLatch(1)
+        val slow = Chaos(delay = 2500L..2500L)
+        val listener =
+            Listener(
+                WebhookServer(site.base, http),
+                TokenId(token),
+                Deliveries(Forwarder(app.url, http), TokenId(token), slow) { output += it },
+                cursor = 0,
+                idleLimit = Duration.ofSeconds(1),
+            ) { output += it }
+        threads += Thread.ofVirtual().start { listener.run { listening.countDown() } }
+        await().atMost(Duration.ofSeconds(5)).until { listening.count == 0L }
+
+        site.publish(message(token, target = "/lenta"))
+        await().atMost(Duration.ofSeconds(10)).until { app.received.isNotEmpty() }
+        site.publish(message(token, target = "/seguinte"))
+
+        await().atMost(Duration.ofSeconds(10)).until { app.received.size == 2 }
+        assertThat(app.received.map { it.path }).containsExactly("/lenta", "/seguinte")
+        assertThat(output).noneMatch { it.startsWith("Reconnected") }
+    }
 }
