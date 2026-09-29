@@ -10,8 +10,8 @@
 :host(:has(.mark, .fault))::after {
   content: '';
   position: absolute;
-  top: 9px;
-  bottom: 9px;
+  top: 6px;
+  bottom: 6px;
   left: 0;
   width: var(--app-note-rule);
   background: var(--mat-sys-error);
@@ -52,7 +52,7 @@
   flex: 1;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
   padding: 0 12px 0 6px;
   overflow: hidden;
@@ -69,6 +69,10 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.line:first-child {
+  line-height: 20px;
 }
 
 // O valor da chave é o que distingue os eventos: o caminho cede antes dele, o começo primeiro.
@@ -93,23 +97,22 @@
   flex: 0 1000 auto;
 }
 
-// Faltando espaço, a trilha perde as respostas mais antigas (à esquerda) antes de a contagem
-// encolher; a última resposta fica sempre à vista.
-.seals {
-  display: flex;
-  flex: 0 1 auto;
-  justify-content: flex-end;
-  gap: 4px;
-  min-width: 48px;
-  overflow: hidden;
+// A trilha fica inteira, da primeira tentativa à última, e a contagem também; a nota ocupa o que
+// sobra, com reticências. Com menos de 4em sobrando, ela desce para uma segunda linha, que a altura
+// fixa esconde: melhor que um toco de reticências.
+.trail {
+  flex-wrap: wrap;
+  height: 18px;
 }
 
+.seals,
 .trail .count {
   flex: none;
 }
 
 .trail .note {
-  flex: 0 2 auto;
+  flex: 1 1 4em;
+  max-width: max-content;
 }
 
 // Sem encolher: uma fração de pixel tirada do valor já troca o fim dele por reticências.
@@ -130,24 +133,38 @@
   font: var(--mat-sys-body-small);
 }
 
-// Todo status é neutro, do 200 ao 503; só a falha de rede fica no papel de erro. O último é a
-// resposta que vale agora.
+// A trilha é uma fila de células de código coladas, com a borda dividida. Todo status é neutro, do
+// 200 ao 503; só a falha de rede fica no papel de erro. A última é a resposta que vale agora: a
+// borda mais forte e a tinta cheia.
 .seal {
-  padding: 0 3px;
+  position: relative;
+  margin-left: -1px;
+  padding: 0 4px;
   border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-extra-small);
   background: var(--mat-sys-surface-container-high);
   color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
   font-family: var(--app-code-family);
-  font-weight: 500;
+  line-height: 16px;
+
+  &:first-child {
+    margin-left: 0;
+    border-radius: var(--mat-sys-corner-extra-small) 0 0 var(--mat-sys-corner-extra-small);
+  }
+
+  &:last-child {
+    border-radius: 0 var(--mat-sys-corner-extra-small) var(--mat-sys-corner-extra-small) 0;
+  }
 
   &.fault {
-    border-color: transparent;
+    z-index: 1;
+    border-color: var(--mat-sys-error);
     background: var(--mat-sys-error-container);
     color: var(--mat-sys-on-error-container);
   }
 
   &.last {
+    z-index: 1;
     border-color: var(--mat-sys-outline);
     color: var(--mat-sys-on-surface);
     font-weight: 700;
@@ -161,9 +178,17 @@
 :host(.touch) {
   padding: 0 4px 0 0;
 
+  .line:first-child {
+    line-height: inherit;
+  }
+
   .chevron {
     width: 48px;
     height: 48px;
+  }
+
+  .trail {
+    height: auto;
   }
 
   .trail,
