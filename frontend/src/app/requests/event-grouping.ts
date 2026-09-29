@@ -10,12 +10,15 @@ import {
   isEventKey,
   keyCandidates,
 } from './event-key';
+import { RequestFilter } from '../search/request-filter';
 import { RequestStore } from './request-store';
 import { CapturedRequest, WebhookRequest } from './webhook-request';
 
 export const EVENT_KEY_STORAGE = (tokenId: string) => `anzol.eventKey.${tokenId}`;
 /** Guardado no lugar da chave: a pessoa disse "Not now" ou "Do not group". */
 export const NO_GROUPING = 'off';
+/** Até quantos eventos achados pela busca já vêm abertos. */
+const FOUND_EVENTS_OPEN = 3;
 
 function readSaved(tokenId: string): string | null {
   try {
@@ -85,6 +88,24 @@ export class EventGrouping {
       if (tokenId && key) {
         untracked(() => void this.loadRules(tokenId));
       }
+    });
+    // A busca por texto que acha até 3 eventos os traz abertos, com as tentativas à vista (a que casa
+    // fica marcada). Uma vez por busca: recolher depois vale até a próxima.
+    let expandedFor: RequestFilter | null = null;
+    effect(() => {
+      const [filter, key, requests] = [this.store.filter(), this.key(), this.store.requests()];
+      const busy = this.store.searching() || this.store.loading();
+      untracked(() => {
+        if (!key || busy || !filter.text.trim() || filter === expandedFor) {
+          return;
+        }
+        expandedFor = filter;
+        const values = new Set(requests.map((request) => eventValueOf(request, key)));
+        values.delete(null);
+        if (values.size <= FOUND_EVENTS_OPEN) {
+          this.expanded.update((expanded) => new Set([...expanded, ...(values as Set<string>)]));
+        }
+      });
     });
     effect(() => {
       const filtering = this.store.filtering();

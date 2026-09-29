@@ -20,7 +20,7 @@ import {
   lista,
   mostrarLista,
 } from './support/inbox';
-import { comHoras, horaDaApi, id5, verResultadoSeAberto } from './support/patamar';
+import { comHoras, filtrosLigados, horaDaApi, id5, verResultadoSeAberto } from './support/patamar';
 import { gravarRegras } from './support/regras';
 import { compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
@@ -406,6 +406,39 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
     await expectUmAnuncio(page, /^2 requests match, in 1 event/);
     await expect(evento(page, 'evt_b')).toBeVisible();
     await expect(evento(page, 'evt_a')).toHaveCount(0);
+  });
+
+  test('deve trazer aberto o evento achado pela busca, com as tentativas à vista', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, b } = await intercalados(tokens, page);
+    await seedStorage(page, {});
+    await abrirEntrada(page, tokenId, 8);
+    await agruparPor(page, CHAVE);
+
+    await campoDeBusca(page).fill('evt_b');
+
+    await expect(tentativas(page, 'evt_b')).toHaveAttribute('aria-expanded', 'true');
+    await expect(abrirItem(page, b[0])).toBeVisible();
+    await expect(abrirItem(page, b[1])).toBeVisible();
+  });
+
+  test('deve abrir a tentativa pelo clique em qualquer ponto da linha, também no selo, sem filtrar', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, a } = await intercalados(tokens, page);
+    await seedStorage(page, {});
+    await abrirEntrada(page, tokenId, 8);
+    await agruparPor(page, CHAVE);
+    await tentativas(page, 'evt_a').click();
+
+    await item(page, a[0]).getByText('429 · Default response', { exact: true }).click();
+
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${a[0]}/1`));
+    await expect(detalhes(page)).toContainText(a[0]);
+    await expect(filtrosLigados(page)).toHaveCount(0);
   });
 
   test('deve mostrar a trilha inteira e dizer quantas tentativas casam Quando o filtro pega só parte do evento', async ({

@@ -131,7 +131,8 @@
                   >
                 </span>
               </button>
-              @if (item.status !== null && !touch() && !compare.picking()) {
+              <!-- Na tentativa de um evento o selo fica no meio da linha: o clique nela abre a tentativa. -->
+              @if (item.status !== null && !touch() && !compare.picking() && !row.attempt) {
                 <app-seal-filter [status]="item.status" />
               }
               <button
