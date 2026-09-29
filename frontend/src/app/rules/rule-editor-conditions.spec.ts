@@ -115,7 +115,10 @@ describe('Dado o editor de condições e resposta', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
 
   describe('Dado o caminho (WM-14)', () => {
     it('deve ter o Path habilitado, "Equals" escolhido e vazio valendo qualquer caminho', async () => {

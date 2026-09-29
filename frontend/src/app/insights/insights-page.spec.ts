@@ -62,7 +62,10 @@ describe('Dado a página Insights', () => {
     within(container).getByRole('link', { name }).getAttribute('href');
   const region = (name: string) => screen.getByRole('region', { name });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
 
   it('deve mostrar os KPIs com a janela explícita, os gráficos com tabela e passar no axe', async () => {
     const { container } = await open(tokenStats());

@@ -30,6 +30,9 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   };
 
   beforeEach(async () => {
+    // Os arquivos de teste dividem o jsdom (o Angular roda o Vitest sem isolate): com um token
+    // guardado por outro spec, a página não pediria o dela.
+    localStorage.clear();
     Element.prototype.scrollTo ??= () => undefined;
     windowClass.set('large');
     TestBed.configureTestingModule({
