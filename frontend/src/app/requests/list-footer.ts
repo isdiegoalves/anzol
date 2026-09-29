@@ -43,8 +43,8 @@ import { RequestStore } from './request-store';
     @if (settings.shortcuts()) {
       <p class="hints">
         <span
-          ><kbd>F</kbd>&ngsp;<ng-container i18n="keyboard hint|F opens the filters"
-            >filters</ng-container
+          ><kbd>{{ 'F' }}</kbd
+          >&ngsp;<ng-container i18n="keyboard hint|F opens the filters">filters</ng-container
           >&ngsp;</span
         >
         <span
@@ -54,23 +54,24 @@ import { RequestStore } from './request-store';
           >&ngsp;</span
         >
         <span
-          ><kbd>Enter</kbd>&ngsp;<ng-container i18n="keyboard hint|Enter opens the request"
-            >open</ng-container
+          ><kbd>{{ 'Enter' }}</kbd
+          >&ngsp;<ng-container i18n="keyboard hint|Enter opens the request">open</ng-container
           >&ngsp;</span
         >
         <span
-          ><kbd>R</kbd>&ngsp;<ng-container i18n="keyboard hint|R replays the request"
-            >replay</ng-container
+          ><kbd>{{ 'R' }}</kbd
+          >&ngsp;<ng-container i18n="keyboard hint|R replays the request">replay</ng-container
           >&ngsp;</span
         >
         <span
-          ><kbd>D</kbd>&ngsp;<ng-container i18n="keyboard hint|D compares with the previous attempt"
+          ><kbd>{{ 'D' }}</kbd
+          >&ngsp;<ng-container i18n="keyboard hint|D compares with the previous attempt"
             >compare</ng-container
           >&ngsp;</span
         >
         <span
-          ><kbd>U</kbd>&ngsp;<ng-container i18n="keyboard hint|U switches the URL"
-            >switch URL</ng-container
+          ><kbd>{{ 'U' }}</kbd
+          >&ngsp;<ng-container i18n="keyboard hint|U switches the URL">switch URL</ng-container
           >&ngsp;</span
         >
         <span
