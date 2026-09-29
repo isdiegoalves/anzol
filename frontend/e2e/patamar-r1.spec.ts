@@ -624,6 +624,25 @@ test.describe('Dado os roteiros', () => {
     );
   });
 
+  test('deve copiar o comando curl já no "Your URL is ready" da primeira visita, avisando que ele tem a URL', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+    const painel = page.getByRole('region', { name: 'Your URL is ready' });
+    await expect(painel).toBeVisible();
+    await limparAnuncios(page);
+
+    await painel.getByRole('button', { name: 'Copy curl command' }).click();
+
+    await expectSoEstaFala(page, /^Command copied\. It has this URL, which is a secret\.$/);
+    const comando = await page.evaluate(() => navigator.clipboard.readText());
+    expect(comando).toMatch(new RegExp(`^curl .*/${tokenId}$`));
+  });
+
   test('deve trocar o "Your URL is ready" pela faixa "First request arrived" e anunciar a chegada uma vez', async ({
     page,
     tokens,

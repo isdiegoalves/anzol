@@ -1,4 +1,5 @@
-import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { CdkCopyToClipboard, Clipboard } from '@angular/cdk/clipboard';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
@@ -18,8 +19,8 @@ export function testPayload(now: Date = new Date()): string {
 
 /**
  * "Your URL is ready" (C §2.10): o detalhe da URL vazia. A URL com "Copy URL" e "Open in new tab", três
- * jeitos de mandar a primeira requisição (cURL, um provedor, o CLI), o "Send a test request" e o
- * que a URL sabe fazer. O "Close" alterna `hideTutorial`, como o tutorial do app atual.
+ * jeitos de mandar a primeira requisição (cURL, com "Copy curl command"; um provedor; o CLI), o
+ * "Send a test request" e o que a URL sabe fazer. O "Close" alterna `hideTutorial`, como o tutorial do app atual.
  */
 @Component({
   selector: 'app-onboarding',
@@ -29,6 +30,8 @@ export function testPayload(now: Date = new Date()): string {
 })
 export class Onboarding {
   private readonly preferences = inject(Preferences);
+  private readonly clipboard = inject(Clipboard);
+  private readonly announcer = inject(LiveAnnouncer);
 
   /** A URL do webhook (`{origem}/{uuid}`). */
   readonly url = input.required<string>();
@@ -43,6 +46,11 @@ export class Onboarding {
 
   protected readonly sending = signal(false);
   protected readonly sent = signal<{ ok: boolean; text: string } | null>(null);
+
+  protected copyCurl(): void {
+    this.clipboard.copy(this.curl());
+    void this.announcer.announce($localize`Command copied. It has this URL, which is a secret.`);
+  }
 
   protected toggleTutorial(): void {
     this.preferences.hideTutorial.update((hidden) => !hidden);

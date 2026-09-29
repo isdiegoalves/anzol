@@ -40,6 +40,10 @@
         <p class="command">
           <code>{{ curl() }}</code>
         </p>
+        <button mat-stroked-button type="button" (click)="copyCurl()">
+          <app-icon class="button-icon" name="copy" [size]="18" />
+          <ng-container i18n>Copy curl command</ng-container>
+        </button>
       </div>
     </mat-tab>
     <mat-tab label="From a provider" i18n-label>
