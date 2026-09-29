@@ -96,7 +96,8 @@ test.describe('Dado o editor abaixo de 1200 px (WM-41)', () => {
 
     await voltar.click();
     await expect(regra).toBeHidden();
-    await expect(linhaDaRegra(page, 'Outra')).toBeInViewport();
+    // A lista volta à vista pela regra editada; a de baixo pode ficar abaixo da dobra do celular.
+    await expect(linhaDaRegra(page, PIX.name)).toBeInViewport();
   });
 
   test('deve mostrar na primeira tela a frase e a primeira condição, com os detalhes recolhidos', async ({
