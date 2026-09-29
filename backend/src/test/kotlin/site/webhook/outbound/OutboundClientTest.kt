@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import site.webhook.support.RawServer
 import site.webhook.support.Receiver
 import site.webhook.support.reply
 import java.io.ByteArrayOutputStream
@@ -20,7 +21,6 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.concurrent.thread
 
 private val PERMISSIVE = OutboundProperties(allowPrivate = true)
 private val STRICT = OutboundProperties(allowPrivate = false)
@@ -68,25 +68,6 @@ private class RecordingSockets(
                 super.connect(InetSocketAddress(InetAddress.getLoopbackAddress(), local), timeout)
             }
         }
-}
-
-/** Servidor TCP cru: [handle] recebe o socket aceito (resposta à mão, handshake TLS lido como bytes). */
-private class RawServer(
-    handle: (Socket) -> Unit,
-) : AutoCloseable {
-    private val server = ServerSocket(0, 50, InetAddress.getLoopbackAddress())
-    val port: Int = server.localPort
-
-    init {
-        thread(isDaemon = true) {
-            while (!server.isClosed) {
-                val socket = runCatching { server.accept() }.getOrNull() ?: break
-                thread(isDaemon = true) { socket.use(handle) }
-            }
-        }
-    }
-
-    override fun close() = server.close()
 }
 
 @DisplayName("Motor de saída")
