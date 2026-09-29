@@ -271,6 +271,7 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.schema` | `valid` ou `invalid` (o resultado da [validação de schema](#validação-de-schema) gravado na mensagem). URL sem schema não casa nenhum dos dois. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
 | `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
+| `chance`, `active_from`, `active_until` | a regra vale só para uma porcentagem das requisições ou só numa janela de tempo (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)); ausentes, não aparecem no `GET` |
 | `response` | `status` 100–599 (padrão 200), `headers` texto → texto, `body` texto (padrão `""`), `template` booleano (padrão `false`), `delay`, `dribble` e `fault` (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)) |
 
 Todas as condições valem em E, e uma regra sem condições casa tudo. `regex` é a sintaxe do Java e
@@ -395,13 +396,48 @@ Para testar o timeout, a retentativa e o tratamento de erro de quem envia o webh
 | `delay` | espera antes de responder: `{"fixed": ms}`, `{"uniform": {"min": ms, "max": ms}}` (inteiros, sorteio no intervalo fechado) ou `{"lognormal": {"median": ms, "sigma": s}}` (mediana 1–60000, sigma 0–10, cortado em 60 s). Teto 60000 ms |
 | `dribble` | `{"chunks": 1..100, "durationMs": 0..60000}`: status e cabeçalhos na hora e o corpo dividido em `chunks` pedaços, um a cada `durationMs / chunks` ms, com flush (`Transfer-Encoding: chunked`) |
 | `fault` | a conexão falha no lugar da resposta: `connection_reset` (RST TCP), `empty_response` (fecha sem mandar nenhum byte), `malformed_chunk` (`HTTP/1.1 200 OK` chunked com um tamanho de chunk inválido, e fecha), `random_data_then_close` (1 KiB aleatório, e fecha) |
+| `fault: "hang"` | lê a requisição e não manda nenhum byte até o cliente desistir (percebido em até 5 s) ou até o teto `WEBHOOK_FAULT_HOLD_MAX` (padrão 300 s), e fecha: testa o timeout de leitura (socket) de quem envia |
+| `fault: "stall_after_headers"` | manda o `status` e os `headers` da regra, com o `Content-Length` do `body`, e nenhum byte do corpo; fica presa como no `hang` |
+| `fault: "truncated_body"` | manda o `status`, os `headers` com o `Content-Length` do `body` inteiro e a primeira metade do corpo, e fecha: quem envia vê o corpo acabar antes da hora |
 
 A mensagem é gravada (e o evento sai) antes do atraso e da falha: ela aparece na tela enquanto o
-cliente ainda espera. Com `fault`, `status`, `headers`, `body`, `delay` e `dribble` são ignorados. O
-atraso ocupa só uma thread virtual. As falhas são feitas no conector do Tomcat (`LegacyHttpProtocol`),
+cliente ainda espera. Com `fault`, `delay` e `dribble` são ignorados; `status`, `headers` e `body` (com o template,
+se ligado) só valem em `stall_after_headers` e `truncated_body`, que exigem `body` não vazio (senão 422 em
+`response.body`). O atraso e a conexão presa ocupam só uma thread virtual. `hang` e `stall_after_headers` prendem
+no máximo 16 conexões por URL e 128 no servidor; acima disso a resposta é 503 com `X-Fault-Limit`
+(`16 held connections on this URL` ou `128 held connections on this server`), e a mensagem é gravada com a regra e
+`response: {"status": 503}`. As falhas são feitas no conector do Tomcat (`LegacyHttpProtocol`),
 abaixo do HTTP: o Tomcat não escreve nada depois delas e a conexão não é reaproveitada. O RST chega
 ao cliente em até cerca de 1 s (o NIO do Java fecha o socket com `SO_LINGER 0` na volta seguinte do
 seletor do Tomcat).
+
+**Connect timeout.** O SYN sem resposta não é simulado: atrás do encaminhador de porta do Docker a conexão é
+sempre aceita. Para testar o timeout de conexão de quem envia, aponte-o para um endereço que não responde ao SYN,
+ex. `http://10.255.255.1/` numa rede em que esse endereço não existe (`curl --connect-timeout 3 http://10.255.255.1/`
+desiste em 3 s). O `hang` cobre o timeout de leitura.
+
+**Falha por sorteio e por janela.** Para falhar só em parte das requisições ou só por um tempo, a regra (no nível de
+`enabled`, não dentro de `response`) aceita:
+
+| Campo da regra | Efeito |
+|---|---|
+| `chance` | inteiro 1–100: a regra responde a essa porcentagem das requisições em que todo o resto casou; nas outras, a avaliação segue para a próxima regra como se ela não casasse, e o cenário dela não muda. O sorteio é fixo por mensagem e regra: a captura, o `near_miss`, o trace e o `rules/test` com a regra salva dão o mesmo número. Ausente ou `null`: sempre |
+| `active_from`, `active_until` | data-hora ISO-8601 com fuso (`Z` ou `-03:00`; fração aceita): a regra só vale para as mensagens que chegaram de `active_from` (inclusive) até `active_until` (exclusive), pelo `created_at`. Voltam em UTC, cortadas no segundo (`2026-09-29T12:00:00Z`); `active_until` tem de ser depois de `active_from`. Ausente ou `null`: sem limite desse lado |
+
+```json
+{
+  "name": "instável na manutenção",
+  "chance": 30,
+  "active_from": "2026-09-29T09:00:00-03:00",
+  "active_until": "2026-09-29T09:30:00-03:00",
+  "match": { "method": ["POST"], "path": { "equals": "/pagamentos" } },
+  "response": { "status": 503, "headers": { "Retry-After": "5" } }
+}
+```
+
+Regra sem esses campos volta no `GET` sem as chaves e responde como antes. Barrada pela janela ou pelo sorteio,
+ela aparece no `near_miss` e no trace com `window: opens at 2026-09-29T12:00:00Z, received at 2026-09-29T11:59:30Z`,
+`window: closed at …` ou `chance 30%: rolled 57, not applied`; o sorteio só acontece quando todo o resto casou.
 
 Validação: 422 em JSON com a chave em pontos a partir do índice da lista
 (`{"0.match.path.regex": ["The regex is invalid."]}`, `{"rules": ["The rules may not have more than 100 items."]}`);
@@ -431,6 +467,7 @@ mesmo tamanho, no formato das chaves do 422 (sem o índice da lista), para a tel
 | `match.query.<nome>`, `match.headers.<nome>` | o parâmetro ou cabeçalho, com o nome escrito como na regra (a frase usa o cabeçalho em minúsculas) |
 | `match.body.<i>` | a condição de índice `i` (a partir de 0) em `match.body` |
 | `scenario` | o estado do cenário (ver [Cenários](#cenários)) |
+| `active_from`, `active_until`, `chance` | a janela e o sorteio (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)) |
 
 Mensagem gravada antes de `conditions` traz `conditions: null`: a chave não é reconstruída, porque a regra pode ter
 mudado desde então. O link só-leitura mostra `conditions` como gravado (não carrega valores).

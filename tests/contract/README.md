@@ -232,6 +232,43 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   `0.response.dribble` (o subcampo fica livre, mas "not supported yet" não vale mais); o status da linha
   de `malformed_chunk` fica livre (qualquer 1xx–5xx válido).
 
+- **Regras de resposta: falhas de conexão, sorteio e janela** (`specs/api/regras-falhas-conexao.spec.ts`,
+  `regras-chance.spec.ts`, `regras-janela.spec.ts`, helpers em `support/regras.ts`).
+  - *Falhas de conexão* (`regras-falhas-conexao.spec.ts`), por socket cru (`node:net`) e por um cliente `node:http` com
+    prazo: `hang` grava a mensagem antes e não manda nenhum byte em 6 s; o cliente com prazo de 2 s desiste sem
+    resposta. `stall_after_headers` com status 202 e corpo de 10 bytes: linha de status, cabeçalhos da regra,
+    `X-Request-Id`, `Content-Length: 10`, sem `Transfer-Encoding`, nenhum byte do corpo e a conexão aberta; o cliente vê
+    o 202 e o corpo nunca termina. `truncated_body` com corpo de 20 bytes: `Content-Length: 20`, os 10 primeiros bytes e
+    o servidor fecha em menos de 4 s (o `delay` da regra é ignorado); com template, a metade do corpo renderizado; o
+    cliente vê o corpo acabar antes do `Content-Length`. As sete falhas vão e voltam no `PUT`/`GET`; `hang` aceita corpo
+    vazio; `stall_after_headers` e `truncated_body` sem corpo (ou `""`) → 422 exato em `0.response.body`. **Teto:** 16
+    presas numa URL (8 `hang` e 8 `stall`) → a 17ª recebe 503 com `X-Fault-Limit: 16 held connections on this URL` e é
+    gravada com a regra e `response: {status: 503}`, enquanto outra URL ainda prende; 200 `hang` simultâneos em 20 URLs
+    → de 120 a 128 presas, o resto 503 com `128 held connections on this server`, e uma URL sem regra responde em menos
+    de 2 s; a vaga volta depois que o cliente fecha. Sem o cliente desistir, `hang` e `stall_after_headers` fecham no
+    teto (`WEBHOOK_FAULT_HOLD_MAX`, de −5 s a +30 s), o `hang` sem nenhum byte (**teste lento**: espera o teto inteiro,
+    300 s no padrão e 30 s no `./ci.sh`). Todo teste que prende conexão fica neste arquivo, que roda em sequência num
+    worker: nenhuma outra spec pode mandar requisição a uma regra `hang` ou `stall_after_headers`.
+  - *Sorteio* (`regras-chance.spec.ts`): `chance` 1, 50 e 100 vão e voltam; ausente ou `null`, a chave não aparece; 0,
+    101 e −5 → `The chance must be between 1 and 100.`, 1.5, `"20"`, `true` e `{}` → `The chance must be an integer.`,
+    em `0.chance` (`chance` no `rules/test`). Chance 30 em 400 requisições → aplica entre 23% e 37%; cada não aplicada
+    tem `near_miss` só com `chance 30%: rolled N, not applied` (N de 31 a 100) e `conditions: ["chance"]`. O trace
+    repete o sorteio da captura, igual a cada leitura, e o `rules/test` com a regra salva separa as mesmas mensagens com
+    as mesmas frases. A parte não aplicada segue para a próxima regra; a regra pulada não muda o estado do cenário; sem
+    as outras condições casando, não há sorteio. Regra sem os campos novos volta sem as chaves e responde sempre; `null`
+    em `chance`, `active_from` e `active_until` vale como ausente. MCP: `set_rules` aceita `chance`, a janela e as
+    falhas novas, `get_rules` devolve igual, `chance: 0` é `isError` com o texto do 422 e a descrição de `set_rules`
+    cita os seis nomes.
+  - *Janela* (`regras-janela.spec.ts`): `active_from` e `active_until` voltam em UTC, cortados no segundo, com `Z`
+    (fração, `-03:00` e `+00:00` aceitos); sem fuso, só a data, texto livre, vazio, número ou booleano → 422 com
+    `The active from must be an ISO-8601 date-time with a time zone, like 2026-09-29T12:00:00Z.` (e o mesmo para
+    `active until`); `active_until` igual ou antes de `active_from`, depois do corte no segundo →
+    `The active until must be a date after active from.` Uma janela de 6 s que abre em 5 s: antes, pulada com
+    `window: opens at {de}, received at {created_at}`; dentro, responde; depois, pulada com
+    `window: closed at {até}, received at …`; o trace diz o mesmo. Só `active_from` no passado vale; só `active_until`
+    no passado nunca vale. O trace e o `rules/test` julgam pela hora de chegada da mensagem, não pela de agora. Ordem
+    das frases: as condições do `match`, depois a janela; com algo falhando, sem sorteio.
+
 - **Verificação de assinatura HMAC** (`specs/api/assinatura-*.spec.ts`, helpers em `support/assinatura.ts`;
   §1 do plano "assinatura-hmac"). O teste assina com `node:crypto` a partir do segredo e dos mesmos bytes
   que envia. `signature` entrou em `CHAVES_TOKEN` e em `CHAVES_MENSAGEM`, então os testes de forma de
@@ -475,6 +512,20 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     e 30001. Um 422 não sai nem entra no histórico. Mensagem que não existe ou foi apagada → 404 `Request not found`;
     token que nunca existiu → 410 `Token not found`. Os casos válidos usam `169.254.169.254` (bloqueado na hora) para
     provar que passaram da validação sem depender de rede.
+  - *Caos* (`reenvio-caos.spec.ts`): sem `chaos`, ou com `null`, o resultado não tem a chave; `chaos: {}` → o eco dos
+    cinco campos com os padrões e `injected: []`. `delay_ms` 1500 → sai depois de 1,5 s, fora do `duration_ms`;
+    `duplicate` → a mesma requisição (método, alvo, corpo e cabeçalhos) chega duas vezes, a segunda depois da resposta
+    da primeira, e `duplicate_result` traz a segunda resposta; `abort_mid_body` (receptor de socket cru) → cabeçalhos
+    com o `Content-Length` inteiro, metade do corpo e a conexão fecha, sem `status` nem `error` e com `body_bytes_sent`;
+    numa mensagem sem corpo → 422 em `chaos.abort_mid_body`; `slow_body_bps` 100 com 200 bytes → o corpo inteiro em pelo
+    menos 1,5 s; `timeout_ms` 500 contra um receptor de 3 s → desiste e fecha, sem `status` nem `error`; `timeout_ms`
+    que não dispara não entra em `injected`; `injected` em ordem fixa (`delay_ms` antes de `duplicate`); o histórico
+    guarda o resultado com o `chaos`, numa entrada só. Validação: 21 entradas inválidas (não objeto, fora da faixa, não
+    inteiro, não booleano, `timeout_ms` que não é menor que o `timeout`, opção que o servidor não tem, como `drop`) →
+    422 com a chave e a mensagem exatas; nada sai e nada entra no histórico. Destino bloqueado → `blocked` e nada
+    injetado, nem o atraso. 30 replays com `duplicate` no minuto passam (60 chegadas) e o 31º → 429. MCP:
+    `replay_request` declara `chaos` com os cinco campos e os tipos, injeta e relata; erro de validação é `isError` com
+    o texto do 422.
 
   Leituras assumidas onde a §1 deixava folga: `ftp://`, `file://` e `gopher://` são "esquema não http(s)" do CA-3 →
   200 `blocked`; o 422 de "esquema" é para URL sem esquema (texto que não é URL absoluta); URL acima de 2048 é
