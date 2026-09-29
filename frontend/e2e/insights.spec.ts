@@ -129,6 +129,21 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     expect(await rolaNaHorizontal(page)).toBe(false);
   });
 
+  test('deve chamar a coluna da parte de "Participação" em pt-BR, e não de "Compartilhar"', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await urlComMensagens(tokens, request);
+    await seedStorage(page, { language: '"pt-BR"' });
+
+    await page.goto(`/#/${tokenId}/insights`);
+
+    const tabela = page.getByRole('table', { name: 'Quem respondeu' });
+    await expect(tabela.getByRole('columnheader', { name: 'Participação' })).toBeVisible();
+    await expect(tabela.getByRole('columnheader', { name: 'Compartilhar' })).toHaveCount(0);
+  });
+
   test('deve levar ao dashboard do Grafana pelo link "Open in Grafana"', async ({
     page,
     tokens,
