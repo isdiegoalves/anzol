@@ -37,6 +37,16 @@ export class CompareStore {
     }
   }
 
+  /**
+   * E1: abre a comparação de um par pronto (a tentativa anterior do mesmo evento com a aberta); o
+   * "Close" volta à aberta.
+   */
+  openPair(a: WebhookRequest, b: WebhookRequest): void {
+    this.pickingA.set(null);
+    this.origin = b;
+    void this.router.navigate(['/', a.token_id, 'compare', a.uuid, b.uuid]);
+  }
+
   /** A página do Compare mostra o par que a rota carregou. */
   show(a: WebhookRequest, b: WebhookRequest): void {
     this.shown.set({ a, b });

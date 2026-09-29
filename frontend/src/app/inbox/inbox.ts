@@ -29,6 +29,8 @@ import { RequestStream } from '../realtime/request-stream';
 import { RequestDetail } from '../request-detail/request-detail';
 import { RequestUnopened } from '../request-detail/request-unopened';
 import { RequestList } from '../requests/request-list';
+import { EventGrouping } from '../requests/event-grouping';
+import { chronological, eventValueOf, isEventKey } from '../requests/event-key';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import {
@@ -105,6 +107,7 @@ export class Inbox {
   private readonly viewport = inject(Viewport);
   private readonly screen = inject(ScreenState);
   private readonly connection = inject(Connection);
+  protected readonly grouping = inject(EventGrouping);
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -126,6 +129,12 @@ export class Inbox {
   readonly schemaPath = input<string>();
   /** B2: o status respondido, por classe ou exato (`?answered=4xx,429`), filtrado no navegador. */
   readonly answered = input<string>();
+  /**
+   * E1: o link da requisição agrupada leva o valor do evento e o nome da chave
+   * (`?event=evt_48213&key=x-loja-event-id`); num navegador sem a chave, a oferta a propõe.
+   */
+  readonly event = input<string>();
+  readonly key = input<string>();
   /** R1: o roteiro aberto no lugar do detalhe (`?guide=first|retry`). */
   readonly guide = input<string>();
   protected readonly guideName = computed((): GuideName | null => {
@@ -230,6 +239,11 @@ export class Inbox {
       const requestId = this.requestId();
       const page = Number(this.page() ?? 1);
       untracked(() => void this.openRoute(tokenId, requestId, page));
+    });
+    // E1: a chave que o link trouxe vira a oferta, num navegador que ainda não decidiu.
+    effect(() => {
+      const key = this.key();
+      untracked(() => this.grouping.linkKey.set(key && isEventKey(key) ? key : null));
     });
 
     // Filtros na rota: a query muda (um link, o "Show in Inbox" do Health) → a lista filtra; a busca
@@ -434,7 +448,8 @@ export class Inbox {
       return;
     }
     if (
-      (key !== 'j' && key !== 'k') ||
+      !['j', 'k', 'd'].includes(key) ||
+      event.defaultPrevented ||
       !this.settings.shortcuts() ||
       event.ctrlKey ||
       event.altKey ||
@@ -448,8 +463,11 @@ export class Inbox {
       event.preventDefault();
       if (key === 'j') {
         detail.showOlder();
-      } else {
+      } else if (key === 'k') {
         detail.showNewer();
+      } else {
+        // D (E1): a tentativa anterior do mesmo evento; sem evento, o "Compare with…".
+        detail.compareByKey();
       }
     }
   }
@@ -554,6 +572,27 @@ export class Inbox {
     if (tokenId && unopened) {
       await this.openOutsideList(tokenId, unopened.id);
     }
+  }
+
+  /**
+   * "Open the event" (B2 com a E1): o link de uma requisição que não existe mais trouxe o evento;
+   * abre a tentativa mais nova dele que está carregada, com o evento expandido.
+   */
+  protected openEvent(value: string): void {
+    const key = this.grouping.key() ?? this.grouping.linkKey();
+    const attempts = key
+      ? this.requests
+          .requests()
+          .filter((request) => eventValueOf(request, key) === value)
+          .sort(chronological)
+      : [];
+    const newest = attempts[attempts.length - 1];
+    if (!newest) {
+      void this.searchFor(value);
+      return;
+    }
+    this.grouping.expand(value, true);
+    this.openFromList(newest);
   }
 
   /** "Open the newest request": só quando a pessoa pede. */

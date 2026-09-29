@@ -1,0 +1,132 @@
+:host {
+  display: flex;
+  box-sizing: border-box;
+  padding: 2px 8px 2px 4px;
+  contain: inline-size;
+}
+
+.chevron,
+.select {
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: -3px;
+  }
+}
+
+.chevron {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  align-self: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--mat-sys-corner-full);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.select {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px 0 6px;
+  overflow: hidden;
+  border-radius: var(--mat-sys-corner-medium);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  text-align: left;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+// O caminho corta no meio, como no item; o valor da chave cede antes.
+.route {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--app-code-family);
+}
+
+.head,
+.value,
+.count,
+.note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value {
+  flex: 0 1 auto;
+  font-family: var(--app-code-family);
+}
+
+.tail,
+.time,
+.seal {
+  flex: none;
+}
+
+.time,
+.meta {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+// Todo status é neutro, do 200 ao 503; só a falha de rede fica no papel de erro (B2). O último é a
+// resposta que vale agora: borda mais forte.
+.seal {
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  font-family: var(--app-code-family);
+  font-weight: 600;
+
+  &.fault {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+
+  &.last {
+    border-color: var(--mat-sys-outline);
+  }
+}
+
+.mark {
+  color: var(--mat-sys-error);
+}
+
+// Celular: três linhas em 84 px, chevron de 48 px, e a trilha quebra de linha em vez de rolar.
+:host(.touch) {
+  padding: 0 4px 0 0;
+
+  .chevron {
+    width: 48px;
+    height: 48px;
+  }
+
+  .trail {
+    flex-wrap: wrap;
+  }
+}

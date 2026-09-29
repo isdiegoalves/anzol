@@ -1,6 +1,16 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { EventGrouping } from '../requests/event-grouping';
 import { RequestStore } from '../requests/request-store';
 import { Rule, evaluationOrder } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
@@ -30,6 +40,8 @@ export class FilterPanel {
   private readonly rulesStore = inject(RuleStore);
   private readonly viewport = inject(Viewport);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly grouping = inject(EventGrouping);
+  private readonly injector = inject(Injector);
 
   /** O id do painel, para o `aria-controls` do botão "Filters". */
   readonly panelId = input.required<string>();
@@ -85,6 +97,11 @@ export class FilterPanel {
     } catch {
       this.rules.set([]);
     }
+  }
+
+  /** "Group by event…" (E1): o diálogo da chave do evento. */
+  protected groupByEvent(): void {
+    void this.grouping.openDialog(this.injector);
   }
 
   protected chooseRule(type: 'rule' | 'near_miss', rule: Rule): void {

@@ -31,6 +31,8 @@ import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
+import { EventGrouping } from '../requests/event-grouping';
+import { eventValueOf } from '../requests/event-key';
 import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
@@ -75,6 +77,7 @@ export class RequestDetail {
   private readonly viewport = inject(Viewport);
   private readonly rules = inject(RuleStore);
   private readonly explanations = inject(Explanations);
+  private readonly grouping = inject(EventGrouping);
   private readonly announcer = inject(LiveAnnouncer);
 
   readonly request = input.required<WebhookRequest>();
@@ -136,6 +139,27 @@ export class RequestDetail {
   protected readonly goneReason = computed(() => (this.gone() ? this.goneReasonId : null));
   /** O "Explain" desligado: a IA do servidor está desligada, ou a requisição sumiu. */
   protected readonly explainOff = computed(() => this.ai.disabled() || this.gone());
+
+  /**
+   * E1: com a chave do evento, a tentativa anterior do mesmo evento (nunca a vizinha da lista, que
+   * pode ser de outro); na primeira tentativa, `request` é `null` e o botão fica desligado.
+   */
+  protected readonly previousAttempt = computed(() => {
+    const request = this.request();
+    const attempts = this.grouping.attemptsOf(request);
+    const index = attempts?.findIndex((attempt) => attempt.uuid === request.uuid) ?? -1;
+    if (!attempts || index < 0) {
+      return null;
+    }
+    return {
+      request: index > 0 ? attempts[index - 1] : null,
+      label:
+        index > 0
+          ? $localize`Compare with attempt ${index}:number:`
+          : $localize`Compare with attempt —`,
+    };
+  });
+  protected readonly firstReasonId = `first-attempt-${nextId++}`;
 
   /** Celular: a barra fica com Replay, Create rule e Copy; o resto vai ao "More" (INBOX-33). */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
@@ -223,10 +247,19 @@ export class RequestDetail {
     }
   }
 
-  /** B2: o link leva `?at=`, para o estado vazio dizer de quando era a requisição que sumiu. */
+  /**
+   * B2: o link leva `?at=`, para o estado vazio dizer de quando era a requisição que sumiu; E1: com
+   * a chave do evento, leva também o valor e o nome dela (`&event=&key=`).
+   */
   protected readonly permalink = computed(() => {
-    const { uuid, created_at: at } = this.request();
-    return `${this.origin}/#/${this.token().uuid}/${uuid}/${this.page()}?at=${encodeURIComponent(at)}`;
+    const request = this.request();
+    const key = this.grouping.key();
+    const value = key ? eventValueOf(request, key) : null;
+    const event =
+      key && value !== null
+        ? `&event=${encodeURIComponent(value)}&key=${encodeURIComponent(key)}`
+        : '';
+    return `${this.origin}/#/${this.token().uuid}/${request.uuid}/${this.page()}?at=${encodeURIComponent(request.created_at)}${event}`;
   });
   protected readonly rawUrl = computed(
     () => `${this.origin}/token/${this.token().uuid}/request/${this.request().uuid}/raw`,
@@ -281,6 +314,23 @@ export class RequestDetail {
       return;
     }
     this.compare.start(this.request());
+  }
+
+  /** "Compare with attempt {n}" (E1, tecla D): a anterior do mesmo evento como A, a aberta como B. */
+  compareWithPrevious(): void {
+    const previous = this.previousAttempt()?.request;
+    if (previous && !this.gone()) {
+      this.compare.openPair(previous, this.request());
+    }
+  }
+
+  /** A tecla D: com evento, a tentativa anterior; sem ele, o "Compare with…" de escolher na lista. */
+  compareByKey(): void {
+    if (this.previousAttempt()) {
+      this.compareWithPrevious();
+    } else {
+      this.compareWith();
+    }
   }
 
   /**

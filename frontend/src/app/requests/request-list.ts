@@ -1,8 +1,5 @@
-import {
-  CdkFixedSizeVirtualScroll,
-  CdkVirtualForOf,
-  CdkVirtualScrollViewport,
-} from '@angular/cdk/scrolling';
+import { CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -35,7 +32,14 @@ import { MethodBadge } from '../ui/method-badge';
 import { SkeletonList } from '../ui/skeleton-list';
 import { NewPill } from './new-pill';
 import { FilterChips } from '../search/filter-chips';
+import { EventBar } from './event-bar';
+import { EventGrouping } from './event-grouping';
+import { groupByEvent } from './event-key';
+import { EventLine } from './event-line';
+import { EventNote } from './event-note';
+import { ListRow, ROUTE_TAIL, rowsOf } from './list-rows';
 import { RequestStore } from './request-store';
+import { RowSizes } from './row-sizes';
 import { WebhookRequest } from './webhook-request';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
@@ -80,15 +84,13 @@ export const ITEM_HEIGHT = 60;
 export const ITEM_HEIGHT_COMPACT = 52;
 /** No celular, o item de duas linhas tem alvo de toque maior, em qualquer densidade. */
 export const ITEM_HEIGHT_TOUCH = 64;
-/** Quanto do fim do caminho fica sempre à vista: o corte, com reticências, é no meio. */
-export const ROUTE_TAIL = 14;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
 export const FRESH_MS = 3000;
 /** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
 export const UNDO_MS = 4000;
 
 /** O que a linha mostra de uma mensagem. */
-interface ItemView {
+export interface ItemView {
   request: WebhookRequest;
   route: string;
   /** O caminho em duas partes: o começo cede (reticências) e o fim fica. */
@@ -115,16 +117,19 @@ interface ItemView {
     CompareBand,
     ListFooter,
     CdkVirtualScrollViewport,
-    CdkFixedSizeVirtualScroll,
     CdkVirtualForOf,
     CheckChip,
     EmptyState,
+    EventBar,
+    EventLine,
+    EventNote,
     Icon,
     MatButton,
     MatProgressSpinner,
     MethodBadge,
     NewPill,
     RequestSearch,
+    RowSizes,
     SkeletonList,
   ],
   templateUrl: './request-list.html',
@@ -135,6 +140,8 @@ export class RequestList {
   protected readonly store = inject(RequestStore);
   protected readonly compare = inject(CompareStore);
   private readonly chips = inject(FilterChips);
+  protected readonly grouping = inject(EventGrouping);
+  private readonly document = inject(DOCUMENT);
   private readonly tokens = inject(TokenStore);
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
@@ -155,14 +162,20 @@ export class RequestList {
   );
   /** O item em que o foco do teclado está (ou esteve por último). */
   protected readonly cursor = signal<string | null>(null);
-  /** A parada do Tab: o item do cursor; sem ele na lista, o aberto; sem ele, o primeiro. */
+  /**
+   * A parada do Tab: a linha do cursor; sem ela na lista, a aberta (ou o evento recolhido dela); sem
+   * ela, a primeira.
+   */
   protected readonly stop = computed(() => {
-    const listed = this.store.requests();
-    const has = (uuid: string | null | undefined) =>
-      !!uuid && listed.some((request) => request.uuid === uuid);
+    const rows = this.rows().filter((row) => this.focusable(row));
+    const has = (id: string | null | undefined) => !!id && rows.some((row) => row.id === id);
     const cursor = this.cursor();
     const selected = this.store.selected()?.uuid;
-    return has(cursor) ? cursor : has(selected) ? selected : listed[0]?.uuid;
+    if (has(cursor)) {
+      return cursor;
+    }
+    const index = selected ? this.rowIndexOf(selected) : -1;
+    return index >= 0 ? this.rows()[index].id : rows[0]?.id;
   });
   /** A linha visível do celular (INBOX-34): "57 requests · newest first". */
   protected readonly orderLine = computed(() => {
@@ -196,9 +209,51 @@ export class RequestList {
 
   /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
   private readonly now = signal(Date.now());
-  protected readonly items = computed<ItemView[]>(() => {
+  /**
+   * As linhas da lista virtual: sem chave do evento, um item por requisição (a lista plana da B1);
+   * com ela (E1), o evento no lugar das tentativas, e as tentativas por baixo dele, expandido.
+   */
+  protected readonly rows = computed((): ListRow<ItemView>[] => {
     const now = this.now();
-    return this.store.requests().map((request) => this.itemOf(request, now));
+    const requests = this.store.requests();
+    const itemOf = (request: WebhookRequest) => this.itemOf(request, now);
+    const key = this.grouping.key();
+    if (!key) {
+      return requests.map((request) => ({
+        kind: 'item',
+        id: request.uuid,
+        item: itemOf(request),
+        value: null,
+        attempt: null,
+        event: null,
+        hit: false,
+      }));
+    }
+    const limit = this.limit();
+    const oldest = this.store.newestFirst() ? requests[requests.length - 1] : requests[0];
+    return rowsOf(groupByEvent(requests, this.grouping.context(), key), {
+      itemOf,
+      expanded: this.grouping.expanded(),
+      showingAll: this.grouping.showingAll(),
+      compact: this.touch(),
+      filtering: this.store.filtering(),
+      kept: limit !== null && this.store.total() >= limit,
+      cut: !this.store.filtering() && this.store.hasNextPage() && oldest ? oldest.uuid : null,
+      askedBy: this.grouping.askedBy,
+      language: this.document.documentElement.lang || 'en',
+    });
+  });
+  /** A altura de cada linha, na ordem: a lista virtual soma as posições. */
+  protected readonly sizes = computed(() => {
+    const [item, touch] = [this.itemHeight(), this.touch()];
+    const heights: Record<ListRow<ItemView>['kind'], number> = {
+      item,
+      event: touch ? 84 : item,
+      wait: touch ? 64 : 48,
+      more: touch ? 48 : 40,
+      note: touch ? 64 : 48,
+    };
+    return this.rows().map((row) => heights[row.kind]);
   });
   /** O botão de ordem do cabeçalho (INBOX-01): diz a ordem atual e que troca. */
   protected readonly orderLabel = computed(() =>
@@ -248,35 +303,84 @@ export class RequestList {
     }
   }
 
-  /** ↑ e ↓ (e Home e End) levam o foco a outro item, sem abrir. */
+  /**
+   * ↑ e ↓ (e Home e End) levam o foco a outra linha, sem abrir. Na linha de evento, → expande (e,
+   * expandida, vai à primeira tentativa) e ← recolhe; na tentativa, ← volta à linha do evento.
+   */
   protected move(event: KeyboardEvent, index: number): void {
-    const last = this.store.requests().length - 1;
-    const to: Record<string, number> = {
-      ArrowDown: Math.min(index + 1, last),
-      ArrowUp: Math.max(index - 1, 0),
-      Home: 0,
-      End: last,
-    };
-    if (!(event.key in to) || event.ctrlKey || event.altKey || event.metaKey) {
+    if (event.ctrlKey || event.altKey || event.metaKey) {
+      return;
+    }
+    const rows = this.rows();
+    const row = rows[index];
+    const stops = rows.flatMap((each, i) => (this.focusable(each) ? [i] : []));
+    let to: number | undefined;
+    switch (event.key) {
+      case 'ArrowDown':
+        to = stops.find((i) => i > index) ?? index;
+        break;
+      case 'ArrowUp':
+        to = [...stops].reverse().find((i) => i < index) ?? index;
+        break;
+      case 'Home':
+        to = stops[0];
+        break;
+      case 'End':
+        to = stops[stops.length - 1];
+        break;
+      case 'ArrowRight':
+        if (row?.kind === 'event') {
+          if (!row.event.expanded) {
+            event.preventDefault();
+            this.grouping.expand(row.event.value, true);
+            return;
+          }
+          to = stops.find((i) => i > index);
+        }
+        break;
+      case 'ArrowLeft':
+        if (row?.kind === 'event' && row.event.expanded) {
+          event.preventDefault();
+          this.grouping.expand(row.event.value, false);
+          return;
+        }
+        if (row?.kind === 'item' && row.event !== null) {
+          to = rows.findIndex((each) => each.id === `event:${row.event}`);
+        }
+        break;
+    }
+    if (to === undefined || to < 0) {
       return;
     }
     event.preventDefault();
-    const target = this.store.requests()[to[event.key]];
-    if (target) {
-      this.focusItem(target.uuid, to[event.key]);
-    }
+    this.focusItem(rows[to].id, to);
+  }
+
+  /** O que o Tab e as setas alcançam: o item, a linha de evento e o "Show all". */
+  protected focusable(row: ListRow<ItemView>): boolean {
+    return row.kind === 'item' || row.kind === 'event' || row.kind === 'more';
+  }
+
+  /** A linha que mostra a requisição: a dela, ou a do evento recolhido em que ela está. */
+  private rowIndexOf(uuid: string): number {
+    const rows = this.rows();
+    const own = rows.findIndex((row) => row.id === uuid);
+    return own >= 0
+      ? own
+      : rows.findIndex((row) => row.kind === 'event' && row.event.ids.includes(uuid));
   }
 
   /** O item aberto mudou por J ou K: a parada do Tab (e o foco, se estava na lista) acompanha. */
   follow(uuid: string): void {
-    const index = this.store.requests().findIndex((request) => request.uuid === uuid);
+    const index = this.rowIndexOf(uuid);
     if (index < 0) {
       return;
     }
+    const id = this.rows()[index].id;
     if (this.host.contains(this.host.ownerDocument.activeElement)) {
-      this.focusItem(uuid, index);
+      this.focusItem(id, index);
     } else {
-      this.cursor.set(uuid);
+      this.cursor.set(id);
     }
   }
 
@@ -310,17 +414,20 @@ export class RequestList {
 
   /** Põe o foco no item aberto (a volta do detalhe em tela cheia, o Esc), rolando até ele. */
   focusSelected(): void {
-    const index = this.store.selectedIndex();
     const selected = this.store.selected();
-    if (index >= 0 && selected) {
-      this.focusItem(selected.uuid, index, true);
+    const index = selected ? this.rowIndexOf(selected.uuid) : -1;
+    if (index >= 0) {
+      this.focusItem(this.rows()[index].id, index, true);
     }
   }
 
-  /** Leva o foco ao item; se a lista virtual ainda não o desenhou, rola até ele antes. */
-  private focusItem(uuid: string, index: number, scroll = false): void {
-    this.cursor.set(uuid);
-    const find = () => this.host.querySelector<HTMLElement>(`.item .select[data-uuid="${uuid}"]`);
+  /** Leva o foco à linha; se a lista virtual ainda não a desenhou, rola até ela antes. */
+  private focusItem(id: string, index: number, scroll = false): void {
+    this.cursor.set(id);
+    const find = () =>
+      [...this.host.querySelectorAll<HTMLElement>('[data-uuid]')].find(
+        (element) => element.dataset['uuid'] === id,
+      );
     const drawn = find();
     if (drawn && !scroll) {
       drawn.focus();
@@ -352,7 +459,7 @@ export class RequestList {
 
   /** Leva a lista até a mensagem (a aberta pelo "Follow new" ou pelo "View" do aviso). */
   scrollTo(requestId: string): void {
-    const index = this.store.requests().findIndex((request) => request.uuid === requestId);
+    const index = this.rowIndexOf(requestId);
     if (index >= 0) {
       afterNextRender(() => this.viewport()?.scrollToIndex(index), { injector: this.injector });
     }
@@ -369,8 +476,8 @@ export class RequestList {
     void this.store.deleteRequest(request, undo);
   }
 
-  protected trackByUuid(_index: number, item: ItemView): string {
-    return item.request.uuid;
+  protected trackRow(_index: number, row: ListRow<ItemView>): string {
+    return row.id;
   }
 
   /**
@@ -385,7 +492,7 @@ export class RequestList {
     }
     const visibleEnd = viewport.measureScrollOffset('top') + size;
     const height = this.itemHeight();
-    const previousEnd = (this.store.requests().length - 1) * height;
+    const previousEnd = (this.rows().length - 1) * height;
     return previousEnd <= visibleEnd + height / 2;
   }
 
@@ -399,7 +506,7 @@ export class RequestList {
 
   private scrollToNewest(): void {
     const viewport = this.viewport();
-    viewport?.scrollToIndex(this.store.newestFirst() ? 0 : this.store.requests().length - 1);
+    viewport?.scrollToIndex(this.store.newestFirst() ? 0 : this.rows().length - 1);
   }
 
   /** O topo estava à vista (com a mais nova primeiro, é onde as novas entram). */

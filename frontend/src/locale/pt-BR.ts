@@ -3232,4 +3232,125 @@ export const translations: Record<string, string> = {
   '9194493308386689993': 'Procurando em {$scanned} de {$total}…',
   // the answered status
   '7064010877324652228': 'o status respondido',
+  // Previous pair
+  '3956303614446710206': 'Par anterior',
+  // Next pair
+  '64026305064503317': 'Próximo par',
+  //  This is the first attempt kept of this event.
+  '7892683169288698141': ' Esta é a primeira tentativa guardada deste evento. ',
+  // Compare with attempt {$number}
+  '8233028178130337941': 'Comparar com a tentativa {$number}',
+  // Compare with attempt —
+  '7911875509569051900': 'Comparar com a tentativa —',
+  // Open the event
+  '7667328383791234730': 'Abrir o evento',
+  // Change the event key
+  '5028182250393627626': 'Trocar a chave do evento',
+  // Change
+  '7612223201633992283': 'Trocar',
+  // Group by event
+  '749101426018814705': 'Agrupar por evento',
+  //  Some requests repeat the same {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}. Group them by event?
+  '4129270642537948290':
+    ' Algumas requisições repetem o mesmo {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}. Agrupar por evento? ',
+  // Choose another field…
+  '1337850331952507359': 'Escolher outro campo…',
+  // Not now
+  '5161411570094992408': 'Agora não',
+  // No loaded request has {$key}. Showing requests one by one.
+  '4805455414659438233':
+    'Nenhuma requisição carregada tem {$key}. Mostrando as requisições uma a uma.',
+  // Showing requests one by one.
+  '2199503352046497942': 'Mostrando as requisições uma a uma.',
+  // Grouped by {$key}
+  '5300215160159648801': 'Agrupado por {$key}',
+  // 1 event in the {$loaded} loaded
+  '7450195745920996659': '1 evento nas {$loaded} carregadas',
+  // {$events} events in the {$loaded} loaded
+  '4134443978746333591': '{$events} eventos nas {$loaded} carregadas',
+  // Attempts of {$value}
+  '689808152544993810': 'Tentativas de {$value}',
+  // Requests with the same value in this field are shown together.
+  '3165589734968426862': 'Requisições com o mesmo valor neste campo aparecem juntas.',
+  // Event key
+  '3407925812216959607': 'Chave do evento',
+  // Another header or body path
+  '5071432184528587853': 'Outro cabeçalho ou caminho do corpo',
+  // Header name or JSONPath
+  '2237715338911993231': 'Nome do cabeçalho ou JSONPath',
+  // x-event-id or $.id
+  '1438157554909794275': 'x-event-id ou $.id',
+  // Do not group
+  '4776413195156332209': 'Não agrupar',
+  // This is not a header name or a JSONPath like $.id.
+  '6737556997851489894': 'Isto não é um nome de cabeçalho nem um JSONPath como $.id.',
+  //  Group
+  '4161689686913223254': ' Agrupar ',
+  // No loaded request has this field.
+  '3288614647419497410': 'Nenhuma requisição carregada tem este campo.',
+  // The {$loaded} loaded requests become 1 event.
+  '7633510998594786686': 'As {$loaded} requisições carregadas viram 1 evento.',
+  // The {$loaded} loaded requests become {$events} events.
+  '8238458730356903933': 'As {$loaded} requisições carregadas viram {$events} eventos.',
+  // Body {$key} — e.g. {$example} · {$values} values in {$loaded}
+  '4111321129896435706': 'Corpo {$key} — ex.: {$example} · {$values} valores em {$loaded}',
+  // Header {$key} — e.g. {$example} · {$values} values in {$loaded}
+  '1287443167002433140': 'Cabeçalho {$key} — ex.: {$example} · {$values} valores em {$loaded}',
+  // {$minutes} min
+  '1913550668122548665': '{$minutes} min',
+  // {$hours} h
+  '5386830330928988903': '{$hours} h',
+  // {$count} attempts loaded · more may be on the next page
+  '8125338532756931681': '{$count} tentativas carregadas · pode haver mais na próxima página',
+  // {$count} attempts kept
+  '3938564561742593138': '{$count} tentativas guardadas',
+  // {$count} attempts in {$duration}
+  '6618353892263613681': '{$count} tentativas em {$duration}',
+  // 1 signature does not match
+  '1340474443542292269': '1 assinatura não confere',
+  // {$count} signatures do not match
+  '7538105549503007585': '{$count} assinaturas não conferem',
+  // no signature in {$count}
+  '7957762083770143491': '{$count} sem assinatura',
+  // 1 with a schema error
+  '6862197777904807026': '1 com erro de schema',
+  // {$count} with schema errors
+  '500832575432537007': '{$count} com erro de schema',
+  // {$matching} of {$count} attempts match
+  '2271099195635267880': '{$matching} de {$count} tentativas casam',
+  // 1 attempt came before the asked wait
+  '7633946700269709741': '1 tentativa chegou antes da espera pedida',
+  // {$count} attempts came before the asked wait
+  '2359897495521070234': '{$count} tentativas chegaram antes da espera pedida',
+  // Event {$value}, {$method} {$route}, {$count}, answers {$answers}, {$problems}newest at {$time}. Open the newest attempt
+  '7328238802626481809':
+    'Evento {$value}, {$method} {$route}, {$count}, respostas {$answers}, {$problems}a mais nova às {$time}. Abrir a tentativa mais nova',
+  // … {$hidden} more attempts. Show all {$total} attempts
+  '4672029361197341837': '… mais {$hidden} tentativas. Mostrar as {$total} tentativas',
+  // attempt {$number}
+  '5048971472450475826': 'tentativa {$number}',
+  // +{$seconds} s
+  '231253134297229402': '+{$seconds} s',
+  // Attempt {$number} of {$total},
+  '2108670866825125479': 'Tentativa {$number} de {$total}, ',
+  // Attempt {$number} of {$total}, {$seconds} s after the previous,
+  '592545446324904628': 'Tentativa {$number} de {$total}, {$seconds} s depois da anterior, ',
+  // Position among the attempts kept. Older ones may have been cut by auto cleanup.
+  '9080270613214824072':
+    'Posição entre as tentativas guardadas. As mais antigas podem ter sido cortadas pela limpeza automática.',
+  // The wait asked is not a fixed number of seconds, so only the interval is shown.
+  '980057163540422391':
+    'A espera pedida não é um número fixo de segundos, então só o intervalo aparece.',
+  // Group by event…
+  '4262715189091817800': 'Agrupar por evento…',
+  // 1 request matches
+  '3934192990477972863': '1 requisição casa',
+  // {$count} requests match
+  '3671458829680941640': '{$count} requisições casam',
+  // in 1 event
+  '3036561420326811671': 'em 1 evento',
+  // in {$events} events
+  '5537158176643996243': 'em {$events} eventos',
+  // {$found}, {$events} · search runs on the server over all {$total}
+  '1458439836701961527': '{$found}, {$events} · a busca roda no servidor, sobre todas as {$total}',
 };

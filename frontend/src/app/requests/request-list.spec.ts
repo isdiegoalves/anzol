@@ -251,6 +251,139 @@ describe('Dado a lista lateral de mensagens', () => {
     });
   });
 
+  // E1 (UX-40): com a chave do evento no navegador, as tentativas viram uma linha de evento.
+  describe('Dado a lista agrupada pela chave do evento (E1)', () => {
+    const KEY = 'x-loja-event-id';
+    const attempt = (n: number, event: string | null, seconds: number, status = 429) =>
+      webhookRequest(n, {
+        headers: event === null ? {} : { [KEY]: [event] },
+        created_at: `2026-09-26 00:00:${String(seconds).padStart(2, '0')}`,
+        response: { status },
+      });
+    // Da mais nova para a mais antiga: A1 (0 s), B1, A2 (1 s depois), solta, A3 (5 s depois).
+    const [a1, b1, a2, solta, a3, b2] = [
+      attempt(1, 'evt_a', 0),
+      attempt(2, 'evt_b', 2),
+      attempt(3, 'evt_a', 1),
+      attempt(4, null, 3),
+      attempt(5, 'evt_a', 6, 200),
+      attempt(6, 'evt_b', 9),
+    ];
+    const events = () => [...element().querySelectorAll<HTMLElement>('app-event-line .select')];
+    const chevron = (value: string) =>
+      element().querySelector<HTMLElement>(`app-event-line [aria-label="Attempts of ${value}"]`);
+    const grouped = async () => {
+      TestBed.inject(Preferences).token.set(token({ retry_after: '3' }));
+      localStorage.setItem(`anzol.eventKey.${TOKEN_ID}`, KEY);
+      await load([b2, a3, solta, a2, b1, a1]);
+      http.expectOne(`/token/${TOKEN_ID}/rules`).flush([]);
+      await fixture.whenStable();
+    };
+    const press = async (key: string) => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+      );
+      await fixture.whenStable();
+    };
+
+    it('deve mostrar o evento no lugar das tentativas, com a trilha e sem selo de julgamento', async () => {
+      await grouped();
+
+      expect(events().map((event) => event.getAttribute('aria-label'))).toEqual([
+        expect.stringMatching(
+          /^Event evt_b, POST \/, 2 attempts in 7 s, answers 429 429, newest at .+\. Open the newest attempt$/,
+        ),
+        expect.stringMatching(
+          /^Event evt_a, POST \/, 3 attempts in 6 s, answers 429 429 200, 1 attempt came before the asked wait, newest at .+\. Open the newest attempt$/,
+        ),
+      ]);
+      expect([...events()[1].querySelectorAll('.seal')].map((seal) => seal.textContent)).toEqual([
+        '429',
+        '429',
+        '200',
+      ]);
+      expect(events()[1].querySelector('.seal.last')?.textContent).toBe('200');
+      expect(element().textContent).toContain(
+        'Grouped by x-loja-event-id · 2 events in the 6 loaded',
+      );
+      // A solta continua um item comum, com o #id.
+      expect(items().map((item) => item.querySelector('.id')?.textContent?.trim())).toEqual([
+        `#${solta.uuid.substring(0, 5)}`,
+      ]);
+      await expectNoAxeViolations(element());
+    });
+
+    it('deve mostrar as tentativas pelo chevron, da mais nova para a mais antiga, com o veredito', async () => {
+      await grouped();
+
+      chevron('evt_a')?.click();
+      await fixture.whenStable();
+
+      expect(chevron('evt_a')?.getAttribute('aria-expanded')).toBe('true');
+      expect(
+        items()
+          .map((item) => item.querySelector('.select')?.getAttribute('aria-label') ?? '')
+          .map((label) => /^Attempt \d of 3, (\d+ s after the previous, )?/.exec(label)?.[0]),
+      ).toEqual([
+        'Attempt 3 of 3, 5 s after the previous, ',
+        'Attempt 2 of 3, 1 s after the previous, ',
+        'Attempt 1 of 3, ',
+        // A solta, no lugar dela (depois do evento que chegou antes dela).
+        undefined,
+      ]);
+      const notes = [...element().querySelectorAll('app-event-note')].map((note) =>
+        note.textContent?.trim(),
+      );
+      expect(notes).toEqual([
+        'Waited 5 s. It asked to wait 3 s.',
+        'Came 1 s after the previous answer. It asked to wait 3 s.',
+        'Wait asked: Retry-After: 3, as configured now. Times are kept to the second.',
+      ]);
+      expect(element().querySelector('app-event-note .before')?.textContent).toContain('Came 1 s');
+      await expectNoAxeViolations(element());
+    });
+
+    it('deve expandir e recolher pelas setas, sem abrir, com o chevron fora do Tab', async () => {
+      const opened = vi.fn();
+      fixture.componentInstance.openRequest.subscribe(opened);
+      await grouped();
+      expect(chevron('evt_a')?.tabIndex).toBe(-1);
+      events()[1].focus();
+
+      await press('ArrowRight');
+      expect(chevron('evt_a')?.getAttribute('aria-expanded')).toBe('true');
+      await press('ArrowRight');
+      expect(document.activeElement?.getAttribute('data-uuid')).toBe(a3.uuid);
+      await press('ArrowLeft');
+      expect(document.activeElement).toBe(events()[1]);
+      await press('ArrowLeft');
+      expect(chevron('evt_a')?.getAttribute('aria-expanded')).toBe('false');
+      expect(opened).not.toHaveBeenCalled();
+
+      events()[1].click();
+      expect(opened).toHaveBeenCalledWith(a3);
+    });
+
+    it('deve oferecer agrupar uma vez, e não oferecer de novo depois de "Not now"', async () => {
+      const values = ['a', 'b', 'a', 'c', 'b', 'c'];
+      await load(values.map((value, i) => attempt(i + 1, value, i)));
+      const offer = () => element().querySelector('[aria-label="Group by event"]');
+
+      expect(offer()?.textContent).toContain(
+        'Some requests repeat the same x-loja-event-id. Group them by event?',
+      );
+      await expectNoAxeViolations(element());
+      within(offer() as HTMLElement)
+        .getByRole('button', { name: 'Not now' })
+        .click();
+      await fixture.whenStable();
+
+      expect(offer()).toBeNull();
+      expect(localStorage.getItem(`anzol.eventKey.${TOKEN_ID}`)).toBe('off');
+      expect(events()).toEqual([]);
+    });
+  });
+
   it('deve inverter a ordem pelo botão do cabeçalho', async () => {
     await load([webhookRequest(2), webhookRequest(1)]);
     const order = within(element()).getByRole('button', {

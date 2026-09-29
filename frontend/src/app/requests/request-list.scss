@@ -8,11 +8,15 @@
 
 .head {
   display: flex;
-  flex: none;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
   padding: 0 16px;
+}
+
+// O cabeçalho e a busca não encolhem: com o painel de filtros aberto, quem rola é a coluna.
+:host > .head {
+  flex: none;
 }
 
 .order {
@@ -140,8 +144,14 @@
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
     outline-offset: -3px;
+  }
+}
+
+.select,
+.delete {
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
   }
 }
 
@@ -184,7 +194,8 @@
   font-family: var(--app-code-family);
 }
 
-.head {
+.head,
+.summary {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -194,10 +205,14 @@
   flex: none;
 }
 
-.ago {
-  flex: none;
+.ago,
+.meta {
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
+}
+
+.ago {
+  flex: none;
 }
 
 .new {
@@ -212,16 +227,11 @@
 // fica no title). O #id fica sempre à vista, à direita (trava 2).
 .summary {
   flex: 0 1000 auto;
-  min-width: 0;
-  overflow: hidden;
   font-family: var(--app-code-family);
-  text-overflow: ellipsis;
 }
 
 .meta {
   gap: 6px;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-small);
 
   .id {
     flex: none;
@@ -254,7 +264,7 @@
   padding: 0;
   border: 0;
   border-radius: var(--mat-sys-corner-full);
-  background: transparent;
+  background: none;
   color: var(--mat-sys-on-surface-variant);
   cursor: pointer;
   opacity: 0;
@@ -265,7 +275,6 @@
   }
 
   &:focus-visible {
-    outline: 3px solid var(--mat-sys-primary);
     opacity: 1;
   }
 }

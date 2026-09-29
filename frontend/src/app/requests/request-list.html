@@ -23,6 +23,8 @@
 </div>
 <!-- À vista também na URL vazia: "Search requests" leva o foco a ela em todo destino (UX-11). -->
 <!-- No modo Compare (RULES-35), a lista só escolhe a B: sem a busca. -->
+<!-- E1: a oferta de agrupar por evento, ou o estado "Grouped by …", acima da busca. -->
+<app-event-bar />
 @if (!compare.pair()) {
   <app-request-search class="search" />
 }
@@ -53,75 +55,141 @@
     <app-new-pill [count]="newBelow()" [up]="store.newestFirst()" (show)="showNew()" />
   }
   <div class="list">
-    <cdk-virtual-scroll-viewport class="viewport" [itemSize]="itemHeight()">
-      <div
-        *cdkVirtualFor="let item of items(); trackBy: trackByUuid; let index = index"
-        class="item"
-        [class.active]="store.selected()?.uuid === item.request.uuid"
-        [class.unread]="isUnread(item.request)"
-        [class.base]="compare.picking()?.uuid === item.request.uuid"
-        [class.pick-a]="compare.pair()?.a?.uuid === item.request.uuid"
-        [class.pick-b]="compare.pair()?.b?.uuid === item.request.uuid"
-        [class.fresh]="fresh().has(item.request.uuid)"
-      >
-        <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
-        <button
-          type="button"
-          class="select"
-          [attr.data-uuid]="item.request.uuid"
-          [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-          [attr.aria-label]="item.label"
-          [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
-          (focus)="cursor.set(item.request.uuid)"
-          (keydown)="move($event, index)"
-          (click)="choose(item.request, $event)"
-        >
-          <!-- Linha 1 (B1, lista densa): método, caminho (corta no meio; inteiro no title e no nome
-               acessível), NEW e o tempo relativo, com a hora exata no title (INBOX-11). -->
-          <span class="line route-line">
-            @if (compare.pair(); as pair) {
-              @if (pair.a.uuid === item.request.uuid) {
-                <span i18n class="tag a">A</span>
-              } @else if (pair.b.uuid === item.request.uuid) {
-                <span i18n class="tag b">B</span>
-              }
-            }
-            <app-method-badge [method]="item.request.method" />
-            <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
-            <!-- prettier-ignore -->
-            <span class="route" [title]="item.route"><span class="head"> {{ item.head }}</span><span class="tail">{{ item.tail }}</span></span>
-            @if (fresh().has(item.request.uuid)) {
-              <span class="new" i18n>NEW</span>
-            }
-            <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
-          </span>
-          <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do
-               evento do JSON e, à direita, o #id. O IP, o agente e a data por extenso ficam no nome
-               acessível e no detalhe. -->
-          <span class="line meta">
-            <span class="seals" aria-hidden="true">
-              @for (seal of item.seals; track seal.kind) {
-                <app-check-chip [result]="seal" />
-              }
-            </span>
-            @if (item.summary) {
-              <span class="summary"> {{ item.summary }}</span>
-            }
-            <span class="id"> #{{ item.request.uuid.substring(0, 5) }}</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          class="delete"
-          title="Delete"
-          i18n-title
-          [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-          [attr.aria-label]="deleteLabel(item.request.uuid)"
-          (click)="deleteRequest(item.request)"
-        >
-          <app-icon name="trash" [size]="18" />
-        </button>
-      </div>
+    <cdk-virtual-scroll-viewport class="viewport" [appRowSizes]="sizes()">
+      <ng-container *cdkVirtualFor="let row of rows(); trackBy: trackRow; let index = index">
+        @switch (row.kind) {
+          @case ('item') {
+            @let item = row.item;
+            <div
+              class="item"
+              [class.active]="store.selected()?.uuid === item.request.uuid"
+              [class.unread]="isUnread(item.request)"
+              [class.base]="compare.picking()?.uuid === item.request.uuid"
+              [class.pick-a]="compare.pair()?.a?.uuid === item.request.uuid"
+              [class.pick-b]="compare.pair()?.b?.uuid === item.request.uuid"
+              [class.fresh]="fresh().has(item.request.uuid)"
+            >
+              <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
+              <!-- E1: a tentativa, recuada sob o evento; com filtro, a que casa leva a marca à
+                   esquerda (no estilo da linha: o da lista está no teto do orçamento). -->
+              <button
+                type="button"
+                class="select"
+                [style.padding-left.px]="row.attempt ? 44 : null"
+                [style.box-shadow]="row.hit ? 'inset 3px 0 var(--mat-sys-primary)' : null"
+                [attr.data-uuid]="item.request.uuid"
+                [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
+                [attr.aria-label]="(row.attempt?.prefix ?? '') + item.label"
+                [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
+                (focus)="cursor.set(item.request.uuid)"
+                (keydown)="move($event, index)"
+                (click)="choose(item.request, $event)"
+              >
+                @if (row.attempt; as attempt) {
+                  <!-- E1: a tentativa recuada, com o número, a hora com segundos e o intervalo. -->
+                  <span class="line route-line">
+                    <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
+                    <span class="ago" [title]="localDate(item.request.created_at)">{{
+                      attempt.time
+                    }}</span>
+                    <span class="ago">{{ attempt.gap }}</span>
+                  </span>
+                } @else {
+                  <!-- Linha 1 (B1, lista densa): método, caminho (corta no meio; inteiro no title e no nome
+                       acessível), NEW e o tempo relativo, com a hora exata no title (INBOX-11). -->
+                  <span class="line route-line">
+                    @if (compare.pair(); as pair) {
+                      @if (pair.a.uuid === item.request.uuid) {
+                        <span i18n class="tag a">A</span>
+                      } @else if (pair.b.uuid === item.request.uuid) {
+                        <span i18n class="tag b">B</span>
+                      }
+                    }
+                    <app-method-badge [method]="item.request.method" />
+                    <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
+                    <!-- prettier-ignore -->
+                    <span class="route" [title]="item.route"><span class="head"> {{ item.head }}</span><span class="tail">{{ item.tail }}</span></span>
+                    @if (fresh().has(item.request.uuid)) {
+                      <span class="new" i18n>NEW</span>
+                    }
+                    <!-- prettier-ignore -->
+                    <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
+                  </span>
+                }
+                <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do
+                     evento do JSON e, à direita, o #id (ou, no evento de uma tentativa só, o valor
+                     da chave). O IP, o agente e a data por extenso ficam no nome acessível e no
+                     detalhe. -->
+                <span class="line meta">
+                  <span class="seals" aria-hidden="true">
+                    @for (seal of item.seals; track seal.kind) {
+                      <app-check-chip [result]="seal" />
+                    }
+                  </span>
+                  @if (item.summary) {
+                    <span class="summary"> {{ item.summary }}</span>
+                  }
+                  <span class="id">
+                    {{ row.value ?? '#' + item.request.uuid.substring(0, 5) }}</span
+                  >
+                </span>
+              </button>
+              <button
+                type="button"
+                class="delete"
+                title="Delete"
+                i18n-title
+                [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
+                [attr.aria-label]="deleteLabel(item.request.uuid)"
+                (click)="deleteRequest(item.request)"
+              >
+                <app-icon name="trash" [size]="18" />
+              </button>
+            </div>
+          }
+          @case ('event') {
+            <app-event-line
+              [view]="row.event"
+              [height]="sizes()[index]"
+              [compact]="touch()"
+              [stop]="stop() === row.id"
+              (opened)="choose(row.event.newest, $event)"
+              (toggled)="grouping.toggle(row.event.value)"
+              (moved)="move($event, index)"
+              (focused)="cursor.set(row.id)"
+            />
+          }
+          @case ('more') {
+            <app-event-note
+              [kind]="'more'"
+              [id]="row.id"
+              [text]="row.text"
+              [height]="sizes()[index]"
+              [stop]="stop() === row.id"
+              (more)="grouping.showAll(row.event)"
+              (moved)="move($event, index)"
+              (focused)="cursor.set(row.id)"
+            />
+          }
+          @case ('wait') {
+            <app-event-note
+              [kind]="'wait'"
+              [id]="row.id"
+              [text]="row.text"
+              [before]="row.before"
+              [height]="sizes()[index]"
+            />
+          }
+          @case ('note') {
+            <app-event-note
+              [kind]="'note'"
+              [id]="row.id"
+              [text]="row.text"
+              [height]="sizes()[index]"
+            />
+          }
+        }
+      </ng-container>
     </cdk-virtual-scroll-viewport>
   </div>
   <app-list-footer />

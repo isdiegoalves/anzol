@@ -609,6 +609,14 @@ export class RequestStore {
     };
   }
 
+  /**
+   * E1: a primeira página sem filtro, para a trilha de um evento que o filtro pega só em parte vir
+   * inteira.
+   */
+  unfilteredPage(tokenId: string): Promise<RequestPage> {
+    return this.fetchList(tokenId, 1);
+  }
+
   private fetchList(tokenId: string, page: number): Promise<RequestPage> {
     return firstValueFrom(
       this.http.get<RequestPage>(`/token/${tokenId}/requests`, {

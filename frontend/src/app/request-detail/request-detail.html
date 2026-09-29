@@ -89,6 +89,20 @@
         >
           <ng-container i18n>Compare with&hellip;</ng-container>
         </button>
+        @if (previousAttempt(); as previous) {
+          <button
+            mat-menu-item
+            type="button"
+            disabledInteractive
+            [disabled]="!previous.request || gone()"
+            [attr.aria-describedby]="
+              gone() ? goneReasonId : previous.request ? null : firstReasonId
+            "
+            (click)="compareWithPrevious()"
+          >
+            {{ previous.label }}
+          </button>
+        }
         @if (jsonBody()) {
           <button i18n mat-menu-item type="button" (click)="createSchema()">
             Create schema from this request
@@ -191,6 +205,22 @@
         >
           <app-icon name="compare" [size]="18" /><ng-container i18n>Compare</ng-container>
         </button>
+        <!-- E1: com evento, a comparação com a tentativa anterior do mesmo evento, ao lado. -->
+        @if (previousAttempt(); as previous) {
+          <button
+            mat-button
+            type="button"
+            aria-keyshortcuts="D"
+            disabledInteractive
+            [disabled]="!previous.request || gone()"
+            [attr.aria-describedby]="
+              gone() ? goneReasonId : previous.request ? null : firstReasonId
+            "
+            (click)="compareWithPrevious()"
+          >
+            {{ previous.label }}
+          </button>
+        }
       }
     </div>
     <div class="group">
@@ -269,6 +299,11 @@
   @if (compact() && ai.disabled()) {
     <!-- O "Explain" desabilitado fica no menu: a dica de configuração continua à vista. -->
     <p class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</p>
+  }
+  @if (previousAttempt()?.request === null) {
+    <p class="gone-reason" [id]="firstReasonId" i18n>
+      This is the first attempt kept of this event.
+    </p>
   }
   @if (gone()) {
     <!-- B2: a razão das ações desligadas, à vista e como descrição acessível de cada uma. -->

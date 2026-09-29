@@ -12,6 +12,27 @@
         (change)="showOnlyDifferences($event.checked)"
         >Only differences</mat-slide-toggle
       >
+      <!-- E1: com evento, os pares andam dentro dele (a anterior e a seguinte do mesmo evento). -->
+      @if (pairs(); as pairs) {
+        <button
+          mat-button
+          type="button"
+          disabledInteractive
+          [disabled]="!pairs.previous"
+          (click)="openPair(pairs.previous)"
+        >
+          <ng-container i18n>Previous pair</ng-container>
+        </button>
+        <button
+          mat-button
+          type="button"
+          disabledInteractive
+          [disabled]="!pairs.next"
+          (click)="openPair(pairs.next)"
+        >
+          <ng-container i18n>Next pair</ng-container>
+        </button>
+      }
       <button i18n mat-button type="button" (click)="swap()">Swap A and B</button>
       <button i18n mat-button type="button" (click)="compare.close()">Close</button>
     </div>

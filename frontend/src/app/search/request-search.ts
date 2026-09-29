@@ -14,6 +14,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
+import { EventGrouping } from '../requests/event-grouping';
+import { eventCount } from '../requests/event-key';
 import { RequestStore } from '../requests/request-store';
 import { isTyping } from '../shell/hotkeys';
 import { ShellSettings } from '../shell/shell-settings';
@@ -48,6 +50,7 @@ export class RequestSearch {
   protected readonly store = inject(RequestStore);
   protected readonly chips = inject(FilterChips);
   protected readonly waitFor = inject(WaitFor);
+  private readonly grouping = inject(EventGrouping);
   private readonly settings = inject(ShellSettings);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -96,6 +99,16 @@ export class RequestSearch {
     if (scan) {
       // B2: o status filtra no navegador; a linha diz onde procurou, nunca "0" sem o alcance.
       return $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`;
+    }
+    const key = this.grouping.key();
+    if (key) {
+      // E1: a busca vale sobre requisições; a tela agrupa o resultado e diz em quantos eventos.
+      const events = eventCount(this.store.requests(), key);
+      const found =
+        matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
+      const inEvents =
+        events === 1 ? $localize`in 1 event` : $localize`in ${events}:events: events`;
+      return $localize`${found}:found:, ${inEvents}:events: · search runs on the server over all ${total}:total:`;
     }
     return matched === 1
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
@@ -151,6 +164,14 @@ export class RequestSearch {
       });
     });
     inject(DestroyRef).onDestroy(() => this.stopTimer());
+
+    // E1: agrupar e desagrupar falam pela região do resultado da lista, uma vez.
+    effect(() => {
+      const said = this.grouping.said();
+      if (said) {
+        untracked(() => this.result.set(said.text));
+      }
+    });
   }
 
   /** O botão e a tecla F; pela tecla, o foco vai ao primeiro chip. */

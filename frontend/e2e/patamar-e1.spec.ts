@@ -13,6 +13,7 @@ import {
   filtro,
   item,
   lista,
+  mostrarLista,
 } from './support/inbox';
 import { comHoras, horaDaApi, id5, verResultadoSeAberto } from './support/patamar';
 import { gravarRegras } from './support/regras';
@@ -136,6 +137,17 @@ async function agruparPor(page: Page, campo: string): Promise<void> {
   await verResultadoSeAberto(page);
 }
 
+/**
+ * SUPOSIÇÃO (corrigida no spec): no celular, a Entrada abre a primeira requisição e o endereço passa a apontar para
+ * ela; recarregado, esse endereço é um link para ela, e o detalhe vem para a frente (B1). A lista volta pelo "Back to
+ * requests".
+ */
+async function listaDepoisDeRecarregar(page: Page): Promise<void> {
+  if (compacto(page)) {
+    await mostrarLista(page);
+  }
+}
+
 async function abrirEntrada(page: Page, tokenId: string, n: number): Promise<void> {
   await page.goto(`/#/${tokenId}`);
   await expect(page.getByRole('heading', { name: `Requests (${n})` })).toBeVisible();
@@ -178,6 +190,7 @@ test.describe('Dado a oferta de agrupar por evento (UX-40; CA-10)', () => {
     await faixa.getByRole('button', { name: 'Not now' }).click();
     await expect(faixa).toHaveCount(0);
     await page.reload();
+    await listaDepoisDeRecarregar(page);
     await expect(page.getByRole('heading', { name: 'Requests (8)' })).toBeVisible();
     await expect(oferta(page)).toHaveCount(0);
   });
@@ -257,6 +270,7 @@ test.describe('Dado a Entrada agrupada pela chave do evento (UX-40; CA-10)', () 
     expect((await readStorage(page))[`anzol.eventKey.${tokenId}`]).toContain(CHAVE);
 
     await page.reload();
+    await listaDepoisDeRecarregar(page);
     await expect(evento(page, 'evt_a')).toBeVisible();
   });
 
@@ -472,8 +486,9 @@ test.describe('Dado o intervalo entre as tentativas e o Retry-After (UX-40; CA-1
     for (let i = 0; i <= intervalos.length; i++) {
       ids.push(await enviar(tokens, tokenId, { evento: 'evt_r' }));
     }
+    const outros = [];
     for (const outro of ['evt_s', 'evt_s', 'evt_t', 'evt_t']) {
-      await enviar(tokens, tokenId, { evento: outro });
+      outros.push(await enviar(tokens, tokenId, { evento: outro }));
     }
     const base = Math.floor(Date.now() / 1000) * 1000 - 600_000;
     const horas: Record<string, string> = {};
@@ -481,6 +496,12 @@ test.describe('Dado o intervalo entre as tentativas e o Retry-After (UX-40; CA-1
     ids.forEach((uuid, i) => {
       quando += (i === 0 ? 0 : intervalos[i - 1]) * 1000;
       horas[uuid] = horaDaApi(quando);
+    });
+    // SUPOSIÇÃO (corrigida no spec): os outros eventos também têm hora fixa, 10 s entre as tentativas
+    // (esperaram). Mandados em sequência, chegariam a 0 s um do outro contra 3 s pedidos, e a linha
+    // deles diria, com razão, que uma chegou antes da espera (guia §3.5).
+    outros.forEach((uuid, i) => {
+      horas[uuid] = horaDaApi(base + 60_000 + i * 10_000);
     });
     await seedStorage(page, {});
     await comHoras(page, tokenId, horas);

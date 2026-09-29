@@ -12,6 +12,7 @@ import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { localDate } from '../request-detail/dates';
+import { EventGrouping } from '../requests/event-grouping';
 import { bodySummary, eventType } from '../requests/request-list';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
@@ -61,6 +62,7 @@ const CHECK_LABELS: Record<CheckResult['kind'], string> = {
 export class RequestCompare {
   protected readonly compare = inject(CompareStore);
   private readonly viewport = inject(Viewport);
+  private readonly grouping = inject(EventGrouping);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
   readonly a = input.required<WebhookRequest>();
@@ -77,6 +79,28 @@ export class RequestCompare {
   /** A e B como a tela mostra agora. */
   protected readonly left = computed(() => (this.swapped() ? this.b() : this.a()));
   protected readonly right = computed(() => (this.swapped() ? this.a() : this.b()));
+
+  /**
+   * E1: quando A e B são tentativas seguidas do mesmo evento, o par anterior e o seguinte dentro
+   * dele; `null` fora de evento.
+   */
+  protected readonly pairs = computed(() => {
+    const [a, b] = [this.a(), this.b()];
+    const attempts = this.grouping.attemptsOf(b);
+    const index = attempts?.findIndex((attempt) => attempt.uuid === b.uuid) ?? -1;
+    if (!attempts || index < 1 || attempts[index - 1].uuid !== a.uuid) {
+      return null;
+    }
+    const pair = (at: number) =>
+      at >= 1 && at < attempts.length ? { a: attempts[at - 1], b: attempts[at] } : null;
+    return { previous: pair(index - 1), next: pair(index + 1) };
+  });
+
+  protected openPair(pair: { a: WebhookRequest; b: WebhookRequest } | null): void {
+    if (pair) {
+      this.compare.openPair(pair.a, pair.b);
+    }
+  }
 
   /** RULES-29: abre só com as diferenças (o switch mostra tudo). */
   protected readonly onlyDifferences = signal(true);

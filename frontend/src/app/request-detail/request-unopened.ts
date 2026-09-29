@@ -39,6 +39,11 @@ import { parseUtc } from './dates';
         <button type="button" class="tonal" (click)="searchId.emit()">
           <span i18n>Search for this id</span>
         </button>
+        @if (event(); as value) {
+          <button type="button" class="tonal" (click)="openEvent.emit(value)">
+            <span i18n>Open the event</span>
+          </button>
+        }
       </div>
     } @else {
       <h2 class="title" tabindex="-1">
@@ -64,10 +69,13 @@ export class RequestUnopened {
   readonly at = input<string | null>(null);
   /** Há alguma requisição na lista para o "Open the newest request". */
   readonly hasNewest = input(false);
+  /** E1: o evento que o link trouxe (`?event=`), com a chave conhecida. */
+  readonly event = input<string | null>(null);
 
   readonly newest = output<void>();
   readonly searchId = output<void>();
   readonly again = output<void>();
+  readonly openEvent = output<string>();
 
   protected readonly id5 = computed(() => this.unopened().id.slice(0, 5));
   /** "It was received on Sep 27, 21:24." (hora local); nada sem o `?at=` ou com ele inválido. */
