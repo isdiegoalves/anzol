@@ -56,6 +56,7 @@ const VOLATEIS = [
 function mascarasComuns(page: Page): Locator[] {
   return [
     page.getByRole('textbox', { name: 'Webhook URL' }),
+    page.locator('app-url-switcher .name'),
     ...VOLATEIS.map((texto) => page.getByText(texto)),
   ];
 }

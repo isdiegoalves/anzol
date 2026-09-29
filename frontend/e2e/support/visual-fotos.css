@@ -9,3 +9,12 @@
     overflow: hidden !important;
   }
 }
+
+/*
+ * O seletor de URL diz "URL {5 do UUID}": a largura muda com as letras do id e deslocava o resto do cabeçalho entre uma
+ * execução e outra. O nome fica com largura fixa (e mascarado no spec).
+ */
+app-url-switcher .name {
+  display: inline-block !important;
+  width: 80px !important;
+}
