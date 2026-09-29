@@ -12,6 +12,12 @@
   min-width: 0;
 }
 
+// O método acompanha o título num corpo menor, como a palavra de abertura de uma referência de API.
+.head app-method-badge {
+  height: auto;
+  font-size: var(--mat-sys-title-medium-size);
+}
+
 // O título é a rota em código, grande: o bloco de abertura da página. O caminho que não cabe some
 // num esmaecido, e não num corte seco que pareceria outro caminho.
 .route {
