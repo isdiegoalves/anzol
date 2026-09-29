@@ -248,13 +248,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: flex-start;
+  align-items: start;
 }
 
 .pair > *,
 .triple > mat-form-field {
-  flex: 1 1 8rem;
+  flex: 8rem;
   min-width: 0;
+  max-width: 32rem;
 }
 
 // Cartão largo: a anatomia em cima, em duas colunas, e a configuração numa linha embaixo.
@@ -276,12 +277,12 @@
   }
 
   .settings-head {
-    flex-basis: 100%;
+    width: 100%;
   }
 
   .pair,
   .triple {
-    flex: 1 1 26rem;
+    flex: 26rem;
   }
 }
 
