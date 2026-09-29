@@ -8,9 +8,9 @@
       class="split"
       label="Resize list and detail"
       i18n-label
-      storageKey="inboxListWidth"
-      [min]="300"
-      [max]="640"
+      [storageKey]="listWidthKey"
+      [min]="listMin"
+      [max]="listMax"
       [(width)]="listWidth"
     >
       <section

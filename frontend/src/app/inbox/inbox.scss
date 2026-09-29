@@ -151,8 +151,10 @@
   }
 }
 
+// Na lista estreita, as ferramentas descem de linha em vez de passar da largura dela.
 .list-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   white-space: nowrap;

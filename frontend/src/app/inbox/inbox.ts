@@ -99,6 +99,15 @@ export const ECHO_MS = 5000;
 export const ANNOUNCE_EVERY_MS = 5000;
 /** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
 export const RECEIVED_NOTICE_MS = 4000;
+/** Limites da lista ao lado do detalhe, em px, e a chave da largura que a pessoa deixou. */
+export const LIST_MIN = 300;
+export const LIST_MAX = 720;
+export const LIST_WIDTH_KEY = 'inboxListWidth';
+
+/** A largura inicial da lista: 28 % da janela, entre os limites, até a pessoa mexer na divisória. */
+export function defaultListWidth(windowWidth: number): number {
+  return Math.round(Math.min(LIST_MAX, Math.max(LIST_MIN, windowWidth * 0.28)));
+}
 
 /**
  * Inbox: lista e detalhe lado a lado com a divisória redimensionável (a partir de 840 px); abaixo,
@@ -130,6 +139,7 @@ export const RECEIVED_NOTICE_MS = 4000;
   ],
   templateUrl: './inbox.html',
   styleUrl: './inbox.scss',
+  host: { '(window:resize)': 'fitList()' },
 })
 export class Inbox {
   protected readonly tokens = inject(TokenStore);
@@ -261,7 +271,12 @@ export class Inbox {
   private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
-  protected readonly listWidth = signal(380);
+  protected readonly listMin = LIST_MIN;
+  protected readonly listMax = LIST_MAX;
+  protected readonly listWidthKey = LIST_WIDTH_KEY;
+  protected readonly listWidth = signal(
+    defaultListWidth(this.document.defaultView?.innerWidth ?? 0),
+  );
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
@@ -440,6 +455,13 @@ export class Inbox {
   }
 
   /** Monta o roteiro pedido no endereço; o pedaço dele só é baixado aqui. */
+  /** A lista acompanha a janela enquanto a pessoa não escolheu uma largura na divisória. */
+  protected fitList(): void {
+    if (localStorage.getItem(LIST_WIDTH_KEY) === null) {
+      this.listWidth.set(defaultListWidth(this.document.defaultView?.innerWidth ?? 0));
+    }
+  }
+
   private showGuide(host: ViewContainerRef, name: GuideName, tokenId: string): () => void {
     let gone = false;
     void import('../guides/guide').then(({ Guide }) => {
