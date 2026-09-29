@@ -111,12 +111,12 @@
     height: 40px;
   }
 
-  .group {
+  .group-by {
     min-height: 44px;
   }
 }
 
-.group {
+.group-by {
   min-height: 32px;
   padding: 0 8px;
   border: 0;
@@ -136,7 +136,7 @@
   margin-top: 12px;
 }
 
-.group,
+.group-by,
 .show {
   &:focus-visible {
     outline: 3px solid var(--mat-sys-primary);
