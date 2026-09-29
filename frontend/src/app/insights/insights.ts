@@ -1,6 +1,9 @@
 import { localDate, parseUtc } from '../request-detail/dates';
+import { RecordedResponse } from '../requests/webhook-request';
+import { FAULT_SHORT_LABELS, RuleFault } from '../rules/rule';
 import { HourlyCount, TokenStats } from '../stats/stats';
 import { CountFilter } from '../ui/count-link';
+import { reasonPhrase } from '../ui/status-code';
 
 /** Papel de cor de uma fatia: sempre com rótulo em texto ao lado (WCAG 1.4.1). */
 export type Tone = 'ok' | 'bad' | 'near' | 'none' | 'primary';
@@ -151,4 +154,81 @@ export function keptText(evaluated: number, total: number, window: number): stri
   return total > window
     ? $localize`the newest ${evaluated}:evaluated: of ${total}:total: kept`
     : $localize`of the ${total}:total: kept`;
+}
+
+/** O que a URL respondeu a uma requisição, e se foi uma regra (`rule` gravada) ou a resposta padrão. */
+export interface Answer {
+  byRule: boolean;
+  response: RecordedResponse | null;
+}
+
+/** Uma linha de "Answers by status" (B2): um status exato, uma falha de rede, ou "sem registro". */
+export interface AnswerRow {
+  key: string;
+  count: number;
+  /** "429 Too Many Requests · 2 · default response": o texto da linha e o nome do link. */
+  text: string;
+  /** F1: `answered={status}`; `null` na falha de rede e sem registro (a Entrada não filtra por eles). */
+  filter: CountFilter | null;
+}
+
+/** "429 Too Many Requests", "— TCP RST" (falha de rede da regra) ou "— not recorded". */
+function answerLabel(status: number | null, fault: string | null): string {
+  if (status !== null) {
+    const phrase = reasonPhrase(status);
+    return phrase ? `${status} ${phrase}` : String(status);
+  }
+  const kind = fault === null ? null : (FAULT_SHORT_LABELS[fault as RuleFault] ?? fault);
+  return `— ${kind ?? $localize`not recorded`}`;
+}
+
+/**
+ * B2: as respostas contadas por status exato, com a origem (regras, resposta padrão ou as duas), do
+ * status mais respondido para o menos; falhas de rede e respostas sem registro no fim.
+ */
+export function answerRows(answers: readonly Answer[]): AnswerRow[] {
+  const groups = new Map<
+    string,
+    { status: number | null; label: string; rules: number; defaults: number }
+  >();
+  for (const { byRule, response } of answers) {
+    const status = response?.status ?? null;
+    const fault = response?.fault ?? null;
+    const key = status !== null ? `status:${status}` : fault !== null ? `fault:${fault}` : 'none';
+    let group = groups.get(key);
+    if (!group) {
+      group = { status, label: answerLabel(status, fault), rules: 0, defaults: 0 };
+      groups.set(key, group);
+    }
+    if (byRule) {
+      group.rules++;
+    } else {
+      group.defaults++;
+    }
+  }
+  return [...groups.entries()]
+    .map(([key, { status, label, rules, defaults }]) => {
+      const count = rules + defaults;
+      const origin =
+        defaults === 0
+          ? $localize`:answer origin:by rules`
+          : rules === 0
+            ? $localize`:answer origin:default response`
+            : $localize`:answer origin:both`;
+      return {
+        key,
+        status,
+        count,
+        text: $localize`${label}:answer: · ${count}:count: · ${origin}:origin:`,
+        filter: status !== null ? { answered: String(status) } : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(a.status === null) - Number(b.status === null) ||
+        b.count - a.count ||
+        (a.status ?? 0) - (b.status ?? 0) ||
+        a.key.localeCompare(b.key),
+    )
+    .map(({ key, count, text, filter }) => ({ key, count, text, filter }));
 }

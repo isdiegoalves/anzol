@@ -12,6 +12,7 @@ import { EmptyState } from '../ui/empty-state';
 import { Pane } from '../ui/pane';
 import { HourlyChart } from './hourly-chart';
 import {
+  answerRows,
   answeredParts,
   hourlyBars,
   keptText,
@@ -143,6 +144,12 @@ export class InsightsPage {
       filter: { outcome: 'near_miss', rule: rule.id, ruleName: rule.name },
     })),
   );
+  /** B2: "Answers by status", contado da listagem na mesma janela. */
+  protected readonly answers = computed(() => answerRows(this.store.answers()?.answers ?? []));
+  protected readonly answersScope = computed(() => {
+    const answers = this.store.answers();
+    return answers ? { evaluated: answers.answers.length, total: answers.total } : null;
+  });
   /** UX-19: o fuso da legenda do gráfico, na data da hora mais nova. */
   protected readonly offset = computed(() => {
     const newest = this.stats()?.newest_at;

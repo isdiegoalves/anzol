@@ -327,6 +327,41 @@
         </div>
       </app-pane>
     }
+
+    <!-- B2: o status respondido, contado da listagem na mesma janela (o /stats não o traz). -->
+    <app-pane class="wide" heading="Answers by status" i18n-heading>
+      <div class="body">
+        @if (answers().length > 0) {
+          @let counted = answersScope()?.evaluated ?? 0;
+          <p class="window" i18n>
+            {counted, plural,
+              =1 {Counted over the newest request.}
+              other {Counted over the newest {{ counted }} requests.}
+            }
+          </p>
+          <ul class="answers">
+            @for (row of answers(); track row.key) {
+              <li>
+                @if (row.filter) {
+                  <a
+                    [appCountLink]="tokenId()"
+                    [countFilter]="row.filter"
+                    [count]="row.count"
+                    [countName]="row.text"
+                    [countScope]="answersScope()"
+                    >{{ row.text }}</a
+                  >
+                } @else {
+                  <span>{{ row.text }}</span>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="hint" i18n>No answers yet.</p>
+        }
+      </div>
+    </app-pane>
   </div>
 } @else if (store.loading()) {
   <p class="hint" role="status" i18n>Counting the requests…</p>

@@ -7,14 +7,23 @@ import { MatSelectHarness } from '@angular/material/select/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { tokenStats } from '../../testing/stats-fixtures';
 import { localDate } from '../request-detail/dates';
+import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { TokenStats } from '../stats/stats';
 import { InsightsPage } from './insights-page';
 
 const URL_STATS = `/token/${TOKEN_ID}/stats`;
+const URL_REQUESTS = `/token/${TOKEN_ID}/requests`;
+
+/** B2: duas respondidas 429 pela resposta padrão e uma 201 por regra. */
+const ANSWERED: WebhookRequest[] = [
+  webhookRequest(1, { response: { status: 429 } }),
+  webhookRequest(2, { rule: { id: 'b', name: 'Stripe payment OK' }, response: { status: 201 } }),
+  webhookRequest(3, { response: { status: 429 } }),
+];
 
 /** As células da linha separadas por espaço (as vazias somem). */
 const rowText = (row: HTMLElement) =>
@@ -26,7 +35,18 @@ const rowText = (row: HTMLElement) =>
 describe('Dado a página Insights', () => {
   let http: HttpTestingController;
 
-  const open = async (stats: TokenStats | null, error?: { status: number; statusText: string }) => {
+  /** A listagem que "Answers by status" lê, em paralelo com o `/stats` (B2). */
+  const flushAnswers = (requests: WebhookRequest[], perPage = '100') => {
+    const call = http.expectOne((req) => req.url === URL_REQUESTS);
+    expect(call.request.params.get('per_page')).toBe(perPage);
+    expect(call.request.params.get('sorting')).toBe('newest');
+    call.flush(requestPage(requests));
+  };
+  const open = async (
+    stats: TokenStats | null,
+    error?: { status: number; statusText: string },
+    requests: WebhookRequest[] = ANSWERED,
+  ) => {
     const result = await render(InsightsPage, {
       inputs: { tokenId: TOKEN_ID },
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -36,6 +56,7 @@ describe('Dado a página Insights', () => {
     const call = http.expectOne((req) => req.url === URL_STATS);
     expect(call.request.params.get('window')).toBe('500');
     call.flush(stats ?? {}, error);
+    flushAnswers(requests);
     await result.fixture.whenStable();
     return result;
   };
@@ -148,6 +169,17 @@ describe('Dado a página Insights', () => {
     expect(
       href(region('Rules'), 'Closest rule: Refund queued, 2 requests. Open in the Inbox'),
     ).toBe(`/${TOKEN_ID}?outcome=near_miss&rule=a&ruleName=Refund%20queued`);
+    // B2: o status respondido, contado da listagem; cada status leva à Entrada filtrada por ele.
+    const answers = region('Answers by status');
+    expect(answers.textContent).toContain('Counted over the newest 3 requests.');
+    expect(
+      within(answers)
+        .getAllByRole('link')
+        .map((link) => [link.getAttribute('aria-label'), link.getAttribute('href')]),
+    ).toEqual([
+      ['429 Too Many Requests · 2 · default response', `/${TOKEN_ID}?answered=429`],
+      ['201 Created · 1 · by rules', `/${TOKEN_ID}?answered=201`],
+    ]);
     // A tabela que rola de lado recebe foco pelo teclado (axe scrollable-region-focusable, E11).
     const rolagem = screen.getByRole('region', { name: 'Hourly data' });
     expect(rolagem.getAttribute('tabindex')).toBe('0');
@@ -164,6 +196,7 @@ describe('Dado a página Insights', () => {
     expect(grafana.getAttribute('target')).toBe('_blank');
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     http.expectOne((req) => req.url === URL_STATS).flush(tokenStats({ evaluated: 3 }));
+    flushAnswers(ANSWERED);
 
     await vi.waitFor(() => expect(region('Summary').textContent).toContain('3 of the 128 kept'));
   });
@@ -177,11 +210,15 @@ describe('Dado a página Insights', () => {
         newest_at: null,
         oldest_at: null,
       }),
+      undefined,
+      [],
     );
 
     expect(region('Summary').textContent).toContain('0 of the 0 kept');
     expect(within(region('Summary')).getByText('No requests yet')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Requests per hour' })).toBeNull();
+    // B2: o bloco de status fica, com o vazio dele.
+    expect(region('Answers by status').textContent).toContain('No answers yet.');
   });
 
   it('deve reler com a janela escolhida em "Window" (Last 50/200/500, padrão 500) e dizer as mais novas', async () => {
@@ -208,6 +245,7 @@ describe('Dado a página Insights', () => {
     const call = await vi.waitFor(() => http.expectOne((req) => req.url === URL_STATS));
     expect(call.request.params.get('window')).toBe('50');
     call.flush(tokenStats({ total: 1291, evaluated: 50, window: 50 }));
+    flushAnswers(ANSWERED, '50');
     await vi.waitFor(() =>
       expect(region('Summary').textContent).toContain('the newest 50 of 1291 kept'),
     );
@@ -224,6 +262,50 @@ describe('Dado a página Insights', () => {
     );
     expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=500`,
+    );
+  });
+
+  it('B2: deve contar o status nas 500 mais novas, em 5 páginas, e levar window= Quando a URL guarda mais que a janela', async () => {
+    const { fixture } = await render(InsightsPage, {
+      inputs: { tokenId: TOKEN_ID },
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      configureTestBed: () => TestBed.inject(Preferences).token.set(token()),
+    });
+    http = TestBed.inject(HttpTestingController);
+    http
+      .expectOne((req) => req.url === URL_STATS)
+      .flush(tokenStats({ total: 1291, evaluated: 500 }));
+    const page = (n: number, status: number) =>
+      requestPage(
+        Array.from({ length: 100 }, (_, i) =>
+          webhookRequest(n * 100 + i, { response: { status } }),
+        ),
+        { total: 1291, per_page: 100, current_page: n, is_last_page: false },
+      );
+    const first = http.expectOne((req) => req.url === URL_REQUESTS);
+    expect(first.request.params.get('page')).toBe('1');
+    first.flush(page(1, 429));
+    // Depois da primeira, as outras 4 da janela juntas; a 6ª, fora dela, nunca é pedida.
+    const rest = await vi.waitFor(() => {
+      const calls = http.match((req) => req.url === URL_REQUESTS);
+      expect(calls).toHaveLength(4);
+      return calls;
+    });
+    expect(rest.map((call) => call.request.params.get('page'))).toEqual(['2', '3', '4', '5']);
+    rest.forEach((call, i) => call.flush(page(i + 2, i === 0 ? 200 : 429)));
+    await fixture.whenStable();
+
+    await vi.waitFor(() =>
+      expect(region('Answers by status').textContent).toContain(
+        'Counted over the newest 500 requests.',
+      ),
+    );
+    const answers = region('Answers by status');
+    expect(href(answers, '429 Too Many Requests · 400 · default response')).toBe(
+      `/${TOKEN_ID}?answered=429&window=500`,
+    );
+    expect(href(answers, '200 OK · 100 · default response')).toBe(
+      `/${TOKEN_ID}?answered=200&window=500`,
     );
   });
 

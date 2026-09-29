@@ -23,6 +23,11 @@ const REASONS: Record<number, string> = {
   504: 'Gateway Timeout',
 };
 
+/** A frase do protocolo de um status comum ("Too Many Requests"), em inglês; `null` para os outros. */
+export function reasonPhrase(status: number): string | null {
+  return REASONS[status] ?? null;
+}
+
 /**
  * Status HTTP de uma resposta (regra, resposta padrão, destino do Outbound), pela família: 2xx
  * sucesso, 3xx neutro, 4xx aviso, 5xx erro. Sem status (a conexão falhou), mostra o erro.
@@ -57,6 +62,6 @@ export class StatusCode {
 
   protected readonly reason = computed(() => {
     const status = this.status();
-    return status === null ? null : (REASONS[status] ?? null);
+    return status === null ? null : reasonPhrase(status);
   });
 }

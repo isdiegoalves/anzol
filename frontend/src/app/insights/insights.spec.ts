@@ -1,7 +1,9 @@
 import { tokenStats } from '../../testing/stats-fixtures';
 import { localDate } from '../request-detail/dates';
 import {
+  Answer,
   HOURLY_FILL_MAX,
+  answerRows,
   answeredParts,
   hourlyBars,
   hourlySummary,
@@ -129,5 +131,45 @@ describe('Dado os agregados do stats', () => {
 
   it('deve escrever os métodos do mais usado para o menos', () => {
     expect(methodsText({ GET: 2, POST: 10, PUT: 2 })).toBe('POST 10, GET 2, PUT 2');
+  });
+});
+
+describe('Dado as respostas das requisições mais novas (answerRows, B2)', () => {
+  const pelaRegra = (status: number): Answer => ({ byRule: true, response: { status } });
+  const peloPadrao = (status: number): Answer => ({ byRule: false, response: { status } });
+
+  it('deve contar por status exato, do mais respondido, com a origem e o filtro do status', () => {
+    const rows = answerRows([
+      peloPadrao(429),
+      pelaRegra(201),
+      peloPadrao(429),
+      pelaRegra(418),
+      peloPadrao(418),
+    ]);
+
+    expect(rows.map(({ text, filter }) => [text, filter])).toEqual([
+      ['418 · 2 · both', { answered: '418' }],
+      ['429 Too Many Requests · 2 · default response', { answered: '429' }],
+      ['201 Created · 1 · by rules', { answered: '201' }],
+    ]);
+  });
+
+  it('deve pôr no fim, sem filtro, a falha de rede e a resposta sem registro', () => {
+    const rows = answerRows([
+      { byRule: true, response: { fault: 'connection_reset' } },
+      { byRule: false, response: null },
+      { byRule: false, response: null },
+      peloPadrao(200),
+    ]);
+
+    expect(rows.map(({ text, filter }) => [text, filter])).toEqual([
+      ['200 OK · 1 · default response', { answered: '200' }],
+      ['— not recorded · 2 · default response', null],
+      ['— TCP RST · 1 · by rules', null],
+    ]);
+  });
+
+  it('deve dar lista vazia Quando não há requisições', () => {
+    expect(answerRows([])).toEqual([]);
   });
 });

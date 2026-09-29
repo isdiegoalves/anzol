@@ -500,6 +500,13 @@ export const translations: Record<string, string> = {
   '7753383578255871160': 'Quase acertos',
   // Closest rule when none matched
   '5614787940017710801': 'Regra mais próxima quando nenhuma casou',
+  // Answers by status
+  '2253959432758805530': 'Respostas por status',
+  // {VAR_PLURAL, plural, =1 {Counted over the newest request.} other {Counted over the newest {INTERPOLATION} requests.}}
+  '1144277527212253758':
+    '{VAR_PLURAL, plural, =1 {Contado na requisição mais nova.} other {Contado nas {INTERPOLATION} requisições mais novas.}}',
+  // No answers yet.
+  '7671642818829633701': 'Nenhuma resposta ainda.',
   // Closest rule: {$rule}
   '3869916993611205037': 'Regra mais próxima: {$rule}',
   // All requests
@@ -2022,6 +2029,16 @@ export const translations: Record<string, string> = {
   '4303907595329868490': 'as {$evaluated} mais novas de {$total} guardadas',
   // of the {$total} kept
   '6960211955108263369': 'das {$total} guardadas',
+  // not recorded
+  '8179776042517989255': 'sem registro',
+  // by rules
+  '1182262427154339265': 'por regras',
+  // default response
+  '5456299837149947366': 'resposta padrão',
+  // both
+  '1598170280549949741': 'as duas',
+  // {$answer} · {$count} · {$origin}
+  '6424199982821671522': '{$answer} · {$count} · {$origin}',
   // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule instead of the default {$INTERPOLATION_2}
   '8949862395501794336':
     '{$INTERPOLATION} agora receberiam {$INTERPOLATION_1} desta regra no lugar da resposta padrão {$INTERPOLATION_2}',
