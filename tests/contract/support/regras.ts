@@ -84,6 +84,11 @@ export interface Regra {
   name?: string;
   enabled?: boolean;
   priority?: number;
+  /** 1..100: a regra só vale para essa porcentagem das requisições que casam; ausente = todas. */
+  chance?: number | null;
+  /** Janela em UTC (`YYYY-MM-DDTHH:MM:SSZ` na volta): vale de `active_from` (inclusive) até `active_until` (exclusive). */
+  active_from?: string | null;
+  active_until?: string | null;
   match?: MatchRegra;
   scenario?: CenarioDaRegra | null;
   response?: RespostaRegra;
