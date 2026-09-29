@@ -64,7 +64,6 @@ export interface ChaosResult {
   abort_mid_body: boolean;
   slow_body_bps: number | null;
   timeout_ms: number | null;
-  /** Na ordem `delay_ms`, `slow_body_bps`, `abort_mid_body`, `timeout_ms`, `duplicate`. */
   injected: string[];
   body_bytes_sent: number | null;
   duplicate_result: {
@@ -115,17 +114,14 @@ function secondCopy(second: ChaosResult['duplicate_result']): string {
   return second?.error ? outboundErrorText(second.error).title : noAnswerRead();
 }
 
-/** "201 Created": o status com a frase do protocolo, quando ela é conhecida. */
 export function statusText(status: number): string {
   return `${status} ${reasonPhrase(status) ?? ''}`.trim();
 }
 
-/** No lugar do status, quando o corte ou a desistência injetados não deixaram ler a resposta. */
 export function noAnswerRead(): string {
   return $localize`no answer read`;
 }
 
-/** O mesmo, sozinho no lugar do status (o detalhe e a lista da página Outbound). */
 export function noAnswerReadTitle(): string {
   return $localize`No answer read`;
 }

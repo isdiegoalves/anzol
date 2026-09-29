@@ -214,7 +214,6 @@ export class ReplayPanel {
   protected readonly timeout = signal(TIMEOUT_DEFAULT_S);
   protected readonly sending = signal(false);
   protected readonly invalid = signal(false);
-  /** "Inject failure": ligado, o replay leva `chaos` com o que foi preenchido ou marcado. */
   protected readonly inject = signal(false);
   protected readonly delayMs = signal<number | null>(null);
   protected readonly slowBodyBps = signal<number | null>(null);

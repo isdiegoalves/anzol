@@ -46,7 +46,6 @@ export class OutboundResultView {
     const error = this.result().error;
     return error ? outboundErrorText(error) : null;
   });
-  /** "Injected: delay 200 ms, …" num replay com caos; `null` sem nada injetado. */
   protected readonly injected = computed(() => {
     const list = injectedList(this.result().chaos);
     return list ? $localize`Injected: ${list}:injected:` : null;

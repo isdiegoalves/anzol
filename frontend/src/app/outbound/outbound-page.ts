@@ -130,7 +130,6 @@ export class OutboundPage {
 
   protected readonly when = (at: string) => fromNow(apiDate(at));
   protected readonly date = (at: string) => localDate(apiDate(at));
-  /** No lugar do status: o erro de saída, ou "No answer read" quando o caos cortou a resposta. */
   protected readonly failureOf = (item: OutboundResult): string | null =>
     item.error ? outboundErrorText(item.error).title : item.status ? null : noAnswerReadTitle();
 

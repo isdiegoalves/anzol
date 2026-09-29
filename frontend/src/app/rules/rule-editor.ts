@@ -480,7 +480,6 @@ export class RuleEditor {
     { value: 'minutes', label: $localize`For the next minutes` },
     { value: 'dates', label: $localize`Between dates` },
   ];
-  /** As duas pontas da janela, que o resultado do teste soma num chip só. */
   protected readonly windowKeys: readonly ConditionKey[] = ['active_from', 'active_until'];
   protected readonly delayTypes: { value: DelayType; label: string }[] = [
     { value: 'none', label: $localize`None` },
@@ -978,7 +977,6 @@ export class RuleEditor {
     return keysOf(key).reduce((sum, one) => sum + (counts?.get(one) ?? 0), 0);
   }
 
-  /** "Active until 2026-09-29 12:15 UTC once saved.": a janela conta da hora do Save. */
   protected activeUntilOnSave(): string {
     const minutes = this.form.controls.windowMinutes.value;
     const until = isoSecond(Date.now() + Number(minutes) * 60_000)
@@ -1617,7 +1615,6 @@ export class RuleEditor {
     c.responseBody.updateValueAndValidity({ emitEvent: false });
   }
 
-  /** Os minutos e as datas só valem no modo deles. */
   private syncWindow(): void {
     const c = this.form.controls;
     setEnabled(c.windowMinutes, c.windowMode.value === 'minutes');

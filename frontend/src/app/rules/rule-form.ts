@@ -97,7 +97,6 @@ export type SignatureOption = 'any' | SignatureCondition;
 export type SchemaOption = 'any' | SchemaCondition;
 export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
 export type FaultOption = 'none' | RuleFault;
-/** Sem janela, os próximos N minutos, ou as datas dadas. */
 export type WindowMode = 'always' | 'minutes' | 'dates';
 
 export const WINDOW_MINUTES_DEFAULT = 15;
@@ -209,7 +208,6 @@ function scenarioOf(form: RuleFormValue): RuleScenario | null {
   };
 }
 
-/** As pontas da janela como a regra as grava; "For the next minutes" conta a partir de `now`. */
 function windowOf(form: RuleFormValue, now: number): Pick<Rule, 'active_from' | 'active_until'> {
   switch (form.windowMode) {
     case 'minutes': {
