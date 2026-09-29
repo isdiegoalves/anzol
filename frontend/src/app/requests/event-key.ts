@@ -32,11 +32,42 @@ const TRANSPORT = new Set([
   'x-forwarded-proto',
   'x-real-ip',
 ]);
+/**
+ * Repetem entre as tentativas de um evento sem o identificar: a assinatura e a data se repetem com o
+ * mesmo corpo, e o número da tentativa, entre eventos.
+ */
+const NOT_A_KEY = new Set([
+  'signature',
+  'assinatura',
+  'sig',
+  'hmac',
+  'digest',
+  'authorization',
+  'token',
+  'secret',
+  'date',
+  'time',
+  'timestamp',
+  'nonce',
+  'attempt',
+  'tentativa',
+  'retry',
+  'length',
+]);
+const ID_LIKE = /(^|[_.$-])((event|evento|delivery|message|webhook)[_-]?)?id$|idempotency/i;
 
 /** JSONPath sem filtro nem curinga. */
 export function isEventKey(text: string): boolean {
   const key = text.trim();
   return key.startsWith('$') ? JSON_PATH.test(key) : HEADER_NAME.test(key);
+}
+
+/** Por partes do nome: `update_id` é chave, `x-hub-signature-256` não. */
+function notAKey(name: string): boolean {
+  return name
+    .toLowerCase()
+    .split(/[-_.]+/)
+    .some((part) => NOT_A_KEY.has(part));
 }
 
 export function isBodyKey(key: EventKey): boolean {
@@ -97,9 +128,10 @@ export interface KeyCandidate {
 }
 
 /**
- * Os campos que a oferta propõe: cabeçalhos (fora os do transporte) e campos de primeiro nível do
- * corpo cujo valor se repete em 2 ou mais requisições, em pelo menos 3 valores diferentes. O que
- * repete mais vem primeiro; no empate, o cabeçalho.
+ * Os campos que a oferta propõe: cabeçalhos (fora os do transporte, de assinatura, de data e de
+ * tentativa) e campos de primeiro nível do corpo cujo valor se repete em 2 ou mais requisições, em
+ * pelo menos 3 valores diferentes. Nome de id vem primeiro; depois, o que repete mais; no empate, o
+ * cabeçalho.
  */
 export function keyCandidates(requests: readonly CapturedRequest[]): KeyCandidate[] {
   const counts = new Map<EventKey, Map<string, number>>();
@@ -114,14 +146,14 @@ export function keyCandidates(requests: readonly CapturedRequest[]): KeyCandidat
   for (const request of requests) {
     const names = new Set(Object.keys(request.headers ?? {}).map((name) => name.toLowerCase()));
     for (const name of names) {
-      if (!TRANSPORT.has(name)) {
+      if (!TRANSPORT.has(name) && !notAKey(name)) {
         add(name, eventValueOf(request, name));
       }
     }
     const body = jsonBody(request);
     if (body !== null && typeof body === 'object' && !Array.isArray(body)) {
       for (const [field, value] of Object.entries(body)) {
-        if (FIELD.test(field)) {
+        if (FIELD.test(field) && !notAKey(field)) {
           add(`$.${field}`, typeof value === 'object' ? null : scalar(value));
         }
       }
@@ -136,6 +168,7 @@ export function keyCandidates(requests: readonly CapturedRequest[]): KeyCandidat
     .filter((candidate) => candidate.repeated >= 3)
     .sort(
       (a, b) =>
+        Number(ID_LIKE.test(b.key)) - Number(ID_LIKE.test(a.key)) ||
         b.repeated - a.repeated ||
         Number(isBodyKey(a.key)) - Number(isBodyKey(b.key)) ||
         a.key.localeCompare(b.key),

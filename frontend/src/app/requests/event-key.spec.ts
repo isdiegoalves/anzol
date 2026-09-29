@@ -77,6 +77,36 @@ describe('Dado a chave do evento', () => {
       expect(keyCandidates(requests)).toEqual([]);
     });
 
+    it('não deve oferecer cabeçalho de assinatura, de data ou de tentativa, e deve preferir o id do corpo', () => {
+      const eventos = ['evt_1', 'evt_2', 'evt_1', 'evt_3', 'evt_2', 'evt_3', 'evt_1'];
+      const tentativas = new Map<string, number>();
+      const requests = eventos.map((evento, i) => {
+        const tentativa = (tentativas.get(evento) ?? 0) + 1;
+        tentativas.set(evento, tentativa);
+        return webhookRequest(i + 1, {
+          headers: {
+            'x-pagafacil-assinatura': [`t=1,v1=${evento}`],
+            'x-pagafacil-tentativa': [String(tentativa)],
+            'x-pagafacil-date': [`2026-09-29 ${evento}`],
+          },
+          content: JSON.stringify({ event_id: evento, tipo: `cobranca.${evento.slice(-1)}` }),
+        });
+      });
+
+      expect(keyCandidates(requests).map((candidate) => candidate.key)).toEqual([
+        '$.event_id',
+        '$.tipo',
+      ]);
+    });
+
+    it('deve aceitar o id que tem uma palavra de data no meio (update_id)', () => {
+      const requests = ['u1', 'u2', 'u1', 'u3', 'u2', 'u3'].map((update, i) =>
+        webhookRequest(i + 1, { headers: {}, content: `{"update_id":"${update}"}` }),
+      );
+
+      expect(keyCandidates(requests).map((candidate) => candidate.key)).toEqual(['$.update_id']);
+    });
+
     it('não deve oferecer cabeçalho de transporte que se repete', () => {
       const requests = [1, 2, 3, 4, 5, 6].map((n) =>
         webhookRequest(n, { headers: { 'content-length': [String(n % 3)] }, content: null }),

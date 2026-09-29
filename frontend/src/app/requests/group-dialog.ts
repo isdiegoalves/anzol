@@ -118,6 +118,11 @@ export type GroupChoice = EventKey | typeof NO_GROUPING;
       gap: 8px;
       min-height: 40px;
       cursor: pointer;
+
+      span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
     }
 
     input[type='radio'] {
@@ -128,6 +133,8 @@ export type GroupChoice = EventKey | typeof NO_GROUPING;
     }
 
     .field {
+      box-sizing: border-box;
+      max-width: calc(100% - 28px);
       height: 40px;
       margin-left: 28px;
       padding: 0 12px;
