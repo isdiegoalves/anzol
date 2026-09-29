@@ -1,5 +1,5 @@
-// Estado é texto com glifo, sem caixa: o glifo leva a cor do estado e o texto fica em tinta. A
-// falha é a única que ganha marca-texto (a lavagem clara) além da cor.
+// Estado é texto com glifo, sem caixa. O que passou fica em cinza, como o status respondido; o que
+// não foi verificado ganha contorno tracejado; a falha é a única com marca-texto além da cor.
 :host {
   display: inline-flex;
   align-items: center;
@@ -17,12 +17,13 @@
   font: var(--mat-sys-label-medium);
 }
 
-:host(.ok) app-icon {
-  color: var(--app-success);
-}
-
 :host(.near) app-icon {
   color: var(--app-warning);
+}
+
+:host([data-state='unchecked']) {
+  border-style: dashed;
+  border-color: var(--mat-sys-outline);
 }
 
 :host(.none) app-icon {
@@ -63,7 +64,6 @@
 
 .note {
   overflow-wrap: anywhere;
-  font-style: italic;
 }
 
 .text {
@@ -104,6 +104,16 @@
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-title-small);
   white-space: normal;
+}
+
+:host(.card[data-state='unchecked']) {
+  border-left-style: dashed;
+  border-left-color: var(--mat-sys-outline);
+}
+
+:host(.card) .note {
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
 }
 
 :host(.card.bad),
