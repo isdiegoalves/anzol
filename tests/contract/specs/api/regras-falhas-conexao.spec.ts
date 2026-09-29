@@ -10,7 +10,15 @@ import { erros422, lerRegras, putRegras, salvarRegras, type Falha, type Regra } 
 
 const HOST = new URL(BASE_URL);
 const PORTA = Number(HOST.port || 80);
-const TETO_MS = 300_000;
+/** O `WEBHOOK_FAULT_HOLD_MAX` (s) com que o app sob teste foi iniciado; o padrão do servidor é 300. */
+const TETO_MS = Number(process.env.WEBHOOK_FAULT_HOLD_MAX ?? 300) * 1000;
+/** Os outros testes daqui conferem conexões presas por até ~20 s; um teto menor as fecharia antes. */
+const TETO_MINIMO_MS = 30_000;
+
+test.beforeAll(() => {
+  expect(TETO_MS, `WEBHOOK_FAULT_HOLD_MAX=${process.env.WEBHOOK_FAULT_HOLD_MAX}: o arquivo precisa de pelo menos 30 s`)
+    .toBeGreaterThanOrEqual(TETO_MINIMO_MS);
+});
 
 interface Conexao {
   dados(): Buffer;
@@ -349,7 +357,7 @@ test.describe('teto de conexões presas', () => {
     await expectVagaDeVolta(`/${urls[0].uuid}/depois`, 15_000);
   });
 
-  test('sem o cliente desistir: hang fecha aos 300 s sem nenhum byte; stall fecha depois dos cabeçalhos', async ({ request, tokens }) => {
+  test('sem o cliente desistir: hang fecha no teto sem nenhum byte; stall fecha depois dos cabeçalhos', async ({ request, tokens }) => {
     test.setTimeout(TETO_MS + 120_000);
     const token = await tokens.criar();
     await salvarRegras(request, token.uuid, [

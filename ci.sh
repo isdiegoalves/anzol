@@ -111,7 +111,8 @@ subir_stack() {
 }
 
 contrato() {
-  (cd tests/contract && npm ci --no-audit --no-fund && BASE_URL="$URL" TETO_PADRAO=10000 npx playwright test)
+  (cd tests/contract && npm ci --no-audit --no-fund &&
+    BASE_URL="$URL" TETO_PADRAO=10000 WEBHOOK_FAULT_HOLD_MAX=30 npx playwright test)
 }
 
 e2e_frontend() {

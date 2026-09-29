@@ -32,6 +32,7 @@ npm run typecheck
 | `EVENT_ADAPTER` | `sse` | Transporte do evento; `sse` é o único (o adaptador `redis` do app Laravel saiu com ele) |
 | `CONTRATO_ALVO` | `novo` | `novo` exige o comportamento corrigido nos defeitos do legado (abaixo); `legado` os marca `test.fail`, como quando o app Laravel era o alvo |
 | `TETO_PADRAO` | `10000` | O `WEBHOOK_MAX_REQUESTS` com que o app sob teste foi iniciado (limite das URLs sem `auto_cleanup`). O contrato não descobre esse valor pela API: rodar contra um app com outro teto exige declarar aqui (ex.: app com `WEBHOOK_MAX_REQUESTS=50` e `TETO_PADRAO=50` deixa o teste do teto rápido) |
+| `WEBHOOK_FAULT_HOLD_MAX` | `300` | O teto (s) de conexão presa com que o app sob teste foi iniciado. O teste do teto em `regras-falhas-conexao.spec.ts` espera por ele; o `./ci.sh` usa 30 (app e contrato). Abaixo de 30 o arquivo recusa rodar: os outros testes dele conferem conexões presas por até ~20 s |
 | `CONTRATO_IA` | `falso` | `falso`: o app sob teste usa o LLM falso (`WEBHOOK_AI_BASE_URL=http://host.docker.internal:18099`); `desligada`: stack com a IA desligada, onde só rodam os testes do 503. Sem a variável e com `BASE_URL` na 8084 (ligada ao oMLX real), os testes que chamam o LLM são pulados |
 | `CONTRATO_MCP` | `ligado` | `desligado`: stack com o MCP desligado, onde só roda o teste do 404 em `/mcp` |
 | `LLM_FALSO_PORTA` | `18099` | Porta do host onde o `globalSetup` sobe o LLM falso |

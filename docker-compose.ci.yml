@@ -21,5 +21,8 @@ services:
       - WEBHOOK_AI_API_KEY=ci-fake
       # Host e Origin conferidos como no compose da 8084 (o padrão do app; o contrato de privacidade depende da lista).
       - WEBHOOK_ALLOWED_HOSTS=localhost,127.0.0.1,[::1],host.docker.internal
+      # Teto curto das conexões presas (hang, stall_after_headers): o teste do teto não espera os 300 s do padrão. O
+      # contrato recebe o mesmo valor (ci.sh); abaixo de 30 s ele fecharia conexões que outros testes ainda conferem.
+      - WEBHOOK_FAULT_HOLD_MAX=30
   redis:
     container_name: webhookci-redis
