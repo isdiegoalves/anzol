@@ -94,15 +94,9 @@ function busca(page: Page, tokenId: string): Promise<Request> {
  * Mostra a lista e devolve os chips dos filtros ligados. No celular, depois de filtrar pelo valor o
  * detalhe fica por cima; chegando por um link de contagem, a lista já está à frente.
  */
-async function chips(page: Page): Promise<Locator> {
-  if (compacto(page)) {
-    const voltar = page
-      .getByRole('region', { name: 'Request detail' })
-      .getByRole('button', { name: 'Back to requests' });
-    await expect(lista(page).or(voltar).first()).toBeVisible();
-    if (await voltar.isVisible()) {
-      await mostrarLista(page);
-    }
+async function chips(page: Page, detalhePorCima = true): Promise<Locator> {
+  if (compacto(page) && detalhePorCima) {
+    await mostrarLista(page);
   }
   return filtrosLigados(page);
 }
@@ -537,7 +531,7 @@ test.describe('Dado os números de Saúde e de Métricas (CA-12, UX-18)', () => 
       page,
       /^Inbox\. Filtered by signature: timestamp outside tolerance\. 2 requests match/,
     );
-    await expect(await chips(page)).toContainText('signature: timestamp outside tolerance');
+    await expect(await chips(page, false)).toContainText('signature: timestamp outside tolerance');
   });
 
   test('deve levar cada linha de "Answers by status" à Entrada com o filtro daquele status', async ({
@@ -559,7 +553,7 @@ test.describe('Dado os números de Saúde e de Métricas (CA-12, UX-18)', () => 
       .getByRole('link', { name: /^429 Too Many Requests · 2 · default response/ })
       .click();
 
-    await expect(await chips(page)).toContainText('answered 429');
+    await expect(await chips(page, false)).toContainText('answered 429');
     await expect(itens(page)).toHaveCount(2);
   });
 });
