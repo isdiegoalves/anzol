@@ -31,8 +31,10 @@
 }
 
 .unread-count {
+  flex: none;
   color: var(--mat-sys-primary);
   font: var(--mat-sys-label-large);
+  white-space: nowrap;
 }
 
 .header {
@@ -434,6 +436,12 @@ app-event-line {
     white-space: nowrap;
     color: var(--mat-sys-on-surface-variant);
     font: var(--mat-sys-label-medium);
+  }
+
+  // Com não lidas, a linha de ordem viraria um toco ("1 r…") ao lado delas: sai. A contagem está no
+  // cabeçalho da URL, e a ordem, no botão de ordenar.
+  .head:has(.unread-count) .order-line {
+    display: none;
   }
 
   app-check-chip[data-kind='schema'][data-state='valid'] {

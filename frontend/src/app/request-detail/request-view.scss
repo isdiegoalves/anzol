@@ -18,8 +18,8 @@
   font-size: var(--mat-sys-title-medium-size);
 }
 
-// O título é a rota em código, grande: o bloco de abertura da página. O caminho que não cabe some
-// num esmaecido, e não num corte seco que pareceria outro caminho.
+// O título é a rota em código, grande: o bloco de abertura da página. O caminho que não cabe termina
+// em reticências, e não num corte seco que pareceria outro caminho.
 .route {
   flex: 1 1 auto;
   min-width: 0;
@@ -31,7 +31,6 @@
   letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
-  mask-image: linear-gradient(to left, transparent, currentcolor 24px);
 
   &:focus-visible {
     outline: var(--app-focus-width) solid var(--app-focus-color);
@@ -156,7 +155,12 @@ button.check {
 
 @media (width < 600px) {
   .route {
-    font-size: var(--mat-sys-title-large-size);
+    font-size: var(--mat-sys-title-medium-size);
+    letter-spacing: 0;
+  }
+
+  .head app-method-badge {
+    font-size: var(--mat-sys-label-large-size);
   }
 
   .pretty {

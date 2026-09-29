@@ -86,6 +86,16 @@ export const FILTER_VALUE_MAX = 200;
         outline-offset: 1px;
       }
     }
+
+    // O título do detalhe é uma linha só, e o text-overflow dele não chega ao texto de dentro de um
+    // botão: o caminho que não cabe termina em reticências aqui.
+    :host-context(.route) .value {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
   `,
 })
 export class ValueActions {
