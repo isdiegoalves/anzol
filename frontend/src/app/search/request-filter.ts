@@ -35,6 +35,33 @@ export interface RequestFilter {
    * não filtra por status: roda no navegador, sobre as mais novas (`RequestStore.scan`).
    */
   answered?: readonly string[] | null;
+  /**
+   * F1 (CA-12): valores clicados na requisição (caminho, cabeçalho, query, campo do corpo), com o
+   * `match` que a busca já aceita. Ficam no estado da tela e no `sessionStorage` da aba: o dado da
+   * requisição não vai para o endereço, que diz só quantos são (`?values=2`).
+   */
+  values?: readonly ValueFilter[] | null;
+}
+
+/** Um valor clicado que vira filtro: `name` é o cabeçalho, o parâmetro ou o JSONPath do corpo. */
+export interface ValueFilter {
+  kind: 'path' | 'header' | 'query' | 'body';
+  name: string;
+  value: string;
+}
+
+/** O texto do chip, igual à frase das condições de Regras: "header x-loja-event-id = evt_48213". */
+export function valueLabel({ kind, name, value }: ValueFilter): string {
+  switch (kind) {
+    case 'path':
+      return $localize`:filter chip:path = ${value}:value:`;
+    case 'header':
+      return $localize`:filter chip:header ${name}:name: = ${value}:value:`;
+    case 'query':
+      return $localize`:filter chip:query ${name}:name: = ${value}:value:`;
+    case 'body':
+      return $localize`:filter chip:body ${name}:name: = ${value}:value:`;
+  }
 }
 
 /** O `outcome` da busca, com o nome da regra para o chip ("Answered by: Pix"). */
@@ -55,6 +82,8 @@ export interface FilterParams {
   signatureReason?: string | null;
   schemaPath?: string | null;
   answered?: string | null;
+  /** F1: quantos filtros por valor a tela tinha (os valores ficam na aba, não no endereço). */
+  values?: string | null;
 }
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
@@ -143,6 +172,7 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     signatureReason: filter.signatureReason ?? null,
     schemaPath: filter.schemaPath ?? null,
     answered: filter.answered?.length ? filter.answered.join(',') : null,
+    values: filter.values?.length ? String(filter.values.length) : null,
   };
 }
 
@@ -170,7 +200,8 @@ export function isFilterActive(filter: RequestFilter): boolean {
     !!filter.outcome ||
     filter.signatureReason != null ||
     filter.schemaPath != null ||
-    !!filter.answered?.length
+    !!filter.answered?.length ||
+    !!filter.values?.length
   );
 }
 
@@ -184,7 +215,8 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     sameOutcome(a.outcome ?? null, b.outcome ?? null) &&
     (a.signatureReason ?? null) === (b.signatureReason ?? null) &&
     (a.schemaPath ?? null) === (b.schemaPath ?? null) &&
-    (a.answered ?? []).join() === (b.answered ?? []).join()
+    (a.answered ?? []).join() === (b.answered ?? []).join() &&
+    JSON.stringify(a.values ?? []) === JSON.stringify(b.values ?? [])
   );
 }
 
@@ -215,6 +247,16 @@ export function searchBody(
   }
   if (filter.schema !== 'any') {
     match.schema = filter.schema;
+  }
+  for (const { kind, name, value } of filter.values ?? []) {
+    if (kind === 'path') {
+      match.path = { equals: value };
+    } else if (kind === 'body') {
+      match.body = [...(match.body ?? []), { jsonPath: { path: name, equals: value } }];
+    } else {
+      const field = kind === 'header' ? 'headers' : 'query';
+      match[field] = { ...(match[field] ?? {}), [name]: { equals: value } };
+    }
   }
   const outcome = filter.outcome;
   return {

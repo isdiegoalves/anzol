@@ -4,6 +4,8 @@ export type CodeTokenKind = 'key' | 'string' | 'number' | 'literal' | 'punct' | 
 export interface CodeToken {
   kind: CodeTokenKind;
   text: string;
+  /** No valor escalar do JSON formatado, o JSONPath dele (`$.data.itens[0].sku`). */
+  path?: string;
 }
 
 /** Marca numa posição do JSON (JSON Pointer, `""` é a raiz), como os erros de schema. */
@@ -42,7 +44,7 @@ export function codeLines(
     return lines;
   }
   const writer = new JsonWriter();
-  writer.value(tree, '', 0, '');
+  writer.value(tree, '', 0, '', [], '$');
   for (const mark of marks) {
     writer.lines[writer.lineOf(mark.pointer)].marks.push(mark.message);
   }
@@ -155,25 +157,37 @@ class JsonWriter {
   }
 
   /** Escreve o valor começando na linha atual (depois de `prefix`, ex.: a chave). */
-  value(node: RawNode, pointer: string, depth: number, suffix: string, prefix: CodeToken[] = []) {
+  value(
+    node: RawNode,
+    pointer: string,
+    depth: number,
+    suffix: string,
+    prefix: CodeToken[] = [],
+    path = '$',
+  ) {
     const indent = INDENT.repeat(depth);
     const lead: CodeToken[] = [{ kind: 'text', text: indent }, ...prefix];
     if (!this.pointerLines.has(pointer)) {
       this.pointerLines.set(pointer, this.lines.length);
     }
     if (node.type === 'scalar') {
-      this.push([...lead, { kind: node.kind, text: node.raw }, ...(suffix ? [punct(suffix)] : [])]);
+      const scalar: CodeToken = { kind: node.kind, text: node.raw, path };
+      this.push([...lead, scalar, ...(suffix ? [punct(suffix)] : [])]);
       return;
     }
     const children =
       node.type === 'array'
         ? node.items.map((item, index) => ({
             key: String(index),
+            path: `${path}[${index}]`,
             keyTokens: [] as CodeToken[],
             value: item,
           }))
         : node.entries.map((entry) => ({
             key: entry.key,
+            path: /^[A-Za-z_$][\w$]*$/.test(entry.key)
+              ? `${path}.${entry.key}`
+              : `${path}[${JSON.stringify(entry.key)}]`,
             keyTokens: [
               { kind: 'key', text: entry.rawKey },
               { kind: 'punct', text: ': ' },
@@ -189,7 +203,7 @@ class JsonWriter {
     children.forEach((child, index) => {
       const comma = index < children.length - 1 ? ',' : '';
       const childPointer = `${pointer}/${pointerSegment(child.key)}`;
-      this.value(child.value, childPointer, depth + 1, comma, child.keyTokens);
+      this.value(child.value, childPointer, depth + 1, comma, child.keyTokens, child.path);
     });
     this.push([{ kind: 'text', text: indent }, punct(close + suffix)]);
   }

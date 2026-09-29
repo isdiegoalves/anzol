@@ -11,6 +11,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { FilterChips } from './filter-chips';
 import { NO_FILTER } from './request-filter';
 import { RESULT_ANNOUNCE_MS, RequestSearch } from './request-search';
 import { WaitFor } from './wait-for';
@@ -137,7 +138,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label') ?? button.textContent?.trim()),
     ).toEqual([
-      'Remove this filter: POST',
+      'Remove this filter: method POST',
       'Remove this filter: Default response',
       'Clear filters',
     ]);
@@ -318,6 +319,70 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     });
   });
 
+  // F1 (CA-12): o valor clicado na requisição vira chip, com o `match` que a busca já aceita.
+  describe('Dado um filtro por valor', () => {
+    const chips = () => TestBed.inject(FilterChips);
+    const header = { kind: 'header' as const, name: 'x-loja-event-id', value: 'evt_1' };
+
+    it('deve buscar pelo valor, listá-lo por extenso e dizer "Filtered by …" uma vez', async () => {
+      chips().filterByValue(header);
+      const search = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+      expect(search.request.body).toMatchObject({
+        match: { headers: { 'x-loja-event-id': { equals: 'evt_1' } } },
+      });
+      search.flush(requestPage(THREE.slice(0, 2), { total: 2 }));
+
+      await vi.waitFor(
+        () =>
+          expect(result()).toBe(
+            'Filtered by header x-loja-event-id = evt_1. 2 requests match · search runs on the server over all 3',
+          ),
+        { timeout: 2000 },
+      );
+      expect(filters().getAttribute('aria-label')).toBe('Filters, 1 active');
+      expect(
+        within(activeFilters() as HTMLElement).getByRole('button', {
+          name: 'Remove this filter: header x-loja-event-id = evt_1',
+        }),
+      ).toBeTruthy();
+      expect(chips().takeAdded()).toBeNull();
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve voltar ao filtro anterior e marcar "not accepted" Quando a busca recusa o match', async () => {
+      chips().filterByValue(header);
+      (await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }))).flush(
+        { 'match.headers.x-loja-event-id': ['The match is invalid.'] },
+        { status: 422, statusText: 'Unprocessable Content' },
+      );
+      (await vi.waitFor(() => http.expectOne(listUrl))).flush(requestPage(THREE));
+
+      await vi.waitFor(() => expect(store.filter().values ?? []).toEqual([]));
+      expect(activeFilters()?.textContent).toContain(
+        'header x-loja-event-id = evt_1 — not accepted',
+      );
+      expect(filters().getAttribute('aria-label')).toBe('Filters');
+      await userEvent.click(
+        screen.getByRole('button', {
+          name: 'Remove this filter: header x-loja-event-id = evt_1 — not accepted',
+        }),
+      );
+      expect(activeFilters()).toBeNull();
+    });
+
+    it('deve trocar o valor do mesmo campo e somar o de outro', async () => {
+      chips().filterByValue(header);
+      chips().filterByValue({ ...header, value: 'evt_2' });
+      chips().filterByValue({ kind: 'query', name: 'tipo', value: 'pix' });
+      searches().forEach((search) => search.flush(requestPage([])));
+
+      expect(store.filter().values).toEqual([
+        { kind: 'header', name: 'x-loja-event-id', value: 'evt_2' },
+        { kind: 'query', name: 'tipo', value: 'pix' },
+      ]);
+    });
+  });
+
   it('deve voltar à lista completa, zerar os campos e dizer "Filters cleared" Quando "Clear filters" é clicado', async () => {
     await press('Schema invalid', THREE.slice(1, 2));
     await vi.waitFor(() => expect(result()).toMatch(/^1 request matches/), { timeout: 2000 });
@@ -343,7 +408,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     await press('POST', THREE.slice(0, 2));
     await vi.waitFor(() => expect(result()).toMatch(/^2 requests match/), { timeout: 2000 });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Remove this filter: POST' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove this filter: method POST' }));
     http.expectOne(listUrl).flush(requestPage(THREE));
 
     await vi.waitFor(() => expect(result()).toBe('No filter. 3 requests.'), { timeout: 2000 });
@@ -360,12 +425,12 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     await applied;
     await openPanel();
 
-    const motivo = await vi.waitFor(() => chip(/^Signature: signature mismatch/));
+    const motivo = await vi.waitFor(() => chip(/^signature: signature mismatch/));
     expect(motivo.getAttribute('aria-pressed')).toBe('true');
-    expect(chip(/^Schema error at: \(root\)/).getAttribute('aria-pressed')).toBe('true');
+    expect(chip(/^schema error at \(root\)/).getAttribute('aria-pressed')).toBe('true');
     expect(filters().getAttribute('aria-label')).toBe('Filters, 2 active');
     expect(
-      screen.getByRole('button', { name: 'Remove this filter: Signature: signature mismatch' }),
+      screen.getByRole('button', { name: 'Remove this filter: signature: signature mismatch' }),
     ).toBeTruthy();
     await expectNoAxeViolations(container);
 
@@ -407,7 +472,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     await vi.waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull(),
     );
-    expect(screen.getByRole('button', { name: 'Remove this filter: PUT' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Remove this filter: method PUT' })).toBeTruthy();
   });
 
   describe('Dado o teclado', () => {

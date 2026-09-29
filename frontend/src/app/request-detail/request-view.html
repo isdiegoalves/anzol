@@ -2,9 +2,21 @@
 @let flow = pipeline();
 <header class="head">
   <ng-content select="[viewBack]" />
-  <app-method-badge [method]="current.method" />
+  @if (readonly()) {
+    <app-method-badge [method]="current.method" />
+  } @else {
+    <!-- F1: o método e o caminho viram filtro pelo menu do valor. -->
+    <app-value
+      label="Method"
+      i18n-label
+      [target]="{ kind: 'method', name: '', value: current.method }"
+      ><app-method-badge [method]="current.method"
+    /></app-value>
+  }
   <!-- Focável por código: aberta pelo teclado, a requisição leva o foco ao título (B1). -->
-  <h2 class="route" tabindex="-1" [title]="flow.route">{{ flow.route }}</h2>
+  <!-- O nome do título é a rota: o do botão do caminho (F1) não entra nele. -->
+  <!-- prettier-ignore -->
+  <h2 class="route" tabindex="-1" [title]="flow.route" [attr.aria-label]="readonly() ? null : flow.route">@if (readonly()) {{{ flow.route }}} @else {<app-value label="Path" i18n-label [target]="{ kind: 'path', name: '', value: routeParts().path }">{{ routeParts().path }}</app-value>{{ routeParts().query }}}</h2>
   <span class="spacer"></span>
   <ng-content select="[viewNav]" />
 </header>
@@ -68,6 +80,7 @@
           [link]="check.kind === 'rule' ? ruleLink() : null"
           [extra]="check.kind === 'rule' ? defaultLink() : null"
           [notes]="check.kind === 'rule' ? answerNotes() : []"
+          [titleValue]="check.kind === 'rule' && !readonly() ? statusValue(statusTemplate) : null"
         />
       </div>
     }
@@ -206,6 +219,10 @@
         }
       </p>
     }
+    @if (!readonly() && bodyTooLarge()) {
+      <!-- F1: corpo acima de 100 KB, sem clique por linha: os campos numa lista com busca. -->
+      <app-field-picker [request]="current" />
+    }
     @if (xmlHtml(); as html) {
       <pre
         class="xml"
@@ -221,6 +238,7 @@
         [language]="language() === 'json' ? 'json' : 'text'"
         [pretty]="preferences.formatJsonEnable()"
         [marks]="marks()"
+        [valueTemplate]="readonly() || bodyTooLarge() ? null : bodyValue"
       />
     }
   }
@@ -233,14 +251,49 @@
     [columns]="headerColumns"
     [rows]="headers()"
     [notes]="headerNotes()"
+    [valueTemplate]="readonly() ? null : headerValue"
     empty="No headers."
     i18n-empty
   />
 </ng-template>
 
+<!-- F1: os valores da requisição que viram filtro (fora da página só-leitura). -->
+<ng-template #headerValue let-row>
+  @if (row.name === missingHeader()) {
+    <code>{{ row.value }}</code>
+  } @else {
+    <app-value [label]="row.name" [target]="{ kind: 'header', name: row.name, value: row.value }"
+      ><code>{{ row.value === '' ? '(empty)' : row.value }}</code></app-value
+    >
+  }
+</ng-template>
+<ng-template #queryValue let-row>
+  <app-value [label]="row.name" [target]="{ kind: 'query', name: row.name, value: row.value }"
+    ><code>{{ row.value === '' ? '(empty)' : row.value }}</code></app-value
+  >
+</ng-template>
+<ng-template #bodyValue let-token>
+  <app-value
+    [label]="token.path"
+    [shown]="token.text"
+    [target]="{ kind: 'body', name: token.path, value: scalarOf(token) }"
+    >{{ token.text }}</app-value
+  >
+</ng-template>
+<ng-template #statusTemplate let-value>
+  <app-value label="Answer" i18n-label [target]="{ kind: 'status', name: '', value }">{{
+    value
+  }}</app-value>
+</ng-template>
+
 <ng-template #queryPanel>
   @if (query().length > 0) {
-    <app-kv-table label="Query strings" i18n-label [rows]="query()" />
+    <app-kv-table
+      label="Query strings"
+      i18n-label
+      [rows]="query()"
+      [valueTemplate]="readonly() ? null : queryValue"
+    />
   } @else {
     <app-empty-state
       icon="none"

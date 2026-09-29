@@ -33,9 +33,11 @@ import { EventGrouping } from '../requests/event-grouping';
 import { chronological, eventValueOf, isEventKey } from '../requests/event-key';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
+import { FilterChips } from '../search/filter-chips';
 import {
   NO_FILTER,
   RequestFilter,
+  ValueFilter,
   filterFromParams,
   filterToParams,
   sameFilter,
@@ -53,6 +55,33 @@ import { isProtectedError } from '../token/url-lock';
 import { Icon } from '../ui/icon';
 import { LiveRegion } from '../ui/live-region';
 import { Split } from '../ui/split';
+
+/** F1: os filtros por valor de cada URL, na aba (o dado da requisição não vai para o endereço). */
+const VALUE_FILTERS_KEY = (tokenId: string) => `anzol.valueFilters.${tokenId}`;
+
+function readValueFilters(tokenId: string): ValueFilter[] {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(VALUE_FILTERS_KEY(tokenId)) ?? '[]') as unknown;
+    return Array.isArray(saved) ? (saved as ValueFilter[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeValueFilters(tokenId: string | null, values: readonly ValueFilter[]): void {
+  if (!tokenId) {
+    return;
+  }
+  try {
+    if (values.length > 0) {
+      sessionStorage.setItem(VALUE_FILTERS_KEY(tokenId), JSON.stringify(values));
+    } else {
+      sessionStorage.removeItem(VALUE_FILTERS_KEY(tokenId));
+    }
+  } catch {
+    // Sem sessionStorage, o filtro por valor vale até recarregar.
+  }
+}
 
 /** B2: o `GET` da requisição pedida pelo link que passa disto ganha "Loading request #…". */
 export const LOADING_NOTICE_MS = 1000;
@@ -108,6 +137,17 @@ export class Inbox {
   private readonly screen = inject(ScreenState);
   private readonly connection = inject(Connection);
   protected readonly grouping = inject(EventGrouping);
+  private readonly chips = inject(FilterChips);
+  /** F1: "This link does not carry 1 filter by value." (os valores não vão no endereço). */
+  protected readonly missingValues = computed(() => {
+    const missing = this.chips.missingValues();
+    if (missing === 0) {
+      return '';
+    }
+    return missing === 1
+      ? $localize`This link does not carry 1 filter by value.`
+      : $localize`This link does not carry ${missing}:count: filters by value.`;
+  });
 
   /** Parâmetros da rota (`withComponentInputBinding`). */
   readonly tokenId = input<string>();
@@ -129,6 +169,8 @@ export class Inbox {
   readonly schemaPath = input<string>();
   /** B2: o status respondido, por classe ou exato (`?answered=4xx,429`), filtrado no navegador. */
   readonly answered = input<string>();
+  /** F1: quantos filtros por valor a tela tinha; os valores ficam no `sessionStorage` da aba. */
+  readonly values = input<string>();
   /**
    * E1: o link da requisição agrupada leva o valor do evento e o nome da chave
    * (`?event=evt_48213&key=x-loja-event-id`); num navegador sem a chave, a oferta a propõe.
@@ -157,6 +199,14 @@ export class Inbox {
       answered: this.answered(),
     }),
   );
+  /** O filtro da rota com os valores que esta aba guardou (o endereço só diz quantos são). */
+  private readonly routeFilterWithValues = computed((): RequestFilter => {
+    const filter = this.routeFilter();
+    const count = Number(this.values() ?? 0);
+    const tokenId = this.tokenId();
+    const values = count > 0 && tokenId ? readValueFilters(tokenId).slice(0, count) : [];
+    return values.length > 0 ? { ...filter, values } : filter;
+  });
 
   private readonly list = viewChild(RequestList);
   private readonly detail = viewChild(RequestDetail);
@@ -251,7 +301,7 @@ export class Inbox {
     // O eco da própria navegação pode chegar atrasado, com a tela já em outro filtro (a pessoa
     // seguiu digitando): ele não desfaz o filtro da tela; a rota é que volta a acompanhá-la.
     effect(() => {
-      const filter = this.routeFilter();
+      const filter = this.routeFilterWithValues();
       untracked(() => {
         if (!this.listReady()) {
           return;
@@ -267,8 +317,19 @@ export class Inbox {
       const filter = this.requests.filter();
       untracked(() => {
         if (this.listReady()) {
+          // F1: os valores ficam na aba, antes da rota, para o eco dela os achar.
+          writeValueFilters(this.requests.tokenId(), filter.values ?? []);
           this.pushToRoute(filter);
         }
+      });
+    });
+    // F1: o link diz que a tela tinha filtros por valor que esta aba não guardou: a tela avisa.
+    effect(() => {
+      const count = Number(this.values() ?? 0);
+      const tokenId = this.tokenId();
+      untracked(() => {
+        const kept = count > 0 && tokenId ? readValueFilters(tokenId).length : 0;
+        this.chips.missingValues.set(Math.max(0, count - kept));
       });
     });
 
@@ -334,7 +395,7 @@ export class Inbox {
 
   /** A rota passa a dizer o filtro da tela (`replaceUrl`), para o link ser compartilhável. */
   private pushToRoute(filter: RequestFilter): void {
-    if (sameFilter(filter, this.routeFilter())) {
+    if (sameFilter(filter, this.routeFilterWithValues())) {
       return;
     }
     this.pushed.push({ filter, at: Date.now() });
@@ -475,7 +536,14 @@ export class Inbox {
   /** Esc no detalhe (sem nada por cima que o trate antes): o foco volta ao item da lista. */
   private escapeToList(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
-    if (!event.defaultPrevented && target?.closest('.detail-pane') && this.twoPanes()) {
+    // O Esc de um menu que abriu sobre o botão (o do valor, F1) é do menu: o foco volta ao botão.
+    const popupOpen = target?.getAttribute('aria-expanded') === 'true';
+    if (
+      !event.defaultPrevented &&
+      !popupOpen &&
+      target?.closest('.detail-pane') &&
+      this.twoPanes()
+    ) {
       this.list()?.focusSelected();
     }
   }
@@ -644,7 +712,7 @@ export class Inbox {
       return false;
     }
     try {
-      await this.requests.load(tokenId, page, untracked(this.routeFilter));
+      await this.requests.load(tokenId, page, untracked(this.routeFilterWithValues));
     } catch (error) {
       if (!isProtectedError(error)) {
         this.snackBar.open($localize`Requests not found - invalid ID`, undefined, {

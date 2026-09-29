@@ -1,4 +1,5 @@
-import { Component, computed, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, TemplateRef, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { CheckResult } from '../pipeline/pipeline';
 import { Icon, IconName } from './icon';
@@ -21,7 +22,7 @@ export interface ChipLink {
  */
 @Component({
   selector: 'app-check-chip',
-  imports: [Icon, RouterLink],
+  imports: [Icon, NgTemplateOutlet, RouterLink],
   template: `
     <app-icon
       [name]="size() === 'card' ? result().tone : kindIcons[result().kind]"
@@ -30,7 +31,11 @@ export interface ChipLink {
     <span class="text">
       @if (size() === 'card') {
         @let target = link();
-        @if (target?.part === 'title') {
+        @if (titleParts(); as parts) {
+          <!-- F1: o trecho do título que vira valor clicável (o status); o resto segue o link. -->
+          <!-- prettier-ignore -->
+          <span class="title">{{ parts.before }}<ng-container [ngTemplateOutlet]="parts.template" [ngTemplateOutletContext]="{ $implicit: parts.value }" />{{ parts.separator }}@if (target?.part === 'title') {<a class="link" [routerLink]="target?.commands" [queryParams]="target?.queryParams">{{ parts.after }}</a>} @else {{{ parts.after }}}</span>
+        } @else if (target?.part === 'title') {
           <a
             class="title link"
             [routerLink]="target?.commands"
@@ -87,11 +92,36 @@ export class CheckChip {
   /** Um link a mais, numa linha embaixo do motivo (o "Default response" do near miss, WM-10). */
   readonly extra = input<Omit<ChipLink, 'part'> | null>(null);
 
+  /** F1: um trecho do título (o status respondido) desenhado por quem usa o cartão. */
+  readonly titleValue = input<{
+    text: string;
+    template: TemplateRef<{ $implicit: string }>;
+  } | null>(null);
+
   /** Linhas a mais no cartão, embaixo do motivo. */
   readonly notes = input<readonly string[]>([]);
 
   /** O veredito inteiro, no `title` do selo. */
   protected readonly spoken = computed(() => spokenOf(this.result()));
+
+  /** O título partido em volta do valor: antes, o valor, o separador e o resto. */
+  protected readonly titleParts = computed(() => {
+    const value = this.titleValue();
+    const title = this.result().title;
+    const at = value ? title.indexOf(value.text) : -1;
+    if (!value || at < 0) {
+      return null;
+    }
+    const rest = title.slice(at + value.text.length);
+    const separator = /^\s*·\s*/.exec(rest)?.[0] ?? '';
+    return {
+      before: title.slice(0, at),
+      value: value.text,
+      template: value.template,
+      separator,
+      after: rest.slice(separator.length),
+    };
+  });
 
   /** O motivo partido em volta do trecho que vira link: antes, o link, depois. */
   protected readonly detailParts = computed(() => {

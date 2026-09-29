@@ -146,6 +146,21 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
   });
 
   // INBOX-26: as abas vazias no padrão dos estados vazios.
+  // F1: filtrar pela lista traz a mesma requisição num objeto novo (o da busca); a aba não volta ao Body.
+  it('deve manter a aba aberta Quando a mesma requisição chega de novo, e voltar ao Body Quando é outra', async () => {
+    const request = webhookRequest(1, { content: '{"a":1}' });
+    const { fixture } = await show(request);
+    await openTab(/^Headers/);
+
+    fixture.componentRef.setInput('request', { ...request });
+    await fixture.whenStable();
+    expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Headers/);
+
+    fixture.componentRef.setInput('request', webhookRequest(2));
+    await fixture.whenStable();
+    expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Body/);
+  });
+
   it('deve explicar a aba vazia Quando não há query nem formulário', async () => {
     await show(webhookRequest(1, { query: null, request: null }));
 

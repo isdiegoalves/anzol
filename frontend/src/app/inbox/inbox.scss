@@ -120,3 +120,12 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+// F1: o aviso do link que não leva os filtros por valor, acima dos painéis.
+.missing {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container-high);
+  font: var(--mat-sys-body-medium);
+}

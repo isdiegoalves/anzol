@@ -1,6 +1,15 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  TemplateRef,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
@@ -14,12 +23,14 @@ import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 import { CheckChip, ChipLink } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
-import { CodeMark } from '../ui/code-lines';
+import { CodeMark, CodeToken } from '../ui/code-lines';
 import { CodeView } from '../ui/code-view';
 import { KvNote, KvRow, KvTable } from '../ui/kv-table';
 import { MethodBadge } from '../ui/method-badge';
 import { fromNow, localDate } from './dates';
+import { FieldPicker } from './field-picker';
 import { detectLanguage, formatContent, highlightXml } from './format-content';
+import { ValueActions } from './value-actions';
 
 /** As abas do detalhe, na ordem. */
 let nextViewId = 0;
@@ -29,6 +40,8 @@ export type Tab = (typeof TABS)[number];
 
 /** O cartão de cada verificação leva à aba onde está o que ela conferiu. */
 const TAB_OF_CHECK: Partial<Record<CheckKind, Tab>> = { signature: 'headers', schema: 'body' };
+/** F1: acima disto, o corpo não tem clique por linha; os campos vão para o "Filter by a field…". */
+export const BODY_CLICK_MAX = 100 * 1024;
 
 /**
  * A mensagem, sem nenhuma ação que escreva: método e rota, dados da chegada, os cartões das
@@ -68,6 +81,8 @@ export function sizeText(bytes: number, language: string): string {
     MethodBadge,
     NgTemplateOutlet,
     RouterLink,
+    ValueActions,
+    FieldPicker,
   ],
   templateUrl: './request-view.html',
   styleUrl: './request-view.scss',
@@ -179,8 +194,13 @@ export class RequestView {
     $localize`Form (${this.form().length}:INTERPOLATION:)`,
   ]);
 
+  /**
+   * A requisição mostrada, pelo id: a mesma requisição num objeto novo (a busca refeita pelo filtro
+   * da lista) não conta como outra, e o que está aberto nela fica.
+   */
+  private readonly shownId = computed(() => this.request().uuid);
   protected readonly tab = linkedSignal<string, number>({
-    source: () => this.request().uuid,
+    source: this.shownId,
     computation: () => 0,
   });
   /** As frases do near miss na língua da tela (WM-05), com o original. */
@@ -190,13 +210,13 @@ export class RequestView {
   protected readonly whyTranslated = computed(() => this.whyPhrases().some((p) => p.translated));
   /** "Show original": as frases como o servidor mandou; volta ao abrir outra mensagem. */
   protected readonly showOriginal = linkedSignal({
-    source: () => this.request().uuid,
+    source: this.shownId,
     computation: () => false,
   });
   protected readonly originalTitle = originalTitle;
   /** "Why? (n)" do near miss aberto; fecha ao abrir outra mensagem. */
   protected readonly whyOpen = linkedSignal({
-    source: () => this.request().uuid,
+    source: this.shownId,
     computation: () => false,
   });
 
@@ -255,6 +275,33 @@ export class RequestView {
   });
 
   protected readonly query = computed(() => rowsOf(this.request().query));
+  /** F1: o caminho, que vira filtro, e a query, que fica como texto ao lado dele no título. */
+  protected readonly routeParts = computed(() => {
+    const route = this.pipeline().route;
+    const at = route.indexOf('?');
+    return at < 0
+      ? { path: route, query: '' }
+      : { path: route.slice(0, at), query: route.slice(at) };
+  });
+  /** O cabeçalho de assinatura que faltou: a linha "(not received)" não é valor da requisição. */
+  protected readonly missingHeader = computed(
+    () => this.pipeline().signatureHeaders?.missing?.name ?? null,
+  );
+  /** Corpo acima de 100 KB: sem clique por linha (F1). */
+  protected readonly bodyTooLarge = computed(
+    () => (this.request().content?.length ?? 0) > BODY_CLICK_MAX,
+  );
+  /** O status respondido no título do cartão da resposta, que vira filtro (F1). */
+  protected statusValue(
+    template: TemplateRef<{ $implicit: string }>,
+  ): { text: string; template: TemplateRef<{ $implicit: string }> } | null {
+    const status = this.request().response?.status;
+    return status === undefined ? null : { text: String(status), template };
+  }
+  /** O valor escalar do JSON como a condição o compara: o texto, sem as aspas. */
+  protected scalarOf(token: CodeToken): string {
+    return token.kind === 'string' ? (JSON.parse(token.text) as string) : token.text;
+  }
   protected readonly form = computed(() => rowsOf(this.request().request));
 
   protected readonly language = computed(() => detectLanguage(this.request().content));

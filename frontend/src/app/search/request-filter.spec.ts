@@ -1,5 +1,6 @@
 import { webhookRequest } from '../../testing/fixtures';
 import {
+  ValueFilter,
   answeredMatches,
   outsideWaitFor,
   filterFromParams,
@@ -8,6 +9,7 @@ import {
   isFilterActive,
   sameFilter,
   searchBody,
+  valueLabel,
   waitForCommand,
 } from './request-filter';
 
@@ -128,6 +130,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       signatureReason: null,
       schemaPath: null,
       answered: null,
+      values: null,
     });
     expect(filterToParams(NO_FILTER)).toEqual({
       signature: null,
@@ -140,6 +143,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       signatureReason: null,
       schemaPath: null,
       answered: null,
+      values: null,
     });
   });
 });
@@ -224,6 +228,7 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       signatureReason: 'timestamp outside tolerance',
       schemaPath: null,
       answered: null,
+      values: null,
     });
     expect(filterToParams(raiz)).toMatchObject({ signatureReason: null, schemaPath: '' });
     expect(filterFromParams({ signatureReason: 'signature mismatch', schemaPath: '' })).toEqual({
@@ -307,5 +312,59 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       ).toBe(false);
       expect(answeredMatches(webhookRequest(1, { response: null }), classes)).toBe(false);
     });
+  });
+});
+
+// F1 (CA-12): o valor clicado vira filtro com o `match` que a busca já aceita; não vai para o endereço.
+describe('Dado os filtros por valor (F1)', () => {
+  const values: ValueFilter[] = [
+    { kind: 'path', name: '', value: '/pedidos' },
+    { kind: 'header', name: 'x-loja-event-id', value: 'evt_1' },
+    { kind: 'query', name: 'tipo', value: 'pix' },
+    { kind: 'body', name: '$.status', value: 'pago' },
+    { kind: 'body', name: '$.valor', value: '10' },
+  ];
+
+  it('deve levar cada valor para o match da busca e do wait-for', () => {
+    const filter = { ...NO_FILTER, values };
+
+    expect(searchBody(filter, 1).match).toEqual({
+      path: { equals: '/pedidos' },
+      headers: { 'x-loja-event-id': { equals: 'evt_1' } },
+      query: { tipo: { equals: 'pix' } },
+      body: [
+        { jsonPath: { path: '$.status', equals: 'pago' } },
+        { jsonPath: { path: '$.valor', equals: '10' } },
+      ],
+    });
+    expect(isFilterActive(filter)).toBe(true);
+    expect(outsideWaitFor(filter)).toEqual([]);
+  });
+
+  it('deve dizer no endereço só quantos são, e nunca o valor', () => {
+    const params = filterToParams({ ...NO_FILTER, values });
+
+    expect(params.values).toBe('5');
+    expect(JSON.stringify(params)).not.toContain('evt_1');
+    expect(filterToParams(NO_FILTER).values).toBeNull();
+    expect(filterFromParams({ values: '5' })).toEqual(NO_FILTER);
+  });
+
+  it('deve distinguir os filtros pelos valores', () => {
+    const one = { ...NO_FILTER, values: values.slice(0, 1) };
+
+    expect(sameFilter(one, { ...NO_FILTER, values: values.slice(0, 1) })).toBe(true);
+    expect(sameFilter(one, { ...NO_FILTER, values: values.slice(1, 2) })).toBe(false);
+    expect(sameFilter(one, NO_FILTER)).toBe(false);
+  });
+
+  it('deve escrever o chip como a frase das condições de Regras', () => {
+    expect(values.map(valueLabel)).toEqual([
+      'path = /pedidos',
+      'header x-loja-event-id = evt_1',
+      'query tipo = pix',
+      'body $.status = pago',
+      'body $.valor = 10',
+    ]);
   });
 });

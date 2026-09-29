@@ -5,6 +5,7 @@ import {
   NO_FILTER,
   RequestFilter,
   RequestSorting,
+  ValueFilter,
   answeredMatches,
   isFilterActive,
   sameFilter,
@@ -82,6 +83,8 @@ export class RequestStore {
   });
   /** A requisição do link que não abriu; nenhuma outra é aberta no lugar. */
   readonly unopened = signal<UnopenedRequest | null>(null);
+  /** F1: os filtros por valor que a busca recusou (422); a lista voltou ao filtro anterior. */
+  readonly rejected = signal<readonly ValueFilter[]>([]);
   /** O alcance do filtro por status; `null` sem ele. */
   readonly scan = signal<StatusScan | null>(null);
   /** Quantas das mais novas o filtro por status olha ("Look in older requests" soma 500). */
@@ -217,9 +220,22 @@ export class RequestStore {
     if (!tokenId || sameFilter(filter, this.activeFilter())) {
       return;
     }
+    const previous = this.activeFilter();
     this.activeFilter.set(filter);
+    this.rejected.set([]);
     this.scanLimit = SCAN_WINDOW;
-    await this.reapply(tokenId);
+    try {
+      await this.reapply(tokenId);
+    } catch (error) {
+      // F1: o servidor recusou o `match` de um valor; a lista volta ao filtro anterior.
+      if (!(error instanceof HttpErrorResponse) || error.status !== 422) {
+        throw error;
+      }
+      const kept = new Set((previous.values ?? []).map((value) => JSON.stringify(value)));
+      this.rejected.set((filter.values ?? []).filter((value) => !kept.has(JSON.stringify(value))));
+      this.activeFilter.set(previous);
+      await this.reapply(tokenId);
+    }
   }
 
   /** "Look in older requests": o filtro por status olha mais 500. */

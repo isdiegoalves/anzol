@@ -2705,10 +2705,6 @@ export const translations: Record<string, string> = {
   '4635704663136718774': 'Ver original',
   // Remove this filter
   '784681343382270982': 'Tirar este filtro',
-  // Signature: {$reason}
-  '5171983317885817952': 'Assinatura: {$reason}',
-  // Schema error at: {$path}
-  '5939149798368501337': 'Erro de schema em: {$path}',
   // the text search
   '3155831626610695456': 'a busca por texto',
   // the answered-by filter
@@ -3353,4 +3349,52 @@ export const translations: Record<string, string> = {
   '5537158176643996243': 'em {$events} eventos',
   // {$found}, {$events} · search runs on the server over all {$total}
   '1458439836701961527': '{$found}, {$events} · a busca roda no servidor, sobre todas as {$total}',
+  // Filter by a field…
+  '765018967022770000': 'Filtrar por um campo…',
+  // Value actions
+  '7268993424405900428': 'Ações do valor',
+  // Filter by this value
+  '3805003075729735175': 'Filtrar por este valor',
+  // Exclude this value
+  '8325100168114797990': 'Excluir este valor',
+  // Copy value
+  '6893161557341819866': 'Copiar o valor',
+  // Copy path
+  '6357451566812902581': 'Copiar o caminho',
+  // Group by this field
+  '252948340581979760': 'Agrupar por este campo',
+  // {$label}: {$value}. Value actions
+  '9124042716554753399': '{$label}: {$value}. Ações do valor',
+  // Value copied.
+  '3134188786917238561': 'Valor copiado.',
+  // Path copied.
+  '9041606023079640888': 'Caminho copiado.',
+  // Filter by {$filter}
+  '1794171124691043516': 'Filtrar por {$filter}',
+  // answered {$status}
+  '6215826754927863752': 'respondeu {$status}',
+  // method {$method}
+  '231893590196781470': 'método {$method}',
+  // signature: {$reason}
+  '4334536560490865550': 'assinatura: {$reason}',
+  // schema error at {$path}
+  '4198346018142567275': 'erro de schema em {$path}',
+  // {$filter} — not accepted
+  '6357474227505433800': '{$filter} — não aceito',
+  // path = {$value}
+  '8364425698345198313': 'caminho = {$value}',
+  // header {$name} = {$value}
+  '5530079414624329511': 'cabeçalho {$name} = {$value}',
+  // query {$name} = {$value}
+  '1702892842862338152': 'query {$name} = {$value}',
+  // body {$name} = {$value}
+  '5543715258714442929': 'corpo {$name} = {$value}',
+  // This link does not carry 1 filter by value.
+  '3213603509894203873': 'Este link não leva 1 filtro por valor.',
+  // This link does not carry {$count} filters by value.
+  '8097161926480675711': 'Este link não leva {$count} filtros por valor.',
+  // Inbox. Filtered by {$filters}. {$result}
+  '638729785399628401': 'Entrada. Filtrado por {$filters}. {$result}',
+  // Filtered by {$filter}. {$result}
+  '4283294568415281643': 'Filtrado por {$filter}. {$result}',
 };

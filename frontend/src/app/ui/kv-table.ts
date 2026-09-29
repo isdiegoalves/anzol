@@ -1,4 +1,5 @@
-import { Component, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, TemplateRef, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /** Uma linha nome → valor (header, query, campo de formulário). */
@@ -26,7 +27,7 @@ export interface KvNote {
  */
 @Component({
   selector: 'app-kv-table',
-  imports: [RouterLink],
+  imports: [NgTemplateOutlet, RouterLink],
   template: `
     @if (rows().length > 0) {
       <table [attr.aria-label]="label()">
@@ -50,6 +51,11 @@ export interface KvNote {
                       <code>{{ part }}</code>
                     }
                   </span>
+                } @else if (valueTemplate(); as value) {
+                  <ng-container
+                    [ngTemplateOutlet]="value"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
+                  />
                 } @else {
                   <code>{{ row.value === '' ? '(empty)' : row.value }}</code>
                 }
@@ -84,6 +90,8 @@ export class KvTable {
   readonly notes = input<ReadonlyMap<string, KvNote>>(new Map());
   /** Cabeçalho das colunas ("Name", "Value (as recorded)"); sem ele, a tabela não tem `thead`. */
   readonly columns = input<readonly [string, string] | null>(null);
+  /** F1: o que desenha o valor de cada linha (o valor clicável da Entrada). */
+  readonly valueTemplate = input<TemplateRef<{ $implicit: KvRow }> | null>(null);
   /** Frase quando não há linhas. */
   readonly empty = input($localize`Nothing here.`);
 }

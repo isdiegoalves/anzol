@@ -409,7 +409,8 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
 
     await ligados.getByRole('button', { name: 'Remove this filter: Default response' }).click();
     await expect(botaoDeFiltros(page)).toHaveAccessibleName('Filters, 1 active');
-    await ligados.getByRole('button', { name: 'Remove this filter: POST' }).click();
+    // Patamar, F1 (guia §3.6): o chip ligado diz o filtro por extenso, como as condições de Regras ("method POST").
+    await ligados.getByRole('button', { name: 'Remove this filter: method POST' }).click();
 
     await expect(filtrosLigados(page)).toHaveCount(0);
     await expect(botaoDeFiltros(page)).toHaveAccessibleName('Filters');

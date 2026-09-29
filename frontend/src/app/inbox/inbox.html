@@ -47,7 +47,16 @@
   }
 </main>
 
+<!-- F1: o link não leva os valores; esta aba não os tem. Na lista e, com um painel por vez, no
+     detalhe também. -->
+<ng-template #missingNote>
+  @if (missingValues(); as note) {
+    <p class="missing">{{ note }}</p>
+  }
+</ng-template>
+
 <ng-template #listPane>
+  <ng-container [ngTemplateOutlet]="missingNote" />
   <app-request-list (openRequest)="openFromList($event)" (openedByKey)="focusDetail()">
     <div class="list-tools" listTools>
       <mat-slide-toggle
@@ -97,6 +106,9 @@
 <ng-template #detailBody>
   @let request = requests.selected();
   @let token = tokens.token();
+  @if (!twoPanes()) {
+    <ng-container [ngTemplateOutlet]="missingNote" />
+  }
   <!-- B2 (UX-38): a região viva existe vazia desde a carga; recebe o aviso da que sumiu. -->
   <div class="gone" [class.shown]="!!requests.gone()">
     <app-live-region class="gone-text" label="Request notice" i18n-label [text]="notice()" />

@@ -10,6 +10,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { CompareStore } from '../diff/compare-store';
+import { FilterChips } from '../search/filter-chips';
 import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
@@ -249,6 +250,28 @@ describe('Dado a lista lateral de mensagens', () => {
       await fixture.whenStable();
       expect(document.activeElement).toBe(selects()[0]);
     });
+  });
+
+  // F1 (CA-12): no desktop, o selo do status filtra direto, sem menu; no toque, o item só abre.
+  it('deve filtrar pelo selo do status, sem abrir a requisição, e não ter o selo clicável no toque', async () => {
+    const opened = vi.fn();
+    fixture.componentInstance.openRequest.subscribe(opened);
+    const filter = vi.spyOn(TestBed.inject(FilterChips), 'filterByValue').mockReturnValue();
+    await load([webhookRequest(1, { response: { status: 429 } }), webhookRequest(2)]);
+    const seals = () =>
+      [...element().querySelectorAll<HTMLElement>('app-seal-filter button')].map((button) =>
+        button.getAttribute('aria-label'),
+      );
+
+    expect(seals()).toEqual(['Filter by answered 429']);
+    element().querySelector<HTMLElement>('app-seal-filter button')?.click();
+    expect(filter).toHaveBeenCalledWith({ kind: 'status', name: '', value: '429' });
+    expect(opened).not.toHaveBeenCalled();
+    await expectNoAxeViolations(element());
+
+    windowClass.set('compact');
+    await fixture.whenStable();
+    expect(seals()).toEqual([]);
   });
 
   // E1 (UX-40): com a chave do evento no navegador, as tentativas viram uma linha de evento.

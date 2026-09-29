@@ -40,6 +40,7 @@ import { EventNote } from './event-note';
 import { ListRow, ROUTE_TAIL, rowsOf } from './list-rows';
 import { RequestStore } from './request-store';
 import { RowSizes } from './row-sizes';
+import { SealFilter } from './seal-filter';
 import { WebhookRequest } from './webhook-request';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
@@ -103,6 +104,8 @@ export interface ItemView {
   /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
   seals: CheckResult[];
   label: string;
+  /** O status respondido, que o selo filtra (F1); `null` na falha de rede e sem registro. */
+  status: string | null;
 }
 
 /**
@@ -130,6 +133,7 @@ export interface ItemView {
     NewPill,
     RequestSearch,
     RowSizes,
+    SealFilter,
     SkeletonList,
   ],
   templateUrl: './request-list.html',
@@ -547,6 +551,7 @@ export class RequestList {
       summary: eventType(request) ?? '',
       seals,
       label,
+      status: request.response?.status === undefined ? null : String(request.response.status),
     };
   }
 

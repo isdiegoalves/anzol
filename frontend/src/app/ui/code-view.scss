@@ -86,3 +86,9 @@
 .marked [class^='t-'] {
   color: inherit;
 }
+
+// F1: com os valores clicáveis, a linha tem 24 px, o alvo mínimo (WCAG 2.5.8).
+.values .line {
+  min-height: 24px;
+  line-height: 24px;
+}

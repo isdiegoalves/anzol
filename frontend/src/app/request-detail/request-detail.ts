@@ -86,9 +86,11 @@ export class RequestDetail {
   /** Newer/Older: a mensagem a abrir (a lista vai da mais antiga para a mais nova). */
   readonly openRequest = output<WebhookRequest>();
 
+  /** A requisição aberta, pelo id: o mesmo id num objeto novo (a busca refeita) não fecha nada. */
+  private readonly openId = computed(() => this.request().uuid);
   /** Painel do "Explain" aberto; fecha ao abrir outra mensagem. */
   protected readonly explaining = linkedSignal({
-    source: () => this.request().uuid,
+    source: this.openId,
     computation: () => false,
   });
   /** Onde o painel entra, criado à mão (o painel vem num pedaço à parte). */

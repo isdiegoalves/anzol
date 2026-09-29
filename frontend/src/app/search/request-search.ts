@@ -85,9 +85,15 @@ export class RequestSearch {
             },
           ]
         : []),
-      ...this.chips.active().map((chip) => ({ label: chip.label, remove: chip.toggle })),
+      ...this.chips.active().map((chip) => ({
+        label: chip.active ?? chip.label,
+        remove: chip.toggle,
+      })),
+      // F1: o valor que o servidor recusou fica à vista, marcado, até sair (não conta nos ligados).
+      ...this.chips.rejected().map((chip) => ({ label: chip.label, remove: chip.toggle })),
     ];
   });
+
   /** Com filtro e sem resultado: o estado vazio da lista tem o seu "Clear filters" (INBOX-25). */
   protected readonly nothingMatches = computed(
     () => this.store.filtering() && !this.store.searching() && this.store.requests().length === 0,
@@ -131,6 +137,8 @@ export class RequestSearch {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private wasFiltering = false;
   private tokenId: string | null = null;
+  /** A URL abriu já filtrada (um link de Métricas, de Saúde): o primeiro resultado diz o filtro. */
+  private arrivedFiltered = false;
 
   constructor() {
     toObservable(this.draft)
@@ -158,12 +166,16 @@ export class RequestSearch {
           // Outra URL: o que se disse da anterior não vale, e nada foi "limpo".
           this.tokenId = tokenId;
           this.wasFiltering = false;
+          this.arrivedFiltered = filtering;
           this.result.set('');
         }
         this.say(filtering, waiting, line);
       });
     });
     inject(DestroyRef).onDestroy(() => this.stopTimer());
+
+    // F1: com esta linha na tela, é ela que fala o resultado do filtro por valor.
+    inject(DestroyRef).onDestroy(this.chips.listen());
 
     // E1: agrupar e desagrupar falam pela região do resultado da lista, uma vez.
     effect(() => {
@@ -230,8 +242,21 @@ export class RequestSearch {
     // A região nunca é esvaziada para falar de novo: trocar o texto basta (guia §4.3).
     this.timer = setTimeout(() => {
       this.wasFiltering = filtering;
-      this.result.set(cleared ? this.withoutFilter(this.chips.takeCleared()) : line);
+      this.result.set(cleared ? this.withoutFilter(this.chips.takeCleared()) : this.said(line));
     }, RESULT_ANNOUNCE_MS);
+  }
+
+  /**
+   * F1: o resultado diz o filtro que o clique num valor ligou ("Filtered by header x = v. 5 requests
+   * match…") e, na chegada por um link filtrado, onde a pessoa está ("Inbox. Filtered by …").
+   */
+  private said(line: string): string {
+    const added = this.chips.takeAdded();
+    if (this.arrivedFiltered) {
+      this.arrivedFiltered = false;
+      return $localize`Inbox. Filtered by ${this.chips.describe()}:filters:. ${line}:result:`;
+    }
+    return added ? $localize`Filtered by ${added}:filter:. ${line}:result:` : line;
   }
 
   /** "Filters cleared. 34 requests." pelo botão; "No filter. 34 requests." ao desligar o último. */

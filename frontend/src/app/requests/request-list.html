@@ -134,6 +134,10 @@
                   >
                 </span>
               </button>
+              <!-- F1: o selo do status filtra direto, sem menu; só com ponteiro fino. -->
+              @if (item.status !== null && !touch() && !compare.picking()) {
+                <app-seal-filter [status]="item.status" />
+              }
               <button
                 type="button"
                 class="delete"
