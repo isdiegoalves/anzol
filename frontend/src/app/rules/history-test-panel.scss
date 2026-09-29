@@ -27,7 +27,7 @@
 
 .summary strong {
   font: var(--mat-sys-display-small);
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 }
 
 .note,

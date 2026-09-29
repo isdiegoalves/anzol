@@ -11,7 +11,7 @@
 h1 {
   margin: 0 0 12px;
   font: var(--mat-sys-headline-small);
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 }
 
 p {

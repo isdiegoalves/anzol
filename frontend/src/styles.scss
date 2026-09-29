@@ -59,6 +59,9 @@ html {
   --app-warning-container: light-dark(#ffdf9e, #5c4300);
   --app-on-warning-container: light-dark(#5c4300, #ffdf9e);
   --app-code-family: #{'"Google Sans Code", ui-monospace, "SFMono-Regular", Menlo, monospace'};
+
+  // O arredondado (eixo ROND) nos títulos é a assinatura visual do tema.
+  --app-heading-variation: 'ROND' 100;
   --app-pane-shape: 20px;
   --app-focus-color: var(--mat-sys-primary);
   --app-focus-width: 3px;
@@ -114,11 +117,10 @@ body {
   height: 100%;
 }
 
-// O arredondado (eixo ROND) nos títulos é a assinatura visual do tema.
 h1,
 h2,
 h3 {
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 }
 
 // Título de página (Checks, Outbound, Rules, Insights e Compare; a Inbox usa o cabeçalho da lista): 28/36, peso 600, ROND.
@@ -128,7 +130,7 @@ h3 {
   font-size: 28px;
   font-weight: 600;
   line-height: 36px;
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 }
 
 // Tudo que é dado (URL, header, JSON, `seq`) na fonte de código.

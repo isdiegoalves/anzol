@@ -24,7 +24,7 @@
 h2 {
   margin: 12px 0;
   font: var(--mat-sys-title-large);
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 
   &:focus {
     outline: none;

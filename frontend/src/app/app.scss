@@ -20,7 +20,7 @@
   gap: 10px;
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-title-medium);
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
   text-decoration: none;
 
   &:focus-visible {

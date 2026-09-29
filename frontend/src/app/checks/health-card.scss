@@ -23,7 +23,7 @@
   font: var(--mat-sys-headline-medium);
   font-size: 32px;
   font-weight: 600;
-  font-variation-settings: 'ROND' 100;
+  font-variation-settings: var(--app-heading-variation);
 }
 
 // A janela compacta ao lado do título (CHECKS-18): 50, 200 ou 500 (S20).
