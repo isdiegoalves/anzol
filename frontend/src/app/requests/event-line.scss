@@ -70,7 +70,6 @@
 .head,
 .tail,
 .value,
-.count,
 .note {
   min-width: 0;
   overflow: hidden;
@@ -79,6 +78,25 @@
 
 .head {
   flex: 0 1000 auto;
+}
+
+// Faltando espaço, a trilha perde as respostas mais antigas (à esquerda) antes de a contagem
+// encolher; a última resposta fica sempre à vista.
+.seals {
+  display: flex;
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 48px;
+  overflow: hidden;
+}
+
+.trail .count {
+  flex: none;
+}
+
+.trail .note {
+  flex: 0 2 auto;
 }
 
 // Sem encolher: uma fração de pixel tirada do valor já troca o fim dele por reticências.
@@ -132,7 +150,8 @@
     height: 48px;
   }
 
-  .trail {
+  .trail,
+  .seals {
     flex-wrap: wrap;
   }
 }

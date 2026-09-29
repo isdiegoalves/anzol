@@ -48,11 +48,13 @@ import { EventView } from './list-rows';
         </span>
       }
       <span class="line meta trail">
-        @for (seal of event.trail; track $index) {
-          <!-- A marca ✗ e o "×14" ficam no selo; o nome acessível da linha diz os problemas. -->
-          <!-- prettier-ignore -->
-          <span class="seal" [class.fault]="seal.fault" [class.last]="seal.last">{{ seal.text }}@if (seal.mark) {<span class="mark">✗</span>}@if (seal.count > 1) {<span> ×{{ seal.count }}</span>}</span>
-        }
+        <span class="seals">
+          @for (seal of event.trail; track $index) {
+            <!-- A marca ✗ e o "×14" ficam no selo; o nome acessível da linha diz os problemas. -->
+            <!-- prettier-ignore -->
+            <span class="seal" [class.fault]="seal.fault" [class.last]="seal.last">{{ seal.text }}@if (seal.mark) {<span class="mark">✗</span>}@if (seal.count > 1) {<span> ×{{ seal.count }}</span>}</span>
+          }
+        </span>
         @if (!compact()) {
           <span class="count"> {{ event.count }}</span>
         }

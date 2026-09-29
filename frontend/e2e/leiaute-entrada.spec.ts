@@ -115,6 +115,47 @@ test.describe('Dado caminhos que não cabem na largura da lista', () => {
   });
 });
 
+test.describe('Dado a linha de um evento com muitas tentativas', () => {
+  test('deve mostrar inteira a contagem e a última resposta, perdendo as mais antigas da trilha', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    for (let n = 1; n <= 7; n++) {
+      await tokens.send(tokenId, {
+        path: '/webhooks/pagamentos/confirmacoes',
+        headers: { 'Content-Type': 'application/json' },
+        data: JSON.stringify({ event_id: 'evt_pf_7Q2K1010', n }),
+      });
+    }
+    await emPortugues(page);
+    await page.goto('/favicon.ico');
+    await page.evaluate(
+      (chave) => localStorage.setItem(chave, '$.event_id'),
+      `anzol.eventKey.${tokenId}`,
+    );
+    await page.goto(`/#/${tokenId}`);
+    const trilha = page.locator('app-event-line .trail');
+    await expect(trilha).toHaveCount(1);
+
+    const problemas = await trilha.evaluate((linha) => {
+      const caixa = linha.getBoundingClientRect();
+      const contagem = linha.querySelector<HTMLElement>('.count');
+      const ultima = linha.querySelector<HTMLElement>('.seal.last');
+      const erros: string[] = [];
+      if (!contagem || contagem.scrollWidth > contagem.clientWidth + 1) {
+        erros.push(`contagem cortada: "${contagem?.textContent?.trim()}"`);
+      }
+      const fim = ultima?.getBoundingClientRect();
+      if (!fim || fim.left < caixa.left || fim.right > caixa.right + 1) {
+        erros.push('a última resposta não está inteira à vista');
+      }
+      return erros;
+    });
+    expect(problemas).toEqual([]);
+  });
+});
+
 test.describe('Dado a segunda linha do item, com o status e os selos', () => {
   test('deve mostrar inteiros o número do status e o texto de cada erro, e só o ícone do que passou', async ({
     page,
