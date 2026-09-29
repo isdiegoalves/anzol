@@ -4,6 +4,10 @@ The first enabled rule whose conditions all match (lowest priority first) answer
 Rule fields:
 - name: required, 1 to 100 characters, short and descriptive.
 - enabled: boolean, default true. priority: integer >= 1, default 5; lower wins.
+- chance (optional): integer 1..100, the percentage of the matching requests the rule answers; the others go on to
+  the next rule as if it did not match. The draw is fixed per request and rule.
+- active_from, active_until (optional): ISO-8601 date-times with a time zone, e.g. "2026-09-29T12:00:00Z"; the rule
+  only answers requests received from active_from (inclusive) until active_until (exclusive). Returned in UTC.
 - match: conditions, all must hold (AND). A rule without conditions matches every request.
   - method: list of HTTP methods, e.g. ["POST"]. Empty or absent: any method.
   - path: exactly one of {"equals": "/orders"}, {"prefix": "/orders"}, {"regex": "/orders/[0-9]+"}.
@@ -32,7 +36,10 @@ Rule fields:
   - delay: {"fixed": ms} or {"uniform": {"min": ms, "max": ms}} or {"lognormal": {"median": ms, "sigma": s}}; max 60000 ms.
   - dribble: {"chunks": 1..100, "durationMs": 0..60000} sends the body in pieces.
   - fault: "connection_reset", "empty_response", "malformed_chunk" or "random_data_then_close" breaks the connection
-    instead of answering.
+    instead of answering. "hang" sends nothing until the client gives up (the server closes after at most 5 minutes);
+    "stall_after_headers" sends the status and headers (with the body's Content-Length), then nothing until the client
+    gives up; "truncated_body" sends the status, headers and half the body, then closes. Those two need a body. With a
+    fault, delay and dribble are ignored.
 - scenario (optional): {"name": text, "requiredState": text, "newState": text}; every scenario starts in "Started".
 
 Example: "answer 201 with JSON for POST /payments when the body status is paid":

@@ -578,4 +578,42 @@ class McpServerApiTest(
         assertThat(response.status).isEqualTo(200)
         assertThat(response.body).contains("\"serverInfo\"")
     }
+
+    @Test
+    @DisplayName(
+        "Dado chance, janela e as falhas novas, quando o agente usa set_rules e get_rules, então passam pelo leitor da API; " +
+            "a descrição de set_rules cita cada um",
+    )
+    fun setRules_chanceJanelaEFalhasNovas_deveAceitarECitar() {
+        val tokenId = api.tokenId()
+        val rules =
+            listOf(
+                mapOf(
+                    "name" to "instável",
+                    "chance" to 25,
+                    "active_from" to "2026-09-29T09:00:00-03:00",
+                    "response" to mapOf("status" to 503),
+                ),
+                mapOf("name" to "corta", "response" to mapOf("body" to "abcd", "fault" to "truncated_body")),
+            )
+        val semCorpo = listOf(mapOf("name" to "x", "response" to mapOf("fault" to "stall_after_headers")))
+
+        val saved = call("set_rules", mapOf("token_id" to tokenId, "rules" to rules)).json()
+        val invalid = call("set_rules", mapOf("token_id" to tokenId, "rules" to semCorpo))
+        val description =
+            client
+                .listTools()
+                .tools()
+                .single { it.name() == "set_rules" }
+                .description()
+
+        assertThat(saved[0]["chance"].asInt()).isEqualTo(25)
+        assertThat(saved[0]["active_from"].asString()).isEqualTo("2026-09-29T12:00:00Z")
+        assertThat(saved[1]["response"]["fault"].asString()).isEqualTo("truncated_body")
+        assertThat(call("get_rules", mapOf("token_id" to tokenId)).json()).isEqualTo(saved)
+        assertThat(invalid.isError).isTrue()
+        assertThat((invalid.content().single() as TextContent).text())
+            .contains("The body field is required when fault is stall_after_headers.")
+        assertThat(description).contains("chance", "active_from", "active_until", "hang", "stall_after_headers", "truncated_body")
+    }
 }
