@@ -1,6 +1,7 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   ViewContainerRef,
@@ -26,6 +27,8 @@ import { ReplayPanel } from './replay-panel';
 
 let nextId = 0;
 const RESIZE_STEP_PX = 40;
+/** O tempo para o leitor de tela conhecer a região viva vazia (o mesmo do `LiveAnnouncer` do CDK). */
+const REGION_READY_MS = 100;
 
 /**
  * Replay, Compare, Create rule e Explain na base da coluna do detalhe, que continua à vista acima.
@@ -109,8 +112,10 @@ export class ActionPanel {
       }
       wasPicking = picking;
     });
-    // Um anúncio por par: o efeito roda de novo quando a requisição aberta muda.
+    // Um anúncio por par: o efeito roda de novo quando a requisição aberta muda. O painel pode nascer
+    // já comparando, e a região viva que nasce com texto não fala: o texto entra depois dela.
     let said = '';
+    let saying: ReturnType<typeof setTimeout> | undefined;
     effect(() => {
       const pair = this.pair();
       if (!pair) {
@@ -123,14 +128,14 @@ export class ActionPanel {
       said = key;
       const causes = explainOutcome(pair.a, pair.b).causes.length;
       const [a, b] = [pair.a.uuid.slice(0, 5), pair.b.uuid.slice(0, 5)];
-      untracked(() =>
-        this.store.result.set(
-          causes === 1
-            ? $localize`Compared #${a}:a: with #${b}:b:. 1 change explains the outcome.`
-            : $localize`Compared #${a}:a: with #${b}:b:. ${causes}:count: changes explain the outcome.`,
-        ),
-      );
+      const text =
+        causes === 1
+          ? $localize`Compared #${a}:a: with #${b}:b:. 1 change explains the outcome.`
+          : $localize`Compared #${a}:a: with #${b}:b:. ${causes}:count: changes explain the outcome.`;
+      clearTimeout(saying);
+      saying = setTimeout(() => this.store.result.set(text), REGION_READY_MS);
     });
+    inject(DestroyRef).onDestroy(() => clearTimeout(saying));
     effect((onCleanup) => {
       const [host, request] = [this.ruleHost(), this.request()];
       if (!host) {

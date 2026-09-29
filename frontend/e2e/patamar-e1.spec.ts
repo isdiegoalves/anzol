@@ -1,6 +1,11 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { escutarAnuncios, expectUmAnuncio, limparAnuncios } from './support/anuncios';
+import {
+  escutarAnuncios,
+  expectSoEstaFala,
+  expectUmAnuncio,
+  limparAnuncios,
+} from './support/anuncios';
 import { TokenTracker, expect, test } from './support/fixtures';
 import {
   abrirFiltros,
@@ -639,6 +644,29 @@ test.describe('Dado comparar com a tentativa anterior do mesmo evento', () => {
     await expect(lados).toContainText(`#${id5(a[1])}`);
     await expect(lados).not.toContainText(`#${id5(a[2])}`);
     await expect(lados.getByRole('button', { name: 'Previous pair' })).toBeDisabled();
+  });
+
+  test('deve anunciar a comparação uma vez, pelo resultado da ação, Quando o painel abre já comparando', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, a } = await intercalados(tokens, page);
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    await abrirEntrada(page, tokenId, 8);
+    await agruparPor(page, CHAVE);
+    await abrirMensagem(page, tokenId, a[2]);
+    await limparAnuncios(page);
+
+    await acaoDaMensagem(page, 'Compare with attempt 2');
+
+    await expectSoEstaFala(
+      page,
+      new RegExp(
+        `^Compared #${id5(a[1])} with #${id5(a[2])}\\. \\d+ changes? explains? the outcome\\.$`,
+      ),
+      /^Action result$/,
+    );
   });
 
   test('deve desligar o botão, com a razão, na primeira tentativa do evento', async ({

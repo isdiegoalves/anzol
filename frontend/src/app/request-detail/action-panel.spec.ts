@@ -136,8 +136,10 @@ describe('Dado o painel de ação acoplado ao detalhe', () => {
     expect(screen.getByRole('link', { name: 'Open full comparison' }).getAttribute('href')).toBe(
       `/${TOKEN_ID}/compare/${other.uuid}/${request.uuid}`,
     );
-    expect(store.result()).toMatch(
-      /^Compared #00000 with #00000\. \d+ changes? explains? the outcome\.$/,
+    await vi.waitFor(() =>
+      expect(store.result()).toMatch(
+        /^Compared #00000 with #00000\. \d+ changes? explains? the outcome\.$/,
+      ),
     );
   });
 
