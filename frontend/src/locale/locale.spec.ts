@@ -9,6 +9,8 @@ const messages = (
     translations: Record<string, string>;
   }
 ).translations;
+/** O id próprio (`@@`) da coluna "Share" de Métricas. */
+const SHARE_COLUMN = 'insightsShareColumn';
 /** Placeholders ({$PH}, {$INTERPOLATION}, tags) e as partes do ICU, que a tradução mantém. */
 const placeholders = (text: string) =>
   (
@@ -77,6 +79,12 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
     expect(different).toEqual([]);
   });
 
+  // A coluna "Share" de Métricas é a parte das requisições, não a ação: tem id próprio.
+  it('deve traduzir a coluna "Share" de Métricas como "Participação"', () => {
+    expect(messages[SHARE_COLUMN]).toBe('Share');
+    expect(translations[SHARE_COLUMN]).toBe('Participação');
+  });
+
   // Os verbos das ações são verbos: "Share" do detalhe é "Compartilhar" (e não "Parcela").
   it.each([
     ['Share', 'Compartilhar'],
@@ -86,7 +94,7 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
     ['Explain', 'Explicar'],
   ])('deve traduzir a ação "%s" como "%s"', (source, expected) => {
     const ids = Object.entries(messages)
-      .filter(([, text]) => text === source)
+      .filter(([id, text]) => text === source && id !== SHARE_COLUMN)
       .map(([id]) => id);
 
     expect(ids.length).toBeGreaterThan(0);

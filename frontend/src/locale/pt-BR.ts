@@ -3498,6 +3498,6 @@ export const translations: Record<string, string> = {
   '845106705521905169': 'trocar de URL',
   // all
   '2089017016852932432': 'todos',
-  // Share
-  '8853338010947909598': 'Participação',
+  // Share (coluna da tabela "Who answered" de Métricas)
+  insightsShareColumn: 'Participação',
 };
