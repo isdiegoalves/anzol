@@ -14,6 +14,8 @@ const backend = { target, changeOrigin: false, secure: false };
 export default {
   // API REST e o stream SSE (/token/{id}/stream).
   '/token/**': backend,
+  // Leitura do link só-leitura (GET /share/{id}); a página dele é a rota #/share/{id}.
+  '/share/**': backend,
   // URL do webhook (/{uuid} e /{uuid}/qualquer/coisa), para a URL exibida na tela funcionar.
   '^/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(/.*)?$': backend,
 };
