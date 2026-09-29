@@ -908,10 +908,79 @@ mandou o webhook já recebeu a resposta configurada na URL: a resposta do app lo
 
 ```bash
 anzol replay <token> <requestId> --to http://localhost:3000
+anzol replay <token> <id1> <id2> <id3> --to http://localhost:3000   # várias, na ordem dada
 ```
 
-Reenvia uma mensagem gravada, igual ao `listen`, e imprime a mesma linha. Sai com 0 quando o app
-local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Request not found`.
+Reenvia mensagens gravadas, igual ao `listen`, e imprime a mesma linha para cada uma. Sai com 0 quando o app
+local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Request not found` (nesse caso nada é
+entregue).
+
+### Falhas na entrega (`listen` e `replay`)
+
+Para ver o que o seu app faz quando o webhook chega mal, o `listen --forward` e o `replay` injetam falhas na entrega
+ao app local: mensagem que some, que chega duas vezes, atrasada, fora de ordem, cortada no meio do corpo, aos
+pingos, ou que o "provedor" desiste de esperar e tenta de novo. Sem nenhuma dessas opções, nada muda.
+
+```bash
+# metade das mensagens chega duas vezes; a mesma semente repete as mesmas duplicatas
+anzol listen --forward http://localhost:3000 --chaos-duplicate 50 --chaos-seed 7
+
+# atraso, corpo cortado e retentativa com backoff, como um provedor faria
+anzol listen --forward http://localhost:3000 --chaos-delay 200..800 --chaos-abort 20 --retries 3
+
+# três mensagens gravadas, entregues fora de ordem
+anzol replay <token> <id1> <id2> <id3> --to http://localhost:3000 --chaos-reorder 3
+```
+
+Com um app que responde 409 ao `X-Request-Id` repetido:
+
+```
+Listening on http://localhost:8084/9daa…7c10 (forwarding to http://localhost:3000)
+Chaos: duplicate 50%; seed 7
+12:56:58 POST /pedidos/1 -> 200 (5 ms)
+12:56:59 POST /pedidos/2 -> 200 (1 ms)
+12:56:59 POST /pedidos/2 -> 409 (0 ms) [chaos: duplicate]
+12:56:59 POST /pedidos/3 -> 200 (1 ms)
+12:56:59 POST /pedidos/3 -> 409 (0 ms) [chaos: duplicate]
+12:56:59 POST /pedidos/4 -> 200 (1 ms)
+```
+
+E o segundo exemplo, com `--chaos-seed 7` e um app que pede `Retry-After: 1` uma vez:
+
+```
+Chaos: delay 200..800 ms, abort 20%, retries 3; seed 7
+12:58:49 POST /pedidos/1 attempt 1/4 -> 200 (5 ms) [chaos: delay 625 ms]
+12:58:50 POST /pedidos/2 attempt 1/4 -> 503 (1 ms), retrying in 1000 ms (Retry-After) [chaos: delay 313 ms]
+12:58:51 POST /pedidos/2 attempt 2/4 -> 200 (1 ms)
+12:58:53 POST /pedidos/7 attempt 1/4 -> cut after 17 of 34 bytes, retrying in 991 ms [chaos: delay 307 ms, abort]
+12:58:54 POST /pedidos/7 attempt 2/4 -> cut after 17 of 34 bytes, retrying in 1447 ms [chaos: abort]
+12:58:56 POST /pedidos/7 attempt 3/4 -> 200 (1 ms)
+```
+
+| Opção | O que faz |
+|---|---|
+| `--chaos-drop P` | Com chance de P % (0 a 100, com ou sem `%`), a mensagem não é entregue: `-> dropped [chaos: drop]` |
+| `--chaos-duplicate P` | Com chance de P %, a mensagem é entregue duas vezes seguidas; a segunda linha leva `[chaos: duplicate]` |
+| `--chaos-delay MIN..MAX` | Espera um tempo sorteado na faixa antes de cada entrega: `200..800`, `1s..3s`, ou um valor só (`500`); `[chaos: delay 312 ms]` |
+| `--chaos-reorder N` | Segura N entregas (2 a 100), `-> held 1 of 3`, e as manda embaralhadas, nunca na ordem de chegada: `[chaos: reordered (arrived 3 of 3)]`. A leva incompleta sai 2 s depois da última (`listen`) ou no fim (`replay`); Ctrl+C a descarta |
+| `--chaos-abort P` | Com chance de P % a cada tentativa, manda os cabeçalhos (com o `Content-Length` do corpo inteiro) e metade do corpo e fecha a conexão, sem esperar resposta: `-> cut after 500 of 1000 bytes [chaos: abort]`. Só com alvo `http://` |
+| `--chaos-slow B` | Manda o corpo a B bytes por segundo, um pedaço a cada décimo de segundo: `[chaos: slow 50 B/s]` |
+| `--chaos-timeout T` | Desiste de esperar a resposta do app T depois de mandar o corpo (`500`, `2s`; padrão 30 s): `-> error: timed out after 500 ms [chaos: timeout]` |
+| `--retries N` | Retenta (0 a 10) depois de erro de conexão, prazo, corte, 5xx e 429. Espera 1 s, 2 s, 4 s… até 30 s, com jitter (entre a metade e o valor da vez), ou o `Retry-After` do app (segundos ou data HTTP, até 30 s). A linha ganha `attempt n/total` e `, retrying in <ms> ms` |
+| `--chaos-seed N` | Semente dos sorteios: a mesma semente repete as mesmas falhas nas mesmas mensagens (a n-ésima mensagem sorteia igual, faça o app o que fizer com as anteriores). Sem ela, uma é sorteada e aparece na linha `Chaos:` |
+
+Tempo sem unidade é ms, como nas outras opções do CLI. A retentativa e a duplicata repetem os cabeçalhos e o corpo
+gravados byte a byte (o `X-Request-Id`, o `Idempotency-Key` ou o `X-GitHub-Delivery` do provedor chegam iguais),
+para o app mostrar que é idempotente. As entregas continuam uma de cada vez: enquanto uma espera (atraso,
+retentativa), as seguintes aguardam, sem que o `listen` dê a conexão com o servidor como caída.
+
+A linha de cada tentativa é `HH:mm:ss MÉTODO caminho[ attempt n/total] -> resultado[, retrying in <ms> ms[ (Retry-After)]][ [chaos: …]]`,
+com resultado `<status> (<ms> ms)`, `error: <motivo>`, `cut after <n> of <total> bytes` ou `dropped`. A linha
+`Chaos: …; seed <n>` sai depois do `Listening on` (no `replay`, antes das entregas).
+
+Opção de caos com valor inválido sai com 2, o motivo no stderr, sem entregar nada. O `replay` sai com 1 quando alguma
+entrega terminou sem resposta do app (erro, prazo ou corte), mesmo depois das retentativas; mensagem descartada pelo
+`--chaos-drop` não conta.
 
 ### `anzol rules pull` e `anzol rules push`
 
