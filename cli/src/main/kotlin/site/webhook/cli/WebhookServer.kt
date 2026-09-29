@@ -122,7 +122,7 @@ class WebhookServer(
         return apiJson.decodeFromString<NewToken>(response.body()).uuid
     }
 
-    /** `DELETE /token/{id}`: a URL e as mensagens dela somem. Já apagada (404/410) conta como apagada. */
+    /** `DELETE /token/{id}`; já apagada (404/410) conta como apagada. */
     fun deleteToken(token: TokenId) {
         val response = send("DELETE", "/token/$token")
         if (response.statusCode() !in setOf(NO_CONTENT, OK, NOT_FOUND, GONE)) throw unexpected(response)

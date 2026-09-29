@@ -25,12 +25,7 @@ import kotlin.io.path.writeText
 
 private const val SUMMARY = """matched 1/1 in \d+ ms"""
 
-/**
- * `anzol test`: o teste de CI num comando só (patamar C1, CA-11). Cria a URL (ou usa a do `--token`), sobe as regras,
- * lê o cursor ANTES do gatilho, roda o gatilho com `{url}` trocado, espera como o `wait-for --after <cursor>`, confere o
- * status respondido e apaga a URL que criou, passe ou falhe. O servidor é o falso: ele não avalia o `match`, só grava o
- * corpo do `requests/wait` e responde o que o teste mandar.
- */
+/** O servidor falso não avalia o `match`: só grava o corpo do `requests/wait` e responde o que o teste mandar. */
 @DisplayName("anzol test")
 class TestCycleTest {
     private val site = FakeAnzol()
@@ -46,10 +41,9 @@ class TestCycleTest {
 
     private fun json(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
 
-    /** O `timeout` de um corpo do `requests/wait`: 0 na conferência do match, o `--timeout` na espera. */
+    /** 0 é a conferência do match antes do gatilho; o `--timeout`, a espera. */
     private fun timeout(wait: JsonObject): Long = wait.getValue("timeout").jsonPrimitive.long
 
-    /** A resposta do `requests/wait` com [messages] casadas (ou não). */
     private fun reply(
         matched: Boolean,
         vararg messages: JsonObject,
@@ -59,7 +53,6 @@ class TestCycleTest {
         site.waitReply = 200 to """{"matched":$matched,"count":${messages.size},"requests":$requests,"near_miss":$nearMiss}"""
     }
 
-    /** O token que o CLI criou (o falso só tem os que ele criou). */
     private fun createdToken(cli: CliProcess): String =
         Regex("""url: ${Regex.escape(site.base)}/(\S+) \(created; deleted at the end\)""")
             .let { line -> cli.stderr.firstNotNullOfOrNull { line.matchEntire(it)?.groupValues?.get(1) } }

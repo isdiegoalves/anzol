@@ -60,7 +60,7 @@ class FakeAnzol : AutoCloseable {
     /** Status e corpo da resposta do `requests/wait`, depois de [waitDelay]. */
     @Volatile var waitReply: Pair<Int, String> = 200 to """{"matched":true,"count":0,"requests":[],"near_miss":null}"""
 
-    /** Atraso da resposta do `requests/wait`; com `timeout` 0 ele responde logo, como o real, que só olha o histórico. */
+    /** Não vale com `timeout` 0: o servidor real só olha o histórico e responde logo. */
     @Volatile var waitDelay: Duration = Duration.ZERO
 
     /** Quantos `PUT /token/{id}/rules` chegaram, válidos ou não. */
@@ -75,13 +75,10 @@ class FakeAnzol : AutoCloseable {
     /** Roda a cada listagem (com a query dela), antes de responder: ex. um DELETE no meio da recuperação. */
     @Volatile var onList: ((String) -> Unit)? = null
 
-    /** Roda a cada `POST /token/{id}/requests/wait`, antes de responder. */
     @Volatile var onWait: (() -> Unit)? = null
 
-    /** Roda a cada `PUT /token/{id}/rules`, antes de responder. */
     @Volatile var onRulesPut: (() -> Unit)? = null
 
-    /** Tokens apagados pelo `DELETE /token/{id}`, em ordem. */
     val deleted = CopyOnWriteArrayList<String>()
 
     val base: String get() = "http://127.0.0.1:${server.address.port}"
@@ -326,7 +323,6 @@ class FakeAnzol : AutoCloseable {
         exchange.respond(status, body)
     }
 
-    /** Como o servidor real: 204 e o token some (mensagens e regras juntas); 410 se não existe. */
     private fun delete(
         exchange: HttpExchange,
         token: String,

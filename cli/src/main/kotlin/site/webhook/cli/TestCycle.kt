@@ -22,17 +22,14 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
-/** O gatilho não subiu ou saiu com código diferente de 0: o teste não chega a esperar. */
 const val TRIGGER_FAILED = 3
 
-/** Quanto esperar, depois de o gatilho sair, pelo resto da saída dele (um filho em segundo plano segura o stdout). */
+/** Um filho do gatilho em segundo plano pode segurar o stdout aberto: não esperar a saída dele para sempre. */
 private val TRIGGER_OUTPUT_GRACE: Duration = Duration.ofSeconds(2)
 
 /**
- * O teste de CI num comando (patamar C1, CA-11), só com as rotas de hoje: cria a URL (ou usa a do `--token`), sobe as
- * regras, lê o cursor ANTES do gatilho, confere o `match` no servidor, roda o gatilho, espera como o
- * `wait-for --after <cursor>`, confere o status respondido e apaga a URL que criou, passe ou falhe (também no Ctrl+C).
- * Saídas: as do `wait-for` (0 casou, 1 não casou, 2 erro) e [TRIGGER_FAILED].
+ * `anzol test`: o cursor é lido antes do gatilho, e a espera é a do `wait-for --after <cursor>`. Saídas: as do
+ * `wait-for` (0 casou, 1 não casou, 2 erro) e [TRIGGER_FAILED].
  */
 class TestCycle : CoreCliktCommand(name = "test") {
     private val token by option("--token", help = "Existing URL (uuid); without it a new URL is created and deleted at the end")
@@ -87,10 +84,10 @@ class TestCycle : CoreCliktCommand(name = "test") {
         match: JsonObject,
     ) {
         if (ruleList != null) push(site, id, ruleList)
-        // A URL criada agora não tem nada de antes do teste: o cursor é 0, e o que chegar logo depois do "url:" vale.
+        // URL recém-criada: cursor 0, para valer o que chegar logo depois do "url:".
         val cursor = if (token == null) 0 else reaching(site, WAIT_FOR_ERROR) { site.newestSeq(id) } ?: invalid("Token not found")
         echo("cursor: $cursor", err = true)
-        // Match ou --count que o servidor recusa saem com 2 aqui, antes de o gatilho mandar o webhook à toa.
+        // Com timeout 0 o servidor só confere o match: recusado sai com 2 antes de o gatilho mandar o webhook à toa.
         requestWait(site, id, wait.body(match, cursor, timeout = 0))
         val address = "${site.base}/$id"
         if (trigger.isEmpty()) {
@@ -125,9 +122,8 @@ class TestCycle : CoreCliktCommand(name = "test") {
     }
 
     /**
-     * Roda o gatilho até ele sair, com `{url}` trocado em cada argumento e `ANZOL_URL`/`ANZOL_TOKEN` no ambiente. O
-     * stdout dele vai para o stderr: o stdout do `test` é só o JSON. Só o nome do programa é impresso (os argumentos
-     * podem ter segredo).
+     * O stdout do gatilho vai para o stderr: o stdout do `test` é só o JSON. Só o nome do programa é impresso, os
+     * argumentos podem ter segredo.
      */
     private fun runTrigger(
         address: String,
@@ -155,7 +151,6 @@ class TestCycle : CoreCliktCommand(name = "test") {
         echo(line, err = true)
     }
 
-    /** Toda mensagem que casou foi respondida com [expected] (o `response.status` gravado); senão, saída 1. */
     private fun checkStatus(
         requests: JsonArray,
         expected: Int,
@@ -179,10 +174,6 @@ class TestCycle : CoreCliktCommand(name = "test") {
     private fun invalid(message: String): Nothing = fail(message, WAIT_FOR_ERROR)
 }
 
-/**
- * Roda [block] e apaga a URL [id] no fim, passe ou falhe; o Ctrl+C (ou o SIGTERM do CI cancelando o job) também
- * apaga, pelo gancho de desligamento. Uma vez só, quem chegar primeiro.
- */
 private fun BaseCliktCommand<*>.deletingAtTheEnd(
     site: WebhookServer,
     id: TokenId,

@@ -99,10 +99,6 @@ private fun JsonElement.isStrict(): Boolean =
         is JsonPrimitive -> isString || content in JSON_LITERALS || JSON_NUMBER.matches(content)
     }
 
-/**
- * As opções da espera, as mesmas no `wait-for` e no `test`: o `match` (por `--match`, `--match-file` e os atalhos),
- * quantas mensagens e por quanto tempo.
- */
 class WaitOptions : OptionGroup() {
     private val match by option("--match", help = "JSON object in the format of a response rule's match")
     private val matchFile by option("--match-file", help = "File with the match JSON object")
@@ -117,10 +113,8 @@ class WaitOptions : OptionGroup() {
         .long()
         .default(DEFAULT_TIMEOUT_MS)
 
-    /** O `match` montado: o objeto de `--match` ou `--match-file` (ou `{}`) com os atalhos por cima. */
     fun match(invalid: (String) -> Nothing): JsonObject = shortcuts(invalid).applyTo(baseMatch(invalid))
 
-    /** O corpo do `requests/wait` com [match], [after] (quando há) e o `--count`; o `timeout` é o `--timeout`, ou o dado. */
     fun body(
         match: JsonObject,
         after: Long?,
@@ -163,7 +157,6 @@ class WaitOptions : OptionGroup() {
     }
 }
 
-/** O texto de [file]; arquivo que não existe ou não se lê vai para [invalid]. */
 fun readFile(
     file: String,
     invalid: (String) -> Nothing,
@@ -176,11 +169,7 @@ fun readFile(
         invalid("Could not read $file: ${e.reason()}")
     }
 
-/**
- * `POST /token/{id}/requests/wait` com [match], [after] e as opções de [wait], impresso como o `wait-for` imprime: o
- * stdout só com o array das que casaram (pronto para o `jq`), o resumo no stderr. 422, token inexistente e servidor
- * fora saem com [WAIT_FOR_ERROR]; o "não casou" volta em [WaitResult.matched], para quem chama decidir.
- */
+/** Espera e imprime como o `wait-for`; o "não casou" não sai: volta em [WaitResult.matched], para quem chama decidir. */
 fun BaseCliktCommand<*>.awaitMatching(
     site: WebhookServer,
     token: TokenId,
@@ -194,11 +183,6 @@ fun BaseCliktCommand<*>.awaitMatching(
     return result
 }
 
-/**
- * `POST /token/{id}/requests/wait` com [body] ([WaitOptions.body]), sem imprimir nada; o prazo HTTP é o `timeout` do
- * corpo mais a folga. Com `timeout` 0 o servidor só olha o que já chegou e responde logo: é como o `test` confere o
- * `match` antes do gatilho. 422, token inexistente e servidor fora saem com [WAIT_FOR_ERROR].
- */
 fun BaseCliktCommand<*>.requestWait(
     site: WebhookServer,
     token: TokenId,

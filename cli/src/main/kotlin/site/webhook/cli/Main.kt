@@ -126,7 +126,6 @@ fun BaseCliktCommand<*>.fail(
     throw ProgramResult(status)
 }
 
-/** O 422 da API (chave em notação de ponto → mensagens): cada `chave: mensagem` numa linha do stderr. */
 fun BaseCliktCommand<*>.echoErrors(errors: Map<String, List<String>>) =
     errors.forEach { (key, messages) -> messages.forEach { echo("$key: $it", err = true) } }
 
