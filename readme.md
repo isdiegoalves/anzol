@@ -15,7 +15,7 @@ da API e do webhook (licença MIT, ver [`LICENSE`](LICENSE)):
 | Tela | Angular 22 + Angular Material | `frontend/` |
 | Armazenamento | Redis 8.10 (tokens expiram em 7 dias) | serviço `redis` do compose |
 | Contrato caixa-preta da API e do evento | Playwright | `tests/contract/` |
-| CLI (`anzol listen`, `replay`, `rules`, `send`, `wait-for`, `cursor`) | Kotlin 2.4 + Clikt; roda em Java 21 ou mais novo (o build usa o JDK 25) | `cli/` |
+| CLI (`anzol listen`, `replay`, `rules`, `send`, `wait-for`, `cursor`, `test`) | Kotlin 2.4 + Clikt; roda em Java 21 ou mais novo (o build usa o JDK 25) | `cli/` |
 
 Uma imagem só (`Dockerfile` da raiz): o Node constrói o Angular, o Gradle embute o build no jar
 e o Spring Boot serve a API e a tela na mesma porta.
@@ -28,6 +28,24 @@ docker compose up -d --build
 
 Abra <http://localhost:8084>. Os dados do Redis ficam no volume `anzol_redis-data` e
 sobrevivem a `docker compose down` (só `docker compose down -v` os apaga).
+
+### Imagem publicada
+
+Sem clonar o repositório: a imagem `ghcr.io/isdiegoalves/anzol` sai a cada tag de versão `vX.Y.Z`, para amd64 e arm64
+(tags `X.Y.Z`, `X.Y` e `latest`, listadas em <https://github.com/isdiegoalves/anzol/pkgs/container/anzol>). O app
+escuta na 8080 do container e acha o Redis por `REDIS_HOST`:
+
+```bash
+docker network create anzol
+docker run -d --name anzol-db --network anzol -v anzol-db:/data redis:8.10.2-alpine \
+  redis-server --maxmemory 1gb --maxmemory-policy noeviction
+docker run -d --name anzol --network anzol -p 127.0.0.1:8084:8080 -e REDIS_HOST=anzol-db \
+  ghcr.io/isdiegoalves/anzol:0.1.0
+```
+
+Assim sobem só os padrões do app (sem MCP, IA, observabilidade nem saída para a rede privada; ver
+[Configuração](#configuração)). Sem uma tag publicada, construa a imagem na raiz (`docker build -t anzol .`) e use
+`anzol` no lugar do nome.
 
 ### Configuração
 
@@ -60,6 +78,39 @@ fora do ar o app segue normal. Métricas de negócio: `webhook_requests_captured
 `ok`/`invalid`/`error` e `model`; nada do prompt nem da mensagem). Cada chamada ao LLM vira também um span do Spring AI.
 Cada captura vira um trace com o token em `span.webhook.token`, e os logs levam o `trace_id`. O dashboard e a
 importação no Grafana estão em [`observability/`](observability/README.md).
+
+## Primeiro uso
+
+Com o app no ar em <http://localhost:8084>:
+
+1. **Uma URL.** Abra a tela, que cria uma, ou peça à API:
+
+   ```bash
+   curl -s -X POST -H 'Accept: application/json' http://localhost:8084/token
+   # {"uuid":"9f3c…e21a","ip":"172.18.0.1",…,"default_status":200,…}
+   ```
+
+2. **Uma requisição.** Tudo o que chega em `http://localhost:8084/<uuid>`, com qualquer método e caminho depois, é
+   gravado e aparece na hora em `http://localhost:8084/#/<uuid>`:
+
+   ```bash
+   curl -X POST http://localhost:8084/<uuid>/pedidos -H 'Content-Type: application/json' -d '{"status":"pago"}'
+   ```
+
+3. **O CLI.** Entrega o que chega na URL ao app que roda na sua máquina (ver [CLI](#cli)):
+
+   ```bash
+   (cd cli && ./gradlew installDist)       # JDK 25 para construir; roda em Java 21 ou mais novo
+   export PATH="$PWD/cli/build/install/anzol/bin:$PATH"
+   anzol listen --forward http://localhost:3000
+   ```
+
+4. **Um teste de CI.** O `anzol test` cria a URL, roda o comando que faz o seu app mandar o webhook, espera, confere e
+   apaga a URL; a saída diz ao CI se passou (ver [`anzol test`](#anzol-test), com um workflow do GitHub Actions):
+
+   ```bash
+   anzol test --method POST --path /pedidos --json-path '$.status=pago' -- ./dispara-pedido.sh {url}
+   ```
 
 ## API
 
@@ -635,9 +686,9 @@ da URL são fechadas (quem reconectar passa de novo pelo acesso) e **todos os li
 ### CLI e MCP
 
 No CLI, `--read-secret <segredo>` (depois do subcomando, como o `--server`) ou a variável `WEBHOOK_READ_SECRET` põe o
-cabeçalho em `listen`, `replay`, `wait-for` e `rules`. URL protegida sem o segredo certo: `This URL is protected: pass
---read-secret or set WEBHOOK_READ_SECRET` no stderr e saída 1 (2 no `wait-for`). O segredo nunca é impresso. Só ASCII
-imprimível: o cliente HTTP do Java troca os demais caracteres por `?` num cabeçalho.
+cabeçalho em `listen`, `replay`, `wait-for`, `rules`, `cursor` e `test`. URL protegida sem o segredo certo: `This URL is
+protected: pass --read-secret or set WEBHOOK_READ_SECRET` no stderr e saída 1 (2 no `wait-for` e no `test`). O segredo
+nunca é impresso. Só ASCII imprimível: o cliente HTTP do Java troca os demais caracteres por `?` num cabeçalho.
 
 ```bash
 WEBHOOK_READ_SECRET='meu-segredo' anzol listen --token <uuid> --forward http://localhost:3000
@@ -733,10 +784,10 @@ São 15 ferramentas:
 | `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search`, `POST .../requests/wait` |
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
 | `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
+| `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
 
 O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
 ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão.
-| `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
 rota devolveria, com o segredo de assinatura mascarado. Validação, URL ou mensagem inexistente e limite viram erro de
@@ -808,7 +859,8 @@ Entrega os webhooks que chegam na URL direto no app que você está desenvolvend
 `stripe listen`: sem aba aberta e sem CORS.
 Também baixa e sobe as [regras de resposta](#regras-de-resposta) da URL como arquivo JSON.
 Com o `send`, faz o papel do provedor: dispara webhooks assinados, com retentativas, para o seu app.
-Com o `wait-for`, um teste automatizado espera o webhook chegar, sem `sleep`.
+Com o `wait-for`, um teste automatizado espera o webhook chegar, sem `sleep`; com o `test`, o teste de CI inteiro
+cabe num comando.
 
 ### Instalar
 
@@ -1043,10 +1095,125 @@ mensagem foi avaliada).
 
 Quem corta a espera é o servidor: o prazo HTTP do CLI é o `--timeout` mais 10 s.
 
+### `anzol test`
+
+O teste de CI num comando só: cria uma URL, roda o comando que faz o seu app mandar o webhook (o gatilho, depois do
+`--`), espera a requisição chegar com as condições do [`wait-for`](#anzol-wait-for), confere o status que a URL
+respondeu e apaga a URL, passe ou falhe. Usa as rotas de sempre da API, sem `curl` nem `jq`.
+
+```bash
+# {url} no gatilho vira a URL criada; a regra do arquivo responde 202 ao POST em /pedidos
+anzol test --rules regras.json --method POST --path /pedidos --json-path '$.status=pago' --status 202 \
+  -- ./dispara-pedido.sh {url}
+
+# sem gatilho: mostra a URL e espera o webhook mandado de fora (outro job, um provedor de verdade)
+anzol test --path /pedidos --timeout 120000
+
+# numa URL que já existe (não é apagada no fim)
+anzol test --token <uuid> --path /pedidos -- ./dispara-pedido.sh {url}
+```
+
+```
+$ anzol test --rules regras.json --method POST --path /pedidos --json-path '$.status=pago' --status 202 -- ./dispara-pedido.sh {url}
+url: http://localhost:8084/31c2…f633 (created; deleted at the end)
+rules: pushed 1 rule(s) from regras.json
+cursor: 0
+trigger: ./dispara-pedido.sh exited with 0 after 202 ms
+[{"uuid":"7951…c91b","token_id":"31c2…f633","method":"POST",…,"rule":{"id":"9191…8ab6","name":"Pedido aceito"},…,"response":{"status":202},"seq":1790640792929422}]
+matched 1/1 in 5 ms
+status: 1/1 answered 202
+url: deleted
+```
+
+Na ordem, o que ele faz:
+
+1. Cria a URL, ou usa a do `--token`.
+2. Com `--rules`, troca as regras da URL pelas do arquivo, como o `rules push` (o 422 sai como no `rules push`).
+3. Lê o cursor (o mesmo número do `anzol cursor`) **antes** do gatilho: só conta o que chegar depois dele, e o webhook
+   que chega antes de a espera começar não se perde. Numa URL criada ali, o cursor é `0`.
+4. Pede ao servidor que confira o `match` e o `--count` (um `requests/wait` com `timeout` 0, que responde na hora):
+   recusados, o gatilho nem roda.
+5. Roda o gatilho até ele sair. `{url}`, em qualquer argumento, vira a URL; o ambiente dele ganha `ANZOL_URL` e
+   `ANZOL_TOKEN`. O stdout e o stderr do gatilho vão para o stderr, e só o nome do programa é impresso (os argumentos
+   podem ter segredo). Sem gatilho, imprime `waiting: send the requests to <url>`.
+6. Espera como o `wait-for --after <cursor>`.
+7. Com `--status`, confere que cada mensagem que casou foi respondida com esse status (o `response.status` gravado:
+   o da regra que respondeu ou o padrão da URL).
+8. Apaga a URL que criou, também quando falha, no Ctrl+C e no SIGTERM de um job cancelado.
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| `-- <gatilho> [argumentos]` | nenhum | O comando que faz o seu app mandar o webhook |
+| `--token <uuid>` | cria uma URL | Usa uma URL que já existe e não a apaga no fim |
+| `--rules <arquivo>` | — | Arquivo JSON com a lista de regras, no formato do `rules pull` |
+| `--status N` | — | Toda mensagem que casou tem de ter sido respondida com `N` |
+| `--match`, `--match-file`, `--method`, `--path`, `--header`, `--body-contains`, `--json-path`, `--count`, `--timeout` | os do `wait-for` | As condições e o prazo, [como no `wait-for`](#anzol-wait-for) |
+
+A URL do `{url}` é o `--server` mais o token: o app que manda o webhook precisa alcançar o servidor por esse endereço.
+No zsh, `{url}` logo antes de um redirecionamento (`… {url} > saida.json`) vira descritor de arquivo e some da linha;
+ponha entre aspas (`'{url}'`) ou leia a URL de `ANZOL_URL`.
+
+**Saída.** O stdout é o do `wait-for`: só o array JSON das mensagens que casaram. O stderr tem uma linha por passo
+(`url:`, `rules:`, `cursor:`, `trigger:`, o resumo do `wait-for`, `status:`), a saída do gatilho e, na falha, o
+`closest` do `wait-for`, que diz qual condição a mensagem mais perto não cumpriu:
+
+```
+timed out after 2009 ms: 0/1 matched
+closest: #1790640756737566 a47f…6a0
+  - body $.status: expected "cancelado", got "pago"
+url: deleted
+```
+
+| Situação | Saída |
+|---|---|
+| As mensagens chegaram (e o `--status` bateu) | 0 |
+| O prazo acabou sem casar, ou alguma que casou foi respondida com outro status | 1 |
+| Uso inválido, `--rules` ou `match` recusados pelo servidor (422), `Token not found` ou servidor fora do ar | 2 |
+| O gatilho não subiu ou saiu com código diferente de 0 (a espera não começa) | 3 |
+
+No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](#imagem-publicada), e o CLI é construído do
+fonte da mesma versão:
+
+```yaml
+jobs:
+  webhook:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.10.2-alpine
+      anzol:
+        image: ghcr.io/isdiegoalves/anzol:0.1.0
+        ports: ["8084:8080"]
+        env:
+          REDIS_HOST: redis
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: isdiegoalves/anzol
+          ref: v0.1.0
+          path: .anzol
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: CLI do Anzol
+        run: |
+          (cd .anzol/cli && ./gradlew --no-daemon -q installDist)
+          echo "$PWD/.anzol/cli/build/install/anzol/bin" >> "$GITHUB_PATH"
+      # a imagem não tem curl para um health-cmd: o passo espera a tela responder
+      - name: Anzol no ar
+        run: timeout 60 sh -c 'until curl -sf -o /dev/null http://localhost:8084/; do sleep 1; done'
+      - run: anzol test --rules regras.json --method POST --path /pedidos --status 202 -- ./dispara-pedido.sh {url}
+```
+
+Os serviços se acham pelo nome (`REDIS_HOST: redis`), e o CLI e o gatilho, que rodam no runner, falam com o Anzol em
+`localhost:8084`, o padrão do `--server`.
+
 ### Servidor
 
 `--server <url>`, senão a variável `WEBHOOK_SERVER`, senão `http://localhost:8084`. Vale para `listen`,
-`replay`, `rules` e `wait-for` (o `send` fala direto com o `--to`) e vem depois do subcomando: `anzol listen --server https://hooks.exemplo --forward …`,
+`replay`, `rules`, `wait-for`, `cursor` e `test` (o `send` fala direto com o `--to`) e vem depois do subcomando: `anzol listen --server https://hooks.exemplo --forward …`,
 `anzol rules pull <token> --server https://hooks.exemplo`. URL protegida: `--read-secret`, na mesma posição, ou
 `WEBHOOK_READ_SECRET` (ver [Privacidade](#cli-e-mcp)).
 
