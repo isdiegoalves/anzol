@@ -951,6 +951,28 @@ describe('Dado a tela principal', () => {
     expect(root.querySelector('app-request-detail')).not.toBeNull();
   });
 
+  it('deve manter a lista à frente no celular Quando outro filtro deixa de fora a que a tela reabriu', async () => {
+    windowClass.set('compact');
+    await openToken(`/${TOKEN_ID}`);
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    const root = harness.routeNativeElement as HTMLElement;
+
+    await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid`);
+    const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
+    search.flush(requestPage([R2], { total: 1 }));
+    const kept = http.match(`/token/${TOKEN_ID}/request/${R1.uuid}`);
+    kept.forEach((call) => call.flush(R1));
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?signature=invalid`));
+    await vi.waitFor(() => {
+      http.match(`/token/${TOKEN_ID}/request/${R1.uuid}`).forEach((call) => call.flush(R1));
+      expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R1.uuid);
+    });
+    await harness.fixture.whenStable();
+
+    expect(root.querySelector('app-request-list')).not.toBeNull();
+    expect(root.querySelector('app-request-detail')).toBeNull();
+  });
+
   it('deve abrir o detalhe em tela cheia pelo link permanente Quando a janela é estreita (CA-8/CA-9)', async () => {
     windowClass.set('compact');
     await openToken(`/${TOKEN_ID}/${R2.uuid}/1`);

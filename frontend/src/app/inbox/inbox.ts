@@ -661,7 +661,10 @@ export class Inbox {
     }
     if (this.requestId() === requestId) {
       this.requests.selectOutsideList(request);
-      this.showDetail.set(true);
+      // A que a tela reabriu fora do filtro novo não vem para a frente; o link, sim.
+      if (requestId !== this.chosenByScreen) {
+        this.showDetail.set(true);
+      }
     }
   }
 
