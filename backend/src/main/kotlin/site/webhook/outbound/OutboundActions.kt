@@ -38,13 +38,13 @@ class OutboundActions(
     private val store: OutboundStore,
     private val clock: Clock,
 ) {
-    /** [body] é o JSON do pedido (`{"url", "keep_path"?, "timeout"?}`). */
+    /** [body] é o JSON do pedido (`{"url", "keep_path"?, "timeout"?, "chaos"?}`). */
     fun replay(
         token: Token,
         message: CapturedRequest,
         body: String,
     ): Dispatch =
-        when (val parsed = parseReplay(body)) {
+        when (val parsed = parseReplay(body, hasBody = message.content.isNotEmpty())) {
             is Parsed.Valid -> replay(token, message, parsed.value)
             is Parsed.Invalid -> Dispatch.Invalid(parsed.errors)
         }

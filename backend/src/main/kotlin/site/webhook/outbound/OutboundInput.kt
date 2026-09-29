@@ -22,11 +22,12 @@ private const val DEFAULT_TIMEOUT_MS = 10_000L
 private val METHODS = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
 private const val DEFAULT_METHOD = "POST"
 
-/** Corpo do `POST /token/{id}/request/{rid}/replay`, já validado. */
+/** Corpo do `POST /token/{id}/request/{rid}/replay`, já validado; [chaos] nulo quando o pedido não o trouxe. */
 data class ReplayInput(
     val url: String,
     val keepPath: Boolean,
     val timeout: Duration,
+    val chaos: Chaos?,
 )
 
 /** Corpo do `POST /token/{id}/send`, já validado; [headers] na ordem e na caixa em que vieram. */
@@ -39,14 +40,23 @@ data class SendInput(
     val timeout: Duration,
 )
 
-/** `{"url", "keep_path"?, "timeout"?}`; corpo vazio vale `{}`; o que não é objeto JSON cai em `replay`. */
-fun parseReplay(body: String): Parsed<ReplayInput> {
+/**
+ * `{"url", "keep_path"?, "timeout"?, "chaos"?}`; corpo vazio vale `{}`; o que não é objeto JSON cai em `replay`.
+ * [hasBody] diz se a mensagem gravada tem corpo (o `abort_mid_body` do [chaos] exige).
+ */
+fun parseReplay(
+    body: String,
+    hasBody: Boolean,
+): Parsed<ReplayInput> {
     val tree = jsonObject(body) ?: return Parsed.Invalid(mapOf("replay" to listOf("The replay must be an object.")))
     val violations = Violations()
     val url = violations.url(tree["url"])
     val keepPath = violations.boolean(tree["keep_path"], "keep_path", default = true)
     val timeout = violations.whole(tree["timeout"], "timeout", TIMEOUT_MS, default = DEFAULT_TIMEOUT_MS)
-    return violations.result { ReplayInput(checkNotNull(url), checkNotNull(keepPath), Duration.ofMillis(checkNotNull(timeout))) }
+    val chaos = violations.chaos(tree["chaos"], timeout, hasBody)
+    return violations.result {
+        ReplayInput(checkNotNull(url), checkNotNull(keepPath), Duration.ofMillis(checkNotNull(timeout)), chaos)
+    }
 }
 
 /**
