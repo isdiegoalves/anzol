@@ -93,7 +93,7 @@
   min-height: 0;
 }
 
-// Item de duas linhas e 40 px (B1): 20 px de caminho e 18 de selos, embaixo da régua de 1 px; o
+// Item de duas linhas e 40 px (B1): 18 px de caminho e 18 de selos, embaixo da régua de 1 px; o
 // botão da linha cobre o item inteiro.
 // `container-type: inline-size`: o conteúdo não alarga o item; sem isso, a lista virtual cresce até
 // a largura da linha mais longa, e as reticências nunca aparecem.
@@ -210,7 +210,11 @@ app-event-line {
 }
 
 .route-line {
-  line-height: 20px;
+  line-height: 18px;
+
+  app-method-badge {
+    height: 18px;
+  }
 }
 
 .id {

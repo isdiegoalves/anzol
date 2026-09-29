@@ -78,7 +78,11 @@
 }
 
 .line:first-child {
-  line-height: 20px;
+  line-height: 18px;
+
+  app-method-badge {
+    height: 18px;
+  }
 }
 
 // O valor da chave é o que distingue os eventos: o caminho cede antes dele, o começo primeiro.
