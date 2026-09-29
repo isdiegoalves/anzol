@@ -48,7 +48,14 @@ export interface Gotejamento {
   durationMs: number;
 }
 
-export type Falha = 'connection_reset' | 'empty_response' | 'malformed_chunk' | 'random_data_then_close';
+export type Falha =
+  | 'connection_reset'
+  | 'empty_response'
+  | 'malformed_chunk'
+  | 'random_data_then_close'
+  | 'hang'
+  | 'stall_after_headers'
+  | 'truncated_body';
 
 export interface RespostaRegra {
   status?: number;
@@ -58,7 +65,10 @@ export interface RespostaRegra {
   template?: boolean;
   delay?: Atraso | null;
   dribble?: Gotejamento | null;
-  /** Com `fault`, status, cabeçalhos, corpo, `delay` e `dribble` são ignorados. */
+  /**
+   * Com `fault`, `delay` e `dribble` são ignorados; status, cabeçalhos e corpo também, menos em `stall_after_headers` e
+   * `truncated_body`, que os mandam.
+   */
   fault?: Falha | null;
 }
 
