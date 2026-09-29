@@ -58,6 +58,24 @@
   font: var(--mat-sys-body-medium);
 }
 
+// A lista que espera a primeira requisição mostra o anzol como desenho técnico, com cotas.
+@media (width >= 600px) {
+  .waiting {
+    flex-wrap: wrap;
+  }
+
+  .waiting::after {
+    content: '';
+    flex: 1 0 100%;
+    height: 200px;
+    margin: 40px 8px 0;
+    background-color: var(--mat-sys-outline);
+    mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 230' fill='none' stroke='black' stroke-linecap='round'><g stroke-width='2.5'><circle cx='130' cy='42' r='16'/><path d='M130 58v72a40 40 0 0 1-80 0v-24M50 106l24 24'/></g><g stroke-width='1'><path d='M154 26h44M100 170h98M190 26v144M185 31l10-10M185 175l10-10'/><path d='M50 140v73M130 140v73M50 205h80M45 210l10-10M125 210l10-10'/><path d='M84 130h12M90 124v12M90 130 63 157'/></g><path stroke-width='1' stroke-dasharray='8 3 2 3' d='M106 42h48M130 20v30'/></svg>")
+      center top / contain no-repeat;
+    opacity: 0.7;
+  }
+}
+
 .list {
   position: relative;
   display: flex;
@@ -119,6 +137,11 @@
   &:focus-within .delete {
     opacity: 1;
   }
+}
+
+// A nota da trilha ("chegou antes", "esperou") segue a aresta reta das outras notas.
+app-event-note {
+  --mat-sys-corner-small: 0;
 }
 
 // Régua entre as entradas de primeiro nível (requisição e evento); as tentativas de um evento
@@ -364,7 +387,7 @@ app-event-line {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--mat-sys-on-surface-variant);
-    font: var(--mat-sys-label-large);
+    font: var(--mat-sys-label-medium);
   }
 
   app-check-chip[data-kind='schema'][data-state='valid'] {

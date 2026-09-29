@@ -2,7 +2,8 @@
   display: inline-flex;
 }
 
-// O botão é o alvo (52 × 44); o trilho do M3 (52 × 32) fica no meio.
+// O botão é o alvo (52 × 44); o trilho, pequeno e retangular como o switch do Material do tema,
+// fica no meio.
 .switch {
   display: inline-flex;
   align-items: center;
@@ -24,21 +25,21 @@
 .track {
   position: relative;
   box-sizing: border-box;
-  width: 52px;
-  height: 32px;
-  border: 2px solid var(--mat-sys-outline);
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-surface-container-highest);
+  width: 38px;
+  height: 20px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-lowest);
   transition: background-color 100ms linear;
 }
 
 .handle {
   position: absolute;
   top: 50%;
-  left: 6px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--mat-sys-corner-extra-small);
   background: var(--mat-sys-outline);
   transform: translateY(-50%);
   transition:
@@ -54,9 +55,9 @@
   }
 
   .handle {
-    left: 22px;
-    width: 24px;
-    height: 24px;
+    left: 19px;
+    width: 14px;
+    height: 14px;
     background: var(--mat-sys-on-primary);
   }
 }

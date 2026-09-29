@@ -47,10 +47,11 @@
   color: var(--mat-sys-on-error-container);
 }
 
+// Seções de relatório, não cartões: régua em cima, título, o dado embaixo.
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
-  gap: 16px;
+  gap: 12px 40px;
 }
 
 .wide {
@@ -58,11 +59,11 @@
 }
 
 app-pane {
-  border: 1px solid var(--mat-sys-outline-variant);
+  border-top: 1px solid var(--mat-sys-outline-variant);
 }
 
 .body {
-  padding: 0 16px 16px;
+  padding: 0 0 20px;
 }
 
 .window,
@@ -71,32 +72,41 @@ app-pane {
   color: var(--mat-sys-on-surface-variant);
 }
 
+// Os números do resumo como uma linha de tabela: rótulo pequeno, o número grande e tabular, e uma
+// régua fina entre eles.
 .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  margin: 0 0 12px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px 0;
+  margin: 4px 0 16px;
 }
 
 .kpi {
-  padding: 12px;
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface-container);
+  display: flex;
+  flex-direction: column;
+  padding: 2px 16px 2px 14px;
+  border-left: 1px solid var(--mat-sys-outline-variant);
 
   dt {
-    font: var(--mat-sys-label-large);
+    font: var(--mat-sys-label-medium);
     color: var(--mat-sys-on-surface-variant);
   }
 
   dd {
     display: flex;
     flex-direction: column;
-    margin: 4px 0 0;
+    margin: 6px 0 0;
   }
 
   .value {
-    font: var(--mat-sys-headline-small);
-    font-variation-settings: var(--app-heading-variation);
+    font: var(--mat-sys-headline-medium);
+    letter-spacing: -0.01em;
+  }
+
+  a.value {
+    align-self: flex-start;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 6px;
   }
 
   .of {
@@ -190,7 +200,7 @@ app-pane {
 
 // Janela do resumo (RULES-38), ao lado de Refresh e do Grafana: campo contornado como o do Health.
 .window-select {
-  width: 130px;
+  width: 184px;
 }
 
 a.value,
@@ -220,12 +230,38 @@ a.rule,
   font: var(--mat-sys-body-small);
 }
 
+// Uma resposta por linha, com régua, como o índice de um manual; cada linha inteira é o link.
 .answers {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
   list-style: none;
   font-variant-numeric: tabular-nums;
+
+  li {
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  a,
+  span {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 4px;
+
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
+  }
+
+  a {
+    text-decoration: none;
+
+    &:hover {
+      background: var(--mat-sys-surface-container-high);
+      text-decoration: underline;
+    }
+  }
 }

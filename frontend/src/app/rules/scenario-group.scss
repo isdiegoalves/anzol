@@ -5,11 +5,12 @@
   gap: 4px 8px;
 }
 
+// O estado do cenário é dado, como o status: código numa moldura fina, sem cor de destaque.
 .state {
-  padding: 2px 8px;
-  border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-tertiary-container);
-  color: var(--mat-sys-on-tertiary-container);
+  padding: 1px 8px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-extra-small);
+  color: var(--mat-sys-on-surface);
   font-family: var(--app-code-family);
 }
 
@@ -17,8 +18,9 @@
 .terminal {
   flex-basis: 100%;
   margin: 0;
-  padding: 4px 8px;
-  border-radius: var(--mat-sys-corner-extra-small);
+  padding: 4px 8px 4px 10px;
+  border-left: var(--app-note-rule) solid var(--app-warning);
+  border-radius: 0;
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
   font: var(--mat-sys-body-small);

@@ -1,12 +1,14 @@
 @use '@angular/material' as mat;
 
-// Cartão de Checks (Signature, Schema, Response, Privacy, Health): superfície, cabeçalho e textos.
+// Cartão de Checks (Signature, Schema, Response, Privacy, Health): uma seção do manual, aberta por
+// uma régua, sem caixa.
 :host {
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  padding: 20px 24px 22px;
+  padding: 20px 0 28px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--app-pane-shape);
   background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
@@ -36,39 +38,25 @@
   }
 }
 
-// Ícone do cartão em quadrado tonal de 40 px, na cor do papel (protótipo C).
+// Ícone do cartão como vinheta de capítulo: o traço em tinta de ação, sem ladrilho.
 .card-icon {
   display: grid;
   flex: none;
   place-items: center;
-  width: 40px;
+  width: 28px;
   height: 40px;
-  border-radius: var(--mat-sys-corner-medium);
-
-  &.primary {
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
-  }
-
-  &.secondary {
-    background: var(--mat-sys-secondary-container);
-    color: var(--mat-sys-on-secondary-container);
-  }
-
-  &.tertiary {
-    background: var(--mat-sys-tertiary-container);
-    color: var(--mat-sys-on-tertiary-container);
-  }
+  color: var(--mat-sys-primary);
 }
 
 .spacer {
   flex: 1;
 }
 
+// O estado da seção em texto com glifo, como o selo da lista: ligada em tinta com o ✓ verde.
 .state {
-  padding: 2px 10px;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-surface-container-high);
+  padding: 2px 8px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-extra-small);
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-label-medium);
 
@@ -76,14 +64,17 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 28px;
+    height: 26px;
     box-sizing: border-box;
-    border-radius: var(--mat-sys-corner-small);
-    background: var(--app-success-container);
-    color: var(--app-on-success-container);
+    color: var(--mat-sys-on-surface);
+
+    app-icon {
+      color: var(--app-success);
+    }
   }
 
   &.draft {
+    border-color: transparent;
     background: var(--app-warning-container);
     color: var(--app-on-warning-container);
   }
@@ -100,20 +91,23 @@ h3 {
   font: var(--mat-sys-body-small);
 }
 
+// Aviso como nota de margem: a régua na cor do tom e uma lavagem clara só no de atenção.
 .banner {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   margin: 0;
-  padding: 10px 14px;
-  border-radius: var(--mat-sys-corner-medium);
+  padding: 8px 14px 8px 12px;
+  border-left: var(--app-note-rule) solid var(--app-warning);
+  border-radius: 0;
   background: var(--app-warning-container);
   color: var(--app-on-warning-container);
   font: var(--mat-sys-body-medium);
 
   &.info {
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
+    border-left-color: var(--mat-sys-primary);
+    background: transparent;
+    color: var(--mat-sys-on-surface);
   }
 }
 

@@ -82,21 +82,21 @@ $type-scale: (
 // Papel branco-frio e tinta (claro), papel ardósia (escuro): moldura e painéis no mesmo papel,
 // separados por régua fina; tons de papel só para o bloco de código, o passar do mouse e os selos.
 $paper: (
-  surface: light-dark(#fbfcfc, #1a1e23),
-  surface-bright: light-dark(#fbfcfc, #2a3037),
-  surface-dim: light-dark(#dbe0e4, #15191d),
-  surface-container-lowest: light-dark(#fbfcfc, #1a1e23),
-  surface-container-low: light-dark(#f3f5f7, #20252b),
-  surface-container: light-dark(#fbfcfc, #1a1e23),
-  surface-container-high: light-dark(#edf0f3, #262c33),
-  surface-container-highest: light-dark(#e4e8ec, #2e353d),
-  surface-variant: light-dark(#e4e8ec, #2e353d),
-  background: light-dark(#fbfcfc, #1a1e23),
+  surface: light-dark(#fbfcfc, #1d2227),
+  surface-bright: light-dark(#fbfcfc, #2e343b),
+  surface-dim: light-dark(#dbe0e4, #181c21),
+  surface-container-lowest: light-dark(#fbfcfc, #1d2227),
+  surface-container-low: light-dark(#f3f5f7, #232930),
+  surface-container: light-dark(#fbfcfc, #1d2227),
+  surface-container-high: light-dark(#edf0f3, #2a3037),
+  surface-container-highest: light-dark(#e4e8ec, #323940),
+  surface-variant: light-dark(#e4e8ec, #323940),
+  background: light-dark(#fbfcfc, #1d2227),
   on-background: light-dark(#15191e, #e2e6ea),
   on-surface: light-dark(#15191e, #e2e6ea),
   on-surface-variant: light-dark(#535c66, #a3acb6),
   outline: light-dark(#78818b, #7c8691),
-  outline-variant: light-dark(#d6dce1, #353c44),
+  outline-variant: light-dark(#d6dce1, #3a424b),
   primary: light-dark(#1b5a68, #8cc8d6),
   on-primary: light-dark(#fff, #0a2e37),
   primary-container: light-dark(#dcebef, #1d4651),
@@ -138,7 +138,7 @@ $shape: (
 );
 
 // Sem sombra no papel; só o que sobrepõe (menu, diálogo, arrasto) tem borda fina e sombra curta.
-$overlay-ring: '0 0 0 1px light-dark(#d6dce1, #3d454e)';
+$overlay-ring: '0 0 0 1px light-dark(#d6dce1, #434c56)';
 $elevation: (
   level0: none,
   level1: none,
@@ -172,7 +172,9 @@ html {
       density: 0,
     )
   );
-  @include mat.theme-overrides(map.merge(map.merge(map.merge($paper, $type-scale), $shape), $elevation));
+  @include mat.theme-overrides(
+    map.merge(map.merge(map.merge($paper, $type-scale), $shape), $elevation)
+  );
 
   // Cores do produto que o M3 não tem, no padrão de nome dos tokens de sistema. No Manual, estado é
   // glifo na cor e texto em tinta; os contêineres são lavagens claras, só para anotação.
@@ -204,18 +206,18 @@ html {
   @include mat.slide-toggle-overrides(
     (
       track-height: 20px,
-      track-width: 36px,
+      track-width: 38px,
       track-outline-width: 1px,
       selected-track-outline-width: 1px,
       selected-handle-size: 14px,
       unselected-handle-size: 12px,
       with-icon-handle-size: 14px,
       pressed-handle-size: 14px,
-      selected-icon-size: 10px,
-      unselected-icon-size: 10px,
-      selected-handle-horizontal-margin: 0 19px,
-      selected-with-icon-handle-horizontal-margin: 0 19px,
-      selected-pressed-handle-horizontal-margin: 0 19px,
+      selected-icon-size: 0,
+      unselected-icon-size: 0,
+      selected-handle-horizontal-margin: 0 21px,
+      selected-with-icon-handle-horizontal-margin: 0 21px,
+      selected-pressed-handle-horizontal-margin: 0 21px,
       unselected-handle-horizontal-margin: 0 4px,
       unselected-with-icon-handle-horizontal-margin: 0 3px,
       unselected-pressed-handle-horizontal-margin: 0 3px,
@@ -226,7 +228,6 @@ html {
       unselected-hover-track-color: var(--mat-sys-surface-container-high),
       unselected-focus-track-color: var(--mat-sys-surface-container-high),
       unselected-pressed-track-color: var(--mat-sys-surface-container-high),
-      unselected-icon-color: var(--mat-sys-surface-container-lowest),
     )
   );
 

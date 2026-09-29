@@ -68,8 +68,9 @@ p {
 .url {
   padding: 8px 12px;
   overflow-wrap: anywhere;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-high);
+  background: var(--mat-sys-surface-container-low);
   font-family: var(--app-code-family);
   font-size: 1.1rem;
 }
@@ -104,8 +105,9 @@ p {
   // Parágrafo, não <pre>: o detalhe da mensagem já tem o <pre> do corpo.
   margin: 0;
   padding: 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--mat-sys-corner-small);
-  background: var(--mat-sys-surface-container-high);
+  background: var(--mat-sys-surface-container-low);
   font-family: var(--app-code-family);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -131,10 +133,11 @@ a:not(.card, [mat-button]) {
   color: var(--mat-sys-primary);
 }
 
+// O que a URL sabe fazer em três colunas de índice, separadas por régua, sem cartão.
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  gap: 12px 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -146,14 +149,15 @@ a:not(.card, [mat-button]) {
   gap: 4px;
   height: 100%;
   box-sizing: border-box;
-  padding: 16px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-medium);
+  padding: 8px 16px 10px 14px;
+  border: 0;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0;
   color: var(--mat-sys-on-surface);
   text-decoration: none;
 
   &:hover {
-    background: var(--mat-sys-surface-container-low);
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {

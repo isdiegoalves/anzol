@@ -1,8 +1,8 @@
-// Os três passos num painel tonal, com os números em tertiary-container (CHECKS-07).
+// Os três passos como a figura de um manual: entre duas réguas, com o número numa chamada
+// circular de traço fino (CHECKS-07).
 .steps-panel {
-  padding: 14px 16px;
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container);
+  padding: 16px 0;
+  border-block: 1px solid var(--mat-sys-outline-variant);
 }
 
 .steps {
@@ -28,12 +28,14 @@
   display: grid;
   flex: none;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-tertiary-container);
-  color: var(--mat-sys-on-tertiary-container);
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--mat-sys-on-surface);
+  border-radius: 50%;
+  color: var(--mat-sys-on-surface);
   font: var(--mat-sys-label-medium);
+  font-weight: 700;
 }
 
 // A tabela dos provedores é o seletor: uma linha por provedor, a escolhida em destaque (fundo,
@@ -72,7 +74,7 @@
   cursor: pointer;
 
   &:hover {
-    background: var(--mat-sys-surface-container);
+    background: var(--mat-sys-surface-container-high);
   }
 
   &:focus-visible {
@@ -169,8 +171,9 @@
 .example {
   display: block;
   padding: 12px 14px;
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface-container);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+  background: var(--mat-sys-surface-container-low);
   font: 13px / 22px var(--app-code-family);
   word-break: break-all;
   white-space: pre-wrap;
