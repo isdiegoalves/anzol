@@ -110,6 +110,7 @@ export class Shell {
   private readonly switching = signal<string | null>(null);
   protected readonly sheet = signal<Sheet | null>(null);
   private opener: HTMLElement | null = null;
+  private searchWait: ReturnType<typeof setTimeout> | undefined;
 
   /** O endereço do destino cujo pedaço não carregou; `null` quando a navegação dá certo. */
   protected readonly failedUrl = signal<string | null>(null);
@@ -282,6 +283,7 @@ export class Shell {
       },
       inject(DestroyRef),
     );
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.searchWait));
   }
 
   /** O destino que o rail marcou e o `main` não conseguiu mostrar. */
@@ -517,11 +519,11 @@ export class Shell {
     afterNextRender(() => this.focusSearch(), { injector: this.injector });
   }
 
-  /** A busca só existe com a lista carregada: espera por ela (até 3 s). */
+  /** A busca só existe com a lista carregada: espera por ela (até 3 s, ou até o shell sair). */
   private focusSearchWhenReady(left = 60): void {
     this.screen.searchOpen.set(true);
     if (!this.focusSearch() && left > 0) {
-      setTimeout(() => this.focusSearchWhenReady(left - 1), 50);
+      this.searchWait = setTimeout(() => this.focusSearchWhenReady(left - 1), 50);
     }
   }
 
@@ -557,7 +559,7 @@ export class Shell {
   }
 
   private focusSearch(): boolean {
-    const box = document.querySelector<HTMLInputElement>('[role="search"] input');
+    const box = this.document.querySelector<HTMLInputElement>('[role="search"] input');
     box?.focus();
     return !!box;
   }

@@ -394,6 +394,21 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       await vi.waitFor(() => expect(TestBed.inject(ScreenState).searchOpen()).toBe(true));
       TestBed.inject(ScreenState).searchOpen.set(false);
     });
+
+    it('deve parar de esperar pela busca Quando o shell sai antes de a lista chegar', async () => {
+      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+      await userEvent.click(screen.getByRole('button', { name: 'Search requests' }));
+      await vi.waitFor(() => expect(TestBed.inject(ScreenState).searchOpen()).toBe(true));
+      const procuras = vi.spyOn(document, 'querySelector');
+
+      fixture.destroy();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(
+        procuras.mock.calls.filter(([seletor]) => seletor === '[role="search"] input'),
+      ).toEqual([]);
+      procuras.mockRestore();
+    });
   });
 
   describe('Dado a faixa "sem conexão" (B1, UX-16)', () => {
