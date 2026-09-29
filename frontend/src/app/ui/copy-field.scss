@@ -16,10 +16,8 @@
   color: var(--mat-sys-primary);
 }
 
-// Da altura do campo: o toque em qualquer ponto dele seleciona a URL.
 .value {
   flex: 1;
-  align-self: stretch;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -33,6 +31,11 @@
     outline: 3px solid var(--mat-sys-primary);
     outline-offset: 4px;
     border-radius: var(--mat-sys-corner-extra-small);
+  }
+
+  // Com toque, da altura do campo: tocar em qualquer ponto dele seleciona a URL.
+  @media (pointer: coarse) {
+    align-self: stretch;
   }
 }
 
