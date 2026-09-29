@@ -1,6 +1,15 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
-import { Component, computed, inject, input, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  viewChild,
+} from '@angular/core';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { EventGrouping } from '../requests/event-grouping';
 import { FilterChips, ValueTarget } from '../search/filter-chips';
@@ -25,6 +34,7 @@ export const FILTER_VALUE_MAX = 200;
       [attr.aria-label]="name()"
       [matMenuTriggerFor]="menu"
       (menuOpened)="focusFirst()"
+      (menuClosed)="keepFocus()"
     >
       <ng-content />
     </button>
@@ -84,6 +94,8 @@ export class ValueActions {
   private readonly grouping = inject(EventGrouping);
   private readonly clipboard = inject(Clipboard);
   private readonly announcer = inject(LiveAnnouncer);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly injector = inject(Injector);
   private readonly menu = viewChild.required(MatMenu);
 
   readonly target = input.required<ValueTarget>();
@@ -107,6 +119,21 @@ export class ValueActions {
 
   protected focusFirst(): void {
     this.menu().focusFirstItem('keyboard');
+  }
+
+  /**
+   * Um Esc logo depois de abrir fecha o menu antes de o Material pôr o foco no primeiro item, e ele
+   * põe mesmo assim, num menu que está saindo: o foco cairia no body.
+   */
+  protected keepFocus(): void {
+    afterNextRender(
+      () => {
+        if (document.activeElement?.closest('.mat-mdc-menu-panel')) {
+          this.host.querySelector<HTMLElement>('.value')?.focus();
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   protected filter(exclude: boolean): void {
