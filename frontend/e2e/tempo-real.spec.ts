@@ -45,9 +45,11 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     const requestId = await tokens.send(tokenId, { data: 'ao vivo' });
 
     await expect(item(page, requestId)).toBeVisible();
-    await expect(anuncios(page).filter({ hasText: /\b1 new request\b/ })).toHaveCount(1, {
-      timeout: 15_000,
-    });
+    // A primeira de uma URL vazia é dita pela faixa "First request arrived", no lugar da fala comum.
+    await expect(
+      anuncios(page).filter({ hasText: /^First request arrived: POST \/, at \d{1,2}:\d{2}/ }),
+    ).toHaveCount(1, { timeout: 15_000 });
+    await expect(anuncios(page).filter({ hasText: /\b1 new request\b/ })).toHaveCount(0);
     await expect(page.getByText('Request received')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
     await expect(detalhes(page)).toContainText(requestId);
