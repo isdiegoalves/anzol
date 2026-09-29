@@ -85,7 +85,7 @@ interface SectionState {
   host: {
     '(document:keydown)': 'saveByKey($event)',
     '(window:beforeunload)': 'warnBeforeUnload($event)',
-    '(focusin)': 'uncover($event.target)',
+    '(focusin)': 'uncoverFocused($event.target)',
   },
 })
 export class ChecksPage {
@@ -227,6 +227,16 @@ export class ChecksPage {
   protected warnBeforeUnload(event: BeforeUnloadEvent): void {
     if (this.draft.dirty()) {
       event.preventDefault();
+    }
+  }
+
+  /**
+   * Botão focado pelo clique não tem `:focus-visible`: rolar no `mousedown` tiraria o controle de
+   * baixo do ponteiro, e o clique se perderia.
+   */
+  protected uncoverFocused(target: EventTarget | null): void {
+    if (target instanceof HTMLElement && target.matches(':focus-visible')) {
+      this.uncover(target);
     }
   }
 

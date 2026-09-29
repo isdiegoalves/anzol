@@ -303,6 +303,24 @@ describe('Dado a página Checks', () => {
       http.expectNone((sent) => sent.method !== 'GET');
     });
 
+    it('não deve rolar a página no clique, e sim no Tab, Quando o controle está atrás da barra', async () => {
+      await ready();
+      await change('Default status code', '429');
+      // O jsdom passa o `:focus-visible` do campo ao botão clicado depois dele; o navegador, não.
+      box('Default status code').blur();
+      const rolar = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+
+      try {
+        await userEvent.click(screen.getByRole('radio', { name: /^Generic/ }));
+        expect(rolar).not.toHaveBeenCalled();
+
+        await userEvent.tab();
+        expect(rolar).toHaveBeenCalled();
+      } finally {
+        rolar.mockRestore();
+      }
+    });
+
     it('deve salvar pelo Ctrl+S com o foco num campo', async () => {
       await ready();
       await change('Default status code', '429');
