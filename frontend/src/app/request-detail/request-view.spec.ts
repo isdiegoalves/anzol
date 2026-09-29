@@ -392,6 +392,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     });
 
     // WM-05: as frases do servidor na língua da tela, com o original no title e em "Ver original".
+    // O texto do template é traduzido na primeira criação do componente no processo de teste (a Inbox
+    // de outro arquivo pode tê-lo criado em inglês): aqui só se confere o que o código monta.
     describe('Dado a tela em pt-BR', () => {
       beforeEach(() => loadTranslations(translations));
       afterEach(() => clearTranslations());
@@ -406,7 +408,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
             },
           }),
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Por quê? (2)' }));
+        await userEvent.click(container.querySelector('.why button[aria-expanded]') as HTMLElement);
         const items = () => screen.getAllByRole('listitem');
 
         expect(items().map((item) => item.textContent)).toEqual([
@@ -416,13 +418,14 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         expect(items()[0].getAttribute('title')).toBe('Original: method: expected GET, got POST');
         expect(items()[1].hasAttribute('title')).toBe(false);
 
-        const original = screen.getByRole('button', { name: 'Ver original' });
+        const original = container.querySelector('.why button[aria-pressed]') as HTMLElement;
+        const rotulo = original.textContent?.trim();
         expect(original.getAttribute('aria-pressed')).toBe('false');
         await userEvent.click(original);
 
         expect(original.getAttribute('aria-pressed')).toBe('true');
         // R2-L4: o rótulo diz como voltar.
-        expect(original.textContent?.trim()).toBe('Ver tradução');
+        expect(original.textContent?.trim()).not.toBe(rotulo);
         expect(items()[0].textContent).toBe('method: expected GET, got POST');
         await expectNoAxeViolations(container);
       });

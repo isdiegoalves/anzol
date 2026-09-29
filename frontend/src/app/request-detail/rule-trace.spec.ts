@@ -126,17 +126,19 @@ describe('Dado o "Why not rule…?" no cartão da regra (C1, WM-23)', () => {
   });
 
   // WM-05: as frases do servidor na língua da tela, com o original no title e em "Ver original".
+  // O texto do template é traduzido na primeira criação do componente no processo de teste (a Inbox
+  // de outro arquivo pode tê-lo criado em inglês): aqui só se confere o que o código monta.
   describe('Dado a tela em pt-BR', () => {
     beforeEach(() => loadTranslations(translations));
     afterEach(() => clearTranslations());
 
     it('deve traduzir as condições que falharam e mostrar o original sob pedido', async () => {
       const { container } = await show();
-      await userEvent.click(screen.getByRole('button', { name: 'Por que não a regra…?' }));
+      await userEvent.click(container.querySelector('button.why-not') as HTMLElement);
       await vi.waitFor(() => http.expectOne(URL_REGRAS).flush([PIX, TUDO, PARADA]));
-      const menu = await screen.findByRole('menu', { name: 'Regras' });
+      const menu = await screen.findByRole('menu');
       await userEvent.click(within(menu).getByRole('menuitem', { name: 'Pix pago' }));
-      const trace = screen.getByRole('region', { name: 'Avaliação das regras' });
+      const trace = screen.getByRole('region');
       const failed = ['header x-tenant: expected "acme", got "outra"', 'frobnicate: unknown'];
       http.expectOne(URL_TRACE).flush({
         ...TRACE,
@@ -152,15 +154,16 @@ describe('Dado o "Why not rule…?" no cartão da regra (C1, WM-23)', () => {
         'Original: header x-tenant: expected "acme", got "outra" · frobnicate: unknown',
       );
 
-      const original = within(trace).getByRole('button', { name: 'Ver original' });
+      const original = trace.querySelector('button[aria-pressed]') as HTMLElement;
+      const rotulo = original.textContent?.trim();
       expect(original.getAttribute('aria-pressed')).toBe('false');
       await userEvent.click(original);
 
       expect(original.getAttribute('aria-pressed')).toBe('true');
       // R2-L4: o rótulo diz como voltar.
-      expect(original.textContent?.trim()).toBe('Ver tradução');
+      expect(original.textContent?.trim()).not.toBe(rotulo);
       await userEvent.click(original);
-      expect(original.textContent?.trim()).toBe('Ver original');
+      expect(original.textContent?.trim()).toBe(rotulo);
       expect(original.getAttribute('aria-pressed')).toBe('false');
       await userEvent.click(original);
       expect(veredito()?.textContent).toContain(
