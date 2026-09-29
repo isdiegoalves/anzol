@@ -35,7 +35,6 @@ type CleanupOption = 'off' | `${AutoCleanup}`;
 /**
  * Checks › Response (C §2.6): a resposta padrão quando nenhuma regra casa (status, Content-Type,
  * corpo, atraso), Retry-After, Auto cleanup em segmentado com a explicação por extenso e o CORS.
- * Tudo entra na barra de salvar da página (B3): o CORS deixou de valer na hora.
  */
 @Component({
   selector: 'app-response-card',
@@ -78,7 +77,6 @@ export class ResponseCard implements ChecksSection {
     auto_cleanup: ['off' as CleanupOption],
     cors: [false],
   });
-  /** Os valores salvos, no formato do formulário: a base das alterações. */
   private saved = valuesOf(this.draft.base() ?? this.tokens.token());
 
   /** Regras ligadas, que respondem antes da resposta padrão; `null` enquanto carrega (ou sem acesso). */
@@ -102,10 +100,7 @@ export class ResponseCard implements ChecksSection {
     return this.draft.dirtySections().includes(this.id);
   }
 
-  /**
-   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
-   * o `alert` da barra, uma vez só: o resumo daqui se cala.
-   */
+  /** Com o `alert` da barra à vista, o resumo daqui se cala para não repetir. */
   protected pending(): string {
     return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
@@ -142,10 +137,7 @@ export class ResponseCard implements ChecksSection {
     return pendingLabels(this.fields());
   }
 
-  /**
-   * Só os campos que a pessoa mudou: o resto segue como a URL relida o tem (o que outra aba gravou
-   * num campo que esta não tocou continua lá).
-   */
+  /** Só os campos mudados: o que outra aba gravou nos outros segue como está. */
   settings(): TokenSettings {
     const value = this.form.getRawValue();
     const was = this.saved;
@@ -186,7 +178,6 @@ export class ResponseCard implements ChecksSection {
     this.form.reset(this.saved);
   }
 
-  /** O que o servidor recusou nos campos deste cartão (422). */
   refused(error: unknown): string[] {
     const refused = this.serverFields().filter(([control, name]) => {
       const messages = fieldErrors(error, name);
@@ -217,7 +208,6 @@ export class ResponseCard implements ChecksSection {
     ];
   }
 
-  /** Os campos como o 422 os nomeia. */
   private serverFields(): readonly PendingField[] {
     const c = this.form.controls;
     return [

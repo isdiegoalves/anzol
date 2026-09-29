@@ -7,7 +7,6 @@ export interface SequenceSpec {
   path: PathMatcher | null;
   /** Quantas vezes a primeira resposta sai antes da final (1–20). */
   times: number;
-  /** `retryAfter`: segundos do cabeçalho `Retry-After` das respostas que recusam; vazio, sem ele. */
   first: { status: number; body: string; retryAfter?: number | null };
   /** A resposta que fica: a última regra não define estado novo. */
   final: { status: number; body: string };
@@ -19,7 +18,6 @@ export const RULES_MAX = 100;
 export const TIMES_MAX = 20;
 /** "{scenario} 20/21" cabe nos 100 caracteres do nome da regra. */
 export const SCENARIO_NAME_MAX = 94;
-/** Teto do "Retry-After (s)": uma hora. */
 export const RETRY_AFTER_MAX = 3600;
 
 /** Os estados da sequência: Started, "{name} 2" … "{name} N+1" (nomes de estado não se traduzem). */
@@ -32,8 +30,7 @@ export function sequenceStates(scenario: string, count: number): string[] {
 /**
  * As N+1 regras encadeadas: "{name} i/n" exige o estado i e leva ao i+1; a última exige o estado
  * a que a penúltima leva e não define estado novo, então a resposta final fica (contrato de
- * cenário). Todas com a mesma prioridade e as mesmas condições. As que recusam levam o
- * `Retry-After` pedido; a que fica, não.
+ * cenário). Todas com a mesma prioridade e as mesmas condições.
  */
 export function sequenceRules(spec: SequenceSpec, priority: number): Rule[] {
   const count = spec.times + 1;

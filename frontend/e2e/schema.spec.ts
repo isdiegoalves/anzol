@@ -12,13 +12,6 @@ import {
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
-// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
-// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
-// {motivo}".
-
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Validação de schema por URL (CA-5, o que é da tela): configurar pela tela, selo na
 // mensagem com os erros, gerar o schema de uma mensagem e condição "Schema" no editor de regras.
 // Precisa do backend com `schema` no token, na mensagem e em `match.schema`.
@@ -179,7 +172,6 @@ test.describe('Dado "Create schema from this request"', () => {
 
     await openRequest(page, tokenId, formulario);
     await expect(acoes(page)).toBeVisible();
-    // Patamar, R1 (§5.3): "Create schema" fica no More; sem corpo JSON, não está na barra nem no menu.
     await expect(page.getByRole('button', { name: 'Create schema from this request' })).toHaveCount(
       0,
     );

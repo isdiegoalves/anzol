@@ -64,14 +64,12 @@ describe('Dado o salvar de um cartão de Checks', () => {
       schema: { type: 'object' },
     });
     expect(TestBed.inject(Preferences).token()?.schema).toEqual({ type: 'object' });
-    // §4.3: quem anuncia é a barra, uma vez; o snackbar aparece calado.
     expect(snack).toHaveBeenCalledWith('URL updated!', undefined, {
       duration: 4000,
       politeness: 'off',
     });
   });
 
-  // B3: o CORS deixou de valer na hora e sai depois do `PUT` do token.
   it('deve ligar o CORS depois do PUT Quando a barra o pede junto com outro campo', async () => {
     const lida = token({ cors: false });
     TestBed.inject(Preferences).token.set(lida);
@@ -223,8 +221,7 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     localStorage.clear();
   });
 
-  // B3: com uma barra só, a página inteira é o rascunho; outro campo mudado lá fora também avisa.
-  it('deve recusar sem PUT Quando outro campo da URL mudou lá fora, e manter o que mudou no "Save anyway" (CA-11)', async () => {
+  it('deve recusar sem PUT Quando outro campo da URL mudou lá fora, e manter o que mudou no "Save anyway"', async () => {
     const lida = token({ schema: null, default_status: 200 });
     TestBed.inject(Preferences).token.set(lida);
     const fora = token({ schema: { type: 'object' }, default_status: 200 });
@@ -277,7 +274,6 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
     http.expectNone(`${URL}/cors/toggle`);
   });
 
-  // "Save anyway": a pessoa viu o aviso e quer gravar por cima.
   it('deve gravar por cima do que mudou lá fora Quando "force"', async () => {
     const lida = token({ default_status: 200 });
     TestBed.inject(Preferences).token.set(lida);
@@ -289,7 +285,6 @@ describe('Dado a URL mudada em outro lugar (outra aba, CLI, MCP) enquanto Checks
       token({ default_status: 404, default_content: 'de fora' }),
     );
     const put = await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT' && r.url === URL));
-    // O que a barra não mexeu segue como está no servidor.
     expect(put.request.body).toMatchObject({ default_status: '201', default_content: 'de fora' });
     put.flush(token({ default_status: 201, default_content: 'de fora' }));
 
@@ -348,7 +343,6 @@ describe('Dado o segredo de leitura trocado e o unlock recusado depois do PUT', 
       { status: 429, statusText: 'Too Many Requests' },
     );
 
-    // A barra tranca a URL com "Saved. Type the new secret to open this URL." (checks-draft.spec).
     await expect(saved).rejects.toBeInstanceOf(UnlockFailed);
     await expect(saved).rejects.toMatchObject({ status: 429 });
   });

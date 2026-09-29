@@ -32,7 +32,7 @@ export class SharePage {
   protected readonly state = signal<ShareState>({ kind: 'loading' });
 
   constructor() {
-    // A página fica fora do shell: o título da aba é dela (UX-21).
+    // Fora do shell, que é quem põe o título da aba nas outras páginas.
     inject(Title).setTitle($localize`:browser tab title:Shared request · Anzol`);
     effect(() => {
       const shareId = this.shareId();

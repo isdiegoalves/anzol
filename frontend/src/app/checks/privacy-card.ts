@@ -27,8 +27,7 @@ const READ_SECRET_MAX = 256;
 /**
  * Checks › Privacy, portada da seção do antigo Edit URL (item 12): "Require a secret to view this
  * URL" com o segredo e a confirmação. Na URL já protegida, em branco mantém o segredo atual;
- * desligar tira a proteção (`read_secret: null`). Segredo novo destranca esta tela ao salvar. O
- * salvar é o da barra da página (B3); o segredo nunca vai ao rascunho da aba.
+ * desligar tira a proteção (`read_secret: null`). Segredo novo destranca esta tela ao salvar.
  */
 @Component({
   selector: 'app-privacy-card',
@@ -86,10 +85,7 @@ export class PrivacyCard implements ChecksSection {
     return this.draft.dirtySections().includes(this.id);
   }
 
-  /**
-   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
-   * o `alert` da barra, uma vez só: o resumo daqui se cala.
-   */
+  /** Com o `alert` da barra à vista, o resumo daqui se cala para não repetir. */
   protected pending(): string {
     return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
@@ -149,7 +145,6 @@ export class PrivacyCard implements ChecksSection {
     return [this.secretLabel()];
   }
 
-  /** O segredo de leitura não vai à memória da aba: só o interruptor. */
   sketch(): Record<string, unknown> {
     return { required: this.form.controls.required.value };
   }

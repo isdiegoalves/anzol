@@ -40,7 +40,7 @@ const lines = (overrides: Partial<Parameters<typeof suggestionChecks>[0]> = {}) 
 const shown = (overrides: Partial<Parameters<typeof suggestionChecks>[0]> = {}) =>
   lines(overrides).map(({ verdict, text }) => [verdict, text]);
 
-describe('Dado a conferência de uma regra sugerida (B4, UX-41)', () => {
+describe('Dado a conferência de uma regra sugerida', () => {
   it('deve dar OK nas quatro conferências Quando a regra casa o exemplo e o histórico', () => {
     expect(shown()).toEqual([
       ['ok', 'Matches the example request.'],
@@ -53,7 +53,7 @@ describe('Dado a conferência de uma regra sugerida (B4, UX-41)', () => {
     );
   });
 
-  it('deve dizer a condição que falhou e que nada do histórico casaria (o caso do wireframe)', () => {
+  it('deve dizer a condição que falhou e que nada do histórico casaria', () => {
     const check: SuggestionCheck = {
       example: {
         matches: false,

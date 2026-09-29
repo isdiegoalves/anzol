@@ -55,7 +55,7 @@ describe('Dado o cartão "Response" de Checks', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve mandar a resposta com a assinatura e o schema salvos (CA-11) Quando "Save changes" é clicado', async () => {
+  it('deve mandar a resposta com a assinatura e o schema salvos Quando "Save changes" é clicado', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
     expect(changesBar()).toBeNull();
 
@@ -69,7 +69,6 @@ describe('Dado o cartão "Response" de Checks', () => {
     );
     await userEvent.click(save());
 
-    // A URL inteira vai no PUT: o que mudou aqui por cima do que o servidor tem.
     const put = await expectPut(http);
     expect(put.request.body).toEqual({
       default_status: '201',
@@ -83,7 +82,6 @@ describe('Dado o cartão "Response" de Checks', () => {
     });
     put.flush({ ...SALVA, default_status: 201, retry_after: null, auto_cleanup: null });
 
-    // Salvo: a barra some e o cartão deixa de dizer "Unsaved".
     await vi.waitFor(() => expect(changesBar()).toBeNull());
     expect(within(card()).queryByText('Unsaved')).toBeNull();
     expect(box('Default status code').value).toBe('201');
@@ -129,7 +127,6 @@ describe('Dado o cartão "Response" de Checks', () => {
 
       await userEvent.clear(input);
       await userEvent.type(input, valor);
-      // O cartão diz o que falta desde o começo, num status (S12).
       expect(within(card()).getByRole('status').textContent?.trim()).toBe(
         'To save, fix: Retry-After',
       );
@@ -149,7 +146,6 @@ describe('Dado o cartão "Response" de Checks', () => {
     await userEvent.click(save());
     (await expectGet(http)).flush({ ...SALVA, default_status: 404 });
 
-    // O aviso é um alert dentro da barra, com os botões dele.
     const aviso = await screen.findByRole('alert');
     expect(aviso.textContent).toContain(
       'This URL was changed elsewhere since you opened this page.',
@@ -184,7 +180,7 @@ describe('Dado o cartão "Response" de Checks', () => {
     expect(box('Response body').value).toBe('mudou em outra aba');
   });
 
-  it('deve oferecer "Try again", manter o digitado e salvar de novo Quando a rede falha no Save (E10)', async () => {
+  it('deve oferecer "Try again", manter o digitado e salvar de novo Quando a rede falha no Save', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
     await userEvent.clear(box('Response body'));
     await userEvent.type(box('Response body'), 'depois');
@@ -223,7 +219,6 @@ describe('Dado o cartão "Response" de Checks', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
-  // B3: o CORS deixou de valer na hora; o interruptor marca a alteração e a chamada sai no salvar.
   it('deve marcar a alteração, sem chamar o servidor, e trocar o CORS só no "Save changes"', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
 
@@ -232,7 +227,6 @@ describe('Dado o cartão "Response" de Checks', () => {
     http.expectNone(`/token/${TOKEN_ID}/cors/toggle`);
     expect(changesBar()?.textContent).toContain('1 unsaved change: CORS');
     await userEvent.click(save());
-    // Primeiro o `PUT` do token, com a URL inteira; depois o CORS.
     const put = await expectPut(http);
     expect(put.request.body).toMatchObject({
       default_status: '202',

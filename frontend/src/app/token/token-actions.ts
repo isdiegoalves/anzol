@@ -41,18 +41,15 @@ export class TokenActions {
     await firstValueFrom(dialog.afterClosed());
   }
 
-  /** "Create a new URL" da página de URL inexistente: sem perguntar nada, como a primeira visita. */
   async createDefaultUrl(): Promise<void> {
     await this.create({});
   }
 
-  /** "Rename this URL…" do seletor: o apelido, só neste navegador. */
   async renameUrl(uuid: string): Promise<void> {
     const { renameUrl } = await import('./url-list-dialogs');
     await renameUrl(this.injector, uuid);
   }
 
-  /** "Forget a URL…" do seletor. */
   async forgetUrls(): Promise<void> {
     const { forgetUrls } = await import('./url-list-dialogs');
     await forgetUrls(this.injector);
@@ -69,8 +66,7 @@ export class TokenActions {
 
   /**
    * "Delete URL" (menu da URL, protótipo C): confirma, apaga no servidor (mensagens, regras e
-   * histórico vão junto) e abre a próxima URL que o navegador conhece; sem nenhuma, cria uma, como
-   * na primeira visita.
+   * histórico vão junto) e abre a próxima URL conhecida; sem nenhuma, cria uma.
    */
   async deleteUrl(): Promise<void> {
     const token = this.tokens.token();

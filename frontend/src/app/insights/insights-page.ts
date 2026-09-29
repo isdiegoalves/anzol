@@ -36,8 +36,6 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
  * Insights (`#/{token}/insights`): KPIs e gráficos da URL a partir de `GET /token/{id}/stats`, com
  * a janela explícita (as mensagens mais novas que a URL guarda, até 500). Gráficos em SVG próprio,
  * cada um com tabela de dados ao lado. Latência e erros são da instância inteira: ficam no Grafana.
- * F1: todo número que a Entrada sabe filtrar leva a ela com o filtro exato (`CountLink`); as horas
- * saem na hora local, com o UTC no `title` (UX-19).
  */
 @Component({
   selector: 'app-insights-page',
@@ -56,7 +54,6 @@ const GRAFANA_DASHBOARD = '/d/webhook-site';
   templateUrl: './insights-page.html',
   styleUrl: './insights-page.scss',
   // Sem polling: os números são recalculados quando a aba volta a ficar visível.
-  // UX-21: a página é o `main` do destino, com o nome do `h1`.
   host: {
     role: 'main',
     'aria-labelledby': 'insights-title',
@@ -86,8 +83,8 @@ export class InsightsPage {
     return stats ? answeredParts(stats) : [];
   });
   /**
-   * KPIs do resumo, todos sobre as `evaluated` mensagens mais novas. Sem `filter`, a soma não tem um
-   * filtro só na Entrada (várias regras, inválida ou ausente) e o número fica sem link.
+   * KPIs do resumo, todos sobre as `evaluated` mensagens mais novas. Sem `filter`: a soma não tem um
+   * filtro só na Entrada.
    */
   protected readonly kpis = computed(
     (): { label: string; count: number; filter?: CountFilter }[] => {
@@ -122,12 +119,10 @@ export class InsightsPage {
       ];
     },
   );
-  /** Sobre o que os números do `/stats` foram contados: o `window=` do link quando cortam (F1). */
   protected readonly scope = computed(() => {
     const stats = this.stats();
     return stats ? { evaluated: stats.evaluated, total: stats.total } : null;
   });
-  /** Os métodos do resumo; os que o filtro "Method" da Entrada conhece viram link. */
   protected readonly methods = computed(() =>
     Object.entries(this.stats()?.methods ?? {})
       .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
@@ -144,13 +139,11 @@ export class InsightsPage {
       filter: { outcome: 'near_miss', rule: rule.id, ruleName: rule.name },
     })),
   );
-  /** B2: "Answers by status", contado da listagem na mesma janela. */
   protected readonly answers = computed(() => answerRows(this.store.answers()?.answers ?? []));
   protected readonly answersScope = computed(() => {
     const answers = this.store.answers();
     return answers ? { evaluated: answers.answers.length, total: answers.total } : null;
   });
-  /** UX-19: o fuso da legenda do gráfico, na data da hora mais nova. */
   protected readonly offset = computed(() => {
     const newest = this.stats()?.newest_at;
     return utcOffset(newest ? parseUtc(newest) : new Date());

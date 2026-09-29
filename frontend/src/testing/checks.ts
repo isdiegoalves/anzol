@@ -16,13 +16,9 @@ import { Preferences } from '../app/settings/preferences';
 import { Token } from '../app/token/token';
 import { TOKEN_ID } from './fixtures';
 
-/** O cartão que o `CardHost` monta, com as entradas dele. */
+/** O `render` monta o `CardHost` sem entradas: o cartão chega por aqui. */
 let card: { component: Type<unknown>; inputs: Record<string, unknown> } | null = null;
 
-/**
- * A página de Verificações em miniatura: o rascunho da página, um cartão e a barra de salvar (B3:
- * quem salva é a barra, com o que o cartão entrega).
- */
 @Component({
   imports: [ChangesBar, NgComponentOutlet],
   template: `
@@ -57,20 +53,15 @@ export async function renderCard<T>(
   return { ...result, http: TestBed.inject(HttpTestingController) };
 }
 
-/** `region "Unsaved changes"`: a barra de salvar, que só aparece com alteração pendente. */
 export const changesBar = () => screen.queryByRole('region', { name: 'Unsaved changes' });
 
-/** O `button "Save changes"` da barra. */
 export const saveButton = () => screen.getByRole('button', { name: 'Save changes' });
 
-/** Clica no "Save changes" da barra. */
 export const saveChanges = () => userEvent.click(saveButton());
 
-/** Clica no "Discard" da barra. */
 export const discardChanges = () =>
   userEvent.click(screen.getByRole('button', { name: 'Discard' }));
 
-/** O resumo da barra depois de tentar salvar com campo inválido (`alert`). */
 export const attention = () => screen.getByRole('alert').textContent?.trim();
 
 /** A releitura `GET /token/{id}` que o Save faz antes do `PUT`. */

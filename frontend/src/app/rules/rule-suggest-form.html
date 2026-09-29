@@ -21,7 +21,6 @@
   }
 </mat-form-field>
 @if (disabled()) {
-  <!-- IA desligada: a razão à vista e, para quem opera o servidor, como ligar. -->
   <p class="off" id="suggest-off">
     {{ offHint }}
     <a [href]="docsUrl" target="_blank" rel="noopener" i18n>How to turn it on</a>
@@ -43,7 +42,6 @@
       >Use the open request as example ({{ request.method }})</mat-checkbox
     >
   } @else {
-    <!-- Sem requisição aberta, a caixa existe e diz o que falta. -->
     <mat-checkbox disabled disabledInteractive aria-describedby="suggest-no-example" i18n
       >Use the open request as example</mat-checkbox
     >
@@ -63,7 +61,6 @@
     [attr.aria-describedby]="disabled() ? 'suggest-off' : null"
     (click)="suggest()"
   >
-    <!-- Depois do 429 o botão é o "Try again", desligado até a contagem acabar (UX-52). -->
     @if (limited()) {
       <ng-container i18n>Try again</ng-container>
     } @else {
@@ -71,7 +68,7 @@
     }
   </button>
 </div>
-<!-- A espera: a região viva existe desde que o bloco abre, vazia (§4.3). -->
+<!-- Fora de `@if`: a região viva precisa existir, vazia, antes de falar. -->
 <app-ai-wait [kind]="'suggest'" [waiting]="loading()" (cancelled)="cancel()" />
 @if (errors().length > 0) {
   <div role="alert" aria-label="Suggestion errors" i18n-aria-label>
@@ -133,7 +130,6 @@
       }
     }
 
-    <!-- O texto do modelo por último, recolhido: a tela não o usa como descrição da regra. -->
     <details class="model">
       <summary i18n>What the model wrote</summary>
       <p class="hint" i18n>Not checked. The rule above is what counts.</p>
@@ -141,7 +137,7 @@
     </details>
 
     @if (pending()) {
-      <!-- Com problema, aplicar continua possível (a decisão é da pessoa), mas o primário é "Dismiss". -->
+      <!-- Com problema, aplicar continua possível; só o primário passa a ser "Dismiss". -->
       <div class="actions apply">
         @if (problems() > 0) {
           <button mat-button type="button" (click)="apply(true)" i18n>Apply conditions only</button>

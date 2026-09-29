@@ -107,7 +107,7 @@ export function pendingSummary(fields: readonly PendingField[]): string {
 
 /**
  * Campos que mudaram no servidor (`fresh`) desde que a página leu a URL (`base`). O segredo de
- * leitura não volta na API: compara-se o `protected`. O CORS tem rota própria e entra como `cors`.
+ * leitura não volta na API: compara-se o `protected`.
  */
 export function changedElsewhere(base: Token, fresh: Token): string[] {
   const before = savedSettings(base);
@@ -122,10 +122,6 @@ export function changedElsewhere(base: Token, fresh: Token): string[] {
   ];
 }
 
-/**
- * Uma linha de alteração quando o valor do campo difere do salvo; vazio quando é o mesmo. Valor
- * vazio aparece como "empty".
- */
 export function changeOf(
   label: string,
   before: string,
@@ -135,7 +131,6 @@ export function changeOf(
   return before === after ? [] : [{ label, before: shown(before), after: shown(after) }];
 }
 
-/** Um segredo digitado: a linha diz que foi definido, nunca o valor. */
 export function secretChange(
   label: string,
   typed: string,
@@ -143,7 +138,6 @@ export function secretChange(
   return typed === '' ? [] : [{ label, before: '', after: '', secret: true }];
 }
 
-/** "on" e "off" dos interruptores, nas linhas de alteração. */
 export function onOff(value: boolean): string {
   return value ? $localize`:switch state:on` : $localize`:switch state:off`;
 }

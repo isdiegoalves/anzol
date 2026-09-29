@@ -117,9 +117,9 @@ describe('Dado o stream SSE de uma URL', () => {
     source.fail(FakeEventSource.CONNECTING);
     source.fail(FakeEventSource.CONNECTING);
     expect(stream.drops()).toBe(2);
-    // O servidor recusar não é queda de rede.
     source.open();
     expect(stream.drops()).toBe(0);
+    // O servidor recusar não é queda de rede.
     source.fail(FakeEventSource.CLOSED);
     expect(stream.drops()).toBe(0);
   });

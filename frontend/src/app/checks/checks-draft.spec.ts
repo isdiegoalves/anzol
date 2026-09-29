@@ -8,7 +8,6 @@ import { UrlLock } from '../token/url-lock';
 import { CHECKS_DRAFT_KEY, ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import { ChangedElsewhere, ChecksStore, UnlockFailed } from './checks-store';
 
-/** Um cartão de mentira: um campo só, obrigatório, que vira `default_status` no `PUT`. */
 function fakeSection(id: ChecksSection['id'], label: string, saved = '200') {
   const form = new FormControl(saved, { nonNullable: true, validators: Validators.required });
   let base = saved;
@@ -35,7 +34,7 @@ function fakeSection(id: ChecksSection['id'], label: string, saved = '200') {
   return { section, form, calls };
 }
 
-describe('Dado o rascunho de Verificações (uma barra de salvar, B3)', () => {
+describe('Dado o rascunho de Verificações (uma barra de salvar)', () => {
   const SALVA = token({
     default_status: 200,
     signature: { provider: 'github', secret: '••••1234' },
@@ -80,7 +79,6 @@ describe('Dado o rascunho de Verificações (uma barra de salvar, B3)', () => {
     resposta.form.setValue('429');
     expect(draft.dirty()).toBe(true);
     expect(draft.preview()).toBe('1 unsaved change: Default status code');
-    // Nada por tecla: a região viva só recebe o texto quando a pessoa para.
     expect(draft.summary()).toBe('');
     vi.advanceTimersByTime(600);
     schema.form.setValue('{}');
@@ -125,7 +123,6 @@ describe('Dado o rascunho de Verificações (uma barra de salvar, B3)', () => {
 
     expect(save).not.toHaveBeenCalled();
     expect(draft.alert()).toBe('2 fields need attention: Default status code, Confirm secret');
-    // Só o primeiro cartão com erro leva o foco.
     expect(primeiro.calls.pending).toEqual([]);
     expect(segundo.calls.pending).toEqual([true]);
     expect(terceiro.calls.pending).toEqual([false]);

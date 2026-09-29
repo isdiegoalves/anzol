@@ -73,7 +73,6 @@ export class ScenarioSequence {
   protected readonly times = signal('2');
   protected readonly firstStatus = signal('503');
   protected readonly firstBody = signal('');
-  /** Segundos do `Retry-After` das respostas que recusam; vazio, sem o cabeçalho (R1). */
   protected readonly retryAfter = signal('');
   protected readonly finalStatus = signal(String(RULE_DEFAULT_STATUS));
   protected readonly finalBody = signal('');

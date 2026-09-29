@@ -85,7 +85,6 @@ h4 {
   margin: 4px 0 0;
 }
 
-// Veredito e frase lado a lado; no celular, em duas linhas.
 .checks {
   display: grid;
   gap: 6px;
@@ -172,7 +171,6 @@ h4 {
   margin-top: 8px;
 }
 
-// Celular: os três botões empilhados, o primário por último.
 @media (width < 600px) {
   .apply {
     flex-direction: column;

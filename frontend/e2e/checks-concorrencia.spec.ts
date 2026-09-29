@@ -4,9 +4,6 @@ import { abrirChecks, secao, botaoSalvar, barraDeSalvar } from './support/checks
 import { expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Item 14, E5 — refutação independente (CA-12), transformada em spec: o que a refutação provou que a E5 quebra.
 // (a) CA-11 entre abas: o que outra aba (ou o CLI, ou o MCP) gravou no `PUT /token` depois que esta aba leu a URL
 //     não volta ao padrão quando esta aba salva outro cartão; ou persiste, ou a tela avisa e não sobrescreve;
@@ -187,7 +184,6 @@ test.describe('Dado uma URL protegida aberta nesta tela, com um rascunho em outr
 
     expect(put?.status()).toBe(200);
     // Soft: um defeito não esconde os outros.
-    // B3: o salvar é um só; o aviso é o snackbar "URL updated!" e a barra some.
     await expect.soft(page.getByText('URL updated!').last()).toBeVisible();
     await expect.soft(barraDeSalvar(page)).toBeHidden();
     await expect.soft(corpo).toHaveValue('rascunho-que-fica');

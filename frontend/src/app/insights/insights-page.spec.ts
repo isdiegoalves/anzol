@@ -18,7 +18,6 @@ import { InsightsPage } from './insights-page';
 const URL_STATS = `/token/${TOKEN_ID}/stats`;
 const URL_REQUESTS = `/token/${TOKEN_ID}/requests`;
 
-/** B2: duas respondidas 429 pela resposta padrão e uma 201 por regra. */
 const ANSWERED: WebhookRequest[] = [
   webhookRequest(1, { response: { status: 429 } }),
   webhookRequest(2, { rule: { id: 'b', name: 'Stripe payment OK' }, response: { status: 201 } }),
@@ -35,7 +34,6 @@ const rowText = (row: HTMLElement) =>
 describe('Dado a página Insights', () => {
   let http: HttpTestingController;
 
-  /** A listagem que "Answers by status" lê, em paralelo com o `/stats` (B2). */
   const flushAnswers = (requests: WebhookRequest[], perPage = '100') => {
     const call = http.expectOne((req) => req.url === URL_REQUESTS);
     expect(call.request.params.get('per_page')).toBe(perPage);
@@ -60,7 +58,6 @@ describe('Dado a página Insights', () => {
     await result.fixture.whenStable();
     return result;
   };
-  /** O link de contagem (F1) pelo nome, e o endereço dele. */
   const href = (container: HTMLElement, name: string | RegExp) =>
     within(container).getByRole('link', { name }).getAttribute('href');
   const region = (name: string) => screen.getByRole('region', { name });
@@ -70,12 +67,10 @@ describe('Dado a página Insights', () => {
   it('deve mostrar os KPIs com a janela explícita, os gráficos com tabela e passar no axe', async () => {
     const { container } = await open(tokenStats());
 
-    // UX-21: a página é o `main` do destino, com o nome do `h1`.
     expect(screen.getByRole('main', { name: 'Insights' })).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const summary = region('Summary');
     expect(summary.textContent).toContain('128 of the 128 kept');
-    // UX-19: a hora local por extenso, como a Entrada, com o UTC no `title`.
     const from = localDate('2026-09-25 09:13:44');
     const to = localDate('2026-09-26 14:02:07');
     expect(summary.textContent?.replace(/\s+/g, ' ')).toContain(
@@ -99,7 +94,6 @@ describe('Dado a página Insights', () => {
       'Schema invalid 20 16% of these requests',
     ]);
     expect(summary.textContent?.replace(/\s+/g, ' ')).toContain('Methods: POST 120, GET 8');
-    // F1 (UX-18): cada número que conta requisições leva à Entrada com o filtro exato daquela contagem.
     expect(href(summary, 'All requests, 128 requests. Open in the Inbox')).toBe(`/${TOKEN_ID}`);
     expect(href(summary, 'Default response, 84 requests. Open in the Inbox')).toBe(
       `/${TOKEN_ID}?outcome=default`,
@@ -140,7 +134,6 @@ describe('Dado a página Insights', () => {
       within(region('Signature')).getByRole('table', { name: 'Signature failure reasons' })
         .textContent,
     ).toContain('signature mismatch');
-    // F1 (UX-18): cada motivo e cada caminho levam ao filtro exato (M1), o mesmo do Health de Checks.
     expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`,
     );
@@ -169,7 +162,6 @@ describe('Dado a página Insights', () => {
     expect(
       href(region('Rules'), 'Closest rule: Refund queued, 2 requests. Open in the Inbox'),
     ).toBe(`/${TOKEN_ID}?outcome=near_miss&rule=a&ruleName=Refund%20queued`);
-    // B2: o status respondido, contado da listagem; cada status leva à Entrada filtrada por ele.
     const answers = region('Answers by status');
     expect(answers.textContent).toContain('Counted over the newest 3 requests.');
     expect(
@@ -217,7 +209,6 @@ describe('Dado a página Insights', () => {
     expect(region('Summary').textContent).toContain('0 of the 0 kept');
     expect(within(region('Summary')).getByText('No requests yet')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Requests per hour' })).toBeNull();
-    // B2: o bloco de status fica, com o vazio dele.
     expect(region('Answers by status').textContent).toContain('No answers yet.');
   });
 
@@ -251,7 +242,7 @@ describe('Dado a página Insights', () => {
     );
   });
 
-  it('F1: deve levar window= Quando a URL guarda mais que a janela, para a Entrada contar sobre as mesmas', async () => {
+  it('deve levar window= Quando a URL guarda mais que a janela, para a Entrada contar sobre as mesmas', async () => {
     await open(tokenStats({ total: 1291, evaluated: 500 }));
 
     expect(href(region('Summary'), 'All requests, 500 requests. Open in the Inbox')).toBe(
@@ -265,7 +256,7 @@ describe('Dado a página Insights', () => {
     );
   });
 
-  it('B2: deve contar o status nas 500 mais novas, em 5 páginas, e levar window= Quando a URL guarda mais que a janela', async () => {
+  it('deve contar o status nas 500 mais novas, em 5 páginas, e levar window= Quando a URL guarda mais que a janela', async () => {
     const { fixture } = await render(InsightsPage, {
       inputs: { tokenId: TOKEN_ID },
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],

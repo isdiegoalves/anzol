@@ -5,13 +5,12 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { AiWait } from './ai-wait';
 
-describe('Dado a espera de um pedido de IA (B4, UX-42)', () => {
+describe('Dado a espera de um pedido de IA', () => {
   const show = (inputs: { kind: 'explain' | 'suggest'; waiting?: boolean; outcome?: string }) =>
     render(AiWait, {
       inputs,
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
-  /** A região viva, sem nome, dentro do `group "AI progress"` (§4.3). */
   const progress = () =>
     within(screen.getByRole('group', { name: 'AI progress' })).getByRole('status');
 
@@ -77,7 +76,6 @@ describe('Dado a espera de um pedido de IA (B4, UX-42)', () => {
   });
 
   it('deve cancelar com Esc antes de quem já escutava o teclado, que recebe o evento tratado', async () => {
-    // O editor de regra escuta o `keydown` do documento desde antes e fecharia com o mesmo Esc.
     const earlier = vi.fn((event: KeyboardEvent) => event.defaultPrevented);
     document.addEventListener('keydown', earlier);
     const { fixture } = await show({ kind: 'suggest', waiting: true });

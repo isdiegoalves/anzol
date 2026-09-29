@@ -11,7 +11,7 @@ import { ForgetUrlsDialog, UrlNicknameDialog } from './url-list-dialogs';
 const A = 'd0620341-1111-4111-8111-111111111111';
 const B = 'c4291aaa-2222-4222-8222-222222222222';
 
-describe('Dado os diálogos da lista de URLs do navegador (B1)', () => {
+describe('Dado os diálogos da lista de URLs do navegador', () => {
   const close = vi.fn();
 
   const show = (dialog: Type<unknown>) =>

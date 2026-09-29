@@ -71,7 +71,6 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
     await expect(abrirItem(page, ids[2])).toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[1])).not.toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[0])).toHaveAttribute('aria-current', /.+/);
-    // Patamar, B1 (guia-combinacao §3.1, UX-21): o título diz o destino e a URL.
     await expect(page).toHaveTitle(`(1) Inbox · URL ${tokenId.substring(0, 5)} · Anzol`);
 
     await abrirItem(page, ids[2]).click();

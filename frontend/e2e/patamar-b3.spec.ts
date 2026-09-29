@@ -20,16 +20,6 @@ import { abrirSeletor, urlNoSeletor } from './support/patamar';
 import { compacto, destino } from './support/shell';
 import { seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia B3 — Verificações com uma barra de salvar, guarda de saída e ordem por assunto
-// (UX-03, UX-17; guia-combinacao §3.3, versão A; CA-6). SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: o nome de cada alteração no resumo da barra é o rótulo do campo ("Default status code", "Response
-//   body", "Secret", "Signature provider", "JSON Schema"); o do interruptor do CORS é "CORS".
-// - SUPOSIÇÃO: o rascunho da aba fica em `sessionStorage` na chave `anzol.checksDraft.{uuid}` (guia §4.1).
-// - SUPOSIÇÃO: o `alert` de rascunho e os avisos de erro de gravação ficam na página de Verificações (dentro do
-//   `main`), e os botões deles têm os nomes do guia ("Restore draft", "Try again", "Reload", "Save anyway").
-// - SUPOSIÇÃO: "Health recolhido" mostra a linha das taxas só quando há requisições verificadas; o teste manda duas.
-// - SUPOSIÇÃO: no celular, a barra de salvar mostra só a contagem ("4 unsaved changes") e os botões.
-
 const SECRET = 'segredo-do-patamar-b3';
 const SEGREDO_NOVO = 'shpss_segredo_novo_b3';
 
@@ -56,12 +46,10 @@ function escritas(page: Page, tokenId: string): Request[] {
 
 const caminho = (r: Request) => `${r.method()} ${new URL(r.url()).pathname}`;
 
-/** O campo do status padrão no cartão Response. */
 function status(page: Page): Locator {
   return secao(page, 'Response').getByLabel('Default status code');
 }
 
-/** Abre Verificações no cartão Response e muda o status padrão para 429 (uma alteração pendente). */
 async function comStatusPendente(page: Page, tokenId: string): Promise<void> {
   await abrirChecks(page, tokenId, 'Response');
   await expect(status(page)).toHaveValue('200');
@@ -69,7 +57,7 @@ async function comStatusPendente(page: Page, tokenId: string): Promise<void> {
   await expect(barraDeSalvar(page)).toBeVisible();
 }
 
-test.describe('Dado Verificações sem alteração (UX-03; CA-6)', () => {
+test.describe('Dado Verificações sem alteração', () => {
   test('não deve ter botão Save nos cartões nem a barra de salvar', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await seedStorage(page, {});
@@ -82,7 +70,7 @@ test.describe('Dado Verificações sem alteração (UX-03; CA-6)', () => {
   });
 });
 
-test.describe('Dado uma alteração pendente em Verificações (UX-03; CA-6)', () => {
+test.describe('Dado uma alteração pendente em Verificações', () => {
   test('deve mostrar a barra dizendo o que muda, com "Save changes · Ctrl+S", "Discard" e "Review changes"', async ({
     page,
     tokens,
@@ -123,7 +111,6 @@ test.describe('Dado uma alteração pendente em Verificações (UX-03; CA-6)', (
     await abrirCartao(page, 'Response');
     await status(page).fill('429');
     await secao(page, 'Response').getByLabel('Response body').fill('depois');
-    // A primeira alteração fala; as seguintes só quando a contagem muda, nunca a cada tecla.
     await expectUmAnuncio(page, /^4 unsaved changes/);
     await expectSemAnuncio(page, /^5 unsaved/);
     const pedidos = escritas(page, tokenId);
@@ -134,7 +121,6 @@ test.describe('Dado uma alteração pendente em Verificações (UX-03; CA-6)', (
     await expect(barraDeSalvar(page)).toBeHidden();
     await expect(page.getByText('URL updated!').last()).toBeVisible();
     await expectUmAnuncio(page, /^Saved\. 4 changes\.$/);
-    // O snackbar não fala de novo (fica `aria-hidden`).
     await expectSemAnuncio(page, /URL updated!/);
     expect(pedidos.map(caminho)).toEqual([`PUT /token/${tokenId}`]);
     expect(pedidos[0].postDataJSON()).toMatchObject({
@@ -213,7 +199,6 @@ test.describe('Dado uma alteração pendente em Verificações (UX-03; CA-6)', (
     const cabecalho = assinatura.getByRole('textbox', { name: 'Signature header' });
     await expect(cabecalho).toBeFocused();
     await expect(cabecalho).toBeInViewport();
-    // Tudo ou nada: o status válido do outro cartão também não foi gravado.
     expect(pedidos.map(caminho)).toEqual([]);
     expect(await tokens.read(tokenId)).toMatchObject({ default_status: 200, signature: null });
     await expect(status(page)).toHaveValue('429');
@@ -294,7 +279,7 @@ test.describe('Dado uma alteração pendente em Verificações (UX-03; CA-6)', (
   });
 });
 
-test.describe('Dado uma alteração pendente e uma saída de Verificações (guarda de saída; CA-6)', () => {
+test.describe('Dado uma alteração pendente e uma saída de Verificações (guarda de saída)', () => {
   function pergunta(page: Page): Locator {
     return page.getByRole('dialog', { name: 'Discard changes?' });
   }
@@ -426,7 +411,7 @@ test.describe('Dado uma alteração pendente e uma saída de Verificações (gua
   });
 });
 
-test.describe('Dado o rascunho de Verificações guardado na aba (UX-03)', () => {
+test.describe('Dado o rascunho de Verificações guardado na aba', () => {
   test('deve oferecer o rascunho ao reabrir, sem guardar segredo nenhum', async ({
     page,
     tokens,
@@ -462,7 +447,7 @@ test.describe('Dado o rascunho de Verificações guardado na aba (UX-03)', () =>
   });
 });
 
-test.describe('Dado a ordem por assunto de Verificações (UX-17)', () => {
+test.describe('Dado a ordem por assunto de Verificações', () => {
   const ORDEM: Secao[] = [
     'Signature verification',
     'Schema validation',
@@ -529,8 +514,7 @@ test.describe('Dado a ordem por assunto de Verificações (UX-17)', () => {
     await expect(secao(page, 'Privacy')).toBeInViewport();
 
     const indice = page.getByRole('navigation', { name: 'On this page' });
-    // SUPOSIÇÃO: o guia diz `aria-current="true"`; o índice de hoje usa "location", que é o valor próprio para a
-    // posição dentro da página. Valem os dois.
+    // `location` é o valor próprio para a posição dentro da página; `true` também vale.
     await expect(indice.getByRole('link', { name: /^Privacy\b/ })).toHaveAttribute(
       'aria-current',
       /^(true|location)$/,
@@ -564,7 +548,7 @@ test.describe('Dado a ordem por assunto de Verificações (UX-17)', () => {
   });
 });
 
-test.describe('Dado Verificações no celular (UX-17)', () => {
+test.describe('Dado Verificações no celular', () => {
   test.beforeEach(({ page }) => {
     test.skip(!compacto(page), 'só no celular');
   });
@@ -612,7 +596,7 @@ test.describe('Dado Verificações no celular (UX-17)', () => {
   });
 });
 
-test.describe('Dado um erro ao salvar Verificações (UX-03)', () => {
+test.describe('Dado um erro ao salvar Verificações', () => {
   test('deve manter as alterações e oferecer "Try again" Quando o servidor não responde', async ({
     page,
     tokens,
@@ -702,7 +686,6 @@ test.describe('Dado um erro ao salvar Verificações (UX-03)', () => {
 
     await aviso.getByRole('button', { name: 'Save anyway' }).click();
     await expect(barraDeSalvar(page)).toBeHidden();
-    // O merge é refeito antes do PUT: o que a outra aba gravou fica, e a alteração daqui entra.
     expect(await tokens.read(tokenId)).toMatchObject({
       default_status: 429,
       default_content: 'mudou em outra aba',
@@ -710,7 +693,7 @@ test.describe('Dado um erro ao salvar Verificações (UX-03)', () => {
   });
 });
 
-test.describe('Dado o ponto de atenção de Verificações no rail (UX-13)', () => {
+test.describe('Dado o ponto de atenção de Verificações no rail', () => {
   test('deve dizer quantas assinaturas inválidas e desde quando, e apagar ao abrir Verificações', async ({
     page,
     tokens,

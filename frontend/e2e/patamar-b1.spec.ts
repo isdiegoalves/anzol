@@ -43,26 +43,8 @@ import {
 } from './support/shell';
 import { seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia B1 — base comum: seletor de URLs, filtros numa linha, lista densa, página única de
-// URL inexistente, faixa "sem conexão" e título por destino (UX-01, 04, 06, 16, 11, 12, 21; guia-combinacao §3.1;
-// CA-9). P1 decidida: URL inexistente mostra a página única em todo destino e não cria URL; a primeira visita cria.
-// SUPOSIÇÕES (o guia não fixa):
-// - SUPOSIÇÃO: os chips mantêm os nomes de hoje do `support/inbox.ts` ("Signature invalid", "Signature absent",
-//   "Schema invalid"…); a tabela do guia os lista como "Invalid signature", "No signature", "Invalid schema", mas diz
-//   que são os existentes, e nome que está no `support/*.ts` não muda.
-// - SUPOSIÇÃO: o cabeçalho da URL inexistente mantém o `textbox "Webhook URL"` (só leitura, riscado) com o endereço
-//   pedido.
-// - SUPOSIÇÃO: o anúncio da troca de URL começa por "{nome} opened." e segue com o destino ("Rules…" em Regras).
-// - Decisões do orquestrador (2026-09-28): a linha 1 do item mostra o tempo relativo, com a hora exata no `title`; o
-//   a densidade "Compact" de Settings continua (item de 52 px; 60 no confortável; 64 no celular nas duas) e a CA-9
-//   vale também nela; depois de "Delete URL" abre a próxima URL conhecida do seletor
-//   e, sem nenhuma, cria uma URL como na primeira visita.
-// - SUPOSIÇÃO: a contagem regressiva "Trying again in {n} s" fica dentro de um ancestral `aria-hidden="true"`.
-// - SUPOSIÇÃO: o item de `menu` some do DOM ao fechar; no celular o seletor é `dialog` com `button "Close"`.
-
 const ROTAS: [Destino, string][] = DESTINOS.map((nome) => [nome, CAMINHO[nome]]);
 
-/** Os chips do painel, por subgrupo, com os nomes de hoje. */
 const CHIPS: Record<string, string[]> = {
   Method: ['POST', 'GET', 'PUT', 'DELETE', 'PATCH'],
   Signature: ['Signature invalid', 'Signature absent', 'Signature valid'],
@@ -70,13 +52,12 @@ const CHIPS: Record<string, string[]> = {
   Answer: ['Answered by rule…', 'Near miss of…', 'Default response'],
 };
 
-/** Abre a Entrada e espera a lista com `n` requisições. */
 async function abrirEntrada(page: Page, tokenId: string, n: number, rota = ''): Promise<void> {
   await page.goto(`/#/${tokenId}${rota}`);
   await expect(page.getByRole('heading', { name: `Requests (${n})` })).toBeVisible();
 }
 
-test.describe('Dado o seletor de URLs no cabeçalho (UX-01; CA-9)', () => {
+test.describe('Dado o seletor de URLs no cabeçalho', () => {
   test('deve mostrar a URL aberta como "URL {id5}" e listar as URLs abertas neste navegador, a aberta primeiro', async ({
     page,
     tokens,
@@ -104,7 +85,6 @@ test.describe('Dado o seletor de URLs no cabeçalho (UX-01; CA-9)', () => {
       await expect(painel.getByRole('menuitem', { name: acao, exact: true })).toBeVisible();
     }
     await expect(painel).toContainText('Kept only in this browser.');
-    // Menos de 8 URLs: sem busca. E apagar a URL não mora no seletor.
     await expect(painel.getByRole('searchbox', { name: 'Find a URL' })).toHaveCount(0);
     await expect(painel.getByRole('menuitem', { name: /Delete/ })).toHaveCount(0);
   });
@@ -176,7 +156,6 @@ test.describe('Dado o seletor de URLs no cabeçalho (UX-01; CA-9)', () => {
 
     await page.reload();
     await expect(seletor(page)).toHaveAccessibleName('Pagamentos. Switch URL');
-    // Apelido vazio apaga o apelido.
     await (
       await abrirSeletor(page)
     )
@@ -288,7 +267,7 @@ test.describe('Dado o seletor de URLs no cabeçalho (UX-01; CA-9)', () => {
   });
 });
 
-test.describe('Dado "Delete URL" com e sem outra URL conhecida (decisão de 2026-09-28)', () => {
+test.describe('Dado "Delete URL" com e sem outra URL conhecida', () => {
   async function apagarAUrl(page: Page): Promise<void> {
     await (
       compacto(page)
@@ -351,8 +330,7 @@ test.describe('Dado "Delete URL" com e sem outra URL conhecida (decisão de 2026
   });
 });
 
-test.describe('Dado os filtros da Entrada numa linha (UX-04; CA-9)', () => {
-  /** POST /a, GET /b e POST /c (a mais nova). */
+test.describe('Dado os filtros da Entrada numa linha', () => {
   async function tres(tokens: {
     create(): Promise<string>;
     send: (t: string, w: object) => Promise<string>;
@@ -472,7 +450,6 @@ test.describe('Dado os filtros da Entrada numa linha (UX-04; CA-9)', () => {
     await expectUmAnuncio(page, /^2 requests match/);
     await expectSemAnuncio(page, /Searching|Buscando/);
 
-    // Guia §3.1 (revisado): desligar o último filtro troca o texto da região, que nunca é esvaziada.
     await limparAnuncios(page);
     await filtro(page, 'POST').click();
     await expectUmAnuncio(page, /^No filter\. 3 requests\.$/);
@@ -540,7 +517,7 @@ test.describe('Dado os filtros da Entrada numa linha (UX-04; CA-9)', () => {
   });
 });
 
-test.describe('Dado a lista densa (UX-06; CA-9)', () => {
+test.describe('Dado a lista densa', () => {
   test.describe('a 1440×900 em pt-BR', () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -548,7 +525,7 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
       page,
       tokens,
     }, testInfo) => {
-      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop (CA-9)');
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop');
       const tokenId = await tokens.create();
       await tokens.sendMany(tokenId, 14);
       await seedStorage(page, { language: '"pt-BR"' });
@@ -560,12 +537,11 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
       await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
     });
 
-    // Decisão do orquestrador: a densidade "Compact" de Settings continua valendo, com item de 52 px.
     test('deve mostrar 9 requisições inteiras ou mais na densidade compacta de Settings', async ({
       page,
       tokens,
     }, testInfo) => {
-      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop (CA-9)');
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop');
       const tokenId = await tokens.create();
       await tokens.sendMany(tokenId, 14);
       await seedStorage(page, { language: '"pt-BR"', density: '"compact"' });
@@ -621,15 +597,12 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
       Math.abs(altura - esperada),
       `item de ${esperada} px, tem ${altura}`,
     ).toBeLessThanOrEqual(1);
-    // Decisão do orquestrador (2026-09-28): a linha 1 mostra o tempo relativo, como hoje (INBOX-11), com a hora
-    // exata no `title`.
     const quando = linha.getByText(/^\s*(a few seconds ago|\d+ s ago|just now|a minute ago)\s*$/);
     await expect(quando).toBeVisible();
     await expect(quando).toHaveAttribute('title', /\b\d{1,2}:\d{2}\b/);
     await expect(linha).toContainText(`#${id5(id)}`);
     await expect(linha).not.toContainText(ip);
     await expect(linha).not.toContainText('agente-de-teste/1.0');
-    // O nome acessível não muda de formato, e leva o caminho inteiro e o IP.
     await expect(abrirItem(page, id)).toHaveAccessibleName(
       new RegExp(`^POST ${caminho}, #${id5(id)}, from ${ip.replace(/\./g, '\\.')}, `),
     );
@@ -690,7 +663,7 @@ test.describe('Dado a lista densa (UX-06; CA-9)', () => {
   });
 });
 
-test.describe('Dado uma URL que não existe (UX-16, P1 decidida)', () => {
+test.describe('Dado uma URL que não existe', () => {
   const rotas: [string, string][] = [
     ...ROTAS,
     ['Compare', `/compare/${urlInexistente()}/${urlInexistente()}`],
@@ -719,7 +692,6 @@ test.describe('Dado uma URL que não existe (UX-16, P1 decidida)', () => {
       );
       await expect(principal).toContainText('Whoever sends to it gets 410 Gone.');
       await expect(principal.getByRole('button', { name: 'Create a new URL' })).toBeVisible();
-      // O endereço é o pedido, nunca o de outra URL; e a rota fica como veio.
       expect(page.url().endsWith(`/#/${falta}${rota}`)).toBe(true);
       await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
         new RegExp(`/${falta}$`),
@@ -749,7 +721,6 @@ test.describe('Dado uma URL que não existe (UX-16, P1 decidida)', () => {
     await page.goto(`/#/${falta}/checks`);
 
     await page.getByRole('button', { name: 'Create a new URL' }).click();
-    // O "Create New URL" de hoje, se abrir, confirma com "Create".
     const dialogo = page.getByRole('dialog', { name: 'Create New URL' });
     if (await dialogo.isVisible().catch(() => false)) {
       await dialogo.getByRole('button', { name: 'Create', exact: true }).click();
@@ -805,7 +776,7 @@ test.describe('Dado uma URL que não existe (UX-16, P1 decidida)', () => {
   });
 });
 
-test.describe('Dado a faixa "sem conexão" (UX-16)', () => {
+test.describe('Dado a faixa "sem conexão"', () => {
   test('deve existir vazia desde a carga, em todos os destinos', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await seedStorage(page, {});
@@ -847,7 +818,6 @@ test.describe('Dado a faixa "sem conexão" (UX-16)', () => {
         'a contagem regressiva fica fora da região viva',
       ).toBe(true);
     }
-    // Nenhuma instrução de operador na frase.
     await expect(conexao(page)).not.toContainText(/docker|WEBHOOK_|compose/i);
     await expect(campoDeBusca(page)).toHaveValue('antes');
 
@@ -908,7 +878,7 @@ test.describe('Dado a faixa "sem conexão" (UX-16)', () => {
   });
 });
 
-test.describe('Dado o título da aba e os marcos de cada destino (UX-21)', () => {
+test.describe('Dado o título da aba e os marcos de cada destino', () => {
   test('deve dizer o destino e a URL no título da aba', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     await seedStorage(page, {});
@@ -971,7 +941,7 @@ test.describe('Dado o título da aba e os marcos de cada destino (UX-21)', () =>
   });
 });
 
-test.describe('Dado o rail e o cabeçalho da URL em todos os destinos (UX-11, UX-12)', () => {
+test.describe('Dado o rail e o cabeçalho da URL em todos os destinos', () => {
   test('deve mostrar "Live", o contador e "Search requests" no mesmo lugar em todo destino', async ({
     page,
     tokens,

@@ -3,15 +3,11 @@ import { expect, test } from './support/fixtures';
 import { abrirMensagem, item, mostrarLista, verificacoes } from './support/inbox';
 import { gravarRegras } from './support/regras';
 
-// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
-// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
-// {motivo}".
-
 // UX de Regras, tela de C3 — o status realmente respondido (E-06; guia-ux §3.10; CA-9 no selo). O selo da lista da
 // Entrada e o cartão do detalhe mostram o `response.status` gravado na mensagem ("404 · Tudo o resto"); com
 // `response.fault`, "Fault · {nome}"; mensagem antiga, sem `response`, só "Rule: {nome}" sem número. Backend pronto.
 // SUPOSIÇÕES:
-// - O cartão diz "Answered {status} · by rule" com o nome da regra (patamar, B2); o status vem do gravado.
+// - O cartão diz "Answered {status} · by rule" com o nome da regra; o status vem do gravado.
 // - SUPOSIÇÃO: a mensagem antiga é simulada tirando `response` na rota (o app atual sempre grava).
 
 const TUDO = { name: 'Tudo o resto', priority: 9, response: { status: 404 } };
@@ -55,8 +51,6 @@ test.describe('Dado uma mensagem respondida por uma falha de rede (E-06)', () =>
 
     await abrirLista(page, tokenId, uuid);
 
-    // Patamar, B2 (guia-combinacao §3.2): a falha de rede mostra "— · {tipo da falha}" (antes "Fault · {regra}"); a
-    // regra fica no nome acessível.
     await expect(item(page, uuid)).toContainText('— · Connection reset');
   });
 });
@@ -84,8 +78,6 @@ test.describe('Dado uma mensagem antiga, gravada sem a resposta (E-06)', () => {
 
     await abrirLista(page, tokenId, id);
 
-    // Patamar, B2 (guia-combinacao §3.2): sem o campo gravado, o selo diz "— · not recorded" (antes "Rule:
-    // {regra}"), sem número.
     await expect(item(page, id)).toContainText('— · not recorded');
     await expect(item(page, id)).not.toContainText('404');
   });

@@ -41,7 +41,7 @@ async function open(change: (host: Host) => void = () => undefined) {
   return result;
 }
 
-describe('Dado um número que conta requisições (CountLink, F1)', () => {
+describe('Dado um número que conta requisições (CountLink)', () => {
   it('deve levar à Entrada com o filtro exato do motivo e dizer o que conta no nome', async () => {
     const { container } = await open((host) =>
       host.filter.set(signatureReasonFilter('timestamp outside tolerance')),
@@ -101,7 +101,7 @@ describe('Dado um número que conta requisições (CountLink, F1)', () => {
   });
 });
 
-describe('Dado os filtros exatos de Saúde e de Métricas (M1)', () => {
+describe('Dado os filtros exatos de Saúde e de Métricas', () => {
   it.each([
     ['signature mismatch', 'invalid'],
     ['timestamp outside tolerance', 'invalid'],

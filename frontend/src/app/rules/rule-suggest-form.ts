@@ -136,7 +136,6 @@ export function suggestionChanges(current: Rule, proposed: Rule): string[] {
   return changes;
 }
 
-/** A sugestão como a tela a guarda: com o exemplo que ela usou, se usou. */
 interface Proposal {
   suggestion: RuleSuggestion;
   example: WebhookRequest | null;
@@ -144,11 +143,8 @@ interface Proposal {
 
 /**
  * O formulário do "Describe the rule" (carregado quando o `<details>` abre, ver `RuleSuggest`): a
- * descrição em linguagem natural vai para `rules/suggest` e a regra sugerida vira proposta. Antes
- * dos botões de aplicar, a tela **confere** a regra sem a IA (B4, UX-41): o que o servidor conferiu
- * (exemplo, histórico) e o que ela mesma sabe (campos, forma, posição), a regra em palavras e a
- * nota fixa do que uma regra não faz; o texto do modelo vem por último, recolhido. Nada é gravado
- * aqui: quem salva é o dono, no "Save" do editor.
+ * descrição vai para `rules/suggest` e a regra sugerida vira proposta, conferida pela tela sem a IA.
+ * Nada é gravado aqui: quem salva é o dono, no "Save" do editor.
  */
 @Component({
   selector: 'app-rule-suggest-form',
@@ -191,7 +187,6 @@ export class RuleSuggestForm {
     const suggestion = this.result();
     return suggestion ? suggestionChanges(this.current() ?? { name: '' }, suggestion.rule) : [];
   });
-  /** As conferências da proposta, sem a IA. */
   protected readonly checks = computed((): CheckLine[] => {
     const proposal = this.proposal();
     return proposal
@@ -212,16 +207,13 @@ export class RuleSuggestForm {
       ? suggestionSummary(this.checks(), proposal.suggestion.check, proposal.example !== null)
       : '';
   });
-  /** O que a regra faz, escrito pela tela e não pelo modelo. */
   protected readonly words = computed(() => {
     const suggestion = this.result();
     return suggestion ? ruleInWords(suggestion.rule) : '';
   });
   protected readonly errors = signal<readonly string[]>([]);
   protected readonly disabled = this.ai.disabled;
-  /** Segundos até poder pedir de novo depois do 429 da IA (UX-52); 0 libera. */
   protected readonly retryIn = signal(0);
-  /** O último pedido bateu no limite (429): o botão é o "Try again" até pedir de novo. */
   protected readonly limited = signal(false);
   protected readonly canSuggest = computed(() => {
     const length = this.prompt().trim().length;
@@ -250,9 +242,8 @@ export class RuleSuggestForm {
     problem: { label: $localize`:verdict of a check:Problem`, icon: 'bad' },
   };
 
-  /** O pedido em curso, para o "Cancel". */
   private request: AbortController | null = null;
-  /** As sugestões desta abertura do editor, pelo texto do pedido (e o exemplo usado). */
+  /** Nesta abertura do editor, o mesmo pedido com o mesmo exemplo não chama a IA de novo. */
   private readonly kept = new Map<string, Proposal>();
   private retryTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -263,7 +254,6 @@ export class RuleSuggestForm {
     });
   }
 
-  /** `Enter` no campo do pedido aciona "Suggest"; `Shift+Enter` quebra a linha. */
   protected suggestByKey(event: Event): void {
     if (!(event as KeyboardEvent).shiftKey) {
       event.preventDefault();
@@ -311,7 +301,6 @@ export class RuleSuggestForm {
     }
   }
 
-  /** "Cancel" (ou `Esc`) durante a espera: aborta o pedido. */
   protected cancel(): void {
     this.request?.abort();
   }
@@ -331,13 +320,11 @@ export class RuleSuggestForm {
     this.proposal.set(null);
   }
 
-  /** "Open the sequence assistant": o `dialog "Sequence"` de Regras. */
   protected async openSequence(): Promise<void> {
     const { openSequence } = await import('./scenario-sequence');
     await openSequence(this.injector);
   }
 
-  /** A proposta conferida aparece e o foco vai ao resumo dela. */
   private show(proposal: Proposal): void {
     this.proposal.set(proposal);
     this.pending.set(true);

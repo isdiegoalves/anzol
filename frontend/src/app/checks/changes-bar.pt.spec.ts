@@ -6,9 +6,8 @@ import { token } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { ResponseCard } from './response-card';
 
-// O texto do template é traduzido quando o componente é criado pela primeira vez no processo de
-// teste, então aqui só se confere o que é montado em tempo de execução (`$localize` no código): o
-// nome da região, o resumo e as linhas de alteração. Os campos são achados pelo formulário.
+// O template é traduzido na primeira criação do componente no processo: aqui só se confere o que
+// vem do `$localize` no código.
 describe('Dado a barra de salvar de Verificações com a tela em pt-BR', () => {
   beforeEach(() => loadTranslations(translations));
   afterEach(() => {

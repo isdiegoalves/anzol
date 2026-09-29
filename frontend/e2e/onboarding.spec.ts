@@ -7,9 +7,6 @@ import { campoDeBusca, itens, lista } from './support/inbox';
 import { acaoDoShell, compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Item 14, E10: onboarding, estados vazios, de erro e de carregamento (C §2.10 e §2.11) e o Settings completo.
 // Fixo na §1: "Your URL is ready" com as abas cURL, From a provider e CLI; "Send a test request" é um `fetch` da
 // própria origem para a captura `/{uuid}` (não é rota de gestão), com corpo JSON; densidade confortável por padrão e
@@ -127,8 +124,6 @@ test.describe('Dado uma URL nova, sem mensagens', () => {
 });
 
 test.describe('Dado um link para uma URL que não existe', () => {
-  // Patamar, B1 (guia-combinacao §3.1 e §7; UX-16, P1 decidida): a Entrada não cria outra URL sozinha; mostra a
-  // página única de URL inexistente, com o endereço pedido.
   test('deve mostrar a página de URL inexistente, sem criar outra', async ({ page }) => {
     const antiga = randomUUID();
     await seedStorage(page, {});
@@ -207,7 +202,6 @@ test.describe('Dado um erro de rede ao salvar em Checks', () => {
     await resposta.getByLabel('Response body').fill('depois');
     await botaoSalvar(page).click();
 
-    // B3: o erro de rede ao salvar fica na barra, com "Try again" (antes "Retry" no cartão).
     const retry = page.getByRole('button', { name: /^(Try again|Retry)$/ });
     await expect(retry).toBeVisible();
     await expect(resposta.getByLabel('Response body')).toHaveValue('depois');

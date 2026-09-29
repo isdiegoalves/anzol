@@ -34,9 +34,6 @@ async function openRequest(page: Page, tokenId: string, requestId: string) {
 /** "Compare with…" na aberta e clique na B da lista; devolve a vista da comparação. */
 async function compareWith(page: Page, a: string, b: string): Promise<Locator> {
   await page.getByRole('button', { name: 'Compare with…' }).click();
-  // Patamar, R1 (guia-combinacao §3.7 e §7): escolher na lista abre a aba Compare do painel de ação, com a frase
-  // "Pick a request in the list to compare with #…" (antes "Choose a request to compare with #…"); a rota
-  // `/compare/{a}/{b}` continua valendo pelo `link "Open full comparison"`.
   await expect(
     page.getByText(
       new RegExp(
@@ -183,7 +180,6 @@ test.describe('Dado duas entregas do mesmo evento', () => {
     await openRequest(page, tokenId, a);
 
     await page.getByRole('button', { name: 'Compare with…' }).click();
-    // Patamar, R1: o modo de escolher fica na aba Compare; sai por "Cancel" ou fechando o painel.
     await page
       .getByRole('button', { name: 'Cancel', exact: true })
       .or(page.getByRole('button', { name: 'Close panel' }))

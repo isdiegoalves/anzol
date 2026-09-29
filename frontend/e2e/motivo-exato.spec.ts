@@ -1,12 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-// Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
 import { abrirSaude } from './support/checks';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
 import { filtro, item, itens, abrirFiltros } from './support/inbox';
-
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
 
 // Decisões do Anzol, M1 — a Entrada filtra pelo motivo exato (`.docs-arquivo/decisoes-anzol/api.md`): a busca ganha
 // `signature_reason` (o `reason` sem o parêntese final, como o Health mostra) e `schema_path` (JSON Pointer), e o
@@ -65,11 +61,7 @@ async function cenario(tokens: TokenTracker): Promise<Cenario> {
   };
 }
 
-/**
- * O chip do filtro ativo com o motivo ou o caminho. Patamar, B1 e F1 (guia-combinacao §3.1 e §3.6): o filtro ligado
- * é um item da `list "Active filters"` ("signature: {motivo}", "schema error at {caminho}"); antes era um botão
- * pressionado do `group "Filters"`. Vale qualquer um dos dois.
- */
+/** O chip do filtro ativo com o motivo ou o caminho. */
 function chipDo(page: Page, texto: string): Locator {
   const escapado = new RegExp(texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return page
@@ -99,7 +91,6 @@ function naQuery(texto: string): RegExp {
 async function mostrarNaEntrada(page: Page, tokenId: string, linha: RegExp): Promise<void> {
   const health = await abrirSaude(page, tokenId);
   const link = health.getByRole('link', { name: linha });
-  // Patamar, F1 (guia-combinacao §3.6): o link de contagem diz "Open in the Inbox", no nome e à vista.
   await expect(link).toContainText('Open in the Inbox');
   await link.click();
   await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?\\?`));

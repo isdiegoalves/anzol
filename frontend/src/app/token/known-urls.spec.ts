@@ -6,7 +6,7 @@ const B = 'bbbbbbbb-2222-4222-8222-222222222222';
 
 const stored = () => JSON.parse(localStorage.getItem(KNOWN_URLS_KEY) ?? 'null') as unknown;
 
-describe('Dado as URLs que este navegador conhece (anzol.urls, B1)', () => {
+describe('Dado as URLs que este navegador conhece (anzol.urls)', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.useFakeTimers({ now: new Date('2026-09-28T12:00:00Z'), toFake: ['Date'] });
@@ -60,7 +60,6 @@ describe('Dado as URLs que este navegador conhece (anzol.urls, B1)', () => {
     expect(known.nameOf(A)).toBe('Pagamentos');
     known.rename(A, 'x'.repeat(60));
     expect(known.nicknameOf(A)).toHaveLength(40);
-    // Vazio apaga o apelido.
     known.rename(A, ' ');
     expect(known.nameOf(A)).toBe('URL aaaaa');
   });

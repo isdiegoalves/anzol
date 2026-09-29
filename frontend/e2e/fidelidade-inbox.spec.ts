@@ -17,9 +17,6 @@ import {
 import { destino, secoes } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // Item 14.1, fatia F1 (fidelidade ao protótipo C): shell, Inbox, celular e Compare. Cada teste cobre um item de
 // `.docs-arquivo/fidelidade-prototipo/desvios.json` (decisão "corrigir") e respeita as Travas do 00-STATUS.
 // SUPOSIÇÕES (nomes do protótipo C quando ele os tem; os demais marcados aqui):
@@ -215,8 +212,6 @@ test.describe('Dado o cabeçalho da URL (INBOX-03/04, CHECKS-22)', () => {
 });
 
 test.describe('Dado os chips de filtro (INBOX-09, trava 4)', () => {
-  // Patamar, B1 (guia-combinacao §3.1 e §7): o `button "More filters"` some; os chips de hoje, inclusive os quatro
-  // que ele guardava (PATCH, DELETE, Signature valid, Schema valid), ficam no `group "Filters"`, começando por POST.
   test('deve mostrar os chips do protótipo começando por POST, todos no painel de filtros', async ({
     page,
     tokens,
@@ -272,7 +267,6 @@ test.describe('Dado o resumo do corpo no item (INBOX-11)', () => {
     await page.goto(`/#/${tokenId}`);
 
     await expect(item(page, comTipo)).toContainText('payment_intent.succeeded');
-    // Patamar, B1 (guia-combinacao §3.1, lista densa): o agente sai da linha do item e fica só no detalhe.
     await expect(item(page, semTipo)).not.toContainText('agente-de-teste/1.0');
   });
 });
@@ -473,8 +467,8 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     await expect(page.getByRole('link', { name: 'Send', exact: true })).toBeHidden();
     await expect(page.getByRole('link', { name: 'Edit', exact: true })).toHaveCount(0);
 
-    // Chips numa linha só (rola na horizontal) e a lista começando perto do topo. Patamar, B1: os chips ficam atrás
-    // do `button "Filters"`; a lista é medida antes de abrir o painel, que no celular fica por cima dela.
+    // Chips numa linha só (rola na horizontal) e a lista começando perto do topo. A lista é medida antes de abrir
+    // os filtros: no celular o painel fica por cima dela.
     expect((await itens(page).first().boundingBox())!.y, 'lista perto do topo').toBeLessThan(330);
     await abrirFiltros(page);
     const chips = page.getByRole('group', { name: 'Filters' }).getByRole('button');

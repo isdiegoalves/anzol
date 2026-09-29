@@ -55,7 +55,7 @@ describe('Dado o assistente de sequência (sequenceRules, WM-32)', () => {
     expect(rules[2].scenario).not.toHaveProperty('newState');
   });
 
-  it('deve pôr o Retry-After só nas respostas que recusam (R1)', () => {
+  it('deve pôr o Retry-After só nas respostas que recusam', () => {
     const rules = sequenceRules({ ...spec, first: { ...spec.first, retryAfter: 5 } }, 5);
 
     expect(rules.map((r) => r.response?.headers)).toEqual([
@@ -217,7 +217,7 @@ describe('Dado o diálogo "Sequence" (WM-32)', () => {
     expect(close).toHaveBeenCalledWith(true);
   });
 
-  it('deve ter o "Retry-After (s)" vazio, sem o cabeçalho, e gravá-lo Quando preenchido (R1)', async () => {
+  it('deve ter o "Retry-After (s)" vazio, sem o cabeçalho, e gravá-lo Quando preenchido', async () => {
     await show([]);
     const espera = screen.getByRole('spinbutton', { name: 'Retry-After (s)' });
     expect((espera as HTMLInputElement).value).toBe('');

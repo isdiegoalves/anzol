@@ -18,8 +18,8 @@ export interface HealthItem {
   count: number;
   /**
    * Query da Inbox já filtrada: o estado largo de hoje (`?signature=invalid|absent`,
-   * `?schema=invalid`) e o motivo exato ou o caminho do erro (`&signatureReason=`, `&schemaPath=`, M1),
-   * montada pelas mesmas funções de Métricas (F1: os dois links saem iguais).
+   * `?schema=invalid`) e o motivo exato ou o caminho do erro (`&signatureReason=`, `&schemaPath=`),
+   * montada pelas mesmas funções de Métricas, para os dois links saírem iguais.
    */
   filter: CountFilter;
   /** Largura da barra, proporcional ao maior da lista (`"50%"`). */
@@ -42,7 +42,7 @@ export interface HealthLine {
   unchecked: number;
   /** Percentual de válidas entre as verificadas, com uma casa; `null` sem nenhuma verificada. */
   percent: string | null;
-  /** F1: os filtros exatos da Entrada para as válidas e as inválidas; `null` quando não há um só. */
+  /** `null` quando as válidas (ou as inválidas) não cabem num filtro só da Entrada. */
   validFilter: CountFilter | null;
   invalidFilter: CountFilter | null;
 }
@@ -53,8 +53,7 @@ type WindowSize = (typeof STATS_WINDOWS)[number];
  * Checks › Health (C §2.6, S20): a taxa de assinaturas e de corpos válidos nas últimas 50, 200 ou
  * 500 mensagens, com os motivos e caminhos que mais falham, lida do `GET /token/{id}/stats` (nada
  * é calculado na tela). Sem polling: recalcula ao abrir, ao trocar a janela, ao salvar a URL, ao
- * voltar para a aba e no "Refresh". Na página fica por último e recolhido (B3): uma linha com as
- * duas taxas, "Open in Insights" e "Show health", que abre o painel.
+ * voltar para a aba e no "Refresh".
  */
 @Component({
   selector: 'app-health-card',
@@ -80,22 +79,19 @@ export class HealthCard {
   protected readonly windows = STATS_WINDOWS;
   protected readonly window = signal<WindowSize>(200);
   protected readonly stats = signal<TokenStats | null>(null);
-  /** Sobre o que os números foram contados: o `window=` dos links quando a janela corta (F1). */
   protected readonly scope = computed(() => {
     const stats = this.stats();
     return stats ? { evaluated: stats.evaluated, total: stats.total } : null;
   });
   protected readonly loading = signal(false);
   protected readonly failure = signal<string | null>(null);
-  /** "Show health": o painel inteiro; recolhido, só a linha das duas taxas. */
   protected readonly open = signal(false);
-  /** "Signatures 98.0 % valid · Schema not checked, over the newest 200". */
   protected readonly brief = computed(() => {
     const stats = this.stats();
     if (!stats || stats.evaluated === 0) {
       return null;
     }
-    // Uma frase por taxa: em pt-BR "válidas" (assinaturas) e "válido" (schema).
+    // Duas mensagens para o mesmo "% valid": em pt-BR, "válidas" (assinaturas) e "válido" (schema).
     const number = (percent: string) => percent.replace('%', '');
     const signatures = this.signature()?.percent;
     const bodies = this.schema()?.percent;
@@ -125,7 +121,7 @@ export class HealthCard {
             })),
           ),
           { signature: 'valid' },
-          // Inválidas e ausentes juntas não são um filtro só da Entrada: os motivos levam a cada uma.
+          // Inválidas e ausentes juntas não cabem num filtro só da Entrada.
           null,
         )
       : null;

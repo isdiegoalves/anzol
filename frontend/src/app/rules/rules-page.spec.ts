@@ -175,7 +175,6 @@ describe('Dado a página Rules', () => {
     expect(await screen.findByText('Hits over the last 1 request kept.')).toBeTruthy();
   });
 
-  // UX-21: cada destino tem um `main` com nome.
   it('deve ser o main da tela, com o nome do destino', async () => {
     await open([rule(1)]);
 
@@ -539,7 +538,6 @@ describe('Dado a página Rules', () => {
         const editor = await screen.findByRole('region', { name: 'New rule' });
         await userEvent.click(within(editor).getByText('Describe the rule'));
         await within(editor).findByRole('textbox', { name: 'Describe the rule' });
-        // Sem exemplo desta URL, a caixa existe desligada e diz o que falta (B4).
         const box = within(editor).getByRole('checkbox', {
           name: /Use the open request as example/,
         });

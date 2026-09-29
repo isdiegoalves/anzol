@@ -72,28 +72,18 @@ export function compareMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   return valid ? { consumed: segments, posParams: { tokenId: token, a, b } } : null;
 }
 
-/**
- * Endereço cujo primeiro segmento não é id de URL (`#/12345/rules`): cai na página única de URL
- * inexistente, que o shell mostra no lugar da rota (B1). Não redireciona nem cria URL.
- */
+/** `#/12345/rules`: o shell mostra a página de URL inexistente, sem redirecionar nem criar URL. */
 export function malformedMatcher(segments: UrlSegment[]): UrlMatchResult | null {
   const [first] = segments;
   const known = !first || UUID.test(first.path) || ['share', '_catalog'].includes(first.path);
   return known ? null : { consumed: segments };
 }
 
-/**
- * Página que pergunta antes de sair: Rules com alterações não salvas no editor (E-04) e Checks com
- * alterações na barra de salvar (B3).
- */
 interface LeaveGuarded {
   canLeave(): Promise<boolean>;
 }
 
-/**
- * Sem a página na tela não há o que perguntar: com a URL inexistente ou trancada, o shell põe outra
- * tela no lugar do `router-outlet`, e a rota fica sem componente (`null`).
- */
+// `null`: com a URL inexistente ou trancada, o shell põe outra tela no lugar do `router-outlet`.
 const askBeforeLeaving: CanDeactivateFn<LeaveGuarded | null> = (page) => page?.canLeave() ?? true;
 
 /**

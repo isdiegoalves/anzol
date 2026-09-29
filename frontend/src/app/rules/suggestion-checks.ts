@@ -5,32 +5,25 @@ import { RULE_DEFAULT_PRIORITY, Rule, evaluationOrder } from './rule';
 import { exampleHeader, exampleQuery, valueAtPath } from './rule-example';
 import { catchAllPlacement } from './rule-shadow';
 
-// A conferência de uma regra sugerida (B4, UX-41; DX-29): o que a regra faz de verdade, dito pela
-// tela e não pelo modelo. O servidor confere a regra contra o exemplo e o histórico (o bloco
-// `check` do `rules/suggest`); a tela junta o que ela mesma sabe (os campos do exemplo, a forma e
-// a posição na lista). Funções puras.
+// O que a regra sugerida faz de verdade, dito pela tela e não pelo modelo: o servidor confere contra
+// o exemplo e o histórico; a tela junta os campos do exemplo, a forma e a posição na lista.
 
 export type Verdict = 'ok' | 'attention' | 'problem';
 
-/** Uma linha de `list "Checks on this suggestion"`. */
 export interface CheckLine {
   verdict: Verdict;
   text: string;
-  /** "Open the sequence assistant", na linha do pedido com mais de um passo. */
   action?: 'sequence';
 }
 
 export interface SuggestionInput {
   rule: Rule;
-  /** O bloco `check` da resposta; `null` num servidor que não confere. */
+  /** `null` num servidor que não confere. */
   check: SuggestionCheck | null | undefined;
-  /** A requisição usada como exemplo; `null` quando a sugestão não usou nenhuma. */
   example: WebhookRequest | null;
-  /** As regras salvas da URL, para a posição em que a sugerida entraria. */
   rules: readonly Rule[];
 }
 
-/** As conferências, na ordem do guia: exemplo, histórico, campos, forma, pedido em sequência. */
 export function suggestionChecks(input: SuggestionInput): CheckLine[] {
   return [
     ...exampleLine(input),
@@ -41,7 +34,6 @@ export function suggestionChecks(input: SuggestionInput): CheckLine[] {
   ];
 }
 
-/** O resumo acima da lista: os problemas, ou o que foi conferido. */
 export function suggestionSummary(
   lines: readonly CheckLine[],
   check: SuggestionCheck | null | undefined,
@@ -69,7 +61,6 @@ function exampleLine({ check, example }: SuggestionInput): CheckLine[] {
   if (check.example.matches) {
     return [{ verdict: 'ok', text: $localize`Matches the example request.` }];
   }
-  // As frases do servidor na língua da tela (a tabela da F9).
   const reason = check.example.failed.map((phrase) => conditionPhrase(phrase).text).join(' · ');
   return [
     {
@@ -105,7 +96,6 @@ function historyLine(check: SuggestionCheck | null | undefined): CheckLine {
   };
 }
 
-/** Cada campo das condições procurado no exemplo; e o caminho que o histórico nunca recebeu. */
 function fieldLines({ rule, check, example }: SuggestionInput): CheckLine[] {
   const match = rule.match ?? {};
   const missing: string[] = [];
@@ -149,7 +139,6 @@ function fieldLines({ rule, check, example }: SuggestionInput): CheckLine[] {
   return lines;
 }
 
-/** A forma da regra: template desligado com `{{…}}`, pega-tudo, e onde ela entra na lista. */
 function shapeLines({ rule, check, rules }: SuggestionInput): CheckLine[] {
   const lines: CheckLine[] = [];
   const response = rule.response ?? {};
@@ -183,7 +172,6 @@ function shapeLines({ rule, check, rules }: SuggestionInput): CheckLine[] {
   return lines.length > 0 ? lines : [positionLine(rule, rules)];
 }
 
-/** "Enters at position 8 of 9, before "Tudo o resto"": a regra nova entra antes da pega-tudo. */
 function positionLine(rule: Rule, rules: readonly Rule[]): CheckLine {
   const total = rules.length + 1;
   const placement = catchAllPlacement(rules);

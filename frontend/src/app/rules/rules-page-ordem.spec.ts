@@ -586,7 +586,7 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       });
     });
 
-    // R1: o modelo abre o roteiro "Test a retry"; o diálogo "Sequence" fica no "Sequence…" da aba Scenario.
+    // O diálogo "Sequence" continua no "Sequence…" da aba Scenario.
     it('deve abrir o roteiro "Test a retry" pelo modelo "Fail N times, then accept"', async () => {
       await open([rule(1)]);
 

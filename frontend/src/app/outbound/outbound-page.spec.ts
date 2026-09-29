@@ -78,7 +78,6 @@ describe('Dado a página Outbound', () => {
   it('deve listar o histórico, abrir o mais novo no detalhe e passar no axe', async () => {
     const harness = await open();
 
-    // UX-21: um `main` com nome e um `h1` por destino.
     expect(screen.getByRole('main', { name: 'Outbound' })).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const items = [

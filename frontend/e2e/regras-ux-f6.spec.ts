@@ -29,9 +29,8 @@ import {
 const CATCH_ALL = { name: 'Tudo o resto', priority: 9, response: { status: 404 } };
 
 /**
- * Abre o `dialog "Sequence"` pelo `button "Sequence…"` da aba Scenario de uma regra nova. Patamar, R1
- * (guia-combinacao §3.7 e §7): o modelo "Fail N times, then accept" passa a abrir o roteiro "Test a retry" (conferido
- * no patamar-r1.spec); o diálogo continua existindo para quem vem de Regras, e ganha o campo "Retry-After (s)".
+ * Abre o `dialog "Sequence"` pelo "Sequence…" da aba Scenario de uma regra nova: o modelo "Fail N times, then
+ * accept" abre o roteiro "Test a retry", não este diálogo.
  */
 async function abrirSequencia(page: Page, tokenId: string): Promise<Locator> {
   await abrirRegras(page, tokenId);
@@ -109,8 +108,6 @@ test.describe('Dado o assistente "Fail N times, then accept" (WM-32, E-09; CA-8)
     expect(await statusDe(page, tokenId, 4)).toEqual([503, 503, 200, 200]);
   });
 
-  // Patamar, R1 (guia-combinacao §3.7): o diálogo ganha o `spinbutton "Retry-After (s)"`, vazio por padrão ("Empty:
-  // no header."); preenchido, as respostas que recusam levam o cabeçalho.
   test('deve pôr o Retry-After nas respostas que recusam Quando o campo é preenchido', async ({
     page,
     request,

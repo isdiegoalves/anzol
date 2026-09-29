@@ -4,11 +4,10 @@
   [attr.role]="shown() ? 'region' : null"
   [attr.aria-label]="shown() ? label : null"
 >
-  <!-- A região viva existe desde a carga, vazia (§4.3); a barra à vista aparece depois. -->
+  <!-- Fora do @if: a região viva precisa existir vazia antes de falar. -->
   <app-live-region class="spoken" [text]="spoken()" [alert]="draft.alert() !== ''" />
   @if (shown()) {
     @if (failure) {
-      <!-- O erro do salvar, com o que fazer dele: a barra continua, e as alterações também. -->
       <div class="failure" role="alert">
         <p><app-icon name="bad" [size]="16" />{{ failure.text }}</p>
         @switch (failure.kind) {
@@ -51,7 +50,7 @@
         Review changes
       </button>
       <button mat-stroked-button type="button" (click)="discard()" i18n>Discard</button>
-      <!-- Nunca desabilitado (S12): com campo inválido, o clique diz o que corrigir. -->
+      <!-- Nunca desabilitado: com campo inválido, o clique diz o que corrigir. -->
       <button
         mat-flat-button
         type="button"

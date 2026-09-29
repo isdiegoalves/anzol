@@ -34,7 +34,6 @@ describe('Dado o cliente das rotas de IA', () => {
     localStorage.clear();
   });
 
-  // B4 (UX-15): o idioma pedido é o escolhido na tela, não o do navegador.
   it('deve mandar prompt, o idioma da tela e a mensagem de exemplo Quando pede uma regra', async () => {
     document.documentElement.lang = 'pt-BR';
     const answer = ai.suggestRule(TOKEN_ID, 'responda 429', REQUEST_ID);
@@ -131,7 +130,7 @@ describe('Dado o cliente das rotas de IA', () => {
 
     await expect(answer).rejects.toBeInstanceOf(HttpErrorResponse);
     expect(ai.disabled()).toBe(true);
-    // Sem rota de capacidades, a sondagem é o primeiro pedido: vale pelo resto da sessão da aba.
+    // O desligamento vale pelo resto da sessão da aba.
     expect(sessionStorage.getItem('anzol.ai.off')).toBe('1');
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({

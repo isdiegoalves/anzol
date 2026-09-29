@@ -26,11 +26,9 @@ export class ChecksStore {
   private readonly snackBar = inject(MatSnackBar);
 
   /**
-   * Salva as alterações de Verificações (CA-11, B3). `base` é a URL como a página a leu. Antes do
-   * `PUT`, relê a URL no servidor: outra aba, o CLI ou o MCP podem ter gravado nesse meio-tempo. Se
-   * a URL mudou lá fora, não grava: `ChangedElsewhere` (a barra oferece "Reload" e "Save anyway").
-   * O corpo é a URL relida com os campos mudados aqui por cima, então o que a página não mudou
-   * segue como está no servidor, também no "Save anyway" (`force`).
+   * `base` é a URL como a página a leu. Antes do `PUT`, relê a URL no servidor: outra aba, o CLI ou
+   * o MCP podem ter gravado nesse meio-tempo. Se ela mudou lá fora, não grava (`ChangedElsewhere`),
+   * a não ser com `force`.
    * Com segredo de leitura novo, destranca com ele antes de publicar a URL salva: publicar dispara
    * leituras (o Health), que com o cookie antigo levariam 401 e trancariam a tela. Com a limpeza
    * reduzida, a lista da Inbox vem de novo do servidor (o corte não gera evento).
@@ -40,13 +38,12 @@ export class ChecksStore {
     const url = `/token/${base.uuid}`;
     const fresh = await firstValueFrom(this.http.get<Token>(url));
     const cors = options.cors ?? null;
-    // Com uma barra só, a página inteira é o rascunho: qualquer campo mudado lá fora é conflito.
+    // A página inteira é um rascunho só: qualquer campo mudado lá fora é conflito.
     const changed = options.force ? [] : changedElsewhere(base, fresh);
     if (changed.length > 0) {
       throw new ChangedElsewhere(changed);
     }
-    // O `PUT` troca a configuração inteira: vai sempre a URL relida completa (com o bloco
-    // `signature`), com as mudanças por cima.
+    // O `PUT` troca a configuração inteira: vai a URL relida completa, com as mudanças por cima.
     let updated = await firstValueFrom(this.http.put<Token>(url, withChanges(fresh, changes)));
     if (typeof changes.read_secret === 'string') {
       try {
@@ -56,14 +53,14 @@ export class ChecksStore {
         throw new UnlockFailed(error instanceof HttpErrorResponse ? error.status : null);
       }
     }
-    // O CORS sai depois do `PUT` e do destrancar (B3): o pedido pela barra, ou o que a URL já tinha.
+    // Depois do `PUT` e do destrancar; sem pedido, volta ao CORS que a URL já tinha.
     const wanted = cors ?? fresh.cors ?? false;
     let corsFailed = false;
     if ((updated.cors ?? false) !== wanted) {
       try {
         updated = { ...updated, cors: await this.tokens.toggleCors(base.uuid) };
       } catch {
-        // O resto já foi gravado: a tela volta ao que o servidor tem e diz o que não entrou.
+        // O resto já foi gravado: só o CORS não entrou, e o aviso diz isso.
         corsFailed = true;
       }
     }
@@ -74,7 +71,7 @@ export class ChecksStore {
     if (corsFailed) {
       this.snackBar.open($localize`Could not toggle CORS.`, undefined, { duration: 10000 });
     } else {
-      // O anúncio sai uma vez, pelo `announcer` da barra: o snackbar fica calado (§4.3).
+      // Quem anuncia é a barra: o snackbar fica calado para não falar duas vezes.
       this.snackBar.open($localize`URL updated!`, undefined, {
         duration: 4000,
         politeness: 'off',
@@ -145,11 +142,9 @@ export function jsonBody(request: WebhookRequest): { value: unknown } | null {
   }
 }
 
-/** O que a barra de salvar pede além dos campos do `PUT`. */
 export interface SaveOptions {
-  /** O CORS pedido (`PUT /token/{id}/cors/toggle`, depois do `PUT` do token); `null` mantém. */
+  /** `null` mantém o CORS da URL. */
   cors?: boolean | null;
-  /** "Save anyway": grava por cima do que mudou em outro lugar. */
   force?: boolean;
 }
 

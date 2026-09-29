@@ -8,7 +8,6 @@ import { RequestCreated } from '../requests/webhook-request';
  */
 export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 
-/** A conexão de uma URL, dividida por quem a assina (o shell, a Entrada, Regras). */
 interface Shared {
   source: EventSource;
   readonly events: Subject<RequestCreated>;
@@ -19,9 +18,8 @@ interface Shared {
 }
 
 /**
- * Tempo real por SSE: `GET /token/{id}/stream`, evento `request.created`. Uma conexão por URL: o
- * shell a mantém aberta em todo destino (o "Live" do cabeçalho, UX-12), e a Entrada e Regras
- * assinam a mesma.
+ * Tempo real por SSE: `GET /token/{id}/stream`, evento `request.created`. Uma conexão por URL,
+ * dividida por todos os assinantes.
  *
  * O estado da conexão é um signal. Os eventos saem como Observable, e não como signal, porque
  * um signal guarda só o último valor: duas mensagens que chegam antes da próxima detecção de
@@ -32,12 +30,12 @@ export class RequestStream {
   private readonly streams = new Map<string, Shared>();
   private readonly state = signal<StreamStatus>('idle');
   readonly status = this.state.asReadonly();
-  /** Quedas seguidas sem voltar a abrir: a partir da segunda, a primeira reconexão falhou. */
+  /** Quedas seguidas; zera quando a conexão abre. */
   readonly drops = signal(0);
 
   /**
    * Abre o `EventSource` com o primeiro assinante e o fecha com o último. `quiet`: a assinatura não
-   * mexe no `status` (a tela de Regras só relê os hits, WM-38).
+   * mexe no `status` (a tela de Regras só relê os hits).
    */
   connect(tokenId: string, { quiet = false } = {}): Observable<RequestCreated> {
     return new Observable<RequestCreated>((subscriber) => {
@@ -59,7 +57,7 @@ export class RequestStream {
     });
   }
 
-  /** "Try again now": abre de novo as conexões, sem esperar a próxima tentativa do navegador. */
+  /** Reabre as conexões sem esperar a próxima tentativa do navegador. */
   retry(): void {
     for (const [tokenId, shared] of this.streams) {
       shared.source.close();
@@ -102,7 +100,6 @@ export class RequestStream {
     return source;
   }
 
-  /** O "Live" do cabeçalho é o da conexão que alguém assina em voz alta. */
   private publish(): void {
     const loud = [...this.streams.values()].find((shared) => shared.loud > 0);
     this.state.set(loud?.status ?? 'idle');

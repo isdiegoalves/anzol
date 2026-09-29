@@ -56,7 +56,6 @@
   }
 }
 
-// No celular, os botões ocupam a largura, o que confirma por último.
 @media (width < 600px) {
   mat-dialog-actions {
     flex-direction: column;

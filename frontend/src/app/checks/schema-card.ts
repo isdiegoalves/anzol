@@ -29,7 +29,7 @@ import {
  * código, fora de escopo), o tamanho contra o limite do servidor, "Clear schema", "Generate from a
  * message" com o `inferSchema` e as regras do jogo. Com `schemaFrom` (a rota
  * `?schema-from={requestId}`, "Create schema from this request"), o campo já vem com o schema
- * inferido daquela mensagem, sem salvar. O salvar é o da barra da página (B3).
+ * inferido daquela mensagem, sem salvar.
  */
 @Component({
   selector: 'app-schema-card',
@@ -57,7 +57,6 @@ export class SchemaCard implements ChecksSection {
     schema: [schemaText(this.saved()), schemaValidator],
     source: [''],
   });
-  /** Tentou salvar com o campo inválido: o erro aparece mesmo sem o campo ter sido tocado. */
   protected readonly attempted = signal(false);
   /** Mensagens JSON recentes para "Generate from a message"; `null` enquanto carrega. */
   protected readonly recent = signal<readonly WebhookRequest[] | null>(null);
@@ -115,10 +114,7 @@ export class SchemaCard implements ChecksSection {
     return this.draft.dirtySections().includes(this.id);
   }
 
-  /**
-   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
-   * o `alert` da barra, uma vez só: o resumo daqui se cala.
-   */
+  /** Com o `alert` da barra à vista, o resumo daqui se cala para não repetir. */
   protected pending(): string {
     return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
@@ -128,7 +124,6 @@ export class SchemaCard implements ChecksSection {
     this.setDraft('');
   }
 
-  /** O schema aparece pelo tamanho: o texto inteiro não cabe na barra. */
   changes(): ChangeLine[] {
     const text = this.form.controls.schema.value;
     const saved = schemaText(this.saved());
@@ -166,7 +161,6 @@ export class SchemaCard implements ChecksSection {
     this.inferred.set(null);
   }
 
-  /** O 422 do schema vai para o campo, com a frase do servidor. */
   refused(error: unknown): string[] {
     const messages = fieldErrors(error, 'schema');
     if (messages.length === 0) {
@@ -258,7 +252,6 @@ export class SchemaCard implements ChecksSection {
   }
 }
 
-/** "312 B", "1.4 KB": o tamanho do texto do schema em UTF-8. */
 function sizeOf(text: string): string {
   const bytes = new TextEncoder().encode(text).length;
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;

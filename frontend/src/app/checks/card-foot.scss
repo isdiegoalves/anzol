@@ -7,7 +7,6 @@
   border-top: 1px solid var(--mat-sys-outline-variant);
 }
 
-// Sem resumo, sem aviso e sem ação do cartão, o pé não aparece.
 :host(:has(.note span:empty):not(:has(.actions > *))) {
   display: none;
 }

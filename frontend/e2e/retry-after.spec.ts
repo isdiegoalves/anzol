@@ -1,9 +1,6 @@
 import { abrirChecks, abrirCreate, pendenteAlerta, salvar } from './support/checks';
 import { expect, test, tokenInUrl } from './support/fixtures';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Campo Retry-After dos diálogos da URL. Precisa do backend com `retry_after` no token.
 // Item 14, E5: no "Create New URL" o campo fica no painel "Customize response"; o "Edit URL" vira o cartão
 // `region "Response"` de Checks, com "Save response". SUPOSIÇÕES em `support/checks.ts`.

@@ -2,17 +2,12 @@ import { LocationStrategy } from '@angular/common';
 import { Directive, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 
-/**
- * O filtro exato de uma contagem, nos parâmetros da rota da Entrada (`signature`,
- * `signatureReason`, `schema`, `schemaPath`, `outcome`, `rule`, `ruleName`, `methods` e, da B2,
- * `answered` com o status exato). Vazio: a Entrada sem filtro.
- */
+/** Os parâmetros da rota da Entrada que filtram a mesma contagem; vazio é a Entrada sem filtro. */
 export type CountFilter = Readonly<Record<string, string>>;
 
 /**
- * M1: um motivo de assinatura, pela frase crua do servidor, junto do estado largo que a Entrada já
- * tinha (o header ausente é "absent"; o resto, "invalid"). Saúde e Métricas usam esta mesma função,
- * então os dois links saem iguais.
+ * O motivo vai com a frase crua do servidor. Saúde e Métricas usam esta mesma função, para os dois
+ * links saírem iguais.
  */
 export function signatureReasonFilter(reason: string): CountFilter {
   return {
@@ -21,7 +16,7 @@ export function signatureReasonFilter(reason: string): CountFilter {
   };
 }
 
-/** M1: um caminho de erro de schema (JSON Pointer; `''` é a raiz), junto do "Schema invalid". */
+/** `path` é JSON Pointer: `''` é a raiz, não "sem caminho". */
 export function schemaPathFilter(path: string): CountFilter {
   return { schema: 'invalid', schemaPath: path };
 }
@@ -33,13 +28,8 @@ export interface CountScope {
 }
 
 /**
- * F1 (UX-18): um número de Saúde ou de Métricas que conta requisições vira link para a Entrada com
- * o filtro exato daquela contagem, para o número do link e o da lista baterem. É o único lugar que
- * monta esse endereço. Quando a contagem cobriu só as mais novas (a URL guarda mais que a janela),
- * o link leva `window={n}`, e a Entrada conta sobre as mesmas n.
- *
- * O nome acessível é "{what}, {n} requests. Open in the Inbox"; `countName` o troca quando a linha
- * já diz tudo (as linhas de "Answers by status").
+ * Número de Saúde ou de Métricas que leva à Entrada com o filtro exato da contagem; é o único lugar
+ * que monta esse endereço. Se a contagem cobriu só as mais novas, leva `window={n}` junto.
  */
 @Directive({
   selector: 'a[appCountLink]',
@@ -57,7 +47,6 @@ export class CountLink {
   readonly appCountLink = input.required<string>();
   readonly countFilter = input<CountFilter>({});
   readonly count = input.required<number>();
-  /** O que foi contado ("timestamp outside tolerance"), no começo do nome acessível. */
   readonly what = input<string>('');
   readonly countScope = input<CountScope | null>(null);
   readonly countName = input<string | null>(null);
@@ -84,7 +73,7 @@ export class CountLink {
       : $localize`${what}:what:, ${count}:count: requests. Open in the Inbox`;
   });
 
-  /** Clique simples navega sem recarregar; com modificador, o navegador abre o `href` (outra aba). */
+  /** Com modificador, o navegador abre o `href` (outra aba); sem, `false` evita recarregar a página. */
   protected navigate(event: MouseEvent): boolean {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       return true;

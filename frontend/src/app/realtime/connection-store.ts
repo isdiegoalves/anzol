@@ -3,29 +3,19 @@ import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { firstValueFrom, tap } from 'rxjs';
 import { RequestStream } from './request-stream';
 
-/** Espera entre as tentativas, em segundos: 5, 10, 20 e depois 30. */
 export const RETRY_SECONDS = [5, 10, 20, 30] as const;
-/** Quanto tempo "Connected again." fica na faixa. */
 export const RESTORED_NOTE_MS = 5000;
 
-/**
- * A conexão com o servidor (B1, UX-16). Cai quando uma chamada à API falha por rede, ou quando o
- * SSE cai e a primeira reconexão falha. A faixa do shell diz uma vez desde quando, tenta de novo
- * sozinha (com a contagem fora da região viva) e oferece "Try again now". Na volta, diz
- * "Connected again." por 5 s, e quem mostra dados (a Entrada) busca o que chegou no intervalo.
- */
+/** Cai com falha de rede numa chamada à API ou com o SSE que não reconecta. */
 @Injectable({ providedIn: 'root' })
 export class Connection {
   private readonly http = inject(HttpClient);
   private readonly stream = inject(RequestStream);
 
-  /** Desde quando não há conexão; `null` com conexão. */
   readonly downSince = signal<Date | null>(null);
-  /** O texto da região viva "Connection"; vazio enquanto há conexão. */
   readonly notice = signal('');
-  /** Segundos até a próxima tentativa. */
   readonly countdown = signal(0);
-  /** Conta as voltas: quem depende do servidor relê o que perdeu a cada uma. */
+  /** Conta as voltas: quem mostra dados relê o que perdeu a cada uma. */
   readonly restored = signal(0);
   /** A chamada que prova a volta: a URL aberta, que o shell informa. */
   readonly probe = signal('/');
@@ -44,7 +34,6 @@ export class Connection {
     });
   }
 
-  /** Uma chamada falhou por rede, ou o tempo real não voltou. Só a primeira fala. */
   failed(): void {
     if (this.downSince()) {
       return;
@@ -63,7 +52,6 @@ export class Connection {
     this.wait();
   }
 
-  /** "Try again now", e o fim de cada contagem. */
   async retry(): Promise<void> {
     if (!this.downSince() || this.trying) {
       return;
@@ -121,7 +109,7 @@ export class Connection {
   }
 }
 
-/** Falha de rede (sem status) em qualquer chamada à API: a faixa "sem conexão" avisa. */
+/** Status 0: a chamada não teve resposta (falha de rede). */
 export const connectionInterceptor: HttpInterceptorFn = (request, next) => {
   const connection = inject(Connection);
   return next(request).pipe(

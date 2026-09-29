@@ -152,7 +152,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
-  // UX-21: a página é o `main` do destino, com nome (o editor aberto sozinho não tem o `h1`).
+  // `aria-label`, e não o `h1`: o editor aberto sozinho não tem o `h1`.
   host: {
     role: 'main',
     '[attr.aria-label]': 'mainLabel',
@@ -176,7 +176,6 @@ export class RulesPage {
   private readonly intents = inject(RuleIntents);
   protected readonly ai = inject(AiClient);
   private readonly rulesSeen = inject(RulesSeen);
-  /** O nome do `main` desta página (UX-21). */
   protected readonly mainLabel = $localize`Rules`;
   /** Chegou mensagem com a aba em segundo plano: relê ao voltar (WM-38). */
   private liveStale = false;
@@ -677,8 +676,7 @@ export class RulesPage {
       this.intents.request({ draft: template.draft });
       this.openNew();
     } else {
-      // "Fail N times, then accept": o roteiro "Test a retry", na Entrada (R1). O diálogo
-      // "Sequence" continua no "Sequence…" da aba Scenario.
+      // O diálogo "Sequence" continua no "Sequence…" da aba Scenario.
       void this.router.navigate(['/', this.tokenId()], { queryParams: { guide: 'retry' } });
     }
   }

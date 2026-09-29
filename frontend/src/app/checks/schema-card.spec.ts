@@ -12,7 +12,6 @@ const RECENTES = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
 const field = () => screen.getByRole('textbox', { name: 'JSON Schema' }) as HTMLTextAreaElement;
 const save = saveButton;
 const card = () => screen.getByRole('region', { name: 'Schema validation' });
-/** O resumo do que falta, no pé do cartão. */
 const note = () => within(card()).getByRole('status').textContent?.trim();
 
 describe('Dado o cartão "Schema validation" de Checks', () => {

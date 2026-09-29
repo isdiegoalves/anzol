@@ -13,13 +13,8 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { KnownUrls, NICKNAME_MAX } from './known-urls';
 
-/** Largura dos diálogos da lista de URLs: 420 px, ou a tela menos 16 px de cada lado. */
 const WIDTH = 'min(420px, calc(100vw - 32px))';
 
-/**
- * "Rename this URL…" (B1): o apelido fica só neste navegador (`anzol.urls`); vazio apaga. Enter
- * salva.
- */
 @Component({
   selector: 'app-url-nickname-dialog',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
@@ -68,10 +63,6 @@ export class UrlNicknameDialog {
   }
 }
 
-/**
- * "Forget a URL…" (B1): uma caixa por URL conhecida. Esquecer tira da lista deste navegador e não
- * apaga nada no servidor.
- */
 @Component({
   selector: 'app-forget-urls-dialog',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
@@ -127,7 +118,6 @@ export class ForgetUrlsDialog {
   }
 }
 
-/** Abre "Rename this URL" para a URL dada. */
 export async function renameUrl(injector: Injector, uuid: string): Promise<void> {
   const ref = injector.get(MatDialog).open<UrlNicknameDialog, string, boolean>(UrlNicknameDialog, {
     data: uuid,
@@ -137,7 +127,6 @@ export async function renameUrl(injector: Injector, uuid: string): Promise<void>
   await firstValueFrom(ref.afterClosed());
 }
 
-/** Abre "Forget a URL". */
 export async function forgetUrls(injector: Injector): Promise<void> {
   const ref = injector
     .get(MatDialog)

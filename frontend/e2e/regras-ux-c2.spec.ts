@@ -4,9 +4,6 @@ import { itens, lista, abrirFiltros } from './support/inbox';
 import { abrirRegras, gravarRegras, linhaDaRegra } from './support/regras';
 import { estadoAoVivo } from './support/shell';
 
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // UX de Regras, tela de C2 — filtros por desfecho na Entrada e ponto no rail (WM-27, WM-01; guia-ux §3.10; CA-9 na
 // parte da Entrada filtrada). Os chips "Answered by rule…", "Near miss of…" e "Default response" no `group
 // "Filters"` usam o `outcome` da busca (backend pronto); os acertos da lista de Regras levam à Entrada filtrada; o

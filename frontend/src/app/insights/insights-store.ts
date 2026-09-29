@@ -5,10 +5,9 @@ import { RequestPage } from '../requests/webhook-request';
 import { STATS_MAX_WINDOW, TokenStats } from '../stats/stats';
 import { Answer } from './insights';
 
-/** A página da listagem que "Answers by status" lê (o teto do servidor). */
+/** O teto do `per_page` da listagem no servidor. */
 const ANSWERS_PER_PAGE = 100;
 
-/** As respostas das requisições mais novas, e quantas a URL guarda. */
 export interface Answers {
   answers: Answer[];
   total: number;
@@ -17,8 +16,8 @@ export interface Answers {
 /**
  * Números da URL para Insights: `GET /token/{id}/stats` na janela máxima (as 500 mensagens mais
  * novas), calculados na hora pelo servidor. Sem polling: a página relê ao voltar a ficar visível e
- * no "Refresh". O `/stats` não traz o status respondido (B2): "Answers by status" conta a partir da
- * listagem (`GET /requests`, 100 por página), na mesma janela, em paralelo com ele.
+ * no "Refresh". O `/stats` não traz o status respondido: "Answers by status" conta a partir da
+ * listagem, na mesma janela.
  */
 @Injectable({ providedIn: 'root' })
 export class InsightsStore {
@@ -60,10 +59,6 @@ export class InsightsStore {
     }
   }
 
-  /**
-   * As respostas das `window` requisições mais novas: a primeira página diz quantas a URL guarda, e
-   * só as páginas que existem dentro da janela são pedidas depois, juntas.
-   */
   private async newestAnswers(tokenId: string, window: number): Promise<Answers> {
     const perPage = Math.min(ANSWERS_PER_PAGE, window);
     const page = (number: number) =>

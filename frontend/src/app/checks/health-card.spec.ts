@@ -34,7 +34,6 @@ function stats(overrides: Partial<TokenStats> = {}): TokenStats {
 }
 
 const statsUrl = (window: number) => `/token/${TOKEN_ID}/stats?window=${window}`;
-/** "Show health": abre o painel (o cartão vem recolhido, B3). */
 const show = () => userEvent.click(screen.getByRole('button', { name: 'Show health' }));
 
 describe('Dado a linha do Health', () => {
@@ -47,7 +46,6 @@ describe('Dado a linha do Health', () => {
 describe('Dado o cartão "Health" de Checks', () => {
   afterEach(() => localStorage.clear());
 
-  // B3: por último e recolhido, com uma linha das duas taxas e o caminho para Métricas.
   it('deve vir recolhido, com as duas taxas numa linha, "Open in Insights" e "Show health"', async () => {
     const { container, http } = await renderCard(HealthCard, token());
 
@@ -154,7 +152,6 @@ describe('Dado o cartão "Health" de Checks', () => {
     expect(mismatch.getAttribute('href')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`,
     );
-    // F1: o link de contagem diz à vista o que o nome acessível diz ("… Open in the Inbox").
     expect(mismatch.textContent).toContain('Open in the Inbox');
     expect(mismatch.getAttribute('aria-label')).toBe(
       'signature mismatch, 6 requests. Open in the Inbox',
@@ -174,7 +171,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     ).toBeTruthy();
   });
 
-  it('F1: deve levar cada número à Entrada com o filtro exato, com window= Quando a URL guarda mais que a janela', async () => {
+  it('deve levar cada número à Entrada com o filtro exato, com window= Quando a URL guarda mais que a janela', async () => {
     const { http, container } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
     await show();
@@ -189,9 +186,8 @@ describe('Dado o cartão "Health" de Checks', () => {
     expect(link('signature mismatch, 6 requests')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=128`,
     );
-    // Inválidas e ausentes somadas não são um filtro só da Entrada: o número fica sem link.
+    // Inválidas e ausentes somadas não cabem num filtro só da Entrada: o número fica sem link.
     expect(screen.queryByRole('link', { name: /^Signature invalid,/ })).toBeNull();
-    // O número é o link: o texto à vista dele está no nome acessível (WCAG 2.5.3).
     expect(screen.getByRole('link', { name: /^Signature valid,/ }).textContent?.trim()).toBe('110');
     await expectNoAxeViolations(container);
   });

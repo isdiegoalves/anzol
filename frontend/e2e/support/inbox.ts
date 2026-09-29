@@ -162,10 +162,7 @@ export function campoDeBusca(page: Page): Locator {
     .or(regiao.getByRole('textbox', { name: 'Search' }));
 }
 
-/**
- * Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`. Abre o painel se o
- * `group "Filters"` não estiver à vista; com ele à vista, não faz nada. Chame antes de usar `filtro()`.
- */
+/** Abre o painel dos chips pelo `button "Filters"`; com o `group "Filters"` já à vista, não faz nada. */
 export async function abrirFiltros(page: Page): Promise<void> {
   await expect(busca(page)).toBeVisible();
   const grupo = page.getByRole('group', { name: 'Filters' });
@@ -176,7 +173,7 @@ export async function abrirFiltros(page: Page): Promise<void> {
   await expect(grupo).toBeVisible();
 }
 
-/** `group "Filters"` com os chips (`button[aria-pressed]`). Com o painel recolhido (B1), `abrirFiltros()` antes. */
+/** `group "Filters"` com os chips (`button[aria-pressed]`). Com o painel recolhido, `abrirFiltros()` antes. */
 export function filtro(page: Page, nome: string): Locator {
   return page
     .getByRole('group', { name: 'Filters' })

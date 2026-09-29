@@ -15,9 +15,6 @@ import {
 import { Webhook, expect, test } from './support/fixtures';
 import { compacto, maisAcoes } from './support/shell';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Item 14, E5: a página Checks (`#/{token}/checks`). CA-11 (o Save de um cartão manda o token salvo mais só aquele
 // cartão: os outros campos não voltam ao padrão nem levam o que foi digitado e não salvo), Health por
 // `GET /token/{id}/stats`, "Generate from a message", "Send a signed test", o "Edit" do cabeçalho levando a Checks,
@@ -55,8 +52,6 @@ async function ultima(api: APIRequestContext, tokenId: string) {
 }
 
 test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', () => {
-  // Patamar, B3 (CA-6): com uma barra só, o salvar leva todas as alterações pendentes (o status digitado no cartão
-  // Response vai junto com o schema); o que não foi mexido não volta ao padrão (CA-11).
   test('deve salvar o schema e o status pendentes num PUT só, sem resetar a assinatura, o segredo e o resto da resposta', async ({
     page,
     request,
@@ -71,7 +66,6 @@ test.describe('Dado uma URL com assinatura, schema e resposta salvos (CA-11)', (
       schema: SCHEMA_A,
     });
     const schema = await abrirChecks(page, tokenId, 'Schema validation');
-    // Patamar, B3: no celular os cartões são recolhíveis; o Response é aberto antes de mexer nele.
     await abrirCartao(page, 'Response');
     const resposta = secao(page, 'Response');
     await expect(resposta.getByLabel('Default status code')).toHaveValue('202');
@@ -145,7 +139,6 @@ test.describe('Dado o cartão Health de uma URL com mensagens verificadas', () =
       );
 
     const padrao = pedido('200');
-    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
     const health = await abrirSaude(page, tokenId);
     await padrao;
 

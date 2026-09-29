@@ -5,13 +5,8 @@ import { LiveRegion } from '../ui/live-region';
 import { ChecksDraft, changeText } from './checks-draft';
 
 /**
- * A barra de salvar de Verificações (B3, UX-03): `region "Unsaved changes"`, fixa no pé da página,
- * que só aparece com alteração pendente. Diz o que muda, abre a lista com o valor antigo e o novo
- * ("Review changes") e tem um "Save changes" só, que nunca fica desabilitado (S12).
- *
- * O resumo é a região viva persistente da §4.3: existe vazia desde a carga e recebe o texto 1 s
- * depois da última mudança; no erro de validação vira `alert`. O texto à vista é o mesmo, na hora,
- * e fica fora da árvore de acessibilidade para não ser lido duas vezes.
+ * O resumo à vista muda a cada tecla e fica fora da árvore de acessibilidade; quem fala é a região
+ * viva, 1 s depois da última mudança, para não ser lido duas vezes.
  */
 @Component({
   selector: 'app-changes-bar',
@@ -25,12 +20,9 @@ export class ChangesBar {
 
   protected readonly label = $localize`Unsaved changes`;
   protected readonly reviewing = signal(false);
-  /** Com alteração pendente, ou com o erro do último salvar à espera de resposta. */
   protected readonly shown = computed(() => this.draft.dirty() || this.draft.failure() !== null);
-  /** O que se vê na barra, na hora; no celular, só a contagem (wireframe 390). */
   protected readonly visible = computed(() => this.draft.alert() || this.draft.preview());
   protected readonly count = computed(() => countOf(this.draft.changes().length));
-  /** O que a região viva diz: o erro de validação na hora (`alert`), o resumo quando a pessoa para. */
   protected readonly spoken = computed(() =>
     this.shown() ? this.draft.alert() || this.draft.summary() : '',
   );
@@ -51,7 +43,6 @@ export class ChangesBar {
   }
 }
 
-/** "4 unsaved changes": a contagem sem os nomes, para a barra do celular. */
 function countOf(changes: number): string {
   if (changes === 0) {
     return '';

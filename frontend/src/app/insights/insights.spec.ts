@@ -40,7 +40,7 @@ describe('Dado as horas com mensagem do stats (hourlyBars)', () => {
     expect(hourlySummary([])).toBe('Requests per hour: no requests');
   });
 
-  it('deve resumir o intervalo e o pico para leitor de tela, na hora local (UX-19)', () => {
+  it('deve resumir o intervalo e o pico para leitor de tela, na hora local', () => {
     const from = localDate('2026-09-26 12:00:00');
     const to = localDate('2026-09-26 14:00:00');
     expect(hourlySummary(hourlyBars(tokenStats().hourly))).toBe(
@@ -49,7 +49,7 @@ describe('Dado as horas com mensagem do stats (hourlyBars)', () => {
   });
 });
 
-describe('Dado a hora do servidor em Métricas (UX-19)', () => {
+describe('Dado a hora do servidor em Métricas', () => {
   it('deve dar a hora local por extenso, com o UTC para o title e o ISO para o datetime', () => {
     expect(localHour('2026-09-26 14:00:00')).toEqual({
       text: localDate('2026-09-26 14:00:00'),
@@ -104,7 +104,7 @@ describe('Dado os agregados do stats', () => {
       ['Valid', 110, 'ok', { signature: 'valid' }],
       ['Invalid', 9, 'bad', { signature: 'invalid' }],
       ['Absent', 3, 'near', { signature: 'absent' }],
-      // F1: a Entrada não filtra "sem verificação"; o número fica sem link.
+      // A Entrada não filtra "sem verificação": o número fica sem link.
       ['Not checked', 6, 'none', undefined],
     ]);
   });
@@ -134,7 +134,7 @@ describe('Dado os agregados do stats', () => {
   });
 });
 
-describe('Dado as respostas das requisições mais novas (answerRows, B2)', () => {
+describe('Dado as respostas das requisições mais novas (answerRows)', () => {
   const pelaRegra = (status: number): Answer => ({ byRule: true, response: { status } });
   const peloPadrao = (status: number): Answer => ({ byRule: false, response: { status } });
 

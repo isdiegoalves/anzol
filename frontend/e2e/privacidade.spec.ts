@@ -4,9 +4,6 @@ import { abrirChecks, pendenteAlerta, salvar } from './support/checks';
 import { abrirAba, acoes, expectCorpo, item, linhas } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Item 12 (privacidade), CA-5 da tela: proteger, desbloquear, Lock, compartilhar e a página do
 // link. Precisa do backend do item 12 (`read_secret`, `unlock`/`lock`, `share`).
 
@@ -111,8 +108,7 @@ test.describe('Dado o Create New URL e o cartão "Privacy" de Checks', () => {
     await expect(
       dialog.getByText('This URL is protected. Leave the fields blank to keep the current secret.'),
     ).toBeVisible();
-    // B3: a barra de salvar só aparece com alteração pendente; a alteração é noutro cartão, e os campos do segredo
-    // ficam em branco.
+    // Os campos do segredo ficam em branco: a alteração que faz a barra de salvar aparecer é noutro cartão.
     await page
       .getByRole('region', { name: 'Response', exact: true })
       .getByLabel('Response body')

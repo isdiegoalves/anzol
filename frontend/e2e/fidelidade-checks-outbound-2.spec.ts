@@ -10,9 +10,6 @@ import {
 } from './support/checks';
 import { Webhook, expect, test } from './support/fixtures';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Item 14.1, fase 2, fatia F2-2 (fidelidade ao protótipo C): os itens "discutir" de Checks e Outbound que o dono
 // decidiu adotar (`.docs-arquivo/fidelidade-prototipo/discutir-decididos.json`), com o ajuste do `porque` nos
 // "adotar-adaptado". Tipografia, cor, ícones e espaçamento (CHECKS-04/05/08, o painel tonal do CHECKS-07/16, o
@@ -151,7 +148,6 @@ test.describe('Dado os cartões Health e Response (CHECKS-18/21)', () => {
   }) => {
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
     await tokens.send(tokenId, { data: 'x' });
-    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
     const health = await abrirSaude(page, tokenId);
 
     const janela = health.getByRole('combobox', { name: 'Window' });

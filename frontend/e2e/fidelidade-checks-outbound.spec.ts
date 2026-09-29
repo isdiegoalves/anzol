@@ -7,12 +7,6 @@ import { TokenTracker, expect, test } from './support/fixtures';
 import { filtro, itens, abrirFiltros } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // Item 14.1, fatia F2 (fidelidade ao protótipo C): Checks e Outbound. Cada teste cobre um item de
 // `.docs-arquivo/fidelidade-prototipo/desvios.json` (decisão "corrigir") e respeita as Travas do 00-STATUS.
 // SUPOSIÇÕES (nomes do protótipo C quando ele os tem; os demais marcados aqui):
@@ -93,8 +87,6 @@ async function cabeNaAltura(page: Page): Promise<boolean> {
 }
 
 test.describe('Dado a página Checks a 1400×900 (CHECKS-01)', () => {
-  // Patamar, B3 (guia-combinacao §3.3): as duas colunas do CHECKS-01 saem; em todas as larguras os cartões ficam numa
-  // coluna só, com 880 px no máximo, na ordem do índice (Health por último).
   test('deve pôr os cartões numa coluna só, de até 880 px, com o Health por último', async ({
     page,
     tokens,
@@ -189,7 +181,6 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
       data: '{"id":2}',
     });
     await tokens.send(tokenId, github(SECRET, '{"id":"3"}'));
-    // Patamar, B3 (guia-combinacao §3.3): o Health fica recolhido; `abrirSaude()` clica em "Show health" antes.
     const health = await abrirSaude(page, tokenId);
     await expect(health).toContainText('Click a line to see those requests in the Inbox.');
     return { tokenId, health };
@@ -207,7 +198,6 @@ test.describe('Dado o Health com motivos e caminhos (CHECKS-17)', () => {
     }) => {
       const { tokenId, health } = await urlComFalhas(page, tokens);
       const link = health.getByRole('link', { name: motivo });
-      // Patamar, F1 (guia-combinacao §3.6): o texto à vista acompanha o nome do link, "… Open in the Inbox".
       await expect(link).toContainText('Open in the Inbox');
       // Decisões do Anzol, M1: o link leva também o motivo ou o caminho exato, num parâmetro a mais.
       await expect(link).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}(&|$)`));

@@ -13,7 +13,6 @@ export interface Part {
   label: string;
   count: number;
   tone: Tone;
-  /** F1: o filtro exato da Entrada que mostra estas requisições; ausente quando não há um. */
   filter?: CountFilter;
 }
 
@@ -115,7 +114,7 @@ export function methodsText(methods: Record<string, number>): string {
     .join(', ');
 }
 
-/** Resumo do gráfico por hora para leitor de tela (o `img` do SVG), na hora local (UX-19). */
+/** Resumo do gráfico por hora para leitor de tela (o `img` do SVG). */
 export function hourlySummary(bars: readonly HourBar[]): string {
   if (bars.length === 0) {
     return $localize`Requests per hour: no requests`;
@@ -129,10 +128,7 @@ export function hourlySummary(bars: readonly HourBar[]): string {
     : $localize`Requests per hour, ${bars.length}:count: hours from ${from}:from: to ${to}:to:, local time; peak ${peak.count}:peak: at ${at}:peakHour:`;
 }
 
-/**
- * O fuso do navegador na data dada, como a legenda do gráfico o escreve (UX-19): "−3", "+5:30",
- * "+0" (sinal de menos tipográfico, U+2212).
- */
+/** "−3", "+5:30", "+0": o menos é o tipográfico (U+2212), não o hífen. */
 export function utcOffset(date: Date): string {
   const minutes = -date.getTimezoneOffset();
   const hours = Math.floor(Math.abs(minutes) / 60);
@@ -140,7 +136,7 @@ export function utcOffset(date: Date): string {
   return `${minutes < 0 ? '−' : '+'}${hours}${rest ? `:${String(rest).padStart(2, '0')}` : ''}`;
 }
 
-/** Hora do servidor (UTC, formato de `created_at`) por extenso na hora local, e o UTC para o `title`. */
+/** `value` é a hora do servidor em UTC, no formato de `created_at`. */
 export function localHour(value: string): { text: string; utc: string; iso: string } {
   return { text: localDate(value), utc: `${value} UTC`, iso: parseUtc(value).toISOString() };
 }
@@ -156,23 +152,19 @@ export function keptText(evaluated: number, total: number, window: number): stri
     : $localize`of the ${total}:total: kept`;
 }
 
-/** O que a URL respondeu a uma requisição, e se foi uma regra (`rule` gravada) ou a resposta padrão. */
 export interface Answer {
   byRule: boolean;
   response: RecordedResponse | null;
 }
 
-/** Uma linha de "Answers by status" (B2): um status exato, uma falha de rede, ou "sem registro". */
 export interface AnswerRow {
   key: string;
   count: number;
-  /** "429 Too Many Requests · 2 · default response": o texto da linha e o nome do link. */
   text: string;
-  /** F1: `answered={status}`; `null` na falha de rede e sem registro (a Entrada não filtra por eles). */
+  /** `null` na falha de rede e sem registro: a Entrada não filtra por eles. */
   filter: CountFilter | null;
 }
 
-/** "429 Too Many Requests", "— TCP RST" (falha de rede da regra) ou "— not recorded". */
 function answerLabel(status: number | null, fault: string | null): string {
   if (status !== null) {
     const phrase = reasonPhrase(status);
@@ -182,10 +174,7 @@ function answerLabel(status: number | null, fault: string | null): string {
   return `— ${kind ?? $localize`not recorded`}`;
 }
 
-/**
- * B2: as respostas contadas por status exato, com a origem (regras, resposta padrão ou as duas), do
- * status mais respondido para o menos; falhas de rede e respostas sem registro no fim.
- */
+/** Do status mais respondido para o menos; falha de rede e sem registro no fim. */
 export function answerRows(answers: readonly Answer[]): AnswerRow[] {
   const groups = new Map<
     string,

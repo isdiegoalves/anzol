@@ -12,22 +12,6 @@ import { editor, gravarRegras, lerRegras, parte } from './support/regras';
 import { compacto } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
-// Patamar (a combinação), fatia B4 — Sugerir que se confere, espera honesta e idioma da tela (UX-41, UX-42, UX-43,
-// UX-15, DX-29; guia-combinacao §3.4; CA-8). As rotas de IA (`rules/suggest` e `request/{id}/explain`) são
-// respondidas na rota do navegador: o teste controla a regra que o "modelo" devolve, o bloco `check` do servidor
-// (`api-defeitos.md` §5) e a demora, sem depender do LLM falso da porta 18099 (que é um só e fica com o ia.spec). As
-// conferências que a tela faz sozinha (`rules/test`, campos, forma) rodam contra o servidor de verdade. SUPOSIÇÕES:
-// - SUPOSIÇÃO: cada conferência é um `listitem` da `list "Checks on this suggestion"` que começa pelo veredito ("OK",
-//   "Attention" ou "Problem") e segue com a frase.
-// - SUPOSIÇÃO: o resumo da sugestão é o elemento com o texto "N problems found…" ou "Checked: …", que recebe o foco.
-// - SUPOSIÇÃO: o botão primário se distingue por `data-primary` ou por ser o último dos três; o teste só confere a
-//   ordem do guia (Apply conditions only, Apply all, Dismiss) e que todos continuam habilitados.
-// - SUPOSIÇÃO: sem histórico neste navegador, a espera diz "about 5 s" no Suggest e "about 9 s" no Explain.
-// - SUPOSIÇÃO: a região da espera existe vazia desde que o bloco "Describe the rule" abre (recolhido, o bloco
-//   inteiro fica fora da tela).
-// - SUPOSIÇÃO: o contador de segundos e a barra da espera ficam dentro de um ancestral `aria-hidden="true"`.
-// - Sem teste: "The local model did not answer in 90 s." (pede 90 s de espera por caso).
-
 const NOTA =
   'A rule only chooses the answer to a request: status, headers, body, delay or a network fault. It does not send e-mail, write to a database or call another service.';
 
@@ -38,7 +22,7 @@ interface Resposta {
   cabecalhos?: Record<string, string>;
 }
 
-/** Responde as rotas de IA desta URL na rota do navegador; devolve os pedidos recebidos. */
+/** Responde as rotas de IA na rota do navegador: o LLM falso da 18099 é um só, e o ia.spec o programa. */
 async function ia(
   page: Page,
   tokenId: string,
@@ -67,7 +51,6 @@ async function ia(
   return pedidos;
 }
 
-/** A resposta do `rules/suggest`, com o bloco `check` do servidor. */
 function sugestao(regra: object, check: object, explanation = 'Texto do modelo.'): Resposta {
   return { corpo: { rule: regra, explanation, attempts: 1, check } };
 }
@@ -93,7 +76,6 @@ const REGRA_CERTA = {
   },
 };
 
-/** URL com uma requisição de exemplo (POST /pedidos, status pago) e o editor de regra nova aberto a partir dela. */
 async function editorComExemplo(page: Page, tokens: TokenTracker) {
   const tokenId = await tokens.create();
   const exemplo = await tokens.send(tokenId, {
@@ -111,7 +93,6 @@ async function abrirEditor(page: Page, tokenId: string, exemplo?: string): Promi
   return regra;
 }
 
-/** Abre o "Describe the rule" (recolhido, RULES-16), escreve o pedido e devolve o campo. */
 async function descrever(regra: Locator, pedido: string, comExemplo = false): Promise<Locator> {
   const campo = regra.getByRole('textbox', { name: 'Describe the rule' });
   if (!(await campo.isVisible())) {
@@ -140,7 +121,7 @@ function andamento(page: Page): Locator {
   return page.getByRole('group', { name: 'AI progress' }).locator('[role="status"]');
 }
 
-test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA-8)', () => {
+test.describe('Dado uma sugestão de regra conferida pela tela', () => {
   test('deve dizer que a regra não casa com o exemplo nem com o histórico, antes de oferecer aplicar', async ({
     page,
     tokens,
@@ -193,7 +174,6 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
       /^\s*OK\s*Every field in the conditions is in the example request\.\s*$/,
     );
     await expect(itens.nth(3)).toHaveText(/^\s*OK\s*Enters at position 1 of 1\b/);
-    // O que a regra faz, escrito pela tela; a nota fixa; e o texto do modelo por último, recolhido.
     await expect(bloco).toContainText('What this rule does');
     await expect(bloco).toContainText(/When a POST to \/pedidos\b.*answer 202/);
     await expect(bloco).toContainText(NOTA);
@@ -204,7 +184,6 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
     await expect(doModelo).toContainText('Not checked. The rule above is what counts.');
     await expect(bloco.getByText('Responde 202 quando o pedido foi sucedido.')).toBeHidden();
     await expect(bloco).toContainText('Suggested in 1 attempt.');
-    // Com problema, aplicar continua possível (a decisão é da pessoa), na ordem do guia.
     const botoes = bloco.getByRole('button', {
       name: /^(Apply conditions only|Apply all|Dismiss)$/,
     });
@@ -215,10 +194,9 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
         'true',
       );
     }
-    // Nada mudou no editor, nem no servidor.
     await expect(regra.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue('/pedidos');
     expect(await lerRegras(page.request, tokenId)).toEqual([]);
-    // Uma fala só na espera; a região esvazia sem falar o resumo (que é lido pelo foco).
+    // O resumo não é anunciado: quem o lê é o foco.
     await expectUmAnuncio(
       page,
       /^Asking the local model\. It usually takes about \d+ s\.$/,
@@ -438,7 +416,7 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
   }) => {
     const { tokenId } = await editorComExemplo(page, tokens);
     await seedStorage(page, {});
-    // SUPOSIÇÃO: a conferência com o histórico vem do bloco `check` do servidor ou do `rules/test`; aqui faltam os dois.
+    // A conferência com o histórico vem do bloco `check` do servidor ou do `rules/test`: aqui faltam os dois.
     await ia(page, tokenId, 'suggest', {
       corpo: { rule: REGRA_CERTA, explanation: 'Texto do modelo.', attempts: 1 },
     });
@@ -458,7 +436,7 @@ test.describe('Dado uma sugestão de regra conferida pela tela (UX-41, DX-29; CA
   });
 });
 
-test.describe('Dado a espera da IA (UX-42)', () => {
+test.describe('Dado a espera da IA', () => {
   test('deve dizer o tempo de costume uma vez, mostrar o contador fora da fala e cancelar sem mudar nada', async ({
     page,
     tokens,
@@ -558,18 +536,13 @@ test.describe('Dado a espera da IA (UX-42)', () => {
   });
 });
 
-test.describe('Dado a explicação de uma requisição (UX-42)', () => {
+test.describe('Dado a explicação de uma requisição', () => {
   const EXPLICACAO = { explanation: 'A requisição recebeu a **resposta padrão**.' };
 
-  /** A região da explicação do modelo local. */
   function explicacao(page: Page): Locator {
     return page.getByRole('region', { name: 'Explanation' });
   }
 
-  /**
-   * Esconde a explicação: pelo "Close panel" do painel de ação (R1), quando ele existe; senão pelo "Hide
-   * explanation", que no celular fica dentro do "More" (`acaoDaMensagem()` procura nos dois lugares).
-   */
   async function esconder(page: Page): Promise<void> {
     const fechar = page.getByRole('button', { name: 'Close panel' });
     if (await fechar.isVisible()) {
@@ -652,7 +625,7 @@ test.describe('Dado a explicação de uma requisição (UX-42)', () => {
   });
 });
 
-test.describe('Dado o idioma da tela e o do navegador (UX-43)', () => {
+test.describe('Dado o idioma da tela e o do navegador', () => {
   test.use({ locale: 'en-US' });
 
   test('deve pedir a explicação e a sugestão no idioma escolhido na tela', async ({
@@ -692,7 +665,7 @@ test.describe('Dado o idioma da tela e o do navegador (UX-43)', () => {
   });
 });
 
-test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
+test.describe('Dado a IA desligada ou no limite', () => {
   test('deve desligar "Explain" e "Suggest" com a razão, sem instrução de operador, e manter a explicação determinística', async ({
     page,
     tokens,
@@ -709,10 +682,8 @@ test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
     await expect(page.getByText('This server has no local AI.').first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'How to turn it on' }).first()).toBeVisible();
     expect(await page.locator('body').innerText()).not.toMatch(/WEBHOOK_AI|docker/);
-    // O que as verificações dizem vale sem a IA.
     await expect(page.getByRole('heading', { name: 'What the checks say' })).toBeVisible();
 
-    // Na mesma sessão, o Suggest já abre desligado.
     const regra = await abrirEditor(page, tokenId);
     await regra.getByText('Describe the rule', { exact: true }).click();
     const sugerir = regra.getByRole('button', { name: 'Suggest' });
@@ -746,7 +717,6 @@ test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
     await expect(regra.getByRole('alert', { name: 'Suggestion errors' })).toContainText(
       'Too many AI calls for this URL',
     );
-    // O guia chama o botão de "Try again"; a tela segura o próprio "Suggest". Vale qualquer um dos dois nomes.
     const denovo = regra.getByRole('button', { name: /^(Try again|Suggest)\b/ });
     await expect(denovo).toHaveAttribute('aria-disabled', 'true');
     await expect(regra.getByText(/\b[1-4] s\b/).first()).toBeVisible();
@@ -756,14 +726,14 @@ test.describe('Dado a IA desligada ou no limite (UX-15, UX-52)', () => {
   });
 });
 
-test.describe('Dado uma sugestão aplicada (CA-8)', () => {
+test.describe('Dado uma sugestão aplicada', () => {
   test('deve gravar a regra só no Save, e ela responder como a conferência disse', async ({
     page,
     request,
     tokens,
   }) => {
     const { tokenId, exemplo } = await editorComExemplo(page, tokens);
-    // A sugestão (prioridade 5) entra entre as duas; na frente de todas seria um problema (conferência 4).
+    // A sugestão (prioridade 5) entra entre as duas: na frente de todas, a conferência acusaria problema.
     await gravarRegras(request, tokenId, [
       {
         name: 'Primeiro',

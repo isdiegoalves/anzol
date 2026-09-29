@@ -17,10 +17,6 @@ import {
 } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
-// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
-// {motivo}".
-
 // Item 14.1, fase 2, fatia F1-2 (fidelidade ao protótipo C): os itens "discutir" da Inbox e do Compare que o dono
 // decidiu adotar (`.docs-arquivo/fidelidade-prototipo/discutir-decididos.json`), com o ajuste do `porque` quando é
 // "adotar-adaptado". Tipografia, cor, raio e espaçamento (INBOX-12/27/28, o painel e a altura da busca) ficam para a

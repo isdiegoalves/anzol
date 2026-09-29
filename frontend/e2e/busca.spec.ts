@@ -10,9 +10,6 @@ import {
   abrirFiltros,
 } from './support/inbox';
 
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // Busca e filtros rápidos (CA-5): o texto e os filtros Method, Signature e Schema reduzem a
 // lista; com filtro ativo, a mensagem nova que casa aparece e a que não casa não; "Clear
 // filters" volta à lista completa. Precisa do backend com `POST /token/{id}/requests/search`.

@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID } from '../../testing/fixtures';
 import { UrlMissing, urlMissingInterceptor } from './url-missing';
 
-describe('Dado uma chamada à API de uma URL que não existe (B1)', () => {
+describe('Dado uma chamada à API de uma URL que não existe', () => {
   let http: HttpClient;
   let server: HttpTestingController;
   let missing: UrlMissing;

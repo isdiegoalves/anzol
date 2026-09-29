@@ -4,9 +4,6 @@ import { TokenTracker, Webhook, expect, test } from './support/fixtures';
 import { filtro, itens, abrirFiltros } from './support/inbox';
 import { abrirRegra, abrirRegras, linhaDaRegra, metodo, novaRegra, parte } from './support/regras';
 
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // Item 14.1, fase 2, fatia F3-2 (fidelidade ao protótipo C): os itens "discutir" de Rules e Insights que o dono
 // decidiu adotar (`.docs-arquivo/fidelidade-prototipo/discutir-decididos.json`), com o ajuste do `porque` nos
 // "adotar-adaptado". Cor e tipografia (RULES-25, o h1 do RULES-06, a caixa do RULES-15, a barra de proporção do
@@ -256,8 +253,6 @@ test.describe('Dado Insights com falhas de assinatura e de schema (RULES-38/39)'
     for (const [regiao, motivo, parametro] of casos) {
       await expect(
         page.getByRole('region', { name: regiao, exact: true }).getByRole('link', { name: motivo }),
-        // Patamar, F1 (guia-combinacao §3.6 e §7; UX-18): o link de Métricas leva também o filtro exato
-        // (`signatureReason=`, `schemaPath=`), como o de Saúde.
       ).toHaveAttribute('href', new RegExp(`#/${tokenId}\\?${parametro}(&|$)`));
     }
     await page

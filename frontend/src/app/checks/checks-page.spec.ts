@@ -20,7 +20,6 @@ import { ChecksPage, checksSections } from './checks-page';
 @Component({ template: 'outra página' })
 class Elsewhere {}
 
-/** `GET /stats` de uma URL sem mensagens: o Health diz "No requests yet". */
 const NO_STATS = {
   window: 200,
   evaluated: 0,
@@ -49,7 +48,6 @@ describe('Dado a página Checks', () => {
             {
               matcher: checksMatcher,
               component: ChecksPage,
-              // A guarda de saída é a da rota de verdade.
               canDeactivate: routes.find((route) => route.matcher === checksMatcher)?.canDeactivate,
             },
             { path: 'elsewhere', component: Elsewhere },
@@ -76,7 +74,6 @@ describe('Dado a página Checks', () => {
     return { harness, load };
   };
 
-  /** A página com a URL carregada e as leituras dos cartões respondidas. */
   const ready = async (url = `/${TOKEN_ID}/checks`, saved = token({ default_status: 201 })) => {
     const { harness, load } = await open(url);
     load.flush(saved);
@@ -104,7 +101,7 @@ describe('Dado a página Checks', () => {
 
     expect(screen.getByText('Loading this URL…').getAttribute('role')).toBe('status');
     expect(screen.queryByRole('region', { name: 'Response' })).toBeNull();
-    // O índice já leva a cada lugar: o esqueleto dos cinco cartões tem os ids.
+    // O índice já funciona na carga: os esqueletos têm os ids dos cartões.
     expect(
       [...(harness.routeNativeElement as HTMLElement).querySelectorAll('.skeleton')].map(
         (slot) => slot.id,
@@ -122,7 +119,6 @@ describe('Dado a página Checks', () => {
     await harness.fixture.whenStable();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Checks' })).toBeTruthy();
-    // UX-21: o `main` da página tem nome (o do título).
     expect(screen.getByRole('main', { name: 'Checks' })).toBeTruthy();
     // CHECKS-03: cada cartão abre com o ícone tonal de 40 px, na cor do papel (protótipo C).
     for (const [name, tone] of [
@@ -180,7 +176,7 @@ describe('Dado a página Checks', () => {
     await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Privacy' })).toBeTruthy());
   });
 
-  describe('Dado a ordem por assunto (UX-17)', () => {
+  describe('Dado a ordem por assunto', () => {
     it('deve pôr os cartões numa coluna, na ordem do índice, com o Health por último', async () => {
       const harness = await ready();
 
@@ -198,7 +194,6 @@ describe('Dado a página Checks', () => {
         ),
       ).toEqual(['Signature verification', 'Schema validation', 'Response', 'Privacy', 'Health']);
       expect(page.querySelector('.columns')).toBeNull();
-      // A barra de salvar é a última coisa da página, depois do índice e dos cartões.
       expect(page.querySelector('main')?.lastElementChild?.tagName).toBe('APP-CHANGES-BAR');
     });
 
@@ -243,7 +238,7 @@ describe('Dado a página Checks', () => {
     });
   });
 
-  describe('Dado a barra de salvar (UX-03, CA-6)', () => {
+  describe('Dado a barra de salvar', () => {
     it('não deve ter botão de salvar em cartão nenhum, nem a barra, Quando nada mudou', async () => {
       await ready();
 
@@ -267,7 +262,6 @@ describe('Dado a página Checks', () => {
       expect(changesBar()?.textContent).toContain(
         '2 unsaved changes: JSON Schema, Default status code',
       );
-      // O índice marca as seções com alteração pendente.
       expect(screen.getByRole('link', { name: 'Schema, off, unsaved' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Response, 200, unsaved' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Privacy, open' })).toBeTruthy();
@@ -337,7 +331,7 @@ describe('Dado a página Checks', () => {
     });
   });
 
-  describe('Dado a guarda de saída (UX-03)', () => {
+  describe('Dado a guarda de saída', () => {
     const leave = () => TestBed.inject(Router).navigateByUrl('/elsewhere');
     const dialog = () => screen.findByRole('dialog', { name: 'Discard changes?' });
 
@@ -494,8 +488,6 @@ describe('Dado a página Checks', () => {
           'Health',
         ].map((name) => fold(name).getAttribute('aria-expanded')),
       ).toEqual(['false', 'false', 'true', 'false', 'false']);
-      // Recolhido, o cartão continua montado (o formulário guarda o que foi digitado), e é a
-      // própria região que leva o cabeçalho que abre e fecha.
       const page = harness.routeNativeElement as HTMLElement;
       const privacy = screen.getByRole('region', { name: 'Privacy' });
       expect(privacy.classList.contains('closed')).toBe(true);
@@ -510,7 +502,6 @@ describe('Dado a página Checks', () => {
       await userEvent.click(
         screen.getByRole('switch', { name: 'Require a secret to view this URL' }),
       );
-      // Com alteração pendente, o cartão não fecha.
       await userEvent.click(fold('Privacy, open'));
       expect(fold('Privacy, open').getAttribute('aria-expanded')).toBe('true');
       await userEvent.click(fold('Response, 201'));

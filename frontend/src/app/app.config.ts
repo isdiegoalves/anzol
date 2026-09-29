@@ -13,8 +13,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Hash: `/{uuid}` é a URL que recebe webhooks e não pode ser rota da SPA.
     provideRouter(routes, withHashLocation(), withComponentInputBinding()),
-    // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio; 410 (URL que não
-    // existe), pela página única de URL inexistente. Falha de rede: a faixa "sem conexão".
+    // 401 de URL protegida em qualquer chamada troca a tela pela de desbloqueio.
     provideHttpClient(
       withInterceptors([connectionInterceptor, urlLockInterceptor, urlMissingInterceptor]),
     ),

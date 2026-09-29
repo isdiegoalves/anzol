@@ -1,18 +1,9 @@
 import { Component, computed, input } from '@angular/core';
 
 /**
- * Região viva persistente (guia da combinação, §4.3): o elemento existe no DOM desde a carga da
- * tela, vazio, e recebe o texto depois. Região criada já com o texto não é anunciada, por isso quem
- * usa a põe no template **sem** `@if` em volta e muda só o `text`.
- *
- * Uma ação, um anúncio: cada tela tem as regiões da tabela da §4.3 (`group "Connection"`, o
- * `status` da lista, `group "Request notice"`, o resumo da barra de salvar, `group "AI progress"`,
- * `group "Action result"`) e nenhuma outra. A região viva não tem nome: com `label`, o nome vai
- * para um `role="group"` em volta do `status` (região com nome anuncia o nome, e não o texto). O que não tem lugar fixo na tela sai pelo
- * `LiveAnnouncer` do CDK. Contador, segundos e barra de progresso ficam fora dela, `aria-hidden`.
- *
- * `alert` troca o papel para `alert` (só para erro que impede a ação, como a validação da barra de
- * salvar). Vazia, a região não ocupa altura.
+ * Região viva persistente: criada já com texto, ela não é anunciada, então fica no template sem
+ * `@if` em volta e muda só o `text`. O `label` vai para um `group` em volta, porque região com nome
+ * anuncia o nome, e não o texto.
  */
 @Component({
   selector: 'app-live-region',
@@ -34,9 +25,7 @@ import { Component, computed, input } from '@angular/core';
   },
 })
 export class LiveRegion {
-  /** O nome do grupo em volta da região ("Connection", "Request notice"). */
   readonly label = input<string | null>(null);
-  /** O que a região diz agora; vazio enquanto não há o que dizer. */
   readonly text = input('');
   readonly alert = input(false);
 

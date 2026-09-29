@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { LiveRegion } from './live-region';
 
-describe('Dado a região viva com nome (guia §4.3: o nome fica no grupo em volta)', () => {
+describe('Dado a região viva com nome (o nome fica no grupo em volta)', () => {
   it('deve pôr o nome num group e deixar o status de dentro sem nome', async () => {
     const { container } = await render('<app-live-region label="Connection" [text]="text" />', {
       imports: [LiveRegion],
@@ -18,7 +18,7 @@ describe('Dado a região viva com nome (guia §4.3: o nome fica no grupo em volt
   });
 });
 
-describe('Dado a região viva persistente (app-live-region, guia §4.3)', () => {
+describe('Dado a região viva persistente (app-live-region)', () => {
   it('deve existir vazia, com o papel status e o nome, antes de ter o que dizer', async () => {
     const { container } = await render(LiveRegion, { inputs: { label: 'Connection' } });
 
@@ -29,7 +29,6 @@ describe('Dado a região viva persistente (app-live-region, guia §4.3)', () => 
   });
 
   it('deve receber o texto no mesmo elemento, sem recriá-lo', async () => {
-    // Dentro de um pai, como na tela: o pai muda só o `text`.
     const { rerender } = await render('<app-live-region label="Connection" [text]="text" />', {
       imports: [LiveRegion],
       componentProperties: { text: '' },

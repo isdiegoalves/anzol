@@ -8,8 +8,6 @@ import { readStorage, seedStorage } from './support/storage';
 
 test.describe('Dado o toggle de CORS (checklist 9)', () => {
   // Item 14, E5: o toggle sai da barra de opções para o cartão `region "Response"` de Checks (S13).
-  // Patamar, B3 (guia-combinacao §3.3 e §7): o interruptor marca a alteração e o efeito vem depois de "Save changes"
-  // (a chamada do CORS sai depois do PUT do token).
   test('deve ligar no servidor depois de "Save changes" e continuar ligado após recarregar (regressão do C2)', async ({
     page,
     request,

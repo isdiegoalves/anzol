@@ -44,7 +44,6 @@ function caixa(folha: Locator, nome: RegExp): Locator {
 async function abrirFolha(page: Page, tokenId: string, id: string): Promise<Locator> {
   await abrirMensagem(page, tokenId, id);
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
   const folha = folhaDeCriarRegra(page);
   await expect(folha).toBeVisible();
   return folha;

@@ -10,14 +10,8 @@ import {
 } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 
-/** O que a pessoa escolheu ao sair com alterações pendentes. */
 export type LeaveChoice = 'keep' | 'discard' | 'save';
 
-/**
- * "Discard changes?" de Verificações (B3): lista as alterações e oferece continuar editando (foco
- * inicial, Enter e Esc), descartar ou salvar e sair. Segredo aparece como "set (not shown)": as
- * linhas já vêm prontas da barra.
- */
 @Component({
   selector: 'app-checks-leave-dialog',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
@@ -59,7 +53,6 @@ export class ChecksLeaveDialog {
   protected readonly lines = inject<readonly string[]>(MAT_DIALOG_DATA);
 }
 
-/** Abre o diálogo de saída; Esc e o clique fora valem "Keep editing". */
 export async function askToLeave(
   injector: Injector,
   lines: readonly string[],

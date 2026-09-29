@@ -1,4 +1,3 @@
-// A página cresce e o shell rola: o índice e a barra de salvar ficam presos à área que rola.
 :host {
   display: flex;
   flex: 1 0 auto;
@@ -29,7 +28,6 @@ h1 {
   font: var(--mat-sys-body-medium);
 }
 
-// A 1200 px ou mais, o índice fica fixo à esquerda da coluna; abaixo, vira faixa no topo.
 .layout {
   display: grid;
   flex: 1 0 auto;
@@ -102,7 +100,6 @@ h1 {
   text-overflow: ellipsis;
 }
 
-// Alteração pendente na seção: o ponto, além do ", unsaved" no nome.
 .dot {
   flex: none;
   width: 8px;
@@ -119,7 +116,7 @@ h1 {
   max-width: 880px;
 }
 
-// O índice e a barra são fixos: o cartão rolado até a vista não fica atrás deles.
+// O índice fixo não cobre o cartão rolado até a vista.
 .slot {
   min-width: 0;
   scroll-margin-top: 64px;
@@ -152,7 +149,6 @@ h1 {
   }
 }
 
-// Celular: o cabeçalho recolhível de cada cartão.
 .fold-title {
   margin: 0;
   font: inherit;

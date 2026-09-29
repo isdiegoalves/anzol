@@ -186,7 +186,6 @@ app-pane {
   width: 130px;
 }
 
-// F1: o número que conta requisições leva à Entrada com o filtro exato; alvo de 24 px, 44 px no toque.
 a.value,
 a.count,
 .methods a,
@@ -207,14 +206,12 @@ a.count,
   justify-content: flex-end;
 }
 
-// UX-19: a hora local do gráfico e da tabela; o UTC fica no `title`.
 .legend {
   margin: 4px 0 0;
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);
 }
 
-// B2: uma linha por status respondido, cada uma um link para a Entrada.
 .answers {
   display: flex;
   flex-direction: column;

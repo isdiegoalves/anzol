@@ -1,29 +1,23 @@
 import { Injectable, computed, signal } from '@angular/core';
 
-/** Uma URL que este navegador conhece, como fica em `localStorage.anzol.urls`. */
 export interface KnownUrl {
   uuid: string;
-  /** Apelido dado aqui, só neste navegador; vazio quando não há. */
   nickname: string;
-  /** Última abertura com sucesso nesta tela (ISO). */
+  /** ISO 8601: a lista ordena comparando o texto. */
   openedAt: string;
 }
 
-/** Chave da lista (guia da combinação, §4.1). */
 export const KNOWN_URLS_KEY = 'anzol.urls';
-/** A lista guarda até 50; a de abertura mais antiga sai. */
 export const KNOWN_URLS_MAX = 50;
 export const NICKNAME_MAX = 40;
 
 /**
- * As URLs que este navegador já abriu, com o apelido de cada uma (B1). Fica só no navegador: o
- * servidor não tem rota que liste URLs, e o endereço de uma URL é segredo. Por isso a lista nunca
- * entra em texto copiado, e sai por "Forget a URL…", "Forget all URLs", "Delete URL" e pela página
- * de URL inexistente.
+ * As URLs que este navegador já abriu. Ficam só aqui: o servidor não lista URLs, e o endereço de
+ * uma URL é segredo, por isso a lista nunca entra em texto copiado.
  */
 @Injectable({ providedIn: 'root' })
 export class KnownUrls {
-  /** `false` quando o navegador não deixa gravar: o seletor mostra só a URL aberta. */
+  /** `false` quando o navegador não deixa gravar no storage. */
   readonly available = signal(true);
   private readonly list = signal<readonly KnownUrl[]>(this.read());
 
@@ -32,7 +26,6 @@ export class KnownUrls {
     [...this.list()].sort((a, b) => b.openedAt.localeCompare(a.openedAt)),
   );
 
-  /** A URL abriu com sucesso nesta tela (criada, aberta por link ou destrancada). */
   opened(uuid: string): void {
     const known = this.list().find((url) => url.uuid === uuid);
     const openedAt = new Date().toISOString();
@@ -40,13 +33,11 @@ export class KnownUrls {
     this.keep([{ uuid, nickname: known?.nickname ?? '', openedAt }, ...others]);
   }
 
-  /** Apelido de até 40 caracteres; vazio apaga o apelido. */
   rename(uuid: string, nickname: string): void {
     const name = nickname.trim().slice(0, NICKNAME_MAX);
     this.keep(this.list().map((url) => (url.uuid === uuid ? { ...url, nickname: name } : url)));
   }
 
-  /** Esquecer não apaga a URL no servidor. */
   forget(uuids: readonly string[]): void {
     this.keep(this.list().filter((url) => !uuids.includes(url.uuid)));
   }
@@ -59,7 +50,6 @@ export class KnownUrls {
     return this.list().find((url) => url.uuid === uuid)?.nickname ?? '';
   }
 
-  /** O rótulo da URL na tela: o apelido ou, sem ele, "URL d0620". */
   nameOf(uuid: string): string {
     return this.nicknameOf(uuid) || $localize`URL ${uuid.slice(0, 5)}:id:`;
   }
@@ -76,10 +66,6 @@ export class KnownUrls {
     }
   }
 
-  /**
-   * A lista gravada. Na primeira carga com a lista (sem a chave), a URL que a tela já guardava (a
-   * última vista, `localStorage.token`) vira o primeiro item.
-   */
   private read(): KnownUrl[] {
     try {
       const stored = localStorage.getItem(KNOWN_URLS_KEY);

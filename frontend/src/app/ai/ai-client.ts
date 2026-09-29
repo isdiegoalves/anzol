@@ -4,47 +4,38 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Rule } from '../rules/rule';
 
-/** Razão dos controles de IA desligados: o servidor respondeu 503 "not configured". */
 export const AI_OFF_HINT = $localize`This server has no local AI.`;
 
-/** Documentação de como ligar a IA local, para quem opera o servidor. */
 export const AI_DOCS_URL = 'https://github.com/isdiegoalves/anzol#ia-local';
 
-/** Os dois pedidos de IA: o diagnóstico da requisição e a sugestão de regra. */
 export type AiKind = 'explain' | 'suggest';
 
-/** Segundos que cada pedido costuma levar, sem histórico neste navegador (p50 do uso real). */
+/** Sem histórico neste navegador: o p50 medido no uso real. */
 const USUAL_SECONDS: Record<AiKind, number> = { explain: 9, suggest: 5 };
-/** Quantas chamadas entram na mediana. */
 const TIMINGS_KEPT = 5;
-/** O servidor desiste do modelo em 90 s; a tela também. */
+/** Igual ao limite do servidor para o modelo. */
 export const AI_TIMEOUT_SECONDS = 90;
 
 const OFF_KEY = 'anzol.ai.off';
 /** Fora do prefixo `anzol.ai.`, que é o das explicações guardadas na aba. */
 const TIMING_KEY = (kind: AiKind) => `anzol.aiTiming.${kind}`;
-/** Chave da explicação guardada (guia da combinação, §4.1). */
 export const EXPLANATION_KEY = (tokenId: string, requestId: string, lang: string) =>
   `anzol.ai.${tokenId}.${requestId}.${lang}`;
 
-/** Resultado da regra contra a requisição de exemplo, com as frases do `rules/test`. */
 export interface SuggestionExample {
   matches: boolean;
   failed: string[];
   conditions: string[];
 }
 
-/** Aviso do servidor sobre a regra sugerida; o conjunto de códigos é fechado. */
 export interface SuggestionWarning {
   code: 'example_not_matched' | 'template_disabled' | 'path_never_seen' | 'sequence_as_single_rule';
   message: string;
 }
 
-/** A regra conferida pelo servidor, sem o modelo (DX-29). */
 export interface SuggestionCheck {
   /** `null` sem requisição de exemplo. */
   example: SuggestionExample | null;
-  /** A regra contra as requisições recentes (a janela do `rules/test`). */
   recent: { evaluated: number; matched: number };
   warnings: SuggestionWarning[];
 }
@@ -64,28 +55,23 @@ export interface RequestExplanation {
   facts?: Record<string, unknown>;
 }
 
-/** Explicação guardada na aba, com a hora e a duração do pedido. */
 export interface KeptExplanation extends RequestExplanation {
-  /** Quando a resposta chegou (ms desde a época). */
+  /** Em ms desde a época. */
   answeredAt: number;
   seconds: number;
 }
 
-/** O pedido foi cancelado pela pessoa ("Cancel", `Esc`). */
 export class AiCancelled extends Error {
   override readonly name = 'AiCancelled';
 }
 
-/** O modelo não respondeu em 90 s. */
 export class AiTimedOut extends Error {
   override readonly name = 'AiTimedOut';
 }
 
 /**
- * Rotas de IA local (item 13): sugestão de regra e diagnóstico de requisição. O idioma pedido é o
- * **da tela** (Settings), não o do navegador. Um 503 (IA não configurada) desliga os controles de
- * IA pelo resto da sessão da aba: sem rota de capacidades, a sondagem é o primeiro pedido. Cada
- * pedido pode ser cancelado, e a duração dele entra na mediana que a espera mostra.
+ * O idioma pedido é o da tela (Settings), não o do navegador. Um 503 desliga a IA pelo resto da
+ * sessão da aba: sem rota de capacidades, a sondagem é o primeiro pedido.
  */
 @Injectable({ providedIn: 'root' })
 export class AiClient {
@@ -93,10 +79,8 @@ export class AiClient {
   private readonly document = inject(DOCUMENT);
 
   private readonly off = signal(read(sessionStorage, OFF_KEY) === '1');
-  /** O servidor respondeu 503 nesta sessão: IA desligada. */
   readonly disabled = this.off.asReadonly();
 
-  /** O idioma escolhido na tela (o `lang` do documento, posto na carga). */
   language(): string {
     return this.document.documentElement.lang || 'en';
   }
@@ -118,7 +102,7 @@ export class AiClient {
     );
   }
 
-  /** Pede a explicação e a guarda na aba, com a hora e a duração. */
+  /** Guarda a resposta na aba, com a hora e a duração. */
   async explain(
     tokenId: string,
     requestId: string,
@@ -142,7 +126,6 @@ export class AiClient {
     return kept;
   }
 
-  /** A explicação guardada desta requisição, no idioma da tela; `null` sem nenhuma. */
   keptExplanation(tokenId: string, requestId: string): KeptExplanation | null {
     const text = read(sessionStorage, EXPLANATION_KEY(tokenId, requestId, this.language()));
     try {
@@ -155,10 +138,6 @@ export class AiClient {
     }
   }
 
-  /**
-   * Quanto o pedido costuma levar, em segundos: a mediana das últimas 5 chamadas do mesmo tipo
-   * neste navegador; sem histórico, o p50 medido (9 s no Explain, 5 s no Suggest).
-   */
   usualSeconds(kind: AiKind): number {
     const timings = timingsOf(kind);
     if (timings.length === 0) {
@@ -231,7 +210,6 @@ function timingsOf(kind: AiKind): number[] {
   }
 }
 
-/** Sem storage (bloqueado, cheio), a tela funciona sem o que ele guardaria. */
 function read(storage: Storage, key: string): string | null {
   try {
     return storage.getItem(key);
@@ -286,7 +264,7 @@ export function aiErrorMessages(error: unknown): string[] {
   }
 }
 
-/** Segundos até poder tentar de novo depois do 429 da IA; `null` sem `Retry-After` em segundos. */
+/** `null` fora do 429 ou com `Retry-After` que não é um número de segundos. */
 export function aiRetrySeconds(error: unknown): number | null {
   if (!(error instanceof HttpErrorResponse) || error.status !== 429) {
     return null;

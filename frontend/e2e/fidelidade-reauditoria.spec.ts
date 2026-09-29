@@ -232,8 +232,6 @@ test.describe('Dado o foco depois das ações (reauditoria)', () => {
     await replay.getByRole('textbox', { name: 'Target URL' }).fill('http://169.254.169.254/x');
     await replay.getByRole('button', { name: 'Replay', exact: true }).click();
 
-    // Patamar, R1 (guia-combinacao §3.7): o Replay pelo detalhe mostra o resultado no `group "Action result"` › `status` do
-    // painel de ação (antes, na `region "Outbound detail"` da página de Outbound).
     const resultado = page
       .getByRole('region', { name: 'Outbound detail' })
       .getByRole('alert')
@@ -279,7 +277,6 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
     await page.goto(`/#/${tokenId}/checks`);
     await expect(
       page.getByRole('navigation', { name: 'Nesta página' }).getByRole('link'),
-      // Patamar, B3 (guia-combinacao §3.3): o atalho mostra o estado ao lado do nome ("Assinatura · Desligada").
     ).toHaveText([
       /^\s*Assinatura( · .+)?\s*$/,
       /^\s*Schema( · .+)?\s*$/,

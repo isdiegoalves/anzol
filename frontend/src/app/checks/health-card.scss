@@ -62,7 +62,6 @@
   margin: 0;
   font: var(--mat-sys-body-small);
 
-  // F1: o número leva à Entrada com o filtro exato; alvo de 24 px, 44 px no toque.
   a {
     display: inline-flex;
     align-items: center;
@@ -93,7 +92,7 @@ h4 {
   text-transform: uppercase;
 }
 
-// Cada motivo leva à Inbox filtrada ("Open in the Inbox", F1), com a barra proporcional ao maior.
+// Cada motivo leva à Inbox filtrada ("Open in the Inbox"), com a barra proporcional ao maior.
 .reasons {
   display: flex;
   flex-direction: column;
@@ -164,7 +163,6 @@ h4 {
   color: var(--mat-sys-error);
 }
 
-// B3: o cartão recolhido mostra só esta linha (as duas taxas e o link para Métricas).
 .brief {
   display: flex;
   flex-wrap: wrap;

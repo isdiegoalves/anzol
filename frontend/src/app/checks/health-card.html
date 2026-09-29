@@ -1,7 +1,7 @@
 @let current = stats();
 @let uuid = tokens.token()?.uuid ?? '';
 @let within = scope();
-<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<!-- O cabeçalho recolhível do celular, projetado pela página. -->
 <ng-content />
 <div class="card-body">
   <header class="card-head">
@@ -11,7 +11,6 @@
     <h2 id="health-title" i18n>Health</h2>
     <span class="spacer"></span>
     @if (open()) {
-      <!-- CHECKS-18: a janela e o Refresh no cabeçalho, com o painel aberto. -->
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="window">
         <mat-select
           aria-label="Window"
@@ -47,7 +46,6 @@
     </button>
   </header>
 
-  <!-- B3: recolhido, uma linha com as duas taxas e o caminho para Métricas. -->
   <p class="brief">
     @if (failure(); as message) {
       <span class="error" role="alert">{{ message }}</span>
@@ -62,7 +60,6 @@
   </p>
 
   <div class="body" id="health-body" aria-live="polite" [hidden]="!open()">
-    <!-- A falha e a URL sem mensagens já estão na linha de cima. -->
     @if (!failure() && current) {
       @if (current.evaluated > 0) {
         <p i18n class="hint">
@@ -93,7 +90,6 @@
                   <span class="bad" [style.flex-grow]="data.invalid"></span>
                 </div>
                 <p class="counts">
-                  <!-- F1: o número é o link, e o nome acessível começa pelo que ele conta (2.5.3). -->
                   @if (data.validFilter; as filter) {
                     <span i18n
                       ><span class="dot ok" aria-hidden="true"></span

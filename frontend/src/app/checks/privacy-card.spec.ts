@@ -73,7 +73,6 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     expect(
       screen.getByText('This URL is protected. Leave the fields blank to keep the current secret.'),
     ).toBeTruthy();
-    // Desligar e ligar de novo volta ao salvo: nada pendente, nada a mandar.
     await userEvent.click(toggle());
     expect(changesBar()).not.toBeNull();
     await userEvent.click(toggle());

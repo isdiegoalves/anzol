@@ -1,6 +1,6 @@
 @let chosen = provider();
 @let savedConfig = saved();
-<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<!-- O cabeçalho recolhível do celular, projetado pela página. -->
 <ng-content />
 <div class="card-body">
   <header class="card-head">
@@ -258,7 +258,7 @@
 
   <app-card-foot name="signature" [summary]="pending()" [notice]="unsaved() ? null : savedNotice()">
     @if (savedConfig) {
-      <!-- CHECKS-13: o teste usa a configuração salva; com rascunho em Assinatura, o link diz por quê. -->
+      <!-- O teste usa a configuração salva: com rascunho, o link diz por quê. -->
       @if (unsaved()) {
         <a
           mat-button

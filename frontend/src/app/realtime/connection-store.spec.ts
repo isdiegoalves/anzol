@@ -6,7 +6,7 @@ import { TOKEN_ID } from '../../testing/fixtures';
 import { Connection, RESTORED_NOTE_MS, connectionInterceptor } from './connection-store';
 import { RequestStream } from './request-stream';
 
-describe('Dado a conexão com o servidor (B1, UX-16)', () => {
+describe('Dado a conexão com o servidor', () => {
   let http: HttpTestingController;
   let connection: Connection;
 

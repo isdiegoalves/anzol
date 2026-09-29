@@ -7,7 +7,6 @@
   </header>
 
   <div class="layout">
-    <!-- CHECKS-05: os cinco atalhos, na ordem dos cartões; ao lado do nome, o estado salvo. -->
     <nav class="jump" aria-label="On this page" i18n-aria-label>
       @for (item of sections; track item.id) {
         <a
@@ -46,7 +45,6 @@
         @for (item of sections; track item.id) {
           @let open = isOpen(item.id);
           @let fold = !folding() ? 'none' : open ? 'open' : 'closed';
-          <!-- Celular: o cabeçalho do cartão é um botão que mostra o nome e o estado. -->
           <ng-template #header>
             @if (folding()) {
               <h2 class="fold-title">
@@ -110,7 +108,7 @@
         </div>
       } @else {
         <p class="loading" role="status" i18n>Loading this URL…</p>
-        <!-- Esqueleto dos cinco cartões: o índice já leva a cada lugar. -->
+        <!-- Os esqueletos levam os ids: o índice já funciona durante a carga. -->
         @for (item of sections; track item.id) {
           <div class="slot skeleton" [id]="'checks-' + item.id" aria-hidden="true"></div>
         }
@@ -118,6 +116,6 @@
     </div>
   </div>
 
-  <!-- Por último na ordem do DOM e do Tab: índice, cartões, barra de salvar. -->
+  <!-- Por último no DOM: a barra é a última parada do Tab. -->
   <app-changes-bar />
 </main>

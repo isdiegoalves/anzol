@@ -44,10 +44,8 @@ describe('Dado o "Describe the rule"', () => {
     (await (await (await suggestButton()).host()).getAttribute('aria-disabled')) === 'true';
   const post = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: URL_SUGGEST }));
   const text = (element: HTMLElement) => element.textContent?.replace(/\s+/g, ' ').trim();
-  /** A região viva da espera, dentro do `group "AI progress"`. */
   const progress = (element: HTMLElement) =>
     element.querySelector('[role=group][aria-label="AI progress"] [role=status]') as HTMLElement;
-  /** As linhas de `list "Checks on this suggestion"`: veredito e frase. */
   const checks = (element: HTMLElement) =>
     [...element.querySelectorAll('.checks li')].map((li) => [
       text(li.querySelector('.verdict') as HTMLElement),
@@ -97,7 +95,6 @@ describe('Dado o "Describe the rule"', () => {
       lang: 'en',
     });
     await fixture.whenStable();
-    // B4 (UX-42): a espera honesta, com o que o pedido costuma levar, o contador e o "Cancel".
     expect(text(progress(element))).toBe('Asking the local model. It usually takes about 5 s.');
     expect(element.querySelector('app-ai-wait .seconds')?.getAttribute('aria-hidden')).toBe('true');
     expect(await loader.getHarness(MatButtonHarness.with({ text: 'Cancel' }))).toBeTruthy();
@@ -181,7 +178,7 @@ describe('Dado o "Describe the rule"', () => {
     await expectNoAxeViolations(element);
   });
 
-  describe('Dado a conferência da sugestão (B4, UX-41)', () => {
+  describe('Dado a conferência da sugestão', () => {
     it('deve conferir a regra, dizer o que ela faz e o que uma regra não faz, e deixar "Apply all" como primário', async () => {
       const example = webhookRequest(3, { content: '{"status":"pago"}' });
       const element = await render(example);
@@ -198,7 +195,6 @@ describe('Dado o "Describe the rule"', () => {
 
       const summary = element.querySelector('.summary') as HTMLElement;
       expect(text(summary)).toBe('Checked: matches the example and 7 of the last 34.');
-      // Na chegada da sugestão, o foco vai para o resumo.
       await vi.waitFor(() => expect(document.activeElement).toBe(summary));
       expect(element.querySelector('.checks')?.getAttribute('aria-labelledby')).toBe(
         'suggestion-checks',
@@ -215,7 +211,6 @@ describe('Dado o "Describe the rule"', () => {
       expect(text(element.querySelector('.limits') as HTMLElement)).toBe(
         'A rule only chooses the answer to a request: status, headers, body, delay or a network fault. It does not send e-mail, write to a database or call another service.',
       );
-      // O texto do modelo por último, recolhido e marcado como não conferido.
       const model = element.querySelector('details.model') as HTMLDetailsElement;
       expect(model.open).toBe(false);
       expect(text(model.querySelector('summary') as HTMLElement)).toBe('What the model wrote');
@@ -307,7 +302,7 @@ describe('Dado o "Describe the rule"', () => {
     });
   });
 
-  describe('Dado a espera da IA (B4, UX-42)', () => {
+  describe('Dado a espera da IA', () => {
     it('deve abortar o pedido e deixar a tela como antes Quando "Cancel"', async () => {
       const element = await render();
       await describeRule('x');
@@ -384,7 +379,7 @@ describe('Dado o "Describe the rule"', () => {
       (await post()).flush({ rule: rule(8), explanation: '', attempts: 1, check: CHECK });
     });
 
-    it('deve trocar o "Suggest" por "Try again", com a contagem à vista, Quando a IA responde 429 (UX-52)', async () => {
+    it('deve trocar o "Suggest" por "Try again", com a contagem à vista, Quando a IA responde 429', async () => {
       const again = () => loader.getHarness(MatButtonHarness.with({ text: 'Try again' }));
       const off = async (button: MatButtonHarness) =>
         (await (await button.host()).getAttribute('aria-disabled')) === 'true';
@@ -409,7 +404,6 @@ describe('Dado o "Describe the rule"', () => {
 
       expect(element.querySelector('.countdown')).toBeNull();
       expect(await off(await again())).toBe(false);
-      // Pedido de novo, o botão volta a ser o "Suggest".
       await (await again()).click();
       (await post()).flush({ rule: rule(8), explanation: '', attempts: 1, check: CHECK });
       await vi.waitFor(async () => expect(await suggestOff()).toBe(false));
@@ -448,7 +442,6 @@ describe('Dado o "Describe the rule"', () => {
     );
     expect(await textarea.isDisabled()).toBe(true);
     expect(await (await loader.getHarness(MatCheckboxHarness)).isDisabled()).toBe(true);
-    // A razão à vista, sem o nome das variáveis, e o caminho para quem opera o servidor.
     const off = element.querySelector('#suggest-off') as HTMLElement;
     expect(text(off)).toBe('This server has no local AI. How to turn it on');
     expect(off.querySelector('a')?.getAttribute('href')).toBe(

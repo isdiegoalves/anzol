@@ -18,9 +18,6 @@ import {
 } from './support/inbox';
 import { seedStorage } from './support/storage';
 
-// Patamar, B1 (guia-combinacao §3.1 e §7): os chips ficam recolhidos atrás do `button "Filters"`; `abrirFiltros()`
-// abre o painel antes de usar um chip.
-
 // Item 14, E4: o que a Inbox nova acrescenta e as specs de hoje não cobrem — split redimensionável, apagar com
 // "Undo", "Copy as webhook wait-for" (S10), a linha do header de assinatura em partes, o cartão de assinatura que
 // leva à aba Headers, o atalho "/", o link permanente abaixo de 840 px (CA-8/CA-9) e o axe na Inbox e no detalhe
@@ -60,8 +57,6 @@ function matchDe(comando: string): unknown {
 }
 
 /** A confirmação do "Copy as webhook wait-for" (com o aviso do texto que ficou de fora, quando há). */
-// Patamar, B1 (guia-combinacao §3.1 e §7): o "Copy as anzol wait-for" sai da `search` e vai para a linha do cabeçalho
-// da lista; o botão e a confirmação são procurados na `region "Request list"`.
 function confirmacao(page: Page): Locator {
   return lista(page)
     .getByRole('status')

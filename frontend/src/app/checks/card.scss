@@ -135,13 +135,11 @@ h3 {
   font: var(--mat-sys-label-large);
 }
 
-// O corpo do cartão não tem caixa própria: os blocos dele seguem a coluna do cartão.
 .card-body {
   display: contents;
 }
 
-// Celular (B3): o cabeçalho recolhível já diz o nome do cartão; o título daqui continua a dar nome à
-// região, fora da vista. Recolhido, o corpo some e o formulário segue montado.
+// O cabeçalho recolhível já mostra o nome; o `h2` escondido segue nomeando a região.
 :host(.folding) {
   padding: 8px 12px 12px;
 
@@ -151,9 +149,8 @@ h3 {
   }
 }
 
-// Recolhido sem `display: none`: voltar de `none` reinicia a animação de entrada das dicas do
-// Material (opacidade), e o texto passa um instante sem contraste. `visibility: hidden` também tira
-// o corpo da árvore de acessibilidade e do foco.
+// Sem `display: none`: voltar dele reinicia a animação das dicas do Material, que passam um
+// instante sem contraste. `visibility: hidden` também tira o corpo do foco e da árvore acessível.
 :host(.closed) {
   padding-bottom: 8px;
 

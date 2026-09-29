@@ -12,10 +12,7 @@ export class UrlLock {
   /** Token cujo acesso foi recusado; `null` quando nada está trancado. */
   readonly tokenId = this.locked.asReadonly();
   private readonly why = signal<string | null>(null);
-  /**
-   * Frase que a tela de desbloqueio mostra quando foi a própria tela que trancou (Verificações
-   * salvou um segredo novo e não conseguiu destrancar com ele); `null` no 401 comum.
-   */
+  /** Por que a própria tela trancou (segredo novo salvo em Verificações); `null` no 401 comum. */
   readonly notice = this.why.asReadonly();
 
   lock(tokenId: string, notice: string | null = null): void {
@@ -40,19 +37,10 @@ export function urlDraftKey(tokenId: string, name: string): string {
   return `${draftPrefix(tokenId)}${name}`;
 }
 
-/**
- * Trancar a URL leva junto o que se escreveu nela e não foi salvo, e o que se guardou dela: os
- * rascunhos das regras, o de Verificações (`anzol.checksDraft.{uuid}`) e as explicações da IA
- * (`anzol.ai.{uuid}.…`), como no guia da combinação §4.1.
- */
+/** Trancar a URL leva junto o que se escreveu nela e não foi salvo, e o que se guardou dela. */
 function clearUrlDrafts(tokenId: string): void {
   try {
-    const prefixes = [
-      draftPrefix(tokenId),
-      `anzol.checksDraft.${tokenId}`,
-      // As explicações da IA guardadas para as requisições da URL (B4).
-      `anzol.ai.${tokenId}.`,
-    ];
+    const prefixes = [draftPrefix(tokenId), `anzol.checksDraft.${tokenId}`, `anzol.ai.${tokenId}.`];
     const keys = Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i));
     keys
       .filter((key) => prefixes.some((prefix) => key?.startsWith(prefix)))

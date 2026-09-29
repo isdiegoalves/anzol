@@ -1,30 +1,20 @@
 import { Page } from '@playwright/test';
 import { expect } from './fixtures';
 
-/**
- * Anúncio único por ação (patamar, guia-combinacao §4.3): "uma ação, um anúncio", e a região viva que fala existe no
- * DOM desde a carga, vazia (região criada já com o texto não é anunciada pelo leitor de tela).
- *
- * `escutarAnuncios` instala, antes de a página carregar, um observador que grava cada vez que o texto de uma região
- * viva muda para um texto não vazio. Região viva: `role="status"`, `role="alert"`, `aria-live="polite|assertive"`. O
- * que está dentro de `aria-hidden="true"` não conta (o snackbar fica assim quando a frase já saiu por uma região; a
- * contagem regressiva fica assim para não falar a cada segundo).
- *
- * Guia §4.3 (revisado): a região viva não tem nome; quem leva o nome é um `role="group"` em volta dela (`group
- * "Connection"` › `status`), e é por esse grupo que os testes acham a região. Dentro do grupo a região é achada por
- * `[role="status"]`, e não por `getByRole`: vazia, ela não ocupa espaço e o `getByRole` não a enxerga.
- */
 export interface Anuncio {
   texto: string;
-  /** Nome do `role="group"` em volta da região viva (`aria-label` ou o texto do `aria-labelledby`), ou "". */
+  /** Nome do `role="group"` em volta da região viva, ou "". */
   regiao: string;
-  /** Nome acessível da própria região viva; o guia (§4.3) pede que ela não tenha nome. */
   nome: string;
   papel: string;
   /** A região apareceu no DOM já com o texto: o leitor de tela não a anuncia. */
   nasceuComTexto: boolean;
 }
 
+/**
+ * Grava cada texto não vazio que uma região viva (`status`, `alert`, `aria-live`) recebe desde a carga. O que
+ * está sob `aria-hidden="true"` não conta, como para o leitor de tela.
+ */
 export async function escutarAnuncios(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const janela = window as unknown as { __anuncios: unknown[] };
@@ -80,14 +70,12 @@ export async function escutarAnuncios(page: Page): Promise<void> {
   });
 }
 
-/** Todos os anúncios gravados desde a carga (ou desde o último `limparAnuncios`). */
 export function anunciados(page: Page): Promise<Anuncio[]> {
   return page.evaluate(
     () => (window as unknown as { __anuncios?: Anuncio[] }).__anuncios ?? [],
   ) as Promise<Anuncio[]>;
 }
 
-/** Esquece o que já foi anunciado: o que vier depois é da próxima ação. */
 export async function limparAnuncios(page: Page): Promise<void> {
   await page.evaluate(() => {
     (window as unknown as { __anuncios: unknown[] }).__anuncios = [];
@@ -99,8 +87,8 @@ async function comTexto(page: Page, texto: RegExp): Promise<Anuncio[]> {
 }
 
 /**
- * A frase foi anunciada uma vez só, por uma região que já existia vazia. Espera a frase aparecer e mais 1,2 s (a
- * janela dos resumos do guia é de 1 s) para pegar a repetição por outra região.
+ * A frase foi anunciada uma vez só, por uma região que já existia vazia. A espera de 1,2 s cobre a janela de 1 s
+ * dos resumos, para pegar a repetição por outra região.
  */
 export async function expectUmAnuncio(
   page: Page,
@@ -121,15 +109,13 @@ export async function expectUmAnuncio(
   const [anuncio] = achados;
   expect(anuncio.nasceuComTexto, 'a região viva existe vazia antes de receber o texto').toBe(false);
   if (regiao) {
-    // Guia §4.3 (revisado): a região viva não tem nome; o nome é do `role="group"` em volta dela. Região viva com
-    // nome faz o leitor de tela falar o nome no lugar do texto.
+    // Região viva com nome faz o leitor de tela falar o nome no lugar do texto: o nome fica no grupo em volta.
     expect(anuncio.nome, 'a região viva não tem nome').toBe('');
     expect(anuncio.regiao, 'o grupo em volta da região que anuncia').toMatch(regiao);
   }
   return anuncio;
 }
 
-/** A frase não foi anunciada por região nenhuma (ex.: "Searching…", a contagem regressiva, o snackbar repetido). */
 export async function expectSemAnuncio(page: Page, texto: RegExp): Promise<void> {
   const achados = await comTexto(page, texto);
   expect(

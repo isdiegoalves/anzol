@@ -13,18 +13,12 @@ import { MatButton } from '@angular/material/button';
 import { LiveRegion } from '../ui/live-region';
 import { AiClient, AiKind } from './ai-client';
 
-/**
- * A espera de um pedido de IA (B4, UX-42), para o Suggest e para o Explain. A região viva do
- * `group "AI progress"` existe desde a carga, vazia (§4.3), e recebe **uma vez** a frase do começo
- * ("It usually takes about 9 s", com a mediana das últimas chamadas) e, passado o dobro disso, a da
- * demora. O contador de segundos e a barra ficam fora da árvore de acessibilidade. "Cancel" (e o
- * `Esc`) aborta o pedido; o resto da tela continua utilizável enquanto isso.
- */
+/** A espera de um pedido de IA, no Suggest e no Explain; `Esc` durante ela é "Cancel". */
 @Component({
   selector: 'app-ai-wait',
   imports: [LiveRegion, MatButton],
   template: `
-    <!-- O nome fica no grupo; a região viva, dentro dele, não tem nome (§4.3). -->
+    <!-- A região viva fica sem nome: o nome é do grupo. -->
     <div role="group" aria-label="AI progress" i18n-aria-label>
       <app-live-region class="phrase" [text]="spoken()" />
       @if (waiting()) {
@@ -45,9 +39,8 @@ export class AiWait {
   private readonly document = inject(DOCUMENT);
 
   readonly kind = input.required<AiKind>();
-  /** O pedido está em curso. */
   readonly waiting = input(false);
-  /** O que a região diz quando o pedido termina ("Explanation ready."); vazio, ela só esvazia. */
+  /** A frase ao terminar; vazia, a região só esvazia. */
   readonly outcome = input('');
   readonly cancelled = output<void>();
 
@@ -89,7 +82,6 @@ export class AiWait {
     this.cancelled.emit();
   }
 
-  /** `Esc` durante a espera é "Cancel" (e não fecha mais nada). */
   private cancelByKey(event: KeyboardEvent): void {
     if (event.key === 'Escape' && this.waiting() && !event.defaultPrevented) {
       event.preventDefault();

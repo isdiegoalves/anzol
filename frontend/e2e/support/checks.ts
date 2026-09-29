@@ -34,11 +34,7 @@ export function secao(page: Page, nome: Secao): Locator {
   return page.getByRole('region', { name: nome, exact: true });
 }
 
-/**
- * Patamar, B3 (guia-combinacao §3.3): abaixo de 840 px cada cartão é recolhível, e o cabeçalho dele é um `button`
- * com `aria-expanded` e o nome "{seção}, {estado}". Abre o cartão se estiver recolhido; na largura grande (ou na tela
- * de hoje, sem cabeçalho recolhível) não faz nada.
- */
+/** Abaixo de 840 px os cartões são recolhíveis: abre o da seção pelo cabeçalho ("{seção}, {estado}"). */
 export async function abrirCartao(page: Page, nome: Secao): Promise<void> {
   if ((page.viewportSize()?.width ?? 1400) >= 840) {
     return;
@@ -55,7 +51,7 @@ export async function abrirCartao(page: Page, nome: Secao): Promise<void> {
 
 /**
  * Abre `#/{token}/checks` e espera o token vir do servidor (os campos vêm preenchidos com ele). No celular abre o
- * cartão da seção (B3: cartões recolhíveis).
+ * cartão da seção.
  */
 export async function abrirChecks(page: Page, tokenId: string, nome: Secao): Promise<Locator> {
   await page.goto(`/#/${tokenId}/checks`);
@@ -69,11 +65,7 @@ export async function abrirChecks(page: Page, tokenId: string, nome: Secao): Pro
   return regiao;
 }
 
-/**
- * Abre Verificações no cartão Health e mostra o painel. Patamar, B3 (guia-combinacao §3.3): o Health fica por último
- * e recolhido, com uma linha das duas taxas; o `button "Show health"` (`aria-expanded`) abre o painel de antes. Na
- * tela sem o botão (a de antes) não faz nada.
- */
+/** Abre Verificações no cartão Health e mostra o painel, recolhido atrás de "Show health". */
 export async function abrirSaude(page: Page, tokenId: string): Promise<Locator> {
   const saude = await abrirChecks(page, tokenId, 'Health');
   const mostrar = saude.getByRole('button', { name: 'Show health' });
@@ -84,7 +76,7 @@ export async function abrirSaude(page: Page, tokenId: string): Promise<Locator> 
   return saude;
 }
 
-/** `region "Unsaved changes"`: a barra de salvar de Verificações (B3), que só existe com alteração pendente. */
+/** `region "Unsaved changes"`: a barra de salvar de Verificações, que só existe com alteração pendente. */
 export function barraDeSalvar(page: Page): Locator {
   return page.getByRole('region', { name: 'Unsaved changes' });
 }
@@ -94,10 +86,7 @@ export function botaoSalvar(page: Page): Locator {
   return barraDeSalvar(page).getByRole('button', { name: /^Save changes\b/ });
 }
 
-/**
- * Clica em "Save changes", espera a resposta do `PUT /token/{id}` e devolve o corpo dele. Patamar, B3 (CA-6): um
- * botão só para a página; o parâmetro do botão de cada cartão deixou de existir.
- */
+/** Clica em "Save changes", espera a resposta do `PUT /token/{id}` e devolve o corpo dele. */
 export async function salvar(page: Page, tokenId: string): Promise<Record<string, unknown>> {
   const put = page.waitForResponse(
     (response) =>
@@ -120,8 +109,8 @@ export function pendente(regiao: Locator): Locator {
 const ATENCAO = /^\d+ fields? needs? attention:/;
 
 /**
- * O resumo do que falta depois de clicar no Save (`alert` "N fields need attention: …", CHECKS-13). Patamar, B3: em
- * Verificações o alerta é o resumo da barra de salvar; nos diálogos ("Create New URL") continua dentro deles.
+ * O resumo do que falta depois de clicar no Save (`alert` "N fields need attention: …", CHECKS-13). Em
+ * Verificações o alerta fica na barra de salvar; nos diálogos, dentro deles.
  */
 export function pendenteAlerta(regiao: Locator): Locator {
   return regiao

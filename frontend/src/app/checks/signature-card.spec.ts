@@ -20,7 +20,6 @@ const provider = (name: string) => screen.getByRole('radio', { name });
 const secret = () => screen.getByLabelText(/^Secret/);
 const save = saveButton;
 const card = () => screen.getByRole('region', { name: 'Signature verification' });
-/** O resumo do que falta (ou o "Saved."), no pé do cartão. */
 const note = () => within(card()).getByRole('status').textContent?.trim();
 
 describe('Dado o cartão "Signature verification" de Checks', () => {
@@ -62,7 +61,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
 
     expect(attention()).toBe('2 fields need attention: Signature header, Secret');
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Signature header' }));
-    // Quem fala agora é o alert da barra: o status do cartão se cala, para não dizer duas vezes.
+    // Quem fala é o alert da barra: o status do cartão se cala para não repetir.
     expect(within(card()).queryByText(/^To save/)).toBeNull();
     expect(screen.getByText('The header is required.')).toBeTruthy();
     http.expectNone(() => true);
@@ -341,8 +340,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       ).toBe(true);
     });
 
-    // B3: o teste usa a configuração salva; com rascunho em Assinatura, o link diz por quê.
-    it('CHECKS-13: deve desligar o "Send a signed test", com a razão, Quando há rascunho em Assinatura', async () => {
+    it('deve desligar o "Send a signed test", com a razão, Quando há rascunho em Assinatura', async () => {
       const { container } = await renderCard(SignatureCard, SALVA);
 
       await userEvent.click(provider('Slack'));

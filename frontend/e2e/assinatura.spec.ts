@@ -14,13 +14,6 @@ import { Webhook, expect, test } from './support/fixtures';
 import { abrirAba, abrirItem, abrirMensagem, item, porque, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 
-// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
-// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
-// {motivo}".
-
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Verificação de assinatura HMAC (CA-7, o que é da tela): configurar pela tela, selo na
 // mensagem e condição "Signature" no editor de regras. Precisa do backend com `signature` no
 // token, na mensagem e em `match.signature`. Item 13.1: selo na lista, linha do header realçada,

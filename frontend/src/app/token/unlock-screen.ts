@@ -24,7 +24,6 @@ const DEFAULT_WAIT_SECONDS = 60;
 })
 export class UnlockScreen {
   private readonly access = inject(UrlAccess);
-  /** Por que a tela trancou, quando foi Verificações com o segredo novo (B3). */
   protected readonly notice = inject(UrlLock).notice;
   private readonly snackBar = inject(MatSnackBar);
   private readonly location = inject(DOCUMENT).location;

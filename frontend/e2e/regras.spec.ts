@@ -12,10 +12,6 @@ import {
   parte,
 } from './support/regras';
 
-// Patamar, B2 (guia-combinacao §3.2 e §7; CA-7): o cartão da resposta diz sempre o status na primeira linha
-// ("Answered {status} · by rule" ou "· default response") e a regra mais perto como "Closest rule: {regra} —
-// {motivo}".
-
 // Regras de resposta, fase A (CA-1, CA-2, CA-4, CA-9, CA-10 parcial): aba "Rules", editor,
 // import/export e selo na mensagem. Precisa do backend com `GET|PUT /token/{id}/rules`.
 // Item 14, E6: o editor sai do diálogo e vira a `region "New rule"` ao lado da lista, com as abas Match, Response,
@@ -267,7 +263,6 @@ test.describe('Dado uma URL com regras salvas', () => {
     await expect(failed.filter({ hasText: /^body \$\.status: .*pendente/ })).toHaveCount(1);
   });
 
-  // Patamar, B2 (CA-7): sem regras, o cartão diz o status da resposta padrão, e nada de regra.
   test('deve dizer o status da resposta padrão, e nada de regra, Quando a URL não tem regras', async ({
     page,
     tokens,

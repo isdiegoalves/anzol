@@ -149,15 +149,11 @@ function sugestao(dialog: Locator): Locator {
     .or(dialog.getByRole('status', { name: 'Suggestion' }));
 }
 
-/** `group "AI progress"` › `status`: a região viva da espera da IA (patamar, B4). */
 function andamento(page: Page): Locator {
   return page.getByRole('group', { name: 'AI progress' }).locator('[role="status"]');
 }
 
-/**
- * Patamar, B4 (guia-combinacao §3.4 e §7): as conferências da sugestão terminam antes de os botões de aplicar ficarem
- * disponíveis (o botão fica `aria-disabled` por menos de 1 s); espera por isso e aplica tudo.
- */
+/** O "Apply all" fica `aria-disabled` até as conferências da sugestão terminarem (menos de 1 s). */
 async function aplicarTudo(dialog: Locator): Promise<void> {
   const aplicar = sugestao(dialog).getByRole('button', { name: 'Apply all' });
   await expect(aplicar).not.toHaveAttribute('aria-disabled', 'true');
@@ -190,7 +186,6 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await (await descrever(dialog)).fill(prompt);
     await dialog.getByRole('button', { name: 'Suggest' }).click();
 
-    // Patamar, B4 (espera honesta): a frase fixa dos ~30 s sai; a espera diz o tempo de costume.
     await expect(andamento(page)).toContainText('Asking the local model. It usually takes about');
     // E-13: nada muda no editor até "Apply all".
     await expect(sugestao(dialog)).toContainText('status 200 → 429');
@@ -238,7 +233,6 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
     await openRequest(page, tokenId, requestId);
     await page.getByRole('button', { name: 'Create rule from this request' }).click();
     // UX de Regras, WM-31: a folha "Create rule from this request" vem antes; "Open in editor" leva ao editor.
-    // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
     await folhaDeCriarRegra(page).getByRole('button', { name: 'Open in editor' }).click();
     const dialog = page.getByRole('region', { name: 'New rule', exact: true });
     await expect(dialog).toBeVisible();
@@ -380,7 +374,6 @@ test.describe('Dado o editor de regra com a IA ligada', () => {
 test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => {
   test.use({ locale: 'pt-BR' });
 
-  // Patamar, B4 (guia-combinacao §3.4 e §7; UX-43): o `lang` segue o idioma da tela, não o do navegador.
   test('deve pedir o diagnóstico no idioma da tela e mostrar o markdown sem executar o HTML do modelo Quando "Explain" é clicado', async ({
     page,
     tokens,
@@ -428,7 +421,6 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
       undefined,
     );
 
-    // Patamar, R1: a explicação fica na aba Explain do painel de ação; esconde-se fechando o painel.
     await page
       .getByRole('button', { name: 'Hide explanation' })
       .or(page.getByRole('button', { name: 'Close panel' }))
@@ -439,8 +431,6 @@ test.describe('Dado uma mensagem com a IA ligada e o navegador em pt-BR', () => 
 });
 
 test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', () => {
-  // Patamar, B4 (guia-combinacao §3.4 e §7; UX-15): com a IA desligada os botões ficam `aria-disabled` com a razão
-  // "This server has no local AI."; a frase com WEBHOOK_AI_* sai da tela.
   test('deve desligar "Explain" e "Suggest" com a razão Quando o servidor responde 503', async ({
     page,
     tokens,
@@ -473,8 +463,6 @@ test.describe('Dado a IA desligada ou no limite (respostas simuladas na rota)', 
     );
   });
 
-  // Patamar, B4 (guia-combinacao §3.4; UX-52): depois do 429 o "Suggest" espera o Retry-After, desligado
-  // (`aria-disabled`) e com a contagem à vista; antes ficava habilitado logo em seguida.
   test('deve dizer quando tentar de novo e segurar o "Suggest" Quando o servidor responde 429 com Retry-After', async ({
     page,
     tokens,

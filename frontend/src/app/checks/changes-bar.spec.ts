@@ -7,7 +7,6 @@ import { changesBar, expectPut, renderCard, saveButton } from '../../testing/che
 import { token } from '../../testing/fixtures';
 import { ResponseCard } from './response-card';
 
-/** A região viva do resumo: `app-live-region`, dentro da seção da barra. */
 const spoken = (container: Element) =>
   container.querySelector('app-changes-bar app-live-region') as HTMLElement;
 const status = () => screen.getByRole('textbox', { name: 'Default status code' });
@@ -44,9 +43,7 @@ describe('Dado a barra de salvar de Verificações (região "Unsaved changes")',
     expect(summary.querySelector('.full')?.textContent).toBe(
       '1 unsaved change: Default status code',
     );
-    // No celular a barra mostra só a contagem (o estilo troca um texto pelo outro).
     expect(summary.querySelector('.count')?.textContent).toBe('1 unsaved change');
-    // O texto à vista fica fora da árvore de acessibilidade: quem fala é a região viva.
     expect(summary.getAttribute('aria-hidden')).toBe('true');
     expect(spoken(container).textContent).toBe('');
 
@@ -81,7 +78,6 @@ describe('Dado a barra de salvar de Verificações (região "Unsaved changes")',
     await vi.waitFor(() => expect(changesBar()).toBeNull());
     expect(announce.mock.calls).toEqual([['Saved. 2 changes.']]);
     expect(await screen.findByText('URL updated!')).toBeTruthy();
-    // O snackbar do Material fala pela região viva dele: com `politeness: 'off'`, fica calado.
     expect(
       document.querySelector('mat-snack-bar-container [aria-live]')?.getAttribute('aria-live'),
     ).toBe('off');

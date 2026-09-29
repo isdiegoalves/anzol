@@ -51,7 +51,6 @@ export class TokenStore {
     return enabled;
   }
 
-  /** A URL abriu (ou foi criada, ou salva): fica na tela e entra na lista deste navegador (B1). */
   private keep(token: Token): Token {
     this.preferences.token.set(token);
     this.known.opened(token.uuid);

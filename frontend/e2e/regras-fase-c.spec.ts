@@ -42,7 +42,6 @@ async function createRuleFrom(
     await screenshot(page, shot);
   }
   await page.getByRole('button', { name: 'Create rule from this request' }).click();
-  // Patamar, R1: a folha é a aba "Create rule" do painel de ação (ou o diálogo de antes).
   const folha = folhaDeCriarRegra(page);
   await marcar?.(folha);
   await folha.getByRole('button', { name: 'Open in editor' }).click();

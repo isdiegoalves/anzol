@@ -3,9 +3,6 @@ import { abrirChecks, abrirCreate, escolherLimpeza, salvar } from './support/che
 import { expect, test, tokenInUrl } from './support/fixtures';
 import { item, itens } from './support/inbox';
 
-// Patamar, B3 (guia-combinacao §3.3 e §7; CA-6): os quatro botões Save dos cartões somem; salvar é o `button "Save
-// changes"` da `region "Unsaved changes"`, que só aparece com alteração pendente e grava tudo num PUT só.
-
 // Limpeza automática: campo nos diálogos da URL, contador com o limite e lista ao vivo
 // coerente com o corte FIFO do servidor. Precisa do backend com `auto_cleanup` e `removed`.
 // Item 14, E5: o `mat-select` vira `radiogroup "Auto cleanup"` (C §2.6), no "Customize response" do Create e no
@@ -108,8 +105,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
 
     await tokens.send(tokenId);
 
-    // Patamar, B2 (guia-combinacao §3.2 e §7; CA-5): a requisição aberta que a limpeza corta vira aviso, com a cópia
-    // carregada; a tela não abre a seguinte no lugar dela.
+    // A aberta que a limpeza corta vira aviso, com a cópia carregada: a tela não abre a seguinte no lugar dela.
     await expect(
       page.getByRole('group', { name: 'Request notice' }).locator('[role="status"]'),
     ).toContainText('deleted from the server by auto cleanup (keeps the newest 500)');
@@ -122,7 +118,6 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     );
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
 
-    // Recarregar o link da que foi cortada mostra o estado vazio, e não a seguinte.
     await page.reload();
     await expect(page.getByText('This request no longer exists.')).toBeVisible();
     await expect(details).toHaveCount(0);
@@ -153,8 +148,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await openInbox(page);
 
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
-    // Patamar, B2 (CA-5): ao voltar à Entrada, a requisição cortada não está mais aberta; qual abre no lugar não é
-    // o que este teste confere.
+    // Qual requisição abre no lugar da cortada não é o que este teste confere.
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}(/[0-9a-f-]{36}/\\d+)?$`));
     await expect(page).not.toHaveURL(new RegExp(antiga.uuid));
     await expect(details).not.toContainText(antiga.uuid);

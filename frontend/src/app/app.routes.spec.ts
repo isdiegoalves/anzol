@@ -133,9 +133,6 @@ describe('Dado a saída de Regras com alterações não salvas (E-04)', () => {
   });
 });
 
-// Defeito da B1 (patamar-b1:742): com a página única de URL inexistente (ou a tela de destrancar) no
-// lugar da página da rota, a rota não tem componente. A guarda recebia `null`, quebrava, e a
-// navegação para a URL recém-criada era recusada: "Error creating token (unknown)".
 describe('Dado a saída de uma rota cuja página não está na tela (URL inexistente ou trancada)', () => {
   it.each([
     ['Regras', rulesMatcher],

@@ -198,8 +198,8 @@ const INTEGER = /^[+-]?\d+$/;
  * Checks › Signature verification (C §2.6, A): como funciona em três passos, a tabela dos
  * provedores que é o seletor (`radiogroup`), a anatomia do header com a linha "Expected header:",
  * os campos do provedor com os obrigatórios marcados desde o começo, e o pé do cartão que diz o
- * que falta (o genérico sem header nem segredo explica o motivo). O salvar é o da barra da página
- * (B3); o segredo nunca vai ao rascunho da aba. Trocar de provedor exige segredo novo (S11).
+ * que falta (o genérico sem header nem segredo explica o motivo). Trocar de provedor exige segredo
+ * novo.
  */
 @Component({
   selector: 'app-signature-card',
@@ -400,22 +400,18 @@ export class SignatureCard implements ChecksSection {
     return this.providers.find((row) => row.provider === provider) ?? null;
   }
 
-  /**
-   * "To save, fill in: …" desde o começo (S12). Depois de tentar salvar, quem diz o que corrigir é
-   * o `alert` da barra, uma vez só: o resumo daqui se cala.
-   */
+  /** Com o `alert` da barra à vista, o resumo daqui se cala para não repetir. */
   protected pending(): string {
     return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
 
-  /** Com uma assinatura salva e nada editado, o pé do cartão diz como mantê-la (CHECKS-13). */
+  /** Com uma assinatura salva e nada editado, o pé do cartão diz como mantê-la. */
   protected savedNotice(): CardNotice | null {
     return this.saved()
       ? { text: $localize`Saved. Leave the secret blank to keep it.`, error: false }
       : null;
   }
 
-  /** As alterações contra a assinatura salva, só dos campos do provedor escolhido. */
   changes(): ChangeLine[] {
     const c = this.form.controls;
     const was = this.valuesOf(this.saved());
@@ -446,7 +442,6 @@ export class SignatureCard implements ChecksSection {
     return { signature: this.signatureOf() };
   }
 
-  /** Todos os erros do cartão à vista; com `focus`, o foco vai ao primeiro campo inválido. */
   showPending(focus: boolean): void {
     this.form.markAllAsTouched();
     const first = this.fields().find(([control]) => control.invalid);
@@ -462,7 +457,6 @@ export class SignatureCard implements ChecksSection {
     this.reset(this.saved());
   }
 
-  /** O 422 do segredo vai para o campo, com a frase do servidor. */
   refused(error: unknown): string[] {
     const messages = fieldErrors(error, 'signature.secret');
     if (messages.length === 0) {
@@ -474,7 +468,6 @@ export class SignatureCard implements ChecksSection {
     return ['Secret'];
   }
 
-  /** O rascunho da aba leva tudo menos o segredo. */
   sketch(): Record<string, unknown> {
     const values: Record<string, unknown> = this.form.getRawValue();
     delete values['secret'];
@@ -599,7 +592,6 @@ export class SignatureCard implements ChecksSection {
   }
 }
 
-/** O nome do controle no formulário (a chave dos valores salvos). */
 function nameOf<K extends string>(
   controls: Record<K, AbstractControl>,
   control: AbstractControl,

@@ -13,8 +13,7 @@ const MIN_SLOTS = 24;
 /**
  * Mensagens por hora em barras SVG próprias (S19: sem biblioteca de gráficos). Para leitor de
  * tela é uma imagem com o resumo; a tabela com os dados fica ao lado, na página. Cada barra tem o
- * número no título (dica ao passar o ponteiro). As horas saem na hora local do navegador (UX-19); a
- * página diz o fuso na legenda.
+ * número no título (dica ao passar o ponteiro).
  */
 @Component({
   selector: 'app-hourly-chart',
@@ -83,7 +82,7 @@ export class HourlyChart {
   });
 }
 
-/** `2026-09-26 14:00:00` (UTC) → a hora local por extenso, como a Entrada (UX-19). */
+/** `2026-09-26 14:00:00` (UTC) → a hora local por extenso. */
 function hourLabel(hour: string | undefined): string {
   return hour ? localDate(hour) : '';
 }

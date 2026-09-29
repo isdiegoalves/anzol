@@ -101,9 +101,8 @@ async function parteDoResultado(
 }
 
 /**
- * O compositor de Outbound com a mensagem escolhida. Patamar, R1 (guia-combinacao §3.7 e §7): o "Replay…" do detalhe
- * abre a aba Replay do painel de ação (conferido no patamar-r1.spec); a rota `/outbound?replay=` continua valendo
- * por link, e é por ela que estes testes chegam ao compositor e ao resultado na página de Outbound.
+ * O compositor de Outbound com a mensagem escolhida, pela rota `/outbound?replay=`: o "Replay…" do detalhe abre
+ * o painel de ação, não esta página.
  */
 async function openReplay(page: Page, tokenId: string, requestId: string): Promise<Locator> {
   await page.goto(`/#/${tokenId}/outbound?replay=${requestId}`);
@@ -189,7 +188,6 @@ test.describe('Dado uma mensagem recebida', () => {
     });
     await openRequest(page, tokenId, requestId);
 
-    // Patamar, R1 (§5.3): "Send as new…" sai da barra e fica no More; o helper procura nos dois.
     await acaoDaMensagem(page, 'Send as new…');
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/outbound\\?send-from=${requestId}$`));

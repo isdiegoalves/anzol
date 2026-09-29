@@ -29,9 +29,8 @@ import { SchemaCard } from './schema-card';
 import { SignatureCard } from './signature-card';
 
 /**
- * Seções da página, na ordem do "On this page" (`?section=`), que é também a ordem dos cartões
- * (UX-17). `title` é o nome da região do cartão. Função, e não constante do módulo, para o
- * `$localize` rodar depois de a tradução carregar.
+ * Seções da página, na ordem do "On this page" (`?section=`) e dos cartões. Função, e não constante
+ * do módulo, para o `$localize` rodar depois de a tradução carregar.
  */
 export function checksSections() {
   return [
@@ -56,16 +55,13 @@ export function checksSections() {
 type Section = ReturnType<typeof checksSections>[number];
 type PageSection = Section['id'];
 
-/** O estado salvo de cada seção ao lado do nome: o que se vê e o que o leitor de tela ouve. */
 interface SectionState {
   shown: string;
   spoken: string;
 }
 
 /**
- * Checks (`#/{token}/checks`): o que a URL confere em cada mensagem e como responde. Os cartões
- * ficam numa coluna, na ordem do índice, com o Health por último e recolhido; uma barra só salva
- * tudo (B3), e sair com alteração pendente pergunta antes (a mesma guarda de Regras).
+ * Checks (`#/{token}/checks`): o que a URL confere em cada mensagem e como responde.
  * `?section=` rola até o cartão; `?schema-from={requestId}` ("Create schema from this request")
  * abre o Schema com o schema inferido daquela mensagem. Os cartões só montam depois de a URL vir
  * do servidor (a do localStorage pode estar velha).
@@ -113,13 +109,10 @@ export class ChecksPage {
     () => this.loaded() === this.tokenId() && this.tokens.token()?.uuid === this.tokenId(),
   );
 
-  /** Abaixo de 840 px cada cartão é recolhível (o cabeçalho vira botão). */
   protected readonly folding = computed(() =>
     ['compact', 'medium'].includes(this.viewport.windowClass()),
   );
-  /** Cartões que a pessoa abriu ou fechou à mão; o resto segue a regra de `isOpen`. */
   private readonly chosen = signal<Partial<Record<PageSection, boolean>>>({});
-  /** A seção à vista, para o `aria-current` do índice. */
   private readonly inView = signal<PageSection | null>(null);
   protected readonly current = computed(
     () => this.inView() ?? this.target() ?? this.sections[0].id,
@@ -146,7 +139,7 @@ export class ChecksPage {
       }
     });
     this.watchSections();
-    // A barra aparece com a primeira alteração: o campo em que se está digitando sai de trás dela.
+    // A barra surge com a primeira alteração e pode cobrir o campo em foco.
     afterRenderEffect(() => {
       if (this.draft.dirty()) {
         this.uncover(document.activeElement);
@@ -155,10 +148,7 @@ export class ChecksPage {
     inject(DestroyRef).onDestroy(() => this.draft.flush());
   }
 
-  /**
-   * Guarda de saída (`canDeactivate`): com alteração pendente, pergunta. "Save and leave" com campo
-   * inválido fecha o diálogo e se comporta como "Save changes" (fica na página).
-   */
+  /** "Save and leave" com campo inválido fica na página, como "Save changes". */
   async canLeave(): Promise<boolean> {
     if (!this.draft.dirty()) {
       return true;
@@ -193,23 +183,17 @@ export class ChecksPage {
     return this.draft.dirtySections().includes(id as SectionId);
   }
 
-  /** "Signature, Stripe, unsaved": o nome acessível do atalho. */
   protected linkName(item: Section): string {
     const state = this.stateOf(item.id);
     const parts = [item.label, ...(state ? [state.spoken] : [])];
     return [...parts, ...(this.unsaved(item.id) ? [$localize`unsaved`] : [])].join(', ');
   }
 
-  /** "Signature verification, GitHub": o nome do cabeçalho recolhível, no celular. */
   protected foldName(item: Section): string {
     const state = this.stateOf(item.id);
     return state ? `${item.title}, ${state.spoken}` : item.title;
   }
 
-  /**
-   * Aberto por escolha da pessoa; senão, o cartão do `?section=` (sem ele, o primeiro) e todo
-   * cartão com alteração pendente ou com erro.
-   */
   protected isOpen(id: PageSection): boolean {
     if (!this.folding()) {
       return true;
@@ -224,12 +208,10 @@ export class ChecksPage {
     this.chosen.update((chosen) => ({ ...chosen, [id]: !this.isOpen(id) }));
   }
 
-  /** "3 minutes ago", para "You have a draft from 3 minutes ago." */
   protected draftAge(draft: StoredDraft): string {
     return fromNow(new Date(draft.savedAt).toISOString().slice(0, 19).replace('T', ' '));
   }
 
-  /** `Ctrl/Cmd+S` salva, com o foco em qualquer campo da página. */
   protected saveByKey(event: KeyboardEvent): void {
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
       if (document.querySelector('mat-dialog-container')) {
@@ -242,7 +224,6 @@ export class ChecksPage {
     }
   }
 
-  /** Fechar a aba com alteração pendente: o navegador pergunta. */
   protected warnBeforeUnload(event: BeforeUnloadEvent): void {
     if (this.draft.dirty()) {
       event.preventDefault();
@@ -250,8 +231,8 @@ export class ChecksPage {
   }
 
   /**
-   * A barra de salvar e o índice são fixos: o campo com foco nunca fica atrás deles (WCAG 2.4.11).
-   * O foco do navegador só rola o que está fora da área; o que está coberto, rola aqui.
+   * O navegador só rola até o campo com foco quando ele está fora da tela; o que a barra ou o
+   * índice fixos cobrem, rola aqui (WCAG 2.4.11).
    */
   protected uncover(target: EventTarget | null): void {
     const page = this.host.nativeElement;
@@ -263,7 +244,7 @@ export class ChecksPage {
     const bar = page.querySelector('app-changes-bar.shown .bar')?.getBoundingClientRect();
     const index = page.querySelector('.jump')?.getBoundingClientRect();
     const below = bar ? field.bottom + COVER_GAP - bar.top : 0;
-    // Só a faixa do índice, no topo, cobre os cartões; à esquerda da coluna ele não cobre nada.
+    // O índice só cobre os cartões quando é faixa no topo; à esquerda da coluna, não.
     const above = index && index.right > field.left ? index.bottom + COVER_GAP - field.top : 0;
     if (below > 0) {
       scrollerOf(page).scrollBy({ top: below });
@@ -272,10 +253,6 @@ export class ChecksPage {
     }
   }
 
-  /**
-   * Marca no índice a seção à vista: a do `?section=` enquanto estiver na tela; senão, a primeira à
-   * vista. Sem `IntersectionObserver`, fica a da rota.
-   */
   private watchSections(): void {
     if (typeof IntersectionObserver === 'undefined') {
       return;
@@ -307,10 +284,8 @@ export class ChecksPage {
   }
 }
 
-/** Folga entre o campo com foco e a barra (ou o índice) que o cobriria. */
 const COVER_GAP = 12;
 
-/** O elemento que rola a página: o ancestral com rolagem, ou a janela. */
 function scrollerOf(element: HTMLElement): Element | Window {
   for (let parent = element.parentElement; parent; parent = parent.parentElement) {
     const overflow = getComputedStyle(parent).overflowY;
@@ -321,7 +296,6 @@ function scrollerOf(element: HTMLElement): Element | Window {
   return window;
 }
 
-/** O estado salvo de cada seção, como o índice e o cabeçalho recolhível o dizem. */
 function statesOf(token: Token | null): Partial<Record<PageSection, SectionState>> {
   if (!token) {
     return {};
@@ -345,7 +319,6 @@ function statesOf(token: Token | null): Partial<Record<PageSection, SectionState
   };
 }
 
-/** O dialeto do schema salvo, lido do `$schema` ("2020-12", "2019-09", "draft-07"). */
 function dialectOf(token: Token): string | null {
   const declared = token.schema?.['$schema'];
   if (typeof declared !== 'string') {

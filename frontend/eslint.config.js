@@ -274,9 +274,9 @@ module.exports = defineConfig([
         // Componente que uma feature publica para outra: a mensagem só-leitura do detalhe, que a
         // página do link (share/) mostra igual. A lista "legado" do item 14 zerou na E11.
         { category: 'public', pattern: 'src/app/request-detail/request-view.ts' },
-        // A espera de um pedido de IA (B4), a mesma no Suggest de Regras e no Explain do detalhe.
+        // A espera da IA, usada pelo Suggest de Regras e pelo Explain do detalhe.
         { category: 'public', pattern: 'src/app/ai/ai-wait.ts' },
-        // Os roteiros (R1): a folha que a Entrada põe no lugar do detalhe, e os passos dela.
+        // Os roteiros: a folha que a Entrada põe no lugar do detalhe, e os passos dela.
         { category: 'public', pattern: 'src/app/guides/guide.ts' },
         { category: 'model', pattern: 'src/app/guides/guide-steps.ts' },
       ],

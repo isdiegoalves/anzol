@@ -1,6 +1,6 @@
 import { fixedRetryAfter, retryWait, waitCaveat, waitPhrase } from './retry-wait';
 
-describe('Dado a conferência contra o Retry-After (E1, guia §3.5)', () => {
+describe('Dado a conferência contra o Retry-After', () => {
   const at = (seconds: number) => `2026-09-28 21:40:${String(seconds).padStart(2, '0')}`;
 
   it.each([

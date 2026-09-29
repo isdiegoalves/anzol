@@ -27,7 +27,6 @@ describe('Dado o "Describe the rule" recolhido', () => {
     expect(await screen.findByRole('textbox', { name: 'Describe the rule' })).toBeTruthy();
   });
 
-  // O `import()` do formulário termina depois de o editor fechar: nada a criar, nenhum erro solto.
   it('não deve criar o formulário, nem soltar erro, Quando é destruído antes de o formulário chegar', async () => {
     const loose: unknown[] = [];
     const catcher = (reason: unknown) => loose.push(reason);
@@ -41,7 +40,6 @@ describe('Dado o "Describe the rule" recolhido', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
 
-      // O editor fecha (e a tela inteira sai) com o `import()` ainda a caminho.
       fixture.destroy();
       TestBed.resetTestingModule();
       await import('./rule-suggest-form');

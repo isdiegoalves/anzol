@@ -1,5 +1,5 @@
 @let limit = cleanupLimit();
-<!-- B3: no celular, a página projeta aqui o cabeçalho que abre e fecha o cartão. -->
+<!-- O cabeçalho recolhível do celular, projetado pela página. -->
 <ng-content />
 <div class="card-body">
   <header class="card-head">
@@ -109,7 +109,6 @@
         }
       </p>
     </div>
-    <!-- B3: o CORS entra na barra de salvar, como o resto (deixou de valer na hora). -->
     <div class="cors-row">
       <p id="response-cors-help" class="hint" i18n>Lets a browser page call this URL.</p>
       <mat-slide-toggle
