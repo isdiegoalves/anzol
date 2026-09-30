@@ -271,9 +271,12 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
     await seedStorage(page, {});
     await abrirEntrada(page, tokenId, 0);
 
-    await page.keyboard.press('u');
     const menu = page.getByRole('menu', { name: 'URLs in this browser' });
-    await expect(menu).toBeVisible();
+    // O U só vale depois do GET /token/{id}, que com o servidor frio chega depois da lista.
+    await expect(async () => {
+      await page.keyboard.press('u');
+      await expect(menu).toBeVisible({ timeout: 1000 });
+    }).toPass();
 
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
