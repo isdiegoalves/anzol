@@ -10,6 +10,12 @@ plugins {
 group = "anzol"
 version = "0.0.1-SNAPSHOT"
 
+// O Spring Boot 4.1.1 traz Tomcat 11.0.24 e Jackson 3.1.5/2.21.5, com CVEs corrigidas nestas versões; sai quando o
+// Boot trouxer versões iguais ou mais novas.
+extra["tomcat.version"] = "11.0.26"
+extra["jackson-bom.version"] = "3.1.6"
+extra["jackson-2-bom.version"] = "2.21.6"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
