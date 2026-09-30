@@ -1,4 +1,5 @@
-# Publica a imagem no GitHub Container Registry a cada tag de versão (vX.Y.Z), para amd64 e arm64.
+# Publica a imagem no GitHub Container Registry a cada tag de versão (vX.Y.Z), para amd64 e arm64, e cria a release
+# do GitHub com o texto da tag anotada: o assunto vira o título e o corpo, as notas. Tag sem notas não publica nada.
 # O Helm (helm/) usa ghcr.io/isdiegoalves/anzol com a tag da versão.
 name: imagem
 
@@ -7,7 +8,7 @@ on:
     tags: ["v*.*.*"]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -15,6 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Notas da release (corpo da tag anotada)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          git tag -l --format='%(contents:subject)' "$TAG" > titulo.txt
+          git tag -l --format='%(contents:body)' "$TAG" > notas.md
+          test -s notas.md || { echo "::error::A tag $TAG não tem notas no corpo da mensagem (git tag -a --cleanup=verbatim -F notas.md)"; exit 1; }
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -39,3 +48,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Release no GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --verify-tag --title "$(cat titulo.txt)" --notes-file notas.md
