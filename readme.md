@@ -231,7 +231,8 @@ Se o Anzol te ajuda:
 
 - deixe uma ⭐ no repositório;
 - abra uma [issue](https://github.com/isdiegoalves/anzol/issues) com bug, dúvida ou ideia;
-- conte para quem testa webhooks.
+- conte para quem testa webhooks;
+- contribua pelo [GitHub Sponsors](https://github.com/sponsors/isdiegoalves) ou por Pix (chave `auto.isdiegoalves@gmail.com`).
 
 ## Licença
 
