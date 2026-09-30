@@ -18,3 +18,17 @@ app-url-switcher .name {
   display: inline-block !important;
   width: 80px !important;
 }
+
+/*
+ * Acima do compacto, a data (dia e hora com um ou dois dígitos) e o IP mudam de largura entre uma execução e outra e,
+ * na classe grande, quebravam a linha dos metadados: largura mínima maior que a de qualquer valor.
+ */
+@media (width >= 600px) {
+  [role='group'][aria-label='Request metadata'] .req-date {
+    min-width: 300px;
+  }
+
+  [role='group'][aria-label='Request metadata'] .req-ip {
+    min-width: 170px;
+  }
+}
