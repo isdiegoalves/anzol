@@ -26,7 +26,7 @@ class LegacyRedisCompatibilityTest(
     @DisplayName(
         "Dado token e mensagens gravados pelo PHP, quando a API nova os lê, " +
             "então devolve o mesmo JSON (campos novos nulos, protected false, rule, near_miss, signature, schema e response nulos, " +
-            "seq do created_at)",
+            "e2ee nulo, seq do created_at)",
     )
     fun leitura_jsonGravadoPeloPhp_deveDevolverOMesmoConteudo() {
         val tokenId = UUID.randomUUID().toString()
@@ -44,7 +44,10 @@ class LegacyRedisCompatibilityTest(
         val raw = api.send("GET", "/token/$tokenId/request/$requestId/raw")
 
         assertThat(api.json(readToken)).isEqualTo(
-            api.tree(token.dropLast(1) + ""","retry_after":null,"auto_cleanup":null,"signature":null,"schema":null,"protected":false}"""),
+            api.tree(
+                token.dropLast(1) +
+                    ""","retry_after":null,"auto_cleanup":null,"signature":null,"schema":null,"e2ee":null,"protected":false}""",
+            ),
         )
         assertThat(api.json(readMessage)).isEqualTo(api.tree(json.withSeq("2026-09-26T00:41:43Z")))
         assertThat(page["data"].toList()).containsExactly(
@@ -89,6 +92,7 @@ class LegacyRedisCompatibilityTest(
             "schema",
             "read_secret_hash",
             "secret_version",
+            "e2ee",
         )
         assertThat(message.propertyNames().toList()).containsExactly(
             "uuid",

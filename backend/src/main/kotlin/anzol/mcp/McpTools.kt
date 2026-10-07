@@ -433,7 +433,17 @@ private fun ToolArguments.textBlocks(): Parsed.Invalid? =
 
 /** Os campos da URL que o `PUT /token/{id}` (e o `update_url`) definem. */
 private val URL_SETTINGS =
-    listOf("default_status", "default_content", "default_content_type", "timeout", "retry_after", "auto_cleanup", "signature", "schema")
+    listOf(
+        "default_status",
+        "default_content",
+        "default_content_type",
+        "timeout",
+        "retry_after",
+        "auto_cleanup",
+        "signature",
+        "schema",
+        "e2ee",
+    )
 
 /**
  * A configuração de agora como o corpo de um `PUT /token/{id}` que não mudaria nada: os [URL_SETTINGS] com valor. O

@@ -2,6 +2,7 @@ package anzol.token
 
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
+import anzol.e2ee.E2eePolicy
 import anzol.schema.SchemaConfig
 import anzol.signature.SignatureConfig
 import anzol.signature.SignatureDraft
@@ -38,6 +39,7 @@ data class Token(
      * então trocar invalida os cookies antigos, inclusive os de um segredo removido e definido de novo.
      */
     val secretVersion: Long = 0,
+    val e2ee: E2eePolicy? = null,
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A
@@ -56,6 +58,7 @@ data class Token(
             autoCleanup = settings.autoCleanup,
             signature = signature,
             schema = settings.schema,
+            e2ee = settings.e2ee,
         )
 
     /** Sem [JsonIgnore], o Jackson gravaria `protected` no Redis como se fosse campo. */
@@ -87,6 +90,7 @@ data class Token(
             autoCleanup = autoCleanup,
             signature = signature?.masked(),
             schema = schema,
+            e2ee = e2ee,
             protected = isProtected(),
         )
 }
@@ -113,6 +117,7 @@ data class TokenView(
     val autoCleanup: AutoCleanup?,
     val signature: SignatureConfig?,
     val schema: SchemaConfig?,
+    val e2ee: E2eePolicy?,
     val protected: Boolean,
 )
 
@@ -126,6 +131,7 @@ data class TokenSettings(
     val autoCleanup: AutoCleanup?,
     val signature: SignatureDraft?,
     val schema: SchemaConfig?,
+    val e2ee: E2eePolicy? = null,
     val readSecret: ReadSecretChange = ReadSecretChange.Keep,
 )
 

@@ -20,6 +20,8 @@ import java.util.UUID
 /** Cada tentativa perdida é outra gravação da mesma URL que chegou antes; esgotar é erro (500), nunca mudança perdida. */
 private const val MAX_CHANGE_ATTEMPTS = 50
 
+private val E2EE_WITHOUT_READ_SECRET = mapOf("e2ee" to listOf("The e2ee requires a read secret on this URL (read_secret)."))
+
 /**
  * Criar, editar e apagar a URL, com a validação do `POST`/`PUT /token`: o que a API HTTP e as ferramentas do MCP
  * fazem igual. O token volta como está no Redis; quem o devolve ao cliente mascara o segredo ([Token.forApi]).
@@ -42,8 +44,8 @@ class TokenService(
         if (errors.isNotEmpty()) return Parsed.Invalid(errors)
         val now = clock.legacyNow()
         val settings = input.toTokenSettings()
-        return withSignature(settings.signature, current = null) { signature ->
-            tokens.store(
+        val built =
+            withSignature(settings.signature, current = null) { signature ->
                 Token(
                     uuid = TokenId(UUID.randomUUID()),
                     ip = ip,
@@ -59,9 +61,11 @@ class TokenService(
                     autoCleanup = settings.autoCleanup,
                     signature = signature,
                     schema = settings.schema,
-                ).withReadSecret(settings.readSecret),
-            )
-        }
+                    e2ee = settings.e2ee,
+                ).withReadSecret(settings.readSecret)
+            }.withReadSecretForE2ee()
+        if (built is Parsed.Valid) tokens.store(built.value)
+        return built
     }
 
     /**
@@ -127,8 +131,12 @@ class TokenService(
         val errors = input.validateTokenSettings()
         if (errors.isNotEmpty()) return Parsed.Invalid(errors)
         val settings = input.toTokenSettings()
-        return withSignature(settings.signature, current.signature) { current.changed(settings, it) }
+        return withSignature(settings.signature, current.signature) { current.changed(settings, it) }.withReadSecretForE2ee()
     }
+
+    /** A decifra sem segredo de leitura deixaria o texto aberto à vista de quem tem a URL: 422 em `e2ee`. */
+    private fun Parsed<Token>.withReadSecretForE2ee(): Parsed<Token> =
+        if (this is Parsed.Valid && value.e2ee != null && !value.isProtected()) Parsed.Invalid(E2EE_WITHOUT_READ_SECRET) else this
 
     private fun Token.changed(
         settings: TokenSettings,
@@ -154,19 +162,19 @@ class TokenService(
     }
 
     /**
-     * [save] com a assinatura resolvida contra a atual, ou o 422: o segredo enviado é uma máscara que não é a do atual,
+     * [build] com a assinatura resolvida contra a atual, ou o 422: o segredo enviado é uma máscara que não é a do atual,
      * ou não há segredo novo nem atual.
      */
     private fun withSignature(
         draft: SignatureDraft?,
         current: SignatureConfig?,
-        save: (SignatureConfig?) -> Token,
+        build: (SignatureConfig?) -> Token,
     ): Parsed<Token> {
         val resolved = draft?.resolve(current)
         return when {
             draft != null && draft.hasForeignMask(current) -> Parsed.Invalid(MASKED_SECRET)
             draft != null && resolved == null -> Parsed.Invalid(MISSING_SECRET)
-            else -> Parsed.Valid(save(resolved))
+            else -> Parsed.Valid(build(resolved))
         }
     }
 }

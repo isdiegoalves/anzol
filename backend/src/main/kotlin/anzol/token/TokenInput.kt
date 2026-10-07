@@ -1,5 +1,7 @@
 package anzol.token
 
+import anzol.e2ee.E2eePolicy
+import anzol.e2ee.readE2ee
 import anzol.http.LegacyInput
 import anzol.legacy.isPhpInteger
 import anzol.legacy.phpIntval
@@ -49,7 +51,8 @@ fun LegacyInput.validateTokenSettings(): Map<String, List<String>> {
         .filterKeys { it in data && !data[it].isBlankString() }
         .mapValues { (attribute, rules) ->
             rules.filterNot { it.passes(data[attribute]) }.map { it.message(attribute.replace('_', ' ')) }
-        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"]) + schemaErrors(data["schema"]) + readSecretErrors()
+        }.filterValues { it.isNotEmpty() } + signatureErrors(data["signature"]) + schemaErrors(data["schema"]) +
+        (e2eeBlock(data["e2ee"]) as? Parsed.Invalid)?.errors.orEmpty() + readSecretErrors()
 }
 
 /**
@@ -99,6 +102,9 @@ private fun schemaErrors(value: Any?): Map<String, List<String>> =
         is Parsed.Valid, null -> emptyMap()
     }
 
+/** `e2ee` nulo, ausente ou em branco não é lido (desliga a decifra). */
+private fun e2eeBlock(value: Any?): Parsed<E2eePolicy>? = if (value == null || value.isBlankString()) null else readE2ee(value)
+
 private fun Any?.isBlankString(): Boolean = this is String && trim { it in PHP_TRIM }.isEmpty()
 
 /** Valores como `Token::createFromRequest` os lê: `$request->get()` (query primeiro) e cast `(int)`. */
@@ -112,6 +118,7 @@ fun LegacyInput.toTokenSettings(): TokenSettings =
         autoCleanup = AutoCleanup.parse(get("auto_cleanup")),
         signature = signatureDraft(get("signature")),
         schema = schemaConfig(get("schema")),
+        e2ee = (e2eeBlock(get("e2ee")) as? Parsed.Valid)?.value,
         readSecret = readSecretChange(),
     )
 
