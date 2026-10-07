@@ -185,6 +185,18 @@ class E2eeVerificationTest {
         }
 
         @Test
+        @DisplayName("Dado um epk com coordenadas de 100 KB, quando abre, então epk_off_curve sem fazer a conta")
+        fun open_epkGigante_deveRecusarPeloTamanho() {
+            val jwe = sealed()
+            val header = header(jwe)
+
+            @Suppress("UNCHECKED_CAST")
+            val epk = (header["epk"] as Map<String, Any?>) + ("x" to Base64URL.encode(ByteArray(100_000) { 1 }).toString())
+
+            assertThat(reason(envelope(id, withHeader(jwe, header + ("epk" to epk))))).isEqualTo("epk_off_curve")
+        }
+
+        @Test
         @DisplayName("Dado o cabeçalho sem kid ou com cty diferente de JWT, quando abre, então kid_missing e cty_not_jwt")
         fun open_semKidOuCty_deveRecusar() {
             val jwe = sealed()

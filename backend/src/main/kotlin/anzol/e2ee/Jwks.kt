@@ -60,13 +60,15 @@ private fun Violations.ecKey(
 fun ECKey.isOnP256(): Boolean = onP256(x.decode(), y.decode())
 
 /**
- * `y² = x³ + ax + b (mod p)` com os parâmetros da P-256, e coordenadas menores que `p`: sem esta conferência, um ponto
- * de outra curva no `epk` vaza a chave privada aos poucos (ataque de curva inválida).
+ * `y² = x³ + ax + b (mod p)` com os parâmetros da P-256, e coordenadas de 32 bytes menores que `p`: sem esta
+ * conferência, um ponto de outra curva no `epk` vaza a chave privada aos poucos (ataque de curva inválida). O tamanho
+ * vem antes da conta: um `epk` com coordenadas enormes não pode custar CPU.
  */
 fun onP256(
     x: ByteArray,
     y: ByteArray,
 ): Boolean {
+    if (x.size != COORDINATE_BYTES || y.size != COORDINATE_BYTES) return false
     val curve = P256.curve
     val p = (curve.field as ECFieldFp).p
     val px = BigInteger(1, x)
@@ -81,5 +83,6 @@ fun onP256(
 }
 
 private val P256 = Curve.P_256.toECParameterSpec()
+private const val COORDINATE_BYTES = 32
 private const val SQUARE = 2
 private const val CUBE = 3
