@@ -21,6 +21,12 @@ private val UUID_TEXT = Regex(UUID_PATTERN)
 private const val READ_SECRET = "read_secret"
 
 /**
+ * A política de decifra não muda pelo MCP: um agente que lê o payload de terceiros, mandado ao `update_url` ou ao
+ * `create_url`, poderia desligá-la ou pôr um remetente confiável dele. O `update_url` mantém a salva.
+ */
+private const val E2EE = "e2ee"
+
+/**
  * Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). O argumento de primeiro
  * nível enviado como `null` vale como ausente em toda ferramenta (é o que os agentes mandam num opcional que não
  * usam); só o `update_url` lhe dá sentido próprio ([bodyOver]).
@@ -49,12 +55,12 @@ class ToolArguments(
      * ausente é o padrão (ou desligado).
      */
     fun bodyOver(current: Map<String, Any?>): String {
-        val changed = sent - setOf("token_id", "request_id", READ_SECRET)
+        val changed = sent - setOf("token_id", "request_id", READ_SECRET, E2EE)
         return jsonMapper.writeValueAsString((current + changed).filterKeys { it !in changed || changed[it] != null })
     }
 
     /** O corpo do `create_url`: nele `read_secret` é o segredo que a URL nova passa a exigir. */
-    fun createBody(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id"))
+    fun createBody(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id", E2EE))
 
     /** Só os argumentos [names], como o corpo JSON da rota da API. */
     fun bodyOf(vararg names: String): String = jsonMapper.writeValueAsString(values.filterKeys { it in names })

@@ -672,4 +672,29 @@ class McpServerApiTest(
         assertThat(page["data"][0].has("decrypted")).isFalse()
         assertThat(listOf(one, page).map { it.toString() }).noneMatch { it.contains("aberto") }
     }
+
+    @Test
+    @DisplayName("Dado uma URL com e2ee, quando o update_url manda e2ee null ou outro signatário, então a política fica como estava")
+    fun e2ee_updateUrl_naoDeveMudarAPolitica() {
+        val signer = anzol.e2ee.ecKey("remetente-sig-1")
+        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
+        val saved =
+            api.json(
+                api.send(
+                    "GET",
+                    "/token/$tokenId",
+                    headers =
+                        JSON_CLIENT + mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee"),
+                ),
+            )
+        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
+        val intruder = anzol.e2ee.policy(anzol.e2ee.ecKey("intruso"))
+
+        val off = call("update_url", access + ("e2ee" to null)).json()
+        val swapped = call("update_url", access + ("e2ee" to intruder)).json()
+
+        assertThat(off["e2ee"]).isEqualTo(saved["e2ee"])
+        assertThat(swapped["e2ee"]).isEqualTo(saved["e2ee"])
+    }
 }
