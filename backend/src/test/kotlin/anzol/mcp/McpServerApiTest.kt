@@ -616,4 +616,25 @@ class McpServerApiTest(
             .contains("The body field is required when fault is stall_after_headers.")
         assertThat(description).contains("chance", "active_from", "active_until", "hang", "stall_after_headers", "truncated_body")
     }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL com e2ee e chave de cifra, quando get_url e update_url a devolvem, então nenhuma traz a privada (d) " +
+            "e o update_url mantém a política e as chaves",
+    )
+    fun e2ee_getEUpdateUrl_naoDevemDevolverAPrivada() {
+        val signer = anzol.e2ee.ecKey("remetente-sig-1")
+        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
+        val secret = mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee")
+        api.send("POST", "/token/$tokenId/keys", """{"kid":"enc-v1"}""".toByteArray(), JSON_BODY + secret)
+
+        val read = call("get_url", mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")).json()
+        val updated = call("update_url", mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee", "default_status" to 202)).json()
+
+        assertThat(listOf(read, updated).map { it.toString() }).noneMatch { it.contains("\"d\":") }
+        assertThat(updated["e2ee"]).isEqualTo(read["e2ee"])
+        assertThat(updated["e2ee_keys"].toList().map { it["kid"].asString() }).containsExactly("enc-v1")
+        assertThat(api.tree(redis.opsForValue().get("token:$tokenId").orEmpty())["e2ee_keys"][0]["jwk"].has("d")).isTrue()
+    }
 }

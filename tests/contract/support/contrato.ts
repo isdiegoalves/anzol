@@ -45,6 +45,9 @@ export const CHAVES_MENSAGEM = [
   'url', 'created_at', 'updated_at', 'seq', 'rule', 'near_miss', 'signature', 'schema',
   // UX de Regras, C3 (E-06): o que a captura respondeu, gravado em toda mensagem nova.
   'response',
+  // Decifra de atributo (plano "e2ee-lab"): o resultado, `null` sem `e2ee` na URL. O atributo aberto
+  // (`decrypted`) só aparece quando a decifra é válida.
+  'decryption',
 ].sort();
 
 export interface Token {
@@ -120,6 +123,17 @@ export interface Mensagem {
    */
   response?: { status: number } | { fault: string } | null;
   request?: Record<string, unknown> | null;
+  /** Decifra do atributo (`e2ee` da URL); `null` quando a URL não decifra. */
+  decryption: {
+    state: 'valid' | 'invalid' | 'unknown_kid' | 'absent';
+    kid: string | null;
+    signature_kid: string | null;
+    reason: string | null;
+    jti: string | null;
+    duplicate_of: string | null;
+  } | null;
+  /** O claim `data` do JWS, só quando a decifra é válida. */
+  decrypted?: unknown;
 }
 
 export interface Listagem {

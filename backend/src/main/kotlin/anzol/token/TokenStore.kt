@@ -62,7 +62,7 @@ class TokenStore(
 
     /**
      * Apaga o token, as mensagens dele (hash, índice e `seq`), as regras, os cenários e o histórico de saída (com a
-     * contagem do limite), a contagem das chamadas de IA, as falhas do segredo de leitura e os links só-leitura (cada
+     * contagem do limite), a contagem das chamadas de IA, as falhas do segredo de leitura, os `jti` decifrados e os links só-leitura (cada
      * `share:{id}` e o índice) num DEL só, atômico. O app antigo apagava só o token e deixava as mensagens ocupando
      * memória até expirar. O `seq` sai junto: o token deixa de existir e o UUID não se repete, então não há sequência a
      * preservar. Link criado entre a leitura do índice e o DEL fica órfão, mas responde 404: a URL não existe mais.
@@ -88,6 +88,7 @@ class TokenStore(
                 RedisKeys.secretFailures(token.uuid),
                 RedisKeys.mcpSecretFailures(token.uuid),
                 RedisKeys.shares(token.uuid),
+                RedisKeys.e2eeJti(token.uuid),
             ) + shares,
         ) > 0
     }

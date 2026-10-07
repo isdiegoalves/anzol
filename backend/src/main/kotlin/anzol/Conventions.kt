@@ -64,6 +64,9 @@ object RedisKeys {
     /** O mesmo das [secretFailures], para o `read_secret` das ferramentas do MCP, que conta à parte. */
     fun mcpSecretFailures(id: TokenId): String = "token:$id:secret:failures:mcp"
 
+    /** `jti` já decifrados na URL: hash jti → uuid da primeira mensagem, cada campo com a janela do `iat`. */
+    fun e2eeJti(id: TokenId): String = "token:$id:e2ee:jti"
+
     /** Links só-leitura ativos da URL: ZSET id do link → expiração em milissegundos. */
     fun shares(id: TokenId): String = "token:$id:shares"
 

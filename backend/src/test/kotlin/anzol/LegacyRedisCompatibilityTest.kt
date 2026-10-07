@@ -114,6 +114,7 @@ class LegacyRedisCompatibilityTest(
             "signature",
             "schema",
             "response",
+            "decryption",
         )
         assertThat(message["created_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
         assertThat(redis.getExpire("token:$tokenId")).isBetween(EXPIRY_SECONDS - 5, EXPIRY_SECONDS)
@@ -127,7 +128,7 @@ class LegacyRedisCompatibilityTest(
      * backfill é o `created_at` em microssegundos.
      */
     private fun String.withSeq(createdAt: String) =
-        dropLast(1) + ""","rule":null,"near_miss":null,"signature":null,"schema":null,"response":null,""" +
+        dropLast(1) + ""","rule":null,"near_miss":null,"signature":null,"schema":null,"response":null,"decryption":null,""" +
             """"seq":${Instant.parse(createdAt).epochSecond * 1_000_000}}"""
 
     private fun phpToken(tokenId: String) =

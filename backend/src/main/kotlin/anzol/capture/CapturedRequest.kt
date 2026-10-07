@@ -3,6 +3,7 @@ package anzol.capture
 import anzol.RequestId
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
+import anzol.e2ee.DecryptionResult
 import anzol.rules.Fault
 import anzol.rules.NearMiss
 import anzol.rules.RuleRef
@@ -24,7 +25,8 @@ import java.time.LocalDateTime
  *
  * `rule` e `near_miss` (regras de resposta), `signature` (verificação HMAC) e `schema` (validação do corpo)
  * são gravados sempre, nulos quando não se aplicam; mensagem gravada antes deles os lê como `null`. `response` é o que
- * a URL respondeu ([RecordedResponse]), gravado sempre; mensagem gravada antes dele o lê como `null`.
+ * a URL respondeu ([RecordedResponse]), gravado sempre; mensagem gravada antes dele o lê como `null`. `decryption` é o
+ * resultado da decifra do atributo (nulo sem `e2ee` na URL) e `decrypted`, o atributo aberto, só quando válido.
  *
  * `seq` é o score da mensagem no índice (estritamente crescente por URL): anexado quando a mensagem
  * sai do Redis (listagem, `GET`, evento) e nunca gravado na hash, que guarda o formato do app antigo.
@@ -52,6 +54,9 @@ data class CapturedRequest(
     val signature: SignatureResult? = null,
     val schema: SchemaResult? = null,
     val response: RecordedResponse? = null,
+    val decryption: DecryptionResult? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val decrypted: JsonNode? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val seq: Long? = null,
 ) {

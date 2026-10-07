@@ -2,13 +2,13 @@ package anzol.e2ee
 
 import anzol.rules.Violations
 import anzol.rules.bodyMapper
-import com.nimbusds.jose.JOSEException
 import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.crypto.utils.ECChecks
 import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.jwk.ECKey
 import com.nimbusds.jose.jwk.KeyUse
 import tools.jackson.databind.JsonNode
+import java.math.BigInteger
+import java.security.spec.ECFieldFp
 import java.text.ParseException
 
 /** JWK pública de assinatura de um remetente: EC P-256, com `kid`, sem `d`, ponto na curva, para ES256. */
@@ -56,10 +56,30 @@ private fun Violations.ecKey(
         fail(key, "The $key is not a valid EC JWK: ${e.message}")
     }
 
-/** O ponto público na P-256; a biblioteca já recusa ponto fora da curva ao ler, e esta é a conferência explícita. */
-fun ECKey.isOnP256(): Boolean =
-    try {
-        ECChecks.isPointOnCurve(toECPublicKey(), Curve.P_256.toECParameterSpec())
-    } catch (_: JOSEException) {
-        false
-    }
+/** O ponto público de [this] na P-256 ([onP256]). */
+fun ECKey.isOnP256(): Boolean = onP256(x.decode(), y.decode())
+
+/**
+ * `y² = x³ + ax + b (mod p)` com os parâmetros da P-256, e coordenadas menores que `p`: sem esta conferência, um ponto
+ * de outra curva no `epk` vaza a chave privada aos poucos (ataque de curva inválida).
+ */
+fun onP256(
+    x: ByteArray,
+    y: ByteArray,
+): Boolean {
+    val curve = P256.curve
+    val p = (curve.field as ECFieldFp).p
+    val px = BigInteger(1, x)
+    val py = BigInteger(1, y)
+    val right =
+        px
+            .pow(CUBE)
+            .add(curve.a.multiply(px))
+            .add(curve.b)
+            .mod(p)
+    return px < p && py < p && py.pow(SQUARE).mod(p) == right
+}
+
+private val P256 = Curve.P_256.toECParameterSpec()
+private const val SQUARE = 2
+private const val CUBE = 3

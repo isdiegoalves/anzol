@@ -3,6 +3,7 @@ package anzol.capture
 import anzol.STATUS_IN_PATH
 import anzol.TokenId
 import anzol.UUID_PATTERN
+import anzol.e2ee.E2eeReceiver
 import anzol.http.PHP_DEFAULT_CONTENT_TYPE
 import anzol.http.clientConnection
 import anzol.http.rawPath
@@ -117,8 +118,8 @@ private fun HttpServletRequest.secondSegment(): String? =
         .filter { it.isNotEmpty() }
         .getOrNull(1)
 
-// Cada dependência é um passo da captura (token, mensagens, regras, cenários, conexões presas, hora, tempo real e
-// métricas); agrupá-las só para caber no limite criaria um tipo sem outro uso.
+// Cada dependência é um passo da captura (token, mensagens, regras, cenários, conexões presas, hora, tempo real,
+// métricas e decifra); agrupá-las só para caber no limite criaria um tipo sem outro uso.
 @Suppress("LongParameterList")
 @RestController
 class WebhookController(
@@ -130,6 +131,7 @@ class WebhookController(
     private val clock: Clock,
     private val stream: RequestStream,
     private val telemetry: AnzolTelemetry,
+    private val e2ee: E2eeReceiver,
 ) {
     /**
      * `any {tokenId}/{statusCode?}` e `any {tokenId}/{any}` de `routes.php`. A primeira regra ativa que
@@ -154,7 +156,7 @@ class WebhookController(
         val stopwatch = CaptureStopwatch()
         val token = tokens.findOrGone(tokenId)
         val receivedAt = clock.instant()
-        val received = request.toCapturedRequest(tokenId, receivedAt, token.signature, token.schema)
+        val received = e2ee.open(token, request.toCapturedRequest(tokenId, receivedAt, token.signature, token.schema), receivedAt)
         val decision = scenarios.decide(tokenId, rules.find(tokenId), received.toMatchInput())
         val waits = decision is Decision.Unmatched && token.timeout > 0
         if (waits) stopwatch.sleep(Duration.ofSeconds(token.timeout))

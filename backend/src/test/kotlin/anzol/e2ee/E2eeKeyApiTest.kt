@@ -138,4 +138,19 @@ class E2eeKeyApiTest(
 
         assertThat(api.send("GET", "/token/$tokenId/jwks.json", headers = JSON_CLIENT).statusCode()).isEqualTo(410)
     }
+
+    @Test
+    @DisplayName("Dado uma URL com chave, quando o POST, o GET e o PUT do token respondem, então nenhum corpo traz a privada (d)")
+    fun token_respostas_naoDevemTrazerAPrivada() {
+        val created = api.send("POST", "/token", json(mapOf("read_secret" to READ_SECRET)).toByteArray(), JSON_BODY)
+        val tokenId = api.json(created)["uuid"].asString()
+        val key = createKey(tokenId, """{"kid":"enc-v1"}""")
+
+        val read = api.send("GET", "/token/$tokenId", headers = JSON_CLIENT + secret)
+        val updated = api.send("PUT", "/token/$tokenId", "{}".toByteArray(), JSON_BODY + secret)
+        val jwks = api.send("GET", "/token/$tokenId/jwks.json", headers = JSON_CLIENT)
+
+        assertThat(listOf(created, key, read, updated, jwks).map { it.body() }).noneMatch { it.contains("\"d\":") }
+        assertThat(api.json(updated)["e2ee_keys"].toList()).hasSize(1)
+    }
 }
