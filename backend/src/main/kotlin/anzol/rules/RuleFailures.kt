@@ -31,6 +31,7 @@ fun Condition.key(): String =
         is Condition.Body -> "match.body.$index"
         is Condition.Signature -> "match.signature"
         is Condition.Schema -> "match.schema"
+        is Condition.Decryption -> "match.decryption"
     }
 
 /** As condições que falharam, na ordem delas; vazia quando todas casam. */

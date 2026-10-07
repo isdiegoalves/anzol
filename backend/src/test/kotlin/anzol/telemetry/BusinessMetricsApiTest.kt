@@ -30,7 +30,15 @@ private val PROMPTLY = Duration.ofSeconds(5)
 
 /** As labels de `anzol.requests.captured` de uma captura sem regra, assinatura nem schema, com resposta 2xx. */
 private val PLAIN =
-    mapOf("method" to "GET", "status_class" to "2xx", "rule" to "none", "signature" to "none", "schema" to "none", "fault" to "none")
+    mapOf(
+        "method" to "GET",
+        "status_class" to "2xx",
+        "rule" to "none",
+        "signature" to "none",
+        "schema" to "none",
+        "fault" to "none",
+        "decryption" to "none",
+    )
 
 private fun githubSignature(body: ByteArray): String {
     val mac = Mac.getInstance("HmacSHA256")

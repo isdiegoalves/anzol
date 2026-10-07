@@ -1,6 +1,7 @@
 package anzol.telemetry
 
 import anzol.TokenId
+import anzol.e2ee.DecryptionState
 import anzol.rules.Fault
 import anzol.schema.SchemaState
 import anzol.signature.SignatureState
@@ -26,6 +27,7 @@ data class CaptureOutcome(
     val signature: SignatureState?,
     val schema: SchemaState?,
     val fault: Fault?,
+    val decryption: DecryptionState? = null,
 ) {
     fun statusClass(): String = status?.let { "${it.toString().first()}xx" } ?: NONE
 
@@ -42,6 +44,8 @@ data class CaptureOutcome(
     fun schema(): String = schema?.id ?: NONE
 
     fun fault(): String = fault?.value ?: NONE
+
+    fun decryption(): String = decryption?.id ?: NONE
 }
 
 /**
@@ -111,6 +115,8 @@ class AnzolTelemetry(
                     outcome.schema(),
                     "fault",
                     outcome.fault(),
+                    "decryption",
+                    outcome.decryption(),
                 ),
             ).register(registry)
             .increment()
@@ -122,6 +128,7 @@ class AnzolTelemetry(
             context.addHighCardinalityKeyValue(KeyValue.of("anzol.schema", outcome.schema()))
             context.addHighCardinalityKeyValue(KeyValue.of("anzol.status", outcome.status?.toString() ?: NONE))
             context.addHighCardinalityKeyValue(KeyValue.of("anzol.fault", outcome.fault()))
+            context.addHighCardinalityKeyValue(KeyValue.of("anzol.decryption", outcome.decryption()))
         }
     }
 

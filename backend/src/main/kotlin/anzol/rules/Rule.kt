@@ -1,5 +1,6 @@
 package anzol.rules
 
+import anzol.e2ee.DecryptionState
 import anzol.schema.SchemaState
 import anzol.signature.SignatureState
 import com.fasterxml.jackson.annotation.JsonFormat
@@ -64,8 +65,8 @@ data class RuleScenario(
 
 /**
  * Sem nenhuma condição, a regra casa qualquer requisição. Nome de cabeçalho fica como veio; a comparação ignora caixa.
- * [signature] é o estado da verificação HMAC da URL e [schema] o da validação do corpo; sem elas, as chaves nem
- * aparecem no JSON.
+ * [signature] é o estado da verificação HMAC da URL, [schema] o da validação do corpo e [decryption] o da decifra do
+ * atributo; sem elas, as chaves nem aparecem no JSON.
  */
 data class RuleMatch(
     val method: List<String> = emptyList(),
@@ -77,6 +78,8 @@ data class RuleMatch(
     val signature: SignatureState? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val schema: SchemaState? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val decryption: DecryptionState? = null,
 )
 
 /**

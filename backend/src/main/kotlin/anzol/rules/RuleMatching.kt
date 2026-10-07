@@ -1,10 +1,12 @@
 package anzol.rules
 
+import anzol.e2ee.DecryptionState
 import anzol.schema.SchemaState
 import anzol.signature.SignatureState
 
 /**
- * Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo, assinatura, schema.
+ * Uma condição da regra, na ordem em que o `failed` as lista: método, caminho, query, cabeçalhos, corpo, assinatura, schema,
+ * decifra.
  * [key] é a chave dela no `conditions` do near miss, no formato das chaves do 422 do `rules/test`.
  */
 sealed interface Condition {
@@ -42,6 +44,10 @@ sealed interface Condition {
     data class Schema(
         val expected: SchemaState,
     ) : Condition
+
+    data class Decryption(
+        val expected: DecryptionState,
+    ) : Condition
 }
 
 fun RuleMatch.conditions(): List<Condition> =
@@ -52,7 +58,7 @@ fun RuleMatch.conditions(): List<Condition> =
         query.map { (name, matcher) -> Condition.Query(name, matcher) } +
         headers.map { (name, matcher) -> Condition.Header(name, matcher) } +
         body.mapIndexed { index, matcher -> Condition.Body(index, matcher) } +
-        listOfNotNull(signature?.let(Condition::Signature), schema?.let(Condition::Schema))
+        listOfNotNull(signature?.let(Condition::Signature), schema?.let(Condition::Schema), decryption?.let(Condition::Decryption))
 
 /** Escolha da regra: a que respondeu, ou nenhuma e a mais próxima (se havia regra ativa). */
 sealed interface Decision {
@@ -99,6 +105,7 @@ fun Condition.failure(input: MatchInput): String? =
         is Condition.Body -> bodyFailure(matcher, input)
         is Condition.Signature -> signatureFailure(expected, input.signature)
         is Condition.Schema -> schemaFailure(expected, input.schema)
+        is Condition.Decryption -> decryptionFailure(expected, input.decryption)
     }
 
 private fun Condition.Method.methodFailure(actual: String): String? {

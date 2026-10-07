@@ -1,5 +1,6 @@
 package anzol.rules
 
+import anzol.e2ee.DecryptionState
 import anzol.schema.SchemaState
 import anzol.signature.SignatureState
 import com.jayway.jsonpath.InvalidPathException
@@ -206,7 +207,7 @@ class RuleReader(
 }
 
 /**
- * O `match` de uma regra: método, caminho, query, cabeçalhos, corpo, assinatura e schema. Sem [strict] (a lista
+ * O `match` de uma regra: método, caminho, query, cabeçalhos, corpo, assinatura, schema e decifra. Sem [strict] (a lista
  * gravada), aceita o que foi salvo antes de uma recusa nova (o filtro JSONPath com `=~`).
  */
 class MatchReader(
@@ -232,6 +233,7 @@ class MatchReader(
         val body = body(node["body"], key(key, "body"))
         val signature = node["signature"].given()?.let { violations.signatureState(it, key(key, "signature")) }
         val schema = node["schema"].given()?.let { violations.schemaState(it, key(key, "schema")) }
+        val decryption = node["decryption"].given()?.let { violations.decryptionState(it, key(key, "decryption")) }
         return if (violations.hasErrorsUnder(key)) {
             null
         } else {
@@ -243,6 +245,7 @@ class MatchReader(
                 body = checkNotNull(body),
                 signature = signature,
                 schema = schema,
+                decryption = decryption,
             )
         }
     }
@@ -412,6 +415,14 @@ private fun Violations.signatureState(
 ): SignatureState? =
     SignatureState.entries.firstOrNull { node.isString && it.id == node.stringValue() }
         ?: fail(key, "The selected signature is invalid.")
+
+/** `match.decryption`: `valid`, `invalid`, `unknown_kid` ou `absent`. */
+private fun Violations.decryptionState(
+    node: JsonNode,
+    key: String,
+): DecryptionState? =
+    DecryptionState.entries.firstOrNull { node.isString && it.id == node.stringValue() }
+        ?: fail(key, "The selected decryption is invalid.")
 
 /** `match.schema`: `valid` ou `invalid`. */
 private fun Violations.schemaState(

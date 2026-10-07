@@ -2,6 +2,7 @@ package anzol.rules
 
 import anzol.RequestId
 import anzol.capture.CapturedRequest
+import anzol.e2ee.DecryptionResult
 import anzol.schema.SchemaResult
 import anzol.signature.SignatureResult
 import tools.jackson.core.JacksonException
@@ -19,8 +20,8 @@ val bodyMapper: JsonMapper = JsonMapper.builder().build()
  * O que as condições enxergam de uma requisição, tirado da mensagem gravada (na captura e no
  * `rules/test`, a mesma visão): [path] é o caminho após o token, decodificado, sem a barra final
  * (como a `url` gravada) e `/` quando vazio; [query] e [headers] são os valores gravados (cabeçalho em
- * minúsculas, com `_` virando `-`); [signature] e [schema] são os resultados gravados da verificação HMAC e da
- * validação do corpo (nulos sem configuração). [request] (o uuid, para o sorteio da `chance`) e [receivedAt] (o
+ * minúsculas, com `_` virando `-`); [signature], [schema] e [decryption] são os resultados gravados da verificação HMAC,
+ * da validação do corpo e da decifra do atributo (nulos sem configuração). [request] (o uuid, para o sorteio da `chance`) e [receivedAt] (o
  * `created_at`, para a janela) identificam a mensagem.
  */
 data class MatchInput(
@@ -33,6 +34,7 @@ data class MatchInput(
     val receivedAt: Instant,
     val signature: SignatureResult? = null,
     val schema: SchemaResult? = null,
+    val decryption: DecryptionResult? = null,
 ) {
     /** O corpo como JSON, lido uma vez e só se alguma condição pedir; `null` se não for JSON. */
     val json: JsonNode? by lazy { readJson(body) }
@@ -63,6 +65,7 @@ fun CapturedRequest.toMatchInput(): MatchInput =
         receivedAt = createdAt.toInstant(ZoneOffset.UTC),
         signature = signature,
         schema = schema,
+        decryption = decryption,
     )
 
 private fun CapturedRequest.pathAfterToken(): String {

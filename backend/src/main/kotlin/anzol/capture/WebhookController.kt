@@ -196,6 +196,7 @@ class WebhookController(
                     signature = captured.signature?.state(),
                     schema = captured.schema?.state(),
                     fault = fault.takeIf { slot.refused == null },
+                    decryption = captured.decryption?.state,
                 )
             telemetry.captured(request, tokenId, outcome, stopwatch.elapsed())
         }
