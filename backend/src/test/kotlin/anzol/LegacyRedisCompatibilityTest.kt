@@ -46,7 +46,8 @@ class LegacyRedisCompatibilityTest(
         assertThat(api.json(readToken)).isEqualTo(
             api.tree(
                 token.dropLast(1) +
-                    ""","retry_after":null,"auto_cleanup":null,"signature":null,"schema":null,"e2ee":null,"protected":false}""",
+                    ""","retry_after":null,"auto_cleanup":null,"signature":null,"schema":null,""" +
+                    """"e2ee":null,"e2ee_keys":[],"protected":false}""",
             ),
         )
         assertThat(api.json(readMessage)).isEqualTo(api.tree(json.withSeq("2026-09-26T00:41:43Z")))

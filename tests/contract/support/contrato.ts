@@ -36,8 +36,8 @@ export const CHAVES_TOKEN = [
   'timeout', 'cors', 'created_at', 'updated_at', 'retry_after', 'auto_cleanup', 'signature', 'schema',
   // Item 12 (privacidade): a URL exige segredo de leitura? O segredo (`read_secret`) nunca volta.
   'protected',
-  // Decifra de atributo (plano "e2ee-lab"): a política da URL; `null` = não decifra.
-  'e2ee',
+  // Decifra de atributo (plano "e2ee-lab"): a política da URL (`null` = não decifra) e as chaves de cifra (só a pública).
+  'e2ee', 'e2ee_keys',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
@@ -76,6 +76,8 @@ export interface Token {
   schema: Record<string, unknown> | null;
   /** Política de decifra do atributo (JWE de um JWS), só com chaves públicas; `null` = não decifra. */
   e2ee: Record<string, unknown> | null;
+  /** Chaves de cifra da URL, geradas no servidor: `kid`, `created_at` e a JWK pública (`use=enc`, `alg=ECDH-ES`). */
+  e2ee_keys: { kid: string; created_at: string; jwk: Record<string, unknown> }[];
   /** A URL exige segredo de leitura para ver e gerir (`read_secret`, que nunca volta na resposta). */
   protected: boolean;
 }

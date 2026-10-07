@@ -2,12 +2,15 @@ package anzol.token
 
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
+import anzol.e2ee.E2eeKey
+import anzol.e2ee.E2eeKeyView
 import anzol.e2ee.E2eePolicy
 import anzol.schema.SchemaConfig
 import anzol.signature.SignatureConfig
 import anzol.signature.SignatureDraft
 import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonInclude
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
 import java.time.LocalDateTime
@@ -40,6 +43,9 @@ data class Token(
      */
     val secretVersion: Long = 0,
     val e2ee: E2eePolicy? = null,
+    /** Pares de cifra (com a privada); gerados e apagados só pelas rotas `keys`, nunca pelo `PUT`. */
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val e2eeKeys: List<E2eeKey> = emptyList(),
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A
@@ -91,6 +97,7 @@ data class Token(
             signature = signature?.masked(),
             schema = schema,
             e2ee = e2ee,
+            e2eeKeys = e2eeKeys.map { it.view() },
             protected = isProtected(),
         )
 }
@@ -118,6 +125,7 @@ data class TokenView(
     val signature: SignatureConfig?,
     val schema: SchemaConfig?,
     val e2ee: E2eePolicy?,
+    val e2eeKeys: List<E2eeKeyView>,
     val protected: Boolean,
 )
 

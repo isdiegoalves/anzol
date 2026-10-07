@@ -26,8 +26,8 @@ import java.time.Duration
 private const val SECRET = "segredo-da-varredura"
 private const val PROTECTED = """{"error":"This URL is protected","protected":true}"""
 
-/** As únicas rotas de uma URL que respondem sem acesso (§1 do item 12). */
-private val OPEN_ROUTES = setOf("POST /token/{tokenId}/unlock", "POST /token/{tokenId}/lock")
+/** As únicas rotas de uma URL que respondem sem acesso: as do §1 do item 12 e o JWKS (só chaves públicas). */
+private val OPEN_ROUTES = setOf("POST /token/{tokenId}/unlock", "POST /token/{tokenId}/lock", "GET /token/{tokenId}/jwks.json")
 
 /** Menos que isto é sinal de que a varredura não achou as rotas, e passaria sem provar nada. */
 private const val MIN_TOKEN_ROUTES = 25
@@ -54,8 +54,8 @@ class ReadAccessCoverageApiTest(
 
     @Test
     @DisplayName(
-        "Dado uma URL protegida com mensagem e link, quando chama cada rota mapeada sem acesso (e HEAD nas de GET), então " +
-            "401 com o corpo da §1 em todas, menos unlock e lock, e nada muda",
+        "Dado uma URL protegida com mensagem e link, quando chama cada rota mapeada sem acesso (e HEAD nas de GET fechadas), então " +
+            "401 com o corpo da §1 em todas, menos unlock, lock e o JWKS, e nada muda",
     )
     fun varredura_todasAsRotas_devemResponder401() {
         val tokenId = api.tokenId("""{"read_secret":"$SECRET"}""")
@@ -72,7 +72,7 @@ class ReadAccessCoverageApiTest(
         val routes = mapping.routes().filter { it.pattern.startsWith("/token/{") }
 
         val answers = routes.associateWith { call(it, it.path(values)) }
-        val heads = routes.filter { it.method == "GET" }.associateWith { head(it.path(values)) }
+        val heads = routes.filter { it.method == "GET" && it.normalized() !in OPEN_ROUTES }.associateWith { head(it.path(values)) }
 
         val open =
             answers

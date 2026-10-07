@@ -40,6 +40,7 @@ private val READ_ONLY_GETS =
         "/error",
         "/share/{shareId}",
         "/token/{tokenId}",
+        "/token/{tokenId}/jwks.json",
         "/token/{tokenId}/outbound",
         "/token/{tokenId}/request/{requestId}",
         "/token/{tokenId}/request/{requestId}/raw",

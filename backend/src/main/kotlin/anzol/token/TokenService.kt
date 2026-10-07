@@ -107,7 +107,7 @@ class TokenService(
      * ainda é o que foi lido ([TokenStore.replace]); se outra gravação chegou antes, relê e calcula de novo. Nenhuma
      * mudança simultânea se perde nem se mistura com um token velho, também entre instâncias. URL inexistente: 410.
      */
-    private fun changing(
+    fun changing(
         id: TokenId,
         change: (Token) -> Parsed<Token>,
     ): Parsed<Token> {
