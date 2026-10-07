@@ -89,6 +89,7 @@ export class CheckChip {
     signature: 'checks',
     schema: 'braces',
     rule: 'bolt',
+    decryption: 'lock',
   };
   readonly result = input.required<CheckResult>();
   readonly size = input<'mini' | 'card'>('mini');

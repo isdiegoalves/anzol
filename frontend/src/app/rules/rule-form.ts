@@ -1,7 +1,9 @@
 import {
   BodyMatcher,
+  DECRYPTION_CONDITIONS,
   DELAY_MAX_MS,
   DRIBBLE_MAX_CHUNKS,
+  DecryptionCondition,
   FAULTS_WITH_RESPONSE,
   PathMatcher,
   RULE_DEFAULT_PRIORITY,
@@ -62,6 +64,8 @@ export interface RuleFormValue {
   signature: SignatureOption;
   /** `any` = sem condição (a chave fica fora do match). */
   schema: SchemaOption;
+  /** `any` = sem condição (a chave fica fora do match). */
+  decryption: DecryptionOption;
   /** Vazio = toda requisição que casa (a chave fica fora da regra). */
   chance: number | null;
   windowMode: WindowMode;
@@ -95,6 +99,7 @@ export interface RuleFormValue {
 
 export type SignatureOption = 'any' | SignatureCondition;
 export type SchemaOption = 'any' | SchemaCondition;
+export type DecryptionOption = 'any' | DecryptionCondition;
 export type DelayType = 'none' | 'fixed' | 'uniform' | 'lognormal';
 export type FaultOption = 'none' | RuleFault;
 export type WindowMode = 'always' | 'minutes' | 'dates';
@@ -142,6 +147,7 @@ export function toFormValue(rule: Rule): RuleFormValue {
     body: (match.body ?? []).map(bodyRow),
     signature: match.signature ?? 'any',
     schema: match.schema ?? 'any',
+    decryption: match.decryption ?? 'any',
     chance: rule.chance ?? null,
     windowMode: rule.active_from || rule.active_until ? 'dates' : 'always',
     windowMinutes: WINDOW_MINUTES_DEFAULT,
@@ -251,6 +257,7 @@ export function fromFormValue(form: RuleFormValue, base: Rule, now: number = Dat
     body: form.body.map(bodyMatcher),
     signature: form.signature === 'any' ? undefined : form.signature,
     schema: form.schema === 'any' ? undefined : form.schema,
+    decryption: form.decryption === 'any' ? undefined : form.decryption,
   };
   // Sem condição de assinatura ou de schema, a chave fica fora, como o servidor a devolve.
   if (match.signature === undefined) {
@@ -258,6 +265,9 @@ export function fromFormValue(form: RuleFormValue, base: Rule, now: number = Dat
   }
   if (match.schema === undefined) {
     delete match.schema;
+  }
+  if (match.decryption === undefined) {
+    delete match.decryption;
   }
   const rule: Rule = {
     ...base,
@@ -382,6 +392,7 @@ const SINGLE_FIELDS: [string, SingleField][] = (
     ['match.path', 'path'],
     ['match.signature', 'signature'],
     ['match.schema', 'schema'],
+    ['match.decryption', 'decryption'],
     ['response.status', 'status'],
     ['response.body', 'responseBody'],
     ['response.template', 'template'],
@@ -578,6 +589,14 @@ function matchErrors(match: unknown): string[] {
     !SCHEMA_CONDITIONS.includes(schema as SchemaCondition)
   ) {
     errors.push('match.schema: The selected schema is invalid.');
+  }
+  const decryption = match['decryption'];
+  if (
+    decryption !== undefined &&
+    decryption !== null &&
+    !DECRYPTION_CONDITIONS.includes(decryption as DecryptionCondition)
+  ) {
+    errors.push('match.decryption: The selected decryption is invalid.');
   }
   return errors;
 }

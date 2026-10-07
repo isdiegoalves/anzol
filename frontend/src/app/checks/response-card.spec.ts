@@ -79,6 +79,7 @@ describe('Dado o cartão "Response" de Checks', () => {
       auto_cleanup: null,
       signature: { provider: 'github', secret: '••••1234' },
       schema: { type: 'object' },
+      e2ee: null,
     });
     put.flush({ ...SALVA, default_status: 201, retry_after: null, auto_cleanup: null });
 

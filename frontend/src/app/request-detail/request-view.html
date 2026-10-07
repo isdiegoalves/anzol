@@ -71,6 +71,15 @@
       <button type="button" class="check" (click)="showCheck(check.kind)">
         <app-check-chip [result]="check" size="card" />
       </button>
+    } @else if (check.kind === 'decryption') {
+      <div class="check">
+        <app-check-chip
+          [result]="check"
+          size="card"
+          [notes]="decryptionNotes()"
+          [extra]="firstDelivery()"
+        />
+      </div>
     } @else {
       <div class="check">
         <app-check-chip
@@ -171,8 +180,11 @@
         @case (2) {
           <ng-container [ngTemplateOutlet]="queryPanel" />
         }
-        @default {
+        @case (3) {
           <ng-container [ngTemplateOutlet]="formPanel" />
+        }
+        @default {
+          <ng-container [ngTemplateOutlet]="decryptedPanel" />
         }
       }
     </div>
@@ -196,6 +208,11 @@
       <mat-tab label="Form ({{ form().length }})" i18n-label>
         <ng-container [ngTemplateOutlet]="formPanel" />
       </mat-tab>
+      @if (decryptedText() !== null) {
+        <mat-tab label="Decrypted" i18n-label="tab|Atributo decifrado">
+          <ng-container [ngTemplateOutlet]="decryptedPanel" />
+        </mat-tab>
+      }
     </mat-tab-group>
   }
 </div>
@@ -302,6 +319,13 @@
       i18n-text
     />
   }
+</ng-template>
+
+<ng-template #decryptedPanel>
+  <p class="schema-note" i18n>
+    The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
+  </p>
+  <app-code-view label="Decrypted attribute" i18n-label [text]="decryptedText() ?? ''" />
 </ng-template>
 
 <ng-template #formPanel>

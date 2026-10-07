@@ -36,6 +36,8 @@ export interface RuleMatch {
   signature?: SignatureCondition | null;
   /** Resultado da validação de schema da URL; ausente (ou `null`) = qualquer. */
   schema?: SchemaCondition | null;
+  /** Resultado da decifra do atributo na URL; ausente (ou `null`) = qualquer. */
+  decryption?: DecryptionCondition | null;
   [field: string]: unknown;
 }
 
@@ -45,6 +47,10 @@ export type SignatureCondition = (typeof SIGNATURE_CONDITIONS)[number];
 
 export const SCHEMA_CONDITIONS = ['valid', 'invalid'] as const;
 export type SchemaCondition = (typeof SCHEMA_CONDITIONS)[number];
+
+export const DECRYPTION_CONDITIONS = ['valid', 'invalid', 'unknown_kid', 'absent'] as const;
+/** `absent` = o atributo veio em claro e a URL aceita. */
+export type DecryptionCondition = (typeof DECRYPTION_CONDITIONS)[number];
 
 /** Exatamente um dos três, sobre o caminho depois do token. */
 export type PathMatcher = { equals: string } | { prefix: string } | { regex: string };

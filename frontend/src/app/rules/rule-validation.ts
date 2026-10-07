@@ -28,6 +28,7 @@ function sections(): Record<string, Section> {
     path: { tab: 'match', label: $localize`Path` },
     signature: { tab: 'match', label: $localize`Signature` },
     schema: { tab: 'match', label: $localize`Schema` },
+    decryption: { tab: 'match', label: $localize`Decryption` },
     chance: { tab: 'match', label: $localize`Chance (%)`, range: '1–100' },
     windowMode: { tab: 'match', label: $localize`Time window` },
     windowMinutes: { tab: 'match', label: $localize`Minutes`, range: `1–${WINDOW_MINUTES_MAX}` },

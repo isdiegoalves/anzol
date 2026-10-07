@@ -27,7 +27,12 @@ import { expect } from './fixtures';
  */
 
 export type Secao =
-  'Signature verification' | 'Schema validation' | 'Response' | 'Privacy' | 'Health';
+  | 'Signature verification'
+  | 'Schema validation'
+  | 'E2EE decryption'
+  | 'Response'
+  | 'Privacy'
+  | 'Health';
 
 /** O cartão de uma seção de Checks. */
 export function secao(page: Page, nome: Secao): Locator {

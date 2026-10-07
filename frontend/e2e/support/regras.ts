@@ -85,8 +85,8 @@ export async function metodo(regiao: Locator, nome: string): Promise<void> {
 /** Escolhe a condição de assinatura ou de schema no segmentado. */
 export async function condicao(
   regiao: Locator,
-  grupo: 'Signature' | 'Schema',
-  valor: 'Any' | 'Valid' | 'Invalid' | 'Absent',
+  grupo: 'Signature' | 'Schema' | 'Decryption',
+  valor: 'Any' | 'Valid' | 'Invalid' | 'Absent' | 'Unknown key' | 'Plaintext',
 ): Promise<void> {
   const radio = regiao.getByRole('radiogroup', { name: grupo }).getByRole('radio', { name: valor });
   await radio.click();

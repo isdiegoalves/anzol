@@ -80,6 +80,11 @@ describe('Dado duas regras A (antes) e B (depois) (shadows, E-01)', () => {
     ],
     ['assinatura igual', { signature: 'invalid' }, { signature: 'invalid', method: ['POST'] }],
     ['schema ausente em A', {}, { schema: 'valid' }],
+    [
+      'decifra igual',
+      { decryption: 'unknown_kid' },
+      { decryption: 'unknown_kid', method: ['POST'] },
+    ],
   ])('deve sombrear B Quando %s', (_caso, a, b) => {
     expect(shadows(com(a), com(b))).toBe(true);
   });
@@ -144,6 +149,7 @@ describe('Dado duas regras A (antes) e B (depois) (shadows, E-01)', () => {
     ],
     ['assinatura diferente', { signature: 'valid' }, { signature: 'invalid' }],
     ['schema em A e não em B', { schema: 'valid' }, {}],
+    ['decifra diferente', { decryption: 'invalid' }, { decryption: 'unknown_kid' }],
     ['condição que a tela não conhece em A', { futura: { x: 1 } }, { futura: { x: 1 } }],
   ])('não deve sombrear B Quando %s', (_caso, a, b) => {
     expect(shadows(com(a), com(b))).toBe(false);
@@ -275,7 +281,7 @@ describe('Dado a lista e uma regra nova (catchAllPlacement, E-01)', () => {
 });
 
 describe('Dado uma regra que nunca pode casar (neverMatches, E-11)', () => {
-  const semVerificacao = { signature: null, schema: null };
+  const semVerificacao = { signature: null, schema: null, e2ee: null };
 
   it('deve acusar a assinatura ou o schema Quando a URL não os verifica', () => {
     expect(neverMatches(com({ signature: 'invalid' }), [], semVerificacao, [])).toEqual({
@@ -283,6 +289,9 @@ describe('Dado uma regra que nunca pode casar (neverMatches, E-11)', () => {
     });
     expect(neverMatches(com({ schema: 'valid' }), [], semVerificacao, [])).toEqual({
       cause: 'schema',
+    });
+    expect(neverMatches(com({ decryption: 'invalid' }), [], semVerificacao, [])).toEqual({
+      cause: 'decryption',
     });
   });
 

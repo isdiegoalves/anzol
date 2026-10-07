@@ -84,6 +84,11 @@
                 <ng-container [ngTemplateOutlet]="header" />
               </app-schema-card>
             }
+            @case ('e2ee') {
+              <app-e2ee-card class="slot" id="checks-e2ee" [fold]="fold">
+                <ng-container [ngTemplateOutlet]="header" />
+              </app-e2ee-card>
+            }
             @case ('response') {
               <app-response-card class="slot" id="checks-response" [fold]="fold">
                 <ng-container [ngTemplateOutlet]="header" />

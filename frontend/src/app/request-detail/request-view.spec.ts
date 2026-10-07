@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
-import { CapturedRequest, SignatureResult } from '../requests/webhook-request';
+import { CapturedRequest, DecryptionResult, SignatureResult } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Token } from '../token/token';
@@ -590,6 +590,119 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
       expect(screen.getByText('Signature invalid')).toBeTruthy();
       await expectNoAxeViolations(container);
+    });
+  });
+
+  describe('Dado a decifra do atributo (URL com e2ee)', () => {
+    const decryption = (overrides: Partial<DecryptionResult> = {}): DecryptionResult => ({
+      state: 'valid',
+      kid: 'enc-1',
+      signature_kid: 'sig-1',
+      reason: null,
+      jti: 'n-42',
+      duplicate_of: null,
+      ...overrides,
+    });
+    const card = () => document.querySelector('app-check-chip[data-kind="decryption"]');
+    const text = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
+    /** Título, motivo e notas do cartão, cada linha separada por " | ". */
+    const lines = () =>
+      [...(card()?.querySelectorAll('.title, .detail, .note') ?? [])].map(text).join(' | ');
+
+    it('deve ficar sem o cartão e sem a aba Decrypted Quando a URL não decifra', async () => {
+      await show(webhookRequest(1, { decryption: null }));
+
+      expect(card()).toBeNull();
+      expect(screen.queryByRole('tab', { name: 'Decrypted' })).toBeNull();
+    });
+
+    it('deve mostrar o cartão com chave, signatário e jti e a aba Decrypted com o JSON aberto Quando a decifra é válida', async () => {
+      const { container } = await show(
+        webhookRequest(1, {
+          content: '{"payload":"eyJ..."}',
+          decryption: decryption(),
+          decrypted: { cpf: '123', nome: 'Ana' },
+        }),
+      );
+
+      expect(lines()).toBe('Decrypted | key enc-1 · signed by sig-1 | jti: n-42');
+      expect(card()?.getAttribute('data-state')).toBe('valid');
+      expect(
+        screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()),
+      ).toEqual(['Body · 20 B', 'Headers (1)', 'Query (0)', 'Form (0)', 'Decrypted']);
+
+      await openTab(/^Decrypted$/);
+
+      const opened = screen.getByRole('region', { name: 'Decrypted attribute' });
+      expect(opened.textContent).toContain('"cpf": "123"');
+      expect(opened.textContent).toContain('"nome": "Ana"');
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve levar à primeira mensagem do mesmo jti Quando é uma reentrega', async () => {
+      const first = webhookRequest(2).uuid;
+      await show(
+        webhookRequest(1, { decryption: decryption({ duplicate_of: first }), decrypted: 1 }),
+      );
+
+      expect(text(card()?.querySelector('.title') ?? null)).toBe('Decrypted · repeated jti');
+      const link = screen.getByRole('link', {
+        name: `First request with this jti: #${first.slice(0, 8)}`,
+      });
+      expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/${first}/1`);
+    });
+
+    it.each([
+      [
+        'inválida',
+        decryption({ state: 'invalid', reason: 'aud_mismatch', signature_kid: 'sig-1' }),
+        'Decryption invalid | aud does not include the audience (aud_mismatch) | Key: enc-1 | Signed by: sig-1 | jti: n-42',
+      ],
+      [
+        'de chave desconhecida',
+        decryption({ state: 'unknown_kid', kid: 'enc-9', signature_kid: null, jti: null }),
+        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | Key: enc-9",
+      ],
+      [
+        'em claro',
+        decryption({ state: 'absent', kid: null, signature_kid: null, jti: null }),
+        'Not encrypted | The attribute arrived in plaintext, which this URL accepts',
+      ],
+    ])(
+      'deve dizer o estado e o motivo legível, sem a aba Decrypted, Quando a decifra é %s',
+      async (_caso, resultado, esperado) => {
+        await show(webhookRequest(1, { decryption: resultado }));
+
+        expect(lines()).toBe(esperado);
+        expect(screen.queryByRole('tab', { name: 'Decrypted' })).toBeNull();
+      },
+    );
+
+    it('deve pôr a aba Decrypted na faixa do celular, com o teclado das abas', async () => {
+      windowClass.set('compact');
+      await show(webhookRequest(1, { decryption: decryption(), decrypted: { a: 1 } }));
+
+      const tabs = screen.getAllByRole('tab');
+      tabs[0].focus();
+      await userEvent.keyboard('{End}');
+
+      expect(document.activeElement).toBe(tabs[4]);
+      expect(screen.getByRole('region', { name: 'Decrypted attribute' }).textContent).toContain(
+        '"a": 1',
+      );
+    });
+
+    // A faixa do celular monta o nome no TS; o do template só se traduz na primeira criação.
+    it('deve traduzir a aba para "Aberto" Quando a tela está em pt-BR', async () => {
+      windowClass.set('compact');
+      loadTranslations(translations);
+      try {
+        await show(webhookRequest(1, { decryption: decryption(), decrypted: { a: 1 } }));
+
+        expect(screen.getByRole('tab', { name: 'Aberto' })).toBeTruthy();
+      } finally {
+        clearTranslations();
+      }
     });
   });
 });

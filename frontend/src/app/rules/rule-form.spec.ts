@@ -82,6 +82,7 @@ describe('Dado a conversão entre a regra e o formulário do editor', () => {
       ],
       signature: 'any',
       schema: 'any',
+      decryption: 'any',
       chance: null,
       windowMode: 'always',
       windowMinutes: 15,
@@ -309,6 +310,43 @@ describe('Dado a condição de schema no formulário', () => {
   });
 });
 
+describe('Dado a condição de decifra no formulário', () => {
+  it.each(['valid', 'invalid', 'unknown_kid', 'absent'] as const)(
+    'deve preencher e devolver a condição "%s"',
+    (condicao) => {
+      const regra: Rule = { ...completa, match: { ...completa.match, decryption: condicao } };
+
+      const form = toFormValue(regra);
+
+      expect(form.decryption).toBe(condicao);
+      expect(fromFormValue(form, regra)).toEqual(regra);
+    },
+  );
+
+  it('deve omitir a condição, e não gravar nula, Quando o formulário volta para "any"', () => {
+    const regra: Rule = { ...completa, match: { ...completa.match, decryption: 'invalid' } };
+
+    const gravada = fromFormValue({ ...toFormValue(regra), decryption: 'any' }, regra);
+
+    expect(gravada.match).toEqual(completa.match);
+    expect(gravada.match && 'decryption' in gravada.match).toBe(false);
+  });
+
+  it.each(['unknown_kid', null])('deve aceitar no JSON a condição %s', (condicao) => {
+    const texto = JSON.stringify({ name: 'a', match: { decryption: condicao } });
+
+    expect(parseRuleJson(texto).errors).toEqual([]);
+  });
+
+  it.each(['unknown-kid', true])('deve recusar no JSON a condição %s', (condicao) => {
+    const texto = JSON.stringify({ name: 'a', match: { decryption: condicao } });
+
+    expect(parseRuleJson(texto).errors).toEqual([
+      'match.decryption: The selected decryption is invalid.',
+    ]);
+  });
+});
+
 describe('Dado a chance e a janela de tempo no formulário', () => {
   const AGORA = Date.parse('2026-09-29T12:00:30.750Z');
 
@@ -426,6 +464,7 @@ describe('Dado um erro 422 com a chave em notação de ponto', () => {
     ['match.body.3.equalToJson', { list: 'body', index: 3, field: 'value' }],
     ['match.signature', { field: 'signature' }],
     ['match.schema', { field: 'schema' }],
+    ['match.decryption', { field: 'decryption' }],
     ['response.status', { field: 'status' }],
     ['response.headers.Content-Type', { list: 'responseHeaders', index: 0, field: 'value' }],
     ['response.body', { field: 'responseBody' }],

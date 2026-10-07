@@ -85,6 +85,11 @@ describe('Dado uma regra na linha 2 da lista (matchLine, RULES-02)', () => {
       },
       'schema valid · delay 1–9 ms',
     ],
+    [
+      'com a condição de decifra',
+      { name: 'x', match: { decryption: 'unknown_kid' }, response: {} },
+      'decryption unknown key',
+    ],
   ])('deve listar as condições Quando a regra é %s', (_caso, rule, line) => {
     expect(matchLine(rule)).toBe(line);
   });

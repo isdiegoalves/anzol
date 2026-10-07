@@ -7,7 +7,7 @@ import { RequestStore } from '../requests/request-store';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { Rule } from '../rules/rule';
 import { TokenStats } from '../stats/stats';
-import { Token, TokenSettings } from '../token/token';
+import { E2eeKey, Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
@@ -106,6 +106,29 @@ export class ChecksStore {
     if (this.urlLock.tokenId() === tokenId) {
       this.urlLock.release();
     }
+  }
+
+  /**
+   * Gera uma chave de cifra (`kid` vazio: o servidor escolhe). As chaves não passam pelo `PUT`: a
+   * URL aberta ganha a nova na hora, sem mexer no rascunho de Checks.
+   */
+  async createKey(tokenId: string, kid: string): Promise<E2eeKey> {
+    const key = await firstValueFrom(
+      this.http.post<E2eeKey>(`/token/${tokenId}/keys`, kid === '' ? {} : { kid }),
+    );
+    this.changeKeys(tokenId, (keys) => [...keys, key]);
+    return key;
+  }
+
+  async deleteKey(tokenId: string, kid: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`/token/${tokenId}/keys/${encodeURIComponent(kid)}`));
+    this.changeKeys(tokenId, (keys) => keys.filter((key) => key.kid !== kid));
+  }
+
+  private changeKeys(tokenId: string, change: (keys: E2eeKey[]) => E2eeKey[]): void {
+    this.preferences.token.update((token) =>
+      token?.uuid === tokenId ? { ...token, e2ee_keys: change(token.e2ee_keys ?? []) } : token,
+    );
   }
 
   /** As regras da URL (a lista inteira, como o `GET /token/{id}/rules` devolve). */

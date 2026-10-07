@@ -825,10 +825,12 @@ export class Inbox {
     if (this.listed(request.uuid)) {
       return;
     }
-    // Corpo > 1 MB chega cortado no evento: a mensagem completa vem da API.
-    const complete = truncated
-      ? await this.requests.fetchOne(request.token_id, request.uuid)
-      : request;
+    // Corpo > 1 MB chega cortado no evento, e o atributo decifrado nunca vem nele: a mensagem
+    // completa vem da API.
+    const complete =
+      truncated || request.decryption?.state === 'valid'
+        ? await this.requests.fetchOne(request.token_id, request.uuid)
+        : request;
     if (this.requests.filtering()) {
       // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
       this.requests.countArrival(complete, total, removed);

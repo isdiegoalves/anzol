@@ -35,6 +35,13 @@ export interface CapturedRequest {
   signature?: SignatureResult | null;
   /** Validação do corpo pelo schema da URL; `null` quando a URL não valida (ausente em mensagens antigas). */
   schema?: SchemaResult | null;
+  /** Decifra do atributo; `null` quando a URL não decifra (ausente em mensagens antigas). */
+  decryption?: DecryptionResult | null;
+  /**
+   * O atributo aberto (o claim `data`), só com a decifra válida e o segredo de leitura. Nunca vem
+   * no evento `request.created` nem no link só-leitura.
+   */
+  decrypted?: unknown;
   created_at: string;
   updated_at: string;
   /** Ordem de gravação na URL; ausente em mensagens gravadas antes dele. */
@@ -87,6 +94,23 @@ export interface SchemaResult {
 export interface SchemaError {
   path: string;
   message: string;
+}
+
+export const DECRYPTION_STATES = ['valid', 'invalid', 'unknown_kid', 'absent'] as const;
+/** `absent`: o atributo não veio cifrado e a URL aceita texto em claro. */
+export type DecryptionState = (typeof DECRYPTION_STATES)[number];
+
+/**
+ * Resultado da decifra na captura. `reason` é o código do servidor (`signature_invalid`) quando não
+ * é válida; `duplicate_of` é a primeira mensagem com o mesmo `jti`.
+ */
+export interface DecryptionResult {
+  state: DecryptionState;
+  kid: string | null;
+  signature_kid: string | null;
+  reason: string | null;
+  jti: string | null;
+  duplicate_of: string | null;
 }
 
 /** Página de `GET /token/{id}/requests`. */

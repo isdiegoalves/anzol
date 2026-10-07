@@ -68,6 +68,7 @@ import {
   BodyRow,
   BodyType,
   ConditionRow,
+  DecryptionOption,
   DelayType,
   FaultOption,
   FieldRef,
@@ -275,6 +276,7 @@ export class RuleEditor {
     body: this.formBuilder.array<BodyGroup>([]),
     signature: ['any' as SignatureOption],
     schema: ['any' as SchemaOption],
+    decryption: ['any' as DecryptionOption],
     chance: [null as number | null, [Validators.min(1), Validators.max(100), integer]],
     windowMode: ['always' as WindowMode],
     windowMinutes: [
@@ -474,6 +476,13 @@ export class RuleEditor {
     { value: 'any', label: $localize`Any` },
     { value: 'valid', label: $localize`Valid` },
     { value: 'invalid', label: $localize`Invalid` },
+  ];
+  protected readonly decryptionOptions: { value: DecryptionOption; label: string }[] = [
+    { value: 'any', label: $localize`Any` },
+    { value: 'valid', label: $localize`Valid` },
+    { value: 'invalid', label: $localize`Invalid` },
+    { value: 'unknown_kid', label: $localize`Unknown key` },
+    { value: 'absent', label: $localize`Plaintext` },
   ];
   protected readonly windowModes: { value: WindowMode; label: string }[] = [
     { value: 'always', label: $localize`Always` },
@@ -953,12 +962,24 @@ export class RuleEditor {
    * A condição exige assinatura (ou schema) e a URL não verifica: a regra nunca casa (E-11, J3).
    * Com a URL ainda não lida, nada se afirma.
    */
-  protected neverMatches(kind: 'signature' | 'schema'): boolean {
+  protected neverMatches(kind: 'signature' | 'schema' | 'decryption'): boolean {
     const token = this.tokens.token();
     if (!token || this.form.controls[kind].value === 'any') {
       return false;
     }
-    return kind === 'signature' ? !token.signature?.provider : !token.schema;
+    switch (kind) {
+      case 'signature':
+        return !token.signature?.provider;
+      case 'schema':
+        return !token.schema;
+      default:
+        return token.e2ee === null;
+    }
+  }
+
+  /** De onde vem o resultado da decifra: o atributo da política, ou "not set up". */
+  protected decryptionOrigin(): string {
+    return this.tokens.token()?.e2ee?.path ?? $localize`not set up`;
   }
 
   /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */

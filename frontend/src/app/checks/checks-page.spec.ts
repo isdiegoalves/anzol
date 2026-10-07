@@ -138,12 +138,13 @@ describe('Dado a página Checks', () => {
     expect(screen.getByRole('link', { name: /^Schema/ }).getAttribute('href')).toContain(
       'section=schema',
     );
-    // CHECKS-05: os cinco atalhos, na ordem da §1, com o ícone de 16 px do protótipo.
+    // CHECKS-05: os atalhos, na ordem da §1, com o ícone de 16 px do protótipo.
     const jump = screen.getByRole('navigation', { name: 'On this page' });
     const links = within(jump).getAllByRole('link');
     expect(links.map((link) => link.querySelector('.jump-name')?.textContent?.trim())).toEqual([
       'Signature',
       'Schema',
+      'E2EE',
       'Response',
       'Privacy',
       'Health',
@@ -184,6 +185,7 @@ describe('Dado a página Checks', () => {
       expect([...page.querySelectorAll('.cards .slot')].map((slot) => slot.id)).toEqual([
         'checks-signature',
         'checks-schema',
+        'checks-e2ee',
         'checks-response',
         'checks-privacy',
         'checks-health',
@@ -192,7 +194,14 @@ describe('Dado a página Checks', () => {
         [...page.querySelectorAll('.cards [role=region]')].map((card) =>
           card.querySelector('h2')?.textContent?.trim(),
         ),
-      ).toEqual(['Signature verification', 'Schema validation', 'Response', 'Privacy', 'Health']);
+      ).toEqual([
+        'Signature verification',
+        'Schema validation',
+        'E2EE decryption',
+        'Response',
+        'Privacy',
+        'Health',
+      ]);
       expect(page.querySelector('.columns')).toBeNull();
       expect(page.querySelector('main')?.lastElementChild?.tagName).toBe('APP-CHANGES-BAR');
     });
@@ -217,6 +226,7 @@ describe('Dado a página Checks', () => {
       expect(links.map(shown)).toEqual([
         'Signature · Stripe',
         'Schema · On · 2020-12',
+        'E2EE · Off',
         'Response · 429',
         'Privacy · Open',
         'Health',
@@ -224,11 +234,13 @@ describe('Dado a página Checks', () => {
       expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
         'Signature, Stripe',
         'Schema, on',
+        'E2EE, off',
         'Response, 429',
         'Privacy, open',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([
+        null,
         null,
         null,
         'location',
@@ -552,6 +564,7 @@ describe('Dado os atalhos "On this page" de Checks', () => {
     expect(checksSections().map((section) => section.label)).toEqual([
       'Assinatura',
       'Schema',
+      'E2EE',
       'Resposta',
       'Privacidade',
       'Saúde',

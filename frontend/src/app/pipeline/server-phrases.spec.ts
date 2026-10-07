@@ -54,6 +54,14 @@ const conditions: [string, string][] = [
     'schema: esperava valid, veio invalid (3 errors)',
   ],
   [
+    'decryption: expected valid, got not configured',
+    'decifra: não configurada nesta URL (a regra pede valid)',
+  ],
+  [
+    'decryption: expected valid, got invalid (aud_mismatch)',
+    'decifra: esperava valid, veio invalid (aud_mismatch)',
+  ],
+  [
     'scenario entrega: expected state "falhou 1", got "Started"',
     'cenário entrega: esperava o estado "falhou 1", estava em "Started"',
   ],

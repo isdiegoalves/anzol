@@ -497,6 +497,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
   const ORDEM: Secao[] = [
     'Signature verification',
     'Schema validation',
+    'E2EE decryption',
     'Response',
     'Privacy',
     'Health',
@@ -517,7 +518,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     }
     const topos = caixas.map((c) => Math.round(c.y));
     expect(topos, 'os cartões descem na ordem do índice').toEqual([...topos].sort((a, b) => a - b));
-    expect(new Set(topos).size, 'uma coluna: nenhum cartão ao lado de outro').toBe(5);
+    expect(new Set(topos).size, 'uma coluna: nenhum cartão ao lado de outro').toBe(ORDEM.length);
     expect(new Set(caixas.map((c) => Math.round(c.x))).size).toBe(1);
     const pagina = (await page.getByRole('main', { name: 'Checks' }).boundingBox())!;
     for (const caixa of caixas) {
@@ -527,11 +528,11 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
       ).toBeLessThanOrEqual(25);
     }
     const atalhos = page.getByRole('navigation', { name: 'On this page' }).getByRole('link');
-    await expect(atalhos).toHaveCount(5);
+    await expect(atalhos).toHaveCount(ORDEM.length);
     const nomes = await atalhos.evaluateAll((links) =>
       links.map((l) => (l.textContent ?? '').trim().split(/[\s·,]/)[0]),
     );
-    expect(nomes).toEqual(['Signature', 'Schema', 'Response', 'Privacy', 'Health']);
+    expect(nomes).toEqual(['Signature', 'Schema', 'E2EE', 'Response', 'Privacy', 'Health']);
   });
 
   test('deve dizer o estado de cada seção no índice e marcar a que tem alteração', async ({
@@ -549,6 +550,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
 
     await expect(indice.getByRole('link', { name: /^Signature, GitHub$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Schema, on\b/ })).toBeVisible();
+    await expect(indice.getByRole('link', { name: /^E2EE, off$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Response, 429$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Privacy, open$/ })).toBeVisible();
 

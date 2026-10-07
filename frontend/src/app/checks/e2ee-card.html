@@ -1,0 +1,236 @@
+@let c = form.controls;
+@let savedPolicy = saved();
+@let on = enabled();
+<!-- O cabeçalho recolhível do celular, projetado pela página. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon primary" aria-hidden="true"><app-icon name="lock" [size]="22" /></span>
+    <h2 id="e2ee-title" i18n>E2EE decryption</h2>
+    @if (savedPolicy) {
+      <span class="state on"
+        ><app-icon name="ok" [size]="15" /><span i18n>On · {{ savedPolicy.path }}</span></span
+      >
+    } @else {
+      <span class="state" i18n>Off</span>
+    }
+    @if (unsaved()) {
+      <span class="state draft" i18n>Unsaved</span>
+    }
+    <span class="spacer"></span>
+    @if (on) {
+      <button mat-button type="button" (click)="turnOff()" i18n>Turn off</button>
+    }
+  </header>
+
+  <p class="hint" i18n>
+    One attribute of the JSON body arrives as a JWE (ECDH-ES, A256GCM) to a key of this URL,
+    carrying a JWS (ES256) from a trusted signer. Each request is marked Decrypted, Invalid with the
+    reason, Unknown key or Not encrypted; the opened value shows in the request, never in shared
+    links or live events.
+  </p>
+
+  <form class="fields" aria-labelledby="e2ee-title" [formGroup]="form">
+    <mat-slide-toggle formControlName="enabled" i18n
+      >Decrypt an attribute of each request</mat-slide-toggle
+    >
+
+    @if (on && !readProtected()) {
+      <p class="banner" role="status">
+        <app-icon name="info" [size]="18" />
+        <span i18n
+          >This URL has no read secret, and the server refuses decryption without one: the opened
+          value must stay behind it. Turn on
+          <a [routerLink]="[]" [queryParams]="{ section: 'privacy' }">Privacy</a> (it can go in the
+          same save).</span
+        >
+      </p>
+    }
+    @if (refusal(); as refused) {
+      <!-- Sem região viva: quem fala a recusa é o alerta da barra de salvar. -->
+      <p class="banner refused">{{ refused }}</p>
+    }
+    @if (savedPolicy && !on) {
+      <p class="banner" role="status" i18n>
+        Saving turns decryption off. Requests already received keep the result they got on arrival.
+      </p>
+    }
+
+    @if (on) {
+      <div class="pair">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label i18n>Encrypted attribute</mat-label>
+          <input
+            matInput
+            formControlName="path"
+            placeholder="$.payload"
+            i18n-placeholder
+            spellcheck="false"
+          />
+          <mat-hint i18n>JSONPath to one value of the body.</mat-hint>
+          <mat-error>
+            @if (serverError(c.path); as refused) {
+              {{ refused }}
+            } @else {
+              <ng-container i18n>The JSONPath is required.</ng-container>
+            }
+          </mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label i18n>Audience (aud)</mat-label>
+          <input matInput formControlName="audience" spellcheck="false" />
+          <mat-hint i18n>The aud claim must include it.</mat-hint>
+          <mat-error>
+            @if (serverError(c.audience); as refused) {
+              {{ refused }}
+            } @else {
+              <ng-container i18n>The audience is required, up to 256 characters.</ng-container>
+            }
+          </mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label i18n>Max age (seconds)</mat-label>
+          <input matInput type="number" min="60" max="604800" formControlName="maxAge" />
+          <mat-hint i18n>How old the iat may be: 60 to 604800.</mat-hint>
+          <mat-error>
+            @if (serverError(c.maxAge); as refused) {
+              {{ refused }}
+            } @else {
+              <ng-container i18n>An integer between 60 and 604800.</ng-container>
+            }
+          </mat-error>
+        </mat-form-field>
+      </div>
+      <mat-slide-toggle formControlName="required" i18n
+        >Reject plaintext: an attribute that is not a JWE is invalid (downgrade)</mat-slide-toggle
+      >
+
+      <fieldset class="bindings">
+        <legend i18n>Claims checked against the envelope</legend>
+        <p class="hint" i18n>
+          JSONPath of the plaintext value each claim must equal. Ignore case compares both sides in
+          lower case.
+        </p>
+        @for (name of bindingNames; track name) {
+          <div class="binding">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ name }}</mat-label>
+              <input matInput [formControlName]="name" spellcheck="false" />
+              <mat-error>
+                @if (serverError(c[name]); as refused) {
+                  {{ refused }}
+                } @else {
+                  <ng-container i18n>The JSONPath is required.</ng-container>
+                }
+              </mat-error>
+            </mat-form-field>
+            <mat-checkbox
+              [formControlName]="name + 'IgnoreCase'"
+              [aria-label]="ignoreCaseLabel(name)"
+              i18n
+              >Ignore case</mat-checkbox
+            >
+          </div>
+        }
+      </fieldset>
+
+      <div class="signers">
+        <label for="e2ee-signers" i18n>Trusted signers</label>
+        <textarea
+          id="e2ee-signers"
+          class="code"
+          formControlName="signers"
+          rows="8"
+          spellcheck="false"
+          [class.invalid]="signersError()"
+          [attr.aria-invalid]="signersError() ? 'true' : null"
+          [attr.aria-describedby]="
+            signersError() ? 'e2ee-signers-help e2ee-signers-error' : 'e2ee-signers-help'
+          "
+        ></textarea>
+        @if (signersError(); as message) {
+          <p id="e2ee-signers-error" class="error">{{ message }}</p>
+        }
+        <p id="e2ee-signers-help" class="hint" i18n>
+          JSON array of 1 to 10 public JWKs (EC P-256, ES256, with kid and without d) of whoever
+          signs.
+        </p>
+      </div>
+    }
+  </form>
+
+  <section class="keys" aria-labelledby="e2ee-keys-title">
+    <h3 id="e2ee-keys-title" i18n>Encryption keys</h3>
+    <p class="hint">
+      <ng-container i18n
+        >Senders encrypt to the public key; the private key never leaves the server. Up to
+        {{ keysMax }}: the current one and the next, for rotation.</ng-container
+      >&ngsp;<a [href]="jwksUrl()" target="_blank" rel="noopener" i18n>Public JWKS</a>
+    </p>
+    @if (keys().length > 0) {
+      <ul class="key-list">
+        @for (key of keys(); track key.kid) {
+          <li class="key">
+            <code class="kid">{{ key.kid }}</code>
+            <span class="created" i18n>created {{ localDate(key.created_at) }}</span>
+            <span class="spacer"></span>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="copyLabel(key.kid)"
+              (click)="copyKey(key)"
+            >
+              <app-icon name="copy" [size]="18" /><ng-container i18n>Copy public key</ng-container>
+            </button>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="deleteLabel(key.kid)"
+              (click)="deleteKey(key.kid)"
+            >
+              <app-icon name="trash" [size]="18" /><ng-container i18n>Delete</ng-container>
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="hint" i18n>No key yet: generate one and give its public key to the sender.</p>
+    }
+    <div class="generate">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label i18n>Key ID (kid)</mat-label>
+        <input
+          matInput
+          spellcheck="false"
+          placeholder="enc-v1"
+          i18n-placeholder
+          [formControl]="kid"
+          [attr.aria-describedby]="full() ? 'e2ee-keys-full' : null"
+        />
+        <mat-hint i18n>Optional; letters, digits, . _ -</mat-hint>
+        <mat-error i18n>1 to 64 letters, digits, dots, underscores or dashes.</mat-error>
+      </mat-form-field>
+      <button
+        mat-flat-button
+        class="tonal"
+        type="button"
+        disabledInteractive
+        [disabled]="full() || generating()"
+        [attr.aria-describedby]="full() ? 'e2ee-keys-full' : null"
+        (click)="generateKey()"
+      >
+        <app-icon name="plus" [size]="18" /><ng-container i18n>Generate key</ng-container>
+      </button>
+    </div>
+    @if (kidRefusal(); as refused) {
+      <p class="error" role="alert">{{ refused }}</p>
+    }
+    @if (full()) {
+      <p class="hint" id="e2ee-keys-full" i18n>
+        This URL already has {{ keysMax }} keys. Delete the old one before generating another.
+      </p>
+    }
+  </section>
+
+  <app-card-foot name="e2ee" [summary]="pending()" />
+</div>

@@ -487,6 +487,44 @@
                 />
               </div>
 
+              <div class="cond">
+                <h3 i18n>Decryption</h3>
+                <div class="controls">
+                  <mat-button-toggle-group
+                    formControlName="decryption"
+                    aria-label="Decryption"
+                    i18n-aria-label
+                    hideSingleSelectionIndicator
+                  >
+                    @for (option of decryptionOptions; track option.value) {
+                      <mat-button-toggle [value]="option.value">{{
+                        option.label
+                      }}</mat-button-toggle>
+                    }
+                  </mat-button-toggle-group>
+                  <p class="origin" [attr.data-for]="'decryption'" i18n>
+                    Recorded on arrival · {{ decryptionOrigin() }} ·
+                    <a
+                      mat-button
+                      [routerLink]="['/', tokenId(), 'checks']"
+                      [queryParams]="{ section: 'e2ee' }"
+                      >Set up in Checks</a
+                    >
+                  </p>
+                  @if (neverMatches('decryption')) {
+                    <p class="notice" role="note" i18n>Never matches: this URL does not decrypt.</p>
+                  }
+                  @if (serverError(form.controls.decryption); as error) {
+                    <p class="field-error" [attr.data-for]="'decryption'">{{ error }}</p>
+                  }
+                </div>
+                <app-condition-result
+                  [key]="'match.decryption'"
+                  [result]="result('match.decryption', form.controls.decryption.value !== 'any')"
+                  [recorded]="recordedMisses('match.decryption')"
+                />
+              </div>
+
               <div class="cond when">
                 <h3 i18n>Chance and time window</h3>
                 <div class="controls">

@@ -1,0 +1,145 @@
+@use '@angular/material' as mat;
+
+// Os campos quebram linha quando não cabem, como os do cartão da assinatura.
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: start;
+
+  > * {
+    flex: 12rem;
+    min-width: 0;
+    max-width: 32rem;
+  }
+}
+
+.bindings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    padding: 0;
+    font: var(--mat-sys-title-small);
+  }
+}
+
+.binding {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+
+  mat-form-field {
+    flex: 1 1 16rem;
+    min-width: 0;
+    max-width: 32rem;
+  }
+}
+
+.signers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 8px;
+
+  label {
+    font: var(--mat-sys-label-large);
+  }
+}
+
+textarea.code {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 64rem;
+  padding: 8px;
+  resize: vertical;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: 12px / 1.5 var(--app-code-family);
+
+  &:focus-visible {
+    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
+    outline-offset: -1px;
+  }
+
+  &.invalid {
+    border-color: var(--mat-sys-error);
+  }
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-small);
+}
+
+.keys {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.key-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 4px 0 4px 12px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container);
+}
+
+.kid {
+  font: 600 13px / 1.5 var(--app-code-family);
+  overflow-wrap: anywhere;
+}
+
+.created {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.generate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-start;
+
+  mat-form-field {
+    flex: 0 1 18rem;
+    min-width: 0;
+  }
+
+  button {
+    margin-top: 4px;
+  }
+}
+
+.tonal {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--mat-sys-secondary-container),
+      filled-label-text-color: var(--mat-sys-on-secondary-container),
+    )
+  );
+}

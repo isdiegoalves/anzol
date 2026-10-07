@@ -628,6 +628,50 @@ describe('Dado a tela principal', () => {
       );
     });
 
+    it('deve buscar a mensagem pela API Quando ela chega decifrada, porque o evento não traz o atributo aberto', async () => {
+      const decryption = {
+        state: 'valid' as const,
+        kid: 'enc-1',
+        signature_kid: 'sig-1',
+        reason: null,
+        jti: 'n-1',
+        duplicate_of: null,
+      };
+      const evento = webhookRequest(3, { decryption });
+      const completa = webhookRequest(3, { decryption, decrypted: { cpf: '000' } });
+
+      FakeEventSource.latest().emit('request.created', {
+        request: evento,
+        total: 3,
+        truncated: false,
+      });
+
+      await flush(`/token/${TOKEN_ID}/request/${evento.uuid}`, completa);
+      await vi.waitFor(() => expect(TestBed.inject(RequestStore).newest()).toEqual(completa));
+    });
+
+    it('deve usar o evento como veio Quando a decifra não foi válida', async () => {
+      const recusada = webhookRequest(3, {
+        decryption: {
+          state: 'invalid',
+          kid: 'enc-1',
+          signature_kid: null,
+          reason: 'decrypt_failed',
+          jti: null,
+          duplicate_of: null,
+        },
+      });
+
+      FakeEventSource.latest().emit('request.created', {
+        request: recusada,
+        total: 3,
+        truncated: false,
+      });
+
+      await vi.waitFor(() => expect(TestBed.inject(RequestStore).newest()).toEqual(recusada));
+      http.expectNone(`/token/${TOKEN_ID}/request/${recusada.uuid}`);
+    });
+
     it('deve refazer a busca uma vez, sem pôr a nova direto na lista nem trocar a aberta Quando chegam mensagens com filtro ativo', async () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
       const store = TestBed.inject(RequestStore);

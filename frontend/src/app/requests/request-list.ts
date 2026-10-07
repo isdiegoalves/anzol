@@ -521,15 +521,17 @@ export class RequestList {
     // O status respondido aparece sempre; os outros, só quando dizem algo.
     const seals = [
       pipeline.rule,
-      ...[pipeline.signature, pipeline.schema].filter((check) => check.tone !== 'none'),
+      ...[pipeline.signature, pipeline.schema, pipeline.decryption].filter(
+        (check): check is CheckResult => !!check && check.tone !== 'none',
+      ),
     ];
     const label = [
       `${request.method} ${pipeline.route}`,
       `#${request.uuid.substring(0, 5)}`,
       $localize`from ${request.ip}:ip:`,
       localDate(request.created_at),
-      ...[pipeline.signature, pipeline.schema]
-        .filter((check) => check.tone !== 'none')
+      ...[pipeline.signature, pipeline.schema, pipeline.decryption]
+        .filter((check): check is CheckResult => !!check && check.tone !== 'none')
         .map(spokenOf),
       spokenOf(pipeline.rule),
       ...(this.isUnread(request) ? [$localize`unread`] : []),

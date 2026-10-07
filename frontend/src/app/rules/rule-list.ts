@@ -142,9 +142,14 @@ export function diagnosisLine(diagnosis: Diagnosis): string {
       if (diagnosis.cause === 'state') {
         return $localize`No enabled rule leads to state "${diagnosis.state}:state:" — probably a typo.`;
       }
-      return diagnosis.cause === 'signature'
-        ? $localize`This URL does not check signatures.`
-        : $localize`This URL has no schema.`;
+      switch (diagnosis.cause) {
+        case 'signature':
+          return $localize`This URL does not check signatures.`;
+        case 'schema':
+          return $localize`This URL has no schema.`;
+        default:
+          return $localize`This URL does not decrypt.`;
+      }
     case 'shadowed':
       return $localize`Never answers: "${diagnosis.by.name}:name:" comes first and matches everything this rule matches.`;
     case 'likely':

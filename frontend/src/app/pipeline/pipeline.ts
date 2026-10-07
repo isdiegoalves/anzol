@@ -2,9 +2,13 @@ import { CapturedRequest, SignatureResult, absentHeader } from '../requests/webh
 import { conditionPhrase } from './server-phrases';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
 import { SignatureCheck, signatureCheck } from './signature-check';
+import { decryptionResult } from './decryption';
 
-/** As três verificações que a tela mostra em toda mensagem, no mesmo componente (`app-check-chip`). */
-export type CheckKind = 'signature' | 'schema' | 'rule';
+/**
+ * As verificações que a tela mostra, no mesmo componente (`app-check-chip`): as três de toda
+ * mensagem e a decifra, só nas URLs que decifram.
+ */
+export type CheckKind = 'signature' | 'schema' | 'rule' | 'decryption';
 
 /**
  * Tom do selo: `ok` passou; `bad` falhou; `near` nenhuma regra casou, mas uma chegou perto;
@@ -17,12 +21,14 @@ export type CheckTone = 'ok' | 'bad' | 'near' | 'none';
  * (bate, mas o timestamp está fora da tolerância), `absent` (faltou um header exigido),
  * `unchecked`. Schema: `valid`, `invalid`, `unchecked`. Regra: `answered`, `near-miss`,
  * `default` (a resposta padrão), `fault` (falha de rede) e `unrecorded` (sem resposta gravada).
+ * Decifra: `valid`, `invalid`, `unknown-kid` e `absent` (atributo em claro aceito).
  */
 export type CheckState =
   | 'valid'
   | 'invalid'
   | 'stale'
   | 'absent'
+  | 'unknown-kid'
   | 'unchecked'
   | 'answered'
   | 'near-miss'
@@ -60,6 +66,8 @@ export interface RequestPipeline {
   signature: CheckResult;
   schema: CheckResult;
   rule: CheckResult;
+  /** `null` quando a URL não decifrava a mensagem. */
+  decryption: CheckResult | null;
   /** As linhas da tabela de headers que a assinatura leu; `null` sem verificação. */
   signatureHeaders: SignatureCheck | null;
 }
@@ -84,6 +92,7 @@ export function pipelineOf(
     signature: signatureResult(request),
     schema: schemaResult(request, context.token ?? null),
     rule: ruleResult(request),
+    decryption: decryptionResult(request),
     signatureHeaders: signatureCheck(request, context.token ?? null),
   };
 }

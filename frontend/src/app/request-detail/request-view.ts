@@ -121,8 +121,39 @@ export class RequestView {
     }),
   );
   protected readonly checks = computed(() => {
-    const { signature, schema, rule } = this.pipeline();
-    return [signature, schema, rule];
+    const { signature, schema, decryption, rule } = this.pipeline();
+    return [signature, schema, ...(decryption ? [decryption] : []), rule];
+  });
+  /** O que mais a decifra gravou: a chave, quem assinou e o `jti`, conforme o estado. */
+  protected readonly decryptionNotes = computed(() => {
+    const decryption = this.request().decryption;
+    if (!decryption) {
+      return [];
+    }
+    const valid = decryption.state === 'valid';
+    return [
+      ...(!valid && decryption.kid ? [$localize`Key: ${decryption.kid}:kid:`] : []),
+      ...(!valid && decryption.signature_kid
+        ? [$localize`Signed by: ${decryption.signature_kid}:signer:`]
+        : []),
+      ...(decryption.jti ? [`jti: ${decryption.jti}`] : []),
+    ];
+  });
+  /** Reentrega do mesmo `jti`: o link para a primeira (fora da página só-leitura). */
+  protected readonly firstDelivery = computed(() => {
+    const { token_id: tokenId, decryption } = this.request();
+    const first = decryption?.duplicate_of;
+    return !this.readonly() && tokenId && first
+      ? {
+          text: $localize`First request with this jti: #${first.slice(0, 8)}:id:`,
+          commands: ['/', tokenId, first, '1'],
+        }
+      : null;
+  });
+  /** O atributo aberto, indentado; `null` quando a mensagem não o traz. */
+  protected readonly decryptedText = computed(() => {
+    const decrypted = this.request().decrypted;
+    return decrypted === undefined ? null : JSON.stringify(decrypted, null, 2);
   });
   /**
    * WM-10: no cartão da regra, o nome da que respondeu (ou da mais próxima) leva a ela, com a
@@ -186,12 +217,13 @@ export class RequestView {
   private readonly ids = `request-view-${nextViewId++}`;
   protected readonly panelId = `${this.ids}-panel`;
   protected readonly tabId = (index: number) => `${this.ids}-tab-${index}`;
-  /** Os nomes das quatro abas, os mesmos do `mat-tab-group`. */
+  /** Os nomes das abas, os mesmos do `mat-tab-group`; a do atributo aberto só quando ele veio. */
   protected readonly tabLabels = computed(() => [
     this.bodyTabLabel(),
     $localize`Headers (${this.headers().length}:INTERPOLATION:)`,
     $localize`Query (${this.query().length}:INTERPOLATION:)`,
     $localize`Form (${this.form().length}:INTERPOLATION:)`,
+    ...(this.decryptedText() === null ? [] : [$localize`:tab|Atributo decifrado:Decrypted`]),
   ]);
 
   /**
@@ -358,7 +390,7 @@ export class RequestView {
   /** O cartão leva à aba do que ele conferiu (assinatura → Headers, schema → Body). */
   /** Setas, Home e End na faixa de abas: abre a aba e leva o foco a ela (WAI-ARIA, ativação automática). */
   protected moveTab(event: KeyboardEvent): void {
-    const last = TABS.length - 1;
+    const last = this.tabLabels().length - 1;
     const next: Record<string, number> = {
       ArrowRight: this.tab() === last ? 0 : this.tab() + 1,
       ArrowLeft: this.tab() === 0 ? last : this.tab() - 1,

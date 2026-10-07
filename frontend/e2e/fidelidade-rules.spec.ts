@@ -340,7 +340,9 @@ test.describe('Dado os controles da aba Match (RULES-17)', () => {
     const tokenId = await tokens.create();
     await abrirRegras(page, tokenId);
     const regra = await novaRegra(page);
-    await expect(regra.getByText(/not set up/)).toBeVisible();
+    // A assinatura e, depois dela, a decifra: nenhuma das duas configurada.
+    await expect(regra.getByText(/not set up/)).toHaveCount(2);
+    await expect(regra.getByText(/not set up/).first()).toBeVisible();
   });
 });
 

@@ -91,10 +91,10 @@ describe('Dado o editor de regra', () => {
       ?.click();
     await fixture.whenStable();
   };
-  /** Segmentado de Signature/Schema (`radiogroup`). */
-  const segmented = (label: 'Signature' | 'Schema') =>
+  /** Segmentado de Signature/Schema/Decryption (`radiogroup`). */
+  const segmented = (label: 'Signature' | 'Schema' | 'Decryption') =>
     loader.getHarness(MatButtonToggleGroupHarness.with({ selector: `[aria-label="${label}"]` }));
-  const segmentedValue = async (label: 'Signature' | 'Schema') => {
+  const segmentedValue = async (label: 'Signature' | 'Schema' | 'Decryption') => {
     for (const toggle of await (await segmented(label)).getToggles()) {
       if (await toggle.isChecked()) {
         return toggle.getText();
@@ -102,7 +102,7 @@ describe('Dado o editor de regra', () => {
     }
     return null;
   };
-  const choose = async (label: 'Signature' | 'Schema', text: string) => {
+  const choose = async (label: 'Signature' | 'Schema' | 'Decryption', text: string) => {
     const [toggle] = await (await segmented(label)).getToggles({ text });
     await toggle.check();
   };
@@ -622,6 +622,47 @@ describe('Dado o editor de regra', () => {
           'The selected signature is invalid.',
         ]),
       );
+    });
+  });
+
+  describe('Dado a condição "Decryption" no match', () => {
+    it('deve oferecer os quatro estados, gravar match.decryption e dizer de onde vem', async () => {
+      TestBed.inject(Preferences).token.set(
+        token({ e2ee: { path: '$.payload' } as Token['e2ee'] }),
+      );
+      await open({ index: 0 }, [rule(1)]);
+
+      expect(await segmentedValue('Decryption')).toBe('Any');
+      const toggles = await (await segmented('Decryption')).getToggles();
+      expect(await Promise.all(toggles.map((toggle) => toggle.getText()))).toEqual([
+        'Any',
+        'Valid',
+        'Invalid',
+        'Unknown key',
+        'Plaintext',
+      ]);
+      expect(text('.origin[data-for="decryption"]')).toEqual([
+        'Recorded on arrival · $.payload · Set up in Checks',
+      ]);
+      const link = root().querySelector('.origin[data-for="decryption"] a') as HTMLAnchorElement;
+      expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=e2ee`);
+
+      await choose('Decryption', 'Unknown key');
+      await save();
+      const call = await put();
+      call.flush(call.request.body);
+
+      expect((call.request.body as Rule[])[0].match).toEqual({
+        ...rule(1).match,
+        decryption: 'unknown_kid',
+      });
+    });
+
+    it('deve avisar que nunca casa Quando a URL não decifra', async () => {
+      TestBed.inject(Preferences).token.set(token({ e2ee: null }));
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, decryption: 'invalid' } })]);
+
+      expect(text('.notice')).toContain('Never matches: this URL does not decrypt.');
     });
   });
 
@@ -1435,6 +1476,7 @@ describe('Dado o editor de regra', () => {
         ['match.body.0', 'Passes 2/2'],
         ['match.signature', 'No condition'],
         ['match.schema', 'No condition'],
+        ['match.decryption', 'No condition'],
         ['chance', 'No condition'],
         ['window', 'No condition'],
       ]);
@@ -1443,7 +1485,18 @@ describe('Dado o editor de regra', () => {
         [...root().querySelectorAll('.feedback')].map((element) =>
           ['passes', 'fails', 'none'].find((kind) => element.classList.contains(kind)),
         ),
-      ).toEqual(['fails', 'passes', 'none', 'fails', 'passes', 'none', 'none', 'none', 'none']);
+      ).toEqual([
+        'fails',
+        'passes',
+        'none',
+        'fails',
+        'passes',
+        'none',
+        'none',
+        'none',
+        'none',
+        'none',
+      ]);
     });
 
     it('deve dizer quantas o sorteio pulou e quantas chegaram fora da janela', async () => {

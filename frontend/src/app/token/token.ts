@@ -35,6 +35,13 @@ export interface Token {
    * gravado no localStorage por versões anteriores da tela.
    */
   protected?: boolean;
+  /**
+   * Decifra de atributo (JWE de um JWS) na captura; `null` desliga. Ausente no token gravado no
+   * localStorage por versões anteriores da tela.
+   */
+  e2ee?: E2eePolicy | null;
+  /** Chaves de cifra da URL, só a parte pública. Ausente em versões anteriores da tela. */
+  e2ee_keys?: E2eeKey[];
   created_at: string;
   updated_at: string;
 }
@@ -75,6 +82,35 @@ export interface SignatureConfig {
 /** Documento JSON Schema (draft 2020-12 por padrão): sempre um objeto JSON. */
 export type JsonSchema = Record<string, unknown>;
 
+/** JWK como a API devolve ou recebe (só chaves públicas). */
+export type Jwk = Record<string, unknown>;
+
+/** JSONPath no envelope em claro; o objeto compara sem caixa. */
+export type E2eeBinding = string | { path: string; ignore_case?: boolean };
+
+/**
+ * Política da decifra: o atributo em `path` chega como JWE de um JWS ES256 de um dos
+ * `trusted_signers`, com `aud` igual a `audience` e `jti`/`evt`/`app` iguais aos `bindings`.
+ */
+export interface E2eePolicy {
+  path: string;
+  required: boolean;
+  audience: string;
+  bindings: { jti: E2eeBinding; evt: E2eeBinding; app: E2eeBinding };
+  max_age_seconds: number;
+  trusted_signers: Jwk[];
+}
+
+/** Chave de cifra da URL (`use=enc`, `alg=ECDH-ES`); a privada fica no servidor. */
+export interface E2eeKey {
+  kid: string;
+  created_at: string;
+  jwk: Jwk;
+}
+
+/** Até quantas chaves de cifra a URL guarda (a atual e a da rotação). */
+export const E2EE_KEYS_MAX = 2;
+
 /**
  * Corpo do `POST`/`PUT /token`. No `PUT`, campo ausente volta ao padrão: Checks manda sempre a
  * configuração inteira (`savedSettings`), com a parte do cartão trocada. `read_secret` é a exceção
@@ -89,6 +125,7 @@ export interface TokenSettings {
   auto_cleanup?: AutoCleanup | null;
   signature?: SignatureConfig | null;
   schema?: JsonSchema | null;
+  e2ee?: E2eePolicy | null;
   /**
    * Segredo de leitura. Só vai quando muda: no `PUT`, ausente mantém o atual (ao contrário dos
    * outros campos) e `null` tira a proteção.

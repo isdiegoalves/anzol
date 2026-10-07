@@ -1,8 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, Validators } from '@angular/forms';
 import { token } from '../../testing/fixtures';
+import { E2eePolicy } from '../token/token';
 import {
+  changedElsewhere,
   cutsRequests,
+  errorKeys,
   fieldErrors,
   pendingSummary,
   savedSettings,
@@ -13,6 +16,19 @@ import {
   withChanges,
 } from './url-settings';
 
+const POLITICA: E2eePolicy = {
+  path: '$.payload',
+  required: true,
+  audience: 'anzol-lab',
+  bindings: {
+    jti: '$.eventId',
+    evt: '$.tipoEvento.nome',
+    app: { path: '$.servico.nome', ignore_case: true },
+  },
+  max_age_seconds: 43200,
+  trusted_signers: [{ kty: 'EC', crv: 'P-256', kid: 'sig-1', x: 'x', y: 'y' }],
+};
+
 const CONFIGURADA = token({
   default_status: 202,
   default_content_type: 'application/json',
@@ -22,6 +38,9 @@ const CONFIGURADA = token({
   auto_cleanup: 1000,
   signature: { provider: 'github', secret: '••••-e2e' },
   schema: { type: 'object' },
+  protected: true,
+  e2ee: POLITICA,
+  e2ee_keys: [{ kid: 'enc-1', created_at: '2026-10-07 10:00:00', jwk: { kty: 'EC' } }],
 });
 
 describe('Dado a configuração salva da URL como corpo do PUT (CA-11)', () => {
@@ -35,6 +54,7 @@ describe('Dado a configuração salva da URL como corpo do PUT (CA-11)', () => {
       auto_cleanup: 1000,
       signature: { provider: 'github', secret: '••••-e2e' },
       schema: { type: 'object' },
+      e2ee: POLITICA,
     });
   });
 
@@ -49,6 +69,7 @@ describe('Dado a configuração salva da URL como corpo do PUT (CA-11)', () => {
       auto_cleanup: null,
       signature: null,
       schema: null,
+      e2ee: null,
     });
   });
 
@@ -58,6 +79,24 @@ describe('Dado a configuração salva da URL como corpo do PUT (CA-11)', () => {
     expect(corpo).toEqual({ ...savedSettings(CONFIGURADA), schema: null });
     expect(corpo.signature).toEqual({ provider: 'github', secret: '••••-e2e' });
     expect(corpo.default_content).toBe('{"ok":true}');
+  });
+
+  it.each([
+    ['Schema', { schema: null }],
+    ['Signature', { signature: null }],
+    ['Response', { default_status: '201' }],
+    ['Privacy', { read_secret: 'outro-segredo' }],
+  ])('deve manter a política de decifra no PUT Quando o cartão %s é salvo', (_cartao, mudancas) => {
+    expect(withChanges(CONFIGURADA, mudancas).e2ee).toEqual(POLITICA);
+  });
+
+  it('deve deixar as chaves de cifra fora do PUT, que não as grava', () => {
+    expect(savedSettings(CONFIGURADA)).not.toHaveProperty('e2ee_keys');
+  });
+
+  it('deve acusar a política mudada em outro lugar, e não as chaves', () => {
+    expect(changedElsewhere(CONFIGURADA, { ...CONFIGURADA, e2ee: null })).toEqual(['e2ee']);
+    expect(changedElsewhere(CONFIGURADA, { ...CONFIGURADA, e2ee_keys: [] })).toEqual([]);
   });
 });
 
@@ -91,6 +130,16 @@ describe('Dado o erro do PUT', () => {
     expect(fieldErrors(recusa, 'schema')).toEqual(['The schema is invalid: $ref is not internal.']);
     expect(fieldErrors(recusa, 'timeout')).toEqual([]);
     expect(fieldErrors(new HttpErrorResponse({ status: 500 }), 'schema')).toEqual([]);
+  });
+
+  it('deve listar as chaves do 422 Quando o servidor recusa a política', () => {
+    const politica = new HttpErrorResponse({
+      status: 422,
+      error: { 'e2ee.audience': ['x'], 'e2ee.trusted_signers.0': ['y'] },
+    });
+
+    expect(errorKeys(politica)).toEqual(['e2ee.audience', 'e2ee.trusted_signers.0']);
+    expect(errorKeys(new HttpErrorResponse({ status: 500, error: { e2ee: ['z'] } }))).toEqual([]);
   });
 
   it.each([

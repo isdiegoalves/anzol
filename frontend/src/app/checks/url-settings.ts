@@ -19,6 +19,7 @@ export function savedSettings(token: Token): TokenSettings {
     auto_cleanup: token.auto_cleanup ?? null,
     signature: token.signature ?? null,
     schema: token.schema ?? null,
+    e2ee: token.e2ee ?? null,
   };
 }
 
@@ -44,6 +45,13 @@ export function fieldErrors(error: unknown, ...fields: string[]): readonly strin
     });
   }
   return [];
+}
+
+/** As chaves do 422 (`e2ee.bindings.app.path`, `e2ee.trusted_signers.0`…); vazio para outro erro. */
+export function errorKeys(error: unknown): string[] {
+  return error instanceof HttpErrorResponse && error.status === 422
+    ? Object.keys((error.error ?? {}) as Record<string, unknown>)
+    : [];
 }
 
 /** Erro do `PUT` como o app atual o dizia: os 422 juntos, ou o status HTTP. */

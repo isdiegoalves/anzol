@@ -9,7 +9,7 @@ import { UrlLock } from '../token/url-lock';
 import { ChangedElsewhere, ChecksStore, UnlockFailed } from './checks-store';
 import { attentionText, updateError } from './url-settings';
 
-export type SectionId = 'signature' | 'schema' | 'response' | 'privacy';
+export type SectionId = 'signature' | 'schema' | 'e2ee' | 'response' | 'privacy';
 
 export interface ChangeLine {
   label: string;

@@ -1,5 +1,6 @@
 import {
   BodyMatcher,
+  DecryptionCondition,
   FAULT_LABELS,
   RULE_DEFAULT_STATUS,
   Rule,
@@ -76,6 +77,7 @@ function buildWords(rule: Rule): string {
     ...(match.body ?? []).map(bodyWords),
     ...(match.signature ? [signatureWords(match.signature)] : []),
     ...(match.schema ? [schemaWords(match.schema)] : []),
+    ...(match.decryption ? [decryptionWords(match.decryption)] : []),
   ];
   const scenario = rule.scenario?.name ? rule.scenario : null;
   return [
@@ -120,6 +122,19 @@ function schemaWords(schema: 'valid' | 'invalid'): string {
   return schema === 'valid'
     ? $localize`a body valid against the schema`
     : $localize`a body invalid against the schema`;
+}
+
+function decryptionWords(decryption: DecryptionCondition): string {
+  switch (decryption) {
+    case 'valid':
+      return $localize`an attribute decrypted and verified`;
+    case 'invalid':
+      return $localize`an attribute that failed decryption`;
+    case 'unknown_kid':
+      return $localize`an attribute encrypted to an unknown key`;
+    case 'absent':
+      return $localize`the attribute in plaintext`;
+  }
 }
 
 function pathWords(path: NonNullable<Rule['match']>['path']): string {
@@ -228,6 +243,9 @@ export function matchLine(rule: Rule): string {
   if (match.schema) {
     parts.push(schemaShort(match.schema));
   }
+  if (match.decryption) {
+    parts.push(decryptionShort(match.decryption));
+  }
   if (parts.length === 0) {
     parts.push($localize`any request`);
   }
@@ -249,6 +267,19 @@ function signatureShort(signature: SignatureCondition): string {
 
 function schemaShort(schema: SchemaCondition): string {
   return schema === 'valid' ? $localize`schema valid` : $localize`schema invalid`;
+}
+
+function decryptionShort(decryption: DecryptionCondition): string {
+  switch (decryption) {
+    case 'valid':
+      return $localize`decryption valid`;
+    case 'invalid':
+      return $localize`decryption invalid`;
+    case 'unknown_kid':
+      return $localize`decryption unknown key`;
+    case 'absent':
+      return $localize`decryption plaintext`;
+  }
 }
 
 /**

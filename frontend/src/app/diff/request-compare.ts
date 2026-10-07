@@ -38,6 +38,7 @@ const CHECK_LABELS: Record<CheckResult['kind'], string> = {
   signature: 'Signature',
   schema: 'Schema',
   rule: 'Answer',
+  decryption: 'Decryption',
 };
 
 /**

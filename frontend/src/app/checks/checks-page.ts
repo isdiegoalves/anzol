@@ -22,6 +22,7 @@ import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChangesBar } from './changes-bar';
 import { ChecksDraft, SectionId, StoredDraft, changeText } from './checks-draft';
+import { E2eeCard } from './e2ee-card';
 import { HealthCard } from './health-card';
 import { PrivacyCard } from './privacy-card';
 import { ResponseCard } from './response-card';
@@ -46,6 +47,7 @@ export function checksSections() {
       title: $localize`Schema validation`,
       icon: 'braces',
     },
+    { id: 'e2ee', label: 'E2EE', title: $localize`E2EE decryption`, icon: 'lock' },
     { id: 'response', label: $localize`Response`, title: $localize`Response`, icon: 'reply' },
     { id: 'privacy', label: $localize`Privacy`, title: $localize`Privacy`, icon: 'lock' },
     { id: 'health', label: $localize`Health`, title: $localize`Health`, icon: 'activity' },
@@ -76,6 +78,7 @@ interface SectionState {
     ChangesBar,
     SignatureCard,
     SchemaCard,
+    E2eeCard,
     ResponseCard,
     PrivacyCard,
     HealthCard,
@@ -321,6 +324,9 @@ function statesOf(token: Token | null): Partial<Record<PageSection, SectionState
           shown: dialect ? $localize`On · ${dialect}:dialect:` : $localize`On`,
           spoken: $localize`on`,
         }
+      : { shown: $localize`Off`, spoken: $localize`off` },
+    e2ee: token.e2ee
+      ? { shown: $localize`On`, spoken: $localize`on` }
       : { shown: $localize`Off`, spoken: $localize`off` },
     response: same(String(token.default_status)),
     privacy: token.protected

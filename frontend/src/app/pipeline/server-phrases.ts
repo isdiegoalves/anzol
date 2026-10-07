@@ -118,6 +118,14 @@ function conditionFamilies(): Family[] {
       (expected, got) => $localize`schema: expected ${expected}:expected:, got ${got}:got:`,
     ],
     [
+      /^decryption: expected (\w+), got not configured$/,
+      (expected) => $localize`decryption: expected ${expected}:expected:, got not configured`,
+    ],
+    [
+      /^decryption: expected (\w+), got (.+)$/,
+      (expected, got) => $localize`decryption: expected ${expected}:expected:, got ${got}:got:`,
+    ],
+    [
       /^scenario (.+?): expected state (".*"), got (".*")$/s,
       (name, expected, got) =>
         $localize`scenario ${name}:name:: expected state ${expected}:expected:, got ${got}:got:`,

@@ -19,7 +19,16 @@ import type { Scenario } from './scenario-store';
  */
 
 /** Campos de `match` que a tela sabe comparar; qualquer outro com valor impede a prova. */
-const KNOWN_MATCH = new Set(['method', 'path', 'query', 'headers', 'body', 'signature', 'schema']);
+const KNOWN_MATCH = new Set([
+  'method',
+  'path',
+  'query',
+  'headers',
+  'body',
+  'signature',
+  'schema',
+  'decryption',
+]);
 
 /** Regra sem nenhuma condição e sem estado exigido: responde tudo o que chegar a ela (WM-30). */
 export function isCatchAll(rule: Rule): boolean {
@@ -34,6 +43,7 @@ export function isCatchAll(rule: Rule): boolean {
     !match.body?.length &&
     !match.signature &&
     !match.schema &&
+    !match.decryption &&
     unknownConditions(match).length === 0
   );
 }
@@ -57,6 +67,7 @@ export function shadows(a: Rule, b: Rule): boolean {
     (ma.body ?? []).every((item) => (mb.body ?? []).some((other) => sameBody(item, other))) &&
     (!ma.signature || ma.signature === mb.signature) &&
     (!ma.schema || ma.schema === mb.schema) &&
+    (!ma.decryption || ma.decryption === mb.decryption) &&
     scenarioImplied(a.scenario, b.scenario)
   );
 }
@@ -110,17 +121,18 @@ export function catchAllPlacement(rules: readonly Rule[]): Placement | null {
   };
 }
 
-export type NeverMatch = { cause: 'signature' | 'schema' } | { cause: 'state'; state: string };
+export type NeverMatch =
+  { cause: 'signature' | 'schema' | 'decryption' } | { cause: 'state'; state: string };
 
 /**
- * A regra não pode casar (E-11): exige assinatura ou schema e a URL não verifica (`null`; ausente é
+ * A regra não pode casar (E-11): exige assinatura, schema ou decifra e a URL não verifica (`null`; ausente é
  * configuração ainda desconhecida e não acusa nada); ou exige um estado que nenhuma outra regra
  * ligada do cenário produz, que não é Started nem o estado de agora (provável erro de digitação).
  */
 export function neverMatches(
   rule: Rule,
   rules: readonly Rule[],
-  token: Pick<Token, 'signature' | 'schema'>,
+  token: Pick<Token, 'signature' | 'schema' | 'e2ee'>,
   scenarios: readonly Scenario[],
 ): NeverMatch | null {
   if (rule.match?.signature && token.signature === null) {
@@ -128,6 +140,9 @@ export function neverMatches(
   }
   if (rule.match?.schema && token.schema === null) {
     return { cause: 'schema' };
+  }
+  if (rule.match?.decryption && token.e2ee === null) {
+    return { cause: 'decryption' };
   }
   const name = rule.scenario?.name;
   const state = rule.scenario?.requiredState;
@@ -147,7 +162,7 @@ export function neverMatches(
 }
 
 export type Diagnosis =
-  | { kind: 'never'; cause: 'signature' | 'schema' }
+  | { kind: 'never'; cause: 'signature' | 'schema' | 'decryption' }
   | { kind: 'never'; cause: 'state'; state: string }
   | { kind: 'shadowed'; by: Rule }
   | { kind: 'likely'; by: Rule };
@@ -167,7 +182,7 @@ export interface ShadowEvidence {
  */
 export function diagnose(
   rules: readonly Rule[],
-  token: Pick<Token, 'signature' | 'schema'>,
+  token: Pick<Token, 'signature' | 'schema' | 'e2ee'>,
   scenarios: readonly Scenario[],
   evidence?: ShadowEvidence,
 ): Map<number, Diagnosis> {

@@ -3617,4 +3617,227 @@ export const translations: Record<string, string> = {
   '2089017016852932432': 'todos',
   // Share (coluna da tabela "Who answered" de Métricas)
   insightsShareColumn: 'Participação',
+  // E2EE decryption
+  '5407075505681814999': 'Decifra E2EE',
+  // Delete key {$INTERPOLATION}?
+  '3592389072273364180': 'Apagar a chave {$INTERPOLATION}?',
+  //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is erased and can't be recovered.
+  '7646029928332588558':
+    ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como chave desconhecida e não são decifradas. A chave privada é apagada e não tem como recuperar. ',
+  // Delete key
+  '73979960734847259': 'Apagar chave',
+  //  One attribute of the JSON body arrives as a JWE (ECDH-ES, A256GCM) to a key of this URL, carrying a JWS (ES256) from a trusted signer. Each request is marked Decrypted, Invalid with the reason, Unknown key or Not encrypted; the opened value shows in the request, never in shared links or live events.
+  '2745673060285287630':
+    ' Um atributo do corpo JSON chega como JWE (ECDH-ES, A256GCM) para uma chave desta URL, levando um JWS (ES256) de um signatário confiável. Cada requisição fica marcada como Decifrada, Inválida com o motivo, Chave desconhecida ou Não cifrada; o valor aberto aparece na requisição, nunca em links compartilhados nem em eventos ao vivo. ',
+  // Decrypt an attribute of each request
+  '8050605225511000111': 'Decifrar um atributo de cada requisição',
+  // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
+  '8123080752418416800':
+    'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor aberto tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
+  //  Saving turns decryption off. Requests already received keep the result they got on arrival.
+  '8026308678483831984':
+    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada. ',
+  // Encrypted attribute
+  '6159255639867175033': 'Atributo cifrado',
+  // $.payload
+  '4802210639784264889': '$.payload',
+  // JSONPath to one value of the body.
+  '3311943887891481899': 'JSONPath de um valor do corpo.',
+  // Audience (aud)
+  '2275478400103842309': 'Audiência (aud)',
+  // The aud claim must include it.
+  '8334474243803173758': 'O claim aud precisa incluí-la.',
+  // The audience is required, up to 256 characters.
+  '1070502496184655538': 'A audiência é obrigatória, com até 256 caracteres.',
+  // Max age (seconds)
+  '1223920162589771363': 'Idade máxima (segundos)',
+  // How old the iat may be: 60 to 604800.
+  '6441223185491768805': 'Quanto o iat pode ter de idade: 60 a 604800.',
+  // An integer between 60 and 604800.
+  '1371521921753704975': 'Um inteiro entre 60 e 604800.',
+  // Reject plaintext: an attribute that is not a JWE is invalid (downgrade)
+  '5989804956279121487': 'Recusar texto em claro: atributo que não é JWE é inválido (downgrade)',
+  // Claims checked against the envelope
+  '6121032496925148158': 'Claims conferidos com o envelope',
+  //  JSONPath of the plaintext value each claim must equal. Ignore case compares both sides in lower case.
+  '5943304206473534982':
+    ' JSONPath do valor em claro a que cada claim tem de ser igual. Ignorar maiúsculas compara os dois lados em minúsculas. ',
+  // Ignore case
+  '840459527132509616': 'Ignorar maiúsculas',
+  // Trusted signers
+  '8964988845458054386': 'Signatários confiáveis',
+  //  JSON array of 1 to 10 public JWKs (EC P-256, ES256, with kid and without d) of whoever signs.
+  '3799202753314949753':
+    ' Lista JSON de 1 a 10 JWKs públicas (EC P-256, ES256, com kid e sem d) de quem assina. ',
+  // Encryption keys
+  '5425112736283841497': 'Chaves de cifra',
+  // Senders encrypt to the public key; the private key never leaves the server. Up to {$INTERPOLATION}: the current one and the next, for rotation.
+  '964229197384454782':
+    'Quem envia cifra para a chave pública; a privada nunca sai do servidor. Até {$INTERPOLATION}: a atual e a próxima, para a rotação.',
+  // Public JWKS
+  '631765191507553383': 'JWKS público',
+  // created {$INTERPOLATION}
+  '6145219817193754759': 'criada em {$INTERPOLATION}',
+  // Copy public key
+  '8744575660594907881': 'Copiar chave pública',
+  // No key yet: generate one and give its public key to the sender.
+  '3681236514121278062': 'Nenhuma chave ainda: gere uma e passe a chave pública a quem envia.',
+  // Key ID (kid)
+  '6012739271167439204': 'ID da chave (kid)',
+  // enc-v1
+  '9097663477321127602': 'enc-v1',
+  // Optional; letters, digits, . _ -
+  '7273159933323824034': 'Opcional; letras, dígitos, . _ -',
+  // 1 to 64 letters, digits, dots, underscores or dashes.
+  '8369148749855739679': '1 a 64 letras, dígitos, pontos, sublinhados ou hifens.',
+  // Generate key
+  '3422532865107186286': 'Gerar chave',
+  //  This URL already has {$INTERPOLATION} keys. Delete the old one before generating another.
+  '7921920284685218787':
+    ' Esta URL já tem {$INTERPOLATION} chaves. Apague a antiga antes de gerar outra. ',
+  // Paste a JSON array of public JWKs: [{"kty": "EC", …}].
+  '7247722906740193394': 'Cole uma lista JSON de JWKs públicas: [{"kty": "EC", …}].',
+  // Paste at least one public JWK of the sender.
+  '6837025103404078115': 'Cole ao menos uma JWK pública de quem envia.',
+  // {$path} (ignore case)
+  '2312635762555899740': '{$path} (ignorando maiúsculas)',
+  // Reject plaintext
+  '7612911005117902438': 'Recusar texto em claro',
+  // Key {$kid} generated
+  '5657278441646503409': 'Chave {$kid} gerada',
+  // Could not generate the key ({$status}).
+  '2273086929734881652': 'Não foi possível gerar a chave ({$status}).',
+  // Key {$kid} deleted
+  '1582049857507548445': 'Chave {$kid} apagada',
+  // Could not delete the key ({$status}).
+  '6451737655822499020': 'Não foi possível apagar a chave ({$status}).',
+  // Copied the public key {$kid}
+  '6207131896645598747': 'Chave pública {$kid} copiada',
+  // Ignore case in {$claim}
+  '7511986161967815160': 'Ignorar maiúsculas em {$claim}',
+  // Delete key {$kid}
+  '6455727995340679242': 'Apagar chave {$kid}',
+  // Copy public key {$kid}
+  '1829917073783003479': 'Copiar chave pública {$kid}',
+  // none
+  '5734888861256751765': 'nenhuma',
+  // 1 key
+  '921479507001707158': '1 chave',
+  // {$count} keys
+  '1045003028705186050': '{$count} chaves',
+  // the URL signature did not pass, so nothing was opened
+  '4099669960109730203': 'a assinatura da URL não passou, então nada foi aberto',
+  // the body is not JSON
+  '4648007250808057723': 'o corpo não é JSON',
+  // the attribute is missing
+  '6098038580826029757': 'o atributo não veio',
+  // the attribute arrived in plaintext
+  '4095206439753465736': 'o atributo chegou em claro',
+  // the JWE is over 256 KiB
+  '2837686852832932293': 'o JWE passa de 256 KiB',
+  // the attribute is not a compact JWE
+  '8770002820047482648': 'o atributo não é um JWE compacto',
+  // the JWE alg is not ECDH-ES
+  '1918584685182351139': 'o alg do JWE não é ECDH-ES',
+  // the JWE enc is not A256GCM
+  '3268614483128049150': 'o enc do JWE não é A256GCM',
+  // a compressed JWE (zip) is not accepted
+  '7603376367620961839': 'JWE comprimido (zip) não é aceito',
+  // the JWE has no kid
+  '6337484597755680831': 'o JWE não tem kid',
+  // the JWE cty is not JWT
+  '1235433314706885881': 'o cty do JWE não é JWT',
+  // the ephemeral key (epk) is invalid
+  '1180958178122264389': 'a chave efêmera (epk) é inválida',
+  // the ephemeral key (epk) is off the P-256 curve
+  '4784819155901149829': 'a chave efêmera (epk) está fora da curva P-256',
+  // decryption failed: another key, or the JWE was altered
+  '4174154984477755287': 'a decifra falhou: outra chave, ou o JWE foi alterado',
+  // there is no JWS inside the JWE
+  '4978491312377245090': 'não há JWS dentro do JWE',
+  // the JWS alg is not ES256
+  '3510604211532383033': 'o alg do JWS não é ES256',
+  // the JWS kid is not a trusted signer
+  '5736766313539511422': 'o kid do JWS não é de um signatário confiável',
+  // the JWS signature does not verify
+  '6324024128697707385': 'a assinatura do JWS não confere',
+  // the JWS claims are not a JSON object
+  '430255637426026978': 'os claims do JWS não são um objeto JSON',
+  // aud does not include the audience
+  '8495543216487372431': 'o aud não inclui a audiência',
+  // jti does not match the envelope
+  '5542504737015617522': 'o jti não bate com o envelope',
+  // evt does not match the envelope
+  '841781475653216409': 'o evt não bate com o envelope',
+  // app does not match the envelope
+  '3296686154338099088': 'o app não bate com o envelope',
+  // the JWS has no iat
+  '117103034887306727': 'o JWS não tem iat',
+  // iat is outside the allowed window
+  '618391409188079226': 'o iat está fora da janela permitida',
+  // the JWS has no data claim
+  '3824204479501526840': 'o JWS não tem o claim data',
+  // Decrypted · repeated jti
+  '9201304644456821758': 'Decifrada · jti repetido',
+  // Decrypted
+  '8002782093253209415': 'Decifrada',
+  // key {$kid} · signed by {$signer}
+  '1802912247230774408': 'chave {$kid} · assinada por {$signer}',
+  // Repeated jti
+  '3554156791085147337': 'jti repetido',
+  // Unknown encryption key
+  '8329291668612455386': 'Chave de cifra desconhecida',
+  // The JWE kid {$kid} is not one of this URL's keys
+  '6338941906368435061': 'O kid {$kid} do JWE não é de uma chave desta URL',
+  // Unknown kid
+  '7820009087498142311': 'kid desconhecido',
+  // Not encrypted
+  '8872070947491832220': 'Não cifrada',
+  // The attribute arrived in plaintext, which this URL accepts
+  '6319658340765253763': 'O atributo chegou em claro, o que esta URL aceita',
+  // Plaintext
+  '4603020359259128052': 'Em claro',
+  // Decryption invalid
+  '7047936464040307733': 'Decifra inválida',
+  // decryption: expected {$expected}, got not configured
+  '7613681671970386143': 'decifra: não configurada nesta URL (a regra pede {$expected})',
+  // decryption: expected {$expected}, got {$got}
+  '5656599743816655939': 'decifra: esperava {$expected}, veio {$got}',
+  // Decrypted
+  '3636098527993575441': 'Aberto',
+  //  The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
+  '5150909776707982349':
+    ' O atributo como foi decifrado na chegada (o claim data do JWS). O corpo mantém o JWE como chegou. ',
+  // Decrypted attribute
+  '6641968519268196135': 'Atributo decifrado',
+  // Key: {$kid}
+  '2032685813231396424': 'Chave: {$kid}',
+  // Signed by: {$signer}
+  '8138824404534403132': 'Assinada por: {$signer}',
+  // First request with this jti: #{$id}
+  '812133857419478642': 'Primeira requisição com este jti: #{$id}',
+  // Decryption
+  '1160913992019279897': 'Decifra',
+  // Never matches: this URL does not decrypt.
+  '4919114349019836568': 'Nunca casa: esta URL não decifra.',
+  // Unknown key
+  '2035586137456321065': 'Chave desconhecida',
+  // This URL does not decrypt.
+  '1182506711512105977': 'Esta URL não decifra.',
+  // an attribute decrypted and verified
+  '2446612875410357651': 'um atributo decifrado e verificado',
+  // an attribute that failed decryption
+  '8960455913991763064': 'um atributo cuja decifra falhou',
+  // an attribute encrypted to an unknown key
+  '6367990955124934417': 'um atributo cifrado para uma chave desconhecida',
+  // the attribute in plaintext
+  '1320018065265549500': 'o atributo em claro',
+  // decryption valid
+  '8078563560877042150': 'decifra válida',
+  // decryption invalid
+  '129354642043346413': 'decifra inválida',
+  // decryption unknown key
+  '6145758972268919856': 'decifra com chave desconhecida',
+  // decryption plaintext
+  '2585131728586397201': 'decifra em claro',
 };

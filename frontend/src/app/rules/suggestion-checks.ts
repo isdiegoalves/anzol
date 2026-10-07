@@ -212,6 +212,7 @@ function hasNoCondition(rule: Rule): boolean {
     !match.body?.length &&
     !match.signature &&
     !match.schema &&
+    !match.decryption &&
     !rule.scenario?.name
   );
 }
