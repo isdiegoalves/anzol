@@ -97,7 +97,8 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
 - `GET /token/{id}/shares` lista os ativos; `DELETE /token/{id}/shares/{sid}` revoga (`204`; link de outra URL, 404).
   No máximo 50 ativos por URL (422 acima).
 - `GET /share/{sid}` é público: a mensagem como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
-  `expires_at`, **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com toda ocorrência do UUID no
+  `expires_at`, sem o atributo decifrado (`decrypted`; ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)) e
+  **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com toda ocorrência do UUID no
   JSON inteiro trocada por `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`) — na `url`, nos cabeçalhos
   (`referer`), na query, no `request` e no corpo (o ping do GitHub traz a própria URL) —, também escrito com
   maiúsculas ou com caracteres em `%hh` (`%2D` no lugar do hífen). O UUID é do servidor, não dado do remetente: do

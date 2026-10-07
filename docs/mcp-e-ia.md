@@ -24,7 +24,9 @@ O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (q
 ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão.
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
-rota devolveria, com o segredo de assinatura mascarado. Validação, URL ou mensagem inexistente e limite viram erro de
+rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o
+resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)). O `update_url` mantém o bloco
+`e2ee`, mas não o muda: a política e as chaves de cifra só pela API. Validação, URL ou mensagem inexistente e limite viram erro de
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 

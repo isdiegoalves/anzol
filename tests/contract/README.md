@@ -405,6 +405,25 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   lê `schema: null`; mensagem gravada antes do schema continua com `null`). A leitura de tokens e mensagens
   gravados no Redis sem o campo (app Laravel e versões anteriores) fica com os testes do backend.
 
+- **Decifra de atributo (E2EE)** (`specs/api/e2ee-*.spec.ts`, `specs/event/e2ee.spec.ts`, helpers em
+  `support/e2ee.ts`). O teste assina (JWS ES256) e cifra (JWE ECDH-ES + A256GCM) com o pacote `jose`, outra
+  implementação que não a do servidor; os vetores que o `jose` se recusa a gerar (`zip`, `epk` fora da curva, JWS
+  `alg=none`) são montados à mão. `e2ee` e `e2ee_keys` entraram em `CHAVES_TOKEN` e `decryption` em
+  `CHAVES_MENSAGEM`.
+  - *Configuração* (`e2ee-config.spec.ts`): o bloco volta com os padrões e só chaves públicas; exige segredo de
+    leitura; JWK com `d`, fora da curva, de outra curva, sem `kid`, com `alg`/`use` errados ou `kid` repetido → 422
+    na chave em pontos; a JWK de um remetente externo é aceita como vem.
+  - *Chaves* (`e2ee-chaves.spec.ts`): gerar (até duas), apagar, JWKS público mesmo na URL protegida, 401 sem
+    segredo para gerar e apagar, `PUT` mantém as chaves.
+  - *Receptor* (`e2ee-receptor.spec.ts`): ida e volta com acento e emoji, rotação, reentrega com `duplicate_of`,
+    caixa divergente no `app`, e cada falha com o motivo: forja do canal, troca de ciphertext, downgrade, HMAC com
+    1 byte alterado, `kid` desconhecido, `alg`/`enc`/`zip`, `epk` fora da curva, JWE grande, JWS `none` e `HS256`,
+    `iat` e `aud`.
+  - *Regras* (`e2ee-regras.spec.ts`): `match.decryption` com as regras do laboratório dá 200, 500, 400 e 400, e
+    nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
+  - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem
+    com o segredo, 401 sem ele; o link só-leitura e o evento levam `decryption` e nunca `decrypted`.
+
 - **Busca de mensagens** (`specs/api/busca-*.spec.ts`, helpers em `support/busca.ts`; §1 do plano
   "busca-filtro-diff"). `POST /token/{id}/requests/search` `{text?, match?, sorting?, page?, per_page?}` responde
   200 com a forma do `GET /token/{id}/requests` (`data, total, per_page, current_page, is_last_page, from, to`).
