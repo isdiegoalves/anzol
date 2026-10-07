@@ -2,7 +2,7 @@
 
 | Rota | O que faz |
 |---|---|
-| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`, `read_secret`) |
+| `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`, `e2ee`, `read_secret`) |
 | `GET`/`PUT`/`DELETE /token/{id}` | Lê, edita, apaga a URL (com as mensagens dela) |
 | `PUT /token/{id}/cors/toggle` | Liga/desliga os cabeçalhos CORS na resposta do webhook |
 | `ANY /{id}[/{status}][/...]` | O webhook: grava a requisição e responde com o padrão da URL |
@@ -26,6 +26,8 @@
 | `POST /token/{id}/request/{requestId}/share` | Link só-leitura de uma mensagem, com expiração e máscara dos valores sensíveis (ver [Links só-leitura](privacidade.md#links-só-leitura)) |
 | `GET /token/{id}/shares`, `DELETE /token/{id}/shares/{sid}` | Lista os links ativos da URL; revoga um |
 | `GET /share/{sid}` | O link público: a mensagem, sem credencial nenhuma |
+| `POST /token/{id}/keys`, `DELETE /token/{id}/keys/{kid}` | Gera (até duas) ou apaga uma chave de cifra da URL (ver [Decifra de atributo](#decifra-de-atributo-e2ee)) |
+| `GET /token/{id}/jwks.json` | As chaves públicas de cifra da URL, sem credencial nenhuma |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -119,6 +121,78 @@ validação falhar (por exemplo, `$ref` recursivo numa instância aninhada demai
 não revalida o histórico. O evento `request.created` leva o mesmo `schema`. Mensagens e URLs gravadas antes da
 validação trazem `schema: null`.
 
+## Decifra de atributo (E2EE)
+
+Com `e2ee`, a URL abre um atributo do corpo que chega cifrado de ponta a ponta: o remetente assina o objeto
+(JWS) e cifra a assinatura para a chave pública da URL (JWE), e só a URL decifra. O resto do envelope fica em
+claro, e a assinatura HMAC da URL continua valendo sobre o corpo como chegou. É o formato do laboratório do
+canal de notificações:
+
+| Camada | Formato |
+|---|---|
+| Externa | JWE compacto, `alg=ECDH-ES`, `enc=A256GCM`, P-256, `kid` da chave de cifra da URL, `cty=JWT`, sem `zip` |
+| Interna | JWS compacto, `alg=ES256`, `kid` da chave de assinatura do remetente; claims `iss`, `aud`, `jti`, `iat`, `evt`, `app` e `data` (o objeto original do atributo) |
+
+```json
+{ "read_secret": "…", "e2ee": {
+    "path": "$.payload", "required": true, "audience": "anzol-lab",
+    "bindings": { "jti": "$.eventId", "evt": "$.tipoEvento.nome",
+                  "app": { "path": "$.servico.nome", "ignore_case": true } },
+    "max_age_seconds": 43200,
+    "trusted_signers": [ { "kty": "EC", "crv": "P-256", "kid": "remetente-sig-1", "x": "…", "y": "…" } ] } }
+```
+
+| Campo | Valor |
+|---|---|
+| `path` | JSONPath definido (sem filtro nem curinga) do atributo cifrado no envelope |
+| `required` | padrão `true`: o atributo que não é JWE é uma falha (`downgrade`), nunca texto aceito; `false` deixa passar como `absent` |
+| `audience` | o `aud` que o JWS tem de ter (texto, ou lista que o contenha) |
+| `bindings` | onde o envelope em claro guarda o que `jti`, `evt` e `app` do JWS têm de repetir: o JSONPath (comparação exata) ou `{path, ignore_case}` |
+| `max_age_seconds` | 60 a 604800 (padrão 43200, 12 h): idade máxima do `iat`; até 5 minutos no futuro é aceito |
+| `trusted_signers` | 1 a 10 JWKs **públicas** EC P-256 de assinatura ES256, com `kid` único; `alg` (se houver) `ES256`, `use` (se houver) `sig`. Vale a chave gerada fora do Anzol (Java, Insomnia) como ela vem |
+
+Ligar `e2ee` exige `read_secret` na URL (e remover o segredo com ela ligada é recusado): o texto aberto nunca
+fica à vista de quem só tem a URL. No `PUT`, `e2ee` ausente ou `null` desliga a decifra, como os demais
+campos. JWK com a parte privada `d`, fora da P-256, com o ponto fora da curva, sem `kid` ou com `kid` repetido
+dá 422 com a chave em pontos (`e2ee.trusted_signers.0`). A política só tem chaves públicas: nada nela é segredo.
+
+**Chaves de cifra.** `POST /token/{id}/keys` (`{"kid": "…"}` opcional, 1 a 64 letras, dígitos, `.`, `_` ou
+`-`; sem ele, `enc-<AAAAMMDD>-<4 hex>`) gera um par EC P-256 no servidor e devolve `201`
+`{kid, created_at, jwk}` só com a pública (`use=enc`, `alg=ECDH-ES`). A URL tem no máximo duas, para a rotação:
+gere a nova, troque o remetente e apague a antiga com `DELETE /token/{id}/keys/{kid}` (`204`; `404` sem ela);
+a mensagem cifrada para a antiga abre enquanto ela existir. A privada fica só no Redis: nenhuma rota, ferramenta
+do MCP ou log a devolve. O token lista as chaves em `e2ee_keys` e `GET /token/{id}/jwks.json` publica as
+públicas sem pedir o segredo de leitura, como todo JWKS.
+
+Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
+`{state, kid, signature_kid, reason, jti, duplicate_of}`. Quando `valid`, a mensagem traz também `decrypted`
+(o claim `data`); o `content` fica como chegou. A conferência segue esta ordem e para na primeira falha:
+
+| Passo | `state` / `reason` |
+|---|---|
+| A assinatura HMAC da URL (quando configurada) não é válida | `invalid` / `hmac_failed` (sem decifrar) |
+| Corpo que não é JSON; atributo ausente; atributo que não é JWE | `invalid` / `body_not_json`, `attribute_missing`, `downgrade` (com `required: false`, `absent`) |
+| Cabeçalho do JWE, conferido antes de decifrar | `invalid` / `too_large` (acima de 256 KiB), `malformed_jwe`, `alg_not_allowed`, `enc_not_allowed`, `zip_present`, `kid_missing`, `cty_not_jwt`, `epk_invalid`, `epk_off_curve` |
+| `kid` que a URL não tem | `unknown_kid` |
+| Decifra | `invalid` / `decrypt_failed` |
+| JWS de dentro | `invalid` / `jws_missing`, `jws_alg_not_allowed` (`none`, `HS256`…), `signer_unknown`, `signature_invalid`, `claims_malformed` |
+| Claims contra a URL e o envelope | `invalid` / `aud_mismatch`, `jti_mismatch`, `evt_mismatch`, `app_mismatch`, `iat_missing`, `iat_outside_window`, `data_missing` |
+
+A origem é o `signature_kid`, a chave de `trusted_signers` que assinou; o `iss` não é conferido. A reentrega
+de um `jti` já decifrado (dentro da janela do `iat`) continua `valid` e leva em `duplicate_of` o uuid da primeira
+mensagem. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
+`match.decryption`. O laboratório responde 500 ao `kid` desconhecido (o job tenta de novo) e 400 à cifra
+inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexões presas responde 503:
+
+```json
+[ { "name": "kid desconhecido", "match": { "decryption": "unknown_kid" }, "response": { "status": 500 } },
+  { "name": "cifra inválida",   "match": { "decryption": "invalid" },     "response": { "status": 400 } } ]
+```
+
+`decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, na busca e no `requests/wait`.
+O link só-leitura, o evento `request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e
+a IA local não o recebe.
+
 ## Regras de resposta
 
 Cada URL pode ter até 100 regras que escolhem a resposta do webhook pela requisição, como um mock
@@ -154,6 +228,7 @@ responde como sempre (`default_*`, `timeout`, `retry_after`, status pelo caminho
 | `match.query`, `match.headers` | nome → um de `equals`, `contains`, `regex` ou `present: true\|false`; nome de cabeçalho sem caixa. Valem os valores como gravados na mensagem (último repetido; `content-type` e `content-length` vazios contam como presentes) |
 | `match.signature` | `valid`, `invalid` ou `absent` (falta o cabeçalho de assinatura; ver [Verificação de assinatura](#verificação-de-assinatura)). URL sem verificação não casa nenhum dos três. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
 | `match.schema` | `valid` ou `invalid` (o resultado da [validação de schema](#validação-de-schema) gravado na mensagem). URL sem schema não casa nenhum dos dois. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
+| `match.decryption` | `valid`, `invalid`, `unknown_kid` ou `absent` (o `decryption.state` da [decifra de atributo](#decifra-de-atributo-e2ee)). URL sem `e2ee` não casa nenhum dos quatro. Ausente ou `null`: qualquer; o `GET` só mostra a chave quando há condição |
 | `match.body` | lista de condições com um de `equals`, `contains`, `regex`, `jsonPath: {path, equals?}` (sem `equals`, basta existir) ou `equalToJson` (objeto, ou texto com o JSON; ignora ordem de chaves e compara números pelo valor) |
 | `scenario` | `{name, requiredState?, newState?}` (ver [Cenários](#cenários)) |
 | `chance`, `active_from`, `active_until` | a regra vale só para uma porcentagem das requisições ou só numa janela de tempo (ver [Atrasos e falhas de rede](#atrasos-e-falhas-de-rede)); ausentes, não aparecem no `GET` |
@@ -348,7 +423,7 @@ mesmo tamanho, no formato das chaves do 422 (sem o índice da lista), para a tel
 
 | Chave | Condição |
 |---|---|
-| `match.method`, `match.path`, `match.signature`, `match.schema` | a condição de mesmo nome |
+| `match.method`, `match.path`, `match.signature`, `match.schema`, `match.decryption` | a condição de mesmo nome |
 | `match.query.<nome>`, `match.headers.<nome>` | o parâmetro ou cabeçalho, com o nome escrito como na regra (a frase usa o cabeçalho em minúsculas) |
 | `match.body.<i>` | a condição de índice `i` (a partir de 0) em `match.body` |
 | `scenario` | o estado do cenário (ver [Cenários](#cenários)) |
@@ -379,7 +454,7 @@ assim que houver mensagens suficientes que casam, ou quando o prazo acaba.
 
 | Campo | Regra |
 |---|---|
-| `match` | o `match` de uma regra (`method`, `path`, `query`, `headers`, `body`, `signature`, `schema`; ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
+| `match` | o `match` de uma regra (`method`, `path`, `query`, `headers`, `body`, `signature`, `schema`, `decryption`; ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
 | `after` | inteiro ≥ 0: só mensagens com `seq` maior. Ausente: todo o histórico guardado e as que chegarem |
 | `count` | 1 a 100 (padrão 1): quantas mensagens que casam são necessárias |
 | `timeout` | 0 a 300000 ms (padrão 30000): quanto esperar por mensagens novas; `0` só olha o histórico |

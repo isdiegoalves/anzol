@@ -637,4 +637,39 @@ class McpServerApiTest(
         assertThat(updated["e2ee_keys"].toList().map { it["kid"].asString() }).containsExactly("enc-v1")
         assertThat(api.tree(redis.opsForValue().get("token:$tokenId").orEmpty())["e2ee_keys"][0]["jwk"].has("d")).isTrue()
     }
+
+    @Test
+    @DisplayName("Dado uma mensagem decifrada, quando get_request e list_requests a devolvem, então trazem decryption e não decrypted")
+    fun e2ee_mensagemDecifrada_naoDeveSairNoMcp() {
+        val signer = anzol.e2ee.ecKey("remetente-sig-1")
+        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
+        val secret = mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee")
+        val key = api.json(api.send("POST", "/token/$tokenId/keys", """{"kid":"enc-v1"}""".toByteArray(), JSON_BODY + secret))
+        val id =
+            java.util.UUID
+                .randomUUID()
+                .toString()
+        val sealed =
+            anzol.e2ee.encrypt(
+                com.nimbusds.jose.jwk.ECKey
+                    .parse(key["jwk"].toString()),
+                anzol.e2ee.sign(signer, anzol.e2ee.claims(id, mapOf("segredo" to "aberto"))),
+            )
+        val requestId =
+            api
+                .send("POST", "/$tokenId", anzol.e2ee.envelope(id, sealed).toByteArray(), mapOf("Content-Type" to "application/json"))
+                .headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
+
+        val one = call("get_request", access + ("request_id" to requestId)).json()
+        val page = call("list_requests", access).json()
+
+        assertThat(one["decryption"]["state"].asString()).isEqualTo("valid")
+        assertThat(one.has("decrypted")).isFalse()
+        assertThat(page["data"][0].has("decrypted")).isFalse()
+        assertThat(listOf(one, page).map { it.toString() }).noneMatch { it.contains("aberto") }
+    }
 }

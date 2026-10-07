@@ -24,8 +24,9 @@ export interface Assinatura {
 export const ADAPTADOR = process.env.EVENT_ADAPTER ?? 'sse';
 const PRAZO_PADRAO = 30_000;
 
-export function assinar(tokenId: string): Promise<Assinatura> {
-  if (ADAPTADOR === 'sse') return assinarSse(tokenId);
+/** [headers] vão no pedido do stream (o segredo de leitura de uma URL protegida). */
+export function assinar(tokenId: string, headers: Record<string, string> = {}): Promise<Assinatura> {
+  if (ADAPTADOR === 'sse') return assinarSse(tokenId, headers);
   throw new Error(`EVENT_ADAPTER desconhecido: ${ADAPTADOR} (use sse)`);
 }
 
@@ -66,11 +67,11 @@ class Caixa {
  * `event: request.created` com `data:` = JSON `{request, total, truncated, removed}`.
  * A assinatura conta como pronta quando chegam o status 200 e o Content-Type do stream.
  */
-async function assinarSse(tokenId: string): Promise<Assinatura> {
+async function assinarSse(tokenId: string, headers: Record<string, string>): Promise<Assinatura> {
   const caixa = new Caixa();
   const abortar = new AbortController();
   const res = await fetch(`${BASE_URL}/token/${tokenId}/stream`, {
-    headers: { Accept: 'text/event-stream' },
+    headers: { Accept: 'text/event-stream', ...headers },
     signal: abortar.signal,
   });
   if (res.status !== 200) throw new Error(`stream respondeu ${res.status}`);

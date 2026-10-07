@@ -11,7 +11,10 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolResult
 import io.modelcontextprotocol.spec.McpSchema.Tool
 import io.modelcontextprotocol.spec.McpSchema.ToolAnnotations
 import org.springframework.web.server.ResponseStatusException
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
 
 private val UUID_TEXT = Regex(UUID_PATTERN)
@@ -116,7 +119,11 @@ class McpToolkit(
             failure(error.statusCode.value(), error.reason.orEmpty())
         }
 
-    private fun success(value: Any): CallToolResult = CallToolResult.builder().addTextContent(jsonMapper.writeValueAsString(value)).build()
+    private fun success(value: Any): CallToolResult =
+        CallToolResult
+            .builder()
+            .addTextContent(jsonMapper.writeValueAsString(jsonMapper.valueToTree<JsonNode>(value).withoutDecrypted()))
+            .build()
 
     private fun invalid(errors: Map<String, List<String>>): CallToolResult =
         error(linkedMapOf("status" to STATUS_UNPROCESSABLE, "errors" to errors))
@@ -141,3 +148,23 @@ class McpToolkit(
 
 /** `token_id` (ou `request_id`) ausente ou fora do formato: o 422 que a ferramenta devolve. */
 fun missingUuid(name: String): Parsed.Invalid = Parsed.Invalid(mapOf(name to listOf("The ${name.replace('_', ' ')} must be a valid UUID.")))
+
+/**
+ * Sem o atributo decifrado (`decrypted`) de nenhuma mensagem, em qualquer nível da resposta: o agente lê o resultado da
+ * decifra, nunca o texto aberto. Mensagem é o objeto com `token_id` e `decryption`.
+ */
+private fun JsonNode.withoutDecrypted(): JsonNode {
+    when (this) {
+        is ObjectNode -> {
+            if (has("token_id") && has("decryption")) remove("decrypted")
+            properties().forEach { (_, child) -> child.withoutDecrypted() }
+        }
+
+        is ArrayNode -> {
+            forEach { it.withoutDecrypted() }
+        }
+
+        else -> {}
+    }
+    return this
+}

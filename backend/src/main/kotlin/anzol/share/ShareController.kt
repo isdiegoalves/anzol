@@ -208,7 +208,8 @@ class ShareController(
 
     /**
      * O link público: a mensagem como `GET /token/{id}/request/{rid}` a devolve (mascarada se o link pediu), mais
-     * `shared_at` e `expires_at`, **sempre sem o UUID da URL** (com ou sem máscara): sem `token_id`, e com toda ocorrência
+     * `shared_at` e `expires_at`, **sempre sem o UUID da URL** e sem o atributo decifrado (`decrypted`: o link vale sem o
+     * segredo de leitura): sem `token_id`, e com toda ocorrência
      * do UUID no JSON inteiro — `url`, cabeçalhos (`referer`), query, `request` e o corpo (o ping do GitHub traz a própria
      * URL) — trocada por [REDACTED], também escrita com maiúsculas ou com caracteres em `%hh`. O UUID é do servidor, não
      * dado do remetente: só ele sai do corpo. O link é de UMA mensagem; com o UUID, quem o tem enviaria à URL e, numa URL
@@ -229,6 +230,7 @@ class ShareController(
         val tree =
             jsonMapper.valueToTree<ObjectNode>(masked).apply {
                 remove("token_id")
+                remove("decrypted")
                 put("shared_at", share.createdAt.format(TIMESTAMP))
                 put("expires_at", share.expiresAt.format(TIMESTAMP))
             }

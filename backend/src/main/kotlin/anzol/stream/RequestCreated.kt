@@ -26,7 +26,8 @@ data class RequestCreated(
 )
 
 /**
- * Monta o evento como o app antigo pretendia: quando o JSON da mensagem passa de 1.000.000
+ * Monta o evento como o app antigo pretendia, sem o atributo decifrado (`decrypted`, que só o `GET` da mensagem traz):
+ * quando o JSON da mensagem passa de 1.000.000
  * caracteres contados como o `json_encode` do PHP, `content`, `headers` e `user_agent` saem e
  * `truncated` fica true (o app antigo marcava mas mandava tudo; o contrato exige o corte).
  */
@@ -35,7 +36,7 @@ fun CapturedRequest.toRequestCreated(
     removed: List<RequestId>,
     jsonMapper: JsonMapper,
 ): RequestCreated {
-    val request: ObjectNode = jsonMapper.valueToTree(this)
+    val request: ObjectNode = jsonMapper.valueToTree<ObjectNode>(this).apply { remove("decrypted") }
     val truncated = phpJsonLength(jsonMapper.writeValueAsString(request)) > TRUNCATE_ABOVE
     if (truncated) request.remove(TRUNCATED_FIELDS)
     return RequestCreated(request, total, truncated, removed)

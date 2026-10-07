@@ -52,6 +52,21 @@ class RequestCreatedTest {
     @DisplayName("toRequestCreated")
     inner class ToRequestCreated {
         @Test
+        @DisplayName("Dado uma mensagem decifrada, quando monta o evento, então leva decryption e não leva decrypted")
+        fun toRequestCreated_decifrada_naoDeveLevarOAberto() {
+            val decrypted =
+                message("{}").copy(
+                    decryption = anzol.e2ee.DecryptionResult(anzol.e2ee.DecryptionState.VALID, kid = "enc-v1"),
+                    decrypted = jsonMapper.readTree("""{"segredo":"aberto"}"""),
+                )
+
+            val event = decrypted.toRequestCreated(total = 1, removed = emptyList(), jsonMapper = jsonMapper)
+
+            assertThat(event.request["decryption"]["state"].asString()).isEqualTo("valid")
+            assertThat(event.request.has("decrypted")).isFalse()
+        }
+
+        @Test
         @DisplayName("Dado 990.000 letras, quando monta o evento, então não corta e manda a mensagem inteira")
         fun toRequestCreated_abaixoDoLimite_deveMandarTudo() {
             val event = message("a".repeat(990_000)).toRequestCreated(total = 1, removed = emptyList(), jsonMapper = jsonMapper)
