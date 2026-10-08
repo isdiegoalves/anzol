@@ -10,7 +10,7 @@ Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude C
 claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
 ```
 
-São 15 ferramentas:
+São 18 ferramentas:
 
 | Ferramenta | Rota da API |
 |---|---|
@@ -19,6 +19,7 @@ São 15 ferramentas:
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
 | `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
 | `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
+| `create_e2ee_lab`, `list_e2ee_scenarios`, `run_e2ee_scenarios` | `POST /e2ee-lab`, `GET /e2ee-lab/scenarios`, `POST /token/{id}/e2ee-lab/run` (ver [Laboratório E2EE](#laboratório-e2ee)) |
 
 O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
 ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão.
@@ -37,6 +38,28 @@ DNS rebinding/CSRF](privacidade.md#proteção-contra-dns-rebindingcsrf)); com `*
 O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs sem segredo de
 leitura, inclusive o `send` para a rede local quando `ANZOL_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica
 só em `127.0.0.1`; não ligue o MCP num app publicado.
+
+### Laboratório E2EE
+
+As três ferramentas do laboratório dão a um agente a [decifra de atributo](api.md#decifra-de-atributo-e2ee) em poucos
+passos, sem abrir a porta que o `create_url` e o `update_url` fecham (eles ignoram `e2ee`, para que um agente que lê
+o payload de terceiros não desligue a decifra nem ponha um remetente dele numa URL que já existe):
+
+- `create_e2ee_lab` só cria URL **nova**, com a marca `lab`, que nenhuma rota troca: segredos gerados (devolvidos só
+  aí), chaves de cifra `enc-v1` e `enc-v2`, um remetente de teste cuja privada fica no servidor, a política e as regras
+  do laboratório. O agente pode acrescentar JWKs públicas de remetentes (o cliente do convidado, por exemplo).
+- `run_e2ee_scenarios` só roda numa URL `lab` (422 nas demais): o servidor gera os 27 vetores, entrega cada um pela
+  captura real e devolve esperado × obtido. O resultado nunca traz o texto aberto, só se ele é igual ao enviado.
+- `list_e2ee_scenarios` lista o catálogo com o esperado de cada cenário.
+
+Um roteiro para a demonstração, pedido ao agente:
+
+> Crie um laboratório E2EE no Anzol, rode todos os cenários e me mostre quantos conferem e, se algum divergir, qual
+> e o que veio no lugar do esperado.
+
+O agente chama `create_e2ee_lab`, depois `run_e2ee_scenarios` com o `token_id` e o `read_secret` devolvidos, e
+resume o relatório (`27 de 27 conferem`). Para testar um cliente de fora, passe a JWK pública de assinatura dele em
+`trusted_signers` e o cabeçalho do HMAC do canal em `hmac_header`, e entregue as mensagens dele na URL criada.
 
 ## IA local
 

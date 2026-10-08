@@ -28,6 +28,8 @@
 | `GET /share/{sid}` | O link público: a mensagem, sem credencial nenhuma |
 | `POST /token/{id}/keys`, `DELETE /token/{id}/keys/{kid}` | Gera (até duas) ou apaga uma chave de cifra da URL (ver [Decifra de atributo](#decifra-de-atributo-e2ee)) |
 | `GET /token/{id}/jwks.json` | As chaves públicas de cifra da URL, sem credencial nenhuma |
+| `POST /e2ee-lab`, `GET /e2ee-lab/scenarios` | Cria uma URL de laboratório E2EE pronta; lista os 27 cenários (ver [Laboratório E2EE](#laboratório-e2ee)) |
+| `POST /token/{id}/e2ee-lab/run` | Roda os cenários numa URL de laboratório e compara com o esperado |
 
 Toda mensagem lida pela API (listagem, `GET` de uma e o `request` do evento) traz `seq`, inteiro
 estritamente crescente por URL na ordem em que o servidor gravou e nunca reaproveitado, nem depois
@@ -192,6 +194,35 @@ inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexõe
 `decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, na busca e no `requests/wait`.
 O link só-leitura, o evento `request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e
 a IA local não o recebe.
+
+### Laboratório E2EE
+
+`POST /e2ee-lab` cria uma URL **nova** pronta para testar a decifra: segredo de leitura e de HMAC gerados e
+devolvidos só nesta resposta (`read_secret`, `hmac_secret`), as chaves de cifra `enc-v1` e `enc-v2`, um remetente de
+teste `lab-sig-1` (a privada fica no Redis da URL e some com ela), a política com o envelope neutro (`$.payload`,
+`$.eventId`, `$.tipoEvento.nome`, `$.servico.nome` sem caixa, `aud` `anzol-lab`), HMAC genérico (sha256, hex) no
+cabeçalho `hmac_header` (padrão `X-Signature`) e as regras do laboratório: assinatura HMAC inválida ou ausente → 401,
+`unknown_kid` → 500, outra falha da decifra → 400, o resto 202. O corpo é opcional:
+`{hmac_header?, path?, bindings?, audience?, max_age_seconds?, trusted_signers?}`, com caminhos simples (`$.a.b`) e
+as JWKs públicas de outros remetentes antes da de teste. A URL tem a marca `lab` (`{signer_kid, expires_at}` no
+token), que nenhuma rota troca; vive 24 h sem renovar com o uso, e o servidor aceita até 20 ativas (422 em `lab`).
+
+`POST /token/{id}/e2ee-lab/run` (`{"scenarios"?: ["P1", "N4", …]}`; sem a lista, todos) gera cada vetor com as
+chaves e o remetente de teste da URL, entrega pela captura de verdade e compara status, estado e motivo:
+`{total, matched, results: [{code, description, expected, actual: {status, state, reason, kid, data_matches},
+ok, request_id}]}`. Só numa URL `lab` (422 nas demais), até seis rodadas por minuto por URL (429). O relatório não
+traz o texto aberto; `data_matches` diz se o `data` aberto é igual ao enviado. `GET /e2ee-lab/scenarios` lista o
+catálogo com o esperado da política padrão:
+
+| Código | Cenário | Esperado |
+|---|---|---|
+| P1, P2, P3, P3b, P5 | ida e volta, rotação (cifrado para `enc-v1` com `enc-v2` ativa), acento e emoji, números exatos, `app` com outra caixa | 202 `valid` (P5: `app_mismatch` se o `app` não ignora caixa) |
+| N1a, N1b, N1c | JWE sem JWS, signatário desconhecido, `kid` confiável com outra chave | 400 `jws_missing`, `signer_unknown`, `signature_invalid` |
+| N2, N3, N4 | ciphertext de outra mensagem, objeto em claro, `kid` que a URL não tem | 400 `jti_mismatch`, 400 `downgrade`, 500 `unknown_kid` |
+| N5a, N5b, N5c, N6 | `ECDH-ES+A256KW`, `A128CBC-HS256`, `zip=DEF`, `epk` fora da curva | 400 `alg_not_allowed`, `enc_not_allowed`, `zip_present`, `epk_off_curve` |
+| N7a, N7b | HMAC com outro segredo, corpo alterado depois do HMAC | 401 `hmac_failed` |
+| N11a, N11b | JWS `alg=none`, `HS256` | 400 `jws_alg_not_allowed` |
+| Xa…Xh | `app`, `aud` e `evt` (caixa) divergentes; JWE sem `cty`; JWS sem `data`; `iat` velho; JWE sem `kid`; JWE acima de 256 KiB | 400 com o motivo de cada um (Xe: `valid` se o `evt` ignora caixa) |
 
 ## Regras de resposta
 

@@ -423,6 +423,11 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem
     com o segredo, 401 sem ele; o link só-leitura e o evento levam `decryption` e nunca `decrypted`.
+  - *Laboratório* (`e2ee-lab-criar.spec.ts`, `e2ee-lab-cenarios.spec.ts`, `e2ee-lab-mcp.spec.ts`): `POST /e2ee-lab`
+    devolve a URL pronta (segredos só ali, chaves, remetente de teste, HMAC e regras do laboratório) e `lab` entrou em
+    `CHAVES_TOKEN`; a marca não muda pelo `PUT`; a rodada de todos os cenários dá 27 de 27, sem texto aberto; URL
+    comum e código desconhecido são 422; pelo MCP, o mesmo, e `create_url`/`update_url` ainda ignoram `e2ee`. O teto
+    de 20 URLs de laboratório fica com os testes do backend (o contrato roda em paralelo).
 
 - **Busca de mensagens** (`specs/api/busca-*.spec.ts`, helpers em `support/busca.ts`; §1 do plano
   "busca-filtro-diff"). `POST /token/{id}/requests/search` `{text?, match?, sorting?, page?, per_page?}` responde

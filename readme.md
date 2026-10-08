@@ -63,7 +63,7 @@ sobrevivem a `docker compose down` (só `down -v` os apaga).
 | Injeção de falhas | Atraso, conexão reiniciada, conexão presa, corpo cortado; por sorteio (`chance`) e por janela de tempo | [Falhas](docs/api.md#atrasos-e-falhas-de-rede) |
 | Verificação de assinatura | Stripe, GitHub, Shopify, Slack e HMAC genérico (SHA-1, SHA-256, SHA-512) | [Assinatura](docs/api.md#verificação-de-assinatura) |
 | Validação de schema | JSON Schema 2020-12 em cada mensagem, usável nas regras | [Schema](docs/api.md#validação-de-schema) |
-| Decifra de atributo (E2EE) | Abre um atributo cifrado (JWE de um JWS ES256) por URL, com chaves por URL, JWKS e o motivo de cada falha | [E2EE](docs/api.md#decifra-de-atributo-e2ee) |
+| Decifra de atributo (E2EE) | Abre um atributo cifrado (JWE de um JWS ES256) por URL, com chaves por URL, JWKS e o motivo de cada falha; laboratório com 27 cenários prontos, também pelo MCP | [E2EE](docs/api.md#decifra-de-atributo-e2ee) |
 | Reenvio e envio pelo servidor | Reenvia uma mensagem para o seu app, com falha injetada se quiser, e guarda o histórico | [Reenvio](docs/api.md#reenvio-e-envio-pelo-servidor) |
 | Esperar, buscar, estatísticas | `wait` para testes sem `sleep`; busca por texto e por condição; métricas por URL | [API](docs/api.md#esperar-por-mensagens) |
 | Privacidade | Segredo de leitura por URL, links só-leitura com máscara, captura isolada por CSP | [Privacidade](docs/privacidade.md) |
@@ -152,7 +152,7 @@ Todas as rotas, os formatos e os erros estão em [`docs/api.md`](docs/api.md); o
 
 ### MCP
 
-Com `ANZOL_MCP_ENABLED=true`, o app é um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` com 15
+Com `ANZOL_MCP_ENABLED=true`, o app é um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` com 18
 ferramentas sobre a mesma API ([detalhes](docs/mcp-e-ia.md#mcp)):
 
 ```bash
