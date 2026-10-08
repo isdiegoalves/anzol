@@ -39,7 +39,7 @@ private const val MCP_USER_AGENT = "MCP"
 
 private val RULES_LANGUAGE = ClassPathResource("ai/rules-language.md").getContentAsString(Charsets.UTF_8)
 
-private const val TOKEN_ID =
+internal const val TOKEN_ID =
     """"token_id": {"type": "string", "format": "uuid", "description": "UUID of the webhook URL (token)"},
     "read_secret": {"type": "string", "description": "The URL's read secret; required when the URL is protected"}"""
 private const val REQUEST_ID = """"request_id": {"type": "string", "format": "uuid", "description": "UUID of a captured request"}"""
@@ -78,7 +78,7 @@ private const val UPDATE_URL =
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
 
-private fun objectSchema(
+internal fun objectSchema(
     properties: String,
     vararg required: String,
 ): String = """{"type": "object", "properties": {$properties}, "required": [${required.joinToString(", ") { "\"$it\"" }}]}"""

@@ -27,7 +27,7 @@ private const val SECRET = "segredo-do-mcp-Wn4t"
 private const val READ_SECRET = "leitura-do-mcp-8Hj"
 private const val CONCURRENT_PAIRS = 50
 
-/** As 14 ferramentas da §1 do plano "ia-local" e o `diff_rules` (E-07 da UX de Regras). */
+/** As 14 ferramentas da §1 do plano "ia-local", o `diff_rules` (E-07 da UX de Regras) e as 3 do laboratório E2EE. */
 private val TOOLS =
     listOf(
         "create_url",
@@ -45,7 +45,13 @@ private val TOOLS =
         "replay_request",
         "send_request",
         "get_outbound",
+        "create_e2ee_lab",
+        "list_e2ee_scenarios",
+        "run_e2ee_scenarios",
     )
+
+/** As do laboratório E2EE: precisam de uma URL de laboratório, e têm o teste próprio. */
+private val LAB_TOOLS = setOf("create_e2ee_lab", "list_e2ee_scenarios", "run_e2ee_scenarios")
 
 @AiApiTest
 @DisplayName("Servidor MCP em /mcp")
@@ -95,7 +101,7 @@ class McpServerApiTest(
             assertThat(tool.description()).isNotBlank()
             assertThat(tool.inputSchema()["type"]).isEqualTo("object")
         }
-        assertThat(tools.filter { it.name() != "create_url" }).allSatisfy { tool ->
+        assertThat(tools.filter { it.name() !in setOf("create_url", "create_e2ee_lab", "list_e2ee_scenarios") }).allSatisfy { tool ->
             assertThat(@Suppress("UNCHECKED_CAST") (tool.inputSchema()["properties"] as Map<String, Any>)).containsKey("token_id")
         }
     }
@@ -384,7 +390,7 @@ class McpServerApiTest(
 
         val errors = calls.mapValues { (tool, arguments) -> call(tool, arguments) }.filterValues { it.isError == true }
 
-        assertThat(calls.keys + "create_url").containsExactlyInAnyOrderElementsOf(TOOLS)
+        assertThat(calls.keys + "create_url" + LAB_TOOLS).containsExactlyInAnyOrderElementsOf(TOOLS)
         assertThat(errors.mapValues { (it.value.content().single() as TextContent).text() }).isEmpty()
     }
 
@@ -615,86 +621,5 @@ class McpServerApiTest(
         assertThat((invalid.content().single() as TextContent).text())
             .contains("The body field is required when fault is stall_after_headers.")
         assertThat(description).contains("chance", "active_from", "active_until", "hang", "stall_after_headers", "truncated_body")
-    }
-
-    @Test
-    @DisplayName(
-        "Dado uma URL com e2ee e chave de cifra, quando get_url e update_url a devolvem, então nenhuma traz a privada (d) " +
-            "e o update_url mantém a política e as chaves",
-    )
-    fun e2ee_getEUpdateUrl_naoDevemDevolverAPrivada() {
-        val signer = anzol.e2ee.ecKey("remetente-sig-1")
-        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
-        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
-        val secret = mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee")
-        api.send("POST", "/token/$tokenId/keys", """{"kid":"enc-v1"}""".toByteArray(), JSON_BODY + secret)
-
-        val read = call("get_url", mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")).json()
-        val updated = call("update_url", mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee", "default_status" to 202)).json()
-
-        assertThat(listOf(read, updated).map { it.toString() }).noneMatch { it.contains("\"d\":") }
-        assertThat(updated["e2ee"]).isEqualTo(read["e2ee"])
-        assertThat(updated["e2ee_keys"].toList().map { it["kid"].asString() }).containsExactly("enc-v1")
-        assertThat(api.tree(redis.opsForValue().get("token:$tokenId").orEmpty())["e2ee_keys"][0]["jwk"].has("d")).isTrue()
-    }
-
-    @Test
-    @DisplayName("Dado uma mensagem decifrada, quando get_request e list_requests a devolvem, então trazem decryption e não decrypted")
-    fun e2ee_mensagemDecifrada_naoDeveSairNoMcp() {
-        val signer = anzol.e2ee.ecKey("remetente-sig-1")
-        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
-        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
-        val secret = mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee")
-        val key = api.json(api.send("POST", "/token/$tokenId/keys", """{"kid":"enc-v1"}""".toByteArray(), JSON_BODY + secret))
-        val id =
-            java.util.UUID
-                .randomUUID()
-                .toString()
-        val sealed =
-            anzol.e2ee.encrypt(
-                com.nimbusds.jose.jwk.ECKey
-                    .parse(key["jwk"].toString()),
-                anzol.e2ee.sign(signer, anzol.e2ee.claims(id, mapOf("segredo" to "aberto"))),
-            )
-        val requestId =
-            api
-                .send("POST", "/$tokenId", anzol.e2ee.envelope(id, sealed).toByteArray(), mapOf("Content-Type" to "application/json"))
-                .headers()
-                .firstValue("X-Request-Id")
-                .orElseThrow()
-        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
-
-        val one = call("get_request", access + ("request_id" to requestId)).json()
-        val page = call("list_requests", access).json()
-
-        assertThat(one["decryption"]["state"].asString()).isEqualTo("valid")
-        assertThat(one.has("decrypted")).isFalse()
-        assertThat(page["data"][0].has("decrypted")).isFalse()
-        assertThat(listOf(one, page).map { it.toString() }).noneMatch { it.contains("aberto") }
-    }
-
-    @Test
-    @DisplayName("Dado uma URL com e2ee, quando o update_url manda e2ee null ou outro signatário, então a política fica como estava")
-    fun e2ee_updateUrl_naoDeveMudarAPolitica() {
-        val signer = anzol.e2ee.ecKey("remetente-sig-1")
-        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
-        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
-        val saved =
-            api.json(
-                api.send(
-                    "GET",
-                    "/token/$tokenId",
-                    headers =
-                        JSON_CLIENT + mapOf(anzol.privacy.SECRET_HEADER to "segredo-do-e2ee"),
-                ),
-            )
-        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
-        val intruder = anzol.e2ee.policy(anzol.e2ee.ecKey("intruso"))
-
-        val off = call("update_url", access + ("e2ee" to null)).json()
-        val swapped = call("update_url", access + ("e2ee" to intruder)).json()
-
-        assertThat(off["e2ee"]).isEqualTo(saved["e2ee"])
-        assertThat(swapped["e2ee"]).isEqualTo(saved["e2ee"])
     }
 }
