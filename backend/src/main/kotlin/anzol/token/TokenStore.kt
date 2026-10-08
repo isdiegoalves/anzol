@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.script.RedisScript
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import java.nio.charset.StandardCharsets.UTF_8
+import java.time.Clock
 
 private val REPLACE =
     RedisScript.of(ClassPathResource("redis/token-replace.lua").getContentAsString(UTF_8), Long::class.javaObjectType)
@@ -21,20 +22,22 @@ data class StoredToken(
 
 /**
  * `token:{uuid}` no Redis, no formato que o app antigo lê e grava. Cada leitura renova o TTL,
- * como `Storage/Redis/TokenStore::find`.
+ * como `Storage/Redis/TokenStore::find`; a URL de laboratório E2EE vive o prazo dela, que a leitura não estende.
  */
 @Component
 class TokenStore(
     private val redis: StringRedisTemplate,
     private val jsonMapper: JsonMapper,
     private val properties: AnzolProperties,
+    private val clock: Clock,
 ) {
     fun find(id: TokenId): Token? {
         val key = RedisKeys.token(id)
         val json = redis.opsForValue().get(key)
         if (json.isNullOrEmpty()) return null
-        redis.expire(key, properties.expiry)
-        return jsonMapper.readValue(json, Token::class.java)
+        val token = jsonMapper.readValue(json, Token::class.java)
+        redis.expire(key, token.expiry(properties.expiry, clock.instant()))
+        return token
     }
 
     /** O token e o JSON dele como está gravado, para a troca condicional ([replace]). */
@@ -52,11 +55,22 @@ class TokenStore(
         token: Token,
     ): Boolean {
         val keys = listOf(RedisKeys.token(token.uuid))
-        return redis.execute(REPLACE, keys, read.json, jsonMapper.writeValueAsString(token), properties.expiry.seconds.toString()) == 1L
+        return redis.execute(
+            REPLACE,
+            keys,
+            read.json,
+            jsonMapper.writeValueAsString(token),
+            token.expiry(properties.expiry, clock.instant()).seconds.toString(),
+        ) ==
+            1L
     }
 
     fun store(token: Token): Token {
-        redis.opsForValue().set(RedisKeys.token(token.uuid), jsonMapper.writeValueAsString(token), properties.expiry)
+        redis.opsForValue().set(
+            RedisKeys.token(token.uuid),
+            jsonMapper.writeValueAsString(token),
+            token.expiry(properties.expiry, clock.instant()),
+        )
         return token
     }
 
@@ -74,22 +88,23 @@ class TokenStore(
                 .range(RedisKeys.shares(token.uuid), 0, -1)
                 .orEmpty()
                 .map(RedisKeys::share)
-        return redis.delete(
-            listOf(
-                RedisKeys.token(token.uuid),
-                RedisKeys.requests(token.uuid),
-                RedisKeys.requestIndex(token.uuid),
-                RedisKeys.requestSeq(token.uuid),
-                RedisKeys.rules(token.uuid),
-                RedisKeys.scenarios(token.uuid),
-                RedisKeys.outbound(token.uuid),
-                RedisKeys.outboundRate(token.uuid),
-                RedisKeys.aiRate(token.uuid),
-                RedisKeys.secretFailures(token.uuid),
-                RedisKeys.mcpSecretFailures(token.uuid),
-                RedisKeys.shares(token.uuid),
-                RedisKeys.e2eeJti(token.uuid),
-            ) + shares,
-        ) > 0
+        return redis
+            .delete(
+                listOf(
+                    RedisKeys.token(token.uuid),
+                    RedisKeys.requests(token.uuid),
+                    RedisKeys.requestIndex(token.uuid),
+                    RedisKeys.requestSeq(token.uuid),
+                    RedisKeys.rules(token.uuid),
+                    RedisKeys.scenarios(token.uuid),
+                    RedisKeys.outbound(token.uuid),
+                    RedisKeys.outboundRate(token.uuid),
+                    RedisKeys.aiRate(token.uuid),
+                    RedisKeys.secretFailures(token.uuid),
+                    RedisKeys.mcpSecretFailures(token.uuid),
+                    RedisKeys.shares(token.uuid),
+                    RedisKeys.e2eeJti(token.uuid),
+                ) + shares,
+            ).also { if (token.lab != null) redis.opsForZSet().remove(RedisKeys.LABS, token.uuid.toString()) } > 0
     }
 }

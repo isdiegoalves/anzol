@@ -5,6 +5,8 @@ import anzol.TokenId
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eeKeyView
 import anzol.e2ee.E2eePolicy
+import anzol.e2ee.lab.LabMark
+import anzol.e2ee.lab.LabView
 import anzol.schema.SchemaConfig
 import anzol.signature.SignatureConfig
 import anzol.signature.SignatureDraft
@@ -13,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 
 /** JSON de `token:{uuid}`, campo a campo e na ordem de `Storage/Token.php::createFromRequest`. */
@@ -46,6 +50,9 @@ data class Token(
     /** Pares de cifra (com a privada); gerados e apagados só pelas rotas `keys`, nunca pelo `PUT`. */
     @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val e2eeKeys: List<E2eeKey> = emptyList(),
+    /** Só na URL de laboratório E2EE; nasce com ela e nenhuma rota a troca. */
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val lab: LabMark? = null,
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A
@@ -66,6 +73,12 @@ data class Token(
             schema = settings.schema,
             e2ee = settings.e2ee,
         )
+
+    /** O TTL das chaves da URL: [default], ou o que falta da vida de uma URL de laboratório (que o uso não renova). */
+    fun expiry(
+        default: Duration,
+        now: Instant,
+    ): Duration = lab?.remaining(now) ?: default
 
     /** Sem [JsonIgnore], o Jackson gravaria `protected` no Redis como se fosse campo. */
     @JsonIgnore
@@ -98,6 +111,7 @@ data class Token(
             schema = schema,
             e2ee = e2ee,
             e2eeKeys = e2eeKeys.map { it.view() },
+            lab = lab?.view(),
             protected = isProtected(),
         )
 }
@@ -126,6 +140,7 @@ data class TokenView(
     val schema: SchemaConfig?,
     val e2ee: E2eePolicy?,
     val e2eeKeys: List<E2eeKeyView>,
+    val lab: LabView?,
     val protected: Boolean,
 )
 

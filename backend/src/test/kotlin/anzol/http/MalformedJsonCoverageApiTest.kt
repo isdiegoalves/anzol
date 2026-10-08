@@ -31,6 +31,7 @@ private val BAD_REQUEST =
         "POST /token/{tokenId}/unlock",
         "POST /token/{tokenId}/request/{requestId}/share",
         "POST /token/{tokenId}/keys",
+        "POST /e2ee-lab",
     )
 
 /** Menos que isto é sinal de que a varredura não achou as rotas, e passaria sem provar nada. */
@@ -40,7 +41,7 @@ private const val BROKEN = """{"secret": "segredo-valido-123", "expires_in": "1h
 
 /**
  * Guarda: nenhuma rota de gestão lê JSON quebrado como entrada vazia. A lista vem dos mapeamentos do Spring: toda rota
- * `POST`/`PUT`/`PATCH` de `/token` e `/share` responde 400 (as do [requireJsonObject]) ou o 422 da validação própria
+ * `POST`/`PUT`/`PATCH` de `/token`, `/share` e `/e2ee-lab` responde 400 (as do [requireJsonObject]) ou o 422 da validação própria
  * dela, e nunca 2xx. Rota nova que leia o corpo de outro jeito e o aceite quebrado faz este teste falhar.
  */
 @AiApiTest
@@ -61,7 +62,10 @@ class MalformedJsonCoverageApiTest(
     }
 
     private fun bodyRoutes(): List<Route> =
-        mapping.routes().filter { it.method in BODY_METHODS && (it.pattern.startsWith("/token") || it.pattern.startsWith("/share")) }
+        mapping.routes().filter {
+            it.method in BODY_METHODS &&
+                (it.pattern.startsWith("/token") || it.pattern.startsWith("/share") || it.pattern.startsWith("/e2ee-lab"))
+        }
 
     @Test
     @DisplayName("Dado JSON quebrado, quando chama cada rota que recebe corpo, então 400 ou o 422 dela, nunca 2xx, e nada muda")

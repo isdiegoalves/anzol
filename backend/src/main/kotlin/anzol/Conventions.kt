@@ -73,6 +73,9 @@ object RedisKeys {
     /** Um link só-leitura: o JSON dele, com TTL igual à expiração. */
     fun share(id: String): String = "share:$id"
 
+    /** URLs de laboratório E2EE ativas: ZSET uuid → fim da vida em milissegundos (o teto de ativas). */
+    const val LABS = "anzol:labs"
+
     /** Chave do servidor (32 bytes em Base64) que assina o cookie de desbloqueio; criada no primeiro uso, sem TTL. */
     const val SERVER_KEY = "anzol:server-key"
 }

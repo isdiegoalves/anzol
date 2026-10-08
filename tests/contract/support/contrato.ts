@@ -38,6 +38,8 @@ export const CHAVES_TOKEN = [
   'protected',
   // Decifra de atributo (plano "e2ee-lab"): a política da URL (`null` = não decifra) e as chaves de cifra (só a pública).
   'e2ee', 'e2ee_keys',
+  // Laboratório E2EE (`POST /e2ee-lab`): a marca da URL de laboratório; `null` nas demais.
+  'lab',
 ].sort();
 
 export const CHAVES_MENSAGEM = [
@@ -81,6 +83,8 @@ export interface Token {
   e2ee: Record<string, unknown> | null;
   /** Chaves de cifra da URL, geradas no servidor: `kid`, `created_at` e a JWK pública (`use=enc`, `alg=ECDH-ES`). */
   e2ee_keys: { kid: string; created_at: string; jwk: Record<string, unknown> }[];
+  /** Só na URL de laboratório E2EE: o `kid` do remetente de teste e o fim da vida da URL (24 h, sem renovar). */
+  lab: { signer_kid: string; expires_at: string } | null;
   /** A URL exige segredo de leitura para ver e gerir (`read_secret`, que nunca volta na resposta). */
   protected: boolean;
 }
