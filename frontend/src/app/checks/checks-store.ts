@@ -7,7 +7,7 @@ import { RequestStore } from '../requests/request-store';
 import { RequestPage, WebhookRequest } from '../requests/webhook-request';
 import { Rule } from '../rules/rule';
 import { TokenStats } from '../stats/stats';
-import { E2eeKey, Token, TokenSettings } from '../token/token';
+import { E2eeKey, LabCreated, LabReport, Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Preferences } from '../settings/preferences';
 import { UrlLock } from '../token/url-lock';
@@ -100,8 +100,8 @@ export class ChecksStore {
     return this.tokens.load(tokenId);
   }
 
-  /** Grava o cookie de acesso com o segredo novo (como o `UrlAccess.unlock` da tela de desbloqueio). */
-  private async unlock(tokenId: string, secret: string): Promise<void> {
+  /** Grava o cookie de acesso com o segredo (como o `UrlAccess.unlock` da tela de desbloqueio). */
+  async unlock(tokenId: string, secret: string): Promise<void> {
     await firstValueFrom(this.http.post(`/token/${tokenId}/unlock`, { secret }));
     if (this.urlLock.tokenId() === tokenId) {
       this.urlLock.release();
@@ -129,6 +129,16 @@ export class ChecksStore {
     this.preferences.token.update((token) =>
       token?.uuid === tokenId ? { ...token, e2ee_keys: change(token.e2ee_keys ?? []) } : token,
     );
+  }
+
+  /** Cria uma URL de laboratório E2EE, com a política e as regras do laboratório. */
+  createLab(): Promise<LabCreated> {
+    return firstValueFrom(this.http.post<LabCreated>('/e2ee-lab', {}));
+  }
+
+  /** Roda todos os cenários na URL de laboratório; a rodada leva alguns segundos. */
+  runLab(tokenId: string): Promise<LabReport> {
+    return firstValueFrom(this.http.post<LabReport>(`/token/${tokenId}/e2ee-lab/run`, {}));
   }
 
   /** As regras da URL (a lista inteira, como o `GET /token/{id}/rules` devolve). */

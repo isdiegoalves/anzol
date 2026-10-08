@@ -34,6 +34,7 @@ import { CardFold } from './card-fold';
 import { CardFoot } from './card-foot';
 import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import { ChecksStore } from './checks-store';
+import { E2eeLab } from './e2ee-lab';
 import {
   PendingField,
   changeOf,
@@ -99,6 +100,7 @@ function bindingIgnoresCase(binding: E2eeBinding | undefined): boolean {
     MatLabel,
     MatSlideToggle,
     CardFoot,
+    E2eeLab,
   ],
   templateUrl: './e2ee-card.html',
   styleUrls: ['./card.scss', './e2ee-card.scss'],
@@ -145,6 +147,7 @@ export class E2eeCard implements ChecksSection {
     validators: Validators.pattern(KID),
   });
   protected readonly kidRefusal = signal<string | null>(null);
+  protected readonly isLab = computed(() => Boolean(this.tokens.token()?.lab));
   protected readonly generating = signal(false);
 
   constructor() {

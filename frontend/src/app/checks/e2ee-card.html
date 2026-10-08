@@ -30,6 +30,10 @@
     links or live events.
   </p>
 
+  @if (isLab()) {
+    <app-e2ee-lab class="lab-run" />
+  }
+
   <form class="fields" aria-labelledby="e2ee-title" [formGroup]="form">
     <mat-slide-toggle formControlName="enabled" i18n
       >Decrypt an attribute of each request</mat-slide-toggle
@@ -231,6 +235,10 @@
       </p>
     }
   </section>
+
+  @if (!isLab()) {
+    <app-e2ee-lab class="lab-create" />
+  }
 
   <app-card-foot name="e2ee" [summary]="pending()" />
 </div>

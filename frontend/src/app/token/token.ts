@@ -42,6 +42,8 @@ export interface Token {
   e2ee?: E2eePolicy | null;
   /** Chaves de cifra da URL, só a parte pública. Ausente em versões anteriores da tela. */
   e2ee_keys?: E2eeKey[];
+  /** Só na URL de laboratório E2EE (`POST /e2ee-lab`); ausente em versões anteriores da tela. */
+  lab?: TokenLab | null;
   created_at: string;
   updated_at: string;
 }
@@ -110,6 +112,53 @@ export interface E2eeKey {
 
 /** Até quantas chaves de cifra a URL guarda (a atual e a da rotação). */
 export const E2EE_KEYS_MAX = 2;
+
+/** A marca da URL de laboratório: o remetente de teste e o fim da vida dela (UTC, não renova). */
+export interface TokenLab {
+  signer_kid: string;
+  expires_at: string;
+}
+
+/** O que um cenário do laboratório espera: status da resposta e o estado da decifra gravado. */
+export interface LabExpected {
+  status: number;
+  state: string;
+  reason: string | null;
+  kid: string | null;
+}
+
+/** O que a captura deu; `data_matches` só nos que abrem (o texto aberto nunca vem). */
+export interface LabActual {
+  status: number;
+  state: string | null;
+  reason: string | null;
+  kid: string | null;
+  data_matches: boolean | null;
+}
+
+export interface LabResult {
+  code: string;
+  description: string;
+  expected: LabExpected;
+  actual: LabActual;
+  ok: boolean;
+  request_id: string | null;
+}
+
+/** Relatório de `POST /token/{id}/e2ee-lab/run`, na ordem do catálogo. */
+export interface LabReport {
+  total: number;
+  matched: number;
+  results: LabResult[];
+}
+
+/** Resposta de `POST /e2ee-lab`: os dois segredos só aparecem aqui. */
+export interface LabCreated {
+  token: Token;
+  read_secret: string;
+  hmac_secret: string;
+  hmac_header: string;
+}
 
 /**
  * Corpo do `POST`/`PUT /token`. No `PUT`, campo ausente volta ao padrão: Checks manda sempre a

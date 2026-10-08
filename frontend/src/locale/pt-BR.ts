@@ -3725,6 +3725,88 @@ export const translations: Record<string, string> = {
   '921479507001707158': '1 chave',
   // {$count} keys
   '1045003028705186050': '{$count} chaves',
+  // Lab scenarios
+  '8466398008350004548': 'Cenários do laboratório',
+  // Lab URL
+  '5063575939344818033': 'URL de laboratório',
+  //  This URL came ready: two encryption keys, the test sender {$INTERPOLATION}, the lab policy and rules, and it is not renewed. Run scenarios builds each scenario of the E2EE contract, delivers it through the real capture (HMAC, decryption and rules) and compares the status, the state and the reason with what is expected. The decrypted text never shows in the report.
+  '4043935349102843661':
+    ' Esta URL veio pronta: duas chaves de cifra, o remetente de teste {$INTERPOLATION}, a política e as regras do laboratório, e ela não é renovada. Rodar cenários monta cada cenário do contrato E2EE, entrega pela captura de verdade (HMAC, decifra e regras) e compara o status, o estado e o motivo com o esperado. O texto aberto nunca aparece no relatório. ',
+  // Run scenarios
+  '3844145349807746390': 'Rodar cenários',
+  // Running the scenarios. It takes a few seconds…
+  '1199777382771981644': 'Rodando os cenários. Leva alguns segundos…',
+  // {VAR_PLURAL, plural, =1 {1 of {INTERPOLATION} matches} other {{INTERPOLATION_1} of {INTERPOLATION} match}}
+  '2262345787437292542':
+    '{VAR_PLURAL, plural, =1 {1 de {INTERPOLATION} confere} other {{INTERPOLATION_1} de {INTERPOLATION} conferem}}',
+  // {VAR_PLURAL, plural, =1 {1 scenario differs, listed first.} other {{INTERPOLATION} scenarios differ, listed first.}}
+  '9133705194015195637':
+    '{VAR_PLURAL, plural, =1 {1 cenário diverge, listado primeiro.} other {{INTERPOLATION} cenários divergem, listados primeiro.}}',
+  // Scenario results table
+  '3911947446427329598': 'Tabela de resultados dos cenários',
+  // Scenario results
+  '6977076949539191166': 'Resultados dos cenários',
+  // Code
+  '8186013988289067040': 'Código',
+  // Expected
+  '7989584202803202902': 'Esperado',
+  // Got
+  '4603011004208784058': 'Obtido',
+  // data matches
+  '4043981353335140926': 'data confere',
+  // data differs
+  '3640123933109989273': 'data diverge',
+  // Matches
+  '1567940090040631427': 'Confere',
+  // Differs
+  '5250864808692692049': 'Diverge',
+  // E2EE lab
+  '1137363530760030904': 'Laboratório E2EE',
+  //  To see decryption working without setting anything up: a new URL with a read secret, an HMAC secret, two encryption keys, a test sender and the lab policy and rules, ready to run the scenarios of the E2EE contract. It expires in 24 hours.
+  '7674714925816119094':
+    ' Para ver a decifra funcionando sem configurar nada: uma URL nova com segredo de leitura, segredo de HMAC, duas chaves de cifra, um remetente de teste e a política e as regras do laboratório, pronta para rodar os cenários do contrato E2EE. Ela expira em 24 horas. ',
+  // Create a lab URL
+  '8706293476076086740': 'Criar URL de laboratório',
+  // Too many runs for this URL (up to 6 per minute). Try again in {$seconds} s.
+  '7775874228965999651':
+    'Rodadas demais nesta URL (até 6 por minuto). Tente de novo em {$seconds} s.',
+  // Too many runs for this URL (up to 6 per minute). Try again in a moment.
+  '5063035853513844048': 'Rodadas demais nesta URL (até 6 por minuto). Tente de novo em instantes.',
+  // The server refused the run: {$reason}
+  '6743291150073189530': 'O servidor recusou a rodada: {$reason}',
+  // Could not run the scenarios ({$status}).
+  '5518836484461613670': 'Não foi possível rodar os cenários ({$status}).',
+  // Expires {$relative} ({$date})
+  '3199083783022916599': 'Expira {$relative} ({$date})',
+  // Could not create the lab URL ({$status}).
+  '3621437451982219202': 'Não foi possível criar a URL de laboratório ({$status}).',
+  // Open request #{$id} of {$code} in the Inbox
+  '5965149142167971485': 'Abrir a requisição #{$id} de {$code} na Entrada',
+  // Lab URL created
+  '495412022296792930': 'URL de laboratório criada',
+  //  Copy the secrets now: the server shows them only this once, and they don't come back.
+  '6360547360362890653':
+    ' Copie os segredos agora: o servidor só os mostra desta vez, e eles não voltam. ',
+  // Read secret
+  '8792974996770948158': 'Segredo de leitura',
+  //  Opens this URL in another browser (unlock screen) or in the API (X-Anzol-Secret header).
+  '1630345964196771541':
+    ' Abre esta URL em outro navegador (tela de desbloqueio) ou na API (cabeçalho X-Anzol-Secret). ',
+  // HMAC secret
+  '8949787875760698359': 'Segredo de HMAC',
+  //  Signs the requests you send yourself: HMAC-SHA256 of the body, in hex, in the {$INTERPOLATION} header.
+  '5449514821887823658':
+    ' Assina as requisições que você mesmo envia: HMAC-SHA256 do corpo, em hex, no cabeçalho {$INTERPOLATION}. ',
+  // Open the lab URL
+  '4836875051782765764': 'Abrir a URL de laboratório',
+  // Copy read secret
+  '2514245971396730298': 'Copiar segredo de leitura',
+  // Copy HMAC secret
+  '4147119137556216026': 'Copiar segredo de HMAC',
+  // Copied the read secret
+  '9004039826557714389': 'Segredo de leitura copiado',
+  // Copied the HMAC secret
+  '8534427223846313672': 'Segredo de HMAC copiado',
   // the URL signature did not pass, so nothing was opened
   '4099669960109730203': 'a assinatura da URL não passou, então nada foi aberto',
   // the body is not JSON

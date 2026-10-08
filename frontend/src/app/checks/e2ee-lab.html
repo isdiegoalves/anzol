@@ -1,0 +1,145 @@
+@if (lab(); as mark) {
+  <section class="lab" aria-labelledby="e2ee-lab-title">
+    <div class="lab-head">
+      <h3 id="e2ee-lab-title" i18n>Lab scenarios</h3>
+      <span class="badge"><app-icon name="bolt" [size]="15" /><span i18n>Lab URL</span></span>
+      <span class="expires">{{ expires() }}</span>
+    </div>
+    <p class="hint" i18n>
+      This URL came ready: two encryption keys, the test sender {{ mark.signer_kid }}, the lab
+      policy and rules, and it is not renewed. Run scenarios builds each scenario of the E2EE
+      contract, delivers it through the real capture (HMAC, decryption and rules) and compares the
+      status, the state and the reason with what is expected. The decrypted text never shows in the
+      report.
+    </p>
+    <div class="actions">
+      <button
+        mat-flat-button
+        type="button"
+        disabledInteractive
+        [disabled]="running()"
+        (click)="runScenarios()"
+      >
+        <app-icon name="replay" [size]="18" /><ng-container i18n>Run scenarios</ng-container>
+      </button>
+    </div>
+
+    <!-- Região viva fixa: o fim da rodada é anunciado quando o resumo entra nela. -->
+    <div class="outcome-status" role="status">
+      @if (running()) {
+        <p class="hint" i18n>Running the scenarios. It takes a few seconds…</p>
+      } @else if (report(); as run) {
+        <p class="summary" [class.all]="run.matched === run.total">
+          <app-icon [name]="run.matched === run.total ? 'ok' : 'bad'" [size]="22" />
+          <strong i18n>{run.matched, plural,
+            =1 {1 of {{ run.total }} matches}
+            other {{{ run.matched }} of {{ run.total }} match}
+          }</strong>
+          @if (differing() > 0) {
+            <span class="hint" i18n>{differing(), plural,
+              =1 {1 scenario differs, listed first.}
+              other {{{ differing() }} scenarios differ, listed first.}
+            }</span>
+          }
+        </p>
+      }
+    </div>
+    @if (failure(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+
+    @if (report()) {
+      <div
+        class="table-scroll"
+        tabindex="0"
+        role="region"
+        aria-label="Scenario results table"
+        i18n-aria-label
+      >
+        <table class="table" aria-label="Scenario results" i18n-aria-label>
+          <thead>
+            <tr>
+              <th scope="col" i18n>Code</th>
+              <th scope="col" i18n>Scenario</th>
+              <th scope="col" i18n>Expected</th>
+              <th scope="col" i18n>Got</th>
+              <th scope="col" i18n>Result</th>
+              <th scope="col" i18n>Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.code) {
+              <tr [class.differs]="!row.ok" [attr.data-scenario]="row.code">
+                <th scope="row">
+                  <code>{{ row.code }}</code>
+                </th>
+                <td class="description">{{ row.description }}</td>
+                <td class="outcome">
+                  <span class="status">{{ row.expected.status }}</span
+                  >&ngsp;
+                  <code>{{ outcome(row.expected) }}</code>
+                </td>
+                <td class="outcome">
+                  <span class="status">{{ row.actual.status }}</span
+                  >&ngsp;
+                  <code>{{ outcome(row.actual) }}</code>
+                  @if (row.actual.data_matches === true) {
+                    <span class="data" i18n>data matches</span>
+                  } @else if (row.actual.data_matches === false) {
+                    <span class="data" i18n>data differs</span>
+                  }
+                </td>
+                <td>
+                  @if (row.ok) {
+                    <span class="verdict ok"
+                      ><app-icon name="ok" [size]="16" /><span i18n>Matches</span></span
+                    >
+                  } @else {
+                    <span class="verdict bad"
+                      ><app-icon name="bad" [size]="16" /><span i18n>Differs</span></span
+                    >
+                  }
+                </td>
+                <td>
+                  @if (row.request_id; as id) {
+                    <a
+                      [routerLink]="['/', tokenId(), id, '1']"
+                      [attr.aria-label]="openLabel(row.code, id)"
+                      >#{{ id.slice(0, 8) }}</a
+                    >
+                  } @else {
+                    —
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+} @else {
+  <section class="lab" aria-labelledby="e2ee-lab-title">
+    <h3 id="e2ee-lab-title" i18n>E2EE lab</h3>
+    <p class="hint" i18n>
+      To see decryption working without setting anything up: a new URL with a read secret, an HMAC
+      secret, two encryption keys, a test sender and the lab policy and rules, ready to run the
+      scenarios of the E2EE contract. It expires in 24 hours.
+    </p>
+    <div class="actions">
+      <button
+        mat-flat-button
+        class="tonal"
+        type="button"
+        disabledInteractive
+        [disabled]="creating()"
+        (click)="createLab()"
+      >
+        <app-icon name="plus" [size]="18" /><ng-container i18n>Create a lab URL</ng-container>
+      </button>
+    </div>
+    @if (refusal(); as refused) {
+      <p class="error" role="alert">{{ refused }}</p>
+    }
+  </section>
+}
