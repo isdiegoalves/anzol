@@ -147,7 +147,8 @@ diz ao CI se passou ([exemplo com GitHub Actions](docs/cli.md#anzol-test)).
 | `POST /token/{id}/requests/search` · `…/requests/wait` | Busca · espera, com prazo, a mensagem que casa |
 | `POST /token/{id}/request/{rid}/replay` · `POST /token/{id}/send` | O servidor reenvia ou envia (com `chaos`, se quiser) |
 
-Todas as rotas, os formatos e os erros estão em [`docs/api.md`](docs/api.md); o contrato caixa-preta que as garante, em
+Todas as rotas, os formatos e os erros estão em [`docs/api.md`](docs/api.md) e no documento OpenAPI 3.1 servido em
+`/openapi.yaml` e `/openapi.json`; o contrato caixa-preta que as garante, em
 [`tests/contract/README.md`](tests/contract/README.md).
 
 ### MCP

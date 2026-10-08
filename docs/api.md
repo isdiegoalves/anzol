@@ -1,5 +1,12 @@
 # API
 
+O documento [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) da API está em `GET /openapi.yaml` e
+`GET /openapi.json` (fonte: `backend/src/main/resources/openapi/anzol.yaml`, escrito à mão, porque as rotas leem o
+corpo direto da requisição, como o app antigo). Serve para importar no Insomnia ou no Postman, gerar cliente e testar
+com ferramentas como o Schemathesis. Testes garantem que ele não se afasta do código: toda rota do Spring está nele e
+ele não tem rota a mais, ele valida contra o schema oficial do OpenAPI 3.1, e o contrato confere as respostas reais
+contra os schemas dele.
+
 | Rota | O que faz |
 |---|---|
 | `POST /token` | Cria uma URL (`default_status`, `default_content`, `default_content_type`, `timeout` 0–10 s, `retry_after`, `auto_cleanup`, `signature`, `schema`, `e2ee`, `read_secret`) |

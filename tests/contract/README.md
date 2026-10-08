@@ -429,6 +429,11 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     comum e código desconhecido são 422; pelo MCP, o mesmo, e `create_url`/`update_url` ainda ignoram `e2ee`. O teto
     de 20 URLs de laboratório fica com os testes do backend (o contrato roda em paralelo).
 
+- **Documento OpenAPI 3.1** (`specs/api/openapi.spec.ts`, helper em `support/openapi.ts`): o `GET /openapi.json`
+  é carregado no Ajv (JSON Schema 2020-12, o dialeto do OAS 3.1) e as respostas reais das rotas principais (token,
+  captura, mensagens, regras, cenários, busca, espera, estatísticas, envio, links, chaves, JWKS, laboratório) e dos
+  erros 422, 401, 404 e 410 são validadas contra o schema que o documento declara para o método, o caminho e o status.
+
 - **Busca de mensagens** (`specs/api/busca-*.spec.ts`, helpers em `support/busca.ts`; §1 do plano
   "busca-filtro-diff"). `POST /token/{id}/requests/search` `{text?, match?, sorting?, page?, per_page?}` responde
   200 com a forma do `GET /token/{id}/requests` (`data, total, per_page, current_page, is_last_page, from, to`).

@@ -40,6 +40,8 @@ private val READ_ONLY_GETS =
         "/error",
         "/share/{shareId}",
         "/e2ee-lab/scenarios",
+        "/openapi.json",
+        "/openapi.yaml",
         "/token/{tokenId}",
         "/token/{tokenId}/jwks.json",
         "/token/{tokenId}/outbound",

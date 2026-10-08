@@ -53,6 +53,8 @@ dependencies {
     implementation("com.networknt:json-schema-validator:3.0.6")
     // JWE (ECDH-ES + A256GCM) com JWS ES256 dentro: a decifra de atributo da URL.
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
+    // O documento OpenAPI é escrito em YAML e servido também em JSON (versão do Jackson do Spring Boot).
+    implementation("tools.jackson.dataformat:jackson-dataformat-yaml")
     // Motor de saída do replay/send: aceita o IP já validado (HttpHost com endereço) e mantém o nome no Host e no
     // SNI, sem resolver de novo. Versão do Spring Boot (5.6).
     implementation("org.apache.httpcomponents.client5:httpclient5")

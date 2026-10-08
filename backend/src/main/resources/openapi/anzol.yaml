@@ -1,0 +1,3548 @@
+openapi: 3.1.0
+info:
+  title: Anzol API
+  version: 0.3.1
+  description: >-
+    Webhook inspector. A token is a capture URL (`/{tokenId}`) that records every HTTP request it receives and
+    answers with its configured response or with the first matching response rule. The `/token/...` routes manage
+    a URL and read what it captured.
+
+
+    Request bodies are JSON objects; unknown fields are ignored. Routes that keep the legacy input model
+    (`POST`/`PUT /token`, `unlock`, `keys`, `share`, `e2ee-lab`) also accept a form body, and query parameters
+    are merged with the body. Errors are JSON for API clients (`Accept: application/json`, a JSON `Content-Type`
+    or `X-Requested-With: XMLHttpRequest`) and an HTML page otherwise. Management routes check `Host` and, on
+    state-changing methods, `Origin` against the allowed hosts (403 `{"error": "..."}`).
+servers:
+  - url: /
+tags:
+  - name: Tokens
+    description: Create, read, update and delete a capture URL.
+  - name: Capture
+    description: The capture URL itself.
+  - name: Requests
+    description: The captured requests (messages) of a URL.
+  - name: Rules
+    description: Response rules, their test and trace, and scenario state.
+  - name: Search
+    description: Search the messages and wait for new ones.
+  - name: Outbound
+    description: Replay a message or send a request through the server.
+  - name: Privacy
+    description: Read secret, unlock cookie and read-only shared links.
+  - name: E2EE
+    description: Attribute decryption keys and the E2EE lab.
+  - name: AI
+    description: Local language model helpers. Answer 503 when AI is disabled.
+  - name: Stats
+    description: Summary of the newest messages.
+
+paths:
+  /token:
+    post:
+      tags: [Tokens]
+      operationId: createToken
+      summary: Create a capture URL
+      description: >-
+        Every field is optional. `read_secret` is only read from the body (in the query it is a 422) and never
+        returned; `e2ee` requires a `read_secret`.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenSettings'
+            example:
+              default_status: 200
+              default_content: '{"ok":true}'
+              default_content_type: application/json
+              timeout: 0
+              auto_cleanup: 1000
+              signature:
+                provider: github
+                secret: my-webhook-secret
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenSettings'
+      responses:
+        '201':
+          description: The created URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /token/{tokenId}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Tokens]
+      operationId: getToken
+      summary: Get a capture URL
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The URL, with the signature secret masked and without the read secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+    put:
+      tags: [Tokens]
+      operationId: updateToken
+      summary: Replace the configuration of a capture URL
+      description: >-
+        Replaces every setting: an absent field goes back to its default. Exceptions: an absent `read_secret`
+        keeps the current one (`null` removes it), and an absent or masked `signature.secret` keeps the current
+        secret. `cors` is kept. Changing the read secret closes open streams and waits and revokes every shared
+        link. Validation runs before the URL lookup (422 before 410).
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenSettings'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenSettings'
+      responses:
+        '200':
+          description: The updated URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+    delete:
+      tags: [Tokens]
+      operationId: deleteToken
+      summary: Delete a capture URL and its messages
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '204':
+          description: Deleted. Open waits end with what they have.
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/cors/toggle:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    put:
+      tags: [Tokens]
+      operationId: toggleCors
+      summary: Turn the CORS headers of the capture response on or off
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The new CORS state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorsState'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /{tokenId}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Capture]
+      operationId: captureGet
+      summary: Capture a GET request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    head:
+      tags: [Capture]
+      operationId: captureHead
+      summary: Capture a HEAD request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    post:
+      tags: [Capture]
+      operationId: capturePost
+      summary: Capture a POST request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    put:
+      tags: [Capture]
+      operationId: capturePut
+      summary: Capture a PUT request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    patch:
+      tags: [Capture]
+      operationId: capturePatch
+      summary: Capture a PATCH request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    delete:
+      tags: [Capture]
+      operationId: captureDelete
+      summary: Capture a DELETE request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    options:
+      tags: [Capture]
+      operationId: captureOptions
+      summary: Capture a OPTIONS request
+      description: >-
+        Records the request and answers with what the URL is configured to answer: the first enabled rule that
+        matches, or else the URL default (`default_status`, `default_content`, `default_content_type`, after
+        `timeout` seconds, with `Retry-After` when `retry_after` is set). Open: no read secret.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /{tokenId}/{path}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/CapturePath'
+    get:
+      tags: [Capture]
+      operationId: captureGetPath
+      summary: Capture a GET request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    head:
+      tags: [Capture]
+      operationId: captureHeadPath
+      summary: Capture a HEAD request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    post:
+      tags: [Capture]
+      operationId: capturePostPath
+      summary: Capture a POST request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    put:
+      tags: [Capture]
+      operationId: capturePutPath
+      summary: Capture a PUT request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    patch:
+      tags: [Capture]
+      operationId: capturePatchPath
+      summary: Capture a PATCH request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    delete:
+      tags: [Capture]
+      operationId: captureDeletePath
+      summary: Capture a DELETE request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+    options:
+      tags: [Capture]
+      operationId: captureOptionsPath
+      summary: Capture a OPTIONS request on a sub-path
+      description: >-
+        Same as `/{tokenId}`. Without a matching rule, a first segment of `path` with a status (`[1-5]xx`, e.g.
+        `/{tokenId}/404/x`) is the response status.
+      security: []
+      requestBody:
+        required: false
+        content:
+          '*/*':
+            schema: {}
+      responses:
+        default:
+          $ref: '#/components/responses/Captured'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /token/{tokenId}/requests:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Requests]
+      operationId: listRequests
+      summary: List the messages of a URL
+      description: >-
+        Paginated. With `after`, the messages with a greater `seq`, oldest first, up to `per_page` (`page` and
+        `sorting` are ignored). Validation runs before the URL lookup.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, default: 1}
+        - name: per_page
+          in: query
+          schema: {type: integer, default: 50}
+        - name: sorting
+          in: query
+          description: Anything other than `newest` is `oldest`.
+          schema: {type: string, enum: [oldest, newest], default: oldest}
+        - name: after
+          in: query
+          description: A `seq`; only messages after it.
+          schema: {type: integer, format: int64, minimum: 0}
+      responses:
+        '200':
+          description: A page of messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestPage'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/request:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    delete:
+      tags: [Requests]
+      operationId: deleteAllRequests
+      summary: Delete every message of a URL
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: Whether anything was deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/request/{requestId}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [Requests]
+      operationId: getRequest
+      summary: Get a message
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              examples:
+                message:
+                  $ref: '#/components/examples/Message'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+    delete:
+      tags: [Requests]
+      operationId: deleteRequest
+      summary: Delete a message
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: Whether it was deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/request/{requestId}/raw:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [Requests]
+      operationId: getRequestRaw
+      summary: Get the raw body of a message
+      description: >-
+        The body as captured. `Content-Type` is `application/json` when the recorded one is exactly that, else
+        `text/plain; charset=UTF-8`.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The raw body.
+          content:
+            '*/*':
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/stream:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Requests]
+      operationId: streamRequests
+      summary: Stream new messages (server-sent events)
+      description: >-
+        Opens with the comment `: conectado` and sends `: heartbeat` every 15 s. Each captured message is an
+        event named `request.created` whose `data` is a JSON `RequestCreated`: the message (without `decrypted`;
+        above 1,000,000 characters, without `content`, `headers` and `user_agent`, and `truncated: true`), the
+        current `total`, and the uuids `removed` by the automatic cleanup. Closed when the read secret changes.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                :conectado
+
+                event:request.created
+                data:{"request":{"uuid":"…","seq":1790438426238928},"total":1,"truncated":false,"removed":[]}
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/requests/wait:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Search]
+      operationId: waitForRequests
+      summary: Wait for messages that match
+      description: >-
+        Long poll: answers as soon as `count` messages after `after` match, or when `timeout` ends. Always 200
+        when the call is valid. An empty body is `{}`.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitRequest'
+            example:
+              match:
+                method: [POST]
+                path: {prefix: /orders}
+              count: 1
+              timeout: 30000
+      responses:
+        '200':
+          description: The outcome of the wait.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/requests/search:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Search]
+      operationId: searchRequests
+      summary: Search the messages
+      description: >-
+        By text and by a rule `match`, paginated like the listing (`total` is how many match). An empty body is
+        `{}`.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: A page of matching messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestPage'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/rules:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Rules]
+      operationId: listRules
+      summary: List the response rules
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The rules, in list order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+    put:
+      tags: [Rules]
+      operationId: replaceRules
+      summary: Replace the response rules
+      description: >-
+        Replaces the whole list (up to 100; also the import). Rules without `id` get one. Error keys start at the
+        list index (`0.match.path.regex`); `rules` for the list itself.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/RuleInput'
+            example:
+              - name: payment approved
+                match:
+                  method: [POST]
+                  path: {equals: /payments}
+                response:
+                  status: 201
+                  headers: {Content-Type: application/json}
+                  body: '{"ok":true}'
+      responses:
+        '200':
+          description: The saved rules, with their ids.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/rules/test:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Rules]
+      operationId: testRule
+      summary: Test a rule against the recent messages
+      description: >-
+        Evaluates one rule (saved or not; `enabled` ignored) against the 500 newest messages, newest first. With
+        `render`, also renders its response for the first N matches. Error keys have no list index.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      parameters:
+        - name: render
+          in: query
+          description: How many matches to render the response for.
+          schema: {type: integer, minimum: 1, maximum: 3}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleInput'
+            examples:
+              rule:
+                $ref: '#/components/examples/Rule'
+      responses:
+        '200':
+          description: Which messages match and why the others do not.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleTestResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/request/{requestId}/rules/trace:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [Rules]
+      operationId: traceRules
+      summary: Trace the current rules against a message
+      description: Why each current rule matches or not, in evaluation order (enabled first). Read only.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The trace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleTrace'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/rules/suggest:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [AI]
+      operationId: suggestRule
+      summary: Suggest a rule from a description
+      description: >-
+        The local model writes a rule from `prompt`; the server validates and checks it. Nothing is saved. Up to
+        one call at a time and 10 per minute per URL.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestRequest'
+      responses:
+        '200':
+          description: The suggested rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestResponse'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          description: Invalid input, or the model gave no valid rule.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrors'
+                  - $ref: '#/components/schemas/NoRuleError'
+        '429':
+          $ref: '#/components/responses/AiTooManyRequests'
+        '502':
+          $ref: '#/components/responses/AiModelFailed'
+        '503':
+          $ref: '#/components/responses/AiNotConfigured'
+
+  /token/{tokenId}/request/{requestId}/explain:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [AI]
+      operationId: explainRequest
+      summary: Explain the outcome of a message
+      description: >-
+        The local model explains, from facts the server gathers, why signature, schema and rules gave the result
+        they gave. Nothing is saved. An empty body is `{}`.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExplainRequest'
+      responses:
+        '200':
+          description: The explanation and the facts given to the model.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplainResponse'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/AiTooManyRequests'
+        '502':
+          $ref: '#/components/responses/AiModelFailed'
+        '503':
+          $ref: '#/components/responses/AiNotConfigured'
+
+  /token/{tokenId}/scenarios:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Rules]
+      operationId: listScenarios
+      summary: List the rule scenarios and their state
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The scenarios cited by the rules, then the ones set by hand.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScenarioState'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+    delete:
+      tags: [Rules]
+      operationId: resetScenarios
+      summary: Reset every scenario to Started
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The scenarios after the reset.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScenarioState'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/scenarios/{name}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - name: name
+        in: path
+        required: true
+        description: Scenario name.
+        schema: {type: string}
+    put:
+      tags: [Rules]
+      operationId: setScenarioState
+      summary: Set the state of a scenario
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioStateInput'
+      responses:
+        '200':
+          description: The scenario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioState'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/request/{requestId}/replay:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [Outbound]
+      operationId: replayRequest
+      summary: Replay a message through the server
+      description: >-
+        Sends the recorded method, headers (minus hop-by-hop and proxy headers) and body to `url`. A failure to
+        reach the target is not an API error: 200 with `error`. Up to 30 replays and sends per minute per URL.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayRequest'
+      responses:
+        '200':
+          description: The result, also added to the history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboundResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/OutboundTooManyRequests'
+
+  /token/{tokenId}/send:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Outbound]
+      operationId: sendRequest
+      summary: Send a request through the server
+      description: >-
+        Optionally signed with the URL `signature`. A failure to reach the target is not an API error: 200 with
+        `error`. Up to 30 replays and sends per minute per URL.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRequest'
+      responses:
+        '200':
+          description: The result, also added to the history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboundResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/OutboundTooManyRequests'
+
+  /token/{tokenId}/outbound:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Outbound]
+      operationId: listOutbound
+      summary: List the replay and send history
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: Up to the 50 newest results, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/OutboundResult'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Stats]
+      operationId: getStats
+      summary: Summarize the newest messages
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      parameters:
+        - name: window
+          in: query
+          description: How many of the newest messages; absent or empty is 500.
+          schema: {type: integer, minimum: 1, maximum: 500, default: 500}
+      responses:
+        '200':
+          description: The summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/unlock:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Privacy]
+      operationId: unlockToken
+      summary: Unlock a protected URL in the browser
+      description: >-
+        The right secret sets the `anzol_access` cookie (HttpOnly, SameSite=Strict, `Path=/token/{tokenId}`, 30
+        days). On a URL without a read secret, 204 without a cookie. More than 10 wrong secrets per minute
+        (header included): 429.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlockRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UnlockRequest'
+      responses:
+        '204':
+          description: Unlocked (or nothing to unlock).
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/AccessCookie'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          description: Wrong secret.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleError'
+              example: {error: Wrong secret}
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/lock:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Privacy]
+      operationId: lockToken
+      summary: Lock the URL again in this browser
+      description: Expires the `anzol_access` cookie of this URL. Always 204, whether the URL exists or not.
+      security: []
+      responses:
+        '204':
+          description: Cookie cleared.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/AccessCookie'
+
+  /token/{tokenId}/request/{requestId}/share:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      tags: [Privacy]
+      operationId: createShare
+      summary: Create a read-only link to a message
+      description: Up to 50 active links per URL (422 in `shares`).
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShareRequest'
+      responses:
+        '201':
+          description: The link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedShare'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/shares:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [Privacy]
+      operationId: listShares
+      summary: List the active read-only links of a URL
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The active links.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Share'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/shares/{shareId}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/ShareId'
+    delete:
+      tags: [Privacy]
+      operationId: revokeShare
+      summary: Revoke a read-only link
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '204':
+          description: Revoked.
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/ShareNotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /share/{shareId}:
+    parameters:
+      - $ref: '#/components/parameters/ShareId'
+    get:
+      tags: [Privacy]
+      operationId: getSharedRequest
+      summary: Read a shared message
+      description: >-
+        Public: no credential. The message without `token_id` and `decrypted`, with every occurrence of the URL
+        uuid replaced by a placeholder and, when the link asked for it, sensitive values masked. The same 404 for
+        a link that does not exist, expired, was revoked, or whose URL or message is gone.
+      security: []
+      responses:
+        '200':
+          description: The shared message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedMessage'
+        '404':
+          $ref: '#/components/responses/ShareNotFound'
+
+  /token/{tokenId}/keys:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [E2EE]
+      operationId: createE2eeKey
+      summary: Generate an encryption key
+      description: >-
+        Generates an EC P-256 key pair on the server and returns only the public part. Up to two keys per URL
+        (for rotation); the private key never leaves the server.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/E2eeKeyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/E2eeKeyRequest'
+      responses:
+        '201':
+          description: The new key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/E2eeKey'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/keys/{kid}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - name: kid
+        in: path
+        required: true
+        description: Key id.
+        schema: {type: string}
+    delete:
+      tags: [E2EE]
+      operationId: deleteE2eeKey
+      summary: Delete an encryption key
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/TooManySecretAttempts'
+
+  /token/{tokenId}/jwks.json:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    get:
+      tags: [E2EE]
+      operationId: getJwks
+      summary: Get the public encryption keys
+      description: Public, like any JWKS.
+      security: []
+      responses:
+        '200':
+          description: The JWKS.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /e2ee-lab:
+    post:
+      tags: [E2EE]
+      operationId: createE2eeLab
+      summary: Create an E2EE lab URL
+      description: >-
+        A new URL ready to test decryption: read and HMAC secrets (returned only here), keys `enc-v1` and
+        `enc-v2`, the test signer `lab-sig-1`, the lab policy and rules. Lives 24 h; up to 20 active labs on the
+        server (422 in `lab`).
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LabRequest'
+      responses:
+        '201':
+          description: The lab URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabCreated'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /e2ee-lab/scenarios:
+    get:
+      tags: [E2EE]
+      operationId: listE2eeLabScenarios
+      summary: List the E2EE lab scenarios
+      description: The catalog, with what each scenario expects under the default lab policy.
+      security: []
+      responses:
+        '200':
+          description: The catalog.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabScenario'
+
+  /token/{tokenId}/e2ee-lab/run:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [E2EE]
+      operationId: runE2eeLab
+      summary: Run the lab scenarios
+      description: >-
+        Builds each scenario with the URL keys, delivers it through the real capture and compares status and
+        decryption with the expected. Only on a lab URL (422 in `lab`); up to 6 runs per minute per URL.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabRunRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LabRunRequest'
+      responses:
+        '200':
+          description: The report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabReport'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: >-
+            Too many lab runs on this URL, or (on a protected URL) too many wrong read secrets.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleError'
+              example: {error: Too many lab runs for this URL; try again later}
+
+components:
+  securitySchemes:
+    readSecret:
+      type: apiKey
+      in: header
+      name: X-Anzol-Secret
+      description: >-
+        The read secret of the URL. Only required when the URL is protected (`protected: true`); other URLs
+        ignore it.
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: anzol_access
+      description: >-
+        The unlock cookie set by `POST /token/{tokenId}/unlock`. Only required when the URL is protected.
+
+  parameters:
+    TokenId:
+      name: tokenId
+      in: path
+      required: true
+      description: The URL uuid (lowercase).
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      description: The message uuid (lowercase).
+      schema:
+        type: string
+        format: uuid
+    ShareId:
+      name: shareId
+      in: path
+      required: true
+      description: The link id (22 base62 characters).
+      schema:
+        type: string
+    CapturePath:
+      name: path
+      in: path
+      required: true
+      description: >-
+        The rest of the path after the uuid; may contain slashes. Its first segment, when it holds a status
+        (`[1-5]xx`), is the response status when no rule matches.
+      schema:
+        type: string
+
+  headers:
+    RetryAfter:
+      description: Seconds to wait before trying again.
+      schema:
+        type: integer
+    AccessCookie:
+      description: The `anzol_access` cookie of this URL (set, or expired by `lock`).
+      schema:
+        type: string
+    RequestId:
+      description: The uuid of the recorded message.
+      schema:
+        type: string
+        format: uuid
+    TokenId:
+      description: The URL uuid.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Captured:
+      description: >-
+        What the URL is configured to answer: the matching rule's status, headers and body (possibly delayed,
+        dribbled, or replaced by a network fault), or the URL default. A rule fault that holds the connection
+        beyond the limit answers 503 with `X-Fault-Limit`. With CORS on, the four `Access-Control-*` headers are
+        added; every capture response carries a sandbox `Content-Security-Policy`.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        X-Token-Id:
+          $ref: '#/components/headers/TokenId'
+        Retry-After:
+          description: The URL `retry_after`, on default responses.
+          schema:
+            type: string
+      content:
+        '*/*':
+          schema: {}
+    ValidationError:
+      description: Validation failed. Keys are field paths; values are the messages.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrors'
+          example:
+            e2ee.path: [The e2ee.path field is required.]
+    ValidationRedirect:
+      description: >-
+        Validation failed on a request that neither sends JSON nor accepts it (a form): redirect to the
+        `Referer`, or to `/`.
+      headers:
+        Location:
+          schema:
+            type: string
+    MalformedJson:
+      description: The `Content-Type` is JSON but the body is not a JSON object.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            success: false
+            error: {message: The body must be a valid JSON object., id: null}
+    Protected:
+      description: The URL is protected and the request has neither the read secret nor a valid unlock cookie.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProtectedError'
+          example: {error: This URL is protected, protected: true}
+    Gone:
+      description: The URL does not exist (never did, expired or was deleted).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            success: false
+            error: {message: Token not found, id: null}
+        text/html:
+          schema:
+            type: string
+    NotFound:
+      description: The message (or key) does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            success: false
+            error: {message: Request not found, id: null}
+        text/html:
+          schema:
+            type: string
+    ShareNotFound:
+      description: The link does not exist or has expired.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+          example: {error: This shared link does not exist or has expired}
+    TooManySecretAttempts:
+      description: Too many wrong read secrets for this URL in the last minute.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+          example: {error: Too many wrong secrets for this URL; try again later}
+    OutboundTooManyRequests:
+      description: >-
+        More than 30 replays and sends in a minute on this URL, or (on a protected URL) too many wrong read
+        secrets (`SimpleError`).
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - $ref: '#/components/schemas/SimpleError'
+          example:
+            success: false
+            error: {message: Too many outbound requests for this URL; try again in 12 s., id: null}
+    AiTooManyRequests:
+      description: >-
+        Another AI call is running on this URL, or more than 10 in a minute, or (on a protected URL) too many
+        wrong read secrets.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    AiModelFailed:
+      description: The language model failed or answered nothing usable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+    AiNotConfigured:
+      description: AI is disabled on this server.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SimpleError'
+          example: {error: AI is not configured}
+
+  examples:
+    Message:
+      value:
+        uuid: 6f1c2a4e-3b7d-4c1e-9a52-0d8e7f6a5b41
+        token_id: 9b2e4c1a-7d3f-4e8b-a6c5-1f0e2d3c4b5a
+        ip: 172.17.0.1
+        hostname: localhost
+        method: POST
+        user_agent: curl/8.7.1
+        content: '{"status":"paid"}'
+        query: {source: test}
+        headers:
+          content-type: [application/json]
+          user-agent: [curl/8.7.1]
+        url: http://localhost:8084/9b2e4c1a-7d3f-4e8b-a6c5-1f0e2d3c4b5a/orders?source=test
+        created_at: '2026-09-26 14:02:07'
+        updated_at: '2026-09-26 14:02:07'
+        rule: null
+        near_miss: null
+        signature: null
+        schema: null
+        response: {status: 200}
+        decryption: null
+        seq: 1790438426238928
+    Rule:
+      value:
+        name: payment approved
+        priority: 5
+        match:
+          method: [POST]
+          path: {equals: /payments}
+          headers:
+            X-Signature: {present: true}
+          body:
+            - jsonPath: {path: $.status, equals: paid}
+        response:
+          status: 201
+          headers: {Content-Type: application/json}
+          body: '{"ok":true}'
+
+  schemas:
+    Timestamp:
+      type: string
+      description: UTC, `yyyy-MM-dd HH:mm:ss`.
+      pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$'
+      examples: ['2026-09-26 14:02:07']
+
+    LegacyInteger:
+      description: An integer; a string holding one is also accepted (legacy form input).
+      type: [integer, string]
+
+    ValidationErrors:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: object
+          required: [message, id]
+          properties:
+            message:
+              type: string
+            id:
+              type: 'null'
+
+    SimpleError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ProtectedError:
+      type: object
+      required: [error, protected]
+      properties:
+        error:
+          const: This URL is protected
+        protected:
+          const: true
+
+    NoRuleError:
+      type: object
+      required: [error, errors, attempts]
+      properties:
+        error:
+          type: string
+        errors:
+          $ref: '#/components/schemas/ValidationErrors'
+        attempts:
+          type: integer
+
+    Token:
+      type: object
+      description: A capture URL as the API returns it.
+      required:
+        - uuid
+        - ip
+        - user_agent
+        - default_content
+        - default_status
+        - default_content_type
+        - timeout
+        - cors
+        - created_at
+        - updated_at
+        - retry_after
+        - auto_cleanup
+        - signature
+        - schema
+        - e2ee
+        - e2ee_keys
+        - lab
+        - protected
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        ip:
+          type: [string, 'null']
+        user_agent:
+          type: [string, 'null']
+        default_content:
+          type: string
+        default_status:
+          type: integer
+        default_content_type:
+          type: string
+        timeout:
+          type: integer
+          description: Seconds the default response waits.
+        cors:
+          type: boolean
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        retry_after:
+          description: Seconds or an HTTP date; `null` means no `Retry-After`.
+          type: [integer, string, 'null']
+        auto_cleanup:
+          description: Messages kept; `null` means the server limit.
+          enum: [500, 1000, 5000, 10000, null]
+        signature:
+          oneOf:
+            - $ref: '#/components/schemas/Signature'
+            - type: 'null'
+        schema:
+          oneOf:
+            - $ref: '#/components/schemas/Schema'
+            - type: 'null'
+        e2ee:
+          oneOf:
+            - $ref: '#/components/schemas/E2eePolicy'
+            - type: 'null'
+        e2ee_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/E2eeKey'
+        lab:
+          oneOf:
+            - $ref: '#/components/schemas/LabMark'
+            - type: 'null'
+        protected:
+          type: boolean
+          description: Whether reading and managing the URL requires the read secret.
+
+    TokenSettings:
+      type: object
+      description: Body of `POST /token` and `PUT /token/{tokenId}`.
+      properties:
+        default_content:
+          type: string
+          default: ''
+        default_status:
+          $ref: '#/components/schemas/LegacyInteger'
+          description: Default 200. Outside 200–599, the capture answers 200.
+        default_content_type:
+          type: string
+          default: text/plain
+        timeout:
+          $ref: '#/components/schemas/LegacyInteger'
+          description: 0 to 10 seconds the default response waits; default 0.
+        retry_after:
+          description: Seconds (integer ≥ 0, or a string of digits) or an IMF-fixdate HTTP date.
+          type: [integer, string, 'null']
+          examples: [30, 'Sun, 06 Nov 1994 08:49:37 GMT']
+        auto_cleanup:
+          description: Keep only the N newest messages.
+          enum: [500, 1000, 5000, 10000, '500', '1000', '5000', '10000', null]
+        signature:
+          oneOf:
+            - $ref: '#/components/schemas/SignatureSettings'
+            - type: 'null'
+        schema:
+          oneOf:
+            - $ref: '#/components/schemas/Schema'
+            - type: 'null'
+        e2ee:
+          oneOf:
+            - $ref: '#/components/schemas/E2eePolicy'
+            - type: 'null'
+        read_secret:
+          description: >-
+            8 to 256 characters; body only. On `PUT`, absent keeps the current secret and `null` removes it.
+          type: [string, 'null']
+          minLength: 8
+          maxLength: 256
+
+    CorsState:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+
+    Signature:
+      type: object
+      description: >-
+        HMAC verification of the URL, with defaults filled and the secret masked (`••••` and the last
+        characters).
+      required: [provider, secret]
+      properties:
+        provider:
+          enum: [stripe, github, shopify, slack, generic]
+        secret:
+          type: string
+          examples: [••••cret]
+        toleranceSeconds:
+          type: integer
+          description: Stripe and Slack only.
+        header:
+          type: string
+          description: Generic only.
+        algorithm:
+          enum: [sha1, sha256, sha512]
+          description: Generic only.
+        encoding:
+          enum: [hex, base64]
+          description: Generic only.
+        prefix:
+          type: string
+          description: Generic only, when set.
+
+    SignatureSettings:
+      type: object
+      description: >-
+        `signature` as sent. Fields that do not apply to the provider are ignored. An absent, empty or masked
+        `secret` keeps the current one; with no current secret it is a 422.
+      required: [provider]
+      properties:
+        provider:
+          enum: [stripe, github, shopify, slack, generic]
+        secret:
+          type: [string, 'null']
+          maxLength: 256
+        toleranceSeconds:
+          $ref: '#/components/schemas/LegacyInteger'
+          description: Stripe and Slack; 1 to 86400, default 300.
+        header:
+          type: string
+          description: Generic; required.
+        algorithm:
+          enum: [sha1, sha256, sha512]
+          default: sha256
+        encoding:
+          enum: [hex, base64]
+          default: hex
+        prefix:
+          type: string
+
+    Schema:
+      type: object
+      description: >-
+        A JSON Schema document (2020-12 by default; draft-07 or 2019-09 through `$schema`), returned as sent. Up
+        to 64 KB; only internal references.
+      additionalProperties: true
+
+    Binding:
+      description: A definite JSONPath in the envelope (exact comparison), or the path with `ignore_case`.
+      oneOf:
+        - type: string
+        - type: object
+          required: [path]
+          properties:
+            path:
+              type: string
+            ignore_case:
+              type: boolean
+              default: false
+
+    E2eePolicy:
+      type: object
+      description: Attribute decryption policy. Only public keys.
+      required: [path, audience, bindings, trusted_signers]
+      properties:
+        path:
+          type: string
+          description: Definite JSONPath of the encrypted attribute.
+          examples: [$.payload]
+        required:
+          type: boolean
+          default: true
+          description: A non-JWE attribute is a failure (`downgrade`); `false` lets it pass as `absent`.
+        audience:
+          type: string
+          maxLength: 256
+        bindings:
+          type: object
+          required: [jti, evt, app]
+          properties:
+            jti:
+              $ref: '#/components/schemas/Binding'
+            evt:
+              $ref: '#/components/schemas/Binding'
+            app:
+              $ref: '#/components/schemas/Binding'
+        max_age_seconds:
+          type: integer
+          minimum: 60
+          maximum: 604800
+          default: 43200
+        trusted_signers:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: Public EC P-256 JWKs for ES256, each with a unique `kid`.
+          items:
+            $ref: '#/components/schemas/Jwk'
+
+    Jwk:
+      type: object
+      description: A public EC P-256 JSON Web Key.
+      required: [kty, crv, 'x', 'y']
+      properties:
+        kty:
+          const: EC
+        crv:
+          const: P-256
+        kid:
+          type: string
+        'x':
+          type: string
+        'y':
+          type: string
+        use:
+          type: string
+        alg:
+          type: string
+      additionalProperties: true
+
+    Jwks:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Jwk'
+
+    E2eeKey:
+      type: object
+      description: An encryption key of the URL; only the public part (`use=enc`, `alg=ECDH-ES`).
+      required: [kid, created_at, jwk]
+      properties:
+        kid:
+          type: string
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        jwk:
+          $ref: '#/components/schemas/Jwk'
+
+    E2eeKeyRequest:
+      type: object
+      properties:
+        kid:
+          type: string
+          pattern: '^[A-Za-z0-9._-]{1,64}$'
+          description: Default `enc-<yyyyMMdd>-<4 hex>`.
+
+    LabMark:
+      type: object
+      description: Present only on an E2EE lab URL.
+      required: [signer_kid, expires_at]
+      properties:
+        signer_kid:
+          type: string
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    MessageFields:
+      type: object
+      description: The fields every message read has.
+      required:
+        - uuid
+        - ip
+        - hostname
+        - method
+        - user_agent
+        - content
+        - query
+        - headers
+        - url
+        - created_at
+        - updated_at
+        - rule
+        - near_miss
+        - signature
+        - schema
+        - response
+        - decryption
+        - seq
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        ip:
+          type: [string, 'null']
+        hostname:
+          type: string
+        method:
+          type: string
+        user_agent:
+          type: [string, 'null']
+        content:
+          type: string
+          description: The body as captured.
+        query:
+          description: The query parameters, a PHP array (object or list).
+          type: [object, array, 'null']
+        headers:
+          type: object
+          description: Lowercase header name to its values.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        url:
+          type: string
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        request:
+          description: >-
+            The parsed form fields; absent on JSON requests, `null` without fields.
+          type: [object, array, 'null']
+        rule:
+          description: The rule that answered.
+          oneOf:
+            - $ref: '#/components/schemas/RuleRef'
+            - type: 'null'
+        near_miss:
+          description: With no rule matching, the enabled rule closest to matching.
+          oneOf:
+            - $ref: '#/components/schemas/NearMiss'
+            - type: 'null'
+        signature:
+          oneOf:
+            - $ref: '#/components/schemas/SignatureResult'
+            - type: 'null'
+        schema:
+          oneOf:
+            - $ref: '#/components/schemas/SchemaResult'
+            - type: 'null'
+        response:
+          oneOf:
+            - $ref: '#/components/schemas/RecordedResponse'
+            - type: 'null'
+        decryption:
+          oneOf:
+            - $ref: '#/components/schemas/Decryption'
+            - type: 'null'
+        seq:
+          type: integer
+          format: int64
+          description: Strictly increasing per URL in storage order; never reused.
+
+    Message:
+      description: A captured request.
+      allOf:
+        - $ref: '#/components/schemas/MessageFields'
+        - type: object
+          required: [token_id]
+          properties:
+            token_id:
+              type: string
+              format: uuid
+            decrypted:
+              description: The opened attribute (the JWS `data` claim); only when `decryption.state` is `valid`.
+
+    SharedMessage:
+      description: A message as a read-only link shows it.
+      allOf:
+        - $ref: '#/components/schemas/MessageFields'
+        - type: object
+          required: [shared_at, expires_at]
+          properties:
+            shared_at:
+              $ref: '#/components/schemas/Timestamp'
+            expires_at:
+              $ref: '#/components/schemas/Timestamp'
+
+    RuleRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    NearMiss:
+      type: object
+      required: [id, name, failed, conditions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        failed:
+          type: array
+          description: One phrase per failed condition.
+          items:
+            type: string
+        conditions:
+          description: The key of each failed condition, in the order of `failed`; `null` on old messages.
+          type: [array, 'null']
+          items:
+            type: string
+
+    SignatureResult:
+      type: object
+      required: [provider, valid, reason]
+      properties:
+        provider:
+          type: string
+        valid:
+          type: boolean
+        reason:
+          type: [string, 'null']
+          examples: [signature mismatch]
+
+    SchemaResult:
+      type: object
+      required: [valid, errors]
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/SchemaError'
+
+    SchemaError:
+      type: object
+      required: [path, message]
+      properties:
+        path:
+          type: string
+          description: JSON Pointer in the instance; `""` is the root.
+        message:
+          type: string
+
+    RecordedResponse:
+      type: object
+      description: What the capture answered, the status or the rule fault that dropped the connection.
+      properties:
+        status:
+          type: integer
+        fault:
+          $ref: '#/components/schemas/Fault'
+
+    Decryption:
+      type: object
+      required: [state, kid, signature_kid, reason, jti, duplicate_of]
+      properties:
+        state:
+          $ref: '#/components/schemas/DecryptionState'
+        kid:
+          type: [string, 'null']
+          description: The encryption key id, when read.
+        signature_kid:
+          type: [string, 'null']
+          description: The trusted signer that signed, when read.
+        reason:
+          type: [string, 'null']
+          description: Why it failed, e.g. `hmac_failed`, `downgrade`, `decrypt_failed`, `aud_mismatch`.
+        jti:
+          type: [string, 'null']
+        duplicate_of:
+          description: On a redelivery of a decrypted `jti`, the first message.
+          type: [string, 'null']
+          format: uuid
+
+    DecryptionState:
+      enum: [valid, invalid, unknown_kid, absent]
+
+    RequestPage:
+      type: object
+      required: [data, total, per_page, current_page, is_last_page, from, to]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        total:
+          type: integer
+          format: int64
+        per_page:
+          type: integer
+        current_page:
+          type: integer
+        is_last_page:
+          type: boolean
+        from:
+          type: integer
+        to:
+          type: integer
+
+    DeletionResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: boolean
+
+    RequestCreated:
+      type: object
+      description: The `data` of the `request.created` stream event.
+      required: [request, total, truncated, removed]
+      properties:
+        request:
+          type: object
+          description: >-
+            The message, without `decrypted`; when `truncated`, also without `content`, `headers` and
+            `user_agent`.
+        total:
+          type: integer
+          format: int64
+        truncated:
+          type: boolean
+        removed:
+          type: array
+          description: Uuids removed by the automatic cleanup.
+          items:
+            type: string
+            format: uuid
+
+    Rule:
+      type: object
+      description: A response rule as stored. Optional window and chance fields appear only when set.
+      required: [id, name, enabled, priority, match, scenario, response]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        enabled:
+          type: boolean
+        priority:
+          type: integer
+          minimum: 1
+        chance:
+          type: integer
+          minimum: 1
+          maximum: 100
+        active_from:
+          type: string
+          format: date-time
+        active_until:
+          type: string
+          format: date-time
+        match:
+          $ref: '#/components/schemas/RuleMatch'
+        scenario:
+          oneOf:
+            - $ref: '#/components/schemas/RuleScenario'
+            - type: 'null'
+        response:
+          $ref: '#/components/schemas/RuleResponse'
+
+    RuleInput:
+      type: object
+      description: A response rule as sent.
+      required: [name]
+      properties:
+        id:
+          type: [string, 'null']
+          format: uuid
+          description: Generated when absent.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        enabled:
+          type: [boolean, 'null']
+          default: true
+        priority:
+          type: [integer, 'null']
+          minimum: 1
+          default: 5
+          description: Lower wins; ties go by list order.
+        chance:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 100
+          description: Percentage of the otherwise matching requests the rule answers.
+        active_from:
+          type: [string, 'null']
+          format: date-time
+          description: Inclusive; RFC 3339 with a time zone.
+        active_until:
+          type: [string, 'null']
+          format: date-time
+          description: Exclusive; after `active_from`.
+        match:
+          oneOf:
+            - $ref: '#/components/schemas/RuleMatch'
+            - type: 'null'
+        scenario:
+          oneOf:
+            - $ref: '#/components/schemas/RuleScenario'
+            - type: 'null'
+        response:
+          oneOf:
+            - $ref: '#/components/schemas/RuleResponse'
+            - type: 'null'
+
+    RuleMatch:
+      type: object
+      description: Conditions, all required (AND). No condition matches everything.
+      properties:
+        method:
+          type: array
+          description: Any of these methods (case-insensitive); empty matches any.
+          items:
+            type: string
+        path:
+          description: On the path after the uuid.
+          oneOf:
+            - $ref: '#/components/schemas/PathMatcher'
+            - type: 'null'
+        query:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/FieldMatcher'
+        headers:
+          type: object
+          description: Header names are case-insensitive.
+          additionalProperties:
+            $ref: '#/components/schemas/FieldMatcher'
+        body:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyMatcher'
+        signature:
+          enum: [valid, invalid, absent]
+        schema:
+          enum: [valid, invalid]
+        decryption:
+          $ref: '#/components/schemas/DecryptionState'
+
+    PathMatcher:
+      description: Exactly one operator.
+      oneOf:
+        - type: object
+          required: [equals]
+          properties:
+            equals: {type: string}
+        - type: object
+          required: [prefix]
+          properties:
+            prefix: {type: string}
+        - type: object
+          required: [regex]
+          properties:
+            regex:
+              type: string
+              description: Java regex matching the whole value.
+
+    FieldMatcher:
+      description: Exactly one operator.
+      oneOf:
+        - type: object
+          required: [equals]
+          properties:
+            equals: {type: string}
+        - type: object
+          required: [contains]
+          properties:
+            contains: {type: string}
+        - type: object
+          required: [regex]
+          properties:
+            regex: {type: string}
+        - type: object
+          required: [present]
+          properties:
+            present: {type: boolean}
+
+    BodyMatcher:
+      description: Exactly one operator.
+      oneOf:
+        - type: object
+          required: [equals]
+          properties:
+            equals: {type: string}
+        - type: object
+          required: [contains]
+          properties:
+            contains: {type: string}
+        - type: object
+          required: [regex]
+          properties:
+            regex: {type: string}
+        - type: object
+          required: [jsonPath]
+          properties:
+            jsonPath:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                equals:
+                  description: Any JSON value; without it, the path only has to exist.
+        - type: object
+          required: [equalToJson]
+          properties:
+            equalToJson:
+              description: A JSON value, or a string holding one.
+
+    RuleScenario:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        requiredState:
+          type: string
+          minLength: 1
+          description: The rule matches only in this state; absent means any.
+        newState:
+          type: string
+          minLength: 1
+          description: The state after answering; absent keeps it.
+
+    RuleResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+          default: 200
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        body:
+          type: string
+          default: ''
+        template:
+          type: boolean
+          default: false
+          description: Render `body` and header values as Handlebars templates.
+        delay:
+          oneOf:
+            - $ref: '#/components/schemas/Delay'
+            - type: 'null'
+        dribble:
+          oneOf:
+            - $ref: '#/components/schemas/Dribble'
+            - type: 'null'
+        fault:
+          oneOf:
+            - $ref: '#/components/schemas/Fault'
+            - type: 'null'
+
+    Delay:
+      description: Wait before answering, in ms (at most 60000). Exactly one operator.
+      oneOf:
+        - type: object
+          required: [fixed]
+          properties:
+            fixed:
+              type: integer
+              minimum: 0
+              maximum: 60000
+        - type: object
+          required: [uniform]
+          properties:
+            uniform:
+              type: object
+              required: [min, max]
+              properties:
+                min: {type: integer, minimum: 0, maximum: 60000}
+                max: {type: integer, minimum: 0, maximum: 60000}
+        - type: object
+          required: [lognormal]
+          properties:
+            lognormal:
+              type: object
+              required: [median, sigma]
+              properties:
+                median: {type: number, minimum: 1, maximum: 60000}
+                sigma: {type: number, minimum: 0, maximum: 10}
+
+    Dribble:
+      type: object
+      description: Send the body in `chunks` pieces spread over `durationMs`.
+      required: [chunks, durationMs]
+      properties:
+        chunks:
+          type: integer
+          minimum: 1
+          maximum: 100
+        durationMs:
+          type: integer
+          minimum: 0
+          maximum: 60000
+
+    Fault:
+      description: A network failure instead of the response.
+      enum:
+        - connection_reset
+        - empty_response
+        - malformed_chunk
+        - random_data_then_close
+        - hang
+        - stall_after_headers
+        - truncated_body
+
+    TestMatch:
+      type: object
+      required: [uuid, seq]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+
+    TestMiss:
+      type: object
+      required: [uuid, seq, failed, conditions]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        failed:
+          type: array
+          items:
+            type: string
+        conditions:
+          type: array
+          items:
+            type: string
+
+    RenderedResponse:
+      description: The response the rule would give to one message, the fault, or why it was not rendered.
+      oneOf:
+        - type: object
+          required: [uuid, status, headers, body]
+          properties:
+            uuid: {type: string, format: uuid}
+            status: {type: integer}
+            headers:
+              type: object
+              additionalProperties: {type: string}
+            body: {type: string}
+        - type: object
+          required: [uuid, fault]
+          properties:
+            uuid: {type: string, format: uuid}
+            fault:
+              $ref: '#/components/schemas/Fault'
+        - type: object
+          required: [uuid, error]
+          properties:
+            uuid: {type: string, format: uuid}
+            error:
+              enum: [timeout, too_large]
+
+    RuleTestResult:
+      type: object
+      required: [matches, misses]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestMatch'
+        misses:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestMiss'
+        rendered:
+          type: array
+          description: Only with `render`.
+          items:
+            $ref: '#/components/schemas/RenderedResponse'
+
+    RuleTrace:
+      type: object
+      required: [request, responded_by, rules]
+      properties:
+        request:
+          type: string
+          format: uuid
+        responded_by:
+          description: The rule the message recorded as the one that answered.
+          oneOf:
+            - $ref: '#/components/schemas/RuleRef'
+            - type: 'null'
+        rules:
+          type: array
+          items:
+            type: object
+            required: [id, name, enabled, position, matches, failed, conditions]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              enabled:
+                type: boolean
+              position:
+                type: [integer, 'null']
+                description: 1-based evaluation position among enabled rules; `null` when disabled.
+              matches:
+                type: boolean
+              failed:
+                type: array
+                items:
+                  type: string
+              conditions:
+                type: array
+                items:
+                  type: string
+
+    ScenarioState:
+      type: object
+      required: [name, state, states]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          description: Current state; every scenario starts at `Started`.
+        states:
+          type: array
+          description: The states the rules cite.
+          items:
+            type: string
+
+    ScenarioStateInput:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          minLength: 1
+
+    SearchRequest:
+      type: object
+      properties:
+        text:
+          type: [string, 'null']
+          maxLength: 200
+          description: Case-insensitive substring of method, url, ip, header or query names and values, or body.
+        match:
+          oneOf:
+            - $ref: '#/components/schemas/RuleMatch'
+            - type: 'null'
+        outcome:
+          description: The recorded outcome.
+          oneOf:
+            - type: object
+              required: [type, rule]
+              properties:
+                type:
+                  enum: [rule, near_miss]
+                rule:
+                  type: string
+                  format: uuid
+            - type: object
+              required: [type]
+              properties:
+                type:
+                  const: default
+            - type: 'null'
+        signature_reason:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 200
+          description: Invalid signature with this reason (ignoring a trailing parenthesis).
+        schema_path:
+          type: [string, 'null']
+          maxLength: 1000
+          description: Invalid schema with an error at this JSON Pointer.
+        sorting:
+          enum: [newest, oldest, null]
+          default: newest
+        page:
+          type: [integer, 'null']
+          minimum: 1
+          default: 1
+        per_page:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 100
+          default: 50
+
+    WaitRequest:
+      type: object
+      properties:
+        match:
+          oneOf:
+            - $ref: '#/components/schemas/RuleMatch'
+            - type: 'null'
+        after:
+          type: [integer, 'null']
+          format: int64
+          minimum: 0
+          description: Only messages with a greater `seq`; absent means the whole history.
+        count:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 100
+          default: 1
+        timeout:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 300000
+          default: 30000
+          description: Milliseconds to wait for new messages; 0 only looks at the history.
+
+    WaitResult:
+      type: object
+      required: [matched, count, requests, near_miss]
+      properties:
+        matched:
+          type: boolean
+        count:
+          type: integer
+        requests:
+          type: array
+          description: The matches with the lowest `seq`, ascending.
+          items:
+            $ref: '#/components/schemas/Message'
+        near_miss:
+          description: Without success, the evaluated message closest to matching.
+          oneOf:
+            - $ref: '#/components/schemas/TestMiss'
+            - type: 'null'
+
+    Stats:
+      type: object
+      required:
+        - window
+        - evaluated
+        - total
+        - newest_seq
+        - oldest_seq
+        - newest_at
+        - oldest_at
+        - methods
+        - signature
+        - schema
+        - rules
+        - hourly
+      properties:
+        window:
+          type: integer
+        evaluated:
+          type: integer
+        total:
+          type: integer
+          format: int64
+        newest_seq:
+          type: [integer, 'null']
+          format: int64
+        oldest_seq:
+          type: [integer, 'null']
+          format: int64
+        newest_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        oldest_at:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        methods:
+          type: object
+          additionalProperties:
+            type: integer
+        signature:
+          type: object
+          required: [valid, invalid, absent, unchecked, reasons]
+          properties:
+            valid: {type: integer}
+            invalid: {type: integer}
+            absent: {type: integer}
+            unchecked: {type: integer}
+            reasons:
+              type: array
+              maxItems: 10
+              items:
+                type: object
+                required: [reason, count]
+                properties:
+                  reason: {type: string}
+                  count: {type: integer}
+        schema:
+          type: object
+          required: [valid, invalid, unchecked, paths]
+          properties:
+            valid: {type: integer}
+            invalid: {type: integer}
+            unchecked: {type: integer}
+            paths:
+              type: array
+              maxItems: 10
+              items:
+                type: object
+                required: [path, count]
+                properties:
+                  path: {type: string}
+                  count: {type: integer}
+        rules:
+          type: object
+          required: [answered, near_miss, default]
+          properties:
+            answered:
+              type: array
+              items:
+                $ref: '#/components/schemas/RuleCount'
+            near_miss:
+              type: array
+              items:
+                $ref: '#/components/schemas/RuleCount'
+            default:
+              type: integer
+        hourly:
+          type: array
+          items:
+            type: object
+            required: [hour, count, methods]
+            properties:
+              hour:
+                $ref: '#/components/schemas/Timestamp'
+              count:
+                type: integer
+              methods:
+                type: object
+                additionalProperties:
+                  type: integer
+
+    RuleCount:
+      type: object
+      required: [id, name, count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        count:
+          type: integer
+
+    ReplayRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: Absolute URL.
+        keep_path:
+          type: boolean
+          default: true
+          description: Append the path after the uuid and the query of the message.
+        timeout:
+          type: integer
+          minimum: 1000
+          maximum: 30000
+          default: 10000
+          description: Total milliseconds.
+        chaos:
+          oneOf:
+            - $ref: '#/components/schemas/Chaos'
+            - type: 'null'
+
+    Chaos:
+      type: object
+      description: Faults injected in the replay. Unknown keys are refused.
+      additionalProperties: false
+      properties:
+        delay_ms:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 30000
+          default: 0
+        duplicate:
+          type: [boolean, 'null']
+          default: false
+        abort_mid_body:
+          type: [boolean, 'null']
+          default: false
+          description: Requires a message with a body.
+        slow_body_bps:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 1048576
+        timeout_ms:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 30000
+          description: Give up waiting for the response; less than `timeout`.
+
+    SendRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: Absolute URL.
+        method:
+          enum: [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
+          default: POST
+          description: Case-insensitive.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        body:
+          type: string
+          default: ''
+          description: Up to 1 MiB in UTF-8 bytes.
+        sign:
+          type: boolean
+          default: false
+          description: Sign the body with the URL `signature` (422 without one).
+        timeout:
+          type: integer
+          minimum: 1000
+          maximum: 30000
+          default: 10000
+
+    OutboundError:
+      type: object
+      required: [kind, message]
+      properties:
+        kind:
+          enum: [blocked, dns, connect, timeout, tls, invalid_url]
+        message:
+          type: string
+
+    OutboundResult:
+      type: object
+      description: >-
+        A replay or send. With `error` there is no response (`status`, `headers`, `body`, `truncated` are
+        absent).
+      required: [id, kind, at, target, method, request_headers, duration_ms]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          enum: [replay, send]
+        at:
+          $ref: '#/components/schemas/Timestamp'
+        target:
+          type: string
+        method:
+          type: string
+        request_headers:
+          type: object
+          additionalProperties:
+            type: string
+        status:
+          type: integer
+        headers:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        body:
+          type: string
+          description: Up to 64 KiB of the response body.
+        truncated:
+          type: boolean
+        duration_ms:
+          type: integer
+          format: int64
+        error:
+          $ref: '#/components/schemas/OutboundError'
+        source_request:
+          type: string
+          format: uuid
+          description: Replay only.
+        chaos:
+          $ref: '#/components/schemas/ChaosReport'
+
+    ChaosReport:
+      type: object
+      required:
+        - delay_ms
+        - duplicate
+        - abort_mid_body
+        - slow_body_bps
+        - timeout_ms
+        - injected
+        - body_bytes_sent
+        - duplicate_result
+      properties:
+        delay_ms:
+          type: integer
+        duplicate:
+          type: boolean
+        abort_mid_body:
+          type: boolean
+        slow_body_bps:
+          type: [integer, 'null']
+        timeout_ms:
+          type: [integer, 'null']
+        injected:
+          type: array
+          items:
+            enum: [delay_ms, slow_body_bps, abort_mid_body, timeout_ms, duplicate]
+        body_bytes_sent:
+          type: [integer, 'null']
+        duplicate_result:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [status, duration_ms, error]
+              properties:
+                status:
+                  type: [integer, 'null']
+                duration_ms:
+                  type: integer
+                  format: int64
+                error:
+                  oneOf:
+                    - $ref: '#/components/schemas/OutboundError'
+                    - type: 'null'
+
+    UnlockRequest:
+      type: object
+      required: [secret]
+      properties:
+        secret:
+          type: string
+          minLength: 1
+
+    ShareRequest:
+      type: object
+      properties:
+        expires_in:
+          enum: [1h, 1d, 7d, 30d, null]
+          default: 7d
+        redact:
+          type: [boolean, 'null']
+          default: true
+          description: Mask sensitive headers, query values and secrets.
+
+    CreatedShare:
+      type: object
+      required: [id, url, expires_at, redact]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          description: The link in the web app, e.g. `/#/share/{id}`.
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        redact:
+          type: boolean
+
+    Share:
+      type: object
+      description: An active read-only link.
+      required: [id, url, request_id, redact, created_at, expires_at]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        request_id:
+          type: string
+          format: uuid
+        redact:
+          type: boolean
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SuggestRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        lang:
+          type: [string, 'null']
+          default: en
+          description: BCP 47 tag of the explanation language.
+        request_id:
+          type: [string, 'null']
+          format: uuid
+          description: An example message of this URL.
+
+    SuggestResponse:
+      type: object
+      required: [rule, explanation, attempts, check]
+      properties:
+        rule:
+          $ref: '#/components/schemas/Rule'
+        explanation:
+          type: string
+        attempts:
+          type: integer
+        check:
+          type: object
+          description: The server check of the rule, without the model.
+          required: [example, recent, warnings]
+          properties:
+            example:
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [matches, failed, conditions]
+                  properties:
+                    matches: {type: boolean}
+                    failed:
+                      type: array
+                      items: {type: string}
+                    conditions:
+                      type: array
+                      items: {type: string}
+            recent:
+              type: object
+              required: [evaluated, matched]
+              properties:
+                evaluated: {type: integer}
+                matched: {type: integer}
+            warnings:
+              type: array
+              items:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    enum: [example_not_matched, template_disabled, path_never_seen, sequence_as_single_rule]
+                  message:
+                    type: string
+
+    ExplainRequest:
+      type: object
+      properties:
+        lang:
+          type: [string, 'null']
+          default: en
+          description: BCP 47 tag of the explanation language.
+
+    ExplainResponse:
+      type: object
+      required: [explanation, facts]
+      properties:
+        explanation:
+          type: string
+          description: Simple markdown.
+        facts:
+          type: object
+          required: [method, path, signature, schema, rules, response, headers, body]
+          properties:
+            method:
+              type: string
+            path:
+              type: string
+            signature:
+              type: object
+              required: [configured, provider, valid, reason]
+              properties:
+                configured: {type: boolean}
+                provider: {type: [string, 'null']}
+                valid: {type: [boolean, 'null']}
+                reason: {type: [string, 'null']}
+            schema:
+              type: object
+              required: [configured, valid, errors]
+              properties:
+                configured: {type: boolean}
+                valid: {type: [boolean, 'null']}
+                errors:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SchemaError'
+            rules:
+              type: object
+              required: [configured, matched, near_miss]
+              properties:
+                configured:
+                  type: integer
+                  description: How many rules the URL has.
+                matched:
+                  oneOf:
+                    - $ref: '#/components/schemas/RuleRef'
+                    - type: 'null'
+                near_miss:
+                  oneOf:
+                    - $ref: '#/components/schemas/NearMiss'
+                    - type: 'null'
+            response:
+              type: object
+              required: [source, status, fault]
+              properties:
+                source:
+                  type: string
+                status: {type: [integer, 'null']}
+                fault: {type: [string, 'null']}
+            headers:
+              type: object
+              additionalProperties:
+                type: string
+            body:
+              type: object
+              required: [bytes, excerpt, truncated]
+              properties:
+                bytes: {type: integer}
+                excerpt: {type: string}
+                truncated: {type: boolean}
+
+    LabRequest:
+      type: object
+      description: Every field optional; paths must be simple (`$.a.b`).
+      properties:
+        hmac_header:
+          type: string
+          default: X-Signature
+        path:
+          type: string
+          default: $.payload
+        bindings:
+          type: object
+          properties:
+            jti:
+              $ref: '#/components/schemas/Binding'
+            evt:
+              $ref: '#/components/schemas/Binding'
+            app:
+              $ref: '#/components/schemas/Binding'
+        audience:
+          type: string
+          default: anzol-lab
+        max_age_seconds:
+          type: integer
+          minimum: 60
+          maximum: 604800
+          default: 43200
+        trusted_signers:
+          type: array
+          description: Other public signer JWKs, placed before the test signer.
+          items:
+            $ref: '#/components/schemas/Jwk'
+
+    LabCreated:
+      type: object
+      required: [token, read_secret, hmac_secret, hmac_header, jwks, scenarios]
+      properties:
+        token:
+          $ref: '#/components/schemas/Token'
+        read_secret:
+          type: string
+          description: Returned only here.
+        hmac_secret:
+          type: string
+          description: Returned only here.
+        hmac_header:
+          type: string
+        jwks:
+          $ref: '#/components/schemas/Jwks'
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabScenario'
+
+    LabExpected:
+      type: object
+      required: [status, state, reason, kid]
+      properties:
+        status:
+          type: integer
+        state:
+          $ref: '#/components/schemas/DecryptionState'
+        reason:
+          type: [string, 'null']
+        kid:
+          type: [string, 'null']
+
+    LabScenario:
+      type: object
+      required: [code, description, expected]
+      properties:
+        code:
+          type: string
+          examples: [P1]
+        description:
+          type: string
+        expected:
+          $ref: '#/components/schemas/LabExpected'
+
+    LabRunRequest:
+      type: object
+      properties:
+        scenarios:
+          type: [array, 'null']
+          description: Scenario codes (case-insensitive); absent runs all.
+          items:
+            type: string
+          examples: [[P1, N4]]
+
+    LabReport:
+      type: object
+      required: [total, matched, results]
+      properties:
+        total:
+          type: integer
+        matched:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            required: [code, description, expected, actual, ok, request_id]
+            properties:
+              code:
+                type: string
+              description:
+                type: string
+              expected:
+                $ref: '#/components/schemas/LabExpected'
+              actual:
+                type: object
+                required: [status, state, reason, kid, data_matches]
+                properties:
+                  status:
+                    type: integer
+                  state:
+                    oneOf:
+                      - $ref: '#/components/schemas/DecryptionState'
+                      - type: 'null'
+                  reason:
+                    type: [string, 'null']
+                  kid:
+                    type: [string, 'null']
+                  data_matches:
+                    type: [boolean, 'null']
+                    description: Whether the opened `data` equals the sent one; only when it opens.
+              ok:
+                type: boolean
+              request_id:
+                type: [string, 'null']
+                format: uuid
