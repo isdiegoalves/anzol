@@ -32,6 +32,7 @@ private val BAD_REQUEST =
         "POST /token/{tokenId}/request/{requestId}/share",
         "POST /token/{tokenId}/keys",
         "POST /e2ee-lab",
+        "POST /token/{tokenId}/e2ee-lab/run",
     )
 
 /** Menos que isto é sinal de que a varredura não achou as rotas, e passaria sem provar nada. */

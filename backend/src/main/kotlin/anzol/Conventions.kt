@@ -73,6 +73,9 @@ object RedisKeys {
     /** Um link só-leitura: o JSON dele, com TTL igual à expiração. */
     fun share(id: String): String = "share:$id"
 
+    /** Rodadas de cenários do laboratório E2EE na janela de um minuto (limite por URL). */
+    fun labRuns(id: TokenId): String = "token:$id:lab:runs"
+
     /** URLs de laboratório E2EE ativas: ZSET uuid → fim da vida em milissegundos (o teto de ativas). */
     const val LABS = "anzol:labs"
 

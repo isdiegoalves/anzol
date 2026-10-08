@@ -104,6 +104,7 @@ class TokenStore(
                     RedisKeys.mcpSecretFailures(token.uuid),
                     RedisKeys.shares(token.uuid),
                     RedisKeys.e2eeJti(token.uuid),
+                    RedisKeys.labRuns(token.uuid),
                 ) + shares,
             ).also { if (token.lab != null) redis.opsForZSet().remove(RedisKeys.LABS, token.uuid.toString()) } > 0
     }

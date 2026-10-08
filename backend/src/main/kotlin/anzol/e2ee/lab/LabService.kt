@@ -74,6 +74,7 @@ data class LabCreated(
     val hmacSecret: String,
     val hmacHeader: String,
     val jwks: Map<String, Any>,
+    val scenarios: List<ScenarioView>,
 )
 
 /**
@@ -168,7 +169,7 @@ class LabService(
         tokens.store(token)
         rules.store(uuid, labRules())
         val jwks = mapOf("keys" to token.e2eeKeys.map { it.public().toJSONObject() })
-        return Parsed.Valid(LabCreated(token.forApi(), readSecret, hmacSecret, header, jwks))
+        return Parsed.Valid(LabCreated(token.forApi(), readSecret, hmacSecret, header, jwks, LabRunner.catalog(policy)))
     }
 
     /** O cabeçalho do HMAC e a política, com os erros sob o nome do campo (sem o prefixo `e2ee.`). */
@@ -210,3 +211,17 @@ class LabService(
 }
 
 private val POLICY_FIELDS = setOf("path", "bindings", "audience", "max_age_seconds")
+
+/** A política padrão do laboratório, com um remetente qualquer: o catálogo esperado de quem não mudou nada. */
+val DEFAULT_LAB_POLICY: E2eePolicy by lazy {
+    val signer =
+        ECKeyGenerator(Curve.P_256)
+            .keyID(LAB_SIGNER_KID)
+            .generate()
+            .toPublicJWK()
+            .toJSONObject()
+    when (val parsed = readE2ee(DEFAULT_POLICY + ("trusted_signers" to listOf(signer)))) {
+        is Parsed.Valid -> parsed.value
+        is Parsed.Invalid -> error("política padrão do laboratório inválida: ${parsed.errors}")
+    }
+}
