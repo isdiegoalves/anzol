@@ -210,7 +210,7 @@ private fun E2eePolicy.signed(
     val header = if (parts.size == JWS_PARTS) decodedJson(parts[0]) else null
     val signatureKid = header?.text("kid")
     val signer = trustedSigners.firstOrNull { it.keyID == signatureKid }
-    val claims = if (parts.size == JWS_PARTS) decodedJson(parts[1]) else null
+    val claims = if (parts.size == JWS_PARTS) decodedExactJson(parts[1]) else null
     val reason =
         when {
             header == null || !header.isObject -> "jws_missing"

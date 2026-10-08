@@ -111,4 +111,25 @@ class E2eeReceiverApiTest(
 
         assertThat(redis.hasKey("token:$tokenId:e2ee:jti")).isFalse()
     }
+
+    @Test
+    @DisplayName("Dado data com decimal longo e inteiro grande, quando grava e lê a mensagem, então decrypted sai sem arredondar")
+    fun captura_numerosExatos_naoDeveArredondar() {
+        val (tokenId, public) = lab()
+        val id = UUID.randomUUID().toString()
+        val exact = """{"precise":0.1000000000000000055511151231257827,"big":123456789012345678901234567890}"""
+        val claims = claims(id, null).also { it["data"] = anzol.e2ee.exactMapper.readTree(exact) }
+
+        val message =
+            api.send(
+                "POST",
+                "/$tokenId",
+                envelope(id, encrypt(public, signExact(sender, claims))).toByteArray(),
+                mapOf("Content-Type" to "application/json"),
+            )
+        val requestId = message.headers().firstValue("X-Request-Id").orElseThrow()
+        val raw = api.send("GET", "/token/$tokenId/request/$requestId", headers = JSON_CLIENT + secret).body()
+
+        assertThat(raw).contains("0.1000000000000000055511151231257827", "123456789012345678901234567890")
+    }
 }

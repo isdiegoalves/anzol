@@ -133,3 +133,17 @@ fun envelope(
             "payload" to payload,
         ),
     )
+
+/** Como [sign], com os claims serializados pelo leitor exato (números como vieram). */
+fun signExact(
+    signer: ECKey,
+    claims: Map<String, Any?>,
+): String {
+    val header =
+        JWSHeader
+            .Builder(JWSAlgorithm.ES256)
+            .keyID(signer.keyID)
+            .type(JOSEObjectType.JWT)
+            .build()
+    return JWSObject(header, Payload(exactMapper.writeValueAsString(claims))).also { it.sign(ECDSASigner(signer)) }.serialize()
+}

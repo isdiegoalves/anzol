@@ -7,7 +7,13 @@ import com.nimbusds.jose.JWSObject
 import com.nimbusds.jose.crypto.ECDSAVerifier
 import com.nimbusds.jose.jwk.ECKey
 import com.nimbusds.jose.util.Base64URL
+import tools.jackson.core.JacksonException
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ValueDeserializer
+import tools.jackson.databind.json.JsonMapper
 import java.text.ParseException
 import java.util.Locale
 
@@ -72,6 +78,19 @@ internal fun JsonNode.decoded(name: String): ByteArray? = text(name)?.let(::base
 
 internal fun decodedJson(part: String): JsonNode? = base64Url(part)?.let { readJson(String(it, Charsets.UTF_8)) }
 
+/** Lê o JSON sem arredondar: decimal longo vira `BigDecimal`, não `double` (o `data` decifrado tem de sair como entrou). */
+val exactMapper: JsonMapper = JsonMapper.builder().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS).build()
+
+/** Os claims do JWS, com os números exatos ([exactMapper]); `null` quando não é base64url nem JSON. */
+internal fun decodedExactJson(part: String): JsonNode? =
+    base64Url(part)?.let {
+        try {
+            exactMapper.readTree(String(it, Charsets.UTF_8))?.takeUnless { node -> node.isMissingNode }
+        } catch (_: JacksonException) {
+            null
+        }
+    }
+
 /** `null` quando não é base64url. */
 internal fun base64Url(text: String): ByteArray? = if (text.isEmpty() || !BASE64URL.matches(text)) null else Base64URL(text).decode()
 
@@ -83,3 +102,15 @@ internal fun E2eePolicy.attribute(document: Any): Any? =
     } catch (_: JsonPathException) {
         null
     }
+
+/** Lê o `decrypted` gravado com o [exactMapper]: o leitor padrão arredondaria o decimal longo ao abrir a mensagem. */
+class ExactJsonDeserializer : ValueDeserializer<JsonNode>() {
+    override fun deserialize(
+        p: JsonParser,
+        ctxt: DeserializationContext,
+    ): JsonNode = embedded.readValue(p)
+}
+
+/** O [exactMapper] lendo um valor no meio de outro documento: o que vem depois dele não é erro. */
+private val embedded =
+    exactMapper.readerFor(JsonNode::class.java).without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)

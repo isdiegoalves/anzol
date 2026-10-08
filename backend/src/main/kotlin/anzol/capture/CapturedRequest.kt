@@ -4,6 +4,7 @@ import anzol.RequestId
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
 import anzol.e2ee.DecryptionResult
+import anzol.e2ee.ExactJsonDeserializer
 import anzol.rules.Fault
 import anzol.rules.NearMiss
 import anzol.rules.RuleRef
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonDeserialize
 import tools.jackson.databind.annotation.JsonNaming
 import java.time.LocalDateTime
 
@@ -56,6 +58,7 @@ data class CapturedRequest(
     val response: RecordedResponse? = null,
     val decryption: DecryptionResult? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    @field:JsonDeserialize(using = ExactJsonDeserializer::class)
     val decrypted: JsonNode? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val seq: Long? = null,
