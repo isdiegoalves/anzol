@@ -14,6 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.data.redis.core.StringRedisTemplate
+import org.springframework.test.context.TestPropertySource
 import tools.jackson.databind.json.JsonMapper
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
@@ -68,8 +69,6 @@ class BusinessMetricsApiTest(
             .sumOf { it.count() }
 
     private fun counter(name: String): Double = registry.find(name).counter()?.count() ?: 0.0
-
-    private fun gauge(name: String): Double = registry.get(name).gauge().value()
 
     /** Quanto a ação somou à captura com [tags]. */
     private fun capturedBy(
@@ -248,9 +247,20 @@ class BusinessMetricsApiTest(
         }
     }
 
+    // Contexto próprio: no compartilhado, abas fechadas por outras classes seguem no gauge até um heartbeat, que pode
+    // cair no meio do teste e tirar uma delas da conta.
     @Nested
+    @TestPropertySource(properties = ["anzol.stream.heartbeat=1h"])
     @DisplayName("Gauges de SSE e wait")
-    inner class Gauges {
+    inner class Gauges(
+        @LocalServerPort port: Int,
+        jsonMapper: JsonMapper,
+        private val registry: MeterRegistry,
+    ) {
+        private val api = ApiClient(port, jsonMapper)
+
+        private fun gauge(name: String): Double = registry.get(name).gauge().value()
+
         @Test
         @DisplayName("Dada uma aba no SSE, quando conecta e fecha, então anzol.sse.subscribers sobe 1 e volta na próxima mensagem")
         fun stream_abaAbertaEFechada_deveSubirEVoltar() {
