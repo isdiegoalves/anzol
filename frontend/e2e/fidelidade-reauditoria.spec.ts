@@ -281,7 +281,7 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
     ).toHaveText([
       /^\s*Assinatura(\s*· .+)?\s*$/,
       /^\s*Schema(\s*· .+)?\s*$/,
-      /^\s*E2EE(\s*· .+)?\s*$/,
+      /^\s*Decifra(\s*· .+)?\s*$/,
       /^\s*Resposta(\s*· .+)?\s*$/,
       /^\s*Privacidade(\s*· .+)?\s*$/,
       /^\s*Saúde(\s*· .+)?\s*$/,

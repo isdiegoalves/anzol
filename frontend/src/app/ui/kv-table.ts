@@ -57,7 +57,7 @@ export interface KvNote {
                     [ngTemplateOutletContext]="{ $implicit: row }"
                   />
                 } @else {
-                  <code>{{ row.value === '' ? '(empty)' : row.value }}</code>
+                  <code>{{ row.value === '' ? emptyValue : row.value }}</code>
                 }
                 @if (note) {
                   @if (note.title) {
@@ -94,4 +94,5 @@ export class KvTable {
   readonly valueTemplate = input<TemplateRef<{ $implicit: KvRow }> | null>(null);
   /** Frase quando não há linhas. */
   readonly empty = input($localize`Nothing here.`);
+  protected readonly emptyValue = $localize`(empty)`;
 }

@@ -1,5 +1,5 @@
 // Frases do servidor na língua da tela (WM-05): as do "por que não casou" (near miss, teste contra
-// o histórico, trace) e as mensagens do 422 das regras. O servidor responde sempre em inglês; a
+// o histórico, trace) e as mensagens do 422 das regras e da configuração da URL. O servidor responde sempre em inglês; a
 // tabela reconhece as famílias de frase (RuleMatching.kt, BodyMatching.kt, RuleFailures.kt,
 // RuleReader.kt, RuleParser.kt) e remonta cada uma com `$localize`, cujo texto-fonte é a própria
 // frase do servidor: em inglês nada muda. Frase desconhecida fica como veio. Funções, e não
@@ -148,9 +148,21 @@ function conditionFamilies(): Family[] {
   ];
 }
 
-/** Mensagens do 422 das regras (lista fechada do RuleReader e do RuleParser). */
+/** Mensagens do 422 das regras (lista fechada do RuleReader e do RuleParser) e da decifra. */
 function validationFamilies(): Family[] {
   return [
+    [
+      /^The e2ee requires a read secret on this URL \(read_secret\)\.$/,
+      () => $localize`The e2ee requires a read secret on this URL (read_secret).`,
+    ],
+    [
+      /^The e2ee\.trusted_signers\.(\d+) must have a kid\.$/,
+      (index) => $localize`The e2ee.trusted_signers.${index}:index: must have a kid.`,
+    ],
+    [
+      /^The kid is already in use on this URL\.$/,
+      () => $localize`The kid is already in use on this URL.`,
+    ],
     [/^The regex is invalid\.$/, () => $localize`The regex is invalid.`],
     [
       /^The status must be between (\d+) and (\d+)\.$/,

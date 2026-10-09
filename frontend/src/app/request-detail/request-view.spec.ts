@@ -545,6 +545,32 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       await expectNoAxeViolations(container);
     });
 
+    it('deve dizer em pt-BR a linha do cabeçalho que não veio e o que faltou', async () => {
+      windowClass.set('compact');
+      loadTranslations(translations);
+      try {
+        await show(
+          webhookRequest(1, {
+            headers: { 'x-vazio': [''] },
+            signature: {
+              provider: 'github',
+              valid: false,
+              reason: 'header X-Hub-Signature-256 absent',
+            },
+          }),
+        );
+
+        await openTab(/^Cabeçalhos/);
+
+        expect(rows('Cabeçalhos')[0]).toMatch(
+          /^x-hub-signature-256 \(não recebido\) ?.*⊘ Sem assinatura — a verificação do GitHub espera o cabeçalho X-Hub-Signature-256/,
+        );
+        expect(rows('Cabeçalhos')[1]).toMatch(/^x-vazio \(vazio\)/);
+      } finally {
+        clearTranslations();
+      }
+    });
+
     it('deve pôr no topo a linha "(not received)" Quando a assinatura veio sem o header', async () => {
       const { container } = await show(
         webhookRequest(1, {

@@ -98,7 +98,8 @@ export const translations: Record<string, string> = {
   '9203153322838064727':
     ' Esta URL é protegida. Deixe os campos em branco para manter o segredo atual. ',
   // 8 to 256 characters
-  '8252071314521761697': 'De 8 a 256 caracteres',
+  '1887623065097316356':
+    'É o segredo de leitura: abre a URL em outro navegador e na API (cabeçalho X-Anzol-Secret). 8 a 256 caracteres.',
   // The secret must have 8 to 256 characters.
   '6941653480005557323': 'O segredo precisa ter de 8 a 256 caracteres.',
   // Confirm secret
@@ -152,6 +153,8 @@ export const translations: Record<string, string> = {
   '7967484035994732534': 'Recarregar',
   // Schema validation
   '2706296271281532374': 'Validação de schema',
+  // E2EE
+  '1120152822886112434': 'Decifra',
   // On
   '8990769651805334695': 'Ligada',
   // Off
@@ -234,7 +237,7 @@ export const translations: Record<string, string> = {
   // The header is required.
   '2781161697243012979': 'O cabeçalho é obrigatório.',
   // Secret
-  '7896650584449704588': 'Segredo',
+  '6147551848935825364': 'Segredo do HMAC',
   // Leave blank to keep the current secret
   '1920165940832819589': 'Deixe em branco para manter o segredo atual',
   // The secret is required, up to 256 characters.
@@ -265,6 +268,8 @@ export const translations: Record<string, string> = {
   '6252070156626006029': 'Nenhum',
   // Requests are not checked
   '173793797808874548': 'As requisições não são verificadas',
+  // {$encoding} of HMAC-{$algorithm}(body)
+  '4183363098626322521': '{$encoding} do HMAC-{$algorithm}(corpo)',
   // Expected header: {$PH}
   '583162730550848496': 'Cabeçalho esperado: {$PH}',
   // Error updating token: {$PH}
@@ -1766,6 +1771,8 @@ export const translations: Record<string, string> = {
   // Webhooks sent to the URL are still captured without the secret.
   '1672118851921750943':
     'Os webhooks mandados para a URL continuam sendo capturados sem o segredo.',
+  // Secret
+  '8379108869363699178': 'Segredo de leitura',
   // Enter the secret.
   '3351263094026524262': 'Digite o segredo.',
   //  Unlock
@@ -1881,7 +1888,7 @@ export const translations: Record<string, string> = {
   '3232184008194083676': ' Um nome de cabeçalho, sem espaços nem dois-pontos. ',
   // Adds {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} with this URL's secret; the secret never leaves the server.
   '3905286544474359363':
-    'Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} com o segredo desta URL; o segredo nunca sai do servidor.',
+    'Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} com o segredo do HMAC desta URL; ele nunca sai do servidor.',
   // This URL has no signature configured. Set one up in {$START_LINK}Checks{$CLOSE_LINK} to sign.
   '4053673393621536099':
     'Esta URL não tem assinatura configurada. Configure uma em {$START_LINK}Verificações{$CLOSE_LINK} para assinar.',
@@ -1905,7 +1912,7 @@ export const translations: Record<string, string> = {
     'O segredo salvo do {$INTERPOLATION} não é reaproveitado para o {$INTERPOLATION_1}: cole o segredo do {$INTERPOLATION_1}.',
   //  Where to find the secret: {$INTERPOLATION} The HMAC key is the UTF-8 bytes of the whole secret.
   '5672477284479518071':
-    ' Onde achar o segredo: {$INTERPOLATION} A chave do HMAC são os bytes UTF-8 do segredo inteiro. ',
+    ' Onde achar o segredo: {$INTERPOLATION} O HMAC usa os bytes UTF-8 do segredo inteiro. ',
   // Endpoint signing secret (whsec_…)
   '4870652055908188265': 'Signing secret do endpoint (whsec_…)',
   // Stripe Dashboard › Developers › Webhooks › your endpoint › Signing secret.
@@ -2353,8 +2360,7 @@ export const translations: Record<string, string> = {
   // Value from the JSON body. Simple paths only ($.a.b[0]).
   '5309509505649925809': 'Valor do corpo JSON. Só caminhos simples ($.a.b[0]).',
   // HMAC of a value with the URL's signature secret (sha256, hex by default)
-  '928348241778222891':
-    'HMAC de um valor com o segredo de assinatura da URL (sha256, hex por padrão)',
+  '928348241778222891': 'HMAC de um valor com o segredo do HMAC da URL (sha256, hex por padrão)',
   // Insert {$helper}
   '5789766334463883938': 'Inserir {$helper}',
   // Use the URL's default content type ({$type})
@@ -2705,6 +2711,12 @@ export const translations: Record<string, string> = {
   '5650594681904720699': 'janela: abre em {$from}, chegou em {$received}',
   // window: closed at {$until}, received at {$received}
   '6067454115892884404': 'janela: fechou em {$until}, chegou em {$received}',
+  // The e2ee requires a read secret on this URL (read_secret).
+  '6741177789058956154': 'A decifra exige segredo de leitura: ligue Privacidade nesta URL.',
+  // The e2ee.trusted_signers.{$index} must have a kid.
+  '5708450635793682693': 'Um signatário confiável (e2ee.trusted_signers.{$index}) precisa de kid.',
+  // The kid is already in use on this URL.
+  '6804776611289070484': 'Já existe uma chave de cifra com esse kid nesta URL.',
   // The regex is invalid.
   '4314563148369354905': 'A regex é inválida.',
   // The status must be between {$min} and {$max}.
@@ -2905,6 +2917,14 @@ export const translations: Record<string, string> = {
   '1980921594499245572': 'URL não encontrada · Anzol',
   // Shared request · Anzol
   '6258065545959765662': 'Requisição compartilhada · Anzol',
+  // 1 hour
+  '6271244023512252924': '1 hora',
+  // 1 day
+  '5323977768209814541': '1 dia',
+  // 7 days
+  '3632882916729566395': '7 dias',
+  // 30 days
+  '851936834775838572': '30 dias',
   // This address is not a valid URL id.
   '6471129166427164540': 'Este endereço não é um identificador de URL válido.',
   // It was deleted, or it expired after 7 days without use.
@@ -3339,6 +3359,8 @@ export const translations: Record<string, string> = {
   '5045762088893355178': 'Ela foi recebida em {$date}.',
   // Retry-After: {$value} (as configured now)
   '3550688370858859981': 'Retry-After: {$value} (como está configurado agora)',
+  // (not received)
+  '1498983752416848503': '(não recebido)',
   // Answered {$class}
   '2178342429442273342': 'Respondeu {$class}',
   // answered {$status}
@@ -3815,7 +3837,7 @@ export const translations: Record<string, string> = {
   '1137363530760030904': 'Laboratório E2EE',
   //  To see decryption working without setting anything up: a new URL with a read secret, an HMAC secret, two encryption keys, a test sender and the lab policy and rules, ready to run the scenarios of the E2EE contract. It expires in 24 hours.
   '7674714925816119094':
-    ' Para ver a decifra funcionando sem configurar nada: uma URL nova com segredo de leitura, segredo de HMAC, duas chaves de cifra, um remetente de teste e a política e as regras do laboratório, pronta para rodar os cenários do contrato E2EE. Ela expira em 24 horas. ',
+    ' Para ver a decifra funcionando sem configurar nada: uma URL nova com segredo de leitura, segredo do HMAC, duas chaves de cifra, um remetente de teste e a política e as regras do laboratório, pronta para rodar os cenários do contrato E2EE. Ela expira em 24 horas. ',
   // Create a lab URL
   '8706293476076086740': 'Criar URL de laboratório',
   // Too many runs for this URL (up to 6 per minute). Try again in {$seconds} s.
@@ -3844,7 +3866,7 @@ export const translations: Record<string, string> = {
   '1630345964196771541':
     ' Abre esta URL em outro navegador (tela de desbloqueio) ou na API (cabeçalho X-Anzol-Secret). ',
   // HMAC secret
-  '8949787875760698359': 'Segredo de HMAC',
+  '8949787875760698359': 'Segredo do HMAC',
   //  Signs the requests you send yourself: HMAC-SHA256 of the body, in hex, in the {$INTERPOLATION} header.
   '5449514821887823658':
     ' Assina as requisições que você mesmo envia: HMAC-SHA256 do corpo, em hex, no cabeçalho {$INTERPOLATION}. ',
@@ -3853,11 +3875,11 @@ export const translations: Record<string, string> = {
   // Copy read secret
   '2514245971396730298': 'Copiar segredo de leitura',
   // Copy HMAC secret
-  '4147119137556216026': 'Copiar segredo de HMAC',
+  '4147119137556216026': 'Copiar segredo do HMAC',
   // Copied the read secret
   '9004039826557714389': 'Segredo de leitura copiado',
   // Copied the HMAC secret
-  '8534427223846313672': 'Segredo de HMAC copiado',
+  '8534427223846313672': 'Segredo do HMAC copiado',
   // the URL signature did not pass, so nothing was opened
   '4099669960109730203':
     'a assinatura HMAC desta requisição não passou, então o JWE não foi aberto',
@@ -4096,7 +4118,7 @@ export const translations: Record<string, string> = {
   // This URL does not decrypt.
   '1182506711512105977': 'Esta URL não decifra.',
   // an attribute decrypted and verified
-  '2446612875410357651': 'um atributo decifrado e verificado',
+  '2446612875410357651': 'um atributo decifrado, com a assinatura do remetente conferida',
   // an attribute that failed decryption
   '8960455913991763064': 'um atributo cuja decifra falhou',
   // an attribute encrypted to an unknown key

@@ -279,13 +279,13 @@
     <code>{{ row.value }}</code>
   } @else {
     <app-value [label]="row.name" [target]="{ kind: 'header', name: row.name, value: row.value }"
-      ><code>{{ row.value === '' ? '(empty)' : row.value }}</code></app-value
+      ><code>{{ row.value === '' ? emptyValue : row.value }}</code></app-value
     >
   }
 </ng-template>
 <ng-template #queryValue let-row>
   <app-value [label]="row.name" [target]="{ kind: 'query', name: row.name, value: row.value }"
-    ><code>{{ row.value === '' ? '(empty)' : row.value }}</code></app-value
+    ><code>{{ row.value === '' ? emptyValue : row.value }}</code></app-value
   >
 </ng-template>
 <ng-template #bodyValue let-token>

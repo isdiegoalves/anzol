@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { AbstractControl, ValidationErrors } from '@angular/forms';
+import { validationPhrase } from '../pipeline/server-phrases';
 import { JsonSchema, Token, TokenSettings } from '../token/token';
 
 /**
@@ -35,13 +36,18 @@ export function cutsRequests(before: Token, after: Token): boolean {
   return limit !== null && (previous === null || limit < previous);
 }
 
-/** Mensagens do 422 de um campo (`{"schema": [...]}`); vazio para qualquer outro erro. */
+/**
+ * Mensagens do 422 de um campo (`{"schema": [...]}`), na língua da tela quando a frase é conhecida;
+ * vazio para qualquer outro erro.
+ */
 export function fieldErrors(error: unknown, ...fields: string[]): readonly string[] {
   if (error instanceof HttpErrorResponse && error.status === 422) {
     const body = (error.error ?? {}) as Record<string, unknown>;
     return fields.flatMap((field) => {
       const messages = body[field];
-      return Array.isArray(messages) ? messages.map(String) : [];
+      return Array.isArray(messages)
+        ? messages.map((message) => validationPhrase(String(message)).text)
+        : [];
     });
   }
   return [];

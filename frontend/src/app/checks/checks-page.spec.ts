@@ -564,7 +564,7 @@ describe('Dado os atalhos "On this page" de Checks', () => {
     expect(checksSections().map((section) => section.label)).toEqual([
       'Assinatura',
       'Schema',
-      'E2EE',
+      'Decifra',
       'Resposta',
       'Privacidade',
       'Saúde',

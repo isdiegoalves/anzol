@@ -1,4 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
 import { FormControl, Validators } from '@angular/forms';
 import { token } from '../../testing/fixtures';
 import { E2eePolicy } from '../token/token';
@@ -131,6 +133,37 @@ describe('Dado o erro do PUT', () => {
     expect(fieldErrors(recusa, 'timeout')).toEqual([]);
     expect(fieldErrors(new HttpErrorResponse({ status: 500 }), 'schema')).toEqual([]);
   });
+
+  it.each([
+    [
+      'e2ee',
+      'The e2ee requires a read secret on this URL (read_secret).',
+      'A decifra exige segredo de leitura: ligue Privacidade nesta URL.',
+    ],
+    [
+      'e2ee.trusted_signers.0',
+      'The e2ee.trusted_signers.0 must have a kid.',
+      'Um signatário confiável (e2ee.trusted_signers.0) precisa de kid.',
+    ],
+    [
+      'kid',
+      'The kid is already in use on this URL.',
+      'Já existe uma chave de cifra com esse kid nesta URL.',
+    ],
+  ])(
+    'deve dizer em pt-BR a recusa em %s Quando a tela está em pt-BR',
+    (campo, original, traduzida) => {
+      const erro = new HttpErrorResponse({ status: 422, error: { [campo]: [original] } });
+      expect(fieldErrors(erro, campo)).toEqual([original]);
+
+      loadTranslations(translations);
+      try {
+        expect(fieldErrors(erro, campo)).toEqual([traduzida]);
+      } finally {
+        clearTranslations();
+      }
+    },
+  );
 
   it('deve listar as chaves do 422 Quando o servidor recusa a política', () => {
     const politica = new HttpErrorResponse({

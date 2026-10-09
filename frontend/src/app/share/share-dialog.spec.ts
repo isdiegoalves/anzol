@@ -10,7 +10,9 @@ import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSlideToggleHarness } from '@angular/material/slide-toggle/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
-import { ShareLink } from './share';
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
+import { SHARE_EXPIRATIONS, ShareLink, shareExpirationLabel } from './share';
 import { ShareDialog } from './share-dialog';
 
 const REQUEST = webhookRequest(1);
@@ -177,5 +179,20 @@ describe('Dado o diálogo "Share read-only link…"', () => {
         'Could not create the link (422): A URL can have at most 50 active shared links.',
       ),
     );
+  });
+});
+
+describe('Dado as validades do link com a tela em pt-BR', () => {
+  afterEach(() => clearTranslations());
+
+  it('deve dizer cada validade em português', () => {
+    loadTranslations(translations);
+
+    expect(SHARE_EXPIRATIONS.map(shareExpirationLabel)).toEqual([
+      '1 hora',
+      '1 dia',
+      '7 dias',
+      '30 dias',
+    ]);
   });
 });

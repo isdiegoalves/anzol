@@ -11,7 +11,7 @@
   <p i18n class="note">Webhooks sent to the URL are still captured without the secret.</p>
   <form class="form" [formGroup]="form" (ngSubmit)="unlockUrl()">
     <mat-form-field class="field">
-      <mat-label i18n>Secret</mat-label>
+      <mat-label i18n="read secret field|">Secret</mat-label>
       <input matInput type="password" autocomplete="current-password" formControlName="secret" />
       <mat-error i18n>Enter the secret.</mat-error>
     </mat-form-field>

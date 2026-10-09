@@ -5,12 +5,16 @@ export const SHARE_EXPIRATIONS = ['1h', '1d', '7d', '30d'] as const;
 export type ShareExpiration = (typeof SHARE_EXPIRATIONS)[number];
 export const DEFAULT_SHARE_EXPIRATION: ShareExpiration = '7d';
 
-export const SHARE_EXPIRATION_LABELS: Record<ShareExpiration, string> = {
-  '1h': '1 hour',
-  '1d': '1 day',
-  '7d': '7 days',
-  '30d': '30 days',
-};
+/** O nome de cada validade, na língua da tela (função: a tradução carrega antes de ela rodar). */
+export function shareExpirationLabel(expiration: ShareExpiration): string {
+  const labels: Record<ShareExpiration, string> = {
+    '1h': $localize`:share link expiration|:1 hour`,
+    '1d': $localize`:share link expiration|:1 day`,
+    '7d': $localize`:share link expiration|:7 days`,
+    '30d': $localize`:share link expiration|:30 days`,
+  };
+  return labels[expiration];
+}
 
 /** Pedido de `POST /token/{id}/request/{rid}/share`. */
 export interface ShareOptions {

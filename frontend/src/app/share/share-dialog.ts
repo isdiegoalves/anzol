@@ -23,7 +23,7 @@ import { WebhookRequest } from '../requests/webhook-request';
 import {
   DEFAULT_SHARE_EXPIRATION,
   SHARE_EXPIRATIONS,
-  SHARE_EXPIRATION_LABELS,
+  shareExpirationLabel,
   ShareLink,
 } from './share';
 import { ShareStore } from './share-store';
@@ -78,7 +78,7 @@ export class ShareDialog {
   });
   protected readonly expirations = SHARE_EXPIRATIONS.map((value) => ({
     value,
-    label: SHARE_EXPIRATION_LABELS[value],
+    label: shareExpirationLabel(value),
   }));
 
   protected readonly creating = signal(false);

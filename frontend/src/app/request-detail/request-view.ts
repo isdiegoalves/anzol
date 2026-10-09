@@ -269,14 +269,16 @@ export class RequestView {
     computation: () => false,
   });
 
+  /** O valor vazio da tabela, que não é o valor como chegou. */
+  protected readonly emptyValue = $localize`(empty)`;
   protected readonly headers = computed<KvRow[]>(() => {
     const headers = this.request().headers;
     const missing = this.pipeline().signatureHeaders?.missing;
     const rows = Object.keys(headers).map((name) => ({
       name,
-      value: headers[name].map((value) => (value === '' ? '(empty)' : value)).join(', '),
+      value: headers[name].map((value) => (value === '' ? this.emptyValue : value)).join(', '),
     }));
-    return missing ? [{ name: missing.name, value: '(not received)' }, ...rows] : rows;
+    return missing ? [{ name: missing.name, value: $localize`(not received)` }, ...rows] : rows;
   });
 
   /** A linha do header de assinatura: o veredito embaixo e o valor em partes (`t=…`, `v1=…`). */

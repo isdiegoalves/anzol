@@ -5,6 +5,7 @@ import { renderCard } from '../../testing/checks';
 import { token } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { ResponseCard } from './response-card';
+import { SignatureCard } from './signature-card';
 
 // O template é traduzido na primeira criação do componente no processo: aqui só se confere o que
 // vem do `$localize` no código.
@@ -35,5 +36,22 @@ describe('Dado a barra de salvar de Verificações com a tela em pt-BR', () => {
       'Status padrão: 200 → 429',
       'CORS: desligado → ligado',
     ]);
+  });
+
+  it('deve chamar o campo do HMAC de "Segredo do HMAC" na barra', async () => {
+    const { container } = await renderCard(
+      SignatureCard,
+      token({ signature: { provider: 'github', secret: '••••1234' } }),
+    );
+
+    await userEvent.type(
+      container.querySelector('[formcontrolname="secret"]') as HTMLElement,
+      'segredo-novo',
+    );
+
+    const bar = screen.getByRole('region', { name: 'Alterações não salvas' });
+    expect(bar.querySelector('.summary .full')?.textContent).toBe(
+      '1 alteração não salva: Segredo do HMAC',
+    );
   });
 });

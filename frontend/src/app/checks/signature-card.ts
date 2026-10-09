@@ -333,8 +333,9 @@ export class SignatureCard implements ChecksSection {
     if (provider !== 'generic') {
       return ANATOMY[provider];
     }
-    const hmac = `HMAC-${c.algorithm.value.toUpperCase()}(body)`;
-    return [`${c.header.value || '<header>'}: ${c.prefix.value}<${c.encoding.value} of ${hmac}>`];
+    const algorithm = c.algorithm.value.toUpperCase();
+    const value = $localize`:expected generic signature header|:${c.encoding.value}:encoding: of HMAC-${algorithm}:algorithm:(body)`;
+    return [`${c.header.value || '<header>'}: ${c.prefix.value}<${value}>`];
   }
 
   /** A linha "Expected header:" com o header do provedor escolhido (texto corrido, uma linha por header). */
@@ -426,7 +427,7 @@ export class SignatureCard implements ChecksSection {
     return [
       ...changeOf($localize`Signature provider`, name(was.provider), name(c.provider.value)),
       ...field(c.header, $localize`Signature header`, text),
-      ...(c.secret.enabled ? secretChange('Secret', c.secret.value) : []),
+      ...(c.secret.enabled ? secretChange(hmacSecretLabel(), c.secret.value) : []),
       ...field(c.toleranceSeconds, $localize`Tolerance`, seconds),
       ...field(c.prefix, $localize`Prefix`, text),
       ...field(c.algorithm, $localize`Algorithm`, (value) => value.replace('sha', 'SHA-')),
@@ -465,7 +466,7 @@ export class SignatureCard implements ChecksSection {
     const control = this.form.controls.secret;
     control.setErrors({ server: messages.join(' ') });
     control.markAsTouched();
-    return ['Secret'];
+    return [hmacSecretLabel()];
   }
 
   sketch(): Record<string, unknown> {
@@ -487,7 +488,7 @@ export class SignatureCard implements ChecksSection {
     const c = this.form.controls;
     return [
       [c.header, 'header', $localize`Signature header`],
-      [c.secret, 'secret', 'Secret'],
+      [c.secret, 'secret', hmacSecretLabel()],
       [c.toleranceSeconds, 'toleranceSeconds', $localize`Timestamp tolerance (seconds)`],
     ];
   }
@@ -597,4 +598,9 @@ function nameOf<K extends string>(
   control: AbstractControl,
 ): K {
   return (Object.keys(controls) as K[]).find((key) => controls[key] === control) as K;
+}
+
+/** O nome do campo do segredo do HMAC, na barra de alterações e nas pendências. */
+function hmacSecretLabel(): string {
+  return $localize`:HMAC secret field|:Secret`;
 }

@@ -47,7 +47,12 @@ export function checksSections() {
       title: $localize`Schema validation`,
       icon: 'braces',
     },
-    { id: 'e2ee', label: 'E2EE', title: $localize`E2EE decryption`, icon: 'lock' },
+    {
+      id: 'e2ee',
+      label: $localize`:checks index, the decryption card|:E2EE`,
+      title: $localize`E2EE decryption`,
+      icon: 'lock',
+    },
     { id: 'response', label: $localize`Response`, title: $localize`Response`, icon: 'reply' },
     { id: 'privacy', label: $localize`Privacy`, title: $localize`Privacy`, icon: 'lock' },
     { id: 'health', label: $localize`Health`, title: $localize`Health`, icon: 'activity' },
