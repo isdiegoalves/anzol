@@ -244,10 +244,6 @@ export const translations: Record<string, string> = {
   '4344811737802546370': 'O segredo é obrigatório, até 256 caracteres.',
   // Prefix
   '2942230580917375982': 'Prefixo',
-  // sha256=
-  '560190666025180780': 'sha256=',
-  // Optional, before the signature
-  '7790051270470282422': 'Opcional, antes da assinatura',
   // Algorithm
   '4824444844546691624': 'Algoritmo',
   // Encoding
@@ -4290,4 +4286,7 @@ export const translations: Record<string, string> = {
   //  Paste your public signing key in Trusted signers; the test sender {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stays.
   '530031002916438542':
     ' Cole a sua chave pública de assinatura em Signatários confiáveis; o remetente de teste {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} continua. ',
+  // Optional, before the signature · e.g. {$START_TAG_CODE}sha256={$CLOSE_TAG_CODE}
+  '6395332325917127089':
+    'Opcional, antes da assinatura · ex.: {$START_TAG_CODE}sha256={$CLOSE_TAG_CODE}',
 };

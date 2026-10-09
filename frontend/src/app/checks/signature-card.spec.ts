@@ -67,6 +67,19 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     http.expectNone(() => true);
   });
 
+  it('deve dar o exemplo do prefixo na dica, e não num placeholder que pareça valor (genérico)', async () => {
+    await renderCard(SignatureCard, token());
+    await userEvent.click(provider('Generic'));
+
+    const prefixo = screen.getByRole('textbox', { name: 'Prefix' });
+    expect(prefixo.getAttribute('placeholder')).toBeNull();
+    const dica = (prefixo.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent?.trim())
+      .join(' ');
+    expect(dica).toBe('Optional, before the signature · e.g. sha256=');
+  });
+
   it('deve salvar o genérico com a URL inteira no PUT e mostrar o estado salvo Quando header e segredo são preenchidos', async () => {
     const { http, fixture } = await renderCard(SignatureCard, token({ default_status: 404 }));
     await userEvent.click(provider('Generic'));
