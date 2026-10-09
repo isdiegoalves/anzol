@@ -35,6 +35,39 @@ export function decryptionReasonText(reason: string): string {
   return phrase ? `${phrase} (${reason})` : reason;
 }
 
+/** O selo da decifra inválida em poucas palavras; o código fica no motivo, no nome acessível. */
+function reasonShort(reason: string): string {
+  const shorts: Record<string, string> = {
+    hmac_failed: $localize`:decryption seal|:HMAC blocked`,
+    body_not_json: $localize`:decryption seal|:Not JSON`,
+    attribute_missing: $localize`:decryption seal|:Attribute missing`,
+    downgrade: $localize`:decryption seal|:Plaintext · refused`,
+    too_large: $localize`:decryption seal|:JWE too large`,
+    malformed_jwe: $localize`:decryption seal|:Malformed JWE`,
+    alg_not_allowed: $localize`:decryption seal|:alg not allowed`,
+    enc_not_allowed: $localize`:decryption seal|:enc not allowed`,
+    zip_present: $localize`:decryption seal|:Compressed JWE`,
+    kid_missing: $localize`:decryption seal|:No kid`,
+    cty_not_jwt: $localize`:decryption seal|:cty not JWT`,
+    epk_invalid: $localize`:decryption seal|:Invalid epk`,
+    epk_off_curve: $localize`:decryption seal|:epk off curve`,
+    decrypt_failed: $localize`:decryption seal|:Decrypt failed`,
+    jws_missing: $localize`:decryption seal|:No JWS inside`,
+    jws_alg_not_allowed: $localize`:decryption seal|:JWS alg not allowed`,
+    signer_unknown: $localize`:decryption seal|:Unknown signer`,
+    signature_invalid: $localize`:decryption seal|:JWS signature invalid`,
+    claims_malformed: $localize`:decryption seal|:Malformed claims`,
+    aud_mismatch: $localize`:decryption seal|:aud mismatch`,
+    jti_mismatch: $localize`:decryption seal|:jti mismatch`,
+    evt_mismatch: $localize`:decryption seal|:evt mismatch`,
+    app_mismatch: $localize`:decryption seal|:app mismatch`,
+    iat_missing: $localize`:decryption seal|:No iat`,
+    iat_outside_window: $localize`:decryption seal|:iat outside window`,
+    data_missing: $localize`:decryption seal|:No data claim`,
+  };
+  return shorts[reason] ?? reason;
+}
+
 /** A decifra gravada, pronta para o selo e o cartão; `null` quando a URL não decifrava. */
 export function decryptionResult(request: CapturedRequest): CheckResult | null {
   const decryption = request.decryption;
@@ -81,7 +114,7 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
         tone: 'bad',
         title: $localize`Decryption invalid`,
         detail: decryptionReasonText(reason),
-        short: reason,
+        short: reasonShort(reason),
       };
     }
   }

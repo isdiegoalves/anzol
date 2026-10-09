@@ -3867,6 +3867,58 @@ export const translations: Record<string, string> = {
   '618391409188079226': 'o iat está fora da janela permitida',
   // the JWS has no data claim
   '3824204479501526840': 'o JWS não tem o claim data',
+  // HMAC blocked
+  '7411547123659872971': 'HMAC barrou',
+  // Not JSON
+  '7555270138433697457': 'Corpo não é JSON',
+  // Attribute missing
+  '2621008442009129297': 'Atributo ausente',
+  // Plaintext · refused
+  '1994445150066703925': 'Em claro · recusado',
+  // JWE too large
+  '7702396007361618827': 'JWE grande demais',
+  // Malformed JWE
+  '6211706700701760635': 'JWE malformado',
+  // alg not allowed
+  '6159392378611949532': 'alg não aceito',
+  // enc not allowed
+  '2524118018037540632': 'enc não aceito',
+  // Compressed JWE
+  '5383964903743763319': 'JWE comprimido',
+  // No kid
+  '3656950987025646374': 'JWE sem kid',
+  // cty not JWT
+  '6730616710140792116': 'cty não é JWT',
+  // Invalid epk
+  '2824784245082944346': 'epk inválida',
+  // epk off curve
+  '7231825429611556538': 'epk fora da curva',
+  // Decrypt failed
+  '2137194655050978327': 'Não decifrou',
+  // No JWS inside
+  '321924482601508371': 'Sem JWS dentro',
+  // JWS alg not allowed
+  '162741007622960851': 'JWS alg não aceito',
+  // Unknown signer
+  '4941102327371760730': 'Signatário desconhecido',
+  // JWS signature invalid
+  '4289207797231348918': 'Assinatura JWS inválida',
+  // Malformed claims
+  '6059128603543603206': 'Claims malformados',
+  // aud mismatch
+  '3325928655118531304': 'aud divergente',
+  // jti mismatch
+  '2494656257691670018': 'jti divergente',
+  // evt mismatch
+  '57168990296969550': 'evt divergente',
+  // app mismatch
+  '9063217634725915674': 'app divergente',
+  // No iat
+  '6179193878457586172': 'Sem iat',
+  // iat outside window
+  '2774403225745773319': 'iat fora da janela',
+  // No data claim
+  '5961730565889069577': 'Sem data',
   // Decrypted · repeated jti
   '9201304644456821758': 'Decifrada · jti repetido',
   // Decrypted
@@ -3880,7 +3932,7 @@ export const translations: Record<string, string> = {
   // The JWE kid {$kid} is not one of this URL's keys
   '6338941906368435061': 'O kid {$kid} do JWE não é de uma chave desta URL',
   // Unknown kid
-  '7820009087498142311': 'kid desconhecido',
+  '7820009087498142311': 'Chave desconhecida',
   // Not encrypted
   '8872070947491832220': 'Não cifrada',
   // The attribute arrived in plaintext, which this URL accepts
