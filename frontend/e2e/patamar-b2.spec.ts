@@ -539,7 +539,7 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     await expect(cartoes).toContainText('Answered 429 · default response');
     await expect(cartoes).toContainText('Retry-After: 5 (as configured now)');
     await expect(cartoes).toContainText(
-      /Closest rule: Pedido pago — method: expected POST, got GET/,
+      /No rule matched\. The closest is “Pedido pago” — method: expected POST, got GET/,
     );
     await expect(cartoes.getByRole('button', { name: 'Why not rule…?' })).toBeVisible();
 

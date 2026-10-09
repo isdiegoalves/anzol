@@ -251,7 +251,7 @@ test.describe('Dado uma URL com regras salvas', () => {
 
     await page.goto(`/#/${tokenId}/${requestId}/1`);
     await expect(verificacoes(page)).toContainText(
-      /Answered 200 · default response.*Closest rule: Pix pago/,
+      /Answered 200 · default response.*No rule matched\. The closest is “Pix pago”/,
     );
     const why = porque(page);
     await why.click();
@@ -275,7 +275,7 @@ test.describe('Dado uma URL com regras salvas', () => {
     await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(requestId);
     await expect(verificacoes(page)).toBeVisible();
     await expect(verificacoes(page)).toContainText('Answered 200 · default response');
-    await expect(verificacoes(page)).not.toContainText(/by rule|Closest rule/);
+    await expect(verificacoes(page)).not.toContainText(/by rule|Closest rule|closest is/);
   });
 });
 

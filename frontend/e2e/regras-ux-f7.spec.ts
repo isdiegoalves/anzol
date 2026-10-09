@@ -76,7 +76,7 @@ test.describe('Dado uma mensagem que nenhuma regra respondeu (WM-10)', () => {
     const id = await tokens.send(tokenId, { method: 'GET', path: '/pagamentos' });
     await abrirMensagem(page, tokenId, id);
 
-    await expect(verificacoes(page)).toContainText(/Closest rule: Pix pago/);
+    await expect(verificacoes(page)).toContainText(/No rule matched\. The closest is “Pix pago”/);
     await expect(
       verificacoes(page).getByRole('link', { name: 'Pix pago', exact: true }),
     ).toHaveAttribute('href', new RegExp(`#/${tokenId}/rules/${pix.id}`));

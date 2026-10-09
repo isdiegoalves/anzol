@@ -98,7 +98,8 @@ export const translations: Record<string, string> = {
   '9203153322838064727':
     ' Esta URL é protegida. Deixe os campos em branco para manter o segredo atual. ',
   // It is the read secret: it opens the URL in another browser and in the API (X-Anzol-Secret header). 8 to 256 characters.
-  '2816497049408150204': 'É o segredo de leitura: abre a URL em outro navegador e na API (cabeçalho X-Anzol-Secret). 8 a 256 caracteres.',
+  '2816497049408150204':
+    'É o segredo de leitura: abre a URL em outro navegador e na API (cabeçalho X-Anzol-Secret). 8 a 256 caracteres.',
   // The secret must have 8 to 256 characters.
   '6941653480005557323': 'O segredo precisa ter de 8 a 256 caracteres.',
   // Confirm secret
@@ -4281,8 +4282,8 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {1 regra adicionada: {INTERPOLATION}.} other {{INTERPOLATION_1} regras adicionadas: {INTERPOLATION}.}}',
   // See them in {$START_LINK}Rules{$CLOSE_LINK}.
   '3902748895990896270': 'Veja em {$START_LINK}Regras{$CLOSE_LINK}.',
-  // Closest rule: {$rule} — {$reason}{$more}
-  '8820159907201520792': 'Nenhuma regra casou. A mais próxima é “{$rule}” — {$reason}{$more}',
+  // No rule matched. The closest is “{$rule}” — {$reason}{$more}
+  '2885451637628291284': 'Nenhuma regra casou. A mais próxima é “{$rule}” — {$reason}{$more}',
   // Lab created from here: URL {$INTERPOLATION} · expires {$INTERPOLATION_1}
   '7934335812325617943':
     'Laboratório criado daqui: URL {$INTERPOLATION} · expira {$INTERPOLATION_1}',

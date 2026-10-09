@@ -276,7 +276,7 @@ test.describe('Dado os cartões de verificação do detalhe (INBOX-18)', () => {
 
     await abrirMensagem(page, tokenId, perto);
     await expect(verificacoes(page)).toContainText(
-      /Closest rule: Pix — method: expected POST, got PUT/,
+      /No rule matched\. The closest is “Pix” — method: expected POST, got PUT/,
     );
     await expect(porque(page)).toHaveCount(0);
   });

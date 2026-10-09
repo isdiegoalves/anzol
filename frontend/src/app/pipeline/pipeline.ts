@@ -281,10 +281,10 @@ export function closestPhrase(name: string, failed: readonly string[]): string {
   return $localize`Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
 }
 
-/** A mesma frase quando nenhuma regra casou (o `near_miss`): outro id, para o pt-BR dizer isso. */
+/** A regra mais perto quando nenhuma casou (o `near_miss`): a frase diz que nenhuma casou. */
 function nearMissPhrase(name: string, failed: readonly string[]): string {
   const [reason, more] = closestReason(failed);
-  return $localize`:closest rule, when no rule matched|:Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
+  return $localize`No rule matched. The closest is “${name}:rule:” — ${reason}:reason:${more}:more:`;
 }
 
 function closestReason(failed: readonly string[]): [string, string] {

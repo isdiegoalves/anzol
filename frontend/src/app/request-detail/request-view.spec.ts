@@ -361,7 +361,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
 
       expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
-        'Closest rule: Só GET — method: expected GET, got POST',
+        'No rule matched. The closest is “Só GET” — method: expected GET, got POST',
       );
       expect(screen.queryByRole('button', { name: /^Why\?/ })).toBeNull();
     });
@@ -612,7 +612,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       expect(screen.queryAllByRole('button')).toEqual([]);
       // Uma condição só: a frase vai no cartão da regra (INBOX-18).
       expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(
-        'Closest rule: Só GET — method: expected GET, got POST',
+        'No rule matched. The closest is “Só GET” — method: expected GET, got POST',
       );
       expect(screen.getByText('Signature invalid')).toBeTruthy();
       await expectNoAxeViolations(container);

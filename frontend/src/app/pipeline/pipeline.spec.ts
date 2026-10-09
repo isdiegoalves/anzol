@@ -136,7 +136,8 @@ describe('Dado a regra que respondeu a mensagem', () => {
         state: 'near-miss',
         tone: 'none',
         title: 'Answered 200 · default response',
-        detail: 'Closest rule: Refund queued — method: expected POST, got GET (+1 more)',
+        detail:
+          'No rule matched. The closest is “Refund queued” — method: expected POST, got GET (+1 more)',
       },
     ],
     [
@@ -227,7 +228,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
 
     // INBOX-18: com uma condição só, a frase dela vai no cartão (o "Why? (n)" sai).
     expect(pipelineOf(request).rule.detail).toBe(
-      'Closest rule: Só GET — method: expected GET, got POST',
+      'No rule matched. The closest is “Só GET” — method: expected GET, got POST',
     );
   });
 });
