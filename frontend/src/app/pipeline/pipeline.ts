@@ -86,13 +86,17 @@ export function pipelineOf(
   request: CapturedRequest,
   context: PipelineContext = {},
 ): RequestPipeline {
+  const signature = signatureResult(request);
+  const schema = schemaResult(request, context.token ?? null);
+  const decryption = decryptionResult(request);
+  const failed = [signature, schema, decryption].some((check) => check?.tone === 'bad');
   return {
     method: request.method,
     route: routeOf(request.url),
-    signature: signatureResult(request),
-    schema: schemaResult(request, context.token ?? null),
-    rule: ruleResult(request),
-    decryption: decryptionResult(request),
+    signature,
+    schema,
+    rule: ruleResult(request, failed),
+    decryption,
     signatureHeaders: signatureCheck(request, context.token ?? null),
   };
 }
@@ -273,10 +277,22 @@ export function faultName(fault: string): string {
 
 /** "Closest rule: Pedido pago — method: expected POST, got GET" (B2), com o que mais falhou. */
 export function closestPhrase(name: string, failed: readonly string[]): string {
-  const [first] = failed;
-  const reason = first ? conditionPhrase(first).text : '';
-  const more = failed.length > 1 ? $localize` (+${failed.length - 1}:count: more)` : '';
+  const [reason, more] = closestReason(failed);
   return $localize`Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
+}
+
+/** A mesma frase quando nenhuma regra casou (o `near_miss`): outro id, para o pt-BR dizer isso. */
+function nearMissPhrase(name: string, failed: readonly string[]): string {
+  const [reason, more] = closestReason(failed);
+  return $localize`:closest rule, when no rule matched|:Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
+}
+
+function closestReason(failed: readonly string[]): [string, string] {
+  const [first] = failed;
+  return [
+    first ? conditionPhrase(first).text : '',
+    failed.length > 1 ? $localize` (+${failed.length - 1}:count: more)` : '',
+  ];
 }
 
 /**
@@ -285,7 +301,7 @@ export function closestPhrase(name: string, failed: readonly string[]): string {
  * ("Answered 429 · default response"). Falha de rede de regra: "— · Connection reset". Mensagem
  * gravada antes do campo `response`: "— · not recorded".
  */
-function ruleResult(request: CapturedRequest): CheckResult {
+function ruleResult(request: CapturedRequest, failed: boolean): CheckResult {
   const kind = 'rule';
   const { rule, near_miss: near, response } = request;
   if (response?.fault) {
@@ -323,12 +339,13 @@ function ruleResult(request: CapturedRequest): CheckResult {
   return {
     kind,
     state: near ? 'near-miss' : 'default',
-    tone: near ? 'near' : 'none',
+    // Com tudo válido, a regra mais perto só explica a resposta padrão: âmbar seria alerta à toa.
+    tone: near && failed ? 'near' : 'none',
     title: recorded
       ? $localize`Answered ${status}:status: · default response`
       : $localize`Default response`,
     detail: near
-      ? closestPhrase(near.name, near.failed)
+      ? nearMissPhrase(near.name, near.failed)
       : request.rule === undefined
         ? $localize`Received before rules`
         : $localize`No rule answered`,

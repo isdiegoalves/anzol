@@ -12,8 +12,10 @@ const [invalid] = checksOf(
     signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
   }),
 );
+// O near miss só fica âmbar quando alguma verificação da requisição falhou.
 const [, , near] = checksOf(
   webhookRequest(1, {
+    signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
     near_miss: { id: 'r', name: 'Refund', failed: ['method: expected GET'] },
     response: { status: 429 },
   }),

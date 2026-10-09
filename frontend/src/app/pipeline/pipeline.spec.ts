@@ -116,7 +116,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
       },
     ],
     [
-      'nenhuma casou e uma chegou perto (near miss)',
+      'nenhuma casou e uma chegou perto (near miss), com as verificações em ordem',
       {
         rule: null,
         near_miss: {
@@ -128,7 +128,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
       },
       {
         state: 'near-miss',
-        tone: 'near',
+        tone: 'none',
         title: 'Answered 200 · default response',
         detail: 'Closest rule: Refund queued — method: expected POST, got GET (+1 more)',
       },
@@ -156,6 +156,62 @@ describe('Dado a regra que respondeu a mensagem', () => {
     });
 
     expect(brief(pipelineOf(request).rule)).toEqual(esperado);
+  });
+
+  it.each([
+    [
+      'a assinatura falhou',
+      { signature: { provider: 'github', valid: false, reason: 'signature mismatch' } },
+    ],
+    ['o schema falhou', { schema: { valid: false, errors: [{ path: '/id', message: 'x' }] } }],
+    [
+      'a decifra falhou',
+      {
+        decryption: {
+          state: 'invalid',
+          kid: null,
+          signature_kid: null,
+          reason: 'aud_mismatch',
+          jti: null,
+          duplicate_of: null,
+        },
+      },
+    ],
+  ] as const)('deve pôr o near miss em âmbar só Quando %s', (_caso, campos) => {
+    const request = webhookRequest(1, {
+      ...structuredClone(campos),
+      near_miss: {
+        id: 'r2',
+        name: 'x',
+        failed: ['method: expected POST, got GET'],
+        conditions: [],
+      },
+      response: { status: 202 },
+    } as Partial<CapturedRequest>);
+
+    expect(pipelineOf(request).rule.tone).toBe('near');
+  });
+
+  it('deve dizer em pt-BR que nenhuma regra casou e qual chegou mais perto, com o estado em palavras', () => {
+    loadTranslations(translations);
+    try {
+      const request = webhookRequest(1, {
+        signature: { provider: 'generic', valid: true, reason: null },
+        near_miss: {
+          id: 'r2',
+          name: 'signature: invalid → 401',
+          failed: ['signature: expected invalid, got valid'],
+          conditions: ['match.signature'],
+        },
+        response: { status: 202 },
+      });
+
+      expect(pipelineOf(request).rule.detail).toBe(
+        'Nenhuma regra casou. A mais próxima é “signature: invalid → 401” — pede assinatura inválida; esta veio válida',
+      );
+    } finally {
+      clearTranslations();
+    }
   });
 
   it('deve pôr a condição no cartão Quando só uma falhou (near miss sem conditions, formato antigo)', () => {

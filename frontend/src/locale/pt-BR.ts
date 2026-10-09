@@ -4271,4 +4271,6 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {1 regra adicionada: {INTERPOLATION}.} other {{INTERPOLATION_1} regras adicionadas: {INTERPOLATION}.}}',
   // See them in {$START_LINK}Rules{$CLOSE_LINK}.
   '3902748895990896270': 'Veja em {$START_LINK}Regras{$CLOSE_LINK}.',
+  // Closest rule: {$rule} — {$reason}{$more}
+  '8820159907201520792': 'Nenhuma regra casou. A mais próxima é “{$rule}” — {$reason}{$more}',
 };
