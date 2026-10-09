@@ -1793,6 +1793,8 @@
     "2802692465666960198": "Would match none of the last {$count} requests.",
     "7240208236563247245": "Too specific: only this request would match (of the last {$window}).",
     "7180781872638632893": "Would match {$count} of the last {$window} requests.",
+    "4556521552355321869": "\"decryption: invalid\" also answers the other refused decryptions, not only this one ({$reason}): {$count} of the last {$window} requests match.",
+    "1619483006852890293": "\"decryption: invalid\" answers every refused decryption, whatever the reason: {$count} of the last {$window} requests match.",
     "4792486099026131612": "{$field} is not in the example request.",
     "1323767854421339258": "Path {$path} was never received.",
     "6547744609295354733": "Every field in the conditions is in the example request.",

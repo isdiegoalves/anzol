@@ -1,4 +1,5 @@
 import { SuggestionCheck } from '../ai/ai-client';
+import { decryptionReasonText } from '../pipeline/decryption';
 import { conditionPhrase } from '../pipeline/server-phrases';
 import { WebhookRequest } from '../requests/webhook-request';
 import { RULE_DEFAULT_PRIORITY, Rule, evaluationOrder, hasNoCondition } from './rule';
@@ -28,6 +29,7 @@ export function suggestionChecks(input: SuggestionInput): CheckLine[] {
   return [
     ...exampleLine(input),
     historyLine(input.check),
+    ...decryptionLine(input),
     ...fieldLines(input),
     ...shapeLines(input),
     ...sequenceLine(input.check),
@@ -94,6 +96,26 @@ function historyLine(check: SuggestionCheck | null | undefined): CheckLine {
     verdict: 'ok',
     text: $localize`Would match ${matched}:count: of the last ${evaluated}:window: requests.`,
   };
+}
+
+/**
+ * "decryption: invalid" casa toda recusa da decifra: o servidor avisa quando as recentes que a regra
+ * casa têm outro motivo que o do exemplo (ou mais de um, sem exemplo).
+ */
+function decryptionLine({ check, example }: SuggestionInput): CheckLine[] {
+  if (!check?.warnings.some(({ code }) => code === 'decryption_matches_other_reasons')) {
+    return [];
+  }
+  const { matched, evaluated } = check.recent;
+  const refused = example?.decryption?.state === 'invalid' ? example.decryption.reason : null;
+  return [
+    {
+      verdict: 'attention',
+      text: refused
+        ? $localize`"decryption: invalid" also answers the other refused decryptions, not only this one (${decryptionReasonText(refused)}:reason:): ${matched}:count: of the last ${evaluated}:window: requests match.`
+        : $localize`"decryption: invalid" answers every refused decryption, whatever the reason: ${matched}:count: of the last ${evaluated}:window: requests match.`,
+    },
+  ];
 }
 
 function fieldLines({ rule, check, example }: SuggestionInput): CheckLine[] {

@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import type { APIRequestContext } from '@playwright/test';
-import { enviarEGuardar, expect, listar, test } from '../../support/contrato.js';
+import { BASE_URL, JSON_ACCEPT, enviarEGuardar, expect, listar, test } from '../../support/contrato.js';
+import { envelope, parEc, politica } from '../../support/e2ee.js';
+import { HEADER_SEGREDO } from '../../support/privacidade.js';
 import { chamarSuggest, exigirLlmFalso, pedidosCom, sugestaoOk, type Conferencia, type Sugestao } from '../../support/ia.js';
 import { novoMarcador, programarLlm } from '../../support/llm-falso.js';
 import { estadoDoCenario, lerRegras, salvarRegras, testarRegra, type Regra, type ResultadoTesteDeRegra } from '../../support/regras.js';
@@ -8,7 +11,9 @@ import { estadoDoCenario, lerRegras, salvarRegras, testarRegra, type Regra, type
 // de `rule`, `explanation` e `attempts`, o bloco `check`: a regra devolvida conferida pelo servidor, sem o modelo.
 // `example` é a regra contra a mensagem do `request_id` (`null` sem ele), com as frases e chaves do `rules/test`;
 // `recent` é `{evaluated, matched}` sobre a janela do `rules/test`; `warnings` é a lista de `{code, message}` com o
-// conjunto fechado `example_not_matched`, `template_disabled`, `path_never_seen` e `sequence_as_single_rule`.
+// conjunto fechado `example_not_matched`, `template_disabled`, `path_never_seen`, `sequence_as_single_rule` e
+// `decryption_matches_other_reasons` (v0.5.0: `match.decryption: invalid` casa toda recusa da decifra, e a conferência
+// diz isso quando as recentes que a regra casa têm motivo diferente do exemplo, ou mais de um sem exemplo).
 // A conferência não gera nova tentativa, não grava e não muda cenário; `explanation` é o texto do modelo, como antes.
 //
 // O LLM é o falso: cada teste programa a regra que "o modelo" devolve, inclusive as erradas do estudo (caminho
@@ -181,6 +186,54 @@ test.describe('suggest com check (DX-29)', () => {
     expect(await lerRegras(request, t)).toEqual(existentes);
     expect(await estadoDoCenario(request, t, 'fluxo')).toBe('Started');
     expect((await listar(request, t)).total).toBe(3);
+  });
+
+  test('decryption: invalid que casa recusas de outros motivos: decryption_matches_other_reasons, com os motivos contados', async ({ request }) => {
+    const segredo = `seg-${randomUUID()}`;
+    const comSegredo = { ...JSON_ACCEPT, [HEADER_SEGREDO]: segredo };
+    const criada = await request.post('/token', { data: { read_secret: segredo, e2ee: politica([(await parEc('remetente-sig-1')).publica]) }, headers: JSON_ACCEPT });
+    expect(criada.status(), (await criada.text()).slice(0, 300)).toBe(201);
+    const t = ((await criada.json()) as { uuid: string }).uuid;
+    try {
+      const entregar = async (corpo: string) =>
+        (await fetch(new URL(`/${t}`, BASE_URL), { method: 'POST', headers: JSON_CT, body: corpo })).headers.get('x-request-id')!;
+      await entregar('{}');
+      await entregar('não é JSON');
+      await entregar(JSON.stringify(envelope(randomUUID(), { ok: true })));
+      const exemplo = await entregar(JSON.stringify(envelope(randomUUID(), { ok: false })));
+      const sugerirComSegredo = async (regra: Regra, extra: Record<string, unknown> = {}) => {
+        const marcador = novoMarcador();
+        await programarLlm(marcador, [{ regra, explicacao: EXPLICACAO }]);
+        const res = await request.post(`/token/${t}/rules/suggest`, {
+          data: { prompt: `responda 400 quando o atributo vier em claro (${marcador})`, ...extra }, headers: comSegredo, timeout: 120_000,
+        });
+        const sugestao = await sugestaoOk(res);
+        for (const aviso of sugestao.check!.warnings) expect(Object.keys(aviso).sort()).toEqual(['code', 'message']);
+        return sugestao.check!;
+      };
+      const larga: Regra = { name: 'recusa', match: { decryption: 'invalid' }, response: { status: 400 } };
+
+      const comExemplo = await sugerirComSegredo(larga, { request_id: exemplo });
+      expect(codigos(comExemplo)).toEqual(['decryption_matches_other_reasons']);
+      expect(comExemplo.warnings[0].message).toBe(
+        'match.decryption invalid answers every refused decryption, not only downgrade: 4 of the last 4 requests match, ' +
+          'with reasons downgrade (2), attribute_missing (1), body_not_json (1).',
+      );
+      const semExemplo = await sugerirComSegredo(larga);
+      expect(semExemplo.warnings[0].message).toBe(
+        'match.decryption invalid answers every refused decryption: 4 of the last 4 requests match, ' +
+          'with reasons downgrade (2), attribute_missing (1), body_not_json (1).',
+      );
+
+      // Só as do motivo do exemplo casam: sem o aviso; a regra de decifra válida também não o ganha.
+      const estreita: Regra = { name: 'em claro', match: { decryption: 'invalid', body: [{ jsonPath: { path: '$.payload.ok' } }] } };
+      expect(codigos(await sugerirComSegredo(estreita, { request_id: exemplo }))).toEqual([]);
+      expect(codigos(await sugerirComSegredo({ name: 'ok', match: { decryption: 'valid' } }, { request_id: exemplo }))).not.toContain(
+        'decryption_matches_other_reasons',
+      );
+    } finally {
+      await request.delete(`/token/${t}`, { headers: comSegredo });
+    }
   });
 
   test('sem regra válida: o 422 de sempre, sem check', async ({ request, tokens }) => {

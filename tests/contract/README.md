@@ -950,7 +950,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     `template_disabled` (`{{` no corpo ou num cabeçalho com `template` falso ou ausente; com `template: true` e com
     chaves de JSON, não); `path_never_seen` (`equals`, `prefix`, `regex` e outra caixa; não quando o caminho existe e
     outra condição falha, nem numa URL vazia); `sequence_as_single_rule` (os dois pedidos de exemplo, pt e en; não com
-    `scenario` na regra, nem em pedido comum). Os quatro somados. `explanation` é o texto do modelo e `attempts` 1, com
+    `scenario` na regra, nem em pedido comum); `decryption_matches_other_reasons` (v0.5.0: numa URL que decifra, com
+    duas recusas em claro, uma sem atributo e uma sem JSON, `match.decryption: invalid` ganha o aviso com o exemplo em
+    claro e sem exemplo, e a `message` conta os motivos; a regra que só casa as em claro e a de decifra válida, não).
+    Os quatro primeiros somados. `explanation` é o texto do modelo e `attempts` 1, com
     um pedido só ao LLM mesmo com avisos; regras, cenário e mensagens não mudam. O 422 sem regra válida vem sem `check`.
 
   Leituras assumidas: JSON válido que não é objeto dá o mesmo 400 do JSON que não se lê; o envelope do 400 é o dos

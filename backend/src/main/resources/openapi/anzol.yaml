@@ -3393,7 +3393,8 @@ components:
                 required: [code, message]
                 properties:
                   code:
-                    enum: [example_not_matched, template_disabled, path_never_seen, sequence_as_single_rule]
+                    enum: [example_not_matched, template_disabled, path_never_seen, sequence_as_single_rule,
+                      decryption_matches_other_reasons]
                   message:
                     type: string
 

@@ -3185,6 +3185,12 @@ export const translations: Record<string, string> = {
   '9033191985661609231': 'Entra na posição {$position} de {$total}.',
   // You asked for steps in sequence. One rule cannot do that.
   '1340771433969030793': 'Você pediu passos em sequência. Uma regra só não faz isso.',
+  // "decryption: invalid" also answers the other refused decryptions, not only this one ({$reason}): {$count} of the last {$window} requests match.
+  '4556521552355321869':
+    '"decryption: invalid" também responde às outras recusas da decifra, não só a esta ({$reason}): {$count} das últimas {$window} requisições casam.',
+  // "decryption: invalid" answers every refused decryption, whatever the reason: {$count} of the last {$window} requests match.
+  '1619483006852890293':
+    '"decryption: invalid" responde a toda recusa da decifra, qualquer que seja o motivo: {$count} das últimas {$window} requisições casam.',
   // What the checks say
   '5491324759980656309': 'O que as verificações dizem',
   // Explanation by the local model

@@ -1,5 +1,11 @@
 package anzol.ai
 
+import anzol.e2ee.READ_SECRET
+import anzol.e2ee.ecKey
+import anzol.e2ee.envelope
+import anzol.e2ee.json
+import anzol.e2ee.policy
+import anzol.privacy.SECRET_HEADER
 import anzol.support.AiApiTest
 import anzol.support.ApiClient
 import anzol.support.FakeLlm
@@ -36,10 +42,12 @@ class AiSuggestCheckApiTest(
         rule: String,
         prompt: String = "responda 201 para POST em /pagamentos",
         requestId: String? = null,
+        headers: Map<String, String> = emptyMap(),
     ): JsonNode {
         FakeLlm.answer("""{"rule": $rule, "explanation": "texto do modelo"}""")
         val example = requestId?.let { ""","request_id":"$it"""" }.orEmpty()
-        val response = api.send("POST", "/token/$tokenId/rules/suggest", """{"prompt":"$prompt"$example}""".toByteArray(), JSON_BODY)
+        val body = """{"prompt":"$prompt"$example}""".toByteArray()
+        val response = api.send("POST", "/token/$tokenId/rules/suggest", body, JSON_BODY + headers)
         assertThat(response.statusCode()).`as`(response.body()).isEqualTo(200)
         return api.json(response)
     }
@@ -104,6 +112,90 @@ class AiSuggestCheckApiTest(
         assertThat(body["attempts"].asInt()).isEqualTo(1)
         assertThat(FakeLlm.received).hasSize(1)
         assertThat(api.json(api.send("GET", "/token/$tokenId/rules", headers = JSON_CLIENT)).size()).isZero()
+    }
+
+    /** URL que decifra com quatro recusas recentes: duas em claro (`downgrade`), uma sem atributo e uma sem JSON. */
+    private fun refusedDecryptions(): Pair<String, String> {
+        val tokenId = api.tokenId(json(mapOf("read_secret" to READ_SECRET, "e2ee" to policy(ecKey("remetente-sig-1")))))
+
+        fun deliver(body: String): String =
+            api
+                .send("POST", "/$tokenId", body.toByteArray(), mapOf("Content-Type" to "application/json"))
+                .headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        deliver("{}")
+        deliver("não é json")
+        deliver(envelope("evt-1", mapOf("ok" to true)))
+        return tokenId to deliver(envelope("evt-2", mapOf("ok" to false)))
+    }
+
+    @Test
+    @DisplayName(
+        "Dado decryption: invalid e recusas recentes por outros motivos, quando sugere a partir de uma em claro, então avisa " +
+            "que a regra responde também às outras recusas, com os motivos contados nas recentes",
+    )
+    fun suggest_decifraInvalida_deveAvisarDosOutrosMotivos() {
+        val (tokenId, example) = refusedDecryptions()
+        val secret = mapOf(SECRET_HEADER to READ_SECRET)
+
+        val body =
+            suggest(
+                tokenId,
+                """{"name":"em claro","match":{"decryption":"invalid"},"response":{"status":400}}""",
+                prompt = "responda 400 quando o atributo vier em claro",
+                requestId = example,
+                headers = secret,
+            )
+
+        assertThat(body.codes()).containsExactly("decryption_matches_other_reasons")
+        assertThat(body["check"]["warnings"][0]["message"].asString()).isEqualTo(
+            "match.decryption invalid answers every refused decryption, not only downgrade: 4 of the last 4 requests " +
+                "match, with reasons downgrade (2), attribute_missing (1), body_not_json (1).",
+        )
+        assertThat(FakeLlm.received).hasSize(1)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado decryption: invalid sem exemplo e recusas recentes por mais de um motivo, quando sugere, então avisa que a regra " +
+            "responde a todas as recusas",
+    )
+    fun suggest_decifraInvalidaSemExemplo_deveAvisarQueRespondeATodas() {
+        val (tokenId, _) = refusedDecryptions()
+
+        val body =
+            suggest(
+                tokenId,
+                """{"name":"recusa","match":{"decryption":"invalid"},"response":{"status":400}}""",
+                headers = mapOf(SECRET_HEADER to READ_SECRET),
+            )
+
+        assertThat(body["check"]["warnings"][0]["message"].asString()).isEqualTo(
+            "match.decryption invalid answers every refused decryption: 4 of the last 4 requests match, with reasons " +
+                "downgrade (2), attribute_missing (1), body_not_json (1).",
+        )
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma regra que só casa as recusas do motivo do exemplo, quando sugere, então nenhum aviso de decifra",
+    )
+    fun suggest_decifraInvalidaSoDoMotivo_naoDeveAvisar() {
+        val (tokenId, example) = refusedDecryptions()
+        val secret = mapOf(SECRET_HEADER to READ_SECRET)
+
+        val narrow =
+            suggest(
+                tokenId,
+                """{"name":"em claro","match":{"decryption":"invalid","body":[{"jsonPath":{"path":"$.payload.ok","present":true}}]}}""",
+                requestId = example,
+                headers = secret,
+            )
+        val valid = suggest(tokenId, """{"name":"ok","match":{"decryption":"valid"}}""", requestId = example, headers = secret)
+
+        assertThat(narrow.codes()).isEmpty()
+        assertThat(valid.codes()).doesNotContain("decryption_matches_other_reasons")
     }
 
     @ParameterizedTest(name = "{0}")

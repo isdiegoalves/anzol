@@ -89,8 +89,11 @@ LLM nunca grava nada.
   conferida pelo servidor, sem o modelo: `example` (a regra contra a mensagem do `request_id`, com as frases do
   `rules/test`; `null` sem ele), `recent` (`{"evaluated", "matched"}` sobre as 500 mensagens mais novas) e `warnings`,
   uma lista de `{"code", "message"}` com `example_not_matched`, `template_disabled` (`{{…}}` com `template` falso),
-  `path_never_seen` (nenhuma mensagem recente tem o caminho da regra) e `sequence_as_single_rule` (o pedido descreve
-  uma sequência e a regra não tem cenário). Os avisos não geram nova tentativa.
+  `path_never_seen` (nenhuma mensagem recente tem o caminho da regra), `sequence_as_single_rule` (o pedido descreve
+  uma sequência e a regra não tem cenário) e `decryption_matches_other_reasons` (`match.decryption: invalid` casa toda
+  recusa da decifra: as recentes que a regra casa têm motivo diferente do exemplo, ou mais de um sem exemplo; a
+  `message` conta os motivos, os códigos que o servidor gravou na decifra, e nada disso vai ao modelo). Os avisos não
+  geram nova tentativa.
 - `POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos (resultado
   da assinatura com o motivo, erros do schema, resultado da decifra com o motivo e as chaves, nunca o valor decifrado;
   regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo) e o modelo só

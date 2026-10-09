@@ -1,6 +1,7 @@
 package anzol.ai
 
 import anzol.capture.CapturedRequest
+import anzol.e2ee.DecryptionState
 import anzol.rules.Condition
 import anzol.rules.Rule
 import anzol.rules.failure
@@ -35,6 +36,10 @@ enum class WarningCode(
     SEQUENCE_AS_SINGLE_RULE(
         "sequence_as_single_rule",
         "The request describes a sequence of responses, but this is a single rule without a scenario: it always answers the same.",
+    ),
+    DECRYPTION_MATCHES_OTHER_REASONS(
+        "decryption_matches_other_reasons",
+        "match.decryption invalid answers every refused decryption.",
     ),
 }
 
@@ -77,19 +82,50 @@ fun checkSuggestion(
     recent: List<CapturedRequest>,
 ): SuggestionCheck {
     val onExample = example?.let { rule.failures(it.toMatchInput()) }
+    val matched = recent.filter { rule.failures(it.toMatchInput()).isEmpty() }
     val warnings =
         listOfNotNull(
             WarningCode.EXAMPLE_NOT_MATCHED.takeIf { onExample?.isNotEmpty() == true },
             WarningCode.TEMPLATE_DISABLED.takeIf { rule.hasUnrenderedTemplate() },
             WarningCode.PATH_NEVER_SEEN.takeIf { rule.requiresPathNeverSeenIn(recent) },
             WarningCode.SEQUENCE_AS_SINGLE_RULE.takeIf { rule.scenario == null && SEQUENCE.containsMatchIn(prompt) },
-        )
+        ).map { CheckWarning(it, it.message) }
     return SuggestionCheck(
         example = onExample?.let { failed -> ExampleCheck(failed.isEmpty(), failed.map { it.phrase }, failed.map { it.condition }) },
-        recent = RecentCheck(evaluated = recent.size, matched = recent.count { rule.failures(it.toMatchInput()).isEmpty() }),
-        warnings = warnings.map { CheckWarning(it, it.message) },
+        recent = RecentCheck(evaluated = recent.size, matched = matched.size),
+        warnings = warnings + listOfNotNull(rule.otherDecryptionReasons(example, matched, recent.size)),
     )
 }
+
+/**
+ * `match.decryption: invalid` casa toda decifra recusada, qualquer que seja o motivo: avisa quando as recentes que a regra
+ * casa têm motivo diferente do exemplo (ou, sem exemplo, mais de um motivo). Os motivos são os códigos que o servidor
+ * gravou na decifra; nada vem do remetente.
+ */
+private fun Rule.otherDecryptionReasons(
+    example: CapturedRequest?,
+    matched: List<CapturedRequest>,
+    evaluated: Int,
+): CheckWarning? {
+    val asked = example?.refusedReason()
+    val reasons = if (match.decryption == DecryptionState.INVALID) matched.refusedReasons() else emptyList()
+    val broader = if (asked != null) reasons.any { (reason) -> reason != asked } else reasons.size > 1
+    if (!broader) return null
+    val code = WarningCode.DECRYPTION_MATCHES_OTHER_REASONS
+    val opening = code.message.removeSuffix(".") + asked?.let { ", not only $it" }.orEmpty()
+    val counted = reasons.joinToString { (reason, count) -> "$reason ($count)" }
+    return CheckWarning(code, "$opening: ${matched.size} of the last $evaluated requests match, with reasons $counted.")
+}
+
+private fun CapturedRequest.refusedReason(): String? = decryption?.takeIf { it.state == DecryptionState.INVALID }?.reason
+
+/** Os motivos das decifras recusadas, do mais frequente ao menos; no empate, pelo código. */
+private fun List<CapturedRequest>.refusedReasons(): List<Pair<String, Int>> =
+    mapNotNull { it.refusedReason() }
+        .groupingBy { it }
+        .eachCount()
+        .toList()
+        .sortedWith(compareByDescending<Pair<String, Int>> { it.second }.thenBy { it.first })
 
 /** A regra tem condição de caminho, há mensagens recentes e nenhuma delas a satisfaz. */
 private fun Rule.requiresPathNeverSeenIn(recent: List<CapturedRequest>): Boolean {

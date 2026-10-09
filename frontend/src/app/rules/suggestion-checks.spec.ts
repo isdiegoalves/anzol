@@ -182,4 +182,55 @@ describe('Dado a conferência de uma regra sugerida', () => {
       action: 'sequence',
     });
   });
+
+  describe('Dado "decryption: invalid" que casa recusas de outros motivos', () => {
+    const recusa: Rule = {
+      name: 'Recusa',
+      match: { decryption: 'invalid' },
+      response: { status: 400 },
+    };
+    const check: SuggestionCheck = {
+      example: { matches: true, failed: [], conditions: [] },
+      recent: { evaluated: 7, matched: 4 },
+      warnings: [{ code: 'decryption_matches_other_reasons', message: 'x' }],
+    };
+    const emClaro = webhookRequest(2, {
+      decryption: {
+        state: 'invalid',
+        kid: null,
+        signature_kid: null,
+        reason: 'downgrade',
+        jti: null,
+        duplicate_of: null,
+      },
+    });
+    const aviso = (example: typeof emClaro | null) =>
+      lines({ rule: recusa, check, example }).filter(({ text }) => text.includes('decryption'));
+
+    it('deve dizer que responde também às outras recusas, não só à do exemplo', () => {
+      expect(aviso(emClaro)).toEqual([
+        {
+          verdict: 'attention',
+          text: '"decryption: invalid" also answers the other refused decryptions, not only this one (the encrypted attribute did not come as a JWE (downgrade)): 4 of the last 7 requests match.',
+        },
+      ]);
+    });
+
+    it('deve dizer que responde a toda recusa Quando não houve exemplo', () => {
+      expect(aviso(null)).toEqual([
+        {
+          verdict: 'attention',
+          text: '"decryption: invalid" answers every refused decryption, whatever the reason: 4 of the last 7 requests match.',
+        },
+      ]);
+    });
+
+    it('não deve dizer nada Quando o servidor não avisou', () => {
+      expect(
+        lines({ rule: recusa, check: { ...check, warnings: [] }, example: emClaro }).some(
+          ({ text }) => text.includes('refused'),
+        ),
+      ).toBe(false);
+    });
+  });
 });

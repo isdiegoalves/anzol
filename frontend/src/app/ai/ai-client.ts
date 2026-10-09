@@ -29,7 +29,12 @@ export interface SuggestionExample {
 }
 
 export interface SuggestionWarning {
-  code: 'example_not_matched' | 'template_disabled' | 'path_never_seen' | 'sequence_as_single_rule';
+  code:
+    | 'example_not_matched'
+    | 'template_disabled'
+    | 'path_never_seen'
+    | 'sequence_as_single_rule'
+    | 'decryption_matches_other_reasons';
   message: string;
 }
 
