@@ -3094,6 +3094,11 @@ export const translations: Record<string, string> = {
   '444478121034528836': '{$rate} % válido',
   // Signatures {$signature} · Schema {$schema}, over the newest {$count}
   '1415018692366075249': 'Assinaturas {$signature} · Schema {$schema}, nas {$count} mais novas',
+  // {$rate} % decrypted
+  '4421286978003758560': '{$rate} % decifradas',
+  // Signatures {$signature} · Schema {$schema} · Decryption {$decryption}, over the newest {$count}
+  '6964155684374621560':
+    'Assinaturas {$signature} · Schema {$schema} · Decifra {$decryption}, nas {$count} mais novas',
   // This server has no local AI.
   '7068960708670219253': 'Este servidor não tem IA local.',
   // The local model did not answer in {$seconds} s.

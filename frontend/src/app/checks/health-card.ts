@@ -5,10 +5,17 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatFormField } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
+import { decryptionReasonText } from '../pipeline/decryption';
 import { signatureReasonText } from '../pipeline/signature-check';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
-import { CountFilter, CountLink, schemaPathFilter, signatureReasonFilter } from '../ui/count-link';
+import {
+  CountFilter,
+  CountLink,
+  decryptionReasonFilter,
+  schemaPathFilter,
+  signatureReasonFilter,
+} from '../ui/count-link';
 import { Icon } from '../ui/icon';
 import { CardFold } from './card-fold';
 import { ChecksStore } from './checks-store';
@@ -46,7 +53,7 @@ function items(
 export interface HealthLine {
   valid: number;
   failed: HealthItem[];
-  /** Inválidas + ausentes (assinatura) ou inválidas (schema). */
+  /** Inválidas + ausentes (assinatura), inválidas (schema) ou inválidas + chave desconhecida (decifra). */
   invalid: number;
   /** Mensagens sem resultado (a URL não verificava quando chegaram). */
   unchecked: number;
@@ -60,8 +67,8 @@ export interface HealthLine {
 type WindowSize = (typeof STATS_WINDOWS)[number];
 
 /**
- * Checks › Health (C §2.6, S20): a taxa de assinaturas e de corpos válidos nas últimas 50, 200 ou
- * 500 mensagens, com os motivos e caminhos que mais falham, lida do `GET /token/{id}/stats` (nada
+ * Checks › Health (C §2.6, S20): a taxa de assinaturas, de corpos válidos e, na URL que decifra, de
+ * decifras nas últimas 50, 200 ou 500 mensagens, com os motivos e caminhos que mais falham, lida do `GET /token/{id}/stats` (nada
  * é calculado na tela). Sem polling: recalcula ao abrir, ao trocar a janela, ao salvar a URL, ao
  * voltar para a aba e no "Refresh".
  */
@@ -111,6 +118,11 @@ export class HealthCard {
     const schema = bodies
       ? $localize`:schema|Share of bodies valid against the schema:${number(bodies)}:rate: % valid`
       : $localize`not checked`;
+    const decrypted = this.decryption()?.percent;
+    if (decrypted) {
+      const decryption = $localize`:decryption|Share of decrypted attributes:${number(decrypted)}:rate: % decrypted`;
+      return $localize`Signatures ${signature}:signature: · Schema ${schema}:schema: · Decryption ${decryption}:decryption:, over the newest ${stats.evaluated}:count:`;
+    }
     return $localize`Signatures ${signature}:signature: · Schema ${schema}:schema:, over the newest ${stats.evaluated}:count:`;
   });
 
@@ -160,6 +172,45 @@ export class HealthCard {
       : null;
   });
 
+  /**
+   * Só quando alguma da janela passou pela decifra. O em claro aceito (`absent`) não é decifra nem
+   * recusa, e fica fora da taxa.
+   */
+  protected readonly decryption = computed(() => {
+    const stats = this.stats();
+    const decryption = stats?.decryption;
+    if (!stats || !decryption || decryption.unchecked === stats.evaluated) {
+      return null;
+    }
+    return line(
+      decryption.valid,
+      decryption.invalid + decryption.unknown_kid,
+      decryption.unchecked,
+      items(
+        [
+          ...decryption.reasons.map(({ reason, count }) => ({
+            label: decryptionReasonText(reason),
+            count,
+            filter: decryptionReasonFilter(reason),
+          })),
+          ...(decryption.unknown_kid > 0
+            ? [
+                {
+                  label: $localize`Unknown encryption key`,
+                  count: decryption.unknown_kid,
+                  filter: { decryption: 'unknown_kid' },
+                },
+              ]
+            : []),
+        ],
+        false,
+      ),
+      { decryption: 'valid' },
+      // Inválidas e chave desconhecida juntas não cabem num filtro só da Entrada.
+      null,
+    );
+  });
+
   protected readonly barLabel = (valid: number, invalid: number) =>
     $localize`${valid}:valid: valid, ${invalid}:invalid: invalid`;
   protected readonly metrics = computed(() => [
@@ -176,6 +227,13 @@ export class HealthCard {
       valid: $localize`Schema valid`,
       invalid: $localize`Schema invalid`,
       data: this.schema(),
+    },
+    {
+      title: $localize`Decryption`,
+      why: $localize`Why invalid`,
+      valid: $localize`Decrypted`,
+      invalid: $localize`Decryption invalid`,
+      data: this.decryption(),
     },
   ]);
 

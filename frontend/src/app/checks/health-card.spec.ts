@@ -192,6 +192,71 @@ describe('Dado o cartão "Health" de Checks', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('deve somar a decifra às taxas, com os motivos e a chave desconhecida levando à Entrada', async () => {
+    const { http, container } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(
+      stats({
+        decryption: {
+          valid: 40,
+          invalid: 6,
+          unknown_kid: 2,
+          absent: 1,
+          unchecked: 79,
+          reasons: [
+            { reason: 'downgrade', count: 4 },
+            { reason: 'signature_invalid', count: 2 },
+          ],
+        },
+      }),
+    );
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.brief span')?.textContent).toBe(
+        'Signatures 90.2 % valid · Schema 83.3 % valid · Decryption 83.3 % decrypted, over the newest 128',
+      ),
+    );
+    await show();
+
+    const link = (name: string) =>
+      screen.getByRole('link', { name: `${name}. Open in the Inbox` }).getAttribute('href');
+    expect(screen.getByRole('heading', { name: 'Decryption', level: 3 })).toBeTruthy();
+    expect(screen.getByRole('img', { name: '40 valid, 8 invalid' })).toBeTruthy();
+    expect(link('Decrypted, 40 requests')).toBe(`/${TOKEN_ID}?decryption=valid&window=128`);
+    expect(link('the encrypted attribute did not come as a JWE (downgrade), 4 requests')).toBe(
+      `/${TOKEN_ID}?decryption=invalid&decryptionReason=downgrade&window=128`,
+    );
+    expect(link('Unknown encryption key, 2 requests')).toBe(
+      `/${TOKEN_ID}?decryption=unknown_kid&window=128`,
+    );
+    // Inválidas e chave desconhecida somadas não cabem num filtro só da Entrada.
+    expect(screen.queryByRole('link', { name: /^Decryption invalid,/ })).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve deixar a decifra de fora Quando nenhuma requisição da janela passou por ela', async () => {
+    const { http, container } = await renderCard(HealthCard, token());
+    http.expectOne(statsUrl(200)).flush(
+      stats({
+        decryption: {
+          valid: 0,
+          invalid: 0,
+          unknown_kid: 0,
+          absent: 0,
+          unchecked: 128,
+          reasons: [],
+        },
+      }),
+    );
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.brief span')?.textContent).toBe(
+        'Signatures 90.2 % valid · Schema 83.3 % valid, over the newest 128',
+      ),
+    );
+    await show();
+    expect(screen.queryByRole('heading', { name: 'Decryption' })).toBeNull();
+  });
+
   it('CHECKS-18: deve pôr a janela no cabeçalho, o Refresh em ícone e a barra com vão entre as partes', async () => {
     const { http, container } = await renderCard(HealthCard, token());
     http.expectOne(statsUrl(200)).flush(stats());
