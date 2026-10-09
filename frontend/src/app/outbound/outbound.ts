@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { WebhookRequest } from '../requests/webhook-request';
-import { SIGNATURE_PROVIDER_LABELS, SignatureConfig, Token } from '../token/token';
+import { signatureProviderLabel, SignatureConfig, Token } from '../token/token';
 import { reasonPhrase } from '../ui/status-code';
 
 /** Métodos que o `POST /token/{id}/send` aceita. */
@@ -384,7 +384,7 @@ export function staleSignature(
   const shown =
     signed.provider === 'stripe' ? `t=${signed.at}` : `X-Slack-Request-Timestamp: ${signed.at}`;
   return age > tolerance
-    ? { provider: SIGNATURE_PROVIDER_LABELS[signed.provider], age, tolerance, signed: shown }
+    ? { provider: signatureProviderLabel(signed.provider), age, tolerance, signed: shown }
     : null;
 }
 

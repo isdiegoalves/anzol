@@ -57,9 +57,9 @@
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'signature' }"
-      [attr.aria-label]="signatureLabel(providerLabels[signature.provider])"
+      [attr.aria-label]="signatureLabel(providerLabel(signature.provider))"
     >
-      <app-icon name="checks" [size]="16" />{{ providerLabels[signature.provider] }}
+      <app-icon name="checks" [size]="16" />{{ providerLabel(signature.provider) }}
     </a>
   }
   @if (token.schema) {

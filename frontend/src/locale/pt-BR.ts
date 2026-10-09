@@ -225,8 +225,10 @@ export const translations: Record<string, string> = {
   //  Saving turns signature verification off. Requests already received keep the result they got on arrival.
   '2620361476002268199':
     ' Salvar desliga a verificação de assinatura. As requisições já recebidas mantêm o resultado que tiveram na chegada. ',
+  // Generic
+  '4517834469183487017': 'Genérico',
   // Anatomy of a {$INTERPOLATION} signature
-  '5449939660123036620': 'Anatomia de uma assinatura {$INTERPOLATION}',
+  '5449939660123036620': 'Anatomia da assinatura do {$INTERPOLATION}',
   // * required
   '5909961776431665131': '* obrigatório',
   // Signature header
@@ -869,7 +871,7 @@ export const translations: Record<string, string> = {
     'Compare o Prefixo e a Codificação (hex/base64) de Verificações › Assinatura com o cabeçalho que chegou, na aba Cabeçalhos. Se o remetente mandou fora do combinado (sem o prefixo, por exemplo), quem corrige é ele; se o formato dele é o combinado, ajuste o Prefixo e a Codificação aqui.',
   // The header does not follow {$provider}'s format: confirm the sender is {$provider}, or use Generic.
   '650505594850629909':
-    'O cabeçalho não segue o formato do {$provider}: confirme que o remetente é o {$provider}, ou use Generic.',
+    'O cabeçalho não segue o formato do {$provider}: confirme que o remetente é o {$provider}, ou use o Genérico.',
   // The sender did not sign, or the header configured here is another.
   '6322115884395614581': 'O remetente não assinou, ou o cabeçalho configurado aqui é outro.',
   // {$provider} did not sign (no secret set there).
@@ -988,13 +990,13 @@ export const translations: Record<string, string> = {
   '4915544080899440645':
     'O valor decifrado não está neste link. Para vê-lo, abra a URL no Anzol com o segredo de leitura.',
   // How {$provider} signatures are checked
-  '737535544950548874': 'Como as assinaturas da {$provider} são verificadas',
+  '737535544950548874': 'Como as assinaturas do {$provider} são verificadas',
   // Expected header missing
-  '2634815491241139025': 'O header esperado não veio',
+  '2634815491241139025': 'O cabeçalho esperado não veio',
   // Verified signature header
-  '5712554145310947269': 'Header de assinatura verificado',
+  '5712554145310947269': 'Cabeçalho de assinatura verificado',
   // Signature header that failed
-  '7132097022712850256': 'Header de assinatura que falhou',
+  '7132097022712850256': 'Cabeçalho de assinatura que falhou',
   // empty
   '273835844989646128': 'vazio',
   // A {$method} with an empty body.

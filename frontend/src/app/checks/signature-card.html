@@ -9,7 +9,7 @@
     @if (savedConfig) {
       <span class="state on"
         ><app-icon name="ok" [size]="15" /><span i18n
-          >On · {{ providerLabels[savedConfig.provider] }}</span
+          >On · {{ providerLabel(savedConfig.provider) }}</span
         ></span
       >
     } @else {
@@ -113,13 +113,13 @@
         <app-icon name="info" [size]="18" />
         <span>
           <span i18n
-            >Unsaved: switching from {{ providerLabels[savedConfig.provider] }} (saved) to
-            {{ providerLabels[chosen] }}. Requests already received keep the result they got on
+            >Unsaved: switching from {{ providerLabel(savedConfig.provider) }} (saved) to
+            {{ providerLabel(chosen) }}. Requests already received keep the result they got on
             arrival.</span
           >
           <span i18n
-            >The saved {{ providerLabels[savedConfig.provider] }} secret is not reused for
-            {{ providerLabels[chosen] }}: paste the {{ providerLabels[chosen] }} secret.</span
+            >The saved {{ providerLabel(savedConfig.provider) }} secret is not reused for
+            {{ providerLabel(chosen) }}: paste the {{ providerLabel(chosen) }} secret.</span
           >
         </span>
       </p>
@@ -130,7 +130,7 @@
     @let guide = guideOf(chosen);
     <div class="setup">
       <div class="explain">
-        <h3 i18n>Anatomy of a {{ providerLabels[chosen] }} signature</h3>
+        <h3 i18n>Anatomy of a {{ providerLabel(chosen) }} signature</h3>
         <!-- O leitor ignora aria-label num <code> sem papel. -->
         <code class="example" role="group" aria-label="Example header" i18n-aria-label>
           @for (part of example(); track $index) {
@@ -167,7 +167,7 @@
 
       <form class="fields" aria-labelledby="signature-settings-title" [formGroup]="form">
         <div class="settings-head">
-          <h3 id="signature-settings-title" i18n>{{ providerLabels[chosen] }} settings</h3>
+          <h3 id="signature-settings-title" i18n>{{ providerLabel(chosen) }} settings</h3>
           <span class="hint" i18n>* required</span>
         </div>
         <div class="pair">

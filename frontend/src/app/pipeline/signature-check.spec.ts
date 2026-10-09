@@ -95,7 +95,7 @@ describe('Dado o motivo da assinatura que falhou, com a tela em pt-BR', () => {
       'malformed header no GitHub',
       github('malformed header'),
       null,
-      'O cabeçalho não segue o formato do GitHub: confirme que o remetente é o GitHub, ou use Generic.',
+      'O cabeçalho não segue o formato do GitHub: confirme que o remetente é o GitHub, ou use o Genérico.',
     ],
     [
       'timestamp com a tolerância da URL',
@@ -111,6 +111,19 @@ describe('Dado o motivo da assinatura que falhou, com a tela em pt-BR', () => {
     ],
   ])('deve dizer quem corrige o motivo %s', (_caso, signature, url, conselho) => {
     expect(signatureAdvice(webhookRequest(1, { signature }), url)).toEqual([conselho]);
+  });
+});
+
+describe('Dado o provedor genérico com a tela em pt-BR', () => {
+  beforeEach(() => loadTranslations(translations));
+  afterEach(() => clearTranslations());
+
+  it('deve chamá-lo de Genérico na linha do cabeçalho que faltou', () => {
+    const request = webhookRequest(1, { signature: generica('header X-Sig absent') });
+
+    expect(signatureCheck(request, urlGenerica)?.missing?.note).toBe(
+      '⊘ Sem assinatura — a verificação do Genérico espera o cabeçalho X-Sig',
+    );
   });
 });
 

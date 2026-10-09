@@ -4,7 +4,7 @@ import {
   absentHeader,
   signatureState,
 } from '../requests/webhook-request';
-import { SIGNATURE_PROVIDER_LABELS, SignatureProvider, Token } from '../token/token';
+import { signatureProviderLabel, SignatureProvider, Token } from '../token/token';
 
 /** O que a tabela de headers mostra do resultado da assinatura gravado na mensagem. */
 export interface SignatureCheck {
@@ -46,7 +46,7 @@ export function signatureCheck(
   }
   const state = signatureState(signature);
   const provider = signature.provider;
-  const label = SIGNATURE_PROVIDER_LABELS[provider];
+  const label = signatureProviderLabel(provider);
   const absent = absentHeader(signature);
   const missing = absent
     ? {
@@ -156,7 +156,7 @@ export function signatureAdvice(request: CapturedRequest, token: Token | null): 
   }
   const { provider, reason } = signature;
   const generic = provider === 'generic';
-  const label = SIGNATURE_PROVIDER_LABELS[provider];
+  const label = signatureProviderLabel(provider);
   if (reason === MISMATCH) {
     return [
       generic

@@ -5,7 +5,7 @@ import { RequestStream } from '../realtime/request-stream';
 import { fromNow } from '../request-detail/dates';
 import { RequestStore } from '../requests/request-store';
 import { injectCopyCliCommand } from '../token/copy-cli-command';
-import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
+import { signatureProviderLabel } from '../token/token';
 import type { TokenActions } from '../token/token-actions';
 import { TokenStore } from '../token/token-store';
 import { MissingUrl } from '../token/url-missing';
@@ -47,7 +47,7 @@ export class UrlHeader {
   protected readonly missingUrl = computed(
     () => `${this.location.protocol}//${this.location.host}/${this.missing()?.id ?? ''}`,
   );
-  protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
+  protected readonly providerLabel = signatureProviderLabel;
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly signatureLabel = (provider: string) =>
     $localize`Signature verification: ${provider}:provider:. Open Checks`;

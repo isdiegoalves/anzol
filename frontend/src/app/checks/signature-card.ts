@@ -14,7 +14,7 @@ import { RouterLink } from '@angular/router';
 import {
   SIGNATURE_ALGORITHMS,
   SIGNATURE_PROVIDERS,
-  SIGNATURE_PROVIDER_LABELS,
+  signatureProviderLabel,
   SignatureAlgorithm,
   SignatureConfig,
   SignatureEncoding,
@@ -247,9 +247,9 @@ export class SignatureCard implements ChecksSection {
       secret: '—',
       where: '',
     },
-    ...PROVIDER_GUIDE.map((row) => ({ ...row, label: SIGNATURE_PROVIDER_LABELS[row.provider] })),
+    ...PROVIDER_GUIDE.map((row) => ({ ...row, label: signatureProviderLabel(row.provider) })),
   ];
-  protected readonly providerLabels = SIGNATURE_PROVIDER_LABELS;
+  protected readonly providerLabel = signatureProviderLabel;
   protected readonly algorithms = SIGNATURE_ALGORITHMS.map((value) => ({
     value,
     label: value.replace('sha', 'SHA-'),
@@ -417,7 +417,7 @@ export class SignatureCard implements ChecksSection {
     const c = this.form.controls;
     const was = this.valuesOf(this.saved());
     const name = (provider: ProviderOption) =>
-      provider === 'none' ? $localize`None` : SIGNATURE_PROVIDER_LABELS[provider];
+      provider === 'none' ? $localize`None` : signatureProviderLabel(provider);
     const seconds = (value: number | null) => $localize`${value ?? 0}:seconds: s`;
     const field = <T>(control: AbstractControl<T>, label: string, show: (value: T) => string) =>
       control.enabled

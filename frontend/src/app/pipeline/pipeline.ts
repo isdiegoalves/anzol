@@ -1,6 +1,6 @@
 import { CapturedRequest, SignatureResult, absentHeader } from '../requests/webhook-request';
 import { conditionPhrase } from './server-phrases';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { signatureProviderLabel, Token } from '../token/token';
 import { SignatureCheck, signatureCheck, signatureReasonText } from './signature-check';
 import { decryptionResult } from './decryption';
 
@@ -142,7 +142,7 @@ function signatureResult(request: CapturedRequest): CheckResult {
       short: $localize`No sig check`,
     };
   }
-  const provider = SIGNATURE_PROVIDER_LABELS[signature.provider] ?? signature.provider;
+  const provider = signatureProviderLabel(signature.provider);
   if (signature.valid) {
     const age = stripeAge(request);
     return {

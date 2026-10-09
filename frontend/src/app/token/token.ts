@@ -55,13 +55,19 @@ export type AutoCleanup = (typeof AUTO_CLEANUP_LIMITS)[number];
 export const SIGNATURE_PROVIDERS = ['stripe', 'github', 'shopify', 'slack', 'generic'] as const;
 export type SignatureProvider = (typeof SIGNATURE_PROVIDERS)[number];
 
-export const SIGNATURE_PROVIDER_LABELS: Record<SignatureProvider, string> = {
+const SIGNATURE_PROVIDER_BRANDS: Record<Exclude<SignatureProvider, 'generic'>, string> = {
   stripe: 'Stripe',
   github: 'GitHub',
   shopify: 'Shopify',
   slack: 'Slack',
-  generic: 'Generic',
 };
+
+/** O nome do provedor na tela: as marcas como são, o genérico na língua da tela. */
+export function signatureProviderLabel(provider: SignatureProvider): string {
+  return provider === 'generic'
+    ? $localize`:signature provider|:Generic`
+    : (SIGNATURE_PROVIDER_BRANDS[provider] ?? provider);
+}
 
 export const SIGNATURE_ALGORITHMS = ['sha1', 'sha256', 'sha512'] as const;
 export type SignatureAlgorithm = (typeof SIGNATURE_ALGORITHMS)[number];

@@ -21,7 +21,7 @@ import { signatureAdvice } from '../pipeline/signature-check';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport } from '../shell/viewport';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { signatureProviderLabel, Token } from '../token/token';
 import { CheckChip, ChipLink } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
 import { Icon } from '../ui/icon';
@@ -307,7 +307,7 @@ export class RequestView {
     // INBOX-24: o título da nota e o link para Checks › Signature (fora da página só-leitura).
     const token = this.token();
     const provider = this.request().signature?.provider;
-    const label = provider ? SIGNATURE_PROVIDER_LABELS[provider] : '';
+    const label = provider ? signatureProviderLabel(provider) : '';
     const link =
       token && !this.readonly()
         ? {

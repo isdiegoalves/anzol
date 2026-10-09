@@ -12,7 +12,7 @@ import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { signatureProviderLabel, Token } from '../token/token';
 import {
   OUTBOUND_METHODS,
   OutboundResult,
@@ -95,7 +95,7 @@ export class SendComposer implements OnInit {
       headers: [],
       body: '',
     };
-    this.signature = token.signature ? SIGNATURE_PROVIDER_LABELS[token.signature.provider] : null;
+    this.signature = token.signature ? signatureProviderLabel(token.signature.provider) : null;
     this.signedHeader = token.signature ? signedHeaderHint(token.signature) : null;
     for (const [name, value] of draft.headers) {
       this.form.controls.headers.push(this.headerGroup(name, value));

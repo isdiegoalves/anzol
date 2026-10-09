@@ -17,7 +17,7 @@ import { MatButton } from '@angular/material/button';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { Viewport } from '../shell/viewport';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { signatureProviderLabel, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ChangesBar } from './changes-bar';
@@ -322,7 +322,7 @@ function statesOf(token: Token | null): Partial<Record<PageSection, SectionState
   const dialect = dialectOf(token);
   return {
     signature: same(
-      token.signature ? SIGNATURE_PROVIDER_LABELS[token.signature.provider] : $localize`Off`,
+      token.signature ? signatureProviderLabel(token.signature.provider) : $localize`Off`,
     ),
     schema: token.schema
       ? {

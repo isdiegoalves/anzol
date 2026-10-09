@@ -42,7 +42,7 @@ import { RuleSuggest, SuggestionApply } from './rule-suggest';
 import { RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
-import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
+import { signatureProviderLabel } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Viewport } from '../shell/viewport';
 import { HistoryTestPanel } from './history-test-panel';
@@ -955,7 +955,7 @@ export class RuleEditor {
   /** De onde vem o resultado da assinatura: o provedor da URL, ou "not set up". */
   protected signatureOrigin(): string {
     const provider = this.tokens.token()?.signature?.provider;
-    return provider ? SIGNATURE_PROVIDER_LABELS[provider] : $localize`not set up`;
+    return provider ? signatureProviderLabel(provider) : $localize`not set up`;
   }
 
   /**

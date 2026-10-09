@@ -9,7 +9,7 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
-import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
+import { signatureProviderLabel, Token } from '../token/token';
 import { MethodBadge } from '../ui/method-badge';
 import {
   OutboundResult,
@@ -84,7 +84,7 @@ export class ReplayComposer implements OnInit {
   });
   protected readonly signer = computed(() => {
     const signature = this.token().signature;
-    return signature ? SIGNATURE_PROVIDER_LABELS[signature.provider] : null;
+    return signature ? signatureProviderLabel(signature.provider) : null;
   });
   protected readonly targetError = TARGET_ERROR;
   protected readonly timeoutError = TIMEOUT_ERROR;

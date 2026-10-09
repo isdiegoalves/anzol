@@ -2019,6 +2019,7 @@
     "3760983201194713094": "Seconds or HTTP-date; useful with 429, 503 or 3xx",
     "551564307771458202": "Keeps the {$INTERPOLATION} most recent requests",
     "7941428823403788384": " Create ",
+    "4517834469183487017": "Generic",
     "5373322810477456488": "This URL is protected",
     "8486491065980257305": " Enter the secret to view the requests, rules and history of {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}. ",
     "1672118851921750943": "Webhooks sent to the URL are still captured without the secret.",
