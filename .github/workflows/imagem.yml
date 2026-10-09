@@ -15,7 +15,7 @@ jobs:
   publicar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Notas da release (corpo da tag anotada)
         env:
           TAG: ${{ github.ref_name }}
@@ -24,22 +24,22 @@ jobs:
           git tag -l --format='%(contents:subject)' "$TAG" > titulo.txt
           git tag -l --format='%(contents:body)' "$TAG" > notas.md
           test -s notas.md || { echo "::error::A tag $TAG não tem notas no corpo da mensagem (git tag -a --cleanup=verbatim -F notas.md)"; exit 1; }
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/anzol
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64

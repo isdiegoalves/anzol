@@ -18,12 +18,14 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
       # Os testes sobem Redis por Testcontainers; o runner já tem Docker.
       - run: ./gradlew check
         working-directory: backend
@@ -37,14 +39,16 @@ jobs:
       matrix:
         java: ["21", "25"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: |
             ${{ matrix.java }}
             25
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
       - run: ./gradlew check installDist -PtestJavaVersion=${{ matrix.java }}
         working-directory: cli
       # Sem a variável do setup-java, o script do anzol usaria o java do PATH (o 25) e o passo passaria sem testar
@@ -63,8 +67,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
