@@ -89,7 +89,7 @@ describe('Dado o motivo da assinatura que falhou, com a tela em pt-BR', () => {
       'malformed header no genérico',
       generica('malformed header'),
       urlGenerica,
-      'Confira o Prefixo e a Codificação (hex/base64) em Verificações › Assinatura.',
+      'Compare o Prefixo e a Codificação (hex/base64) de Verificações › Assinatura com o cabeçalho que chegou, na aba Cabeçalhos. Se o remetente mandou fora do combinado (sem o prefixo, por exemplo), quem corrige é ele; se o formato dele é o combinado, ajuste o Prefixo e a Codificação aqui.',
     ],
     [
       'malformed header no GitHub',
@@ -138,6 +138,14 @@ describe('Dado a assinatura em inglês', () => {
       signatureAdvice(webhookRequest(1, { signature: github('signature mismatch') }), null),
     ).toEqual([
       "Check that the HMAC secret here is the same as GitHub's; if it is, something on the way altered the body.",
+    ]);
+  });
+
+  it('deve dizer como achar o lado do erro Quando o cabeçalho do genérico está fora do formato', () => {
+    expect(
+      signatureAdvice(webhookRequest(1, { signature: generica('malformed header') }), urlGenerica),
+    ).toEqual([
+      "Compare the Prefix and the Encoding (hex/base64) in Checks › Signature with the header that arrived, in the Headers tab. If the sender is off the agreed format (no prefix, for example), the sender fixes it; if the sender's format is the agreed one, adjust the Prefix and the Encoding here.",
     ]);
   });
 });

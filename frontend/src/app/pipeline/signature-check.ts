@@ -161,7 +161,7 @@ export function signatureAdvice(request: CapturedRequest, token: Token | null): 
   if (reason === MALFORMED) {
     return [
       generic
-        ? $localize`Check the Prefix and the Encoding (hex/base64) in Checks › Signature.`
+        ? $localize`Compare the Prefix and the Encoding (hex/base64) in Checks › Signature with the header that arrived, in the Headers tab. If the sender is off the agreed format (no prefix, for example), the sender fixes it; if the sender's format is the agreed one, adjust the Prefix and the Encoding here.`
         : $localize`The header does not follow ${label}:provider:'s format: confirm the sender is ${label}:provider:, or use Generic.`,
     ];
   }

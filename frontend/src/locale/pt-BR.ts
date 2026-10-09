@@ -864,9 +864,9 @@ export const translations: Record<string, string> = {
   // Check that the HMAC secret here is the same as {$provider}'s; if it is, something on the way altered the body.
   '2512571080916805776':
     'Confira se o segredo do HMAC daqui é o mesmo do {$provider}; se for, algo no caminho alterou o corpo.',
-  // Check the Prefix and the Encoding (hex/base64) in Checks › Signature.
-  '1386049417704176482':
-    'Confira o Prefixo e a Codificação (hex/base64) em Verificações › Assinatura.',
+  // Compare the Prefix and the Encoding (hex/base64) in Checks › Signature with the header that arrived, in the Headers tab. If the sender is off the agreed format (no prefix, for example), the sender fixes it; if the sender's format is the agreed one, adjust the Prefix and the Encoding here.
+  '8889743004754572638':
+    'Compare o Prefixo e a Codificação (hex/base64) de Verificações › Assinatura com o cabeçalho que chegou, na aba Cabeçalhos. Se o remetente mandou fora do combinado (sem o prefixo, por exemplo), quem corrige é ele; se o formato dele é o combinado, ajuste o Prefixo e a Codificação aqui.',
   // The header does not follow {$provider}'s format: confirm the sender is {$provider}, or use Generic.
   '650505594850629909':
     'O cabeçalho não segue o formato do {$provider}: confirme que o remetente é o {$provider}, ou use Generic.',
