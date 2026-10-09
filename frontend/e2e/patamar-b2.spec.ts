@@ -286,6 +286,7 @@ test.describe('Dado um link para uma requisição que não existe', () => {
     await detalhe(page).getByRole('button', { name: 'Search for this id' }).click();
     // No celular o próprio "Search for this id" volta à lista, onde a busca fica.
     await expect(campoDeBusca(page)).toHaveValue(falta);
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}\\?q=${falta}$`));
 
     await page.goto(`/#/${tokenId}/${falta}/1`);
     await detalhe(page).getByRole('button', { name: 'Open the newest request' }).click();
