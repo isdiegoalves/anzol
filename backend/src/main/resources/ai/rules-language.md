@@ -21,8 +21,14 @@ Rule fields:
   - signature: "valid", "invalid" or "absent" (HMAC verification configured on the URL).
   - schema: "valid" or "invalid" (JSON Schema validation configured on the URL).
   - decryption: "valid", "invalid", "unknown_kid" or "absent" (attribute decryption configured on the URL).
-    "absent" only happens when the URL accepts plaintext (required: false); with the default, plaintext is
-    "invalid" (reason downgrade). Example: {"match": {"decryption": "unknown_kid"}, "response": {"status": 500}}.
+    "invalid" is every refused message, whatever the recorded reason: plaintext, a missing attribute, a body that is
+    not JSON, a failed HMAC signature, wrong claims, and so on; no condition picks a single reason.
+    "absent" means the attribute arrived in plaintext on a URL that accepts it (required: false); with the default
+    (required: true), plaintext is refused and recorded as "invalid" (reason downgrade), never "absent".
+    Example: {"match": {"decryption": "unknown_kid"}, "response": {"status": 500}}.
+    Example: "answer 401 when the message does not come encrypted", with the default policy (required: true):
+    {"match": {"decryption": "invalid"}, "response": {"status": 401}}; it also answers every other refused message.
+    Use {"decryption": "absent"} for plaintext only when the URL has required: false.
   Every regex is Java syntax and must match the whole value.
 - response:
   - status: integer 100..599, default 200.

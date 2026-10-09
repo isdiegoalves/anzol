@@ -72,6 +72,29 @@ class AiSuggestApiTest(
     }
 
     @Test
+    @DisplayName(
+        "Dado um pedido de regra, quando sugere, então a linguagem de regras ensina que mensagem não cifrada, com a " +
+            "política padrão, casa decryption invalid, e que absent só vem com required false",
+    )
+    fun suggest_linguagem_deveEnsinarQueEmClaroEInvalid() {
+        val tokenId = api.tokenId()
+        FakeLlm.answer(VALID_RULE)
+
+        suggest(tokenId, prompt("responda 401 quando a mensagem não vier cifrada"))
+
+        val system =
+            FakeLlm.received
+                .single()
+                .messages()[0]["content"]
+                .asString()
+        assertThat(system)
+            .contains("""Example: "answer 401 when the message does not come encrypted"""")
+            .contains("""{"match": {"decryption": "invalid"}, "response": {"status": 401}}""")
+            .contains("required: false")
+            .contains("downgrade")
+    }
+
+    @Test
     @DisplayName("Dadas duas respostas inválidas e uma válida, quando sugere, então cada tentativa leva os erros do parser da anterior")
     fun suggest_duasInvalidasEUmaValida_deveMandarOsErrosAoModelo() {
         val tokenId = api.tokenId()
