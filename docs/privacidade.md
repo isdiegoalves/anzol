@@ -31,10 +31,13 @@ aplica os dois. Clientes que não são navegador (CLI, SDKs, provedores) ignoram
 `read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Nunca é devolvido: o
 token ganha `"protected": true|false`. No `PUT`, **ausente mantém** o segredo (exceção deliberada à regra "campo
 ausente volta ao padrão": apagar a proteção por omissão seria perigoso), `null` remove e texto troca. Na query, 422.
+Remover é recusado (422 em `read_secret`) enquanto alguma mensagem da URL guardar o atributo decifrado (`decrypted`,
+ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)): sem o segredo, ele ficaria à vista de quem só tem a URL.
+Apague essas mensagens antes, ou mantenha o segredo.
 
 Sem acesso, **toda** rota `/token/{id}/...` (o token, `DELETE`, mensagens, raw, SSE, busca, wait, regras, cenários,
-saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected","protected":true}`; só `unlock` e
-`lock` respondem. A captura `/{id}/...` não muda. Acesso é um destes:
+saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected","protected":true}`; só `unlock`, `lock` e
+`jwks.json` (as chaves públicas de cifra, que não são segredo) respondem. A captura `/{id}/...` não muda. Acesso é um destes:
 
 - cabeçalho `X-Anzol-Secret: <segredo>` (CLI, scripts);
 - o cookie de desbloqueio (a tela).
@@ -46,6 +49,15 @@ um agente errando não travar a tela e o CLI) → `429` com `Retry-After`
 até o minuto acabar, **também para o segredo certo** (senão o 429 do errado e o 200 do certo diriam qual é o certo);
 o cookie não passa por esse limite. O segredo não aparece em log, resposta, métrica nem erro. Token gravado antes do
 segredo abre como não protegido.
+
+### O que fica no Redis
+
+Em claro, com a URL: o segredo HMAC (`signature.secret`), as chaves privadas de cifra (`e2ee_keys[].jwk`, campo
+`d`), a privada do remetente de teste do laboratório e o valor decifrado de cada mensagem (`decrypted`). Com hash
+(PBKDF2): o segredo de leitura. O segredo de leitura protege a leitura pela API e pela tela, não o armazenamento:
+quem tem o Redis ou o `dump.rdb` do volume `anzol_redis-data` tem tudo isso. O Anzol não cifra o Redis. As chaves de
+cifra ficam na URL até alguém apagá-las (`DELETE /token/{id}/keys/{kid}`): desligar a decifra ou remover o segredo
+não as remove.
 
 ### Cookie de desbloqueio
 

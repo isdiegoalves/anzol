@@ -54,6 +54,11 @@ export function errorKeys(error: unknown): string[] {
     : [];
 }
 
+/** A recusa (422 em `read_secret`) de remover o segredo enquanto há requisição decifrada gravada. */
+export function decryptedRefusal(): string {
+  return $localize`The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.`;
+}
+
 /** Erro do `PUT` como o app atual o dizia: os 422 juntos, ou o status HTTP. */
 export function updateError(error: unknown): string {
   if (error instanceof HttpErrorResponse && error.status === 422) {

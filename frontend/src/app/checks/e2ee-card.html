@@ -56,7 +56,9 @@
     }
     @if (savedPolicy && !on) {
       <p class="banner" role="status" i18n>
-        Saving turns decryption off. Requests already received keep the result they got on arrival.
+        Saving turns decryption off. Requests already received keep the result they got on arrival,
+        and the decrypted ones keep the opened value: the read secret stays required until they are
+        deleted.
       </p>
     }
 

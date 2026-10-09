@@ -1,9 +1,10 @@
-import { Component, ElementRef, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { RequestStore } from '../requests/request-store';
 import { Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -13,6 +14,7 @@ import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import {
   PendingField,
   changeOf,
+  decryptedRefusal,
   fieldErrors,
   onOff,
   pendingLabels,
@@ -49,6 +51,7 @@ const READ_SECRET_MAX = 256;
 })
 export class PrivacyCard implements ChecksSection {
   private readonly tokens = inject(TokenStore);
+  private readonly requests = inject(RequestStore);
   private readonly draft = inject(ChecksDraft);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -58,6 +61,20 @@ export class PrivacyCard implements ChecksSection {
   protected readonly wasProtected = signal(
     (this.draft.base() ?? this.tokens.token())?.protected === true,
   );
+  /**
+   * A URL tem chave de cifra ou a lista dela já tem requisição com decifra: pode haver valor
+   * decifrado gravado, e o servidor recusa remover o segredo enquanto houver.
+   */
+  protected readonly decrypts = computed(() => {
+    const token = this.tokens.token();
+    return (
+      (token?.e2ee_keys?.length ?? 0) > 0 ||
+      (this.requests.tokenId() === token?.uuid &&
+        this.requests.requests().some((request) => request.decryption))
+    );
+  });
+  /** O 422 de remover o segredo com requisição decifrada gravada. */
+  protected readonly refusal = signal<string | null>(null);
   readonly form = this.formBuilder.group({
     required: [this.wasProtected()],
     read_secret: [''],
@@ -70,6 +87,7 @@ export class PrivacyCard implements ChecksSection {
       confirm.value === c.read_secret.value ? null : { mismatch: true },
     );
     c.required.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.sync());
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.refusal.set(null));
     c.read_secret.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => c.read_secret_confirm.updateValueAndValidity());
@@ -131,6 +149,7 @@ export class PrivacyCard implements ChecksSection {
   load(token: Token): void {
     this.wasProtected.set(token.protected === true);
     this.form.reset({ required: this.wasProtected(), read_secret: '', read_secret_confirm: '' });
+    this.refusal.set(null);
     this.sync();
   }
 
@@ -138,6 +157,10 @@ export class PrivacyCard implements ChecksSection {
     const messages = fieldErrors(error, 'read_secret');
     if (messages.length === 0) {
       return [];
+    }
+    if (!this.form.controls.required.value) {
+      this.refusal.set(decryptedRefusal());
+      return [$localize`Require a secret to view this URL`];
     }
     const control = this.form.controls.read_secret;
     control.setErrors({ server: messages.join(' ') });

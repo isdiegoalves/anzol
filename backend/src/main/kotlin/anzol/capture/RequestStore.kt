@@ -37,6 +37,9 @@ private val SCAN = requestScript("requests-scan", List::class.java)
 /** Itens antes dos pares (JSON, seq) na resposta de `requests-scan.lua`: entradas lidas e o cursor. */
 private const val SCAN_HEADER = 3
 
+/** Quantas entradas do índice cada leitura de [anyDecrypted] traz. */
+private const val DECRYPTED_SCAN_BATCH = 100L
+
 /** Resultado da gravação: o `seq` que a mensagem recebeu e as que a limpeza tirou. */
 data class Stored(
     val seq: Long,
@@ -194,3 +197,9 @@ class RequestStore(
 
     fun deleteAll(token: Token): Boolean = redis.delete(token.requestKeys()) > 0
 }
+
+/** Se alguma mensagem retida guarda o atributo decifrado (`decrypted`); varre o índice em trechos e para na primeira. */
+fun RequestStore.anyDecrypted(token: Token): Boolean =
+    generateSequence(scan(token, Sorting.NEWEST, from = null, limit = DECRYPTED_SCAN_BATCH)) { previous ->
+        previous.next?.let { scan(token, Sorting.NEWEST, from = it, limit = DECRYPTED_SCAN_BATCH) }
+    }.any { batch -> batch.messages.any { it.decrypted != null } }

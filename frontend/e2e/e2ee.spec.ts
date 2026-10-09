@@ -228,6 +228,54 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
       /Unknown encryption key\s*The JWE kid enc-sumida is not one of this URL's keys/,
     );
   });
+
+  test('deve recusar em pt-BR desligar a decifra e a Privacidade no mesmo salvar, e a URL segue protegida', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ read_secret: SEGREDO });
+    const remetente = signatario('sig-e2e');
+    const destino = await gerarChave(request, tokenId, 'enc-e2e');
+    const configurada = await request.put(`/token/${tokenId}`, {
+      headers: COM_SEGREDO,
+      data: { e2ee: politica([remetente.publica]) },
+    });
+    expect(configurada.status()).toBe(200);
+    await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: envelopeCifrado(remetente, destino, 'n-1', { cpf: '000' }),
+    });
+    await seedStorage(page, { hideTutorial: 'true', language: '"pt-BR"' });
+    const destrancada = await page.request.post(`/token/${tokenId}/unlock`, {
+      data: { secret: SEGREDO },
+    });
+    expect(destrancada.ok()).toBe(true);
+
+    await page.goto(`/#/${tokenId}/checks`);
+    const decifra = page.getByRole('region', { name: 'Decifra E2EE' });
+    const privacidade = page.getByRole('region', { name: 'Privacidade' });
+    await decifra.getByRole('button', { name: 'Desligar' }).click();
+    await privacidade.getByRole('switch', { name: 'Exigir um segredo para ver esta URL' }).click();
+    await expect(
+      privacidade.getByText(/Requisições decifradas guardam o valor aberto/),
+    ).toBeVisible();
+    const put = page.waitForResponse(
+      (resposta) =>
+        resposta.request().method() === 'PUT' && resposta.url().endsWith(`/token/${tokenId}`),
+    );
+    await page.getByRole('button', { name: /^Salvar alterações\b/ }).click();
+
+    expect((await put).status()).toBe(422);
+    const recusa =
+      'O servidor recusou: há requisições decifradas nesta URL. Apague-as antes de remover o segredo, ou mantenha o segredo.';
+    await expect(privacidade.getByText(recusa)).toBeVisible();
+    await expect(decifra.getByText(recusa)).toBeVisible();
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'Exigir um segredo para ver esta URL' }),
+    ).toBeVisible();
+    expect(await lerUrl(request, tokenId)).toMatchObject({ protected: true });
+  });
 });
 
 test.describe('Dado a condição "Decryption" no editor de regras', () => {

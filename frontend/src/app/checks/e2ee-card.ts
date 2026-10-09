@@ -38,6 +38,7 @@ import { E2eeLab } from './e2ee-lab';
 import {
   PendingField,
   changeOf,
+  decryptedRefusal,
   errorKeys,
   fieldErrors,
   onOff,
@@ -249,7 +250,14 @@ export class E2eeCard implements ChecksSection {
     this.syncFields();
   }
 
+  /**
+   * O 422 em `read_secret` (remover o segredo com requisição decifrada gravada) aparece também aqui,
+   * mas o rótulo dele é do cartão Privacy.
+   */
   refused(error: unknown): string[] {
+    if (fieldErrors(error, 'read_secret').length > 0) {
+      this.refusal.set(decryptedRefusal());
+    }
     const keys = errorKeys(error).filter((key) => key === 'e2ee' || key.startsWith('e2ee.'));
     if (keys.length === 0) {
       return [];

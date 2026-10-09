@@ -109,9 +109,10 @@ paths:
       summary: Replace the configuration of a capture URL
       description: >-
         Replaces every setting: an absent field goes back to its default. Exceptions: an absent `read_secret`
-        keeps the current one (`null` removes it), and an absent or masked `signature.secret` keeps the current
-        secret. `cors` is kept. Changing the read secret closes open streams and waits and revokes every shared
-        link. Validation runs before the URL lookup (422 before 410).
+        keeps the current one (`null` removes it, or is a 422 while a stored request has `decrypted`), and an
+        absent or masked `signature.secret` keeps the current secret. `cors` is kept. Changing the read secret
+        closes open streams and waits and revokes every shared link. Validation runs before the URL lookup (422
+        before 410).
       security:
         - {}
         - readSecret: []
@@ -1966,7 +1967,8 @@ components:
             - type: 'null'
         read_secret:
           description: >-
-            8 to 256 characters; body only. On `PUT`, absent keeps the current secret and `null` removes it.
+            8 to 256 characters; body only. On `PUT`, absent keeps the current secret and `null` removes it; while a
+            stored request of the URL has `decrypted`, removing it is a 422 (delete those requests first).
           type: [string, 'null']
           minLength: 8
           maxLength: 256

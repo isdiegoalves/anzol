@@ -107,6 +107,12 @@ export const translations: Record<string, string> = {
   '8661255126898122827': 'Os segredos não conferem.',
   //  Saving removes the secret: anyone with the URL will see its requests.
   '1638842964716429031': ' Salvar remove o segredo: quem tiver a URL vai ver as requisições dela. ',
+  //  Decrypted requests keep the opened value. While any is stored, the server refuses to remove the secret, even with decryption off. Delete them first, or keep the secret.
+  '992297825947199890':
+    ' Requisições decifradas guardam o valor aberto. Enquanto houver alguma gravada, o servidor recusa remover o segredo, mesmo com a decifra desligada. Apague-as antes, ou mantenha o segredo. ',
+  // The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.
+  '6213658804702770639':
+    'O servidor recusou: há requisições decifradas nesta URL. Apague-as antes de remover o segredo, ou mantenha o segredo.',
   // Discard
   '3823219296477075982': 'Descartar',
   // New secret
@@ -3634,9 +3640,9 @@ export const translations: Record<string, string> = {
   // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
   '8123080752418416800':
     'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor aberto tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
-  //  Saving turns decryption off. Requests already received keep the result they got on arrival.
-  '8026308678483831984':
-    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada. ',
+  //  Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.
+  '1526497609005154437':
+    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor aberto: o segredo de leitura continua obrigatório até elas serem apagadas. ',
   // Encrypted attribute
   '6159255639867175033': 'Atributo cifrado',
   // $.payload

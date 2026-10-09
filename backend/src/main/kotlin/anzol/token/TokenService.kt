@@ -2,6 +2,7 @@ package anzol.token
 
 import anzol.TokenId
 import anzol.capture.RequestStore
+import anzol.capture.anyDecrypted
 import anzol.http.LegacyInput
 import anzol.rules.Parsed
 import anzol.share.ShareStore
@@ -21,6 +22,9 @@ import java.util.UUID
 private const val MAX_CHANGE_ATTEMPTS = 50
 
 private val E2EE_WITHOUT_READ_SECRET = mapOf("e2ee" to listOf("The e2ee requires a read secret on this URL (read_secret)."))
+
+private val DECRYPTED_WITHOUT_READ_SECRET =
+    mapOf("read_secret" to listOf("The read secret cannot be removed while this URL has decrypted requests; delete them first."))
 
 /**
  * Criar, editar e apagar a URL, com a validação do `POST`/`PUT /token`: o que a API HTTP e as ferramentas do MCP
@@ -131,7 +135,9 @@ class TokenService(
         val errors = input.validateTokenSettings()
         if (errors.isNotEmpty()) return Parsed.Invalid(errors)
         val settings = input.toTokenSettings()
-        return withSignature(settings.signature, current.signature) { current.changed(settings, it) }.withReadSecretForE2ee()
+        return withSignature(settings.signature, current.signature) { current.changed(settings, it) }
+            .withReadSecretForE2ee()
+            .withReadSecretForDecrypted(current, requests)
     }
 
     /** A decifra sem segredo de leitura deixaria o texto aberto à vista de quem tem a URL: 422 em `e2ee`. */
@@ -177,4 +183,16 @@ class TokenService(
             else -> Parsed.Valid(build(resolved))
         }
     }
+}
+
+/**
+ * O atributo decifrado fica gravado na mensagem: sem o segredo, sairia para quem só tem a URL, também com a decifra
+ * desligada. Enquanto houver um, 422 em `read_secret`.
+ */
+private fun Parsed<Token>.withReadSecretForDecrypted(
+    current: Token,
+    requests: RequestStore,
+): Parsed<Token> {
+    val removesSecret = this is Parsed.Valid && current.isProtected() && !value.isProtected()
+    return if (removesSecret && requests.anyDecrypted(current)) Parsed.Invalid(DECRYPTED_WITHOUT_READ_SECRET) else this
 }

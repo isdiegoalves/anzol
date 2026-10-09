@@ -132,10 +132,12 @@ validação trazem `schema: null`.
 
 ## Decifra de atributo (E2EE)
 
-Com `e2ee`, a URL abre um atributo do corpo que chega cifrado de ponta a ponta: o remetente assina o objeto
-(JWS) e cifra a assinatura para a chave pública da URL (JWE), e só a URL decifra. O resto do envelope fica em
-claro, e a assinatura HMAC da URL continua valendo sobre o corpo como chegou. É o formato do laboratório do
-canal de notificações:
+Com `e2ee`, a URL abre um atributo do corpo que chega cifrado do remetente até esta URL: o remetente assina o
+objeto (JWS) e cifra a assinatura para a chave pública da URL (JWE). **A ponta que abre é o servidor do Anzol**:
+ele guarda a chave privada da URL, decifra na chegada e grava o valor decifrado na mensagem, atrás do segredo de
+leitura (ver [onde o valor decifrado fica](#onde-o-valor-decifrado-fica)). O resto do envelope fica em claro, e a
+assinatura HMAC da URL, quando configurada, é conferida **antes** da decifra, sobre o corpo como chegou. É o formato
+do laboratório do canal de notificações:
 
 | Camada | Formato |
 |---|---|
@@ -160,8 +162,10 @@ canal de notificações:
 | `max_age_seconds` | 60 a 604800 (padrão 43200, 12 h): idade máxima do `iat`; até 5 minutos no futuro é aceito |
 | `trusted_signers` | 1 a 10 JWKs **públicas** EC P-256 de assinatura ES256, com `kid` único; `alg` (se houver) `ES256`, `use` (se houver) `sig`. Vale a chave gerada fora do Anzol (Java, Insomnia) como ela vem |
 
-Ligar `e2ee` exige `read_secret` na URL (e remover o segredo com ela ligada é recusado): o texto aberto nunca
-fica à vista de quem só tem a URL. No `PUT`, `e2ee` ausente ou `null` desliga a decifra, como os demais
+Ligar `e2ee` exige `read_secret` na URL, e remover o segredo com ela ligada é recusado. Remover o segredo também é
+recusado (422 em `read_secret`) enquanto alguma mensagem da URL tiver `decrypted`, mesmo com a decifra já desligada:
+apague essas mensagens antes (`DELETE /token/{id}/request/{rid}`, ou todas com `DELETE /token/{id}/request`). Assim
+o texto aberto nunca fica à vista de quem só tem a URL. No `PUT`, `e2ee` ausente ou `null` desliga a decifra, como os demais
 campos. JWK com a parte privada `d`, fora da P-256, com o ponto fora da curva, sem `kid` ou com `kid` repetido
 dá 422 com a chave em pontos (`e2ee.trusted_signers.0`). A política só tem chaves públicas: nada nela é segredo.
 
@@ -169,8 +173,10 @@ dá 422 com a chave em pontos (`e2ee.trusted_signers.0`). A política só tem ch
 `-`; sem ele, `enc-<AAAAMMDD>-<4 hex>`) gera um par EC P-256 no servidor e devolve `201`
 `{kid, created_at, jwk}` só com a pública (`use=enc`, `alg=ECDH-ES`). A URL tem no máximo duas, para a rotação:
 gere a nova, troque o remetente e apague a antiga com `DELETE /token/{id}/keys/{kid}` (`204`; `404` sem ela);
-a mensagem cifrada para a antiga abre enquanto ela existir. A privada fica só no Redis: nenhuma rota, ferramenta
-do MCP ou log a devolve. O token lista as chaves em `e2ee_keys` e `GET /token/{id}/jwks.json` publica as
+a mensagem cifrada para a antiga abre enquanto ela existir. A privada fica em claro no Redis (e no backup do
+volume): nenhuma rota, ferramenta do MCP ou log a devolve, e quem lê o Redis a tem. As chaves ficam na URL até
+alguém apagá-las: desligar a decifra ou remover o segredo não as remove, e o `jwks.json` continua publicando as
+públicas. O token lista as chaves em `e2ee_keys` e `GET /token/{id}/jwks.json` publica as
 públicas sem pedir o segredo de leitura, como todo JWKS.
 
 Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
@@ -201,6 +207,15 @@ inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexõe
 `decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, na busca e no `requests/wait`.
 O link só-leitura, o evento `request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e
 a IA local não o recebe.
+
+### Onde o valor decifrado fica
+
+Quando `valid`, o claim `data` é gravado **em claro** no campo `decrypted` da mensagem, no Redis
+(`token:{id}:requests`), junto da chave privada de cifra (`token:{id}`) e do segredo HMAC; tudo isso vai para o
+`dump.rdb` do volume e para qualquer backup dele. Fica enquanto a mensagem existir: até a limpeza (`auto_cleanup`), o
+teto (`ANZOL_MAX_REQUESTS`), a expiração da URL ou até alguém apagar a mensagem ou a URL. O segredo de leitura protege
+a leitura pela API e pela tela, não o armazenamento: quem opera o servidor, o Redis ou o backup vê o valor; o Anzol
+não cifra o Redis.
 
 ### Laboratório E2EE
 

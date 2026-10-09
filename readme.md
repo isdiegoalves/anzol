@@ -52,7 +52,8 @@ curl -X POST http://localhost:8084/<uuid>/pedidos -H 'Content-Type: application/
 
 As tags da imagem (`X.Y.Z`, `X.Y`, `latest`) saem a cada versão e estão em
 <https://github.com/isdiegoalves/anzol/pkgs/container/anzol>. Os dados do compose ficam no volume `anzol_redis-data` e
-sobrevivem a `docker compose down` (só `down -v` os apaga).
+sobrevivem a `docker compose down` (só `down -v` os apaga). Lá ficam em claro os segredos HMAC, as chaves privadas
+de cifra e os valores decifrados: trate o volume e o backup como segredo.
 
 ## Funcionalidades
 
@@ -63,7 +64,7 @@ sobrevivem a `docker compose down` (só `down -v` os apaga).
 | Injeção de falhas | Atraso, conexão reiniciada, conexão presa, corpo cortado; por sorteio (`chance`) e por janela de tempo | [Falhas](docs/api.md#atrasos-e-falhas-de-rede) |
 | Verificação de assinatura | Stripe, GitHub, Shopify, Slack e HMAC genérico (SHA-1, SHA-256, SHA-512) | [Assinatura](docs/api.md#verificação-de-assinatura) |
 | Validação de schema | JSON Schema 2020-12 em cada mensagem, usável nas regras | [Schema](docs/api.md#validação-de-schema) |
-| Decifra de atributo (E2EE) | Abre um atributo cifrado (JWE de um JWS ES256) por URL, com chaves por URL, JWKS e o motivo de cada falha; laboratório com 27 cenários prontos, também pelo MCP | [E2EE](docs/api.md#decifra-de-atributo-e2ee) |
+| Decifra de atributo (E2EE) | O servidor abre um atributo cifrado (JWE de um JWS ES256) com a chave privada da URL e guarda o valor decifrado na mensagem, atrás do segredo de leitura; chaves por URL, JWKS e o motivo de cada falha; laboratório com 27 cenários prontos, também pelo MCP | [E2EE](docs/api.md#decifra-de-atributo-e2ee) |
 | Reenvio e envio pelo servidor | Reenvia uma mensagem para o seu app, com falha injetada se quiser, e guarda o histórico | [Reenvio](docs/api.md#reenvio-e-envio-pelo-servidor) |
 | Esperar, buscar, estatísticas | `wait` para testes sem `sleep`; busca por texto e por condição; métricas por URL | [API](docs/api.md#esperar-por-mensagens) |
 | Privacidade | Segredo de leitura por URL, links só-leitura com máscara, captura isolada por CSP | [Privacidade](docs/privacidade.md) |

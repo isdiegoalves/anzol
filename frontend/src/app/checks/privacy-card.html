@@ -59,6 +59,15 @@
       <p class="banner" role="status" i18n>
         Saving removes the secret: anyone with the URL will see its requests.
       </p>
+      @if (refusal(); as refused) {
+        <!-- Sem região viva: quem fala a recusa é o alerta da barra de salvar. -->
+        <p class="banner">{{ refused }}</p>
+      } @else if (decrypts()) {
+        <p class="banner" role="status" i18n>
+          Decrypted requests keep the opened value. While any is stored, the server refuses to
+          remove the secret, even with decryption off. Delete them first, or keep the secret.
+        </p>
+      }
     }
   </form>
 

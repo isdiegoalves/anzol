@@ -423,6 +423,9 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem
     com o segredo, 401 sem ele; o link só-leitura e o evento levam `decryption` e nunca `decrypted`.
+    `e2ee-privacidade-segredo.spec.ts`: remover o segredo com mensagem decifrada é 422 em `read_secret`, num `PUT` ou
+    depois de desligar a decifra num anterior; a URL segue protegida (GET, listagem, busca e wait 401 sem segredo;
+    quem só tem o UUID não põe segredo próprio); apagadas as mensagens, o segredo sai.
   - *Laboratório* (`e2ee-lab-criar.spec.ts`, `e2ee-lab-cenarios.spec.ts`, `e2ee-lab-mcp.spec.ts`): `POST /e2ee-lab`
     devolve a URL pronta (segredos só ali, chaves, remetente de teste, HMAC e regras do laboratório) e `lab` entrou em
     `CHAVES_TOKEN`; a marca não muda pelo `PUT`; a rodada de todos os cenários dá 27 de 27, sem texto aberto; URL

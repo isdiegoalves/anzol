@@ -192,6 +192,34 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     expect(within(card()).getByText(/^The e2ee requires a read secret/).tagName).toBe('P');
   });
 
+  it('deve dizer a recusa e o que fazer Quando o salvar que desliga a decifra e remove o segredo leva 422 em read_secret', async () => {
+    const { http } = await renderCard(E2eeCard, { ...PROTEGIDA, e2ee: POLITICA });
+
+    await userEvent.click(within(card()).getByRole('button', { name: 'Turn off' }));
+    expect(within(card()).getByText(/^Saving turns decryption off\./).textContent).toContain(
+      'the read secret stays required until they are deleted.',
+    );
+    await userEvent.click(saveButton());
+    (await expectPut(http)).flush(
+      {
+        read_secret: [
+          'The read secret cannot be removed while this URL has decrypted requests; delete them first.',
+        ],
+      },
+      { status: 422, statusText: 'Unprocessable Entity' },
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        within(card())
+          .getByText(/^The server refused/)
+          .textContent?.trim(),
+      ).toBe(
+        'The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.',
+      ),
+    );
+  });
+
   describe('Dado as chaves de cifra', () => {
     it('deve gerar a chave com o kid digitado e mostrá-la na lista', async () => {
       const { http } = await renderCard(E2eeCard, PROTEGIDA);
