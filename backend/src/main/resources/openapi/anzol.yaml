@@ -3394,7 +3394,7 @@ components:
             decryption:
               type: object
               description: The attribute decryption recorded on the message; never the decrypted value.
-              required: [configured, state, reason, kid, signature_kid]
+              required: [configured, state, reason, kid, signature_kid, who_fixes, advice]
               properties:
                 configured: {type: boolean}
                 state:
@@ -3403,6 +3403,17 @@ components:
                 reason: {type: [string, 'null']}
                 kid: {type: [string, 'null']}
                 signature_kid: {type: [string, 'null']}
+                who_fixes:
+                  type: array
+                  description: >-
+                    Who fixes a refused decryption, from the reason: the sender, this URL's configuration, or nobody
+                    because the message was altered. Empty when it did not fail.
+                  items:
+                    type: string
+                    enum: [sender, url_configuration, message_altered]
+                advice:
+                  type: [string, 'null']
+                  description: What to do about a refused decryption, written by the server from the reason.
             rules:
               type: object
               required: [configured, matched, near_miss]

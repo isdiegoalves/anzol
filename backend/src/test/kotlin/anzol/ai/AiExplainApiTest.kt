@@ -203,6 +203,39 @@ class AiExplainApiTest(
     }
 
     @Test
+    @DisplayName(
+        "Dada uma decifra recusada, quando explica, então quem corrige e o que fazer vão aos fatos e ao modelo, " +
+            "e o sistema manda dizer os dois",
+    )
+    fun explain_decifraRecusada_deveLevarQuemCorrige() {
+        val signer = ecKey("remetente-sig-1")
+        val tokenId = api.tokenId("""{"read_secret": "segredo-do-explain", "e2ee": ${json(policy(signer))}}""")
+        val secret = mapOf(SECRET_HEADER to "segredo-do-explain")
+        api.send("POST", "/token/$tokenId/keys", """{"kid": "enc-v1"}""".toByteArray(), JSON_BODY + secret)
+        val requestId =
+            api
+                .send("POST", "/$tokenId", """{"payload": "em claro"}""".toByteArray(), mapOf("Content-Type" to "application/json"))
+                .headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        FakeLlm.answer("Veio em claro.")
+
+        val response = api.send("POST", "/token/$tokenId/request/$requestId/explain", "{}".toByteArray(), JSON_BODY + secret)
+
+        val decryption = api.json(response)["facts"]["decryption"]
+        assertThat(decryption["reason"].asString()).isEqualTo("downgrade")
+        assertThat(decryption["who_fixes"].toString()).isEqualTo("""["sender","url_configuration"]""")
+        assertThat(decryption["advice"].asString()).contains("plaintext")
+        val (system, user) =
+            FakeLlm.received
+                .single()
+                .messages()
+                .map { it["content"].asString() }
+        assertThat(system).contains("who_fixes", "advice")
+        assertThat(user).contains("\"who_fixes\"", "url_configuration", "The sender sent the attribute in plaintext")
+    }
+
+    @Test
     @DisplayName("Dado um corpo de 10 KB, quando explica, então só os primeiros 4 KB vão aos fatos e ao modelo")
     fun explain_corpoGrande_deveCortarEm4KB() {
         val tokenId = api.tokenId()

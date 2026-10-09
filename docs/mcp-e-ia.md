@@ -90,7 +90,8 @@ LLM nunca grava nada.
   uma sequência e a regra não tem cenário). Os avisos não geram nova tentativa.
 - `POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos (resultado
   da assinatura com o motivo, erros do schema, resultado da decifra com o motivo e as chaves (nunca o valor
-  decifrado), regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo)
+  decifrado) e, na recusada, quem corrige (`who_fixes`: `sender`, `url_configuration` ou `message_altered`) e o que
+  fazer (`advice`), escritos pelo servidor a partir do motivo, regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo)
   e o modelo só redige, em markdown simples, no idioma de `lang` (padrão `en`).
 
 | Variável | Padrão | O que faz |
