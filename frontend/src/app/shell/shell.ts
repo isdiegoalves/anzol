@@ -40,7 +40,7 @@ import { Menu, MenuItem } from '../ui/menu';
 import { DESTINATIONS, Destination, placeOf } from './destinations';
 import { Hotkeys } from './hotkeys';
 import { ScreenState } from './screen-state';
-import { ChecksSeen } from './checks-seen';
+import { ChecksSeen, decryptionFailed } from './checks-seen';
 import { ShellSettings } from './shell-settings';
 import { SkipLink } from './skip-link';
 import type { TokenActions } from '../token/token-actions';
@@ -354,7 +354,10 @@ export class Shell {
   private readonly unread = computed(() => this.requests.unreadOf(this.place().tokenId).length);
   /** WM-01: mensagens sem regra desde a última visita a Regras (o ponto em "Rules"). */
   private readonly unruled = computed(() => this.rulesSeen.unseen().length);
-  /** O que pede atenção em Checks: as assinaturas inválidas não vistas; sem elas, os schemas. */
+  /**
+   * O que pede atenção em Checks: as assinaturas inválidas não vistas; sem elas, as decifras que
+   * falharam; sem nenhuma das duas, os schemas.
+   */
   private readonly attention = computed(() => {
     const token = this.tokens.token();
     if (!token || this.requests.tokenId() !== token.uuid) {
@@ -362,7 +365,10 @@ export class Shell {
     }
     const unseen = this.checksSeen.unseen();
     const signatures = unseen.filter((request) => request.signature?.valid === false);
-    const found = signatures.length > 0 ? signatures : unseen;
+    const decryptions = unseen.filter(decryptionFailed);
+    const kind: 'signature' | 'decryption' | 'schema' =
+      signatures.length > 0 ? 'signature' : decryptions.length > 0 ? 'decryption' : 'schema';
+    const found = { signature: signatures, decryption: decryptions, schema: unseen }[kind];
     if (found.length === 0) {
       return null;
     }
@@ -372,7 +378,7 @@ export class Shell {
       this.document.documentElement.lang || 'en',
       { hour: 'numeric', minute: '2-digit' },
     );
-    return { signatures: signatures.length > 0, count: found.length, since };
+    return { kind, count: found.length, since };
   });
 
   /** Abrir Checks, ou a Entrada filtrada pela assinatura inválida, apaga o ponto. */
@@ -404,13 +410,21 @@ export class Shell {
     const attention = this.attention();
     if (destination.path === 'checks' && attention) {
       const { count, since } = attention;
-      const name = attention.signatures
-        ? count === 1
-          ? $localize`${label}:destination:, 1 invalid signature since ${since}:time:`
-          : $localize`${label}:destination:, ${count}:count: invalid signatures since ${since}:time:`
-        : count === 1
-          ? $localize`${label}:destination:, 1 invalid schema since ${since}:time:`
-          : $localize`${label}:destination:, ${count}:count: invalid schemas since ${since}:time:`;
+      const names = {
+        signature:
+          count === 1
+            ? $localize`${label}:destination:, 1 invalid signature since ${since}:time:`
+            : $localize`${label}:destination:, ${count}:count: invalid signatures since ${since}:time:`,
+        decryption:
+          count === 1
+            ? $localize`${label}:destination:, 1 invalid decryption since ${since}:time:`
+            : $localize`${label}:destination:, ${count}:count: invalid decryptions since ${since}:time:`,
+        schema:
+          count === 1
+            ? $localize`${label}:destination:, 1 invalid schema since ${since}:time:`
+            : $localize`${label}:destination:, ${count}:count: invalid schemas since ${since}:time:`,
+      };
+      const name = names[attention.kind];
       return { name, badge: null };
     }
     return null;

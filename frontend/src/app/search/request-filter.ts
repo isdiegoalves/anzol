@@ -1,5 +1,10 @@
 import type { CapturedRequest } from '../requests/webhook-request';
-import type { RuleMatch, SchemaCondition, SignatureCondition } from '../rules/rule';
+import type {
+  DecryptionCondition,
+  RuleMatch,
+  SchemaCondition,
+  SignatureCondition,
+} from '../rules/rule';
 
 /** Métodos oferecidos no filtro rápido "Method". */
 export const FILTER_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
@@ -21,6 +26,8 @@ export interface RequestFilter {
   methods: readonly string[];
   signature: SignatureFilter;
   schema: SchemaFilter;
+  /** O resultado da decifra, como o `match.decryption` das regras; `null` ou ausente, sem ele. */
+  decryption?: DecryptionCondition | null;
   /** Desfecho da mensagem (C2): respondida por uma regra, quase acerto dela, ou resposta padrão. */
   outcome?: OutcomeFilter | null;
   /**
@@ -75,6 +82,7 @@ export const NO_FILTER: RequestFilter = { text: '', methods: [], signature: 'any
 export interface FilterParams {
   signature?: string | null;
   schema?: string | null;
+  decryption?: string | null;
   methods?: string | null;
   q?: string | null;
   outcome?: string | null;
@@ -90,6 +98,12 @@ export interface FilterParams {
 
 const SIGNATURE_VALUES: readonly SignatureCondition[] = ['valid', 'invalid', 'absent'];
 const SCHEMA_VALUES: readonly SchemaCondition[] = ['valid', 'invalid'];
+const DECRYPTION_VALUES: readonly DecryptionCondition[] = [
+  'valid',
+  'invalid',
+  'unknown_kid',
+  'absent',
+];
 
 /**
  * O filtro da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). Valor que
@@ -98,6 +112,7 @@ const SCHEMA_VALUES: readonly SchemaCondition[] = ['valid', 'invalid'];
 export function filterFromParams(params: FilterParams): RequestFilter {
   const signature = SIGNATURE_VALUES.find((value) => value === params.signature) ?? 'any';
   const schema = SCHEMA_VALUES.find((value) => value === params.schema) ?? 'any';
+  const decryption = DECRYPTION_VALUES.find((value) => value === params.decryption) ?? null;
   const wanted = (params.methods ?? '').split(',').map((method) => method.trim().toUpperCase());
   const methods = FILTER_METHODS.filter((method) => wanted.includes(method));
   const outcome = outcomeFromParams(params);
@@ -119,6 +134,7 @@ export function filterFromParams(params: FilterParams): RequestFilter {
     methods,
     signature,
     schema,
+    ...(decryption && { decryption }),
     ...(outcome && { outcome }),
     ...(reason !== null && { signatureReason: reason }),
     ...(path !== null && { schemaPath: path }),
@@ -167,6 +183,7 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
   return {
     signature: filter.signature === 'any' ? null : filter.signature,
     schema: filter.schema === 'any' ? null : filter.schema,
+    decryption: filter.decryption ?? null,
     methods: filter.methods.length > 0 ? filter.methods.join(',') : null,
     q: filter.text.trim() ? filter.text : null,
     outcome: filter.outcome?.type ?? null,
@@ -201,6 +218,7 @@ export function isFilterActive(filter: RequestFilter): boolean {
     filter.methods.length > 0 ||
     filter.signature !== 'any' ||
     filter.schema !== 'any' ||
+    !!filter.decryption ||
     !!filter.outcome ||
     filter.signatureReason != null ||
     filter.schemaPath != null ||
@@ -215,6 +233,7 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     a.text.trim() === b.text.trim() &&
     a.signature === b.signature &&
     a.schema === b.schema &&
+    (a.decryption ?? null) === (b.decryption ?? null) &&
     a.methods.length === b.methods.length &&
     a.methods.every((method) => b.methods.includes(method)) &&
     sameOutcome(a.outcome ?? null, b.outcome ?? null) &&
@@ -253,6 +272,9 @@ export function searchBody(
   }
   if (filter.schema !== 'any') {
     match.schema = filter.schema;
+  }
+  if (filter.decryption) {
+    match.decryption = filter.decryption;
   }
   for (const { kind, name, value } of filter.values ?? []) {
     if (kind === 'path') {

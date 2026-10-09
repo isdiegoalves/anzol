@@ -1,6 +1,8 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { RequestStore } from '../requests/request-store';
+import { DecryptionCondition } from '../rules/rule';
+import { TokenStore } from '../token/token-store';
 import {
   FILTER_METHODS,
   NO_FILTER,
@@ -37,7 +39,7 @@ export interface FilterChip {
 
 /** Um subgrupo do painel, com o rótulo à vista. */
 export interface ChipGroup {
-  id: 'method' | 'signature' | 'schema' | 'answer';
+  id: 'method' | 'signature' | 'schema' | 'decryption' | 'answer';
   label: string;
   chips: FilterChip[];
 }
@@ -51,6 +53,7 @@ export interface ChipGroup {
 @Injectable({ providedIn: 'root' })
 export class FilterChips {
   private readonly store = inject(RequestStore);
+  private readonly tokens = inject(TokenStore);
   private readonly announcer = inject(LiveAnnouncer);
   private cleared = false;
   /** No celular, com o detalhe à frente, nenhuma linha de resultado está na tela. */
@@ -60,6 +63,7 @@ export class FilterChips {
     method: $localize`:filter group:Method`,
     signature: $localize`:filter group:Signature`,
     schema: $localize`:filter group:Schema`,
+    decryption: $localize`:filter group:Decryption`,
     answer: $localize`:filter group:Answer`,
   };
   private readonly signatureLabels: Record<Exclude<SignatureFilter, 'any'>, string> = {
@@ -70,6 +74,12 @@ export class FilterChips {
   private readonly schemaLabels: Record<Exclude<SchemaFilter, 'any'>, string> = {
     valid: $localize`Schema valid`,
     invalid: $localize`Schema invalid`,
+  };
+  private readonly decryptionLabels: Record<DecryptionCondition, string> = {
+    invalid: $localize`Decryption invalid`,
+    unknown_kid: $localize`Unknown encryption key`,
+    valid: $localize`Decrypted`,
+    absent: $localize`Plaintext`,
   };
 
   /** Os chips de hoje, com os mesmos nomes, começando por POST (INBOX-09). */
@@ -95,6 +105,11 @@ export class FilterChips {
       label: this.schemaLabels[value],
       pressed: filter.schema === value,
       toggle: () => this.apply({ schema: filter.schema === value ? 'any' : value }),
+    });
+    const decryption = (value: DecryptionCondition): FilterChip => ({
+      label: this.decryptionLabels[value],
+      pressed: filter.decryption === value,
+      toggle: () => this.apply({ decryption: filter.decryption === value ? null : value }),
     });
     const exact = (label: string, field: 'signatureReason' | 'schemaPath'): FilterChip => ({
       label,
@@ -138,6 +153,16 @@ export class FilterChips {
               ]),
         ],
       },
+      // Só na URL que decifra, ou com o filtro já ligado (o link de outra tela).
+      ...(this.tokens.token()?.e2ee || filter.decryption
+        ? [
+            {
+              id: 'decryption' as const,
+              label: this.groupLabels.decryption,
+              chips: (['invalid', 'unknown_kid', 'valid', 'absent'] as const).map(decryption),
+            },
+          ]
+        : []),
       {
         id: 'answer',
         label: this.groupLabels.answer,

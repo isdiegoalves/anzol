@@ -210,6 +210,42 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     expect((screen.getByRole('textbox', { name: 'Search' }) as HTMLInputElement).value).toBe('');
   });
 
+  it('deve oferecer o subgrupo da decifra só Quando a URL decifra, e buscar pelo match.decryption', async () => {
+    await openPanel();
+    expect(within(group() as HTMLElement).queryByRole('group', { name: 'Decryption' })).toBeNull();
+    await userEvent.click(filters());
+    TestBed.inject(Preferences).token.set(
+      token({
+        e2ee: {
+          path: '$.payload',
+          required: true,
+          audience: 'anzol-lab',
+          bindings: { jti: '$.id', evt: '$.tipo', app: '$.app' },
+          max_age_seconds: 43200,
+          trusted_signers: [],
+        },
+      }),
+    );
+    await openPanel();
+
+    const decifra = within(group() as HTMLElement).getByRole('group', { name: 'Decryption' });
+    expect(
+      within(decifra)
+        .getAllByRole('button')
+        .map((b) => b.textContent?.trim()),
+    ).toEqual(['Decryption invalid', 'Unknown encryption key', 'Decrypted', 'Plaintext']);
+    await userEvent.click(within(decifra).getByRole('button', { name: 'Unknown encryption key' }));
+    const [last] = searches();
+    expect(last.request.body).toMatchObject({ match: { decryption: 'unknown_kid' } });
+    last.flush(requestPage([], { total: 0 }));
+    expect(
+      within(decifra)
+        .getByRole('button', { name: 'Unknown encryption key' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    await expectNoAxeViolations(container);
+  });
+
   it('deve buscar na hora com o match das regras Quando método, assinatura e schema são escolhidos', async () => {
     await press('POST', []);
     await press('Signature absent', []);

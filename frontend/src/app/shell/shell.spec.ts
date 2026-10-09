@@ -240,6 +240,29 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       });
     });
 
+    it('deve contar a decifra que falhou Quando nenhuma assinatura falhou, antes do schema', async () => {
+      await renderAt(`/${TOKEN_ID}`);
+      const store = TestBed.inject(RequestStore);
+      const decifra = (state: 'invalid' | 'unknown_kid' | 'valid') => ({
+        state,
+        kid: 'enc-1',
+        signature_kid: null,
+        reason: state === 'invalid' ? 'aud_mismatch' : null,
+        jti: null,
+        duplicate_of: null,
+      });
+
+      store.tokenId.set(TOKEN_ID);
+      store.append(webhookRequest(1, { schema: { valid: false, errors: [] } }), 1);
+      store.append(webhookRequest(2, { decryption: decifra('invalid') }), 2);
+      store.append(webhookRequest(3, { decryption: decifra('unknown_kid') }), 3);
+      store.append(webhookRequest(4, { decryption: decifra('valid') }), 4);
+
+      await screen.findByRole('link', {
+        name: `Checks, 2 invalid decryptions since ${hour(webhookRequest(2).created_at)}`,
+      });
+    });
+
     it('deve apagar ao abrir Checks, ou a Entrada filtrada pela assinatura inválida, e voltar com a próxima', async () => {
       const { navigate } = await renderAt(`/${TOKEN_ID}`);
       const store = TestBed.inject(RequestStore);

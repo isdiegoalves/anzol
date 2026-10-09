@@ -183,6 +183,7 @@ export class Inbox {
   /** Filtros da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). */
   readonly signature = input<string>();
   readonly schema = input<string>();
+  readonly decryption = input<string>();
   readonly methods = input<string>();
   readonly q = input<string>();
   /** Desfecho (C2): `?outcome=rule|near_miss|default&rule={id}&ruleName={nome}`. */
@@ -210,6 +211,7 @@ export class Inbox {
     filterFromParams({
       signature: this.signature(),
       schema: this.schema(),
+      decryption: this.decryption(),
       methods: this.methods(),
       q: this.q(),
       outcome: this.outcome(),

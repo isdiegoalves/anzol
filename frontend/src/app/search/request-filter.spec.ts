@@ -126,6 +126,17 @@ describe('Dado os filtros na query da rota da Inbox', () => {
     ).toEqual({ text: 'abc', methods: ['GET', 'POST'], signature: 'invalid', schema: 'valid' });
   });
 
+  it('deve ler, levar à rota e buscar a decifra, e ignorar o estado que a tela não conhece', () => {
+    const filtro = filterFromParams({ decryption: 'unknown_kid' });
+
+    expect(filtro).toEqual({ ...NO_FILTER, decryption: 'unknown_kid' });
+    expect(isFilterActive(filtro)).toBe(true);
+    expect(sameFilter(filtro, NO_FILTER)).toBe(false);
+    expect(filterToParams(filtro).decryption).toBe('unknown_kid');
+    expect(searchBody(filtro, 1).match).toEqual({ decryption: 'unknown_kid' });
+    expect(filterFromParams({ decryption: 'talvez' })).toEqual(NO_FILTER);
+  });
+
   it('deve ignorar o valor que a tela não conhece, parâmetro a parâmetro', () => {
     expect(
       filterFromParams({ signature: 'talvez', schema: 'x', methods: 'POST,FOO', q: null }),
@@ -144,6 +155,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       outcome: null,
       rule: null,
       ruleName: null,
+      decryption: null,
       signatureReason: null,
       schemaPath: null,
       answered: null,
@@ -158,6 +170,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       outcome: null,
       rule: null,
       ruleName: null,
+      decryption: null,
       signatureReason: null,
       schemaPath: null,
       answered: null,

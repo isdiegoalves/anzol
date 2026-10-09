@@ -41,6 +41,18 @@ const CHECK_LABELS: Record<CheckResult['kind'], string> = {
   decryption: 'Decryption',
 };
 
+/** O lado que a URL não decifrou, na linha da decifra. */
+function notDecrypted(): CheckResult {
+  return {
+    kind: 'decryption',
+    state: 'unchecked',
+    tone: 'none',
+    title: $localize`Not decrypted`,
+    detail: $localize`This URL did not decrypt this request`,
+    short: '—',
+  };
+}
+
 /**
  * Comparação de duas mensagens (página do Compare): as verificações lado a lado, o que explica o
  * desfecho (S9, só com sinais do servidor), o ruído por provedor e o resto; depois método e URL,
@@ -128,7 +140,9 @@ export class RequestCompare {
       { tag: 'b', request: this.right() },
     ].map(({ tag, request }) => {
       const flow = pipelineOf(request);
-      const failed = [flow.signature, flow.schema].find((check) => check.tone === 'bad');
+      const failed = [flow.signature, flow.schema, flow.decryption].find(
+        (check) => check?.tone === 'bad',
+      );
       return {
         tag,
         request,
@@ -148,13 +162,22 @@ export class RequestCompare {
         ? { ...result, detail: `${status} · ${result.detail}` }
         : result;
     };
-    return (['signature', 'schema', 'rule'] as const).map((kind) => ({
+    const row = (kind: CheckResult['kind'], resultA: CheckResult, resultB: CheckResult) => ({
       kind,
       label: CHECK_LABELS[kind],
-      a: withStatus(a[kind], this.left()),
-      b: withStatus(b[kind], this.right()),
-      same: a[kind].state === b[kind].state && a[kind].detail === b[kind].detail,
-    }));
+      a: withStatus(resultA, this.left()),
+      b: withStatus(resultB, this.right()),
+      same: resultA.state === resultB.state && resultA.detail === resultB.detail,
+    });
+    const decrypted = a.decryption || b.decryption;
+    return [
+      row('signature', a.signature, b.signature),
+      row('schema', a.schema, b.schema),
+      ...(decrypted
+        ? [row('decryption', a.decryption ?? notDecrypted(), b.decryption ?? notDecrypted())]
+        : []),
+      row('rule', a.rule, b.rule),
+    ];
   });
 
   /** "2 headers changed, 1 only in B · 3 body lines differ" (RULES-28), com tudo, não só o visível. */

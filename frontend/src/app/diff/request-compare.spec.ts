@@ -78,6 +78,57 @@ describe('Dado a comparação de duas mensagens', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('deve comparar a decifra Quando alguma das duas foi decifrada, e dizer que ela explica o desfecho', async () => {
+    const decifra = (state: 'valid' | 'invalid', reason: string | null) => ({
+      state,
+      kid: 'enc-1',
+      signature_kid: 'sig-1',
+      reason,
+      jti: 'n-1',
+      duplicate_of: null,
+    });
+    const { container } = await show(
+      webhookRequest(1, { decryption: decifra('valid', null) }),
+      webhookRequest(2, { decryption: decifra('invalid', 'signer_unknown') }),
+    );
+
+    const table = screen.getByRole('table', { name: 'Checks' });
+    expect(
+      within(table)
+        .getAllByRole('rowheader')
+        .map((header) => header.textContent?.replace(/\s+/g, ' ').trim()),
+    ).toEqual(['Signature', 'Schema', 'Decryption', 'Answer']);
+    const linha = within(table).getByRole('rowheader', { name: 'Decryption' }).closest('tr');
+    expect(linha?.querySelectorAll('td')[1].textContent).toContain('changed');
+    const explica = screen.getByRole('region', { name: '1 change explains the outcome' });
+    expect(within(explica).getByRole('listitem').textContent).toBe(
+      'Decryption: A valid → B invalid (signer_unknown)',
+    );
+    expect(container.querySelectorAll('.card-side')[1].textContent).toContain('Decryption invalid');
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve dizer na linha da decifra o lado que a URL não decifrou', async () => {
+    await show(
+      webhookRequest(1),
+      webhookRequest(2, {
+        decryption: {
+          state: 'valid',
+          kid: 'enc-1',
+          signature_kid: 'sig-1',
+          reason: null,
+          jti: 'n-1',
+          duplicate_of: null,
+        },
+      }),
+    );
+
+    const linha = within(screen.getByRole('table', { name: 'Checks' }))
+      .getByRole('rowheader', { name: 'Decryption' })
+      .closest('tr');
+    expect(linha?.querySelectorAll('td')[0].textContent).toContain('Not decrypted');
+  });
+
   it('deve dizer o status gravado da resposta no selo da regra que respondeu (RULES-30, C3)', async () => {
     const rule = { id: 'r1', name: 'Pagamento' };
     await show(A, webhookRequest(2, { rule, response: { status: 201 } }));

@@ -10,9 +10,15 @@ interface Visit {
   seq: number | null;
 }
 
+/** A decifra que falhou: inválida ou com a chave de cifra desconhecida. */
+export function decryptionFailed(request: CapturedRequest): boolean {
+  const state = request.decryption?.state;
+  return state === 'invalid' || state === 'unknown_kid';
+}
+
 /**
- * As requisições carregadas com assinatura ou schema inválidos que chegaram depois da última visita
- * a Verificações (ou à Entrada filtrada pela assinatura inválida). Sem visita, todas.
+ * As requisições carregadas com assinatura, decifra ou schema que falharam e chegaram depois da
+ * última visita a Verificações (ou à Entrada filtrada pela assinatura inválida). Sem visita, todas.
  */
 @Injectable({ providedIn: 'root' })
 export class ChecksSeen {
@@ -32,7 +38,10 @@ export class ChecksSeen {
       .requests()
       .filter(
         (request) =>
-          (request.signature?.valid === false || request.schema?.valid === false) && after(request),
+          (request.signature?.valid === false ||
+            decryptionFailed(request) ||
+            request.schema?.valid === false) &&
+          after(request),
       );
   });
 

@@ -3,7 +3,7 @@ import { compareHeaders, compareQuery } from './request-diff';
 
 /** Uma diferença entre A e B que o servidor ligou ao desfecho (assinatura, schema ou regra). */
 export interface OutcomeCause {
-  check: 'signature' | 'schema' | 'rule';
+  check: 'signature' | 'schema' | 'decryption' | 'rule';
   /** Onde: o caminho do schema (`/amount`), a condição da regra (`match.method`) ou `signature`. */
   where: string;
   a: string;
@@ -38,7 +38,12 @@ const STRIPE_NOISE_FIELDS = ['/id', '/created'];
  * "noise" (lista conhecida por provedor) ou "other".
  */
 export function explainOutcome(a: CapturedRequest, b: CapturedRequest): OutcomeReport {
-  const causes = [...signatureCauses(a, b), ...schemaCauses(a, b), ...ruleCauses(a, b)];
+  const causes = [
+    ...signatureCauses(a, b),
+    ...schemaCauses(a, b),
+    ...decryptionCauses(a, b),
+    ...ruleCauses(a, b),
+  ];
   const noise: string[] = [];
   const other: string[] = [];
 
@@ -82,6 +87,20 @@ function signatureText(signature: SignatureResult | null | undefined): string {
 function signatureCauses(a: CapturedRequest, b: CapturedRequest): OutcomeCause[] {
   const [textA, textB] = [signatureText(a.signature), signatureText(b.signature)];
   return textA === textB ? [] : [{ check: 'signature', where: 'signature', a: textA, b: textB }];
+}
+
+/** O estado da decifra com o motivo, como o servidor gravou: `invalid (signer_unknown)`. */
+function decryptionText(request: CapturedRequest): string {
+  const decryption = request.decryption;
+  if (!decryption) {
+    return 'not decrypted';
+  }
+  return decryption.reason ? `${decryption.state} (${decryption.reason})` : decryption.state;
+}
+
+function decryptionCauses(a: CapturedRequest, b: CapturedRequest): OutcomeCause[] {
+  const [textA, textB] = [decryptionText(a), decryptionText(b)];
+  return textA === textB ? [] : [{ check: 'decryption', where: 'decryption', a: textA, b: textB }];
 }
 
 /** Caminho do erro de schema → mensagem; `null` quando a mensagem não foi validada. */

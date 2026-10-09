@@ -4289,4 +4289,12 @@ export const translations: Record<string, string> = {
   // Optional, before the signature · e.g. {$START_TAG_CODE}sha256={$CLOSE_TAG_CODE}
   '6395332325917127089':
     'Opcional, antes da assinatura · ex.: {$START_TAG_CODE}sha256={$CLOSE_TAG_CODE}',
+  // Not decrypted
+  '5542406445049123018': 'Não decifrada',
+  // This URL did not decrypt this request
+  '669421544847439517': 'Esta URL não decifrou esta requisição',
+  // {$destination}, 1 invalid decryption since {$time}
+  '5372628725475554755': '{$destination}, 1 decifra inválida desde {$time}',
+  // {$destination}, {$count} invalid decryptions since {$time}
+  '1311871731804323751': '{$destination}, {$count} decifras inválidas desde {$time}',
 };
