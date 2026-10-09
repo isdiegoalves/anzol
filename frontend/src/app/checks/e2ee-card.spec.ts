@@ -189,6 +189,40 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     },
   );
 
+  it('deve dizer o que é cada vínculo e onde achar a audiência na dica, sem placeholder que pareça valor', async () => {
+    const { container } = await renderCard(E2eeCard, PROTEGIDA);
+    await userEvent.click(toggle());
+    const description = (field: HTMLElement) =>
+      (field.getAttribute('aria-describedby') ?? '')
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent?.trim())
+        .join(' ');
+
+    const vinculos = within(card()).getByRole('group', {
+      name: 'Bindings to the envelope (the body outside the JWE)',
+    });
+    expect(vinculos.textContent).toContain('ask the sender where the event id');
+    expect(
+      ['jti', 'evt', 'app'].map((claim) =>
+        description(within(vinculos).getByRole('textbox', { name: claim })),
+      ),
+    ).toEqual([
+      'event id · e.g. $.eventId',
+      'event type · e.g. $.tipoEvento.nome',
+      'service name · e.g. $.servico.nome',
+    ]);
+    expect(description(box('Audience (aud)'))).toBe(
+      'Agree on it with the sender, who puts this value in the aud claim. In the lab it is anzol-lab.',
+    );
+    expect(description(box('Encrypted attribute'))).toBe(
+      'JSONPath of the body field that arrives as a JWE · e.g. $.payload',
+    );
+    for (const name of ['Encrypted attribute', 'Audience (aud)', 'jti', 'evt', 'app']) {
+      expect(box(name).getAttribute('placeholder')).toBeNull();
+    }
+    await expectNoAxeViolations(container);
+  });
+
   it('deve avisar que o servidor recusa sem segredo de leitura Quando a URL está aberta', async () => {
     const { container } = await renderCard(E2eeCard, { ...PROTEGIDA, protected: false });
 

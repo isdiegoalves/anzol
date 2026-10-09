@@ -3734,14 +3734,8 @@ export const translations: Record<string, string> = {
     ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor decifrado: o segredo de leitura continua obrigatório até elas serem apagadas. ',
   // Encrypted attribute
   '6159255639867175033': 'Atributo cifrado',
-  // $.payload
-  '4802210639784264889': '$.payload',
-  // JSONPath to one value of the body.
-  '3311943887891481899': 'JSONPath de um valor do corpo.',
   // Audience (aud)
   '2275478400103842309': 'Audiência (aud)',
-  // The aud claim must include it.
-  '8334474243803173758': 'O claim aud precisa incluí-la.',
   // The audience is required, up to 256 characters.
   '1070502496184655538': 'A audiência é obrigatória, com até 256 caracteres.',
   // Max age (seconds)
@@ -3752,11 +3746,6 @@ export const translations: Record<string, string> = {
   '1371521921753704975': 'Um inteiro entre 60 e 604800.',
   // Reject plaintext: an attribute that is not a JWE is invalid (downgrade)
   '5989804956279121487': 'Recusar texto em claro: atributo que não é JWE é inválido (downgrade)',
-  // Claims checked against the envelope
-  '6121032496925148158': 'Claims conferidos com o envelope',
-  //  JSONPath of the plaintext value each claim must equal. Ignore case compares both sides in lower case.
-  '5943304206473534982':
-    ' JSONPath do valor em claro a que cada claim tem de ser igual. Ignorar maiúsculas compara os dois lados em minúsculas. ',
   // Ignore case
   '840459527132509616': 'Ignorar maiúsculas',
   // Trusted signers
@@ -4246,4 +4235,21 @@ export const translations: Record<string, string> = {
   // Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.
   '246389393969456617':
     'Sem chave de cifra, toda requisição que passar do HMAC, do envelope e do cabeçalho do JWE fica como Chave desconhecida. Dá para salvar assim mesmo; gere uma chave acima.',
+  // JSONPath of the body field that arrives as a JWE · e.g. {$START_TAG_CODE}$.payload{$CLOSE_TAG_CODE}
+  '1916757703914179113':
+    'JSONPath do campo do corpo que chega como JWE · ex.: {$START_TAG_CODE}$.payload{$CLOSE_TAG_CODE}',
+  // Agree on it with the sender, who puts this value in the aud claim. In the lab it is {$START_TAG_CODE}anzol-lab{$CLOSE_TAG_CODE}.
+  '20838032960702302':
+    'Combine com o remetente: ele põe esse valor no claim aud. No laboratório é {$START_TAG_CODE}anzol-lab{$CLOSE_TAG_CODE}.',
+  // Bindings to the envelope (the body outside the JWE)
+  '3113804729555879937': 'Vínculos com o envelope (o corpo fora do JWE)',
+  //  For each JWS claim, the envelope field that must hold the same value. It protects against splicing: a JWE pasted into another envelope fails. The paths depend on the sender's envelope: ask the sender where the event id, the event type and the service name are. Ignore case compares both sides in lower case.
+  '3493608270126853561':
+    ' Para cada claim do JWS, o campo do envelope que precisa ter o mesmo valor. Protege contra recorte: um JWE colado em outro envelope falha. Os caminhos dependem do envelope do remetente: pergunte a ele onde ficam o id do evento, o tipo do evento e o nome do serviço. "Ignorar maiúsculas" compara os dois lados em minúsculas. ',
+  // event id · e.g. {$START_TAG_CODE}$.eventId{$CLOSE_TAG_CODE}
+  '8248870956948197586': 'id do evento · ex.: {$START_TAG_CODE}$.eventId{$CLOSE_TAG_CODE}',
+  // event type · e.g. {$START_TAG_CODE}$.tipoEvento.nome{$CLOSE_TAG_CODE}
+  '443431740577312184': 'tipo do evento · ex.: {$START_TAG_CODE}$.tipoEvento.nome{$CLOSE_TAG_CODE}',
+  // service name · e.g. {$START_TAG_CODE}$.servico.nome{$CLOSE_TAG_CODE}
+  '70040655110193108': 'nome do serviço · ex.: {$START_TAG_CODE}$.servico.nome{$CLOSE_TAG_CODE}',
 };

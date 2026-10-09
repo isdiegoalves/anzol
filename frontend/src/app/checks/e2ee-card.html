@@ -178,14 +178,11 @@
       <div class="pair">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label i18n>Encrypted attribute</mat-label>
-          <input
-            matInput
-            formControlName="path"
-            placeholder="$.payload"
-            i18n-placeholder
-            spellcheck="false"
-          />
-          <mat-hint i18n>JSONPath to one value of the body.</mat-hint>
+          <input matInput formControlName="path" spellcheck="false" />
+          <mat-hint i18n
+            >JSONPath of the body field that arrives as a JWE · e.g.
+            <code>$.payload</code></mat-hint
+          >
           <mat-error>
             @if (serverError(c.path); as refused) {
               {{ refused }}
@@ -197,7 +194,10 @@
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label i18n>Audience (aud)</mat-label>
           <input matInput formControlName="audience" spellcheck="false" />
-          <mat-hint i18n>The aud claim must include it.</mat-hint>
+          <mat-hint i18n
+            >Agree on it with the sender, who puts this value in the aud claim. In the lab it is
+            <code>anzol-lab</code>.</mat-hint
+          >
           <mat-error>
             @if (serverError(c.audience); as refused) {
               {{ refused }}
@@ -224,16 +224,35 @@
       >
 
       <fieldset class="bindings">
-        <legend i18n>Claims checked against the envelope</legend>
+        <legend i18n>Bindings to the envelope (the body outside the JWE)</legend>
         <p class="hint" i18n>
-          JSONPath of the plaintext value each claim must equal. Ignore case compares both sides in
-          lower case.
+          For each JWS claim, the envelope field that must hold the same value. It protects against
+          splicing: a JWE pasted into another envelope fails. The paths depend on the sender's
+          envelope: ask the sender where the event id, the event type and the service name are.
+          Ignore case compares both sides in lower case.
         </p>
         @for (name of bindingNames; track name) {
           <div class="binding">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ name }}</mat-label>
               <input matInput [formControlName]="name" spellcheck="false" />
+              <mat-hint>
+                @switch (name) {
+                  @case ('jti') {
+                    <ng-container i18n>event id · e.g. <code>$.eventId</code></ng-container>
+                  }
+                  @case ('evt') {
+                    <ng-container i18n
+                      >event type · e.g. <code>$.tipoEvento.nome</code></ng-container
+                    >
+                  }
+                  @case ('app') {
+                    <ng-container i18n
+                      >service name · e.g. <code>$.servico.nome</code></ng-container
+                    >
+                  }
+                }
+              </mat-hint>
               <mat-error>
                 @if (serverError(c[name]); as refused) {
                   {{ refused }}
