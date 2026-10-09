@@ -226,9 +226,11 @@ atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-E
 JWKS da URL) e entregue o corpo pronto com `--data-file`. Para só ver a decifra funcionando, use o
 [laboratório](api.md#laboratório-e2ee), que gera e entrega as mensagens pelo próprio servidor.
 
-Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` e `test` imprimem a mensagem
-completa no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o
-`--read-secret` que a abre também mostra o valor), que vai para o log do CI. Numa URL com decifra, `--match '{"decryption": "valid"}'` espera só as decifradas.
+Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` imprime a mensagem completa
+no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o `--read-secret` que a
+abre também mostra o valor), que vai para o log do CI. O `test` faz o mesmo quando aponta com `--token` para uma URL
+que decifra; a URL que ele mesmo cria não decifra. Numa URL com decifra, `--match '{"decryption": "valid"}'` espera só
+as decifradas.
 
 **Placeholders** no corpo e nos valores de `--header`, resolvidos uma vez por envio: as retentativas
 são o mesmo evento e levam os mesmos valores (só a assinatura muda).

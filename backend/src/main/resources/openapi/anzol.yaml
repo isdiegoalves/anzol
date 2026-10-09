@@ -1369,7 +1369,9 @@ paths:
       summary: Generate an encryption key
       description: >-
         Generates an EC P-256 key pair on the server and returns only the public part. Up to two keys per URL
-        (for rotation); the private key never leaves the server.
+        (for rotation). The private key never leaves the server, but it is stored in plaintext in Redis with the URL
+        (`token:{id}`), and so in the volume's `dump.rdb` and in any backup of it; deleting the key takes it out of
+        the URL, not out of old backups.
       security:
         - {}
         - readSecret: []
@@ -2257,7 +2259,10 @@ components:
               type: string
               format: uuid
             decrypted:
-              description: The opened attribute (the JWS `data` claim); only when `decryption.state` is `valid`.
+              description: >-
+                The opened attribute (the JWS `data` claim); only when `decryption.state` is `valid`. Stored in
+                plaintext in Redis with the message: the read secret guards reading it through the API, not the
+                storage.
 
     SharedMessage:
       description: A message as a read-only link shows it.

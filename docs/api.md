@@ -220,7 +220,8 @@ novo) e 400 à cifra inválida (não tenta), e nunca usa `fault` nessa URL, porq
   { "name": "cifra inválida",   "match": { "decryption": "invalid" },     "response": { "status": 400 } } ]
 ```
 
-`decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, na busca e no `requests/wait`.
+`decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, nas mensagens que a busca
+devolve e no `requests/wait`. A busca não procura nele: o texto da busca casa com o corpo como chegou, com o JWE.
 O link só-leitura, o evento `request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e
 a IA local não o recebe.
 
