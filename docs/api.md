@@ -32,7 +32,7 @@ contra os schemas dele.
 | `POST /token/{id}/unlock`, `POST /token/{id}/lock` | Desbloqueia no navegador uma URL protegida pelo segredo de leitura (cookie) e bloqueia de novo (ver [Privacidade](privacidade.md#privacidade)) |
 | `POST /token/{id}/request/{requestId}/share` | Link só-leitura de uma mensagem, com expiração e máscara dos valores sensíveis (ver [Links só-leitura](privacidade.md#links-só-leitura)) |
 | `GET /token/{id}/shares`, `DELETE /token/{id}/shares/{sid}` | Lista os links ativos da URL; revoga um |
-| `GET /share/{sid}` | O link público: a mensagem, sem credencial nenhuma |
+| `GET /share/{sid}` | O link público: a mensagem sem o valor decifrado (`decrypted`), sem credencial nenhuma |
 | `POST /token/{id}/keys`, `DELETE /token/{id}/keys/{kid}` | Gera (até duas) ou apaga uma chave de cifra da URL (ver [Decifra de atributo](#decifra-de-atributo-e2ee)) |
 | `GET /token/{id}/jwks.json` | As chaves públicas de cifra da URL, sem credencial nenhuma |
 | `POST /e2ee-lab`, `GET /e2ee-lab/scenarios` | Cria uma URL de laboratório E2EE pronta; lista os 27 cenários (ver [Laboratório E2EE](#laboratório-e2ee)) |
@@ -134,8 +134,9 @@ validação trazem `schema: null`.
 
 Com `e2ee`, a URL abre um atributo do corpo que chega cifrado do remetente até esta URL: o remetente assina o
 objeto (JWS) e cifra a assinatura para a chave pública da URL (JWE). **A ponta que abre é o servidor do Anzol**:
-ele guarda a chave privada da URL, decifra na chegada e grava o valor decifrado na mensagem, atrás do segredo de
-leitura (ver [onde o valor decifrado fica](#onde-o-valor-decifrado-fica)). O resto do envelope fica em claro, e a
+ele guarda a chave privada da URL, decifra na chegada e grava o valor decifrado na mensagem, em claro no Redis. O
+segredo de leitura protege a leitura dele pela API e pela tela, não o armazenamento (ver [onde o valor decifrado
+fica](#onde-o-valor-decifrado-fica)). O resto do envelope fica em claro, e a
 assinatura HMAC da URL, quando configurada, é conferida **antes** da decifra, sobre o corpo como chegou. O formato aceito é
 este:
 

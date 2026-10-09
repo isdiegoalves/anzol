@@ -166,7 +166,8 @@ $ anzol rules push 9f3c…e21a regras.json
 Simula o provedor: dispara webhooks assinados como o Stripe, o GitHub, o Shopify ou o Slack
 assinariam, direto para o receptor do seu app, e tenta de novo quando ele falha. Serve para testar a
 verificação de assinatura, a idempotência e o que o app faz com a retentativa, sem depender do
-provedor de verdade. Não passa pelo servidor do Anzol (não usa `--server`).
+provedor de verdade. Entrega direto no `--to`, sem passar pela API do Anzol (não usa `--server`); o `--to` pode ser
+o receptor do seu app ou uma URL do Anzol.
 
 ```bash
 # Stripe: 3 retentativas com backoff exponencial (1 s, 2 s, 4 s), Idempotency-Key igual em todas
@@ -220,11 +221,14 @@ servidor: uma URL do Anzol configurada com o mesmo provedor e segredo grava `val
 A assinatura é refeita a cada tentativa (timestamp novo, como o Stripe faz) e substitui um `--header`
 com o mesmo nome.
 
-**Atributo cifrado (E2EE).** A CLI não cifra, não gera chave nem lê JWKS: `anzol send` só assina com HMAC. Para
-mandar um JWE, monte-o fora (com uma biblioteca JOSE, no formato da [decifra de
-atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-ES/A256GCM para a chave pública do
-JWKS da URL) e entregue o corpo pronto com `--data-file`. Para só ver a decifra funcionando, use o
-[laboratório](api.md#laboratório-e2ee), que gera e entrega as mensagens pelo próprio servidor.
+**Atributo cifrado (E2EE).** Aqui, E2EE quer dizer cifrado do remetente até a URL do Anzol: a ponta que abre é o
+servidor do Anzol, que decifra na chegada e grava o valor decifrado na mensagem. A CLI não cifra, não gera chave nem
+lê JWKS: `anzol send` só assina com HMAC. Para mandar um JWE, monte-o fora (com uma biblioteca JOSE, no formato da
+[decifra de atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-ES/A256GCM para a chave
+pública do JWKS da URL) e entregue o corpo pronto com `--data-file`. Para só ver a decifra funcionando, use o
+[laboratório](api.md#laboratório-e2ee): pela API (`POST /e2ee-lab` e `POST /token/{id}/e2ee-lab/run`), pela tela
+ou pelo MCP, não pela CLI. Ele gera e entrega as mensagens pelo próprio servidor; o remetente de teste dele não
+serve para assinar um JWE montado fora, porque a chave privada fica no Redis da URL e nenhuma rota a devolve.
 
 Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` imprime a mensagem completa
 no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o `--read-secret` que a
