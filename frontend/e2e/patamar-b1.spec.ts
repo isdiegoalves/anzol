@@ -367,7 +367,8 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
     send: (t: string, w: object) => Promise<string>;
   }) {
     const tokenId = await tokens.create();
-    const a = await tokens.send(tokenId, { method: 'POST', path: '/a', data: 'a' });
+    // A busca olha também a URL gravada, que leva o id: "/a" casaria todas quando o id começa com "a".
+    const a = await tokens.send(tokenId, { method: 'POST', path: '/alfa', data: 'a' });
     const b = await tokens.send(tokenId, { method: 'GET', path: '/b' });
     const c = await tokens.send(tokenId, { method: 'POST', path: '/c', data: 'c' });
     return { tokenId, a, b, c };
@@ -491,7 +492,7 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
 
     await verResultado(page);
     await limparAnuncios(page);
-    await campoDeBusca(page).pressSequentially('/a', { delay: 80 });
+    await campoDeBusca(page).pressSequentially('/alfa', { delay: 80 });
     await expectUmAnuncio(page, /requests? match/);
     await expect(itens(page)).toHaveCount(1);
 
