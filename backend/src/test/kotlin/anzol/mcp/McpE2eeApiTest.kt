@@ -134,6 +134,27 @@ class McpE2eeApiTest(
 
     @Test
     @DisplayName(
+        "Dado e2ee nos argumentos do create_url e do update_url, quando ignorado, então o resultado avisa em warnings; " +
+            "sem e2ee, não há warnings",
+    )
+    fun e2ee_ignorado_deveAvisarEmWarnings() {
+        val signer = anzol.e2ee.ecKey("remetente-sig-1")
+        val e2ee = anzol.e2ee.policy(signer)
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":${jsonMapper.writeValueAsString(e2ee)}}""")
+        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
+
+        val created = call("create_url", mapOf("e2ee" to e2ee)).json()
+        val off = call("update_url", access + ("e2ee" to null)).json()
+        val plain = call("update_url", access + ("default_status" to 202)).json()
+
+        assertThat(created["warnings"].toList().map { it.asString() }).containsExactly(E2EE_IGNORED)
+        assertThat(created["e2ee"].isNull).isTrue()
+        assertThat(off["warnings"].toList().map { it.asString() }).containsExactly(E2EE_IGNORED)
+        assertThat(plain.has("warnings")).isFalse()
+    }
+
+    @Test
+    @DisplayName(
         "Dado create_e2ee_lab, quando run_e2ee_scenarios roda todos, então os 27 conferem e o resultado não traz texto aberto; " +
             "numa URL comum, erro 422",
     )

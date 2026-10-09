@@ -27,7 +27,10 @@ ausente fica como está, e campo enviado como `null` desliga (`signature`, `sche
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
 rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o
 resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)). O `update_url` mantém o bloco
-`e2ee`, mas não o muda: a política e as chaves de cifra só pela API. Validação, URL ou mensagem inexistente e limite viram erro de
+`e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando `e2ee` vem nos argumentos do
+`create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o resultado traz `"warnings":
+["e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."]`; sem nada
+ignorado, não há `warnings`. Validação, URL ou mensagem inexistente e limite viram erro de
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 

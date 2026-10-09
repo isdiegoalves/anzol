@@ -434,6 +434,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   - *Descrições do MCP* (`e2ee-mcp-condicoes.spec.ts`): o `match` de `search_requests` e `wait_for_request` cita
     `decryption`; o `set_rules` descreve a condição com os quatro estados; o `get_request` diz que traz o resultado
     da decifra.
+  - *Avisos do MCP* (`e2ee-mcp-avisos.spec.ts`): `update_url` com `e2ee` (outra política ou `null`) e `create_url`
+    com `e2ee` devolvem `warnings` com "e2ee ignored: MCP never changes it; ask the person to change it in the UI
+    (Checks › Decryption)." e a política como estava (nula na URL nova); sem `e2ee` nos argumentos, sem `warnings`; as
+    descrições das duas dizem que o MCP não muda `e2ee` e não apontam a rota.
 
 - **Documento OpenAPI 3.1** (`specs/api/openapi.spec.ts`, helper em `support/openapi.ts`): o `GET /openapi.json`
   é carregado no Ajv (JSON Schema 2020-12, o dialeto do OAS 3.1) e as respostas reais das rotas principais (token,

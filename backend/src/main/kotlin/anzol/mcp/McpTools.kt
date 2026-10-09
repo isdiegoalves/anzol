@@ -67,13 +67,21 @@ private const val CHAOS =
 /** O argumento do `set_rules` e do `diff_rules`: a lista inteira de regras. */
 private const val RULES_ARGUMENT = """$TOKEN_ID, "rules": {"type": "array", "items": {"type": "object"}}"""
 
+private const val CREATE_URL =
+    "Create a new webhook URL (token). Any HTTP request to /{uuid} on this server is then captured. Returns the token " +
+        "as POST /token does, with the signature secret masked. Attribute decryption (`e2ee`) is never set here: an " +
+        "`e2ee` argument is ignored, the result carries `e2ee: null` and says so in `warnings`. MCP never sets it; ask " +
+        "the person to set it in the UI (Checks › Decryption); for a ready-made test URL, use create_e2ee_lab."
+
 private const val UPDATE_URL =
     "Change a webhook URL's settings. Only the fields you send change: a field left out stays as it is, and a field " +
         "sent as null is turned off or reset (signature: null and schema: null switch the verification and the " +
         "validation off; the others return to their initial value). A signature object replaces the whole signature " +
         "block, keeping the current secret when `secret` is omitted; signature and schema are objects (text, even " +
         "empty, is an error). The URL's read secret is never changed here: read_secret is only the access to a " +
-        "protected URL."
+        "protected URL. Attribute decryption (`e2ee`) is never changed here either: an `e2ee` argument is ignored, " +
+        "the result carries the saved policy unchanged and says so in `warnings`. MCP never changes it; ask the " +
+        "person to change it in the UI (Checks › Decryption)."
 
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
@@ -127,18 +135,15 @@ class McpTools {
             kit.tool(
                 ToolDefinition(
                     "create_url",
-                    "Create a new webhook URL (token). Any HTTP request to /{uuid} on this server is then captured. " +
-                        "Returns the token as POST /token does, with the signature secret masked.",
+                    CREATE_URL,
                     objectSchema("$SETTINGS,$NEW_READ_SECRET"),
                     readOnly = false,
                 ),
             ) { args ->
+                val warnings = listOfNotNull(E2EE_IGNORED.takeIf { args[E2EE] != null })
                 service
-                    .create(
-                        jsonInput(args.createBody().toByteArray(), jsonMapper),
-                        ip = null,
-                        userAgent = MCP_USER_AGENT,
-                    ).map { it.forApi() }
+                    .create(jsonInput(args.createBody().toByteArray(), jsonMapper), ip = null, userAgent = MCP_USER_AGENT)
+                    .map { jsonMapper.withWarnings(it.forApi(), warnings) }
             },
             kit.tool(
                 ToolDefinition(
@@ -158,13 +163,7 @@ class McpTools {
                     objectSchema("$TOKEN_ID,$SETTINGS", "token_id"),
                     readOnly = false,
                 ),
-            ) { args ->
-                val id = args.tokenId() ?: return@tool missingUuid("token_id")
-                args.textBlocks() ?: run {
-                    urls.open(id, args.readSecret())
-                    service.patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }.map { it.forApi() }
-                }
-            },
+            ) { args -> updateUrl(args, urls, service, jsonMapper) },
             kit.tool(
                 ToolDefinition(
                     "delete_url",
@@ -415,6 +414,23 @@ class McpTools {
                 store.history(urls.open(id, args.readSecret()).uuid)
             },
         )
+    }
+}
+
+/** O `update_url`: o `PUT /token/{id}` com só o que veio por cima da configuração de agora, e os avisos. */
+private fun updateUrl(
+    args: ToolArguments,
+    urls: ProtectedUrls,
+    service: TokenService,
+    jsonMapper: JsonMapper,
+): Any {
+    val id = args.tokenId() ?: return missingUuid("token_id")
+    return args.textBlocks() ?: run {
+        urls.open(id, args.readSecret())
+        val warnings = listOfNotNull(E2EE_IGNORED.takeIf { args.sent(E2EE) })
+        service
+            .patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }
+            .map { jsonMapper.withWarnings(it.forApi(), warnings) }
     }
 }
 

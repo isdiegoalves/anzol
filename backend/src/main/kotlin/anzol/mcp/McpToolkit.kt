@@ -24,7 +24,10 @@ private const val READ_SECRET = "read_secret"
  * A política de decifra não muda pelo MCP: um agente que lê o payload de terceiros, mandado ao `update_url` ou ao
  * `create_url`, poderia desligá-la ou pôr um remetente confiável dele. O `update_url` mantém a salva.
  */
-private const val E2EE = "e2ee"
+internal const val E2EE = "e2ee"
+
+/** O aviso do `create_url` e do `update_url` quando `e2ee` veio e foi ignorado. */
+internal const val E2EE_IGNORED = "e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."
 
 /**
  * Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). O argumento de primeiro
@@ -45,6 +48,9 @@ class ToolArguments(
     fun readSecret(): String? = values[READ_SECRET] as? String
 
     operator fun get(name: String): Any? = values[name]
+
+    /** Se [name] veio na chamada, mesmo como `null`. */
+    fun sent(name: String): Boolean = name in sent
 
     /** Os argumentos sem os UUIDs do caminho e sem o segredo de acesso, como o corpo JSON da rota da API. */
     fun body(): String = jsonMapper.writeValueAsString(values - setOf("token_id", "request_id", READ_SECRET))
@@ -150,6 +156,18 @@ class McpToolkit(
         const val STATUS_UNPROCESSABLE = 422
         const val STATUS_TOO_MANY = 429
     }
+}
+
+/** [value] com `warnings` no fim do objeto quando há aviso; sem aviso, o JSON de sempre. */
+fun JsonMapper.withWarnings(
+    value: Any,
+    warnings: List<String>,
+): Any {
+    if (warnings.isEmpty()) return value
+    val tree = valueToTree<ObjectNode>(value)
+    val list = tree.putArray("warnings")
+    warnings.forEach(list::add)
+    return tree
 }
 
 /** `token_id` (ou `request_id`) ausente ou fora do formato: o 422 que a ferramenta devolve. */
