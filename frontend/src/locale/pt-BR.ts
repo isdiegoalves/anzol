@@ -4227,7 +4227,7 @@ export const translations: Record<string, string> = {
   '1573950883465894513': 'Esta URL decifra na chegada',
   // If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC blocks decryption (hmac_failed). The decrypted attribute is stored with the request, behind the read secret; shared links and live events never carry it.
   '6287555236010400960':
-    'Se a URL confere assinatura HMAC, ela vem antes: HMAC inválido ou ausente barra a decifra (hmac_failed). O atributo decifrado fica gravado na requisição, atrás do segredo de leitura; links compartilhados e eventos ao vivo nunca o levam.',
+    'Se a URL confere assinatura HMAC, ela vem antes: HMAC inválido ou ausente barra a decifra (hmac_failed). O atributo decifrado fica gravado em claro na requisição; o segredo de leitura protege quem lê, não o armazenamento. Links compartilhados e eventos ao vivo nunca o levam.',
   // Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.
   '246389393969456617':
     'Sem chave de cifra, toda requisição que passar do HMAC, do envelope e do cabeçalho do JWE fica como Chave desconhecida. Dá para salvar assim mesmo; gere uma chave acima.',
