@@ -50,6 +50,7 @@ const card = () => screen.getByRole('region', { name: 'E2EE decryption' });
 const note = () => card().querySelector('app-card-foot .note')?.textContent?.trim();
 const toggle = () =>
   within(card()).getByRole('switch', { name: 'Decrypt an attribute of each request' });
+const keys = () => within(card()).getByRole('region', { name: 'Encryption keys' });
 const box = (name: string | RegExp) => within(card()).getByRole('textbox', { name });
 const signers = () => screen.getByLabelText('Trusted signers') as HTMLTextAreaElement;
 /** `userEvent.type` lê `{` e `[` como tecla; o JSON entra de uma vez. */
@@ -145,6 +146,49 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     expect(put.request.body).toMatchObject({ e2ee: null });
   });
 
+  it('deve dizer os três passos no topo, na ordem do remetente, e pôr as chaves de cifra antes do interruptor', async () => {
+    const { container } = await renderCard(E2eeCard, PROTEGIDA);
+
+    const passos = within(card()).getByRole('list', { name: 'How decryption works' });
+    expect(
+      within(passos)
+        .getAllByRole('listitem')
+        .map((passo) => passo.querySelector('strong')?.textContent?.trim()),
+    ).toEqual([
+      'The sender encrypts to this URL',
+      'The sender signs what it encrypts',
+      'This URL decrypts on arrival',
+    ]);
+    expect(passos.textContent).toContain('an invalid or missing HMAC blocks decryption');
+    expect(passos.compareDocumentPosition(keys()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      keys().compareDocumentPosition(toggle()) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+
+  it.each([
+    ['sem chave de cifra', [], true],
+    ['com uma chave de cifra', [CHAVE], false],
+  ])(
+    'deve avisar o que acontece sem chave, e que o salvar continua, Quando a decifra é ligada %s',
+    async (_caso, chaves, avisa) => {
+      const { container } = await renderCard(E2eeCard, { ...PROTEGIDA, e2ee_keys: chaves });
+
+      expect(within(card()).queryByText(/^Without an encryption key/)).toBeNull();
+      await userEvent.click(toggle());
+
+      const aviso = within(card()).queryByText(/^Without an encryption key/);
+      expect(aviso !== null).toBe(avisa);
+      if (aviso) {
+        expect(aviso.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+          'Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.',
+        );
+      }
+      await expectNoAxeViolations(container);
+    },
+  );
+
   it('deve avisar que o servidor recusa sem segredo de leitura Quando a URL está aberta', async () => {
     const { container } = await renderCard(E2eeCard, { ...PROTEGIDA, protected: false });
 
@@ -232,7 +276,7 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
       expect(post.request.body).toEqual({ kid: CHAVE.kid });
       post.flush(CHAVE, { status: 201, statusText: 'Created' });
 
-      const item = await vi.waitFor(() => within(card()).getByRole('listitem'));
+      const item = await vi.waitFor(() => within(keys()).getByRole('listitem'));
       expect(item.textContent).toContain(CHAVE.kid);
       expect(item.textContent).toMatch(/created Oct 7, 2026/);
       expect(TestBed.inject(Preferences).token()?.e2ee_keys).toEqual([CHAVE]);
@@ -338,13 +382,13 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
           );
           expect(apagar.request.method).toBe('DELETE');
           apagar.flush(null, { status: 204, statusText: 'No Content' });
-          await vi.waitFor(() => expect(within(card()).queryByRole('listitem')).toBeNull());
+          await vi.waitFor(() => expect(within(keys()).queryByRole('listitem')).toBeNull());
         } else {
           await vi.waitFor(async () =>
             expect(await page.getHarnessOrNull(MatDialogHarness)).toBeNull(),
           );
           http.expectNone(`/token/${TOKEN_ID}/keys/${CHAVE.kid}`);
-          expect(within(card()).getByRole('listitem')).toBeTruthy();
+          expect(within(keys()).getByRole('listitem')).toBeTruthy();
         }
       },
     );

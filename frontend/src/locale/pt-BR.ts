@@ -3724,9 +3724,6 @@ export const translations: Record<string, string> = {
     ' Esta é a única chave de cifra da URL: sem ela, toda requisição cifrada nova fica como Chave desconhecida até você gerar outra. ',
   // Delete key
   '73979960734847259': 'Apagar chave',
-  //  One attribute of the JSON body arrives as a JWE (ECDH-ES, A256GCM) to a key of this URL, carrying a JWS (ES256) from a trusted signer. Each request is marked Decrypted, Invalid with the reason, Unknown key or Not encrypted; the opened value shows in the request, never in shared links or live events.
-  '2745673060285287630':
-    ' Um atributo do corpo JSON chega como JWE (ECDH-ES, A256GCM) para uma chave desta URL, levando um JWS (ES256) de um signatário confiável. Cada requisição fica marcada como Decifrada, Inválida com o motivo, Chave desconhecida ou Não cifrada; o valor decifrado aparece na requisição, nunca em links compartilhados nem em eventos ao vivo. ',
   // Decrypt an attribute of each request
   '8050605225511000111': 'Decifrar um atributo de cada requisição',
   // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
@@ -4229,4 +4226,24 @@ export const translations: Record<string, string> = {
   '6145758972268919856': 'decifra com chave desconhecida',
   // decryption plaintext
   '2585131728586397201': 'decifra em claro',
+  // How decryption works
+  '4820026405086517015': 'Como a decifra funciona',
+  // The sender encrypts to this URL
+  '2049467683147191765': 'O remetente cifra para esta URL',
+  // Generate the encryption key below and hand the sender the public JWKS address (or the public key). The private encryption key stays on the Anzol server.
+  '4212003059613775870':
+    'Gere a chave de cifra abaixo e entregue ao remetente o endereço do JWKS público (ou a chave pública). A chave privada de cifra fica no servidor do Anzol.',
+  // The sender signs what it encrypts
+  '2543929132158492977': 'O remetente assina o que cifra',
+  // Paste the sender's public signing key (an ES256 JWK) in Trusted signers; its private key stays with the sender. Only a JWS from those keys is accepted inside the JWE.
+  '370977893511760303':
+    'Cole em Signatários confiáveis a chave pública de assinatura do remetente (uma JWK ES256); a privada dela fica com ele. Só um JWS dessas chaves é aceito dentro do JWE.',
+  // This URL decrypts on arrival
+  '1573950883465894513': 'Esta URL decifra na chegada',
+  // If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC blocks decryption (hmac_failed). The decrypted attribute is stored with the request, behind the read secret; shared links and live events never carry it.
+  '6287555236010400960':
+    'Se a URL confere assinatura HMAC, ela vem antes: HMAC inválido ou ausente barra a decifra (hmac_failed). O atributo decifrado fica gravado na requisição, atrás do segredo de leitura; links compartilhados e eventos ao vivo nunca o levam.',
+  // Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.
+  '246389393969456617':
+    'Sem chave de cifra, toda requisição que passar do HMAC, do envelope e do cabeçalho do JWE fica como Chave desconhecida. Dá para salvar assim mesmo; gere uma chave acima.',
 };

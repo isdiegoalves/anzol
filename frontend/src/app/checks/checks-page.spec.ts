@@ -144,9 +144,9 @@ describe('Dado a página Checks', () => {
     expect(links.map((link) => link.querySelector('.jump-name')?.textContent?.trim())).toEqual([
       'Signature',
       'Schema',
-      'E2EE',
       'Response',
       'Privacy',
+      'E2EE',
       'Health',
     ]);
     for (const link of links) {
@@ -178,16 +178,16 @@ describe('Dado a página Checks', () => {
   });
 
   describe('Dado a ordem por assunto', () => {
-    it('deve pôr os cartões numa coluna, na ordem do índice, com o Health por último', async () => {
+    it('deve pôr os cartões numa coluna, na ordem do índice, a decifra depois da Privacidade e o Health por último', async () => {
       const harness = await ready();
 
       const page = harness.routeNativeElement as HTMLElement;
       expect([...page.querySelectorAll('.cards .slot')].map((slot) => slot.id)).toEqual([
         'checks-signature',
         'checks-schema',
-        'checks-e2ee',
         'checks-response',
         'checks-privacy',
+        'checks-e2ee',
         'checks-health',
       ]);
       expect(
@@ -197,9 +197,9 @@ describe('Dado a página Checks', () => {
       ).toEqual([
         'Signature verification',
         'Schema validation',
-        'E2EE decryption',
         'Response',
         'Privacy',
+        'E2EE decryption',
         'Health',
       ]);
       expect(page.querySelector('.columns')).toBeNull();
@@ -226,27 +226,50 @@ describe('Dado a página Checks', () => {
       expect(links.map(shown)).toEqual([
         'Signature · Stripe',
         'Schema · On · 2020-12',
-        'E2EE · Off',
         'Response · 429',
         'Privacy · Open',
+        'E2EE · Off',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
         'Signature, Stripe',
         'Schema, on',
-        'E2EE, off',
         'Response, 429',
         'Privacy, open',
+        'E2EE, off',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([
         null,
         null,
-        null,
         'location',
         null,
         null,
+        null,
       ]);
+    });
+  });
+
+  describe('Dado a decifra ligada numa URL sem segredo de leitura', () => {
+    it('deve tirar o aviso do segredo assim que a Privacidade é ligada no rascunho, e devolvê-lo ao desligar', async () => {
+      await ready(`/${TOKEN_ID}/checks`, token({ protected: false }));
+      const decifra = screen.getByRole('region', { name: 'E2EE decryption' });
+      const privacidade = screen.getByRole('region', { name: 'Privacy' });
+      const aviso = () => within(decifra).queryByText(/^This URL has no read secret/);
+
+      await userEvent.click(
+        within(decifra).getByRole('switch', { name: 'Decrypt an attribute of each request' }),
+      );
+      expect(aviso()).not.toBeNull();
+
+      const exigir = within(privacidade).getByRole('switch', {
+        name: 'Require a secret to view this URL',
+      });
+      await userEvent.click(exigir);
+      expect(aviso()).toBeNull();
+
+      await userEvent.click(exigir);
+      expect(aviso()).not.toBeNull();
     });
   });
 
@@ -564,9 +587,9 @@ describe('Dado os atalhos "On this page" de Checks', () => {
     expect(checksSections().map((section) => section.label)).toEqual([
       'Assinatura',
       'Schema',
-      'Decifra',
       'Resposta',
       'Privacidade',
+      'Decifra',
       'Saúde',
     ]);
   });

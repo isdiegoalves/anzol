@@ -17,7 +17,7 @@ import { seedStorage } from './support/storage';
 //   `textbox "Name"` do editor; "Discard" devolve o foco ao botão da regra na lista; depois de Replay e de Send, o foco
 //   fica dentro da `region "Outbound detail"`;
 // - pt-BR: o rótulo visível do Share na barra de ações é "Compartilhar"; os atalhos do `navigation "Nesta página"` de
-//   Checks são "Assinatura", "Schema", "Resposta", "Privacidade" e "Saúde";
+//   Checks são "Assinatura", "Schema", "Resposta", "Privacidade", "Decifra" e "Saúde";
 // - Checks › Signature (Stripe com segredo salvo) a 1440: a ajuda "Leave blank to keep the current secret" não
 //   encosta no rótulo "Timestamp tolerance (seconds)".
 
@@ -281,9 +281,9 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
     ).toHaveText([
       /^\s*Assinatura(\s*· .+)?\s*$/,
       /^\s*Schema(\s*· .+)?\s*$/,
-      /^\s*Decifra(\s*· .+)?\s*$/,
       /^\s*Resposta(\s*· .+)?\s*$/,
       /^\s*Privacidade(\s*· .+)?\s*$/,
+      /^\s*Decifra(\s*· .+)?\s*$/,
       /^\s*Saúde(\s*· .+)?\s*$/,
     ]);
   });

@@ -27,6 +27,8 @@ export interface ChecksSection {
   settings(): TokenSettings;
   /** `null` quando o cartão não mudou o CORS. */
   cors?(): boolean | null;
+  /** Se a URL fica com segredo de leitura salvando o rascunho como está. */
+  protects?(): boolean;
   showPending(focus: boolean): void;
   load(token: Token): void;
   /** Marca nos campos o que o servidor recusou (422) e devolve os rótulos deles. */
@@ -93,6 +95,16 @@ export class ChecksDraft {
           .filter((section) => section.invalid().length > 0)
           .map(({ id }) => id)
       : [];
+  });
+
+  /** O segredo de leitura do rascunho; `null` sem o cartão que o decide. */
+  readonly protects = computed(() => {
+    this.tick();
+    return (
+      this.sections()
+        .map((section) => section.protects?.())
+        .find((protects) => protects !== undefined) ?? null
+    );
   });
 
   readonly preview = computed(() => summaryOf(this.changes()));

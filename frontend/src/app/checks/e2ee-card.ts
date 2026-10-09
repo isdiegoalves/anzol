@@ -127,10 +127,11 @@ export class E2eeCard implements ChecksSection {
   protected readonly saved = signal<E2eePolicy | null>(
     (this.draft.base() ?? this.tokens.token())?.e2ee ?? null,
   );
-  /** A URL salva tem segredo de leitura: sem ele, o servidor recusa ligar a decifra. */
-  protected readonly readProtected = signal(
+  private readonly savedProtected = signal(
     (this.draft.base() ?? this.tokens.token())?.protected === true,
   );
+  /** O rascunho deixa a URL com segredo de leitura: sem ele, o servidor recusa ligar a decifra. */
+  protected readonly readProtected = computed(() => this.draft.protects() ?? this.savedProtected());
   readonly form = this.policyForm(this.saved());
   /** O 422 em `e2ee` (sem segredo de leitura, por exemplo), que não é de um campo. */
   protected readonly refusal = signal<string | null>(null);
@@ -244,7 +245,7 @@ export class E2eeCard implements ChecksSection {
 
   load(token: Token): void {
     this.saved.set(token.e2ee ?? null);
-    this.readProtected.set(token.protected === true);
+    this.savedProtected.set(token.protected === true);
     this.form.reset(this.valuesOf(this.saved()));
     this.refusal.set(null);
     this.syncFields();

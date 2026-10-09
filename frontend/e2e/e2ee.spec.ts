@@ -152,6 +152,77 @@ test.describe('Dado o cartão "E2EE decryption" de Checks', () => {
   });
 });
 
+test.describe('Dado o primeiro uso da decifra pela tela, em pt-BR', () => {
+  test('deve gerar a chave, ligar a decifra e a Privacidade num salvar só e decifrar a requisição que chega', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const remetente = signatario('sig-e2e');
+    await seedStorage(page, { hideTutorial: 'true', language: '"pt-BR"' });
+    await page.goto(`/#/${tokenId}/checks?section=e2ee`);
+    const decifra = page.getByRole('region', { name: 'Decifra E2EE' });
+    const privacidade = page.getByRole('region', { name: 'Privacidade' });
+    const semSegredo = decifra.getByText(/^Esta URL não tem segredo de leitura/);
+    const semChave = decifra.getByText(/^Sem chave de cifra/);
+
+    await expect(
+      decifra.getByRole('list', { name: 'Como a decifra funciona' }).getByRole('listitem'),
+    ).toHaveCount(3);
+    await decifra.getByRole('textbox', { name: 'ID da chave (kid)' }).fill('enc-e2e');
+    await decifra.getByRole('button', { name: 'Gerar chave' }).click();
+    await expect(
+      decifra.getByRole('region', { name: 'Chaves de cifra' }).getByRole('listitem'),
+    ).toHaveCount(1);
+
+    await decifra.getByRole('switch', { name: 'Decifrar um atributo de cada requisição' }).click();
+    await expect(semSegredo).toBeVisible();
+    await expect(semChave).toHaveCount(0);
+    await decifra.getByRole('textbox', { name: 'Atributo cifrado' }).fill('$.payload');
+    await decifra.getByRole('textbox', { name: 'Audiência (aud)' }).fill('anzol-lab');
+    await decifra.getByRole('textbox', { name: 'jti', exact: true }).fill('$.eventId');
+    await decifra.getByRole('textbox', { name: 'evt', exact: true }).fill('$.tipoEvento.nome');
+    await decifra.getByRole('textbox', { name: 'app', exact: true }).fill('$.servico.nome');
+    await decifra.getByRole('checkbox', { name: 'Ignorar maiúsculas em app' }).check();
+    await decifra
+      .getByRole('textbox', { name: 'Signatários confiáveis' })
+      .fill(JSON.stringify([remetente.publica]));
+
+    await privacidade.getByRole('switch', { name: 'Exigir um segredo para ver esta URL' }).click();
+    await expect(semSegredo).toHaveCount(0);
+    await privacidade.getByRole('textbox', { name: 'Segredo para ver' }).fill(SEGREDO);
+    await privacidade.getByRole('textbox', { name: 'Confirme o segredo' }).fill(SEGREDO);
+    const put = page.waitForResponse(
+      (resposta) =>
+        resposta.request().method() === 'PUT' && resposta.url().endsWith(`/token/${tokenId}`),
+    );
+    await page.getByRole('button', { name: /^Salvar alterações\b/ }).click();
+    expect((await put).status()).toBe(200);
+    await expect(decifra.getByText('Ligada · $.payload')).toBeVisible();
+    expect(await lerUrl(request, tokenId)).toMatchObject({
+      protected: true,
+      e2ee: politica([remetente.publica]),
+    });
+
+    const jwks = (await (await request.get(`/token/${tokenId}/jwks.json`)).json()) as {
+      keys: Record<string, unknown>[];
+    };
+    const enviada = await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: envelopeCifrado(remetente, jwks.keys[0], 'n-1', { cpf: '123' }),
+    });
+    await page.goto(`/#/${tokenId}/${enviada}/1`);
+    await expect(page.getByRole('group', { name: 'Verificações desta requisição' })).toContainText(
+      /Decifrada\s*chave de cifra enc-e2e/,
+    );
+    await page.getByRole('tab', { name: 'Decifrado' }).click();
+    await expect(page.getByRole('region', { name: 'Atributo decifrado' })).toContainText(
+      '"cpf": "123"',
+    );
+  });
+});
+
 test.describe('Dado uma mensagem com o atributo cifrado', () => {
   test('deve mostrar a decifra válida com o atributo aberto, também na que chega ao vivo, e as que falharam com o motivo', async ({
     page,

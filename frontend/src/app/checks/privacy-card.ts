@@ -124,6 +124,10 @@ export class PrivacyCard implements ChecksSection {
     return pendingLabels(this.fields());
   }
 
+  protects(): boolean {
+    return this.form.controls.required.value;
+  }
+
   /**
    * `read_secret` só vai quando muda: segredo novo, ou `null` para tirar a proteção. Ausente mantém
    * o atual no `PUT`.

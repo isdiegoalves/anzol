@@ -82,13 +82,23 @@ textarea.code {
   font: var(--mat-sys-body-small);
 }
 
-.keys,
+// As chaves vêm logo abaixo dos passos, que já fecham com uma régua.
+.keys {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+form.fields,
+.lab-create {
+  padding-top: 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
 .lab-create {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--mat-sys-outline-variant);
 }
 
 .key-list {

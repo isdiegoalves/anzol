@@ -1,6 +1,8 @@
 import { Locator } from '@playwright/test';
-import { abrirChecks } from './support/checks';
+import { abrirCartao, abrirChecks, secao } from './support/checks';
+import { politica, signatario } from './support/e2ee';
 import { expect, test } from './support/fixtures';
+import { seedStorage } from './support/storage';
 
 const TELAS_LARGAS = [
   { width: 1440, height: 900 },
@@ -65,5 +67,65 @@ test.describe('Dado a configuração do Generic em Verificações', () => {
     await expect(cartao.getByRole('radio', { name: 'SHA-512' })).toBeChecked();
     await cartao.getByRole('radio', { name: 'Base64' }).click();
     await expect(cartao.getByRole('radio', { name: 'Base64' })).toBeChecked();
+  });
+});
+
+test.describe('Dado Verificações a 375 px com a decifra ligada', () => {
+  test('não deve rolar na horizontal com o cartão da decifra e o da Privacidade abertos', async ({
+    page,
+    tokens,
+  }) => {
+    const segredo = 'segredo-do-leiaute';
+    const tokenId = await tokens.create({ read_secret: segredo });
+    const comSegredo = { 'X-Anzol-Secret': segredo };
+    expect(
+      (
+        await page.request.post(`/token/${tokenId}/keys`, { headers: comSegredo, data: {} })
+      ).status(),
+    ).toBe(201);
+    const ligada = await page.request.put(`/token/${tokenId}`, {
+      headers: comSegredo,
+      data: { e2ee: politica([signatario('sig-leiaute').publica]) },
+    });
+    expect(ligada.status()).toBe(200);
+    await seedStorage(page, { hideTutorial: 'true' });
+    expect(
+      (await page.request.post(`/token/${tokenId}/unlock`, { data: { secret: segredo } })).ok(),
+    ).toBe(true);
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    const decifra = await abrirChecks(page, tokenId, 'E2EE decryption');
+    await expect(decifra.getByRole('textbox', { name: 'Encrypted attribute' })).toBeVisible();
+    await abrirCartao(page, 'Privacy');
+    await expect(secao(page, 'Privacy').getByRole('switch')).toBeVisible();
+
+    const larguras = await page.evaluate(() => {
+      const cartoes = document.querySelector('main .cards');
+      // Faixa que rola sozinha, como o índice no topo, não empurra a página.
+      const naFaixa = (el: Element) => {
+        for (let pai = el.parentElement; pai && pai !== cartoes; pai = pai.parentElement) {
+          if (/auto|scroll|hidden/.test(getComputedStyle(pai).overflowX)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const examinados = [...(cartoes?.querySelectorAll('*') ?? [])]
+        .filter((el) => !el.closest('.cdk-visually-hidden, [aria-hidden="true"]'))
+        .filter((el) => !naFaixa(el));
+      return {
+        pagina: document.scrollingElement?.scrollWidth ?? 0,
+        cartoes: (cartoes?.scrollWidth ?? 0) - (cartoes?.clientWidth ?? 0),
+        janela: innerWidth,
+        examinados: examinados.length,
+        transbordam: examinados
+          .filter((el) => el.getBoundingClientRect().right > innerWidth + 1)
+          .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`),
+      };
+    });
+    expect(larguras.pagina).toBeLessThanOrEqual(larguras.janela);
+    expect(larguras.cartoes).toBeLessThanOrEqual(0);
+    expect(larguras.examinados).toBeGreaterThan(100);
+    expect(larguras.transbordam).toEqual([]);
   });
 });
