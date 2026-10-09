@@ -683,6 +683,10 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
   });
 
   describe('Dado o cartão "Describe it in words" (M5)', () => {
+    // O campo vem por import(), que frio, numa máquina ocupada, passa do 1 s do findByRole:
+    // carregado antes, o teste mede o foco, não o carregamento do módulo.
+    beforeAll(() => import('./rule-suggest-form'));
+
     it('deve abrir o editor com o Describe aberto e o foco no que se escreve, não no Nome', async () => {
       await open([], {
         inputs: { ruleId: 'new' },
