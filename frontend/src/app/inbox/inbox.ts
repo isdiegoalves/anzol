@@ -20,7 +20,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router, RouterLink } from '@angular/router';
+import { PRIMARY_OUTLET, Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import type { Guide, GuideName } from '../guides/guide';
@@ -726,15 +726,30 @@ export class Inbox {
 
   /**
    * "Search for this id": o identificador vai para a busca da lista, e o endereço deixa o link que
-   * não abriu (sem requisição nenhuma aberta; a busca, sem resultado, não abre a primeira).
+   * não abriu (sem requisição nenhuma aberta; a busca, sem resultado, não abre a primeira). Quem
+   * saiu do link enquanto a busca demorava fica onde foi.
    */
   protected async searchFor(requestId: string): Promise<void> {
+    const link = this.routePath();
     this.showDetail.set(false);
     await this.requests.applyFilter({ ...NO_FILTER, text: requestId });
+    if (this.left || this.routePath() !== link) {
+      return;
+    }
     this.requests.unopened.set(null);
     await this.router.navigate(['/', this.tokenId()], {
       queryParams: filterToParams(this.requests.filter()),
     });
+  }
+
+  /**
+   * O caminho da rota, sem a query; com uma navegação em curso (a página de destino ainda
+   * carregando), o do destino dela.
+   */
+  private routePath(): string {
+    const url =
+      this.router.currentNavigation()?.extractedUrl ?? this.router.parseUrl(this.router.url);
+    return (url.root.children[PRIMARY_OUTLET]?.segments ?? []).map((part) => part.path).join('/');
   }
 
   /** A lista da URL da rota já está carregada (os filtros da rota e da tela podem conversar). */

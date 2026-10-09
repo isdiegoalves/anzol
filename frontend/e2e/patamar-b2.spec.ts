@@ -37,6 +37,15 @@ function detalhe(page: Page): Locator {
   return page.getByRole('region', { name: 'Request detail' });
 }
 
+/** Espera a tela desenhar `n` quadros: o que a resposta disparou já correu. */
+async function quadros(page: Page, n: number): Promise<void> {
+  await page.evaluate(async (vezes) => {
+    for (let i = 0; i < vezes; i++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, n);
+}
+
 function mais(page: Page): Locator {
   return detalhe(page).getByRole('button', { name: /^More(:|$)/ });
 }
@@ -292,6 +301,34 @@ test.describe('Dado um link para uma requisição que não existe', () => {
     await detalhe(page).getByRole('button', { name: 'Open the newest request' }).click();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1`));
     await expect(detalhes(page)).toContainText(nova);
+  });
+
+  test('não deve passar por cima de quem saiu do link enquanto a busca pelo identificador demorava', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId } = await comDuas(tokens);
+    const falta = urlInexistente();
+    await seedStorage(page, {});
+    let soltar: () => void = () => undefined;
+    const buscaPresa = new Promise<void>((resolve) => (soltar = resolve));
+    await page.route(`**/token/${tokenId}/requests/search`, async (rota) => {
+      await buscaPresa;
+      await rota.continue();
+    });
+    await page.goto(`/#/${tokenId}/${falta}/1`);
+
+    await detalhe(page).getByRole('button', { name: 'Search for this id' }).click();
+    await page.goto(`/#/${tokenId}/rules`);
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
+    const busca = page.waitForEvent('requestfinished', (pedido) =>
+      pedido.url().endsWith(`/token/${tokenId}/requests/search`),
+    );
+    soltar();
+    await busca;
+    await quadros(page, 2);
+
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/rules$`));
   });
 
   test('deve levar a data no link permanente e dizer de quando era a requisição', async ({
