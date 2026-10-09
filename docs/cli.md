@@ -220,6 +220,16 @@ servidor: uma URL do Anzol configurada com o mesmo provedor e segredo grava `val
 A assinatura é refeita a cada tentativa (timestamp novo, como o Stripe faz) e substitui um `--header`
 com o mesmo nome.
 
+**Atributo cifrado (E2EE).** A CLI não cifra, não gera chave nem lê JWKS: `anzol send` só assina com HMAC. Para
+mandar um JWE, monte-o fora (com uma biblioteca JOSE, no formato da [decifra de
+atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-ES/A256GCM para a chave pública do
+JWKS da URL) e entregue o corpo pronto com `--data-file`. Para só ver a decifra funcionando, use o
+[laboratório](api.md#laboratório-e2ee), que gera e entrega as mensagens pelo próprio servidor.
+
+Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` e `test` imprimem a mensagem
+completa no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o
+`--read-secret` que a abre também mostra o valor), que vai para o log do CI. Numa URL com decifra, `--match '{"decryption": "valid"}'` espera só as decifradas.
+
 **Placeholders** no corpo e nos valores de `--header`, resolvidos uma vez por envio: as retentativas
 são o mesmo evento e levam os mesmos valores (só a assinatura muda).
 
