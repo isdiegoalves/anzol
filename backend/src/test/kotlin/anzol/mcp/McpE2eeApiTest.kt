@@ -174,6 +174,37 @@ class McpE2eeApiTest(
 
     @Test
     @DisplayName(
+        "Dado signature null no update_url, quando o agente religa a assinatura sem secret, então a URL recusa, e a " +
+            "descrição já dizia que o segredo do HMAC sai junto, com um campo fora dos vínculos de exemplo",
+    )
+    fun signatureNull_deveApagarOSegredo_comoADescricaoDiz() {
+        val tokenId = api.tokenId("""{"signature":{"provider":"github","secret":"segredo-do-hmac"}}""")
+
+        call("update_url", mapOf("token_id" to tokenId, "signature" to null))
+        val back = call("update_url", mapOf("token_id" to tokenId, "signature" to mapOf("provider" to "github")))
+
+        assertThat(back.isError).isTrue()
+        assertThat((back.content().single() as TextContent).text()).contains("The signature.secret field is required.")
+        assertThat(description("update_url"))
+            .contains("deletes the HMAC secret", "send `secret` again")
+            .contains("envelope fields outside the bindings", "for example an `amount` next to the encrypted attribute")
+    }
+
+    @Test
+    @DisplayName("Dado o get_request, quando o agente lê a descrição, então ela diz onde a pessoa vê o valor decifrado na tela")
+    fun getRequest_descricao_deveDizerOndeVerOValorDecifrado() {
+        assertThat(description("get_request")).contains("never the decrypted text", "the Decrypted tab")
+    }
+
+    private fun description(tool: String): String =
+        client
+            .listTools()
+            .tools()
+            .single { it.name() == tool }
+            .description()
+
+    @Test
+    @DisplayName(
         "Dado create_e2ee_lab, quando run_e2ee_scenarios roda todos, então os 27 conferem e o resultado não traz texto aberto; " +
             "numa URL comum, erro 422",
     )

@@ -22,18 +22,22 @@ São 18 ferramentas:
 | `create_e2ee_lab`, `list_e2ee_scenarios`, `run_e2ee_scenarios` | `POST /e2ee-lab`, `GET /e2ee-lab/scenarios`, `POST /token/{id}/e2ee-lab/run` (ver [Laboratório E2EE](#laboratório-e2ee)) |
 
 O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
-ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão. Numa URL que
-decifra (`e2ee`), `signature: null` tira também a conferência do HMAC que roda antes da decifra: a decifra deixa de
-exigir HMAC válido, e os campos do envelope fora dos vínculos deixam de ser autenticados; o resultado avisa em
-`warnings` (`"signature removed on a URL with e2ee: decryption no longer requires a valid HMAC"`).
+ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão. `signature:
+null` apaga também o segredo do HMAC: para religar a conferência, o objeto `signature` leva `secret` de novo. Numa URL
+que decifra (`e2ee`), `signature: null` tira também a conferência do HMAC que roda antes da decifra: a decifra deixa de
+exigir HMAC válido, e os campos do envelope fora dos vínculos (um `amount` ao lado do atributo cifrado, por exemplo)
+deixam de ser autenticados; os que os vínculos apontam continuam conferidos contra o `jti`, o `evt` e o `app`
+assinados pelo remetente. O resultado avisa em `warnings` (`"signature removed on a URL with e2ee: decryption no
+longer requires a valid HMAC"`).
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
 rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o
-resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)). O `update_url` mantém o bloco
-`e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando `e2ee` vem nos argumentos do
-`create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o resultado traz `"warnings":
-["e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."]`; sem nada
-ignorado, não há `warnings`. Validação, URL ou mensagem inexistente e limite viram erro de
+resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)); a pessoa vê o valor
+decifrado na tela, com o segredo de leitura, na aba Decifrado da mensagem (Decrypted em inglês). O `update_url`
+mantém o bloco `e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando `e2ee` vem nos
+argumentos do `create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o resultado traz
+`"warnings": ["e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."]`;
+sem nada ignorado, não há `warnings`. Validação, URL ou mensagem inexistente e limite viram erro de
 ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
 not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
 

@@ -78,12 +78,15 @@ private const val UPDATE_URL =
         "sent as null is turned off or reset (signature: null and schema: null switch the verification and the " +
         "validation off; the others return to their initial value). A signature object replaces the whole signature " +
         "block, keeping the current secret when `secret` is omitted; signature and schema are objects (text, even " +
-        "empty, is an error). The URL's read secret is never changed here: read_secret is only the access to a " +
+        "empty, is an error). `signature: null` also deletes the HMAC secret: to turn the check back on, send `secret` " +
+        "again in the signature object. The URL's read secret is never changed here: read_secret is only the access to a " +
         "protected URL. Attribute decryption (`e2ee`) is never changed here either: an `e2ee` argument is ignored, " +
         "the result carries the saved policy unchanged and says so in `warnings`. MCP never changes it; ask the " +
         "person to change it in the UI (Checks › Decryption). On a URL that decrypts (`e2ee`), `signature: null` also " +
         "removes the HMAC check that runs before decryption: decryption no longer requires a valid HMAC, and envelope " +
-        "fields outside the bindings are no longer authenticated; the result says so in `warnings`."
+        "fields outside the bindings are no longer authenticated (for example an `amount` next to the encrypted " +
+        "attribute, which no binding points to; the fields the bindings point to stay checked against the sender's " +
+        "signed jti, evt and app); the result says so in `warnings`."
 
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
@@ -225,7 +228,8 @@ class McpTools {
                     "get_request",
                     "Read one captured request: method, URL, headers, query, body, signature, schema and decryption results " +
                         "(decryption.state: valid, invalid, unknown_kid or absent, with reason; never the decrypted text), " +
-                        "the rule that answered or the near miss.",
+                        "the rule that answered or the near miss. The person sees the decrypted value in the UI, with the " +
+                        "read secret: open the request in the Inbox, the Decrypted tab (Decifrado in Portuguese).",
                     objectSchema("$TOKEN_ID, $REQUEST_ID", "token_id", "request_id"),
                     readOnly = true,
                 ),
