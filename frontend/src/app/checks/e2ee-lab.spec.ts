@@ -79,7 +79,9 @@ describe('Dado o laboratório E2EE no cartão', () => {
 
       post.flush(RELATORIO);
 
-      await vi.waitFor(() => expect(status.textContent).toContain('2 of 3 match'));
+      await vi.waitFor(() =>
+        expect(status.textContent).toContain('2 of 3 scenarios gave the expected result'),
+      );
       expect(status.textContent).toContain('1 scenario differs, listed first.');
       expect(status.textContent?.replace(/\s+/g, ' ')).toContain(
         '0 decrypted as expected · 2 refused as expected · 1 differing',
@@ -94,9 +96,9 @@ describe('Dado o laboratório E2EE no cartão', () => {
       const [diverge, confere] = linhas;
       expect(diverge.textContent).toContain('400 invalid (downgrade)');
       expect(diverge.textContent).toContain('202 valid · kid enc-v1');
-      expect(diverge.textContent).toContain('data matches');
-      expect(diverge.textContent).toContain('Differs');
-      expect(confere.textContent).toContain('Matches');
+      expect(diverge.textContent).toContain('data same as sent');
+      expect(diverge.textContent).toContain('Diverged');
+      expect(confere.textContent).toContain('As expected');
       const link = within(diverge).getByRole('link', {
         name: 'Open request #00000000 of N3 in the Inbox',
       });

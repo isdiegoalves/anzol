@@ -102,7 +102,7 @@ describe('Dado o relatório do laboratório com a tela em pt-BR', () => {
     const texto = (code: string) => linha(code).textContent?.replace(/\s+/g, ' ') ?? '';
     expect(texto('P1')).toContain('202 válida · kid enc-v2');
     expect(texto('P1')).toContain('data igual ao enviado');
-    expect(texto('P1')).toContain('Esperado');
+    expect(texto('P1')).toContain('Deu o esperado');
     expect(texto('N1a')).toContain('400 inválida (jws_missing)');
     expect(texto('N4')).toContain('500 chave desconhecida · kid enc-v9');
     expect(texto('Xz')).toContain('data diferente do enviado');

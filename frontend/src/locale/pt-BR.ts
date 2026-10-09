@@ -3812,15 +3812,15 @@ export const translations: Record<string, string> = {
   '8466398008350004548': 'Cenários do laboratório',
   // Lab URL
   '5063575939344818033': 'URL de laboratório',
-  //  This URL came ready: two encryption keys, the test sender {$INTERPOLATION}, the lab policy and rules, and it is not renewed. Run scenarios builds each scenario of the E2EE contract, delivers it through the real capture (HMAC, decryption and rules) and compares the status, the state and the reason with what is expected. The decrypted text never shows in the report.
-  '4043935349102843661':
+  //  This URL came ready: two encryption keys, the test sender {$INTERPOLATION}, the lab settings and rules (invalid or missing HMAC → 401, unknown key → 500, any other decryption failure → 400, the rest 202), and it is not renewed. Run scenarios builds one message per scenario on the server, delivers each through the real capture (HMAC, decryption and rules) and compares the status, the state and the reason with what is expected; for scenarios that name the key, also the kid; for those that decrypt, also that the data is the same as sent. The decrypted attribute never shows in the report.
+  '7638050798052588927':
     ' Esta URL veio pronta: duas chaves de cifra, o remetente de teste {$INTERPOLATION}, a configuração e as regras do laboratório (HMAC inválido ou ausente → 401, chave desconhecida → 500, outra falha da decifra → 400, o resto 202), e ela não é renovada. Rodar cenários monta uma mensagem por cenário no servidor, entrega cada uma pela captura real (HMAC, decifra e regras) e compara com o esperado o status, o estado e o motivo; nos que nomeiam a chave, também o kid; nos que decifram, também o data igual ao enviado. O atributo decifrado nunca aparece no relatório. ',
   // Run scenarios
   '3844145349807746390': 'Rodar cenários',
   // Running the scenarios. It takes a few seconds…
   '1199777382771981644': 'Rodando os cenários. Leva alguns segundos…',
-  // {VAR_PLURAL, plural, =1 {1 of {INTERPOLATION} matches} other {{INTERPOLATION_1} of {INTERPOLATION} match}}
-  '2262345787437292542':
+  // {VAR_PLURAL, plural, =1 {1 of {INTERPOLATION} scenarios gave the expected result} other {{INTERPOLATION_1} of {INTERPOLATION} scenarios gave the expected result}}
+  '3427796095101716489':
     '{VAR_PLURAL, plural, =1 {1 de {INTERPOLATION} cenários deu o resultado esperado} other {{INTERPOLATION_1} de {INTERPOLATION} cenários deram o resultado esperado}}',
   // {VAR_PLURAL, plural, =1 {1 scenario differs, listed first.} other {{INTERPOLATION} scenarios differ, listed first.}}
   '9133705194015195637':
@@ -3847,19 +3847,19 @@ export const translations: Record<string, string> = {
   '7989584202803202902': 'Esperado',
   // Got
   '4603011004208784058': 'Obtido',
-  // data matches
-  '4043981353335140926': 'data igual ao enviado',
-  // data differs
-  '3640123933109989273': 'data diferente do enviado',
-  // Matches
-  '1567940090040631427': 'Esperado',
-  // Differs
-  '5250864808692692049': 'Divergiu',
+  // data same as sent
+  '1728645875506446411': 'data igual ao enviado',
+  // data differs from what was sent
+  '4506442909221248938': 'data diferente do enviado',
+  // As expected
+  '7959111744964795404': 'Deu o esperado',
+  // Diverged
+  '3338592869217287081': 'Divergiu',
   // E2EE lab
   '1137363530760030904': 'Laboratório E2EE',
-  //  To see decryption working without setting anything up: a new URL with a read secret, an HMAC secret, two encryption keys, a test sender and the lab policy and rules, ready to run the scenarios of the E2EE contract. It expires in 24 hours.
-  '7674714925816119094':
-    ' Para ver a decifra funcionando sem configurar nada: uma URL nova com segredo de leitura, segredo do HMAC, duas chaves de cifra, um remetente de teste e a política e as regras do laboratório, pronta para rodar os cenários do contrato E2EE. Ela expira em 24 horas. ',
+  //  To see decryption working without setting anything up: a new URL with a read secret, an HMAC secret, two encryption keys, a test sender and the lab settings and rules, ready to run the lab scenarios. It expires in 24 hours.
+  '5956600907387221248':
+    ' Para ver a decifra funcionando sem configurar nada: uma URL nova com segredo de leitura, segredo do HMAC, duas chaves de cifra, um remetente de teste e a configuração e as regras do laboratório, pronta para rodar os cenários do laboratório. Ela expira em 24 horas. ',
   // Create a lab URL
   '8706293476076086740': 'Criar URL de laboratório',
   // Too many runs for this URL (up to 6 per minute). Try again in {$seconds} s.

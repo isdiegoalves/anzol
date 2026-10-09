@@ -43,15 +43,18 @@ test.describe('Dado o laboratório E2EE em Checks', () => {
 
     await regiao.getByRole('button', { name: 'Run scenarios' }).click();
     await expect(regiao.getByRole('status')).toContainText('Running the scenarios');
-    await expect(regiao.getByRole('status')).toContainText('27 of 27 match', RODADA);
+    await expect(regiao.getByRole('status')).toContainText(
+      '27 of 27 scenarios gave the expected result',
+      RODADA,
+    );
     const tabela = regiao.getByRole('table', { name: 'Scenario results' });
     await expect(tabela.getByRole('row')).toHaveCount(28);
-    await expect(tabela.getByText('Differs', { exact: true })).toHaveCount(0);
-    await expect(tabela.getByText('Matches', { exact: true })).toHaveCount(27);
+    await expect(tabela.getByText('Diverged', { exact: true })).toHaveCount(0);
+    await expect(tabela.getByText('As expected', { exact: true })).toHaveCount(27);
 
     const p1 = tabela.locator('tr[data-scenario="P1"]');
     await expect(p1).toContainText('202 valid');
-    await expect(p1).toContainText('data matches');
+    await expect(p1).toContainText('data same as sent');
     const link = p1.getByRole('link', { name: /^Open request #[0-9a-f]{8} of P1 in the Inbox$/ });
     const curto = ((await link.textContent()) ?? '').trim().slice(1);
     await link.click();

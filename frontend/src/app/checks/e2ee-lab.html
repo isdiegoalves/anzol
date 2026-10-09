@@ -7,10 +7,12 @@
     </div>
     <p class="hint" i18n>
       This URL came ready: two encryption keys, the test sender {{ mark.signer_kid }}, the lab
-      policy and rules, and it is not renewed. Run scenarios builds each scenario of the E2EE
-      contract, delivers it through the real capture (HMAC, decryption and rules) and compares the
-      status, the state and the reason with what is expected. The decrypted text never shows in the
-      report.
+      settings and rules (invalid or missing HMAC → 401, unknown key → 500, any other decryption
+      failure → 400, the rest 202), and it is not renewed. Run scenarios builds one message per
+      scenario on the server, delivers each through the real capture (HMAC, decryption and rules)
+      and compares the status, the state and the reason with what is expected; for scenarios that
+      name the key, also the kid; for those that decrypt, also that the data is the same as sent.
+      The decrypted attribute never shows in the report.
     </p>
     <div class="actions">
       <button
@@ -32,8 +34,8 @@
         <p class="summary" [class.all]="run.matched === run.total">
           <app-icon [name]="run.matched === run.total ? 'ok' : 'bad'" [size]="22" />
           <strong i18n>{run.matched, plural,
-            =1 {1 of {{ run.total }} matches}
-            other {{{ run.matched }} of {{ run.total }} match}
+            =1 {1 of {{ run.total }} scenarios gave the expected result}
+            other {{{ run.matched }} of {{ run.total }} scenarios gave the expected result}
           }</strong>
           @if (differing() > 0) {
             <span class="hint" i18n>{differing(), plural,
@@ -94,19 +96,19 @@
                   >&ngsp;
                   <code>{{ outcome(row.actual) }}</code>
                   @if (row.actual.data_matches === true) {
-                    <span class="data" i18n>data matches</span>
+                    <span class="data" i18n>data same as sent</span>
                   } @else if (row.actual.data_matches === false) {
-                    <span class="data" i18n>data differs</span>
+                    <span class="data" i18n>data differs from what was sent</span>
                   }
                 </td>
                 <td>
                   @if (row.ok) {
                     <span class="verdict ok"
-                      ><app-icon name="ok" [size]="16" /><span i18n>Matches</span></span
+                      ><app-icon name="ok" [size]="16" /><span i18n>As expected</span></span
                     >
                   } @else {
                     <span class="verdict bad"
-                      ><app-icon name="bad" [size]="16" /><span i18n>Differs</span></span
+                      ><app-icon name="bad" [size]="16" /><span i18n>Diverged</span></span
                     >
                   }
                 </td>
@@ -133,8 +135,8 @@
     <h3 id="e2ee-lab-title" i18n>E2EE lab</h3>
     <p class="hint" i18n>
       To see decryption working without setting anything up: a new URL with a read secret, an HMAC
-      secret, two encryption keys, a test sender and the lab policy and rules, ready to run the
-      scenarios of the E2EE contract. It expires in 24 hours.
+      secret, two encryption keys, a test sender and the lab settings and rules, ready to run the
+      lab scenarios. It expires in 24 hours.
     </p>
     <div class="actions">
       <button
