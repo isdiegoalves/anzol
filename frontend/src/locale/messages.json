@@ -1102,6 +1102,8 @@
     "2362395621208028574": "Form values",
     "1005962049366257741": "No form values",
     "7249477555815672854": "application/x-www-form-urlencoded and multipart/form-data bodies appear here.",
+    "5387378174994900625": "Received aud: {$aud}",
+    "3526902123017722241": "Received aud: none",
     "4108680511513605373": "Conditions of {$rule} that failed",
     "4915544080899440645": "The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret.",
     "2032685813231396424": "Key: {$kid}",

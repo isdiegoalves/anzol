@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { envelope, parEc, politica, selar } from '../../support/e2ee.js';
-import { capturar, comSegredo, expect, http, test } from '../../support/privacidade.js';
+import { MODO_MCP } from '../../support/ia.js';
+import { test as testMcp } from '../../support/mcp.js';
+import { capturar, comSegredo, expect, fixtureUrls, http, test, type Urls } from '../../support/privacidade.js';
 
 // O atributo decifrado (plano "e2ee-lab", R4) só sai para quem tem o segredo de leitura da URL: no GET da mensagem,
 // na listagem e no wait. O link só-leitura (que vale sem o segredo) leva `decryption` e nunca `decrypted`; o mesmo
@@ -34,7 +36,19 @@ test('link só-leitura: decryption sim, decrypted não, e o texto aberto em luga
     .json<{ id: string }>();
   const res = await http('GET', `/share/${link.id}`);
   expect(res.status).toBe(200);
-  expect(res.json<any>().decryption).toMatchObject({ state: 'valid', kid: 'enc-v1' });
+  expect(res.json<any>().decryption).toMatchObject({ state: 'valid', kid: 'enc-v1', aud: ['anzol-lab'] });
   expect(res.json<object>()).not.toHaveProperty('decrypted');
   expect(res.texto).not.toContain(SEGREDO_ABERTO);
+});
+
+const testComMcp = testMcp.extend<{ urls: Urls }>({ urls: fixtureUrls });
+
+testComMcp('MCP get_request: decryption com o aud recebido, sem decrypted', async ({ mcp, urls }) => {
+  testComMcp.skip(MODO_MCP !== 'ligado', `CONTRATO_MCP=${MODO_MCP}`);
+  const { uuid, segredo, rid } = await decifrada(urls);
+
+  const msg = await mcp.chamarOk<{ decryption: Record<string, unknown> }>('get_request', { request_id: rid, read_secret: segredo }, uuid);
+
+  expect(msg.decryption).toMatchObject({ state: 'valid', aud: ['anzol-lab'] });
+  expect(msg).not.toHaveProperty('decrypted');
 });

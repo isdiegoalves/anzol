@@ -134,6 +134,32 @@ class E2eeReceiverApiTest(
     }
 
     @Test
+    @DisplayName("Dado o JWS com aud de outro destinatário, quando chega, então aud_mismatch com o aud recebido como dado, com teto")
+    fun captura_audDeOutro_deveGravarOAudRecebido() {
+        val (tokenId, public) = lab()
+        val id = UUID.randomUUID().toString()
+        val aud = listOf("loja\n\u202Ehomolog", "x".repeat(300), "v3", "v4", "v5", "v6")
+        val body = envelope(id, encrypt(public, sign(sender, claims(id, data).apply { put("aud", aud) })))
+
+        val decryption = post(tokenId, body)["decryption"]
+
+        assertThat(decryption["reason"].asString()).isEqualTo("aud_mismatch")
+        assertThat(decryption["aud"].toList().map { it.asString() })
+            .containsExactly("loja\uFFFD\uFFFDhomolog", "x".repeat(256), "v3", "v4", "v5")
+    }
+
+    @Test
+    @DisplayName("Dado o JWE do laboratório, quando chega, então o aud recebido fica em decryption como lista")
+    fun captura_jweValido_deveGravarOAud() {
+        val (tokenId, public) = lab()
+        val id = UUID.randomUUID().toString()
+
+        val decryption = post(tokenId, envelope(id, encrypt(public, sign(sender, claims(id, data)))))["decryption"]
+
+        assertThat(decryption["aud"].toList().map { it.asString() }).containsExactly(AUDIENCE)
+    }
+
+    @Test
     @DisplayName("Dado uma URL sem e2ee, quando chega um JSON, então decryption null e sem decrypted")
     fun captura_semE2ee_deveSerNull() {
         val tokenId = api.tokenId()

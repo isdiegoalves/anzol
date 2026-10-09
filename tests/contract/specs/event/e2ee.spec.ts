@@ -19,7 +19,7 @@ test('evento da mensagem decifrada: decryption valid, sem decrypted', async ({ u
 
     const evento = await canal.proximo();
 
-    expect(evento.request).toMatchObject({ decryption: { state: 'valid', kid: 'enc-v1', jti: id } });
+    expect(evento.request).toMatchObject({ decryption: { state: 'valid', kid: 'enc-v1', jti: id, aud: ['anzol-lab'] } });
     expect(evento.request).not.toHaveProperty('decrypted');
     expect(JSON.stringify(evento)).not.toContain('aberto-no-evento');
   } finally {

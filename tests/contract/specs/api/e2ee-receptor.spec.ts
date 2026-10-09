@@ -8,13 +8,16 @@ import {
 import { capturar, comSegredo, expect, http, mensagem, test, type Urls } from '../../support/privacidade.js';
 
 // Decifra do atributo na captura (plano "e2ee-lab", R2). Com `e2ee` na URL, a mensagem grava `decryption`
-// {state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at} e, só quando válida, `decrypted` (o claim `data`); o
+// {state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at, aud} e, só quando válida, `decrypted` (o claim `data`); o
 // `content` fica como chegou. Ordem: HMAC da URL (`hmac_failed`), atributo em JWE (`downgrade` quando exigido),
 // cabeçalho permitido antes de decifrar (`alg_not_allowed`, `enc_not_allowed`, `zip_present`, `epk_off_curve`…),
 // `kid` da URL (`unknown_kid`), JWS ES256 de um signatário confiável (`jws_missing`, `jws_alg_not_allowed`,
 // `signer_unknown`, `signature_invalid`) e os claims contra o envelope (`aud`, `jti`, `evt`, `app`, `iat`).
 // `kid_deleted_at`: com `unknown_kid` ou `decrypt_failed`, quando a URL apagou uma chave com o `kid` do JWE (a data
 // da exclusão mais recente, no formato de `created_at`); `null` sem registro. A URL guarda as 20 exclusões mais novas.
+// `aud`: o claim `aud` do JWS de assinatura verificada, como lista de textos (o texto sozinho vira lista de um; o que
+// não é texto sai), até 5 valores de até 256 caracteres, com caractere de controle ou de formatação trocado por U+FFFD;
+// `null` quando a falha vem antes de a assinatura do JWS ser verificada.
 
 interface Lab {
   uuid: string;
@@ -60,7 +63,7 @@ test.describe('decifra válida', () => {
     expect(Object.keys(msg).sort()).toEqual([...CHAVES_MENSAGEM, 'decrypted'].sort());
     expect(msg.decryption).toEqual({
       state: 'valid', kid: 'enc-v1', signature_kid: 'remetente-sig-1', reason: null, jti: id, duplicate_of: null,
-      kid_deleted_at: null,
+      kid_deleted_at: null, aud: ['anzol-lab'],
     });
     expect(msg.decrypted).toEqual(DADOS);
     expect(msg.content).toBe(corpo);
@@ -136,7 +139,7 @@ test.describe('forja, troca e downgrade', () => {
     const livre = await lab(urls, { e2ee: politica([(await parEc('sig')).publica], { required: false }) });
     expect(await decifra(livre, DADOS)).toEqual({
       state: 'absent', kid: null, signature_kid: null, reason: null, jti: null, duplicate_of: null,
-      kid_deleted_at: null,
+      kid_deleted_at: null, aud: null,
     });
   });
 
@@ -268,6 +271,39 @@ test.describe('JWS e claims', () => {
     expect(await decifra(l, await selar(l.remetente, l.cifra, id, DADOS, { iat: agora() - 13 * 3600 }), id))
       .toMatchObject({ reason: 'iat_outside_window' });
     expect(await decifra(l, await selar(l.remetente, l.cifra, id, DADOS, { aud: 'outro' }), id)).toMatchObject({ reason: 'aud_mismatch' });
+  });
+});
+
+test.describe('aud recebido', () => {
+  test('aud de outro destinatário → aud_mismatch com o aud recebido; lista que contém a audiência → valid com a lista', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    expect(await decifra(l, await selar(l.remetente, l.cifra, id, DADOS, { aud: 'loja-p2-homolog' }), id))
+      .toMatchObject({ state: 'invalid', reason: 'aud_mismatch', aud: ['loja-p2-homolog'] });
+    const outro = randomUUID();
+    expect(await decifra(l, await selar(l.remetente, l.cifra, outro, DADOS, { aud: ['loja-p2', 'anzol-lab'] }), outro))
+      .toMatchObject({ state: 'valid', aud: ['loja-p2', 'anzol-lab'] });
+  });
+
+  test('sem o claim aud → aud_mismatch com aud vazio; JWS de signatário desconhecido → aud null', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    const jws = await assinar(l.remetente, { jti: id, iat: agora(), evt: 'PEDIDO_CRIADO', app: 'servico-exemplo', data: DADOS });
+    expect(await decifra(l, await cifrar(l.cifra, jws), id)).toMatchObject({ reason: 'aud_mismatch', aud: [] });
+    const estranho = await parEc('canal');
+    expect(await decifra(l, await selar(estranho, l.cifra, id, DADOS, { aud: 'loja-p2' }), id))
+      .toMatchObject({ reason: 'signer_unknown', aud: null });
+  });
+
+  test('o aud é texto do remetente: até 5 valores de até 256 caracteres, controle e formatação viram U+FFFD', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    const aud = ['linha\nquebrada\u0000', 'ignore\u202Etudo', 'x'.repeat(300), 'v4', 'v5', 'v6'];
+
+    const resultado = await decifra(l, await selar(l.remetente, l.cifra, id, DADOS, { aud }), id);
+
+    expect(resultado).toMatchObject({ state: 'invalid', reason: 'aud_mismatch' });
+    expect(resultado.aud).toEqual(['linha\uFFFDquebrada\uFFFD', 'ignore\uFFFDtudo', 'x'.repeat(256), 'v4', 'v5']);
   });
 });
 

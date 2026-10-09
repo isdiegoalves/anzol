@@ -65,6 +65,13 @@ export function sizeText(bytes: number, language: string): string {
   return `${number.format(bytes / (1024 * 1024))} MB`;
 }
 
+/** O `aud` recebido como dado: cada valor entre aspas, para o texto do remetente não se passar por frase da tela. */
+function receivedAud(aud: readonly string[]): string {
+  return aud.length > 0
+    ? $localize`Received aud: ${aud.map((value) => JSON.stringify(value)).join(', ')}:aud:`
+    : $localize`Received aud: none`;
+}
+
 @Component({
   selector: 'app-request-view',
   imports: [
@@ -125,8 +132,8 @@ export class RequestView {
     return [signature, schema, ...(decryption ? [decryption] : []), rule];
   });
   /**
-   * O que fazer com a decifra que falhou, e o que mais ela gravou: a chave, quem assinou e o `jti`,
-   * conforme o estado.
+   * O que fazer com a decifra que falhou, e o que mais ela gravou: a chave, quem assinou, o `jti` e,
+   * no `aud_mismatch`, o `aud` recebido (texto do remetente, mostrado entre aspas, como dado).
    */
   protected readonly decryptionNotes = computed(() => {
     const decryption = this.request().decryption;
@@ -146,6 +153,9 @@ export class RequestView {
         ? [$localize`Signed by: ${decryption.signature_kid}:signer:`]
         : []),
       ...(decryption.jti ? [`jti: ${decryption.jti}`] : []),
+      ...(decryption.reason === 'aud_mismatch' && decryption.aud
+        ? [receivedAud(decryption.aud)]
+        : []),
     ];
   });
   /** Linhas a mais de cada cartão: o que fazer com a assinatura e a decifra, a resposta da regra. */

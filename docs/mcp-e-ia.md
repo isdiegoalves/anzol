@@ -92,8 +92,9 @@ LLM nunca grava nada.
   da assinatura com o motivo, erros do schema, resultado da decifra com o motivo e as chaves, nunca o valor decifrado;
   regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo) e o modelo só
   redige, em markdown simples, no idioma de `lang` (padrão `en`). O `kid` de cifra só vai quando é de uma chave que a
-  URL tem ou apagou; o de assinatura, só quando é de um signatário confiável, e `signature_kid_trusted` diz se o lido era; `attempted` é falso quando o HMAC barrou a
-  mensagem antes e a decifra nem foi tentada (`hmac_failed`). Na decifra recusada, `who_fixes` (`sender`,
+  URL tem ou apagou; o de assinatura, só quando é de um signatário confiável, e `signature_kid_trusted` diz se o lido
+  era. O `aud` recebido nunca vai: é texto do remetente, e o motivo `aud_mismatch` basta. `attempted` é falso quando o
+  HMAC barrou a mensagem antes e a decifra nem foi tentada (`hmac_failed`). Na decifra recusada, `who_fixes` (`sender`,
   `url_configuration` ou `message_altered`) e `advice` dizem quem corrige e o que fazer, escritos pelo servidor a
   partir do motivo e, com `unknown_kid` ou `decrypt_failed`, do `kid_deleted_at` (chave apagada, ou apagada e
   recriada, com a data).

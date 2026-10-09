@@ -199,7 +199,7 @@ públicas. O token lista as chaves em `e2ee_keys` e `GET /token/{id}/jwks.json` 
 públicas sem pedir o segredo de leitura, como todo JWKS.
 
 Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
-`{state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at}`. Quando `valid`, a mensagem traz também `decrypted`
+`{state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at, aud}`. Quando `valid`, a mensagem traz também `decrypted`
 (o claim `data`); o `content` fica como chegou. A conferência segue esta ordem e para na primeira falha:
 
 | Passo | `state` / `reason` |
@@ -217,7 +217,11 @@ de um `jti` já decifrado (dentro da janela do `iat`) continua `valid` e leva em
 mensagem. Com `unknown_kid`, ou `decrypt_failed`, `kid_deleted_at` diz quando a URL apagou uma chave com aquele
 `kid` (formato de `created_at`, UTC): o remetente cifrou para a chave apagada, ou para a que tinha o mesmo `kid` antes de
 ser recriada, e precisa baixar o JWKS de novo. `null` quando a URL não tem registro da exclusão (o remetente cifrou para
-outro destino) e nas mensagens gravadas antes do campo. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
+outro destino) e nas mensagens gravadas antes do campo. `aud` é o claim `aud` do JWS depois de a assinatura dele ser
+verificada, sempre como lista (o texto sozinho vira lista de um; o que não é texto sai): com `aud_mismatch`, mostra
+para quem o remetente assinou. É texto do remetente, gravado como dado: até 5 valores de até 256 caracteres, com
+caractere de controle ou de formatação trocado por U+FFFD; `null` quando a decifra parou antes de verificar o JWS e nas
+mensagens gravadas antes do campo. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
 `match.decryption`. O laboratório responde 500 ao `kid` desconhecido (um remetente que trata 5xx como temporário tenta de
 novo) e 400 à cifra inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexões presas responde 503:
 

@@ -45,7 +45,9 @@ enum class DecryptionState(
  * `decryption` da mensagem: [state], o `kid` da chave de cifra ([kid]) e da de assinatura ([signatureKid]) quando
  * lidos, o motivo da falha ([reason], `null` quando válida ou ausente), o `jti` assinado e, numa reentrega, a primeira
  * mensagem com o mesmo `jti` ([duplicateOf]). [kidDeletedAt]: com `unknown_kid` ou `decrypt_failed`, quando a URL
- * apagou uma chave com o [kid] (no registro dela); mensagem gravada antes do campo o lê como `null`.
+ * apagou uma chave com o [kid] (no registro dela); mensagem gravada antes do campo o lê como `null`. [aud]: o `aud` do
+ * JWS de assinatura verificada, texto do remetente com teto ([receivedAudiences]); `null` antes dessa verificação e
+ * na mensagem gravada antes do campo.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class DecryptionResult(
@@ -57,6 +59,7 @@ data class DecryptionResult(
     val duplicateOf: RequestId? = null,
     @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
     val kidDeletedAt: LocalDateTime? = null,
+    val aud: List<String>? = null,
 ) {
     /** Com [deleted], o registro de chaves apagadas da URL: a chave que não abriu foi apagada (e talvez recriada)? */
     fun withDeletedKid(deleted: List<DeletedE2eeKey>): DecryptionResult {
@@ -102,7 +105,8 @@ private fun invalid(
     kid: String? = null,
     signatureKid: String? = null,
     jti: String? = null,
-): Step<Nothing> = stop(DecryptionState.INVALID, reason, kid, signatureKid, jti)
+    aud: List<String>? = null,
+): Step<Nothing> = Step.Stop(Opening(DecryptionResult(DecryptionState.INVALID, kid, signatureKid, reason, jti, aud = aud)))
 
 /** O envelope lido (a forma que o JSONPath percorre) e o atributo, que tem a forma de um JWE compacto. */
 private data class Envelope(
@@ -261,9 +265,10 @@ private fun E2eePolicy.opened(
             else -> null
         }
     val kid = signed.sealed.kid
+    val aud = claims.receivedAudiences()
     return if (reason == null) {
-        Step.Next(Opening(DecryptionResult(DecryptionState.VALID, kid, signed.signatureKid, jti = jti), claims["data"]))
+        Step.Next(Opening(DecryptionResult(DecryptionState.VALID, kid, signed.signatureKid, jti = jti, aud = aud), claims["data"]))
     } else {
-        invalid(reason, kid, signed.signatureKid, jti)
+        invalid(reason, kid, signed.signatureKid, jti, aud)
     }
 }

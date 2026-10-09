@@ -63,6 +63,7 @@ class E2eeLegacyFormatApiTest(
         assertThat(message.statusCode()).isEqualTo(200)
         assertThat(api.json(message)["decryption"]["state"].asString()).isEqualTo("unknown_kid")
         assertThat(api.json(message)["decryption"]["kid_deleted_at"].isNull).isTrue()
+        assertThat(api.json(message)["decryption"]["aud"].isNull).isTrue()
     }
 
     @Test

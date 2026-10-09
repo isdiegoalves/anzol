@@ -420,7 +420,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     1 byte alterado, `kid` desconhecido, `alg`/`enc`/`zip`, `epk` fora da curva, JWE grande, JWS `none` e `HS256`,
     `iat` e `aud`. Chave apagada: a cifrada para ela dá `unknown_kid` com `kid_deleted_at` (data no formato de
     `created_at`); apagada e recriada com o mesmo `kid`, `decrypt_failed` com `kid_deleted_at`, e a cifrada para a
-    nova abre; `kid` que a URL nunca teve, ou cuja exclusão saiu do registro (as 20 mais novas), dá `null`.
+    nova abre; `kid` que a URL nunca teve, ou cuja exclusão saiu do registro (as 20 mais novas), dá `null`. `aud`
+    recebido: a lista do claim (`valid` com a audiência dentro dela, `aud_mismatch` com a de outro destinatário, `[]`
+    sem o claim), `null` com o JWS de signatário desconhecido; até 5 valores de até 256 caracteres, com controle e
+    formatação trocados por U+FFFD. O link só-leitura, o evento e o `get_request` do MCP levam o `aud`.
   - *Regras* (`e2ee-regras.spec.ts`): `match.decryption` com as regras do laboratório dá 200, 500, 400 e 400, e
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem

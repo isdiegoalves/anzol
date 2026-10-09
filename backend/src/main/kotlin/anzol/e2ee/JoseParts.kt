@@ -52,6 +52,39 @@ internal fun JsonNode.audiences(): List<String> {
     }
 }
 
+/** Quantos valores do `aud` recebido a mensagem grava. */
+private const val MAX_RECEIVED_AUDIENCES = 5
+
+/** O teto de caracteres da audiência da URL, e de cada `aud` recebido que a mensagem grava. */
+const val MAX_AUDIENCE_LENGTH = 256
+
+private val NOT_SHOWN =
+    setOf(
+        Character.CONTROL,
+        Character.FORMAT,
+        Character.LINE_SEPARATOR,
+        Character.PARAGRAPH_SEPARATOR,
+        Character.SURROGATE,
+        Character.PRIVATE_USE,
+        Character.UNASSIGNED,
+    ).map { it.toInt() }
+
+/**
+ * O `aud` recebido, para mostrar como dado: o remetente escreve o texto, então a mensagem guarda até
+ * [MAX_RECEIVED_AUDIENCES] valores de até [MAX_AUDIENCE_LENGTH] caracteres, com controle e formatação (quebra de linha,
+ * inversão de direção) trocados por U+FFFD.
+ */
+internal fun JsonNode.receivedAudiences(): List<String> =
+    audiences().take(MAX_RECEIVED_AUDIENCES).map { text ->
+        val shown = StringBuilder()
+        text.codePoints().limit(MAX_AUDIENCE_LENGTH.toLong()).forEach { point ->
+            shown.appendCodePoint(if (Character.getType(point) in NOT_SHOWN) REPLACEMENT_CHARACTER else point)
+        }
+        shown.toString()
+    }
+
+private const val REPLACEMENT_CHARACTER = 0xFFFD
+
 /** O valor do envelope em [Binding.path] (texto, número ou booleano, como texto) é o do claim. */
 internal fun Binding.matches(
     document: Any,

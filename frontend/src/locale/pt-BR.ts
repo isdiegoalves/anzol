@@ -4198,6 +4198,10 @@ export const translations: Record<string, string> = {
   '2032685813231396424': 'Chave de cifra: {$kid}',
   // Signed by: {$signer}
   '8138824404534403132': 'Chave de assinatura do remetente: {$signer}',
+  // Received aud: {$aud}
+  '5387378174994900625': 'aud recebido: {$aud}',
+  // Received aud: none
+  '3526902123017722241': 'aud recebido: nenhum',
   // First request with this jti: #{$id}
   '812133857419478642': 'Primeira requisição com este jti: #{$id}',
   // Decryption

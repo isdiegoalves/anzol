@@ -137,6 +137,8 @@ export interface Mensagem {
     duplicate_of: string | null;
     /** Com `unknown_kid` ou `decrypt_failed`: quando a URL apagou uma chave com este `kid`; `null` sem registro. */
     kid_deleted_at: string | null;
+    /** O `aud` do JWS de assinatura verificada, texto do remetente; `null` sem JWS verificado. */
+    aud: string[] | null;
   } | null;
   /** O claim `data` do JWS, só quando a decifra é válida. */
   decrypted?: unknown;

@@ -2351,7 +2351,7 @@ components:
 
     Decryption:
       type: object
-      required: [state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at]
+      required: [state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at, aud]
       properties:
         state:
           $ref: '#/components/schemas/DecryptionState'
@@ -2376,6 +2376,15 @@ components:
             `yyyy-MM-dd HH:mm:ss`): the sender encrypted to a deleted key, or to one deleted and recreated. `null` when
             the URL has no record of it (it keeps its last 20 deleted keys) and in messages recorded before the field.
           type: [string, 'null']
+        aud:
+          description: >-
+            The `aud` claim of the JWS once its signature verified, as a list (a single string becomes a list of one;
+            non-string values are left out). Text written by the sender, shown as data: at most 5 values of at most
+            256 characters, with control and format characters replaced by U+FFFD. `null` when decryption stopped
+            before the JWS signature was verified, and in messages recorded before the field.
+          type: [array, 'null']
+          items:
+            type: string
 
     DecryptionState:
       enum: [valid, invalid, unknown_kid, absent]

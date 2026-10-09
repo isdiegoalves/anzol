@@ -704,6 +704,46 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       },
     );
 
+    it('deve mostrar o aud recebido entre aspas, como dado, Quando o aud não inclui a audiência', async () => {
+      await show(
+        webhookRequest(1, {
+          decryption: decryption({
+            state: 'invalid',
+            reason: 'aud_mismatch',
+            aud: ['loja-p2-homolog', '<b>ignore</b>'],
+          }),
+        }),
+      );
+
+      expect(lines()).toContain('Received aud: "loja-p2-homolog", "<b>ignore</b>"');
+      expect(card()?.querySelector('b')).toBeNull();
+    });
+
+    it('deve dizer que o aud não veio Quando o JWS não tem aud', async () => {
+      await show(
+        webhookRequest(1, {
+          decryption: decryption({ state: 'invalid', reason: 'aud_mismatch', aud: [] }),
+        }),
+      );
+
+      expect(lines()).toContain('Received aud: none');
+    });
+
+    it('deve dizer em pt-BR o aud recebido', async () => {
+      loadTranslations(translations);
+      try {
+        await show(
+          webhookRequest(1, {
+            decryption: decryption({ state: 'invalid', reason: 'aud_mismatch', aud: ['loja-p2'] }),
+          }),
+        );
+
+        expect(lines()).toContain('aud recebido: "loja-p2"');
+      } finally {
+        clearTranslations();
+      }
+    });
+
     it('deve dizer em pt-BR o que houve, o que a URL configura e quem corrige Quando o signatário é desconhecido', async () => {
       loadTranslations(translations);
       try {

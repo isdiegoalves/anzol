@@ -54,11 +54,12 @@ class E2eeVerificationTest {
     @DisplayName("Aberturas válidas")
     inner class Valid {
         @Test
-        @DisplayName("Dado o JWE do laboratório, quando abre, então valid com os kids, o jti e o data com acento e emoji")
+        @DisplayName("Dado o JWE do laboratório, quando abre, então valid com os kids, o jti, o aud e o data com acento e emoji")
         fun open_jweDoLaboratorio_deveAbrir() {
             val opening = open(envelope(id, sealed()))
 
-            assertThat(opening.result).isEqualTo(DecryptionResult(DecryptionState.VALID, "enc-v1", "remetente-sig-1", jti = id))
+            assertThat(opening.result)
+                .isEqualTo(DecryptionResult(DecryptionState.VALID, "enc-v1", "remetente-sig-1", jti = id, aud = listOf(AUDIENCE)))
             assertThat(opening.data).isEqualTo(mapper.valueToTree(data))
         }
 

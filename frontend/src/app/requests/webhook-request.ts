@@ -104,7 +104,8 @@ export type DecryptionState = (typeof DECRYPTION_STATES)[number];
  * Resultado da decifra na captura. `reason` é o código do servidor (`signature_invalid`) quando não
  * é válida; `duplicate_of` é a primeira mensagem com o mesmo `jti`. `kid_deleted_at`, com
  * `unknown_kid` ou `decrypt_failed`: quando a URL apagou uma chave com o `kid` (UTC); `null` sem
- * registro, e ausente em servidor anterior a ele.
+ * registro, e ausente em servidor anterior a ele. `aud`: o `aud` do JWS de assinatura verificada,
+ * texto do remetente (até 5 valores; controle e formatação trocados por U+FFFD); `null` sem ele.
  */
 export interface DecryptionResult {
   state: DecryptionState;
@@ -114,6 +115,7 @@ export interface DecryptionResult {
   jti: string | null;
   duplicate_of: string | null;
   kid_deleted_at?: string | null;
+  aud?: string[] | null;
 }
 
 /** Página de `GET /token/{id}/requests`. */

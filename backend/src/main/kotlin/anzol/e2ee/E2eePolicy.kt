@@ -14,7 +14,6 @@ import tools.jackson.databind.JsonNode
 private const val DEFAULT_MAX_AGE_SECONDS = 43_200L
 private val MAX_AGE_RANGE = 60L..604_800L
 private val TRUSTED_SIGNERS_RANGE = 1..10
-private const val MAX_AUDIENCE_LENGTH = 256
 private const val KEY = "e2ee"
 private val BINDING_NAMES = listOf("jti", "evt", "app")
 
