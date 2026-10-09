@@ -130,13 +130,13 @@ fun explainFacts(
 
 /**
  * Os `kid` gravados vêm dos cabeçalhos do JWE e do JWS, lidos antes de qualquer verificação: quem envia escolhe o
- * texto. Só vão ao modelo os que a URL tem (chave de cifra dela, signatário confiável dela).
+ * texto. Só vão ao modelo os que a URL tem ou apagou (chave de cifra dela, signatário confiável dela).
  */
 private fun decryptionFact(
     token: Token,
     decryption: DecryptionResult?,
 ): DecryptionFact {
-    val keys = token.e2eeKeys.map { it.kid }
+    val keys = token.e2eeKeys.map { it.kid } + token.e2eeDeletedKeys.map { it.kid }
     val signers =
         token.e2ee
             ?.trustedSigners

@@ -1,3 +1,4 @@
+import { localDate } from '../request-detail/dates';
 import { CapturedRequest, DecryptionResult } from '../requests/webhook-request';
 import { E2eeBinding, Token } from '../token/token';
 import type { CheckResult } from './pipeline';
@@ -89,15 +90,26 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
         short: duplicate ? $localize`Repeated jti` : $localize`Decrypted`,
       };
     }
-    case 'unknown_kid':
-      return {
-        kind,
-        state: 'unknown-kid',
-        tone: 'bad',
-        title: $localize`Unknown encryption key`,
-        detail: $localize`The JWE kid ${kid ?? '—'}:kid: is not one of this URL's keys`,
-        short: $localize`Unknown kid`,
-      };
+    case 'unknown_kid': {
+      const deletedAt = decryption.kid_deleted_at;
+      return deletedAt
+        ? {
+            kind,
+            state: 'unknown-kid',
+            tone: 'bad',
+            title: $localize`Deleted encryption key`,
+            detail: $localize`The JWE kid ${kid ?? '—'}:kid: is a key this URL deleted on ${localDate(deletedAt)}:date:`,
+            short: $localize`Deleted key`,
+          }
+        : {
+            kind,
+            state: 'unknown-kid',
+            tone: 'bad',
+            title: $localize`Unknown encryption key`,
+            detail: $localize`The JWE kid ${kid ?? '—'}:kid: is not one of this URL's keys`,
+            short: $localize`Unknown kid`,
+          };
+    }
     case 'absent':
       return {
         kind,
@@ -130,13 +142,20 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
  * que fazer.
  */
 export function decryptionAdvice(decryption: DecryptionResult, token: Token | null): string[] {
+  const deletedAt = decryption.kid_deleted_at;
   if (decryption.state === 'unknown_kid') {
-    return [...keysFact(token), ...unknownKidAdvice()];
+    return [...keysFact(token), unknownKidAdvice(deletedAt)];
   }
   if (decryption.state !== 'invalid') {
     return [];
   }
   const reason = decryption.reason ?? '';
+  if (reason === 'decrypt_failed' && deletedAt) {
+    return [
+      ...configuredFact(reason, token),
+      $localize`A key with this kid was deleted on ${localDate(deletedAt)}:date: and recreated: the sender encrypted to the deleted key. Ask them to fetch this URL's JWKS again.`,
+    ];
+  }
   return [...configuredFact(reason, token), ...reasonAdvice(reason)];
 }
 
@@ -152,10 +171,11 @@ function keysFact(token: Token | null): string[] {
       ];
 }
 
-function unknownKidAdvice(): string[] {
-  return [
-    $localize`If you deleted this key, the sender still uses the old JWKS: ask them to fetch it again. If it was never this URL's, the sender encrypted to another recipient.`,
-  ];
+/** Com a data, a URL apagou a chave; sem, não há registro (ela guarda as 20 exclusões mais novas). */
+function unknownKidAdvice(deletedAt: string | null | undefined): string {
+  return deletedAt
+    ? $localize`This URL deleted this key on ${localDate(deletedAt)}:date:: the sender still uses the old JWKS. Ask them to fetch it again.`
+    : $localize`This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses.`;
 }
 
 /** O que a URL configura e o motivo cita: os signatários, a audiência, o atributo, o vínculo. */

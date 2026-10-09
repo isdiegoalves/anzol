@@ -102,7 +102,9 @@ export type DecryptionState = (typeof DECRYPTION_STATES)[number];
 
 /**
  * Resultado da decifra na captura. `reason` é o código do servidor (`signature_invalid`) quando não
- * é válida; `duplicate_of` é a primeira mensagem com o mesmo `jti`.
+ * é válida; `duplicate_of` é a primeira mensagem com o mesmo `jti`. `kid_deleted_at`, com
+ * `unknown_kid` ou `decrypt_failed`: quando a URL apagou uma chave com o `kid` (UTC); `null` sem
+ * registro, e ausente em servidor anterior a ele.
  */
 export interface DecryptionResult {
   state: DecryptionState;
@@ -111,6 +113,7 @@ export interface DecryptionResult {
   reason: string | null;
   jti: string | null;
   duplicate_of: string | null;
+  kid_deleted_at?: string | null;
 }
 
 /** Página de `GET /token/{id}/requests`. */

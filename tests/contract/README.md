@@ -418,7 +418,9 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   - *Receptor* (`e2ee-receptor.spec.ts`): ida e volta com acento e emoji, rotação, reentrega com `duplicate_of`,
     caixa divergente no `app`, e cada falha com o motivo: forja do canal, troca de ciphertext, downgrade, HMAC com
     1 byte alterado, `kid` desconhecido, `alg`/`enc`/`zip`, `epk` fora da curva, JWE grande, JWS `none` e `HS256`,
-    `iat` e `aud`.
+    `iat` e `aud`. Chave apagada: a cifrada para ela dá `unknown_kid` com `kid_deleted_at` (data no formato de
+    `created_at`); apagada e recriada com o mesmo `kid`, `decrypt_failed` com `kid_deleted_at`, e a cifrada para a
+    nova abre; `kid` que a URL nunca teve, ou cuja exclusão saiu do registro (as 20 mais novas), dá `null`.
   - *Regras* (`e2ee-regras.spec.ts`): `match.decryption` com as regras do laboratório dá 200, 500, 400 e 400, e
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem

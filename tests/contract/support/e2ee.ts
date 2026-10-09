@@ -112,4 +112,6 @@ export interface ResultadoDecifra {
   reason: string | null;
   jti: string | null;
   duplicate_of: string | null;
+  /** Com `unknown_kid` ou `decrypt_failed`: quando a URL apagou uma chave com este `kid`; `null` sem registro. */
+  kid_deleted_at: string | null;
 }

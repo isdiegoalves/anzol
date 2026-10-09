@@ -1,6 +1,7 @@
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { translations } from '../../locale/pt-BR';
 import { token, webhookRequest } from '../../testing/fixtures';
+import { localDate } from '../request-detail/dates';
 import { DecryptionResult } from '../requests/webhook-request';
 import { spokenOf } from '../ui/check-chip';
 import { decryptionAdvice, decryptionReasonText, decryptionResult } from './decryption';
@@ -218,6 +219,47 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
     );
   });
 
+  it('deve dizer que não há registro de exclusão Quando o kid desconhecido não foi apagado aqui', () => {
+    expect(
+      decryptionAdvice(resultado({ state: 'unknown_kid', kid: 'enc-9' }), urlQueDecifra),
+    ).toContain(
+      'This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses.',
+    );
+  });
+
+  it('deve dizer quando a URL apagou a chave Quando o kid desconhecido é de uma chave apagada', () => {
+    const apagada = resultado({
+      state: 'unknown_kid',
+      kid: 'enc-0',
+      kid_deleted_at: '2026-10-09 13:30:00',
+    });
+    const quando = localDate('2026-10-09 13:30:00');
+
+    expect(decryptionResult(webhookRequest(1, { decryption: apagada }))).toMatchObject({
+      state: 'unknown-kid',
+      title: 'Deleted encryption key',
+      detail: `The JWE kid enc-0 is a key this URL deleted on ${quando}`,
+      short: 'Deleted key',
+    });
+    expect(decryptionAdvice(apagada, urlQueDecifra)).toEqual([
+      'Encryption keys here: enc-1',
+      `This URL deleted this key on ${quando}: the sender still uses the old JWKS. Ask them to fetch it again.`,
+    ]);
+  });
+
+  it('deve dizer que a chave foi apagada e recriada Quando a decifra falha com um kid que a URL apagou', () => {
+    const recriada = resultado({
+      state: 'invalid',
+      reason: 'decrypt_failed',
+      kid_deleted_at: '2026-10-09 13:30:00',
+    });
+
+    expect(decryptionAdvice(recriada, urlQueDecifra)).toEqual([
+      'Encryption keys here: enc-1',
+      `A key with this kid was deleted on ${localDate('2026-10-09 13:30:00')} and recreated: the sender encrypted to the deleted key. Ask them to fetch this URL's JWKS again.`,
+    ]);
+  });
+
   it('deve deixar de fora o que a URL configura Quando a tela não tem a URL (link só-leitura)', () => {
     const linhas = decryptionAdvice(resultado({ state: 'invalid', reason: 'aud_mismatch' }), null);
 
@@ -229,6 +271,26 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
     ['em claro aceita', resultado({ state: 'absent', kid: null })],
   ])('deve ficar sem o que fazer Quando a decifra é %s', (_caso, decryption) => {
     expect(decryptionAdvice(decryption, urlQueDecifra)).toEqual([]);
+  });
+
+  it('deve dizer em pt-BR que a chave de cifra foi apagada', () => {
+    loadTranslations(translations);
+    try {
+      const apagada = resultado({
+        state: 'unknown_kid',
+        kid: 'enc-0',
+        kid_deleted_at: '2026-10-09 13:30:00',
+      });
+      expect(decryptionResult(webhookRequest(1, { decryption: apagada }))).toMatchObject({
+        title: 'Chave de cifra apagada',
+        short: 'Chave apagada',
+      });
+      expect(decryptionAdvice(apagada, null)[0]).toMatch(
+        /^Esta URL apagou esta chave em .+: o remetente ainda usa o JWKS antigo\./,
+      );
+    } finally {
+      clearTranslations();
+    }
   });
 
   it('deve dizer em pt-BR que a decifra não foi feita Quando o HMAC barrou', () => {

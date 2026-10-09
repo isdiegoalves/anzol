@@ -7,6 +7,7 @@ import anzol.e2ee.Binding
 import anzol.e2ee.Bindings
 import anzol.e2ee.DecryptionResult
 import anzol.e2ee.DecryptionState
+import anzol.e2ee.DeletedE2eeKey
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eePolicy
 import anzol.e2ee.ecKey
@@ -232,14 +233,50 @@ class ExplainFactsTest {
     }
 
     @Test
-    @DisplayName("Dada a chave de cifra desconhecida, quando monta os fatos, então diz que o remetente busca o JWKS de novo")
-    fun explainFacts_unknownKid_deveDizerQuemCorrige() {
+    @DisplayName(
+        "Dada a chave de cifra que a URL não registra como apagada, quando monta os fatos, então o remetente cifrou " +
+            "para outro destino",
+    )
+    fun explainFacts_unknownKidSemRegistro_deveApontarOutroDestino() {
         val unknownKid = DecryptionResult(DecryptionState.UNKNOWN_KID, kid = "enc-velha")
 
         val decryption = explainFacts(token, message(unknownKid), rules = emptyList()).decryption
 
-        assertThat(decryption.whoFixes).containsExactly(DecryptionFixer.SENDER, DecryptionFixer.URL_CONFIGURATION)
-        assertThat(decryption.advice).contains("JWKS")
+        assertThat(decryption.whoFixes).containsExactly(DecryptionFixer.SENDER)
+        assertThat(decryption.advice).contains("no record of deleting", "another recipient", "JWKS")
+        assertThat(decryption.kid).isNull()
+    }
+
+    @Test
+    @DisplayName(
+        "Dada a chave de cifra que a URL apagou, quando monta os fatos, então diz quando e que o remetente busca o " +
+            "JWKS de novo",
+    )
+    fun explainFacts_unknownKidApagada_deveDizerQuando() {
+        val deletedAt = LocalDateTime.of(2026, 10, 9, 14, 30, 0)
+        val withDeleted = token.copy(e2eeDeletedKeys = listOf(DeletedE2eeKey("enc-velha", deletedAt)))
+        val unknownKid = DecryptionResult(DecryptionState.UNKNOWN_KID, kid = "enc-velha", kidDeletedAt = deletedAt)
+
+        val decryption = explainFacts(withDeleted, message(unknownKid), rules = emptyList()).decryption
+
+        assertThat(decryption.whoFixes).containsExactly(DecryptionFixer.SENDER)
+        assertThat(decryption.advice).contains("deleted that encryption key on 2026-10-09 14:30:00 UTC", "JWKS")
+        assertThat(decryption.kid).isEqualTo("enc-velha")
+    }
+
+    @Test
+    @DisplayName(
+        "Dada a chave apagada e recriada com o mesmo kid, quando a decifra falha, então diz que o remetente cifrou " +
+            "para a apagada",
+    )
+    fun explainFacts_kidRecriado_deveDizerQueFoiApagada() {
+        val deletedAt = LocalDateTime.of(2026, 10, 9, 14, 30, 0)
+        val refused = DecryptionResult(DecryptionState.INVALID, kid = "enc-loja-1", reason = "decrypt_failed", kidDeletedAt = deletedAt)
+
+        val decryption = explainFacts(token, message(refused), rules = emptyList()).decryption
+
+        assertThat(decryption.whoFixes).containsExactly(DecryptionFixer.SENDER)
+        assertThat(decryption.advice).contains("deleted on 2026-10-09 14:30:00 UTC and recreated")
     }
 
     @ParameterizedTest(name = "{0}")

@@ -90,6 +90,50 @@ class E2eeReceiverApiTest(
     }
 
     @Test
+    @DisplayName("Dado a chave de cifra apagada, quando chega uma mensagem cifrada para ela, então unknown_kid com kid_deleted_at")
+    fun captura_chaveApagada_deveDizerQuando() {
+        val (tokenId, public) = lab()
+        val id = UUID.randomUUID().toString()
+        val body = envelope(id, encrypt(public, sign(sender, claims(id, data))))
+        api.send("DELETE", "/token/$tokenId/keys/enc-v1", headers = JSON_CLIENT + secret)
+
+        val decryption = post(tokenId, body)["decryption"]
+
+        assertThat(decryption["state"].asString()).isEqualTo("unknown_kid")
+        assertThat(decryption["kid_deleted_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
+    }
+
+    @Test
+    @DisplayName(
+        "Dado a chave apagada e recriada com o mesmo kid, quando chega a cifrada para a antiga, então decrypt_failed " +
+            "com kid_deleted_at",
+    )
+    fun captura_chaveRecriada_deveDizerQuandoFoiApagada() {
+        val (tokenId, public) = lab()
+        val id = UUID.randomUUID().toString()
+        val body = envelope(id, encrypt(public, sign(sender, claims(id, data))))
+        api.send("DELETE", "/token/$tokenId/keys/enc-v1", headers = JSON_CLIENT + secret)
+        api.send("POST", "/token/$tokenId/keys", """{"kid":"enc-v1"}""".toByteArray(), JSON_BODY + secret)
+
+        val decryption = post(tokenId, body)["decryption"]
+
+        assertThat(decryption["reason"].asString()).isEqualTo("decrypt_failed")
+        assertThat(decryption["kid_deleted_at"].isNull).isFalse()
+    }
+
+    @Test
+    @DisplayName("Dado um kid que a URL nunca teve, quando chega, então unknown_kid com kid_deleted_at null")
+    fun captura_kidQueNuncaTeve_naoDeveTerExclusao() {
+        val (tokenId, _) = lab()
+        val id = UUID.randomUUID().toString()
+
+        val decryption = post(tokenId, envelope(id, encrypt(ecKey("enc-v9"), sign(sender, claims(id, data)))))["decryption"]
+
+        assertThat(decryption["state"].asString()).isEqualTo("unknown_kid")
+        assertThat(decryption["kid_deleted_at"].isNull).isTrue()
+    }
+
+    @Test
     @DisplayName("Dado uma URL sem e2ee, quando chega um JSON, então decryption null e sem decrypted")
     fun captura_semE2ee_deveSerNull() {
         val tokenId = api.tokenId()

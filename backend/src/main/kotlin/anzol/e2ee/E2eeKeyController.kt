@@ -75,7 +75,7 @@ class E2eeKeyController(
         }
     }
 
-    /** 204; `kid` que a URL não tem: 404. */
+    /** 204, e o `kid` entra no registro de chaves apagadas da URL; `kid` que a URL não tem: 404. */
     @DeleteMapping("/keys/{kid}")
     fun delete(
         @PathVariable tokenId: TokenId,
@@ -86,7 +86,12 @@ class E2eeKeyController(
                 if (token.e2eeKeys.none { it.kid == kid }) {
                     throw ResponseStatusException(HttpStatus.NOT_FOUND, "Key not found")
                 }
-                Parsed.Valid(token.copy(e2eeKeys = token.e2eeKeys.filterNot { it.kid == kid }))
+                Parsed.Valid(
+                    token.copy(
+                        e2eeKeys = token.e2eeKeys.filterNot { it.kid == kid },
+                        e2eeDeletedKeys = token.e2eeDeletedKeys.recording(kid, clock.legacyNow()),
+                    ),
+                )
             }
         check(changed is Parsed.Valid) { "apagar a chave não valida nada: $changed" }
         return ResponseEntity.noContent().header(HttpHeaders.CONTENT_TYPE, PHP_DEFAULT_CONTENT_TYPE).build()

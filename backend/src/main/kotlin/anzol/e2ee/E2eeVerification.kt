@@ -1,9 +1,11 @@
 package anzol.e2ee
 
 import anzol.RequestId
+import anzol.TIMESTAMP_PATTERN
 import anzol.rules.jsonDocument
 import anzol.rules.readJson
 import anzol.signature.SignatureResult
+import com.fasterxml.jackson.annotation.JsonFormat
 import com.fasterxml.jackson.annotation.JsonValue
 import com.jayway.jsonpath.JsonPathException
 import com.nimbusds.jose.JOSEException
@@ -17,6 +19,7 @@ import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
 import java.text.ParseException
 import java.time.Instant
+import java.time.LocalDateTime
 import java.util.Locale
 
 /** Teto do JWE (em caracteres), conferido antes de qualquer leitura dele. */
@@ -41,7 +44,8 @@ enum class DecryptionState(
 /**
  * `decryption` da mensagem: [state], o `kid` da chave de cifra ([kid]) e da de assinatura ([signatureKid]) quando
  * lidos, o motivo da falha ([reason], `null` quando válida ou ausente), o `jti` assinado e, numa reentrega, a primeira
- * mensagem com o mesmo `jti` ([duplicateOf]).
+ * mensagem com o mesmo `jti` ([duplicateOf]). [kidDeletedAt]: com `unknown_kid` ou `decrypt_failed`, quando a URL
+ * apagou uma chave com o [kid] (no registro dela); mensagem gravada antes do campo o lê como `null`.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class DecryptionResult(
@@ -51,7 +55,16 @@ data class DecryptionResult(
     val reason: String? = null,
     val jti: String? = null,
     val duplicateOf: RequestId? = null,
-)
+    @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
+    val kidDeletedAt: LocalDateTime? = null,
+) {
+    /** Com [deleted], o registro de chaves apagadas da URL: a chave que não abriu foi apagada (e talvez recriada)? */
+    fun withDeletedKid(deleted: List<DeletedE2eeKey>): DecryptionResult {
+        val refused = state == DecryptionState.UNKNOWN_KID || reason == "decrypt_failed"
+        val deletedAt = deleted.lastOrNull { it.kid == kid }?.deletedAt
+        return if (refused && deletedAt != null) copy(kidDeletedAt = deletedAt) else this
+    }
+}
 
 /** O resultado e, quando válido, o claim `data` (o atributo aberto). */
 data class Opening(

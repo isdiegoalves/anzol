@@ -4079,6 +4079,13 @@ export const translations: Record<string, string> = {
   '6338941906368435061': 'O JWE veio cifrado para a chave de cifra {$kid}, que não é desta URL',
   // Unknown kid
   '7820009087498142311': 'Chave desconhecida',
+  // Deleted encryption key
+  '4631952254094187715': 'Chave de cifra apagada',
+  // The JWE kid {$kid} is a key this URL deleted on {$date}
+  '4876496398435287862':
+    'O JWE veio cifrado para a chave de cifra {$kid}, que esta URL apagou em {$date}',
+  // Deleted key
+  '2458459851296071879': 'Chave apagada',
   // Not encrypted
   '8872070947491832220': 'Não cifrada',
   // The attribute arrived in plaintext, which this URL accepts
@@ -4095,9 +4102,15 @@ export const translations: Record<string, string> = {
   // This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS.
   '5612265685224617344':
     'Esta URL não tem nenhuma chave de cifra: gere uma em Verificações › Decifra e publique o JWKS.',
-  // If you deleted this key, the sender still uses the old JWKS: ask them to fetch it again. If it was never this URL's, the sender encrypted to another recipient.
-  '1023019543055463613':
-    'Se você apagou essa chave, o remetente ainda usa o JWKS antigo: peça que o baixe de novo. Se ela nunca foi desta URL, o remetente cifrou para outro destino.',
+  // This URL deleted this key on {$date}: the sender still uses the old JWKS. Ask them to fetch it again.
+  '3355637576119368145':
+    'Esta URL apagou esta chave em {$date}: o remetente ainda usa o JWKS antigo. Peça que ele o baixe de novo.',
+  // This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses.
+  '4657498997186246276':
+    'Esta URL não tem registro de ter apagado esta chave (ela guarda as 20 últimas apagadas): o mais provável é que o remetente tenha cifrado para outro destino. Confira qual JWKS o remetente usa.',
+  // A key with this kid was deleted on {$date} and recreated: the sender encrypted to the deleted key. Ask them to fetch this URL's JWKS again.
+  '8973075580919968031':
+    'Uma chave com este kid foi apagada em {$date} e recriada: o remetente cifrou para a chave apagada. Peça que ele baixe de novo o JWKS desta URL.',
   // Binding here: {$claim} ↔ {$path}
   '8127539399860512654': 'Vínculo desta URL: {$claim} ↔ {$path}',
   // Trusted signers here: {$kids}

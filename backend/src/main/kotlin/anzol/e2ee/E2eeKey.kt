@@ -17,6 +17,9 @@ import java.time.format.DateTimeFormatter
 /** Chaves de cifra ativas por URL: a atual e a da rotação. */
 const val MAX_E2EE_KEYS = 2
 
+/** Exclusões de chave de cifra que a URL lembra: as mais novas. */
+const val MAX_DELETED_E2EE_KEYS = 20
+
 /** `kid` escolhido pelo cliente: o que cabe num cabeçalho JWE sem escapar nada. */
 val KID_PATTERN = Regex("[A-Za-z0-9._-]{1,64}")
 
@@ -72,3 +75,17 @@ data class E2eeKeyView(
     val createdAt: LocalDateTime,
     val jwk: Map<String, Any>,
 )
+
+/** Uma chave de cifra apagada da URL: o `kid` e quando. O par saiu do Redis com ela. */
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class DeletedE2eeKey(
+    val kid: String,
+    @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
+    val deletedAt: LocalDateTime,
+)
+
+/** O registro com [kid] apagado em [at]: uma entrada por `kid` (a exclusão mais nova), até [MAX_DELETED_E2EE_KEYS]. */
+fun List<DeletedE2eeKey>.recording(
+    kid: String,
+    at: LocalDateTime,
+): List<DeletedE2eeKey> = (filterNot { it.kid == kid } + DeletedE2eeKey(kid, at)).takeLast(MAX_DELETED_E2EE_KEYS)

@@ -1,8 +1,12 @@
 package anzol.ai
 
+import anzol.TIMESTAMP_PATTERN
 import anzol.e2ee.DecryptionResult
 import anzol.e2ee.DecryptionState
+import anzol.e2ee.MAX_DELETED_E2EE_KEYS
 import com.fasterxml.jackson.annotation.JsonValue
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /** Quem corrige uma decifra que falhou: o remetente, a configuração da URL, ou ninguém (a mensagem foi alterada). */
 enum class DecryptionFixer(
@@ -23,6 +27,8 @@ private fun advice(
     vararg whoFixes: DecryptionFixer,
     text: String,
 ) = DecryptionAdvice(whoFixes.toList(), text)
+
+private val TIMESTAMP: DateTimeFormatter = DateTimeFormatter.ofPattern(TIMESTAMP_PATTERN)
 
 private val SENDER = DecryptionFixer.SENDER
 private val URL = DecryptionFixer.URL_CONFIGURATION
@@ -137,17 +143,35 @@ private val ADVICE: Map<String, DecryptionAdvice> =
         "unknown_kid" to
             advice(
                 SENDER,
-                URL,
                 text =
-                    "If this URL deleted that encryption key, the sender still uses the old JWKS: ask the sender to " +
-                        "fetch it again. If the key was never this URL's, the sender encrypted to another recipient.",
+                    "This URL has no record of deleting that encryption key (it keeps its last " +
+                        "$MAX_DELETED_E2EE_KEYS deleted keys): the sender most likely encrypted to another " +
+                        "recipient's key. Check which JWKS the sender uses.",
             ),
     )
 
+private fun deletedKid(deletedAt: LocalDateTime) =
+    advice(
+        SENDER,
+        text =
+            "This URL deleted that encryption key on ${TIMESTAMP.format(deletedAt)} UTC, and the sender still uses " +
+                "the old JWKS: ask the sender to fetch this URL's JWKS again.",
+    )
+
+private fun recreatedKid(deletedAt: LocalDateTime) =
+    advice(
+        SENDER,
+        text =
+            "An encryption key with this kid was deleted on ${TIMESTAMP.format(deletedAt)} UTC and recreated: the " +
+                "sender encrypted to the deleted key. Ask the sender to fetch this URL's JWKS again.",
+    )
+
 /** O conselho da decifra recusada; `null` quando válida, em claro aceito, ou motivo fora do vocabulário. */
-fun DecryptionResult.advice(): DecryptionAdvice? =
-    when (state) {
-        DecryptionState.INVALID -> reason?.let(ADVICE::get)
-        DecryptionState.UNKNOWN_KID -> ADVICE["unknown_kid"]
+fun DecryptionResult.advice(): DecryptionAdvice? {
+    val deletedAt = kidDeletedAt
+    return when (state) {
+        DecryptionState.INVALID -> if (deletedAt != null) recreatedKid(deletedAt) else reason?.let(ADVICE::get)
+        DecryptionState.UNKNOWN_KID -> if (deletedAt != null) deletedKid(deletedAt) else ADVICE["unknown_kid"]
         DecryptionState.VALID, DecryptionState.ABSENT -> null
     }
+}

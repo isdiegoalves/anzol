@@ -2351,7 +2351,7 @@ components:
 
     Decryption:
       type: object
-      required: [state, kid, signature_kid, reason, jti, duplicate_of]
+      required: [state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at]
       properties:
         state:
           $ref: '#/components/schemas/DecryptionState'
@@ -2370,6 +2370,12 @@ components:
           description: On a redelivery of a decrypted `jti`, the first message.
           type: [string, 'null']
           format: uuid
+        kid_deleted_at:
+          description: >-
+            With `unknown_kid` or `decrypt_failed`, when this URL deleted an encryption key with this `kid` (UTC,
+            `yyyy-MM-dd HH:mm:ss`): the sender encrypted to a deleted key, or to one deleted and recreated. `null` when
+            the URL has no record of it (it keeps its last 20 deleted keys) and in messages recorded before the field.
+          type: [string, 'null']
 
     DecryptionState:
       enum: [valid, invalid, unknown_kid, absent]

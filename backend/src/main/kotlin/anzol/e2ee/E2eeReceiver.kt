@@ -32,7 +32,7 @@ class E2eeReceiver(
     ): CapturedRequest {
         val policy = token.e2ee ?: return captured
         val opening = policy.open(captured.content, captured.signature, token.e2eeKeys, now)
-        val result = opening.result
+        val result = opening.result.withDeletedKid(token.e2eeDeletedKeys)
         val jti = result.jti
         val checked =
             if (result.state == DecryptionState.VALID && jti != null) {

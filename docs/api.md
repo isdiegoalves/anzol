@@ -190,14 +190,16 @@ dá 422 com a chave em pontos (`e2ee.trusted_signers.0`). A política só tem ch
 `-`; sem ele, `enc-<AAAAMMDD>-<4 hex>`) gera um par EC P-256 no servidor e devolve `201`
 `{kid, created_at, jwk}` só com a pública (`use=enc`, `alg=ECDH-ES`). A URL tem no máximo duas, para a rotação:
 gere a nova, troque o remetente e apague a antiga com `DELETE /token/{id}/keys/{kid}` (`204`; `404` sem ela);
-a mensagem cifrada para a antiga abre enquanto ela existir. A privada fica em claro no Redis (e no backup do
+a mensagem cifrada para a antiga abre enquanto ela existir. A URL guarda o `kid` e a hora das 20 exclusões mais
+novas (uma por `kid`), para a decifra dizer "chave apagada" em vez de "desconhecida"; exclusões feitas antes desse
+registro existir não constam. A privada fica em claro no Redis (e no backup do
 volume): nenhuma rota, ferramenta do MCP ou log a devolve, e quem lê o Redis a tem. As chaves ficam na URL até
 alguém apagá-las: desligar a decifra ou remover o segredo não as remove, e o `jwks.json` continua publicando as
 públicas. O token lista as chaves em `e2ee_keys` e `GET /token/{id}/jwks.json` publica as
 públicas sem pedir o segredo de leitura, como todo JWKS.
 
 Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
-`{state, kid, signature_kid, reason, jti, duplicate_of}`. Quando `valid`, a mensagem traz também `decrypted`
+`{state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at}`. Quando `valid`, a mensagem traz também `decrypted`
 (o claim `data`); o `content` fica como chegou. A conferência segue esta ordem e para na primeira falha:
 
 | Passo | `state` / `reason` |
@@ -212,7 +214,10 @@ Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
 
 A origem é o `signature_kid`, a chave de `trusted_signers` que assinou; o `iss` não é conferido. A reentrega
 de um `jti` já decifrado (dentro da janela do `iat`) continua `valid` e leva em `duplicate_of` o uuid da primeira
-mensagem. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
+mensagem. Com `unknown_kid`, ou `decrypt_failed`, `kid_deleted_at` diz quando a URL apagou uma chave com aquele
+`kid` (formato de `created_at`, UTC): o remetente cifrou para a chave apagada, ou para a que tinha o mesmo `kid` antes de
+ser recriada, e precisa baixar o JWKS de novo. `null` quando a URL não tem registro da exclusão (o remetente cifrou para
+outro destino) e nas mensagens gravadas antes do campo. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
 `match.decryption`. O laboratório responde 500 ao `kid` desconhecido (um remetente que trata 5xx como temporário tenta de
 novo) e 400 à cifra inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexões presas responde 503:
 

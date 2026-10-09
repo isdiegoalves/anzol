@@ -2,6 +2,7 @@ package anzol.token
 
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
+import anzol.e2ee.DeletedE2eeKey
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eeKeyView
 import anzol.e2ee.E2eePolicy
@@ -53,6 +54,9 @@ data class Token(
     /** Só na URL de laboratório E2EE; nasce com ela e nenhuma rota a troca. */
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     val lab: LabMark? = null,
+    /** As chaves de cifra apagadas mais novas: a decifra distingue a chave que a URL apagou da que ela nunca teve. */
+    @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val e2eeDeletedKeys: List<DeletedE2eeKey> = emptyList(),
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A

@@ -687,7 +687,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       [
         'de chave desconhecida',
         decryption({ state: 'unknown_kid', kid: 'enc-9', signature_kid: null, jti: null }),
-        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS. | If you deleted this key, the sender still uses the old JWKS: ask them to fetch it again. If it was never this URL's, the sender encrypted to another recipient. | Key: enc-9",
+        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS. | This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses. | Key: enc-9",
       ],
       [
         'em claro',

@@ -1,18 +1,20 @@
 import { SignJWT } from 'jose';
 import { randomUUID } from 'node:crypto';
 import { assinaturaGithub } from '../../support/assinatura.js';
-import { BASE_URL, CHAVES_MENSAGEM, type Mensagem } from '../../support/contrato.js';
+import { BASE_URL, CHAVES_MENSAGEM, DATA_HORA, type Mensagem } from '../../support/contrato.js';
 import {
   agora, assinar, cabecalhoDe, cifrar, comCabecalho, envelope, parEc, politica, selar, semAssinatura, type ParEc,
 } from '../../support/e2ee.js';
 import { capturar, comSegredo, expect, http, mensagem, test, type Urls } from '../../support/privacidade.js';
 
 // Decifra do atributo na captura (plano "e2ee-lab", R2). Com `e2ee` na URL, a mensagem grava `decryption`
-// {state, kid, signature_kid, reason, jti, duplicate_of} e, só quando válida, `decrypted` (o claim `data`); o
+// {state, kid, signature_kid, reason, jti, duplicate_of, kid_deleted_at} e, só quando válida, `decrypted` (o claim `data`); o
 // `content` fica como chegou. Ordem: HMAC da URL (`hmac_failed`), atributo em JWE (`downgrade` quando exigido),
 // cabeçalho permitido antes de decifrar (`alg_not_allowed`, `enc_not_allowed`, `zip_present`, `epk_off_curve`…),
 // `kid` da URL (`unknown_kid`), JWS ES256 de um signatário confiável (`jws_missing`, `jws_alg_not_allowed`,
 // `signer_unknown`, `signature_invalid`) e os claims contra o envelope (`aud`, `jti`, `evt`, `app`, `iat`).
+// `kid_deleted_at`: com `unknown_kid` ou `decrypt_failed`, quando a URL apagou uma chave com o `kid` do JWE (a data
+// da exclusão mais recente, no formato de `created_at`); `null` sem registro. A URL guarda as 20 exclusões mais novas.
 
 interface Lab {
   uuid: string;
@@ -58,6 +60,7 @@ test.describe('decifra válida', () => {
     expect(Object.keys(msg).sort()).toEqual([...CHAVES_MENSAGEM, 'decrypted'].sort());
     expect(msg.decryption).toEqual({
       state: 'valid', kid: 'enc-v1', signature_kid: 'remetente-sig-1', reason: null, jti: id, duplicate_of: null,
+      kid_deleted_at: null,
     });
     expect(msg.decrypted).toEqual(DADOS);
     expect(msg.content).toBe(corpo);
@@ -133,6 +136,7 @@ test.describe('forja, troca e downgrade', () => {
     const livre = await lab(urls, { e2ee: politica([(await parEc('sig')).publica], { required: false }) });
     expect(await decifra(livre, DADOS)).toEqual({
       state: 'absent', kid: null, signature_kid: null, reason: null, jti: null, duplicate_of: null,
+      kid_deleted_at: null,
     });
   });
 
@@ -153,11 +157,12 @@ test.describe('forja, troca e downgrade', () => {
 });
 
 test.describe('cabeçalho JWE fora da lista permitida', () => {
-  test('kid que a URL não tem → unknown_kid, com o kid', async ({ urls }) => {
+  test('kid que a URL nunca teve → unknown_kid, com o kid e kid_deleted_at null', async ({ urls }) => {
     const l = await lab(urls);
     const id = randomUUID();
     const outra = await parEc('enc-v9');
-    expect(await decifra(l, await selar(l.remetente, outra.publica, id, DADOS), id)).toMatchObject({ state: 'unknown_kid', kid: 'enc-v9' });
+    expect(await decifra(l, await selar(l.remetente, outra.publica, id, DADOS), id))
+      .toMatchObject({ state: 'unknown_kid', kid: 'enc-v9', kid_deleted_at: null });
   });
 
   test('alg ECDH-ES+A256KW, enc A128CBC-HS256 e zip DEF → o motivo de cada um', async ({ urls }) => {
@@ -186,6 +191,64 @@ test.describe('cabeçalho JWE fora da lista permitida', () => {
     const id = randomUUID();
     const jwe = await selar(l.remetente, l.cifra, id, { grande: 'x'.repeat(200 * 1024) });
     expect(await decifra(l, jwe, id)).toMatchObject({ reason: 'too_large' });
+  });
+});
+
+test.describe('chave de cifra apagada', () => {
+  const apagar = async (l: Lab, kid: string) => {
+    const res = await http('DELETE', `/token/${l.uuid}/keys/${kid}`, { headers: comSegredo(l.segredo) });
+    expect(res.status, res.texto).toBe(204);
+  };
+
+  test('cifrada para a chave que a URL apagou → unknown_kid com kid_deleted_at', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    const jwe = await selar(l.remetente, l.cifra, id, DADOS);
+    await apagar(l, 'enc-v1');
+
+    const resultado = await decifra(l, jwe, id);
+
+    expect(resultado).toMatchObject({ state: 'unknown_kid', kid: 'enc-v1' });
+    expect(resultado.kid_deleted_at).toMatch(DATA_HORA);
+  });
+
+  test('chave apagada e recriada com o mesmo kid → decrypt_failed com kid_deleted_at; a cifrada para a nova abre', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    const antiga = await selar(l.remetente, l.cifra, id, DADOS);
+    await apagar(l, 'enc-v1');
+    const nova = await novaChave(l.uuid, l.segredo, 'enc-v1');
+
+    const recusada = await decifra(l, antiga, id);
+    const outro = randomUUID();
+    const aberta = await decifra(l, await selar(l.remetente, nova, outro, DADOS), outro);
+
+    expect(recusada).toMatchObject({ state: 'invalid', reason: 'decrypt_failed', kid: 'enc-v1' });
+    expect(recusada.kid_deleted_at).toMatch(DATA_HORA);
+    expect(aberta).toMatchObject({ state: 'valid', kid: 'enc-v1', kid_deleted_at: null });
+  });
+
+  test('outra chave apagada não muda o unknown_kid de um kid que a URL nunca teve', async ({ urls }) => {
+    const l = await lab(urls);
+    await novaChave(l.uuid, l.segredo, 'enc-v2');
+    await apagar(l, 'enc-v2');
+    const id = randomUUID();
+
+    expect(await decifra(l, await selar(l.remetente, (await parEc('enc-v9')).publica, id, DADOS), id))
+      .toMatchObject({ state: 'unknown_kid', kid: 'enc-v9', kid_deleted_at: null });
+  });
+
+  test('a URL lembra as 20 exclusões mais novas: a 21ª mais antiga sai do registro', async ({ urls }) => {
+    const l = await lab(urls);
+    const id = randomUUID();
+    const jwe = await selar(l.remetente, l.cifra, id, DADOS);
+    await apagar(l, 'enc-v1');
+    for (let i = 0; i < 20; i++) {
+      await novaChave(l.uuid, l.segredo, `rot-${i}`);
+      await apagar(l, `rot-${i}`);
+    }
+
+    expect(await decifra(l, jwe, id)).toMatchObject({ state: 'unknown_kid', kid: 'enc-v1', kid_deleted_at: null });
   });
 });
 

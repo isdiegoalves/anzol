@@ -109,6 +109,32 @@ class E2eeKeyApiTest(
     }
 
     @Test
+    @DisplayName("Dado chaves apagadas, quando o registro passa de 20, então guarda as 20 exclusões mais novas, uma por kid")
+    fun delete_registro_deveGuardarAsMaisNovas() {
+        val tokenId = protectedToken()
+        val kids = listOf("enc-v1") + (1..20).map { "rot-$it" } + listOf("enc-v1")
+        kids.forEach { kid ->
+            createKey(tokenId, """{"kid":"$kid"}""")
+            api.send("DELETE", "/token/$tokenId/keys/$kid", headers = JSON_CLIENT + secret)
+        }
+
+        val deleted = stored(tokenId)["e2ee_deleted_keys"].toList()
+
+        assertThat(deleted.map { it["kid"].asString() }).containsExactlyElementsOf((2..20).map { "rot-$it" } + "enc-v1")
+        assertThat(deleted.last().propertyNames().toList()).containsExactly("kid", "deleted_at")
+        assertThat(api.json(api.send("GET", "/token/$tokenId", headers = JSON_CLIENT + secret)).has("e2ee_deleted_keys")).isFalse()
+    }
+
+    @Test
+    @DisplayName("Dado uma URL sem chave apagada, quando é gravada, então o JSON do token não tem e2ee_deleted_keys")
+    fun store_semExclusao_naoDeveGravarORegistro() {
+        val tokenId = protectedToken()
+        createKey(tokenId, """{"kid":"enc-v1"}""")
+
+        assertThat(stored(tokenId).has("e2ee_deleted_keys")).isFalse()
+    }
+
+    @Test
     @DisplayName("Dado uma URL protegida, quando gera chave sem segredo, então 401 e nada é gerado")
     fun create_semSegredo_deveSer401() {
         val tokenId = protectedToken()
