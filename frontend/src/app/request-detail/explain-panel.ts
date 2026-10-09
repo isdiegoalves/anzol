@@ -19,18 +19,21 @@ import {
   aiErrorMessages,
 } from '../ai/ai-client';
 import { AiWait } from '../ai/ai-wait';
-import { checksOf } from '../pipeline/pipeline';
+import { pipelineOf } from '../pipeline/pipeline';
 import { RequestStore } from '../requests/request-store';
 import { CapturedRequest } from '../requests/webhook-request';
 import { MarkdownView } from '../ui/markdown-view';
 import { Explanations } from './explanations';
 
 /**
- * "What the checks say": o que a requisição gravou da assinatura, do schema e da resposta, dito
- * pela tela, sem a IA. Sai na hora e vale com a IA desligada.
+ * "What the checks say": o que a requisição gravou da assinatura, da decifra (o estado, nunca o
+ * valor), do schema e da resposta, dito pela tela, sem a IA. Sai na hora e vale com a IA desligada.
  */
 export function whatTheChecksSay(request: CapturedRequest): string[] {
-  const lines = checksOf(request).map(({ title, detail }) => `${title}: ${detail}`);
+  const { signature, decryption, schema, rule } = pipelineOf(request);
+  const lines = [signature, decryption, schema, rule]
+    .filter((check) => check !== null)
+    .map(({ title, detail }) => `${title}: ${detail}`);
   const { status, fault } = request.response ?? {};
   if (!request.rule && (status !== undefined || fault)) {
     lines.push(

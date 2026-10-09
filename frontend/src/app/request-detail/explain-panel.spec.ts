@@ -221,4 +221,38 @@ describe('Dado o painel do "Explain"', () => {
       'Answered 429 with the default response.',
     ]);
   });
+
+  it.each([
+    [
+      'chave de cifra desconhecida',
+      { state: 'unknown_kid', kid: 'enc-velha' } as const,
+      "Unknown encryption key: The JWE kid enc-velha is not one of this URL's keys",
+    ],
+    [
+      'decifrada',
+      { state: 'valid', kid: 'enc-1', signature_kid: 'sig-1' } as const,
+      'Decrypted: key enc-1 · signed by sig-1',
+    ],
+  ])(
+    'deve dizer a decifra depois da assinatura, sem o valor decifrado, Quando ela é %s',
+    (_caso, decifra, linha) => {
+      const request = webhookRequest(1, {
+        signature: { provider: 'github', valid: true, reason: null },
+        decryption: {
+          signature_kid: null,
+          reason: null,
+          jti: null,
+          duplicate_of: null,
+          ...decifra,
+        },
+        decrypted: { cpf: '000.000.000-00' },
+        rule: null,
+      });
+
+      const lines = whatTheChecksSay(request);
+
+      expect(lines[1]).toBe(linha);
+      expect(lines.join('\n')).not.toContain('000.000.000-00');
+    },
+  );
 });
