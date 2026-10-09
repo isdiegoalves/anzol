@@ -487,6 +487,7 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
     await expectUmAnuncio(page, /^No filter\. 3 requests\.$/);
     await filtro(page, 'POST').click();
     await expect(filtro(page, 'POST')).toHaveAttribute('aria-pressed', 'true');
+    await expectUmAnuncio(page, /2 requests match/);
 
     await verResultado(page);
     await limparAnuncios(page);
