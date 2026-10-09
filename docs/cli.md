@@ -401,7 +401,7 @@ url: deleted
 | Uso inválido, `--rules` ou `match` recusados pelo servidor (422), `Token not found` ou servidor fora do ar | 2 |
 | O gatilho não subiu ou saiu com código diferente de 0 (a espera não começa) | 3 |
 
-No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../readme.md#início-rápido), e o CLI é construído do
+No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../README.md#início-rápido), e o CLI é construído do
 fonte da mesma versão:
 
 ```yaml
