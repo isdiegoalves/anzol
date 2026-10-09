@@ -5,6 +5,7 @@ import {
   HOURLY_FILL_MAX,
   answerRows,
   answeredParts,
+  decryptionParts,
   hourlyBars,
   hourlySummary,
   localHour,
@@ -171,5 +172,37 @@ describe('Dado as respostas das requisições mais novas (answerRows)', () => {
 
   it('deve dar lista vazia Quando não há requisições', () => {
     expect(answerRows([])).toEqual([]);
+  });
+});
+
+describe('Dado a decifra contada no stats (decryptionParts)', () => {
+  it('deve dar as fatias com o filtro da Entrada, e "Not checked" sem filtro', () => {
+    const stats = tokenStats({
+      evaluated: 10,
+      decryption: { valid: 5, invalid: 2, unknown_kid: 1, absent: 1, unchecked: 1, reasons: [] },
+    });
+
+    expect(
+      decryptionParts(stats).map(({ label, count, filter }) => [label, count, filter]),
+    ).toEqual([
+      ['Decrypted', 5, { decryption: 'valid' }],
+      ['Decryption invalid', 2, { decryption: 'invalid' }],
+      ['Unknown encryption key', 1, { decryption: 'unknown_kid' }],
+      ['Plaintext', 1, { decryption: 'absent' }],
+      ['Not checked', 1, undefined],
+    ]);
+  });
+
+  it.each([
+    ['o servidor não conta a decifra', tokenStats()],
+    [
+      'nenhuma mensagem passou pela decifra',
+      tokenStats({
+        evaluated: 3,
+        decryption: { valid: 0, invalid: 0, unknown_kid: 0, absent: 0, unchecked: 3, reasons: [] },
+      }),
+    ],
+  ])('deve ficar vazio Quando %s', (_caso, stats) => {
+    expect(decryptionParts(stats)).toEqual([]);
   });
 });

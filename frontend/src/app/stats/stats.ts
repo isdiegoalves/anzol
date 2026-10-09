@@ -20,6 +20,8 @@ export interface TokenStats {
   rules: RuleStats;
   /** Horas UTC com pelo menos uma mensagem, da mais antiga para a mais nova. */
   hourly: HourlyCount[];
+  /** Ausente em servidor anterior à contagem da decifra. */
+  decryption?: DecryptionStats;
 }
 
 /** Como `SignatureResult`: `unchecked` é `signature: null` (a URL não verificava). */
@@ -29,6 +31,17 @@ export interface SignatureStats {
   absent: number;
   unchecked: number;
   /** Motivos de inválidas e ausentes, sem o parêntese final, por contagem decrescente; até 10. */
+  reasons: { reason: string; count: number }[];
+}
+
+/** Por `decryption.state`; `unchecked` é `decryption: null` (a URL não decifrava). */
+export interface DecryptionStats {
+  valid: number;
+  invalid: number;
+  unknown_kid: number;
+  absent: number;
+  unchecked: number;
+  /** `reason` das inválidas, por contagem decrescente; até 10. */
   reasons: { reason: string; count: number }[];
 }
 

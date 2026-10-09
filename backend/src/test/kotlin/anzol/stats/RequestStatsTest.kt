@@ -22,6 +22,8 @@ private fun sample(
         schemaPaths = paths,
         rule = null,
         nearMiss = null,
+        decryptionState = null,
+        decryptionReason = null,
     )
 
 @DisplayName("Resumo das mensagens (stats)")

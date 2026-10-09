@@ -2971,6 +2971,7 @@ components:
         - schema
         - rules
         - hourly
+        - decryption
       properties:
         window:
           type: integer
@@ -3058,6 +3059,27 @@ components:
                 type: object
                 additionalProperties:
                   type: integer
+        decryption:
+          type: object
+          description: >-
+            By `decryption.state` of each message; `unchecked` counts `decryption: null` (the URL did not decrypt).
+            `reasons` counts the `invalid` ones by `reason`, most frequent first (ties by text), up to 10.
+          required: [valid, invalid, unknown_kid, absent, unchecked, reasons]
+          properties:
+            valid: {type: integer}
+            invalid: {type: integer}
+            unknown_kid: {type: integer}
+            absent: {type: integer}
+            unchecked: {type: integer}
+            reasons:
+              type: array
+              maxItems: 10
+              items:
+                type: object
+                required: [reason, count]
+                properties:
+                  reason: {type: string}
+                  count: {type: integer}
 
     RuleCount:
       type: object

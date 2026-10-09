@@ -428,6 +428,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem
     com o segredo, 401 sem ele; o link só-leitura e o evento levam `decryption` e nunca `decrypted`.
+  - *Estatísticas* (`stats.spec.ts`): `/stats` ganha `decryption` `{valid, invalid, unknown_kid, absent, unchecked,
+    reasons}`, por `decryption.state` (`unchecked` = `decryption: null`), com os motivos das `invalid` por contagem
+    decrescente, empate pelo texto, até 10. A comparação estrita das chaves e da URL vazia inclui o bloco; numa URL com
+    a decifra ligada depois da primeira mensagem, os cinco estados e dois motivos batem com as mensagens.
     `e2ee-privacidade-segredo.spec.ts`: remover o segredo com mensagem decifrada é 422 em `read_secret`, num `PUT` ou
     depois de desligar a decifra num anterior; a URL segue protegida (GET, listagem, busca e wait 401 sem segredo;
     quem só tem o UUID não põe segredo próprio); apagadas as mensagens, o segredo sai.

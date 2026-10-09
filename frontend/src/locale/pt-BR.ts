@@ -488,6 +488,8 @@ export const translations: Record<string, string> = {
   '563272627948836175': 'Métodos',
   // Signature failure reasons
   '5703917518480704784': 'Motivos das falhas de assinatura',
+  // Decryption failure reasons
+  '2745039701708034811': 'Motivos das falhas de decifra',
   // Reason
   '4775550080689015987': 'Motivo',
   // Schema error paths

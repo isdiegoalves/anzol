@@ -86,6 +86,35 @@ export function schemaParts(stats: TokenStats): Part[] {
   ];
 }
 
+/**
+ * Fatias da decifra, com os nomes dos filtros da Entrada; vazio quando o servidor não conta a
+ * decifra ou nenhuma mensagem da janela passou por ela.
+ */
+export function decryptionParts(stats: TokenStats): Part[] {
+  const decryption = stats.decryption;
+  if (!decryption || decryption.unchecked === stats.evaluated) {
+    return [];
+  }
+  const { valid, invalid, unknown_kid: unknownKid, absent, unchecked } = decryption;
+  return [
+    { label: $localize`Decrypted`, count: valid, tone: 'ok', filter: { decryption: 'valid' } },
+    {
+      label: $localize`Decryption invalid`,
+      count: invalid,
+      tone: 'bad',
+      filter: { decryption: 'invalid' },
+    },
+    {
+      label: $localize`Unknown encryption key`,
+      count: unknownKid,
+      tone: 'bad',
+      filter: { decryption: 'unknown_kid' },
+    },
+    { label: $localize`Plaintext`, count: absent, tone: 'near', filter: { decryption: 'absent' } },
+    { label: $localize`Not checked`, count: unchecked, tone: 'none' },
+  ];
+}
+
 /** Quem respondeu: cada regra (da que mais respondeu) e a resposta padrão no fim. */
 export function answeredParts(stats: TokenStats): Part[] {
   return [

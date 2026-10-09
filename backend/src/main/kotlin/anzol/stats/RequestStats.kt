@@ -5,6 +5,7 @@ import anzol.capture.CapturedRequest
 import anzol.capture.RequestStore
 import anzol.capture.ScanBatch
 import anzol.capture.Sorting
+import anzol.e2ee.DecryptionState
 import anzol.rules.NearMiss
 import anzol.rules.RuleId
 import anzol.rules.RuleRef
@@ -22,7 +23,7 @@ import java.time.temporal.ChronoUnit
 /** A janela padrão e a maior: a mesma do `rules/test`. */
 const val MAX_STATS_WINDOW = 500
 
-/** Quantos motivos de assinatura e caminhos de schema a resposta lista. */
+/** Quantos motivos de assinatura e de decifra, e caminhos de schema, a resposta lista. */
 private const val TOP = 10
 
 /** Quantas entradas do índice cada leitura traz: na memória fica um trecho, não a janela inteira de corpos. */
@@ -50,6 +51,7 @@ data class RequestStats(
     val schema: SchemaStats,
     val rules: RuleStats,
     val hourly: List<HourStats>,
+    val decryption: DecryptionStats,
 )
 
 data class SignatureStats(
@@ -107,6 +109,8 @@ data class StatsSample(
     val schemaPaths: Set<String>,
     val rule: RuleRef?,
     val nearMiss: NearMiss?,
+    val decryptionState: DecryptionState?,
+    val decryptionReason: String?,
 )
 
 fun CapturedRequest.toStatsSample(): StatsSample =
@@ -124,6 +128,8 @@ fun CapturedRequest.toStatsSample(): StatsSample =
                 .toSet(),
         rule = rule,
         nearMiss = nearMiss,
+        decryptionState = decryption?.state,
+        decryptionReason = decryption?.reason,
     )
 
 /**
@@ -174,6 +180,7 @@ fun List<StatsSample>.toStats(
         schema = schemaStats(),
         rules = ruleStats(),
         hourly = hourly(),
+        decryption = decryptionStats(),
     )
 
 private fun List<StatsSample>.signatureStats(): SignatureStats {
@@ -229,6 +236,7 @@ private fun List<String>.byFrequency(): List<Pair<String, Int>> =
         .toList()
         .sortedWith(compareByDescending<Pair<String, Int>> { it.second }.thenBy { it.first })
 
-private fun List<String>.ranked(): List<Pair<String, Int>> = byFrequency().take(TOP)
+/** Os [TOP] textos mais frequentes, com a contagem (empate pelo texto). */
+fun List<String>.ranked(): List<Pair<String, Int>> = byFrequency().take(TOP)
 
 private fun List<String>.countedByFrequency(): Map<String, Int> = byFrequency().toMap()

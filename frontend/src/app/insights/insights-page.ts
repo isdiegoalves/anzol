@@ -4,6 +4,7 @@ import { MatButton } from '@angular/material/button';
 import { MatFormField } from '@angular/material/form-field';
 import { RouterLink } from '@angular/router';
 import { MatOption, MatSelect } from '@angular/material/select';
+import { decryptionReasonText } from '../pipeline/decryption';
 import { TokenStore } from '../token/token-store';
 import { parseUtc } from '../request-detail/dates';
 import { FILTER_METHODS } from '../search/request-filter';
@@ -14,6 +15,7 @@ import { HourlyChart } from './hourly-chart';
 import {
   answerRows,
   answeredParts,
+  decryptionParts,
   hourlyBars,
   keptText,
   localHour,
@@ -78,6 +80,17 @@ export class InsightsPage {
     const stats = this.stats();
     return stats ? schemaParts(stats) : [];
   });
+  protected readonly decryption = computed(() => {
+    const stats = this.stats();
+    return stats ? decryptionParts(stats) : [];
+  });
+  protected readonly decryptionReasons = computed(() =>
+    (this.stats()?.decryption?.reasons ?? []).map(({ reason, count }) => ({
+      reason,
+      count,
+      text: decryptionReasonText(reason),
+    })),
+  );
   protected readonly answered = computed(() => {
     const stats = this.stats();
     return stats ? answeredParts(stats) : [];

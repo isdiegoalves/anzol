@@ -74,7 +74,8 @@ class StatsApiTest(
     /**
      * Cinco mensagens em três horas: uma do app antigo (sem os campos novos), assinatura nos quatro estados com o
      * motivo que varia no parêntese, schema com caminho repetido na mesma mensagem, duas respostas da mesma regra
-     * com nomes diferentes (vale o da mais nova) e um near miss.
+     * com nomes diferentes (vale o da mais nova), um near miss e a decifra em três estados, uma no formato anterior
+     * a `kid_deleted_at` e `aud`.
      */
     private fun fixture(tokenId: String) =
         store(
@@ -87,7 +88,9 @@ class StatsApiTest(
                 ""","rule":null,"near_miss":{"id":"$REFUND","name":"Refund queued","failed":["method: expected PUT, got POST"]},""" +
                     """"signature":{"provider":"stripe","valid":false,"reason":"timestamp outside tolerance (412 s)"},""" +
                     """"schema":{"valid":false,"errors":[{"path":"/a","message":"x"},{"path":"/a","message":"y"},""" +
-                    """{"path":"","message":"z"}]}""",
+                    """{"path":"","message":"z"}]},""" +
+                    """"decryption":{"state":"invalid","kid":"enc-v1","signature_kid":null,"reason":"aud_mismatch",""" +
+                    """"jti":null,"duplicate_of":null}""",
             ),
             Stored(
                 3_000,
@@ -95,7 +98,9 @@ class StatsApiTest(
                 "POST",
                 ""","rule":{"id":"$PAID","name":"Old name"},"near_miss":null,""" +
                     """"signature":{"provider":"stripe","valid":false,"reason":"header stripe-signature absent"},""" +
-                    """"schema":{"valid":true,"errors":[]}""",
+                    """"schema":{"valid":true,"errors":[]},""" +
+                    """"decryption":{"state":"unknown_kid","kid":"enc-v9","signature_kid":null,"reason":null,"jti":null,""" +
+                    """"duplicate_of":null,"kid_deleted_at":null,"aud":null}""",
             ),
             Stored(
                 4_000,
@@ -103,7 +108,8 @@ class StatsApiTest(
                 "POST",
                 ""","rule":{"id":"$PAID","name":"Stripe payment OK"},"near_miss":null,""" +
                     """"signature":{"provider":"stripe","valid":false,"reason":"timestamp outside tolerance (9 s)"},""" +
-                    """"schema":{"valid":false,"errors":[{"path":"/a","message":"x"}]}""",
+                    """"schema":{"valid":false,"errors":[{"path":"/a","message":"x"}]},""" +
+                    """"decryption":{"state":"valid","kid":"enc-v1","signature_kid":"sig","reason":null,"jti":"j","duplicate_of":null}""",
             ),
             Stored(
                 5_000,
@@ -138,7 +144,9 @@ class StatsApiTest(
                     """"near_miss":[{"id":"$REFUND","name":"Refund queued","count":1}],"default":3},""" +
                     """"hourly":[{"hour":"2026-09-25 09:00:00","count":1,"methods":{"GET":1}},""" +
                     """{"hour":"2026-09-26 13:00:00","count":1,"methods":{"POST":1}},""" +
-                    """{"hour":"2026-09-26 14:00:00","count":3,"methods":{"POST":3}}]}""",
+                    """{"hour":"2026-09-26 14:00:00","count":3,"methods":{"POST":3}}],""" +
+                    """"decryption":{"valid":1,"invalid":1,"unknown_kid":1,"absent":0,"unchecked":2,""" +
+                    """"reasons":[{"reason":"aud_mismatch","count":1}]}}""",
             ),
         )
     }
@@ -173,7 +181,8 @@ class StatsApiTest(
                 """{"window":500,"evaluated":0,"total":0,"newest_seq":null,"oldest_seq":null,"newest_at":null,"oldest_at":null,""" +
                     """"methods":{},"signature":{"valid":0,"invalid":0,"absent":0,"unchecked":0,"reasons":[]},""" +
                     """"schema":{"valid":0,"invalid":0,"unchecked":0,"paths":[]},""" +
-                    """"rules":{"answered":[],"near_miss":[],"default":0},"hourly":[]}""",
+                    """"rules":{"answered":[],"near_miss":[],"default":0},"hourly":[],""" +
+                    """"decryption":{"valid":0,"invalid":0,"unknown_kid":0,"absent":0,"unchecked":0,"reasons":[]}}""",
             ),
         )
     }

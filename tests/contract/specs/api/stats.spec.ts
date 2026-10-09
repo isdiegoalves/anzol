@@ -4,9 +4,10 @@ import {
   DATA_HORA, JSON_ACCEPT, enviarEGuardar, expect, expectContentType, expectErroJson, listar, test, type Mensagem,
 } from '../../support/contrato.js';
 import { assinaturaGithub, assinaturaStripe, agoraEmSegundos, putToken } from '../../support/assinatura.js';
+import { envelope, parEc, politica, selar } from '../../support/e2ee.js';
 import { salvarRegras } from '../../support/regras.js';
 import {
-  ERRO_HOST, comSegredo, expect401Protegida, expect403, http, httpCruCompleto, test as testDePrivacidade,
+  ERRO_HOST, capturar, comSegredo, expect401Protegida, expect403, http, httpCruCompleto, test as testDePrivacidade,
 } from '../../support/privacidade.js';
 
 // Item 14, B2 (§1 "API dos extras de backend"): `GET /token/{id}/stats?window=N` agrega as `evaluated = min(window,
@@ -19,6 +20,9 @@ import {
 // - `rules.answered` agrupa por `rule.id` com o nome da mensagem mais nova; `near_miss` por `near_miss.id`;
 //   `default` conta `rule: null`.
 // - `hourly`: horas UTC com mensagem, da mais antiga para a mais nova. Datas no formato de `created_at`.
+// - `decryption` segue `decryption.state` da mensagem (`valid`, `invalid`, `unknown_kid`, `absent`; `unchecked` =
+//   `decryption: null`, a URL não decifrava); `reasons` vem das `invalid`, por `reason`, por contagem decrescente, empate
+//   pelo texto, até 10.
 //
 // Leituras assumidas (a §1 não fixa): `schema.paths` segue a ordem de `reasons` (contagem decrescente, empate pelo
 // texto); `near_miss` leva o nome da mensagem mais nova, como `answered`; a ordem das listas de `rules` não é contrato
@@ -41,11 +45,15 @@ interface Estatisticas {
     default: number;
   };
   hourly: Array<{ hour: string; count: number; methods: Record<string, number> }>;
+  decryption: {
+    valid: number; invalid: number; unknown_kid: number; absent: number; unchecked: number;
+    reasons: Array<{ reason: string; count: number }>;
+  };
 }
 
 const CHAVES = [
-  'evaluated', 'hourly', 'methods', 'newest_at', 'newest_seq', 'oldest_at', 'oldest_seq', 'rules', 'schema', 'signature',
-  'total', 'window',
+  'decryption', 'evaluated', 'hourly', 'methods', 'newest_at', 'newest_seq', 'oldest_at', 'oldest_seq', 'rules', 'schema',
+  'signature', 'total', 'window',
 ];
 const ERRO_WINDOW = { window: ['The window must be an integer between 1 and 500.'] };
 
@@ -141,6 +149,17 @@ function esperado(todas: Mensagem[], window: number): Estatisticas {
       default: avaliadas.filter((m) => m.rule === null).length,
     },
     hourly: [...horas.values()],
+    decryption: {
+      valid: avaliadas.filter((m) => m.decryption?.state === 'valid').length,
+      invalid: avaliadas.filter((m) => m.decryption?.state === 'invalid').length,
+      unknown_kid: avaliadas.filter((m) => m.decryption?.state === 'unknown_kid').length,
+      absent: avaliadas.filter((m) => m.decryption?.state === 'absent').length,
+      unchecked: avaliadas.filter((m) => !m.decryption).length,
+      reasons: [...contar(avaliadas.filter((m) => m.decryption?.state === 'invalid').map((m) => m.decryption!.reason ?? ''))]
+        .map(([reason, count]) => ({ reason, count }))
+        .sort(porContagemETexto((x) => x.reason))
+        .slice(0, 10),
+    },
   };
 }
 
@@ -171,6 +190,7 @@ test.describe('stats: forma, janela e validação (item 14, B2)', () => {
       schema: { valid: 0, invalid: 0, unchecked: 0, paths: [] },
       rules: { answered: [], near_miss: [], default: 0 },
       hourly: [],
+      decryption: { valid: 0, invalid: 0, unknown_kid: 0, absent: 0, unchecked: 0, reasons: [] },
     });
   });
 
@@ -341,6 +361,39 @@ testDePrivacidade.describe('stats: acesso (item 14, B2 e item 12)', () => {
     const certo = await http('GET', `/token/${url.uuid}/stats`, { headers: comSegredo(url.segredo) });
     expect(certo.status, certo.texto.slice(0, 300)).toBe(200);
     expect(certo.json<Estatisticas>()).toMatchObject({ window: 500, evaluated: 0, total: 0 });
+  });
+
+  testDePrivacidade('decryption: valid, invalid por motivo, unknown_kid, absent e unchecked, como as mensagens', async ({ urls }) => {
+    const remetente = await parEc('remetente-sig-1');
+    const { uuid, segredo } = await urls.proteger();
+    const json = { 'Content-Type': 'application/json' };
+    const entregar = (corpo: unknown) => capturar(uuid, '', { body: JSON.stringify(corpo), headers: json });
+    // Antes da decifra: decryption null → unchecked.
+    await entregar({ x: 1 });
+    expect((await http('PUT', `/token/${uuid}`, { headers: comSegredo(segredo), corpo: { e2ee: politica([remetente.publica], { required: false }) } })).status).toBe(200);
+    const chave = (await http('POST', `/token/${uuid}/keys`, { headers: comSegredo(segredo), corpo: { kid: 'enc-v1' } }))
+      .json<{ jwk: Record<string, unknown> }>().jwk;
+    const selada = async (claims = {}) => {
+      const id = randomUUID();
+      return envelope(id, await selar(remetente, chave, id, { ok: true }, claims));
+    };
+    await entregar(await selada());
+    await entregar(await selada());
+    await entregar(await selada({ aud: 'outro' }));
+    await entregar(await selada({ aud: 'outro' }));
+    await entregar(await selada({ evt: 'OUTRO' }));
+    const alheia = await parEc('enc-v9');
+    const id = randomUUID();
+    await entregar(envelope(id, await selar(remetente, alheia.publica, id, { ok: true })));
+    await entregar(envelope(randomUUID(), { em: 'claro' }));
+
+    const res = await http('GET', `/token/${uuid}/stats`, { headers: comSegredo(segredo) });
+
+    expect(res.status, res.texto.slice(0, 300)).toBe(200);
+    expect(res.json<Estatisticas>().decryption).toEqual({
+      valid: 2, invalid: 3, unknown_kid: 1, absent: 1, unchecked: 1,
+      reasons: [{ reason: 'aud_mismatch', count: 2 }, { reason: 'evt_mismatch', count: 1 }],
+    });
   });
 
   testDePrivacidade('é GET: Origin estranho não importa; Host fora da lista → 403 host not allowed', async ({ urls }) => {

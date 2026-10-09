@@ -249,6 +249,39 @@
         </div>
       </app-pane>
 
+      @if (decryption().length > 0) {
+        <app-pane heading="Decryption" i18n-heading>
+          <div class="body">
+            <app-proportion-bar
+              label="Decryption"
+              i18n-label
+              [parts]="decryption()"
+              [tokenId]="tokenId()"
+              [countScope]="statsScope"
+            />
+            @if (decryptionReasons().length > 0) {
+              <!-- A Entrada filtra pelo estado da decifra, não pelo motivo: a contagem fica sem link. -->
+              <table class="table" aria-label="Decryption failure reasons" i18n-aria-label>
+                <thead>
+                  <tr>
+                    <th i18n>Reason</th>
+                    <th class="number" i18n>Requests</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (reason of decryptionReasons(); track reason.reason) {
+                    <tr>
+                      <td>{{ reason.text }}</td>
+                      <td class="number">{{ reason.count }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </app-pane>
+      }
+
       <app-pane class="wide" heading="Rules" i18n-heading>
         <div class="body">
           <table class="table" aria-label="Who answered" i18n-aria-label>

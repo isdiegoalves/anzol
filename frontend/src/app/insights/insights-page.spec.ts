@@ -178,6 +178,62 @@ describe('Dado a página Insights', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('deve contar a decifra por estado, com link para o filtro, e os motivos sem link', async () => {
+    const { container } = await open(
+      tokenStats({
+        decryption: {
+          valid: 100,
+          invalid: 6,
+          unknown_kid: 2,
+          absent: 0,
+          unchecked: 20,
+          reasons: [
+            { reason: 'aud_mismatch', count: 4 },
+            { reason: 'decrypt_failed', count: 2 },
+          ],
+        },
+      }),
+    );
+
+    const decifra = region('Decryption');
+    expect(within(decifra).getByRole('img').getAttribute('aria-label')).toBe(
+      'Decryption: Decrypted 100 (78%), Decryption invalid 6 (5%), Unknown encryption key 2 (2%), Plaintext 0 (0%), Not checked 20 (16%)',
+    );
+    expect(href(decifra, 'Decryption: Decryption invalid, 6 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?decryption=invalid`,
+    );
+    expect(href(decifra, 'Decryption: Unknown encryption key, 2 requests. Open in the Inbox')).toBe(
+      `/${TOKEN_ID}?decryption=unknown_kid`,
+    );
+    expect(within(decifra).queryByRole('link', { name: /Not checked/ })).toBeNull();
+    const motivos = within(
+      within(decifra).getByRole('table', { name: 'Decryption failure reasons' }),
+    ).getAllByRole('row');
+    expect(motivos.map(rowText)).toEqual([
+      'Reason Requests',
+      'aud does not include the audience (aud_mismatch) 4',
+      'decryption failed: another key, or the JWE was altered (decrypt_failed) 2',
+    ]);
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve deixar a decifra de fora Quando nenhuma mensagem da janela passou por ela', async () => {
+    await open(
+      tokenStats({
+        decryption: {
+          valid: 0,
+          invalid: 0,
+          unknown_kid: 0,
+          absent: 0,
+          unchecked: 128,
+          reasons: [],
+        },
+      }),
+    );
+
+    expect(screen.queryByRole('region', { name: 'Decryption' })).toBeNull();
+  });
+
   it('deve levar ao dashboard do Grafana e reler os números no "Refresh"', async () => {
     await open(tokenStats());
 
