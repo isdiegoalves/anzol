@@ -101,7 +101,8 @@ export class RequestStore {
   private readonly outside = signal<{ tokenId: string; total: number } | null>(null);
   /** Mensagens que casam com o filtro ativo (o "N"). */
   readonly matched = signal(0);
-  readonly unread = this.preferences.unread.asReadonly();
+  /** Não lidas da URL da lista carregada. */
+  readonly unread = computed(() => this.unreadOf(this.tokenId()));
   readonly filter = this.activeFilter.asReadonly();
   readonly filtering = computed(() => isFilterActive(this.activeFilter()));
 
@@ -158,7 +159,7 @@ export class RequestStore {
     if (this.tokenId() === tokenId) {
       this.total.set(total);
     }
-    this.preferences.unread.update((unread) =>
+    this.changeUnread(tokenId, (unread) =>
       unread.includes(request.uuid) ? unread : [...unread, request.uuid],
     );
   }
@@ -405,7 +406,7 @@ export class RequestStore {
     const cut = new Set(removed);
     this.noticeCut(removed);
     this.total.set(total);
-    this.preferences.unread.update((unread) => [
+    this.changeUnread(this.tokenId(), (unread) => [
       ...unread.filter((id) => !cut.has(id)),
       request.uuid,
     ]);
@@ -508,14 +509,33 @@ export class RequestStore {
     this.lastPageReached.set(true);
     this.total.set(0);
     this.matched.set(0);
-    this.resetUnread();
     if (tokenId) {
+      this.resetUnread(tokenId);
       await firstValueFrom(this.http.delete(`/token/${tokenId}/request`));
     }
   }
 
-  resetUnread(): void {
-    this.preferences.unread.set([]);
+  /** Não lidas de uma URL; lê o signal, então serve num `computed`. */
+  unreadOf(tokenId: string | null): readonly string[] {
+    return tokenId ? (this.preferences.unread()[tokenId] ?? []) : [];
+  }
+
+  resetUnread(tokenId: string): void {
+    this.changeUnread(tokenId, () => []);
+  }
+
+  /** A URL sem não lidas sai do mapa: o localStorage não guarda URL vazia. */
+  private changeUnread(
+    tokenId: string | null,
+    change: (unread: readonly string[]) => readonly string[],
+  ): void {
+    if (!tokenId) {
+      return;
+    }
+    this.preferences.unread.update(({ [tokenId]: current = [], ...others }) => {
+      const next = change(current);
+      return next.length > 0 ? { ...others, [tokenId]: next } : others;
+    });
   }
 
   private noticeCut(removed: readonly string[]): void {
@@ -538,7 +558,7 @@ export class RequestStore {
   }
 
   private markAsRead(requestId: string): void {
-    this.preferences.unread.update((unread) => unread.filter((id) => id !== requestId));
+    this.changeUnread(this.tokenId(), (unread) => unread.filter((id) => id !== requestId));
   }
 
   /** O `total` da página é o da URL sem filtro, ou o de mensagens que casam com ele. */

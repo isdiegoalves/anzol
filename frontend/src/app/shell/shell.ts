@@ -351,7 +351,7 @@ export class Shell {
   }
 
   /** Não lidas da URL aberta (o badge do destino Inbox). */
-  private readonly unread = computed(() => this.requests.unread().length);
+  private readonly unread = computed(() => this.requests.unreadOf(this.place().tokenId).length);
   /** WM-01: mensagens sem regra desde a última visita a Regras (o ponto em "Rules"). */
   private readonly unruled = computed(() => this.rulesSeen.unseen().length);
   /** O que pede atenção em Checks: as assinaturas inválidas não vistas; sem elas, os schemas. */

@@ -107,19 +107,19 @@ describe('Dado a tela principal', () => {
 
   it('deve deixar como não lida a mensagem que a tela abriu sozinha e marcá-la Quando ela é clicada (INBOX-02)', async () => {
     const preferences = TestBed.inject(Preferences);
-    preferences.unread.set([R1.uuid, R2.uuid]);
+    preferences.unread.set({ [TOKEN_ID]: [R1.uuid, R2.uuid] });
 
     await openToken(`/${TOKEN_ID}`);
 
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
     await harness.fixture.whenStable();
-    expect(preferences.unread()).toEqual([R1.uuid, R2.uuid]);
+    expect(preferences.unread()).toEqual({ [TOKEN_ID]: [R1.uuid, R2.uuid] });
 
     const root = harness.routeNativeElement as HTMLElement;
     root.querySelectorAll<HTMLButtonElement>('.item .select')[0].click();
-    await vi.waitFor(() => expect(preferences.unread()).toEqual([R2.uuid]));
+    await vi.waitFor(() => expect(preferences.unread()).toEqual({ [TOKEN_ID]: [R2.uuid] }));
     root.querySelectorAll<HTMLButtonElement>('.item .select')[1].click();
-    await vi.waitFor(() => expect(preferences.unread()).toEqual([]));
+    await vi.waitFor(() => expect(preferences.unread()).toEqual({}));
   });
 
   it('deve mostrar o status gravado na mensagem, sem ler as regras da URL (INBOX-13, C3)', async () => {
@@ -848,7 +848,7 @@ describe('Dado a tela principal', () => {
     expect(text()).toContain('Requests (1)');
     expect(root.querySelector('app-request-detail')).toBeNull();
     // O detalhe não veio para a frente: ninguém a leu ainda.
-    expect(TestBed.inject(Preferences).unread()).toEqual([R1.uuid]);
+    expect(TestBed.inject(Preferences).unread()).toEqual({ [TOKEN_ID]: [R1.uuid] });
   });
 
   it('deve abrir a primeira no detalhe e contá-la como lida Quando ela chega numa URL vazia na janela larga', async () => {
@@ -862,7 +862,7 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
     await vi.waitFor(() => expect(text()).toContain(R1.uuid));
     // Quem espera a primeira a vê chegar no detalhe, ao lado da lista.
-    expect(TestBed.inject(Preferences).unread()).toEqual([]);
+    expect(TestBed.inject(Preferences).unread()).toEqual({});
   });
 
   describe('Dado a primeira requisição de uma URL vazia', () => {

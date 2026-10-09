@@ -134,7 +134,7 @@ test.describe('Dado o rail com mensagens não lidas e verificações inválidas 
     const tokenId = await tokens.create({ signature: { provider: 'github', secret: SECRET } });
     const valida = await tokens.send(tokenId, github(SECRET, '{"id":1}'));
     const invalida = await tokens.send(tokenId, github('outro-segredo', '{"id":2}'));
-    await seedStorage(page, { unread: JSON.stringify([valida, invalida]) });
+    await seedStorage(page, { unread: JSON.stringify({ [tokenId]: [valida, invalida] }) });
 
     await page.goto(`/#/${tokenId}`);
 
@@ -519,7 +519,7 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
   test('deve mostrar o contador de não lidas na barra inferior', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
     const nova = await tokens.send(tokenId, { data: 'x' });
-    await seedStorage(page, { unread: JSON.stringify([nova]) });
+    await seedStorage(page, { unread: JSON.stringify({ [tokenId]: [nova] }) });
     await page.goto(`/#/${tokenId}`);
 
     await expect(destino(page, 'Inbox')).toHaveAccessibleName('Inbox, 1 unread');

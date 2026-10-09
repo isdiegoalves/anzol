@@ -46,7 +46,8 @@ describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
     store.arrivedOutside(TOKEN_ID, nova, 35);
 
     expect(store.totalOf(TOKEN_ID)).toBe(35);
-    expect(store.unread()).toEqual([nova.uuid]);
+    expect(store.unreadOf(TOKEN_ID)).toEqual([nova.uuid]);
+    expect(store.unreadOf('outra')).toEqual([]);
   });
 
   it('deve preferir o total da lista carregada, e mantê-lo em dia', async () => {
@@ -300,7 +301,9 @@ describe('Dado o RequestStore da URL aberta', () => {
       ]);
       expect(store.total()).toBe(3);
       expect(store.unread()).toEqual([webhookRequest(5).uuid]);
-      expect(JSON.parse(localStorage.getItem('unread') ?? '[]')).toEqual([webhookRequest(5).uuid]);
+      expect(JSON.parse(localStorage.getItem('unread') ?? '{}')).toEqual({
+        [TOKEN_ID]: [webhookRequest(5).uuid],
+      });
     });
 
     it('não deve avisar nada Quando a aberta continua na lista', () => {

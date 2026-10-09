@@ -81,7 +81,7 @@ export class TokenActions {
       await firstValueFrom(this.http.delete(`/token/${token.uuid}`));
       this.known.forget([token.uuid]);
       const [next] = this.known.urls();
-      this.requests.resetUnread();
+      this.requests.resetUnread(token.uuid);
       if (next) {
         const name = this.known.nameOf(next.uuid);
         await this.router.navigate(['/', next.uuid]);
@@ -111,7 +111,6 @@ export class TokenActions {
       if (typeof settings.read_secret === 'string') {
         await this.access.unlock(token.uuid, settings.read_secret);
       }
-      this.requests.resetUnread();
       await this.router.navigate(['/', token.uuid]);
       this.snackBar.open($localize`New URL created`, undefined, { duration: 4000 });
       return true;

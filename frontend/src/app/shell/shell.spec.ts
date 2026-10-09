@@ -154,7 +154,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
   it('deve mostrar as não lidas no destino Inbox, com o número no nome (INBOX-02)', async () => {
     const { container } = await renderAt(`/${TOKEN_ID}/rules`);
 
-    TestBed.inject(Preferences).unread.set(['a', 'b', 'c']);
+    TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: ['a', 'b', 'c'] });
     await screen.findByRole('link', { name: 'Inbox, 3 unread' });
 
     expect(container.querySelector('.destination .badge')?.textContent?.trim()).toBe('3');
@@ -354,7 +354,26 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       FakeEventSource.latest().emit('request.created', { request: nova, total: 3 });
 
       expect(await screen.findByRole('link', { name: '3 requests' })).toBeTruthy();
-      expect(TestBed.inject(Preferences).unread()).toEqual([nova.uuid]);
+      expect(TestBed.inject(Preferences).unread()).toEqual({ [TOKEN_ID]: [nova.uuid] });
+      await screen.findByRole('link', { name: 'Inbox, 1 unread' });
+    });
+
+    it('não deve contar no badge nem no título as não lidas de outra URL', async () => {
+      const outra = '7b6e2a10-0c1d-4e5f-8a9b-1c2d3e4f5a6b';
+      const { fixture, navigate } = await renderAt(`/${TOKEN_ID}/rules`);
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      FakeEventSource.latest().emit('request.created', { request: webhookRequest(9), total: 1 });
+      await screen.findByRole('link', { name: 'Inbox, 1 unread' });
+
+      await navigate(`/${outra}/rules`);
+      await fixture.whenStable();
+
+      await vi.waitFor(() =>
+        expect(document.title).toBe(`Rules · URL ${outra.slice(0, 5)} · Anzol`),
+      );
+      expect(screen.getByRole('link', { name: 'Inbox' })).toBeTruthy();
+
+      await navigate(`/${TOKEN_ID}/rules`);
       await screen.findByRole('link', { name: 'Inbox, 1 unread' });
     });
 
@@ -367,7 +386,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       TestBed.inject(HttpTestingController).expectNone(
         (req) => req.url === `/token/${TOKEN_ID}/requests`,
       );
-      expect(TestBed.inject(Preferences).unread()).toEqual([]);
+      expect(TestBed.inject(Preferences).unread()).toEqual({});
     });
 
     it('deve fechar o tempo real Quando a URL tranca', async () => {
@@ -782,7 +801,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
 
       TestBed.inject(KnownUrls).rename(TOKEN_ID, 'Pagamentos');
-      TestBed.inject(Preferences).unread.set(['a', 'b', 'c']);
+      TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: ['a', 'b', 'c'] });
       await fixture.whenStable();
 
       expect(document.title).toBe('(3) Rules · Pagamentos · Anzol');

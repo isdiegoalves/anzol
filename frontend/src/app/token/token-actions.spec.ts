@@ -69,9 +69,9 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
     localStorage.clear();
   });
 
-  it('deve criar, zerar não lidas, navegar e avisar Quando o diálogo é confirmado', async () => {
+  it('deve criar, navegar e avisar, sem mexer nas não lidas das outras URLs, Quando o diálogo é confirmado', async () => {
     const { saved } = answerDialog({ default_status: '201' });
-    TestBed.inject(Preferences).unread.set(['x']);
+    TestBed.inject(Preferences).unread.set({ outra: ['x'] });
 
     const done = TestBed.inject(TokenActions).createUrl();
     const call = await vi.waitFor(() => http.expectOne('/token'));
@@ -81,7 +81,7 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
     expect(call.request.body).toEqual({ default_status: '201' });
     expect(await saved[0]).toBe(true);
     expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID]);
-    expect(TestBed.inject(Preferences).unread()).toEqual([]);
+    expect(TestBed.inject(Preferences).unread()).toEqual({ outra: ['x'] });
     expect(snack).toHaveBeenCalledWith('New URL created', undefined, { duration: 4000 });
   });
 
@@ -148,7 +148,7 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
 
     it('deve apagar a URL, abrir uma nova e avisar Quando "Delete URL" é confirmado', async () => {
       TestBed.inject(Preferences).token.set(token());
-      TestBed.inject(Preferences).unread.set(['x']);
+      TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: ['x'], outra: ['y'] });
       confirm(true);
 
       const done = TestBed.inject(TokenActions).deleteUrl();
@@ -161,7 +161,7 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
       await done;
 
       expect(navigate).toHaveBeenCalledWith(['/', 'novo']);
-      expect(TestBed.inject(Preferences).unread()).toEqual([]);
+      expect(TestBed.inject(Preferences).unread()).toEqual({ outra: ['y'] });
       expect(snack).toHaveBeenCalledWith('URL deleted. A new URL is open.', undefined, {
         duration: 4000,
       });

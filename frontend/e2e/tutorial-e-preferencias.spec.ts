@@ -135,7 +135,7 @@ test.describe('Dado as preferências no localStorage (checklist 14)', () => {
       redirectHeaders: 'null',
       redirectMethod: '""',
       hideTutorial: 'false',
-      unread: '[]',
+      unread: '{}',
     });
     expect(JSON.parse(stored['token'])).toMatchObject({ uuid: tokenId });
   });

@@ -66,7 +66,7 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
   });
 
   test('deve destacar a não lida e tirar o destaque Quando ela é aberta', async ({ page }) => {
-    await seedStorage(page, { unread: JSON.stringify([ids[2]]) });
+    await seedStorage(page, { unread: JSON.stringify({ [tokenId]: [ids[2]] }) });
     await page.goto(`/#/${tokenId}/${ids[0]}/1`);
     await expect(abrirItem(page, ids[2])).toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[1])).not.toHaveAccessibleName(/\bunread\b/);
@@ -78,7 +78,7 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
     await expect(abrirItem(page, ids[2])).not.toHaveAccessibleName(/\bunread\b/);
     await expect(abrirItem(page, ids[2])).toHaveAttribute('aria-current', /.+/);
     await expect(page).toHaveTitle(`Inbox · URL ${tokenId.substring(0, 5)} · Anzol`);
-    expect((await readStorage(page))['unread']).toBe('[]');
+    expect((await readStorage(page))['unread']).toBe('{}');
   });
 
   test('deve apagar uma mensagem pela API Quando a lixeira dela é clicada', async ({

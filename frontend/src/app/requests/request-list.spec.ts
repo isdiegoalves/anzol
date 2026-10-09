@@ -641,7 +641,7 @@ describe('Dado a lista lateral de mensagens', () => {
 
   it('deve dizer "N unread" ao lado do heading, fora dele (INBOX-07)', async () => {
     const [um, dois, tres] = [1, 2, 3].map((n) => webhookRequest(n));
-    TestBed.inject(Preferences).unread.set([um.uuid, dois.uuid]);
+    TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: [um.uuid, dois.uuid] });
     await load([um, dois, tres]);
 
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (3)');

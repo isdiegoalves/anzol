@@ -105,8 +105,8 @@ test.describe('Dado o cabeçalho da URL e da lista (INBOX-05/07/08)', () => {
     const lida = await tokens.send(tokenId, { data: 'um' });
     const dois = await tokens.send(tokenId, { data: 'dois' });
     const tres = await tokens.send(tokenId, { data: 'três' });
-    // "Não lida" é o que chegou pelo SSE com a tela aberta (chave `unread`, como no app antigo): semeada aqui.
-    await seedStorage(page, { unread: JSON.stringify([lida, dois, tres]) });
+    // "Não lida" é o que chegou pelo SSE com a tela aberta (chave `unread`, por URL): semeada aqui.
+    await seedStorage(page, { unread: JSON.stringify({ [tokenId]: [lida, dois, tres] }) });
     await abrirMensagem(page, tokenId, lida);
 
     const copiar = page.getByRole('button', { name: 'Copy', exact: true });

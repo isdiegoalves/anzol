@@ -779,9 +779,6 @@ export class Inbox {
   private async openSavedOrNewToken(): Promise<void> {
     const saved = this.tokens.token();
     const token = saved ?? (await this.tokens.create());
-    if (!saved) {
-      this.requests.resetUnread();
-    }
     await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
 

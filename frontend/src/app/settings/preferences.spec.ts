@@ -37,7 +37,7 @@ describe('Dado o localStorage preenchido pelo app atual', () => {
     expect(preferences.formatJsonEnable()).toBe(true);
     expect(preferences.autoNavEnable()).toBe(true);
     expect(preferences.hideTutorial()).toBe(true);
-    expect(preferences.unread()).toEqual(['a', 'b']);
+    expect(preferences.unread()).toEqual({ [token().uuid]: ['a', 'b'] });
   });
 
   it('deve gravar de volta nas mesmas chaves e em JSON Quando as preferências mudam', () => {
@@ -45,14 +45,39 @@ describe('Dado o localStorage preenchido pelo app atual', () => {
 
     preferences.formatJsonEnable.set(false);
     preferences.redirectMethod.set('');
-    preferences.unread.set([]);
+    preferences.unread.set({});
 
     expect({ ...localStorage }).toEqual({
       ...GRAVADO_PELO_APP_ATUAL,
       formatJsonEnable: 'false',
       redirectMethod: '""',
-      unread: '[]',
+      unread: '{}',
     });
+  });
+});
+
+describe('Dado as não lidas no localStorage', () => {
+  afterEach(() => localStorage.clear());
+
+  it('deve guardar as não lidas por URL', () => {
+    const preferences = TestBed.inject(Preferences);
+
+    preferences.unread.set({ a: ['1'], b: ['2', '3'] });
+
+    expect(JSON.parse(localStorage.getItem('unread') ?? '')).toEqual({ a: ['1'], b: ['2', '3'] });
+  });
+
+  it('deve dar a lista antiga (sem URL) à URL salva Quando o formato é o de antes', () => {
+    localStorage.setItem('token', JSON.stringify(token()));
+    localStorage.setItem('unread', '["a","b"]');
+
+    expect(TestBed.inject(Preferences).unread()).toEqual({ [token().uuid]: ['a', 'b'] });
+  });
+
+  it('deve abrir sem não lidas Quando a lista antiga não tem URL salva a quem pertencer', () => {
+    localStorage.setItem('unread', '["a","b"]');
+
+    expect(TestBed.inject(Preferences).unread()).toEqual({});
   });
 });
 
@@ -66,7 +91,7 @@ describe('Dado o localStorage vazio (primeiro acesso)', () => {
     expect(preferences.redirectContentType()).toBe('text/plain');
     expect(preferences.redirectMethod()).toBe('');
     expect(preferences.redirectUrl()).toBeNull();
-    expect(preferences.unread()).toEqual([]);
+    expect(preferences.unread()).toEqual({});
   });
 
   it('deve nascer com o JSON formatado ("Pretty") Quando a chave formatJsonEnable não existe (INBOX-22)', () => {
