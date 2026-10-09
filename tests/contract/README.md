@@ -436,8 +436,11 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     da decifra.
   - *Avisos do MCP* (`e2ee-mcp-avisos.spec.ts`): `update_url` com `e2ee` (outra política ou `null`) e `create_url`
     com `e2ee` devolvem `warnings` com "e2ee ignored: MCP never changes it; ask the person to change it in the UI
-    (Checks › Decryption)." e a política como estava (nula na URL nova); sem `e2ee` nos argumentos, sem `warnings`; as
-    descrições das duas dizem que o MCP não muda `e2ee` e não apontam a rota.
+    (Checks › Decryption)." e a política como estava (nula na URL nova); `signature: null` numa URL que decifra e tinha
+    assinatura devolve "signature removed on a URL with e2ee: decryption no longer requires a valid HMAC" (os dois
+    avisos juntos quando as duas coisas vêm); sem decifra na URL, sem assinatura para tirar ou sem `e2ee` nos
+    argumentos, sem `warnings`; as descrições das duas dizem que o MCP não muda `e2ee` e não apontam a rota, e a do
+    `update_url` diz o que `signature: null` tira de uma URL que decifra.
 
 - **Documento OpenAPI 3.1** (`specs/api/openapi.spec.ts`, helper em `support/openapi.ts`): o `GET /openapi.json`
   é carregado no Ajv (JSON Schema 2020-12, o dialeto do OAS 3.1) e as respostas reais das rotas principais (token,

@@ -22,7 +22,10 @@ São 18 ferramentas:
 | `create_e2ee_lab`, `list_e2ee_scenarios`, `run_e2ee_scenarios` | `POST /e2ee-lab`, `GET /e2ee-lab/scenarios`, `POST /token/{id}/e2ee-lab/run` (ver [Laboratório E2EE](#laboratório-e2ee)) |
 
 O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
-ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão.
+ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão. Numa URL que
+decifra (`e2ee`), `signature: null` tira também a conferência do HMAC que roda antes da decifra: a decifra deixa de
+exigir HMAC válido, e os campos do envelope fora dos vínculos deixam de ser autenticados; o resultado avisa em
+`warnings` (`"signature removed on a URL with e2ee: decryption no longer requires a valid HMAC"`).
 
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
 rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o

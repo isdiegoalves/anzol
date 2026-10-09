@@ -155,6 +155,25 @@ class McpE2eeApiTest(
 
     @Test
     @DisplayName(
+        "Dado uma URL com e2ee e assinatura, quando o update_url manda signature null, então o resultado avisa que a " +
+            "decifra deixa de exigir HMAC; numa URL sem e2ee, não avisa",
+    )
+    fun e2ee_signatureNull_deveAvisarEmWarnings() {
+        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(anzol.e2ee.ecKey("remetente-sig-1")))
+        val hmac = """"signature":{"provider":"github","secret":"segredo-do-hmac"}"""
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee,$hmac}""")
+        val common = api.tokenId("{$hmac}")
+
+        val removed = call("update_url", mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee", "signature" to null)).json()
+        val plain = call("update_url", mapOf("token_id" to common, "signature" to null)).json()
+
+        assertThat(removed["warnings"].toList().map { it.asString() }).containsExactly(SIGNATURE_REMOVED)
+        assertThat(removed["signature"].isNull).isTrue()
+        assertThat(plain.has("warnings")).isFalse()
+    }
+
+    @Test
+    @DisplayName(
         "Dado create_e2ee_lab, quando run_e2ee_scenarios roda todos, então os 27 conferem e o resultado não traz texto aberto; " +
             "numa URL comum, erro 422",
     )

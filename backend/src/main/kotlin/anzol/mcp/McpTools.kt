@@ -81,7 +81,9 @@ private const val UPDATE_URL =
         "empty, is an error). The URL's read secret is never changed here: read_secret is only the access to a " +
         "protected URL. Attribute decryption (`e2ee`) is never changed here either: an `e2ee` argument is ignored, " +
         "the result carries the saved policy unchanged and says so in `warnings`. MCP never changes it; ask the " +
-        "person to change it in the UI (Checks › Decryption)."
+        "person to change it in the UI (Checks › Decryption). On a URL that decrypts (`e2ee`), `signature: null` also " +
+        "removes the HMAC check that runs before decryption: decryption no longer requires a valid HMAC, and envelope " +
+        "fields outside the bindings are no longer authenticated; the result says so in `warnings`."
 
 private const val NEW_READ_SECRET =
     """"read_secret": {"type": "string", "description": "Require this secret (8 to 256 characters) to read and manage the URL; never returned"}"""
@@ -426,8 +428,13 @@ private fun updateUrl(
 ): Any {
     val id = args.tokenId() ?: return missingUuid("token_id")
     return args.textBlocks() ?: run {
-        urls.open(id, args.readSecret())
-        val warnings = listOfNotNull(E2EE_IGNORED.takeIf { args.sent(E2EE) })
+        val before = urls.open(id, args.readSecret())
+        val signatureRemoved = args.sent("signature") && args["signature"] == null && before.signature != null
+        val warnings =
+            listOfNotNull(
+                E2EE_IGNORED.takeIf { args.sent(E2EE) },
+                SIGNATURE_REMOVED.takeIf { signatureRemoved && before.e2ee != null },
+            )
         service
             .patch(id) { jsonInput(args.bodyOver(it.settings(jsonMapper)).toByteArray(), jsonMapper) }
             .map { jsonMapper.withWarnings(it.forApi(), warnings) }

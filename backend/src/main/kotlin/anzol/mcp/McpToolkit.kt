@@ -29,6 +29,9 @@ internal const val E2EE = "e2ee"
 /** O aviso do `create_url` e do `update_url` quando `e2ee` veio e foi ignorado. */
 internal const val E2EE_IGNORED = "e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."
 
+/** O aviso do `update_url` quando `signature: null` tira o HMAC de uma URL que decifra. */
+internal const val SIGNATURE_REMOVED = "signature removed on a URL with e2ee: decryption no longer requires a valid HMAC"
+
 /**
  * Os argumentos de uma chamada de ferramenta, como o cliente MCP os mandou (JSON já lido). O argumento de primeiro
  * nível enviado como `null` vale como ausente em toda ferramenta (é o que os agentes mandam num opcional que não
