@@ -3394,7 +3394,7 @@ components:
             decryption:
               type: object
               description: The attribute decryption recorded on the message; never the decrypted value.
-              required: [configured, state, reason, kid, signature_kid, signature_kid_trusted, who_fixes, advice]
+              required: [configured, state, reason, kid, signature_kid, signature_kid_trusted, attempted, who_fixes, advice]
               properties:
                 configured: {type: boolean}
                 state:
@@ -3412,6 +3412,11 @@ components:
                   description: >-
                     Whether the JWS kid read from the message is one of this URL's trusted signers; null when no JWS
                     kid was read. When false, the kid itself is left out, since the sender wrote it.
+                attempted:
+                  type: [boolean, 'null']
+                  description: >-
+                    False when the HMAC signature failed before decryption (reason `hmac_failed`), so the attribute
+                    was not opened; null when the URL did not decrypt.
                 who_fixes:
                   type: array
                   description: >-

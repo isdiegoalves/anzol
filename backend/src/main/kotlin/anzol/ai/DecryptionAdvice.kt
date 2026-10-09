@@ -46,8 +46,9 @@ private val ADVICE: Map<String, DecryptionAdvice> =
                 SENDER,
                 URL,
                 text =
-                    "Check the HMAC signature first: decryption only runs after it. The HMAC secret set on this URL " +
-                        "must be the one the sender signs with, and the body must not change after it is signed.",
+                    "Decryption was not attempted: the HMAC signature check runs first and failed, so the attribute " +
+                        "was not opened. Fix the HMAC signature first: the HMAC secret set on this URL must be the one " +
+                        "the sender signs with, and the body must not change after it is signed.",
             ),
         "body_not_json" to advice(SENDER, text = "The sender must send a JSON body carrying the encrypted attribute."),
         "attribute_missing" to

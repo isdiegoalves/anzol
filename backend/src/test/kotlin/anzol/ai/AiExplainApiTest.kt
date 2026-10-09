@@ -239,6 +239,43 @@ class AiExplainApiTest(
     }
 
     @Test
+    @DisplayName("Dado o HMAC barrando a mensagem antes da decifra, quando explica, então vai ao modelo que a decifra não foi tentada")
+    fun explain_hmacBarrou_deveDizerQueADecifraNaoFoiTentada() {
+        val signer = ecKey("remetente-sig-1")
+        val tokenId =
+            api.tokenId(
+                """{"read_secret": "segredo-do-explain", "signature": {"provider": "github", "secret": "$SECRET"},
+                "e2ee": ${json(policy(signer))}}""",
+            )
+        val secret = mapOf(SECRET_HEADER to "segredo-do-explain")
+        api.send("POST", "/token/$tokenId/keys", """{"kid": "enc-v1"}""".toByteArray(), JSON_BODY + secret)
+        val requestId =
+            api
+                .send(
+                    "POST",
+                    "/$tokenId",
+                    """{"payload": "a.b.c.d.e"}""".toByteArray(),
+                    mapOf("Content-Type" to "application/json", "X-Hub-Signature-256" to "sha256=00"),
+                ).headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        FakeLlm.answer("O HMAC barrou.")
+
+        val response = api.send("POST", "/token/$tokenId/request/$requestId/explain", "{}".toByteArray(), JSON_BODY + secret)
+
+        val decryption = api.json(response)["facts"]["decryption"]
+        assertThat(decryption["reason"].asString()).isEqualTo("hmac_failed")
+        assertThat(decryption["attempted"].asBoolean()).isFalse()
+        val (system, user) =
+            FakeLlm.received
+                .single()
+                .messages()
+                .map { it["content"].asString() }
+        assertThat(system).contains("decryption.attempted")
+        assertThat(user).contains("\"attempted\" : false", "Decryption was not attempted")
+    }
+
+    @Test
     @DisplayName(
         "Dada uma decifra recusada, quando explica, então quem corrige e o que fazer vão aos fatos e ao modelo, " +
             "e o sistema manda dizer os dois",
