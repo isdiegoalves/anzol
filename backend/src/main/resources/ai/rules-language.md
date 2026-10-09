@@ -20,6 +20,9 @@ Rule fields:
     {"equalToJson": <JSON value or text holding JSON>}.
   - signature: "valid", "invalid" or "absent" (HMAC verification configured on the URL).
   - schema: "valid" or "invalid" (JSON Schema validation configured on the URL).
+  - decryption: "valid", "invalid", "unknown_kid" or "absent" (attribute decryption configured on the URL).
+    "absent" only happens when the URL accepts plaintext (required: false); with the default, plaintext is
+    "invalid" (reason downgrade). Example: {"match": {"decryption": "unknown_kid"}, "response": {"status": 500}}.
   Every regex is Java syntax and must match the whole value.
 - response:
   - status: integer 100..599, default 200.

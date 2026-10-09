@@ -431,6 +431,9 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     `CHAVES_TOKEN`; a marca não muda pelo `PUT`; a rodada de todos os cenários dá 27 de 27, sem texto aberto; URL
     comum e código desconhecido são 422; pelo MCP, o mesmo, e `create_url`/`update_url` ainda ignoram `e2ee`. O teto
     de 20 URLs de laboratório fica com os testes do backend (o contrato roda em paralelo).
+  - *Descrições do MCP* (`e2ee-mcp-condicoes.spec.ts`): o `match` de `search_requests` e `wait_for_request` cita
+    `decryption`; o `set_rules` descreve a condição com os quatro estados; o `get_request` diz que traz o resultado
+    da decifra.
 
 - **Documento OpenAPI 3.1** (`specs/api/openapi.spec.ts`, helper em `support/openapi.ts`): o `GET /openapi.json`
   é carregado no Ajv (JSON Schema 2020-12, o dialeto do OAS 3.1) e as respostas reais das rotas principais (token,
@@ -606,7 +609,8 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     exatamente 3 pedidos ao LLM, cada um com os erros do anterior, nada gravado. `request_id` → o corpo da mensagem
     vai ao prompt. `prompt` ausente, vazio, número ou com 2001 caracteres → 422 em `prompt`, sem chamar o LLM; 2000
     passa. URL inexistente → 410. LLM com 500 ou conexão fechada → 502 `{error}`. Duas chamadas simultâneas na mesma
-    URL nunca chegam juntas ao LLM. 11ª chamada no mesmo minuto → 429 com `Retry-After` de 1 a 60; outra URL segue.
+    URL nunca chegam juntas ao LLM. Regra com `match.decryption` → volta na 1ª tentativa, o schema estrito do pedido
+    ao LLM aceita os quatro estados e o prompt descreve a condição. 11ª chamada no mesmo minuto → 429 com `Retry-After` de 1 a 60; outra URL segue.
     Com `CONTRATO_IA=desligada`: 503 `{"error": "AI is not configured"}`, e webhook e listagem seguem 200.
   - *Explain* (`ia-explain.spec.ts`, CA-3): URL com assinatura GitHub, schema, `default_status` 226 e uma regra.
     Mensagem com assinatura errada, `id` fora do schema e near miss da regra → `explanation` é exatamente o `content`
@@ -617,7 +621,8 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     dele, e o resto do prompt diz que o conteúdo é não confiável e proíbe seguir instruções dele; a mensagem gravada
     não muda. Mensagem que casou a regra, com assinatura e schema válidos → o nome da regra e o 202 nos fatos, sem
     `signature mismatch`; `lang: "pt-BR"` vai ao prompt. Corpo de ~10 KB → o fim não aparece nos fatos nem no pedido
-    ao LLM. LLM com 500 ou fora → 502. Mensagem inexistente → 404 `Request not found`; URL inexistente → 410. Com
+    ao LLM. Mensagem decifrada numa URL com `e2ee` → o estado e as duas chaves (`kid`, `signature_kid`) nos fatos e
+    no pedido ao LLM, e o valor decifrado em nenhum dos dois. LLM com 500 ou fora → 502. Mensagem inexistente → 404 `Request not found`; URL inexistente → 410. Com
     `CONTRATO_IA=desligada`: 503.
 
   Leituras assumidas onde a §1 deixava folga: o resultado de cada ferramenta MCP é o JSON da resposta da API (texto

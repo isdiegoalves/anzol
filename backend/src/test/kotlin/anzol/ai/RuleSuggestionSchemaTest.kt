@@ -1,5 +1,6 @@
 package anzol.ai
 
+import anzol.e2ee.DecryptionState
 import anzol.rules.Fault
 import anzol.rules.Parsed
 import anzol.rules.Rule
@@ -67,5 +68,19 @@ class RuleSuggestionSchemaTest {
 
         assertThat(schemaErrors(suggestion)).isEmpty()
         assertThat(parsed(suggestion).response.fault).isEqualTo(fault)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DecryptionState::class)
+    @DisplayName("Dado cada estado da decifra, quando uma sugestão o usa no match, então passa pelo schema e pelo parser")
+    fun schema_cadaEstadoDaDecifra_devePassarPeloSchemaEPeloParser(state: DecryptionState) {
+        val suggestion =
+            mapper.readTree(
+                """{"explanation": "Decifra.",
+                "rule": {"name": "decifra", "match": {"decryption": "${state.id}"}, "response": {"status": 500}}}""",
+            )
+
+        assertThat(schemaErrors(suggestion)).isEmpty()
+        assertThat(parsed(suggestion).match.decryption).isEqualTo(state)
     }
 }

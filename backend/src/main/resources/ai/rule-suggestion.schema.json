@@ -54,7 +54,8 @@
               }
             },
             "signature": { "enum": ["valid", "invalid", "absent"] },
-            "schema": { "enum": ["valid", "invalid"] }
+            "schema": { "enum": ["valid", "invalid"] },
+            "decryption": { "enum": ["valid", "invalid", "unknown_kid", "absent"] }
           }
         },
         "scenario": {

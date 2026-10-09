@@ -44,7 +44,7 @@ internal const val TOKEN_ID =
     "read_secret": {"type": "string", "description": "The URL's read secret; required when the URL is protected"}"""
 private const val REQUEST_ID = """"request_id": {"type": "string", "format": "uuid", "description": "UUID of a captured request"}"""
 private const val MATCH =
-    """"match": {"type": "object", "description": "Conditions of a response rule's match (method, path, query, headers, body, signature, schema); absent matches every request"}"""
+    """"match": {"type": "object", "description": "Conditions of a response rule's match (method, path, query, headers, body, signature, schema, decryption); absent matches every request"}"""
 
 private const val SETTINGS = """
     "default_status": {"type": "integer", "description": "HTTP status the URL answers with (default 200)"},
@@ -222,8 +222,9 @@ class McpTools {
             kit.tool(
                 ToolDefinition(
                     "get_request",
-                    "Read one captured request: method, URL, headers, query, body, signature and schema results, the rule " +
-                        "that answered or the near miss.",
+                    "Read one captured request: method, URL, headers, query, body, signature, schema and decryption results " +
+                        "(decryption.state: valid, invalid, unknown_kid or absent, with reason; never the decrypted text), " +
+                        "the rule that answered or the near miss.",
                     objectSchema("$TOKEN_ID, $REQUEST_ID", "token_id", "request_id"),
                     readOnly = true,
                 ),

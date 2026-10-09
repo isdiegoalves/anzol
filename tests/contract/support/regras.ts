@@ -34,6 +34,8 @@ export interface MatchRegra {
   signature?: 'valid' | 'invalid' | 'absent';
   /** Resultado da validação de schema da mensagem; sem schema configurado na URL, nenhum dos dois casa. */
   schema?: 'valid' | 'invalid';
+  /** Resultado da decifra do atributo; sem `e2ee` na URL, nenhum casa. */
+  decryption?: 'valid' | 'invalid' | 'unknown_kid' | 'absent';
 }
 
 /** Atraso antes de responder, em ms; teto 60 000 (log-normal cortado no teto). */

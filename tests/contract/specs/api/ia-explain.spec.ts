@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext } from '@playwright/test';
 import { buscarMensagem, enviarEGuardar, expect, expectErroJson, test, type Mensagem, type Tokens } from '../../support/contrato.js';
 import { assinaturaGithub } from '../../support/assinatura.js';
+import { envelope, parEc, politica, selar } from '../../support/e2ee.js';
 import {
   MODELO_TEXTO, chamarExplain, diagnosticoOk, exigirIaDesligada, exigirLlmFalso, expect502, expect503, expectContem,
   pedidosCom, semAspas, textosDe,
 } from '../../support/ia.js';
 import { novoMarcador, programarLlm, textoDaMensagem, textoDoPedido, type PedidoAoLlm } from '../../support/llm-falso.js';
+import { capturar, comSegredo, fixtureUrls, http, type Urls } from '../../support/privacidade.js';
 import { salvarRegras } from '../../support/regras.js';
 import { SCHEMA_PEDIDO } from '../../support/schema.js';
 
@@ -120,6 +122,32 @@ test.describe('explain com o LLM falso (CA-3)', () => {
     expectContem(textoDoPedido(pedido), [REGRA_PAGO.name], 'prompt');
     expect(textoDoPedido(pedido), 'o idioma pedido vai ao modelo').toMatch(/pt-BR|portugu/i);
   });
+
+  test.extend<{ urls: Urls }>({ urls: fixtureUrls })(
+    'mensagem decifrada: o resultado da decifra vai aos fatos e ao modelo, o valor decifrado não',
+    async ({ urls }) => {
+      const remetente = await parEc('remetente-sig-1');
+      const { uuid, segredo } = await urls.proteger({ e2ee: politica([remetente.publica]) });
+      const chave = await http('POST', `/token/${uuid}/keys`, { headers: comSegredo(segredo), corpo: { kid: 'enc-v1' } });
+      expect(chave.status, chave.texto).toBe(201);
+      const m = novoMarcador();
+      const valor = `VALOR-DECIFRADO-${m}`;
+      const id = randomUUID();
+      const corpo = { ...envelope(id, await selar(remetente, chave.json<{ jwk: object }>().jwk, id, { segredo: valor })), nota: m };
+      const rid = await capturar(uuid, '', { body: JSON.stringify(corpo), headers: { 'Content-Type': 'application/json' } });
+      await programarLlm(m, [{ conteudo: 'A decifra deu certo.' }]);
+
+      const res = await http('POST', `/token/${uuid}/request/${rid}/explain`, { headers: comSegredo(segredo), corpo: {} });
+
+      expect(res.status, res.texto.slice(0, 300)).toBe(200);
+      const d = res.json<{ facts: Record<string, unknown> }>();
+      expectContem(textosDe(d.facts), ['decryption', 'valid', 'enc-v1', 'remetente-sig-1'], 'facts');
+      expect(res.texto, 'o valor decifrado não entra nos fatos').not.toContain(valor);
+      const [pedido] = await pedidosCom(m, 1);
+      expectContem(textoDoPedido(pedido), ['decryption', 'enc-v1'], 'prompt');
+      expect(JSON.stringify(pedido.corpo), 'o valor decifrado não vai ao modelo').not.toContain(valor);
+    },
+  );
 
   test('corpo grande: só um trecho de até 4 KB vai aos fatos e ao modelo', async ({ request, tokens }) => {
     const token = await tokens.criar();

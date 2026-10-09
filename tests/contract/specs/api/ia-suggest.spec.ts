@@ -1,3 +1,4 @@
+import { Ajv2020 } from 'ajv/dist/2020.js';
 import { randomUUID } from 'node:crypto';
 import { JSON_ACCEPT, enviarEGuardar, espera, expect, expectErroJson, test } from '../../support/contrato.js';
 import {
@@ -122,6 +123,26 @@ test.describe('rules/suggest com o LLM falso (CA-2)', () => {
     expectContem(textoDoPedido(pedidos[1]), erros[0], '2º pedido ao LLM');
     expectContem(textoDoPedido(pedidos[2]), erros[1], '3º pedido ao LLM');
     expect(await lerRegras(request, token.uuid)).toEqual(existentes);
+  });
+
+  test('regra com match.decryption: o schema estrito pedido ao LLM a aceita, e ela volta na 1ª tentativa', async ({ request, tokens }) => {
+    const token = await tokens.criar();
+    const regra: Regra = { name: 'chave desconhecida', match: { decryption: 'unknown_kid' }, response: { status: 500 } };
+    const m = novoMarcador();
+    await programarLlm(m, [{ regra, explicacao: 'Responde 500 quando a chave de cifra não é da URL.' }]);
+
+    const s = await sugestaoOk(await chamarSuggest(request, token.uuid, { prompt: prompt(m, 'responda 500 quando a chave de cifra for desconhecida') }));
+
+    expect(s.attempts).toBe(1);
+    expect(s.rule).toMatchObject(regra as Record<string, unknown>);
+    const [pedido] = await pedidosCom(m, 1);
+    const schema = pedido.corpo.response_format?.json_schema?.schema as object;
+    const validar = new Ajv2020({ strict: false, allErrors: true }).compile(schema);
+    for (const estado of ['valid', 'invalid', 'unknown_kid', 'absent']) {
+      const sugestao = { explanation: 'x', rule: { ...regra, match: { decryption: estado } } };
+      expect(validar(sugestao), `decryption ${estado}: ${JSON.stringify(validar.errors)}`).toBe(true);
+    }
+    expectContem(textoDoPedido(pedido), ['decryption', 'unknown_kid'], 'prompt (linguagem de regras)');
   });
 
   test('request_id: a mensagem de exemplo vai no contexto do modelo', async ({ request, tokens }) => {

@@ -929,8 +929,8 @@ paths:
       operationId: explainRequest
       summary: Explain the outcome of a message
       description: >-
-        The local model explains, from facts the server gathers, why signature, schema and rules gave the result
-        they gave. Nothing is saved. An empty body is `{}`.
+        The local model explains, from facts the server gathers, why signature, schema, decryption and rules gave the
+        result they gave. Nothing is saved. An empty body is `{}`.
       security:
         - {}
         - readSecret: []
@@ -3358,7 +3358,7 @@ components:
           description: Simple markdown.
         facts:
           type: object
-          required: [method, path, signature, schema, rules, response, headers, body]
+          required: [method, path, signature, schema, decryption, rules, response, headers, body]
           properties:
             method:
               type: string
@@ -3382,6 +3382,18 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/SchemaError'
+            decryption:
+              type: object
+              description: The attribute decryption recorded on the message; never the decrypted value.
+              required: [configured, state, reason, kid, signature_kid]
+              properties:
+                configured: {type: boolean}
+                state:
+                  type: [string, 'null']
+                  enum: [valid, invalid, unknown_kid, absent, null]
+                reason: {type: [string, 'null']}
+                kid: {type: [string, 'null']}
+                signature_kid: {type: [string, 'null']}
             rules:
               type: object
               required: [configured, matched, near_miss]

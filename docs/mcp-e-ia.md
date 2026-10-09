@@ -79,8 +79,9 @@ LLM nunca grava nada.
   `path_never_seen` (nenhuma mensagem recente tem o caminho da regra) e `sequence_as_single_rule` (o pedido descreve
   uma sequência e a regra não tem cenário). Os avisos não geram nova tentativa.
 - `POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos (resultado
-  da assinatura com o motivo, erros do schema, regra que respondeu ou near miss com as frases, status dado, cabeçalhos
-  relevantes e até 4 KB do corpo) e o modelo só redige, em markdown simples, no idioma de `lang` (padrão `en`).
+  da assinatura com o motivo, erros do schema, resultado da decifra com o motivo e as chaves (nunca o valor
+  decifrado), regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo)
+  e o modelo só redige, em markdown simples, no idioma de `lang` (padrão `en`).
 
 | Variável | Padrão | O que faz |
 |---|---|---|
