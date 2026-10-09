@@ -253,8 +253,10 @@ class McpTools {
             kit.tool(
                 ToolDefinition(
                     "search_requests",
-                    "Search a webhook URL's requests by text (method, URL, IP, headers, query and body, case-insensitive) " +
-                        "and by a rule match, paginated.",
+                    "Search a webhook URL's requests by text (method, URL, IP, headers, query and body as received, " +
+                        "case-insensitive) and by a rule match, paginated. The text never searches the decrypted " +
+                        "value of an encrypted attribute, even with the read secret: the body is searched as it " +
+                        "arrived, with the JWE. The person can search the decrypted value in the UI.",
                     objectSchema(
                         """$TOKEN_ID,
                         "text": {"type": "string", "description": "Text to find, up to 200 characters"},
@@ -269,7 +271,7 @@ class McpTools {
             ) { args ->
                 val id = args.tokenId() ?: return@tool missingUuid("token_id")
                 val token = urls.open(id, args.readSecret())
-                parseSearch(args.body()).map { search.search(token, it) }
+                parseSearch(args.body()).map { search.search(token, it, includeDecrypted = false) }
             },
             kit.tool(
                 ToolDefinition(

@@ -428,6 +428,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     nunca 503; `near_miss` com o estado e o motivo; URL sem `e2ee` não casa; valor desconhecido → 422.
   - *Privacidade* (`e2ee-privacidade.spec.ts`, `specs/event/e2ee.spec.ts`): `decrypted` no `GET` e na listagem
     com o segredo, 401 sem ele; o link só-leitura e o evento levam `decryption` e nunca `decrypted`.
+  - *Busca no valor decifrado* (`busca-decifrado.spec.ts`): pela API REST com o segredo, o `text` acha pelo valor e
+    pelo nome de campo do `decrypted`, sem diferenciar maiúsculas; sem o segredo, ou com ele errado, 401. O
+    `search_requests` do MCP, mesmo com o `read_secret`, não acha pelo valor decifrado e acha pelo corpo como chegou;
+    a descrição dele diz isso.
   - *Estatísticas* (`stats.spec.ts`): `/stats` ganha `decryption` `{valid, invalid, unknown_kid, absent, unchecked,
     reasons}`, por `decryption.state` (`unchecked` = `decryption: null`), com os motivos das `invalid` por contagem
     decrescente, empate pelo texto, até 10. A comparação estrita das chaves e da URL vazia inclui o bloco; numa URL com

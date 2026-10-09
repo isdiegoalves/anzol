@@ -2869,7 +2869,10 @@ components:
         text:
           type: [string, 'null']
           maxLength: 200
-          description: Case-insensitive substring of method, url, ip, header or query names and values, or body.
+          description: >-
+            Case-insensitive substring of method, url, ip, header or query names and values, body, or names and
+            values of the decrypted attribute (`decrypted`, at any level). The MCP `search_requests` tool never
+            searches the decrypted value.
         match:
           oneOf:
             - $ref: '#/components/schemas/RuleMatch'

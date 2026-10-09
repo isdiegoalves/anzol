@@ -611,4 +611,26 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     expect(box.getAttribute('placeholder')).toBe('Search path, IP, header or body');
     expect(container.querySelector('[role="search"] kbd')?.textContent).toBe('/');
   });
+
+  it('deve dizer que busca também no valor decifrado Quando a URL decifra', async () => {
+    TestBed.inject(Preferences).token.set(
+      token({
+        e2ee: {
+          path: '$.payload',
+          required: true,
+          audience: 'anzol-lab',
+          bindings: { jti: '$.id', evt: '$.tipo', app: '$.app' },
+          max_age_seconds: 43200,
+          trusted_signers: [],
+        },
+      }),
+    );
+
+    const box = screen.getByRole('textbox', { name: 'Search' });
+    await vi.waitFor(() =>
+      expect(box.getAttribute('placeholder')).toBe(
+        'Search path, IP, header, body or decrypted value',
+      ),
+    );
+  });
 });

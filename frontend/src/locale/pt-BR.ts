@@ -1545,6 +1545,8 @@ export const translations: Record<string, string> = {
   '4580988005648117665': 'Buscar',
   // Search path, IP, header or body
   '7816062410528188063': 'Buscar no caminho, IP, header ou corpo',
+  // Search path, IP, header, body or decrypted value
+  '8418663352099230135': 'Buscar no caminho, IP, header, corpo ou valor decifrado',
   // Search (/)
   '3185098119447169060': 'Buscar (/)',
   // Filters

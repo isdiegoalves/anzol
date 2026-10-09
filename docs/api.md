@@ -231,9 +231,11 @@ novo) e 400 à cifra inválida (não tenta), e nunca usa `fault` nessa URL, porq
 ```
 
 `decrypted` sai só para quem tem o segredo de leitura: no `GET` da mensagem, na listagem, nas mensagens que a busca
-devolve e no `requests/wait`. A busca não procura nele: o texto da busca casa com o corpo como chegou, com o JWE.
-O link só-leitura, o evento `request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e
-a IA local não o recebe.
+devolve e no `requests/wait`. O texto da busca REST (`POST /token/{id}/requests/search`, a mesma da tela) também procura
+nele, nos nomes e valores em qualquer nível, porque a rota já exige o acesso de leitura da URL. O `search_requests` do
+MCP não procura: procura no corpo como chegou, com o JWE, mesmo com o `read_secret`, porque o agente nunca vê o valor e
+uma busca que achasse por ele diria, mensagem a mensagem, se um texto está lá dentro. O link só-leitura, o evento
+`request.created` e as ferramentas do MCP levam `decryption` e nunca `decrypted`, e a IA local não o recebe.
 
 ### Onde o valor decifrado fica
 
@@ -571,7 +573,7 @@ bastou). Corpo vazio vale `{}`. Validação: 422 em JSON, com `match.<campo>` co
 
 | Campo | Regra |
 |---|---|
-| `text` | até 200 caracteres. Casa quando aparece como trecho literal, sem diferenciar maiúsculas, no método, na `url` gravada, no IP, num nome ou valor de header, num nome ou valor de query (em qualquer nível: `a[b]=1` também) ou no corpo. Vazio ou ausente: sem filtro de texto |
+| `text` | até 200 caracteres. Casa quando aparece como trecho literal, sem diferenciar maiúsculas, no método, na `url` gravada, no IP, num nome ou valor de header, num nome ou valor de query (em qualquer nível: `a[b]=1` também), no corpo ou num nome ou valor do atributo decifrado (`decrypted`, em qualquer nível; ver [Decifra de atributo](#decifra-de-atributo-e2ee)). Vazio ou ausente: sem filtro de texto |
 | `match` | o `match` de uma regra (ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
 | `sorting` | `newest` (padrão) ou `oldest` |
 | `page`, `per_page` | `page` ≥ 1 (padrão 1); `per_page` de 1 a 100 (padrão 50) |

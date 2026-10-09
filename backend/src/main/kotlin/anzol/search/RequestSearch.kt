@@ -18,7 +18,8 @@ private const val SCAN_BATCH = 100L
 /**
  * Varre todas as mensagens retidas da URL, em trechos do índice na ordem pedida, e guarda só as da
  * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, motivo da
- * assinatura, caminho do schema, texto e `match`, em E).
+ * assinatura, caminho do schema, texto e `match`, em E). O texto procura no valor decifrado só com [includeDecrypted]:
+ * a API REST, que exige o acesso de leitura da URL; o MCP nunca, porque o agente não vê o valor e a busca o revelaria.
  */
 @Component
 class RequestSearch(
@@ -27,6 +28,7 @@ class RequestSearch(
     fun search(
         token: Token,
         search: SearchRequest,
+        includeDecrypted: Boolean,
     ): RequestPage {
         val conditions = search.match.conditions()
         val skipped = search.skipped()
@@ -39,7 +41,8 @@ class RequestSearch(
                     .filter { message -> search.outcome?.matches(message) != false }
                     .filter { message -> search.signatureReason?.let(message::hasSignatureReason) != false }
                     .filter { message -> search.schemaPath?.let(message::hasSchemaPath) != false }
-                    .filter { message -> message.contains(search.text) && conditions.none { it.failure(message.toMatchInput()) != null } }
+                    .filter { message -> message.contains(search.text, includeDecrypted) }
+                    .filter { message -> conditions.none { it.failure(message.toMatchInput()) != null } }
                     .forEach { message ->
                         if (total in window) add(message)
                         total++
@@ -70,24 +73,29 @@ private fun SearchRequest.skipped(): Long = if (page - 1 >= Long.MAX_VALUE / per
 
 /**
  * O [text] aparece, sem diferenciar maiúsculas, no método, na URL gravada, no IP, num nome ou valor de
- * header ou de query, ou no corpo; [text] vazio casa qualquer mensagem.
+ * header ou de query, no corpo ou, com [includeDecrypted], num nome ou valor do atributo decifrado; [text] vazio casa
+ * qualquer mensagem.
  */
-fun CapturedRequest.contains(text: String): Boolean {
+fun CapturedRequest.contains(
+    text: String,
+    includeDecrypted: Boolean,
+): Boolean {
     fun has(value: String?): Boolean = value != null && value.contains(text, ignoreCase = true)
 
     return has(method) ||
         has(url) ||
         has(ip) ||
         headers.any { (name, values) -> has(name) || values.any(::has) } ||
-        query?.let { queryTexts(it).any(::has) } == true ||
-        has(content)
+        query?.let { jsonTexts(it).any(::has) } == true ||
+        has(content) ||
+        (includeDecrypted && decrypted?.let { jsonTexts(it).any(::has) } == true)
 }
 
-/** Nomes e valores da query em qualquer nível: o PHP guarda `a[b]=1` como objeto dentro de objeto. */
-private fun queryTexts(node: JsonNode): Sequence<String> =
+/** Nomes e valores em qualquer nível: o PHP guarda a query `a[b]=1` como objeto dentro de objeto. */
+private fun jsonTexts(node: JsonNode): Sequence<String> =
     when {
-        node.isObject -> node.properties().asSequence().flatMap { (name, value) -> sequenceOf(name) + queryTexts(value) }
-        node.isArray -> node.asSequence().flatMap(::queryTexts)
+        node.isObject -> node.properties().asSequence().flatMap { (name, value) -> sequenceOf(name) + jsonTexts(value) }
+        node.isArray -> node.asSequence().flatMap(::jsonTexts)
         node.isNull -> emptySequence()
         else -> sequenceOf(node.asString())
     }

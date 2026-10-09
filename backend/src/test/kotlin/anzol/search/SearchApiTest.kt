@@ -95,6 +95,20 @@ class SearchApiTest(
 
     private fun uuid(message: JsonNode): String = message["uuid"].asString()
 
+    /** Mensagem gravada com `decrypted`, como a captura a grava numa URL com a decifra e o segredo de leitura. */
+    private fun seedDecrypted(
+        tokenId: String,
+        id: String,
+        decrypted: String,
+    ) {
+        val json =
+            """{"uuid":"$id","token_id":"$tokenId","ip":"10.0.0.1","hostname":"localhost","method":"POST",""" +
+                """"user_agent":null,"content":"{}","query":[],"headers":{},"url":"http://localhost/$tokenId",""" +
+                """"created_at":"2026-10-09 10:00:00","updated_at":"2026-10-09 10:00:00","decrypted":$decrypted}"""
+        redis.opsForHash<String, String>().put("token:$tokenId:requests", id, json)
+        redis.opsForZSet().add("token:$tokenId:requests:index", id, 1.0)
+    }
+
     @Nested
     @DisplayName("Texto (CA-1)")
     inner class Text {
@@ -123,6 +137,26 @@ class SearchApiTest(
             assertThat(page).isEqualTo(
                 api.tree("""{"data":[],"total":0,"per_page":50,"current_page":1,"is_last_page":true,"from":1,"to":0}"""),
             )
+        }
+
+        @Test
+        @DisplayName(
+            "Dado uma mensagem com o atributo decifrado, quando busca com o segredo por um nome ou valor de dentro dele, " +
+                "então acha só ela",
+        )
+        fun search_valorDecifrado_deveAcharComOSegredo() {
+            val tokenId = api.tokenId("""{"read_secret":"$SECRET"}""")
+            val access = JSON_BODY + (anzol.privacy.SECRET_HEADER to SECRET)
+            val target = UUID.randomUUID().toString()
+            seedDecrypted(tokenId, target, """{"pagamento":{"nota":"Cartao-Final-4242"},"itens":[{"sku":"Livro-77"}]}""")
+            api.send("POST", "/$tokenId", """{"sem":"cifra"}""".toByteArray(), JSON_BODY)
+
+            val pages =
+                listOf("cartao-final", "NOTA", "livro-77").map { text ->
+                    api.json(api.send("POST", "/token/$tokenId/requests/search", """{"text":"$text"}""".toByteArray(), access))
+                }
+
+            assertThat(pages.map(::uuids)).containsOnly(listOf(target))
         }
 
         @Test

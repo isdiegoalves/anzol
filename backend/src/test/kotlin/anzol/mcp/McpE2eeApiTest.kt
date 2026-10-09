@@ -73,7 +73,10 @@ class McpE2eeApiTest(
     }
 
     @Test
-    @DisplayName("Dado uma mensagem decifrada, quando get_request e list_requests a devolvem, então trazem decryption e não decrypted")
+    @DisplayName(
+        "Dado uma mensagem decifrada, quando get_request, list_requests e search_requests a leem, então trazem decryption, " +
+            "não decrypted, e a busca não acha pelo valor decifrado que a busca REST acha",
+    )
     fun e2ee_mensagemDecifrada_naoDeveSairNoMcp() {
         val signer = anzol.e2ee.ecKey("remetente-sig-1")
         val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(signer))
@@ -100,11 +103,18 @@ class McpE2eeApiTest(
 
         val one = call("get_request", access + ("request_id" to requestId)).json()
         val page = call("list_requests", access).json()
+        val byDecrypted = call("search_requests", access + ("text" to "aberto")).json()
+        val byEnvelope = call("search_requests", access + ("text" to "SERVICO-EXEMPLO")).json()
+        val viaRest =
+            api.json(api.send("POST", "/token/$tokenId/requests/search", """{"text":"aberto"}""".toByteArray(), JSON_BODY + secret))
 
         assertThat(one["decryption"]["state"].asString()).isEqualTo("valid")
         assertThat(one.has("decrypted")).isFalse()
         assertThat(page["data"][0].has("decrypted")).isFalse()
-        assertThat(listOf(one, page).map { it.toString() }).noneMatch { it.contains("aberto") }
+        assertThat(listOf(one, page, byEnvelope).map { it.toString() }).noneMatch { it.contains("aberto") }
+        assertThat(byDecrypted["total"].asInt()).isZero()
+        assertThat(byEnvelope["total"].asInt()).isEqualTo(1)
+        assertThat(viaRest["total"].asInt()).isEqualTo(1)
     }
 
     @Test

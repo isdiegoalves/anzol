@@ -15,7 +15,7 @@ São 18 ferramentas:
 | Ferramenta | Rota da API |
 |---|---|
 | `create_url`, `get_url`, `update_url`, `delete_url` | `POST /token`, `GET`/`PUT`/`DELETE /token/{id}` |
-| `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search`, `POST .../requests/wait` |
+| `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search` (o texto nunca procura no valor decifrado, ver abaixo), `POST .../requests/wait` |
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
 | `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
 | `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |
@@ -33,7 +33,10 @@ longer requires a valid HMAC"`).
 Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
 rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o
 resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)); a pessoa vê o valor
-decifrado na tela, com o segredo de leitura, na aba Decifrado da mensagem (Decrypted em inglês). O `update_url`
+decifrado na tela, com o segredo de leitura, na aba Decifrado da mensagem (Decrypted em inglês). Pelo mesmo motivo,
+o texto do `search_requests` nunca procura no valor decifrado, mesmo com o `read_secret`: procura no corpo como chegou,
+com o JWE. Se procurasse, cada busca diria ao agente se um texto está dentro do valor que ele não vê, e uma sequência
+de buscas o reconstruiria; a busca da API REST e a da tela procuram nele. O `update_url`
 mantém o bloco `e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando `e2ee` vem nos
 argumentos do `create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o resultado traz
 `"warnings": ["e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."]`;

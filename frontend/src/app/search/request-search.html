@@ -9,8 +9,7 @@
         name="search"
         aria-label="Search"
         i18n-aria-label
-        placeholder="Search path, IP, header or body"
-        i18n-placeholder
+        [placeholder]="placeholder()"
         maxlength="200"
         autocomplete="off"
         enterkeyhint="search"

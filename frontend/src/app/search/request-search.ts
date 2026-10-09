@@ -19,6 +19,7 @@ import { eventCount } from '../requests/event-key';
 import { RequestStore } from '../requests/request-store';
 import { isTyping } from '../shell/hotkeys';
 import { ShellSettings } from '../shell/shell-settings';
+import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { LiveRegion } from '../ui/live-region';
 import { FilterChips } from './filter-chips';
@@ -52,6 +53,7 @@ export class RequestSearch {
   protected readonly waitFor = inject(WaitFor);
   private readonly grouping = inject(EventGrouping);
   private readonly settings = inject(ShellSettings);
+  private readonly tokens = inject(TokenStore);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly panel = viewChild(FilterPanel);
@@ -62,6 +64,12 @@ export class RequestSearch {
   protected readonly removeLabel = (filter: string) =>
     $localize`Remove this filter: ${filter}:filter:`;
 
+  /** Com a decifra na URL, o texto também procura no valor decifrado (só a API REST e a tela). */
+  protected readonly placeholder = computed(() =>
+    this.tokens.token()?.e2ee
+      ? $localize`Search path, IP, header, body or decrypted value`
+      : $localize`Search path, IP, header or body`,
+  );
   /** Texto digitado; volta ao do filtro quando ele muda por fora (limpar, trocar de URL). */
   protected readonly draft = linkedSignal(() => this.store.filter().text);
   /** "Filters · 2" à vista; "Filters, 2 active" no nome acessível. */
