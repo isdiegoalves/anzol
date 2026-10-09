@@ -656,12 +656,12 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       [
         'inválida',
         decryption({ state: 'invalid', reason: 'aud_mismatch', signature_kid: 'sig-1' }),
-        'Decryption invalid | aud does not include the audience (aud_mismatch) | Key: enc-1 | Signed by: sig-1 | jti: n-42',
+        "Decryption invalid | aud does not include the audience (aud_mismatch) | The sender must send aud with this URL's audience, or the audience set here is not the agreed one. | Key: enc-1 | Signed by: sig-1 | jti: n-42",
       ],
       [
         'de chave desconhecida',
         decryption({ state: 'unknown_kid', kid: 'enc-9', signature_kid: null, jti: null }),
-        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | Key: enc-9",
+        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS. | If you deleted this key, the sender still uses the old JWKS: ask them to fetch it again. If it was never this URL's, the sender encrypted to another recipient. | Key: enc-9",
       ],
       [
         'em claro',
@@ -677,6 +677,58 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         expect(screen.queryByRole('tab', { name: 'Decrypted' })).toBeNull();
       },
     );
+
+    it('deve dizer em pt-BR o que houve, o que a URL configura e quem corrige Quando o signatário é desconhecido', async () => {
+      loadTranslations(translations);
+      try {
+        const { container } = await show(
+          webhookRequest(1, {
+            decryption: decryption({
+              state: 'invalid',
+              reason: 'signer_unknown',
+              signature_kid: 'sig-9',
+            }),
+          }),
+          token({
+            e2ee: {
+              path: '$.payload',
+              required: true,
+              audience: 'loja',
+              bindings: { jti: '$.id', evt: '$.evt', app: '$.app' },
+              max_age_seconds: 300,
+              trusted_signers: [{ kid: 'sig-1' }],
+            },
+          }),
+        );
+
+        expect(lines()).toBe(
+          'Decifra inválida | o JWS diz ter sido assinado por uma chave de assinatura que não está nos signatários confiáveis desta URL (signer_unknown) | Signatários confiáveis desta URL: sig-1 | Se o remetente trocou de chave, cole a pública nova em Verificações › Decifra › Signatários confiáveis; se você não reconhece essa chave, trate como remetente desconhecido. | Chave de cifra: enc-1 | Chave de assinatura do remetente: sig-9 | jti: n-42',
+        );
+        await expectNoAxeViolations(container);
+      } finally {
+        clearTranslations();
+      }
+    });
+
+    it('deve levar à aba Headers, onde está a assinatura, Quando o HMAC barrou a decifra', async () => {
+      const { container } = await show(
+        webhookRequest(1, {
+          signature: { provider: 'github', valid: false, reason: 'signature mismatch' },
+          decryption: decryption({
+            state: 'invalid',
+            reason: 'hmac_failed',
+            kid: null,
+            signature_kid: null,
+            jti: null,
+          }),
+        }),
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: /hmac_failed/ }));
+
+      expect(screen.getByRole('tab', { selected: true }).textContent).toContain('Headers');
+      await expectNoAxeViolations(container);
+    });
 
     it('deve pôr a aba Decrypted na faixa do celular, com o teclado das abas', async () => {
       windowClass.set('compact');

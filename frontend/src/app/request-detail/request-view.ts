@@ -14,7 +14,8 @@ import { MatButton } from '@angular/material/button';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
-import { CheckKind, pipelineOf } from '../pipeline/pipeline';
+import { decryptionAdvice } from '../pipeline/decryption';
+import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { conditionPhrase, originalTitle } from '../pipeline/server-phrases';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
@@ -38,8 +39,6 @@ let nextViewId = 0;
 export const TABS = ['body', 'headers', 'query', 'form'] as const;
 export type Tab = (typeof TABS)[number];
 
-/** O cartão de cada verificação leva à aba onde está o que ela conferiu. */
-const TAB_OF_CHECK: Partial<Record<CheckKind, Tab>> = { signature: 'headers', schema: 'body' };
 /** Acima disto, o corpo não tem clique por linha; os campos vão para o "Filter by a field…". */
 export const BODY_CLICK_MAX = 100 * 1024;
 
@@ -124,7 +123,10 @@ export class RequestView {
     const { signature, schema, decryption, rule } = this.pipeline();
     return [signature, schema, ...(decryption ? [decryption] : []), rule];
   });
-  /** O que mais a decifra gravou: a chave, quem assinou e o `jti`, conforme o estado. */
+  /**
+   * O que fazer com a decifra que falhou, e o que mais ela gravou: a chave, quem assinou e o `jti`,
+   * conforme o estado.
+   */
   protected readonly decryptionNotes = computed(() => {
     const decryption = this.request().decryption;
     if (!decryption) {
@@ -132,6 +134,7 @@ export class RequestView {
     }
     const valid = decryption.state === 'valid';
     return [
+      ...decryptionAdvice(decryption, this.token()),
       ...(!valid && decryption.kid ? [$localize`Key: ${decryption.kid}:kid:`] : []),
       ...(!valid && decryption.signature_kid
         ? [$localize`Signed by: ${decryption.signature_kid}:signer:`]
@@ -387,7 +390,6 @@ export class RequestView {
     });
   }
 
-  /** O cartão leva à aba do que ele conferiu (assinatura → Headers, schema → Body). */
   /** Setas, Home e End na faixa de abas: abre a aba e leva o foco a ela (WAI-ARIA, ativação automática). */
   protected moveTab(event: KeyboardEvent): void {
     const last = this.tabLabels().length - 1;
@@ -405,15 +407,28 @@ export class RequestView {
     this.document.getElementById(this.tabId(next[event.key]))?.focus();
   }
 
-  protected showCheck(kind: CheckKind): void {
-    const tab = TAB_OF_CHECK[kind];
+  protected showCheck(check: CheckResult): void {
+    const tab = this.tabOf(check);
     if (tab) {
       this.tab.set(TABS.indexOf(tab));
     }
   }
 
-  protected hasTarget(kind: CheckKind): boolean {
-    return TAB_OF_CHECK[kind] !== undefined;
+  /**
+   * A aba onde está o que o cartão conferiu: a assinatura nos Headers, o schema no Body; a decifra
+   * que o HMAC barrou leva à assinatura.
+   */
+  protected tabOf(check: CheckResult): Tab | null {
+    switch (check.kind) {
+      case 'signature':
+        return 'headers';
+      case 'schema':
+        return 'body';
+      case 'decryption':
+        return this.request().decryption?.reason === 'hmac_failed' ? 'headers' : null;
+      default:
+        return null;
+    }
   }
 
   protected toggleWhy(): void {

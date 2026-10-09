@@ -1,9 +1,10 @@
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { translations } from '../../locale/pt-BR';
-import { webhookRequest } from '../../testing/fixtures';
+import { token, webhookRequest } from '../../testing/fixtures';
 import { DecryptionResult } from '../requests/webhook-request';
 import { spokenOf } from '../ui/check-chip';
-import { decryptionReasonText, decryptionResult } from './decryption';
+import { decryptionAdvice, decryptionReasonText, decryptionResult } from './decryption';
+import { E2eePolicy } from '../token/token';
 import { CheckResult, pipelineOf } from './pipeline';
 
 const resultado = (overrides: Partial<DecryptionResult>): DecryptionResult => ({
@@ -133,5 +134,113 @@ describe.each([
     );
 
     expect(selo?.short).toBe(['Unknown kid', 'Chave desconhecida'][coluna - 1]);
+  });
+});
+
+const politica: E2eePolicy = {
+  path: '$.payload',
+  required: true,
+  audience: 'loja-1',
+  bindings: { jti: '$.eventId', evt: '$.tipo', app: { path: '$.app', ignore_case: true } },
+  max_age_seconds: 600,
+  trusted_signers: [{ kid: 'sig-1' }, { kid: 'sig-2' }],
+};
+const urlQueDecifra = token({
+  e2ee: politica,
+  e2ee_keys: [{ kid: 'enc-1', created_at: '2026-10-09 10:00:00', jwk: {} }],
+});
+
+describe.each([
+  ['inglês', (): void => undefined, /\bsender\b|\bhere\b|this URL|altered|Checks ›/],
+  [
+    'pt-BR',
+    () => loadTranslations(translations),
+    /remetente|aqui|desta URL|alterad|Verificações ›/,
+  ],
+] as const)(
+  'Dado o que fazer com a decifra que falhou, com a tela em %s',
+  (_idioma, carregar, quem) => {
+    beforeEach(carregar);
+    afterEach(() => clearTranslations());
+
+    it.each(MOTIVOS.map(([motivo]) => motivo))(
+      'deve dizer quem corrige o motivo %s, com e sem a URL (link só-leitura)',
+      (reason) => {
+        const falha = resultado({ state: 'invalid', reason });
+
+        for (const url of [urlQueDecifra, null]) {
+          const linhas = decryptionAdvice(falha, url);
+          expect(linhas.length).toBeGreaterThan(0);
+          expect(linhas.some((linha) => quem.test(linha))).toBe(true);
+        }
+      },
+    );
+
+    it('deve dizer quem corrige a chave de cifra desconhecida', () => {
+      const linhas = decryptionAdvice(
+        resultado({ state: 'unknown_kid', kid: 'enc-9' }),
+        urlQueDecifra,
+      );
+
+      expect(linhas.some((linha) => quem.test(linha))).toBe(true);
+    });
+  },
+);
+
+describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
+  it.each([
+    ['signer_unknown', 'Trusted signers here: sig-1, sig-2'],
+    ['signature_invalid', 'Trusted signers here: sig-1, sig-2'],
+    ['aud_mismatch', 'Audience here: loja-1'],
+    ['downgrade', 'Encrypted attribute here: $.payload'],
+    ['attribute_missing', 'Encrypted attribute here: $.payload'],
+    ['jti_mismatch', 'Binding here: jti ↔ $.eventId'],
+    ['app_mismatch', 'Binding here: app ↔ $.app'],
+    ['iat_outside_window', 'Max age here: 600 s'],
+    ['decrypt_failed', 'Encryption keys here: enc-1'],
+  ])('deve pôr ao lado do motivo %s o que a URL tem configurado', (reason, fato) => {
+    expect(decryptionAdvice(resultado({ state: 'invalid', reason }), urlQueDecifra)).toContain(
+      fato,
+    );
+  });
+
+  it('deve listar as chaves de cifra de hoje Quando o kid do JWE não é da URL', () => {
+    expect(
+      decryptionAdvice(resultado({ state: 'unknown_kid', kid: 'enc-9' }), urlQueDecifra),
+    ).toContain('Encryption keys here: enc-1');
+  });
+
+  it('deve mandar gerar uma chave Quando a URL não tem nenhuma chave de cifra', () => {
+    const semChave = token({ e2ee: politica, e2ee_keys: [] });
+
+    expect(decryptionAdvice(resultado({ state: 'unknown_kid', kid: 'enc-9' }), semChave)).toContain(
+      'This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS.',
+    );
+  });
+
+  it('deve deixar de fora o que a URL configura Quando a tela não tem a URL (link só-leitura)', () => {
+    const linhas = decryptionAdvice(resultado({ state: 'invalid', reason: 'aud_mismatch' }), null);
+
+    expect(linhas.join(' ')).not.toContain('loja-1');
+  });
+
+  it.each([
+    ['válida', resultado({})],
+    ['em claro aceita', resultado({ state: 'absent', kid: null })],
+  ])('deve ficar sem o que fazer Quando a decifra é %s', (_caso, decryption) => {
+    expect(decryptionAdvice(decryption, urlQueDecifra)).toEqual([]);
+  });
+
+  it('deve dizer em pt-BR que a decifra não foi feita Quando o HMAC barrou', () => {
+    loadTranslations(translations);
+    try {
+      expect(
+        decryptionResult(
+          webhookRequest(1, { decryption: resultado({ state: 'invalid', reason: 'hmac_failed' }) }),
+        )?.title,
+      ).toBe('Decifra não feita');
+    } finally {
+      clearTranslations();
+    }
   });
 });

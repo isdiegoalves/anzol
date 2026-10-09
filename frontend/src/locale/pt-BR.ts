@@ -3816,19 +3816,20 @@ export const translations: Record<string, string> = {
   // Copied the HMAC secret
   '8534427223846313672': 'Segredo de HMAC copiado',
   // the URL signature did not pass, so nothing was opened
-  '4099669960109730203': 'a assinatura da URL não passou, então nada foi aberto',
+  '4099669960109730203':
+    'a assinatura HMAC desta requisição não passou, então o JWE não foi aberto',
   // the body is not JSON
   '4648007250808057723': 'o corpo não é JSON',
   // the attribute is missing
-  '6098038580826029757': 'o atributo não veio',
+  '6098038580826029757': 'o atributo cifrado não veio neste corpo',
   // the attribute arrived in plaintext
-  '4095206439753465736': 'o atributo chegou em claro',
+  '4095206439753465736': 'o atributo cifrado não veio como JWE',
   // the JWE is over 256 KiB
   '2837686852832932293': 'o JWE passa de 256 KiB',
   // the attribute is not a compact JWE
   '8770002820047482648': 'o atributo não é um JWE compacto',
   // the JWE alg is not ECDH-ES
-  '1918584685182351139': 'o alg do JWE não é ECDH-ES',
+  '1918584685182351139': 'o alg do JWE não é ECDH-ES (acordo direto)',
   // the JWE enc is not A256GCM
   '3268614483128049150': 'o enc do JWE não é A256GCM',
   // a compressed JWE (zip) is not accepted
@@ -3842,29 +3843,31 @@ export const translations: Record<string, string> = {
   // the ephemeral key (epk) is off the P-256 curve
   '4784819155901149829': 'a chave efêmera (epk) está fora da curva P-256',
   // decryption failed: another key, or the JWE was altered
-  '4174154984477755287': 'a decifra falhou: outra chave, ou o JWE foi alterado',
+  '4174154984477755287': 'a chave de cifra nomeada no JWE não o abriu',
   // there is no JWS inside the JWE
   '4978491312377245090': 'não há JWS dentro do JWE',
   // the JWS alg is not ES256
   '3510604211532383033': 'o alg do JWS não é ES256',
   // the JWS kid is not a trusted signer
-  '5736766313539511422': 'o kid do JWS não é de um signatário confiável',
+  '5736766313539511422':
+    'o JWS diz ter sido assinado por uma chave de assinatura que não está nos signatários confiáveis desta URL',
   // the JWS signature does not verify
-  '6324024128697707385': 'a assinatura do JWS não confere',
+  '6324024128697707385':
+    'a assinatura do remetente (JWS) não confere com a chave pública colada aqui',
   // the JWS claims are not a JSON object
   '430255637426026978': 'os claims do JWS não são um objeto JSON',
   // aud does not include the audience
-  '8495543216487372431': 'o aud não inclui a audiência',
+  '8495543216487372431': 'o aud do JWS não inclui a audiência desta URL',
   // jti does not match the envelope
-  '5542504737015617522': 'o jti não bate com o envelope',
+  '5542504737015617522': 'o claim jti do JWS não bate com o envelope (o corpo fora do JWE)',
   // evt does not match the envelope
-  '841781475653216409': 'o evt não bate com o envelope',
+  '841781475653216409': 'o claim evt do JWS não bate com o envelope (o corpo fora do JWE)',
   // app does not match the envelope
-  '3296686154338099088': 'o app não bate com o envelope',
+  '3296686154338099088': 'o claim app do JWS não bate com o envelope (o corpo fora do JWE)',
   // the JWS has no iat
   '117103034887306727': 'o JWS não tem iat',
   // iat is outside the allowed window
-  '618391409188079226': 'o iat está fora da janela permitida',
+  '618391409188079226': 'o iat do JWS está fora da janela permitida',
   // the JWS has no data claim
   '3824204479501526840': 'o JWS não tem o claim data',
   // HMAC blocked
@@ -3924,23 +3927,106 @@ export const translations: Record<string, string> = {
   // Decrypted
   '8002782093253209415': 'Decifrada',
   // key {$kid} · signed by {$signer}
-  '1802912247230774408': 'chave {$kid} · assinada por {$signer}',
+  '1802912247230774408': 'chave de cifra {$kid} · assinatura do remetente {$signer}',
   // Repeated jti
   '3554156791085147337': 'jti repetido',
   // Unknown encryption key
   '8329291668612455386': 'Chave de cifra desconhecida',
   // The JWE kid {$kid} is not one of this URL's keys
-  '6338941906368435061': 'O kid {$kid} do JWE não é de uma chave desta URL',
+  '6338941906368435061': 'O JWE veio cifrado para a chave de cifra {$kid}, que não é desta URL',
   // Unknown kid
   '7820009087498142311': 'Chave desconhecida',
   // Not encrypted
   '8872070947491832220': 'Não cifrada',
   // The attribute arrived in plaintext, which this URL accepts
-  '6319658340765253763': 'O atributo chegou em claro, o que esta URL aceita',
+  '6319658340765253763':
+    'O atributo cifrado não veio como JWE (ou o corpo não é JSON), e esta URL aceita isso',
   // Plaintext
   '4603020359259128052': 'Em claro',
   // Decryption invalid
+  '7254015638160199399': 'Decifra não feita',
+  // Decryption invalid
   '7047936464040307733': 'Decifra inválida',
+  // Encryption keys here: {$kids}
+  '28850327177048580': 'Chaves de cifra desta URL hoje: {$kids}',
+  // This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS.
+  '5612265685224617344':
+    'Esta URL não tem nenhuma chave de cifra: gere uma em Verificações › Decifra e publique o JWKS.',
+  // If you deleted this key, the sender still uses the old JWKS: ask them to fetch it again. If it was never this URL's, the sender encrypted to another recipient.
+  '1023019543055463613':
+    'Se você apagou essa chave, o remetente ainda usa o JWKS antigo: peça que o baixe de novo. Se ela nunca foi desta URL, o remetente cifrou para outro destino.',
+  // Binding here: {$claim} ↔ {$path}
+  '8127539399860512654': 'Vínculo desta URL: {$claim} ↔ {$path}',
+  // Trusted signers here: {$kids}
+  '5093069732900863528': 'Signatários confiáveis desta URL: {$kids}',
+  // This URL has no trusted signer.
+  '3838737910130502070': 'Esta URL não tem nenhum signatário confiável.',
+  // Audience here: {$audience}
+  '2046406031450925341': 'Audiência desta URL: {$audience}',
+  // Encrypted attribute here: {$path}
+  '8183379000458726355': 'Atributo cifrado desta URL: {$path}',
+  // Max age here: {$seconds} s
+  '5466563591429833634': 'Idade máxima desta URL: {$seconds} s',
+  // The sender must send a JSON body carrying the encrypted attribute.
+  '4772427480392526388': 'O remetente precisa mandar um corpo JSON com o atributo cifrado.',
+  // The sender must use a valid P-256 ephemeral key (epk) in the JWE header.
+  '8211812893622813100':
+    'O remetente precisa pôr no cabeçalho do JWE uma chave efêmera (epk) P-256 válida.',
+  // A message cut from another envelope, or the binding set here points at the wrong field (case only: turn on Ignore case).
+  '4756990495593773461':
+    'Mensagem recortada de outro envelope, ou o vínculo configurado aqui aponta para o campo errado (diferença só de caixa: ligue Ignorar maiúsculas).',
+  // Check the HMAC signature first: decryption only runs after it. The signature card says whether the sender or the secret set here is at fault.
+  '5417256220283444611':
+    'Confira a assinatura HMAC primeiro: a decifra só roda depois dela. O cartão da assinatura diz se o problema está no remetente ou no segredo configurado aqui.',
+  // The sender did not send it, or the encrypted attribute set here points at another field: check it against a real message.
+  '1685524679813001624':
+    'O remetente não o mandou, ou o atributo cifrado configurado aqui aponta para outro campo: confira contra uma mensagem real.',
+  // The sender sent it in plaintext, or the encrypted attribute set here points at another field.
+  '3759295271342855593':
+    'O remetente mandou em claro, ou o atributo cifrado configurado aqui aponta para outro campo.',
+  // The sender must keep the JWE up to 256 KiB.
+  '7228039824944147233': 'O remetente precisa mandar um JWE de até 256 KiB.',
+  // The sender must send a compact JWE (five parts separated by dots).
+  '1546446095739417885':
+    'O remetente precisa mandar um JWE compacto (cinco partes separadas por ponto).',
+  // The sender must encrypt with alg ECDH-ES (direct key agreement), the only one accepted.
+  '4634254985051505906':
+    'O remetente precisa cifrar com alg ECDH-ES (acordo direto), o único aceito.',
+  // The sender must encrypt with enc A256GCM, the only one accepted.
+  '2697160424675676546': 'O remetente precisa cifrar com enc A256GCM, o único aceito.',
+  // The sender must not compress the JWE (no zip in its header).
+  '8061400600846915998': 'O remetente não pode comprimir o JWE (sem zip no cabeçalho).',
+  // The sender must put in the JWE header the kid of an encryption key of this URL.
+  '4066975636782769812':
+    'O remetente precisa pôr no cabeçalho do JWE o kid de uma chave de cifra desta URL.',
+  // The sender must put cty: JWT in the JWE header.
+  '6700277022736429274': 'O remetente precisa pôr cty: JWT no cabeçalho do JWE.',
+  // The message was altered, the key was deleted and recreated with the same kid, or the sender encrypted to another URL's key with the same kid (every lab has enc-v1 and enc-v2). Check which JWKS the sender uses.
+  '4243140561487597728':
+    'A mensagem foi alterada, a chave foi apagada e recriada com o mesmo kid, ou o remetente cifrou para a chave de cifra de outra URL que usa o mesmo kid (todo laboratório tem enc-v1 e enc-v2). Confira qual JWKS o remetente usa.',
+  // The sender encrypted the data directly, without signing: the format requires an ES256 JWS inside the JWE.
+  '7430526873102639243':
+    'O remetente cifrou o dado direto, sem assinar: o formato exige um JWS ES256 dentro do JWE.',
+  // The sender must sign the JWS with ES256.
+  '6533783706039618996': 'O remetente precisa assinar o JWS com ES256.',
+  // If the sender rotated keys, paste the new public key in Checks › Decryption › Trusted signers; if you do not recognize this key, treat it as an unknown sender.
+  '2876590976681982050':
+    'Se o remetente trocou de chave, cole a pública nova em Verificações › Decifra › Signatários confiáveis; se você não reconhece essa chave, trate como remetente desconhecido.',
+  // The sender rotated keys and kept the kid, the public key pasted here is wrong, or it is a forgery. Paste the sender's current public key again.
+  '8491599404628565745':
+    'O remetente trocou a chave e manteve o kid, a pública colada aqui está errada, ou é uma forja. Recole a chave pública atual do remetente.',
+  // The sender must sign a JSON object of claims in the JWS.
+  '8754683856855844907': 'O remetente precisa assinar no JWS um objeto JSON de claims.',
+  // The sender must send aud with this URL's audience, or the audience set here is not the agreed one.
+  '3134801950448392323':
+    'O remetente precisa mandar aud com a audiência desta URL, ou a audiência configurada aqui não é a combinada.',
+  // The sender must put iat (the signing time) in the JWS claims.
+  '2939605434584310722': 'O remetente precisa pôr iat (a hora da assinatura) nos claims do JWS.',
+  // The window goes from the max age set here into the past up to 5 min into the future: late redelivery or a wrong clock at the sender; or raise the max age here.
+  '7325933271363727076':
+    'A janela vai da idade máxima configurada aqui para trás até 5 min para a frente: reentrega atrasada ou relógio errado no remetente; ou aumente a idade máxima aqui.',
+  // The sender must put the data claim (the attribute itself) in the JWS.
+  '4294451110972106575': 'O remetente precisa pôr o claim data (o próprio atributo) no JWS.',
   // decryption: expected {$expected}, got not configured
   '7613681671970386143': 'decifra: não configurada nesta URL (a regra pede {$expected})',
   // decryption: expected {$expected}, got {$got}
@@ -3953,9 +4039,9 @@ export const translations: Record<string, string> = {
   // Decrypted attribute
   '6641968519268196135': 'Atributo decifrado',
   // Key: {$kid}
-  '2032685813231396424': 'Chave: {$kid}',
+  '2032685813231396424': 'Chave de cifra: {$kid}',
   // Signed by: {$signer}
-  '8138824404534403132': 'Assinada por: {$signer}',
+  '8138824404534403132': 'Chave de assinatura do remetente: {$signer}',
   // First request with this jti: #{$id}
   '812133857419478642': 'Primeira requisição com este jti: #{$id}',
   // Decryption

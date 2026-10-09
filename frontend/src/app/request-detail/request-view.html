@@ -67,9 +67,13 @@
 
 <div class="checks" role="group" aria-label="Checks on this request" i18n-aria-label>
   @for (check of checks(); track check.kind) {
-    @if (!readonly() && hasTarget(check.kind)) {
-      <button type="button" class="check" (click)="showCheck(check.kind)">
-        <app-check-chip [result]="check" size="card" />
+    @if (!readonly() && tabOf(check) !== null) {
+      <button type="button" class="check" (click)="showCheck(check)">
+        <app-check-chip
+          [result]="check"
+          size="card"
+          [notes]="check.kind === 'decryption' ? decryptionNotes() : []"
+        />
       </button>
     } @else if (check.kind === 'decryption') {
       <div class="check">
