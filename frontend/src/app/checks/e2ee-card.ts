@@ -441,7 +441,7 @@ export class E2eeCard implements ChecksSection {
   }
 
   protected deleteLabel(kid: string): string {
-    return $localize`Delete key ${kid}:kid:`;
+    return $localize`Delete encryption key ${kid}:kid:`;
   }
 
   protected copyLabel(kid: string): string {

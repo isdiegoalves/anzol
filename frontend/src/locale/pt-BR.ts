@@ -3708,8 +3708,8 @@ export const translations: Record<string, string> = {
   insightsShareColumn: 'Participação',
   // E2EE decryption
   '5407075505681814999': 'Decifra E2EE',
-  // Delete key {$INTERPOLATION}?
-  '3592389072273364180': 'Apagar a chave {$INTERPOLATION}?',
+  // Delete encryption key {$INTERPOLATION}?
+  '4684867836789378626': 'Apagar a chave de cifra {$INTERPOLATION}?',
   //  Requests already decrypted keep their stored value. Old backups of the volume still have the private key.
   '490918146599079624':
     ' As já decifradas mantêm o valor gravado. Backups antigos do volume ainda têm a chave privada. ',
@@ -3747,14 +3747,14 @@ export const translations: Record<string, string> = {
   '840459527132509616': 'Ignorar maiúsculas',
   // Trusted signers
   '8964988845458054386': 'Signatários confiáveis',
-  //  JSON array of 1 to 10 public JWKs (EC P-256, ES256, with kid and without d) of whoever signs.
-  '3799202753314949753':
-    ' Lista JSON de 1 a 10 JWKs públicas (EC P-256, ES256, com kid e sem d) de quem assina. ',
+  //  JSON array of 1 to 10 public signing keys of the sender (JWK EC P-256, ES256, with kid and without d).
+  '4210770051452223762':
+    ' Lista JSON de 1 a 10 chaves públicas de assinatura do remetente (JWK EC P-256, ES256, com kid e sem d). ',
   // Encryption keys
   '5425112736283841497': 'Chaves de cifra',
-  // Senders encrypt to the public key; the private key never leaves the server. Up to {$INTERPOLATION}: the current one and the next, for rotation.
-  '964229197384454782':
-    'Quem envia cifra para a chave pública; a privada nunca sai do servidor. Até {$INTERPOLATION}: a atual e a próxima, para a rotação.',
+  // The sender encrypts to the public key; the private key stays on the Anzol server. Up to {$INTERPOLATION}: the current one and the next, for rotation.
+  '6979174929328572994':
+    'O remetente cifra para a chave pública; a privada fica no servidor do Anzol. Até {$INTERPOLATION}: a atual e a próxima, para a rotação.',
   // Public JWKS
   '631765191507553383': 'JWKS público',
   // created {$INTERPOLATION}
@@ -3796,8 +3796,8 @@ export const translations: Record<string, string> = {
   '6207131896645598747': 'Chave pública {$kid} copiada',
   // Ignore case in {$claim}
   '7511986161967815160': 'Ignorar maiúsculas em {$claim}',
-  // Delete key {$kid}
-  '6455727995340679242': 'Apagar chave {$kid}',
+  // Delete encryption key {$kid}
+  '3760098269534962491': 'Apagar chave de cifra {$kid}',
   // Copy public key {$kid}
   '1829917073783003479': 'Copiar chave pública {$kid}',
   // none

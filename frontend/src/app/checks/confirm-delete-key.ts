@@ -19,7 +19,7 @@ import { firstValueFrom } from 'rxjs';
   selector: 'app-confirm-delete-key',
   imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
   template: `
-    <h2 i18n mat-dialog-title>Delete key {{ data.kid }}?</h2>
+    <h2 i18n mat-dialog-title>Delete encryption key {{ data.kid }}?</h2>
     <mat-dialog-content>
       <p i18n>
         Requests encrypted to <code>{{ data.kid }}</code> from now on are recorded as Unknown key

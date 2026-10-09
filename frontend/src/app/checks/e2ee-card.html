@@ -40,7 +40,7 @@
     <h3 id="e2ee-keys-title" i18n>Encryption keys</h3>
     <p class="hint">
       <ng-container i18n
-        >Senders encrypt to the public key; the private key never leaves the server. Up to
+        >The sender encrypts to the public key; the private key stays on the Anzol server. Up to
         {{ keysMax }}: the current one and the next, for rotation.</ng-container
       >&ngsp;<a [href]="jwksUrl()" target="_blank" rel="noopener" i18n>Public JWKS</a>
     </p>
@@ -254,8 +254,8 @@
           <p id="e2ee-signers-error" class="error">{{ message }}</p>
         }
         <p id="e2ee-signers-help" class="hint" i18n>
-          JSON array of 1 to 10 public JWKs (EC P-256, ES256, with kid and without d) of whoever
-          signs.
+          JSON array of 1 to 10 public signing keys of the sender (JWK EC P-256, ES256, with kid and
+          without d).
         </p>
       </div>
     }

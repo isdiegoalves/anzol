@@ -514,7 +514,7 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
         const page = TestbedHarnessEnvironment.documentRootLoader(fixture);
 
         await userEvent.click(
-          within(card()).getByRole('button', { name: `Delete key ${CHAVE.kid}` }),
+          within(card()).getByRole('button', { name: `Delete encryption key ${CHAVE.kid}` }),
         );
 
         const dialogo = await vi.waitFor(() => page.getHarness(MatDialogHarness));
@@ -539,11 +539,11 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
         const page = TestbedHarnessEnvironment.documentRootLoader(fixture);
 
         await userEvent.click(
-          within(card()).getByRole('button', { name: `Delete key ${CHAVE.kid}` }),
+          within(card()).getByRole('button', { name: `Delete encryption key ${CHAVE.kid}` }),
         );
 
         const dialogo = await vi.waitFor(() => page.getHarness(MatDialogHarness));
-        expect(await dialogo.getTitleText()).toBe(`Delete key ${CHAVE.kid}?`);
+        expect(await dialogo.getTitleText()).toBe(`Delete encryption key ${CHAVE.kid}?`);
         await (await dialogo.getHarness(MatButtonHarness.with({ text: botao }))).click();
 
         if (apaga) {

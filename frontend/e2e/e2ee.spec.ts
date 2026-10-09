@@ -98,8 +98,8 @@ test.describe('Dado o cartão "E2EE decryption" de Checks', () => {
     const copiada = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
     expect(copiada).toEqual(jwks.keys[0]);
 
-    await cartao.getByRole('button', { name: 'Delete key enc-e2e-1' }).click();
-    const confirmar = page.getByRole('dialog', { name: 'Delete key enc-e2e-1?' });
+    await cartao.getByRole('button', { name: 'Delete encryption key enc-e2e-1' }).click();
+    const confirmar = page.getByRole('dialog', { name: 'Delete encryption key enc-e2e-1?' });
     await confirmar.getByRole('button', { name: 'Delete key' }).click();
     await expect(confirmar).toBeHidden();
     await expect(chaves(cartao)).toHaveCount(1);
