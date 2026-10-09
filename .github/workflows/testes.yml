@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -33,7 +33,7 @@ jobs:
   # O CLI é construído com o JDK 25 e roda em Java 21 ou mais novo: os testes (que disparam o CLI como processo) rodam
   # em cada Java da matriz. O último java-version da lista é o padrão do runner, o que o Gradle usa para construir.
   cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +62,7 @@ jobs:
           cli/build/install/anzol/bin/anzol --help
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
