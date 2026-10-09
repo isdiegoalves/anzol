@@ -3702,7 +3702,13 @@ export const translations: Record<string, string> = {
   '3592389072273364180': 'Apagar a chave {$INTERPOLATION}?',
   //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is erased and can't be recovered.
   '7646029928332588558':
-    ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como chave desconhecida e não são decifradas. A chave privada é apagada e não tem como recuperar. ',
+    ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
+  //  Requests already decrypted keep their stored value. Old backups of the volume still have the private key.
+  '490918146599079624':
+    ' As já decifradas mantêm o valor gravado. Backups antigos do volume ainda têm a chave privada. ',
+  //  This is the URL's only encryption key: without it, every new encrypted request is recorded as Unknown key until you generate another.
+  '2526831824925286701':
+    ' Esta é a única chave de cifra da URL: sem ela, toda requisição cifrada nova fica como Chave desconhecida até você gerar outra. ',
   // Delete key
   '73979960734847259': 'Apagar chave',
   //  One attribute of the JSON body arrives as a JWE (ECDH-ES, A256GCM) to a key of this URL, carrying a JWS (ES256) from a trusted signer. Each request is marked Decrypted, Invalid with the reason, Unknown key or Not encrypted; the opened value shows in the request, never in shared links or live events.

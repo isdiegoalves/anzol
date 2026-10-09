@@ -73,6 +73,8 @@
     "702595232551336019": "URL updated!",
     "3592389072273364180": "Delete key {$INTERPOLATION}?",
     "7646029928332588558": " Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is erased and can't be recovered. ",
+    "490918146599079624": " Requests already decrypted keep their stored value. Old backups of the volume still have the private key. ",
+    "2526831824925286701": " This is the URL's only encryption key: without it, every new encrypted request is recorded as Unknown key until you generate another. ",
     "2159130950882492111": "Cancel",
     "73979960734847259": "Delete key",
     "6612773454912047663": "On · {$INTERPOLATION}",

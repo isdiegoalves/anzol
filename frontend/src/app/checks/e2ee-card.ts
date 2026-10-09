@@ -337,7 +337,8 @@ export class E2eeCard implements ChecksSection {
       return;
     }
     const { confirmDeleteKey } = await import('./confirm-delete-key');
-    if (!(await confirmDeleteKey(this.injector, kid))) {
+    const last = this.keys().length === 1 && this.saved() !== null;
+    if (!(await confirmDeleteKey(this.injector, { kid, last }))) {
       return;
     }
     try {

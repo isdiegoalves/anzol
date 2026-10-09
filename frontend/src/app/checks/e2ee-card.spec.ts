@@ -288,6 +288,34 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     });
 
     it.each([
+      ['com a decifra ligada e uma chave só', { e2ee: POLITICA, e2ee_keys: [CHAVE] }, true],
+      [
+        'com a decifra ligada e duas chaves',
+        { e2ee: POLITICA, e2ee_keys: [CHAVE, { ...CHAVE, kid: 'enc-2' }] },
+        false,
+      ],
+      ['com a decifra desligada', { e2ee: null, e2ee_keys: [CHAVE] }, false],
+    ])(
+      'deve dizer o que fica ao apagar a chave e avisar só da última Quando a URL está %s',
+      async (_caso, url, avisa) => {
+        const { fixture } = await renderCard(E2eeCard, { ...PROTEGIDA, ...url });
+        const page = TestbedHarnessEnvironment.documentRootLoader(fixture);
+
+        await userEvent.click(
+          within(card()).getByRole('button', { name: `Delete key ${CHAVE.kid}` }),
+        );
+
+        const dialogo = await vi.waitFor(() => page.getHarness(MatDialogHarness));
+        const texto = (await dialogo.getContentText()).replace(/\s+/g, ' ');
+        expect(texto).toContain(
+          'Requests already decrypted keep their stored value. Old backups of the volume still have the private key.',
+        );
+        expect(texto.includes("This is the URL's only encryption key")).toBe(avisa);
+        await (await dialogo.getHarness(MatButtonHarness.with({ text: 'Cancel' }))).click();
+      },
+    );
+
+    it.each([
       ['Cancel', false],
       ['Delete key', true],
     ])(
