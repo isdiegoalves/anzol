@@ -304,7 +304,8 @@ test.describe('Dado um rascunho guardado na aba (E-04)', () => {
     await regra.getByRole('button', { name: 'Add header condition' }).click();
     await regra.getByRole('textbox', { name: 'Header 1 name' }).fill('X-Api-Key');
     await regra.getByRole('textbox', { name: 'Header 1 value' }).fill('segredo-e2e-5521');
-    await expect.poll(() => memoriaDaAba(page)).toContain('Com chave');
+    // O rascunho gravado depois do valor: um anterior, só com o nome, já teria o "Com chave".
+    await expect.poll(() => memoriaDaAba(page)).toMatch(/omitted\\":true/);
     expect(await memoriaDaAba(page)).not.toContain('segredo-e2e-5521');
 
     await page.reload();
