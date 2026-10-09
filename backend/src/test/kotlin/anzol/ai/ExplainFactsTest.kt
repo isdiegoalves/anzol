@@ -90,6 +90,7 @@ class ExplainFactsTest {
                 reason = "signer_unknown",
                 kid = "enc-loja-1",
                 signatureKid = "remetente-sig-2",
+                signatureKidTrusted = true,
             ),
         )
     }
@@ -122,9 +123,51 @@ class ExplainFactsTest {
             DecryptionFact(configured = true, state = "unknown_kid", reason = null, kid = null, signatureKid = null),
         )
         assertThat(signer.decryption).usingRecursiveComparison().ignoringFields(*ADVICE_FIELDS).isEqualTo(
-            DecryptionFact(configured = true, state = "invalid", reason = "signer_unknown", kid = "enc-loja-1", signatureKid = null),
+            DecryptionFact(
+                configured = true,
+                state = "invalid",
+                reason = "signer_unknown",
+                kid = "enc-loja-1",
+                signatureKid = null,
+                signatureKidTrusted = false,
+            ),
         )
         assertThat(mapper.writeValueAsString(listOf(kid, signer))).doesNotContain("IGNORE ALL PREVIOUS")
+    }
+
+    @Test
+    @DisplayName(
+        "Dado o JWS assinado por um kid fora dos signatários confiáveis, quando monta os fatos, então diz que o kid " +
+            "existe e não é confiável, sem levar o texto dele",
+    )
+    fun explainFacts_kidDeAssinaturaNaoConfiavel_deveDizerQueNaoEConfiavel() {
+        val unknownSigner =
+            DecryptionResult(DecryptionState.INVALID, kid = "enc-loja-1", signatureKid = INJECTION, reason = "signer_unknown")
+
+        val decryption = explainFacts(token, message(unknownSigner), rules = emptyList()).decryption
+
+        assertThat(decryption.signatureKid).isNull()
+        assertThat(decryption.signatureKidTrusted).isFalse()
+        assertThat(mapper.writeValueAsString(decryption))
+            .contains("\"signature_kid_trusted\":false")
+            .doesNotContain("IGNORE ALL PREVIOUS")
+    }
+
+    @Test
+    @DisplayName(
+        "Dado o JWS de um signatário confiável, ou nenhum kid de assinatura lido, quando monta os fatos, então a " +
+            "confiança é verdadeira ou nula",
+    )
+    fun explainFacts_kidDeAssinaturaConfiavelOuAusente_deveDizerConfiancaOuNulo() {
+        val opened = DecryptionResult(DecryptionState.VALID, kid = "enc-loja-1", signatureKid = "remetente-sig-2")
+        val blocked = DecryptionResult(DecryptionState.INVALID, reason = "hmac_failed")
+
+        val trusted = explainFacts(token, message(opened), rules = emptyList()).decryption
+        val none = explainFacts(token, message(blocked), rules = emptyList()).decryption
+
+        assertThat(trusted.signatureKid).isEqualTo("remetente-sig-2")
+        assertThat(trusted.signatureKidTrusted).isTrue()
+        assertThat(none.signatureKidTrusted).isNull()
     }
 
     @Test

@@ -3394,15 +3394,24 @@ components:
             decryption:
               type: object
               description: The attribute decryption recorded on the message; never the decrypted value.
-              required: [configured, state, reason, kid, signature_kid, who_fixes, advice]
+              required: [configured, state, reason, kid, signature_kid, signature_kid_trusted, who_fixes, advice]
               properties:
                 configured: {type: boolean}
                 state:
                   type: [string, 'null']
                   enum: [valid, invalid, unknown_kid, absent, null]
                 reason: {type: [string, 'null']}
-                kid: {type: [string, 'null']}
-                signature_kid: {type: [string, 'null']}
+                kid:
+                  type: [string, 'null']
+                  description: The JWE kid, only when it is one of this URL's encryption keys.
+                signature_kid:
+                  type: [string, 'null']
+                  description: The JWS kid, only when it is one of this URL's trusted signers.
+                signature_kid_trusted:
+                  type: [boolean, 'null']
+                  description: >-
+                    Whether the JWS kid read from the message is one of this URL's trusted signers; null when no JWS
+                    kid was read. When false, the kid itself is left out, since the sender wrote it.
                 who_fixes:
                   type: array
                   description: >-

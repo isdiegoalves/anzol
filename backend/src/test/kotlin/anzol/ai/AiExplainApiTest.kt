@@ -204,6 +204,42 @@ class AiExplainApiTest(
 
     @Test
     @DisplayName(
+        "Dado um JWS assinado por um kid fora dos signatários confiáveis e com uma instrução, quando explica, então " +
+            "vai ao modelo que o kid não é confiável, e o kid não vai",
+    )
+    fun explain_signatarioNaoConfiavel_deveDizerSemLevarOKid() {
+        val signer = ecKey("remetente-sig-1")
+        val tokenId = api.tokenId("""{"read_secret": "segredo-do-explain", "e2ee": ${json(policy(signer))}}""")
+        val secret = mapOf(SECRET_HEADER to "segredo-do-explain")
+        val key = api.json(api.send("POST", "/token/$tokenId/keys", """{"kid": "enc-v1"}""".toByteArray(), JSON_BODY + secret))
+        val id = UUID.randomUUID().toString()
+        val sealed = encrypt(ECKey.parse(key["jwk"].toString()), sign(ecKey("sig\n\n$INJECTION"), claims(id, mapOf("cpf" to "x"))))
+        val requestId =
+            api
+                .send("POST", "/$tokenId", envelope(id, sealed).toByteArray(), mapOf("Content-Type" to "application/json"))
+                .headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        FakeLlm.answer("Signatário desconhecido.")
+
+        val response = api.send("POST", "/token/$tokenId/request/$requestId/explain", "{}".toByteArray(), JSON_BODY + secret)
+
+        val decryption = api.json(response)["facts"]["decryption"]
+        assertThat(decryption["reason"].asString()).isEqualTo("signer_unknown")
+        assertThat(decryption["signature_kid"].isNull).isTrue()
+        assertThat(decryption["signature_kid_trusted"].asBoolean()).isFalse()
+        assertThat(response.body()).doesNotContain(INJECTION)
+        val (system, user) =
+            FakeLlm.received
+                .single()
+                .messages()
+                .map { it["content"].asString() }
+        assertThat(system).contains("signature_kid_trusted")
+        assertThat(user).contains("\"signature_kid_trusted\" : false").doesNotContain(INJECTION)
+    }
+
+    @Test
+    @DisplayName(
         "Dada uma decifra recusada, quando explica, então quem corrige e o que fazer vão aos fatos e ao modelo, " +
             "e o sistema manda dizer os dois",
     )
