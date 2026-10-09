@@ -127,7 +127,7 @@ function schemaWords(schema: 'valid' | 'invalid'): string {
 function decryptionWords(decryption: DecryptionCondition): string {
   switch (decryption) {
     case 'valid':
-      return $localize`an attribute decrypted and verified`;
+      return $localize`an attribute decrypted, with the sender's signature verified`;
     case 'invalid':
       return $localize`an attribute that failed decryption`;
     case 'unknown_kid':

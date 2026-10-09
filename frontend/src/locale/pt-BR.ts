@@ -156,8 +156,6 @@ export const translations: Record<string, string> = {
   '7967484035994732534': 'Recarregar',
   // Schema validation
   '2706296271281532374': 'Validação de schema',
-  // E2EE
-  '1120152822886112434': 'Decifra',
   // On
   '8990769651805334695': 'Ligada',
   // Off
@@ -3724,14 +3722,14 @@ export const translations: Record<string, string> = {
   '73979960734847259': 'Apagar chave',
   // Decrypt an attribute of each request
   '8050605225511000111': 'Decifrar um atributo de cada requisição',
-  // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
-  '8123080752418416800':
+  // This URL has no read secret, and the server refuses decryption without one: the decrypted value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
+  '6060070892542099066':
     'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor decifrado tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
-  // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on Privacy (it can go in the same save).
-  '6606005843752952083':
+  // This URL has no read secret, and the server refuses decryption without one: the decrypted value must stay behind it. Turn on Privacy (it can go in the same save).
+  '6001945577890107951':
     'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor decifrado tem de ficar atrás dele. Ligue Privacidade (pode ir no mesmo salvar).',
-  // Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.
-  '7563108074876616346':
+  // Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the decrypted value: the read secret stays required until they are deleted.
+  '5099190821882278802':
     'Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor decifrado: o segredo de leitura continua obrigatório até elas serem apagadas.',
   // Encrypted attribute
   '6159255639867175033': 'Atributo cifrado',
@@ -3960,21 +3958,20 @@ export const translations: Record<string, string> = {
   '9004039826557714389': 'Segredo de leitura copiado',
   // Copied the HMAC secret
   '8534427223846313672': 'Segredo do HMAC copiado',
-  // the URL signature did not pass, so nothing was opened
-  '4099669960109730203':
-    'a assinatura HMAC desta requisição não passou, então o JWE não foi aberto',
+  // the HMAC signature of this request did not pass, so the JWE was not opened
+  '781080901497369715': 'a assinatura HMAC desta requisição não passou, então o JWE não foi aberto',
   // the body is not JSON
   '4648007250808057723': 'o corpo não é JSON',
-  // the attribute is missing
-  '6098038580826029757': 'o atributo cifrado não veio neste corpo',
-  // the attribute arrived in plaintext
-  '4095206439753465736': 'o atributo cifrado não veio como JWE',
+  // the encrypted attribute is not in this body
+  '6634452916897718265': 'o atributo cifrado não veio neste corpo',
+  // the encrypted attribute did not come as a JWE
+  '8007985052265971063': 'o atributo cifrado não veio como JWE',
   // the JWE is over 256 KiB
   '2837686852832932293': 'o JWE passa de 256 KiB',
   // the attribute is not a compact JWE
   '8770002820047482648': 'o atributo não é um JWE compacto',
-  // the JWE alg is not ECDH-ES
-  '1918584685182351139': 'o alg do JWE não é ECDH-ES (acordo direto)',
+  // the JWE alg is not ECDH-ES, the direct key agreement
+  '1920988036067807285': 'o alg do JWE não é ECDH-ES, o acordo direto',
   // the JWE enc is not A256GCM
   '3268614483128049150': 'o enc do JWE não é A256GCM',
   // a compressed JWE (zip) is not accepted
@@ -3987,38 +3984,38 @@ export const translations: Record<string, string> = {
   '1180958178122264389': 'a chave efêmera (epk) é inválida',
   // the ephemeral key (epk) is off the P-256 curve
   '4784819155901149829': 'a chave efêmera (epk) está fora da curva P-256',
-  // decryption failed: another key, or the JWE was altered
-  '4174154984477755287': 'a chave de cifra nomeada no JWE não o abriu',
+  // the encryption key named in the JWE did not open it
+  '8292073709417299321': 'a chave de cifra nomeada no JWE não o abriu',
   // there is no JWS inside the JWE
   '4978491312377245090': 'não há JWS dentro do JWE',
   // the JWS alg is not ES256
   '3510604211532383033': 'o alg do JWS não é ES256',
-  // the JWS kid is not a trusted signer
-  '5736766313539511422':
+  // the JWS says it was signed by a signing key that is not among this URL's trusted signers
+  '5352248495712474274':
     'o JWS diz ter sido assinado por uma chave de assinatura que não está nos signatários confiáveis desta URL',
-  // the JWS signature does not verify
-  '6324024128697707385':
+  // the sender's signature (JWS) does not verify against the public key pasted here
+  '8930656173975194236':
     'a assinatura do remetente (JWS) não confere com a chave pública colada aqui',
   // the JWS claims are not a JSON object
   '430255637426026978': 'os claims do JWS não são um objeto JSON',
-  // aud does not include the audience
-  '8495543216487372431': 'o aud do JWS não inclui a audiência desta URL',
-  // jti does not match the envelope
-  '5542504737015617522': 'o claim jti do JWS não bate com o envelope (o corpo fora do JWE)',
-  // evt does not match the envelope
-  '841781475653216409': 'o claim evt do JWS não bate com o envelope (o corpo fora do JWE)',
-  // app does not match the envelope
-  '3296686154338099088': 'o claim app do JWS não bate com o envelope (o corpo fora do JWE)',
+  // the JWS aud does not include this URL's audience
+  '767738067114235482': 'o aud do JWS não inclui a audiência desta URL',
+  // the JWS jti claim does not match the envelope, the body outside the JWE
+  '3453967386570085589': 'o claim jti do JWS não bate com o envelope, o corpo fora do JWE',
+  // the JWS evt claim does not match the envelope, the body outside the JWE
+  '7418779075788650776': 'o claim evt do JWS não bate com o envelope, o corpo fora do JWE',
+  // the JWS app claim does not match the envelope, the body outside the JWE
+  '7926199808368856183': 'o claim app do JWS não bate com o envelope, o corpo fora do JWE',
   // the JWS has no iat
   '117103034887306727': 'o JWS não tem iat',
-  // iat is outside the allowed window
-  '618391409188079226': 'o iat do JWS está fora da janela permitida',
+  // the JWS iat is outside the allowed window
+  '624598391876938347': 'o iat do JWS está fora da janela permitida',
   // the JWS has no data claim
   '3824204479501526840': 'o JWS não tem o claim data',
   // HMAC blocked
   '7411547123659872971': 'HMAC barrou',
-  // Not JSON
-  '7555270138433697457': 'Corpo não é JSON',
+  // Body not JSON
+  '5007754633991013079': 'Corpo não é JSON',
   // Attribute missing
   '2621008442009129297': 'Atributo ausente',
   // Plaintext · refused
@@ -4033,8 +4030,8 @@ export const translations: Record<string, string> = {
   '2524118018037540632': 'enc não aceito',
   // Compressed JWE
   '5383964903743763319': 'JWE comprimido',
-  // No kid
-  '3656950987025646374': 'JWE sem kid',
+  // No JWE kid
+  '3984349035885415614': 'JWE sem kid',
   // cty not JWT
   '6730616710140792116': 'cty não é JWT',
   // Invalid epk
@@ -4071,36 +4068,34 @@ export const translations: Record<string, string> = {
   '9201304644456821758': 'Decifrada · jti repetido',
   // Decrypted
   '8002782093253209415': 'Decifrada',
-  // key {$kid} · signed by {$signer}
-  '1802912247230774408': 'chave de cifra {$kid} · assinatura do remetente {$signer}',
+  // encryption key {$kid} · signed by the sender's key {$signer}
+  '4153915944594687849': 'chave de cifra {$kid} · assinatura do remetente {$signer}',
   // Repeated jti
   '3554156791085147337': 'jti repetido',
   // Unknown encryption key
   '8329291668612455386': 'Chave de cifra desconhecida',
-  // The JWE kid {$kid} is not one of this URL's keys
-  '6338941906368435061': 'O JWE veio cifrado para a chave de cifra {$kid}, que não é desta URL',
-  // Unknown kid
-  '7820009087498142311': 'Chave desconhecida',
+  // The JWE was encrypted to the encryption key {$kid}, which is not this URL's
+  '1696189906031226504': 'O JWE veio cifrado para a chave de cifra {$kid}, que não é desta URL',
   // Deleted encryption key
   '4631952254094187715': 'Chave de cifra apagada',
-  // The JWE kid {$kid} is a key this URL deleted on {$date}
-  '4876496398435287862':
+  // The JWE was encrypted to the encryption key {$kid}, which this URL deleted on {$date}
+  '6472909044304109208':
     'O JWE veio cifrado para a chave de cifra {$kid}, que esta URL apagou em {$date}',
   // Deleted key
   '2458459851296071879': 'Chave apagada',
   // Not encrypted
   '8872070947491832220': 'Não cifrada',
-  // The attribute arrived in plaintext, which this URL accepts
-  '6319658340765253763':
+  // The encrypted attribute did not come as a JWE (or the body is not JSON), and this URL accepts that
+  '6990350401564795440':
     'O atributo cifrado não veio como JWE (ou o corpo não é JSON), e esta URL aceita isso',
   // Plaintext
   '4603020359259128052': 'Em claro',
-  // Decryption invalid
-  '7254015638160199399': 'Decifra não feita',
+  // Decryption not run
+  '796488516412586485': 'Decifra não feita',
   // Decryption invalid
   '7047936464040307733': 'Decifra inválida',
-  // Encryption keys here: {$kids}
-  '28850327177048580': 'Chaves de cifra desta URL hoje: {$kids}',
+  // This URL's encryption keys now: {$kids}
+  '2922930882981682964': 'Chaves de cifra desta URL hoje: {$kids}',
   // This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS.
   '5612265685224617344':
     'Esta URL não tem nenhuma chave de cifra: gere uma em Verificações › Decifra e publique o JWKS.',
@@ -4113,18 +4108,18 @@ export const translations: Record<string, string> = {
   // A key with this kid was deleted on {$date} and recreated: the sender encrypted to the deleted key. Ask them to fetch this URL's JWKS again.
   '8973075580919968031':
     'Uma chave com este kid foi apagada em {$date} e recriada: o remetente cifrou para a chave apagada. Peça que ele baixe de novo o JWKS desta URL.',
-  // Binding here: {$claim} ↔ {$path}
-  '8127539399860512654': 'Vínculo desta URL: {$claim} ↔ {$path}',
-  // Trusted signers here: {$kids}
-  '5093069732900863528': 'Signatários confiáveis desta URL: {$kids}',
+  // This URL's binding: {$claim} ↔ {$path}
+  '4117827305270889063': 'Vínculo desta URL: {$claim} ↔ {$path}',
+  // This URL's trusted signers: {$kids}
+  '777591279630101167': 'Signatários confiáveis desta URL: {$kids}',
   // This URL has no trusted signer.
   '3838737910130502070': 'Esta URL não tem nenhum signatário confiável.',
-  // Audience here: {$audience}
-  '2046406031450925341': 'Audiência desta URL: {$audience}',
-  // Encrypted attribute here: {$path}
-  '8183379000458726355': 'Atributo cifrado desta URL: {$path}',
-  // Max age here: {$seconds} s
-  '5466563591429833634': 'Idade máxima desta URL: {$seconds} s',
+  // This URL's audience: {$audience}
+  '3186649039332292989': 'Audiência desta URL: {$audience}',
+  // This URL's encrypted attribute: {$path}
+  '7490895884045350617': 'Atributo cifrado desta URL: {$path}',
+  // This URL's max age: {$seconds} s
+  '52891413763053723': 'Idade máxima desta URL: {$seconds} s',
   // The sender must send a JSON body carrying the encrypted attribute.
   '4772427480392526388': 'O remetente precisa mandar um corpo JSON com o atributo cifrado.',
   // The sender must use a valid P-256 ephemeral key (epk) in the JWE header.
@@ -4191,15 +4186,15 @@ export const translations: Record<string, string> = {
   '5656599743816655939': 'pede decifra {$expected}; esta veio {$got}',
   // Decrypted
   '3636098527993575441': 'Decifrado',
-  //  The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
-  '5150909776707982349':
+  //  The attribute as the server decrypted it on arrival (the JWS data claim), stored with this request. The body keeps the JWE as it arrived.
+  '7189735024699934748':
     ' O atributo como o servidor o decifrou na chegada (o claim data do JWS), gravado nesta mensagem. O corpo mantém o JWE como chegou. ',
   // Decrypted attribute
   '6641968519268196135': 'Atributo decifrado',
-  // Key: {$kid}
-  '2032685813231396424': 'Chave de cifra: {$kid}',
-  // Signed by: {$signer}
-  '8138824404534403132': 'Chave de assinatura do remetente: {$signer}',
+  // Encryption key: {$kid}
+  '445327635819234726': 'Chave de cifra: {$kid}',
+  // Sender's signing key: {$signer}
+  '6118290772254611934': 'Chave de assinatura do remetente: {$signer}',
   // Received aud: {$aud}
   '5387378174994900625': 'aud recebido: {$aud}',
   // Received aud: none
@@ -4217,8 +4212,8 @@ export const translations: Record<string, string> = {
   '2035586137456321065': 'Chave desconhecida',
   // This URL does not decrypt.
   '1182506711512105977': 'Esta URL não decifra.',
-  // an attribute decrypted and verified
-  '2446612875410357651': 'um atributo decifrado, com a assinatura do remetente conferida',
+  // an attribute decrypted, with the sender's signature verified
+  '417320686914756251': 'um atributo decifrado, com a assinatura do remetente conferida',
   // an attribute that failed decryption
   '8960455913991763064': 'um atributo cuja decifra falhou',
   // an attribute encrypted to an unknown key
@@ -4247,12 +4242,12 @@ export const translations: Record<string, string> = {
     'Cole em Signatários confiáveis a chave pública de assinatura do remetente (uma JWK ES256); a privada dela fica com ele. Só um JWS dessas chaves é aceito dentro do JWE.',
   // This URL decrypts on arrival
   '1573950883465894513': 'Esta URL decifra na chegada',
-  // If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC blocks decryption (hmac_failed). The decrypted attribute is stored with the request, behind the read secret; shared links and live events never carry it.
-  '6287555236010400960':
+  // If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC blocks decryption (hmac_failed). The decrypted attribute is stored in plaintext with the request; the read secret protects who reads it, not the storage. Shared links and live events never carry it.
+  '8130836790733193078':
     'Se a URL confere assinatura HMAC, ela vem antes: HMAC inválido ou ausente barra a decifra (hmac_failed). O atributo decifrado fica gravado em claro na requisição; o segredo de leitura protege quem lê, não o armazenamento. Links compartilhados e eventos ao vivo nunca o levam.',
   // Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.
   '246389393969456617':
-    'Sem chave de cifra, toda requisição que passar do HMAC, do envelope e do cabeçalho do JWE fica como Chave desconhecida. Dá para salvar assim mesmo; gere uma chave acima.',
+    'Sem chave de cifra, toda requisição que passar do HMAC, do envelope e do cabeçalho do JWE fica como Chave de cifra desconhecida. Dá para salvar assim mesmo; gere uma chave acima.',
   // JSONPath of the body field that arrives as a JWE · e.g. {$START_TAG_CODE}$.payload{$CLOSE_TAG_CODE}
   '1916757703914179113':
     'JSONPath do campo do corpo que chega como JWE · ex.: {$START_TAG_CODE}$.payload{$CLOSE_TAG_CODE}',
@@ -4319,7 +4314,7 @@ export const translations: Record<string, string> = {
   '5372628725475554755': '{$destination}, 1 decifra inválida desde {$time}',
   // {$destination}, {$count} invalid decryptions since {$time}
   '1311871731804323751': '{$destination}, {$count} decifras inválidas desde {$time}',
-  //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is removed from this URL.
-  '1523355569219008904':
+  //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as Unknown key and are not decrypted. The private key is removed from this URL.
+  '321796578656992291':
     ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
 };

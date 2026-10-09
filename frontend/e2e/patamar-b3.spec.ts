@@ -532,7 +532,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     const nomes = await atalhos.evaluateAll((links) =>
       links.map((l) => (l.textContent ?? '').trim().split(/[\s·,]/)[0]),
     );
-    expect(nomes).toEqual(['Signature', 'Schema', 'Response', 'Privacy', 'E2EE', 'Health']);
+    expect(nomes).toEqual(['Signature', 'Schema', 'Response', 'Privacy', 'Decryption', 'Health']);
   });
 
   test('deve dizer o estado de cada seção no índice e marcar a que tem alteração', async ({
@@ -550,7 +550,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
 
     await expect(indice.getByRole('link', { name: /^Signature, GitHub$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Schema, on\b/ })).toBeVisible();
-    await expect(indice.getByRole('link', { name: /^E2EE, off$/ })).toBeVisible();
+    await expect(indice.getByRole('link', { name: /^Decryption, off$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Response, 429$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Privacy, open$/ })).toBeVisible();
 

@@ -211,8 +211,8 @@ describe('Dado a página Insights', () => {
     ).getAllByRole('row');
     expect(motivos.map(rowText)).toEqual([
       'Reason Requests',
-      'aud does not include the audience (aud_mismatch) 4',
-      'decryption failed: another key, or the JWE was altered (decrypt_failed) 2',
+      "the JWS aud does not include this URL's audience (aud_mismatch) 4",
+      'the encryption key named in the JWE did not open it (decrypt_failed) 2',
     ]);
     await expectNoAxeViolations(container);
   });

@@ -651,7 +651,9 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
         }),
       );
 
-      expect(lines()).toBe('Decrypted | key enc-1 · signed by sig-1 | jti: n-42');
+      expect(lines()).toBe(
+        "Decrypted | encryption key enc-1 · signed by the sender's key sig-1 | jti: n-42",
+      );
       expect(card()?.getAttribute('data-state')).toBe('valid');
       expect(
         screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()),
@@ -682,17 +684,17 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       [
         'inválida',
         decryption({ state: 'invalid', reason: 'aud_mismatch', signature_kid: 'sig-1' }),
-        "Decryption invalid | aud does not include the audience (aud_mismatch) | The sender must send aud with this URL's audience, or the audience set here is not the agreed one. | Key: enc-1 | Signed by: sig-1 | jti: n-42",
+        "Decryption invalid | the JWS aud does not include this URL's audience (aud_mismatch) | The sender must send aud with this URL's audience, or the audience set here is not the agreed one. | Encryption key: enc-1 | Sender's signing key: sig-1 | jti: n-42",
       ],
       [
         'de chave desconhecida',
         decryption({ state: 'unknown_kid', kid: 'enc-9', signature_kid: null, jti: null }),
-        "Unknown encryption key | The JWE kid enc-9 is not one of this URL's keys | This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS. | This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses. | Key: enc-9",
+        "Unknown encryption key | The JWE was encrypted to the encryption key enc-9, which is not this URL's | This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS. | This URL has no record of deleting this key (it keeps its last 20 deleted keys): the sender most likely encrypted to another recipient. Check which JWKS the sender uses. | Encryption key: enc-9",
       ],
       [
         'em claro',
         decryption({ state: 'absent', kid: null, signature_kid: null, jti: null }),
-        'Not encrypted | The attribute arrived in plaintext, which this URL accepts',
+        'Not encrypted | The encrypted attribute did not come as a JWE (or the body is not JSON), and this URL accepts that',
       ],
     ])(
       'deve dizer o estado e o motivo legível, sem a aba Decrypted, Quando a decifra é %s',
@@ -827,7 +829,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       const { container } = await show(shared, null, true);
 
       expect(lines()).toBe(
-        'Decrypted | key enc-1 · signed by sig-1 | The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret. | jti: n-42',
+        "Decrypted | encryption key enc-1 · signed by the sender's key sig-1 | The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret. | jti: n-42",
       );
       expect(screen.queryAllByRole('button')).toEqual([]);
       await expectNoAxeViolations(container);

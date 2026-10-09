@@ -146,7 +146,7 @@ describe('Dado a página Checks', () => {
       'Schema',
       'Response',
       'Privacy',
-      'E2EE',
+      'Decryption',
       'Health',
     ]);
     for (const link of links) {
@@ -228,7 +228,7 @@ describe('Dado a página Checks', () => {
         'Schema · On · 2020-12',
         'Response · 429',
         'Privacy · Open',
-        'E2EE · Off',
+        'Decryption · Off',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
@@ -236,7 +236,7 @@ describe('Dado a página Checks', () => {
         'Schema, on',
         'Response, 429',
         'Privacy, open',
-        'E2EE, off',
+        'Decryption, off',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([
@@ -317,7 +317,7 @@ describe('Dado a página Checks', () => {
             'decryption off and no decrypted request stored. To remove it, turn decryption off (it ' +
             'can be in this same save) and delete the decrypted requests; or keep the secret. ' +
             'This URL has no read secret, and the server refuses decryption without one: the ' +
-            'opened value must stay behind it. Turn on Privacy (it can go in the same save).',
+            'decrypted value must stay behind it. Turn on Privacy (it can go in the same save).',
         );
 
         await userEvent.click(
@@ -334,7 +334,7 @@ describe('Dado a página Checks', () => {
             'decryption off and no decrypted request stored. To remove it, turn decryption off (it ' +
             'can be in this same save) and delete the decrypted requests; or keep the secret. ' +
             'Saving turns decryption off. Requests already received keep the result they got on ' +
-            'arrival, and the decrypted ones keep the opened value: the read secret stays required ' +
+            'arrival, and the decrypted ones keep the decrypted value: the read secret stays required ' +
             'until they are deleted.',
         );
       } finally {

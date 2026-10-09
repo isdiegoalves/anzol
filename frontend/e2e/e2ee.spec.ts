@@ -295,7 +295,7 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     await expect(detalhes(page)).toContainText(antiga);
     expect((await stream).status()).toBe(200);
     await expect(verificacoes(page)).toContainText(
-      /Decryption invalid\s*the JWS kid is not a trusted signer \(signer_unknown\)/,
+      /Decryption invalid\s*the JWS says it was signed by a signing key that is not among this URL's trusted signers \(signer_unknown\)/,
     );
     await expect(page.getByRole('tab', { name: 'Decrypted' })).toHaveCount(0);
 
@@ -310,7 +310,9 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     });
     await abrirItem(page, viva).click();
     await expect(detalhes(page)).toContainText(viva);
-    await expect(verificacoes(page)).toContainText(/Decrypted\s*key enc-e2e · signed by sig-e2e/);
+    await expect(verificacoes(page)).toContainText(
+      /Decrypted\s*encryption key enc-e2e · signed by the sender's key sig-e2e/,
+    );
     await expect(verificacoes(page)).toContainText('jti: n-2');
     await page.getByRole('tab', { name: 'Decrypted' }).click();
     const aberto = page.getByRole('region', { name: 'Decrypted attribute' });
@@ -341,7 +343,7 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     });
     await abrirItem(page, desconhecida).click();
     await expect(verificacoes(page)).toContainText(
-      /Unknown encryption key\s*The JWE kid enc-sumida is not one of this URL's keys/,
+      /Unknown encryption key\s*The JWE was encrypted to the encryption key enc-sumida, which is not this URL's/,
     );
   });
 

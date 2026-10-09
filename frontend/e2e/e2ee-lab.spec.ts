@@ -58,7 +58,9 @@ test.describe('Dado o laboratório E2EE em Checks', () => {
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${curto}[0-9a-f-]{28}/1$`));
     await expect(detalhes(page)).toContainText(curto);
-    await expect(verificacoes(page)).toContainText(/Decrypted\s*key enc-v\d · signed by lab-sig-1/);
+    await expect(verificacoes(page)).toContainText(
+      /Decrypted\s*encryption key enc-v\d · signed by the sender's key lab-sig-1/,
+    );
   });
 
   test('deve criar a URL de laboratório pela tela, mostrar os segredos uma vez e abri-la destrancada', async ({

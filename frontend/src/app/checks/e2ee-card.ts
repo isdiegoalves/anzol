@@ -215,7 +215,7 @@ export class E2eeCard implements ChecksSection {
   }
 
   protected turnOffNotice(): string {
-    return $localize`Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.`;
+    return $localize`Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the decrypted value: the read secret stays required until they are deleted.`;
   }
 
   protected turnOff(): void {
@@ -279,7 +279,7 @@ export class E2eeCard implements ChecksSection {
     return [
       ...(on && !this.readProtected() && !(saved && !this.savedProtected())
         ? [
-            $localize`This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on Privacy (it can go in the same save).`,
+            $localize`This URL has no read secret, and the server refuses decryption without one: the decrypted value must stay behind it. Turn on Privacy (it can go in the same save).`,
           ]
         : []),
       ...(on && this.keys().length === 0 && !saved ? [this.noKeyNotice()] : []),

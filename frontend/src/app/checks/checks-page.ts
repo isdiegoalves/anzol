@@ -51,7 +51,7 @@ export function checksSections() {
     { id: 'privacy', label: $localize`Privacy`, title: $localize`Privacy`, icon: 'lock' },
     {
       id: 'e2ee',
-      label: $localize`:checks index, the decryption card|:E2EE`,
+      label: $localize`Decryption`,
       title: $localize`E2EE decryption`,
       icon: 'key',
     },

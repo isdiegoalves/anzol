@@ -6,31 +6,31 @@ import type { CheckResult } from './pipeline';
 /** O motivo do servidor numa frase, com o código como veio: "aud does not match (aud_mismatch)". */
 export function decryptionReasonText(reason: string): string {
   const phrases: Record<string, string> = {
-    hmac_failed: $localize`the URL signature did not pass, so nothing was opened`,
+    hmac_failed: $localize`the HMAC signature of this request did not pass, so the JWE was not opened`,
     body_not_json: $localize`the body is not JSON`,
-    attribute_missing: $localize`the attribute is missing`,
-    downgrade: $localize`the attribute arrived in plaintext`,
+    attribute_missing: $localize`the encrypted attribute is not in this body`,
+    downgrade: $localize`the encrypted attribute did not come as a JWE`,
     too_large: $localize`the JWE is over 256 KiB`,
     malformed_jwe: $localize`the attribute is not a compact JWE`,
-    alg_not_allowed: $localize`the JWE alg is not ECDH-ES`,
+    alg_not_allowed: $localize`the JWE alg is not ECDH-ES, the direct key agreement`,
     enc_not_allowed: $localize`the JWE enc is not A256GCM`,
     zip_present: $localize`a compressed JWE (zip) is not accepted`,
     kid_missing: $localize`the JWE has no kid`,
     cty_not_jwt: $localize`the JWE cty is not JWT`,
     epk_invalid: $localize`the ephemeral key (epk) is invalid`,
     epk_off_curve: $localize`the ephemeral key (epk) is off the P-256 curve`,
-    decrypt_failed: $localize`decryption failed: another key, or the JWE was altered`,
+    decrypt_failed: $localize`the encryption key named in the JWE did not open it`,
     jws_missing: $localize`there is no JWS inside the JWE`,
     jws_alg_not_allowed: $localize`the JWS alg is not ES256`,
-    signer_unknown: $localize`the JWS kid is not a trusted signer`,
-    signature_invalid: $localize`the JWS signature does not verify`,
+    signer_unknown: $localize`the JWS says it was signed by a signing key that is not among this URL's trusted signers`,
+    signature_invalid: $localize`the sender's signature (JWS) does not verify against the public key pasted here`,
     claims_malformed: $localize`the JWS claims are not a JSON object`,
-    aud_mismatch: $localize`aud does not include the audience`,
-    jti_mismatch: $localize`jti does not match the envelope`,
-    evt_mismatch: $localize`evt does not match the envelope`,
-    app_mismatch: $localize`app does not match the envelope`,
+    aud_mismatch: $localize`the JWS aud does not include this URL's audience`,
+    jti_mismatch: $localize`the JWS jti claim does not match the envelope, the body outside the JWE`,
+    evt_mismatch: $localize`the JWS evt claim does not match the envelope, the body outside the JWE`,
+    app_mismatch: $localize`the JWS app claim does not match the envelope, the body outside the JWE`,
     iat_missing: $localize`the JWS has no iat`,
-    iat_outside_window: $localize`iat is outside the allowed window`,
+    iat_outside_window: $localize`the JWS iat is outside the allowed window`,
     data_missing: $localize`the JWS has no data claim`,
   };
   const phrase = phrases[reason];
@@ -41,7 +41,7 @@ export function decryptionReasonText(reason: string): string {
 function reasonShort(reason: string): string {
   const shorts: Record<string, string> = {
     hmac_failed: $localize`:decryption seal|:HMAC blocked`,
-    body_not_json: $localize`:decryption seal|:Not JSON`,
+    body_not_json: $localize`:decryption seal|:Body not JSON`,
     attribute_missing: $localize`:decryption seal|:Attribute missing`,
     downgrade: $localize`:decryption seal|:Plaintext · refused`,
     too_large: $localize`:decryption seal|:JWE too large`,
@@ -49,7 +49,7 @@ function reasonShort(reason: string): string {
     alg_not_allowed: $localize`:decryption seal|:alg not allowed`,
     enc_not_allowed: $localize`:decryption seal|:enc not allowed`,
     zip_present: $localize`:decryption seal|:Compressed JWE`,
-    kid_missing: $localize`:decryption seal|:No kid`,
+    kid_missing: $localize`:decryption seal|:No JWE kid`,
     cty_not_jwt: $localize`:decryption seal|:cty not JWT`,
     epk_invalid: $localize`:decryption seal|:Invalid epk`,
     epk_off_curve: $localize`:decryption seal|:epk off curve`,
@@ -86,7 +86,7 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
         state: 'valid',
         tone: 'ok',
         title: duplicate ? $localize`Decrypted · repeated jti` : $localize`Decrypted`,
-        detail: $localize`key ${kid ?? '—'}:kid: · signed by ${signer ?? '—'}:signer:`,
+        detail: $localize`encryption key ${kid ?? '—'}:kid: · signed by the sender's key ${signer ?? '—'}:signer:`,
         short: duplicate ? $localize`Repeated jti` : $localize`Decrypted`,
       };
     }
@@ -98,7 +98,7 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
             state: 'unknown-kid',
             tone: 'bad',
             title: $localize`Deleted encryption key`,
-            detail: $localize`The JWE kid ${kid ?? '—'}:kid: is a key this URL deleted on ${localDate(deletedAt)}:date:`,
+            detail: $localize`The JWE was encrypted to the encryption key ${kid ?? '—'}:kid:, which this URL deleted on ${localDate(deletedAt)}:date:`,
             short: $localize`Deleted key`,
           }
         : {
@@ -106,8 +106,8 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
             state: 'unknown-kid',
             tone: 'bad',
             title: $localize`Unknown encryption key`,
-            detail: $localize`The JWE kid ${kid ?? '—'}:kid: is not one of this URL's keys`,
-            short: $localize`Unknown kid`,
+            detail: $localize`The JWE was encrypted to the encryption key ${kid ?? '—'}:kid:, which is not this URL's`,
+            short: $localize`Unknown key`,
           };
     }
     case 'absent':
@@ -116,7 +116,7 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
         state: 'absent',
         tone: 'none',
         title: $localize`Not encrypted`,
-        detail: $localize`The attribute arrived in plaintext, which this URL accepts`,
+        detail: $localize`The encrypted attribute did not come as a JWE (or the body is not JSON), and this URL accepts that`,
         short: $localize`Plaintext`,
       };
     default: {
@@ -126,9 +126,7 @@ export function decryptionResult(request: CapturedRequest): CheckResult | null {
         state: 'invalid',
         tone: 'bad',
         title:
-          reason === 'hmac_failed'
-            ? $localize`:decryption not run because the HMAC failed|:Decryption invalid`
-            : $localize`Decryption invalid`,
+          reason === 'hmac_failed' ? $localize`Decryption not run` : $localize`Decryption invalid`,
         detail: decryptionReasonText(reason),
         short: reasonShort(reason),
       };
@@ -165,7 +163,7 @@ function keysFact(token: Token | null): string[] {
   }
   const kids = (token.e2ee_keys ?? []).map((key) => key.kid);
   return kids.length > 0
-    ? [$localize`Encryption keys here: ${kids.join(', ')}:kids:`]
+    ? [$localize`This URL's encryption keys now: ${kids.join(', ')}:kids:`]
     : [
         $localize`This URL has no encryption key: generate one in Checks › Decryption and publish the JWKS.`,
       ];
@@ -187,23 +185,23 @@ function configuredFact(reason: string, token: Token | null): string[] {
   const claim = /^(jti|evt|app)_mismatch$/.exec(reason)?.[1] as 'jti' | 'evt' | 'app' | undefined;
   if (claim) {
     const path = bindingPath(policy.bindings[claim]);
-    return [$localize`Binding here: ${claim}:claim: ↔ ${path}:path:`];
+    return [$localize`This URL's binding: ${claim}:claim: ↔ ${path}:path:`];
   }
   switch (reason) {
     case 'signer_unknown':
     case 'signature_invalid': {
       const kids = policy.trusted_signers.map((jwk) => String(jwk['kid'] ?? '—'));
       return kids.length > 0
-        ? [$localize`Trusted signers here: ${kids.join(', ')}:kids:`]
+        ? [$localize`This URL's trusted signers: ${kids.join(', ')}:kids:`]
         : [$localize`This URL has no trusted signer.`];
     }
     case 'aud_mismatch':
-      return [$localize`Audience here: ${policy.audience}:audience:`];
+      return [$localize`This URL's audience: ${policy.audience}:audience:`];
     case 'downgrade':
     case 'attribute_missing':
-      return [$localize`Encrypted attribute here: ${policy.path}:path:`];
+      return [$localize`This URL's encrypted attribute: ${policy.path}:path:`];
     case 'iat_outside_window':
-      return [$localize`Max age here: ${policy.max_age_seconds}:seconds: s`];
+      return [$localize`This URL's max age: ${policy.max_age_seconds}:seconds: s`];
     case 'decrypt_failed':
       return keysFact(token);
     default:

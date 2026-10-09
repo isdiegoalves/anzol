@@ -118,7 +118,7 @@
       <p class="banner">
         <app-icon name="info" [size]="18" />
         <span i18n
-          >This URL has no read secret, and the server refuses decryption without one: the opened
+          >This URL has no read secret, and the server refuses decryption without one: the decrypted
           value must stay behind it. Turn on
           <a [routerLink]="[]" [queryParams]="{ section: 'privacy' }">Privacy</a> (it can go in the
           same save).</span
@@ -351,8 +351,9 @@
         <strong i18n>This URL decrypts on arrival</strong>
         <span class="hint" i18n
           >If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC
-          blocks decryption (hmac_failed). The decrypted attribute is stored with the request,
-          behind the read secret; shared links and live events never carry it.</span
+          blocks decryption (hmac_failed). The decrypted attribute is stored in plaintext with the
+          request; the read secret protects who reads it, not the storage. Shared links and live
+          events never carry it.</span
         >
       </span>
     </li>

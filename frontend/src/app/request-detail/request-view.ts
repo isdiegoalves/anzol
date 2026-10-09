@@ -148,9 +148,9 @@ export class RequestView {
             $localize`The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret.`,
           ]
         : []),
-      ...(!valid && decryption.kid ? [$localize`Key: ${decryption.kid}:kid:`] : []),
+      ...(!valid && decryption.kid ? [$localize`Encryption key: ${decryption.kid}:kid:`] : []),
       ...(!valid && decryption.signature_kid
-        ? [$localize`Signed by: ${decryption.signature_kid}:signer:`]
+        ? [$localize`Sender's signing key: ${decryption.signature_kid}:signer:`]
         : []),
       ...(decryption.jti ? [`jti: ${decryption.jti}`] : []),
       ...(decryption.reason === 'aud_mismatch' && decryption.aud

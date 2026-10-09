@@ -323,7 +323,8 @@
 
 <ng-template #decryptedPanel>
   <p class="schema-note" i18n>
-    The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
+    The attribute as the server decrypted it on arrival (the JWS data claim), stored with this
+    request. The body keeps the JWE as it arrived.
   </p>
   <app-code-view label="Decrypted attribute" i18n-label [text]="decryptedText() ?? ''" />
 </ng-template>

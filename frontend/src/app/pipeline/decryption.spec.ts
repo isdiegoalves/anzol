@@ -34,31 +34,31 @@ describe('Dado a decifra gravada na mensagem', () => {
       'válida',
       resultado({}),
       { state: 'valid', tone: 'ok', title: 'Decrypted', short: 'Decrypted' },
-      'key enc-1 · signed by sig-1',
+      "encryption key enc-1 · signed by the sender's key sig-1",
     ],
     [
       'válida e repetida',
       resultado({ duplicate_of: webhookRequest(2).uuid }),
       { state: 'valid', tone: 'ok', title: 'Decrypted · repeated jti', short: 'Repeated jti' },
-      'key enc-1 · signed by sig-1',
+      "encryption key enc-1 · signed by the sender's key sig-1",
     ],
     [
       'inválida',
       resultado({ state: 'invalid', reason: 'signer_unknown' }),
       { state: 'invalid', tone: 'bad', title: 'Decryption invalid', short: 'Unknown signer' },
-      'the JWS kid is not a trusted signer (signer_unknown)',
+      "the JWS says it was signed by a signing key that is not among this URL's trusted signers (signer_unknown)",
     ],
     [
       'de chave desconhecida',
       resultado({ state: 'unknown_kid', kid: 'enc-9', signature_kid: null }),
-      { state: 'unknown-kid', tone: 'bad', title: 'Unknown encryption key', short: 'Unknown kid' },
-      "The JWE kid enc-9 is not one of this URL's keys",
+      { state: 'unknown-kid', tone: 'bad', title: 'Unknown encryption key', short: 'Unknown key' },
+      "The JWE was encrypted to the encryption key enc-9, which is not this URL's",
     ],
     [
       'em claro aceito',
       resultado({ state: 'absent', kid: null, signature_kid: null }),
       { state: 'absent', tone: 'none', title: 'Not encrypted', short: 'Plaintext' },
-      'The attribute arrived in plaintext, which this URL accepts',
+      'The encrypted attribute did not come as a JWE (or the body is not JSON), and this URL accepts that',
     ],
   ])('deve montar o selo Quando a decifra é %s', (_caso, decryption, selo, detalhe) => {
     expect(decryptionResult(webhookRequest(1, { decryption }))).toEqual({
@@ -81,7 +81,7 @@ describe('Dado a decifra gravada na mensagem', () => {
 /** Os 26 motivos da decifra inválida, com o selo curto em inglês e em pt-BR. */
 const MOTIVOS: readonly [string, string, string][] = [
   ['hmac_failed', 'HMAC blocked', 'HMAC barrou'],
-  ['body_not_json', 'Not JSON', 'Corpo não é JSON'],
+  ['body_not_json', 'Body not JSON', 'Corpo não é JSON'],
   ['attribute_missing', 'Attribute missing', 'Atributo ausente'],
   ['downgrade', 'Plaintext · refused', 'Em claro · recusado'],
   ['too_large', 'JWE too large', 'JWE grande demais'],
@@ -89,7 +89,7 @@ const MOTIVOS: readonly [string, string, string][] = [
   ['alg_not_allowed', 'alg not allowed', 'alg não aceito'],
   ['enc_not_allowed', 'enc not allowed', 'enc não aceito'],
   ['zip_present', 'Compressed JWE', 'JWE comprimido'],
-  ['kid_missing', 'No kid', 'JWE sem kid'],
+  ['kid_missing', 'No JWE kid', 'JWE sem kid'],
   ['cty_not_jwt', 'cty not JWT', 'cty não é JWT'],
   ['epk_invalid', 'Invalid epk', 'epk inválida'],
   ['epk_off_curve', 'epk off curve', 'epk fora da curva'],
@@ -134,7 +134,7 @@ describe.each([
       webhookRequest(1, { decryption: resultado({ state: 'unknown_kid', kid: 'enc-9' }) }),
     );
 
-    expect(selo?.short).toBe(['Unknown kid', 'Chave desconhecida'][coluna - 1]);
+    expect(selo?.short).toBe(['Unknown key', 'Chave desconhecida'][coluna - 1]);
   });
 });
 
@@ -190,15 +190,15 @@ describe.each([
 
 describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
   it.each([
-    ['signer_unknown', 'Trusted signers here: sig-1, sig-2'],
-    ['signature_invalid', 'Trusted signers here: sig-1, sig-2'],
-    ['aud_mismatch', 'Audience here: loja-1'],
-    ['downgrade', 'Encrypted attribute here: $.payload'],
-    ['attribute_missing', 'Encrypted attribute here: $.payload'],
-    ['jti_mismatch', 'Binding here: jti ↔ $.eventId'],
-    ['app_mismatch', 'Binding here: app ↔ $.app'],
-    ['iat_outside_window', 'Max age here: 600 s'],
-    ['decrypt_failed', 'Encryption keys here: enc-1'],
+    ['signer_unknown', "This URL's trusted signers: sig-1, sig-2"],
+    ['signature_invalid', "This URL's trusted signers: sig-1, sig-2"],
+    ['aud_mismatch', "This URL's audience: loja-1"],
+    ['downgrade', "This URL's encrypted attribute: $.payload"],
+    ['attribute_missing', "This URL's encrypted attribute: $.payload"],
+    ['jti_mismatch', "This URL's binding: jti ↔ $.eventId"],
+    ['app_mismatch', "This URL's binding: app ↔ $.app"],
+    ['iat_outside_window', "This URL's max age: 600 s"],
+    ['decrypt_failed', "This URL's encryption keys now: enc-1"],
   ])('deve pôr ao lado do motivo %s o que a URL tem configurado', (reason, fato) => {
     expect(decryptionAdvice(resultado({ state: 'invalid', reason }), urlQueDecifra)).toContain(
       fato,
@@ -208,7 +208,7 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
   it('deve listar as chaves de cifra de hoje Quando o kid do JWE não é da URL', () => {
     expect(
       decryptionAdvice(resultado({ state: 'unknown_kid', kid: 'enc-9' }), urlQueDecifra),
-    ).toContain('Encryption keys here: enc-1');
+    ).toContain("This URL's encryption keys now: enc-1");
   });
 
   it('deve mandar gerar uma chave Quando a URL não tem nenhuma chave de cifra', () => {
@@ -238,11 +238,11 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
     expect(decryptionResult(webhookRequest(1, { decryption: apagada }))).toMatchObject({
       state: 'unknown-kid',
       title: 'Deleted encryption key',
-      detail: `The JWE kid enc-0 is a key this URL deleted on ${quando}`,
+      detail: `The JWE was encrypted to the encryption key enc-0, which this URL deleted on ${quando}`,
       short: 'Deleted key',
     });
     expect(decryptionAdvice(apagada, urlQueDecifra)).toEqual([
-      'Encryption keys here: enc-1',
+      "This URL's encryption keys now: enc-1",
       `This URL deleted this key on ${quando}: the sender still uses the old JWKS. Ask them to fetch it again.`,
     ]);
   });
@@ -255,7 +255,7 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
     });
 
     expect(decryptionAdvice(recriada, urlQueDecifra)).toEqual([
-      'Encryption keys here: enc-1',
+      "This URL's encryption keys now: enc-1",
       `A key with this kid was deleted on ${localDate('2026-10-09 13:30:00')} and recreated: the sender encrypted to the deleted key. Ask them to fetch this URL's JWKS again.`,
     ]);
   });
@@ -293,16 +293,24 @@ describe('Dado a decifra que falhou numa URL que a tela conhece', () => {
     }
   });
 
-  it('deve dizer em pt-BR que a decifra não foi feita Quando o HMAC barrou', () => {
-    loadTranslations(translations);
-    try {
-      expect(
-        decryptionResult(
-          webhookRequest(1, { decryption: resultado({ state: 'invalid', reason: 'hmac_failed' }) }),
-        )?.title,
-      ).toBe('Decifra não feita');
-    } finally {
-      clearTranslations();
-    }
-  });
+  it.each([
+    ['inglês', (): void => undefined, 'Decryption not run'],
+    ['pt-BR', () => loadTranslations(translations), 'Decifra não feita'],
+  ])(
+    'deve dizer em %s que a decifra não foi feita Quando o HMAC barrou',
+    (_idioma, carregar, titulo) => {
+      carregar();
+      try {
+        expect(
+          decryptionResult(
+            webhookRequest(1, {
+              decryption: resultado({ state: 'invalid', reason: 'hmac_failed' }),
+            }),
+          )?.title,
+        ).toBe(titulo);
+      } finally {
+        clearTranslations();
+      }
+    },
+  );
 });

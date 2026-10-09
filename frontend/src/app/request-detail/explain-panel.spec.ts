@@ -226,12 +226,12 @@ describe('Dado o painel do "Explain"', () => {
     [
       'chave de cifra desconhecida',
       { state: 'unknown_kid', kid: 'enc-velha' } as const,
-      "Unknown encryption key: The JWE kid enc-velha is not one of this URL's keys",
+      "Unknown encryption key: The JWE was encrypted to the encryption key enc-velha, which is not this URL's",
     ],
     [
       'decifrada',
       { state: 'valid', kid: 'enc-1', signature_kid: 'sig-1' } as const,
-      'Decrypted: key enc-1 · signed by sig-1',
+      "Decrypted: encryption key enc-1 · signed by the sender's key sig-1",
     ],
   ])(
     'deve dizer a decifra depois da assinatura, sem o valor decifrado, Quando ela é %s',
