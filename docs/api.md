@@ -136,8 +136,8 @@ Com `e2ee`, a URL abre um atributo do corpo que chega cifrado do remetente até 
 objeto (JWS) e cifra a assinatura para a chave pública da URL (JWE). **A ponta que abre é o servidor do Anzol**:
 ele guarda a chave privada da URL, decifra na chegada e grava o valor decifrado na mensagem, atrás do segredo de
 leitura (ver [onde o valor decifrado fica](#onde-o-valor-decifrado-fica)). O resto do envelope fica em claro, e a
-assinatura HMAC da URL, quando configurada, é conferida **antes** da decifra, sobre o corpo como chegou. É o formato
-do laboratório do canal de notificações:
+assinatura HMAC da URL, quando configurada, é conferida **antes** da decifra, sobre o corpo como chegou. O formato aceito é
+este:
 
 | Camada | Formato |
 |---|---|
@@ -212,8 +212,8 @@ Toda mensagem traz `decryption`: `null` sem `e2ee` na URL, senão
 A origem é o `signature_kid`, a chave de `trusted_signers` que assinou; o `iss` não é conferido. A reentrega
 de um `jti` já decifrado (dentro da janela do `iat`) continua `valid` e leva em `duplicate_of` o uuid da primeira
 mensagem. O Anzol não muda o status sozinho: a resposta sai das [regras](#regras-de-resposta), com
-`match.decryption`. O laboratório responde 500 ao `kid` desconhecido (o job tenta de novo) e 400 à cifra
-inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexões presas responde 503:
+`match.decryption`. O laboratório responde 500 ao `kid` desconhecido (um remetente que trata 5xx como temporário tenta de
+novo) e 400 à cifra inválida (não tenta), e nunca usa `fault` nessa URL, porque o teto de conexões presas responde 503:
 
 ```json
 [ { "name": "kid desconhecido", "match": { "decryption": "unknown_kid" }, "response": { "status": 500 } },
