@@ -120,6 +120,7 @@ function splitOnce(text: string, separator: string): [string, string?] {
 }
 
 const STALE_REASON = /^timestamp outside tolerance/;
+const MALFORMED_REASON = 'malformed header';
 
 function signatureResult(request: CapturedRequest): CheckResult {
   const kind = 'signature';
@@ -170,8 +171,14 @@ function signatureResult(request: CapturedRequest): CheckResult {
     tone: 'bad',
     title: $localize`Signature invalid`,
     detail: reason,
-    short: stale ? $localize`Stale timestamp` : $localize`Mismatch`,
+    short: stale ? $localize`Stale timestamp` : invalidShort(reason),
   };
+}
+
+function invalidShort(reason: string): string {
+  return reason === MALFORMED_REASON
+    ? $localize`:signature header not in the expected format:Malformed`
+    : $localize`Mismatch`;
 }
 
 /**

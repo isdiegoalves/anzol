@@ -778,6 +778,8 @@ export const translations: Record<string, string> = {
   '8763408669913941457': 'Timestamp velho',
   // Mismatch
   '416100071486197374': 'Não confere',
+  // Malformed
+  '858472238147711112': 'Formato',
   // Schema not checked
   '4721988887675549777': 'Schema não verificado',
   // Received before schema checks

@@ -1,4 +1,6 @@
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import { CapturedRequest } from '../requests/webhook-request';
 import { CheckResult, checksOf, pipelineOf, routeOf } from './pipeline';
 
@@ -325,6 +327,7 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
   it.each([
     [{ provider: 'github', valid: true, reason: null }, 'GitHub'],
     [{ provider: 'github', valid: false, reason: 'signature mismatch' }, 'Mismatch'],
+    [{ provider: 'generic', valid: false, reason: 'malformed header' }, 'Malformed'],
     [
       { provider: 'stripe', valid: false, reason: 'timestamp outside tolerance (412 s)' },
       'Stale timestamp',
@@ -335,6 +338,19 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
     ],
   ] as const)('deve dizer %j como "%s" na assinatura', (signature, esperado) => {
     expect(short(webhookRequest(1, { signature: { ...signature } }), 'signature')).toBe(esperado);
+  });
+
+  describe('Dado a tela em pt-BR', () => {
+    beforeEach(() => loadTranslations(translations));
+    afterEach(() => clearTranslations());
+
+    it.each([
+      ['signature mismatch', 'Não confere'],
+      ['malformed header', 'Formato'],
+    ])('deve dizer "%s" como "%s" na assinatura', (reason, esperado) => {
+      const signature = { provider: 'generic' as const, valid: false, reason };
+      expect(short(webhookRequest(1, { signature }), 'signature')).toBe(esperado);
+    });
   });
 
   it.each([
