@@ -17,6 +17,7 @@ import { RouterLink } from '@angular/router';
 import { decryptionAdvice } from '../pipeline/decryption';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { conditionPhrase, originalTitle } from '../pipeline/server-phrases';
+import { signatureAdvice } from '../pipeline/signature-check';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Viewport } from '../shell/viewport';
@@ -142,6 +143,19 @@ export class RequestView {
       ...(decryption.jti ? [`jti: ${decryption.jti}`] : []),
     ];
   });
+  /** Linhas a mais de cada cartão: o que fazer com a assinatura e a decifra, a resposta da regra. */
+  protected notesOf(check: CheckResult): readonly string[] {
+    switch (check.kind) {
+      case 'signature':
+        return signatureAdvice(this.request(), this.token());
+      case 'decryption':
+        return this.decryptionNotes();
+      case 'rule':
+        return this.answerNotes();
+      default:
+        return [];
+    }
+  }
   /** Reentrega do mesmo `jti`: o link para a primeira (fora da página só-leitura). */
   protected readonly firstDelivery = computed(() => {
     const { token_id: tokenId, decryption } = this.request();

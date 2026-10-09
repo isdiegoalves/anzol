@@ -5,12 +5,14 @@ import { readStorage, seedStorage } from './support/storage';
 
 // Item 14, E10 (CA-4): tradução em runtime, um build só. Settings › Language troca a tela para pt-BR depois de
 // recarregar; sem escolha, vale o idioma do navegador, caindo para `en` (a suíte roda com `locale: 'en-US'` fixo no
-// playwright.config.ts); as frases do servidor (`reason`, `failed`, 422) ficam em inglês; datas por `Intl`.
+// playwright.config.ts); as frases do servidor (`reason`, `failed`, 422) são traduzidas com o original à mão; datas
+// por `Intl`.
 // SUPOSIÇÕES (glossário pt-BR que a E10 segue; o resto da tradução é livre):
 // - shell: `navigation "Seções da URL"` com os links "Entrada", "Regras", "Verificações", "Saída" e "Métricas";
 //   `button` "Nova URL", "Configurações", "Ajuda", "Copiar"; `textbox "URL do webhook"`; chip "Ao vivo";
 // - Inbox: `heading` "Requisições (N)"; `switch "Seguir novas"`; `group "Verificações desta requisição"` com o
-//   cartão "Assinatura inválida" e, na linha seguinte, o motivo do servidor em inglês ("signature mismatch");
+//   cartão "Assinatura inválida" e, na linha seguinte, o motivo traduzido com o do servidor entre parênteses
+//   ("o HMAC não bateu (signature mismatch)");
 //   abas "Corpo" e "Cabeçalhos (n)"; a data da "Request Details" no formato do `Intl` pt-BR ("26 de set. de
 //   2026"), na linha de metadados `group "Metadados da requisição"` (fidelidade ao C, INBOX-17);
 // - Checks: `heading` h1 "Verificações"; `region "Verificação de assinatura"` com `button "Salvar assinatura"`;
@@ -86,11 +88,13 @@ test.describe('Dado o idioma pt-BR escolhido em Settings', () => {
     await expect(page.getByRole('textbox', { name: 'URL do webhook' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copiar', exact: true })).toBeVisible();
 
-    // Inbox: textos traduzidos, a frase do servidor em inglês, a data pelo Intl.
+    // Inbox: textos traduzidos, a frase do servidor com o original entre parênteses, a data pelo Intl.
     await expect(page.getByRole('heading', { name: 'Requisições (1)' })).toBeVisible();
     await expect(page.getByRole('switch', { name: 'Seguir novas' })).toBeVisible();
     const cartoes = page.getByRole('group', { name: 'Verificações desta requisição' });
-    await expect(cartoes).toContainText(/Assinatura inválida\s*signature mismatch/);
+    await expect(cartoes).toContainText(
+      /Assinatura inválida\s*o HMAC não bateu \(signature mismatch\)/,
+    );
     await expect(page.getByRole('tab', { name: /^Corpo\b/ })).toBeVisible();
     await expect(page.getByRole('tab', { name: /^Cabeçalhos \(\d+\)$/ })).toBeVisible();
     const detalhes = page.getByRole('group', { name: 'Metadados da requisição' });

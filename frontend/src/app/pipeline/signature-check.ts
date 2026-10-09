@@ -51,7 +51,7 @@ export function signatureCheck(
   const missing = absent
     ? {
         name: headerKey(absent),
-        note: `${ICONS.absent} Signature absent — the ${label} check expects the ${absent} header`,
+        note: `${ICONS.absent} ${$localize`Signature absent — the ${label}:provider: check expects the ${absent}:header: header`}`,
       }
     : null;
   const config = token?.signature?.provider === provider ? token.signature : null;
@@ -85,16 +85,101 @@ function formulaOf(provider: SignatureProvider, algorithm = 'sha256'): string {
   }
 }
 
-/** Frase da linha; o motivo do servidor aparece como veio. */
+/** Frase da linha, com o motivo do servidor na língua da tela e o original entre parênteses. */
 function verdictOf(state: SignatureState, reason: string | null, formula: string): string {
   if (reason === null) {
     return $localize`Signature valid — ${formula}:formula: matched`;
   }
-  if (reason === 'signature mismatch') {
+  if (reason === MISMATCH) {
     return $localize`Signature invalid — ${formula}:formula: did not match (signature mismatch)`;
   }
-  if (reason.startsWith('timestamp outside tolerance')) {
-    return $localize`Signature invalid — ${formula}:formula: matched, but ${reason}:reason:`;
+  if (TIMESTAMP.test(reason)) {
+    return $localize`Signature invalid — ${formula}:formula: matched, but ${signatureReasonText(reason)}:reason:`;
   }
-  return $localize`Signature ${state}:state: — ${reason}:reason:`;
+  return $localize`Signature ${stateText(state)}:state: — ${signatureReasonText(reason)}:reason:`;
+}
+
+function stateText(state: SignatureState): string {
+  const names: Record<SignatureState, string> = {
+    valid: $localize`:signature state|:valid`,
+    invalid: $localize`:signature state|:invalid`,
+    absent: $localize`:signature state|:absent`,
+  };
+  return names[state];
+}
+
+const MISMATCH = 'signature mismatch';
+const MALFORMED = 'malformed header';
+const ABSENT = /^header (\S+) absent$/;
+const TIMESTAMP = /^timestamp outside tolerance \((\d+) s\)$/;
+
+/**
+ * O motivo da assinatura como a tela o diz. Em inglês é a frase do servidor, sem mudança; nas
+ * outras línguas, a frase traduzida com o original entre parênteses. Motivo desconhecido fica como veio.
+ */
+export function signatureReasonText(reason: string): string {
+  if (reason === MISMATCH) {
+    return $localize`:signature reason from the server|:signature mismatch`;
+  }
+  if (reason === MALFORMED) {
+    return $localize`:signature reason from the server|:malformed header`;
+  }
+  const header = ABSENT.exec(reason)?.[1];
+  if (header) {
+    // O nome do cabeçalho entra uma vez só na mensagem: o original vai entre parênteses aqui, e só
+    // quando a tradução difere dele (em inglês, a frase é a do servidor).
+    const text = $localize`:signature reason from the server|:header ${header}:header: absent`;
+    return text === reason ? reason : `${text} (${reason})`;
+  }
+  const seconds = TIMESTAMP.exec(reason)?.[1];
+  if (seconds) {
+    return $localize`:signature reason from the server|:timestamp outside tolerance (${seconds}:seconds: s)`;
+  }
+  return reason;
+}
+
+/**
+ * Quem corrige a assinatura que falhou e o que fazer: o segredo daqui, o provedor (ou o remetente,
+ * no genérico), o formato configurado, a tolerância. Sem a URL (link só-leitura), a tolerância sai
+ * sem o número.
+ */
+export function signatureAdvice(request: CapturedRequest, token: Token | null): string[] {
+  const signature = request.signature;
+  if (!signature || signature.valid || signature.reason === null) {
+    return [];
+  }
+  const { provider, reason } = signature;
+  const generic = provider === 'generic';
+  const label = SIGNATURE_PROVIDER_LABELS[provider];
+  if (reason === MISMATCH) {
+    return [
+      generic
+        ? $localize`Check that the HMAC secret here is the sender's; if it is, something on the way altered the body.`
+        : $localize`Check that the HMAC secret here is the same as ${label}:provider:'s; if it is, something on the way altered the body.`,
+    ];
+  }
+  if (reason === MALFORMED) {
+    return [
+      generic
+        ? $localize`Check the Prefix and the Encoding (hex/base64) in Checks › Signature.`
+        : $localize`The header does not follow ${label}:provider:'s format: confirm the sender is ${label}:provider:, or use Generic.`,
+    ];
+  }
+  if (absentHeader(signature) !== null) {
+    return [
+      generic
+        ? $localize`The sender did not sign, or the header configured here is another.`
+        : $localize`${label}:provider: did not sign (no secret set there).`,
+    ];
+  }
+  if (TIMESTAMP.test(reason)) {
+    const tolerance =
+      token?.signature?.provider === provider ? token.signature.toleranceSeconds : undefined;
+    return [
+      tolerance === undefined
+        ? $localize`The timestamp is above the tolerance set here: late redelivery or a wrong clock; or raise the tolerance.`
+        : $localize`The timestamp is above the ${tolerance}:seconds: s tolerance: late redelivery or a wrong clock; or raise the tolerance.`,
+    ];
+  }
+  return [];
 }

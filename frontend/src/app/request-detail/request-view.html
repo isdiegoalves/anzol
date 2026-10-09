@@ -69,18 +69,14 @@
   @for (check of checks(); track check.kind) {
     @if (!readonly() && tabOf(check) !== null) {
       <button type="button" class="check" (click)="showCheck(check)">
-        <app-check-chip
-          [result]="check"
-          size="card"
-          [notes]="check.kind === 'decryption' ? decryptionNotes() : []"
-        />
+        <app-check-chip [result]="check" size="card" [notes]="notesOf(check)" />
       </button>
     } @else if (check.kind === 'decryption') {
       <div class="check">
         <app-check-chip
           [result]="check"
           size="card"
-          [notes]="decryptionNotes()"
+          [notes]="notesOf(check)"
           [extra]="firstDelivery()"
         />
       </div>
@@ -91,7 +87,7 @@
           size="card"
           [link]="check.kind === 'rule' ? ruleLink() : null"
           [extra]="check.kind === 'rule' ? defaultLink() : null"
-          [notes]="check.kind === 'rule' ? answerNotes() : []"
+          [notes]="notesOf(check)"
           [titleValue]="check.kind === 'rule' && !readonly() ? statusValue(statusTemplate) : null"
         />
       </div>

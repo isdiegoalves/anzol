@@ -351,6 +351,26 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
       const signature = { provider: 'generic' as const, valid: false, reason };
       expect(short(webhookRequest(1, { signature }), 'signature')).toBe(esperado);
     });
+
+    it.each([
+      ['signature mismatch', 'o HMAC não bateu (signature mismatch)'],
+      [
+        'header X-Hub-Signature-256 absent',
+        'faltou o cabeçalho X-Hub-Signature-256 (header X-Hub-Signature-256 absent)',
+      ],
+      ['malformed header', 'o cabeçalho não está no formato esperado (malformed header)'],
+      [
+        'timestamp outside tolerance (412 s)',
+        'o HMAC bateu, mas o timestamp está a 412 s de agora, fora da tolerância (timestamp outside tolerance)',
+      ],
+      ['motivo novo', 'motivo novo'],
+    ])(
+      'deve explicar "%s" no cartão, com o motivo do servidor entre parênteses',
+      (reason, esperado) => {
+        const signature = { provider: 'github' as const, valid: false, reason };
+        expect(pipelineOf(webhookRequest(1, { signature })).signature.detail).toBe(esperado);
+      },
+    );
   });
 
   it.each([

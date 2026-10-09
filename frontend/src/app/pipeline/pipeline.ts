@@ -1,7 +1,7 @@
 import { CapturedRequest, SignatureResult, absentHeader } from '../requests/webhook-request';
 import { conditionPhrase } from './server-phrases';
 import { SIGNATURE_PROVIDER_LABELS, Token } from '../token/token';
-import { SignatureCheck, signatureCheck } from './signature-check';
+import { SignatureCheck, signatureCheck, signatureReasonText } from './signature-check';
 import { decryptionResult } from './decryption';
 
 /**
@@ -160,7 +160,7 @@ function signatureResult(request: CapturedRequest): CheckResult {
       state: 'absent',
       tone: 'bad',
       title: $localize`Signature absent`,
-      detail: reason,
+      detail: signatureReasonText(reason),
       short: $localize`No signature`,
     };
   }
@@ -170,7 +170,9 @@ function signatureResult(request: CapturedRequest): CheckResult {
     state: stale ? 'stale' : 'invalid',
     tone: 'bad',
     title: $localize`Signature invalid`,
-    detail: reason,
+    detail: stale
+      ? $localize`:signature card, the HMAC matched but the timestamp did not|:${signatureReasonText(reason)}:reason:`
+      : signatureReasonText(reason),
     short: stale ? $localize`Stale timestamp` : invalidShort(reason),
   };
 }

@@ -772,6 +772,8 @@ export const translations: Record<string, string> = {
   '72442362552594738': 'Sem assinatura',
   // No signature
   '8999642303165983441': 'Sem assinatura',
+  // {$reason}
+  '6474081033615562232': 'o HMAC bateu, mas {$reason}',
   // Signature invalid
   '76465393282813109': 'Assinatura inválida',
   // Stale timestamp
@@ -823,11 +825,49 @@ export const translations: Record<string, string> = {
   // Signature valid — {$formula} matched
   '7745991131581196387': 'Assinatura válida — o {$formula} bateu',
   // Signature invalid — {$formula} did not match (signature mismatch)
-  '109936488826144296': 'Assinatura inválida — o {$formula} não bateu (signature mismatch)',
+  '109936488826144296':
+    'Assinatura inválida — o {$formula} não bateu (signature mismatch): segredo diferente nos dois lados, ou corpo alterado no caminho.',
   // Signature invalid — {$formula} matched, but {$reason}
   '9200910835768230509': 'Assinatura inválida — o {$formula} bateu, mas {$reason}',
   // Signature {$state} — {$reason}
   '150094202595422510': 'Assinatura {$state} — {$reason}',
+  // valid
+  '7503125606381083319': 'válida',
+  // invalid
+  '5803994708044197526': 'inválida',
+  // absent
+  '8551676869035882346': 'ausente',
+  // signature mismatch
+  '6658909463270317571': 'o HMAC não bateu (signature mismatch)',
+  // malformed header
+  '5614377539724595183': 'o cabeçalho não está no formato esperado (malformed header)',
+  // header {$header} absent
+  '2590303353863801781': 'faltou o cabeçalho {$header}',
+  // timestamp outside tolerance ({$seconds} s)
+  '8115838192454396102':
+    'o timestamp está a {$seconds} s de agora, fora da tolerância (timestamp outside tolerance)',
+  // Check that the HMAC secret here is the sender's; if it is, something on the way altered the body.
+  '1124365388298629180':
+    'Confira se o segredo do HMAC daqui é o mesmo do remetente; se for, algo no caminho alterou o corpo.',
+  // Check that the HMAC secret here is the same as {$provider}'s; if it is, something on the way altered the body.
+  '2512571080916805776':
+    'Confira se o segredo do HMAC daqui é o mesmo do {$provider}; se for, algo no caminho alterou o corpo.',
+  // Check the Prefix and the Encoding (hex/base64) in Checks › Signature.
+  '1386049417704176482':
+    'Confira o Prefixo e a Codificação (hex/base64) em Verificações › Assinatura.',
+  // The header does not follow {$provider}'s format: confirm the sender is {$provider}, or use Generic.
+  '650505594850629909':
+    'O cabeçalho não segue o formato do {$provider}: confirme que o remetente é o {$provider}, ou use Generic.',
+  // The sender did not sign, or the header configured here is another.
+  '6322115884395614581': 'O remetente não assinou, ou o cabeçalho configurado aqui é outro.',
+  // {$provider} did not sign (no secret set there).
+  '4754275997427626891': 'O {$provider} não assinou (sem segredo cadastrado lá).',
+  // The timestamp is above the tolerance set here: late redelivery or a wrong clock; or raise the tolerance.
+  '758622676241767451':
+    'O timestamp passa da tolerância configurada: reentrega atrasada ou relógio errado; ou aumente a tolerância.',
+  // The timestamp is above the {$seconds} s tolerance: late redelivery or a wrong clock; or raise the tolerance.
+  '5829324004263661322':
+    'O timestamp passa da tolerância de {$seconds} s: reentrega atrasada ou relógio errado; ou aumente a tolerância.',
   // Explanation
   '3235573132965089379': 'Explicação',
   // Explain
@@ -1856,7 +1896,7 @@ export const translations: Record<string, string> = {
   '4897714653704161369': 'Requisição a reenviar: #{$id}, {$method} {$path}. Trocar',
   // Same formula, same secret, over the exact bytes received, compared in constant time. Each request is marked Valid, or Invalid with the reason.
   '1290468726882053783':
-    'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos, comparados em tempo constante. Cada requisição fica marcada como válida, ou inválida com o motivo.',
+    'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos, comparados em tempo constante. Cada requisição fica marcada como Válida, Inválida com o motivo, ou Sem assinatura (faltou o cabeçalho). Com a decifra E2EE ligada, assinatura inválida ou ausente também impede a decifra.',
   // Unsaved: switching from {$INTERPOLATION} (saved) to {$INTERPOLATION_1}. Requests already received keep the result they got on arrival.
   '2256076041282014055':
     'Não salvo: trocando de {$INTERPOLATION} (salvo) para {$INTERPOLATION_1}. As requisições já recebidas mantêm o resultado que tiveram na chegada.',
@@ -2726,6 +2766,9 @@ export const translations: Record<string, string> = {
   '2093276602253257282': 'O campo {$field} deve ser true ou false.',
   // Original: {$phrase}
   '3876084183795082544': 'Original: {$phrase}',
+  // Signature absent — the {$provider} check expects the {$header} header
+  '6760205189786701313':
+    'Sem assinatura — a verificação do {$provider} espera o cabeçalho {$header}',
   // The schema is invalid: {$reason}.
   '4408653464724127151': 'Schema inválido: {$reason}.',
   // The {$field} must have exactly one of: {$list}.
