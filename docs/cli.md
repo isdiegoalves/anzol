@@ -412,7 +412,7 @@ jobs:
       redis:
         image: redis:8.10.2-alpine
       anzol:
-        image: ghcr.io/isdiegoalves/anzol:0.3.0
+        image: ghcr.io/isdiegoalves/anzol:0.5.0
         ports: ["8084:8080"]
         env:
           REDIS_HOST: redis
@@ -421,7 +421,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: isdiegoalves/anzol
-          ref: v0.3.0
+          ref: v0.5.0
           path: .anzol
       - uses: actions/setup-java@v4
         with:
