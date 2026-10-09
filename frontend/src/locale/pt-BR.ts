@@ -783,7 +783,7 @@ export const translations: Record<string, string> = {
   // Mismatch
   '416100071486197374': 'Não confere',
   // Malformed
-  '858472238147711112': 'Formato',
+  '858472238147711112': 'Fora do formato',
   // Schema not checked
   '4721988887675549777': 'Schema não verificado',
   // Received before schema checks

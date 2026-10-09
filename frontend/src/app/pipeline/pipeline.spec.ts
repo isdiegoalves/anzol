@@ -409,7 +409,7 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
 
     it.each([
       ['signature mismatch', 'Não confere'],
-      ['malformed header', 'Formato'],
+      ['malformed header', 'Fora do formato'],
     ])('deve dizer "%s" como "%s" na assinatura', (reason, esperado) => {
       const signature = { provider: 'generic' as const, valid: false, reason };
       expect(short(webhookRequest(1, { signature }), 'signature')).toBe(esperado);
