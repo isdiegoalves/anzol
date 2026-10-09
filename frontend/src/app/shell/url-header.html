@@ -74,6 +74,16 @@
       <app-icon name="braces" [size]="16" /><span i18n>Schema</span>
     </a>
   }
+  @if (token.lab; as lab) {
+    <a
+      class="chip check"
+      [routerLink]="['/', token.uuid, 'checks']"
+      [queryParams]="{ section: 'e2ee' }"
+      [attr.aria-label]="labLabel(lab.expires_at)"
+    >
+      <app-icon name="bolt" [size]="16" />{{ labChip(lab.expires_at) }}
+    </a>
+  }
   <span class="spacer"></span>
   <div class="actions">
     <a

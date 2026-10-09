@@ -81,6 +81,9 @@ describe('Dado o laboratório E2EE no cartão', () => {
 
       await vi.waitFor(() => expect(status.textContent).toContain('2 of 3 match'));
       expect(status.textContent).toContain('1 scenario differs, listed first.');
+      expect(status.textContent?.replace(/\s+/g, ' ')).toContain(
+        '0 decrypted as expected · 2 refused as expected · 1 differing',
+      );
       const tabela = within(lab()).getByRole('table', { name: 'Scenario results' });
       const linhas = within(tabela).getAllByRole('row').slice(1);
       expect(linhas.map((linha) => within(linha).getByRole('rowheader').textContent)).toEqual([

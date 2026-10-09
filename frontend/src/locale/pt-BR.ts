@@ -1740,6 +1740,10 @@ export const translations: Record<string, string> = {
   '5707574018885283160': 'Editar a URL, abrir em nova aba, copiar o comando do CLI, apagar a URL',
   // Signature verification: {$provider}. Open Checks
   '7448920973178183690': 'Verificação de assinatura: {$provider}. Abrir Verificações',
+  // Lab · expires {$relative}
+  '8594661010844912779': 'Laboratório · expira {$relative}',
+  // E2EE lab URL, expires {$relative}. Open Checks
+  '5917116743026150008': 'URL de laboratório E2EE, expira {$relative}. Abrir Verificações',
   // {$stored}, auto cleanup keeps the {$limit} most recent
   '1886402781235704922': '{$stored}, a limpeza automática guarda as {$limit} mais recentes',
   // Delete this URL?
@@ -3825,17 +3829,29 @@ export const translations: Record<string, string> = {
   '5063575939344818033': 'URL de laboratório',
   //  This URL came ready: two encryption keys, the test sender {$INTERPOLATION}, the lab policy and rules, and it is not renewed. Run scenarios builds each scenario of the E2EE contract, delivers it through the real capture (HMAC, decryption and rules) and compares the status, the state and the reason with what is expected. The decrypted text never shows in the report.
   '4043935349102843661':
-    ' Esta URL veio pronta: duas chaves de cifra, o remetente de teste {$INTERPOLATION}, a política e as regras do laboratório, e ela não é renovada. Rodar cenários monta cada cenário do contrato E2EE, entrega pela captura de verdade (HMAC, decifra e regras) e compara o status, o estado e o motivo com o esperado. O texto aberto nunca aparece no relatório. ',
+    ' Esta URL veio pronta: duas chaves de cifra, o remetente de teste {$INTERPOLATION}, a configuração e as regras do laboratório (HMAC inválido ou ausente → 401, chave desconhecida → 500, outra falha da decifra → 400, o resto 202), e ela não é renovada. Rodar cenários monta uma mensagem por cenário no servidor, entrega cada uma pela captura real (HMAC, decifra e regras) e compara com o esperado o status, o estado e o motivo; nos que nomeiam a chave, também o kid; nos que decifram, também o data igual ao enviado. O atributo decifrado nunca aparece no relatório. ',
   // Run scenarios
   '3844145349807746390': 'Rodar cenários',
   // Running the scenarios. It takes a few seconds…
   '1199777382771981644': 'Rodando os cenários. Leva alguns segundos…',
   // {VAR_PLURAL, plural, =1 {1 of {INTERPOLATION} matches} other {{INTERPOLATION_1} of {INTERPOLATION} match}}
   '2262345787437292542':
-    '{VAR_PLURAL, plural, =1 {1 de {INTERPOLATION} confere} other {{INTERPOLATION_1} de {INTERPOLATION} conferem}}',
+    '{VAR_PLURAL, plural, =1 {1 de {INTERPOLATION} cenários deu o resultado esperado} other {{INTERPOLATION_1} de {INTERPOLATION} cenários deram o resultado esperado}}',
   // {VAR_PLURAL, plural, =1 {1 scenario differs, listed first.} other {{INTERPOLATION} scenarios differ, listed first.}}
   '9133705194015195637':
     '{VAR_PLURAL, plural, =1 {1 cenário diverge, listado primeiro.} other {{INTERPOLATION} cenários divergem, listados primeiro.}}',
+  // {VAR_PLURAL, plural, =1 {1 decrypted as expected} other {{INTERPOLATION} decrypted as expected}}
+  '5975166268656642221':
+    '{VAR_PLURAL, plural, =1 {1 decifrado como previsto} other {{INTERPOLATION} decifrados como previsto}}',
+  // {VAR_PLURAL, plural, =1 {1 refused as expected} other {{INTERPOLATION} refused as expected}}
+  '900343585218272613':
+    '{VAR_PLURAL, plural, =1 {1 recusado como previsto} other {{INTERPOLATION} recusados como previsto}}',
+  // {VAR_PLURAL, plural, =1 {1 differing} other {{INTERPOLATION} differing}}
+  '6636118491930639223':
+    '{VAR_PLURAL, plural, =1 {1 divergente} other {{INTERPOLATION} divergentes}}',
+  //  P = must decrypt (with the default settings) · N = must be refused · X = claims, header and limits
+  '1542943073742835709':
+    ' P = deve decifrar (com a configuração padrão) · N = deve ser recusado · X = claims, cabeçalho e limites ',
   // Scenario results table
   '3911947446427329598': 'Tabela de resultados dos cenários',
   // Scenario results
@@ -3847,13 +3863,13 @@ export const translations: Record<string, string> = {
   // Got
   '4603011004208784058': 'Obtido',
   // data matches
-  '4043981353335140926': 'data confere',
+  '4043981353335140926': 'data igual ao enviado',
   // data differs
-  '3640123933109989273': 'data diverge',
+  '3640123933109989273': 'data diferente do enviado',
   // Matches
-  '1567940090040631427': 'Confere',
+  '1567940090040631427': 'Esperado',
   // Differs
-  '5250864808692692049': 'Diverge',
+  '5250864808692692049': 'Divergiu',
   // E2EE lab
   '1137363530760030904': 'Laboratório E2EE',
   //  To see decryption working without setting anything up: a new URL with a read secret, an HMAC secret, two encryption keys, a test sender and the lab policy and rules, ready to run the scenarios of the E2EE contract. It expires in 24 hours.
@@ -3870,6 +3886,62 @@ export const translations: Record<string, string> = {
   '6743291150073189530': 'O servidor recusou a rodada: {$reason}',
   // Could not run the scenarios ({$status}).
   '5518836484461613670': 'Não foi possível rodar os cenários ({$status}).',
+  // valid
+  '5444624488565197915': 'válida',
+  // invalid
+  '3745493590228312122': 'inválida',
+  // unknown_kid
+  '4816556229074369568': 'chave desconhecida',
+  // absent
+  '6493175751219996942': 'em claro',
+  // Round trip
+  '4219695375143525996': 'Ida e volta',
+  // Rotation: encrypted to enc-v1 while enc-v2 is active
+  '6982312164038402108': 'Rotação: cifrado para enc-v1 com enc-v2 ativa',
+  // Accents and emoji in the data
+  '5102885369519702196': 'Acentos e emoji no data',
+  // Large and precise numbers in the data
+  '4865897090636675286': 'Números grandes e exatos no data',
+  // app in a different case from the envelope
+  '8796213585604771041': 'app com caixa diferente da do envelope',
+  // JWE without a JWS inside (the channel forging with the public key)
+  '5416535025711074818': 'JWE sem JWS dentro (forja com a chave pública)',
+  // JWS from a signer that is not trusted
+  '9118066033648714791': 'JWS de um signatário que não é confiável',
+  // JWS with the trusted kid but signed by another key
+  '1184476913385327739': 'JWS com o kid confiável, mas assinado por outra chave',
+  // Ciphertext of one message in the envelope of another
+  '1730209315699905963': 'Cifra de uma mensagem no envelope de outra',
+  // Plaintext object where the JWE should be (downgrade)
+  '3628491819880300374': 'Objeto em claro no lugar do JWE (downgrade)',
+  // JWE for a key the URL does not have
+  '7090665772300641183': 'JWE para uma chave que a URL não tem',
+  // epk point off the P-256 curve
+  '5738967710289813501': 'Ponto epk fora da curva P-256',
+  // HMAC computed with another secret
+  '7669247890922992257': 'HMAC calculado com outro segredo',
+  // Body changed after the HMAC
+  '6104516369856179503': 'Corpo alterado depois do HMAC',
+  // JWS with alg none
+  '855067302493046442': 'JWS com alg none',
+  // JWS with alg HS256
+  '206851176239018557': 'JWS com alg HS256',
+  // app different from the envelope
+  '8627567760659512119': 'app diferente do envelope',
+  // aud of another recipient
+  '2661165840135246941': 'aud de outro destinatário',
+  // JWE header without cty
+  '1962521155638285096': 'Cabeçalho do JWE sem cty',
+  // JWS without data
+  '3053419684321600510': 'JWS sem data',
+  // evt in a different case from the envelope
+  '4052603831608720117': 'evt com caixa diferente da do envelope',
+  // iat older than the window
+  '1928306576463850988': 'iat mais velho que a janela',
+  // JWE header without kid
+  '8581292883924708738': 'Cabeçalho do JWE sem kid',
+  // JWE larger than 256 KiB
+  '2572786614931951458': 'JWE maior que 256 KiB',
   // Expires {$relative} ({$date})
   '3199083783022916599': 'Expira {$relative} ({$date})',
   // Could not create the lab URL ({$status}).

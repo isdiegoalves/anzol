@@ -42,6 +42,9 @@
             }</span>
           }
         </p>
+        @let tally = counts();
+        <!-- prettier-ignore -->
+        <p class="hint tally"><span i18n>{tally.decrypted, plural, =1 {1 decrypted as expected} other {{{ tally.decrypted }} decrypted as expected}}</span> · <span i18n>{tally.refused, plural, =1 {1 refused as expected} other {{{ tally.refused }} refused as expected}}</span> · <span i18n>{tally.differing, plural, =1 {1 differing} other {{{ tally.differing }} differing}}</span></p>
       }
     </div>
     @if (failure(); as message) {
@@ -49,6 +52,10 @@
     }
 
     @if (report()) {
+      <p class="hint" i18n>
+        P = must decrypt (with the default settings) · N = must be refused · X = claims, header and
+        limits
+      </p>
       <div
         class="table-scroll"
         tabindex="0"
@@ -73,7 +80,10 @@
                 <th scope="row">
                   <code>{{ row.code }}</code>
                 </th>
-                <td class="description">{{ row.description }}</td>
+                @let description = describe(row.description);
+                <td class="description" [attr.title]="description.original">
+                  {{ description.text }}
+                </td>
                 <td class="outcome">
                   <span class="status">{{ row.expected.status }}</span
                   >&ngsp;

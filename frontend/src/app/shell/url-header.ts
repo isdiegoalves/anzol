@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Component, Injector, computed, inject, input, output } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { RequestStream } from '../realtime/request-stream';
+import { fromNow } from '../request-detail/dates';
 import { RequestStore } from '../requests/request-store';
 import { injectCopyCliCommand } from '../token/copy-cli-command';
 import { SIGNATURE_PROVIDER_LABELS } from '../token/token';
@@ -50,6 +51,12 @@ export class UrlHeader {
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
   protected readonly signatureLabel = (provider: string) =>
     $localize`Signature verification: ${provider}:provider:. Open Checks`;
+
+  /** A URL de laboratório não renova: o selo diz quando ela expira. */
+  protected readonly labChip = (expiresAt: string) =>
+    $localize`Lab · expires ${fromNow(expiresAt)}:relative:`;
+  protected readonly labLabel = (expiresAt: string) =>
+    $localize`E2EE lab URL, expires ${fromNow(expiresAt)}:relative:. Open Checks`;
 
   /** O estado do SSE na linguagem da tela; `null` sem stream (fora da Inbox). */
   protected readonly live = computed<LiveState | null>(() => {

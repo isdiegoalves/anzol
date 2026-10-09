@@ -178,6 +178,32 @@ describe('Dado o cabeçalho da URL aberta', () => {
     );
   });
 
+  it('deve marcar a URL de laboratório e quando ela expira, levando a Checks › Decifra', async () => {
+    const daqui5Horas = new Date(Date.now() + 5 * 3_600_000 + 60_000)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+    const { container } = await renderWith(
+      token({ lab: { signer_kid: 'lab-sig-1', expires_at: daqui5Horas } }),
+    );
+
+    const selo = screen.getByRole('link', {
+      name: 'E2EE lab URL, expires in 5 hours. Open Checks',
+    });
+    expect(selo.textContent?.trim()).toBe('Lab · expires in 5 hours');
+    expect(selo).toHaveProperty(
+      'href',
+      expect.stringContaining(`/${TOKEN_ID}/checks?section=e2ee`),
+    );
+    await expectNoAxeViolations(container);
+  });
+
+  it('não deve marcar laboratório Quando a URL é comum', async () => {
+    await renderWith(token());
+
+    expect(screen.queryByRole('link', { name: /lab URL/ })).toBeNull();
+  });
+
   describe('Dado o stream SSE da Inbox', () => {
     const subscriptions = new Subscription();
 

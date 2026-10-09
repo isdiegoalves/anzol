@@ -70,8 +70,11 @@ class McpLabTools {
                 ToolDefinition(
                     "run_e2ee_scenarios",
                     "Run E2EE scenarios on a lab URL: the server builds each vector, delivers it through the real capture " +
-                        "and compares status, decryption state and reason with the expected ones. Returns the report " +
-                        "(matched of total, and expected vs actual per scenario); never the decrypted text. Only lab URLs.",
+                        "and compares status, decryption state and reason with the expected ones; where a scenario names " +
+                        "the kid, also the kid; where it decrypts, also data equal to what was sent. Returns the report " +
+                        "(matched of total, and expected vs actual per scenario); never the decrypted text. `matched` " +
+                        "counts scenarios that gave the expected result, refusals included, not decryptions; " +
+                        "`expected.kid: null` means the kid is not compared. Only lab URLs.",
                     objectSchema(
                         "$TOKEN_ID, $SCENARIOS",
                         "token_id",

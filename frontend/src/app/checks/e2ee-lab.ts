@@ -25,12 +25,56 @@ export function labRunFailure(error: unknown): string {
   return $localize`Could not run the scenarios (${status}:status:).`;
 }
 
-/** Estado, motivo e chave como a API os grava: `invalid (downgrade)`, `valid · kid enc-v2`. */
+/**
+ * Estado, motivo e chave como a API os grava, com o estado na língua da tela: `invalid (downgrade)`,
+ * `valid · kid enc-v2`.
+ */
 export function labOutcome(outcome: LabExpected | LabActual): string {
-  const state = outcome.state ?? '—';
+  const states: Record<string, string> = {
+    valid: $localize`:lab outcome state|:valid`,
+    invalid: $localize`:lab outcome state|:invalid`,
+    unknown_kid: $localize`:lab outcome state|:unknown_kid`,
+    absent: $localize`:lab outcome state|:absent`,
+  };
+  const state = outcome.state === null ? '—' : (states[outcome.state] ?? outcome.state);
   const reason = outcome.reason ? ` (${outcome.reason})` : '';
   const kid = outcome.kid ? ` · kid ${outcome.kid}` : '';
   return `${state}${reason}${kid}`;
+}
+
+/**
+ * A descrição do cenário na língua da tela, com o original no `title` quando difere. A tabela é
+ * pelo texto do servidor: um cenário novo, ou uma descrição mudada, aparece como veio.
+ */
+export function labDescription(original: string): { text: string; original: string | null } {
+  const descriptions: Record<string, string> = {
+    'Round trip': $localize`:lab scenario|:Round trip`,
+    'Rotation: encrypted to enc-v1 while enc-v2 is active': $localize`:lab scenario|:Rotation: encrypted to enc-v1 while enc-v2 is active`,
+    'Accents and emoji in the data': $localize`:lab scenario|:Accents and emoji in the data`,
+    'Large and precise numbers in the data': $localize`:lab scenario|:Large and precise numbers in the data`,
+    'app in a different case from the envelope': $localize`:lab scenario|:app in a different case from the envelope`,
+    'JWE without a JWS inside (the channel forging with the public key)': $localize`:lab scenario|:JWE without a JWS inside (the channel forging with the public key)`,
+    'JWS from a signer that is not trusted': $localize`:lab scenario|:JWS from a signer that is not trusted`,
+    'JWS with the trusted kid but signed by another key': $localize`:lab scenario|:JWS with the trusted kid but signed by another key`,
+    'Ciphertext of one message in the envelope of another': $localize`:lab scenario|:Ciphertext of one message in the envelope of another`,
+    'Plaintext object where the JWE should be (downgrade)': $localize`:lab scenario|:Plaintext object where the JWE should be (downgrade)`,
+    'JWE for a key the URL does not have': $localize`:lab scenario|:JWE for a key the URL does not have`,
+    'epk point off the P-256 curve': $localize`:lab scenario|:epk point off the P-256 curve`,
+    'HMAC computed with another secret': $localize`:lab scenario|:HMAC computed with another secret`,
+    'Body changed after the HMAC': $localize`:lab scenario|:Body changed after the HMAC`,
+    'JWS with alg none': $localize`:lab scenario|:JWS with alg none`,
+    'JWS with alg HS256': $localize`:lab scenario|:JWS with alg HS256`,
+    'app different from the envelope': $localize`:lab scenario|:app different from the envelope`,
+    'aud of another recipient': $localize`:lab scenario|:aud of another recipient`,
+    'JWE header without cty': $localize`:lab scenario|:JWE header without cty`,
+    'JWS without data': $localize`:lab scenario|:JWS without data`,
+    'evt in a different case from the envelope': $localize`:lab scenario|:evt in a different case from the envelope`,
+    'iat older than the window': $localize`:lab scenario|:iat older than the window`,
+    'JWE header without kid': $localize`:lab scenario|:JWE header without kid`,
+    'JWE larger than 256 KiB': $localize`:lab scenario|:JWE larger than 256 KiB`,
+  };
+  const text = descriptions[original] ?? original;
+  return { text, original: text === original ? null : original };
 }
 
 /**
@@ -66,11 +110,19 @@ export class E2eeLab {
     [...(this.report()?.results ?? [])].sort((a, b) => Number(a.ok) - Number(b.ok)),
   );
   protected readonly differing = computed(() => this.rows().filter((row) => !row.ok).length);
+  /** O que deu o esperado, separado entre o que decifrou e o que foi recusado, e o que divergiu. */
+  protected readonly counts = computed(() => {
+    const rows = this.rows();
+    const decrypted = rows.filter((row) => row.ok && row.actual.state === 'valid').length;
+    const differing = rows.filter((row) => !row.ok).length;
+    return { decrypted, refused: rows.length - decrypted - differing, differing };
+  });
 
   protected readonly creating = signal(false);
   protected readonly refusal = signal<string | null>(null);
 
   protected readonly outcome = labOutcome;
+  protected readonly describe = labDescription;
 
   protected async runScenarios(): Promise<void> {
     const tokenId = this.tokenId();
