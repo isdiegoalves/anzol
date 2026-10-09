@@ -18,6 +18,7 @@ import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { TokenStats } from '../stats/stats';
 import { Token } from '../token/token';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Rule, RuleMatch } from './rule';
 import { RuleIntents } from './rule-intents';
 import { RuleStore } from './rule-store';
@@ -181,7 +182,9 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       ]);
       // O servidor dá o id da nova: a lista a destaca e anuncia, como no lote (WM-35).
       put.flush(body.map((r) => ({ ...r, id: r.id ?? 'nova' })));
-      await vi.waitFor(() => expect(announce).toHaveBeenCalledWith('1 rule created'));
+      await vi.waitFor(() =>
+        expect(announce).toHaveBeenCalledWith('1 rule created', ANNOUNCEMENT_MS),
+      );
       expect(TestBed.inject(RuleIntents).created()?.ids).toEqual(['nova']);
     });
 
@@ -498,7 +501,7 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(row('r3').classList).toContain('just-created');
       expect(row('r1').classList).not.toContain('just-created');
       expect(text('r2', '.created')).toBe('New');
-      expect(announce).toHaveBeenCalledWith('2 rules created');
+      expect(announce).toHaveBeenCalledWith('2 rules created', ANNOUNCEMENT_MS);
 
       await vi.advanceTimersByTimeAsync(5000);
       await vi.waitFor(() => expect(row('r2').classList).not.toContain('just-created'));

@@ -31,6 +31,7 @@ import { WebhookRequest } from '../requests/webhook-request';
 import { TokenStore } from '../token/token-store';
 import { Viewport } from '../shell/viewport';
 import { Icon } from '../ui/icon';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Split } from '../ui/split';
 import {
   FAULT_SHORT_LABELS,
@@ -850,6 +851,7 @@ export class RulesPage {
     }
     this.announcer.announce(
       $localize`${moved.name}:rule: moved to position ${to + 1}:position: of ${rules.length}:count:`,
+      ANNOUNCEMENT_MS,
     );
     if (keepFocus && moved.id) {
       afterNextRender(

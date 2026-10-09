@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { changesBar, expectPut, renderCard, saveButton } from '../../testing/checks';
 import { token } from '../../testing/fixtures';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ResponseCard } from './response-card';
 
 const spoken = (container: Element) =>
@@ -76,7 +77,7 @@ describe('Dado a barra de salvar de Verificações (região "Unsaved changes")',
     (await expectPut(http)).flush(token({ default_status: 429, default_content: 'x' }));
 
     await vi.waitFor(() => expect(changesBar()).toBeNull());
-    expect(announce.mock.calls).toEqual([['Saved. 2 changes.']]);
+    expect(announce.mock.calls).toEqual([['Saved. 2 changes.', ANNOUNCEMENT_MS]]);
     expect(await screen.findByText('URL updated!')).toBeTruthy();
     expect(
       document.querySelector('mat-snack-bar-container [aria-live]')?.getAttribute('aria-live'),

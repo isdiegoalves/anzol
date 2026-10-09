@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { EventGrouping } from '../requests/event-grouping';
 import { FilterChips, ValueTarget } from '../search/filter-chips';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ValueActions } from './value-actions';
 
 describe('Dado um valor da requisição aberta que vira filtro', () => {
@@ -66,7 +67,7 @@ describe('Dado um valor da requisição aberta que vira filtro', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Copy value' }));
 
     expect(copy).toHaveBeenCalledWith(long);
-    expect(announce).toHaveBeenCalledWith('Value copied.');
+    expect(announce).toHaveBeenCalledWith('Value copied.', ANNOUNCEMENT_MS);
   });
 
   it('deve copiar o caminho e agrupar pelo campo', async () => {

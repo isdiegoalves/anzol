@@ -5,6 +5,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { KNOWN_URLS_KEY, KnownUrls } from './known-urls';
 import { ForgetUrlsDialog, UrlNicknameDialog } from './url-list-dialogs';
 
@@ -56,7 +57,7 @@ describe('Dado os diálogos da lista de URLs do navegador', () => {
       await userEvent.type(apelido, 'Retry{Enter}');
 
       expect(TestBed.inject(KnownUrls).nicknameOf(A)).toBe('Retry');
-      expect(announce.mock.calls).toEqual([['Nickname saved.']]);
+      expect(announce.mock.calls).toEqual([['Nickname saved.', ANNOUNCEMENT_MS]]);
       expect(close).toHaveBeenCalledWith(true);
     });
 

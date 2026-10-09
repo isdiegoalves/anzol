@@ -14,6 +14,7 @@ import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { RequestCreated, WebhookRequest } from '../requests/webhook-request';
 import { Rule } from '../rules/rule';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Guide, GuideName } from './guide';
 import { CHECK_SETTLE_MS } from './retry-guide';
 
@@ -96,7 +97,10 @@ describe('Dado um roteiro (R1)', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Copy curl command' }));
 
       expect(copy.mock.calls[0][0]).toMatch(new RegExp(`^curl .*/${TOKEN_ID}$`));
-      expect(announce).toHaveBeenCalledWith('Command copied. It has this URL, which is a secret.');
+      expect(announce).toHaveBeenCalledWith(
+        'Command copied. It has this URL, which is a secret.',
+        ANNOUNCEMENT_MS,
+      );
     });
 
     it('deve dar por feito o que a URL tem e abrir a requisição que chegou', async () => {
@@ -247,7 +251,7 @@ describe('Dado um roteiro (R1)', () => {
           { status: 200, headers: {}, body: '' },
         ],
       ]);
-      expect(announce).toHaveBeenCalledWith('3 rules created.');
+      expect(announce).toHaveBeenCalledWith('3 rules created.', ANNOUNCEMENT_MS);
       expect(text(step('Create'))).toContain('3 rules created · scenario "cobrancas"');
       expect(text(step('Create').querySelector('.state'))).toBe('done');
       expect(text(group())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.');

@@ -13,6 +13,7 @@ import { RuleStore } from '../rules/rule-store';
 import { TokenStore } from '../token/token-store';
 import { cliListenCommand } from '../token/token';
 import { Icon } from '../ui/icon';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { GuideStep } from './guide-step';
 import { firstSteps } from './guide-steps';
 
@@ -90,7 +91,10 @@ export class FirstGuide {
 
   protected copyCurl(): void {
     this.clipboard.copy(this.curl());
-    void this.announcer.announce($localize`Command copied. It has this URL, which is a secret.`);
+    void this.announcer.announce(
+      $localize`Command copied. It has this URL, which is a secret.`,
+      ANNOUNCEMENT_MS,
+    );
   }
 
   /** Manda um POST com JSON para a captura; a requisição chega pela lista, em tempo real. */

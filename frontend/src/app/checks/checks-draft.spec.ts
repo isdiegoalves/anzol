@@ -5,6 +5,7 @@ import { FormControl, Validators } from '@angular/forms';
 import { TOKEN_ID, token } from '../../testing/fixtures';
 import { Token, TokenSettings } from '../token/token';
 import { UrlLock } from '../token/url-lock';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { CHECKS_DRAFT_KEY, ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
 import { ChangedElsewhere, ChecksStore, UnlockFailed } from './checks-store';
 
@@ -107,7 +108,7 @@ describe('Dado o rascunho de Verificações (uma barra de salvar)', () => {
     expect(outro.calls.loaded).toHaveLength(1);
     expect(draft.dirty()).toBe(false);
     expect(draft.base()?.default_status).toBe(429);
-    expect(announce.mock.calls).toEqual([['Saved. 1 change.']]);
+    expect(announce.mock.calls).toEqual([['Saved. 1 change.', ANNOUNCEMENT_MS]]);
   });
 
   it('não deve gravar nada e deve apontar o primeiro campo Quando qualquer cartão tem campo inválido', async () => {
@@ -144,7 +145,7 @@ describe('Dado o rascunho de Verificações (uma barra de salvar)', () => {
     expect(draft.dirty()).toBe(false);
     expect(draft.summary()).toBe('');
     expect(sessionStorage.getItem(CHECKS_DRAFT_KEY(TOKEN_ID))).toBeNull();
-    expect(announce.mock.calls).toEqual([['Changes discarded.']]);
+    expect(announce.mock.calls).toEqual([['Changes discarded.', ANNOUNCEMENT_MS]]);
   });
 
   it('deve oferecer "Reload" e "Save anyway" Quando a URL mudou em outro lugar', async () => {
@@ -262,7 +263,7 @@ describe('Dado o rascunho de Verificações (uma barra de salvar)', () => {
       expect(resposta.calls.restored).toEqual([{ value: '503' }]);
       expect(draft.offer()).toBeNull();
       expect(draft.dirty()).toBe(true);
-      expect(announce).toHaveBeenCalledWith('Draft restored.');
+      expect(announce).toHaveBeenCalledWith('Draft restored.', ANNOUNCEMENT_MS);
     });
 
     it('deve apagar o rascunho guardado Quando "Discard draft"', () => {

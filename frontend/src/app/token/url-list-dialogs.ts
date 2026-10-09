@@ -12,6 +12,7 @@ import {
 } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { KnownUrls, NICKNAME_MAX } from './known-urls';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 const WIDTH = 'min(420px, calc(100vw - 32px))';
 
@@ -58,7 +59,7 @@ export class UrlNicknameDialog {
   protected save(event: Event): void {
     event.preventDefault();
     this.known.rename(this.uuid, this.nickname());
-    void this.announcer.announce($localize`Nickname saved.`);
+    void this.announcer.announce($localize`Nickname saved.`, ANNOUNCEMENT_MS);
     this.dialog.close(true);
   }
 }

@@ -3,6 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { RequestStore } from '../requests/request-store';
 import { DecryptionCondition } from '../rules/rule';
 import { TokenStore } from '../token/token-store';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import {
   FILTER_METHODS,
   NO_FILTER,
@@ -233,7 +234,10 @@ export class FilterChips {
       : matched === 1
         ? $localize`1 request matches`
         : $localize`${matched}:count: requests match`;
-    void this.announcer.announce($localize`Filtered by ${added}:filter:. ${found}:result:`);
+    void this.announcer.announce(
+      $localize`Filtered by ${added}:filter:. ${found}:result:`,
+      ANNOUNCEMENT_MS,
+    );
   }
 
   /** Responde uma vez. */

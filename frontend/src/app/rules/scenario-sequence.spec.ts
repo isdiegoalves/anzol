@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Rule } from './rule';
 import { RuleIntents } from './rule-intents';
 import { RuleStore } from './rule-store';
@@ -213,7 +214,7 @@ describe('Dado o diálogo "Sequence" (WM-32)', () => {
     put.flush(body.map((r, i) => ({ ...r, id: r.id ?? `n${i}` })));
 
     await vi.waitFor(() => expect(marca).toHaveBeenCalledWith(['n1', 'n2', 'n3']));
-    expect(announce).toHaveBeenCalledWith('3 rules created');
+    expect(announce).toHaveBeenCalledWith('3 rules created', ANNOUNCEMENT_MS);
     expect(close).toHaveBeenCalledWith(true);
   });
 

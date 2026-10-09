@@ -1,6 +1,7 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable, inject, signal } from '@angular/core';
 import { Rule } from './rule';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 /** Regra nova pedida de um lugar que não é a rota (duplicar, modelo, estado vazio). */
 export interface NewRuleIntent {
@@ -50,6 +51,7 @@ export class RuleIntents {
         ids.length === 1
           ? $localize`1 rule created`
           : $localize`${ids.length}:count: rules created`,
+        ANNOUNCEMENT_MS,
       );
     }
   }

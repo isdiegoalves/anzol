@@ -3,6 +3,7 @@ import { Component, ElementRef, afterNextRender, inject, output } from '@angular
 import { LANGUAGES, Language } from '../../locale/locale';
 import { KnownUrls } from '../token/known-urls';
 import { Icon } from '../ui/icon';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { DENSITIES, Density, ShellSettings, THEMES, Theme } from './shell-settings';
 
 /** O nome de cada idioma na própria língua: quem não lê a tela atual ainda acha o seu. */
@@ -74,7 +75,7 @@ export class SettingsSheet {
 
   protected forgetAll(): void {
     this.known.forgetAll();
-    void this.announcer.announce(this.noUrl);
+    void this.announcer.announce(this.noUrl, ANNOUNCEMENT_MS);
   }
 
   protected reload(): void {

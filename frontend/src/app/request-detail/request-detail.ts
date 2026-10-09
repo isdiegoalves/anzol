@@ -31,6 +31,7 @@ import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
 import { EventGrouping } from '../requests/event-grouping';
 import { eventValueOf } from '../requests/event-key';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ActionPanelStore, ActionTab } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
@@ -112,7 +113,7 @@ export class RequestDetail {
     void this.requests.deleteRequest(this.request(), undo).then((deleted) => {
       if (!deleted) {
         // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
-        void this.announcer.announce($localize`Request restored.`);
+        void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
       }
     });
   }

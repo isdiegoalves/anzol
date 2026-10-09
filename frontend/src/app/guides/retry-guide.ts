@@ -32,6 +32,7 @@ import {
   sequenceStates,
   suggestScenarioName,
 } from '../rules/sequence';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { GuideStep } from './guide-step';
 import { StepState } from './guide-steps';
 import { Arrival, RetryCheck, retryCheck } from './retry-check';
@@ -235,6 +236,7 @@ export class RetryGuide {
     this.reset();
     void this.announcer.announce(
       $localize`${this.store.rules().length - before}:count: rules created.`,
+      ANNOUNCEMENT_MS,
     );
   }
 
@@ -271,7 +273,10 @@ export class RetryGuide {
     this.clipboard.copy(
       `for i in ${turns}; do curl -s -o /dev/null -w '%{http_code}\\n' -X ${this.method()} ${url}; sleep ${this.gap()}; done`,
     );
-    void this.announcer.announce($localize`Command copied. It has this URL, which is a secret.`);
+    void this.announcer.announce(
+      $localize`Command copied. It has this URL, which is a secret.`,
+      ANNOUNCEMENT_MS,
+    );
   }
 
   /** "Start over": o cenário volta a `Started` e a conferência da folha esvazia. */

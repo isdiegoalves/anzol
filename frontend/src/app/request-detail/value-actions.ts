@@ -13,6 +13,7 @@ import {
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { EventGrouping } from '../requests/event-grouping';
 import { FilterChips, ValueTarget } from '../search/filter-chips';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 /** O servidor limita o texto do `match`: valor maior não vira filtro, só se copia. */
 export const FILTER_VALUE_MAX = 200;
@@ -150,12 +151,12 @@ export class ValueActions {
 
   protected copyValue(): void {
     this.clipboard.copy(this.target().value);
-    void this.announcer.announce($localize`Value copied.`);
+    void this.announcer.announce($localize`Value copied.`, ANNOUNCEMENT_MS);
   }
 
   protected copyPath(): void {
     this.clipboard.copy(this.target().name);
-    void this.announcer.announce($localize`Path copied.`);
+    void this.announcer.announce($localize`Path copied.`, ANNOUNCEMENT_MS);
   }
 
   protected group(): void {

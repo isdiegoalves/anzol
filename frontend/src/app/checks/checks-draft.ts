@@ -6,6 +6,7 @@ import { AbstractControl } from '@angular/forms';
 import { merge } from 'rxjs';
 import { Token, TokenSettings } from '../token/token';
 import { UrlLock } from '../token/url-lock';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ChangedElsewhere, ChecksStore, UnlockFailed } from './checks-store';
 import { attentionText, updateError } from './url-settings';
 
@@ -188,6 +189,7 @@ export class ChecksDraft {
       this.loaded(await this.checks.save(changes, base, { cors, force }));
       void this.announcer.announce(
         count === 1 ? $localize`Saved. 1 change.` : $localize`Saved. ${count}:count: changes.`,
+        ANNOUNCEMENT_MS,
       );
       return true;
     } catch (error) {
@@ -203,7 +205,7 @@ export class ChecksDraft {
       this.loaded(base);
     }
     if (!silent) {
-      void this.announcer.announce($localize`Changes discarded.`);
+      void this.announcer.announce($localize`Changes discarded.`, ANNOUNCEMENT_MS);
     }
   }
 
@@ -227,7 +229,7 @@ export class ChecksDraft {
       }
     }
     this.touched();
-    void this.announcer.announce($localize`Draft restored.`);
+    void this.announcer.announce($localize`Draft restored.`, ANNOUNCEMENT_MS);
   }
 
   discardDraft(): void {

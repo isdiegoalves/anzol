@@ -21,6 +21,7 @@ import { Rule, RuleTrace } from '../rules/rule';
 import { ShareDialog } from '../share/share-dialog';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { AiClient } from '../ai/ai-client';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ActionPanelStore } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RequestDetail } from './request-detail';
@@ -175,7 +176,9 @@ describe('Dado a requisição aberta que sumiu do servidor', () => {
 
     snack.mock.results[0].value.dismissWithAction();
 
-    await vi.waitFor(() => expect(announce.mock.calls).toEqual([['Request restored.']]));
+    await vi.waitFor(() =>
+      expect(announce.mock.calls).toEqual([['Request restored.', ANNOUNCEMENT_MS]]),
+    );
     await view.fixture.whenStable();
     expect(store.gone()).toBeNull();
     expect(

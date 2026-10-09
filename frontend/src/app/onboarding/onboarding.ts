@@ -7,6 +7,7 @@ import { RouterLink } from '@angular/router';
 import { Preferences } from '../settings/preferences';
 import { cliListenCommand } from '../token/token';
 import { Icon } from '../ui/icon';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 /** O corpo do "Send a test request": JSON, como um webhook de verdade (não formulário). */
 export function testPayload(now: Date = new Date()): string {
@@ -49,7 +50,10 @@ export class Onboarding {
 
   protected copyCurl(): void {
     this.clipboard.copy(this.curl());
-    void this.announcer.announce($localize`Command copied. It has this URL, which is a secret.`);
+    void this.announcer.announce(
+      $localize`Command copied. It has this URL, which is a secret.`,
+      ANNOUNCEMENT_MS,
+    );
   }
 
   protected toggleTutorial(): void {

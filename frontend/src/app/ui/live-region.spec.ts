@@ -1,6 +1,8 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { TestBed } from '@angular/core/testing';
 import { render, screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { LiveRegion } from './live-region';
+import { ANNOUNCEMENT_MS, LiveRegion } from './live-region';
 
 describe('Dado a região viva com nome (o nome fica no grupo em volta)', () => {
   it('deve pôr o nome num group e deixar o status de dentro sem nome', async () => {
@@ -49,5 +51,23 @@ describe('Dado a região viva persistente (app-live-region)', () => {
     const group = screen.getByRole('group', { name: 'Unsaved changes' });
     expect(within(group).getByRole('alert').textContent).toBe('x');
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+describe('Dado o anunciador do leitor de tela (LiveAnnouncer) com a duração do app', () => {
+  const fala = () => document.querySelector('.cdk-live-announcer-element')?.textContent;
+
+  afterEach(() => vi.useRealTimers());
+
+  it('deve dizer a frase e tirá-la depois, para quem navega não achar uma contagem velha', () => {
+    vi.useFakeTimers();
+    void TestBed.inject(LiveAnnouncer).announce('Lab opened. Inbox, 2 requests.', ANNOUNCEMENT_MS);
+
+    vi.advanceTimersByTime(100);
+    expect(fala()).toBe('Lab opened. Inbox, 2 requests.');
+    vi.advanceTimersByTime(ANNOUNCEMENT_MS - 1);
+    expect(fala()).toBe('Lab opened. Inbox, 2 requests.');
+    vi.advanceTimersByTime(1);
+    expect(fala()).toBe('');
   });
 });

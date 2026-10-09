@@ -16,6 +16,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { TokenStats } from '../stats/stats';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Rule } from './rule';
 import { ruleFromRequest } from './rule-from-request';
 import { RuleStore } from './rule-store';
@@ -314,7 +315,7 @@ describe('Dado a página Rules', () => {
         [rule(2, { priority: 1 }), rule(1, { priority: 5 })],
       );
       await vi.waitFor(() => expect(rows().map((r) => r[0])).toEqual(['Rule 2', 'Rule 1']));
-      expect(announce).toHaveBeenCalledWith('Rule 2 moved to position 1 of 2');
+      expect(announce).toHaveBeenCalledWith('Rule 2 moved to position 1 of 2', ANNOUNCEMENT_MS);
     });
 
     it('deve só trocar a ordem Quando "Move down" é clicado entre regras de mesma prioridade', async () => {
@@ -346,7 +347,7 @@ describe('Dado a página Rules', () => {
 
       await expectGuardedPut([rule(1), rule(2), rule(3)], [rule(2), rule(1), rule(3)]);
       await vi.waitFor(() =>
-        expect(announce).toHaveBeenCalledWith('Rule 1 moved to position 2 of 3'),
+        expect(announce).toHaveBeenCalledWith('Rule 1 moved to position 2 of 3', ANNOUNCEMENT_MS),
       );
       await vi.waitFor(() =>
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Reorder Rule 1' })),

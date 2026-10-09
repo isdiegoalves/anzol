@@ -27,6 +27,7 @@ import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
 import { TokenActions } from '../token/token-actions';
 import { UrlLock } from '../token/url-lock';
 import { UrlMissing } from '../token/url-missing';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ScreenState } from './screen-state';
 import { Shell } from './shell';
 
@@ -868,7 +869,9 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${OTHER}/rules`));
       expect(announce).not.toHaveBeenCalled();
       TestBed.inject(Preferences).token.set(token({ uuid: OTHER }));
-      await vi.waitFor(() => expect(announce).toHaveBeenCalledWith('Pagamentos opened. Rules.'));
+      await vi.waitFor(() =>
+        expect(announce).toHaveBeenCalledWith('Pagamentos opened. Rules.', ANNOUNCEMENT_MS),
+      );
       expect(announce).toHaveBeenCalledTimes(1);
     });
 
@@ -894,7 +897,10 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       await load;
 
       await vi.waitFor(() =>
-        expect(announce).toHaveBeenCalledWith('Pagamentos opened. Inbox, 2 requests.'),
+        expect(announce).toHaveBeenCalledWith(
+          'Pagamentos opened. Inbox, 2 requests.',
+          ANNOUNCEMENT_MS,
+        ),
       );
     });
 

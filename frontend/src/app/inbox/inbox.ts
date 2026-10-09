@@ -57,7 +57,7 @@ import { Viewport } from '../shell/viewport';
 import { TokenStore } from '../token/token-store';
 import { isProtectedError } from '../token/url-lock';
 import { Icon } from '../ui/icon';
-import { LiveRegion } from '../ui/live-region';
+import { ANNOUNCEMENT_MS, LiveRegion } from '../ui/live-region';
 import { Split } from '../ui/split';
 
 const GUIDES_KEY = (tokenId: string) => `anzol.guides.${tokenId}`;
@@ -877,6 +877,7 @@ export class Inbox {
     void this.announcer.announce(
       $localize`First request arrived: ${request.method}:method: ${path}:path:, at ${time}:time:.`,
       'polite',
+      ANNOUNCEMENT_MS,
     );
   }
 
@@ -963,6 +964,7 @@ export class Inbox {
           ? $localize`1 new request arrived`
           : $localize`${count}:count: new requests arrived`,
         'polite',
+        ANNOUNCEMENT_MS,
       );
     }, ANNOUNCE_EVERY_MS);
   }

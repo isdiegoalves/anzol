@@ -36,6 +36,7 @@ import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
 import { MissingUrl, UrlMissing } from '../token/url-missing';
 import { Icon } from '../ui/icon';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { Menu, MenuItem } from '../ui/menu';
 import { DESTINATIONS, Destination, placeOf } from './destinations';
 import { Hotkeys } from './hotkeys';
@@ -308,7 +309,7 @@ export class Shell {
   /** O `LiveAnnouncer` (e o a11y do CDK com ele) vem sob demanda: fica fora do pacote inicial. */
   private async announce(text: string): Promise<void> {
     const { LiveAnnouncer } = await import('@angular/cdk/a11y');
-    await this.injector.get(LiveAnnouncer).announce(text);
+    await this.injector.get(LiveAnnouncer).announce(text, ANNOUNCEMENT_MS);
   }
 
   private openedText(uuid: string, inbox: boolean): string {
