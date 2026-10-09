@@ -46,9 +46,12 @@ jobs:
           java-version: |
             ${{ matrix.java }}
             25
+      # O cache basic tem uma chave só para o repositório inteiro: só o job do backend grava, senão os jobs disputam a
+      # mesma chave e só o primeiro consegue salvar.
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+          cache-read-only: true
       - run: ./gradlew check installDist -PtestJavaVersion=${{ matrix.java }}
         working-directory: cli
       # Sem a variável do setup-java, o script do anzol usaria o java do PATH (o 25) e o passo passaria sem testar
