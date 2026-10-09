@@ -323,7 +323,8 @@ test.describe('mensagem gravada: alvo HTTP cru incomum', () => {
     expect(msg.headers['host']).toEqual(['my_host.com']);
   });
 
-  // O último campo marca o que o Tomcat 11 recusa antes de qualquer ponto de extensão (ver README).
+  // O último campo marca o que o Tomcat 11 recusa antes de qualquer ponto de extensão (ver "Limites do Tomcat" em
+  // tests/contract/README.md).
   const caminhos: Array<[string, string, string, boolean]> = [
     ['barra invertida', '/a\\b', '/a\\b', false],
     ['% solto', '/abc%', '/abc%', false],

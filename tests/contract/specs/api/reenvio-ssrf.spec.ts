@@ -7,7 +7,8 @@ import {
 // Proteções contra SSRF observáveis pela API (CA-3 do plano "reenvio-servidor", §1). Destino bloqueado não é
 // erro da API: 200 com `error.kind=blocked`, sem `status`, e o resultado entra no histórico. O stack de teste
 // roda com `allow-private=true` (o receptor mora no host), então loopback e redes privadas bloqueados com
-// `allow-private=false` e o DNS rebinding ficam com os testes do backend (ver README).
+// `allow-private=false` e o DNS rebinding ficam com os testes do backend (a tabela de destinos está em
+// docs/api.md, "Reenvio e envio pelo servidor").
 
 /** Nome público que resolve para 169.254.169.254 (nip.io devolve o IP escrito no nome). */
 const NOME_LINK_LOCAL = '169.254.169.254.nip.io';
