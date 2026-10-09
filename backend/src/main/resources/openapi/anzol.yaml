@@ -2057,7 +2057,11 @@ components:
 
     E2eePolicy:
       type: object
-      description: Attribute decryption policy. Only public keys.
+      description: >-
+        Attribute decryption policy. The attribute must be a compact JWE (`alg=ECDH-ES`, `enc=A256GCM`, `cty=JWT`,
+        `kid` of a URL encryption key, no `zip`, up to 256 KiB) carrying a compact ES256 JWS from a trusted signer with
+        the claims `aud`, `jti`, `iat`, `evt`, `app` and `data`; `iss`, `exp` and `nbf` are not checked. Only public
+        keys.
       required: [path, audience, bindings, trusted_signers]
       properties:
         path:

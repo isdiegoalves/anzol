@@ -141,8 +141,11 @@ do laboratório do canal de notificações:
 
 | Camada | Formato |
 |---|---|
-| Externa | JWE compacto, `alg=ECDH-ES`, `enc=A256GCM`, P-256, `kid` da chave de cifra da URL, `cty=JWT`, sem `zip` |
-| Interna | JWS compacto, `alg=ES256`, `kid` da chave de assinatura do remetente; claims `iss`, `aud`, `jti`, `iat`, `evt`, `app` e `data` (o objeto original do atributo) |
+| Externa | JWE compacto de até 256 KiB, `alg=ECDH-ES` (acordo direto), `enc=A256GCM`, `epk` na P-256, `kid` de uma chave de cifra da URL, `cty=JWT`, sem `zip` |
+| Interna | JWS compacto, `alg=ES256`, `kid` de uma chave de `trusted_signers`; claims obrigatórios `aud`, `jti`, `iat`, `evt`, `app` e `data` (o objeto original do atributo) |
+
+O formato é fixo e só este é aceito. Não servem: outro `alg` ou `enc` (`RSA-OAEP`, `ECDH-ES+A256KW`…), JWE sem JWS
+dentro, JWS `HS256` ou `none`, mensagem sem `evt` ou `app`. `iss`, `exp` e `nbf` não são conferidos.
 
 ```json
 { "read_secret": "…", "e2ee": {
@@ -152,6 +155,19 @@ do laboratório do canal de notificações:
     "max_age_seconds": 43200,
     "trusted_signers": [ { "kty": "EC", "crv": "P-256", "kid": "remetente-sig-1", "x": "…", "y": "…" } ] } }
 ```
+
+Uma mensagem para essa política (ilustrativa, com o JWE cortado):
+
+```json
+{ "eventId": "256335e6-4c90-4b82-831f-f0e4da94239b",
+  "tipoEvento": { "nome": "PEDIDO_CRIADO" },
+  "servico": { "nome": "servico-exemplo" },
+  "payload": "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkdDTSIsImN0eSI6IkpXVCIsImtpZCI6ImVuYy12MSIsImVwayI6eyJrdHkiOiJFQyIs…" }
+```
+
+O `payload` é o JWE; dentro dele, o JWS com `{"aud": "anzol-lab", "jti": "256335e6-…", "iat": 1791499538,
+"evt": "PEDIDO_CRIADO", "app": "servico-exemplo", "data": { … }}`. `jti`, `evt` e `app` repetem `eventId`,
+`tipoEvento.nome` e `servico.nome` do envelope: é o que os `bindings` conferem.
 
 | Campo | Valor |
 |---|---|
