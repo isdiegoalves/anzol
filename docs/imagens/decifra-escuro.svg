@@ -95,7 +95,7 @@
 <text x="864" y="684" class="m small" text-anchor="start"><tspan x="864" dy="0">Id do evento, tipo e serviço assinados lá</tspan><tspan x="864" dy="19">dentro batem com o envelope; a audiência é</tspan><tspan x="864" dy="19">a da URL; o horário é recente.</tspan></text>
 <circle cx="843" cy="748" r="11" class="num"/><text x="843" y="752" text-anchor="middle" class="num-t">5</text>
 <text x="864" y="753" class="b t" text-anchor="start"><tspan x="864" dy="0">Grava o valor decifrado</tspan></text>
-<text x="864" y="774" class="m small" text-anchor="start"><tspan x="864" dy="0">Na mensagem, ao lado do corpo como chegou.</tspan></text>
+<text x="864" y="774" class="m small" text-anchor="start"><tspan x="864" dy="0">Na mensagem, junto do corpo recebido.</tspan></text>
 <text x="40" y="850" class="h2" text-anchor="start"><tspan x="40" dy="0">O que a mensagem mostra</tspan></text>
 <g><rect x="40" y="864" width="113" height="28" rx="14" class="ok"/><g transform="translate(50, 869)" class="ok-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 9.5 l2.5 2.5 l4.5 -5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="74" y="883" text-anchor="start" class="ok-t">Decifrada</text></g>
 <text x="40" y="912" class="m small" text-anchor="start"><tspan x="40" dy="0">a chave de cifra usada, a chave do remetente</tspan><tspan x="40" dy="17">que assinou e a aba Decifrado com o valor</tspan></text>
