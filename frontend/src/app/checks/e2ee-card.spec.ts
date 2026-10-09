@@ -502,6 +502,8 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
         expect(texto).toContain(
           'Requests already decrypted keep their stored value. Old backups of the volume still have the private key.',
         );
+        expect(texto).toContain('The private key is removed from this URL.');
+        expect(texto).not.toContain("can't be recovered");
         expect(texto.includes("This is the URL's only encryption key")).toBe(avisa);
         await (await dialogo.getHarness(MatButtonHarness.with({ text: 'Cancel' }))).click();
       },

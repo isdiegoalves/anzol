@@ -3709,9 +3709,6 @@ export const translations: Record<string, string> = {
   '5407075505681814999': 'Decifra E2EE',
   // Delete key {$INTERPOLATION}?
   '3592389072273364180': 'Apagar a chave {$INTERPOLATION}?',
-  //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is erased and can't be recovered.
-  '7646029928332588558':
-    ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
   //  Requests already decrypted keep their stored value. Old backups of the volume still have the private key.
   '490918146599079624':
     ' As já decifradas mantêm o valor gravado. Backups antigos do volume ainda têm a chave privada. ',
@@ -4297,4 +4294,7 @@ export const translations: Record<string, string> = {
   '5372628725475554755': '{$destination}, 1 decifra inválida desde {$time}',
   // {$destination}, {$count} invalid decryptions since {$time}
   '1311871731804323751': '{$destination}, {$count} decifras inválidas desde {$time}',
+  //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as unknown key and are not decrypted. The private key is removed from this URL.
+  '1523355569219008904':
+    ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
 };

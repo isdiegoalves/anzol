@@ -23,7 +23,7 @@ import { firstValueFrom } from 'rxjs';
     <mat-dialog-content>
       <p i18n>
         Requests encrypted to <code>{{ data.kid }}</code> from now on are recorded as unknown key
-        and are not decrypted. The private key is erased and can't be recovered.
+        and are not decrypted. The private key is removed from this URL.
       </p>
       <p i18n>
         Requests already decrypted keep their stored value. Old backups of the volume still have the
