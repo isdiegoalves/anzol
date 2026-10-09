@@ -23,7 +23,7 @@ const SEGREDO = 'segredo-do-shell';
 
 /** A tela de desbloqueio: digita o segredo e clica "Unlock" (nomes de hoje, que o shell mantém). */
 async function unlock(page: Page, secret: string): Promise<void> {
-  await page.getByLabel('Secret', { exact: true }).fill(secret);
+  await page.getByLabel('Read secret', { exact: true }).fill(secret);
   await page.getByRole('button', { name: 'Unlock' }).click();
 }
 

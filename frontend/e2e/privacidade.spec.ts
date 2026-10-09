@@ -24,7 +24,7 @@ const banner = (page: Page) => page.getByRole('main').getByRole('status');
 
 /** A tela de desbloqueio: digita o segredo e clica "Unlock". */
 async function unlock(page: Page, secret: string): Promise<void> {
-  await page.getByLabel('Secret', { exact: true }).fill(secret);
+  await page.getByLabel('Read secret', { exact: true }).fill(secret);
   await page.getByRole('button', { name: 'Unlock' }).click();
 }
 

@@ -67,6 +67,17 @@ describe('Dado o cartão "Privacy" de Checks', () => {
     expect(screen.getByLabelText('New secret')).toBeTruthy();
   });
 
+  it('deve dizer na dica do campo que ele é o segredo de leitura e o que ele abre', async () => {
+    await renderCard(PrivacyCard, token());
+
+    await userEvent.click(toggle());
+
+    const hint = screen.getByLabelText('Secret to view').getAttribute('aria-describedby') ?? '';
+    expect(hint.split(' ').map((id) => document.getElementById(id)?.textContent?.trim())).toContain(
+      'It is the read secret: it opens the URL in another browser and in the API (X-Anzol-Secret header). 8 to 256 characters.',
+    );
+  });
+
   it('deve recusar segredo curto e confirmação diferente e dizer o que falta', async () => {
     const { http } = await renderCard(PrivacyCard, token());
 

@@ -430,7 +430,7 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     const tokenId = await tokens.create({ read_secret: segredo });
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
-    await page.getByLabel('Secret', { exact: true }).fill(segredo);
+    await page.getByLabel('Read secret', { exact: true }).fill(segredo);
     await page.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.getByRole('heading', { name: 'Inbox', level: 1 })).toBeVisible();
 

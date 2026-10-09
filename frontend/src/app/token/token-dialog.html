@@ -97,7 +97,10 @@
             autocomplete="new-password"
             formControlName="read_secret"
           />
-          <mat-hint i18n="read secret field hint|">8 to 256 characters</mat-hint>
+          <mat-hint i18n
+            >It is the read secret: it opens the URL in another browser and in the API
+            (X-Anzol-Secret header). 8 to 256 characters.</mat-hint
+          >
           <mat-error i18n>The secret must have 8 to 256 characters.</mat-error>
         </mat-form-field>
         <mat-form-field>

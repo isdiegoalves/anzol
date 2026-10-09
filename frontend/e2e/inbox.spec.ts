@@ -170,7 +170,7 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     await tokens.send(tokenId, { method: 'POST', data: 'x' });
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
-    await page.getByLabel('Secret', { exact: true }).fill(SEGREDO_DE_LEITURA);
+    await page.getByLabel('Read secret', { exact: true }).fill(SEGREDO_DE_LEITURA);
     await page.getByRole('button', { name: 'Unlock' }).click();
     await expect(itens(page)).toHaveCount(1);
 

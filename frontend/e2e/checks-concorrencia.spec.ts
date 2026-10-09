@@ -63,7 +63,7 @@ async function salvarEsperando(page: Page, tokenId: string): Promise<Response | 
 }
 
 async function destrancar(page: Page, segredo: string): Promise<void> {
-  await page.getByLabel('Secret', { exact: true }).fill(segredo);
+  await page.getByLabel('Read secret', { exact: true }).fill(segredo);
   await page.getByRole('button', { name: 'Unlock' }).click();
   await expect(page.getByRole('button', { name: 'Unlock' })).toHaveCount(0);
 }

@@ -97,9 +97,8 @@ export const translations: Record<string, string> = {
   //  This URL is protected. Leave the fields blank to keep the current secret.
   '9203153322838064727':
     ' Esta URL é protegida. Deixe os campos em branco para manter o segredo atual. ',
-  // 8 to 256 characters
-  '1887623065097316356':
-    'É o segredo de leitura: abre a URL em outro navegador e na API (cabeçalho X-Anzol-Secret). 8 a 256 caracteres.',
+  // It is the read secret: it opens the URL in another browser and in the API (X-Anzol-Secret header). 8 to 256 characters.
+  '2816497049408150204': 'É o segredo de leitura: abre a URL em outro navegador e na API (cabeçalho X-Anzol-Secret). 8 a 256 caracteres.',
   // The secret must have 8 to 256 characters.
   '6941653480005557323': 'O segredo precisa ter de 8 a 256 caracteres.',
   // Confirm secret
@@ -1788,8 +1787,6 @@ export const translations: Record<string, string> = {
   // Webhooks sent to the URL are still captured without the secret.
   '1672118851921750943':
     'Os webhooks mandados para a URL continuam sendo capturados sem o segredo.',
-  // Secret
-  '8379108869363699178': 'Segredo de leitura',
   // Enter the secret.
   '3351263094026524262': 'Digite o segredo.',
   //  Unlock
