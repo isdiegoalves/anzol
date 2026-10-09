@@ -38,41 +38,12 @@ const conditions: [string, string][] = [
   ['body: expected to match "^\\{"', 'corpo: esperava casar a regex "^\\{"'],
   ['body: expected "a", got "b"', 'corpo: esperava "a", veio "b"'],
   [
-    'signature: expected valid, got not configured',
-    'assinatura: não configurada nesta URL (a regra pede assinatura válida)',
-  ],
-  [
-    'signature: expected valid, got invalid (signature mismatch)',
-    'pede assinatura válida; esta veio inválida (signature mismatch)',
-  ],
-  [
     'schema: expected valid, got not configured',
     'schema: não configurado nesta URL (a regra pede valid)',
   ],
   [
     'schema: expected valid, got invalid (3 errors)',
     'schema: esperava valid, veio invalid (3 errors)',
-  ],
-  [
-    'decryption: expected valid, got not configured',
-    'decifra: não configurada nesta URL (a regra pede decifra válida)',
-  ],
-  [
-    'decryption: expected valid, got invalid (aud_mismatch)',
-    'pede decifra válida; esta veio inválida (aud_mismatch)',
-  ],
-  [
-    'decryption: expected absent, got invalid (downgrade)',
-    'pede decifra em claro; esta veio inválida (downgrade)',
-  ],
-  [
-    'decryption: expected valid, got unknown_kid',
-    'pede decifra válida; esta veio com chave desconhecida',
-  ],
-  ['signature: expected invalid, got valid', 'pede assinatura inválida; esta veio válida'],
-  [
-    'signature: expected valid, got absent (header X-Sig absent)',
-    'pede assinatura válida; esta veio ausente (header X-Sig absent)',
   ],
   [
     'scenario entrega: expected state "falhou 1", got "Started"',
@@ -86,6 +57,50 @@ const conditions: [string, string][] = [
   [
     'window: closed at 2026-09-29T13:00:00Z, received at 2026-09-29T13:00:05Z',
     'janela: fechou em 2026-09-29T13:00:00Z, chegou em 2026-09-29T13:00:05Z',
+  ],
+];
+
+// Assinatura e decifra: a frase da tela, com a do servidor entre parênteses, nos dois idiomas.
+const withOriginal: [string, string, string][] = [
+  [
+    'signature: expected valid, got not configured',
+    'this URL does not verify signatures; the rule expects the signature to be valid',
+    'esta URL não verifica assinatura; a regra pede assinatura válida',
+  ],
+  [
+    'signature: expected valid, got invalid (signature mismatch)',
+    'expects the signature to be valid; this one is invalid',
+    'pede assinatura válida; esta veio inválida',
+  ],
+  [
+    'signature: expected invalid, got valid',
+    'expects the signature to be invalid; this one is valid',
+    'pede assinatura inválida; esta veio válida',
+  ],
+  [
+    'signature: expected valid, got absent (header X-Sig absent)',
+    'expects the signature to be valid; this one is absent',
+    'pede assinatura válida; esta veio ausente',
+  ],
+  [
+    'decryption: expected valid, got not configured',
+    'this URL does not decrypt; the rule expects the decryption to come out valid',
+    'esta URL não decifra; a regra pede decifra válida',
+  ],
+  [
+    'decryption: expected valid, got invalid (aud_mismatch)',
+    'expects the decryption to come out valid; this one came out invalid',
+    'pede decifra válida; esta veio inválida',
+  ],
+  [
+    'decryption: expected absent, got invalid (downgrade)',
+    'expects the decryption to come out in plaintext; this one came out invalid',
+    'pede decifra em claro; esta veio inválida',
+  ],
+  [
+    'decryption: expected valid, got unknown_kid',
+    'expects the decryption to come out valid; this one came out with an unknown key',
+    'pede decifra válida; esta veio com chave desconhecida',
   ],
 ];
 
@@ -132,6 +147,17 @@ describe('server-phrases', () => {
       },
     );
 
+    it.each(withOriginal)(
+      'deve dizer "%s" numa frase da tela, com o original entre parênteses',
+      (original, en) => {
+        expect(conditionPhrase(original)).toEqual({
+          text: `${en} (${original})`,
+          original,
+          translated: false,
+        });
+      },
+    );
+
     it.each([...validations.map(([en]) => en)])('deve deixar a mensagem "%s" como veio', (en) => {
       expect(validationPhrase(en)).toEqual({ text: en, original: en, translated: false });
     });
@@ -148,6 +174,17 @@ describe('server-phrases', () => {
     it.each(conditions)('deve traduzir "%s"', (en, pt) => {
       expect(conditionPhrase(en)).toEqual({ text: pt, original: en, translated: true });
     });
+
+    it.each(withOriginal)(
+      'deve traduzir "%s" com o original entre parênteses, sem o "Show original"',
+      (original, _en, pt) => {
+        expect(conditionPhrase(original)).toEqual({
+          text: `${pt} (${original})`,
+          original,
+          translated: false,
+        });
+      },
+    );
 
     it.each(validations)('deve traduzir a mensagem "%s"', (en, pt) => {
       expect(validationPhrase(en)).toEqual({ text: pt, original: en, translated: true });

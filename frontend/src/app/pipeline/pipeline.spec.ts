@@ -214,7 +214,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
       });
 
       expect(pipelineOf(request).rule.detail).toBe(
-        'Nenhuma regra casou. A mais próxima é “signature: invalid → 401” — pede assinatura inválida; esta veio válida',
+        'Nenhuma regra casou. A mais próxima é “signature: invalid → 401” — pede assinatura inválida; esta veio válida (signature: expected invalid, got valid)',
       );
     } finally {
       clearTranslations();

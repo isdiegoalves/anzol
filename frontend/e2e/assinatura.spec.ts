@@ -380,7 +380,7 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
     await expect(verificacoes(page)).toContainText(/Signature valid\s*GitHub/);
     // INBOX-18: com uma condição só, a frase fica no cartão e o "Why? (n)" não aparece.
     await expect(verificacoes(page)).toContainText(
-      /No rule matched\. The closest is “Recusa assinatura” — signature: expected invalid, got valid/,
+      /No rule matched\. The closest is “Recusa assinatura” — expects the signature to be invalid; this one is valid \(signature: expected invalid, got valid\)/,
     );
     await expect(porque(page)).toHaveCount(0);
     await screenshot(page, '07-selo-valida-near-miss');

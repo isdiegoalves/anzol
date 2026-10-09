@@ -845,10 +845,10 @@ export const translations: Record<string, string> = {
   '6992343261774394257': 'válida',
   // invalid
   '5293212363437508464': 'inválida',
-  // unknown_kid
-  '6364275002283565910': 'com chave desconhecida',
-  // absent
-  '8040894524429193284': 'em claro',
+  // with an unknown key
+  '1620919524716454419': 'com chave desconhecida',
+  // in plaintext
+  '4222403730614661498': 'em claro',
   // the HMAC did not match (signature mismatch)
   '3849243587699102363': 'o HMAC não bateu (signature mismatch)',
   // the header is not in the expected format (malformed header)
@@ -2714,11 +2714,11 @@ export const translations: Record<string, string> = {
   '5394357430299189555': 'corpo: esperava casar a regex {$expected}',
   // body: expected {$expected}, got {$got}
   '4699872197355484648': 'corpo: esperava {$expected}, veio {$got}',
-  // signature: expected {$expected}, got not configured
-  '1239663005845036139':
-    'assinatura: não configurada nesta URL (a regra pede assinatura {$expected})',
-  // signature: expected {$expected}, got {$got}
-  '7418487935490997162': 'pede assinatura {$expected}; esta veio {$got}',
+  // this URL does not verify signatures; the rule expects the signature to be {$expected} ({$original})
+  '111166646131661179':
+    'esta URL não verifica assinatura; a regra pede assinatura {$expected} ({$original})',
+  // expects the signature to be {$expected}; this one is {$got} ({$original})
+  '5578978034203204520': 'pede assinatura {$expected}; esta veio {$got} ({$original})',
   // schema: expected {$expected}, got not configured
   '1930130574293914257': 'schema: não configurado nesta URL (a regra pede {$expected})',
   // schema: expected {$expected}, got {$got}
@@ -4182,10 +4182,10 @@ export const translations: Record<string, string> = {
     'A janela vai da idade máxima configurada aqui para trás até 5 min para a frente: reentrega atrasada ou relógio errado no remetente; ou aumente a idade máxima aqui.',
   // The sender must put the data claim (the attribute itself) in the JWS.
   '4294451110972106575': 'O remetente precisa pôr o claim data (o próprio atributo) no JWS.',
-  // decryption: expected {$expected}, got not configured
-  '7613681671970386143': 'decifra: não configurada nesta URL (a regra pede decifra {$expected})',
-  // decryption: expected {$expected}, got {$got}
-  '5656599743816655939': 'pede decifra {$expected}; esta veio {$got}',
+  // this URL does not decrypt; the rule expects the decryption to come out {$expected} ({$original})
+  '6176812685579785148': 'esta URL não decifra; a regra pede decifra {$expected} ({$original})',
+  // expects the decryption to come out {$expected}; this one came out {$got} ({$original})
+  '5783710392261025673': 'pede decifra {$expected}; esta veio {$got} ({$original})',
   // Decrypted
   '3636098527993575441': 'Decifrado',
   //  The attribute as the server decrypted it on arrival (the JWS data claim), stored with this request. The body keeps the JWE as it arrived.

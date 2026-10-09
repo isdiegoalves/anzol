@@ -83,9 +83,12 @@ test.describe('Dado um near miss com a tela em pt-BR (WM-05; CA-12)', () => {
 
     const frases = await porQue(page, tokenId, id);
 
-    await expect(frases.filter({ hasText: 'assinatura: não configurada nesta URL' })).toHaveCount(
-      1,
-    );
+    await expect(
+      frases.filter({
+        hasText:
+          'esta URL não verifica assinatura; a regra pede assinatura válida (signature: expected valid, got not configured)',
+      }),
+    ).toHaveCount(1);
     await expect(
       frases.filter({
         hasText: 'cenário entrega: esperava o estado "falhou 1", estava em "Started"',

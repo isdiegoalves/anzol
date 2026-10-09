@@ -2,8 +2,9 @@
 // o histórico, trace) e as mensagens do 422 das regras e da configuração da URL. O servidor responde sempre em inglês; a
 // tabela reconhece as famílias de frase (RuleMatching.kt, BodyMatching.kt, RuleFailures.kt,
 // RuleReader.kt, RuleParser.kt) e remonta cada uma com `$localize`, cujo texto-fonte é a própria
-// frase do servidor: em inglês nada muda. Frase desconhecida fica como veio. Funções, e não
-// constantes de módulo: a tradução carrega antes de elas rodarem.
+// frase do servidor: em inglês nada muda. As da assinatura e da decifra são a exceção: dizem uma frase
+// da tela, com a do servidor entre parênteses, nos dois idiomas. Frase desconhecida fica como veio.
+// Funções, e não constantes de módulo: a tradução carrega antes de elas rodarem.
 
 /** Uma frase do servidor, traduzida quando a tabela a conhece. */
 export interface ServerPhrase {
@@ -11,7 +12,7 @@ export interface ServerPhrase {
   text: string;
   /** A frase como o servidor a mandou (no `title` e no "Show original"). */
   original: string;
-  /** A tela mostra outra coisa que o original (o idioma não é o inglês e a frase é conhecida). */
+  /** A tela mostra outra coisa, sem o original à vista (vale o `title` e o "Show original"). */
   translated: boolean;
 }
 
@@ -43,16 +44,15 @@ function decryptionState(state: string): string {
   const words: Record<string, string> = {
     valid: $localize`:decryption state|:valid`,
     invalid: $localize`:decryption state|:invalid`,
-    unknown_kid: $localize`:decryption state|:unknown_kid`,
-    absent: $localize`:decryption state|:absent`,
+    unknown_kid: $localize`:decryption state|:with an unknown key`,
+    absent: $localize`:decryption state|:in plaintext`,
   };
   return words[state] ?? state;
 }
 
-/** "invalid (downgrade)": o estado traduzido; o motivo entre parênteses fica como veio. */
-function gotState(got: string, word: (state: string) => string): string {
-  const [, state, reason = ''] = /^(\w+)( \(.*\))?$/s.exec(got) ?? [got, got];
-  return `${word(state)}${reason}`;
+/** "invalid (downgrade)" → "invalid": o motivo já vai na frase do servidor, entre parênteses. */
+function gotState(got: string): string {
+  return /^\w+/.exec(got)?.[0] ?? got;
 }
 
 /** As famílias do near miss, na ordem: a primeira que casa vale. */
@@ -130,13 +130,13 @@ function conditionFamilies(): Family[] {
     ],
     [
       /^signature: expected (\w+), got not configured$/,
-      (expected) =>
-        $localize`signature: expected ${signatureState(expected)}:expected:, got not configured`,
+      (expected, original) =>
+        $localize`this URL does not verify signatures; the rule expects the signature to be ${signatureState(expected)}:expected: (${original}:original:)`,
     ],
     [
       /^signature: expected (\w+), got (.+)$/,
-      (expected, got) =>
-        $localize`signature: expected ${signatureState(expected)}:expected:, got ${gotState(got, signatureState)}:got:`,
+      (expected, got, original) =>
+        $localize`expects the signature to be ${signatureState(expected)}:expected:; this one is ${signatureState(gotState(got))}:got: (${original}:original:)`,
     ],
     [
       /^schema: expected (\w+), got not configured$/,
@@ -148,13 +148,13 @@ function conditionFamilies(): Family[] {
     ],
     [
       /^decryption: expected (\w+), got not configured$/,
-      (expected) =>
-        $localize`decryption: expected ${decryptionState(expected)}:expected:, got not configured`,
+      (expected, original) =>
+        $localize`this URL does not decrypt; the rule expects the decryption to come out ${decryptionState(expected)}:expected: (${original}:original:)`,
     ],
     [
       /^decryption: expected (\w+), got (.+)$/,
-      (expected, got) =>
-        $localize`decryption: expected ${decryptionState(expected)}:expected:, got ${gotState(got, decryptionState)}:got:`,
+      (expected, got, original) =>
+        $localize`expects the decryption to come out ${decryptionState(expected)}:expected:; this one came out ${decryptionState(gotState(got))}:got: (${original}:original:)`,
     ],
     [
       /^scenario (.+?): expected state (".*"), got (".*")$/s,
@@ -304,8 +304,9 @@ function translate(original: string, families: Family[]): ServerPhrase {
   for (const [pattern, build] of families) {
     const found = pattern.exec(original);
     if (found) {
-      const text = build(...found.slice(1));
-      return { text, original, translated: text !== original };
+      // O original vai por último: as famílias que o citam entre parênteses o recebem.
+      const text = build(...found.slice(1), original);
+      return { text, original, translated: text !== original && !text.endsWith(`(${original})`) };
     }
   }
   return { text: original, original, translated: false };
