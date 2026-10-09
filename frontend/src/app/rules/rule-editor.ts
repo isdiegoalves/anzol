@@ -211,6 +211,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
   host: {
     '(document:keydown)': 'handleShortcut($event)',
     '(window:beforeunload)': 'warnBeforeUnload($event)',
+    '(window:pagehide)': 'flushDraft()',
     '[class.sheet]': '!wide()',
   },
 })
@@ -608,11 +609,7 @@ export class RuleEditor {
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.testTimer);
       this.testRun?.unsubscribe();
-      // A aba fechou (ou a URL trancou) no meio do debounce: o rascunho sai agora.
-      if (this.draftTimer !== undefined) {
-        clearTimeout(this.draftTimer);
-        this.writeDraft();
-      }
+      this.flushDraft();
     });
     effect(() => {
       const data = this.data();
@@ -712,6 +709,18 @@ export class RuleEditor {
     }, 300);
   }
 
+  /**
+   * Saída no meio do debounce (outra rota, URL trancada, recarga, aba fechada): o rascunho sai
+   * agora. A recarga não destrói o componente, por isso também no `beforeunload` e no `pagehide`.
+   */
+  protected flushDraft(): void {
+    if (this.draftTimer !== undefined) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = undefined;
+      this.writeDraft();
+    }
+  }
+
   private writeDraft(): void {
     const tokenId = this.tokenId();
     const rule = this.editedRule();
@@ -778,6 +787,7 @@ export class RuleEditor {
 
   /** Fechar ou recarregar a aba com alterações não salvas: o navegador pergunta. */
   protected warnBeforeUnload(event: BeforeUnloadEvent): void {
+    this.flushDraft();
     if (!this.leaving && this.unsaved()) {
       event.preventDefault();
     }

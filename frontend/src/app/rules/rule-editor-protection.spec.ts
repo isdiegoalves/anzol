@@ -233,6 +233,19 @@ describe('Dado o editor de regra com alterações', () => {
       expect(JSON.stringify(draft)).not.toContain('s3cr3t');
     });
 
+    it.each(['beforeunload', 'pagehide'])(
+      'deve gravar o rascunho na hora Quando a página recarrega antes dos 300 ms (%s)',
+      async (evento) => {
+        await open({ index: 0 });
+        await (await input('Name')).setValue('Recarregou');
+        expect(sessionStorage.getItem(DRAFT_R1)).toBeNull();
+
+        window.dispatchEvent(new Event(evento, { cancelable: true }));
+
+        expect(JSON.parse(sessionStorage.getItem(DRAFT_R1) ?? '{}').rule?.name).toBe('Recarregou');
+      },
+    );
+
     it('deve oferecer o rascunho ao reabrir a regra e restaurá-lo com o foco no nome', async () => {
       TestBed.inject(RuleDrafts).save(
         TOKEN_ID,
