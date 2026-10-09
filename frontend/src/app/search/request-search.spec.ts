@@ -228,6 +228,11 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     );
     await openPanel();
 
+    expect(
+      within(group() as HTMLElement)
+        .getAllByRole('group')
+        .map((g) => g.querySelector('.name')?.textContent),
+    ).toEqual(['Method', 'Signature', 'Schema', 'Answer', 'Decryption']);
     const decifra = within(group() as HTMLElement).getByRole('group', { name: 'Decryption' });
     expect(
       within(decifra)
