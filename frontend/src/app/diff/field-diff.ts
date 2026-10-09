@@ -27,12 +27,12 @@ const STATUS_LABELS: Record<FieldRow['status'], string> = {
             <td class="name">{{ row.name }}</td>
             <td class="value">
               @if (row.a !== null) {
-                <code>{{ row.a === '' ? '(empty)' : row.a }}</code>
+                <code>{{ row.a === '' ? emptyValue : row.a }}</code>
               }
             </td>
             <td class="value">
               @if (row.b !== null) {
-                <code>{{ row.b === '' ? '(empty)' : row.b }}</code>
+                <code>{{ row.b === '' ? emptyValue : row.b }}</code>
               }
             </td>
             <td class="status">
@@ -61,4 +61,5 @@ export class FieldDiff {
   readonly noise = input<ReadonlySet<string>>(new Set());
 
   protected readonly statusLabels = STATUS_LABELS;
+  protected readonly emptyValue = $localize`(empty)`;
 }
