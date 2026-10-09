@@ -11,7 +11,7 @@ import {
 } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
-import { LabCreated } from '../token/token';
+import { E2eeBinding, LabCreated } from '../token/token';
 import { Icon } from '../ui/icon';
 
 /** Os segredos da URL de laboratório recém-criada, que o servidor não mostra de novo. */
@@ -69,8 +69,34 @@ import { Icon } from '../ui/icon';
             Signs the requests you send yourself: HMAC-SHA256 of the body, in hex, in the
             {{ lab.hmac_header }} header.
           </dd>
+          <dd class="hint" i18n>
+            Without it, the URL answers 401 and does not decrypt (hmac_failed).
+          </dd>
         </div>
       </dl>
+      @if (own; as own) {
+        <section class="own" aria-labelledby="lab-own-title">
+          <h3 id="lab-own-title" i18n>To send your own message</h3>
+          <ul>
+            <li i18n>
+              Audience: <code>{{ own.audience }}</code>
+            </li>
+            <li i18n>
+              Encrypted attribute: <code>{{ own.path }}</code>
+            </li>
+            <li i18n>
+              Bindings: <code>{{ own.jti }}</code
+              >, <code>{{ own.evt }}</code
+              >,
+              <code>{{ own.app }}</code>
+            </li>
+            <li i18n>
+              Paste your public signing key in Trusted signers; the test sender
+              <code>{{ own.signer }}</code> stays.
+            </li>
+          </ul>
+        </section>
+      }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button i18n mat-flat-button type="button" mat-dialog-close>Open the lab URL</button>
@@ -116,11 +142,33 @@ import { Icon } from '../ui/icon';
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-small);
     }
+
+    .own {
+      margin-top: 20px;
+
+      h3 {
+        margin: 0 0 4px;
+        font: var(--mat-sys-title-small);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      code {
+        font: 13px / 1.5 var(--app-code-family);
+        overflow-wrap: anywhere;
+      }
+    }
   `,
 })
 export class LabSecretsDialog {
   private readonly snackBar = inject(MatSnackBar);
   protected readonly lab = inject<LabCreated>(MAT_DIALOG_DATA);
+
+  /** O que o remetente de verdade precisa para mandar para o laboratório, lido da URL criada. */
+  protected readonly own = ownMessage(this.lab);
 
   protected readonly copyReadLabel = $localize`Copy read secret`;
   protected readonly copyHmacLabel = $localize`Copy HMAC secret`;
@@ -130,6 +178,22 @@ export class LabSecretsDialog {
   protected copied(message: string): void {
     this.snackBar.open(message, undefined, { duration: 1000 });
   }
+}
+
+function ownMessage(lab: LabCreated) {
+  const policy = lab.token.e2ee;
+  if (!policy) {
+    return null;
+  }
+  const path = (binding: E2eeBinding) => (typeof binding === 'object' ? binding.path : binding);
+  return {
+    audience: policy.audience,
+    path: policy.path,
+    jti: path(policy.bindings.jti),
+    evt: path(policy.bindings.evt),
+    app: path(policy.bindings.app),
+    signer: lab.token.lab?.signer_kid ?? '',
+  };
 }
 
 /** Mostra os segredos (com o `MatDialog`, sob demanda) e espera o diálogo fechar. */

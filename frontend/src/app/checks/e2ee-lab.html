@@ -148,6 +148,14 @@
         <app-icon name="plus" [size]="18" /><ng-container i18n>Create a lab URL</ng-container>
       </button>
     </div>
+    @if (origin(); as made) {
+      <p class="hint">
+        <a [routerLink]="['/', made.uuid, 'checks']" [queryParams]="{ section: 'e2ee' }" i18n
+          >Lab created from here: URL {{ made.uuid.slice(0, 5) }} · expires
+          {{ fromNow(made.expires_at) }}</a
+        >
+      </p>
+    }
     @if (refusal(); as refused) {
       <p class="error" role="alert">{{ refused }}</p>
     }

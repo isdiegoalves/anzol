@@ -141,7 +141,22 @@ describe('Dado o laboratório E2EE no cartão', () => {
 
   describe('Quando a URL é comum', () => {
     const CRIADA: LabCreated = {
-      token: { ...LABORATORIO, uuid: NOVA },
+      token: {
+        ...LABORATORIO,
+        uuid: NOVA,
+        e2ee: {
+          path: '$.payload',
+          required: true,
+          audience: 'anzol-lab',
+          bindings: {
+            jti: '$.eventId',
+            evt: '$.tipoEvento.nome',
+            app: { path: '$.servico.nome', ignore_case: true },
+          },
+          max_age_seconds: 43200,
+          trusted_signers: [{ kty: 'EC', crv: 'P-256', kid: 'lab-sig-1', x: 'x', y: 'y' }],
+        },
+      },
       read_secret: 'segredo-de-leitura-1',
       hmac_secret: 'segredo-hmac-2',
       hmac_header: 'X-Signature',
@@ -171,6 +186,23 @@ describe('Dado o laboratório E2EE no cartão', () => {
       expect(texto).toContain('segredo-de-leitura-1');
       expect(texto).toContain('segredo-hmac-2');
       expect(texto).toContain('in the X-Signature header');
+      expect(texto).toContain(
+        'Without it, the URL answers 401 and does not decrypt (hmac_failed).',
+      );
+      const propria = within(screen.getByRole('dialog', { name: 'Lab URL created' })).getByRole(
+        'region',
+        { name: 'To send your own message' },
+      );
+      expect(
+        within(propria)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent?.replace(/\s+/g, ' ').trim()),
+      ).toEqual([
+        'Audience: anzol-lab',
+        'Encrypted attribute: $.payload',
+        'Bindings: $.eventId, $.tipoEvento.nome, $.servico.nome',
+        'Paste your public signing key in Trusted signers; the test sender lab-sig-1 stays.',
+      ]);
       const dialogElement = screen.getByRole('dialog', { name: 'Lab URL created' });
       await expectNoAxeViolations(dialogElement);
       await userEvent.click(
@@ -186,6 +218,36 @@ describe('Dado o laboratório E2EE no cartão', () => {
           queryParams: { section: 'e2ee' },
         }),
       );
+      expect(JSON.parse(localStorage.getItem(`anzol.labFrom.${TOKEN_ID}`) ?? 'null')).toEqual({
+        uuid: NOVA,
+        expires_at: CRIADA.token.lab?.expires_at,
+      });
+    });
+
+    it('deve guardar na URL de origem o link do laboratório criado dali, até ele expirar', async () => {
+      localStorage.setItem(
+        `anzol.labFrom.${TOKEN_ID}`,
+        JSON.stringify({ uuid: NOVA, expires_at: utc(Date.now() + 5 * HORA) }),
+      );
+      const { container } = await renderCard(E2eeCard, token({ protected: true }));
+
+      const origem = within(lab()).getByRole('link', { name: /^Lab created from here/ });
+      expect(origem.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        'Lab created from here: URL a1b2c · expires in 5 hours',
+      );
+      expect(origem.getAttribute('href')).toContain(`/${NOVA}/checks?section=e2ee`);
+      await expectNoAxeViolations(container);
+    });
+
+    it('não deve mostrar o link Quando o laboratório já expirou, e deve esquecê-lo', async () => {
+      localStorage.setItem(
+        `anzol.labFrom.${TOKEN_ID}`,
+        JSON.stringify({ uuid: NOVA, expires_at: utc(Date.now() - HORA) }),
+      );
+      await renderCard(E2eeCard, token({ protected: true }));
+
+      expect(within(lab()).queryByRole('link', { name: /^Lab created from here/ })).toBeNull();
+      expect(localStorage.getItem(`anzol.labFrom.${TOKEN_ID}`)).toBeNull();
     });
 
     it('deve mostrar a recusa do servidor Quando já há laboratórios demais (422)', async () => {

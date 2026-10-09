@@ -1,8 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Injector, computed, inject, signal } from '@angular/core';
+import { Component, Injector, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { Router, RouterLink } from '@angular/router';
-import { fromNow, localDate } from '../request-detail/dates';
+import { fromNow, localDate, parseUtc } from '../request-detail/dates';
 import { LabActual, LabCreated, LabExpected, LabReport } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -77,6 +77,39 @@ export function labDescription(original: string): { text: string; original: stri
   return { text, original: text === original ? null : original };
 }
 
+/** O laboratório criado a partir de uma URL comum, que ela guarda até ele expirar. */
+interface LabOrigin {
+  uuid: string;
+  expires_at: string;
+}
+
+const LAB_ORIGIN_KEY = (tokenId: string) => `anzol.labFrom.${tokenId}`;
+
+function readLabOrigin(tokenId: string): LabOrigin | null {
+  try {
+    const text = localStorage.getItem(LAB_ORIGIN_KEY(tokenId));
+    const origin = text ? (JSON.parse(text) as Partial<LabOrigin>) : null;
+    if (typeof origin?.uuid !== 'string' || typeof origin.expires_at !== 'string') {
+      return null;
+    }
+    if (parseUtc(origin.expires_at).getTime() <= Date.now()) {
+      localStorage.removeItem(LAB_ORIGIN_KEY(tokenId));
+      return null;
+    }
+    return { uuid: origin.uuid, expires_at: origin.expires_at };
+  } catch {
+    return null;
+  }
+}
+
+function writeLabOrigin(tokenId: string, origin: LabOrigin): void {
+  try {
+    localStorage.setItem(LAB_ORIGIN_KEY(tokenId), JSON.stringify(origin));
+  } catch {
+    // Sem storage: a URL de origem só não mostra o link.
+  }
+}
+
 /**
  * O laboratório E2EE no cartão. Na URL de laboratório, roda os cenários do contrato no servidor e
  * mostra o relatório; nas outras, cria uma URL de laboratório e mostra os segredos dela uma vez.
@@ -120,9 +153,18 @@ export class E2eeLab {
 
   protected readonly creating = signal(false);
   protected readonly refusal = signal<string | null>(null);
+  protected readonly origin = signal<LabOrigin | null>(null);
+  protected readonly fromNow = fromNow;
 
   protected readonly outcome = labOutcome;
   protected readonly describe = labDescription;
+
+  constructor() {
+    effect(() => {
+      const tokenId = this.tokenId();
+      untracked(() => this.origin.set(tokenId ? readLabOrigin(tokenId) : null));
+    });
+  }
 
   protected async runScenarios(): Promise<void> {
     const tokenId = this.tokenId();
@@ -164,6 +206,10 @@ export class E2eeLab {
       this.creating.set(false);
     }
     const uuid = created.token.uuid;
+    const expiresAt = created.token.lab?.expires_at;
+    if (this.tokenId() && expiresAt) {
+      writeLabOrigin(this.tokenId(), { uuid, expires_at: expiresAt });
+    }
     // Sem o cookie, a URL abre na tela de desbloqueio, que aceita o segredo mostrado no diálogo.
     await this.checks.unlock(uuid, created.read_secret).catch(() => undefined);
     const { showLabSecrets } = await import('./lab-secrets-dialog');

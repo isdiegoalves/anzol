@@ -4273,4 +4273,21 @@ export const translations: Record<string, string> = {
   '3902748895990896270': 'Veja em {$START_LINK}Regras{$CLOSE_LINK}.',
   // Closest rule: {$rule} — {$reason}{$more}
   '8820159907201520792': 'Nenhuma regra casou. A mais próxima é “{$rule}” — {$reason}{$more}',
+  // Lab created from here: URL {$INTERPOLATION} · expires {$INTERPOLATION_1}
+  '7934335812325617943':
+    'Laboratório criado daqui: URL {$INTERPOLATION} · expira {$INTERPOLATION_1}',
+  //  Without it, the URL answers 401 and does not decrypt (hmac_failed).
+  '5108155971505143950': ' Sem ele, a URL responde 401 e não decifra (hmac_failed). ',
+  // To send your own message
+  '3839717828289932374': 'Para mandar a sua própria mensagem',
+  //  Audience: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}
+  '797989429479234853': ' Audiência: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}',
+  //  Encrypted attribute: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}
+  '4476535547461450853': ' Atributo cifrado: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}',
+  //  Bindings: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}, {$START_TAG_CODE}{$INTERPOLATION_1}{$CLOSE_TAG_CODE}, {$START_TAG_CODE}{$INTERPOLATION_2}{$CLOSE_TAG_CODE}
+  '6694710242208942786':
+    ' Vínculos: {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}, {$START_TAG_CODE}{$INTERPOLATION_1}{$CLOSE_TAG_CODE}, {$START_TAG_CODE}{$INTERPOLATION_2}{$CLOSE_TAG_CODE}',
+  //  Paste your public signing key in Trusted signers; the test sender {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stays.
+  '530031002916438542':
+    ' Cole a sua chave pública de assinatura em Signatários confiáveis; o remetente de teste {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} continua. ',
 };
