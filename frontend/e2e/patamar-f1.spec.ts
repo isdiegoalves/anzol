@@ -470,7 +470,7 @@ test.describe('Dado os números de Saúde e de Métricas', () => {
     const deMetricas = page
       .getByRole('region', { name: 'Signature', exact: true })
       .getByRole('link', {
-        name: /^timestamp outside tolerance, 2 requests\. Open in the Inbox$/,
+        name: /^the timestamp is outside the tolerance \(timestamp outside tolerance\), 2 requests\. Open in the Inbox$/,
       });
 
     await expect(deMetricas).toHaveAttribute('href', /[?&]signatureReason=/);
@@ -508,7 +508,9 @@ test.describe('Dado os números de Saúde e de Métricas', () => {
     await page.goto(`/#/${tokenId}/insights`);
     await limparAnuncios(page);
     await assinatura
-      .getByRole('link', { name: /^timestamp outside tolerance, 2 requests\. Open in the Inbox$/ })
+      .getByRole('link', {
+        name: /^the timestamp is outside the tolerance \(timestamp outside tolerance\), 2 requests\. Open in the Inbox$/,
+      })
       .click();
     await expectUmAnuncio(
       page,

@@ -5,6 +5,7 @@ import { MatFormField } from '@angular/material/form-field';
 import { RouterLink } from '@angular/router';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { decryptionReasonText } from '../pipeline/decryption';
+import { signatureReasonText } from '../pipeline/signature-check';
 import { TokenStore } from '../token/token-store';
 import { parseUtc } from '../request-detail/dates';
 import { FILTER_METHODS } from '../search/request-filter';
@@ -168,6 +169,7 @@ export class InsightsPage {
   protected readonly percent = percent;
   protected readonly keptText = keptText;
   protected readonly signatureReasonFilter = signatureReasonFilter;
+  protected readonly signatureReasonText = signatureReasonText;
   protected readonly schemaPathFilter = schemaPathFilter;
   protected readonly localHour = localHour;
   /** Janela do resumo (RULES-38): as mesmas de Health, com 500 (a de E9) por padrão. */

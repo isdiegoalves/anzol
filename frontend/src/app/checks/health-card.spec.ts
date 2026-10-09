@@ -69,7 +69,7 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     expect(button.getAttribute('aria-expanded')).toBe('true');
     expect(container.querySelector('#health-body')?.hasAttribute('hidden')).toBe(false);
-    expect(screen.getByText('signature mismatch')).toBeTruthy();
+    expect(screen.getByText('the HMAC did not match (signature mismatch)')).toBeTruthy();
   });
 
   it('deve mostrar as taxas e os motivos das últimas 200 e passar no axe', async () => {
@@ -81,7 +81,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     await vi.waitFor(() => expect(screen.getByText('90.2%')).toBeTruthy());
     expect(screen.getByText('83.3%')).toBeTruthy();
     expect(screen.getByRole('img', { name: '110 valid, 12 invalid' })).toBeTruthy();
-    expect(screen.getByText('signature mismatch')).toBeTruthy();
+    expect(screen.getByText('the HMAC did not match (signature mismatch)')).toBeTruthy();
     expect(screen.getByText('(root)')).toBeTruthy();
     expect(screen.getByText(/last 128 requests \(of 300 kept\)/)).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Health' })).toBeTruthy();
@@ -154,7 +154,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     );
     expect(mismatch.textContent).toContain('Open in the Inbox');
     expect(mismatch.getAttribute('aria-label')).toBe(
-      'signature mismatch, 6 requests. Open in the Inbox',
+      'the HMAC did not match (signature mismatch), 6 requests. Open in the Inbox',
     );
     expect(
       screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
@@ -183,7 +183,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     );
     expect(link('Schema valid, 100 requests')).toBe(`/${TOKEN_ID}?schema=valid&window=128`);
     expect(link('Schema invalid, 20 requests')).toBe(`/${TOKEN_ID}?schema=invalid&window=128`);
-    expect(link('signature mismatch, 6 requests')).toBe(
+    expect(link('the HMAC did not match (signature mismatch), 6 requests')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=128`,
     );
     // Inválidas e ausentes somadas não cabem num filtro só da Entrada: o número fica sem link.

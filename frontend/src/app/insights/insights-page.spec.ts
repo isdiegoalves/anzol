@@ -133,10 +133,13 @@ describe('Dado a página Insights', () => {
     expect(
       within(region('Signature')).getByRole('table', { name: 'Signature failure reasons' })
         .textContent,
-    ).toContain('signature mismatch');
-    expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
-      `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`,
-    );
+    ).toContain('the HMAC did not match (signature mismatch)');
+    expect(
+      href(
+        region('Signature'),
+        'the HMAC did not match (signature mismatch), 6 requests. Open in the Inbox',
+      ),
+    ).toBe(`/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch`);
     expect(href(region('Signature'), 'Signature: Absent, 3 requests. Open in the Inbox')).toBe(
       `/${TOKEN_ID}?signature=absent`,
     );
@@ -307,9 +310,12 @@ describe('Dado a página Insights', () => {
     expect(href(region('Summary'), 'Default response, 84 requests. Open in the Inbox')).toBe(
       `/${TOKEN_ID}?outcome=default&window=500`,
     );
-    expect(href(region('Signature'), 'signature mismatch, 6 requests. Open in the Inbox')).toBe(
-      `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=500`,
-    );
+    expect(
+      href(
+        region('Signature'),
+        'the HMAC did not match (signature mismatch), 6 requests. Open in the Inbox',
+      ),
+    ).toBe(`/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=500`);
   });
 
   it('deve contar o status nas 500 mais novas, em 5 páginas, e levar window= Quando a URL guarda mais que a janela', async () => {

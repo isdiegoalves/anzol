@@ -3,7 +3,7 @@ import { token, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { SignatureResult } from '../requests/webhook-request';
 import { SignatureConfig } from '../token/token';
-import { signatureAdvice, signatureCheck } from './signature-check';
+import { signatureAdvice, signatureCheck, signatureReasonText } from './signature-check';
 
 const github = (reason: string | null): SignatureResult => ({
   provider: 'github',
@@ -148,4 +148,28 @@ describe('Dado a assinatura em inglês', () => {
       "Compare the Prefix and the Encoding (hex/base64) in Checks › Signature with the header that arrived, in the Headers tab. If the sender is off the agreed format (no prefix, for example), the sender fixes it; if the sender's format is the agreed one, adjust the Prefix and the Encoding here.",
     ]);
   });
+});
+
+describe('Dado o motivo agrupado de Métricas e da Saúde (sem o detalhe do fim)', () => {
+  afterEach(() => clearTranslations());
+
+  it.each([
+    [
+      'inglês',
+      (): void => undefined,
+      'the timestamp is outside the tolerance (timestamp outside tolerance)',
+    ],
+    [
+      'pt-BR',
+      () => loadTranslations(translations),
+      'o timestamp está fora da tolerância (timestamp outside tolerance)',
+    ],
+  ])(
+    'deve dizer em %s a frase da tela com o motivo do servidor entre parênteses',
+    (_idioma, carregar, frase) => {
+      carregar();
+
+      expect(signatureReasonText('timestamp outside tolerance')).toBe(frase);
+    },
+  );
 });

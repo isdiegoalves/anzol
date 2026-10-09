@@ -5,6 +5,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatFormField } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
+import { signatureReasonText } from '../pipeline/signature-check';
 import { STATS_WINDOWS, TokenStats } from '../stats/stats';
 import { TokenStore } from '../token/token-store';
 import { CountFilter, CountLink, schemaPathFilter, signatureReasonFilter } from '../ui/count-link';
@@ -15,6 +16,8 @@ import { ChecksStore } from './checks-store';
 /** Um motivo (ou caminho) que falha, com o filtro da Inbox que mostra essas mensagens. */
 export interface HealthItem {
   label: string;
+  /** O rótulo é dado (o caminho do erro de schema), mostrado como código; o motivo da assinatura é frase. */
+  code: boolean;
   count: number;
   /**
    * Query da Inbox já filtrada: o estado largo de hoje (`?signature=invalid|absent`,
@@ -27,9 +30,16 @@ export interface HealthItem {
 }
 
 /** Linhas com a barra proporcional ao maior valor da lista. */
-function items(list: { label: string; count: number; filter: CountFilter }[]): HealthItem[] {
+function items(
+  list: { label: string; count: number; filter: CountFilter }[],
+  code: boolean,
+): HealthItem[] {
   const max = Math.max(1, ...list.map((item) => item.count));
-  return list.map((item) => ({ ...item, share: `${Math.round((item.count / max) * 100)}%` }));
+  return list.map((item) => ({
+    ...item,
+    code,
+    share: `${Math.round((item.count / max) * 100)}%`,
+  }));
 }
 
 /** Uma linha do Health: quantas passaram, quantas não, e os motivos mais comuns. */
@@ -113,12 +123,13 @@ export class HealthCard {
           stats.unchecked,
           items(
             stats.reasons.map(({ reason, count }) => ({
-              label: reason,
+              label: signatureReasonText(reason),
               count,
               // M1: a Entrada pelo motivo exato, junto do filtro largo de hoje (o chip do motivo se
               // tira e fica o "Signature invalid"/"absent").
               filter: signatureReasonFilter(reason),
             })),
+            false,
           ),
           { signature: 'valid' },
           // Inválidas e ausentes juntas não cabem num filtro só da Entrada.
@@ -141,6 +152,7 @@ export class HealthCard {
               // M1: pelo caminho do erro (JSON Pointer; '' é a raiz), junto do "Schema invalid".
               filter: schemaPathFilter(path),
             })),
+            true,
           ),
           { schema: 'valid' },
           { schema: 'invalid' },

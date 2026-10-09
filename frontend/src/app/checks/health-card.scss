@@ -118,8 +118,13 @@ h4 {
   align-items: baseline;
   gap: 8px;
 
-  code {
+  .label {
     flex: 1;
+  }
+
+  .code {
+    font-family: var(--app-code-family);
+    overflow-wrap: anywhere;
   }
 
   .show {
@@ -133,8 +138,8 @@ h4 {
   font: var(--mat-sys-body-small);
   text-decoration: none;
 
-  &:hover code,
-  &:focus-visible code {
+  &:hover .label,
+  &:focus-visible .label {
     text-decoration: underline;
   }
 }

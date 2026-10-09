@@ -144,7 +144,7 @@
                         [count]="item.count"
                         [what]="item.label"
                         [countScope]="within"
-                        ><code>{{ item.label }}</code
+                        ><span class="label" [class.code]="item.code">{{ item.label }}</span
                         ><span class="show" i18n>Open in the Inbox</span
                         ><span class="count">{{ item.count }}</span></a
                       >

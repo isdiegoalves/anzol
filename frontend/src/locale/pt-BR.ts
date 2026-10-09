@@ -856,6 +856,8 @@ export const translations: Record<string, string> = {
   // the timestamp is {$seconds} s from now, outside the tolerance (timestamp outside tolerance)
   '8002354466999782538':
     'o timestamp está a {$seconds} s de agora, fora da tolerância (timestamp outside tolerance)',
+  // the timestamp is outside the tolerance (timestamp outside tolerance)
+  '3816853739809875136': 'o timestamp está fora da tolerância (timestamp outside tolerance)',
   // Check that the HMAC secret here is the sender's; if it is, something on the way altered the body.
   '1124365388298629180':
     'Confira se o segredo do HMAC daqui é o mesmo do remetente; se for, algo no caminho alterou o corpo.',

@@ -183,17 +183,16 @@
               </thead>
               <tbody>
                 @for (reason of stats.signature.reasons; track reason.reason) {
+                  @let text = signatureReasonText(reason.reason);
                   <tr>
-                    <td>
-                      <code>{{ reason.reason }}</code>
-                    </td>
+                    <td>{{ text }}</td>
                     <td class="number">
                       <a
                         class="count"
                         [appCountLink]="tokenId()"
                         [countFilter]="signatureReasonFilter(reason.reason)"
                         [count]="reason.count"
-                        [what]="reason.reason"
+                        [what]="text"
                         [countScope]="statsScope"
                         >{{ reason.count }}<span aria-hidden="true"> →</span></a
                       >

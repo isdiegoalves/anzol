@@ -97,7 +97,7 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     await expect(assinatura).toContainText('header X-Hub-Signature-256 absent');
     await expect(
       assinatura.getByRole('link', {
-        name: /^signature mismatch, 1 request\. Open in the Inbox$/,
+        name: /^the HMAC did not match \(signature mismatch\), 1 request\. Open in the Inbox$/,
       }),
     ).toHaveAttribute('href', /\?signature=invalid&signatureReason=signature%20mismatch$/);
     await expect(page.getByRole('region', { name: 'Schema', exact: true })).toContainText('(root)');

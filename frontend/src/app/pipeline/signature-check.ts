@@ -112,6 +112,8 @@ const MISMATCH = 'signature mismatch';
 const MALFORMED = 'malformed header';
 const ABSENT = /^header (\S+) absent$/;
 const TIMESTAMP = /^timestamp outside tolerance \((\d+) s\)$/;
+/** O motivo agrupado do `/stats` e de Métricas, sem os segundos de cada mensagem. */
+const TIMESTAMP_WITHOUT_DETAIL = 'timestamp outside tolerance';
 
 /**
  * O motivo da assinatura como a tela o diz: uma frase na língua da tela, com o original do servidor
@@ -131,6 +133,9 @@ export function signatureReasonText(reason: string): string {
     // quando a tradução difere dele (em inglês, a frase é a do servidor).
     const text = $localize`:signature reason from the server|:header ${header}:header: absent`;
     return text === reason ? reason : `${text} (${reason})`;
+  }
+  if (reason === TIMESTAMP_WITHOUT_DETAIL) {
+    return $localize`:signature reason from the server|:the timestamp is outside the tolerance (timestamp outside tolerance)`;
   }
   const seconds = TIMESTAMP.exec(reason)?.[1];
   if (seconds) {
