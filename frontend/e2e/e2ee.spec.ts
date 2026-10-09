@@ -229,6 +229,55 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     );
   });
 
+  test('deve dizer em pt-BR o selo e o motivo da decifra inválida, com o código no nome, e abrir a aba "Decifrado" pelo cartão', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ read_secret: SEGREDO });
+    const remetente = signatario('sig-e2e');
+    const destino = await gerarChave(request, tokenId, 'enc-e2e');
+    const configurada = await request.put(`/token/${tokenId}`, {
+      headers: COM_SEGREDO,
+      data: { e2ee: politica([remetente.publica]) },
+    });
+    expect(configurada.status()).toBe(200);
+    const recusada = await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: envelopeCifrado(signatario('sig-intruso'), destino, 'n-1', { cpf: '000' }),
+    });
+    const decifrada = await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: envelopeCifrado(remetente, destino, 'n-2', { cpf: '123' }),
+    });
+    await seedStorage(page, { hideTutorial: 'true', language: '"pt-BR"' });
+    const destrancada = await page.request.post(`/token/${tokenId}/unlock`, {
+      data: { secret: SEGREDO },
+    });
+    expect(destrancada.ok()).toBe(true);
+
+    await page.goto(`/#/${tokenId}/${recusada}/1`);
+    const cartoes = page.getByRole('group', { name: 'Verificações desta requisição' });
+    // O `abrirItem` procura a lista pelo nome em inglês.
+    const itemDa = (uuid: string) =>
+      page.locator('.item').getByRole('button', { name: new RegExp(`#${uuid.substring(0, 5)}`) });
+    const item = itemDa(recusada);
+    await expect(item).toContainText('Signatário desconhecido');
+    await expect(item).toHaveAccessibleName(/Decifra inválida: .*\(signer_unknown\)/);
+    await expect(cartoes).toContainText(
+      /Decifra inválida\s*o JWS diz ter sido assinado por uma chave de assinatura que não está nos signatários confiáveis desta URL \(signer_unknown\)/,
+    );
+    await expect(cartoes).toContainText('Signatários confiáveis desta URL: sig-e2e');
+    await expect(cartoes).toContainText('Chave de assinatura do remetente: sig-intruso');
+
+    await itemDa(decifrada).click();
+    await cartoes.getByRole('button', { name: /^Decifrada/ }).click();
+    await expect(page.getByRole('tab', { name: 'Decifrado', selected: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Atributo decifrado' })).toContainText(
+      '"cpf": "123"',
+    );
+  });
+
   test('deve recusar em pt-BR desligar a decifra e a Privacidade no mesmo salvar, e a URL segue protegida', async ({
     page,
     request,
