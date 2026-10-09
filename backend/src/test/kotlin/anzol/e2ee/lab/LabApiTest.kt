@@ -70,6 +70,22 @@ class LabApiTest(
     }
 
     @Test
+    @DisplayName("Dado um POST sem campos, quando cria, então cada regra se chama pela condição e pelo status, sem idioma")
+    fun create_padrao_regrasComNomeNeutro() {
+        val lab = created()
+        val id = lab["token"]["uuid"].asString()
+
+        assertThat(api.tree(redis.opsForValue().get("token:$id:rules").orEmpty()).toList().map { it["name"].asString() })
+            .containsExactly(
+                "signature: invalid → 401",
+                "signature: absent → 401",
+                "decryption: unknown_kid → 500",
+                "decryption: invalid → 400",
+            )
+        delete(lab)
+    }
+
+    @Test
     @DisplayName("Dado uma URL de laboratório, quando é lida, então o TTL não passa de 24 h (o uso não renova)")
     fun ttl_leitura_naoDeveRenovar() {
         val lab = created()

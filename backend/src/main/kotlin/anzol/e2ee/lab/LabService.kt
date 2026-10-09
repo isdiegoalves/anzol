@@ -59,12 +59,16 @@ private val DEFAULT_POLICY: Map<String, Any?> =
             ),
     )
 
-/** As respostas do laboratório: HMAC 401, `kid` desconhecido 500, outra falha da decifra 400; o resto, o padrão 202. */
+/**
+ * As respostas do laboratório: HMAC 401, `kid` desconhecido 500, outra falha da decifra 400; o resto, o padrão 202. O
+ * nome de cada regra é a condição e o status, que se leem em qualquer idioma.
+ */
 private const val LAB_RULES =
-    """[{"name":"HMAC invalid","priority":1,"match":{"signature":"invalid"},"response":{"status":401}},""" +
-        """{"name":"HMAC absent","priority":1,"match":{"signature":"absent"},"response":{"status":401}},""" +
-        """{"name":"Unknown kid","priority":2,"match":{"decryption":"unknown_kid"},"response":{"status":500}},""" +
-        """{"name":"Decryption failed","priority":3,"match":{"decryption":"invalid"},"response":{"status":400}}]"""
+    """[{"name":"signature: invalid → 401","priority":1,"match":{"signature":"invalid"},"response":{"status":401}},""" +
+        """{"name":"signature: absent → 401","priority":1,"match":{"signature":"absent"},"response":{"status":401}},""" +
+        """{"name":"decryption: unknown_kid → 500","priority":2,"match":{"decryption":"unknown_kid"},""" +
+        """"response":{"status":500}},""" +
+        """{"name":"decryption: invalid → 400","priority":3,"match":{"decryption":"invalid"},"response":{"status":400}}]"""
 
 /** A URL de laboratório criada: o token como a API o devolve e os dois segredos, mostrados só aqui. */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
