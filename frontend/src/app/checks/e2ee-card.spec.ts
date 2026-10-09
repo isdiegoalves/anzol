@@ -190,6 +190,25 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     },
   );
 
+  it('deve dizer pela barra, junto do resumo, que falta a chave Quando a decifra é ligada sem chave', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { container } = await renderCard(E2eeCard, PROTEGIDA);
+
+      await userEvent.click(toggle());
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(container.querySelector('app-changes-bar app-live-region')?.textContent).toBe(
+        '1 unsaved change: E2EE decryption. Without an encryption key, every request that gets ' +
+          'past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. ' +
+          'You can save anyway; generate a key above.',
+      );
+      expect(card().querySelector('.banner[role]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('deve dizer o que é cada vínculo e onde achar a audiência na dica, sem placeholder que pareça valor', async () => {
     const { container } = await renderCard(E2eeCard, PROTEGIDA);
     await userEvent.click(toggle());

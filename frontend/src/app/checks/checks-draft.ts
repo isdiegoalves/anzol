@@ -29,6 +29,8 @@ export interface ChecksSection {
   cors?(): boolean | null;
   /** Se a URL fica com segredo de leitura salvando o rascunho como está. */
   protects?(): boolean;
+  /** Os avisos que o rascunho fez aparecer no cartão: a barra os diz junto do resumo. */
+  notices?(): string[];
   showPending(focus: boolean): void;
   load(token: Token): void;
   /** Marca nos campos o que o servidor recusou (422) e devolve os rótulos deles. */
@@ -108,7 +110,10 @@ export class ChecksDraft {
   });
 
   readonly preview = computed(() => summaryOf(this.changes()));
-  /** O `preview` 1 s depois da última mudança: a região viva não fala a cada tecla. */
+  /**
+   * O `preview` e os avisos dos cartões, 1 s depois da última mudança: a região viva não fala a
+   * cada tecla, e a alteração e o que ela causa saem numa fala só.
+   */
   readonly summary = signal('');
   readonly alert = computed(() => {
     const invalid = this.invalid();
@@ -241,7 +246,7 @@ export class ChecksDraft {
     const dirty = this.dirty();
     clearTimeout(this.summaryTimer);
     if (dirty) {
-      this.summaryTimer = setTimeout(() => this.summary.set(this.preview()), SUMMARY_DELAY_MS);
+      this.summaryTimer = setTimeout(() => this.summary.set(this.spoken()), SUMMARY_DELAY_MS);
     } else {
       this.summary.set('');
     }
@@ -253,6 +258,11 @@ export class ChecksDraft {
       clearTimeout(this.draftTimer);
       this.draftTimer = setTimeout(() => this.writeDraft(), DRAFT_DELAY_MS);
     }
+  }
+
+  private spoken(): string {
+    const notices = this.sections().flatMap((section) => section.notices?.() ?? []);
+    return notices.length === 0 ? this.preview() : `${this.preview()}. ${notices.join(' ')}`;
   }
 
   private loaded(token: Token): void {

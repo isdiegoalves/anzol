@@ -115,7 +115,7 @@
     >
 
     @if (on && !readProtected()) {
-      <p class="banner" role="status">
+      <p class="banner">
         <app-icon name="info" [size]="18" />
         <span i18n
           >This URL has no read secret, and the server refuses decryption without one: the opened
@@ -126,13 +126,9 @@
       </p>
     }
     @if (on && keys().length === 0) {
-      <p class="banner" role="status">
+      <p class="banner">
         <app-icon name="info" [size]="18" />
-        <span i18n
-          >Without an encryption key, every request that gets past the HMAC, the envelope and the
-          JWE header is recorded as Unknown encryption key. You can save anyway; generate a key
-          above.</span
-        >
+        <span>{{ noKeyNotice() }}</span>
       </p>
     }
     @if (refusal(); as refused) {
@@ -140,11 +136,7 @@
       <p class="banner refused">{{ refused }}</p>
     }
     @if (savedPolicy && !on) {
-      <p class="banner" role="status" i18n>
-        Saving turns decryption off. Requests already received keep the result they got on arrival,
-        and the decrypted ones keep the opened value: the read secret stays required until they are
-        deleted.
-      </p>
+      <p class="banner">{{ turnOffNotice() }}</p>
     }
 
     @if (on) {

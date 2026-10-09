@@ -29,7 +29,7 @@
     }
     @if (c.required.value) {
       @if (protectedNow) {
-        <p class="banner info" role="status" i18n>
+        <p class="banner info" i18n>
           This URL is protected. Leave the fields blank to keep the current secret.
         </p>
       }
@@ -56,18 +56,12 @@
         <mat-error i18n>The secrets do not match.</mat-error>
       </mat-form-field>
     } @else if (protectedNow) {
-      <p class="banner" role="status" i18n>
-        Saving removes the secret: anyone with the URL will see its requests.
-      </p>
+      @for (notice of notices(); track notice) {
+        <p class="banner">{{ notice }}</p>
+      }
       @if (refusal(); as refused) {
         <!-- Sem região viva: quem fala a recusa é o alerta da barra de salvar. -->
         <p class="banner" [title]="originalTitle(refused.original)">{{ refused.text }}</p>
-      } @else if (decrypts()) {
-        <p class="banner" role="status" i18n>
-          Decrypted requests keep the decrypted value. The server removes the secret only with
-          decryption off and no decrypted request stored. To remove it, turn decryption off (it can
-          be in this same save) and delete the decrypted requests; or keep the secret.
-        </p>
       }
     }
   </form>

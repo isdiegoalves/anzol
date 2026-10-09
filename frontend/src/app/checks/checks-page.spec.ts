@@ -273,6 +273,94 @@ describe('Dado a página Checks', () => {
     });
   });
 
+  describe('Dado os avisos que o rascunho faz aparecer nos cartões', () => {
+    const POLITICA = {
+      path: '$.payload',
+      required: true,
+      audience: 'anzol-lab',
+      bindings: { jti: '$.eventId', evt: '$.tipo', app: '$.app' },
+      max_age_seconds: 43200,
+      trusted_signers: [{ kty: 'EC', crv: 'P-256', kid: 'sig-1', x: 'xx', y: 'yy' }],
+    };
+    const CHAVE = {
+      kid: 'enc-1',
+      created_at: '2026-10-07 12:00:00',
+      jwk: { kty: 'EC', crv: 'P-256', kid: 'enc-1', x: 'a', y: 'b', use: 'enc', alg: 'ECDH-ES' },
+    };
+    const spoken = () => document.querySelector('app-changes-bar app-live-region') as HTMLElement;
+    const avisosVivos = () => [
+      ...document.querySelectorAll('app-privacy-card .banner[role], app-e2ee-card .banner[role]'),
+    ];
+
+    it('deve dizê-los pela barra, junto do resumo e uma vez, sem região viva nos cartões', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await ready(
+          `/${TOKEN_ID}/checks`,
+          token({ protected: true, e2ee: POLITICA, e2ee_keys: [CHAVE] }),
+        );
+        expect(screen.getByText(/^This URL is protected/)).toBeTruthy();
+        expect(avisosVivos()).toEqual([]);
+
+        await userEvent.click(
+          screen.getByRole('switch', { name: 'Require a secret to view this URL' }),
+        );
+        expect(screen.getByText(/^Saving removes the secret/)).toBeTruthy();
+        expect(screen.getByText(/^This URL has no read secret/)).toBeTruthy();
+        expect(avisosVivos()).toEqual([]);
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(spoken().textContent).toBe(
+          '1 unsaved change: Require a secret to view this URL. ' +
+            'Saving removes the secret: anyone with the URL will see its requests. ' +
+            'Decrypted requests keep the decrypted value. The server removes the secret only with ' +
+            'decryption off and no decrypted request stored. To remove it, turn decryption off (it ' +
+            'can be in this same save) and delete the decrypted requests; or keep the secret. ' +
+            'This URL has no read secret, and the server refuses decryption without one: the ' +
+            'opened value must stay behind it. Turn on Privacy (it can go in the same save).',
+        );
+
+        await userEvent.click(
+          screen.getByRole('switch', { name: 'Decrypt an attribute of each request' }),
+        );
+        expect(screen.getByText(/^Saving turns decryption off/)).toBeTruthy();
+        expect(avisosVivos()).toEqual([]);
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(spoken().textContent).toBe(
+          '2 unsaved changes: Require a secret to view this URL, E2EE decryption. ' +
+            'Saving removes the secret: anyone with the URL will see its requests. ' +
+            'Decrypted requests keep the decrypted value. The server removes the secret only with ' +
+            'decryption off and no decrypted request stored. To remove it, turn decryption off (it ' +
+            'can be in this same save) and delete the decrypted requests; or keep the secret. ' +
+            'Saving turns decryption off. Requests already received keep the result they got on ' +
+            'arrival, and the decrypted ones keep the opened value: the read secret stays required ' +
+            'until they are deleted.',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('não deve repetir na barra o aviso que a URL salva já mostrava', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await ready(
+          `/${TOKEN_ID}/checks`,
+          token({ protected: true, e2ee: POLITICA, e2ee_keys: [] }),
+        );
+        expect(screen.getByText(/^Without an encryption key/)).toBeTruthy();
+
+        await change('Default status code', '429');
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(spoken().textContent).toBe('1 unsaved change: Default status code');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe('Dado a barra de salvar', () => {
     it('não deve ter botão de salvar em cartão nenhum, nem a barra, Quando nada mudou', async () => {
       await ready();

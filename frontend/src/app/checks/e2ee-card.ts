@@ -210,6 +210,14 @@ export class E2eeCard implements ChecksSection {
     return this.draft.alert() ? '' : pendingSummary(this.fields());
   }
 
+  protected noKeyNotice(): string {
+    return $localize`Without an encryption key, every request that gets past the HMAC, the envelope and the JWE header is recorded as Unknown encryption key. You can save anyway; generate a key above.`;
+  }
+
+  protected turnOffNotice(): string {
+    return $localize`Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.`;
+  }
+
   protected turnOff(): void {
     const control = this.form.controls.enabled;
     control.setValue(false);
@@ -262,6 +270,21 @@ export class E2eeCard implements ChecksSection {
 
   invalid(): string[] {
     return pendingLabels(this.fields());
+  }
+
+  /** Só os que a URL salva não mostrava: o que já estava na tela não é efeito do rascunho. */
+  notices(): string[] {
+    const on = this.enabled();
+    const saved = this.saved() !== null;
+    return [
+      ...(on && !this.readProtected() && !(saved && !this.savedProtected())
+        ? [
+            $localize`This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on Privacy (it can go in the same save).`,
+          ]
+        : []),
+      ...(on && this.keys().length === 0 && !saved ? [this.noKeyNotice()] : []),
+      ...(saved && !on ? [this.turnOffNotice()] : []),
+    ];
   }
 
   settings(): TokenSettings {

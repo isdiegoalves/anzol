@@ -137,6 +137,20 @@ export class PrivacyCard implements ChecksSection {
     return this.form.controls.required.value;
   }
 
+  notices(): string[] {
+    if (this.form.controls.required.value || !this.wasProtected()) {
+      return [];
+    }
+    return [
+      $localize`Saving removes the secret: anyone with the URL will see its requests.`,
+      ...(this.refusal() || !this.decrypts()
+        ? []
+        : [
+            $localize`Decrypted requests keep the decrypted value. The server removes the secret only with decryption off and no decrypted request stored. To remove it, turn decryption off (it can be in this same save) and delete the decrypted requests; or keep the secret.`,
+          ]),
+    ];
+  }
+
   /**
    * `read_secret` só vai quando muda: segredo novo, ou `null` para tirar a proteção. Ausente mantém
    * o atual no `PUT`.

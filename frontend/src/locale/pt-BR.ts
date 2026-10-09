@@ -106,11 +106,11 @@ export const translations: Record<string, string> = {
   '1185216263758586139': 'Confirme o segredo',
   // The secrets do not match.
   '8661255126898122827': 'Os segredos não conferem.',
-  //  Saving removes the secret: anyone with the URL will see its requests.
-  '1638842964716429031': ' Salvar remove o segredo: quem tiver a URL vai ver as requisições dela. ',
-  //  Decrypted requests keep the decrypted value. The server removes the secret only with decryption off and no decrypted request stored. To remove it, turn decryption off (it can be in this same save) and delete the decrypted requests; or keep the secret.
-  '299930573631604199':
-    ' Requisições decifradas guardam o valor decifrado. O servidor só remove o segredo com a decifra desligada e nenhuma requisição decifrada gravada. Para remover, desligue a decifra (pode ser neste mesmo salvar) e apague as decifradas; ou mantenha o segredo. ',
+  // Saving removes the secret: anyone with the URL will see its requests.
+  '7336699927416654716': 'Salvar remove o segredo: quem tiver a URL vai ver as requisições dela.',
+  // Decrypted requests keep the decrypted value. The server removes the secret only with decryption off and no decrypted request stored. To remove it, turn decryption off (it can be in this same save) and delete the decrypted requests; or keep the secret.
+  '4563539906052769861':
+    'Requisições decifradas guardam o valor decifrado. O servidor só remove o segredo com a decifra desligada e nenhuma requisição decifrada gravada. Para remover, desligue a decifra (pode ser neste mesmo salvar) e apague as decifradas; ou mantenha o segredo.',
   // The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.
   '6213658804702770639':
     'O servidor recusou: há requisições decifradas nesta URL. Apague-as antes de remover o segredo, ou mantenha o segredo.',
@@ -3725,9 +3725,12 @@ export const translations: Record<string, string> = {
   // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
   '8123080752418416800':
     'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor decifrado tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
-  //  Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.
-  '1526497609005154437':
-    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor decifrado: o segredo de leitura continua obrigatório até elas serem apagadas. ',
+  // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on Privacy (it can go in the same save).
+  '6606005843752952083':
+    'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor decifrado tem de ficar atrás dele. Ligue Privacidade (pode ir no mesmo salvar).',
+  // Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.
+  '7563108074876616346':
+    'Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor decifrado: o segredo de leitura continua obrigatório até elas serem apagadas.',
   // Encrypted attribute
   '6159255639867175033': 'Atributo cifrado',
   // Audience (aud)
