@@ -48,19 +48,22 @@ class TokenStore(
 
     /**
      * Grava [token] só se o que está no Redis ainda é o que foi lido ([read]); `false` quando outra gravação chegou
-     * antes (ou a URL foi apagada) e nada foi gravado. Atômico no Redis, entre instâncias.
+     * antes (ou a URL foi apagada) e nada foi gravado. Atômico no Redis, entre instâncias. Com [decryptedAfter] (o maior
+     * `seq` quando a URL foi lida), `false` também se alguma mensagem chegada depois dele tem `decrypted`.
      */
     fun replace(
         read: StoredToken,
         token: Token,
+        decryptedAfter: Long? = null,
     ): Boolean {
-        val keys = listOf(RedisKeys.token(token.uuid))
+        val keys = listOf(RedisKeys.token(token.uuid), RedisKeys.requests(token.uuid), RedisKeys.requestIndex(token.uuid))
         return redis.execute(
             REPLACE,
             keys,
             read.json,
             jsonMapper.writeValueAsString(token),
             token.expiry(properties.expiry, clock.instant()).seconds.toString(),
+            decryptedAfter?.toString().orEmpty(),
         ) ==
             1L
     }

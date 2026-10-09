@@ -69,6 +69,18 @@ local function backfill()
   if ttl > 0 then redis.call('PEXPIRE', index, ttl) end
 end
 
+-- O JSON a gravar de uma mensagem: com `decrypted` só enquanto o token (lido aqui, no mesmo passo da gravação) tem
+-- segredo de leitura; senão, a versão sem ele, que quem chama manda à parte (vazia quando a mensagem não tem o atributo).
+-- A captura que leu a URL antes de o segredo sair não grava o valor aberto numa URL já sem segredo.
+local function sealed(tokenKey, json, withoutDecrypted)
+  if withoutDecrypted == '' then return json end
+  local ok, token = pcall(cjson.decode, redis.call('GET', tokenKey) or '')
+  if ok and type(token) == 'table' and token.read_secret_hash ~= nil and token.read_secret_hash ~= cjson.null then
+    return json
+  end
+  return withoutDecrypted
+end
+
 -- O unpack do Lua 5.1 tem teto (~8000 valores): comandos com muitos argumentos vão em lotes.
 local BATCH = 1000
 local function inBatches(command, key, ids)

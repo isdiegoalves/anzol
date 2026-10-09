@@ -3,6 +3,7 @@ package anzol.token
 import anzol.TokenId
 import anzol.capture.RequestStore
 import anzol.capture.anyDecrypted
+import anzol.capture.highestSeq
 import anzol.http.LegacyInput
 import anzol.rules.Parsed
 import anzol.share.ShareStore
@@ -117,9 +118,12 @@ class TokenService(
     ): Parsed<Token> {
         repeat(MAX_CHANGE_ATTEMPTS) {
             val read = tokens.read(id) ?: throw ResponseStatusException(HttpStatus.GONE, "Token not found")
+            // Antes de [change], que confere as mensagens: o que chegar depois a troca confere no Redis.
+            val since = if (read.token.isProtected()) requests.highestSeq(read.token) else null
             val changed = change(read.token)
             if (changed !is Parsed.Valid) return changed
-            if (tokens.replace(read, changed.value)) {
+            val removesSecret = since != null && !changed.value.isProtected()
+            if (tokens.replace(read, changed.value, decryptedAfter = since.takeIf { removesSecret })) {
                 applied(read.token, changed.value)
                 return changed
             }

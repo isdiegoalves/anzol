@@ -72,6 +72,10 @@ private fun List<*>.toMessages(jsonMapper: JsonMapper): List<CapturedRequest> =
 
 private fun List<*>.toRequestIds(): List<RequestId> = filterIsInstance<String>().map { RequestId(UUID.fromString(it)) }
 
+/** O JSON da mensagem sem `decrypted`, que os scripts gravam numa URL sem segredo; vazio se ela não tem o atributo. */
+private fun JsonMapper.withoutDecrypted(request: CapturedRequest): String =
+    if (request.decrypted == null) "" else writeValueAsString(request.copy(decrypted = null))
+
 /** As duas chaves das mensagens do token: a hash e o índice. */
 private fun Token.requestKeys() = listOf(RedisKeys.requests(uuid), RedisKeys.requestIndex(uuid))
 
@@ -156,7 +160,10 @@ class RequestStore(
 
     fun count(token: Token): Long = redis.execute(COUNT, token.requestKeys())
 
-    /** Grava e corta o excedente, atômico; devolve o `seq` dado à mensagem e as que saíram (nunca a gravada). */
+    /**
+     * Grava e corta o excedente, atômico; devolve o `seq` dado à mensagem e as que saíram (nunca a gravada). O
+     * `decrypted` só é gravado se o token, lido no Redis no mesmo passo, ainda tem segredo de leitura.
+     */
     fun store(
         token: Token,
         request: CapturedRequest,
@@ -165,12 +172,13 @@ class RequestStore(
         val reply =
             redis.execute(
                 STORE,
-                token.requestKeys() + RedisKeys.requestSeq(token.uuid),
+                token.requestKeys() + RedisKeys.requestSeq(token.uuid) + RedisKeys.token(token.uuid),
                 request.uuid.toString(),
                 jsonMapper.writeValueAsString(request),
                 ChronoUnit.MICROS.between(Instant.EPOCH, arrival).toString(),
                 properties.expiry.seconds.toString(),
                 retention(token).toString(),
+                jsonMapper.withoutDecrypted(request),
             )
         return Stored(seq = reply.first().toString().toLong(), removed = reply.drop(1).toRequestIds())
     }
@@ -183,8 +191,10 @@ class RequestStore(
         token: Token,
         request: CapturedRequest,
     ): Boolean {
-        val json = jsonMapper.writeValueAsString(request.copy(seq = null))
-        return redis.execute(REPLACE, token.requestKeys(), request.uuid.toString(), json) > 0
+        val stored = request.copy(seq = null)
+        val json = jsonMapper.writeValueAsString(stored)
+        val keys = token.requestKeys() + RedisKeys.token(token.uuid)
+        return redis.execute(REPLACE, keys, request.uuid.toString(), json, jsonMapper.withoutDecrypted(stored)) > 0
     }
 
     /** Corta o excedente sobre o limite atual do token (depois de reduzi-lo). */
@@ -203,3 +213,6 @@ fun RequestStore.anyDecrypted(token: Token): Boolean =
     generateSequence(scan(token, Sorting.NEWEST, from = null, limit = DECRYPTED_SCAN_BATCH)) { previous ->
         previous.next?.let { scan(token, Sorting.NEWEST, from = it, limit = DECRYPTED_SCAN_BATCH) }
     }.any { batch -> batch.messages.any { it.decrypted != null } }
+
+/** O maior `seq` (score) do índice agora; 0 com o índice vazio. */
+fun RequestStore.highestSeq(token: Token): Long = scan(token, Sorting.NEWEST, from = null, limit = 1).next?.seq ?: 0
