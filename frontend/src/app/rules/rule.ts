@@ -410,6 +410,22 @@ export function moveInOrder(rules: readonly Rule[], from: number, to: number): R
   );
 }
 
+/** A regra não tem condição nem cenário: casa toda requisição. */
+export function hasNoCondition(rule: Rule): boolean {
+  const match = rule.match ?? {};
+  return (
+    !match.method?.length &&
+    !match.path &&
+    Object.keys(match.query ?? {}).length === 0 &&
+    Object.keys(match.headers ?? {}).length === 0 &&
+    !match.body?.length &&
+    !match.signature &&
+    !match.schema &&
+    !match.decryption &&
+    !rule.scenario?.name
+  );
+}
+
 /**
  * O caminho da regra é o que vem depois do token da URL: um caminho que começa com o próprio
  * token (`/{uuid}/pagamentos`) nunca casa. Devolve o caminho sem o token, ou `null` quando não há

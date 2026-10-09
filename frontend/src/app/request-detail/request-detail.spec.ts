@@ -17,7 +17,7 @@ import { CompareStore } from '../diff/compare-store';
 import { EventGrouping } from '../requests/event-grouping';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
-import { RuleTrace } from '../rules/rule';
+import { Rule, RuleTrace } from '../rules/rule';
 import { ShareDialog } from '../share/share-dialog';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { AiClient } from '../ai/ai-client';
@@ -466,7 +466,12 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     const traceUrl = (request: WebhookRequest) =>
       `/token/${TOKEN_ID}/request/${request.uuid}/rules/trace`;
     const checks = () => screen.getByRole('group', { name: 'Checks on this request' });
-    const trace = (answeredBy: string, conditions: string[]): RuleTrace => ({
+    const rulesUrl = `/token/${TOKEN_ID}/rules`;
+    const rules = (catchAll: Rule['match']): Rule[] => [
+      { id: 'r1', name: 'Pedido pago', match: { method: ['POST'] } },
+      { id: 'r9', name: 'Tudo o resto', match: catchAll },
+    ];
+    const trace = (answeredBy: string): RuleTrace => ({
       request: 'x',
       responded_by: { id: answeredBy, name: 'Tudo o resto' },
       rules: [
@@ -477,7 +482,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
           position: 1,
           matches: answeredBy === 'r1',
           failed: answeredBy === 'r1' ? [] : ['method: expected POST, got GET'],
-          conditions: ['match.method'],
+          conditions: answeredBy === 'r1' ? [] : ['match.method'],
         },
         {
           id: 'r9',
@@ -486,7 +491,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
           position: 2,
           matches: true,
           failed: [],
-          conditions,
+          conditions: [],
         },
       ],
     });
@@ -496,15 +501,17 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
         rule: { id: 'r9', name: 'Tudo o resto' },
         response: { status: 404 },
       });
-      const { http, fixture, container } = await show(request);
+      const { http, container } = await show(request);
 
-      http.expectOne(traceUrl(request)).flush(trace('r9', []));
-      await fixture.whenStable();
+      http.expectOne(traceUrl(request)).flush(trace('r9'));
+      (await vi.waitFor(() => http.expectOne(rulesUrl))).flush(rules({}));
 
-      expect(checks().textContent).toContain('Answered 404 · by rule');
-      expect(checks().textContent).toContain(
-        'Closest rule: Pedido pago — method: expected POST, got GET',
+      await vi.waitFor(() =>
+        expect(checks().textContent).toContain(
+          'Closest rule: Pedido pago — method: expected POST, got GET',
+        ),
       );
+      expect(checks().textContent).toContain('Answered 404 · by rule');
       expect(checks().textContent).toContain('Checked against the rules as they are now.');
       await expectNoAxeViolations(container);
     });
@@ -516,7 +523,11 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       });
       const { http, fixture } = await show(request);
 
-      http.expectOne(traceUrl(request)).flush(trace('r9', ['match.path']));
+      http.expectOne(traceUrl(request)).flush(trace('r9'));
+      (await vi.waitFor(() => http.expectOne(rulesUrl))).flush(
+        rules({ path: { prefix: '/pedidos' } }),
+      );
+      await new Promise((resolve) => setTimeout(resolve));
       await fixture.whenStable();
 
       expect(checks().textContent).toContain('Answered 404 · by rule');
@@ -534,10 +545,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
       fixture.componentRef.setInput('request', webhookRequest(2, { response: { status: 429 } }));
       await fixture.whenStable();
-      pending.flush(trace('r9', []));
+      pending.flush(trace('r9'));
       await fixture.whenStable();
 
-      http.expectNone((call) => call.url.endsWith('/rules/trace'));
+      http.expectNone((call) => call.url.endsWith('/rules/trace') || call.url === rulesUrl);
       expect(checks().textContent).toContain('Answered 429 · default response');
       expect(checks().textContent).not.toContain('Closest rule');
     });

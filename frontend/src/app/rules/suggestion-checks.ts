@@ -1,7 +1,7 @@
 import { SuggestionCheck } from '../ai/ai-client';
 import { conditionPhrase } from '../pipeline/server-phrases';
 import { WebhookRequest } from '../requests/webhook-request';
-import { RULE_DEFAULT_PRIORITY, Rule, evaluationOrder } from './rule';
+import { RULE_DEFAULT_PRIORITY, Rule, evaluationOrder, hasNoCondition } from './rule';
 import { exampleHeader, exampleQuery, valueAtPath } from './rule-example';
 import { catchAllPlacement } from './rule-shadow';
 
@@ -200,19 +200,4 @@ function sequenceLine(check: SuggestionCheck | null | undefined): CheckLine[] {
         },
       ]
     : [];
-}
-
-function hasNoCondition(rule: Rule): boolean {
-  const match = rule.match ?? {};
-  return (
-    !match.method?.length &&
-    !match.path &&
-    Object.keys(match.query ?? {}).length === 0 &&
-    Object.keys(match.headers ?? {}).length === 0 &&
-    !match.body?.length &&
-    !match.signature &&
-    !match.schema &&
-    !match.decryption &&
-    !rule.scenario?.name
-  );
 }

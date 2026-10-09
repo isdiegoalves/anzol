@@ -23,6 +23,7 @@ import { UNDO_MS } from '../requests/request-list';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { closestPhrase } from '../pipeline/pipeline';
+import { hasNoCondition } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
 import { Viewport } from '../shell/viewport';
 import { Token } from '../token/token';
@@ -208,20 +209,23 @@ export class RequestDetail {
   private async findClosest(tokenId: string, requestId: string, answeredBy: string) {
     try {
       const trace = await this.rules.trace(tokenId, requestId);
-      const answered = trace.rules.find((entry) => entry.id === answeredBy);
-      // Só a pega-tudo: a regra com condições respondeu porque casou, e não por falta de outra.
-      if (this.request().uuid !== requestId || !answered || answered.conditions.length > 0) {
-        return;
-      }
       const [near] = trace.rules
         .filter((entry) => entry.enabled && !entry.matches && entry.failed.length > 0)
         .sort((a, b) => a.failed.length - b.failed.length);
-      if (near) {
-        this.closest.set([
-          closestPhrase(near.name, near.failed),
-          $localize`Checked against the rules as they are now.`,
-        ]);
+      if (this.request().uuid !== requestId || !near) {
+        return;
       }
+      // Só a pega-tudo: a regra com condições respondeu porque casou, e não por falta de outra. O
+      // trace lista só as condições que falharam, então quem casou sai do `match` da própria regra.
+      const rules = await this.rules.listRules(tokenId);
+      const answered = rules.find((rule) => rule.id === answeredBy);
+      if (this.request().uuid !== requestId || !answered || !hasNoCondition(answered)) {
+        return;
+      }
+      this.closest.set([
+        closestPhrase(near.name, near.failed),
+        $localize`Checked against the rules as they are now.`,
+      ]);
     } catch {
       // Sem o trace, o cartão fica só com o que a mensagem gravou.
     }
