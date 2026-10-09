@@ -977,6 +977,14 @@ export class RuleEditor {
     }
   }
 
+  /** "Plaintext" numa URL com `required: true`: o texto em claro vira `invalid`/`downgrade`. */
+  protected refusesPlaintext(): boolean {
+    return (
+      this.form.controls.decryption.value === 'absent' &&
+      this.tokens.token()?.e2ee?.required === true
+    );
+  }
+
   /** De onde vem o resultado da decifra: o atributo da política, ou "not set up". */
   protected decryptionOrigin(): string {
     return this.tokens.token()?.e2ee?.path ?? $localize`not set up`;

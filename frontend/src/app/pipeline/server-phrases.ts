@@ -28,6 +28,33 @@ function target(kind: string, name: string): string {
   return $localize`:server phrase|Target of a failed condition:query ${name}:name:`;
 }
 
+/** O estado da assinatura que a frase cita (`valid`, `invalid`, `absent`), na língua da tela. */
+function signatureState(state: string): string {
+  const words: Record<string, string> = {
+    valid: $localize`:signature state|:valid`,
+    invalid: $localize`:signature state|:invalid`,
+    absent: $localize`:signature state|:absent`,
+  };
+  return words[state] ?? state;
+}
+
+/** O estado da decifra que a frase cita (`valid`, `invalid`, `unknown_kid`, `absent`). */
+function decryptionState(state: string): string {
+  const words: Record<string, string> = {
+    valid: $localize`:decryption state|:valid`,
+    invalid: $localize`:decryption state|:invalid`,
+    unknown_kid: $localize`:decryption state|:unknown_kid`,
+    absent: $localize`:decryption state|:absent`,
+  };
+  return words[state] ?? state;
+}
+
+/** "invalid (downgrade)": o estado traduzido; o motivo entre parênteses fica como veio. */
+function gotState(got: string, word: (state: string) => string): string {
+  const [, state, reason = ''] = /^(\w+)( \(.*\))?$/s.exec(got) ?? [got, got];
+  return `${word(state)}${reason}`;
+}
+
 /** As famílias do near miss, na ordem: a primeira que casa vale. */
 function conditionFamilies(): Family[] {
   return [
@@ -103,11 +130,13 @@ function conditionFamilies(): Family[] {
     ],
     [
       /^signature: expected (\w+), got not configured$/,
-      (expected) => $localize`signature: expected ${expected}:expected:, got not configured`,
+      (expected) =>
+        $localize`signature: expected ${signatureState(expected)}:expected:, got not configured`,
     ],
     [
       /^signature: expected (\w+), got (.+)$/,
-      (expected, got) => $localize`signature: expected ${expected}:expected:, got ${got}:got:`,
+      (expected, got) =>
+        $localize`signature: expected ${signatureState(expected)}:expected:, got ${gotState(got, signatureState)}:got:`,
     ],
     [
       /^schema: expected (\w+), got not configured$/,
@@ -119,11 +148,13 @@ function conditionFamilies(): Family[] {
     ],
     [
       /^decryption: expected (\w+), got not configured$/,
-      (expected) => $localize`decryption: expected ${expected}:expected:, got not configured`,
+      (expected) =>
+        $localize`decryption: expected ${decryptionState(expected)}:expected:, got not configured`,
     ],
     [
       /^decryption: expected (\w+), got (.+)$/,
-      (expected, got) => $localize`decryption: expected ${expected}:expected:, got ${got}:got:`,
+      (expected, got) =>
+        $localize`decryption: expected ${decryptionState(expected)}:expected:, got ${gotState(got, decryptionState)}:got:`,
     ],
     [
       /^scenario (.+?): expected state (".*"), got (".*")$/s,

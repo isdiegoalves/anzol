@@ -658,6 +658,22 @@ describe('Dado o editor de regra', () => {
       });
     });
 
+    it.each([
+      ['recusa o texto em claro (required: true)', true, true],
+      ['aceita o texto em claro (required: false)', false, false],
+    ])('deve dizer o que "Plaintext" casa Quando a URL %s', async (_caso, required, avisa) => {
+      TestBed.inject(Preferences).token.set(
+        token({ e2ee: { path: '$.payload', required } as Token['e2ee'] }),
+      );
+      await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, decryption: 'absent' } })]);
+
+      expect(
+        text('.notice').some((notice) =>
+          notice?.startsWith('Never matches: this URL refuses plaintext'),
+        ),
+      ).toBe(avisa);
+    });
+
     it('deve avisar que nunca casa Quando a URL não decifra', async () => {
       TestBed.inject(Preferences).token.set(token({ e2ee: null }));
       await open({ index: 0 }, [rule(1, { match: { ...rule(1).match, decryption: 'invalid' } })]);

@@ -513,6 +513,12 @@
                   </p>
                   @if (neverMatches('decryption')) {
                     <p class="notice" role="note" i18n>Never matches: this URL does not decrypt.</p>
+                  } @else if (refusesPlaintext()) {
+                    <p class="notice" role="note" i18n>
+                      Never matches: this URL refuses plaintext (it is recorded as Invalid, reason
+                      downgrade). To answer plaintext, use Invalid (it matches any decryption
+                      failure, not just plaintext).
+                    </p>
                   }
                   @if (serverError(form.controls.decryption); as error) {
                     <p class="field-error" [attr.data-for]="'decryption'">{{ error }}</p>

@@ -39,11 +39,11 @@ const conditions: [string, string][] = [
   ['body: expected "a", got "b"', 'corpo: esperava "a", veio "b"'],
   [
     'signature: expected valid, got not configured',
-    'assinatura: não configurada nesta URL (a regra pede valid)',
+    'assinatura: não configurada nesta URL (a regra pede assinatura válida)',
   ],
   [
     'signature: expected valid, got invalid (signature mismatch)',
-    'assinatura: esperava valid, veio invalid (signature mismatch)',
+    'pede assinatura válida; esta veio inválida (signature mismatch)',
   ],
   [
     'schema: expected valid, got not configured',
@@ -55,11 +55,24 @@ const conditions: [string, string][] = [
   ],
   [
     'decryption: expected valid, got not configured',
-    'decifra: não configurada nesta URL (a regra pede valid)',
+    'decifra: não configurada nesta URL (a regra pede decifra válida)',
   ],
   [
     'decryption: expected valid, got invalid (aud_mismatch)',
-    'decifra: esperava valid, veio invalid (aud_mismatch)',
+    'pede decifra válida; esta veio inválida (aud_mismatch)',
+  ],
+  [
+    'decryption: expected absent, got invalid (downgrade)',
+    'pede decifra em claro; esta veio inválida (downgrade)',
+  ],
+  [
+    'decryption: expected valid, got unknown_kid',
+    'pede decifra válida; esta veio com chave desconhecida',
+  ],
+  ['signature: expected invalid, got valid', 'pede assinatura inválida; esta veio válida'],
+  [
+    'signature: expected valid, got absent (header X-Sig absent)',
+    'pede assinatura válida; esta veio ausente (header X-Sig absent)',
   ],
   [
     'scenario entrega: expected state "falhou 1", got "Started"',

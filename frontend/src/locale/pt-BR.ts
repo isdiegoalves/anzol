@@ -842,6 +842,14 @@ export const translations: Record<string, string> = {
   '5803994708044197526': 'inválida',
   // absent
   '8551676869035882346': 'ausente',
+  // valid
+  '6992343261774394257': 'válida',
+  // invalid
+  '5293212363437508464': 'inválida',
+  // unknown_kid
+  '6364275002283565910': 'com chave desconhecida',
+  // absent
+  '8040894524429193284': 'em claro',
   // signature mismatch
   '6658909463270317571': 'o HMAC não bateu (signature mismatch)',
   // malformed header
@@ -2702,9 +2710,10 @@ export const translations: Record<string, string> = {
   // body: expected {$expected}, got {$got}
   '4699872197355484648': 'corpo: esperava {$expected}, veio {$got}',
   // signature: expected {$expected}, got not configured
-  '1239663005845036139': 'assinatura: não configurada nesta URL (a regra pede {$expected})',
+  '1239663005845036139':
+    'assinatura: não configurada nesta URL (a regra pede assinatura {$expected})',
   // signature: expected {$expected}, got {$got}
-  '7418487935490997162': 'assinatura: esperava {$expected}, veio {$got}',
+  '7418487935490997162': 'pede assinatura {$expected}; esta veio {$got}',
   // schema: expected {$expected}, got not configured
   '1930130574293914257': 'schema: não configurado nesta URL (a regra pede {$expected})',
   // schema: expected {$expected}, got {$got}
@@ -4105,9 +4114,9 @@ export const translations: Record<string, string> = {
   // The sender must put the data claim (the attribute itself) in the JWS.
   '4294451110972106575': 'O remetente precisa pôr o claim data (o próprio atributo) no JWS.',
   // decryption: expected {$expected}, got not configured
-  '7613681671970386143': 'decifra: não configurada nesta URL (a regra pede {$expected})',
+  '7613681671970386143': 'decifra: não configurada nesta URL (a regra pede decifra {$expected})',
   // decryption: expected {$expected}, got {$got}
-  '5656599743816655939': 'decifra: esperava {$expected}, veio {$got}',
+  '5656599743816655939': 'pede decifra {$expected}; esta veio {$got}',
   // Decrypted
   '3636098527993575441': 'Decifrado',
   //  The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
@@ -4125,6 +4134,9 @@ export const translations: Record<string, string> = {
   '1160913992019279897': 'Decifra',
   // Never matches: this URL does not decrypt.
   '4919114349019836568': 'Nunca casa: esta URL não decifra.',
+  //  Never matches: this URL refuses plaintext (it is recorded as Invalid, reason downgrade). To answer plaintext, use Invalid (it matches any decryption failure, not just plaintext).
+  '4397602734268889825':
+    ' Nunca casa: esta URL recusa texto em claro (ele é gravado como Inválida, motivo downgrade). Para responder ao não cifrado, use Inválida (vale para qualquer falha da decifra, não só para o texto em claro). ',
   // Unknown key
   '2035586137456321065': 'Chave desconhecida',
   // This URL does not decrypt.
