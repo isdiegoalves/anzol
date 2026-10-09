@@ -234,7 +234,9 @@ class AiExplainApiTest(
                 .single()
                 .messages()
                 .map { it["content"].asString() }
-        assertThat(system).contains("signature_kid_trusted")
+        assertThat(system)
+            .contains("signature_kid_trusted")
+            .contains("decryption.kid is this URL's encryption key", "never the key that signed")
         assertThat(user).contains("\"signature_kid_trusted\" : false").doesNotContain(INJECTION)
     }
 

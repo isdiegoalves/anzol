@@ -243,7 +243,8 @@ class Explainer(
         |Use only the FACTS computed by Anzol; do not invent anything. When something was not configured, say so.
         |When the decryption failed, say who fixes it (decryption.who_fixes: the sender, this URL's configuration, or
         |nobody because the message was altered) and what to do (decryption.advice).
-        |decryption.signature_kid_trusted false means the message was signed with a key that is not among this URL's
+        |decryption.kid is this URL's encryption key the sender encrypted to, never the key that signed;
+        |decryption.signature_kid is the sender's signing key. decryption.signature_kid_trusted false means the message was signed with a key that is not among this URL's
         |trusted signers; that key's kid is withheld (signature_kid null) because the sender wrote it, not because
         |there was no key.
         |decryption.attempted false means decryption did not run, because the HMAC signature failed before it: say
