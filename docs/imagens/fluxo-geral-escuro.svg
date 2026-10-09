@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="titulo descricao" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="titulo">Como o Anzol se encaixa entre o remetente e o seu app</title>
+<desc id="descricao">O remetente (um provedor, o seu serviço, um curl ou o anzol send) manda o webhook para a URL do Anzol, que grava a requisição, aplica as verificações de assinatura, schema e decifra e responde com o padrão, uma regra ou uma falha injetada; tudo fica no Redis. A tela acompanha ao vivo por SSE, a CLI e os agentes de IA usam a mesma API (os agentes pelo /mcp), e um LLM local opcional sugere regras e explica mensagens. O seu app local recebe o webhook gravado pelo reenvio do servidor ou pelo anzol listen --forward.</desc>
+<defs>
+  <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7c8691"/></marker>
+  <marker id="seta-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8cc8d6"/></marker>
+  <marker id="seta-tertiary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#e5afcf"/></marker>
+</defs>
+<style>
+  text { font-size: 15px; fill: #e2e6ea; }
+  .t { fill: #e2e6ea; } .m { fill: #a3acb6; } .b { font-weight: 600; }
+  .h1 { font-size: 22px; font-weight: 700; } .h2 { font-size: 17px; font-weight: 700; } .small { font-size: 13.5px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.5px; }
+  .bg { fill: #1d2227; }
+  .card { fill: #242a31; stroke: #3a424b; stroke-width: 1.5; }
+  .card-primary { fill: #242a31; stroke: #8cc8d6; stroke-width: 2; }
+  .card-tertiary { fill: #242a31; stroke: #e5afcf; stroke-width: 2; }
+  .card-secondary { fill: #242a31; stroke: #b3baf2; stroke-width: 2; }
+  .band { fill: #2a3037; stroke: none; }
+  .primary { fill: #8cc8d6; } .tertiary { fill: #e5afcf; } .secondary { fill: #b3baf2; }
+  .arrow { fill: none; stroke: #7c8691; stroke-width: 2; marker-end: url(#seta); }
+  .arrow-primary { fill: none; stroke: #8cc8d6; stroke-width: 2; marker-end: url(#seta-primary); }
+  .arrow-tertiary { fill: none; stroke: #e5afcf; stroke-width: 2; marker-end: url(#seta-tertiary); }
+  .arrow-dashed { fill: none; stroke: #7c8691; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#seta); }
+  .num { fill: #1d4651; } .num-t { fill: #c9e7ee; font-size: 13px; font-weight: 700; }
+  .neutro { fill: #2a3037; stroke: #3a424b; } .neutro-t { fill: #e2e6ea; } .neutro-i { color: #a3acb6; }
+  .pri { fill: #1d4651; } .pri-t { fill: #c9e7ee; font-weight: 600; } .pri-i { color: #c9e7ee; }
+  .ter { fill: #4a2a3e; } .ter-t { fill: #f6dcea; font-weight: 600; } .ter-i { color: #f6dcea; }
+  .ok { fill: #1c3326; } .ok-t { fill: #c3e8ce; font-weight: 600; } .ok-i { color: #8dcb9f; }
+  .bad { fill: #4a1f1c; } .bad-t { fill: #ffd9d4; font-weight: 600; } .bad-i { color: #f2a59c; }
+  .hl { fill: #1d4651; }
+  .icon-primary { color: #8cc8d6; } .icon-tertiary { color: #e5afcf; }
+  .cyl { fill: #2a3037; stroke: #7c8691; stroke-width: 1.5; }
+</style>
+<rect class="bg" width="100%" height="100%" rx="18"/>
+<rect x="40" y="180" width="250" height="196" rx="14" class="card-tertiary"/><text x="62" y="212" class="h2 tertiary">Remetente</text>
+<text x="62" y="236" class="t" text-anchor="start"><tspan x="62" dy="0">o provedor: Stripe, GitHub,</tspan><tspan x="62" dy="20">Shopify, Slack…</tspan></text>
+<text x="62" y="282" class="t" text-anchor="start"><tspan x="62" dy="0">o seu serviço, ou um <tspan class="mono">curl</tspan></tspan></text>
+<text x="62" y="308" class="t" text-anchor="start"><tspan x="62" dy="0"><tspan class="mono">anzol send</tspan>, que assina como o</tspan><tspan x="62" dy="20">provedor assinaria</tspan></text>
+<rect x="420" y="120" width="400" height="330" rx="16" class="card-primary"/>
+<text x="442" y="152" class="h2 primary" text-anchor="start"><tspan x="442" dy="0">Anzol · a sua URL</tspan></text>
+<text x="442" y="176" class="mono m" text-anchor="start"><tspan x="442" dy="0"><tspan class="mono">http://localhost:8084/&lt;uuid&gt;/…</tspan></tspan></text>
+<rect x="440" y="200" width="360" height="30" rx="8" class="band"/>
+<text x="452" y="220" class="t small" text-anchor="start"><tspan x="452" dy="0">grava cada requisição e mostra ao vivo</tspan></text>
+<rect x="440" y="240" width="360" height="30" rx="8" class="band"/>
+<text x="452" y="260" class="t small" text-anchor="start"><tspan x="452" dy="0">verificações: assinatura HMAC, schema, decifra</tspan></text>
+<rect x="440" y="280" width="360" height="30" rx="8" class="band"/>
+<text x="452" y="300" class="t small" text-anchor="start"><tspan x="452" dy="0">regras de resposta: status, corpo, cenários, falhas</tspan></text>
+<rect x="440" y="320" width="360" height="30" rx="8" class="band"/>
+<text x="452" y="340" class="t small" text-anchor="start"><tspan x="452" dy="0">reenvio e envio pelo servidor</tspan></text>
+<path d="M452 375 v30 a28 8 0 0 0 56 0 v-30" class="cyl"/><ellipse cx="480" cy="375" rx="28" ry="8" class="cyl"/>
+<text x="520" y="386" class="t small" text-anchor="start"><tspan x="520" dy="0">Redis: URLs, mensagens, regras e segredos</tspan></text>
+<text x="520" y="404" class="m small" text-anchor="start"><tspan x="520" dy="0">(em claro no volume: o backup é segredo)</tspan></text>
+<path d="M292 250 L416 250" class="arrow-tertiary"/>
+<text x="355" y="240" class="b small" text-anchor="middle"><tspan x="355" dy="0">webhook</tspan></text>
+<path d="M418 310 L294 310" class="arrow-primary"/>
+<text x="355" y="330" class="m small" text-anchor="middle"><tspan x="355" dy="0">resposta: padrão,</tspan><tspan x="355" dy="15">regra ou falha</tspan><tspan x="355" dy="15">injetada</tspan></text>
+<rect x="880" y="70" width="250" height="72" rx="12" class="card"/>
+<text x="896" y="98" class="b" text-anchor="start"><tspan x="896" dy="0">Tela</tspan></text>
+<text x="896" y="120" class="m small" text-anchor="start"><tspan x="896" dy="0">ao vivo, filtros, Compare, Métricas</tspan></text>
+<path d="M824 106 L876 106" class="arrow-primary"/>
+<text x="850" y="98" class="m" text-anchor="middle"><tspan x="850" dy="0"><tspan class="mono">SSE</tspan></tspan></text>
+<rect x="880" y="160" width="250" height="72" rx="12" class="card"/>
+<text x="896" y="188" class="b" text-anchor="start"><tspan x="896" dy="0">CLI <tspan class="mono">anzol</tspan></tspan></text>
+<text x="896" y="210" class="m small" text-anchor="start"><tspan x="896" dy="0">listen, replay, rules, wait-for, test</tspan></text>
+<path d="M824 196 L876 196" class="arrow"/>
+<path d="M876 208 L824 208" class="arrow"/>
+<text x="850" y="188" class="m" text-anchor="middle"><tspan x="850" dy="0"><tspan class="mono">API</tspan></tspan></text>
+<rect x="880" y="250" width="250" height="72" rx="12" class="card"/>
+<text x="896" y="278" class="b" text-anchor="start"><tspan x="896" dy="0">Agentes de IA</tspan></text>
+<text x="896" y="300" class="m small" text-anchor="start"><tspan x="896" dy="0">18 ferramentas pela mesma API</tspan></text>
+<path d="M824 286 L876 286" class="arrow"/>
+<path d="M876 298 L824 298" class="arrow"/>
+<text x="850" y="278" class="m" text-anchor="middle"><tspan x="850" dy="0"><tspan class="mono">/mcp</tspan></tspan></text>
+<rect x="880" y="340" width="250" height="72" rx="12" class="card"/>
+<text x="896" y="368" class="b" text-anchor="start"><tspan x="896" dy="0">LLM local (opcional)</tspan></text>
+<text x="896" y="390" class="m small" text-anchor="start"><tspan x="896" dy="0">sugere regras, explica mensagens</tspan></text>
+<path d="M824 376 L876 376" class="arrow-dashed"/>
+<text x="850" y="368" class="m small" text-anchor="middle"><tspan x="850" dy="0">opcional</tspan></text>
+<rect x="420" y="500" width="400" height="64" rx="12" class="card-secondary"/>
+<text x="442" y="528" class="h2 secondary" text-anchor="start"><tspan x="442" dy="0">Seu app local</tspan></text>
+<text x="442" y="550" class="m small" text-anchor="start"><tspan x="442" dy="0">recebe o webhook gravado, com a falha que você escolher</tspan></text>
+<path d="M520 452 L520 496" class="arrow-primary"/>
+<text x="532" y="480" class="m small" text-anchor="start"><tspan x="532" dy="0">reenvio pelo servidor</tspan></text>
+<path d="M1132 196 L1156 196 L1156 532 L824 532" class="arrow"/>
+<text x="1120" y="522" class="m" text-anchor="end"><tspan x="1120" dy="0"><tspan class="mono">anzol listen --forward</tspan></tspan></text>
+</svg>

@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1100" width="1200" height="1100" role="img" aria-labelledby="titulo descricao" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="titulo">Como a decifra de atributo funciona no Anzol</title>
+<desc id="descricao">Antes, a URL entrega ao remetente a chave pública de cifra (pelo JWKS) e o remetente entrega à URL a chave pública de assinatura dele, colada em Signatários confiáveis. A cada webhook, o remetente assina o atributo com a chave privada dele, cifra o resultado para a chave pública da URL e manda o JWE num atributo do corpo, com o resto do envelope legível. O Anzol confere o HMAC primeiro, decifra com a chave privada da URL, confere a assinatura do remetente e os vínculos com o envelope e grava o valor decifrado na mensagem. Quem tem o segredo de leitura vê o valor na aba Decifrado; o valor fica em claro no Redis.</desc>
+<defs>
+  <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#78818b"/></marker>
+  <marker id="seta-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1b5a68"/></marker>
+  <marker id="seta-tertiary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7a3e62"/></marker>
+</defs>
+<style>
+  text { font-size: 15px; fill: #15191e; }
+  .t { fill: #15191e; } .m { fill: #535c66; } .b { font-weight: 600; }
+  .h1 { font-size: 22px; font-weight: 700; } .h2 { font-size: 17px; font-weight: 700; } .small { font-size: 13.5px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.5px; }
+  .bg { fill: #fbfcfc; }
+  .card { fill: #ffffff; stroke: #d6dce1; stroke-width: 1.5; }
+  .card-primary { fill: #ffffff; stroke: #1b5a68; stroke-width: 2; }
+  .card-tertiary { fill: #ffffff; stroke: #7a3e62; stroke-width: 2; }
+  .card-secondary { fill: #ffffff; stroke: #4b5694; stroke-width: 2; }
+  .band { fill: #edf0f3; stroke: none; }
+  .primary { fill: #1b5a68; } .tertiary { fill: #7a3e62; } .secondary { fill: #4b5694; }
+  .arrow { fill: none; stroke: #78818b; stroke-width: 2; marker-end: url(#seta); }
+  .arrow-primary { fill: none; stroke: #1b5a68; stroke-width: 2; marker-end: url(#seta-primary); }
+  .arrow-tertiary { fill: none; stroke: #7a3e62; stroke-width: 2; marker-end: url(#seta-tertiary); }
+  .arrow-dashed { fill: none; stroke: #78818b; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#seta); }
+  .num { fill: #dcebef; } .num-t { fill: #0e3c47; font-size: 13px; font-weight: 700; }
+  .neutro { fill: #edf0f3; stroke: #d6dce1; } .neutro-t { fill: #15191e; } .neutro-i { color: #535c66; }
+  .pri { fill: #dcebef; } .pri-t { fill: #0e3c47; font-weight: 600; } .pri-i { color: #0e3c47; }
+  .ter { fill: #f3e5ed; } .ter-t { fill: #4e1f3c; font-weight: 600; } .ter-i { color: #4e1f3c; }
+  .ok { fill: #e7f3eb; } .ok-t { fill: #1b4a2d; font-weight: 600; } .ok-i { color: #2e6a44; }
+  .bad { fill: #fcebe9; } .bad-t { fill: #7c1a12; font-weight: 600; } .bad-i { color: #b42318; }
+  .hl { fill: #dcebef; }
+  .icon-primary { color: #1b5a68; } .icon-tertiary { color: #7a3e62; }
+  .cyl { fill: #edf0f3; stroke: #78818b; stroke-width: 1.5; }
+</style>
+<rect class="bg" width="100%" height="100%" rx="18"/>
+<text x="40" y="46" class="h1" text-anchor="start"><tspan x="40" dy="0">Decifra de atributo: só o Anzol abre o que o remetente cifrou, e confere quem assinou</tspan></text>
+<text x="40" y="72" class="m" text-anchor="start"><tspan x="40" dy="0">São dois pares de chaves. A chave de cifra é da sua URL: a pública vai ao remetente, a privada fica no servidor do Anzol. A chave de assinatura é do</tspan><tspan x="40" dy="20">remetente: a privada fica com ele, a pública você cola na URL.</tspan></text>
+<text x="40" y="126" class="h2" text-anchor="start"><tspan x="40" dy="0">Antes: cada lado entrega ao outro só a chave pública</tspan></text>
+<rect x="40" y="142" width="400" height="196" rx="14" class="card-tertiary"/><text x="62" y="174" class="h2 tertiary">Remetente</text><text x="62" y="196" class="m small" text-anchor="start"><tspan x="62" dy="0">Quem manda o webhook</tspan></text>
+<text x="62" y="224" class="m small" text-anchor="start"><tspan x="62" dy="0">guarda com ele:</tspan></text>
+<g><rect x="62" y="232" width="246" height="28" rx="14" class="ter"/><g transform="translate(72, 237)" class="ter-i"><rect x="3" y="8" width="13" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 8 V6 a3.5 3.5 0 0 1 7 0 V8" fill="none" stroke="currentColor" stroke-width="2"/></g><text x="96" y="251" text-anchor="start" class="ter-t">chave privada de assinatura</text></g>
+<text x="62" y="286" class="m small" text-anchor="start"><tspan x="62" dy="0">recebe da URL:</tspan></text>
+<g><rect x="62" y="294" width="261" height="28" rx="14" class="neutro"/><g transform="translate(72, 299)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="96" y="313" text-anchor="start" class="neutro-t">chave pública de cifra da URL</text></g>
+<rect x="760" y="142" width="400" height="196" rx="14" class="card-primary"/><text x="782" y="174" class="h2 primary">Anzol (a sua URL)</text><text x="782" y="196" class="m small" text-anchor="start"><tspan x="782" dy="0">Verificações › Decifra</tspan></text>
+<text x="782" y="224" class="m small" text-anchor="start"><tspan x="782" dy="0">gera e guarda no servidor:</tspan></text>
+<g><rect x="782" y="232" width="261" height="28" rx="14" class="pri"/><g transform="translate(792, 237)" class="pri-i"><rect x="3" y="8" width="13" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 8 V6 a3.5 3.5 0 0 1 7 0 V8" fill="none" stroke="currentColor" stroke-width="2"/></g><text x="816" y="251" text-anchor="start" class="pri-t">chave privada de cifra da URL</text></g>
+<text x="782" y="286" class="m small" text-anchor="start"><tspan x="782" dy="0">recebe do remetente:</tspan></text>
+<g><rect x="782" y="294" width="283" height="28" rx="14" class="neutro"/><g transform="translate(792, 299)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="816" y="313" text-anchor="start" class="neutro-t">chave pública de assinatura dele</text></g>
+<path d="M756 202 L446 202" class="arrow-primary"/>
+<text x="600" y="194" class="b small" text-anchor="middle"><tspan x="600" dy="0">chave pública de cifra da URL</tspan></text>
+<text x="600" y="222" class="m small" text-anchor="middle"><tspan x="600" dy="0">pelo JWKS público da URL ou por "Copiar chave</tspan><tspan x="600" dy="16">pública"</tspan></text>
+<path d="M444 286 L754 286" class="arrow-tertiary"/>
+<text x="600" y="278" class="b small" text-anchor="middle"><tspan x="600" dy="0">chave pública de assinatura do remetente</tspan></text>
+<text x="600" y="306" class="m small" text-anchor="middle"><tspan x="600" dy="0">você cola em Signatários confiáveis (uma JWK</tspan><tspan x="600" dy="16">ES256)</tspan></text>
+<text x="40" y="378" class="h2" text-anchor="start"><tspan x="40" dy="0">A cada webhook</tspan></text>
+<rect x="40" y="394" width="350" height="420" rx="14" class="card-tertiary"/><text x="62" y="426" class="h2 tertiary">Remetente</text>
+<circle cx="73" cy="445" r="11" class="num"/><text x="73" y="449" text-anchor="middle" class="num-t">1</text>
+<text x="94" y="450" class="b t" text-anchor="start"><tspan x="94" dy="0">Assina o atributo</tspan></text>
+<text x="94" y="471" class="m small" text-anchor="start"><tspan x="94" dy="0">Com a chave privada de assinatura dele: o</tspan><tspan x="94" dy="19">resultado é um JWS.</tspan></text>
+<circle cx="73" cy="516" r="11" class="num"/><text x="73" y="520" text-anchor="middle" class="num-t">2</text>
+<text x="94" y="521" class="b t" text-anchor="start"><tspan x="94" dy="0">Cifra o que assinou</tspan></text>
+<text x="94" y="542" class="m small" text-anchor="start"><tspan x="94" dy="0">Para a chave pública de cifra da URL: o</tspan><tspan x="94" dy="19">resultado é um JWE. Só a chave privada da</tspan><tspan x="94" dy="19">URL abre.</tspan></text>
+<circle cx="73" cy="606" r="11" class="num"/><text x="73" y="610" text-anchor="middle" class="num-t">3</text>
+<text x="94" y="611" class="b t" text-anchor="start"><tspan x="94" dy="0">Põe o JWE no corpo</tspan></text>
+<text x="94" y="632" class="m small" text-anchor="start"><tspan x="94" dy="0">No atributo combinado (ex.: <tspan class="mono">payload</tspan>). O</tspan><tspan x="94" dy="19">resto do corpo, o envelope, vai legível.</tspan></text>
+<circle cx="73" cy="677" r="11" class="num"/><text x="73" y="681" text-anchor="middle" class="num-t">4</text>
+<text x="94" y="682" class="b t" text-anchor="start"><tspan x="94" dy="0">Assina o corpo inteiro</tspan></text>
+<text x="94" y="703" class="m small" text-anchor="start"><tspan x="94" dy="0">Com o HMAC, se a URL verificar assinatura.</tspan></text>
+<path d="M392 528 L416 528" class="arrow-tertiary"/>
+<path d="M784 528 L806 528" class="arrow-tertiary"/>
+<rect x="420" y="418" width="360" height="236" rx="12" class="card"/>
+<text x="438" y="446" class="b" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">POST /eventos</tspan></tspan></text>
+<text x="438" y="470" class="mono m" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">X-Signature: sha256=…</tspan></tspan></text>
+<text x="438" y="496" class="mono" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">{</tspan></tspan></text>
+<text x="438" y="518" class="mono" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">  "eventId": "2563…",</tspan></tspan></text>
+<text x="438" y="540" class="mono" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">  "tipoEvento": {"nome": "PEDIDO"},</tspan></tspan></text>
+<rect x="432" y="550" width="336" height="26" rx="6" class="hl"/>
+<text x="438" y="568" class="mono" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">  "payload": "eyJhbGciOiJFQ0RILUVT…"</tspan></tspan></text>
+<text x="438" y="594" class="mono" text-anchor="start"><tspan x="438" dy="0"><tspan class="mono">}</tspan></tspan></text>
+<text x="438" y="624" class="m small" text-anchor="start"><tspan x="438" dy="0">envelope legível · <tspan class="mono">payload</tspan> cifrado</tspan></text>
+<text x="438" y="642" class="m small" text-anchor="start"><tspan x="438" dy="0">(um JWE com o JWS dentro)</tspan></text>
+<text x="600" y="684" class="m small" text-anchor="middle"><tspan x="600" dy="0">Quem lê o corpo no caminho vê o envelope, não o</tspan><tspan x="600" dy="17">que está em payload. Trocar o payload de um evento</tspan><tspan x="600" dy="17">para outro falha nos vínculos.</tspan></text>
+<rect x="810" y="394" width="350" height="420" rx="14" class="card-primary"/><text x="832" y="426" class="h2 primary">Anzol (a sua URL)</text>
+<circle cx="843" cy="445" r="11" class="num"/><text x="843" y="449" text-anchor="middle" class="num-t">1</text>
+<text x="864" y="450" class="b t" text-anchor="start"><tspan x="864" dy="0">Confere o HMAC primeiro</tspan></text>
+<text x="864" y="471" class="m small" text-anchor="start"><tspan x="864" dy="0">Se a URL verifica assinatura: inválida ou</tspan><tspan x="864" dy="19">ausente, nem tenta decifrar.</tspan></text>
+<circle cx="843" cy="516" r="11" class="num"/><text x="843" y="520" text-anchor="middle" class="num-t">2</text>
+<text x="864" y="521" class="b t" text-anchor="start"><tspan x="864" dy="0">Decifra o atributo</tspan></text>
+<text x="864" y="542" class="m small" text-anchor="start"><tspan x="864" dy="0">Com a chave privada de cifra da URL, que</tspan><tspan x="864" dy="19">fica no servidor do Anzol.</tspan></text>
+<circle cx="843" cy="587" r="11" class="num"/><text x="843" y="591" text-anchor="middle" class="num-t">3</text>
+<text x="864" y="592" class="b t" text-anchor="start"><tspan x="864" dy="0">Confere quem assinou</tspan></text>
+<text x="864" y="613" class="m small" text-anchor="start"><tspan x="864" dy="0">A assinatura do remetente, com a chave</tspan><tspan x="864" dy="19">pública colada em Signatários confiáveis.</tspan></text>
+<circle cx="843" cy="658" r="11" class="num"/><text x="843" y="662" text-anchor="middle" class="num-t">4</text>
+<text x="864" y="663" class="b t" text-anchor="start"><tspan x="864" dy="0">Confere os vínculos</tspan></text>
+<text x="864" y="684" class="m small" text-anchor="start"><tspan x="864" dy="0">Id do evento, tipo e serviço assinados lá</tspan><tspan x="864" dy="19">dentro batem com o envelope; a audiência é</tspan><tspan x="864" dy="19">a da URL; o horário é recente.</tspan></text>
+<circle cx="843" cy="748" r="11" class="num"/><text x="843" y="752" text-anchor="middle" class="num-t">5</text>
+<text x="864" y="753" class="b t" text-anchor="start"><tspan x="864" dy="0">Grava o valor decifrado</tspan></text>
+<text x="864" y="774" class="m small" text-anchor="start"><tspan x="864" dy="0">Na mensagem, ao lado do corpo como chegou.</tspan></text>
+<text x="40" y="850" class="h2" text-anchor="start"><tspan x="40" dy="0">O que a mensagem mostra</tspan></text>
+<g><rect x="40" y="864" width="113" height="28" rx="14" class="ok"/><g transform="translate(50, 869)" class="ok-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 9.5 l2.5 2.5 l4.5 -5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="74" y="883" text-anchor="start" class="ok-t">Decifrada</text></g>
+<text x="40" y="912" class="m small" text-anchor="start"><tspan x="40" dy="0">a chave de cifra usada, a chave do remetente</tspan><tspan x="40" dy="17">que assinou e a aba Decifrado com o valor</tspan></text>
+<g><rect x="420" y="864" width="231" height="28" rx="14" class="bad"/><g transform="translate(430, 869)" class="bad-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6 l6 6 M12 6 l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="454" y="883" text-anchor="start" class="bad-t">Decifra inválida · motivo</text></g>
+<text x="420" y="912" class="m small" text-anchor="start"><tspan x="420" dy="0">qual passo falhou, quem corrige e o que fazer</tspan></text>
+<g><rect x="800" y="864" width="246" height="28" rx="14" class="neutro"/><g transform="translate(810, 869)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="834" y="883" text-anchor="start" class="neutro-t">Chave de cifra desconhecida</text></g>
+<text x="800" y="912" class="m small" text-anchor="start"><tspan x="800" dy="0">o remetente cifrou para uma chave que esta URL</tspan><tspan x="800" dy="17">não tem (ou já apagou)</tspan></text>
+<rect x="40" y="962" width="1120" height="104" rx="14" class="card-secondary"/><text x="62" y="994" class="h2 secondary">Quem lê: você, com o segredo de leitura</text>
+<text x="62" y="1020" class="t small" text-anchor="start"><tspan x="62" dy="0">A decifra exige um segredo de leitura (Verificações › Privacidade). Com ele, a tela, a API e a CLI mostram o valor decifrado. O valor fica gravado em</tspan><tspan x="62" dy="18">claro no Redis: o segredo protege quem lê, não o armazenamento. Links só-leitura, eventos ao vivo e o MCP nunca levam o valor.</tspan></text>
+<text x="40" y="1094" class="m small" text-anchor="start"><tspan x="40" dy="0">Para ver tudo isso funcionando sem configurar nada: Verificações › Decifra › Criar uma URL de laboratório, depois Rodar cenários.</tspan></text>
+</svg>

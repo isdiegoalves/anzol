@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-labelledby="titulo descricao" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="titulo">Como a assinatura HMAC funciona no Anzol</title>
+<desc id="descricao">Remetente e Anzol guardam o mesmo segredo. O remetente calcula um HMAC do corpo com o segredo e manda o resultado num cabeçalho; o Anzol refaz a conta sobre o corpo recebido e compara. Iguais, a requisição ganha o selo Assinatura válida. Segredo diferente ou corpo alterado dão Assinatura inválida; cabeçalho ausente dá Sem assinatura.</desc>
+<defs>
+  <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#78818b"/></marker>
+  <marker id="seta-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1b5a68"/></marker>
+  <marker id="seta-tertiary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7a3e62"/></marker>
+</defs>
+<style>
+  text { font-size: 15px; fill: #15191e; }
+  .t { fill: #15191e; } .m { fill: #535c66; } .b { font-weight: 600; }
+  .h1 { font-size: 22px; font-weight: 700; } .h2 { font-size: 17px; font-weight: 700; } .small { font-size: 13.5px; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.5px; }
+  .bg { fill: #fbfcfc; }
+  .card { fill: #ffffff; stroke: #d6dce1; stroke-width: 1.5; }
+  .card-primary { fill: #ffffff; stroke: #1b5a68; stroke-width: 2; }
+  .card-tertiary { fill: #ffffff; stroke: #7a3e62; stroke-width: 2; }
+  .card-secondary { fill: #ffffff; stroke: #4b5694; stroke-width: 2; }
+  .band { fill: #edf0f3; stroke: none; }
+  .primary { fill: #1b5a68; } .tertiary { fill: #7a3e62; } .secondary { fill: #4b5694; }
+  .arrow { fill: none; stroke: #78818b; stroke-width: 2; marker-end: url(#seta); }
+  .arrow-primary { fill: none; stroke: #1b5a68; stroke-width: 2; marker-end: url(#seta-primary); }
+  .arrow-tertiary { fill: none; stroke: #7a3e62; stroke-width: 2; marker-end: url(#seta-tertiary); }
+  .arrow-dashed { fill: none; stroke: #78818b; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#seta); }
+  .num { fill: #dcebef; } .num-t { fill: #0e3c47; font-size: 13px; font-weight: 700; }
+  .neutro { fill: #edf0f3; stroke: #d6dce1; } .neutro-t { fill: #15191e; } .neutro-i { color: #535c66; }
+  .pri { fill: #dcebef; } .pri-t { fill: #0e3c47; font-weight: 600; } .pri-i { color: #0e3c47; }
+  .ter { fill: #f3e5ed; } .ter-t { fill: #4e1f3c; font-weight: 600; } .ter-i { color: #4e1f3c; }
+  .ok { fill: #e7f3eb; } .ok-t { fill: #1b4a2d; font-weight: 600; } .ok-i { color: #2e6a44; }
+  .bad { fill: #fcebe9; } .bad-t { fill: #7c1a12; font-weight: 600; } .bad-i { color: #b42318; }
+  .hl { fill: #dcebef; }
+  .icon-primary { color: #1b5a68; } .icon-tertiary { color: #7a3e62; }
+  .cyl { fill: #edf0f3; stroke: #78818b; stroke-width: 1.5; }
+</style>
+<rect class="bg" width="100%" height="100%" rx="18"/>
+<text x="40" y="46" class="h1" text-anchor="start"><tspan x="40" dy="0">Assinatura HMAC: o remetente e o Anzol têm o mesmo segredo e fazem a mesma conta sobre o corpo</tspan></text>
+<text x="40" y="72" class="m" text-anchor="start"><tspan x="40" dy="0">A assinatura não esconde nada: o corpo viaja legível. Ela diz que a requisição veio de quem tem o segredo e que nada mudou no caminho.</tspan></text>
+<rect x="40" y="100" width="1120" height="66" rx="14" class="band"/>
+<text x="60" y="126" class="t" text-anchor="start"><tspan x="60" dy="0"><tspan class="b">O mesmo segredo nos dois lados</tspan>, combinado antes, fora do webhook</tspan></text>
+<text x="60" y="148" class="m small" text-anchor="start"><tspan x="60" dy="0">Na tela: Verificações › Assinatura › Segredo do HMAC. No provedor: o segredo do webhook (o "signing secret").</tspan></text>
+<g><rect x="840" y="118" width="281" height="28" rx="14" class="neutro"/><g transform="translate(850, 123)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="874" y="137" text-anchor="start" class="neutro-t mono">segredo do HMAC · whsec_…9a1c</text></g>
+<rect x="40" y="196" width="350" height="310" rx="14" class="card-tertiary"/><text x="62" y="228" class="h2 tertiary">Remetente</text><text x="62" y="250" class="m small" text-anchor="start"><tspan x="62" dy="0">O provedor (Stripe, GitHub, Shopify, Slack…)</tspan><tspan x="62" dy="17">ou o seu serviço</tspan></text>
+<g transform="translate(62, 283)" class="icon-tertiary"><path d="M4 2 h7 l4 4 v10 a1 1 0 0 1 -1 1 h-10 a1 1 0 0 1 -1 -1 v-13 a1 1 0 0 1 1 -1 z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 9 h5 M6.5 12.5 h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="88" y="298" class="t" text-anchor="start"><tspan x="88" dy="0">corpo da requisição</tspan></text>
+<text x="88" y="322" class="mono" text-anchor="start"><tspan x="88" dy="0"><tspan class="mono">{"status":"pago"}</tspan></tspan></text>
+<text x="62" y="352" class="h2 m" text-anchor="start"><tspan x="62" dy="0">+</tspan></text><g><rect x="84" y="333" width="157" height="28" rx="14" class="neutro"/><g transform="translate(94, 338)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="118" y="352" text-anchor="start" class="neutro-t">segredo do HMAC</text></g>
+<path d="M84 382 L84 400" class="arrow-tertiary"/><text x="100" y="396" class="m small" text-anchor="start"><tspan x="100" dy="0">faz a conta (um HMAC, ex.: SHA-256)</tspan></text>
+<text x="62" y="422" class="t" text-anchor="start"><tspan x="62" dy="0">assinatura: <tspan class="mono">9b1e…c4</tspan></tspan></text>
+<text x="62" y="450" class="t" text-anchor="start"><tspan x="62" dy="0">vai num cabeçalho:</tspan></text>
+<text x="62" y="472" class="mono" text-anchor="start"><tspan x="62" dy="0"><tspan class="mono">X-Signature: sha256=9b1e…c4</tspan></tspan></text>
+<path d="M392 346 L426 346" class="arrow-tertiary"/>
+<path d="M774 346 L806 346" class="arrow-tertiary"/>
+<rect x="430" y="250" width="340" height="192" rx="12" class="card"/>
+<text x="448" y="278" class="b" text-anchor="start"><tspan x="448" dy="0"><tspan class="mono">POST /pedidos</tspan></tspan></text>
+<text x="448" y="302" class="mono m" text-anchor="start"><tspan x="448" dy="0"><tspan class="mono">Content-Type: application/json</tspan></tspan></text>
+<rect x="442" y="312" width="316" height="26" rx="6" class="hl"/>
+<text x="448" y="330" class="mono" text-anchor="start"><tspan x="448" dy="0"><tspan class="mono">X-Signature: sha256=9b1e…c4</tspan></tspan></text>
+<text x="448" y="366" class="mono" text-anchor="start"><tspan x="448" dy="0"><tspan class="mono">{"status":"pago"}</tspan></tspan></text>
+<text x="448" y="402" class="m small" text-anchor="start"><tspan x="448" dy="0">o corpo vai legível; a assinatura vai</tspan><tspan x="448" dy="17">junto, num cabeçalho</tspan></text>
+<text x="600" y="478" class="m small" text-anchor="middle"><tspan x="600" dy="0">Qualquer um no caminho lê o corpo. Se mudar</tspan><tspan x="600" dy="17">um byte, a assinatura deixa de bater.</tspan></text>
+<rect x="810" y="196" width="350" height="310" rx="14" class="card-primary"/><text x="832" y="228" class="h2 primary">Anzol (a sua URL)</text><text x="832" y="250" class="m small" text-anchor="start"><tspan x="832" dy="0">Verificações › Assinatura, com o mesmo</tspan><tspan x="832" dy="17">provedor e segredo</tspan></text>
+<g transform="translate(832, 283)" class="icon-primary"><path d="M4 2 h7 l4 4 v10 a1 1 0 0 1 -1 1 h-10 a1 1 0 0 1 -1 -1 v-13 a1 1 0 0 1 1 -1 z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 9 h5 M6.5 12.5 h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="858" y="298" class="t" text-anchor="start"><tspan x="858" dy="0">corpo recebido, byte a byte</tspan></text>
+<text x="858" y="322" class="mono" text-anchor="start"><tspan x="858" dy="0"><tspan class="mono">{"status":"pago"}</tspan></tspan></text>
+<text x="832" y="352" class="h2 m" text-anchor="start"><tspan x="832" dy="0">+</tspan></text><g><rect x="854" y="333" width="157" height="28" rx="14" class="neutro"/><g transform="translate(864, 338)" class="neutro-i"><circle cx="6" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9 H19 M16 9 v4 M19 9 v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="888" y="352" text-anchor="start" class="neutro-t">o mesmo segredo</text></g>
+<path d="M854 382 L854 400" class="arrow-primary"/><text x="870" y="396" class="m small" text-anchor="start"><tspan x="870" dy="0">refaz a mesma conta</tspan></text>
+<text x="832" y="422" class="t" text-anchor="start"><tspan x="832" dy="0">assinatura refeita: <tspan class="mono">9b1e…c4</tspan></tspan></text>
+<text x="832" y="450" class="t" text-anchor="start"><tspan x="832" dy="0">compara com a do cabeçalho:</tspan></text>
+<g><rect x="832" y="458" width="172" height="28" rx="14" class="ok"/><g transform="translate(842, 463)" class="ok-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 9.5 l2.5 2.5 l4.5 -5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="866" y="477" text-anchor="start" class="ok-t">Assinatura válida</text></g>
+<text x="40" y="542" class="h2" text-anchor="start"><tspan x="40" dy="0">Quando não bate</tspan></text>
+<rect x="40" y="558" width="350" height="118" rx="12" class="card"/>
+<g><rect x="56" y="572" width="187" height="28" rx="14" class="bad"/><g transform="translate(66, 577)" class="bad-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6 l6 6 M12 6 l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="90" y="591" text-anchor="start" class="bad-t">Assinatura inválida</text></g>
+<text x="56" y="622" class="m small" text-anchor="start"><tspan x="56" dy="0">Segredo diferente: o remetente assina com um</tspan><tspan x="56" dy="17">segredo e você colou outro (ou o antigo,</tspan><tspan x="56" dy="17">depois de uma troca).</tspan></text>
+<rect x="425" y="558" width="350" height="118" rx="12" class="card"/>
+<g><rect x="441" y="572" width="187" height="28" rx="14" class="bad"/><g transform="translate(451, 577)" class="bad-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6 l6 6 M12 6 l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="475" y="591" text-anchor="start" class="bad-t">Assinatura inválida</text></g>
+<text x="441" y="622" class="m small" text-anchor="start"><tspan x="441" dy="0">Corpo alterado no caminho: um byte diferente</tspan><tspan x="441" dy="17">dá outra assinatura. Vale também para o</tspan><tspan x="441" dy="17">corpo reescrito por um proxy.</tspan></text>
+<rect x="810" y="558" width="350" height="118" rx="12" class="card"/>
+<g><rect x="826" y="572" width="150" height="28" rx="14" class="bad"/><g transform="translate(836, 577)" class="bad-i"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6 l6 6 M12 6 l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g><text x="860" y="591" text-anchor="start" class="bad-t">Sem assinatura</text></g>
+<text x="826" y="622" class="m small" text-anchor="start"><tspan x="826" dy="0">O cabeçalho não veio: não há o que comparar.</tspan><tspan x="826" dy="17">O selo diz o nome do cabeçalho que a URL</tspan><tspan x="826" dy="17">esperava.</tspan></text>
+<text x="40" y="702" class="m small" text-anchor="start"><tspan x="40" dy="0">Stripe e Slack somam um horário à conta: horário velho demais (ou do futuro) também dá "inválida". Em cada requisição, o Anzol diz o motivo e quem corrige.</tspan></text>
+</svg>
