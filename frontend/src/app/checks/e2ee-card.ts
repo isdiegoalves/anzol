@@ -1,6 +1,6 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, Injector, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -117,6 +117,7 @@ function bindingIgnoresCase(binding: E2eeBinding | undefined): boolean {
   selector: 'app-e2ee-card',
   imports: [
     Icon,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
     MatButton,
@@ -146,11 +147,13 @@ export class E2eeCard implements ChecksSection {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
   private readonly origin = inject(DOCUMENT).location.origin;
+  private readonly cardFold = inject(CardFold);
 
   readonly id = 'e2ee';
   protected readonly bindingNames = BINDINGS;
   protected readonly keysMax = E2EE_KEYS_MAX;
   protected readonly localDate = localDate;
+  protected readonly folding = computed(() => this.cardFold.fold() !== 'none');
 
   protected readonly saved = signal<E2eePolicy | null>(
     (this.draft.base() ?? this.tokens.token())?.e2ee ?? null,

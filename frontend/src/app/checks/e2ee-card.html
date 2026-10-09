@@ -23,41 +23,14 @@
     }
   </header>
 
-  <div class="steps-panel">
-    <ol class="steps" aria-label="How decryption works" i18n-aria-label>
-      <li>
-        <span class="step-number" aria-hidden="true">1</span>
-        <span>
-          <strong i18n>The sender encrypts to this URL</strong>
-          <span class="hint" i18n
-            >Generate the encryption key below and hand the sender the public JWKS address (or the
-            public key). The private encryption key stays on the Anzol server.</span
-          >
-        </span>
-      </li>
-      <li>
-        <span class="step-number" aria-hidden="true">2</span>
-        <span>
-          <strong i18n>The sender signs what it encrypts</strong>
-          <span class="hint" i18n
-            >Paste the sender's public signing key (an ES256 JWK) in Trusted signers; its private
-            key stays with the sender. Only a JWS from those keys is accepted inside the JWE.</span
-          >
-        </span>
-      </li>
-      <li>
-        <span class="step-number" aria-hidden="true">3</span>
-        <span>
-          <strong i18n>This URL decrypts on arrival</strong>
-          <span class="hint" i18n
-            >If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC
-            blocks decryption (hmac_failed). The decrypted attribute is stored with the request,
-            behind the read secret; shared links and live events never carry it.</span
-          >
-        </span>
-      </li>
-    </ol>
-  </div>
+  @if (folding()) {
+    <details class="steps-panel">
+      <summary i18n>How decryption works</summary>
+      <ng-container [ngTemplateOutlet]="steps" />
+    </details>
+  } @else {
+    <div class="steps-panel"><ng-container [ngTemplateOutlet]="steps" /></div>
+  }
 
   @if (isLab()) {
     <app-e2ee-lab class="lab-run" />
@@ -357,3 +330,39 @@
 
   <app-card-foot name="e2ee" [summary]="pending()" />
 </div>
+
+<ng-template #steps>
+  <ol class="steps" aria-label="How decryption works" i18n-aria-label>
+    <li>
+      <span class="step-number" aria-hidden="true">1</span>
+      <span>
+        <strong i18n>The sender encrypts to this URL</strong>
+        <span class="hint" i18n
+          >Generate the encryption key below and hand the sender the public JWKS address (or the
+          public key). The private encryption key stays on the Anzol server.</span
+        >
+      </span>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">2</span>
+      <span>
+        <strong i18n>The sender signs what it encrypts</strong>
+        <span class="hint" i18n
+          >Paste the sender's public signing key (an ES256 JWK) in Trusted signers; its private key
+          stays with the sender. Only a JWS from those keys is accepted inside the JWE.</span
+        >
+      </span>
+    </li>
+    <li>
+      <span class="step-number" aria-hidden="true">3</span>
+      <span>
+        <strong i18n>This URL decrypts on arrival</strong>
+        <span class="hint" i18n
+          >If the URL verifies an HMAC signature, that comes first: an invalid or missing HMAC
+          blocks decryption (hmac_failed). The decrypted attribute is stored with the request,
+          behind the read secret; shared links and live events never carry it.</span
+        >
+      </span>
+    </li>
+  </ol>
+</ng-template>

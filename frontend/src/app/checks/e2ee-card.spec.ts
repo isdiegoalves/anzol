@@ -160,6 +160,7 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
       'This URL decrypts on arrival',
     ]);
     expect(passos.textContent).toContain('an invalid or missing HMAC blocks decryption');
+    expect(passos.closest('details')).toBeNull();
     expect(passos.compareDocumentPosition(keys()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       keys().compareDocumentPosition(toggle()) & Node.DOCUMENT_POSITION_FOLLOWING,

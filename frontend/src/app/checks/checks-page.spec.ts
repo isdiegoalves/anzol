@@ -562,6 +562,28 @@ describe('Dado a página Checks', () => {
       await expectNoAxeViolations(page);
     });
 
+    it('deve recolher os três passos da decifra num bloco fechado, antes das chaves', async () => {
+      windowClass.set('compact');
+      const harness = await ready(`/${TOKEN_ID}/checks?section=e2ee`);
+
+      const cartao = screen.getByRole('region', { name: 'E2EE decryption' });
+      expect(cartao.classList.contains('closed')).toBe(false);
+      const resumo = within(cartao).getByText('How decryption works', { selector: 'summary' });
+      const bloco = resumo.closest('details') as HTMLDetailsElement;
+      expect(bloco.open).toBe(false);
+      const passos = within(bloco).getByRole('list', {
+        name: 'How decryption works',
+        hidden: true,
+      });
+      expect(within(passos).getAllByRole('listitem', { hidden: true })).toHaveLength(3);
+      const chaves = within(cartao).getByRole('region', { name: 'Encryption keys' });
+      expect(bloco.compareDocumentPosition(chaves) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+      await userEvent.click(resumo);
+      expect(bloco.open).toBe(true);
+      await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);
+    });
+
     it('deve abrir o primeiro cartão Quando a rota não diz a seção', async () => {
       windowClass.set('medium');
       await ready();
@@ -574,6 +596,9 @@ describe('Dado a página Checks', () => {
       await ready();
 
       expect(screen.queryByRole('button', { name: 'Response, 201' })).toBeNull();
+      expect(screen.getByRole('list', { name: 'How decryption works' }).closest('details')).toBe(
+        null,
+      );
     });
   });
 });

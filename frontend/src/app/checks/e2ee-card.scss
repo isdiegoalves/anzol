@@ -82,6 +82,26 @@ textarea.code {
   font: var(--mat-sys-body-small);
 }
 
+// No celular, os passos recolhidos ocupam só a linha do resumo: 44 px de alvo de toque.
+details.steps-panel {
+  padding-block: 0;
+
+  &[open] {
+    padding-bottom: 16px;
+  }
+
+  summary {
+    padding-block: 12px;
+    cursor: pointer;
+    font: var(--mat-sys-title-small);
+
+    &:focus-visible {
+      outline: var(--app-focus-width) solid var(--app-focus-color);
+      outline-offset: var(--app-focus-offset);
+    }
+  }
+}
+
 // As chaves vêm logo abaixo dos passos, que já fecham com uma régua.
 .keys {
   display: flex;
