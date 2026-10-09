@@ -142,6 +142,51 @@ class AiExplainApiTest(
 
     @Test
     @DisplayName(
+        "Dado o explain em pt-BR, quando monta o sistema, então ele traz os termos da tela e manda não citar " +
+            "nomes de campo",
+    )
+    fun explain_emPortugues_deveLevarOGlossarioENaoCitarCampos() {
+        val tokenId = configuredUrl()
+        val message = api.capture(tokenId, "POST", "/pedidos", """{"id": 1}""".toByteArray(), mapOf("Content-Type" to "application/json"))
+        FakeLlm.answer("Casou a regra pedido criado.")
+
+        explain(tokenId, message["uuid"].asString(), """{"lang": "pt-BR"}""")
+
+        val system =
+            FakeLlm.received
+                .single()
+                .messages()[0]["content"]
+                .asString()
+        assertThat(system).contains(
+            "\"decifra\"",
+            "never \"descriptografia\"",
+            "never \"criptografia\"",
+            "\"assinatura do remetente\"",
+            "\"segredo de leitura\"",
+            "\"remetente\" for the sender",
+        )
+        assertThat(system).contains("Never quote the FACTS field names", "attempted: false")
+    }
+
+    @Test
+    @DisplayName("Dado o explain em inglês, quando monta o sistema, então ele não traz os termos em português")
+    fun explain_emIngles_naoDeveLevarOGlossarioPortugues() {
+        val tokenId = configuredUrl()
+        val message = api.capture(tokenId, "POST", "/pedidos", """{"id": 1}""".toByteArray(), mapOf("Content-Type" to "application/json"))
+        FakeLlm.answer("Matched the rule pedido criado.")
+
+        explain(tokenId, message["uuid"].asString(), """{"lang": "en"}""")
+
+        val system =
+            FakeLlm.received
+                .single()
+                .messages()[0]["content"]
+                .asString()
+        assertThat(system).doesNotContain("decifra", "descriptografia").contains("Never quote the FACTS field names")
+    }
+
+    @Test
+    @DisplayName(
         "Dada uma mensagem decifrada, quando explica, então o resultado da decifra vai aos fatos e ao modelo, " +
             "e o valor decifrado não vai",
     )
