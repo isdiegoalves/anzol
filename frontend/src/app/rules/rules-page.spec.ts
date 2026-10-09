@@ -439,6 +439,10 @@ describe('Dado a página Rules', () => {
   });
 
   describe('Dado o editor aberto pela rota', () => {
+    // O formulário vem por import(), que frio, numa máquina ocupada, passa do 1 s das esperas:
+    // carregado antes, os testes medem o editor, não o carregamento do módulo.
+    beforeAll(() => import('./rule-suggest-form'));
+
     it('deve levar a rules/new Quando "New rule" é clicado e a rules/{id} Quando a linha é clicada', async () => {
       await open([rule(1)]);
 

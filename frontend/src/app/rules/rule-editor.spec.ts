@@ -967,6 +967,10 @@ describe('Dado o editor de regra', () => {
   });
 
   describe('Dado o "Describe the rule"', () => {
+    // O formulário vem por import(), que frio, numa máquina ocupada, passa do 1 s das esperas:
+    // carregado antes, os testes medem o editor, não o carregamento do módulo.
+    beforeAll(() => import('./rule-suggest-form'));
+
     const URL_SUGGEST = `/token/${TOKEN_ID}/rules/suggest`;
     const sugerida: Rule = {
       ...rule(9),
