@@ -17,7 +17,7 @@ const SALVA = token({
 });
 
 const provider = (name: string) => screen.getByRole('radio', { name });
-const secret = () => screen.getByLabelText(/^Secret/);
+const secret = () => screen.getByLabelText(/^HMAC secret/);
 const save = saveButton;
 const card = () => screen.getByRole('region', { name: 'Signature verification' });
 const note = () => card().querySelector('app-card-foot .note')?.textContent?.trim();
@@ -49,7 +49,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     await userEvent.click(provider('Generic'));
 
     expect(provider('Generic').getAttribute('aria-checked')).toBe('true');
-    expect(note()).toBe('To save, fill in: Signature header, Secret');
+    expect(note()).toBe('To save, fill in: Signature header, HMAC secret');
     expect(screen.getByRole('textbox', { name: 'Signature header' }).hasAttribute('required')).toBe(
       true,
     );
@@ -59,7 +59,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
 
     await userEvent.click(save());
 
-    expect(attention()).toBe('2 fields need attention: Signature header, Secret');
+    expect(attention()).toBe('2 fields need attention: Signature header, HMAC secret');
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Signature header' }));
     // Quem fala é o alert da barra: o status do cartão se cala para não repetir.
     expect(within(card()).queryByText(/^To save/)).toBeNull();
@@ -91,7 +91,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       container(fixture).querySelector('.anatomy')?.textContent?.replace(/\s+/g, ' ').trim(),
     ).toBe('Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>');
     expect(changesBar()?.textContent).toContain(
-      '4 unsaved changes: Signature provider, Signature header, Secret, Prefix',
+      '4 unsaved changes: Signature provider, Signature header, HMAC secret, Prefix',
     );
     expect(changesBar()?.textContent).not.toContain('segredo');
     await userEvent.click(save());
@@ -167,7 +167,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
     expect(secret().hasAttribute('required')).toBe(true);
     expect(secret().getAttribute('placeholder') ?? '').toBe('');
     await userEvent.click(save());
-    expect(attention()).toBe('1 field needs attention: Secret');
+    expect(attention()).toBe('1 field needs attention: HMAC secret');
     await userEvent.type(secret(), 'shpss_novo');
     await userEvent.click(save());
 

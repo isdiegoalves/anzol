@@ -91,7 +91,7 @@ function verdictOf(state: SignatureState, reason: string | null, formula: string
     return $localize`Signature valid — ${formula}:formula: matched`;
   }
   if (reason === MISMATCH) {
-    return $localize`Signature invalid — ${formula}:formula: did not match (signature mismatch)`;
+    return $localize`Signature invalid — ${formula}:formula: did not match (signature mismatch): different secret on each side, or the body was altered on the way.`;
   }
   if (TIMESTAMP.test(reason)) {
     return $localize`Signature invalid — ${formula}:formula: matched, but ${signatureReasonText(reason)}:reason:`;
@@ -114,15 +114,16 @@ const ABSENT = /^header (\S+) absent$/;
 const TIMESTAMP = /^timestamp outside tolerance \((\d+) s\)$/;
 
 /**
- * O motivo da assinatura como a tela o diz. Em inglês é a frase do servidor, sem mudança; nas
- * outras línguas, a frase traduzida com o original entre parênteses. Motivo desconhecido fica como veio.
+ * O motivo da assinatura como a tela o diz: uma frase na língua da tela, com o original do servidor
+ * entre parênteses (em inglês, o cabeçalho que faltou fica só com a frase do servidor, que já diz
+ * tudo). Motivo desconhecido fica como veio.
  */
 export function signatureReasonText(reason: string): string {
   if (reason === MISMATCH) {
-    return $localize`:signature reason from the server|:signature mismatch`;
+    return $localize`:signature reason from the server|:the HMAC did not match (signature mismatch)`;
   }
   if (reason === MALFORMED) {
-    return $localize`:signature reason from the server|:malformed header`;
+    return $localize`:signature reason from the server|:the header is not in the expected format (malformed header)`;
   }
   const header = ABSENT.exec(reason)?.[1];
   if (header) {
@@ -133,7 +134,7 @@ export function signatureReasonText(reason: string): string {
   }
   const seconds = TIMESTAMP.exec(reason)?.[1];
   if (seconds) {
-    return $localize`:signature reason from the server|:timestamp outside tolerance (${seconds}:seconds: s)`;
+    return $localize`:signature reason from the server|:the timestamp is ${seconds}:seconds: s from now, outside the tolerance (timestamp outside tolerance)`;
   }
   return reason;
 }

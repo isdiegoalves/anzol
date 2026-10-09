@@ -420,7 +420,7 @@ describe('Dado a página Checks', () => {
       await userEvent.click(saveButton());
 
       expect(screen.getByRole('alert').textContent?.trim()).toBe(
-        '2 fields need attention: Signature header, Secret',
+        '2 fields need attention: Signature header, HMAC secret',
       );
       expect(document.activeElement).toBe(box('Signature header'));
       http.expectNone((sent) => sent.method !== 'GET');
@@ -594,7 +594,7 @@ describe('Dado a página Checks', () => {
       try {
         await ready();
         await userEvent.click(screen.getByRole('radio', { name: /^GitHub/ }));
-        await userEvent.type(screen.getByLabelText(/^Secret/), 'whsec_muito_secreto');
+        await userEvent.type(screen.getByLabelText(/^HMAC secret/), 'whsec_muito_secreto');
         await userEvent.click(
           screen.getByRole('switch', { name: 'Require a secret to view this URL' }),
         );

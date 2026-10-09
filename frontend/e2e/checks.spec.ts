@@ -233,10 +233,12 @@ test.describe('Dado o cartão Signature verification', () => {
 
     const save = botaoSalvar(page);
     await expect(save).toBeEnabled();
-    await expect(pendente(assinatura)).toHaveText('To save, fill in: Signature header, Secret');
+    await expect(pendente(assinatura)).toHaveText(
+      'To save, fill in: Signature header, HMAC secret',
+    );
     await save.click();
     await expect(pendenteAlerta(assinatura)).toHaveText(
-      '2 fields need attention: Signature header, Secret',
+      '2 fields need attention: Signature header, HMAC secret',
     );
     await expect(assinatura.getByRole('textbox', { name: 'Signature header' })).toBeFocused();
   });

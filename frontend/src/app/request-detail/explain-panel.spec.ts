@@ -215,7 +215,7 @@ describe('Dado o painel do "Explain"', () => {
       whatTheChecksSay(request),
     );
     expect(whatTheChecksSay(request)).toEqual([
-      'Signature invalid: signature mismatch',
+      'Signature invalid: the HMAC did not match (signature mismatch)',
       'Schema not checked: This URL did not validate a schema',
       'Answered 429 · default response: No rule answered',
       'Answered 429 with the default response.',

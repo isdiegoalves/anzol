@@ -499,7 +499,7 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
             tone: ['bad'],
             name: 'stripe-signature',
             parts: ['t=1', 'v1=ab'],
-            note: '✕ Signature invalid — HMAC-SHA256 of "{t}.{raw body}" did not match (signature mismatch)',
+            note: '✕ Signature invalid — HMAC-SHA256 of "{t}.{raw body}" did not match (signature mismatch): different secret on each side, or the body was altered on the way.',
           },
         ],
       ],

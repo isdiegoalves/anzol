@@ -393,7 +393,7 @@ describe('Dado a página Outbound', () => {
 
       const send = await screen.findByRole('region', { name: 'Send request' });
       expect(send.textContent).toContain(
-        "Adds Stripe-Signature: t=…,v1=… with this URL's secret; the secret never leaves the server.",
+        "Adds Stripe-Signature: t=…,v1=… with this URL's HMAC secret; it never leaves the server.",
       );
     });
 

@@ -175,7 +175,7 @@ function signatureResult(request: CapturedRequest): CheckResult {
     tone: 'bad',
     title: $localize`Signature invalid`,
     detail: stale
-      ? $localize`:signature card, the HMAC matched but the timestamp did not|:${signatureReasonText(reason)}:reason:`
+      ? $localize`the HMAC matched, but ${signatureReasonText(reason)}:reason:`
       : signatureReasonText(reason),
     short: stale ? $localize`Stale timestamp` : invalidShort(reason),
   };

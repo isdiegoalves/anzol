@@ -239,8 +239,6 @@ export const translations: Record<string, string> = {
   '4084604314076436851': 'O cabeçalho em que o provedor manda a assinatura.',
   // The header is required.
   '2781161697243012979': 'O cabeçalho é obrigatório.',
-  // Secret
-  '6147551848935825364': 'Segredo do HMAC',
   // Leave blank to keep the current secret
   '1920165940832819589': 'Deixe em branco para manter o segredo atual',
   // The secret is required, up to 256 characters.
@@ -778,8 +776,8 @@ export const translations: Record<string, string> = {
   '72442362552594738': 'Sem assinatura',
   // No signature
   '8999642303165983441': 'Sem assinatura',
-  // {$reason}
-  '6474081033615562232': 'o HMAC bateu, mas {$reason}',
+  // the HMAC matched, but {$reason}
+  '4596220349035802579': 'o HMAC bateu, mas {$reason}',
   // Signature invalid
   '76465393282813109': 'Assinatura inválida',
   // Stale timestamp
@@ -830,8 +828,8 @@ export const translations: Record<string, string> = {
   '8606252083433065721': 'HMAC-SHA256 do corpo bruto',
   // Signature valid — {$formula} matched
   '7745991131581196387': 'Assinatura válida — o {$formula} bateu',
-  // Signature invalid — {$formula} did not match (signature mismatch)
-  '109936488826144296':
+  // Signature invalid — {$formula} did not match (signature mismatch): different secret on each side, or the body was altered on the way.
+  '5539313766746430660':
     'Assinatura inválida — o {$formula} não bateu (signature mismatch): segredo diferente nos dois lados, ou corpo alterado no caminho.',
   // Signature invalid — {$formula} matched, but {$reason}
   '9200910835768230509': 'Assinatura inválida — o {$formula} bateu, mas {$reason}',
@@ -851,14 +849,14 @@ export const translations: Record<string, string> = {
   '6364275002283565910': 'com chave desconhecida',
   // absent
   '8040894524429193284': 'em claro',
-  // signature mismatch
-  '6658909463270317571': 'o HMAC não bateu (signature mismatch)',
-  // malformed header
-  '5614377539724595183': 'o cabeçalho não está no formato esperado (malformed header)',
+  // the HMAC did not match (signature mismatch)
+  '3849243587699102363': 'o HMAC não bateu (signature mismatch)',
+  // the header is not in the expected format (malformed header)
+  '6586843814105233414': 'o cabeçalho não está no formato esperado (malformed header)',
   // header {$header} absent
   '2590303353863801781': 'faltou o cabeçalho {$header}',
-  // timestamp outside tolerance ({$seconds} s)
-  '8115838192454396102':
+  // the timestamp is {$seconds} s from now, outside the tolerance (timestamp outside tolerance)
+  '8002354466999782538':
     'o timestamp está a {$seconds} s de agora, fora da tolerância (timestamp outside tolerance)',
   // Check that the HMAC secret here is the sender's; if it is, something on the way altered the body.
   '1124365388298629180':
@@ -1907,8 +1905,8 @@ export const translations: Record<string, string> = {
   '4098448859935651316': 'Manter o caminho e a query',
   //  A header name, without spaces or colons.
   '3232184008194083676': ' Um nome de cabeçalho, sem espaços nem dois-pontos. ',
-  // Adds {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} with this URL's secret; the secret never leaves the server.
-  '3905286544474359363':
+  // Adds {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} with this URL's HMAC secret; it never leaves the server.
+  '1475021166229672690':
     'Acrescenta {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} com o segredo do HMAC desta URL; ele nunca sai do servidor.',
   // This URL has no signature configured. Set one up in {$START_LINK}Checks{$CLOSE_LINK} to sign.
   '4053673393621536099':
@@ -1922,8 +1920,8 @@ export const translations: Record<string, string> = {
   '1481637659035866979': 'Requisição a reenviar. Escolher',
   // Request to replay: #{$id}, {$method} {$path}. Change
   '4897714653704161369': 'Requisição a reenviar: #{$id}, {$method} {$path}. Trocar',
-  // Same formula, same secret, over the exact bytes received, compared in constant time. Each request is marked Valid, or Invalid with the reason.
-  '1290468726882053783':
+  // Same formula, same secret, over the exact bytes received, compared in constant time. Each request is marked valid, invalid with the reason, or absent (the header did not come). With E2EE decryption on, an invalid or absent signature also blocks decryption.
+  '8598163494528443031':
     'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos, comparados em tempo constante. Cada requisição fica marcada como Válida, Inválida com o motivo, ou Sem assinatura (faltou o cabeçalho). Com a decifra E2EE ligada, assinatura inválida ou ausente também impede a decifra.',
   // Unsaved: switching from {$INTERPOLATION} (saved) to {$INTERPOLATION_1}. Requests already received keep the result they got on arrival.
   '2256076041282014055':
@@ -1931,8 +1929,8 @@ export const translations: Record<string, string> = {
   // The saved {$INTERPOLATION} secret is not reused for {$INTERPOLATION_1}: paste the {$INTERPOLATION_1} secret.
   '771515961909249733':
     'O segredo salvo do {$INTERPOLATION} não é reaproveitado para o {$INTERPOLATION_1}: cole o segredo do {$INTERPOLATION_1}.',
-  //  Where to find the secret: {$INTERPOLATION} The HMAC key is the UTF-8 bytes of the whole secret.
-  '5672477284479518071':
+  //  Where to find the secret: {$INTERPOLATION} The HMAC uses the UTF-8 bytes of the whole secret.
+  '5138646107384378757':
     ' Onde achar o segredo: {$INTERPOLATION} O HMAC usa os bytes UTF-8 do segredo inteiro. ',
   // Endpoint signing secret (whsec_…)
   '4870652055908188265': 'Signing secret do endpoint (whsec_…)',
@@ -2380,8 +2378,8 @@ export const translations: Record<string, string> = {
   '3016847253917011809': ' Adicionar Content-Type: application/json ',
   // Value from the JSON body. Simple paths only ($.a.b[0]).
   '5309509505649925809': 'Valor do corpo JSON. Só caminhos simples ($.a.b[0]).',
-  // HMAC of a value with the URL's signature secret (sha256, hex by default)
-  '928348241778222891': 'HMAC de um valor com o segredo do HMAC da URL (sha256, hex por padrão)',
+  // HMAC of a value with the URL's HMAC secret (sha256, hex by default)
+  '4411537156399031000': 'HMAC de um valor com o segredo do HMAC da URL (sha256, hex por padrão)',
   // Insert {$helper}
   '5789766334463883938': 'Inserir {$helper}',
   // Use the URL's default content type ({$type})

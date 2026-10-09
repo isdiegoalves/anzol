@@ -103,13 +103,15 @@ test.describe('Dado o cartão Signature verification (CHECKS-07/09/10/13)', () =
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
     await escolherProvedor(assinatura, 'Generic');
 
-    await expect(pendente(assinatura)).toHaveText('To save, fill in: Signature header, Secret');
+    await expect(pendente(assinatura)).toHaveText(
+      'To save, fill in: Signature header, HMAC secret',
+    );
     await botaoSalvar(page).click();
     await expect(pendenteAlerta(assinatura)).toHaveText(
-      '2 fields need attention: Signature header, Secret',
+      '2 fields need attention: Signature header, HMAC secret',
     );
     await assinatura.getByRole('textbox', { name: 'Signature header' }).fill('X-Signature');
-    await expect(pendenteAlerta(assinatura)).toHaveText('1 field needs attention: Secret');
+    await expect(pendenteAlerta(assinatura)).toHaveText('1 field needs attention: HMAC secret');
   });
 });
 

@@ -17,7 +17,12 @@ describe('Dado a assinatura gravada na mensagem', () => {
     [
       'inválida por HMAC diferente (mismatch)',
       { provider: 'github', valid: false, reason: 'signature mismatch' },
-      { state: 'invalid', tone: 'bad', title: 'Signature invalid', detail: 'signature mismatch' },
+      {
+        state: 'invalid',
+        tone: 'bad',
+        title: 'Signature invalid',
+        detail: 'the HMAC did not match (signature mismatch)',
+      },
     ],
     [
       'inválida por timestamp velho (stale)',
@@ -26,7 +31,8 @@ describe('Dado a assinatura gravada na mensagem', () => {
         state: 'stale',
         tone: 'bad',
         title: 'Signature invalid',
-        detail: 'timestamp outside tolerance (412 s)',
+        detail:
+          'the HMAC matched, but the timestamp is 412 s from now, outside the tolerance (timestamp outside tolerance)',
       },
     ],
     [

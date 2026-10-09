@@ -123,8 +123,11 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await expect(anatomy(dialog)).toHaveText(
       'Expected header: X-Hub-Signature-256: sha256=<hex of HMAC-SHA256(body)>',
     );
-    await dialog.getByLabel('Secret', { exact: true }).fill(SECRET);
-    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute('type', 'password');
+    await dialog.getByLabel('HMAC secret', { exact: true }).fill(SECRET);
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).toHaveAttribute(
+      'type',
+      'password',
+    );
     await dialog.getByRole('radiogroup', { name: 'Signature provider' }).scrollIntoViewIfNeeded();
     await screenshot(page, '01-edit-url-github');
     const put = await submitEdit(page, dialog, tokenId);
@@ -146,7 +149,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
       item(page, certa).locator('app-check-chip[data-kind="signature"]'),
     ).toHaveAttribute('title', 'Signature valid: GitHub');
     await expect(abrirItem(page, errada)).toHaveAccessibleName(
-      /\bSignature invalid: signature mismatch\b/,
+      /\bSignature invalid: the HMAC did not match \(signature mismatch\)/,
     );
     await expect(item(page, errada)).toContainText('Mismatch');
     await expect(abrirItem(page, semAssinatura)).toHaveAccessibleName(
@@ -164,10 +167,12 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     ).toHaveCount(1);
     await screenshot(page, '02-selo-valida');
     await openRequest(page, tokenId, errada);
-    await expect(verificacoes(page)).toContainText(/Signature invalid\s*signature mismatch/);
+    await expect(verificacoes(page)).toContainText(
+      /Signature invalid\s*the HMAC did not match \(signature mismatch\)/,
+    );
     await openHeaders(page);
     await expect(headerRow(page, 'x-hub-signature-256')).toContainText(
-      'Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch)',
+      'Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch): different secret on each side, or the body was altered on the way.',
     );
     await screenshot(page, '03-selo-invalida');
     await openRequest(page, tokenId, semAssinatura);
@@ -192,8 +197,8 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     const dialog = await openEditUrl(page, tokenId);
 
     await expect(checkedProvider(dialog)).toHaveAccessibleName(/^GitHub\b/);
-    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveValue('');
-    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute(
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).toHaveValue('');
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).toHaveAttribute(
       'placeholder',
       MASKED,
     );
@@ -246,14 +251,14 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
 
     await escolherProvedor(dialog, 'Generic');
     const header = dialog.getByRole('textbox', { name: 'Signature header' });
-    const secret = dialog.getByLabel('Secret', { exact: true });
+    const secret = dialog.getByLabel('HMAC secret', { exact: true });
     const save = botaoSalvar(page);
     await expect(header).toHaveAttribute('required', '');
     await expect(secret).toHaveAttribute('required', '');
     await expect(dialog.getByRole('textbox', { name: 'Prefix' })).not.toHaveAttribute('required');
     await expect(save).toBeEnabled();
     // S12: o que falta fica à vista desde o início, em `status` (hoje só aparecia depois do clique).
-    await expect(pendente(dialog)).toHaveText('To save, fill in: Signature header, Secret');
+    await expect(pendente(dialog)).toHaveText('To save, fill in: Signature header, HMAC secret');
     await expect(pendenteAlerta(dialog)).toHaveCount(0);
     await header.scrollIntoViewIfNeeded();
     await screenshot(page, '08-generico-obrigatorios');
@@ -262,7 +267,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
 
     // Fidelidade ao C, fase 2 (CHECKS-13): depois do clique, o alerta conta os campos.
     await expect(pendenteAlerta(dialog)).toHaveText(
-      '2 fields need attention: Signature header, Secret',
+      '2 fields need attention: Signature header, HMAC secret',
     );
     await expect(header).toBeFocused();
     await expect(dialog.getByText('The header is required.')).toBeVisible();
@@ -271,7 +276,7 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await screenshot(page, '09-generico-o-que-falta');
 
     await header.fill('X-Signature');
-    await expect(resumo(dialog)).toHaveText('1 field needs attention: Secret');
+    await expect(resumo(dialog)).toHaveText('1 field needs attention: HMAC secret');
     await dialog.getByRole('textbox', { name: 'Prefix' }).fill('sha256=');
     await expect(anatomy(dialog)).toHaveText(
       'Expected header: X-Signature: sha256=<hex of HMAC-SHA256(body)>',
@@ -310,16 +315,16 @@ test.describe('Dado o cartão "Signature verification" de Checks', () => {
     await expect(dialog.getByRole('status').filter({ hasText: 'is not reused' })).toContainText(
       'The saved GitHub secret is not reused for Shopify: paste the Shopify secret.',
     );
-    await expect(dialog.getByLabel('Secret', { exact: true })).toHaveAttribute('required', '');
-    await expect(dialog.getByLabel('Secret', { exact: true })).not.toHaveAttribute(
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).toHaveAttribute('required', '');
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).not.toHaveAttribute(
       'placeholder',
       MASKED,
     );
     await botaoSalvar(page).click();
-    await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: Secret');
-    await expect(dialog.getByLabel('Secret', { exact: true })).toBeFocused();
+    await expect(pendenteAlerta(dialog)).toHaveText('1 field needs attention: HMAC secret');
+    await expect(dialog.getByLabel('HMAC secret', { exact: true })).toBeFocused();
     await screenshot(page, '10-troca-de-provedor');
-    await dialog.getByLabel('Secret', { exact: true }).fill('shpss_novo');
+    await dialog.getByLabel('HMAC secret', { exact: true }).fill('shpss_novo');
     const put = await submitEdit(page, dialog, tokenId);
 
     expect(put['signature']).toEqual({ provider: 'shopify', secret: 'shpss_novo' });
@@ -364,7 +369,9 @@ test.describe('Dado a condição "Signature" no editor de regras', () => {
     expect(certa.status()).toBe(200);
 
     await openRequest(page, tokenId, errada.headers()['x-request-id']);
-    await expect(verificacoes(page)).toContainText(/Signature invalid\s*signature mismatch/);
+    await expect(verificacoes(page)).toContainText(
+      /Signature invalid\s*the HMAC did not match \(signature mismatch\)/,
+    );
     // Fidelidade ao C, fase 2 (INBOX-18): o cartão da regra diz o status.
     await expect(verificacoes(page)).toContainText(/Answered 401 · by rule\s*Recusa assinatura/);
     await screenshot(page, '06-selo-invalida-com-regra-401');

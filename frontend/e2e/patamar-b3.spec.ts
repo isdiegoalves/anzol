@@ -110,7 +110,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     await limparAnuncios(page);
 
     await escolherProvedor(assinatura, 'GitHub');
-    await assinatura.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await assinatura.getByLabel('HMAC secret', { exact: true }).fill(SECRET);
     await abrirCartao(page, 'Response');
     await status(page).fill('429');
     await secao(page, 'Response').getByLabel('Response body').fill('depois');
@@ -168,7 +168,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
 
     await escolherProvedor(assinatura, 'GitHub');
 
-    await expect(pendente(assinatura)).toHaveText('To save, fill in: Secret');
+    await expect(pendente(assinatura)).toHaveText('To save, fill in: HMAC secret');
     await expectSoEstaFala(page, /^1 unsaved change: Signature provider\.?$/);
   });
 
@@ -181,7 +181,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     await seedStorage(page, {});
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
     await escolherProvedor(assinatura, 'GitHub');
-    await assinatura.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await assinatura.getByLabel('HMAC secret', { exact: true }).fill(SECRET);
     await abrirCartao(page, 'Privacy');
     const privacidade = secao(page, 'Privacy');
     await privacidade.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
@@ -193,7 +193,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     await botaoSalvar(page).click();
 
     await expect(barraDeSalvar(page)).toBeHidden();
-    await expect(assinatura.getByLabel('Secret', { exact: true })).toHaveAccessibleDescription(
+    await expect(assinatura.getByLabel('HMAC secret', { exact: true })).toHaveAccessibleDescription(
       'Leave blank to keep the current secret',
     );
     await expectSoEstaFala(page, /^Saved\. 4 changes\.$/);
@@ -208,7 +208,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     await seedStorage(page, {});
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
     await escolherProvedor(assinatura, 'GitHub');
-    await assinatura.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await assinatura.getByLabel('HMAC secret', { exact: true }).fill(SECRET);
     await status(page).fill('429');
 
     const rever = barraDeSalvar(page).getByRole('button', { name: 'Review changes' });
@@ -218,7 +218,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     const lista = page.getByRole('list', { name: 'Changes to save' });
     await expect(lista.getByRole('listitem')).toHaveCount(3);
     await expect(lista).toContainText('Default status code: 200 → 429');
-    await expect(lista).toContainText('Secret: set (not shown)');
+    await expect(lista).toContainText('HMAC secret: set (not shown)');
     await expect(lista).not.toContainText(SECRET);
   });
 
@@ -240,7 +240,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
     await botaoSalvar(page).click();
 
     await expect(barraDeSalvar(page).getByRole('alert')).toHaveText(
-      '2 fields need attention: Signature header, Secret',
+      '2 fields need attention: Signature header, HMAC secret',
     );
     const cabecalho = assinatura.getByRole('textbox', { name: 'Signature header' });
     await expect(cabecalho).toBeFocused();
@@ -316,7 +316,7 @@ test.describe('Dado uma alteração pendente em Verificações', () => {
       .or(assinatura.getByRole('button', { name: 'Send a signed test' }));
     await expect(teste).not.toHaveAttribute('aria-disabled', 'true');
 
-    await assinatura.getByLabel('Secret', { exact: true }).fill(SEGREDO_NOVO);
+    await assinatura.getByLabel('HMAC secret', { exact: true }).fill(SEGREDO_NOVO);
 
     await expect(teste).toHaveAttribute('aria-disabled', 'true');
     await expect(teste).toHaveAccessibleDescription(
@@ -393,7 +393,7 @@ test.describe('Dado uma alteração pendente e uma saída de Verificações (gua
     await expect(pergunta(page)).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks`));
     await expect(barraDeSalvar(page).getByRole('alert')).toContainText(
-      '2 fields need attention: Signature header, Secret',
+      '2 fields need attention: Signature header, HMAC secret',
     );
     await expect(assinatura.getByRole('textbox', { name: 'Signature header' })).toBeFocused();
   });
@@ -467,7 +467,7 @@ test.describe('Dado o rascunho de Verificações guardado na aba', () => {
     page.on('dialog', (janela) => void janela.accept());
     const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
     await escolherProvedor(assinatura, 'GitHub');
-    await assinatura.getByLabel('Secret', { exact: true }).fill(SECRET);
+    await assinatura.getByLabel('HMAC secret', { exact: true }).fill(SECRET);
     const privacidade = secao(page, 'Privacy');
     await abrirCartao(page, 'Privacy');
     await privacidade.getByRole('switch', { name: 'Require a secret to view this URL' }).click();
@@ -489,7 +489,7 @@ test.describe('Dado o rascunho de Verificações guardado na aba', () => {
 
     await expect(status(page)).toHaveValue('429');
     await expect(barraDeSalvar(page)).toBeVisible();
-    await expect(assinatura.getByLabel('Secret', { exact: true })).toHaveValue('');
+    await expect(assinatura.getByLabel('HMAC secret', { exact: true })).toHaveValue('');
   });
 });
 

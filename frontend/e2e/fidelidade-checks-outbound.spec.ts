@@ -17,7 +17,7 @@ import { seedStorage } from './support/storage';
 // - CHECKS-11: o exemplo do header é o elemento com o nome "Example header", com cada parte num elemento próprio
 //   (no Stripe, `t=…` e `v1=…`); a linha "Expected header: …" continua;
 // - CHECKS-12 (trava 7): o formulário do provedor abre com o heading "{Provedor} settings" e "* required";
-//   "Signature header" e "Secret" lado a lado; a ajuda da tolerância é "1 to 86400. Older or future timestamps are
+//   "Signature header" e "HMAC secret" lado a lado; a ajuda da tolerância é "1 to 86400. Older or future timestamps are
 //   rejected (replay protection).";
 // - CHECKS-15: o editor do schema tem altura limitada (rola por dentro) e o cabeçalho diz "… of 64 KB · valid" (ou
 //   "· invalid");
@@ -149,7 +149,7 @@ test.describe('Dado o cartão Signature com um provedor salvo (CHECKS-06, 11, 12
     const header = (await assinatura
       .getByRole('textbox', { name: 'Signature header' })
       .boundingBox())!;
-    const segredo = (await assinatura.getByLabel('Secret', { exact: true }).boundingBox())!;
+    const segredo = (await assinatura.getByLabel('HMAC secret', { exact: true }).boundingBox())!;
     expect(Math.abs(header.y - segredo.y), 'Signature header e Secret lado a lado').toBeLessThan(8);
   });
 });

@@ -105,7 +105,7 @@
     <span class="hint">
       @if (signedHeader; as header) {
         <ng-container i18n
-          >Adds <code>{{ header }}</code> with this URL's secret; the secret never leaves the
+          >Adds <code>{{ header }}</code> with this URL's HMAC secret; it never leaves the
           server.</ng-container
         >
       } @else {

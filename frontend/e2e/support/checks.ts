@@ -9,7 +9,7 @@ import { expect } from './fixtures';
  * `#/{token}/checks`, com um cartão (`region`) por assunto e um Save com nome único em cada um (§1, "Nomes
  * acessíveis"; §3 item 4). O que a §1 não fixa está marcado SUPOSIÇÃO e é o contrato que a E5 segue.
  *
- * - SUPOSIÇÃO: os campos de hoje mantêm os nomes ("Secret", "Signature header", "Prefix", "JSON Schema",
+ * - SUPOSIÇÃO: os campos de hoje mantêm os nomes ("HMAC secret", "Signature header", "Prefix", "JSON Schema",
  *   "Default status code", "Content Type", "Timeout before response", "Response body", "Retry-After", "Secret to
  *   view", "Confirm secret") e as mensagens de erro de hoje.
  * - SUPOSIÇÃO: salvar um cartão responde com o snackbar "URL updated!" de hoje.

@@ -449,7 +449,7 @@ describe('Dado a lista lateral de mensagens', () => {
       { provider: 'stripe', valid: false, reason: 'signature mismatch' },
       'bad',
       'Mismatch',
-      'Signature invalid: signature mismatch',
+      'Signature invalid: the HMAC did not match (signature mismatch)',
     ],
     [
       'ausente',
@@ -847,9 +847,11 @@ describe('Dado a lista lateral de mensagens', () => {
     const seal = items()[0].querySelector(
       '.select .meta .seals app-check-chip[data-kind="signature"]',
     );
-    expect(seal?.getAttribute('title')).toBe('Signature invalid: signature mismatch');
+    expect(seal?.getAttribute('title')).toBe(
+      'Signature invalid: the HMAC did not match (signature mismatch)',
+    );
     expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
-      'Signature invalid: signature mismatch',
+      'Signature invalid: the HMAC did not match (signature mismatch)',
     );
   });
 });

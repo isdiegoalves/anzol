@@ -80,7 +80,7 @@ describe('Dado o selo de verificação (app-check-chip)', () => {
     const { container } = await render(CheckChip, { inputs: { result: invalid, size: 'card' } });
 
     expect(screen.getByText('Signature invalid')).toBeTruthy();
-    expect(screen.getByText('signature mismatch')).toBeTruthy();
+    expect(screen.getByText('the HMAC did not match (signature mismatch)')).toBeTruthy();
     expect((container as HTMLElement).dataset['state']).toBe('invalid');
     await expectNoAxeViolations(container);
   });

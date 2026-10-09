@@ -52,7 +52,9 @@
           <strong i18n>This URL checks it on arrival</strong>
           <span class="hint" i18n
             >Same formula, same secret, over the exact bytes received, compared in constant time.
-            Each request is marked Valid, or Invalid with the reason.</span
+            Each request is marked valid, invalid with the reason, or absent (the header did not
+            come). With E2EE decryption on, an invalid or absent signature also blocks
+            decryption.</span
           >
         </span>
       </li>
@@ -157,7 +159,7 @@
         <p class="anatomy" [textContent]="anatomyText()"></p>
         @if (guide) {
           <p i18n class="hint">
-            Where to find the secret: {{ guide.where }} The HMAC key is the UTF-8 bytes of the whole
+            Where to find the secret: {{ guide.where }} The HMAC uses the UTF-8 bytes of the whole
             secret.
           </p>
         }
@@ -183,7 +185,7 @@
             subscriptSizing="dynamic"
             [floatLabel]="keeps ? 'always' : 'auto'"
           >
-            <mat-label i18n="HMAC secret field|">Secret</mat-label>
+            <mat-label i18n>HMAC secret</mat-label>
             <input
               matInput
               type="password"

@@ -115,14 +115,14 @@ describe('Dado o motivo da assinatura que falhou, com a tela em pt-BR', () => {
 });
 
 describe('Dado a assinatura em inglês', () => {
-  it('deve manter a linha do cabeçalho como era, com o motivo do servidor', () => {
+  it('deve dizer na linha do cabeçalho as duas causas, com o motivo do servidor', () => {
     const request = webhookRequest(1, {
       headers: { 'x-hub-signature-256': ['v'] },
       signature: github('signature mismatch'),
     });
 
     expect(signatureCheck(request, null)?.rows.get('x-hub-signature-256')).toBe(
-      '✕ Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch)',
+      '✕ Signature invalid — HMAC-SHA256 of the raw body did not match (signature mismatch): different secret on each side, or the body was altered on the way.',
     );
   });
 

@@ -602,5 +602,5 @@ function nameOf<K extends string>(
 
 /** O nome do campo do segredo do HMAC, na barra de alterações e nas pendências. */
 function hmacSecretLabel(): string {
-  return $localize`:HMAC secret field|:Secret`;
+  return $localize`HMAC secret`;
 }

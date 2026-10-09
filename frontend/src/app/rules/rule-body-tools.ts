@@ -42,7 +42,7 @@ function templateHelpers(): TemplateHelper[] {
     {
       name: 'hmac',
       snippet: '{{hmac request.body}}',
-      description: $localize`HMAC of a value with the URL's signature secret (sha256, hex by default)`,
+      description: $localize`HMAC of a value with the URL's HMAC secret (sha256, hex by default)`,
     },
     { name: 'now', snippet: '{{now}}', description: $localize`Current time, ISO-8601 UTC` },
     {
