@@ -770,14 +770,37 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
     });
 
+    it('deve abrir a aba Decrypted Quando o cartão da decifra válida é clicado', async () => {
+      const { container } = await show(
+        webhookRequest(1, { decryption: decryption(), decrypted: { cpf: '123' } }),
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: /^Decrypted/ }));
+
+      expect(screen.getByRole('tab', { selected: true }).textContent?.trim()).toBe('Decrypted');
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve dizer no link só-leitura que o valor decifrado não está nele', async () => {
+      const shared: CapturedRequest = webhookRequest(1, { decryption: decryption() });
+      delete shared.token_id;
+      const { container } = await show(shared, null, true);
+
+      expect(lines()).toBe(
+        'Decrypted | key enc-1 · signed by sig-1 | The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret. | jti: n-42',
+      );
+      expect(screen.queryAllByRole('button')).toEqual([]);
+      await expectNoAxeViolations(container);
+    });
+
     // A faixa do celular monta o nome no TS; o do template só se traduz na primeira criação.
-    it('deve traduzir a aba para "Aberto" Quando a tela está em pt-BR', async () => {
+    it('deve traduzir a aba para "Decifrado", como o selo, Quando a tela está em pt-BR', async () => {
       windowClass.set('compact');
       loadTranslations(translations);
       try {
         await show(webhookRequest(1, { decryption: decryption(), decrypted: { a: 1 } }));
 
-        expect(screen.getByRole('tab', { name: 'Aberto' })).toBeTruthy();
+        expect(screen.getByRole('tab', { name: 'Decifrado' })).toBeTruthy();
       } finally {
         clearTranslations();
       }

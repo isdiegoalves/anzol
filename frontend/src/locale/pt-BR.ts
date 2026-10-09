@@ -110,7 +110,7 @@ export const translations: Record<string, string> = {
   '1638842964716429031': ' Salvar remove o segredo: quem tiver a URL vai ver as requisições dela. ',
   //  Decrypted requests keep the opened value. While any is stored, the server refuses to remove the secret, even with decryption off. Delete them first, or keep the secret.
   '992297825947199890':
-    ' Requisições decifradas guardam o valor aberto. Enquanto houver alguma gravada, o servidor recusa remover o segredo, mesmo com a decifra desligada. Apague-as antes, ou mantenha o segredo. ',
+    ' Requisições decifradas guardam o valor decifrado. Enquanto houver alguma gravada, o servidor recusa remover o segredo, mesmo com a decifra desligada. Apague-as antes, ou mantenha o segredo. ',
   // The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.
   '6213658804702770639':
     'O servidor recusou: há requisições decifradas nesta URL. Apague-as antes de remover o segredo, ou mantenha o segredo.',
@@ -977,6 +977,9 @@ export const translations: Record<string, string> = {
     'Corpos application/x-www-form-urlencoded e multipart/form-data aparecem aqui.',
   // Conditions of {$rule} that failed
   '4108680511513605373': 'Condições de {$rule} que falharam',
+  // The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret.
+  '4915544080899440645':
+    'O valor decifrado não está neste link. Para vê-lo, abra a URL no Anzol com o segredo de leitura.',
   // How {$provider} signatures are checked
   '737535544950548874': 'Como as assinaturas da {$provider} são verificadas',
   // Expected header missing
@@ -1590,6 +1593,9 @@ export const translations: Record<string, string> = {
   //  The request body is not masked: the link shows it exactly as received.
   '4776315704249375444':
     ' O corpo da requisição não é mascarado: o link o mostra exatamente como chegou. ',
+  //  The decrypted attribute is not in the link: whoever opens it sees the body as it arrived (with the JWE) and the decryption result, without the value.
+  '8036630662021816851':
+    ' O atributo decifrado não vai no link: quem o abrir vê o corpo como chegou (com o JWE) e o resultado da decifra, sem o valor. ',
   // Read-only link
   '8094561349966607605': 'Link só-leitura',
   // Expires {$INTERPOLATION}
@@ -3701,15 +3707,15 @@ export const translations: Record<string, string> = {
   '73979960734847259': 'Apagar chave',
   //  One attribute of the JSON body arrives as a JWE (ECDH-ES, A256GCM) to a key of this URL, carrying a JWS (ES256) from a trusted signer. Each request is marked Decrypted, Invalid with the reason, Unknown key or Not encrypted; the opened value shows in the request, never in shared links or live events.
   '2745673060285287630':
-    ' Um atributo do corpo JSON chega como JWE (ECDH-ES, A256GCM) para uma chave desta URL, levando um JWS (ES256) de um signatário confiável. Cada requisição fica marcada como Decifrada, Inválida com o motivo, Chave desconhecida ou Não cifrada; o valor aberto aparece na requisição, nunca em links compartilhados nem em eventos ao vivo. ',
+    ' Um atributo do corpo JSON chega como JWE (ECDH-ES, A256GCM) para uma chave desta URL, levando um JWS (ES256) de um signatário confiável. Cada requisição fica marcada como Decifrada, Inválida com o motivo, Chave desconhecida ou Não cifrada; o valor decifrado aparece na requisição, nunca em links compartilhados nem em eventos ao vivo. ',
   // Decrypt an attribute of each request
   '8050605225511000111': 'Decifrar um atributo de cada requisição',
   // This URL has no read secret, and the server refuses decryption without one: the opened value must stay behind it. Turn on {$START_LINK}Privacy{$CLOSE_LINK} (it can go in the same save).
   '8123080752418416800':
-    'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor aberto tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
+    'Esta URL não tem segredo de leitura, e o servidor recusa a decifra sem ele: o valor decifrado tem de ficar atrás dele. Ligue {$START_LINK}Privacidade{$CLOSE_LINK} (pode ir no mesmo salvar).',
   //  Saving turns decryption off. Requests already received keep the result they got on arrival, and the decrypted ones keep the opened value: the read secret stays required until they are deleted.
   '1526497609005154437':
-    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor aberto: o segredo de leitura continua obrigatório até elas serem apagadas. ',
+    ' Salvar desliga a decifra. As requisições já recebidas mantêm o resultado que tiveram na chegada, e as decifradas guardam o valor decifrado: o segredo de leitura continua obrigatório até elas serem apagadas. ',
   // Encrypted attribute
   '6159255639867175033': 'Atributo cifrado',
   // $.payload
@@ -4097,10 +4103,10 @@ export const translations: Record<string, string> = {
   // decryption: expected {$expected}, got {$got}
   '5656599743816655939': 'decifra: esperava {$expected}, veio {$got}',
   // Decrypted
-  '3636098527993575441': 'Aberto',
+  '3636098527993575441': 'Decifrado',
   //  The attribute as decrypted on arrival (the JWS data claim). The body keeps the JWE as it came.
   '5150909776707982349':
-    ' O atributo como foi decifrado na chegada (o claim data do JWS). O corpo mantém o JWE como chegou. ',
+    ' O atributo como o servidor o decifrou na chegada (o claim data do JWS), gravado nesta mensagem. O corpo mantém o JWE como chegou. ',
   // Decrypted attribute
   '6641968519268196135': 'Atributo decifrado',
   // Key: {$kid}

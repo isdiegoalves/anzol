@@ -20,6 +20,12 @@
     <p i18n class="warning" role="note">
       The request body is not masked: the link shows it exactly as received.
     </p>
+    @if (data.request.decryption) {
+      <p i18n class="hint decrypted">
+        The decrypted attribute is not in the link: whoever opens it sees the body as it arrived
+        (with the JWE) and the decryption result, without the value.
+      </p>
+    }
   </form>
 
   @if (created(); as link) {

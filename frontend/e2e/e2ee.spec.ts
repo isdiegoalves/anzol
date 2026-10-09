@@ -258,7 +258,7 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     await decifra.getByRole('button', { name: 'Desligar' }).click();
     await privacidade.getByRole('switch', { name: 'Exigir um segredo para ver esta URL' }).click();
     await expect(
-      privacidade.getByText(/Requisições decifradas guardam o valor aberto/),
+      privacidade.getByText(/Requisições decifradas guardam o valor decifrado/),
     ).toBeVisible();
     const put = page.waitForResponse(
       (resposta) =>

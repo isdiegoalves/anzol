@@ -51,13 +51,13 @@ describe('Dado o diálogo "Share read-only link…"', () => {
     await fixture.whenStable();
   };
 
-  const open = async (active: ShareLink[] = []) => {
+  const open = async (active: ShareLink[] = [], request = REQUEST) => {
     snack = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { request: REQUEST } },
+        { provide: MAT_DIALOG_DATA, useValue: { request } },
         { provide: MatDialogRef, useValue: { close: vi.fn() } },
         { provide: MatSnackBar, useValue: { open: snack } },
       ],
@@ -92,6 +92,26 @@ describe('Dado o diálogo "Share read-only link…"', () => {
       'The request body is not masked: the link shows it exactly as received.',
     );
     expect(activeLinks()).toEqual(['No active links for this URL.']);
+    expect(element().querySelector('.decrypted')).toBeNull();
+  });
+
+  it('deve dizer que o atributo decifrado não vai no link Quando a requisição foi decifrada', async () => {
+    const decifrada = webhookRequest(1, {
+      decryption: {
+        state: 'valid',
+        kid: 'enc-1',
+        signature_kid: 'sig-1',
+        reason: null,
+        jti: 'n-1',
+        duplicate_of: null,
+      },
+      decrypted: { cpf: '123' },
+    });
+    await open([], decifrada);
+
+    expect(element().querySelector('.decrypted')?.textContent?.trim()).toBe(
+      'The decrypted attribute is not in the link: whoever opens it sees the body as it arrived (with the JWE) and the decryption result, without the value.',
+    );
   });
 
   it('deve criar o link com os padrões e mostrá-lo para copiar Quando "Create link" é clicado', async () => {

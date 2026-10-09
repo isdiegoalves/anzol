@@ -136,6 +136,11 @@ export class RequestView {
     const valid = decryption.state === 'valid';
     return [
       ...decryptionAdvice(decryption, this.token()),
+      ...(valid && this.readonly()
+        ? [
+            $localize`The decrypted value is not in this link. To see it, open the URL in Anzol with the read secret.`,
+          ]
+        : []),
       ...(!valid && decryption.kid ? [$localize`Key: ${decryption.kid}:kid:`] : []),
       ...(!valid && decryption.signature_kid
         ? [$localize`Signed by: ${decryption.signature_kid}:signer:`]
@@ -426,25 +431,37 @@ export class RequestView {
   protected showCheck(check: CheckResult): void {
     const tab = this.tabOf(check);
     if (tab) {
-      this.tab.set(TABS.indexOf(tab));
+      // A aba do atributo decifrado vem depois das quatro, só quando ele veio.
+      this.tab.set(tab === 'decrypted' ? TABS.length : TABS.indexOf(tab));
     }
   }
 
   /**
-   * A aba onde está o que o cartão conferiu: a assinatura nos Headers, o schema no Body; a decifra
-   * que o HMAC barrou leva à assinatura.
+   * A aba onde está o que o cartão conferiu: a assinatura nos Headers, o schema no Body, a decifra
+   * válida no atributo decifrado; a decifra que o HMAC barrou leva à assinatura. A reentrega do
+   * mesmo `jti` fica sem: o cartão dela tem o link para a primeira.
    */
-  protected tabOf(check: CheckResult): Tab | null {
+  protected tabOf(check: CheckResult): Tab | 'decrypted' | null {
     switch (check.kind) {
       case 'signature':
         return 'headers';
       case 'schema':
         return 'body';
       case 'decryption':
-        return this.request().decryption?.reason === 'hmac_failed' ? 'headers' : null;
+        return this.decryptionTab();
       default:
         return null;
     }
+  }
+
+  private decryptionTab(): Tab | 'decrypted' | null {
+    const decryption = this.request().decryption;
+    if (decryption?.reason === 'hmac_failed') {
+      return 'headers';
+    }
+    return decryption?.state === 'valid' && this.decryptedText() !== null && !this.firstDelivery()
+      ? 'decrypted'
+      : null;
   }
 
   protected toggleWhy(): void {
