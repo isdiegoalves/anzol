@@ -69,9 +69,14 @@ function mascarasDaLista(page: Page): Locator[] {
 /** CSS só das fotos (a altura fixa dos metadados no compacto); ver o arquivo. */
 const ESTILO_DAS_FOTOS = path.join(__dirname, 'support', 'visual-fotos.css');
 
-async function fotografar(page: Page, nome: string, mascaras: Locator[] = []): Promise<void> {
+async function fotografar(
+  page: Page,
+  nome: string,
+  mascaras: Locator[] = [],
+  alvo?: Locator,
+): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
-  await expect(page).toHaveScreenshot(`${nome}.png`, {
+  await expect(alvo ?? page).toHaveScreenshot(`${nome}.png`, {
     mask: [...mascarasComuns(page), ...mascaras],
     maxDiffPixelRatio: 0.002,
     stylePath: ESTILO_DAS_FOTOS,
@@ -83,6 +88,63 @@ interface Tela {
   /** Só nestas classes (padrão: todas). */
   classes?: readonly (typeof CLASSES)[number]['nome'][];
   abrir(page: Page, tokens: TokenTracker): Promise<Locator[]>;
+  /** Só este elemento, inteiro, em vez da tela à vista. */
+  alvo?(page: Page): Locator;
+}
+
+/** A decifra exige segredo de leitura: a URL nasce protegida e o navegador a destranca. */
+const SEGREDO_DE_LEITURA = 'segredo-visual-decifra';
+/** Chave pública fixa de quem assina: gerada a cada execução, ela mudaria o texto de "Trusted signers". */
+const SIGNATARIO = {
+  kty: 'EC',
+  crv: 'P-256',
+  kid: 'sig-visual',
+  x: 'A2r-0Le5cRJDUtmbpiGt62kFMAjipu5JRQ1hMw8RZwo',
+  y: 'd_FwMCLxN-MDLKNs1xMTnApN__m7MLKJT3vf3DzXWHk',
+};
+
+/**
+ * Verificações aberta no cartão da decifra. A janela cresce na altura (a classe é a da largura) para o cartão
+ * caber inteiro: a página rola dentro do `main`, e a foto de um elemento não passa da área visível dele.
+ */
+async function abrirDecifra(page: Page, tokens: TokenTracker, ligada: boolean): Promise<Locator[]> {
+  const tokenId = await tokens.create({
+    read_secret: SEGREDO_DE_LEITURA,
+    ...(ligada && {
+      e2ee: {
+        path: '$.payload',
+        required: true,
+        audience: 'anzol-lab',
+        bindings: { jti: '$.eventId', evt: '$.tipoEvento.nome', app: '$.servico.nome' },
+        max_age_seconds: 43200,
+        trusted_signers: [SIGNATARIO],
+      },
+    }),
+  });
+  const segredo = { 'X-Anzol-Secret': SEGREDO_DE_LEITURA };
+  if (ligada) {
+    const chave = await page.request.post(`/token/${tokenId}/keys`, {
+      headers: segredo,
+      data: { kid: 'enc-visual' },
+    });
+    expect(chave.status()).toBe(201);
+  }
+  await seedStorage(page, {});
+  const destrancou = await page.request.post(`/token/${tokenId}/unlock`, {
+    data: { secret: SEGREDO_DE_LEITURA },
+  });
+  expect(destrancou.ok()).toBe(true);
+  await page.setViewportSize({ width: page.viewportSize()?.width ?? 1400, height: 4000 });
+  await page.goto(`/#/${tokenId}/checks?section=e2ee`);
+  const cartao = page.getByRole('region', { name: 'E2EE decryption' });
+  await expect(cartao.locator('.card-head')).toContainText(ligada ? 'On · $.payload' : 'Off');
+  if (ligada) {
+    await expect(cartao.getByRole('region', { name: 'Encryption keys' })).toContainText(
+      'enc-visual',
+    );
+  }
+  await cartao.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  return [];
 }
 
 const TELAS: Tela[] = [
@@ -120,6 +182,16 @@ const TELAS: Tela[] = [
       await expect(page.getByRole('region', { name: 'Health' })).toBeVisible();
       return [];
     },
+  },
+  {
+    nome: 'checks-decifra-desligada',
+    abrir: (page, tokens) => abrirDecifra(page, tokens, false),
+    alvo: (page) => page.getByRole('region', { name: 'E2EE decryption' }),
+  },
+  {
+    nome: 'checks-decifra-ligada',
+    abrir: (page, tokens) => abrirDecifra(page, tokens, true),
+    alvo: (page) => page.getByRole('region', { name: 'E2EE decryption' }),
   },
   {
     nome: 'rules-editor',
@@ -298,7 +370,12 @@ for (const colorScheme of TEMAS) {
         test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens }) => {
           await page.clock.setFixedTime(relogio());
           const mascaras = await tela.abrir(page, tokens);
-          await fotografar(page, `${tela.nome}-${colorScheme}-${classe.nome}`, mascaras);
+          await fotografar(
+            page,
+            `${tela.nome}-${colorScheme}-${classe.nome}`,
+            mascaras,
+            tela.alvo?.(page),
+          );
         });
       }
     });

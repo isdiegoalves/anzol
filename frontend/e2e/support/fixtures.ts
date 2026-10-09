@@ -11,6 +11,7 @@ export interface TokenFields {
   signature?: Record<string, unknown> | null;
   schema?: Record<string, unknown> | null;
   read_secret?: string | null;
+  e2ee?: Record<string, unknown> | null;
 }
 
 export interface Webhook {
