@@ -91,8 +91,9 @@ test.describe('Dado um resultado do teste contra o histórico (WM-22; CA-7)', ()
     await regra.getByRole('button', { name: 'Add query condition' }).click();
     const consulta = regra.getByRole('textbox', { name: 'Query 1 name' });
     await consulta.click();
-    await consulta.pressSequentially('tipo', { delay: 80 });
-    const fimDaDigitacao = Date.now();
+    await consulta.pressSequentially('tip', { delay: 80 });
+    const antesDaUltimaTecla = Date.now();
+    await consulta.press('o');
     // Dentro da janela de 1 s: o resultado ainda é o antigo, marcado como desatualizado.
     await parte(regra, 'Test');
     await expect(resultado(regra).getByText('Out of date', { exact: true })).toBeVisible();
@@ -100,7 +101,7 @@ test.describe('Dado um resultado do teste contra o histórico (WM-22; CA-7)', ()
     await expect.poll(() => pedidos.length, { timeout: 5_000 }).toBe(1);
     const [rerun] = pedidos;
     expect((await rerun.response())?.status()).toBe(200);
-    expect(rerun.timing().startTime - fimDaDigitacao).toBeGreaterThanOrEqual(900);
+    expect(rerun.timing().startTime - antesDaUltimaTecla).toBeGreaterThanOrEqual(1_000);
     // Com a query "tipo" exigida, nenhuma das duas casa mais.
     await expect(resumo(regra)).toHaveText(/^0 of the 2 most recent requests would match\.?$/);
     await expect(resultado(regra).getByText('Out of date', { exact: true })).toHaveCount(0);
