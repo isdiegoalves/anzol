@@ -215,6 +215,26 @@ describe('Dado a tela principal', () => {
     );
   });
 
+  it('deve abrir filtrada pelo motivo da decifra que o link de Métricas trouxe', async () => {
+    await harness.navigateByUrl(`/${TOKEN_ID}?decryption=invalid&decryptionReason=downgrade`);
+    await flush(`/token/${TOKEN_ID}`, token());
+
+    const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
+    expect(search.request.body).toMatchObject({
+      match: { decryption: 'invalid' },
+      decryption_reason: 'downgrade',
+    });
+    search.flush(requestPage([R1], { total: 1 }));
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+
+    await vi.waitFor(() =>
+      expect(TestBed.inject(RequestStore).filter()).toMatchObject({
+        decryption: 'invalid',
+        decryptionReason: 'downgrade',
+      }),
+    );
+  });
+
   it('deve contar sobre as mesmas mais novas que o link de Métricas trouxe (?window=)', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid&window=1`);
     await flush(`/token/${TOKEN_ID}`, token());

@@ -157,6 +157,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       ruleName: null,
       decryption: null,
       signatureReason: null,
+      decryptionReason: null,
       schemaPath: null,
       answered: null,
       values: null,
@@ -172,6 +173,7 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       ruleName: null,
       decryption: null,
       signatureReason: null,
+      decryptionReason: null,
       schemaPath: null,
       answered: null,
       values: null,
@@ -419,5 +421,51 @@ describe('Dado os filtros por valor', () => {
       'body $.status = pago',
       'body $.valor = 10',
     ]);
+  });
+});
+
+describe('Dado o filtro pelo motivo da decifra', () => {
+  const motivo = { ...NO_FILTER, decryption: 'invalid' as const, decryptionReason: 'downgrade' };
+
+  it('deve ativar o filtro e ir na busca no topo do corpo, junto do estado no match', () => {
+    expect(isFilterActive({ ...NO_FILTER, decryptionReason: 'downgrade' })).toBe(true);
+    expect(searchBody(motivo, 1)).toEqual({
+      match: { decryption: 'invalid' },
+      decryption_reason: 'downgrade',
+      sorting: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+    expect(searchBody(NO_FILTER, 1)).not.toHaveProperty('decryption_reason');
+  });
+
+  it('deve comparar o motivo', () => {
+    expect(sameFilter(motivo, { ...motivo })).toBe(true);
+    expect(sameFilter(motivo, { ...motivo, decryptionReason: 'signature_invalid' })).toBe(false);
+    expect(sameFilter(motivo, { ...NO_FILTER, decryption: 'invalid' })).toBe(false);
+  });
+
+  it('deve ir e voltar pela rota, ignorando o vazio e cortando no teto da busca', () => {
+    expect(filterToParams(motivo)).toMatchObject({
+      decryption: 'invalid',
+      decryptionReason: 'downgrade',
+    });
+    expect(filterToParams(NO_FILTER)).toMatchObject({ decryptionReason: null });
+    expect(filterFromParams({ decryption: 'invalid', decryptionReason: 'downgrade' })).toEqual(
+      motivo,
+    );
+    expect(filterFromParams({ decryptionReason: '' })).toEqual(NO_FILTER);
+    expect(filterFromParams({ decryptionReason: 'x'.repeat(300) }).decryptionReason).toHaveLength(
+      200,
+    );
+  });
+
+  it('não deve levar ao wait-for o motivo, e dizer que ficou de fora', () => {
+    const command = waitForCommand(motivo, { server: 'http://x', tokenId: 't', protected: false });
+
+    expect(command).toBe(
+      `anzol wait-for --server 'http://x' --token t --match '{"decryption":"invalid"}'`,
+    );
+    expect(outsideWaitFor(motivo)).toEqual(['decryptionReason']);
   });
 });

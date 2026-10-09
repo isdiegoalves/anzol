@@ -9,6 +9,7 @@ import {
   CountFilter,
   CountLink,
   CountScope,
+  decryptionReasonFilter,
   schemaPathFilter,
   signatureReasonFilter,
 } from './count-link';
@@ -113,5 +114,12 @@ describe('Dado os filtros exatos de Saúde e de Métricas', () => {
 
   it('deve filtrar pelo caminho do erro, com a raiz vazia', () => {
     expect(schemaPathFilter('')).toEqual({ schema: 'invalid', schemaPath: '' });
+  });
+
+  it('deve filtrar pelo motivo da decifra junto do estado inválido', () => {
+    expect(decryptionReasonFilter('downgrade')).toEqual({
+      decryption: 'invalid',
+      decryptionReason: 'downgrade',
+    });
   });
 });

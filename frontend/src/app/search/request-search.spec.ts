@@ -499,6 +499,31 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     expect(store.filter().signatureReason ?? null).toBeNull();
   });
 
+  it('deve mostrar o motivo da decifra no painel e entre os ligados, e tirá-lo pelo chip', async () => {
+    const applied = store.applyFilter({
+      ...NO_FILTER,
+      decryption: 'invalid',
+      decryptionReason: 'downgrade',
+    });
+    searches()[0].flush(requestPage([], { total: 0 }));
+    await applied;
+    await openPanel();
+
+    const motivo = await vi.waitFor(() =>
+      chip(/^decryption: the encrypted attribute did not come as a JWE \(downgrade\)/),
+    );
+    expect(motivo.getAttribute('aria-pressed')).toBe('true');
+    expect(filters().getAttribute('aria-label')).toBe('Filters, 2 active');
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(motivo);
+    const [search] = searches();
+    expect(search.request.body).toMatchObject({ match: { decryption: 'invalid' } });
+    expect(search.request.body).not.toHaveProperty('decryption_reason');
+    search.flush(requestPage([], { total: 0 }));
+    expect(store.filter().decryptionReason ?? null).toBeNull();
+  });
+
   it('deve avisar do texto que ficou de fora Quando o wait-for é copiado antes de a busca rodar', async () => {
     vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
     await userEvent.type(screen.getByRole('textbox', { name: 'Search' }), 'pedido');

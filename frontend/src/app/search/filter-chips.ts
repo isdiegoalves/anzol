@@ -1,6 +1,7 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { RequestStore } from '../requests/request-store';
+import { decryptionReasonText } from '../pipeline/decryption';
 import { DecryptionCondition } from '../rules/rule';
 import { TokenStore } from '../token/token-store';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
@@ -112,7 +113,10 @@ export class FilterChips {
       pressed: filter.decryption === value,
       toggle: () => this.apply({ decryption: filter.decryption === value ? null : value }),
     });
-    const exact = (label: string, field: 'signatureReason' | 'schemaPath'): FilterChip => ({
+    const exact = (
+      label: string,
+      field: 'signatureReason' | 'schemaPath' | 'decryptionReason',
+    ): FilterChip => ({
       label,
       pressed: true,
       removable: true,
@@ -120,6 +124,7 @@ export class FilterChips {
     });
     const reason = filter.signatureReason;
     const path = filter.schemaPath;
+    const decryptionReason = filter.decryptionReason;
     return [
       {
         id: 'method',
@@ -160,12 +165,22 @@ export class FilterChips {
         chips: [...this.answer(filter.outcome ?? null), ...this.answered(filter.answered ?? [])],
       },
       // Só na URL que decifra, ou com o filtro já ligado (o link de outra tela).
-      ...(this.tokens.token()?.e2ee || filter.decryption
+      ...(this.tokens.token()?.e2ee || filter.decryption || decryptionReason != null
         ? [
             {
               id: 'decryption' as const,
               label: this.groupLabels.decryption,
-              chips: (['invalid', 'unknown_kid', 'valid', 'absent'] as const).map(decryption),
+              chips: [
+                ...(['invalid', 'unknown_kid', 'valid', 'absent'] as const).map(decryption),
+                ...(decryptionReason == null
+                  ? []
+                  : [
+                      exact(
+                        $localize`:filter chip:decryption: ${decryptionReasonText(decryptionReason)}:reason:`,
+                        'decryptionReason',
+                      ),
+                    ]),
+              ],
             },
           ]
         : []),
@@ -255,6 +270,7 @@ export class FilterChips {
         ? [this.signatureLabels.invalid, this.signatureLabels.absent]
         : []),
       ...(filter.schemaPath != null ? [this.schemaLabels.invalid] : []),
+      ...(filter.decryptionReason != null ? [this.decryptionLabels.invalid] : []),
     ];
     const text = filter.text
       ? [$localize`:active filter, the text being searched:Search: ${filter.text}:text:`]

@@ -193,6 +193,8 @@ export class Inbox {
   /** M1: o motivo exato de assinatura e o caminho do erro de schema (`?signatureReason=&schemaPath=`). */
   readonly signatureReason = input<string>();
   readonly schemaPath = input<string>();
+  /** O motivo da decifra inválida (`?decryptionReason=`), o link dos motivos de Métricas. */
+  readonly decryptionReason = input<string>();
   readonly answered = input<string>();
   /** Quantos filtros por valor a tela tinha; os valores ficam no `sessionStorage` da aba. */
   readonly values = input<string>();
@@ -218,6 +220,7 @@ export class Inbox {
       rule: this.rule(),
       ruleName: this.ruleName(),
       signatureReason: this.signatureReason(),
+      decryptionReason: this.decryptionReason(),
       schemaPath: this.schemaPath(),
       answered: this.answered(),
       window: this.window(),

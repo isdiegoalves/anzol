@@ -94,6 +94,19 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
     );
   });
 
+  it('deve copiar sem o motivo da decifra e dizer que ficou de fora', async () => {
+    await filterBy({ ...NO_FILTER, decryption: 'invalid', decryptionReason: 'downgrade' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
+
+    expect(copy).toHaveBeenCalledWith(
+      `anzol wait-for --server '${location.origin}' --token ${TOKEN_ID} --match '{"decryption":"invalid"}'`,
+    );
+    expect(copied()).toBe(
+      'Copied. wait-for only reads --match, so these filters were left out: the decryption reason.',
+    );
+  });
+
   it('deve copiar o teste de CI com o match em vigor, sem token nem segredo, e dizer o que ficou de fora', async () => {
     await filterBy({ ...NO_FILTER, methods: ['POST'], signatureReason: 'signature mismatch' });
 

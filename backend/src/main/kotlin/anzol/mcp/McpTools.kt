@@ -261,6 +261,7 @@ class McpTools {
                         """$TOKEN_ID,
                         "text": {"type": "string", "description": "Text to find, up to 200 characters"},
                         $MATCH,
+                        "decryption_reason": {"type": "string", "description": "Only requests with decryption.state invalid and this reason (downgrade, signature_invalid...)"},
                         "sorting": {"type": "string", "enum": ["newest", "oldest"]},
                         "page": {"type": "integer"},
                         "per_page": {"type": "integer", "description": "1 to 100 (default 50)"}""",

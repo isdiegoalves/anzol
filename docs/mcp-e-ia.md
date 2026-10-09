@@ -15,7 +15,7 @@ São 18 ferramentas:
 | Ferramenta | Rota da API |
 |---|---|
 | `create_url`, `get_url`, `update_url`, `delete_url` | `POST /token`, `GET`/`PUT`/`DELETE /token/{id}` |
-| `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search` (o texto nunca procura no valor decifrado, ver abaixo), `POST .../requests/wait` |
+| `list_requests`, `get_request`, `search_requests`, `wait_for_request` | `GET /token/{id}/requests`, `GET /token/{id}/request/{rid}`, `POST .../requests/search` (o texto nunca procura no valor decifrado, ver abaixo; `decryption_reason` filtra pelo motivo da decifra recusada), `POST .../requests/wait` |
 | `get_rules`, `set_rules`, `test_rule` | `GET`/`PUT /token/{id}/rules`, `POST .../rules/test` |
 | `diff_rules` | sem rota: compara a lista proposta (o mesmo argumento do `set_rules`) com as regras salvas, por `id`, e não grava |
 | `replay_request`, `send_request`, `get_outbound` | `POST .../request/{rid}/replay`, `POST .../send`, `GET .../outbound` |

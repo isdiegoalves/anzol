@@ -16,14 +16,15 @@ private val PER_PAGE_RANGE = 1L..100L
 private val SORTINGS = mapOf("newest" to Sorting.NEWEST, "oldest" to Sorting.OLDEST)
 
 /**
- * Corpo do `POST /token/{id}/requests/search`, já validado; [text] vazio e [outcome], [signatureReason] e [schemaPath]
- * nulos são sem filtro.
+ * Corpo do `POST /token/{id}/requests/search`, já validado; [text] vazio e [outcome], [signatureReason],
+ * [decryptionReason] e [schemaPath] nulos são sem filtro.
  */
 data class SearchRequest(
     val text: String = "",
     val match: RuleMatch = RuleMatch(),
     val outcome: SearchOutcome? = null,
     val signatureReason: String? = null,
+    val decryptionReason: String? = null,
     val schemaPath: String? = null,
     val sorting: Sorting = Sorting.NEWEST,
     val page: Long = 1,
@@ -31,7 +32,8 @@ data class SearchRequest(
 )
 
 /**
- * `{"text", "match", "outcome", "signature_reason", "schema_path", "sorting", "page", "per_page"}`, todos opcionais;
+ * `{"text", "match", "outcome", "signature_reason", "decryption_reason", "schema_path", "sorting", "page", "per_page"}`,
+ * todos opcionais;
  * corpo vazio vale `{}`. `match` passa pelo leitor das regras (chaves `match.path.regex`…); os outros erros ficam na
  * chave do campo, e o corpo que não é objeto JSON, em `search`.
  */
@@ -43,6 +45,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
     val match = MatchReader(violations).match(tree["match"], "match")
     val outcome = violations.outcome(tree["outcome"])
     val signatureReason = violations.signatureReason(tree["signature_reason"])
+    val decryptionReason = violations.decryptionReason(tree["decryption_reason"])
     val schemaPath = violations.schemaPath(tree["schema_path"])
     val sorting = violations.sorting(tree["sorting"])
     val page = violations.whole(tree["page"], "page", PAGE_RANGE, default = 1)
@@ -53,6 +56,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
             match = checkNotNull(match),
             outcome = outcome,
             signatureReason = signatureReason,
+            decryptionReason = decryptionReason,
             schemaPath = schemaPath,
             sorting = checkNotNull(sorting),
             page = checkNotNull(page),

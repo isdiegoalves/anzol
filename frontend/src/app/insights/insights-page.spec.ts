@@ -181,7 +181,7 @@ describe('Dado a página Insights', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve contar a decifra por estado, com link para o filtro, e os motivos sem link', async () => {
+  it('deve contar a decifra por estado e por motivo, cada número com link para o filtro', async () => {
     const { container } = await open(
       tokenStats({
         decryption: {
@@ -214,9 +214,15 @@ describe('Dado a página Insights', () => {
     ).getAllByRole('row');
     expect(motivos.map(rowText)).toEqual([
       'Reason Requests',
-      "the JWS aud does not include this URL's audience (aud_mismatch) 4",
-      'the encryption key named in the JWE did not open it (decrypt_failed) 2',
+      "the JWS aud does not include this URL's audience (aud_mismatch) 4 →",
+      'the encryption key named in the JWE did not open it (decrypt_failed) 2 →',
     ]);
+    expect(
+      href(
+        decifra,
+        "the JWS aud does not include this URL's audience (aud_mismatch), 4 requests. Open in the Inbox",
+      ),
+    ).toBe(`/${TOKEN_ID}?decryption=invalid&decryptionReason=aud_mismatch`);
     await expectNoAxeViolations(container);
   });
 

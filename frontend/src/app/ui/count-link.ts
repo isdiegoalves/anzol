@@ -16,6 +16,11 @@ export function signatureReasonFilter(reason: string): CountFilter {
   };
 }
 
+/** O motivo vai como o servidor o grava (`downgrade`); só a decifra inválida tem motivo. */
+export function decryptionReasonFilter(reason: string): CountFilter {
+  return { decryption: 'invalid', decryptionReason: reason };
+}
+
 /** `path` é JSON Pointer: `''` é a raiz, não "sem caminho". */
 export function schemaPathFilter(path: string): CountFilter {
   return { schema: 'invalid', schemaPath: path };

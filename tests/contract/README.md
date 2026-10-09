@@ -844,6 +844,15 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     - 422 em `signature_reason` (número, booleano, lista, objeto, vazio, 201 caracteres) e em `schema_path` (tipo
       errado, `id`, `$.valor`, `$`, `/a~2`, `/a~`, 1001 caracteres). São aceitos `""`, `/`, `/a~0b~1c` e 999
       caracteres.
+  - *Busca pelo motivo da decifra* (`busca-motivo-decifra.spec.ts`, v0.5.0, decisão do dono de levar as pendências à
+    release): `decryption_reason` no topo da busca, fora de `match`.
+    - Casa a mensagem com `decryption.state` `invalid` e esse `reason`, exato (`downgrade`, `attribute_missing` e o da
+      cifra sem JWS dentro). A válida e a de `kid` desconhecido nunca aparecem; outra caixa, trecho, `valid`,
+      `unknown_kid` e motivo que não houve não acham nada. URL sem `e2ee` não acha nada.
+    - Combina em E com `text` e `match` (`match.decryption: valid` junto não acha nada); `null` vale como ausente. O
+      `count` de cada `decryption.reasons[]` do `/stats` é o `total` da busca.
+    - 422 em `decryption_reason` (número, booleano, lista, objeto, vazio, 201 caracteres); 200 caracteres é aceito.
+    - O `search_requests` do MCP declara `decryption_reason` no `tools/list` e filtra por ele.
   - *ReDoS* (`redos.spec.ts`, T1): `((a+)*)+$` contra `a`×30 + `!` e `(.*a){12}` contra `a`×40 + `!`. O `(a+)+$`
     clássico não serve, porque o JDK 25 o resolve em milissegundos.
     - Salvar a regra e o schema é aceito como hoje.

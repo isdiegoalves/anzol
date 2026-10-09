@@ -2899,6 +2899,13 @@ components:
           minLength: 1
           maxLength: 200
           description: Invalid signature with this reason (ignoring a trailing parenthesis).
+        decryption_reason:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 200
+          description: >-
+            `decryption.state` invalid with this `decryption.reason` (`downgrade`, `signature_invalid`…), as
+            `/stats` lists it in `decryption.reasons`.
         schema_path:
           type: [string, 'null']
           maxLength: 1000

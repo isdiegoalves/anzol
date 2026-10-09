@@ -139,6 +139,7 @@ function leftOut(outside: ReturnType<typeof outsideWaitFor>): string {
     text: $localize`the text search`,
     outcome: $localize`the answered-by filter`,
     reason: $localize`the signature reason`,
+    decryptionReason: $localize`the decryption reason`,
     path: $localize`the schema error path`,
     answered: $localize`the answered status`,
   };

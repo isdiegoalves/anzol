@@ -259,7 +259,6 @@
               [countScope]="statsScope"
             />
             @if (decryptionReasons().length > 0) {
-              <!-- A Entrada filtra pelo estado da decifra, não pelo motivo: a contagem fica sem link. -->
               <table class="table" aria-label="Decryption failure reasons" i18n-aria-label>
                 <thead>
                   <tr>
@@ -271,7 +270,17 @@
                   @for (reason of decryptionReasons(); track reason.reason) {
                     <tr>
                       <td>{{ reason.text }}</td>
-                      <td class="number">{{ reason.count }}</td>
+                      <td class="number">
+                        <a
+                          class="count"
+                          [appCountLink]="tokenId()"
+                          [countFilter]="decryptionReasonFilter(reason.reason)"
+                          [count]="reason.count"
+                          [what]="reason.text"
+                          [countScope]="statsScope"
+                          >{{ reason.count }}<span aria-hidden="true"> →</span></a
+                        >
+                      </td>
                     </tr>
                   }
                 </tbody>

@@ -18,7 +18,7 @@ export type RequestSorting = 'newest' | 'oldest';
 
 /**
  * Filtro da lista lateral: texto e filtros rápidos. Vai também para a query da rota da Inbox
- * (`?signature=&schema=&methods=&q=`, e `signatureReason=`/`schemaPath=` do M1, ver
+ * (`?signature=&schema=&methods=&q=`, `signatureReason=`/`schemaPath=` do M1 e `decryptionReason=`, ver
  * `filterFromParams`), para o link ser compartilhável e o "Show in Inbox" do Health abrir filtrado.
  */
 export interface RequestFilter {
@@ -35,6 +35,8 @@ export interface RequestFilter {
    * ou ausente, sem este filtro.
    */
   signatureReason?: string | null;
+  /** O motivo da decifra inválida, como Métricas o mostra (`downgrade`); `null` ou ausente, sem ele. */
+  decryptionReason?: string | null;
   /** M1: o caminho (JSON Pointer) de um erro de schema; `''` é a raiz. `null` ou ausente, sem ele. */
   schemaPath?: string | null;
   /**
@@ -89,6 +91,7 @@ export interface FilterParams {
   rule?: string | null;
   ruleName?: string | null;
   signatureReason?: string | null;
+  decryptionReason?: string | null;
   schemaPath?: string | null;
   answered?: string | null;
   /** Quantos filtros por valor a tela tinha: os valores ficam na aba, não no endereço. */
@@ -118,6 +121,7 @@ export function filterFromParams(params: FilterParams): RequestFilter {
   const outcome = outcomeFromParams(params);
   // Os tetos do servidor (422 acima): o motivo vazio não filtra nada; o caminho vazio é a raiz.
   const reason = params.signatureReason?.slice(0, REASON_MAX) || null;
+  const decryptionReason = params.decryptionReason?.slice(0, REASON_MAX) || null;
   const answered = (params.answered ?? '')
     .split(',')
     .map((value) => value.trim().toLowerCase())
@@ -137,6 +141,7 @@ export function filterFromParams(params: FilterParams): RequestFilter {
     ...(decryption && { decryption }),
     ...(outcome && { outcome }),
     ...(reason !== null && { signatureReason: reason }),
+    ...(decryptionReason !== null && { decryptionReason }),
     ...(path !== null && { schemaPath: path }),
     ...(answered.length > 0 && { answered }),
     ...(newest !== null && { window: newest }),
@@ -190,6 +195,7 @@ export function filterToParams(filter: RequestFilter): Record<keyof FilterParams
     rule: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.rule : null,
     ruleName: filter.outcome && filter.outcome.type !== 'default' ? filter.outcome.name : null,
     signatureReason: filter.signatureReason ?? null,
+    decryptionReason: filter.decryptionReason ?? null,
     schemaPath: filter.schemaPath ?? null,
     answered: filter.answered?.length ? filter.answered.join(',') : null,
     values: filter.values?.length ? String(filter.values.length) : null,
@@ -206,6 +212,7 @@ export interface SearchBody {
   match: RuleMatch;
   outcome?: { type: OutcomeFilter['type']; rule?: string };
   signature_reason?: string;
+  decryption_reason?: string;
   schema_path?: string;
   sorting: RequestSorting;
   page: number;
@@ -221,6 +228,7 @@ export function isFilterActive(filter: RequestFilter): boolean {
     !!filter.decryption ||
     !!filter.outcome ||
     filter.signatureReason != null ||
+    filter.decryptionReason != null ||
     filter.schemaPath != null ||
     !!filter.answered?.length ||
     !!filter.values?.length ||
@@ -238,6 +246,7 @@ export function sameFilter(a: RequestFilter, b: RequestFilter): boolean {
     a.methods.every((method) => b.methods.includes(method)) &&
     sameOutcome(a.outcome ?? null, b.outcome ?? null) &&
     (a.signatureReason ?? null) === (b.signatureReason ?? null) &&
+    (a.decryptionReason ?? null) === (b.decryptionReason ?? null) &&
     (a.schemaPath ?? null) === (b.schemaPath ?? null) &&
     (a.answered ?? []).join() === (b.answered ?? []).join() &&
     JSON.stringify(a.values ?? []) === JSON.stringify(b.values ?? []) &&
@@ -291,6 +300,7 @@ export function searchBody(
     ...(text && { text }),
     match,
     ...(filter.signatureReason != null && { signature_reason: filter.signatureReason }),
+    ...(filter.decryptionReason != null && { decryption_reason: filter.decryptionReason }),
     ...(filter.schemaPath != null && { schema_path: filter.schemaPath }),
     ...(outcome && {
       outcome:
@@ -305,16 +315,18 @@ export function searchBody(
 }
 
 /**
- * O que o filtro tem e o `wait-for` não entende (ele só lê o `match`): o texto, o desfecho (C2) e o
- * motivo e o caminho do M1. O comando sai sem eles, e a tela diz quais ficaram de fora.
+ * O que o filtro tem e o `wait-for` não entende (ele só lê o `match`): o texto, o desfecho (C2), o
+ * motivo e o caminho do M1 e o motivo da decifra. O comando sai sem eles, e a tela diz quais ficaram
+ * de fora.
  */
 export function outsideWaitFor(
   filter: RequestFilter,
-): ('text' | 'outcome' | 'reason' | 'path' | 'answered')[] {
+): ('text' | 'outcome' | 'reason' | 'decryptionReason' | 'path' | 'answered')[] {
   return [
     ...(filter.text.trim() ? (['text'] as const) : []),
     ...(filter.outcome ? (['outcome'] as const) : []),
     ...(filter.signatureReason != null ? (['reason'] as const) : []),
+    ...(filter.decryptionReason != null ? (['decryptionReason'] as const) : []),
     ...(filter.schemaPath != null ? (['path'] as const) : []),
     ...(filter.answered?.length ? (['answered'] as const) : []),
   ];

@@ -575,16 +575,17 @@ bastou). Corpo vazio vale `{}`. Validação: 422 em JSON, com `match.<campo>` co
 |---|---|
 | `text` | até 200 caracteres. Casa quando aparece como trecho literal, sem diferenciar maiúsculas, no método, na `url` gravada, no IP, num nome ou valor de header, num nome ou valor de query (em qualquer nível: `a[b]=1` também), no corpo ou num nome ou valor do atributo decifrado (`decrypted`, em qualquer nível; ver [Decifra de atributo](#decifra-de-atributo-e2ee)). Vazio ou ausente: sem filtro de texto |
 | `match` | o `match` de uma regra (ver [Regras de resposta](#regras-de-resposta)), com a mesma validação. Ausente: casa qualquer mensagem |
+| `decryption_reason` | de 1 a 200 caracteres. Casa a mensagem com `decryption.state` `invalid` e esse `decryption.reason`, exato (`downgrade`, `signature_invalid`…): é o `reason` que o `/stats` conta em `decryption.reasons`, e o `count` dele é o `total` da busca. Ausente ou `null`: sem filtro |
 | `sorting` | `newest` (padrão) ou `oldest` |
 | `page`, `per_page` | `page` ≥ 1 (padrão 1); `per_page` de 1 a 100 (padrão 50) |
 
-`text` e `match` combinam em E. A resposta tem a forma e a aritmética de página do `GET /token/{id}/requests`
-(`data`, `total`, `per_page`, `current_page`, `is_last_page`, `from`, `to`), com `total` = quantas casam; sem
-filtro, é a mesma página da listagem. O servidor varre todas as mensagens da URL a cada chamada, em trechos de
-100 lidos pelo índice (na memória ficam o trecho e a página, nunca a URL inteira); não há índice de texto.
-Mensagem fantasma do app antigo (valor vazio na hash) não casa nada e não conta no `total`. Corpo vazio vale
-`{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`, `text`, `sorting`, `page` e `per_page`
-na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexistente dá 410.
+`text`, `match` e `decryption_reason` combinam em E. A resposta tem a forma e a aritmética de página do
+`GET /token/{id}/requests` (`data`, `total`, `per_page`, `current_page`, `is_last_page`, `from`, `to`), com `total` =
+quantas casam; sem filtro, é a mesma página da listagem. O servidor varre todas as mensagens da URL a cada chamada,
+em trechos de 100 lidos pelo índice (na memória ficam o trecho e a página, nunca a URL inteira); não há índice de
+texto. Mensagem fantasma do app antigo (valor vazio na hash) não casa nada e não conta no `total`. Corpo vazio vale
+`{}`. Validação: 422 em JSON, com `match.<campo>` como no `rules/test`, `text`, `decryption_reason`, `sorting`,
+`page` e `per_page` na chave do campo e `search` quando o corpo não é um objeto JSON; URL inexistente dá 410.
 
 ## Estatísticas da URL
 

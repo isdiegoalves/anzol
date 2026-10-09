@@ -9,7 +9,13 @@ import { signatureReasonText } from '../pipeline/signature-check';
 import { TokenStore } from '../token/token-store';
 import { parseUtc } from '../request-detail/dates';
 import { FILTER_METHODS } from '../search/request-filter';
-import { CountFilter, CountLink, schemaPathFilter, signatureReasonFilter } from '../ui/count-link';
+import {
+  CountFilter,
+  CountLink,
+  decryptionReasonFilter,
+  schemaPathFilter,
+  signatureReasonFilter,
+} from '../ui/count-link';
 import { EmptyState } from '../ui/empty-state';
 import { Pane } from '../ui/pane';
 import { HourlyChart } from './hourly-chart';
@@ -169,6 +175,7 @@ export class InsightsPage {
   protected readonly percent = percent;
   protected readonly keptText = keptText;
   protected readonly signatureReasonFilter = signatureReasonFilter;
+  protected readonly decryptionReasonFilter = decryptionReasonFilter;
   protected readonly signatureReasonText = signatureReasonText;
   protected readonly schemaPathFilter = schemaPathFilter;
   protected readonly localHour = localHour;

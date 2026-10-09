@@ -3,7 +3,7 @@ import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { abrirChecks, salvar } from './support/checks';
 import { envelopeCifrado, politica, signatario } from './support/e2ee';
 import { expect, test } from './support/fixtures';
-import { abrirItem, detalhes, verificacoes } from './support/inbox';
+import { abrirFiltros, abrirItem, detalhes, item, itens, verificacoes } from './support/inbox';
 import { abrirRegras, condicao, novaRegra, parte, salvarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
@@ -509,5 +509,55 @@ test.describe('Dado a condição "Decryption" no editor de regras', () => {
         match: expect.objectContaining({ decryption: 'unknown_kid' }),
       }),
     ]);
+  });
+
+  test('deve levar do motivo da decifra em Métricas à Entrada filtrada por ele, com o chip', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ read_secret: SEGREDO });
+    const destino = await gerarChave(request, tokenId, 'enc-e2e');
+    const configurada = await request.put(`/token/${tokenId}`, {
+      headers: COM_SEGREDO,
+      data: { e2ee: politica([signatario('sig-e2e').publica]) },
+    });
+    expect(configurada.status()).toBe(200);
+    const emClaro = (id: string) => ({
+      headers: { 'Content-Type': 'application/json' },
+      data: JSON.stringify({
+        eventId: id,
+        tipoEvento: { nome: 'PEDIDO_CRIADO' },
+        servico: { nome: 'servico-exemplo' },
+        payload: { cpf: '000' },
+      }),
+    });
+    const primeira = await tokens.send(tokenId, emClaro('c-1'));
+    const intrusa = await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: envelopeCifrado(signatario('sig-intruso'), destino, 'c-2', {}),
+    });
+    const segunda = await tokens.send(tokenId, emClaro('c-3'));
+
+    await destrancar(page, tokenId);
+    await page.goto(`/#/${tokenId}/insights`);
+    await page
+      .getByRole('region', { name: 'Decryption', exact: true })
+      .getByRole('link', {
+        name: 'the encrypted attribute did not come as a JWE (downgrade), 2 requests. Open in the Inbox',
+      })
+      .click();
+
+    await expect(page).toHaveURL(/[?&]decryption=invalid&decryptionReason=downgrade/);
+    await expect(itens(page)).toHaveCount(2);
+    await expect(item(page, primeira)).toBeVisible();
+    await expect(item(page, segunda)).toBeVisible();
+    await expect(item(page, intrusa)).toHaveCount(0);
+    await abrirFiltros(page);
+    await expect(
+      page.getByRole('group', { name: 'Filters' }).getByRole('button', {
+        name: /^decryption: the encrypted attribute did not come as a JWE \(downgrade\)/,
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });

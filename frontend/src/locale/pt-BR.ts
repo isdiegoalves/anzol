@@ -2866,6 +2866,8 @@ export const translations: Record<string, string> = {
   '6630855973617381492': 'o filtro por desfecho',
   // the signature reason
   '8992241665092471762': 'o motivo da assinatura',
+  // the decryption reason
+  '8776764889456000437': 'o motivo da decifra',
   // the schema error path
   '2288461845927882528': 'o caminho do erro de schema',
   // Copied. wait-for only reads --match, so these filters were left out: {$filters}.
@@ -3544,6 +3546,8 @@ export const translations: Record<string, string> = {
   '4334536560490865550': 'assinatura: {$reason}',
   // schema error at {$path}
   '4198346018142567275': 'erro de schema em {$path}',
+  // decryption: {$reason}
+  '4653650438795858555': 'decifra: {$reason}',
   // {$filter} — not accepted
   '6357474227505433800': '{$filter} — não aceito',
   // path = {$value}

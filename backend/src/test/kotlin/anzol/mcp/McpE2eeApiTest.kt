@@ -118,6 +118,37 @@ class McpE2eeApiTest(
     }
 
     @Test
+    @DisplayName(
+        "Dado decifras recusadas por motivos diferentes, quando search_requests filtra por decryption_reason, então acha só as " +
+            "daquele motivo, com o campo declarado no schema da ferramenta",
+    )
+    fun e2ee_searchRequests_deveFiltrarPeloMotivoDaDecifra() {
+        val e2ee = jsonMapper.writeValueAsString(anzol.e2ee.policy(anzol.e2ee.ecKey("remetente-sig-1")))
+        val tokenId = api.tokenId("""{"read_secret":"segredo-do-e2ee","e2ee":$e2ee}""")
+
+        fun deliver(body: String): String =
+            api
+                .send("POST", "/$tokenId", body.toByteArray(), mapOf("Content-Type" to "application/json"))
+                .headers()
+                .firstValue("X-Request-Id")
+                .orElseThrow()
+        deliver("{}")
+        val downgrade = deliver(anzol.e2ee.envelope("evt-1", mapOf("ok" to true)))
+        val access = mapOf("token_id" to tokenId, "read_secret" to "segredo-do-e2ee")
+
+        val found = call("search_requests", access + ("decryption_reason" to "downgrade")).json()
+        val schema =
+            client
+                .listTools()
+                .tools()
+                .single { it.name() == "search_requests" }
+                .inputSchema()
+
+        assertThat(found["data"].toList().map { it["uuid"].asString() }).containsExactly(downgrade)
+        assertThat((schema["properties"] as Map<*, *>).keys).contains("decryption_reason")
+    }
+
+    @Test
     @DisplayName("Dado uma URL com e2ee, quando o update_url manda e2ee null ou outro signatário, então a política fica como estava")
     fun e2ee_updateUrl_naoDeveMudarAPolitica() {
         val signer = anzol.e2ee.ecKey("remetente-sig-1")

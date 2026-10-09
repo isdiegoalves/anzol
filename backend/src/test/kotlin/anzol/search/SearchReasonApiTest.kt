@@ -1,5 +1,11 @@
 package anzol.search
 
+import anzol.e2ee.READ_SECRET
+import anzol.e2ee.ecKey
+import anzol.e2ee.envelope
+import anzol.e2ee.json
+import anzol.e2ee.policy
+import anzol.privacy.SECRET_HEADER
 import anzol.support.ApiClient
 import anzol.support.ApiTest
 import anzol.support.JSON_BODY
@@ -30,12 +36,25 @@ class SearchReasonApiTest(
     private fun search(
         tokenId: String,
         body: String,
-    ) = api.send("POST", "/token/$tokenId/requests/search", body.toByteArray(), JSON_BODY)
+        headers: Map<String, String> = emptyMap(),
+    ) = api.send("POST", "/token/$tokenId/requests/search", body.toByteArray(), JSON_BODY + headers)
 
     private fun uuids(
         tokenId: String,
         body: String,
-    ): List<String> = api.json(search(tokenId, body))["data"].toList().map { it["uuid"].asString() }
+        headers: Map<String, String> = emptyMap(),
+    ): List<String> = api.json(search(tokenId, body, headers))["data"].toList().map { it["uuid"].asString() }
+
+    /** Captura sem ler a mensagem de volta (a URL protegida pede o segredo na leitura). */
+    private fun deliver(
+        tokenId: String,
+        body: String,
+    ): String =
+        api
+            .send("POST", "/$tokenId", body.toByteArray(), mapOf("Content-Type" to "application/json"))
+            .headers()
+            .firstValue("X-Request-Id")
+            .orElseThrow()
 
     private fun signed(body: String): String =
         "sha256=" +
@@ -89,6 +108,33 @@ class SearchReasonApiTest(
         assertThat(uuids(tokenId, """{"signature_reason":"$reason"}""")).containsExactly(vencida["uuid"].asString())
     }
 
+    @Test
+    @DisplayName("Dado decifras recusadas por motivos diferentes, quando busca pelo motivo da decifra, então acha só as daquele motivo")
+    fun search_motivoDaDecifra_deveAcharSoAsDoMotivo() {
+        val secret = mapOf(SECRET_HEADER to READ_SECRET)
+        val tokenId = api.tokenId(json(mapOf("read_secret" to READ_SECRET, "e2ee" to policy(ecKey("remetente-sig-1")))))
+        val semJson = deliver(tokenId, "não é json")
+        val emClaro = deliver(tokenId, envelope("evt-1", mapOf("ok" to true)))
+        val semAtributo = deliver(tokenId, "{}")
+        val outroEmClaro = deliver(tokenId, envelope("evt-2", mapOf("ok" to false)))
+
+        assertThat(uuids(tokenId, """{"decryption_reason":"downgrade"}""", secret)).containsExactly(outroEmClaro, emClaro)
+        assertThat(uuids(tokenId, """{"decryption_reason":"body_not_json"}""", secret)).containsExactly(semJson)
+        assertThat(uuids(tokenId, """{"decryption_reason":"attribute_missing"}""", secret)).containsExactly(semAtributo)
+        assertThat(uuids(tokenId, """{"decryption_reason":"signature_invalid"}""", secret)).isEmpty()
+        assertThat(uuids(tokenId, """{"decryption_reason":"downgrade","text":"evt-2"}""", secret)).containsExactly(outroEmClaro)
+        assertThat(uuids(tokenId, """{"decryption_reason":null}""", secret)).hasSize(4)
+    }
+
+    @Test
+    @DisplayName("Dado uma URL sem decifra, quando busca pelo motivo da decifra, então não acha nada")
+    fun search_motivoDaDecifraSemE2ee_naoDeveAcharNada() {
+        val tokenId = api.tokenId()
+        capture(tokenId, "{}")
+
+        assertThat(uuids(tokenId, """{"decryption_reason":"attribute_missing"}""")).isEmpty()
+    }
+
     @ParameterizedTest(name = "{0}")
     @DisplayName("Dado um valor inválido, quando busca, então 422 na chave do campo")
     @CsvSource(
@@ -97,6 +143,8 @@ class SearchReasonApiTest(
         textBlock = """
         {"signature_reason":42}          | signature_reason | The signature reason must be a string.
         {"signature_reason":""}          | signature_reason | The signature reason field is required.
+        {"decryption_reason":42}         | decryption_reason | The decryption reason must be a string.
+        {"decryption_reason":""}         | decryption_reason | The decryption reason field is required.
         {"schema_path":["/id"]}          | schema_path      | The schema path must be a string.
         {"schema_path":"$.valor"}        | schema_path      | The schema path must be a JSON Pointer ("" or starting with /).
         {"schema_path":"/a~2"}           | schema_path      | The schema path must be a JSON Pointer ("" or starting with /).""",
@@ -124,5 +172,8 @@ class SearchReasonApiTest(
             api.json(reason)["signature_reason"][0].asString(),
         ).isEqualTo("The signature reason may not be greater than 200 characters.")
         assertThat(api.json(path)["schema_path"][0].asString()).isEqualTo("The schema path may not be greater than 1000 characters.")
+        assertThat(
+            api.json(search(tokenId, """{"decryption_reason":"${"a".repeat(201)}"}"""))["decryption_reason"][0].asString(),
+        ).isEqualTo("The decryption reason may not be greater than 200 characters.")
     }
 }
