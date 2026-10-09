@@ -8,7 +8,7 @@ import {
 
 const MENSAGEM = 'The selected auto cleanup is invalid.';
 
-/** ANZOL_MAX_REQUESTS do app sob teste (padrão do servidor: 10000). Ver README. */
+/** ANZOL_MAX_REQUESTS do app sob teste (padrão do servidor: 10000). Ver docs/operacao.md. */
 const TETO_PADRAO = Number(process.env.TETO_PADRAO ?? 10_000);
 
 /** Envia uma a uma (ordem de chegada garantida) e devolve os X-Request-Id. */
