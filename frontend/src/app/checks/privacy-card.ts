@@ -15,16 +15,20 @@ import {
   PendingField,
   changeOf,
   decryptedRefusal,
+  decryptionOnRefusal,
   fieldErrors,
   onOff,
   pendingLabels,
   pendingSummary,
   secretChange,
+  serverMessages,
 } from './url-settings';
 
 /** Tamanho do segredo de leitura que o servidor aceita. */
 const READ_SECRET_MIN = 8;
 const READ_SECRET_MAX = 256;
+/** O 422 em `e2ee` que recusa a decifra numa URL sem segredo de leitura. */
+const E2EE_NEEDS_SECRET = /^The e2ee requires a read secret/;
 
 /**
  * Checks › Privacy, portada da seção do antigo Edit URL (item 12): "Require a secret to view this
@@ -62,19 +66,20 @@ export class PrivacyCard implements ChecksSection {
     (this.draft.base() ?? this.tokens.token())?.protected === true,
   );
   /**
-   * A URL tem chave de cifra ou a lista dela já tem requisição com decifra: pode haver valor
-   * decifrado gravado, e o servidor recusa remover o segredo enquanto houver.
+   * A URL decifra, tem chave de cifra ou a lista dela já tem requisição com decifra: o servidor
+   * recusa remover o segredo com a decifra ligada ou com valor decifrado gravado.
    */
   protected readonly decrypts = computed(() => {
     const token = this.tokens.token();
     return (
+      token?.e2ee != null ||
       (token?.e2ee_keys?.length ?? 0) > 0 ||
       (this.requests.tokenId() === token?.uuid &&
         this.requests.requests().some((request) => request.decryption))
     );
   });
-  /** O 422 de remover o segredo com requisição decifrada gravada. */
-  protected readonly refusal = signal<string | null>(null);
+  /** O 422 de remover o segredo (decifra ligada ou requisição decifrada), com a frase do servidor. */
+  protected readonly refusal = signal<{ text: string; original: string } | null>(null);
   readonly form = this.formBuilder.group({
     required: [this.wasProtected()],
     read_secret: [''],
@@ -97,6 +102,10 @@ export class PrivacyCard implements ChecksSection {
 
   protected secretLabel(): string {
     return this.wasProtected() ? $localize`New secret` : $localize`Secret to view`;
+  }
+
+  protected originalTitle(original: string): string {
+    return $localize`Original: ${original}:phrase:`;
   }
 
   protected unsaved(): boolean {
@@ -158,13 +167,21 @@ export class PrivacyCard implements ChecksSection {
   }
 
   refused(error: unknown): string[] {
+    if (!this.form.controls.required.value) {
+      const decrypting = serverMessages(error, 'e2ee').find((m) => E2EE_NEEDS_SECRET.test(m));
+      const [decrypted] = serverMessages(error, 'read_secret');
+      if (decrypting !== undefined) {
+        this.refusal.set({ text: decryptionOnRefusal(), original: decrypting });
+      } else if (decrypted !== undefined) {
+        this.refusal.set({ text: decryptedRefusal(), original: decrypted });
+      } else {
+        return [];
+      }
+      return [$localize`Require a secret to view this URL`];
+    }
     const messages = fieldErrors(error, 'read_secret');
     if (messages.length === 0) {
       return [];
-    }
-    if (!this.form.controls.required.value) {
-      this.refusal.set(decryptedRefusal());
-      return [$localize`Require a secret to view this URL`];
     }
     const control = this.form.controls.read_secret;
     control.setErrors({ server: messages.join(' ') });

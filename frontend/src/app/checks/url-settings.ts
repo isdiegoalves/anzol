@@ -41,13 +41,16 @@ export function cutsRequests(before: Token, after: Token): boolean {
  * vazio para qualquer outro erro.
  */
 export function fieldErrors(error: unknown, ...fields: string[]): readonly string[] {
+  return serverMessages(error, ...fields).map((message) => validationPhrase(message).text);
+}
+
+/** Mensagens do 422 de um campo como o servidor as mandou; vazio para qualquer outro erro. */
+export function serverMessages(error: unknown, ...fields: string[]): readonly string[] {
   if (error instanceof HttpErrorResponse && error.status === 422) {
     const body = (error.error ?? {}) as Record<string, unknown>;
     return fields.flatMap((field) => {
       const messages = body[field];
-      return Array.isArray(messages)
-        ? messages.map((message) => validationPhrase(String(message)).text)
-        : [];
+      return Array.isArray(messages) ? messages.map(String) : [];
     });
   }
   return [];
@@ -63,6 +66,11 @@ export function errorKeys(error: unknown): string[] {
 /** A recusa (422 em `read_secret`) de remover o segredo enquanto há requisição decifrada gravada. */
 export function decryptedRefusal(): string {
   return $localize`The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.`;
+}
+
+/** A recusa (422 em `e2ee`) de remover o segredo com a decifra ligada. */
+export function decryptionOnRefusal(): string {
+  return $localize`The server refused: decryption is on. Turn it off and delete any decrypted requests before removing the secret, or keep the secret.`;
 }
 
 /** Erro do `PUT` como o app atual o dizia: os 422 juntos, ou o status HTTP. */

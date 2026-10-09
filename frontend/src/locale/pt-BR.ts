@@ -108,12 +108,15 @@ export const translations: Record<string, string> = {
   '8661255126898122827': 'Os segredos não conferem.',
   //  Saving removes the secret: anyone with the URL will see its requests.
   '1638842964716429031': ' Salvar remove o segredo: quem tiver a URL vai ver as requisições dela. ',
-  //  Decrypted requests keep the opened value. While any is stored, the server refuses to remove the secret, even with decryption off. Delete them first, or keep the secret.
-  '992297825947199890':
-    ' Requisições decifradas guardam o valor decifrado. Enquanto houver alguma gravada, o servidor recusa remover o segredo, mesmo com a decifra desligada. Apague-as antes, ou mantenha o segredo. ',
+  //  Decrypted requests keep the decrypted value. The server removes the secret only with decryption off and no decrypted request stored. To remove it, turn decryption off (it can be in this same save) and delete the decrypted requests; or keep the secret.
+  '299930573631604199':
+    ' Requisições decifradas guardam o valor decifrado. O servidor só remove o segredo com a decifra desligada e nenhuma requisição decifrada gravada. Para remover, desligue a decifra (pode ser neste mesmo salvar) e apague as decifradas; ou mantenha o segredo. ',
   // The server refused: this URL has decrypted requests. Delete them before removing the secret, or keep the secret.
   '6213658804702770639':
     'O servidor recusou: há requisições decifradas nesta URL. Apague-as antes de remover o segredo, ou mantenha o segredo.',
+  // The server refused: decryption is on. Turn it off and delete any decrypted requests before removing the secret, or keep the secret.
+  '964826114271213227':
+    'O servidor recusou: a decifra está ligada. Desligue-a e apague as requisições decifradas que houver antes de remover o segredo, ou mantenha o segredo.',
   // Discard
   '3823219296477075982': 'Descartar',
   // New secret

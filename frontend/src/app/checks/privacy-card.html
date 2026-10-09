@@ -61,11 +61,12 @@
       </p>
       @if (refusal(); as refused) {
         <!-- Sem região viva: quem fala a recusa é o alerta da barra de salvar. -->
-        <p class="banner">{{ refused }}</p>
+        <p class="banner" [title]="originalTitle(refused.original)">{{ refused.text }}</p>
       } @else if (decrypts()) {
         <p class="banner" role="status" i18n>
-          Decrypted requests keep the opened value. While any is stored, the server refuses to
-          remove the secret, even with decryption off. Delete them first, or keep the secret.
+          Decrypted requests keep the decrypted value. The server removes the secret only with
+          decryption off and no decrypted request stored. To remove it, turn decryption off (it can
+          be in this same save) and delete the decrypted requests; or keep the secret.
         </p>
       }
     }

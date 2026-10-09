@@ -27,7 +27,7 @@ const DECIFRADA: DecryptionResult = {
   jti: null,
   duplicate_of: null,
 };
-const DECRYPTED_WARNING = /^Decrypted requests keep the opened value/;
+const DECRYPTED_WARNING = /^Decrypted requests keep the decrypted value/;
 
 describe('Dado o cartão "Privacy" de Checks', () => {
   afterEach(() => localStorage.clear());
@@ -115,7 +115,7 @@ describe('Dado o cartão "Privacy" de Checks', () => {
   });
 
   describe('Dado uma URL protegida que decifra', () => {
-    it('deve avisar que o servidor recusa enquanto houver requisição decifrada Quando a URL tem chave de cifra', async () => {
+    it('deve avisar que o servidor recusa com a decifra ligada ou requisição decifrada Quando a URL tem chave de cifra', async () => {
       const { container } = await renderCard(
         PrivacyCard,
         token({ protected: true, e2ee_keys: [CHAVE] }),
@@ -124,7 +124,7 @@ describe('Dado o cartão "Privacy" de Checks', () => {
       await userEvent.click(toggle());
 
       expect(within(card()).getByText(DECRYPTED_WARNING).textContent).toContain(
-        'Delete them first, or keep the secret.',
+        'turn decryption off (it can be in this same save) and delete the decrypted requests; or keep the secret.',
       );
       await expectNoAxeViolations(container);
     });

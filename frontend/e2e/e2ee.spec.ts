@@ -441,6 +441,45 @@ test.describe('Dado uma mensagem com o atributo cifrado', () => {
     ).toBeVisible();
     expect(await lerUrl(request, tokenId)).toMatchObject({ protected: true });
   });
+
+  test('deve recusar em pt-BR remover o segredo com a decifra ligada, e a URL segue protegida', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ read_secret: SEGREDO });
+    const configurada = await request.put(`/token/${tokenId}`, {
+      headers: COM_SEGREDO,
+      data: { e2ee: politica([signatario('sig-e2e').publica]) },
+    });
+    expect(configurada.status()).toBe(200);
+    await seedStorage(page, { hideTutorial: 'true', language: '"pt-BR"' });
+    const destrancada = await page.request.post(`/token/${tokenId}/unlock`, {
+      data: { secret: SEGREDO },
+    });
+    expect(destrancada.ok()).toBe(true);
+
+    await page.goto(`/#/${tokenId}/checks`);
+    const privacidade = page.getByRole('region', { name: 'Privacidade' });
+    await privacidade.getByRole('switch', { name: 'Exigir um segredo para ver esta URL' }).click();
+    await expect(
+      privacidade.getByText(/O servidor só remove o segredo com a decifra desligada/),
+    ).toBeVisible();
+    const put = page.waitForResponse(
+      (resposta) =>
+        resposta.request().method() === 'PUT' && resposta.url().endsWith(`/token/${tokenId}`),
+    );
+    await page.getByRole('button', { name: /^Salvar alterações\b/ }).click();
+
+    expect((await put).status()).toBe(422);
+    await expect(
+      privacidade.getByText(
+        'O servidor recusou: a decifra está ligada. Desligue-a e apague as requisições decifradas que houver antes de remover o segredo, ou mantenha o segredo.',
+      ),
+    ).toBeVisible();
+    await expect(page.getByText(/The e2ee requires a read secret/)).toHaveCount(0);
+    expect(await lerUrl(request, tokenId)).toMatchObject({ protected: true });
+  });
 });
 
 test.describe('Dado a condição "Decryption" no editor de regras', () => {
