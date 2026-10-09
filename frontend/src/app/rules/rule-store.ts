@@ -191,6 +191,21 @@ export class RuleStore {
     return firstValueFrom(this.http.get<Rule[]>(this.url(tokenId)));
   }
 
+  /**
+   * Acrescenta no começo da lista de uma URL as regras cujo `match` nenhuma regra dela tem, e devolve
+   * as acrescentadas. Não mexe na lista da página de Regras: ela relê o servidor ao abrir.
+   */
+  async prependMissing(tokenId: string, rules: readonly Rule[]): Promise<Rule[]> {
+    const current = await this.listRules(tokenId);
+    const missing = rules.filter(
+      (rule) => !current.some((other) => sameMatch(other.match, rule.match)),
+    );
+    if (missing.length > 0) {
+      await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), [...missing, ...current]));
+    }
+    return missing;
+  }
+
   /** C1: as regras de agora avaliadas contra a mensagem gravada, sem gravar nada. */
   trace(tokenId: string, requestId: string): Promise<RuleTrace> {
     return firstValueFrom(
@@ -320,6 +335,18 @@ export class RuleStore {
     }
     return tokenId;
   }
+}
+
+/** O mesmo `match`, com as condições vazias (`null`, `[]`, `{}`) contando como ausentes. */
+function sameMatch(a: RuleMatch | undefined, b: RuleMatch | undefined): boolean {
+  const conditions = (match: RuleMatch | undefined) =>
+    JSON.stringify(
+      Object.entries(match ?? {})
+        .filter(([, value]) => value !== null && value !== undefined)
+        .filter(([, value]) => typeof value !== 'object' || Object.keys(value as object).length > 0)
+        .sort(([x], [y]) => x.localeCompare(y)),
+    );
+  return conditions(a) === conditions(b);
 }
 
 /**

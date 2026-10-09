@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
+import { DecryptionCondition, Rule } from './rule';
 import { RuleStore, RulesChangedError, validationMessages } from './rule-store';
 
 describe('Dado as regras da URL aberta', () => {
@@ -25,6 +26,28 @@ describe('Dado as regras da URL aberta', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('deve pôr no começo só as regras cujo match a URL ainda não tem, sem mexer na lista da página', async () => {
+    await loaded();
+    const nova = (status: number, decryption: DecryptionCondition): Rule => ({
+      name: `decryption: ${decryption} → ${status}`,
+      match: { decryption },
+      response: { status },
+    });
+    const existente = {
+      ...rule(3),
+      match: { method: [], path: null, query: {}, decryption: 'unknown_kid' },
+    };
+
+    const added = store.prependMissing(TOKEN_ID, [nova(500, 'unknown_kid'), nova(400, 'invalid')]);
+    http.expectOne({ method: 'GET', url }).flush([existente]);
+    const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url }));
+    expect(put.request.body).toEqual([nova(400, 'invalid'), existente]);
+    put.flush(put.request.body);
+
+    expect(await added).toEqual([nova(400, 'invalid')]);
+    expect(store.rules()).toEqual([rule(1), rule(2)]);
+  });
 
   it('deve guardar a lista do GET Quando a URL é carregada', async () => {
     await loaded();

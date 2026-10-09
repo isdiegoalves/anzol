@@ -296,6 +296,61 @@
     }
   </form>
 
+  @if (!isLab() && savedPolicy) {
+    <section class="failures" aria-labelledby="e2ee-failures-title">
+      <h3 id="e2ee-failures-title" i18n>Failure responses</h3>
+      <p class="hint">
+        @if (signed()) {
+          <ng-container i18n
+            >Without a rule, a request whose decryption fails gets this URL's default response, and
+            the sender never finds out. These rules answer 500 when the encryption key is unknown,
+            400 for any other decryption failure, and 401 when the HMAC signature is invalid or
+            missing, as in the lab. Each one goes in only if the URL has no rule for that failure
+            yet.</ng-container
+          >
+        } @else {
+          <ng-container i18n
+            >Without a rule, a request whose decryption fails gets this URL's default response, and
+            the sender never finds out. These rules answer 500 when the encryption key is unknown
+            and 400 for any other decryption failure, as in the lab. Each one goes in only if the
+            URL has no rule for that failure yet.</ng-container
+          >
+        }
+      </p>
+      <div>
+        <button
+          mat-stroked-button
+          type="button"
+          [attr.aria-busy]="addingRules()"
+          (click)="addFailureRules()"
+          i18n
+        >
+          Add failure rules
+        </button>
+      </div>
+      <!-- Fora do @if: a região viva precisa existir vazia antes de falar. -->
+      <p class="hint" role="status">
+        @if (failureRulesResult(); as result) {
+          @if ('error' in result) {
+            <ng-container i18n>Could not add the rules: {{ result.error }}</ng-container>
+          } @else if (result.added.length === 0) {
+            <ng-container i18n
+              >This URL already has a rule for each failure; nothing was added.</ng-container
+            >
+          } @else {
+            <ng-container i18n>{result.added.length, plural,
+              =1 {Added 1 rule: {{ result.added.join(', ') }}.}
+              other {Added {{ result.added.length }} rules: {{ result.added.join(', ') }}.}
+            }</ng-container
+            >&ngsp;<ng-container i18n
+              >See them in <a [routerLink]="['/', tokenId(), 'rules']">Rules</a>.</ng-container
+            >
+          }
+        }
+      </p>
+    </section>
+  }
+
   @if (!isLab()) {
     <app-e2ee-lab class="lab-create" />
   }

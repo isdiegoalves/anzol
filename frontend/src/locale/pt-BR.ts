@@ -4252,4 +4252,23 @@ export const translations: Record<string, string> = {
   '443431740577312184': 'tipo do evento · ex.: {$START_TAG_CODE}$.tipoEvento.nome{$CLOSE_TAG_CODE}',
   // service name · e.g. {$START_TAG_CODE}$.servico.nome{$CLOSE_TAG_CODE}
   '70040655110193108': 'nome do serviço · ex.: {$START_TAG_CODE}$.servico.nome{$CLOSE_TAG_CODE}',
+  // Failure responses
+  '6812054586340728067': 'Respostas de falha',
+  // Without a rule, a request whose decryption fails gets this URL's default response, and the sender never finds out. These rules answer 500 when the encryption key is unknown, 400 for any other decryption failure, and 401 when the HMAC signature is invalid or missing, as in the lab. Each one goes in only if the URL has no rule for that failure yet.
+  '4985324593291538409':
+    'Sem regra, a requisição cuja decifra falha recebe a resposta padrão desta URL, e o remetente não fica sabendo. Estas regras respondem 500 quando a chave de cifra é desconhecida, 400 em qualquer outra falha da decifra e 401 quando a assinatura HMAC é inválida ou ausente, como no laboratório. Cada uma só entra se a URL ainda não tem regra para aquela falha.',
+  // Without a rule, a request whose decryption fails gets this URL's default response, and the sender never finds out. These rules answer 500 when the encryption key is unknown and 400 for any other decryption failure, as in the lab. Each one goes in only if the URL has no rule for that failure yet.
+  '1954758627907120346':
+    'Sem regra, a requisição cuja decifra falha recebe a resposta padrão desta URL, e o remetente não fica sabendo. Estas regras respondem 500 quando a chave de cifra é desconhecida e 400 em qualquer outra falha da decifra, como no laboratório. Cada uma só entra se a URL ainda não tem regra para aquela falha.',
+  //  Add failure rules
+  '5639545307784654948': ' Adicionar regras de falha ',
+  // Could not add the rules: {$INTERPOLATION}
+  '6325405709459678344': 'Não foi possível adicionar as regras: {$INTERPOLATION}',
+  // This URL already has a rule for each failure; nothing was added.
+  '7566903684944505324': 'Esta URL já tem uma regra para cada falha; nada foi adicionado.',
+  // {VAR_PLURAL, plural, =1 {Added 1 rule: {INTERPOLATION}.} other {Added {INTERPOLATION_1} rules: {INTERPOLATION}.}}
+  '7203022990807456957':
+    '{VAR_PLURAL, plural, =1 {1 regra adicionada: {INTERPOLATION}.} other {{INTERPOLATION_1} regras adicionadas: {INTERPOLATION}.}}',
+  // See them in {$START_LINK}Rules{$CLOSE_LINK}.
+  '3902748895990896270': 'Veja em {$START_LINK}Regras{$CLOSE_LINK}.',
 };

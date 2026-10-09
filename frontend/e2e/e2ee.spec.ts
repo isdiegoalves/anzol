@@ -223,6 +223,51 @@ test.describe('Dado o primeiro uso da decifra pela tela, em pt-BR', () => {
   });
 });
 
+test.describe('Dado as regras de falha da decifra numa URL comum', () => {
+  test('deve criar as regras pelo botão uma vez só, sem repetir no segundo clique', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ read_secret: SEGREDO });
+    const configurada = await request.put(`/token/${tokenId}`, {
+      headers: COM_SEGREDO,
+      data: { e2ee: politica([signatario('sig-e2e').publica]) },
+    });
+    expect(configurada.status()).toBe(200);
+    await destrancar(page, tokenId);
+    const cartao = await abrirChecks(page, tokenId, 'E2EE decryption');
+    const falhas = cartao.getByRole('region', { name: 'Failure responses' });
+    const resultado = falhas.getByRole('status');
+
+    await expect(falhas).toContainText(
+      "gets this URL's default response, and the sender never finds out",
+    );
+    await falhas.getByRole('button', { name: 'Add failure rules' }).click();
+    await expect(resultado).toHaveText(
+      'Added 2 rules: decryption: unknown_kid → 500, decryption: invalid → 400. See them in Rules.',
+    );
+    await expect(resultado.getByRole('link', { name: 'Rules' })).toHaveAttribute(
+      'href',
+      new RegExp(`#/${tokenId}/rules$`),
+    );
+    await falhas.getByRole('button', { name: 'Add failure rules' }).click();
+    await expect(resultado).toHaveText(
+      'This URL already has a rule for each failure; nothing was added.',
+    );
+
+    const gravadas = (await (
+      await request.get(`/token/${tokenId}/rules`, { headers: COM_SEGREDO })
+    ).json()) as { name: string; match: Record<string, unknown>; response: { status: number } }[];
+    expect(
+      gravadas.map((regra) => [regra.name, regra.match['decryption'], regra.response.status]),
+    ).toEqual([
+      ['decryption: unknown_kid → 500', 'unknown_kid', 500],
+      ['decryption: invalid → 400', 'invalid', 400],
+    ]);
+  });
+});
+
 test.describe('Dado uma mensagem com o atributo cifrado', () => {
   test('deve mostrar a decifra válida com o atributo aberto, também na que chega ao vivo, e as que falharam com o motivo', async ({
     page,

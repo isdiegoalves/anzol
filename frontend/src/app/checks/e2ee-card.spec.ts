@@ -298,6 +298,120 @@ describe('Dado o cartão "E2EE decryption" de Checks', () => {
     );
   });
 
+  describe('Dado as regras de falha da decifra', () => {
+    const regras = `/token/${TOKEN_ID}/rules`;
+    const adicionar = () => within(card()).getByRole('button', { name: 'Add failure rules' });
+    const resultado = () =>
+      within(card())
+        .getByRole('region', { name: 'Failure responses' })
+        .querySelector('[role=status]')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim();
+
+    it('não deve oferecer o botão Quando a decifra não está salva', async () => {
+      await renderCard(E2eeCard, PROTEGIDA);
+      await userEvent.click(toggle());
+
+      expect(within(card()).queryByRole('button', { name: 'Add failure rules' })).toBeNull();
+    });
+
+    it('deve explicar o que acontece sem regra e criar as duas da decifra no começo da lista, uma vez só', async () => {
+      const { container, http } = await renderCard(E2eeCard, {
+        ...PROTEGIDA,
+        e2ee: POLITICA,
+        signature: null,
+      });
+      const minha = {
+        id: 'r1',
+        name: 'Minha',
+        priority: 1,
+        match: { method: ['POST'] },
+        response: { status: 201 },
+      };
+
+      const secao = within(card()).getByRole('region', { name: 'Failure responses' });
+      expect(secao.textContent).toContain(
+        "Without a rule, a request whose decryption fails gets this URL's default response, and the sender never finds out.",
+      );
+      expect(secao.textContent).not.toContain('401');
+      await expectNoAxeViolations(container);
+      await userEvent.click(adicionar());
+
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: regras }))).flush([minha]);
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: regras }));
+      expect(put.request.body).toEqual([
+        {
+          name: 'decryption: unknown_kid → 500',
+          priority: 2,
+          match: { decryption: 'unknown_kid' },
+          response: { status: 500 },
+        },
+        {
+          name: 'decryption: invalid → 400',
+          priority: 3,
+          match: { decryption: 'invalid' },
+          response: { status: 400 },
+        },
+        minha,
+      ]);
+      put.flush(put.request.body);
+      await vi.waitFor(() =>
+        expect(resultado()).toBe(
+          'Added 2 rules: decryption: unknown_kid → 500, decryption: invalid → 400. See them in Rules.',
+        ),
+      );
+      expect(within(card()).getByRole('link', { name: 'Rules' }).getAttribute('href')).toContain(
+        `/${TOKEN_ID}/rules`,
+      );
+    });
+
+    it('deve acrescentar só a que falta, e as do HMAC Quando a URL verifica assinatura', async () => {
+      const { http } = await renderCard(E2eeCard, { ...PROTEGIDA, e2ee: POLITICA });
+      const existente = {
+        id: 'r1',
+        name: 'Chave sumida',
+        priority: 1,
+        match: { method: [], path: null, decryption: 'unknown_kid' },
+        response: { status: 503 },
+      };
+
+      expect(
+        within(card()).getByRole('region', { name: 'Failure responses' }).textContent,
+      ).toContain('and 401 when the HMAC signature is invalid or missing');
+      await userEvent.click(adicionar());
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: regras }))).flush([existente]);
+
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: regras }));
+      expect((put.request.body as { name: string }[]).map((regra) => regra.name)).toEqual([
+        'signature: invalid → 401',
+        'signature: absent → 401',
+        'decryption: invalid → 400',
+        'Chave sumida',
+      ]);
+    });
+
+    it('não deve gravar nada Quando a URL já tem todas', async () => {
+      const { http } = await renderCard(E2eeCard, {
+        ...PROTEGIDA,
+        e2ee: POLITICA,
+        signature: null,
+      });
+
+      await userEvent.click(adicionar());
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: regras }))).flush([
+        { id: 'a', name: 'x', match: { decryption: 'unknown_kid' }, response: { status: 500 } },
+        { id: 'b', name: 'y', match: { decryption: 'invalid' }, response: { status: 422 } },
+      ]);
+
+      await vi.waitFor(() =>
+        expect(resultado()).toBe(
+          'This URL already has a rule for each failure; nothing was added.',
+        ),
+      );
+      http.expectNone({ method: 'PUT', url: regras });
+    });
+  });
+
   describe('Dado as chaves de cifra', () => {
     it('deve gerar a chave com o kid digitado e mostrá-la na lista', async () => {
       const { http } = await renderCard(E2eeCard, PROTEGIDA);

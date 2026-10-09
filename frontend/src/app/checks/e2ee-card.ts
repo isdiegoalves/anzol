@@ -19,6 +19,8 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { localDate } from '../request-detail/dates';
+import { Rule, RuleMatch } from '../rules/rule';
+import { RuleStore, validationMessages } from '../rules/rule-store';
 import {
   E2EE_KEYS_MAX,
   E2eeBinding,
@@ -73,6 +75,31 @@ export function signersValidator(control: AbstractControl<string>): ValidationEr
     : { json: $localize`Paste a JSON array of public JWKs: [{"kty": "EC", …}].` };
 }
 
+/**
+ * As respostas de falha do laboratório: 401 no HMAC (só numa URL que confere assinatura), 500 na
+ * chave de cifra desconhecida, 400 em outra falha da decifra.
+ */
+function failureRules(signed: boolean): Rule[] {
+  const rule = (name: string, priority: number, match: RuleMatch, status: number): Rule => ({
+    name,
+    priority,
+    match,
+    response: { status },
+  });
+  return [
+    ...(signed
+      ? [
+          rule('signature: invalid → 401', 1, { signature: 'invalid' }, 401),
+          rule('signature: absent → 401', 1, { signature: 'absent' }, 401),
+        ]
+      : []),
+    rule('decryption: unknown_kid → 500', 2, { decryption: 'unknown_kid' }, 500),
+    rule('decryption: invalid → 400', 3, { decryption: 'invalid' }, 400),
+  ];
+}
+
+type FailureRulesResult = { added: string[] } | { error: string };
+
 function bindingPath(binding: E2eeBinding | undefined): string {
   return typeof binding === 'object' ? binding.path : (binding ?? '');
 }
@@ -111,6 +138,7 @@ function bindingIgnoresCase(binding: E2eeBinding | undefined): boolean {
 export class E2eeCard implements ChecksSection {
   private readonly tokens = inject(TokenStore);
   private readonly checks = inject(ChecksStore);
+  private readonly rules = inject(RuleStore);
   private readonly draft = inject(ChecksDraft);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -151,6 +179,10 @@ export class E2eeCard implements ChecksSection {
   protected readonly kidRefusal = signal<string | null>(null);
   protected readonly isLab = computed(() => Boolean(this.tokens.token()?.lab));
   protected readonly generating = signal(false);
+  protected readonly tokenId = computed(() => this.tokens.token()?.uuid ?? '');
+  protected readonly signed = computed(() => Boolean(this.tokens.token()?.signature));
+  protected readonly addingRules = signal(false);
+  protected readonly failureRulesResult = signal<FailureRulesResult | null>(null);
 
   constructor() {
     this.form.controls.enabled.valueChanges
@@ -328,6 +360,23 @@ export class E2eeCard implements ChecksSection {
       }
     } finally {
       this.generating.set(false);
+    }
+  }
+
+  /** Põe no começo da lista as regras de falha que a URL ainda não tem. */
+  protected async addFailureRules(): Promise<void> {
+    const tokenId = this.tokenId();
+    if (!tokenId || this.addingRules()) {
+      return;
+    }
+    this.addingRules.set(true);
+    try {
+      const added = await this.rules.prependMissing(tokenId, failureRules(this.signed()));
+      this.failureRulesResult.set({ added: added.map((rule) => rule.name) });
+    } catch (error) {
+      this.failureRulesResult.set({ error: validationMessages(error).join(' ') });
+    } finally {
+      this.addingRules.set(false);
     }
   }
 
