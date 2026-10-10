@@ -10,6 +10,7 @@ import { TokenSettings } from './token';
 import { TokenDialog, TokenDialogData } from './token-dialog';
 import { TokenStore } from './token-store';
 import { UrlAccess } from './url-access';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 /**
  * Fluxos "New URL", "Lock", "Delete URL" e "Copy CLI command" do shell. Fica num chunk carregado no primeiro clique: diálogo,
@@ -29,8 +30,10 @@ export class TokenActions {
   private readonly known = inject(KnownUrls);
 
   /** O aviso do "Copy CLI command", que copia no clique (`injectCopyCliCommand`). */
-  cliCommandCopied(): void {
-    this.snackBar.open($localize`Copied the CLI command.`, undefined, { duration: 1000 });
+  cliCommandCopied(copied: boolean): void {
+    this.snackBar.open(copied ? $localize`Copied the CLI command.` : copyFailedText(), undefined, {
+      duration: NOTICE_MS,
+    });
   }
 
   async createUrl(): Promise<void> {

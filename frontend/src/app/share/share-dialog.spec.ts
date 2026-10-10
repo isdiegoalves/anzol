@@ -180,7 +180,7 @@ describe('Dado o diálogo "Share read-only link…"', () => {
     await settled(() => expect(activeLinks().map((text) => text?.split(' ')[0])).toEqual(['Dois']));
 
     expect(call.request.method).toBe('DELETE');
-    expect(snack).toHaveBeenCalledWith('Link revoked', undefined, { duration: 1000 });
+    expect(snack).toHaveBeenCalledWith('Link revoked', undefined, { duration: 4000 });
   });
 
   it('deve mostrar a frase do servidor Quando a URL já tem 50 links ativos (422)', async () => {

@@ -568,9 +568,8 @@ export class Shell {
 
   /** Copia no clique; o aviso vem com o chunk de `TokenActions`. */
   private copyCli(): void {
-    if (this.copyCliCommand()) {
-      void this.withActions((actions) => actions.cliCommandCopied());
-    }
+    const copied = this.copyCliCommand();
+    void this.withActions((actions) => actions.cliCommandCopied(copied));
   }
 
   private async withActions(run: (actions: TokenActions) => unknown): Promise<void> {

@@ -13,6 +13,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { E2eeBinding, LabCreated } from '../token/token';
 import { Icon } from '../ui/icon';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 /** Os segredos da URL de laboratório recém-criada, que o servidor não mostra de novo. */
 @Component({
@@ -42,7 +43,7 @@ import { Icon } from '../ui/icon';
               type="button"
               [attr.aria-label]="copyReadLabel"
               [cdkCopyToClipboard]="lab.read_secret"
-              (cdkCopyToClipboardCopied)="copied(copyReadDone)"
+              (cdkCopyToClipboardCopied)="copied(copyReadDone, $event)"
             >
               <app-icon name="copy" [size]="18" /><ng-container i18n>Copy</ng-container>
             </button>
@@ -60,7 +61,7 @@ import { Icon } from '../ui/icon';
               type="button"
               [attr.aria-label]="copyHmacLabel"
               [cdkCopyToClipboard]="lab.hmac_secret"
-              (cdkCopyToClipboardCopied)="copied(copyHmacDone)"
+              (cdkCopyToClipboardCopied)="copied(copyHmacDone, $event)"
             >
               <app-icon name="copy" [size]="18" /><ng-container i18n>Copy</ng-container>
             </button>
@@ -175,8 +176,8 @@ export class LabSecretsDialog {
   protected readonly copyReadDone = $localize`Copied the read secret`;
   protected readonly copyHmacDone = $localize`Copied the HMAC secret`;
 
-  protected copied(message: string): void {
-    this.snackBar.open(message, undefined, { duration: 1000 });
+  protected copied(message: string, done: boolean): void {
+    this.snackBar.open(done ? message : copyFailedText(), undefined, { duration: NOTICE_MS });
   }
 }
 

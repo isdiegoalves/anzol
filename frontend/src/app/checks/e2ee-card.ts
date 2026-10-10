@@ -47,6 +47,7 @@ import {
   pendingLabels,
   pendingSummary,
 } from './url-settings';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 /** Limites que o servidor aceita. */
 const MAX_AGE_DEFAULT = 43_200;
@@ -430,10 +431,12 @@ export class E2eeCard implements ChecksSection {
 
   /** A JWK pública, como o remetente a usa para cifrar. */
   protected copyKey(key: E2eeKey): void {
-    this.clipboard.copy(JSON.stringify(key.jwk));
-    this.snackBar.open($localize`Copied the public key ${key.kid}:kid:`, undefined, {
-      duration: 1000,
-    });
+    const copied = this.clipboard.copy(JSON.stringify(key.jwk));
+    this.snackBar.open(
+      copied ? $localize`Copied the public key ${key.kid}:kid:` : copyFailedText(),
+      undefined,
+      { duration: NOTICE_MS },
+    );
   }
 
   protected ignoreCaseLabel(name: BindingName): string {

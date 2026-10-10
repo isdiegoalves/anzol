@@ -16,6 +16,7 @@ import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { GuideStep } from './guide-step';
 import { firstSteps } from './guide-steps';
+import { copyFailedText } from '../ui/notice';
 
 /**
  * Roteiro "First webhook" (R1): mandar a primeira requisição, vê-la chegar e, se quiser, conferir
@@ -90,9 +91,9 @@ export class FirstGuide {
   }
 
   protected copyCurl(): void {
-    this.clipboard.copy(this.curl());
+    const copied = this.clipboard.copy(this.curl());
     void this.announcer.announce(
-      $localize`Command copied. It has this URL, which is a secret.`,
+      copied ? $localize`Command copied. It has this URL, which is a secret.` : copyFailedText(),
       ANNOUNCEMENT_MS,
     );
   }

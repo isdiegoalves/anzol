@@ -675,6 +675,35 @@ describe('Dado a lista lateral de mensagens', () => {
     );
   });
 
+  it('deve devolver a mensagem e dizer que não apagou Quando o DELETE falha', async () => {
+    await load([webhookRequest(1), webhookRequest(2)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+    items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+    open.mock.results[0].value.dismiss();
+    await vi.waitFor(() =>
+      http
+        .expectOne({
+          method: 'DELETE',
+          url: `/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`,
+        })
+        .flush({}, { status: 503, statusText: 'Unavailable' }),
+    );
+
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        'Could not delete (503). The request is still here.',
+        undefined,
+        { duration: 4000 },
+      ),
+    );
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(items()).toHaveLength(2);
+    });
+    expect(element().textContent).toContain('Requests (2)');
+  });
+
   it('deve devolver a mensagem sem apagar Quando o Undo é clicado', async () => {
     await load([webhookRequest(1), webhookRequest(2)]);
     const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');

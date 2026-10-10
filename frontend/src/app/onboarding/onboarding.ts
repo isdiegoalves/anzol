@@ -8,6 +8,7 @@ import { Preferences } from '../settings/preferences';
 import { cliListenCommand } from '../token/token';
 import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
+import { copyFailedText } from '../ui/notice';
 
 /** O corpo do "Send a test request": JSON, como um webhook de verdade (não formulário). */
 export function testPayload(now: Date = new Date()): string {
@@ -49,9 +50,9 @@ export class Onboarding {
   protected readonly sent = signal<{ ok: boolean; text: string } | null>(null);
 
   protected copyCurl(): void {
-    this.clipboard.copy(this.curl());
+    const copied = this.clipboard.copy(this.curl());
     void this.announcer.announce(
-      $localize`Command copied. It has this URL, which is a secret.`,
+      copied ? $localize`Command copied. It has this URL, which is a secret.` : copyFailedText(),
       ANNOUNCEMENT_MS,
     );
   }

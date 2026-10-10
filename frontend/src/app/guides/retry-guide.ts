@@ -36,6 +36,7 @@ import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { GuideStep } from './guide-step';
 import { StepState } from './guide-steps';
 import { Arrival, RetryCheck, retryCheck } from './retry-check';
+import { copyFailedText } from '../ui/notice';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 /**
@@ -270,11 +271,11 @@ export class RetryGuide {
   protected copyLoop(): void {
     const url = `${this.document.location.origin}/${this.tokenId()}${this.requestPath()}`;
     const turns = Array.from({ length: this.sendCount() }, (_, i) => i + 1).join(' ');
-    this.clipboard.copy(
+    const copied = this.clipboard.copy(
       `for i in ${turns}; do curl -s -o /dev/null -w '%{http_code}\\n' -X ${this.method()} ${url}; sleep ${this.gap()}; done`,
     );
     void this.announcer.announce(
-      $localize`Command copied. It has this URL, which is a secret.`,
+      copied ? $localize`Command copied. It has this URL, which is a secret.` : copyFailedText(),
       ANNOUNCEMENT_MS,
     );
   }

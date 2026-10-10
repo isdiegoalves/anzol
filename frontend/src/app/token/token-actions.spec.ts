@@ -215,9 +215,19 @@ describe('Dado o "New URL" e o "Lock" do shell', () => {
     });
 
     it('deve avisar "Copied the CLI command." depois da cópia do "Copy CLI command"', () => {
-      TestBed.inject(TokenActions).cliCommandCopied();
+      TestBed.inject(TokenActions).cliCommandCopied(true);
 
-      expect(snack).toHaveBeenCalledWith('Copied the CLI command.', undefined, { duration: 1000 });
+      expect(snack).toHaveBeenCalledWith('Copied the CLI command.', undefined, { duration: 4000 });
+    });
+
+    it('deve dizer que não copiou Quando o navegador recusa a cópia do comando', () => {
+      TestBed.inject(TokenActions).cliCommandCopied(false);
+
+      expect(snack).toHaveBeenCalledWith(
+        'Could not copy. Select the text and copy it.',
+        undefined,
+        { duration: 4000 },
+      );
     });
   });
 });

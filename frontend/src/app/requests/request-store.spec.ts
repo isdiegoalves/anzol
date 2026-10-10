@@ -313,6 +313,24 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.total()).toBe(3);
     });
 
+    it('deve devolver a mensagem ao mesmo lugar e repassar o erro Quando o DELETE falha', async () => {
+      const antes = store.requests();
+      store.select(webhookRequest(1).uuid);
+
+      const deleted = store.deleteRequest(webhookRequest(1));
+      http
+        .expectOne({
+          method: 'DELETE',
+          url: `/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`,
+        })
+        .flush({}, { status: 503, statusText: 'Unavailable' });
+
+      await expect(deleted).rejects.toMatchObject({ status: 503 });
+      expect(store.requests()).toEqual(antes);
+      expect(store.total()).toBe(3);
+      expect(store.gone()).toBeNull();
+    });
+
     it('deve apagar no servidor Quando o aviso some sem Undo', async () => {
       let semUndo!: (undo: boolean) => void;
       const deleted = store.deleteRequest(

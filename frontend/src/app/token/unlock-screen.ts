@@ -8,6 +8,7 @@ import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { UrlAccess } from './url-access';
 import { UrlLock } from './url-lock';
+import { NOTICE_MS } from '../ui/notice';
 
 /** Sem `Retry-After` legível, espera um minuto (a janela das 10 tentativas do servidor). */
 const DEFAULT_WAIT_SECONDS = 60;
@@ -56,7 +57,7 @@ export class UnlockScreen {
     this.error.set(null);
     try {
       await this.access.unlock(this.tokenId(), this.form.getRawValue().secret);
-      this.snackBar.open($localize`URL unlocked`, undefined, { duration: 1000 });
+      this.snackBar.open($localize`URL unlocked`, undefined, { duration: NOTICE_MS });
     } catch (error) {
       this.failed(error);
     } finally {

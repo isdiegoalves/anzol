@@ -2077,6 +2077,8 @@
     "8436854779844607643": "The real-time connection dropped; trying again",
     "5104148019556190110": "No signal",
     "7788612002521976570": "The server stopped sending; reconnecting",
+    "4920112831965948348": "Could not copy. Select the text and copy it.",
+    "4468188824353488567": "Could not delete ({$status}). The request is still here.",
     "6013545083388591969": "The server is taking more than 30 s.",
     "3434214639687233214": "{$width} pixels",
     "7913570146997711091": "No response"

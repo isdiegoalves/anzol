@@ -619,7 +619,8 @@ export class RequestStore {
   /**
    * Tira a mensagem da lista na hora. Com `undo` (o "Undo" do aviso), só apaga no servidor se ele
    * resolver `false`; com `true`, nada é apagado e a mensagem volta ao mesmo lugar, se a lista ainda
-   * é a de quando ela saiu (`kept`: a tela está em outra URL, e ela fica só no servidor).
+   * é a de quando ela saiu (`kept`: a tela está em outra URL, e ela fica só no servidor). O DELETE que
+   * falha também a devolve, e repassa o erro.
    */
   async deleteRequest(
     request: WebhookRequest,
@@ -647,34 +648,56 @@ export class RequestStore {
     }
     this.markAsRead(request.uuid);
     if (undo && (await undo)) {
-      if ((this.opening() ?? this.tokenId()) !== request.token_id) {
-        return 'kept';
-      }
-      if (this.goneState()?.id === request.uuid) {
-        this.goneState.set(null);
-      }
-      // Relida depois do apagar, a lista já a trouxe de volta: o DELETE ainda não tinha saído.
-      if (generation !== this.generation) {
-        return 'restored';
-      }
-      this.pages.update((pages) =>
-        pages.map((page, index) =>
-          index === pageIndex
-            ? {
-                ...page,
-                data: [...page.data.slice(0, position), request, ...page.data.slice(position)],
-              }
-            : page,
-        ),
-      );
-      this.total.update((total) => total + 1);
-      if (counted) {
-        this.matched.update((matched) => matched + 1);
-      }
-      return 'restored';
+      return this.putBack(request, { generation, pageIndex, position, counted })
+        ? 'restored'
+        : 'kept';
     }
-    await firstValueFrom(this.http.delete(`/token/${request.token_id}/request/${request.uuid}`));
+    try {
+      await firstValueFrom(this.http.delete(`/token/${request.token_id}/request/${request.uuid}`));
+    } catch (error) {
+      this.putBack(request, { generation, pageIndex, position, counted });
+      throw error;
+    }
     return 'deleted';
+  }
+
+  /**
+   * Devolve à lista, no mesmo lugar, a mensagem que saiu dela e continua no servidor (o Undo, ou o DELETE
+   * que falhou); `false` quando a tela já está em outra URL.
+   */
+  private putBack(
+    request: WebhookRequest,
+    from: { generation: number; pageIndex: number; position: number; counted: boolean },
+  ): boolean {
+    if ((this.opening() ?? this.tokenId()) !== request.token_id) {
+      return false;
+    }
+    if (this.goneState()?.id === request.uuid) {
+      this.goneState.set(null);
+    }
+    // Relida depois do apagar, a lista já a trouxe de volta: o DELETE ainda não tinha saído.
+    if (from.generation !== this.generation) {
+      return true;
+    }
+    this.pages.update((pages) =>
+      pages.map((page, index) =>
+        index === from.pageIndex
+          ? {
+              ...page,
+              data: [
+                ...page.data.slice(0, from.position),
+                request,
+                ...page.data.slice(from.position),
+              ],
+            }
+          : page,
+      ),
+    );
+    this.total.update((total) => total + 1);
+    if (from.counted) {
+      this.matched.update((matched) => matched + 1);
+    }
+    return true;
   }
 
   /** Posição do que está carregado, para o rodapé "1–50 of N" (N com filtro é o que casa). */

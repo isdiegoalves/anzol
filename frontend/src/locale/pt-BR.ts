@@ -3049,6 +3049,10 @@ export const translations: Record<string, string> = {
   '2894599613813345941': 'Não foi possível abrir esta URL ({$status}).',
   // The server is taking more than 30 s.
   '6013545083388591969': 'O servidor está demorando mais de 30 s.',
+  // Could not copy. Select the text and copy it.
+  '4920112831965948348': 'Não foi possível copiar. Selecione o texto e copie.',
+  // Could not delete ({$status}). The request is still here.
+  '4468188824353488567': 'Não foi possível apagar ({$status}). A requisição continua aqui.',
   // Skip to content
   '3411805131914952915': 'Pular para o conteúdo',
   // The server did not answer. Nothing was changed.

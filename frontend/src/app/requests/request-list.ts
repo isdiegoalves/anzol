@@ -1,5 +1,6 @@
 import { CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { DOCUMENT } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -46,6 +47,7 @@ import { RequestStore } from './request-store';
 import { RowSizes } from './row-sizes';
 import { SealFilter } from './seal-filter';
 import { WebhookRequest } from './webhook-request';
+import { NOTICE_MS, deleteFailedText } from '../ui/notice';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
 export const AGO_REFRESH_MS = 30_000;
@@ -503,17 +505,23 @@ export class RequestList {
     const undo = firstValueFrom(notice.afterDismissed()).then(
       ({ dismissedByAction }) => dismissedByAction,
     );
-    void this.store.deleteRequest(request, undo).then((outcome) => {
-      if (outcome === 'kept') {
+    this.store.deleteRequest(request, undo).then(
+      (outcome) => {
+        if (outcome === 'kept') {
+          this.snackBar.open(
+            $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+            undefined,
+            { duration: NOTICE_MS },
+          );
+        }
+      },
+      (error: unknown) =>
         this.snackBar.open(
-          $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+          deleteFailedText(error instanceof HttpErrorResponse ? error.status : 0),
           undefined,
-          {
-            duration: UNDO_MS,
-          },
-        );
-      }
-    });
+          { duration: NOTICE_MS },
+        ),
+    );
   }
 
   protected trackRow(_index: number, row: ListRow<ItemView>): string {

@@ -40,7 +40,7 @@
         mat-flat-button
         type="button"
         [cdkCopyToClipboard]="address(link)"
-        (cdkCopyToClipboardCopied)="copied()"
+        (cdkCopyToClipboardCopied)="copied($event)"
       >
         Copy link
       </button>

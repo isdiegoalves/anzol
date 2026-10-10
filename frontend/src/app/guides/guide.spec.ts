@@ -91,7 +91,7 @@ describe('Dado um roteiro (R1)', () => {
 
     it('deve copiar o comando curl e avisar que ele tem a URL', async () => {
       await show('first');
-      const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy');
+      const copy = vi.spyOn(TestBed.inject(Clipboard), 'copy').mockReturnValue(true);
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
 
       await userEvent.click(screen.getByRole('button', { name: 'Copy curl command' }));

@@ -1,6 +1,7 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   Injector,
@@ -37,6 +38,7 @@ import { ActionPanelStore, ActionTab } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
+import { NOTICE_MS, copyFailedText, deleteFailedText } from '../ui/notice';
 
 let nextId = 0;
 
@@ -113,20 +115,26 @@ export class RequestDetail {
       ({ dismissedByAction }) => dismissedByAction,
     );
     const request = this.request();
-    void this.requests.deleteRequest(request, undo).then((outcome) => {
-      if (outcome === 'restored') {
-        // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
-        void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
-      } else if (outcome === 'kept') {
+    this.requests.deleteRequest(request, undo).then(
+      (outcome) => {
+        if (outcome === 'restored') {
+          // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
+          void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
+        } else if (outcome === 'kept') {
+          this.snackBar.open(
+            $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+            undefined,
+            { duration: NOTICE_MS },
+          );
+        }
+      },
+      (error: unknown) =>
         this.snackBar.open(
-          $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+          deleteFailedText(error instanceof HttpErrorResponse ? error.status : 0),
           undefined,
-          {
-            duration: UNDO_MS,
-          },
-        );
-      }
-    });
+          { duration: NOTICE_MS },
+        ),
+    );
   }
   /** Sumiu do servidor: o que precisa dele fica `aria-disabled`, focável, com a razão descrita. */
   protected readonly gone = computed(() => this.requests.gone()?.id === this.request().uuid);
@@ -285,17 +293,21 @@ export class RequestDetail {
 
   /** Corpo exatamente como chegou, mesmo com o Pretty ligado. */
   protected copyPayload(): void {
-    this.clipboard.copy(this.request().content ?? '');
-    this.snackBar.open($localize`Copied payload`, undefined, { duration: 1000 });
+    const copied = this.clipboard.copy(this.request().content ?? '');
+    this.snackBar.open(copied ? $localize`Copied payload` : copyFailedText(), undefined, {
+      duration: NOTICE_MS,
+    });
   }
 
   /** O conversor (curl, HAR) vem sob demanda: não pesa no pedaço da Inbox. */
   protected async copyRequestAs(format: CopyFormat): Promise<void> {
     const { convertRequest } = await import('./copy-as');
-    this.clipboard.copy(convertRequest(this.request(), format, this.token()));
-    this.snackBar.open($localize`Copied request as ${format}:format:`, undefined, {
-      duration: 1000,
-    });
+    const copied = this.clipboard.copy(convertRequest(this.request(), format, this.token()));
+    this.snackBar.open(
+      copied ? $localize`Copied request as ${format}:format:` : copyFailedText(),
+      undefined,
+      { duration: NOTICE_MS },
+    );
   }
 
   compareWithPrevious(event?: MouseEvent): void {

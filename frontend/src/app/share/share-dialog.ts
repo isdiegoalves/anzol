@@ -27,6 +27,7 @@ import {
   ShareLink,
 } from './share';
 import { ShareStore } from './share-store';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 export interface ShareDialogData {
   request: WebhookRequest;
@@ -125,14 +126,16 @@ export class ShareDialog {
       if (this.created()?.id === link.id) {
         this.created.set(null);
       }
-      this.snackBar.open($localize`Link revoked`, undefined, { duration: 1000 });
+      this.snackBar.open($localize`Link revoked`, undefined, { duration: NOTICE_MS });
     } catch (error) {
       this.error.set(shareError($localize`revoke the link`, error));
     }
   }
 
-  protected copied(): void {
-    this.snackBar.open($localize`Copied link`, undefined, { duration: 1000 });
+  protected copied(done: boolean): void {
+    this.snackBar.open(done ? $localize`Copied link` : copyFailedText(), undefined, {
+      duration: NOTICE_MS,
+    });
   }
 
   /** Endereço completo do link, para abrir em outro navegador. */

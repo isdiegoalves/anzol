@@ -319,7 +319,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     await more.clickItem({ text: 'Copy As' }, { text: 'curl' });
 
     await vi.waitFor(() => expect(copy).toHaveBeenCalledWith(`curl -X 'POST' '${request.url}'`));
-    expect(open).toHaveBeenCalledWith('Copied request as curl', undefined, { duration: 1000 });
+    expect(open).toHaveBeenCalledWith('Copied request as curl', undefined, { duration: 4000 });
   });
 
   it('deve copiar o corpo cru e avisar Quando "Copy payload" é clicado', async () => {
@@ -332,7 +332,20 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     await userEvent.click(action('Copy payload'));
 
     expect(copy).toHaveBeenCalledWith('{"a":1}');
-    expect(open).toHaveBeenCalledWith('Copied payload', undefined, { duration: 1000 });
+    expect(open).toHaveBeenCalledWith('Copied payload', undefined, { duration: 4000 });
+  });
+
+  it('deve dizer que não copiou, e não "Copied payload", Quando o navegador recusa a cópia', async () => {
+    const { fixture } = await show(webhookRequest(1, { content: '{"a":1}' }));
+    vi.spyOn(fixture.debugElement.injector.get(Clipboard), 'copy').mockReturnValue(false);
+    const open = vi.spyOn(fixture.debugElement.injector.get(MatSnackBar), 'open');
+
+    await userEvent.click(action('Copy payload'));
+
+    expect(open).toHaveBeenCalledWith('Could not copy. Select the text and copy it.', undefined, {
+      duration: 4000,
+    });
+    expect(open).not.toHaveBeenCalledWith('Copied payload', undefined, expect.anything());
   });
 
   it('não deve oferecer "Copy payload" Quando o corpo é vazio', async () => {

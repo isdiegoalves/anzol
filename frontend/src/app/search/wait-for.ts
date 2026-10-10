@@ -5,6 +5,7 @@ import { RequestStore } from '../requests/request-store';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { ciTestCommand, outsideWaitFor, waitForCommand } from './request-filter';
+import { copyFailedText } from '../ui/notice';
 
 /**
  * "Copy as anzol wait-for" (S10): copia o comando com os filtros ligados. Só o `match` vai para o
@@ -33,24 +34,26 @@ export class WaitFor {
       return;
     }
     const filter = { ...this.store.filter(), text: this.typed() ?? this.store.filter().text };
-    this.clipboard.copy(
+    const copied = this.clipboard.copy(
       waitForCommand(filter, {
         server: this.origin,
         tokenId: token.uuid,
         protected: token.protected === true,
       }),
     );
-    this.copied.set(copiedMessage(outsideWaitFor(filter)));
+    this.copied.set(copied ? copiedMessage(outsideWaitFor(filter)) : copyFailedText());
   }
 
   copyCiTest(): void {
     const filter = { ...this.store.filter(), text: this.typed() ?? this.store.filter().text };
-    this.clipboard.copy(ciTestCommand(filter, this.origin));
+    const copied = this.clipboard.copy(ciTestCommand(filter, this.origin));
     const outside = outsideWaitFor(filter);
     this.copied.set(
-      outside.length === 0
-        ? $localize`Copied the anzol test command.`
-        : $localize`Copied. anzol test only reads --match, so these filters were left out: ${leftOut(outside)}:filters:.`,
+      !copied
+        ? copyFailedText()
+        : outside.length === 0
+          ? $localize`Copied the anzol test command.`
+          : $localize`Copied. anzol test only reads --match, so these filters were left out: ${leftOut(outside)}:filters:.`,
     );
   }
 }

@@ -45,6 +45,7 @@ import { OutboundStore, isRequestId } from './outbound-store';
 import { ReplayComposer } from './replay-composer';
 import { rememberedTarget } from './replay-target';
 import { SendComposer } from './send-composer';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 type Mode = 'replay' | 'send';
 
@@ -222,8 +223,12 @@ export class OutboundPage {
         (await this.store.request(this.tokenId(), source).catch(() => null));
       body = request?.content ?? null;
     }
-    this.clipboard.copy(curlOf(result.method, result.target, result.request_headers, body));
-    this.snackBar.open($localize`Copied as curl`, undefined, { duration: 4000 });
+    const copied = this.clipboard.copy(
+      curlOf(result.method, result.target, result.request_headers, body),
+    );
+    this.snackBar.open(copied ? $localize`Copied as curl` : copyFailedText(), undefined, {
+      duration: NOTICE_MS,
+    });
   }
 
   private async open(tokenId: string): Promise<void> {

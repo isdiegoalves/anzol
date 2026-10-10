@@ -111,7 +111,7 @@ describe('Dado o cabeçalho da URL aberta', () => {
     expect(copy).toHaveBeenCalledWith(
       `anzol listen --server ${location.origin} --forward http://localhost:3000 --token ${TOKEN_ID}`,
     );
-    await vi.waitFor(() => expect(actions.cliCommandCopied).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(actions.cliCommandCopied).toHaveBeenCalledExactlyOnceWith(true));
     await user.click(more);
     await user.click(screen.getByRole('menuitem', { name: 'Delete URL' }));
     await vi.waitFor(() => expect(actions.deleteUrl).toHaveBeenCalledOnce());
