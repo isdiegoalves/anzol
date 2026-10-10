@@ -14,13 +14,15 @@ const TARGET_MIN = 24;
 
 /**
  * O selo à vista é o de dentro do botão do item, e um botão não cabe dentro de outro: este botão
- * fica por cima dele, do tamanho dele. Só com ponteiro fino: no toque, o item inteiro abre.
+ * fica por cima dele, do tamanho dele. Só com ponteiro fino: no toque, o item inteiro abre. Fica fora
+ * do Tab: pelo teclado, o mesmo filtro está no "Answer" do detalhe.
  */
 @Component({
   selector: 'app-seal-filter',
   template: `<button
     type="button"
     class="seal"
+    tabindex="-1"
     [attr.aria-label]="label()"
     [title]="label()"
     (click)="chips.filterByValue({ kind: 'status', name: '', value: status() })"
