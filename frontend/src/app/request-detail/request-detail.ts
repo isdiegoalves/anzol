@@ -1,7 +1,5 @@
-import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   Injector,
@@ -17,28 +15,25 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { AI_OFF_HINT, AiClient } from '../ai/ai-client';
 import { CompareStore } from '../diff/compare-store';
-import { UNDO_MS } from '../requests/request-list';
+import { PendingDelete } from '../requests/pending-delete';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { closestPhrase } from '../pipeline/pipeline';
 import { hasNoCondition } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
 import { Viewport } from '../shell/viewport';
-import { KnownUrls } from '../token/known-urls';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
 import { EventGrouping } from '../requests/event-grouping';
 import { eventValueOf } from '../requests/event-key';
-import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { ActionPanelStore, ActionTab } from './action-panel-store';
 import { Explanations } from './explanations';
 import { RuleTracePanel } from './rule-trace';
 import { RequestView } from './request-view';
-import { NOTICE_MS, copyFailedText, deleteFailedText } from '../ui/notice';
+import { NOTICE_MS, copyFailedText } from '../ui/notice';
 
 let nextId = 0;
 
@@ -74,14 +69,13 @@ export class RequestDetail {
   private readonly router = inject(Router);
   private readonly compare = inject(CompareStore);
   private readonly requests = inject(RequestStore);
+  private readonly deleting = inject(PendingDelete);
   protected readonly ai = inject(AiClient);
   private readonly viewport = inject(Viewport);
   private readonly rules = inject(RuleStore);
   private readonly explanations = inject(Explanations);
   private readonly grouping = inject(EventGrouping);
-  private readonly announcer = inject(LiveAnnouncer);
   private readonly panel = inject(ActionPanelStore);
-  private readonly urls = inject(KnownUrls);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -105,37 +99,11 @@ export class RequestDetail {
 
   /** INBOX-20: o "Delete request" do "More", com o Undo da lixeira da lista. */
   protected deleteRequest(): void {
-    if (this.gone()) {
-      return;
+    if (!this.gone()) {
+      this.deleting.delete(this.request());
     }
-    const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
-      duration: UNDO_MS,
-    });
-    const undo = firstValueFrom(notice.afterDismissed()).then(
-      ({ dismissedByAction }) => dismissedByAction,
-    );
-    const request = this.request();
-    this.requests.deleteRequest(request, undo).then(
-      (outcome) => {
-        if (outcome === 'restored') {
-          // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
-          void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
-        } else if (outcome === 'kept') {
-          this.snackBar.open(
-            $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
-            undefined,
-            { duration: NOTICE_MS },
-          );
-        }
-      },
-      (error: unknown) =>
-        this.snackBar.open(
-          deleteFailedText(error instanceof HttpErrorResponse ? error.status : 0),
-          undefined,
-          { duration: NOTICE_MS },
-        ),
-    );
   }
+
   /** Sumiu do servidor: o que precisa dele fica `aria-disabled`, focável, com a razão descrita. */
   protected readonly gone = computed(() => this.requests.gone()?.id === this.request().uuid);
   protected readonly goneReasonId = `gone-reason-${nextId++}`;

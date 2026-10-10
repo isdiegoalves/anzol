@@ -32,7 +32,7 @@
 @if (!compare.pair()) {
   <app-request-search class="search" />
 }
-<app-compare-band (cancelled)="backToBase($event)" />
+<app-compare-band (cancelled)="focusRequest($event)" />
 @let failure = store.failure();
 @if (failure && failure.kind === 'list') {
   <app-list-error
@@ -107,6 +107,7 @@
                   [attr.aria-label]="(row.attempt?.prefix ?? '') + item.label"
                   [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
                   (focus)="cursor.set(item.request.uuid)"
+                  (blur)="landed.set(null)"
                   (keydown)="move($event, index)"
                   (click)="choose(item.request, $event)"
                 >
@@ -170,8 +171,10 @@
                   class="delete"
                   title="Delete"
                   i18n-title
-                  [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-                  [attr.aria-label]="deleteLabel(item.request.uuid)"
+                  [attr.tabindex]="
+                    stop() === item.request.uuid && landed() !== item.request.uuid ? 0 : -1
+                  "
+                  [attr.aria-label]="deleteLabel(item)"
                   (click)="deleteRequest(item.request)"
                 >
                   <app-icon name="trash" [size]="18" />

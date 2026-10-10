@@ -1056,8 +1056,8 @@ export const translations: Record<string, string> = {
   '6035936701993604722': '{$count} · mais novas primeiro',
   // {$count} · oldest first
   '2188654793312603120': '{$count} · mais antigas primeiro',
-  // Delete request {$uuid}
-  '3157148606438158546': 'Apagar a requisição {$uuid}',
+  // Delete this request: {$method} {$route}
+  '63313668718642756': 'Apagar esta requisição: {$method} {$route}',
   // Auto cleanup keeps the {$limit} most recent requests
   '8310868561287074437': 'A limpeza automática guarda as {$limit} requisições mais recentes',
   // Sorted newest first. Change order
@@ -3386,6 +3386,10 @@ export const translations: Record<string, string> = {
   '2948659986953822115': 'Nada foi comparado.',
   // Request notice
   '6332235221655261516': 'Aviso da requisição',
+  // You deleted {$method} {$route}. Undo is in the request notice.
+  '8384718229183195943': 'Você apagou {$method} {$route}. O Desfazer está no aviso da requisição.',
+  // Undo is in the request notice.
+  '5804560782753201031': 'O Desfazer está no aviso da requisição.',
   // Open the newest request
   '7627733301374734916': 'Abrir a requisição mais nova',
   // Loading request #{$id}…

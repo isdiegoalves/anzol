@@ -302,6 +302,7 @@ test.describe('Dado a barra de ações e o menu More do detalhe (INBOX-19/20)', 
     const tokenId = await tokens.create();
     const fica = await tokens.send(tokenId, json('{"a":1}'));
     const apaga = await tokens.send(tokenId, json('{"a":2}'));
+    await page.clock.install();
     await abrirMensagem(page, tokenId, apaga);
 
     const criar = acoes(page).getByRole('button', { name: 'Create rule from this request' });
@@ -315,6 +316,7 @@ test.describe('Dado a barra de ações e o menu More do detalhe (INBOX-19/20)', 
     await page.getByRole('menuitem', { name: 'Delete request' }).click();
     await expect(item(page, apaga)).toHaveCount(0);
     await expect(item(page, fica)).toBeVisible();
+    await page.clock.fastForward(21_000);
     await expect
       .poll(async () => (await tokens.listed(tokenId)).map((r) => r.uuid))
       .toEqual([fica]);

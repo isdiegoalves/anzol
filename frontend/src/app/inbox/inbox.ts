@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
+  ElementRef,
   afterNextRender,
   Injector,
   computed,
@@ -31,6 +32,7 @@ import { ActionPanelStore, ActionTab } from '../request-detail/action-panel-stor
 import { RequestDetail } from '../request-detail/request-detail';
 import { parseUtc } from '../request-detail/dates';
 import { RequestUnopened } from '../request-detail/request-unopened';
+import { PendingDelete } from '../requests/pending-delete';
 import { RequestList } from '../requests/request-list';
 import { EventGrouping } from '../requests/event-grouping';
 import { chronological, eventValueOf, isEventKey } from '../requests/event-key';
@@ -163,6 +165,7 @@ export class Inbox {
   protected readonly grouping = inject(EventGrouping);
   protected readonly panel = inject(ActionPanelStore);
   protected readonly waitFor = inject(WaitFor);
+  protected readonly deleting = inject(PendingDelete);
   private readonly chips = inject(FilterChips);
   protected readonly firstArrival = signal<{ method: string; path: string; time: string } | null>(
     null,
@@ -241,6 +244,7 @@ export class Inbox {
 
   private readonly list = viewChild(RequestList);
   private readonly detail = viewChild(RequestDetail);
+  private readonly requestNotice = viewChild<ElementRef<HTMLElement>>('requestNotice');
 
   /** Lista e detalhe lado a lado (classes expandida em diante); abaixo, um painel por vez. */
   protected readonly twoPanes = computed(() =>
@@ -258,7 +262,11 @@ export class Inbox {
   );
   protected readonly notice = computed(() => {
     const gone = this.requests.gone();
+    const deleting = this.deleting.pending();
     const loading = this.loadingRequest();
+    if (deleting && deleting.request.uuid !== gone?.id) {
+      return $localize`You deleted ${deleting.request.method}:method: ${deleting.route}:route:. Undo is in the request notice.`;
+    }
     if (!gone) {
       return loading ? $localize`Loading request #${loading.slice(0, 5)}:id:…` : '';
     }
@@ -276,7 +284,8 @@ export class Inbox {
       deleted: $localize`You deleted this request at ${time}:time:. ${copy}:copy:`,
       unknown: $localize`This request is no longer on the server, noticed at ${time}:time:. It may have been deleted or cut by auto cleanup.`,
     };
-    return `${causes[gone.cause]} ${leaves}`;
+    const text = `${causes[gone.cause]} ${leaves}`;
+    return deleting ? `${text} ${$localize`Undo is in the request notice.`}` : text;
   });
   private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
@@ -412,8 +421,10 @@ export class Inbox {
     // J e K: a mensagem mais antiga e a mais nova (C §3.2), fora dos campos e se ligados.
     const keys = (event: KeyboardEvent) => this.navigateByKey(event);
     this.document.addEventListener('keydown', keys);
+    effect(() => this.deleting.noticeShown.set(!!this.requestNotice()));
     inject(DestroyRef).onDestroy(() => {
       this.left = true;
+      this.deleting.noticeShown.set(false);
       this.screen.detailFullscreen.set(false);
       this.screen.searchOpen.set(false);
       this.document.removeEventListener('keydown', keys);
@@ -544,6 +555,23 @@ export class Inbox {
       }
     };
     afterNextRender(() => focus(10), { injector: this.injector });
+  }
+
+  /** O "Undo" do aviso sai da tela com ele: o foco vai à linha que voltou, ou ao detalhe sem a lista. */
+  protected undoDelete(): void {
+    const uuid = this.deleting.pending()?.request.uuid;
+    this.deleting.undo();
+    afterNextRender(
+      () => {
+        const list = this.list();
+        if (uuid && list) {
+          list.focusRequest(uuid);
+        } else {
+          this.focusDetail();
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Volta à lista com o foco no item de onde se saiu (sem ele, o foco cairia no body). */

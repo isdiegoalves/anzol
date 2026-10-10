@@ -26,15 +26,17 @@ test.describe('Dado uma ação que não dá certo', () => {
   }) => {
     const tokenId = await tokens.create();
     await tokens.send(tokenId, { path: '/fica' });
+    await page.clock.install();
     await page.goto(`/#/${tokenId}`);
     await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
     caos.recusar(new RegExp(`^/token/${tokenId}/request/`), 503, 'DELETE');
 
     await itens(page)
       .first()
-      .getByRole('button', { name: /^Delete request/ })
+      .getByRole('button', { name: /^Delete this request: / })
       .click();
     await expect(itens(page)).toHaveCount(0);
+    await page.clock.fastForward(21_000);
 
     await expect(page.getByText('Could not delete (503). The request is still here.')).toBeVisible({
       timeout: 10_000,

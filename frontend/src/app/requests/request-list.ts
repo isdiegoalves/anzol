@@ -1,6 +1,5 @@
 import { CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { DOCUMENT } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -17,8 +16,6 @@ import {
 } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import { CompareBand } from './compare-band';
 import { ListError } from './list-error';
@@ -28,7 +25,6 @@ import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
-import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { CheckChip, spokenOf } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
@@ -44,11 +40,11 @@ import { groupByEvent } from './event-key';
 import { EventLine } from './event-line';
 import { EventNote } from './event-note';
 import { ListRow, routeCut, rowsOf } from './list-rows';
+import { PendingDelete } from './pending-delete';
 import { RequestStore } from './request-store';
 import { RowSizes } from './row-sizes';
 import { SealFilter } from './seal-filter';
 import { WebhookRequest } from './webhook-request';
-import { NOTICE_MS, deleteFailedText } from '../ui/notice';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
 export const AGO_REFRESH_MS = 30_000;
@@ -94,8 +90,6 @@ export const ITEM_HEIGHT_COMPACT = 36;
 export const ITEM_HEIGHT_TOUCH = 64;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
 export const FRESH_MS = 3000;
-/** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
-export const UNDO_MS = 4000;
 /** A carga que chega antes disto troca a lista sem o esqueleto piscar no meio. */
 const SKELETON_DELAY_MS = 150;
 
@@ -158,9 +152,8 @@ export class RequestList {
   protected readonly grouping = inject(EventGrouping);
   private readonly document = inject(DOCUMENT);
   private readonly tokens = inject(TokenStore);
-  private readonly urls = inject(KnownUrls);
   protected readonly settings = inject(ShellSettings);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly deleting = inject(PendingDelete);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly windowClass = inject(Viewport).windowClass;
@@ -180,6 +173,11 @@ export class RequestList {
   );
   /** O item em que o foco do teclado está (ou esteve por último). */
   protected readonly cursor = signal<string | null>(null);
+  /**
+   * A linha em que o foco caiu depois de um apagar: a lixeira dela fica fora do Tab até o foco sair da
+   * linha, para o Tab e o Enter seguintes não apagarem outra.
+   */
+  protected readonly landed = signal<string | null>(null);
   /**
    * A parada do Tab: a linha do cursor; sem ela na lista, a aberta (ou o evento recolhido dela); sem
    * ela, a primeira.
@@ -207,7 +205,8 @@ export class RequestList {
       : $localize`${count}:count: · oldest first`;
   });
   /** Nomes acessíveis com valor: `$localize` no TS (o `aria-label` interpolado não vira atributo). */
-  protected readonly deleteLabel = (uuid: string) => $localize`Delete request ${uuid}:uuid:`;
+  protected readonly deleteLabel = (item: ItemView) =>
+    $localize`Delete this request: ${item.request.method}:method: ${item.route}:route:`;
 
   /** Limite da limpeza automática da URL aberta, mostrado ao lado do total. */
   protected readonly limit = computed(() => this.tokens.token()?.auto_cleanup ?? null);
@@ -522,8 +521,8 @@ export class RequestList {
     this.focusItem(rows[newest].id, newest, true);
   }
 
-  /** O "Cancel" do Compare: o foco volta à linha que era a A. */
-  protected backToBase(uuid: string): void {
+  /** O foco vai à linha da requisição: a A no "Cancel" do Compare, a que o "Undo" devolveu. */
+  focusRequest(uuid: string): void {
     const index = this.rowIndexOf(uuid);
     if (index >= 0) {
       this.focusItem(this.rows()[index].id, index);
@@ -543,33 +542,13 @@ export class RequestList {
     }
   }
 
-  /** Tira da lista na hora; apaga no servidor quando o aviso some sem "Undo". */
+  /** Tira da lista na hora; o "Undo" e o apagar no servidor ficam com o `PendingDelete`. */
   protected deleteRequest(request: WebhookRequest): void {
     // A parada do Tab passa à vizinha antes de a linha sair: é para lá que o foco vai.
-    this.cursor.set(this.neighbourOf(request.uuid));
-    const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
-      duration: UNDO_MS,
-    });
-    const undo = firstValueFrom(notice.afterDismissed()).then(
-      ({ dismissedByAction }) => dismissedByAction,
-    );
-    this.store.deleteRequest(request, undo).then(
-      (outcome) => {
-        if (outcome === 'kept') {
-          this.snackBar.open(
-            $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
-            undefined,
-            { duration: NOTICE_MS },
-          );
-        }
-      },
-      (error: unknown) =>
-        this.snackBar.open(
-          deleteFailedText(error instanceof HttpErrorResponse ? error.status : 0),
-          undefined,
-          { duration: NOTICE_MS },
-        ),
-    );
+    const neighbour = this.neighbourOf(request.uuid);
+    this.cursor.set(neighbour);
+    this.landed.set(this.host.contains(this.document.activeElement) ? neighbour : null);
+    this.deleting.delete(request);
   }
 
   protected trackRow(_index: number, row: ListRow<ItemView>): string {

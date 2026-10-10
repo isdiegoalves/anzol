@@ -1,6 +1,6 @@
 import { APIRequestContext } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirItem, detalhes, item, itens, lista } from './support/inbox';
+import { abrirItem, detalhes, item, itens, lista, lixeira } from './support/inbox';
 
 import { readStorage, seedStorage } from './support/storage';
 
@@ -85,14 +85,16 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
     page,
     tokens,
   }) => {
+    await page.clock.install();
     await page.goto(`/#/${tokenId}`);
 
     await item(page, ids[1]).hover();
-    await page.getByRole('button', { name: `Delete request ${ids[1]}` }).click();
+    await lixeira(page, ids[1]).click();
 
     await expect(itens(page)).toHaveCount(2);
     await expect(page.getByRole('heading', { name: 'Requests (2)' })).toBeVisible();
-    // O apagar tem "Undo" por alguns segundos (C §2.1): a API recebe o DELETE depois.
+    // O apagar tem "Undo" por 20 s: a API recebe o DELETE depois.
+    await page.clock.fastForward(21_000);
     await expect
       .poll(async () => (await tokens.listed(tokenId)).map((r) => r.uuid).sort(), {
         timeout: 15_000,

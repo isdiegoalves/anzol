@@ -13,6 +13,7 @@ import {
   item,
   itens,
   lista,
+  lixeira,
   verificacoes,
   abrirFiltros,
 } from './support/inbox';
@@ -25,7 +26,7 @@ import { seedStorage } from './support/storage';
 // SUPOSIÇÕES (contrato da E4, além das de `support/inbox.ts`):
 // - a divisória é o `app-split` da E2 com o nome "Resize list and detail", lembrada entre recargas;
 // - apagar uma mensagem mostra o snackbar "Request deleted" com o botão "Undo"; o DELETE só vai à API quando o
-//   snackbar fecha sem "Undo";
+//   "Undo" vence, 20 s depois;
 // - na `search`, o `button "Copy as webhook wait-for"` copia (o CLI se chama `anzol`: o nome do botão pode
 //   dizer "anzol wait-for")
 //   `anzol wait-for --server '<origem>' --token <uuid> --match '<o match da busca em JSON>'` e confirma num
@@ -110,19 +111,21 @@ test.describe('Dado uma mensagem apagada pela lixeira', () => {
     const tokenId = await tokens.create();
     const fica = await tokens.send(tokenId, { data: 'fica' });
     await tokens.send(tokenId, { data: 'outra' });
+    await page.clock.install();
     await page.goto(`/#/${tokenId}`);
     await expect(itens(page)).toHaveCount(2);
 
     await item(page, fica).hover();
-    await page.getByRole('button', { name: `Delete request ${fica}` }).click();
+    await lixeira(page, fica).click();
     await expect(itens(page)).toHaveCount(1);
-    await expect(page.getByText('Request deleted')).toBeVisible();
-    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    const aviso = page.locator('mat-snack-bar-container');
+    await expect(aviso.getByText('Request deleted')).toBeVisible();
+    await aviso.getByRole('button', { name: 'Undo', exact: true }).click();
 
     await expect(item(page, fica)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Requests (2)' })).toBeVisible();
-    // Passado o tempo do snackbar, a mensagem continua no servidor.
-    await page.waitForTimeout(7_000);
+    // Passado o tempo do "Undo", a mensagem continua no servidor.
+    await page.clock.fastForward(21_000);
     expect((await tokens.listed(tokenId)).map((r) => r.uuid)).toContain(fica);
   });
 });

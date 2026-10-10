@@ -15,12 +15,12 @@ import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { UNDO_MS } from './pending-delete';
 import {
   ITEM_HEIGHT,
   ITEM_HEIGHT_COMPACT,
   ITEM_HEIGHT_TOUCH,
   RequestList,
-  UNDO_MS,
   bodySummary,
 } from './request-list';
 import { RequestStore } from './request-store';
@@ -706,18 +706,28 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(opened).toEqual([webhookRequest(1)]);
   });
 
-  it('deve tirar da lista na hora e apagar pela API Quando a lixeira é clicada e o aviso some sem Undo', async () => {
+  it('deve tirar da lista na hora e apagar pela API Quando a lixeira é clicada e o Undo vence', async () => {
     await load([webhookRequest(1), webhookRequest(2)]);
     const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
-
-    items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+      expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', {
+        duration: UNDO_MS,
+        politeness: 'polite',
+      });
+      // O aviso que some antes (outro tomou o lugar dele) não apaga: o Undo dura o tempo inteiro.
+      open.mock.results[0].value.dismiss();
+      vi.advanceTimersByTime(UNDO_MS - 1);
+      http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
+      vi.advanceTimersByTime(1);
+    } finally {
+      vi.useRealTimers();
+    }
     await fixture.whenStable();
     expect(items()).toHaveLength(1);
     expect(element().textContent).toContain('Requests (1)');
-    expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', { duration: UNDO_MS });
-    http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
 
-    open.mock.results[0].value.dismiss();
     await vi.waitFor(() =>
       http
         .expectOne({
@@ -731,9 +741,13 @@ describe('Dado a lista lateral de mensagens', () => {
   it('deve devolver a mensagem e dizer que não apagou Quando o DELETE falha', async () => {
     await load([webhookRequest(1), webhookRequest(2)]);
     const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
-
-    items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
-    open.mock.results[0].value.dismiss();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+      vi.advanceTimersByTime(UNDO_MS);
+    } finally {
+      vi.useRealTimers();
+    }
     await vi.waitFor(() =>
       http
         .expectOne({
@@ -856,20 +870,48 @@ describe('Dado a lista lateral de mensagens', () => {
 
     await vi.waitFor(() =>
       expect(open).toHaveBeenCalledWith(`Kept in URL ${TOKEN_ID.slice(0, 5)}`, undefined, {
-        duration: UNDO_MS,
+        duration: 4000,
       }),
     );
     expect(store.requests().map((request) => request.token_id)).toEqual([outra]);
     http.expectNone({ method: 'DELETE' });
   });
 
-  it('deve ter a lixeira com o nome "Delete request {uuid}" e passar no axe', async () => {
-    await load([webhookRequest(1)]);
+  it('deve dizer o método e a rota no nome da lixeira e passar no axe', async () => {
+    await load([
+      webhookRequest(1, { method: 'PUT', url: `http://localhost:8084/${TOKEN_ID}/pedidos?x=1` }),
+    ]);
 
     expect(items()[0].querySelector('.delete')?.getAttribute('aria-label')).toBe(
-      `Delete request ${webhookRequest(1).uuid}`,
+      'Delete this request: PUT /pedidos?x=1',
     );
     await expectNoAxeViolations(element());
+  });
+
+  it('deve tirar do Tab a lixeira da linha em que o foco caiu depois de um apagar, até o foco sair dela', async () => {
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    const row = (uuid: string) =>
+      items().find((item) => item.querySelector(`[data-uuid="${uuid}"]`)) as HTMLElement;
+    const trash = (uuid: string) => row(uuid).querySelector('.delete') as HTMLButtonElement;
+    const line = (uuid: string) => row(uuid).querySelector('.select') as HTMLButtonElement;
+
+    line(webhookRequest(1).uuid).focus();
+    await fixture.whenStable();
+    expect(trash(webhookRequest(1).uuid).tabIndex).toBe(0);
+    trash(webhookRequest(1).uuid).focus();
+    trash(webhookRequest(1).uuid).click();
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(line(webhookRequest(2).uuid));
+    });
+    expect(trash(webhookRequest(2).uuid).tabIndex).toBe(-1);
+
+    line(webhookRequest(3).uuid).focus();
+    line(webhookRequest(2).uuid).focus();
+    await fixture.whenStable();
+    expect(trash(webhookRequest(2).uuid).tabIndex).toBe(0);
+    open.mock.results[0].value.dismissWithAction();
   });
 
   it('deve mostrar total e limite no cabeçalho Quando a URL tem limpeza automática', async () => {

@@ -169,7 +169,10 @@ test.describe('Dado uma requisição apagada enquanto está aberta', () => {
     await expect(avisoDaRequisicao(page)).toContainText('You deleted this request');
     await limparAnuncios(page);
 
-    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await page
+      .getByRole('group', { name: 'Request notice' })
+      .getByRole('button', { name: 'Undo', exact: true })
+      .click();
 
     await expect(avisoDaRequisicao(page)).toHaveText('');
     await expectUmAnuncio(page, /^Request restored\.$/);
@@ -194,7 +197,10 @@ test.describe('Dado uma requisição apagada enquanto está aberta', () => {
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${antiga}/1`));
     await expect(detalhes(page)).toContainText(antiga);
-    await expect(avisoDaRequisicao(page)).toHaveText('');
+    // O aviso da cópia sai com ela; o apagar ainda pode ser desfeito, e é isso que o aviso passa a dizer.
+    await expect(avisoDaRequisicao(page)).toHaveText(
+      'You deleted POST /aberta. Undo is in the request notice.',
+    );
     await expect(detalhe(page).getByRole('button', { name: 'Newer', exact: true })).toBeDisabled();
   });
 

@@ -113,17 +113,13 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await expect(details).toContainText(antiga.uuid);
     await maisAntigasPrimeiro(page);
     await expect(itens(page).first()).toContainText(`#${seguinte.uuid.substring(0, 5)}`);
-    await expect(page.getByRole('button', { name: `Delete request ${antiga.uuid}` })).toHaveCount(
-      0,
-    );
+    await expect(item(page, antiga.uuid)).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
 
     await page.reload();
     await expect(page.getByText('This request no longer exists.')).toBeVisible();
     await expect(details).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Delete request ${antiga.uuid}` })).toHaveCount(
-      0,
-    );
+    await expect(item(page, antiga.uuid)).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (500 / 500)' })).toBeVisible();
   });
 
@@ -156,9 +152,7 @@ test.describe('Dado uma URL cheia com a mensagem mais antiga aberta', () => {
     await expect(item(page, primeiraQueFica.uuid)).toBeVisible();
     await expect(itens(page).first()).toContainText(`#${primeiraQueFica.uuid.substring(0, 5)}`);
     for (const cortada of ordem.slice(0, 5)) {
-      await expect(
-        page.getByRole('button', { name: `Delete request ${cortada.uuid}` }),
-      ).toHaveCount(0);
+      await expect(item(page, cortada.uuid)).toHaveCount(0);
     }
   });
 });

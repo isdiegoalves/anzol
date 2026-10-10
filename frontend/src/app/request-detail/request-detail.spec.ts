@@ -247,7 +247,10 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
     await more.clickItem({ text: 'Delete request' });
 
-    expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', { duration: 4000 });
+    expect(open).toHaveBeenCalledWith('Request deleted', 'Undo', {
+      duration: 20_000,
+      politeness: 'polite',
+    });
     expect(remove).toHaveBeenCalledWith(request, expect.any(Promise));
   });
 

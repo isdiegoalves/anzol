@@ -180,8 +180,20 @@
     <ng-container [ngTemplateOutlet]="missingNote" />
   }
   <!-- Fora de @if: região viva criada já com texto não é anunciada. -->
-  <div class="gone" [class.shown]="!!requests.gone()">
-    <app-live-region class="gone-text" label="Request notice" i18n-label [text]="notice()" />
+  <div
+    #requestNotice
+    class="gone"
+    role="group"
+    aria-label="Request notice"
+    i18n-aria-label
+    [class.shown]="!!requests.gone() || !!deleting.pending()"
+  >
+    <app-live-region class="gone-text" [text]="notice()" />
+    @if (deleting.pending()) {
+      <button type="button" class="text-action" (click)="undoDelete()">
+        <span i18n>Undo</span>
+      </button>
+    }
     @if (requests.gone() && requests.newest()) {
       <button type="button" class="text-action" (click)="openNewest()">
         <span i18n>Open the newest request</span>

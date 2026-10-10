@@ -7,7 +7,7 @@ import { expect } from './fixtures';
  * SUPOSIÇÃO.
  *
  * - SUPOSIÇÃO: a coluna da lista é a `region "Request list"`; cada mensagem é um `.item` (a lista virtual do CDK),
- *   com o botão que abre a mensagem e a lixeira "Delete request {uuid}". O nome acessível do botão diz tudo o que o
+ *   com o botão que abre a mensagem e a lixeira "Delete this request: {MÉTODO} {rota}". O nome acessível do botão diz tudo o que o
  *   item mostra (C §2.1): "{MÉTODO} {rota}, #{5 primeiros do UUID}, from {IP}, {data}", o título e o motivo de cada
  *   verificação ("Signature invalid: signature mismatch") e "unread" enquanto não foi aberta; o item aberto tem
  *   `aria-current`. O selo visível é curto ("Sig OK", "Bad sig", "No sig", "Bad schema", "Near miss", o nome da
@@ -50,6 +50,11 @@ export function abrirItem(page: Page, uuid: string): Locator {
   return item(page, uuid).getByRole('button', {
     name: new RegExp(`#${uuid.substring(0, 5)}`),
   });
+}
+
+/** A lixeira da linha: o nome diz o método e a rota, que duas linhas podem ter iguais. */
+export function lixeira(page: Page, uuid: string): Locator {
+  return item(page, uuid).getByRole('button', { name: /^Delete this request: / });
 }
 
 /**

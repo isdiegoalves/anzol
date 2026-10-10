@@ -2,14 +2,14 @@ import { createHmac } from 'node:crypto';
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { abrirChecks } from './support/checks';
 import { expect, test } from './support/fixtures';
-import { abrirItem, abrirMensagem, acoes, item, itens, lista } from './support/inbox';
+import { abrirItem, abrirMensagem, acoes, itens, lista, lixeira } from './support/inbox';
 import { abrirRegras, editor, linhaDaRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Item 14.1, reauditoria da fidelidade (scratchpad/reaud-fidelidade/veredito.json, "regressoes"): as regressões que as
 // specs da fidelidade não pegavam, escritas antes da correção. SUPOSIÇÕES:
 // - Inbox a 390 e a 320 px: nenhum `.item` nem a lista virtual rolam de lado, o que o item mostra (rota, tempo
-//   relativo, selos) não passa da borda dele nem da tela, e a lixeira "Delete request {uuid}" de cada item fica
+//   relativo, selos) não passa da borda dele nem da tela, e a lixeira "Delete this request: …" de cada item fica
 //   dentro da tela;
 // - Rules a 1440 com o editor aberto (lista de 440 px): numa regra com os três flags (template, delay e scenario), o
 //   `.name` tem mais de 80 px e ocupa uma linha só (não quebra letra a letra);
@@ -97,8 +97,7 @@ test.describe('Dado a lista da Inbox no celular', () => {
       expect(medidas.listaRola, 'a lista sem rolagem lateral').toBe(false);
       expect(medidas.cortados, 'nada cortado na borda do item').toEqual([]);
       for (const id of ids) {
-        const lixeira = item(page, id).getByRole('button', { name: `Delete request ${id}` });
-        const caixa = await lixeira.boundingBox();
+        const caixa = await lixeira(page, id).boundingBox();
         expect(caixa, 'a lixeira existe').not.toBeNull();
         expect(caixa!.x + caixa!.width, 'a lixeira dentro da tela').toBeLessThanOrEqual(
           viewport.width,
