@@ -1,5 +1,6 @@
 import { UUID, expect, test, tokenInUrl } from './support/fixtures';
 import { readStorage, seedStorage } from './support/storage';
+import { compacto } from './support/shell';
 
 // Checklist 1, 2 e 3.
 
@@ -51,6 +52,23 @@ test.describe('Dado um link salvo do app antigo (checklist 2)', () => {
     await expect(page).toHaveURL(new RegExp(`/#/${tokenId}/${segunda}/1$`));
     await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(segunda);
     await expect(page.locator('pre')).toHaveText('segunda');
+  });
+});
+
+test.describe('Dado um link com a página 0', () => {
+  test('deve abrir a mensagem na página 1, com o rodapé "1–2 of 2"', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { data: 'primeira' });
+    const segunda = await tokens.send(tokenId, { data: 'segunda' });
+
+    await page.goto(`/#/${tokenId}/${segunda}/0`);
+
+    await expect(page.getByRole('group', { name: 'Request metadata' })).toContainText(segunda);
+    if (!compacto(page)) {
+      await expect(page.getByRole('region', { name: 'Request list' }).locator('.range')).toHaveText(
+        '1–2 of 2',
+      );
+    }
   });
 });
 

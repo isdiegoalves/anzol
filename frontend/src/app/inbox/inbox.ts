@@ -179,6 +179,8 @@ export class Inbox {
   readonly tokenId = input<string>();
   readonly requestId = input<string>();
   readonly page = input<string>();
+  /** A página do link; a 0 (`/…/0`) vira a 1. */
+  private readonly pageNumber = computed(() => Math.max(1, Number(this.page() ?? 1)));
   /** O `created_at` que o link permanente leva, para dizer de quando era a que sumiu. */
   readonly at = input<string>();
   /** Filtros da query da rota (`?signature=invalid&schema=valid&methods=POST,GET&q=texto`). */
@@ -319,7 +321,7 @@ export class Inbox {
     effect(() => {
       const tokenId = this.tokenId();
       const requestId = this.requestId();
-      const page = Number(this.page() ?? 1);
+      const page = this.pageNumber();
       untracked(() => void this.openRoute(tokenId, requestId, page));
     });
     effect(() => {
@@ -763,7 +765,7 @@ export class Inbox {
 
   /** "Try again" da lista que falhou ou demora: abre a URL da rota de novo. */
   protected reopen(): void {
-    void this.openRoute(this.tokenId(), this.requestId(), Number(this.page() ?? 1), true);
+    void this.openRoute(this.tokenId(), this.requestId(), this.pageNumber(), true);
   }
 
   /** Várias navegações seguidas para o mesmo token esperam a mesma carga. */

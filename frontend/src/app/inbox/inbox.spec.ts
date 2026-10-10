@@ -354,6 +354,15 @@ describe('Dado a tela principal', () => {
 
   // Com a mais nova no topo, as novas empurram cada mensagem para as páginas seguintes: o link
   // permanente não pode depender de ela ainda estar na página que ele traz.
+  it.each(['0', '00'])('deve pedir a página 1 Quando o link traz a página %s', async (page) => {
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/${page}`);
+    await flush(`/token/${TOKEN_ID}`, token());
+    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+
+    await vi.waitFor(() => expect(text()).toContain(R1.uuid));
+    expect(text()).toContain('1–2 of 2');
+  });
+
   it('deve buscar a mensagem pela API e abri-la Quando o link permanente aponta uma que não está na página', async () => {
     const R9 = webhookRequest(9);
     const store = TestBed.inject(RequestStore);
