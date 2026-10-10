@@ -1,9 +1,15 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Subscription } from 'rxjs';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID } from '../../testing/fixtures';
-import { Connection, RESTORED_NOTE_MS, connectionInterceptor } from './connection-store';
+import {
+  Connection,
+  QUIET_DROP_MS,
+  RESTORED_NOTE_MS,
+  connectionInterceptor,
+} from './connection-store';
 import { RequestStream } from './request-stream';
 
 describe('Dado a conexão com o servidor', () => {
@@ -125,23 +131,70 @@ describe('Dado a conexão com o servidor', () => {
     expect(connection.notice()).toBe('Connected again.');
   });
 
-  it('não deve dizer a volta pela API Quando o tempo real segue fora, e deve continuar tentando', async () => {
-    const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
-    FakeEventSource.latest().open();
-    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
-    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
-    TestBed.tick();
-    const notice = connection.notice();
+  describe('Dado o tempo real fora de "Live" (regra dos 5 s)', () => {
+    let opened: Subscription;
+    const source = () => FakeEventSource.latest();
+    const settle = async (ms = 0) => {
+      await vi.advanceTimersByTimeAsync(ms);
+      TestBed.tick();
+    };
 
-    const retry = connection.retry();
-    http.expectOne(`/token/${TOKEN_ID}`).flush('{}');
-    await retry;
-    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
-    TestBed.tick();
+    beforeEach(async () => {
+      opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
+      source().open();
+      await settle();
+    });
 
-    expect(connection.notice()).toBe(notice);
-    expect(connection.countdown()).toBe(10);
-    opened.unsubscribe();
+    afterEach(() => opened.unsubscribe());
+
+    it('não deve mostrar a faixa nem falar Quando ele volta antes de 5 s', async () => {
+      source().fail(FakeEventSource.CONNECTING);
+      await settle(QUIET_DROP_MS - 1);
+      source().open();
+      await settle(10_000);
+
+      expect(connection.downSince()).toBeNull();
+      expect(connection.notice()).toBe('');
+    });
+
+    it('deve mostrar a faixa e dizer uma vez que a atualização ao vivo caiu Quando passa de 5 s', async () => {
+      source().fail(FakeEventSource.CONNECTING);
+      await settle(QUIET_DROP_MS - 1);
+      expect(connection.downSince()).toBeNull();
+      await settle(1);
+
+      expect(connection.downSince()).not.toBeNull();
+      expect(connection.notice()).toBe('Live updates dropped; reconnecting.');
+      expect(connection.countdown()).toBe(5);
+    });
+
+    it('deve dizer desde quando não há sinal Quando o stream emudece sem fechar', async () => {
+      await settle(35_000);
+      await settle(QUIET_DROP_MS);
+
+      expect(connection.notice()).toMatch(
+        /^No signal from the server since \d{1,2}:\d{2}.*\. The list may be incomplete\.$/,
+      );
+    });
+
+    it('deve reabrir o stream em "Try again now", sem provar a volta pela API, e falar só quando ele abre', async () => {
+      source().fail(FakeEventSource.CONNECTING);
+      await settle(QUIET_DROP_MS);
+      const notice = connection.notice();
+      const antes = FakeEventSource.instances.length;
+
+      await connection.retry();
+      await settle();
+
+      http.expectNone(`/token/${TOKEN_ID}`);
+      expect(FakeEventSource.instances).toHaveLength(antes + 1);
+      expect(connection.notice()).toBe(notice);
+      expect(connection.countdown()).toBe(10);
+      source().open();
+      await settle();
+      expect(connection.downSince()).toBeNull();
+      expect(connection.notice()).toBe('Connected again.');
+    });
   });
 
   describe('Dado a Entrada, que retoma o que chegou a cada vez que o tempo real abre', () => {
@@ -186,8 +239,8 @@ describe('Dado a conexão com o servidor', () => {
       const { resume, opened } = await reopen(0);
       resume.mockResolvedValue(1);
       FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
-      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
       TestBed.tick();
+      await vi.advanceTimersByTimeAsync(QUIET_DROP_MS);
       expect(connection.downSince()).not.toBeNull();
 
       FakeEventSource.latest().open();
@@ -198,33 +251,5 @@ describe('Dado a conexão com o servidor', () => {
       expect(connection.notice()).toBe('Connected again. 1 request arrived meanwhile.');
       opened.unsubscribe();
     });
-  });
-
-  it('deve contar como queda o tempo real que cai e não volta na primeira reconexão', () => {
-    const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
-    const source = FakeEventSource.latest();
-    source.open();
-
-    source.fail(FakeEventSource.CONNECTING);
-    TestBed.tick();
-    expect(connection.downSince()).toBeNull();
-
-    source.fail(FakeEventSource.CONNECTING);
-    TestBed.tick();
-    expect(connection.downSince()).not.toBeNull();
-    opened.unsubscribe();
-  });
-
-  it('não deve contar como queda o tempo real que cai e volta', () => {
-    const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
-    const source = FakeEventSource.latest();
-
-    source.fail(FakeEventSource.CONNECTING);
-    source.open();
-    source.fail(FakeEventSource.CONNECTING);
-    TestBed.tick();
-
-    expect(connection.downSince()).toBeNull();
-    opened.unsubscribe();
   });
 });

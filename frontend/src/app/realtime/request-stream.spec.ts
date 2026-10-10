@@ -135,20 +135,6 @@ describe('Dado o stream SSE de uma URL', () => {
     });
   });
 
-  it('deve contar as quedas seguidas e zerar Quando a conexão abre', () => {
-    subscriptions.add(stream.connect(TOKEN_ID).subscribe());
-    const source = FakeEventSource.latest();
-
-    source.fail(FakeEventSource.CONNECTING);
-    source.fail(FakeEventSource.CONNECTING);
-    expect(stream.drops()).toBe(2);
-    source.open();
-    expect(stream.drops()).toBe(0);
-    // O servidor recusar não é queda de rede.
-    source.fail(FakeEventSource.CLOSED);
-    expect(stream.drops()).toBe(0);
-  });
-
   it('deve abrir de novo a conexão, para os mesmos assinantes, Quando "retry" é pedido', () => {
     const received: RequestCreated[] = [];
     subscriptions.add(stream.connect(TOKEN_ID).subscribe((event) => received.push(event)));

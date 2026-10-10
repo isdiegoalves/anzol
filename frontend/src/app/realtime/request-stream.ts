@@ -51,10 +51,10 @@ export class RequestStream {
   private readonly streams = new Map<string, Shared>();
   private readonly state = signal<StreamStatus>('idle');
   readonly status = this.state.asReadonly();
-  /** Quedas seguidas; zera quando a conexão abre. */
-  readonly drops = signal(0);
   /** Quantas a retomada trouxe na última vez que a conexão abriu. */
   readonly recovered = signal(0);
+  /** Quando veio o último sinal do servidor (abertura, `ping` ou mensagem). */
+  heardAt: Date | null = null;
 
   /**
    * Abre o `EventSource` com o primeiro assinante e o fecha com o último. `quiet`: a assinatura não
@@ -155,7 +155,10 @@ export class RequestStream {
       shared.status = 'connecting';
     }
     // Conexão meio morta (NAT, Wi-Fi trocado, proxy que segura o socket) não dá erro: só o silêncio a revela.
-    const heard = () => {
+    const heard = (fromServer = true) => {
+      if (fromServer) {
+        this.heardAt = new Date();
+      }
       this.hush(shared);
       shared.silence = setTimeout(() => {
         if (shared.source === source) {
@@ -166,7 +169,7 @@ export class RequestStream {
         }
       }, silenceLimit(shared.heartbeatMs));
     };
-    heard();
+    heard(false);
     source.addEventListener('ping', (event: MessageEvent<string>) => {
       const seconds = Number(event.data);
       shared.heartbeatMs = seconds > 0 ? seconds * 1000 : HEARTBEAT_MS;
@@ -174,7 +177,6 @@ export class RequestStream {
     });
     source.onopen = () => {
       heard();
-      this.drops.set(0);
       shared.refusals = 0;
       if (shared.resumes.size === 0) {
         this.recovered.set(0);
@@ -198,8 +200,6 @@ export class RequestStream {
       if (source.readyState === EventSource.CLOSED) {
         this.hush(shared);
         this.reopenLater(tokenId, shared);
-      } else {
-        this.drops.update((drops) => drops + 1);
       }
       set('reconnecting');
     };

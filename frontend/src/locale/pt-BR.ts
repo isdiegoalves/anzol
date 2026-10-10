@@ -2996,6 +2996,10 @@ export const translations: Record<string, string> = {
   // No connection to the server since {$time}. What you typed is kept.
   '6676655514486655765':
     'Sem conexão com o servidor desde {$time}. O que você digitou está guardado.',
+  // No signal from the server since {$time}. The list may be incomplete.
+  '4686535725893699558': 'Sem sinal do servidor desde {$time}. A lista pode estar incompleta.',
+  // Live updates dropped; reconnecting.
+  '2289909600433277373': 'A atualização ao vivo caiu; reconectando.',
   // Connected again.
   '880525040732919916': 'Conexão de volta.',
   // Connected again. 1 request arrived meanwhile.

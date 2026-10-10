@@ -111,6 +111,7 @@ test.describe('Dado o /stream de uma URL que cai e volta', () => {
 
     caos.cortar(tokenId);
     await expect(tentarAgora(page)).toBeVisible({ timeout: 20_000 });
+    await expectUmAnuncio(page, /^Live updates dropped; reconnecting\.$/, /^Connection$/);
     for (let vez = 0; vez < 3; vez++) {
       await religacaoRecusada(page, tokenId);
     }
@@ -177,15 +178,26 @@ test.describe('Dado o /stream que para de receber sem fechar', () => {
     test.setTimeout(120_000);
     const tokenId = await tokens.create();
     await tokens.send(tokenId, { path: '/antes' });
+    await escutarAnuncios(page);
     await abrir(page, tokenId);
 
     expect(caos.congelar(tokenId)).toBe(1);
     const muda = await tokens.send(tokenId, { path: '/no-silencio' });
     await expect.poll(() => caos.engolidos(tokenId)).toBeGreaterThan(0);
     await expect(estadoAoVivo(page)).toContainText('No signal', { timeout: 40_000 });
+    await expectUmAnuncio(
+      page,
+      /^No signal from the server since \d{1,2}:\d{2}.*\. The list may be incomplete\.$/,
+      /^Connection$/,
+    );
     caos.soltar(tokenId);
 
     await expect(item(page, muda)).toBeVisible({ timeout: 15_000 });
+    await expectUmAnuncio(
+      page,
+      /^Connected again\. 1 request arrived meanwhile\.$/,
+      /^Connection$/,
+    );
     await expect(estadoAoVivo(page)).toContainText('Live');
   });
 });

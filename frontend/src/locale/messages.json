@@ -985,6 +985,8 @@
     "758622676241767451": "The timestamp is above the tolerance set here: late redelivery or a wrong clock; or raise the tolerance.",
     "5829324004263661322": "The timestamp is above the {$seconds} s tolerance: late redelivery or a wrong clock; or raise the tolerance.",
     "6676655514486655765": "No connection to the server since {$time}. What you typed is kept.",
+    "4686535725893699558": "No signal from the server since {$time}. The list may be incomplete.",
+    "2289909600433277373": "Live updates dropped; reconnecting.",
     "880525040732919916": "Connected again.",
     "6206395411579861533": "Connected again. 1 request arrived meanwhile.",
     "3445108354319717381": "Connected again. {$count} requests arrived meanwhile.",
