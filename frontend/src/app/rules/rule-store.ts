@@ -135,13 +135,15 @@ export class RuleStore {
   }
 
   /**
-   * Substitui a lista só se a do servidor ainda é a que a tela leu (toda mudança da tela parte da
-   * lista mostrada: salvar no editor, toggle, reordenação, apagar e desfazer); senão, não grava e
-   * lança `RulesChangedError`. O import é a exceção: ele troca a lista de propósito.
+   * Substitui a lista só se a do servidor ainda é a que a tela leu quando a mudança partiu dela (toda
+   * mudança da tela parte da lista mostrada: salvar no editor, toggle, reordenação, apagar e desfazer);
+   * senão, não grava e lança `RulesChangedError`. O import é a exceção: ele troca a lista de propósito.
    */
   async saveIfUnchanged(rules: readonly Rule[]): Promise<void> {
+    // A base é a de agora, de onde `rules` saiu: um Reload que chegue durante a conferência não a troca.
+    const base = this.serverList;
     const current = await this.fetchAll();
-    if (JSON.stringify(current) !== this.serverList) {
+    if (JSON.stringify(current) !== base) {
       throw new RulesChangedError();
     }
     await this.save(rules);

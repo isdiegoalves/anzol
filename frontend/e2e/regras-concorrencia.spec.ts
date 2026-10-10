@@ -241,6 +241,7 @@ test.describe('Dado o aviso "changed elsewhere" no editor, o Reload e um novo Sa
     await salvarEditor(page, edicao);
     await expect(conflito(page)).toBeVisible();
     await conflito(page).getByRole('button', { name: 'Reload' }).click();
+    await expect(conflito(page)).toHaveCount(0);
 
     await salvarEditor(page, edicao);
 

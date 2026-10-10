@@ -160,6 +160,22 @@ describe('Dado as regras da URL aberta', () => {
       expect(store.rules()).toEqual([rule(1), rule(2)]);
     });
 
+    it('não deve gravar a lista velha Quando um Reload que saiu antes chega durante a conferência', async () => {
+      await loaded();
+      const relida = store.reload();
+      const releitura = http.expectOne({ method: 'GET', url });
+
+      const done = store.saveIfUnchanged([rule(1), { ...rule(2), name: 'B2' }]);
+      const conferencia = http.match({ method: 'GET', url });
+      releitura.flush([{ ...rule(2), priority: 1 }, rule(1)]);
+      await relida;
+      conferencia.forEach((call) => call.flush([{ ...rule(2), priority: 1 }, rule(1)]));
+
+      await expect(done).rejects.toBeInstanceOf(RulesChangedError);
+      http.expectNone({ method: 'PUT', url });
+      expect(store.rules()).toEqual([{ ...rule(2), priority: 1 }, rule(1)]);
+    });
+
     it('deve comparar com a lista que o último PUT devolveu', async () => {
       await loaded();
       const saved = store.save([rule(1)]);
