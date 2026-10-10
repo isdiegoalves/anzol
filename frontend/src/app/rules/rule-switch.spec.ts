@@ -33,6 +33,22 @@ describe('Dado o interruptor da linha da regra (F8)', () => {
     expect(sw.getAttribute('aria-checked')).toBe('true');
   });
 
+  it('não deve mudar nem avisar, e deve dizer que espera, Quando outra mudança da lista está a caminho', async () => {
+    const changed = vi.fn();
+    await render(RuleSwitch, {
+      inputs: { checked: true, label: 'Enable rule Pix', busy: true },
+      on: { changed },
+    });
+    const sw = screen.getByRole('switch', { name: 'Enable rule Pix' });
+
+    await userEvent.click(sw);
+
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    expect(sw.getAttribute('aria-disabled')).toBe('true');
+    expect(sw.getAttribute('aria-busy')).toBe('true');
+    expect(changed).not.toHaveBeenCalled();
+  });
+
   it('deve ter o alvo de 44 px de altura (o trilho do M3 mede 32)', async () => {
     await render(RuleSwitch, { inputs: { checked: false, label: 'Enable rule Pix' } });
 

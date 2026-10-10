@@ -21,7 +21,16 @@
   </span>
   <span class="spacer"></span>
   @if (repeatable()) {
-    <button mat-flat-button class="tonal" type="button" (click)="runAgain.emit()" i18n>
+    <button
+      mat-flat-button
+      class="tonal"
+      type="button"
+      disabledInteractive
+      [disabled]="running()"
+      [attr.aria-busy]="running() || null"
+      (click)="runAgain.emit()"
+      i18n
+    >
       Run again
     </button>
   }

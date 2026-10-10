@@ -1760,6 +1760,36 @@ describe('Dado o editor de regra', () => {
       ]);
     });
 
+    it('não deve salvar com o Reload a caminho, e salvar com a lista nova Quando ele volta', async () => {
+      await open({ index: 1 }, [rule(1), rule(2)]);
+      await (await input('Name')).setValue('Editada');
+      await save();
+      (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([
+        rule(2, { priority: 1 }),
+        rule(1),
+      ]);
+      await (await vi.waitFor(() => button('Reload'))).click();
+      const releitura = await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }));
+      const saveButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+        '.editor-header button[aria-keyshortcuts]',
+      );
+      await fixture.whenStable();
+      expect(saveButton?.getAttribute('aria-busy')).toBe('true');
+
+      await save();
+      http.expectNone({ method: 'GET', url: URL_REGRAS });
+      releitura.flush([rule(2, { priority: 1 }), rule(1)]);
+      onServer = [rule(2, { priority: 1 }), rule(1)];
+      await fixture.whenStable();
+      await save();
+
+      const body = (await put()).request.body as Rule[];
+      expect(body.map((r) => [r.name, r.priority])).toEqual([
+        ['Editada', 1],
+        ['Rule 1', 5],
+      ]);
+    });
+
     it('deve manter a prioridade digitada Quando o editor a mudou antes do Reload', async () => {
       await open({ index: 1 }, [rule(1), rule(2)]);
       await (await input('Priority')).setValue('7');

@@ -15,6 +15,8 @@ import { Component, input, linkedSignal, output } from '@angular/core';
       class="switch"
       [attr.aria-checked]="on()"
       [attr.aria-label]="label()"
+      [attr.aria-disabled]="busy() || null"
+      [attr.aria-busy]="busy() || null"
       (click)="toggle()"
     >
       <span class="track" aria-hidden="true"><span class="handle"></span></span>
@@ -25,12 +27,17 @@ import { Component, input, linkedSignal, output } from '@angular/core';
 export class RuleSwitch {
   readonly checked = input(true);
   readonly label = input.required<string>();
+  /** Outra mudança da lista está a caminho: o clique não muda nada até ela voltar. */
+  readonly busy = input(false);
   readonly changed = output<boolean>();
 
   /** O estado mostrado: o salvo, ou o do clique enquanto a gravação não volta. */
   protected readonly on = linkedSignal(() => this.checked());
 
   protected toggle(): void {
+    if (this.busy()) {
+      return;
+    }
     const next = !this.on();
     this.on.set(next);
     this.changed.emit(next);

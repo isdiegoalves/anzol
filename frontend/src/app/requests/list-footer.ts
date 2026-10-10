@@ -23,7 +23,8 @@ import { RequestStore } from './request-store';
           mat-button
           type="button"
           disabledInteractive
-          [disabled]="!store.hasPreviousPage()"
+          [disabled]="!store.hasPreviousPage() || !!store.paging()"
+          [attr.aria-busy]="store.paging() === 'previous' || null"
           (click)="previous()"
         >
           Previous page
@@ -33,7 +34,8 @@ import { RequestStore } from './request-store';
           mat-button
           type="button"
           disabledInteractive
-          [disabled]="!store.hasNextPage()"
+          [disabled]="!store.hasNextPage() || !!store.paging()"
+          [attr.aria-busy]="store.paging() === 'next' || null"
           (click)="next()"
         >
           Next page

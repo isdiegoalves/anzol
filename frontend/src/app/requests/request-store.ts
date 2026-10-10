@@ -118,6 +118,8 @@ export class RequestStore {
   readonly searchSlow = signal(false);
   private slowTimer: ReturnType<typeof setTimeout> | undefined;
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+  /** A página que está sendo pedida: a seguinte e a anterior esperam por ela. */
+  readonly paging = signal<'next' | 'previous' | null>(null);
   /** O filtro mudou e o resultado dele ainda não chegou: o que a lista mostra é do filtro anterior. */
   readonly searching = signal(false);
   /**
@@ -433,30 +435,38 @@ export class RequestStore {
   async loadPreviousPage(): Promise<void> {
     const tokenId = this.tokenId();
     const first = this.pages()[0];
-    if (!tokenId || this.opening() || !first || first.page <= 1) {
+    if (!tokenId || this.opening() || this.paging() || !first || first.page <= 1) {
       return;
     }
     const generation = this.generation;
-    const result = await this.fetchPage(tokenId, first.page - 1);
-    if (generation !== this.generation) {
-      return;
+    this.paging.set('previous');
+    try {
+      const result = await this.fetchPage(tokenId, first.page - 1);
+      if (generation === this.generation) {
+        this.pages.update((pages) => [{ page: result.current_page, data: result.data }, ...pages]);
+      }
+    } finally {
+      this.paging.set(null);
     }
-    this.pages.update((pages) => [{ page: result.current_page, data: result.data }, ...pages]);
   }
 
   async loadNextPage(): Promise<void> {
     const tokenId = this.tokenId();
     const last = this.pages().at(-1);
-    if (!tokenId || this.opening() || !last) {
+    if (!tokenId || this.opening() || this.paging() || !last) {
       return;
     }
     const generation = this.generation;
-    const result = await this.fetchPage(tokenId, last.page + 1);
-    if (generation !== this.generation) {
-      return;
+    this.paging.set('next');
+    try {
+      const result = await this.fetchPage(tokenId, last.page + 1);
+      if (generation === this.generation) {
+        this.pages.update((pages) => [...pages, { page: result.current_page, data: result.data }]);
+        this.lastPageReached.set(result.is_last_page);
+      }
+    } finally {
+      this.paging.set(null);
     }
-    this.pages.update((pages) => [...pages, { page: result.current_page, data: result.data }]);
-    this.lastPageReached.set(result.is_last_page);
   }
 
   fetchOne(tokenId: string, requestId: string): Promise<WebhookRequest> {

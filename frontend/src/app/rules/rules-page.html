@@ -211,7 +211,7 @@
           <tbody
             cdkDropList
             cdkDropListLockAxis="y"
-            [cdkDropListDisabled]="filtering()"
+            [cdkDropListDisabled]="filtering() || changing()"
             (cdkDropListDropped)="dropRule($event)"
           >
             @for (row of rows(); track row.kind === 'rule' ? row.item.index : row.key) {
@@ -247,6 +247,8 @@
                       cdkDragHandle
                       [attr.data-handle]="item.rule.id"
                       [attr.aria-label]="reorderLabel(item.rule.name)"
+                      [attr.aria-disabled]="changing() || null"
+                      [attr.aria-busy]="changing() || null"
                       title="Drag, or use the arrow keys, to change the order"
                       i18n-title
                       (keydown)="moveByKey($event, position)"
@@ -266,6 +268,7 @@
                       #toggle
                       [label]="enableLabel(item.rule.name)"
                       [checked]="item.rule.enabled ?? true"
+                      [busy]="changing()"
                       (changed)="setEnabled(item.index, $event, toggle)"
                     />
                   </td>
@@ -325,6 +328,8 @@
                       title="Move up (checked earlier)"
                       i18n-title
                       [disabled]="position === 0"
+                      [aria-disabled]="changing()"
+                      [attr.aria-busy]="changing() || null"
                       (click)="moveRule(position, -1)"
                     >
                       &#8593;
@@ -337,6 +342,8 @@
                       title="Move down (checked later)"
                       i18n-title
                       [disabled]="position === ordered().length - 1"
+                      [aria-disabled]="changing()"
+                      [attr.aria-busy]="changing() || null"
                       (click)="moveRule(position, 1)"
                     >
                       &#8595;

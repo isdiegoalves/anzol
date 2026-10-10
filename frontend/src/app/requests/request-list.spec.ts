@@ -768,6 +768,25 @@ describe('Dado a lista lateral de mensagens', () => {
     await expectNoAxeViolations(element());
   });
 
+  it('deve deixar "Next page" esperando, focável, e pedir a página uma vez só, Quando ela está a caminho', async () => {
+    await load([webhookRequest(1)], 60, false);
+    const footer = within(element().querySelector('footer') as HTMLElement);
+    const next = footer.getByRole('button', { name: 'Next page' });
+
+    next.click();
+    await fixture.whenStable();
+    expect(next.getAttribute('aria-busy')).toBe('true');
+    expect(next.getAttribute('aria-disabled')).toBe('true');
+    expect(next.hasAttribute('disabled')).toBe(false);
+    next.click();
+
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=2&sorting=newest`)
+      .flush(requestPage([webhookRequest(2)], { current_page: 2, total: 60 }));
+    await fixture.whenStable();
+    expect(next.getAttribute('aria-busy')).toBeNull();
+  });
+
   it('deve dizer "N unread" ao lado do heading, fora dele (INBOX-07)', async () => {
     const [um, dois, tres] = [1, 2, 3].map((n) => webhookRequest(n));
     TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: [um.uuid, dois.uuid] });

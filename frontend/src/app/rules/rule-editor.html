@@ -11,7 +11,7 @@
     [priorityError]="errorOf(form.controls.priority, messages.priority)"
     [unsaved]="unsaved()"
     [canDelete]="canDelete()"
-    [saving]="saving()"
+    [saving]="saving() || reloading()"
     (deleteRule)="deleteRule()"
     (duplicateRule)="duplicateRule()"
     (discard)="cancel()"

@@ -306,6 +306,8 @@ export class RulesPage {
   protected readonly templates = ruleTemplates();
   /** "Reset scenario" de um grupo em andamento. */
   protected readonly resetting = signal(false);
+  /** Uma mudança da lista (toggle, ordem, apagar) está a caminho: as outras esperam a resposta dela. */
+  protected readonly changing = signal(false);
   /** Lista e editor lado a lado a partir de 1200 px; abaixo, só o editor (RULES-10). */
   protected readonly twoPanes = computed(() =>
     ['large', 'extra-large'].includes(this.viewport.windowClass()),
@@ -627,6 +629,9 @@ export class RulesPage {
 
   /** "Reset scenario" (WM-33): só este cenário volta a Started. */
   protected async resetScenario(scenario: string): Promise<void> {
+    if (this.resetting()) {
+      return;
+    }
     this.resetting.set(true);
     try {
       await this.scenarios.setState(scenario, SCENARIO_STARTED);
@@ -824,12 +829,14 @@ export class RulesPage {
   }
 
   /** Um passo para cima ou para baixo (botões e setas na alça). */
-  protected moveRule(position: number, delta: -1 | 1): Promise<void> {
-    return this.moveTo(position, position + delta);
+  protected async moveRule(position: number, delta: -1 | 1): Promise<void> {
+    if (!this.changing()) {
+      await this.moveTo(position, position + delta);
+    }
   }
 
   protected dropRule(event: CdkDragDrop<OrderedRule[]>): void {
-    if (event.previousIndex !== event.currentIndex) {
+    if (event.previousIndex !== event.currentIndex && !this.changing()) {
       void this.moveTo(event.previousIndex, event.currentIndex);
     }
   }
@@ -842,7 +849,7 @@ export class RulesPage {
     }
     event.preventDefault();
     const target = position + delta;
-    if (target >= 0 && target < this.ordered().length) {
+    if (target >= 0 && target < this.ordered().length && !this.changing()) {
       void this.moveTo(position, target, true);
     }
   }
@@ -1081,6 +1088,7 @@ export class RulesPage {
   /** O `PUT` da lista só se a do servidor não mudou desde a leitura (toggle, ordem, apagar). */
   private async saveUnchanged(rules: readonly Rule[]): Promise<boolean> {
     this.errors.set([]);
+    this.changing.set(true);
     try {
       await this.store.saveIfUnchanged(rules);
       this.refreshScenarios();
@@ -1092,6 +1100,8 @@ export class RulesPage {
         this.errors.set(validationMessages(error));
       }
       return false;
+    } finally {
+      this.changing.set(false);
     }
   }
 }

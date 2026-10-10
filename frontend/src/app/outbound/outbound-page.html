@@ -161,6 +161,7 @@
         <app-outbound-result-view
           [result]="current"
           [repeatable]="store.repeatOf(current) !== null"
+          [running]="running()"
           (runAgain)="runAgain(current)"
           (copyCurl)="copyCurl(current)"
         />

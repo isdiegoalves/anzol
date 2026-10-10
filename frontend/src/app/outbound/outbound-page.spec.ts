@@ -421,6 +421,22 @@ describe('Dado a página Outbound', () => {
       expect(within(detail()).getByRole('table', { name: 'Sent headers' })).toBeTruthy();
     });
 
+    it('deve repetir uma vez só, com o botão esperando, Quando "Run again" é clicado de novo antes da resposta', async () => {
+      await open();
+      const again = within(detail()).getByRole('button', { name: 'Run again' });
+
+      await userEvent.click(again);
+      await vi.waitFor(() => expect(again.getAttribute('aria-busy')).toBe('true'));
+      expect(again.getAttribute('aria-disabled')).toBe('true');
+      await userEvent.click(again);
+
+      const call = http.expectOne(
+        `/token/${TOKEN_ID}/request/00000000-0000-4000-8000-000000000001/replay`,
+      );
+      call.flush(outboundResult(5));
+      await vi.waitFor(() => expect(detail().textContent).toContain('/app/pedidos?n=5'));
+    });
+
     it('OUTBOUND-08: deve repetir o replay pelo servidor Quando "Run again" é clicado', async () => {
       await open();
 

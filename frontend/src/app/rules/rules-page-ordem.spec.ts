@@ -565,6 +565,25 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(within(group()).queryByRole('note')).toBeNull();
     });
 
+    it('deve voltar o cenário uma vez só Quando "Reset scenario" é clicado de novo antes da resposta', async () => {
+      await open([entrega(1, 'Started', 'fim')]);
+      await flushState('fim');
+      const reset = await vi.waitFor(() =>
+        within(group()).getByRole('button', { name: 'Reset scenario' }),
+      );
+
+      await userEvent.click(reset);
+      await vi.waitFor(() => expect(reset.getAttribute('aria-busy')).toBe('true'));
+      await userEvent.click(reset);
+
+      const put = await vi.waitFor(() =>
+        http.expectOne({ method: 'PUT', url: `${URL_CENARIOS}/entrega` }),
+      );
+      put.flush({});
+      await flushState('Started');
+      await vi.waitFor(() => expect(reset.getAttribute('aria-busy')).toBeNull());
+    });
+
     it('deve dizer "the default response" sem pega-tudo e voltar só este cenário a Started', async () => {
       await open([entrega(1, 'Started', 'fim')]);
       await flushState('fim');

@@ -15,6 +15,10 @@
   background: transparent;
   cursor: pointer;
 
+  &[aria-disabled='true'] {
+    cursor: progress;
+  }
+
   &:focus-visible {
     border-radius: var(--mat-sys-corner-full);
     outline: var(--app-focus-width) solid var(--app-focus-color);

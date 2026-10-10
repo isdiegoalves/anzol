@@ -18,7 +18,9 @@ import { MatButton } from '@angular/material/button';
       mat-button
       type="button"
       class="reset"
+      disabledInteractive
       [disabled]="busy()"
+      [attr.aria-busy]="busy() || null"
       (click)="resetRequested.emit()"
       i18n="button|Moves this scenario back to Started"
     >

@@ -384,6 +384,32 @@ describe('Dado a página Rules', () => {
       await expectGuardedPut([rule(1), rule(2), rule(3)], [rule(2), rule(1), rule(3)]);
     });
 
+    it('deve gravar uma mudança só, com a lista esperando, Quando outra chega antes da resposta da primeira', async () => {
+      await open([rule(1), rule(2), rule(3)]);
+      const descer = within(row('r1')).getByRole('button', { name: 'Move down' });
+
+      await userEvent.click(descer);
+      const leitura = await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }));
+      expect(descer.getAttribute('aria-disabled')).toBe('true');
+      expect(descer.getAttribute('aria-busy')).toBe('true');
+      expect(
+        screen.getByRole('switch', { name: 'Enable rule Rule 2' }).getAttribute('aria-busy'),
+      ).toBe('true');
+      expect(screen.getByRole('button', { name: 'Reorder Rule 3' }).getAttribute('aria-busy')).toBe(
+        'true',
+      );
+      await userEvent.click(within(row('r2')).getByRole('button', { name: 'Move down' }));
+      await userEvent.click(screen.getByRole('switch', { name: 'Enable rule Rule 2' }));
+      screen.getByRole('button', { name: 'Reorder Rule 3' }).focus();
+      await userEvent.keyboard('{ArrowUp}');
+      http.expectNone({ method: 'GET', url: URL_REGRAS });
+
+      leitura.flush([rule(1), rule(2), rule(3)]);
+      await expectPut([rule(2), rule(1), rule(3)]);
+      await vi.waitFor(() => expect(descer.getAttribute('aria-busy')).toBeNull());
+      http.expectNone({ method: 'GET', url: URL_REGRAS });
+    });
+
     it('não deve oferecer subir a primeira nem descer a última', async () => {
       await open([rule(1), rule(2)]);
 

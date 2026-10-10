@@ -1238,3 +1238,53 @@ describe('Dado o servidor sem responder à lista ou à busca', () => {
     expect(store.searchSlow()).toBe(false);
   });
 });
+
+describe('Dado a página seguinte ou a anterior a caminho', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID, 2);
+    http.expectOne(`${listUrl}?per_page=1&sorting=newest`).flush(requestPage([]));
+    await vi.waitFor(() =>
+      http
+        .expectOne(`${listUrl}?page=2&sorting=newest`)
+        .flush(requestPage([webhookRequest(2)], { current_page: 2, is_last_page: false })),
+    );
+    await loaded;
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve pedir a seguinte uma vez só e não pedir a anterior Quando os cliques se repetem', async () => {
+    const primeira = store.loadNextPage();
+    expect(store.paging()).toBe('next');
+    await store.loadNextPage();
+    await store.loadPreviousPage();
+    http
+      .expectOne(`${listUrl}?page=3&sorting=newest`)
+      .flush(requestPage([webhookRequest(3)], { current_page: 3 }));
+    await primeira;
+
+    expect(store.paging()).toBeNull();
+    expect(store.requests()).toEqual([webhookRequest(2), webhookRequest(3)]);
+  });
+
+  it('deve soltar a trava Quando a página falha', async () => {
+    const anterior = store.loadPreviousPage();
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect(anterior).rejects.toBeDefined();
+
+    expect(store.paging()).toBeNull();
+  });
+});

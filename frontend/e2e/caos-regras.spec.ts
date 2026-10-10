@@ -70,8 +70,8 @@ test.describe('Dado o Reload do aviso "changed elsewhere" com o servidor lento',
       }
       const salvar = edicao.getByRole('button', { name: 'Save', exact: true });
       await salvar.click();
-      await expect.poll(() => leituras, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
-      // O Save termina: recusado pela conferência (fica no editor) ou gravado (o editor fecha).
+      await expect.poll(() => leituras, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+      // O Reload e o Save terminam: o Save espera o Reload, é recusado pela conferência ou grava (o editor fecha).
       await expect
         .poll(() => salvar.getAttribute('aria-busy', { timeout: 500 }).catch(() => 'fechou'), {
           timeout: 10_000,

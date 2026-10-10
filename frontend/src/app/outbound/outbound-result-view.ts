@@ -38,6 +38,8 @@ export class OutboundResultView {
   readonly typedUrl = input<string>();
   /** Dá para repetir (replay com a origem, ou send feito nesta tela). */
   readonly repeatable = input(false);
+  /** O "Run again" está a caminho. */
+  readonly running = input(false);
   readonly runAgain = output<void>();
   readonly copyCurl = output<void>();
 

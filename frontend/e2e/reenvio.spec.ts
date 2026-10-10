@@ -242,6 +242,38 @@ test.describe('Dado o Send do cabeçalho da URL', () => {
     expect(receiver.received[0].headers['x-trace']).toBe('abc');
   });
 
+  test('deve disparar uma vez só Quando "Run again" é clicado duas vezes com o envio a caminho', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const dialog = await openSend(page, tokenId);
+    await dialog.getByRole('textbox', { name: 'URL', exact: true }).fill(`${receiver.url}/hook`);
+    await dialog.getByRole('button', { name: 'Send', exact: true }).click();
+    const detail = outboundDetail(page);
+    await expect(detail.getByText('201', { exact: true })).toBeVisible();
+    let soltar!: () => void;
+    const preso = new Promise<void>((resolve) => (soltar = resolve));
+    let envios = 0;
+    await page.route(`**/token/${tokenId}/send`, async (route) => {
+      envios++;
+      await preso;
+      await route.continue();
+    });
+    const repetir = detail.getByRole('button', { name: 'Run again' });
+
+    await repetir.click();
+    await expect.poll(() => envios).toBe(1);
+    await repetir.click({ force: true });
+    soltar();
+
+    await expect.poll(() => receiver.received.length).toBe(2);
+    await expect(
+      page.getByRole('table', { name: 'Outbound history' }).locator('tbody tr'),
+    ).toHaveCount(2);
+    expect(envios).toBe(1);
+  });
+
   test('deve assinar com a configuração da URL, ser aceito pela verificação e não expor o segredo', async ({
     page,
     tokens,

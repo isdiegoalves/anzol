@@ -100,6 +100,8 @@ export class OutboundPage {
   protected readonly historyWidth = signal(420);
   /** Erro do "Run again" (429, 422…), no detalhe. */
   protected readonly actionError = signal<string | null>(null);
+  /** O "Run again" a caminho: o segundo clique não dispara outro envio externo. */
+  protected readonly running = signal(false);
 
   /** URL carregada do servidor para esta rota (a assinatura dela assina o Send). */
   protected readonly token = signal<Token | null>(null);
@@ -193,14 +195,17 @@ export class OutboundPage {
   /** "Run again": o mesmo replay ou send; o resultado novo entra no topo e fica aberto. */
   protected async runAgain(result: OutboundResult): Promise<void> {
     const token = this.token();
-    if (!token) {
+    if (!token || this.running()) {
       return;
     }
     this.actionError.set(null);
+    this.running.set(true);
     try {
       this.showResult(await this.store.runAgain(token.uuid, result));
     } catch (error) {
       this.actionError.set(requestErrorText(error));
+    } finally {
+      this.running.set(false);
     }
   }
 

@@ -334,6 +334,8 @@ export class RuleEditor {
   /** Muda a cada edição do formulário ou do JSON: recalcula a frase e o aviso do caminho. */
   private readonly edits = signal(0);
   protected readonly saving = signal(false);
+  /** O Reload do aviso "changed elsewhere" está a caminho: o Save espera a lista nova. */
+  protected readonly reloading = signal(false);
   /** O último Save ou Test achou o formulário inválido: o resumo fica até ele voltar a valer. */
   private readonly blocked = signal<Blocked | null>(null);
   /** "To save, fix: Path (required), Status (100–599)", enquanto houver o que corrigir. */
@@ -823,6 +825,7 @@ export class RuleEditor {
    * que o editor não tocou passam a ser os da lista nova (outra aba pode tê-los mudado).
    */
   protected async reloadRules(): Promise<void> {
+    this.reloading.set(true);
     try {
       await this.store.reload();
       this.changedElsewhere.set(false);
@@ -832,6 +835,8 @@ export class RuleEditor {
       }
     } catch (error) {
       this.generalErrors.set(validationPhrases(error));
+    } finally {
+      this.reloading.set(false);
     }
   }
 
@@ -1511,7 +1516,7 @@ export class RuleEditor {
   }
 
   protected async saveRule(): Promise<void> {
-    if (this.saving()) {
+    if (this.saving() || this.reloading()) {
       return;
     }
     const rule = this.editedValid() ? this.editedRule(Date.now()) : undefined;
