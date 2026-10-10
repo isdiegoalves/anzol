@@ -35,6 +35,9 @@ class SseClient(
     val events = ConcurrentLinkedQueue<SseEvent>()
     private val reader = Thread.ofVirtual().start { readEvents() }
 
+    /** Só as mensagens gravadas: o `ping` do heartbeat vem junto em [events]. */
+    fun created(): List<SseEvent> = events.filter { it.name == "request.created" }
+
     private fun readEvents() {
         var name = ""
         val data = StringBuilder()

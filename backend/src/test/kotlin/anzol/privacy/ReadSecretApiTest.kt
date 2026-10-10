@@ -358,8 +358,8 @@ class ReadSecretApiTest(
             SseClient("${api.base}/token/$tokenId/stream", withCookie(cookie)).use { client ->
                 assertThat(client.response.statusCode()).isEqualTo(200)
                 api.send("POST", "/$tokenId", "pelo-sse".toByteArray())
-                await().atMost(PROMPTLY).until { client.events.isNotEmpty() }
-                assertThat(client.events.first().data).contains("pelo-sse")
+                await().atMost(PROMPTLY).until { client.created().isNotEmpty() }
+                assertThat(client.created().first().data).contains("pelo-sse")
             }
         }
 

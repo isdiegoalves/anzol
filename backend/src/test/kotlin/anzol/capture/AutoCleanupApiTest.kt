@@ -178,8 +178,8 @@ class AutoCleanupApiTest(
             SseClient("${api.base}/token/$tokenId/stream").use { client ->
                 val arrived = send(tokenId)
 
-                await().atMost(Duration.ofSeconds(5)).until { client.events.isNotEmpty() }
-                val payload = api.tree(client.events.first().data)
+                await().atMost(Duration.ofSeconds(5)).until { client.created().isNotEmpty() }
+                val payload = api.tree(client.created().first().data)
                 assertThat(payload["request"]["uuid"].asString()).isEqualTo(arrived)
                 assertThat(payload["removed"].toList().map { it.asString() }).containsExactly(sent.first())
                 assertThat(payload["total"].asInt()).isEqualTo(500)
@@ -193,8 +193,8 @@ class AutoCleanupApiTest(
             SseClient("${api.base}/token/$tokenId/stream").use { client ->
                 send(tokenId)
 
-                await().atMost(Duration.ofSeconds(5)).until { client.events.isNotEmpty() }
-                val payload = api.tree(client.events.first().data)
+                await().atMost(Duration.ofSeconds(5)).until { client.created().isNotEmpty() }
+                val payload = api.tree(client.created().first().data)
                 assertThat(payload.propertyNames().toList()).containsExactly("request", "total", "truncated", "removed")
                 assertThat(payload["removed"].isArray).isTrue()
                 assertThat(payload["removed"].size()).isZero()

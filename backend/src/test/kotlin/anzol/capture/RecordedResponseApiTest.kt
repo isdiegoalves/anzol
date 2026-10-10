@@ -110,10 +110,10 @@ class RecordedResponseApiTest(
         SseClient("${api.base}/token/$tokenId/stream").use { client ->
             val message = api.capture(tokenId)
 
-            await().atMost(Duration.ofSeconds(5)).until { client.events.isNotEmpty() }
+            await().atMost(Duration.ofSeconds(5)).until { client.created().isNotEmpty() }
             val search = api.json(api.send("POST", "/token/$tokenId/requests/search", "{}".toByteArray(), JSON_BODY))
             assertThat(message["response"]).isEqualTo(api.tree("""{"status":202}"""))
-            assertThat(api.tree(client.events.first().data)["request"]["response"]).isEqualTo(message["response"])
+            assertThat(api.tree(client.created().first().data)["request"]["response"]).isEqualTo(message["response"])
             assertThat(search["data"][0]["response"]).isEqualTo(message["response"])
         }
     }

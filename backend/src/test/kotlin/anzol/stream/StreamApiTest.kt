@@ -42,8 +42,8 @@ class StreamApiTest(
 
             val response = api.send("POST", "/$tokenId/201?q=1", """{"a":1}""".toByteArray(), mapOf("Content-Type" to "application/json"))
 
-            wait.until { client.events.isNotEmpty() }
-            val event = client.events.first()
+            wait.until { client.created().isNotEmpty() }
+            val event = client.created().first()
             val payload = api.tree(event.data)
             val stored = api.json(api.send("GET", "/token/$tokenId/request/${response.headers().firstValue("X-Request-Id").get()}"))
             assertThat(event.name).isEqualTo("request.created")
@@ -64,10 +64,25 @@ class StreamApiTest(
                 api.send("GET", "/$tokenA")
                 api.send("GET", "/$tokenA/404")
 
-                wait.until { clientA.events.size == 2 }
-                assertThat(clientA.events.map { api.tree(it.data)["total"].asInt() }).containsExactly(1, 2)
-                assertThat(clientB.events).isEmpty()
+                wait.until { clientA.created().size == 2 }
+                assertThat(clientA.created().map { api.tree(it.data)["total"].asInt() }).containsExactly(1, 2)
+                assertThat(clientB.created()).isEmpty()
             }
+        }
+    }
+
+    @Test
+    @DisplayName("Dado uma aba assinando o token, quando abre e a cada heartbeat, então recebe ping com o intervalo em segundos")
+    fun stream_heartbeat_deveMandarPingComIntervalo() {
+        val tokenId = api.tokenId()
+        subscribe(tokenId).use { client ->
+            wait.until { client.events.size >= 3 }
+
+            assertThat(client.events.take(3)).allSatisfy { event ->
+                assertThat(event.name).isEqualTo("ping")
+                assertThat(event.data).isEqualTo("0.2")
+            }
+            assertThat(client.created()).isEmpty()
         }
     }
 

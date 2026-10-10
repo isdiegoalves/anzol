@@ -6,6 +6,7 @@ import anzol.capture.CapturedRequest
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.event.ContextClosedEvent
 import org.springframework.context.event.EventListener
 import org.springframework.http.MediaType
@@ -14,12 +15,14 @@ import org.springframework.stereotype.Component
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import tools.jackson.databind.json.JsonMapper
 import java.io.IOException
+import java.math.BigDecimal
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 private const val EVENT_NAME = "request.created"
+private const val PING = "ping"
 
 /** Sem prazo: a conexão vive enquanto o cliente estiver lá; o heartbeat descobre quem saiu. */
 private const val NO_TIMEOUT = 0L
@@ -60,8 +63,12 @@ class Arrivals(
 class RequestStream(
     private val jsonMapper: JsonMapper,
     registry: MeterRegistry,
+    @Value("\${anzol.stream.heartbeat}") heartbeat: Duration,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    /** O intervalo do heartbeat em segundos ("15", "0.2"), no `data` do `ping`: o cliente vigia o silêncio por ele. */
+    private val interval = BigDecimal.valueOf(heartbeat.toMillis(), 3).stripTrailingZeros().toPlainString()
     private val subscribers = ConcurrentHashMap<TokenId, Set<SseEmitter>>()
     private val listeners = ConcurrentHashMap<TokenId, Set<Arrivals>>()
 
@@ -77,7 +84,7 @@ class RequestStream(
     }
 
     /**
-     * Registra o assinante e já manda um comentário: isso despacha o status e os cabeçalhos,
+     * Registra o assinante e já manda um comentário com o primeiro `ping`: isso despacha o status e os cabeçalhos,
      * então o cliente só vê a conexão aberta depois do registro e nenhuma mensagem se perde.
      */
     fun subscribe(tokenId: TokenId): SseEmitter {
@@ -87,7 +94,7 @@ class RequestStream(
         emitter.onTimeout { unsubscribe(tokenId, emitter) }
         emitter.onError { unsubscribe(tokenId, emitter) }
         log.info("SSE: assinante entrou no token {} ({} no token, {} no total)", tokenId, subscriberCount(tokenId), subscriberCount())
-        emitter.trySend(tokenId, SseEmitter.event().comment("conectado"))
+        emitter.trySend(tokenId, ping("conectado"))
         return emitter
     }
 
@@ -138,13 +145,23 @@ class RequestStream(
         emitters.forEach { it.trySend(request.tokenId, event) }
     }
 
-    /** Comentário periódico: mantém proxies abertos e revela conexões mortas. */
+    /**
+     * Comentário e `ping` periódicos: mantêm proxies abertos e revelam conexões mortas. O comentário segue para quem
+     * já lia o heartbeat assim; o `EventSource` só entrega ao JavaScript o evento com `data`.
+     */
     @Scheduled(fixedRateString = "\${anzol.stream.heartbeat}")
     fun heartbeat() {
         subscribers.forEach { (tokenId, emitters) ->
-            emitters.forEach { it.trySend(tokenId, SseEmitter.event().comment("heartbeat")) }
+            emitters.forEach { it.trySend(tokenId, ping("heartbeat")) }
         }
     }
+
+    private fun ping(comment: String): SseEmitter.SseEventBuilder =
+        SseEmitter
+            .event()
+            .comment(comment)
+            .name(PING)
+            .data(interval)
 
     /**
      * Fecha os streams quando o app começa a parar: sem isso o desligamento gracioso espera as

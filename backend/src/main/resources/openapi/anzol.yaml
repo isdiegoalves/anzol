@@ -621,10 +621,13 @@ paths:
       operationId: streamRequests
       summary: Stream new messages (server-sent events)
       description: >-
-        Opens with the comment `: conectado` and sends `: heartbeat` every 15 s. Each captured message is an
-        event named `request.created` whose `data` is a JSON `RequestCreated`: the message (without `decrypted`;
-        above 1,000,000 characters, without `content`, `headers` and `user_agent`, and `truncated: true`), the
-        current `total`, and the uuids `removed` by the automatic cleanup. Closed when the read secret changes.
+        Opens with the comment `: conectado` and an event named `ping`, and sends the comment `: heartbeat` with
+        another `ping` every interval (15 s by default). The `data` of `ping` is the interval in seconds: a client
+        that hears nothing for two intervals can take the connection as dead and open it again. Each captured
+        message is an event named `request.created` whose `data` is a JSON `RequestCreated`: the message (without
+        `decrypted`; above 1,000,000 characters, without `content`, `headers` and `user_agent`, and
+        `truncated: true`), the current `total`, and the uuids `removed` by the automatic cleanup. Closed when the
+        read secret changes.
       security:
         - {}
         - readSecret: []
@@ -638,9 +641,15 @@ paths:
                 type: string
               example: |
                 :conectado
+                event:ping
+                data:15
 
                 event:request.created
                 data:{"request":{"uuid":"…","seq":1790438426238928},"total":1,"truncated":false,"removed":[]}
+
+                :heartbeat
+                event:ping
+                data:15
         '401':
           $ref: '#/components/responses/Protected'
         '410':

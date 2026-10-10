@@ -281,8 +281,8 @@ class SchemaApiTest(
             SseClient("${api.base}/token/$tokenId/stream").use { client ->
                 api.send("POST", "/$tokenId", """{"id":"x"}""".toByteArray(), JSON_REQUEST)
 
-                await().atMost(Duration.ofSeconds(5)).until { client.events.isNotEmpty() }
-                val request = api.tree(client.events.first().data)["request"]
+                await().atMost(Duration.ofSeconds(5)).until { client.created().isNotEmpty() }
+                val request = api.tree(client.created().first().data)["request"]
 
                 assertThat(request["schema"]).isEqualTo(
                     api.tree("""{"valid":false,"errors":[{"path":"/id","message":"string found, integer expected"}]}"""),

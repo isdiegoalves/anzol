@@ -62,9 +62,9 @@ class RequestSeqApiTest(
             SseClient("${api.base}/token/$tokenId/stream").use { client ->
                 val requestId = send(tokenId)
 
-                await().atMost(Duration.ofSeconds(5)).until { client.events.isNotEmpty() }
+                await().atMost(Duration.ofSeconds(5)).until { client.created().isNotEmpty() }
                 val score = redis.opsForZSet().score(indexKey(tokenId), requestId)?.toLong()
-                val fromEvent = api.tree(client.events.single().data)["request"]["seq"]
+                val fromEvent = api.tree(client.created().single().data)["request"]["seq"]
                 val fromFind = api.json(api.send("GET", "/token/$tokenId/request/$requestId", headers = JSON_CLIENT))["seq"]
                 val fromList = list(tokenId, "")["data"][0]["seq"]
                 assertThat(score).isNotNull().isPositive()
@@ -80,10 +80,11 @@ class RequestSeqApiTest(
             SseClient("${api.base}/token/$tokenId/stream").use { client ->
                 Executors.newFixedThreadPool(SENDERS).use { pool -> repeat(CONCURRENT_MESSAGES) { pool.submit { send(tokenId) } } }
 
-                await().atMost(Duration.ofSeconds(10)).until { client.events.size == CONCURRENT_MESSAGES }
+                await().atMost(Duration.ofSeconds(10)).until { client.created().size == CONCURRENT_MESSAGES }
                 val page = list(tokenId, "per_page=$CONCURRENT_MESSAGES")
                 val listed = page.uuids().zip(page.seqs()).toMap()
-                val published = client.events.map { api.tree(it.data)["request"] }.associate { it["uuid"].asString() to it["seq"].asLong() }
+                val published =
+                    client.created().map { api.tree(it.data)["request"] }.associate { it["uuid"].asString() to it["seq"].asLong() }
                 assertThat(page.seqs()).hasSize(CONCURRENT_MESSAGES).isSorted().doesNotHaveDuplicates()
                 assertThat(published).isEqualTo(listed)
             }
