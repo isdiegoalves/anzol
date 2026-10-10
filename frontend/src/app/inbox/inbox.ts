@@ -94,8 +94,11 @@ export const LOADING_NOTICE_MS = 1000;
 export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
 /** Quanto tempo a tela espera o eco de uma navegação que ela mesma fez. */
 export const ECHO_MS = 5000;
-/** Chegadas somadas num anúncio só para o leitor de tela (WCAG 4.1.3, sem inundar). */
-export const ANNOUNCE_EVERY_MS = 5000;
+/**
+ * Para o leitor de tela, a primeira chegada de uma leva fala na hora, e as seguintes falam somadas no máximo a esta
+ * distância (WCAG 4.1.3, sem inundar).
+ */
+export const ANNOUNCE_EVERY_MS = 10_000;
 /** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
 export const RECEIVED_NOTICE_MS = 4000;
 /** Limites da lista ao lado do detalhe, em px, e a chave da largura que a pessoa deixou. */
@@ -113,7 +116,7 @@ export function defaultListWidth(windowWidth: number): number {
  * um painel por vez, com o detalhe em tela cheia. A rota (`/`, `/{tokenId}`,
  * `/{tokenId}/{requestId}/{page}`) é a fonte da verdade: clicar numa mensagem navega, e a navegação
  * abre a mensagem. Tempo real: a nova fica destacada; fora da vista, a pílula e o aviso; "Follow
- * new" abre cada uma que chega; o leitor de tela ouve as chegadas somadas a cada 5 s.
+ * new" abre cada uma que chega; o leitor de tela ouve a primeira na hora e as seguintes somadas.
  */
 @Component({
   selector: 'app-inbox',
@@ -283,7 +286,11 @@ export class Inbox {
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
+  /** As chegadas depois da que abriu a janela do anúncio, e a última delas. */
   private arrivals = 0;
+  private lastArrival: WebhookRequest | null = null;
+  /** Com filtro, a chegada espera a busca dizer se ela aparece na lista para ser dita. */
+  private readonly unseenArrivals = new Map<string, WebhookRequest>();
   /** A mensagem que a própria tela abriu por último (sem o usuário pedir). */
   private chosenByScreen: string | null = null;
   private left = false;
@@ -357,9 +364,10 @@ export class Inbox {
     });
 
     effect(() => {
-      // Outra URL: a faixa da primeira chegada é da anterior.
+      // Outra URL: a faixa da primeira chegada e as chegadas à espera da busca são da anterior.
       this.tokenId();
       this.firstArrival.set(null);
+      this.unseenArrivals.clear();
     });
 
     toObservable(this.streamTokenId)
@@ -377,7 +385,7 @@ export class Inbox {
         switchMap(() => this.requests.refreshSearch()),
         takeUntilDestroyed(),
       )
-      .subscribe();
+      .subscribe(() => this.announceFound());
 
     // J e K: a mensagem mais antiga e a mais nova (C §3.2), fora dos campos e se ligados.
     const keys = (event: KeyboardEvent) => this.navigateByKey(event);
@@ -842,7 +850,7 @@ export class Inbox {
       // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
       this.requests.countArrival(complete, total, removed);
       this.searchRefresh.next();
-      this.notify(complete, false);
+      this.notify(complete, false, 'later');
       return;
     }
     const first = !this.requests.hasRequests() && !this.guideDismissed('first');
@@ -869,7 +877,7 @@ export class Inbox {
     // A que a tela abriu (a primeira numa Inbox vazia, ou a que substituiu a cortada) está à vista.
     const opened = this.requests.selected()?.uuid === complete.uuid;
     const inView = (this.list()?.receive(complete, opened) ?? true) || opened;
-    this.notify(complete, inView, !first);
+    this.notify(complete, inView, first ? 'said' : 'now');
   }
 
   private welcome(request: WebhookRequest): void {
@@ -922,15 +930,23 @@ export class Inbox {
   }
 
   /**
-   * O redirect pelo navegador (se ligado), o anúncio somado e, com a nova fora da vista, o aviso
-   * "Request received" com "View".
+   * O redirect pelo navegador (se ligado), o anúncio e, com a nova fora da vista, o aviso "Request
+   * received" com "View", só visual: quem fala a chegada é o anúncio. `speech`: `said` quando outra
+   * fala já a disse (as boas-vindas da primeira, o roteiro que a reclama); `later` com filtro, até a
+   * busca dizer se ela aparece.
    */
-  private notify(request: WebhookRequest, inView: boolean, announce = true): void {
+  private notify(
+    request: WebhookRequest,
+    inView: boolean,
+    speech: 'now' | 'said' | 'later' = 'now',
+  ): void {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(request);
     }
-    if (announce && !this.claimed(request)) {
-      this.announceArrival();
+    if (speech === 'later') {
+      this.unseenArrivals.set(request.uuid, request);
+    } else {
+      this.announceArrival(request, speech === 'said' || this.claimed(request));
     }
     if (!inView) {
       // INBOX-15: o método e a rota, para decidir se vale abrir sem sair do que está fazendo.
@@ -939,13 +955,21 @@ export class Inbox {
         .open(
           $localize`Request received · ${request.method}:method: ${route}:route:`,
           $localize`View`,
-          {
-            duration: RECEIVED_NOTICE_MS,
-          },
+          { duration: RECEIVED_NOTICE_MS, politeness: 'off' },
         )
         .onAction()
         .subscribe(() => void this.viewNewest());
     }
+  }
+
+  /** A busca refeita disse o que aparece: só essas chegadas são ditas. */
+  private announceFound(): void {
+    for (const [requestId, request] of this.unseenArrivals) {
+      if (this.listed(requestId)) {
+        this.announceArrival(request);
+      }
+    }
+    this.unseenArrivals.clear();
   }
 
   private claimed(request: WebhookRequest): boolean {
@@ -961,19 +985,61 @@ export class Inbox {
     }
   }
 
-  private announceArrival(): void {
-    this.arrivals++;
-    this.announceTimer ??= setTimeout(() => {
-      const count = this.arrivals;
-      this.arrivals = 0;
-      this.announceTimer = null;
-      void this.announcer.announce(
-        count === 1
-          ? $localize`1 new request arrived`
-          : $localize`${count}:count: new requests arrived`,
-        'polite',
-        ANNOUNCEMENT_MS,
-      );
+  /**
+   * Borda de entrada: a chegada que encontra o anúncio livre fala na hora e abre uma janela; as que
+   * chegam dentro dela falam juntas no fim, e a janela se renova enquanto houver o que dizer.
+   * `said`: outra fala já disse esta; ela abre a janela, mas não entra na soma.
+   */
+  private announceArrival(request: WebhookRequest, said = false): void {
+    if (this.announceTimer) {
+      if (!said) {
+        this.arrivals++;
+        this.lastArrival = request;
+      }
+      return;
+    }
+    if (!said) {
+      this.say(arrivedText(request));
+    }
+    this.openAnnounceWindow();
+  }
+
+  private openAnnounceWindow(): void {
+    this.announceTimer = setTimeout(() => {
+      const [count, last] = [this.arrivals, this.lastArrival];
+      [this.announceTimer, this.arrivals, this.lastArrival] = [null, 0, null];
+      if (count > 0 && last) {
+        this.say(moreArrivedText(count, last));
+        this.openAnnounceWindow();
+      }
     }, ANNOUNCE_EVERY_MS);
   }
+
+  private say(message: string): void {
+    void this.announcer.announce(message, 'polite', ANNOUNCEMENT_MS);
+  }
+}
+
+function spokenRoute(request: WebhookRequest): { method: string; route: string; status?: number } {
+  const [route] = routeOf(request.url).split('?');
+  return { method: request.method, route, status: request.response?.status };
+}
+
+function arrivedText(request: WebhookRequest): string {
+  const { method, route, status } = spokenRoute(request);
+  return status === undefined
+    ? $localize`${method}:method: ${route}:route: arrived`
+    : $localize`${method}:method: ${route}:route: arrived · answered ${status}:status:`;
+}
+
+function moreArrivedText(count: number, last: WebhookRequest): string {
+  const { method, route, status } = spokenRoute(last);
+  if (count === 1) {
+    return status === undefined
+      ? $localize`1 more request arrived: ${method}:method: ${route}:route:`
+      : $localize`1 more request arrived: ${method}:method: ${route}:route: · answered ${status}:status:`;
+  }
+  return status === undefined
+    ? $localize`${count}:count: more requests arrived, the last ${method}:method: ${route}:route:`
+    : $localize`${count}:count: more requests arrived, the last ${method}:method: ${route}:route: · answered ${status}:status:`;
 }

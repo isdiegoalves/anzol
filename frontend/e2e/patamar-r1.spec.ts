@@ -703,7 +703,7 @@ test.describe('Dado os roteiros', () => {
     await expect(page.getByRole('region', { name: 'Your URL is ready' })).toHaveCount(0);
     await expectUmAnuncio(page, /^First request arrived: POST \/primeira, at \d{1,2}:\d{2}/);
     // No lugar da fala de chegada comum, não além dela.
-    await expectSemAnuncio(page, /\b1 new request\b/);
+    await expectSemAnuncio(page, /^[A-Z]+ \/\S* arrived|more requests? arrived/);
     for (const link of ["Check the provider's signature", 'Choose the answer', 'Test a retry']) {
       await expect(faixa.getByRole('link', { name: link })).toBeVisible();
     }
@@ -828,7 +828,7 @@ test.describe('Dado os roteiros', () => {
       /^3 requests arrived\. Answers: 429, 429, 200, as programmed\.$/,
       /^Retry check$/,
     );
-    await expectSemAnuncio(page, /new requests? arrived/);
+    await expectSemAnuncio(page, /^[A-Z]+ \/\S* arrived|more requests? arrived/);
   });
 
   test('deve escolher um método só, com POST de padrão, e esperar por qualquer caminho sem o Path', async ({

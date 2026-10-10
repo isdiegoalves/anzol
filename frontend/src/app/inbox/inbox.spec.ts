@@ -596,7 +596,7 @@ describe('Dado a tela principal', () => {
       );
     });
 
-    it('deve avisar "Request received" com "View" (4 s) e abrir a nova no "View" Quando ela chega fora da vista', async () => {
+    it('deve avisar "Request received" com "View" (4 s), sem falar por ele, e abrir a nova no "View" Quando ela chega fora da vista', async () => {
       vi.spyOn(RequestList.prototype, 'receive').mockReturnValue(false);
       const nova = webhookRequest(3);
 
@@ -608,7 +608,10 @@ describe('Dado a tela principal', () => {
 
       await vi.waitFor(() =>
         // INBOX-15: o aviso diz o método e a rota da que chegou.
-        expect(snack).toHaveBeenCalledWith('Request received · POST /', 'View', { duration: 4000 }),
+        expect(snack).toHaveBeenCalledWith('Request received · POST /', 'View', {
+          duration: 4000,
+          politeness: 'off',
+        }),
       );
       snack.mock.results.at(-1)?.value.dismissWithAction();
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
@@ -722,6 +725,55 @@ describe('Dado a tela principal', () => {
       // A busca vai para a rota (link compartilhável) e a aberta continua.
       expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?q=pedido`);
       expect(store.selected()).toEqual(R1);
+    });
+
+    it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim de 10 s', async () => {
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const leva = ['a', 'b', 'c', 'd', 'e'].map((rota, i) =>
+          webhookRequest(10 + i, {
+            url: `http://localhost:8084/${TOKEN_ID}/${rota}?x=1`,
+            response: { status: 201 },
+          }),
+        );
+        for (const request of leva) {
+          FakeEventSource.latest().emit('request.created', { request, total: 3, truncated: false });
+          vi.advanceTimersByTime(150);
+        }
+        vi.advanceTimersByTime(ANNOUNCE_EVERY_MS);
+
+        const said = announce.mock.calls.map(([message]) => String(message));
+        expect(said.filter((message) => /arrived/.test(message))).toEqual([
+          'POST /a arrived · answered 201',
+          '4 more requests arrived, the last POST /e · answered 201',
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('deve dizer, com filtro, só a chegada que a busca refeita põe na lista', async () => {
+      const store = TestBed.inject(RequestStore);
+      const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'pedido' });
+      await flush(searchUrl, requestPage([R2], { total: 1 }));
+      await applied;
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      const [fora, dentro] = ['fora', 'dentro'].map((rota, i) =>
+        webhookRequest(20 + i, { url: `http://localhost:8084/${TOKEN_ID}/${rota}` }),
+      );
+
+      FakeEventSource.latest().emit('request.created', { request: fora, total: 3 });
+      FakeEventSource.latest().emit('request.created', { request: dentro, total: 4 });
+      expect(announce).not.toHaveBeenCalled();
+      await flush(searchUrl, requestPage([R2, dentro], { total: 2 }));
+
+      await vi.waitFor(() =>
+        expect(announce.mock.calls.map(([message]) => String(message))).toEqual([
+          'POST /dentro arrived',
+        ]),
+      );
     });
 
     it('deve ir para a mensagem nova e reenviá-la Quando auto-navegar e redirect estão ligados', async () => {
@@ -933,8 +985,40 @@ describe('Dado a tela principal', () => {
       ]);
       expect(text()).not.toContain('Your URL is ready');
       const said = announce.mock.calls.map(([message]) => String(message));
-      expect(said.filter((message) => message.startsWith('First request arrived'))).toHaveLength(1);
-      expect(said).not.toContain('1 new request arrived');
+      expect(said.filter((message) => /arrived/.test(message))).toEqual([
+        expect.stringMatching(/^First request arrived: POST \/pedidos, at /),
+      ]);
+    });
+
+    it('deve somar a que chega logo depois da primeira, sem dizer a primeira de novo', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([]));
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const [primeira, segunda] = ['primeira', 'segunda'].map((rota, i) =>
+          webhookRequest(i + 1, {
+            url: `http://localhost:8084/${TOKEN_ID}/${rota}`,
+            response: { status: 201 },
+          }),
+        );
+        FakeEventSource.latest().emit('request.created', { request: primeira, total: 1 });
+        await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${primeira.uuid}/1`));
+        FakeEventSource.latest().emit('request.created', { request: segunda, total: 2 });
+        vi.advanceTimersByTime(ANNOUNCE_EVERY_MS);
+
+        const said = announce.mock.calls.map(([message]) => String(message));
+        expect(said.filter((message) => /arrived/.test(message))).toEqual([
+          expect.stringMatching(/^First request arrived: POST \/primeira, at /),
+          '1 more request arrived: POST /segunda · answered 201',
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('deve sumir com "Dismiss" e não voltar nesta URL', async () => {

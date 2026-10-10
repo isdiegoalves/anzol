@@ -47,7 +47,9 @@ describe('Dado o idioma da tela (tradução em runtime)', () => {
     expect(document.documentElement.lang).toBe('pt-BR');
     expect($localize`Inbox`).toBe('Entrada');
     const count = 3;
-    expect($localize`${count}:count: new requests arrived`).toBe('3 requisições novas chegaram');
+    expect($localize`Connected again. ${count}:count: requests arrived meanwhile.`).toBe(
+      'Conexão de volta. 3 requisições chegaram enquanto isso.',
+    );
     // Os chips de filtro da Inbox (os nomes da E4 em inglês).
     expect($localize`Signature absent`).toBe('Sem assinatura');
     expect($localize`Schema invalid`).toBe('Schema inválido');

@@ -436,10 +436,19 @@ export const translations: Record<string, string> = {
   '2886253525048467023': 'Requisição recebida · {$method} {$route}',
   // View
   '2509141182388535183': 'Ver',
-  // 1 new request arrived
-  '8601911208272056454': '1 requisição nova chegou',
-  // {$count} new requests arrived
-  '8292387230824372572': '{$count} requisições novas chegaram',
+  // {$method} {$route} arrived
+  '7111157730468327340': 'Chegou {$method} {$route}',
+  // {$method} {$route} arrived · answered {$status}
+  '1726102406184555033': 'Chegou {$method} {$route} · respondeu {$status}',
+  // 1 more request arrived: {$method} {$route}
+  '5747204300912474314': 'Mais 1 requisição chegou: {$method} {$route}',
+  // 1 more request arrived: {$method} {$route} · answered {$status}
+  '7730024890928837822': 'Mais 1 requisição chegou: {$method} {$route} · respondeu {$status}',
+  // {$count} more requests arrived, the last {$method} {$route}
+  '7921529121671825844': 'Mais {$count} requisições chegaram, a última {$method} {$route}',
+  // {$count} more requests arrived, the last {$method} {$route} · answered {$status}
+  '6698504429320474439':
+    'Mais {$count} requisições chegaram, a última {$method} {$route} · respondeu {$status}',
   // peak {$INTERPOLATION}
   '7771802040576367067': 'pico {$INTERPOLATION}',
   // {$hour}: 1 request

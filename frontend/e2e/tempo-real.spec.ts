@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
 import { expect, test } from './support/fixtures';
 import {
   anuncios,
@@ -49,7 +50,7 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(
       anuncios(page).filter({ hasText: /^First request arrived: POST \/, at \d{1,2}:\d{2}/ }),
     ).toHaveCount(1, { timeout: 15_000 });
-    await expect(anuncios(page).filter({ hasText: /\b1 new request\b/ })).toHaveCount(0);
+    await expect(anuncios(page).filter({ hasText: /^POST \/ arrived/ })).toHaveCount(0);
     await expect(page.getByText('Request received')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
     await expect(detalhes(page)).toContainText(requestId);
@@ -95,5 +96,24 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(detalhes(page)).toContainText(requestId);
     await expect(corpoDoDetalhe(page)).toBeVisible();
     expect((await textoDoCorpo(page)).length).toBe(corpo.length);
+  });
+
+  test('deve dizer uma vez, com rota e status, a que chega fora da vista, e mostrar o aviso sem falar por ele', async ({
+    page,
+    tokens,
+  }) => {
+    await tokens.sendMany(tokenId, 40);
+    await escutarAnuncios(page);
+    await openListening(page, tokenId);
+    await expect(page.getByRole('heading', { name: 'Requests (40)' })).toBeVisible();
+    await page
+      .locator('cdk-virtual-scroll-viewport')
+      .evaluate((lista) => lista.scrollTo({ top: lista.scrollHeight }));
+    await limparAnuncios(page);
+
+    await tokens.send(tokenId, { path: '/fora-da-vista' });
+
+    await expect(page.getByText('Request received · POST /fora-da-vista')).toBeVisible();
+    await expectSoEstaFala(page, /^POST \/fora-da-vista arrived · answered 200$/);
   });
 });
