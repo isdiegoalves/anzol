@@ -6,6 +6,7 @@ import {
   DestroyRef,
   ElementRef,
   Injector,
+  afterEveryRender,
   afterNextRender,
   computed,
   effect,
@@ -304,8 +305,24 @@ export class RequestList {
   protected readonly fresh = signal<ReadonlySet<string>>(new Set());
 
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  /** O último elemento da lista que teve o foco, e o foco perdido que espera voltar (com a linha dele). */
+  private lastFocused: HTMLElement | null = null;
+  private lostFocus: { row: string | null } | null = null;
 
   constructor() {
+    this.host.addEventListener('focusin', (event) => {
+      this.lastFocused = event.target as HTMLElement;
+    });
+    this.host.addEventListener('focusout', (event) => {
+      const left = event.target as HTMLElement;
+      // Clicar fora deixa o elemento no lugar: só a linha que sai do DOM pede o foco de volta.
+      queueMicrotask(() => {
+        if (this.lastFocused === left && left.isConnected) {
+          this.lastFocused = null;
+        }
+      });
+    });
+    afterEveryRender(() => this.keepFocus());
     effect((onCleanup) => {
       if (!this.store.loading()) {
         this.skeleton.set(false);
@@ -413,14 +430,17 @@ export class RequestList {
       : rows.findIndex((row) => row.kind === 'event' && row.event.ids.includes(uuid));
   }
 
-  /** O item aberto mudou por J ou K: a parada do Tab (e o foco, se estava na lista) acompanha. */
-  follow(uuid: string): void {
+  /**
+   * O item aberto mudou por J ou K: a parada do Tab (e o foco, se estava na lista) acompanha. O que a
+   * tela abriu sozinha (`moveFocus` falso) só leva a parada: o foco fica onde a pessoa o pôs.
+   */
+  follow(uuid: string, moveFocus = true): void {
     const index = this.rowIndexOf(uuid);
     if (index < 0) {
       return;
     }
     const id = this.rows()[index].id;
-    if (this.host.contains(this.host.ownerDocument.activeElement)) {
+    if (moveFocus && this.host.contains(this.host.ownerDocument.activeElement)) {
       this.focusItem(id, index);
     } else {
       this.cursor.set(id);
@@ -489,10 +509,25 @@ export class RequestList {
     afterNextRender(() => tryFocus(10), { injector: this.injector });
   }
 
-  /** A pílula: vai à ponta das novas (o topo, com a mais nova primeiro). */
+  /** A pílula: vai à ponta das novas (o topo, com a mais nova primeiro), com o foco na primeira nova. */
   showNew(): void {
     this.newBelow.set(0);
-    this.scrollToNewest();
+    const rows = this.rows();
+    const stops = rows.flatMap((row, index) => (this.focusable(row) ? [index] : []));
+    const newest = this.store.newestFirst() ? stops[0] : stops.at(-1);
+    if (newest === undefined) {
+      this.scrollToNewest();
+      return;
+    }
+    this.focusItem(rows[newest].id, newest, true);
+  }
+
+  /** O "Cancel" do Compare: o foco volta à linha que era a A. */
+  protected backToBase(uuid: string): void {
+    const index = this.rowIndexOf(uuid);
+    if (index >= 0) {
+      this.focusItem(this.rows()[index].id, index);
+    }
   }
 
   /** A mais nova foi aberta: a pílula não tem mais o que mostrar. */
@@ -510,6 +545,8 @@ export class RequestList {
 
   /** Tira da lista na hora; apaga no servidor quando o aviso some sem "Undo". */
   protected deleteRequest(request: WebhookRequest): void {
+    // A parada do Tab passa à vizinha antes de a linha sair: é para lá que o foco vai.
+    this.cursor.set(this.neighbourOf(request.uuid));
     const notice = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
       duration: UNDO_MS,
     });
@@ -537,6 +574,62 @@ export class RequestList {
 
   protected trackRow(_index: number, row: ListRow<ItemView>): string {
     return row.id;
+  }
+
+  /** A linha que fica no lugar de outra que sai: a seguinte, ou a anterior se ela era a última. */
+  private neighbourOf(uuid: string): string | null {
+    const rows = this.rows();
+    const index = rows.findIndex((row) => row.id === uuid);
+    const after = rows.slice(index + 1).find((row) => this.focusable(row));
+    const before = [...rows.slice(0, Math.max(index, 0))]
+      .reverse()
+      .find((row) => this.focusable(row));
+    return (after ?? before)?.id ?? null;
+  }
+
+  /**
+   * O elemento focado da lista saiu do DOM (a linha apagada, o botão que some depois de usado, a lista
+   * trocada na recarga) e o foco caiu no `body`: com a lista em carga, ele espera na região dela;
+   * depois, vai à mesma linha, ou à parada do Tab. A linha que só saiu da faixa desenhada (a pessoa
+   * rolou) não puxa o foco de volta.
+   */
+  private keepFocus(): void {
+    const body = this.document.body;
+    const active = this.document.activeElement;
+    const lost = this.lastFocused;
+    if (lost && !lost.isConnected) {
+      this.lastFocused = null;
+      const row = lost.closest('[role="listitem"]')?.querySelector<HTMLElement>('[data-uuid]')
+        ?.dataset['uuid'];
+      const scrolledAway = row !== undefined && this.rowIndexOf(row) >= 0 && !this.store.loading();
+      if ((active === null || active === body) && !scrolledAway) {
+        this.lostFocus = { row: row ?? null };
+      }
+    }
+    const lostFocus = this.lostFocus;
+    if (!lostFocus) {
+      return;
+    }
+    const region = this.host.closest<HTMLElement>('section[tabindex]');
+    if (active !== null && active !== body && active !== region) {
+      this.lostFocus = null;
+      return;
+    }
+    if (this.store.loading()) {
+      if (active !== region) {
+        region?.focus();
+      }
+      return;
+    }
+    this.lostFocus = null;
+    const rows = this.rows();
+    const same = lostFocus.row ? this.rowIndexOf(lostFocus.row) : -1;
+    const index = same >= 0 ? same : rows.findIndex((row) => row.id === this.stop());
+    if (index >= 0) {
+      this.focusItem(rows[index].id, index);
+    } else {
+      region?.focus();
+    }
   }
 
   /**

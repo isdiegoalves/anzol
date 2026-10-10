@@ -1018,6 +1018,8 @@ export const translations: Record<string, string> = {
   '8620213625102478787': 'Valor (como chegou)',
   // Choose a request to compare with #{$INTERPOLATION}
   '7859832298764837459': 'Escolha uma requisição para comparar com a #{$INTERPOLATION}',
+  // Comparison cancelled.
+  '7446564240284073562': 'Comparação cancelada.',
   // {$START_TAG_STRONG}Compare mode.{$CLOSE_TAG_STRONG} Click a request to make it {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Press {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} to leave.
   '5983805913245337057':
     '{$START_TAG_STRONG}Modo de comparação.{$CLOSE_TAG_STRONG} Clique numa requisição para ela ser a {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Aperte {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} para sair. ',

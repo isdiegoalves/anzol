@@ -51,7 +51,7 @@
             class="remove"
             [attr.aria-label]="removeLabel(item.label)"
             [attr.title]="removeHint"
-            (click)="item.remove()"
+            (click)="remove(item.remove)"
           >
             <app-icon name="close" [size]="14" />
           </button>
@@ -68,7 +68,12 @@
   <!-- INBOX-10: só com filtro; diz que a busca é no servidor, sobre a URL inteira. Região viva
        persistente: recebe só o resultado, uma vez, depois que os filtros param de mudar. -->
   <!-- Sem filtro, a frase ("No filter. 34 requests.") fica só para o leitor de tela. -->
-  <app-live-region class="count" [class.quiet]="!store.filtering()" [text]="result()" />
+  <app-live-region
+    class="count"
+    tabindex="-1"
+    [class.quiet]="!store.filtering()"
+    [text]="result()"
+  />
   @if (store.failure()?.kind === 'search') {
     <button i18n type="button" class="link again" (click)="store.retrySearch()">Try again</button>
   }

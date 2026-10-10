@@ -1161,6 +1161,7 @@
     "9041606023079640888": "Path copied.",
     "7859832298764837459": "Choose a request to compare with #{$INTERPOLATION}",
     "5983805913245337057": "{$START_TAG_STRONG}Compare mode.{$CLOSE_TAG_STRONG} Click a request to make it {$START_TAG_STRONG}B{$CLOSE_TAG_STRONG}. Press {$START_TAG_KBD}Esc{$CLOSE_TAG_KBD} to leave. ",
+    "7446564240284073562": "Comparison cancelled.",
     "5028182250393627626": "Change the event key",
     "7612223201633992283": "Change",
     "749101426018814705": "Group by event",

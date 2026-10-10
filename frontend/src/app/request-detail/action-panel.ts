@@ -108,7 +108,19 @@ export class ActionPanel {
     effect(() => {
       const picking = this.compare.picking() !== null;
       if (wasPicking && !picking && this.store.tab() === 'compare' && !this.pair()) {
-        untracked(() => this.store.close());
+        untracked(() => {
+          // O "Cancel" e o clique na lista já levaram o foco a uma linha: fechar não o tira de lá.
+          const active = this.host.ownerDocument.activeElement;
+          const elsewhere =
+            active !== null &&
+            active !== this.host.ownerDocument.body &&
+            !this.host.contains(active);
+          if (elsewhere) {
+            this.store.dismiss();
+          } else {
+            this.store.close();
+          }
+        });
       }
       wasPicking = picking;
     });

@@ -772,6 +772,75 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().textContent).toContain('Requests (2)');
   });
 
+  it('deve levar o foco à linha seguinte, e à anterior na última, Quando a lixeira apaga a linha focada', async () => {
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    const lixeira = (uuid: string) =>
+      items()
+        .find((item) => item.querySelector(`[data-uuid="${uuid}"]`))
+        ?.querySelector<HTMLButtonElement>('.delete');
+
+    lixeira(webhookRequest(2).uuid)?.focus();
+    lixeira(webhookRequest(2).uuid)?.click();
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(document.activeElement?.getAttribute('data-uuid')).toBe(webhookRequest(3).uuid);
+    });
+
+    lixeira(webhookRequest(3).uuid)?.focus();
+    lixeira(webhookRequest(3).uuid)?.click();
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(document.activeElement?.getAttribute('data-uuid')).toBe(webhookRequest(1).uuid);
+    });
+    // O segundo aviso tirou o primeiro da tela: a primeira apagada já foi ao servidor.
+    await vi.waitFor(() =>
+      http
+        .expectOne({
+          method: 'DELETE',
+          url: `/token/${TOKEN_ID}/request/${webhookRequest(2).uuid}`,
+        })
+        .flush({}),
+    );
+    open.mock.results[1].value.dismissWithAction();
+  });
+
+  it('deve levar o foco à parada do Tab Quando a linha focada sai da lista no resultado do filtro', async () => {
+    await load([webhookRequest(1), webhookRequest(2)]);
+    items()[1].querySelector<HTMLButtonElement>('.select')?.focus();
+
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+    await vi.waitFor(() =>
+      http
+        .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+        .flush(requestPage([webhookRequest(1)], { total: 1 })),
+    );
+    await applied;
+
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(document.activeElement?.getAttribute('data-uuid')).toBe(webhookRequest(1).uuid);
+    });
+  });
+
+  it('deve devolver o foco à mesma linha Quando a lista volta de uma recarga que a tirou da tela', async () => {
+    await load([webhookRequest(1), webhookRequest(2)]);
+    items()[1].querySelector<HTMLButtonElement>('.select')?.focus();
+
+    const reloaded = store.load(TOKEN_ID);
+    await fixture.whenStable();
+    expect(items()).toHaveLength(0);
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1), webhookRequest(2)]));
+    await reloaded;
+
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(document.activeElement?.getAttribute('data-uuid')).toBe(webhookRequest(2).uuid);
+    });
+  });
+
   it('deve dizer onde a mensagem ficou, sem pô-la na lista da URL nova, Quando o Undo vem depois da troca de URL', async () => {
     const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
     await load([webhookRequest(1), webhookRequest(2)]);

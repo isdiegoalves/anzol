@@ -40,6 +40,8 @@ export class TokenActions {
     const dialog = this.dialog.open<TokenDialog, TokenDialogData, TokenSettings>(TokenDialog, {
       data: { token: this.tokens.token(), save: (settings) => this.create(settings) },
       width: '600px',
+      // O primeiro tabulável seria o "Customize response": o leitor começa pelo título e pelo texto.
+      autoFocus: 'first-heading',
     });
     await firstValueFrom(dialog.afterClosed());
   }

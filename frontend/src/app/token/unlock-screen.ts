@@ -1,8 +1,19 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher, ShowOnDirtyErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -20,6 +31,8 @@ const DEFAULT_WAIT_SECONDS = 60;
 @Component({
   selector: 'app-unlock-screen',
   imports: [ReactiveFormsModule, MatFormField, MatLabel, MatError, MatInput, MatButton],
+  // O campo abre com o foco: sair dele sem digitar não é erro; o "Unlock" com ele vazio, sim.
+  providers: [{ provide: ErrorStateMatcher, useClass: ShowOnDirtyErrorStateMatcher }],
   templateUrl: './unlock-screen.html',
   styleUrl: './unlock-screen.scss',
 })
@@ -31,6 +44,8 @@ export class UnlockScreen {
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   readonly tokenId = input.required<string>();
+  /** O segredo valeu: a página volta, e o shell leva o foco ao título dela. */
+  readonly unlocked = output<void>();
 
   protected readonly form = this.formBuilder.group({
     secret: ['', Validators.required],
@@ -46,6 +61,9 @@ export class UnlockScreen {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    // A tela toma o lugar da página: o que se faz nela é digitar o segredo.
+    afterNextRender(() => host.querySelector('input')?.focus());
   }
 
   protected async unlockUrl(): Promise<void> {
@@ -58,6 +76,7 @@ export class UnlockScreen {
     try {
       await this.access.unlock(this.tokenId(), this.form.getRawValue().secret);
       this.snackBar.open($localize`URL unlocked`, undefined, { duration: NOTICE_MS });
+      this.unlocked.emit();
     } catch (error) {
       this.failed(error);
     } finally {

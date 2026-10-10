@@ -220,7 +220,7 @@ export class RequestSearch {
   /** Fecha o painel e devolve o foco ao botão. */
   protected close(): void {
     this.open.set(false);
-    this.host.querySelector<HTMLElement>('.filters')?.focus();
+    this.focusFilters();
   }
 
   protected toggleByKey(event: KeyboardEvent): void {
@@ -241,6 +241,17 @@ export class RequestSearch {
   protected clearFilters(): void {
     this.draft.set('');
     this.chips.clear();
+    this.focusFilters();
+  }
+
+  /** O botão do filtro tirado sai da tela: o foco vai a "Filters". */
+  protected remove(remove: () => void): void {
+    remove();
+    this.focusFilters();
+  }
+
+  private focusFilters(): void {
+    this.host.querySelector<HTMLElement>('.filters')?.focus();
   }
 
   private removeText(): void {

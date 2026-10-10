@@ -65,6 +65,19 @@ describe('Dado a tela de desbloqueio da URL protegida', () => {
     expect(unlock).not.toHaveBeenCalled();
   });
 
+  it('deve abrir com o foco no segredo, sem cobrar o campo de quem sai dele sem digitar', async () => {
+    const secret = await loader.getHarness(MatInputHarness);
+    expect(await secret.isFocused()).toBe(true);
+
+    await secret.blur();
+    await fixture.whenStable();
+    expect(element().querySelector('mat-error')).toBeNull();
+
+    await (await unlockButton()).click();
+    await fixture.whenStable();
+    expect(element().querySelector('mat-error')?.textContent).toContain('Enter the secret.');
+  });
+
   it('deve dizer que o segredo está errado e limpar o campo Quando o servidor responde 401', async () => {
     unlock.mockRejectedValue(new HttpErrorResponse({ status: 401 }));
 

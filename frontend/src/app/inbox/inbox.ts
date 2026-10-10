@@ -43,6 +43,7 @@ import {
   ValueFilter,
   filterFromParams,
   filterToParams,
+  isFilterActive,
   sameFilter,
 } from '../search/request-filter';
 import { WaitFor, WaitForButton } from '../search/wait-for';
@@ -373,6 +374,24 @@ export class Inbox {
       this.unseenArrivals.clear();
     });
 
+    // Por um número de outro destino (Métricas, Saúde), o link saiu com a página e o foco caiu no body: ele vai à
+    // linha de status do filtro, que diz o resultado quando a busca voltar.
+    const byLink = this.router.navigated;
+    afterNextRender(
+      () => {
+        if (
+          byLink &&
+          isFilterActive(this.routeFilter()) &&
+          this.document.activeElement === this.document.body
+        ) {
+          this.document
+            .querySelector<HTMLElement>('app-request-search app-live-region.count')
+            ?.focus();
+        }
+      },
+      { injector: this.injector },
+    );
+
     toObservable(this.streamTokenId)
       .pipe(
         switchMap((tokenId) =>
@@ -642,7 +661,7 @@ export class Inbox {
     if (requestId && list.some((request) => request.uuid === requestId)) {
       this.requests.select(requestId, requestId !== this.keepUnread);
       // J, K, Newer e Older: a parada do Tab da lista (e o foco, se estava nela) acompanha.
-      this.list()?.follow(requestId);
+      this.list()?.follow(requestId, requestId !== this.chosenByScreen);
       // Link permanente, Newer/Older, Follow new: no celular, o detalhe vem para a frente.
       if (requestId !== this.chosenByScreen) {
         this.showDetail.set(true);

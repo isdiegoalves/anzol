@@ -1,6 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { Component, inject, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { CompareStore } from '../diff/compare-store';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 /**
  * As faixas da lista no Compare: enquanto se escolhe a B ("Choose a request to compare with #…",
@@ -14,7 +16,7 @@ import { CompareStore } from '../diff/compare-store';
     @if (compare.picking(); as base) {
       <div class="band" role="status">
         <span i18n>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
-        <button i18n mat-button type="button" (click)="compare.close()">Cancel</button>
+        <button i18n mat-button type="button" (click)="cancel(base.uuid)">Cancel</button>
       </div>
     } @else if (compare.pair()) {
       <p i18n class="band mode" role="status">
@@ -51,4 +53,13 @@ import { CompareStore } from '../diff/compare-store';
 })
 export class CompareBand {
   protected readonly compare = inject(CompareStore);
+  private readonly announcer = inject(LiveAnnouncer);
+  /** O "Cancel" da escolha da B, com a A, para o foco voltar à linha dela. */
+  readonly cancelled = output<string>();
+
+  protected cancel(base: string): void {
+    this.compare.close();
+    void this.announcer.announce($localize`Comparison cancelled.`, ANNOUNCEMENT_MS);
+    this.cancelled.emit(base);
+  }
 }

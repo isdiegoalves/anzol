@@ -32,7 +32,7 @@
 @if (!compare.pair()) {
   <app-request-search class="search" />
 }
-<app-compare-band />
+<app-compare-band (cancelled)="backToBase($event)" />
 @let failure = store.failure();
 @if (failure && failure.kind === 'list') {
   <app-list-error

@@ -123,6 +123,7 @@ export class Shell {
   protected readonly sheet = signal<Sheet | null>(null);
   private opener: HTMLElement | null = null;
   private searchWait: ReturnType<typeof setTimeout> | undefined;
+  private titleWait: ReturnType<typeof setTimeout> | undefined;
 
   /** O endereço do destino cujo pedaço não carregou; `null` quando a navegação dá certo. */
   protected readonly failedUrl = signal<string | null>(null);
@@ -253,7 +254,9 @@ export class Shell {
       if (tokenId) {
         const { UnlockScreen } = await import('../token/unlock-screen');
         if (this.locked() === tokenId && host.length === 0) {
-          host.createComponent(UnlockScreen).setInput('tokenId', tokenId);
+          const screen = host.createComponent(UnlockScreen);
+          screen.setInput('tokenId', tokenId);
+          screen.instance.unlocked.subscribe(() => this.focusTitleWhenReady());
         }
       }
     });
@@ -303,7 +306,10 @@ export class Shell {
       },
       inject(DestroyRef),
     );
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.searchWait));
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.searchWait);
+      clearTimeout(this.titleWait);
+    });
   }
 
   /** O destino que o rail marcou e o `main` não conseguiu mostrar. */
@@ -563,6 +569,26 @@ export class Shell {
     this.screen.searchOpen.set(true);
     if (!this.focusSearch() && left > 0) {
       this.searchWait = setTimeout(() => this.focusSearchWhenReady(left - 1), 50);
+    }
+  }
+
+  /**
+   * Destrancada, a página volta no lugar da tela do segredo: o foco vai ao título dela, a não ser que a
+   * pessoa já o tenha levado a outro lugar.
+   */
+  private focusTitleWhenReady(left = 60): void {
+    const active = this.document.activeElement;
+    if (active && active !== this.document.body && !active.closest('app-unlock-screen')) {
+      return;
+    }
+    const title = [...this.document.querySelectorAll<HTMLElement>('h1')].find(
+      (heading) => !heading.closest('app-unlock-screen') && heading.getClientRects().length > 0,
+    );
+    if (title) {
+      title.tabIndex = -1;
+      title.focus();
+    } else if (left > 0) {
+      this.titleWait = setTimeout(() => this.focusTitleWhenReady(left - 1), 50);
     }
   }
 
