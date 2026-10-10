@@ -33,7 +33,8 @@ import { TokenStore } from '../token/token-store';
 import { Viewport } from '../shell/viewport';
 import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
-import { SLOW_READ_MS, SlowNotice } from '../ui/slow-notice';
+import { SLOW_READ_MS } from '../ui/notice';
+import { SlowNotice } from '../ui/slow-notice';
 import { Split } from '../ui/split';
 import {
   FAULT_SHORT_LABELS,

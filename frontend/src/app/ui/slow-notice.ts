@@ -2,9 +2,6 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component, inject, output } from '@angular/core';
 import { ANNOUNCEMENT_MS } from './live-region';
 
-/** Uma leitura da tela que passa disto sem resposta ganha o aviso de demora; ela não é cancelada. */
-export const SLOW_READ_MS = 30_000;
-
 /**
  * O servidor passou de 30 s sem responder a uma leitura (C13): a tela diz isso uma vez, pelo
  * anunciador, e oferece tentar de novo; o pedido de antes segue a caminho.

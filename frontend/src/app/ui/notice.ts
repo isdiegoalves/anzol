@@ -1,6 +1,9 @@
 /** Quanto um aviso de confirmação (snackbar) fica à vista: tempo de ler a frase inteira. */
 export const NOTICE_MS = 4_000;
 
+/** Uma leitura da tela que passa disto sem resposta ganha o aviso de demora; ela não é cancelada. */
+export const SLOW_READ_MS = 30_000;
+
 /** O navegador não deixou copiar (sem permissão, ou a página sem o foco). */
 export function copyFailedText(): string {
   return $localize`Could not copy. Select the text and copy it.`;

@@ -12,7 +12,7 @@ import {
   searchBody,
 } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
-import { SLOW_READ_MS } from '../ui/slow-notice';
+import { SLOW_READ_MS } from '../ui/notice';
 import { RequestPage, WebhookRequest } from './webhook-request';
 
 /** Mensagens por página da listagem (e da busca). */
