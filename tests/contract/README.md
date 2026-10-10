@@ -130,6 +130,9 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   só vai para o canal do próprio token; `truncated` fica true quando o JSON da mensagem passa de
   1.000.000 caracteres **contados como o `json_encode` do PHP** (`/` vira `\/`, não-ASCII vira
   `\uXXXX`): 990.000 letras não cortam, 600.000 barras e 200.000 `ç` cortam.
+- **Stream** (`specs/event/stream.spec.ts`): 410 no stream de uma URL que não existe; um sinal na
+  abertura e outro em até dois intervalos do heartbeat (30 s), lidos nas linhas cruas, seja
+  comentário, `ping` ou mensagem. A forma do heartbeat não é contrato.
 - **Regras de resposta, fase A** (`specs/api/regras-*.spec.ts`, helpers em `support/regras.ts`).
   Formato da regra e da API fixado no Anexo A do plano da feature (fatias 01 + 02):
   - *API* (`regras-api.spec.ts`, CA-9): `GET /token/{id}/rules` → `[]` numa URL nova; `PUT` (lista
