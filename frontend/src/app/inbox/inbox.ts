@@ -836,6 +836,10 @@ export class Inbox {
    */
   private async resume(): Promise<number> {
     const tokenId = this.tokenId();
+    // O tempo real abriu antes de a lista chegar: ela pode ter saído do servidor antes da assinatura.
+    if (tokenId && this.loading?.tokenId === tokenId) {
+      await this.loading.done;
+    }
     if (!this.listReady()) {
       return 0;
     }

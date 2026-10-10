@@ -1482,6 +1482,20 @@ describe('Dado a tela principal', () => {
       expect(text()).toContain('Requests (2)');
     });
 
+    it('deve buscar o que chegou depois da lista Quando o tempo real abre antes de ela chegar', async () => {
+      const S1 = webhookRequest(1, { seq: 11 });
+      const chegou = webhookRequest(2, { seq: 12 });
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      const lista = await vi.waitFor(() => http.expectOne(listUrl));
+      FakeEventSource.latest().open();
+
+      lista.flush(requestPage([S1], { total: 1 }));
+      await flush(`/token/${TOKEN_ID}/requests?after=11`, requestPage([chegou], { total: 2 }));
+
+      await vi.waitFor(() => expect(TestBed.inject(RequestStore).requests()).toEqual([chegou, S1]));
+    });
+
     it('deve listar uma vez a que chega pelo tempo real enquanto a lista carrega', async () => {
       await harness.navigateByUrl(`/${TOKEN_ID}`);
       await flush(`/token/${TOKEN_ID}`, token());
