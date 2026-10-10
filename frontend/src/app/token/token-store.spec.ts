@@ -32,6 +32,45 @@ describe('Dado o TokenStore falando com /token', () => {
     expect(JSON.parse(localStorage.getItem('token') ?? 'null')).toEqual(token());
   });
 
+  it.each([
+    [503, 'Unavailable'],
+    [0, 'Unknown Error'],
+  ])(
+    'deve manter a URL salva e dizer a falha Quando GET /token/{id} responde %i',
+    async (status, statusText) => {
+      TestBed.inject(Preferences).token.set(token());
+      const loaded = store.load(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}`).flush({}, { status, statusText });
+
+      await expect(loaded).rejects.toThrow(HttpErrorResponse);
+      expect(store.token()).toEqual(token());
+      expect(JSON.parse(localStorage.getItem('token') ?? 'null')).toEqual(token());
+      expect(store.failure()).toEqual({ id: TOKEN_ID, status });
+    },
+  );
+
+  it('deve manter a URL salva, sem falha a mostrar, Quando a URL é protegida (401)', async () => {
+    TestBed.inject(Preferences).token.set(token());
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}`).flush({}, { status: 401, statusText: 'Unauthorized' });
+
+    await expect(loaded).rejects.toThrow(HttpErrorResponse);
+    expect(store.token()).toEqual(token());
+    expect(store.failure()).toBeNull();
+  });
+
+  it('deve tirar a falha Quando a leitura seguinte dá certo', async () => {
+    const falhou = store.load(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}`).flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect(falhou).rejects.toThrow(HttpErrorResponse);
+
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`/token/${TOKEN_ID}`).flush(token());
+    await loaded;
+
+    expect(store.failure()).toBeNull();
+  });
+
   it('deve rejeitar com o 410 e esquecer o token Quando a URL não existe mais', async () => {
     TestBed.inject(Preferences).token.set(token());
     const loaded = store.load(TOKEN_ID);

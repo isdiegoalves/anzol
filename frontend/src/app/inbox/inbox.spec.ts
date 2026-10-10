@@ -461,6 +461,7 @@ describe('Dado a tela principal', () => {
   it('deve fechar o stream na aba de regras e recarregar a lista e reabri-lo Quando volta para "Requests"', async () => {
     await openToken(`/${TOKEN_ID}`);
     await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`));
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
     const primeiro = FakeEventSource.latest();
 
     await harness.navigateByUrl(`/${TOKEN_ID}/rules`);
@@ -556,6 +557,34 @@ describe('Dado a tela principal', () => {
       expect(store.requests()).toEqual([chegou, S2, S1]);
     });
 
+    it('deve refazer a busca que falhou durante a queda e pôr na pílula o que chegou, sem trocar a aberta', async () => {
+      const S1 = webhookRequest(1, { seq: 11 });
+      const listUrl = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
+      const unavailable = { status: 503, statusText: 'Unavailable' };
+      await harness.navigateByUrl(`/${TOKEN_ID}/${S1.uuid}/1`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(listUrl, requestPage([S1]));
+      await vi.waitFor(() => expect(text()).toContain(S1.uuid));
+      const store = TestBed.inject(RequestStore);
+      const filtered = store.applyFilter({ ...NO_FILTER, text: 'x' });
+      await flush(`/token/${TOKEN_ID}/requests/search`, {}, unavailable);
+      await filtered;
+      const cleared = store.applyFilter(NO_FILTER);
+      await flush(listUrl, {}, unavailable);
+      await cleared;
+      expect(store.failure()?.kind).toBe('search');
+      const chegou = webhookRequest(2, { seq: 12 });
+
+      await reopen();
+      await flush(`/token/${TOKEN_ID}/requests?after=11`, requestPage([chegou], { total: 2 }));
+      await flush(listUrl, requestPage([chegou, S1], { total: 2 }));
+
+      await vi.waitFor(() => expect(store.failure()).toBeNull());
+      expect(store.requests()).toEqual([chegou, S1]);
+      await vi.waitFor(() => expect(text()).toContain('1 new request'));
+      expect(router.url).toBe(`/${TOKEN_ID}/${S1.uuid}/1`);
+    });
+
     it('deve refazer a busca, no lugar de pedir pela seq, Quando há filtro', async () => {
       await openToken(`/${TOKEN_ID}`);
       const store = TestBed.inject(RequestStore);
@@ -575,6 +604,7 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() =>
         expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
       );
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
     });
 
     it('deve listar e contar como não lida, sem aviso, Quando chega request.created com o fim da lista à vista', async () => {
@@ -1204,7 +1234,7 @@ describe('Dado a tela principal', () => {
       expect(text()).not.toContain(A1.uuid);
     });
 
-    it('não deve abrir o stream nem soltar a lista Quando a carga velha da mesma URL termina antes da nova', async () => {
+    it('não deve soltar a lista Quando a carga velha da mesma URL termina antes da nova', async () => {
       const primeira = await startOpening(A);
       await openB();
       await harness.navigateByUrl(`/${A}`);
@@ -1215,14 +1245,10 @@ describe('Dado a tela principal', () => {
       await new Promise((done) => setTimeout(done));
       expect(store().requests()).toEqual([]);
       expect(store().loading()).toBe(true);
-      expect(FakeEventSource.instances.map((source) => source.url)).not.toContain(
-        `/token/${A}/stream`,
-      );
 
       segunda.flush(requestPage([A1]));
       await vi.waitFor(() => expect(router.url).toBe(`/${A}/${A1.uuid}/1`));
       expect(store().requests()).toEqual([A1]);
-      await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${A}/stream`));
     });
 
     it('não deve pôr na lista nova a mensagem completa da anterior Quando ela chega depois da troca', async () => {
@@ -1307,6 +1333,8 @@ describe('Dado a tela principal', () => {
         expect(FakeEventSource.latest().url).toBe(`/token/${B}/stream`);
         return FakeEventSource.latest();
       });
+      await vi.waitFor(() => expect(store().tokenId()).toBe(B));
+      await new Promise((done) => setTimeout(done));
       const cortada = webhookRequest(14, { token_id: B, content: null });
       const completa = { ...cortada, content: '{"n":14}' };
 
@@ -1334,6 +1362,75 @@ describe('Dado a tela principal', () => {
       await harness.fixture.whenStable();
 
       expect(root.querySelector('app-action-panel')).toBeNull();
+    });
+  });
+
+  describe('Dado a lista que não carrega (503)', () => {
+    const listUrl = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
+    const unavailable = { status: 503, statusText: 'Unavailable' };
+    const root = () => harness.routeNativeElement as HTMLElement;
+
+    it('deve assinar o tempo real antes de pedir a lista', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      await flush(listUrl, requestPage([R1, R2]));
+    });
+
+    it('deve mostrar o erro no lugar da lista, sem onboarding nem aviso de 1 s, e a que chega durante ele', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(listUrl, {}, unavailable);
+
+      await vi.waitFor(() => expect(text()).toContain('Could not load the list (503).'));
+      expect(root().querySelector('app-onboarding')).toBeNull();
+      expect(text()).not.toContain('Waiting for first request...');
+      expect(snack).not.toHaveBeenCalled();
+
+      FakeEventSource.latest().emit('request.created', {
+        request: webhookRequest(9),
+        total: 3,
+        truncated: false,
+      });
+
+      await vi.waitFor(() =>
+        expect(text()).toContain('1 arrived just now; the 2 before it did not load (503).'),
+      );
+      expect(TestBed.inject(RequestStore).requests()).toEqual([webhookRequest(9)]);
+    });
+
+    it('deve pedir a lista de novo pelo "Try again now" e sair do erro', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(listUrl, {}, unavailable);
+      const again = await vi.waitFor(() => {
+        const button = root().querySelector<HTMLButtonElement>('app-list-error button');
+        expect(button).not.toBeNull();
+        return button as HTMLButtonElement;
+      });
+
+      again.click();
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(listUrl, requestPage([R1, R2]));
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      expect(text()).not.toContain('Could not load the list');
+      expect(text()).toContain('Requests (2)');
+    });
+
+    it('deve listar uma vez a que chega pelo tempo real enquanto a lista carrega', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      const lista = await vi.waitFor(() => http.expectOne(listUrl));
+
+      FakeEventSource.latest().emit('request.created', { request: R1, total: 2, truncated: false });
+      lista.flush(requestPage([R1, R2]));
+
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      expect(TestBed.inject(RequestStore).requests()).toEqual([R1, R2]);
     });
   });
 });

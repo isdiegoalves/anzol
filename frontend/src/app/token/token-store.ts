@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Preferences } from '../settings/preferences';
 import { KnownUrls } from './known-urls';
@@ -18,6 +18,11 @@ export class TokenStore {
 
   /** Token aberto; começa com o do localStorage, como no app atual. */
   readonly token = this.preferences.token.asReadonly();
+  /**
+   * A leitura da URL falhou sem dizer que ela não existe nem que é trancada (5xx, rede): o shell mostra a
+   * página de erro, e a URL salva fica como estava.
+   */
+  readonly failure = signal<{ id: string; status: number } | null>(null);
   private loads = 0;
 
   /** URL que recebe os webhooks: `{protocolo}//{host}/{uuid}`. */
@@ -26,15 +31,25 @@ export class TokenStore {
     return token ? `${this.location.protocol}//${this.location.host}/${token.uuid}` : '';
   });
 
-  /** Só a carga mais recente muda a URL aberta: a de outra, que responde depois, é descartada. */
+  /**
+   * Só a carga mais recente muda a URL aberta: a de outra, que responde depois, é descartada. A URL salva
+   * só é esquecida quando o servidor diz que ela não existe (404, 410).
+   */
   async load(tokenId: string): Promise<Token> {
     const run = ++this.loads;
     try {
       const token = await firstValueFrom(this.http.get<Token>(`/token/${tokenId}`));
-      return run === this.loads ? this.keep(token) : token;
-    } catch (error) {
       if (run === this.loads) {
+        this.failure.set(null);
+        this.keep(token);
+      }
+      return token;
+    } catch (error) {
+      const status = error instanceof HttpErrorResponse ? error.status : 0;
+      if (run === this.loads && (status === 404 || status === 410)) {
         this.preferences.token.set(null);
+      } else if (run === this.loads && status !== 401) {
+        this.failure.set({ id: tokenId, status });
       }
       throw error;
     }

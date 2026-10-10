@@ -430,8 +430,6 @@ export const translations: Record<string, string> = {
   '9124335329556182572': 'Apagar todas as requisições',
   // Back to requests
   '4161463875721849613': 'Voltar para as requisições',
-  // Requests not found - invalid ID
-  '582157911944558273': 'Requisições não encontradas: ID inválido',
   // Request received · {$method} {$route}
   '2886253525048467023': 'Requisição recebida · {$method} {$route}',
   // View
@@ -3027,6 +3025,30 @@ export const translations: Record<string, string> = {
   '91400465433579092': 'Tentar agora',
   // Trying again in {$seconds} s
   '6526354410800284325': 'Nova tentativa em {$seconds} s',
+  // Could not load the list ({$status}).
+  '1268922153738676840': 'Não foi possível carregar a lista ({$status}).',
+  // 1 arrived just now
+  '2537021121101307614': '1 chegou agora',
+  // {$count} arrived just now
+  '6216002150889964904': '{$count} chegaram agora',
+  // the 1 before it did not load ({$status})
+  '1545328891100478291': 'a anterior não carregou ({$status})',
+  // the {$count} before it did not load ({$status})
+  '8622051335924812915': 'as {$count} anteriores não carregaram ({$status})',
+  // the 1 before them did not load ({$status})
+  '5859913803205051004': 'a anterior não carregou ({$status})',
+  // the {$count} before them did not load ({$status})
+  '6743364771443803191': 'as {$count} anteriores não carregaram ({$status})',
+  // {$arrived}; {$missed}.
+  '8056710668958204433': '{$arrived}; {$missed}.',
+  // Could not search ({$status}).
+  '1868604548626489944': 'Não foi possível buscar ({$status}).',
+  // Your saved URL is unchanged; nothing was created.
+  '3623795445171627921': 'A URL salva continua a mesma; nada foi criado.',
+  // Could not open this URL ({$status}).
+  '2894599613813345941': 'Não foi possível abrir esta URL ({$status}).',
+  // The server is taking more than 30 s.
+  '6013545083388591969': 'O servidor está demorando mais de 30 s.',
   // Skip to content
   '3411805131914952915': 'Pular para o conteúdo',
   // The server did not answer. Nothing was changed.

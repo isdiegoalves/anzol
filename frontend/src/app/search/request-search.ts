@@ -22,6 +22,7 @@ import { ShellSettings } from '../shell/shell-settings';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
 import { LiveRegion } from '../ui/live-region';
+import { SlowNotice } from '../ui/slow-notice';
 import { FilterChips } from './filter-chips';
 import { FilterPanel } from './filter-panel';
 import { WaitFor } from './wait-for';
@@ -42,7 +43,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-request-search',
-  imports: [FilterPanel, Icon, LiveRegion],
+  imports: [FilterPanel, Icon, LiveRegion, SlowNotice],
   templateUrl: './request-search.html',
   styleUrl: './request-search.scss',
   host: { '(document:keydown)': 'toggleByKey($event)' },
@@ -171,7 +172,13 @@ export class RequestSearch {
     effect(() => {
       const filtering = this.store.filtering();
       const waiting = this.store.searching() || this.store.loading();
-      const line = filtering ? this.statusLine() : '';
+      const failure = this.store.failure();
+      const line =
+        failure?.kind === 'search'
+          ? $localize`Could not search (${failure.status}:status:).`
+          : filtering
+            ? this.statusLine()
+            : '';
       const tokenId = this.store.tokenId();
       this.store.filter();
       untracked(() => {

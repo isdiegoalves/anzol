@@ -33,16 +33,31 @@
   <app-request-search class="search" />
 }
 <app-compare-band />
-@if (store.loading()) {
-  <!-- Esqueleto com a forma do item (C §2.11); o `aria-busy` fica na região da lista. -->
-  @if (skeleton()) {
+@let failure = store.failure();
+@if (failure && failure.kind === 'list') {
+  <app-list-error
+    [failure]="failure"
+    [arrived]="store.requests().length"
+    [total]="store.total()"
+    (retry)="retry.emit()"
+  />
+}
+@if (store.loading() && !failure) {
+  @if (store.slow()) {
+    <app-slow-notice (retry)="retry.emit()" />
+  } @else if (skeleton()) {
+    <!-- Esqueleto com a forma do item (C §2.11); o `aria-busy` fica na região da lista. -->
     <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />
   }
+} @else if (failure?.kind === 'search') {
+  <!-- O erro da busca fica na linha de resultado, uma vez; a área da lista fica vazia. -->
 } @else if (!store.hasRequests()) {
-  <p class="waiting">
-    <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
-    <span i18n>Waiting for first request...</span>
-  </p>
+  @if (!failure) {
+    <p class="waiting">
+      <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />
+      <span i18n>Waiting for first request...</span>
+    </p>
+  }
 } @else {
   @if (store.requests().length === 0) {
     <app-empty-state
@@ -203,5 +218,7 @@
       </ng-container>
     </cdk-virtual-scroll-viewport>
   </div>
-  <app-list-footer />
+  @if (!failure) {
+    <app-list-footer />
+  }
 }

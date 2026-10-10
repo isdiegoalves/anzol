@@ -114,7 +114,8 @@ describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
     store.countArrival(chegou, 2);
     const cleared = store.applyFilter(NO_FILTER);
     http.expectOne(`${listUrl}?page=1&sorting=newest`).error(new ProgressEvent('error'));
-    await expect(cleared).rejects.toBeDefined();
+    await cleared;
+    expect(store.failure()).toMatchObject({ kind: 'search', status: 0 });
 
     const arrived = store.arrivedSinceNewest();
     http.expectOne(`${listUrl}?after=10`).flush(requestPage([chegou], { total: 2 }));
@@ -1082,5 +1083,158 @@ describe('Dado uma resposta atrasada na lista (outra URL ou outro filtro a camin
       expect(store.requests()).toEqual([webhookRequest(2), webhookRequest(1)]);
       expect(store.total()).toBe(2);
     });
+  });
+});
+
+describe('Dado o servidor sem responder à lista ou à busca', () => {
+  const firstPage = `${listUrl}?page=1&sorting=newest`;
+  const unavailable = { status: 503, statusText: 'Unavailable' };
+  let http: HttpTestingController;
+  let store: RequestStore;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    http.verify();
+    localStorage.clear();
+  });
+
+  const failFirst = async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush({}, unavailable);
+    await expect(loaded).rejects.toBeDefined();
+  };
+
+  it('deve ficar com a lista da URL em erro, sem total, Quando a primeira carga responde 503', async () => {
+    await failFirst();
+
+    expect(store.failure()).toEqual({ kind: 'list', status: 503, attempt: 0 });
+    expect(store.tokenId()).toBe(TOKEN_ID);
+    expect(store.opening()).toBeNull();
+    expect(store.loading()).toBe(false);
+    expect(store.requests()).toEqual([]);
+    expect(store.totalOf(TOKEN_ID)).toBeNull();
+  });
+
+  it('deve listar o que chega pelo tempo real com a lista em erro, com o total do evento', async () => {
+    await failFirst();
+
+    store.append(webhookRequest(4, { seq: 4 }), 4);
+
+    expect(store.requests()).toEqual([webhookRequest(4, { seq: 4 })]);
+    expect(store.totalOf(TOKEN_ID)).toBe(4);
+    expect(store.failure()?.kind).toBe('list');
+  });
+
+  it('deve contar as tentativas seguidas e sair do erro Quando a lista enfim carrega', async () => {
+    await failFirst();
+    await failFirst();
+    expect(store.failure()?.attempt).toBe(1);
+
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await loaded;
+
+    expect(store.failure()).toBeNull();
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+  });
+
+  it('deve manter a lista já carregada, sem estado de erro, Quando a releitura da mesma URL falha', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await loaded;
+
+    await failFirst();
+
+    expect(store.failure()).toBeNull();
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+  });
+
+  it.each([401, 404, 410])(
+    'não deve pôr a lista em erro Quando a URL responde %i (quem mostra é o shell)',
+    async (status) => {
+      const loaded = store.load(TOKEN_ID);
+      http.expectOne(firstPage).flush({}, { status, statusText: 'x' });
+      await expect(loaded).rejects.toBeDefined();
+
+      expect(store.failure()).toBeNull();
+    },
+  );
+
+  it('deve esvaziar a área da lista e dizer o erro da busca, e buscar de novo pelo "Try again"', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 12 }));
+    await loaded;
+
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'base' });
+    http.expectOne(searchUrl).flush({}, unavailable);
+    await applied;
+
+    expect(store.failure()).toEqual({ kind: 'search', status: 503, attempt: 0 });
+    expect(store.requests()).toEqual([]);
+    expect(store.filter().text).toBe('base');
+    expect(store.searching()).toBe(false);
+
+    const again = store.retrySearch();
+    http.expectOne(searchUrl).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await again;
+
+    expect(store.failure()).toBeNull();
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+  });
+
+  it('deve manter a lista filtrada como estava Quando a busca refeita por uma chegada falha', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 12 }));
+    await loaded;
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'base' });
+    http.expectOne(searchUrl).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await applied;
+
+    const refreshed = store.refreshSearch();
+    http.expectOne(searchUrl).flush({}, unavailable);
+    await refreshed;
+
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+    expect(store.failure()).toBeNull();
+  });
+
+  it('deve avisar da demora aos 30 s, sem cancelar a carga, e tirar o aviso Quando ela responde', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const loaded = store.load(TOKEN_ID);
+    const call = http.expectOne(firstPage);
+
+    vi.advanceTimersByTime(29_999);
+    expect(store.slow()).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(store.slow()).toBe(true);
+    expect(call.cancelled).toBe(false);
+
+    call.flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await loaded;
+    expect(store.slow()).toBe(false);
+  });
+
+  it('deve avisar da demora da busca aos 30 s e tirar o aviso Quando ela responde', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await loaded;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'base' });
+    const call = http.expectOne(searchUrl);
+    vi.advanceTimersByTime(30_000);
+    expect(store.searchSlow()).toBe(true);
+
+    call.flush(requestPage([], { total: 0 }));
+    await applied;
+    expect(store.searchSlow()).toBe(false);
   });
 });

@@ -192,6 +192,30 @@ describe('Dado a página Checks', () => {
     await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
   });
 
+  it('deve avisar da demora aos 30 s, sem cancelar a leitura, e ler de novo pelo "Try again"', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    let opened: Awaited<ReturnType<typeof open>>;
+    try {
+      opened = await open(`/${TOKEN_ID}/checks`);
+      vi.advanceTimersByTime(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    const { harness, load } = opened;
+    await harness.fixture.whenStable();
+
+    expect(document.querySelector('app-slow-notice')?.textContent).toContain(
+      'The server is taking more than 30 s.',
+    );
+    expect(load.cancelled).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(token());
+    await harness.fixture.whenStable();
+
+    expect(document.querySelector('app-slow-notice')).toBeNull();
+    await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
+  });
+
   describe('Dado a ordem por assunto', () => {
     it('deve pôr os cartões numa coluna, na ordem do índice, a decifra depois da Privacidade e o Health por último', async () => {
       const harness = await ready();

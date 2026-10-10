@@ -4,6 +4,7 @@ import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -32,6 +33,7 @@ import { TokenStore } from '../token/token-store';
 import { Viewport } from '../shell/viewport';
 import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
+import { SLOW_READ_MS, SlowNotice } from '../ui/slow-notice';
 import { Split } from '../ui/split';
 import {
   FAULT_SHORT_LABELS,
@@ -150,6 +152,7 @@ type FromRequest = { state: 'loading' } | { state: 'done'; request: WebhookReque
     RuleListFilter,
     RuleSwitch,
     ScenarioGroup,
+    SlowNotice,
   ],
   templateUrl: './rules-page.html',
   styleUrl: './rules-page.scss',
@@ -199,6 +202,9 @@ export class RulesPage {
   protected readonly reorderLabel = (name: string) => $localize`Reorder ${name}:rule:`;
   protected readonly enableLabel = (name: string) => $localize`Enable rule ${name}:rule:`;
   protected readonly loaded = signal(false);
+  /** A lista de regras passou de 30 s sem resposta. */
+  protected readonly slow = signal(false);
+  private slowTimer: ReturnType<typeof setTimeout> | undefined;
   /** Erros do último load, save ou import, uma frase por linha. */
   protected readonly errors = signal<readonly string[]>([]);
   /** A lista do servidor mudou desde a leitura: nada foi gravado (na store, ver lá). */
@@ -410,6 +416,7 @@ export class RulesPage {
       const tokenId = this.tokenId();
       untracked(() => void this.open(tokenId));
     });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.slowTimer));
     // O chip "state: …" dos grupos de cenário (RULES-07) lê os estados da URL; o painel com "Set
     // state" fica na aba Scenario do editor (RULES-12).
     effect(() => {
@@ -997,10 +1004,21 @@ export class RulesPage {
     }
   }
 
+  protected reopen(): void {
+    void this.open(this.tokenId());
+  }
+
   private async open(tokenId: string): Promise<void> {
     this.noteUnruled(tokenId);
     this.loaded.set(false);
     this.errors.set([]);
+    this.slow.set(false);
+    clearTimeout(this.slowTimer);
+    this.slowTimer = setTimeout(
+      () =>
+        this.slow.set(this.tokenId() === tokenId && !this.loaded() && this.errors().length === 0),
+      SLOW_READ_MS,
+    );
     this.changedElsewhere.set(false);
     if (this.tokens.token()?.uuid !== tokenId) {
       // Link direto para as regras de outra URL: o cabeçalho passa a mostrar esta.

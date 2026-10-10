@@ -25,6 +25,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
 import { TokenActions } from '../token/token-actions';
+import { TokenStore } from '../token/token-store';
 import { UrlLock } from '../token/url-lock';
 import { UrlMissing } from '../token/url-missing';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
@@ -807,6 +808,32 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       expect((screen.getByRole('textbox', { name: 'Webhook URL' }) as HTMLInputElement).value).toBe(
         `${location.origin}/12345`,
       );
+    });
+  });
+
+  describe('Dado a leitura da URL sem resposta (503)', () => {
+    it('deve trocar a página da rota pela página de erro, com a URL salva intacta, e voltar pelo "Try again"', async () => {
+      const { container } = await renderAt(`/${TOKEN_ID}/rules`);
+      const http = TestBed.inject(HttpTestingController);
+      const tokens = TestBed.inject(TokenStore);
+      const loaded = tokens.load(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}`).flush({}, { status: 503, statusText: 'Unavailable' });
+      await expect(loaded).rejects.toBeDefined();
+
+      const main = await screen.findByRole('main');
+      expect(within(main).getByRole('heading', { level: 1 }).textContent).toBe(
+        'Could not open this URL (503).',
+      );
+      expect(main.textContent).toContain('Your saved URL is unchanged; nothing was created.');
+      expect(screen.queryByText('página da rota')).toBeNull();
+      expect(tokens.token()).toEqual(token());
+      await expectNoAxeViolations(container);
+
+      await userEvent.click(within(main).getByRole('button', { name: 'Try again' }));
+      http.expectOne(`/token/${TOKEN_ID}`).flush(token());
+
+      expect(await screen.findByText('página da rota')).toBeTruthy();
+      expect(screen.queryByText(/Could not open this URL/)).toBeNull();
     });
   });
 

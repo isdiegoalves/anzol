@@ -37,12 +37,12 @@
       class="pane list-pane"
       aria-label="Request list"
       i18n-aria-label
-      [class.waiting]="!requests.hasRequests() && !requests.loading()"
+      [class.waiting]="!requests.hasRequests() && !requests.loading() && !requests.failure()"
       [attr.aria-busy]="requests.loading() || null"
     >
       <ng-container [ngTemplateOutlet]="listPane" />
       <!-- Um painel por vez: sem mensagens, o onboarding vem embaixo da lista que espera. -->
-      @if (!requests.hasRequests() && !requests.loading()) {
+      @if (!requests.hasRequests() && !requests.loading() && !requests.failure()) {
         <ng-container [ngTemplateOutlet]="onboarding" />
       }
     </section>
@@ -57,7 +57,11 @@
 
 <ng-template #listPane>
   <ng-container [ngTemplateOutlet]="missingNote" />
-  <app-request-list (openRequest)="openFromList($event)" (openedByKey)="focusDetail()">
+  <app-request-list
+    (openRequest)="openFromList($event)"
+    (openedByKey)="focusDetail()"
+    (retry)="reopen()"
+  >
     <button
       mat-icon-button
       type="button"
@@ -238,7 +242,7 @@
       }
     </app-request-detail>
   }
-  @if (!requests.hasRequests() && !requests.loading()) {
+  @if (!requests.hasRequests() && !requests.loading() && !requests.failure()) {
     <ng-container [ngTemplateOutlet]="onboarding" />
   }
 </ng-template>

@@ -12,6 +12,7 @@ import {
   searchBody,
 } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
+import { SLOW_READ_MS } from '../ui/slow-notice';
 import { RequestPage, WebhookRequest } from './webhook-request';
 
 /** Mensagens por página da listagem (e da busca). */
@@ -40,6 +41,15 @@ export interface GoneRequest {
   cause: 'cleanup' | 'deleted' | 'unknown';
   at: Date;
   index: number;
+}
+
+/** A primeira carga da lista, ou a busca, falhou: a tela diz o erro, e não "vazio" ou "0 casam". */
+export interface ListFailure {
+  kind: 'list' | 'search';
+  /** 0 sem resposta (rede). */
+  status: number;
+  /** Quantas vezes seguidas a mesma falhou antes desta: a próxima tentativa sozinha espera mais. */
+  attempt: number;
 }
 
 export interface UnopenedRequest {
@@ -101,6 +111,13 @@ export class RequestStore {
    */
   readonly opening = signal<string | null>(null);
   private loads = 0;
+  readonly failure = signal<ListFailure | null>(null);
+  /** A abertura da lista (com a leitura da URL) passou de 30 s sem resposta. */
+  readonly slow = signal(false);
+  /** A busca passou de 30 s sem resposta. */
+  readonly searchSlow = signal(false);
+  private slowTimer: ReturnType<typeof setTimeout> | undefined;
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
   /** O filtro mudou e o resultado dele ainda não chegou: o que a lista mostra é do filtro anterior. */
   readonly searching = signal(false);
   /**
@@ -152,7 +169,8 @@ export class RequestStore {
   /** Quantas a URL guarda, para o cabeçalho: o da lista carregada, ou o lido à parte. */
   totalOf(tokenId: string): number | null {
     if (this.tokenId() === tokenId) {
-      return this.total();
+      // Com a lista em erro, o total só se sabe quando alguma chega pelo tempo real.
+      return this.failure()?.kind === 'list' && this.requests().length === 0 ? null : this.total();
     }
     const outside = this.outside();
     return outside?.tokenId === tokenId ? outside.total : null;
@@ -210,18 +228,10 @@ export class RequestStore {
    */
   async load(tokenId: string, page = 1, filter: RequestFilter = NO_FILTER): Promise<void> {
     const generation = ++this.generation;
-    const run = ++this.loads;
+    const run = this.begin(tokenId);
+    const first = this.opening() === tokenId || this.failure()?.kind === 'list';
     this.searching.set(false);
     this.activeFilter.set(filter);
-    this.loading.set(true);
-    if (tokenId !== (this.opening() ?? this.tokenId())) {
-      this.opening.set(tokenId);
-      this.pages.set([]);
-      this.selection.set(undefined);
-      this.goneState.set(null);
-      this.unopened.set(null);
-      this.scan.set(null);
-    }
     try {
       // A fronteira é lida antes da página: o que chegar entre as duas fica depois dela, e a volta da conexão o
       // traz. Aberta já filtrada (link com a busca), o total da URL vem da listagem sem filtro.
@@ -245,10 +255,69 @@ export class RequestStore {
       if (unfiltered) {
         this.total.set(unfiltered.total);
       }
+      this.failure.set(null);
+    } catch (error) {
+      if (generation === this.generation && first && !closed(error)) {
+        this.failList(tokenId, error);
+      }
+      throw error;
     } finally {
       if (run === this.loads) {
+        clearTimeout(this.slowTimer);
+        this.slow.set(false);
         this.loading.set(false);
       }
+    }
+  }
+
+  /**
+   * A tela vai abrir a lista desta URL: a de outra sai da vista na hora, e o esqueleto e o aviso de
+   * demora contam daqui, desde a leitura da URL, que vem antes da lista.
+   */
+  begin(tokenId: string): number {
+    const run = ++this.loads;
+    this.loading.set(true);
+    clearTimeout(this.slowTimer);
+    this.slow.set(false);
+    this.slowTimer = setTimeout(() => this.slow.set(run === this.loads), SLOW_READ_MS);
+    if (tokenId !== (this.opening() ?? this.tokenId())) {
+      this.opening.set(tokenId);
+      this.pages.set([]);
+      this.selection.set(undefined);
+      this.goneState.set(null);
+      this.unopened.set(null);
+      this.scan.set(null);
+      this.failure.set(null);
+    }
+    return run;
+  }
+
+  /**
+   * A primeira carga falhou: a lista fica a desta URL, em erro, com só o que chegar pelo tempo real, e a
+   * retomada parte do que chegou.
+   */
+  private failList(tokenId: string, error: unknown): void {
+    const previous = this.failure();
+    if (this.requests().length === 0) {
+      this.total.set(0);
+    }
+    this.tokenId.set(tokenId);
+    this.opening.set(null);
+    this.lastPageReached.set(true);
+    this.newestSeq = Math.max(0, ...this.requests().map(seqOf));
+    this.listedSeq = this.newestSeq;
+    this.failure.set({
+      kind: 'list',
+      status: statusOf(error),
+      attempt: previous?.kind === 'list' ? previous.attempt + 1 : 0,
+    });
+  }
+
+  /** O "Try again" da busca que falhou ou demorou. */
+  async retrySearch(): Promise<void> {
+    const tokenId = this.tokenId();
+    if (tokenId && !this.opening()) {
+      await this.reapply(tokenId);
     }
   }
 
@@ -295,6 +364,12 @@ export class RequestStore {
   private async reapply(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     this.searching.set(true);
+    clearTimeout(this.searchTimer);
+    this.searchSlow.set(false);
+    this.searchTimer = setTimeout(
+      () => this.searchSlow.set(generation === this.generation && this.searching()),
+      SLOW_READ_MS,
+    );
     try {
       const result = await this.fetchPage(tokenId, 1);
       if (generation !== this.generation) {
@@ -304,8 +379,26 @@ export class RequestStore {
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
       this.listedAll();
+      this.failure.set(null);
+    } catch (error) {
+      // O 422 é do filtro, não do servidor: quem pediu volta ao anterior.
+      if (error instanceof HttpErrorResponse && error.status === 422) {
+        throw error;
+      }
+      if (generation === this.generation) {
+        const previous = this.failure();
+        this.pages.set([]);
+        this.lastPageReached.set(true);
+        this.failure.set({
+          kind: 'search',
+          status: statusOf(error),
+          attempt: previous?.kind === 'search' ? previous.attempt + 1 : 0,
+        });
+      }
     } finally {
       if (generation === this.generation) {
+        clearTimeout(this.searchTimer);
+        this.searchSlow.set(false);
         this.searching.set(false);
       }
     }
@@ -322,10 +415,11 @@ export class RequestStore {
     }
     const generation = ++this.generation;
     const loaded = this.pages().map((page) => page.page);
+    // Sem resposta, a lista fica como estava; a próxima chegada busca de novo.
     const results = await Promise.all(
       (loaded.length > 0 ? loaded : [1]).map((page) => this.fetchPage(tokenId, page)),
-    );
-    if (generation !== this.generation) {
+    ).catch(() => null);
+    if (!results || generation !== this.generation) {
       return;
     }
     this.searching.set(false);
@@ -333,6 +427,7 @@ export class RequestStore {
     this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
     this.lastPageReached.set(last.is_last_page);
     this.matched.set(last.total);
+    this.failure.set(null);
   }
 
   async loadPreviousPage(): Promise<void> {
@@ -508,6 +603,7 @@ export class RequestStore {
     this.total.set(total);
     this.countPage(result);
     this.listedAll();
+    this.failure.set(null);
   }
 
   /**
@@ -781,6 +877,12 @@ export class RequestStore {
 }
 
 const seqOf = (request: WebhookRequest): number => request.seq ?? 0;
+
+const statusOf = (error: unknown): number =>
+  error instanceof HttpErrorResponse ? error.status : 0;
+
+/** URL trancada (401) ou que não existe (404, 410): quem mostra é o shell, e não a lista. */
+const closed = (error: unknown): boolean => [401, 404, 410].includes(statusOf(error));
 
 /** Põe a mensagem na lista da mais nova para a mais antiga pelo `seq`; sem `seq`, no topo. */
 function bySeq(newestFirst: readonly WebhookRequest[], request: WebhookRequest): WebhookRequest[] {

@@ -21,6 +21,7 @@ import { KnownUrls } from '../token/known-urls';
 import { signatureProviderLabel, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { SLOW_READ_MS, SlowNotice } from '../ui/slow-notice';
 import { ChangesBar } from './changes-bar';
 import { ChecksDraft, SectionId, StoredDraft, changeText } from './checks-draft';
 import { E2eeCard } from './e2ee-card';
@@ -88,6 +89,7 @@ interface SectionState {
     ResponseCard,
     PrivacyCard,
     HealthCard,
+    SlowNotice,
   ],
   templateUrl: './checks-page.html',
   styleUrl: './checks-page.scss',
@@ -115,6 +117,9 @@ export class ChecksPage {
   /** URL carregada do servidor para esta rota; `null` enquanto carrega. */
   private readonly loaded = signal<string | null>(null);
   protected readonly failed = signal(false);
+  /** A leitura da URL passou de 30 s sem resposta. */
+  protected readonly slow = signal(false);
+  private slowTimer: ReturnType<typeof setTimeout> | undefined;
   protected readonly ready = computed(
     () => this.loaded() === this.tokenId() && this.tokens.token()?.uuid === this.tokenId(),
   );
@@ -155,7 +160,10 @@ export class ChecksPage {
         this.uncover(document.activeElement);
       }
     });
-    inject(DestroyRef).onDestroy(() => this.draft.flush());
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.slowTimer);
+      this.draft.flush();
+    });
   }
 
   /**
@@ -191,6 +199,12 @@ export class ChecksPage {
   protected load(tokenId: string): void {
     this.loaded.set(null);
     this.failed.set(false);
+    this.slow.set(false);
+    clearTimeout(this.slowTimer);
+    this.slowTimer = setTimeout(
+      () => this.slow.set(this.tokenId() === tokenId && !this.ready() && !this.failed()),
+      SLOW_READ_MS,
+    );
     // 401 de URL protegida tranca a tela pelo interceptor; o resto vira o estado de erro.
     this.tokens
       .load(tokenId)

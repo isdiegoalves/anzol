@@ -142,6 +142,33 @@ describe('Dado a página Rules', () => {
     },
   );
 
+  it('deve avisar da demora das regras aos 30 s e ler de novo pelo "Try again"', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    let rendered: Awaited<ReturnType<typeof renderPage>>;
+    try {
+      rendered = await renderPage();
+      vi.advanceTimersByTime(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    const lenta = http.expectOne({ method: 'GET', url: URL_REGRAS });
+    await rendered.fixture.whenStable();
+
+    expect(document.querySelector('app-slow-notice')?.textContent).toContain(
+      'The server is taking more than 30 s.',
+    );
+    expect(lenta.cancelled).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]);
+    await vi.waitFor(() => http.expectOne(URL_STATS).flush(stats()));
+    await screen.findByRole('table', { name: 'Rules' });
+
+    await vi.waitFor(() => expect(document.querySelector('app-slow-notice')).toBeNull());
+    lenta.flush([rule(1)]);
+    await new Promise((done) => setTimeout(done));
+    http.match(URL_STATS).forEach((call) => call.flush(stats()));
+  });
+
   it('deve listar nome, prioridade, match e status na ordem de avaliação, com os hits e a resposta padrão no fim', async () => {
     const { container } = await open(
       [

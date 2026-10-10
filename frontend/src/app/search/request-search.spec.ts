@@ -299,6 +299,39 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     );
   });
 
+  it('deve dizer uma vez, na linha de resultado, que a busca falhou, e buscar de novo pelo "Try again"', async () => {
+    await openPanel();
+    await userEvent.click(chip('POST'));
+    searches()[0].flush({}, { status: 503, statusText: 'Unavailable' });
+
+    await vi.waitFor(() => expect(result()).toBe('Could not search (503).'), {
+      timeout: 2000,
+    });
+    expect(container.textContent?.match(/Could not search/g)).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    searches()[0].flush(requestPage(THREE.slice(0, 1), { total: 1 }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull());
+    expect(store.failure()).toBeNull();
+  });
+
+  it('deve avisar da demora da busca aos 30 s e buscar de novo pelo "Try again"', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      void store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      vi.advanceTimersByTime(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('The server is taking more than 30 s.'),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    searches().forEach((search) => search.flush(requestPage([], { total: 0 })));
+    await vi.waitFor(() => expect(container.textContent).not.toContain('more than 30 s'));
+  });
+
   describe('Dado o filtro pelo status respondido', () => {
     const scanUrl = (page: number) =>
       `/token/${TOKEN_ID}/requests?page=${page}&per_page=100&sorting=newest`;

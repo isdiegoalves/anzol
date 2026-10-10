@@ -69,6 +69,12 @@
        persistente: recebe só o resultado, uma vez, depois que os filtros param de mudar. -->
   <!-- Sem filtro, a frase ("No filter. 34 requests.") fica só para o leitor de tela. -->
   <app-live-region class="count" [class.quiet]="!store.filtering()" [text]="result()" />
+  @if (store.failure()?.kind === 'search') {
+    <button i18n type="button" class="link again" (click)="store.retrySearch()">Try again</button>
+  }
+  @if (store.searchSlow()) {
+    <app-slow-notice (retry)="store.retrySearch()" />
+  }
   <!-- Fora da região viva: a contagem da varredura seria anunciada a cada página. -->
   @if (looking()) {
     <p class="count" aria-hidden="true">{{ looking() }}</p>

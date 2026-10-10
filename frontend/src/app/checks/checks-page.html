@@ -113,6 +113,9 @@
         </div>
       } @else {
         <p class="loading" role="status" i18n>Loading this URL…</p>
+        @if (slow()) {
+          <app-slow-notice (retry)="load(tokenId())" />
+        }
         <!-- Os esqueletos levam os ids: o índice já funciona durante a carga. -->
         @for (item of sections; track item.id) {
           <div class="slot skeleton" [id]="'checks-' + item.id" aria-hidden="true"></div>

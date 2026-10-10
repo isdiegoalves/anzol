@@ -1,6 +1,7 @@
 @let token = tokens.token();
 @let gone = missing();
-@let open = token && !locked() && !gone ? token : null;
+@let unreached = unreachable();
+@let open = token && !locked() && !gone && !unreached ? token : null;
 <!-- O primeiro elemento focável da página; só aparece com o foco (UX-21). -->
 <app-skip-link [href]="here()" />
 <div class="rail" [class.on-detail]="screen.detailFullscreen()">
@@ -134,7 +135,9 @@
         (back)="failedUrl.set(null)"
       />
     }
-    @if (!locked() && !gone) {
+    @if (unreached) {
+      <app-url-failed [status]="unreached.status" (again)="reopenUrl(unreached.id)" />
+    } @else if (!locked() && !gone) {
       <div class="page" [hidden]="!!failed()">
         <router-outlet />
       </div>

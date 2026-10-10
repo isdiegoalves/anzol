@@ -600,6 +600,7 @@ export class Inbox {
     tokenId: string | undefined,
     requestId: string | undefined,
     page: number,
+    again = false,
   ) {
     if (!tokenId) {
       await this.openSavedOrNewToken();
@@ -611,8 +612,8 @@ export class Inbox {
         ? this.requests.selected()
         : undefined;
     // Sem stream (Inbox recriado ao voltar de outro destino), a lista também está velha.
-    const stale = this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
-    if (stale && !(await this.loadToken(tokenId, page))) {
+    const stale = again || this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
+    if (stale && !(await this.loadToken(tokenId, page, again))) {
       return;
     }
     // A rota mudou durante a carga: quem decide é a chamada da rota nova.
@@ -760,9 +761,14 @@ export class Inbox {
     return !!tokenId && this.loading === null && this.requests.tokenId() === tokenId;
   }
 
+  /** "Try again" da lista que falhou ou demora: abre a URL da rota de novo. */
+  protected reopen(): void {
+    void this.openRoute(this.tokenId(), this.requestId(), Number(this.page() ?? 1), true);
+  }
+
   /** Várias navegações seguidas para o mesmo token esperam a mesma carga. */
-  private loadToken(tokenId: string, page: number): Promise<boolean> {
-    if (this.loading?.tokenId !== tokenId) {
+  private loadToken(tokenId: string, page: number, again = false): Promise<boolean> {
+    if (again || this.loading?.tokenId !== tokenId) {
       const done: Promise<boolean> = this.fetchToken(tokenId, page).finally(() => {
         if (this.loading?.done === done) {
           this.loading = null;
@@ -782,31 +788,27 @@ export class Inbox {
     if (shown !== null && shown !== tokenId) {
       this.panel.dismiss();
     }
+    this.requests.begin(tokenId);
     try {
       await this.tokens.load(tokenId);
     } catch {
       // URL protegida sem acesso: a tela de desbloqueio assume (`UrlLock`). URL que não existe: a
-      // página única de URL inexistente (`UrlMissing`). Nenhuma das duas cria outra URL (B1).
+      // página única de URL inexistente (`UrlMissing`). Sem resposta: a página de erro da URL. Nenhuma
+      // cria outra URL (B1).
       return false;
     }
     if (this.tokenId() !== tokenId) {
       return false;
     }
+    // Antes da lista: o que chegar durante a carga, ou com ela em erro, não se perde.
+    this.streamTokenId.set(tokenId);
     try {
       await this.requests.load(tokenId, page, untracked(this.routeFilterWithValues));
-    } catch (error) {
-      if (this.tokenId() === tokenId && !isProtectedError(error)) {
-        this.snackBar.open($localize`Requests not found - invalid ID`, undefined, {
-          duration: 1000,
-        });
-      }
+    } catch {
+      // A lista em erro diz isso no lugar dela e tenta de novo sozinha.
       return false;
     }
-    if (this.tokenId() !== tokenId || this.requests.tokenId() !== tokenId) {
-      return false;
-    }
-    this.streamTokenId.set(tokenId);
-    return true;
+    return this.tokenId() === tokenId && this.requests.tokenId() === tokenId;
   }
 
   private async openSavedOrNewToken(): Promise<void> {
@@ -841,6 +843,12 @@ export class Inbox {
     }
     const { data, total } = arrived;
     const fresh = data.filter((one) => !this.listed(one.uuid));
+    if (this.requests.failure()?.kind === 'search') {
+      // A busca que falhou durante a queda é refeita e já traz o que chegou; as chegadas vão para a pílula.
+      await this.requests.retrySearch();
+      fresh.forEach((request) => this.list()?.receive(request, false));
+      return fresh.length;
+    }
     for (const request of fresh) {
       if (this.requests.filtering()) {
         // Só a busca diz se ela casa: conta agora, e a busca é refeita em seguida.
@@ -861,6 +869,10 @@ export class Inbox {
   }
 
   private async receive({ request, total, truncated, removed }: RequestCreated): Promise<void> {
+    // A lista desta URL a caminho pode já trazê-la: ela entra depois, sem repetir.
+    if (this.loading?.tokenId === request.token_id) {
+      await this.loading.done;
+    }
     // O evento da URL anterior ainda chega até o stream da nova abrir.
     const current = () => this.listReady() && this.tokenId() === request.token_id;
     // A reconexão pode repetir a que a volta da conexão já trouxe.
@@ -883,7 +895,8 @@ export class Inbox {
       this.notify(complete, false, 'later');
       return;
     }
-    const first = !this.requests.hasRequests() && !this.guideDismissed('first');
+    const first =
+      !this.requests.hasRequests() && !this.requests.failure() && !this.guideDismissed('first');
     // A limpeza automática pode ter cortado a mensagem aberta: ela segue na tela, como cópia, com o
     // aviso; nenhuma outra é aberta no lugar.
     this.requests.append(complete, total, removed);

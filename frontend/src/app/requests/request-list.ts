@@ -19,6 +19,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import { CompareBand } from './compare-band';
+import { ListError } from './list-error';
 import { ListFooter } from './list-footer';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
 import { fromNow, localDate } from '../request-detail/dates';
@@ -29,6 +30,7 @@ import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { CheckChip, spokenOf } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
+import { SlowNotice } from '../ui/slow-notice';
 import { Icon } from '../ui/icon';
 import { MethodBadge } from '../ui/method-badge';
 import { SkeletonList } from '../ui/skeleton-list';
@@ -122,6 +124,7 @@ export interface ItemView {
   selector: 'app-request-list',
   imports: [
     CompareBand,
+    ListError,
     ListFooter,
     CdkVirtualScrollViewport,
     CdkVirtualForOf,
@@ -139,6 +142,7 @@ export interface ItemView {
     RowSizes,
     SealFilter,
     SkeletonList,
+    SlowNotice,
   ],
   templateUrl: './request-list.html',
   styleUrl: './request-list.scss',
@@ -162,6 +166,8 @@ export class RequestList {
   readonly openRequest = output<WebhookRequest>();
   /** Aberta pelo teclado (Enter no item): o foco vai ao título do detalhe. */
   readonly openedByKey = output<WebhookRequest>();
+  /** "Try again" da lista que falhou ou demora: a Entrada abre a URL de novo. */
+  readonly retry = output<void>();
   /** Celular: o item de duas linhas tem 64 px. */
   protected readonly touch = computed(() => this.windowClass() === 'compact');
   /** Densidade compacta de Settings, fora do celular. */
@@ -206,9 +212,12 @@ export class RequestList {
     const limit = this.limit();
     return limit ? $localize`Auto cleanup keeps the ${limit}:limit: most recent requests` : null;
   });
-  /** `null` enquanto a lista de outra URL não chega: o número ainda seria o da anterior. */
+  /**
+   * `null` enquanto a lista de outra URL não chega (o número ainda seria o da anterior) e com a lista ou a
+   * busca em erro: o título não diz um número que a lista não mostra.
+   */
   protected readonly count = computed(() => {
-    if (this.store.opening()) {
+    if (this.store.opening() || this.store.failure()) {
       return null;
     }
     const limit = this.limit();

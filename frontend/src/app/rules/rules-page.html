@@ -153,6 +153,9 @@
         </ul>
       </div>
     }
+    @if (slow() && !loaded()) {
+      <app-slow-notice (retry)="reopen()" />
+    }
     @if (changedElsewhere()) {
       <div class="changed" role="alert">
         <p i18n>

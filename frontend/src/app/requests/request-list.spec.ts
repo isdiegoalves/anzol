@@ -128,6 +128,79 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (1)');
   });
 
+  describe('Dado o servidor sem responder', () => {
+    const unavailable = { status: 503, statusText: 'Unavailable' };
+    const retried = () => {
+      const retry = vi.fn();
+      fixture.componentInstance.retry.subscribe(retry);
+      return retry;
+    };
+
+    it('deve dizer o erro no lugar da lista, sem "Waiting", rodapé nem número no título, e pedir de novo', async () => {
+      const retry = retried();
+      const loaded = store.load(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`).flush({}, unavailable);
+      await expect(loaded).rejects.toBeDefined();
+      await fixture.whenStable();
+
+      expect(element().textContent).toContain('Could not load the list (503).');
+      expect(element().textContent).not.toContain('Waiting for first request...');
+      expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests');
+      expect(element().querySelector('app-list-footer')).toBeNull();
+      element().querySelector<HTMLButtonElement>('app-list-error button')?.click();
+      expect(retry).toHaveBeenCalledTimes(1);
+      await expectNoAxeViolations(element());
+    });
+
+    it('deve mostrar a que chegou durante o erro, com o título ainda sem número', async () => {
+      const loaded = store.load(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`).flush({}, unavailable);
+      await expect(loaded).rejects.toBeDefined();
+
+      store.append(webhookRequest(4, { seq: 4 }), 4);
+      await fixture.whenStable();
+
+      expect(items()).toHaveLength(1);
+      expect(element().textContent).toContain(
+        '1 arrived just now; the 3 before it did not load (503).',
+      );
+      expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests');
+      expect(element().querySelector('app-list-footer')).toBeNull();
+    });
+
+    it('deve deixar a área da lista vazia, sem "No requests match" nem rodapé, Quando a busca falha', async () => {
+      await load([webhookRequest(1), webhookRequest(2)], 12, false);
+
+      const applied = store.applyFilter({ ...NO_FILTER, text: 'base' });
+      http.expectOne(`/token/${TOKEN_ID}/requests/search`).flush({}, unavailable);
+      await applied;
+      await fixture.whenStable();
+
+      expect(items()).toHaveLength(0);
+      expect(element().textContent).not.toContain('No requests match these filters');
+      expect(element().querySelector('app-list-footer')).toBeNull();
+      expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests');
+    });
+
+    it('deve trocar o esqueleto pelo aviso de demora aos 30 s, e pedir de novo pelo "Try again"', async () => {
+      const retry = retried();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        void store.load(TOKEN_ID).catch(() => undefined);
+        vi.advanceTimersByTime(30_000);
+      } finally {
+        vi.useRealTimers();
+      }
+      await fixture.whenStable();
+
+      expect(element().textContent).toContain('The server is taking more than 30 s.');
+      expect(element().querySelector('.skeleton')).toBeNull();
+      element().querySelector<HTMLButtonElement>('app-slow-notice button')?.click();
+      expect(retry).toHaveBeenCalledTimes(1);
+      http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`).flush(requestPage([]));
+    });
+  });
+
   it('deve usar itens de duas linhas: 40 px, 36 px na densidade compacta e 64 px no celular (B1, S17)', async () => {
     const height = () =>
       (fixture.componentInstance as unknown as { itemHeight: () => number }).itemHeight();

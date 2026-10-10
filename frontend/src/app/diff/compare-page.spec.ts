@@ -30,6 +30,8 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   };
 
   beforeEach(async () => {
+    // A Inbox (e a lista do Compare) abre o tempo real, e o jsdom não tem EventSource.
+    vi.stubGlobal('EventSource', FakeEventSource);
     Element.prototype.scrollTo ??= () => undefined;
     windowClass.set('large');
     TestBed.configureTestingModule({
@@ -45,6 +47,7 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     http.verify();
     localStorage.clear();
   });
@@ -117,8 +120,6 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
   });
 
   it('deve voltar à Inbox com o lado que existe esperando a outra escolha Quando "Choose another request" é clicado', async () => {
-    // A Inbox abre o tempo real, e o jsdom não tem EventSource.
-    vi.stubGlobal('EventSource', FakeEventSource);
     await open();
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
     await flush(`/token/${TOKEN_ID}/request/${R2.uuid}`, { error: 'Not found' }, 404);

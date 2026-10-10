@@ -47,6 +47,7 @@ import { SkipLink } from './skip-link';
 import type { TokenActions } from '../token/token-actions';
 import { ConnectionBand } from './connection-band';
 import { OpenFailed } from './open-failed';
+import { UrlFailed } from './url-failed';
 import { UrlHeader } from './url-header';
 
 /** O `import()` do pedaço de um destino falhou (rede): cada navegador diz de um jeito. */
@@ -71,7 +72,17 @@ export interface SheetComponent {
  */
 @Component({
   selector: 'app-shell',
-  imports: [ConnectionBand, Icon, Menu, OpenFailed, RouterLink, RouterOutlet, SkipLink, UrlHeader],
+  imports: [
+    ConnectionBand,
+    Icon,
+    Menu,
+    OpenFailed,
+    RouterLink,
+    RouterOutlet,
+    SkipLink,
+    UrlFailed,
+    UrlHeader,
+  ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
@@ -156,6 +167,14 @@ export class Shell {
    * A URL da rota não existe (o servidor disse 410), ou o endereço não é id de URL: a página única
    * de URL inexistente entra no lugar da página da rota, em qualquer destino (B1).
    */
+  /** A leitura da URL da rota falhou sem dizer que ela não existe (5xx, rede): a página de erro dela. */
+  protected readonly unreachable = computed(() => {
+    const failure = this.tokens.failure();
+    return failure?.id === this.place().tokenId && !this.locked() && !this.missing()
+      ? failure
+      : null;
+  });
+
   protected readonly missing = computed<MissingUrl | null>(() => {
     const { tokenId, first } = this.place();
     if (!tokenId) {
@@ -297,6 +316,11 @@ export class Shell {
     if (url) {
       void this.router.navigateByUrl(url).catch(() => undefined);
     }
+  }
+
+  /** "Try again" da página de erro da URL: com a leitura de volta, a página da rota abre de novo. */
+  protected reopenUrl(tokenId: string): void {
+    this.tokens.load(tokenId).catch(() => undefined);
   }
 
   /** Escolhida no seletor: a mesma tela (Regras segue em Regras) na outra URL, com histórico. */
