@@ -221,7 +221,9 @@ describe('Dado o painel do "Explain"', () => {
       'Answered 429 with the default response.',
     ]);
   });
+});
 
+describe('Dado o resumo das verificações do "Explain"', () => {
   it.each([
     [
       'chave de cifra desconhecida',

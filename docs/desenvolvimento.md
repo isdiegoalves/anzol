@@ -23,6 +23,9 @@ cd cli && ./gradlew check
 cd tests/cli && node --test
 ```
 
+O Vitest roda os testes em ordem aleatória, e a semente sai no topo do relatório (`Running tests with seed "…"`).
+Para repetir a ordem de uma rodada que falhou: `VITEST_SEED=<semente> npx ng test --watch=false`.
+
 Para mexer na tela com recarga automática, com o compose no ar: `cd frontend && npx ng serve`
 abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf.mjs`).
 

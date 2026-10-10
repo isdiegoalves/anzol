@@ -73,6 +73,7 @@ describe('Dado a tela principal', () => {
   afterEach(() => {
     http.verify();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     localStorage.clear();
   });
 

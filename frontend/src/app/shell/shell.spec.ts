@@ -70,6 +70,14 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
   };
 
   const sections = () => screen.queryByRole('navigation', { name: 'URL sections' });
+  /**
+   * A tela de desbloqueio chega por `import()`, que o `whenStable` não espera: sem esperá-la, o import termina
+   * depois do teste e cria o componente num injector já destruído.
+   */
+  const lock = async () => {
+    TestBed.inject(UrlLock).lock(TOKEN_ID);
+    await screen.findByRole('heading', { name: 'This URL is protected' });
+  };
 
   beforeEach(() => {
     FakeEventSource.instances = [];
@@ -141,9 +149,8 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
 
   it('deve manter "New URL", Settings e Help no ⋮ da barra do celular Quando a URL está trancada (trava 11)', async () => {
     const user = userEvent.setup();
-    const { fixture } = await renderAt(`/${TOKEN_ID}`);
-    fixture.debugElement.injector.get(UrlLock).lock(TOKEN_ID);
-    await fixture.whenStable();
+    await renderAt(`/${TOKEN_ID}`);
+    await lock();
 
     await user.click(screen.getByRole('button', { name: 'More actions', hidden: true }));
 
@@ -414,11 +421,10 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     });
 
     it('deve fechar o tempo real Quando a URL tranca', async () => {
-      const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+      await renderAt(`/${TOKEN_ID}/rules`);
       await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
-      TestBed.inject(UrlLock).lock(TOKEN_ID);
-      await fixture.whenStable();
+      await lock();
 
       await vi.waitFor(() =>
         expect(FakeEventSource.latest().readyState).toBe(FakeEventSource.CLOSED),
@@ -832,9 +838,8 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     });
 
     it('deve ser "Locked · Anzol" com a URL trancada', async () => {
-      const { fixture } = await renderAt(`/${TOKEN_ID}`);
-      TestBed.inject(UrlLock).lock(TOKEN_ID);
-      await fixture.whenStable();
+      await renderAt(`/${TOKEN_ID}`);
+      await lock();
       expect(document.title).toBe('Locked · Anzol');
     });
 
