@@ -1826,6 +1826,10 @@ export const translations: Record<string, string> = {
   '6435128530540717306': 'Reconectando…',
   // The real-time connection dropped; trying again
   '8436854779844607643': 'A conexão em tempo real caiu; tentando de novo',
+  // No signal
+  '5104148019556190110': 'Sem sinal',
+  // The server stopped sending; reconnecting
+  '7788612002521976570': 'O servidor parou de mandar sinais; reconectando',
   // {$width} pixels
   '3434214639687233214': '{$width} pixels',
   // No response

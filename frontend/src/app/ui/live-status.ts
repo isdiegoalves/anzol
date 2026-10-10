@@ -1,7 +1,7 @@
 import { Component, computed, input } from '@angular/core';
 
 /** Estado do tempo real como a tela mostra; quem conhece o SSE (o shell) traduz o dele. */
-export type LiveState = 'live' | 'connecting' | 'reconnecting';
+export type LiveState = 'live' | 'connecting' | 'reconnecting' | 'silent';
 
 /** Texto e dica de cada estado; função, porque o `$localize` só vale depois da tradução. */
 function textOf(state: LiveState): { text: string; hint: string } {
@@ -14,6 +14,11 @@ function textOf(state: LiveState): { text: string; hint: string } {
       return {
         text: $localize`Reconnecting…`,
         hint: $localize`The real-time connection dropped; trying again`,
+      };
+    case 'silent':
+      return {
+        text: $localize`No signal`,
+        hint: $localize`The server stopped sending; reconnecting`,
       };
   }
 }

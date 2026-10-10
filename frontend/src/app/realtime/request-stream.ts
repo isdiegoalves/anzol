@@ -4,15 +4,24 @@ import { RequestCreated } from '../requests/webhook-request';
 
 /**
  * `idle`: ninguém assina; `connecting`: abrindo pela primeira vez; `open`: recebendo;
- * `reconnecting`: caiu ou foi recusado, e o navegador ou a tela tenta de novo.
+ * `reconnecting`: caiu ou foi recusado, e o navegador ou a tela tenta de novo; `silent`: aberto,
+ * mas sem sinal do servidor por dois intervalos do heartbeat, e a tela reabre.
  */
-export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
+export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'silent';
 
 /** A espera antes de cada nova tentativa, a partir da primeira, até ficar na última. */
 export const RETRY_SECONDS = [5, 10, 20, 30] as const;
 
 /** Traz o que chegou enquanto a conexão não estava aberta; devolve quantas trouxe. */
 export type Resume = () => Promise<number>;
+
+/** O heartbeat do servidor até o primeiro `ping` dizer o dele. */
+export const HEARTBEAT_MS = 15_000;
+
+/** Silêncio que dá a conexão por morta: dois intervalos do heartbeat e uma folga. */
+export function silenceLimit(heartbeatMs: number): number {
+  return 2 * heartbeatMs + 5000;
+}
 
 interface Shared {
   source: EventSource;
@@ -25,6 +34,8 @@ interface Shared {
   /** Recusas seguidas do servidor; zera quando a conexão abre. */
   refusals: number;
   reopening: ReturnType<typeof setTimeout> | null;
+  heartbeatMs: number;
+  silence: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -106,6 +117,14 @@ export class RequestStream {
       clearTimeout(shared.reopening);
       shared.reopening = null;
     }
+    this.hush(shared);
+  }
+
+  private hush(shared: Shared): void {
+    if (shared.silence) {
+      clearTimeout(shared.silence);
+      shared.silence = null;
+    }
   }
 
   private open(tokenId: string): Shared {
@@ -116,6 +135,8 @@ export class RequestStream {
       loud: 0,
       refusals: 0,
       reopening: null,
+      heartbeatMs: HEARTBEAT_MS,
+      silence: null,
     } as Shared;
     shared.source = this.source(tokenId, shared);
     this.streams.set(tokenId, shared);
@@ -130,10 +151,29 @@ export class RequestStream {
         this.publish();
       }
     };
-    if (shared.status !== 'reconnecting') {
+    if (shared.status !== 'reconnecting' && shared.status !== 'silent') {
       shared.status = 'connecting';
     }
+    // Conexão meio morta (NAT, Wi-Fi trocado, proxy que segura o socket) não dá erro: só o silêncio a revela.
+    const heard = () => {
+      this.hush(shared);
+      shared.silence = setTimeout(() => {
+        if (shared.source === source) {
+          this.close(shared);
+          shared.status = 'silent';
+          shared.source = this.source(tokenId, shared);
+          this.publish();
+        }
+      }, silenceLimit(shared.heartbeatMs));
+    };
+    heard();
+    source.addEventListener('ping', (event: MessageEvent<string>) => {
+      const seconds = Number(event.data);
+      shared.heartbeatMs = seconds > 0 ? seconds * 1000 : HEARTBEAT_MS;
+      heard();
+    });
     source.onopen = () => {
+      heard();
       this.drops.set(0);
       shared.refusals = 0;
       if (shared.resumes.size === 0) {
@@ -156,15 +196,17 @@ export class RequestStream {
       // O navegador reconecta sozinho da queda de rede, mas desiste do stream recusado (502/503 de um proxy
       // na frente do app que reinicia): esse a tela reabre.
       if (source.readyState === EventSource.CLOSED) {
+        this.hush(shared);
         this.reopenLater(tokenId, shared);
       } else {
         this.drops.update((drops) => drops + 1);
       }
       set('reconnecting');
     };
-    source.addEventListener('request.created', (event: MessageEvent<string>) =>
-      shared.events.next(JSON.parse(event.data) as RequestCreated),
-    );
+    source.addEventListener('request.created', (event: MessageEvent<string>) => {
+      heard();
+      shared.events.next(JSON.parse(event.data) as RequestCreated);
+    });
     return source;
   }
 

@@ -167,3 +167,25 @@ test.describe('Dado o /stream recusado por um proxy na frente do app', () => {
     await expect(item(page, depois)).toBeVisible();
   });
 });
+
+test.describe('Dado o /stream que para de receber sem fechar', () => {
+  test('deve dizer "No signal" em até dois heartbeats e a folga, e mostrar o que chegou quando ele volta', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    test.setTimeout(120_000);
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/antes' });
+    await abrir(page, tokenId);
+
+    expect(caos.congelar(tokenId)).toBe(1);
+    const muda = await tokens.send(tokenId, { path: '/no-silencio' });
+    await expect.poll(() => caos.engolidos(tokenId)).toBeGreaterThan(0);
+    await expect(estadoAoVivo(page)).toContainText('No signal', { timeout: 40_000 });
+    caos.soltar(tokenId);
+
+    await expect(item(page, muda)).toBeVisible({ timeout: 15_000 });
+    await expect(estadoAoVivo(page)).toContainText('Live');
+  });
+});

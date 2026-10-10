@@ -170,6 +170,55 @@ describe('Dado o stream SSE de uma URL', () => {
     expect(stream.status()).toBe('open');
   });
 
+  describe('Dado uma conexão aberta que para de receber sem fechar', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('deve dizer "silent" e reabrir Quando passam dois heartbeats e a folga sem sinal', () => {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      const old = FakeEventSource.latest();
+      old.open();
+
+      vi.advanceTimersByTime(35_000 - 1);
+      expect(stream.status()).toBe('open');
+      vi.advanceTimersByTime(1);
+
+      expect(stream.status()).toBe('silent');
+      expect(old.readyState).toBe(FakeEventSource.CLOSED);
+      expect(FakeEventSource.instances).toHaveLength(2);
+      FakeEventSource.latest().open();
+      expect(stream.status()).toBe('open');
+    });
+
+    it('deve vigiar pelo intervalo que o ping diz, recomeçando a cada sinal', () => {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      const source = FakeEventSource.latest();
+      source.open();
+      source.emit('ping', 0.2);
+
+      vi.advanceTimersByTime(5000);
+      source.emit('request.created', { request: webhookRequest(1), total: 1 });
+      vi.advanceTimersByTime(5000);
+      source.emit('ping', 0.2);
+      vi.advanceTimersByTime(5399);
+      expect(stream.status()).toBe('open');
+      vi.advanceTimersByTime(1);
+
+      expect(stream.status()).toBe('silent');
+    });
+
+    it('deve reabrir de novo Quando a nova conexão também fica muda, sem abrir', () => {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      FakeEventSource.latest().open();
+
+      vi.advanceTimersByTime(35_000);
+      vi.advanceTimersByTime(35_000);
+
+      expect(FakeEventSource.instances).toHaveLength(3);
+      expect(stream.status()).toBe('silent');
+    });
+  });
+
   describe('Dado quem retoma o que chegou fora do tempo real (a Entrada)', () => {
     it('deve retomar a cada abertura e só ficar "open" com a retomada terminada', async () => {
       let terminar!: (count: number) => void;

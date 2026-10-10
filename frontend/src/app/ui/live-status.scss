@@ -32,6 +32,15 @@
   background: var(--app-warning);
 }
 
+:host(.silent) {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+:host(.silent) .dot {
+  background: var(--mat-sys-error);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   :host(.live) .dot {
     animation: pulse 2s ease-in-out infinite;

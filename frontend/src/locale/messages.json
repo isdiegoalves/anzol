@@ -2057,6 +2057,8 @@
     "6175965777948899135": "Opening the real-time connection",
     "6435128530540717306": "Reconnecting…",
     "8436854779844607643": "The real-time connection dropped; trying again",
+    "5104148019556190110": "No signal",
+    "7788612002521976570": "The server stopped sending; reconnecting",
     "3434214639687233214": "{$width} pixels",
     "7913570146997711091": "No response"
   }
