@@ -2998,6 +2998,14 @@ export const translations: Record<string, string> = {
     'Sem conexão com o servidor desde {$time}. O que você digitou está guardado.',
   // Connected again.
   '880525040732919916': 'Conexão de volta.',
+  // Connected again. 1 request arrived meanwhile.
+  '6206395411579861533': 'Conexão de volta. 1 requisição chegou enquanto isso.',
+  // Connected again. {$count} requests arrived meanwhile.
+  '3445108354319717381': 'Conexão de volta. {$count} requisições chegaram enquanto isso.',
+  // 1 request arrived during a brief connection drop.
+  '4207948447845376156': '1 requisição chegou durante uma queda rápida da conexão.',
+  // {$count} requests arrived during a brief connection drop.
+  '4247802120351829215': '{$count} requisições chegaram durante uma queda rápida da conexão.',
   // Connection
   '2303041439224647987': 'Conexão',
   // Try again now

@@ -144,6 +144,52 @@ describe('Dado o stream SSE de uma URL', () => {
     expect(stream.status()).toBe('open');
   });
 
+  describe('Dado quem retoma o que chegou fora do tempo real (a Entrada)', () => {
+    it('deve retomar a cada abertura e só ficar "open" com a retomada terminada', async () => {
+      let terminar!: (count: number) => void;
+      const resume = vi.fn(() => new Promise<number>((ok) => (terminar = ok)));
+      subscriptions.add(stream.connect(TOKEN_ID, { resume }).subscribe());
+      const source = FakeEventSource.latest();
+      source.open();
+      expect(resume).toHaveBeenCalledTimes(1);
+      expect(stream.status()).toBe('connecting');
+
+      terminar(0);
+      await vi.waitFor(() => expect(stream.status()).toBe('open'));
+      source.fail(FakeEventSource.CONNECTING);
+      source.open();
+
+      expect(resume).toHaveBeenCalledTimes(2);
+      expect(stream.status()).toBe('reconnecting');
+      terminar(3);
+      await vi.waitFor(() => expect(stream.status()).toBe('open'));
+      expect(stream.recovered()).toBe(3);
+    });
+
+    it('deve retomar na hora Quando a assinatura chega com a conexão já aberta (o stream do shell)', () => {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      FakeEventSource.latest().open();
+      const resume = vi.fn().mockResolvedValue(0);
+
+      subscriptions.add(stream.connect(TOKEN_ID, { resume }).subscribe());
+
+      expect(resume).toHaveBeenCalledTimes(1);
+      expect(stream.status()).toBe('open');
+    });
+
+    it('não deve retomar por quem já saiu', () => {
+      const resume = vi.fn().mockResolvedValue(0);
+      const keep = stream.connect(TOKEN_ID).subscribe();
+      stream.connect(TOKEN_ID, { resume }).subscribe().unsubscribe();
+
+      FakeEventSource.latest().open();
+
+      expect(resume).not.toHaveBeenCalled();
+      expect(stream.status()).toBe('open');
+      keep.unsubscribe();
+    });
+  });
+
   it('deve fechar a conexão Quando a assinatura é cancelada', () => {
     const subscription = stream.connect(TOKEN_ID).subscribe();
     const source = FakeEventSource.latest();

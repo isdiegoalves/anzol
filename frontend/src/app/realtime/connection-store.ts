@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { firstValueFrom, tap } from 'rxjs';
-import { RequestStream } from './request-stream';
+import { RequestStream, StreamStatus } from './request-stream';
 
 export const RETRY_SECONDS = [5, 10, 20, 30] as const;
 export const RESTORED_NOTE_MS = 5000;
@@ -15,8 +15,6 @@ export class Connection {
   readonly downSince = signal<Date | null>(null);
   readonly notice = signal('');
   readonly countdown = signal(0);
-  /** Conta as voltas: quem mostra dados relê o que perdeu a cada uma. */
-  readonly restored = signal(0);
   /** A chamada que prova a volta: a URL aberta, que o shell informa. */
   readonly probe = signal('/');
 
@@ -24,6 +22,9 @@ export class Connection {
   private timer: ReturnType<typeof setInterval> | null = null;
   private noteTimer: ReturnType<typeof setTimeout> | null = null;
   private trying = false;
+  /** O tempo real já abriu nesta URL e depois caiu: a volta dele é dita, com o que chegou no intervalo. */
+  private opened = false;
+  private dropped = false;
 
   constructor() {
     // O navegador reconecta o SSE sozinho: uma queda só não é falta de conexão; a segunda, é.
@@ -31,6 +32,10 @@ export class Connection {
       if (this.stream.drops() >= 2) {
         untracked(() => this.failed());
       }
+    });
+    effect(() => {
+      const status = this.stream.status();
+      untracked(() => this.follow(status));
     });
   }
 
@@ -60,11 +65,11 @@ export class Connection {
     this.stop();
     try {
       await firstValueFrom(this.http.get(this.probe(), { responseType: 'text' }));
-      this.back();
+      this.reopen();
     } catch (error) {
       // Resposta com status (401 da URL trancada, 410): o servidor respondeu, a conexão voltou.
       if (error instanceof HttpErrorResponse && error.status !== 0) {
-        this.back();
+        this.reopen();
       } else {
         this.attempt++;
         this.wait();
@@ -74,14 +79,64 @@ export class Connection {
     }
   }
 
-  private back(): void {
-    this.downSince.set(null);
-    this.countdown.set(0);
-    this.notice.set($localize`Connected again.`);
-    this.noteTimer = setTimeout(() => this.notice.set(''), RESTORED_NOTE_MS);
+  /**
+   * O servidor respondeu, mas a volta só é dita quando o tempo real abre de novo com o que faltou: a
+   * API pode responder com o `/stream` ainda caído. Até lá, a contagem segue.
+   */
+  private reopen(): void {
+    if (this.stream.status() === 'idle') {
+      this.back(0);
+      return;
+    }
     this.stream.drops.set(0);
     this.stream.retry();
-    this.restored.update((count) => count + 1);
+    this.attempt++;
+    this.wait();
+  }
+
+  private follow(status: StreamStatus): void {
+    if (status === 'open') {
+      if (this.dropped || this.downSince()) {
+        this.back(this.stream.recovered());
+      }
+      [this.opened, this.dropped] = [true, false];
+    } else if (status === 'idle') {
+      [this.opened, this.dropped] = [false, false];
+    } else if (status !== 'connecting' && this.opened) {
+      this.dropped = true;
+    }
+  }
+
+  /** Uma fala só para a volta: com a faixa, "Connected again." e o que chegou; sem ela, só se chegou algo. */
+  private back(recovered: number): void {
+    const shown = this.downSince() !== null;
+    this.stop();
+    this.clearNote();
+    this.downSince.set(null);
+    this.countdown.set(0);
+    const text = shown ? this.connectedAgain(recovered) : this.briefDrop(recovered);
+    this.notice.set(text);
+    if (text) {
+      this.noteTimer = setTimeout(() => this.notice.set(''), RESTORED_NOTE_MS);
+    }
+  }
+
+  private connectedAgain(recovered: number): string {
+    if (recovered === 0) {
+      return $localize`Connected again.`;
+    }
+    return recovered === 1
+      ? $localize`Connected again. 1 request arrived meanwhile.`
+      : $localize`Connected again. ${recovered}:count: requests arrived meanwhile.`;
+  }
+
+  private briefDrop(recovered: number): string {
+    if (recovered === 0) {
+      return '';
+    }
+    return recovered === 1
+      ? $localize`1 request arrived during a brief connection drop.`
+      : $localize`${recovered}:count: requests arrived during a brief connection drop.`;
   }
 
   private wait(): void {

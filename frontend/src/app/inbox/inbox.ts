@@ -25,7 +25,6 @@ import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { CompareStore } from '../diff/compare-store';
 import type { Guide, GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
-import { Connection } from '../realtime/connection-store';
 import { RequestStream } from '../realtime/request-stream';
 import { ActionPanel } from '../request-detail/action-panel';
 import { ActionPanelStore, ActionTab } from '../request-detail/action-panel-store';
@@ -156,7 +155,6 @@ export class Inbox {
   private readonly settings = inject(ShellSettings);
   private readonly viewport = inject(Viewport);
   private readonly screen = inject(ScreenState);
-  private readonly connection = inject(Connection);
   protected readonly grouping = inject(EventGrouping);
   protected readonly panel = inject(ActionPanelStore);
   protected readonly waitFor = inject(WaitFor);
@@ -364,16 +362,11 @@ export class Inbox {
       this.firstArrival.set(null);
     });
 
-    // A conexão voltou: o que chegou no intervalo entra na lista e na pílula, sem mover nada.
-    effect(() => {
-      if (this.connection.restored() > 0) {
-        untracked(() => void this.catchUp());
-      }
-    });
-
     toObservable(this.streamTokenId)
       .pipe(
-        switchMap((tokenId) => (tokenId ? this.stream.connect(tokenId) : EMPTY)),
+        switchMap((tokenId) =>
+          tokenId ? this.stream.connect(tokenId, { resume: () => this.resume() }) : EMPTY,
+        ),
         takeUntilDestroyed(),
       )
       .subscribe((event) => void this.receive(event));
@@ -795,10 +788,13 @@ export class Inbox {
     await this.router.navigate(['/', token.uuid], { replaceUrl: true });
   }
 
-  /** O que chegou durante a queda (`after=<seq>`): acumula na pílula, sem abrir nem rolar. */
-  private async catchUp(): Promise<void> {
+  /**
+   * O que chegou enquanto o tempo real não entregava (`after=<seq>`): acumula na pílula, sem abrir
+   * nem rolar. Calada: quem diz quantas chegaram é a volta da conexão, numa fala só. Devolve quantas.
+   */
+  private async resume(): Promise<number> {
     if (!this.listReady()) {
-      return;
+      return 0;
     }
     const arrived = await this.requests.arrivedSinceNewest();
     if (!arrived) {
@@ -808,10 +804,11 @@ export class Inbox {
       } else {
         await this.requests.reload();
       }
-      return;
+      return 0;
     }
     const { data, total } = arrived;
-    for (const request of data.filter((one) => !this.listed(one.uuid))) {
+    const fresh = data.filter((one) => !this.listed(one.uuid));
+    for (const request of fresh) {
       if (this.requests.filtering()) {
         // Só a busca diz se ela casa: conta agora, e a busca é refeita em seguida.
         this.requests.countArrival(request, total);
@@ -819,11 +816,11 @@ export class Inbox {
         this.requests.append(request, total);
       }
       this.list()?.receive(request, false);
-      this.announceArrival();
     }
-    if (this.requests.filtering()) {
+    if (this.requests.filtering() && fresh.length > 0) {
       this.searchRefresh.next();
     }
+    return fresh.length;
   }
 
   private listed(requestId: string): boolean {

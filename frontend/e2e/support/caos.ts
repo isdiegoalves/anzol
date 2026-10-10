@@ -22,6 +22,12 @@ interface Stream {
   congelado: boolean;
 }
 
+interface Segura {
+  respondeu: () => void;
+  solta: Promise<void>;
+  liberar: () => void;
+}
+
 const STREAM = /^\/token\/([^/?]+)\/stream(\?|$)/;
 
 /**
@@ -35,6 +41,7 @@ export class ProxyDeCaos {
   private readonly congelados = new Set<string>();
   private readonly descartados = new Map<string, number>();
   private readonly atrasos = new Set<Regra & { ms: number }>();
+  private readonly seguras = new Set<Regra & Segura>();
   private readonly recusas = new Set<Regra & { status: number }>();
   private readonly agente = new Agent({ keepAlive: true });
   private readonly servidor: Server;
@@ -89,6 +96,24 @@ export class ProxyDeCaos {
     return () => this.atrasos.delete(regra);
   }
 
+  /**
+   * A resposta da rota fica no proxy até `soltar`: `respondida` resolve quando o app já respondeu, para o teste
+   * agir entre a leitura no servidor e a chegada no navegador.
+   */
+  segurar(rota: RegExp, metodo?: string): { respondida: Promise<void>; soltar: () => void } {
+    let respondeu!: () => void;
+    let liberar!: () => void;
+    const respondida = new Promise<void>((ok) => (respondeu = ok));
+    const solta = new Promise<void>((ok) => (liberar = ok));
+    const regra = { rota, metodo, respondeu, solta, liberar };
+    this.seguras.add(regra);
+    const soltar = () => {
+      this.seguras.delete(regra);
+      liberar();
+    };
+    return { respondida, soltar };
+  }
+
   /** O proxy responde `status` sem chegar ao app, como um proxy reverso com o app fora. Devolve a função que desfaz. */
   recusar(rota: RegExp, status = 503, metodo?: string): () => void {
     const regra = { rota, status, metodo };
@@ -102,6 +127,8 @@ export class ProxyDeCaos {
     this.descartados.clear();
     this.atrasos.clear();
     this.recusas.clear();
+    this.seguras.forEach((segura) => segura.liberar());
+    this.seguras.clear();
     this.fechar((stream) => stream.congelado);
   }
 
@@ -130,6 +157,7 @@ export class ProxyDeCaos {
 
   private repassar(req: IncomingMessage, res: ServerResponse, token?: string): void {
     const atraso = [...this.atrasos].find((regra) => casa(regra, req));
+    const segura = [...this.seguras].find((regra) => casa(regra, req));
     const up = request(
       {
         host: this.destino.hostname,
@@ -139,7 +167,15 @@ export class ProxyDeCaos {
         headers: req.headers,
         agent: token ? false : this.agente,
       },
-      (resposta) => setTimeout(() => this.entregar(resposta, res, up, token), atraso?.ms ?? 0),
+      (resposta) => {
+        const entregar = () => this.entregar(resposta, res, up, token);
+        if (segura) {
+          segura.respondeu();
+          void segura.solta.then(entregar);
+        } else {
+          setTimeout(entregar, atraso?.ms ?? 0);
+        }
+      },
     );
     up.on('error', () => {
       if (res.headersSent) {

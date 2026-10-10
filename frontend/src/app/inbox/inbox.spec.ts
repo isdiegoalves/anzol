@@ -13,7 +13,6 @@ import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixt
 import { routes } from '../app.routes';
 import { ANNOUNCE_EVERY_MS } from './inbox';
 import { Preferences } from '../settings/preferences';
-import { Connection } from '../realtime/connection-store';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { NO_FILTER } from '../search/request-filter';
@@ -526,9 +525,13 @@ describe('Dado a tela principal', () => {
   });
 
   describe('Dado a volta da conexão (B1, UX-16)', () => {
-    const restore = () => TestBed.inject(Connection).restored.update((count) => count + 1);
+    const reopen = async () => {
+      const source = await vi.waitFor(() => FakeEventSource.latest());
+      source.fail(FakeEventSource.CONNECTING);
+      source.open();
+    };
 
-    it('deve buscar o que chegou depois da última seq e juntar na pílula, sem trocar a aberta', async () => {
+    it('deve buscar o que chegou depois da mais nova da URL e juntar na pílula, calada, sem trocar a aberta', async () => {
       const [S1, S2] = [webhookRequest(1, { seq: 11 }), webhookRequest(2, { seq: 12 })];
       await harness.navigateByUrl(`/${TOKEN_ID}/${S2.uuid}/1`);
       await flush(`/token/${TOKEN_ID}`, token());
@@ -536,7 +539,7 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(text()).toContain(S2.uuid));
       const chegou = webhookRequest(3, { seq: 13 });
 
-      restore();
+      await reopen();
       await flush(`/token/${TOKEN_ID}/requests?after=12`, requestPage([chegou], { total: 3 }));
 
       const store = TestBed.inject(RequestStore);
@@ -560,7 +563,7 @@ describe('Dado a tela principal', () => {
       await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R1], { total: 1 }));
       await applied;
 
-      restore();
+      await reopen();
 
       await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R1], { total: 1 }));
     });

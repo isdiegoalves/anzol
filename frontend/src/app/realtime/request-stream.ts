@@ -8,9 +8,13 @@ import { RequestCreated } from '../requests/webhook-request';
  */
 export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
 
+/** Traz o que chegou enquanto a conexão não estava aberta; devolve quantas trouxe. */
+export type Resume = () => Promise<number>;
+
 interface Shared {
   source: EventSource;
   readonly events: Subject<RequestCreated>;
+  readonly resumes: Set<Resume>;
   status: StreamStatus;
   users: number;
   /** Assinantes que aparecem no "Live" do cabeçalho. */
@@ -32,20 +36,36 @@ export class RequestStream {
   readonly status = this.state.asReadonly();
   /** Quedas seguidas; zera quando a conexão abre. */
   readonly drops = signal(0);
+  /** Quantas a retomada trouxe na última vez que a conexão abriu. */
+  readonly recovered = signal(0);
 
   /**
    * Abre o `EventSource` com o primeiro assinante e o fecha com o último. `quiet`: a assinatura não
-   * mexe no `status` (a tela de Regras só relê os hits).
+   * mexe no `status` (a tela de Regras só relê os hits). `resume` roda a cada abertura, antes de o
+   * `status` voltar a `open`, e logo na assinatura de uma conexão que já está aberta: o evento do
+   * que chegou antes disso não vem mais.
    */
-  connect(tokenId: string, { quiet = false } = {}): Observable<RequestCreated> {
+  connect(
+    tokenId: string,
+    { quiet = false, resume }: { quiet?: boolean; resume?: Resume } = {},
+  ): Observable<RequestCreated> {
     return new Observable<RequestCreated>((subscriber) => {
       const shared = this.streams.get(tokenId) ?? this.open(tokenId);
       shared.users++;
       shared.loud += quiet ? 0 : 1;
       this.publish();
       const subscription = shared.events.subscribe(subscriber);
+      if (resume) {
+        shared.resumes.add(resume);
+        if (shared.source.readyState === EventSource.OPEN) {
+          void resume();
+        }
+      }
       return () => {
         subscription.unsubscribe();
+        if (resume) {
+          shared.resumes.delete(resume);
+        }
         shared.users--;
         shared.loud -= quiet ? 0 : 1;
         if (shared.users === 0) {
@@ -72,7 +92,12 @@ export class RequestStream {
   }
 
   private open(tokenId: string): Shared {
-    const shared = { events: new Subject<RequestCreated>(), users: 0, loud: 0 } as Shared;
+    const shared = {
+      events: new Subject<RequestCreated>(),
+      resumes: new Set<Resume>(),
+      users: 0,
+      loud: 0,
+    } as Shared;
     shared.source = this.source(tokenId, shared);
     this.streams.set(tokenId, shared);
     return shared;
@@ -89,7 +114,18 @@ export class RequestStream {
     shared.status = 'connecting';
     source.onopen = () => {
       this.drops.set(0);
-      set('open');
+      if (shared.resumes.size === 0) {
+        this.recovered.set(0);
+        set('open');
+        return;
+      }
+      // O estado só vira `open` com a lista completa: até lá, o chip segue dizendo que reconecta.
+      void Promise.all([...shared.resumes].map((resume) => resume().catch(() => 0))).then(
+        (counts) => {
+          this.recovered.set(counts.reduce((sum, count) => sum + count, 0));
+          set('open');
+        },
+      );
     };
     // O EventSource reconecta sozinho; só fica 'closed' quando o servidor recusa (ex.: 404).
     source.onerror = () => {

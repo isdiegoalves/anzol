@@ -82,8 +82,10 @@ describe('Dado a conexão com o servidor', () => {
     expect(connection.countdown()).toBe(10);
   });
 
-  it('deve dizer "Connected again." por 5 s, reabrir o tempo real e avisar quem relê Quando "Try again now" dá certo', async () => {
+  it('deve reabrir o tempo real e dizer "Connected again." por 5 s só Quando ele abre, depois de "Try again now" dar certo', async () => {
     const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
+    FakeEventSource.latest().open();
+    TestBed.tick();
     failCall();
     const notice = connection.notice();
 
@@ -91,12 +93,16 @@ describe('Dado a conexão com o servidor', () => {
     http.expectOne(`/token/${TOKEN_ID}`).flush('{}');
     await retry;
 
-    expect(connection.downSince()).toBeNull();
-    expect(connection.notice()).toBe('Connected again.');
-    expect(connection.notice()).not.toBe(notice);
-    expect(connection.restored()).toBe(1);
     expect(FakeEventSource.instances).toHaveLength(2);
     expect(FakeEventSource.instances[0].readyState).toBe(FakeEventSource.CLOSED);
+    TestBed.tick();
+    expect(connection.notice()).toBe(notice);
+    expect(connection.downSince()).not.toBeNull();
+
+    FakeEventSource.latest().open();
+    TestBed.tick();
+    expect(connection.downSince()).toBeNull();
+    expect(connection.notice()).toBe('Connected again.');
 
     await vi.advanceTimersByTimeAsync(RESTORED_NOTE_MS);
     expect(connection.notice()).toBe('');
@@ -117,6 +123,81 @@ describe('Dado a conexão com o servidor', () => {
 
     expect(connection.downSince()).toBeNull();
     expect(connection.notice()).toBe('Connected again.');
+  });
+
+  it('não deve dizer a volta pela API Quando o tempo real segue fora, e deve continuar tentando', async () => {
+    const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
+    FakeEventSource.latest().open();
+    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+    TestBed.tick();
+    const notice = connection.notice();
+
+    const retry = connection.retry();
+    http.expectOne(`/token/${TOKEN_ID}`).flush('{}');
+    await retry;
+    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+    TestBed.tick();
+
+    expect(connection.notice()).toBe(notice);
+    expect(connection.countdown()).toBe(10);
+    opened.unsubscribe();
+  });
+
+  describe('Dado a Entrada, que retoma o que chegou a cada vez que o tempo real abre', () => {
+    const reopen = async (recovered: number) => {
+      const resume = vi.fn().mockResolvedValue(recovered);
+      const opened = TestBed.inject(RequestStream).connect(TOKEN_ID, { resume }).subscribe();
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+      return { resume, opened };
+    };
+
+    it('deve dizer numa fala quantas chegaram Quando a queda foi curta, sem faixa', async () => {
+      const { resume, opened } = await reopen(0);
+
+      resume.mockResolvedValue(3);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.downSince()).toBeNull();
+      expect(connection.notice()).toBe('3 requests arrived during a brief connection drop.');
+      opened.unsubscribe();
+    });
+
+    it('não deve dizer nada Quando a queda curta não perdeu nada', async () => {
+      const { opened } = await reopen(0);
+
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.notice()).toBe('');
+      opened.unsubscribe();
+    });
+
+    it('deve dizer "Connected again." com quantas chegaram Quando a queda teve faixa', async () => {
+      const { resume, opened } = await reopen(0);
+      resume.mockResolvedValue(1);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      expect(connection.downSince()).not.toBeNull();
+
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.downSince()).toBeNull();
+      expect(connection.notice()).toBe('Connected again. 1 request arrived meanwhile.');
+      opened.unsubscribe();
+    });
   });
 
   it('deve contar como queda o tempo real que cai e não volta na primeira reconexão', () => {
