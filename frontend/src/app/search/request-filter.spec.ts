@@ -332,6 +332,8 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
     it.each([
       [['4xx'], 429, true],
       [['4xx'], 201, false],
+      [['2xx'], 250, true],
+      [['2xx'], 299, true],
       [['2xx', '5xx'], 503, true],
       [['429'], 429, true],
       [['429'], 428, false],
