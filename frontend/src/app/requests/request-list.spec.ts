@@ -434,6 +434,12 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(element().textContent).toContain(
         'Grouped by x-loja-event-id · 2 events in the 6 loaded',
       );
+      // Agrupada, a posição é a das linhas carregadas: o evento junta várias requisições.
+      expect(
+        [...element().querySelectorAll('[role="list"] > [role="listitem"]')].map(
+          (row) => `${row.getAttribute('aria-posinset')} of ${row.getAttribute('aria-setsize')}`,
+        ),
+      ).toEqual(['1 of 3', '2 of 3', '3 of 3']);
       // A solta continua um item comum, com o #id.
       expect(items().map((item) => item.querySelector('.id')?.textContent?.trim())).toEqual([
         `#${solta.uuid.substring(0, 5)}`,
@@ -642,6 +648,53 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(nome);
     },
   );
+
+  it('deve ser uma lista com a posição de cada linha no total da URL (D-08 A)', async () => {
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)], 120, false);
+
+    expect(items()[0].parentElement?.getAttribute('role')).toBe('list');
+    expect(
+      items().map((item) => [
+        item.getAttribute('role'),
+        item.getAttribute('aria-posinset'),
+        item.getAttribute('aria-setsize'),
+      ]),
+    ).toEqual([
+      ['listitem', '1', '120'],
+      ['listitem', '2', '120'],
+      ['listitem', '3', '120'],
+    ]);
+    await expectNoAxeViolations(element());
+  });
+
+  it('deve contar a posição a partir da página carregada, e não da primeira linha desenhada', async () => {
+    const loaded = store.load(TOKEN_ID, 2);
+    http.expectOne(`/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`).flush(requestPage([]));
+    await vi.waitFor(() =>
+      http
+        .expectOne(`/token/${TOKEN_ID}/requests?page=2&sorting=newest`)
+        .flush(requestPage([webhookRequest(1), webhookRequest(2)], { current_page: 2, total: 52 })),
+    );
+    await loaded;
+    await fixture.whenStable();
+
+    expect(items().map((item) => item.getAttribute('aria-posinset'))).toEqual(['51', '52']);
+    expect(items()[0].getAttribute('aria-setsize')).toBe('52');
+  });
+
+  it('deve dizer como total o que casa com o filtro', async () => {
+    await load([webhookRequest(1), webhookRequest(2)], 40);
+    const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
+    await vi.waitFor(() =>
+      http
+        .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+        .flush(requestPage([webhookRequest(2)], { total: 7 })),
+    );
+    await applied;
+    await fixture.whenStable();
+
+    expect(items().map((item) => item.getAttribute('aria-setsize'))).toEqual(['7']);
+  });
 
   it('deve emitir a mensagem clicada Quando o usuário clica nela', async () => {
     await load([webhookRequest(1)]);

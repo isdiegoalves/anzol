@@ -269,6 +269,17 @@ export class RequestList {
       language: this.document.documentElement.lang || 'en',
     });
   });
+  /**
+   * O "N de M" do leitor (D-08 A): a posição na URL (ou no que casa com o filtro), como o rodapé
+   * "1–50 of 128"; agrupada, entre as linhas carregadas, porque o evento junta várias requisições.
+   */
+  protected readonly place = computed(() => {
+    if (this.grouping.key()) {
+      return { first: 1, size: this.rows().length };
+    }
+    const range = this.store.range();
+    return { first: range.from, size: range.of };
+  });
   protected readonly sizes = computed(() => {
     const [item, touch] = [this.itemHeight(), this.touch()];
     const heights: Record<ListRow<ItemView>['kind'], number> = {

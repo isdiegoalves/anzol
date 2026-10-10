@@ -77,145 +77,163 @@
   }
   <div class="list">
     <cdk-virtual-scroll-viewport class="viewport" [appRowSizes]="sizes()">
-      <ng-container *cdkVirtualFor="let row of rows(); trackBy: trackRow; let index = index">
-        @switch (row.kind) {
-          @case ('item') {
-            @let item = row.item;
-            <div
-              class="item"
-              [class.active]="store.selected()?.uuid === item.request.uuid"
-              [class.unread]="isUnread(item.request)"
-              [class.base]="compare.picking()?.uuid === item.request.uuid"
-              [class.pick-a]="compare.pair()?.a?.uuid === item.request.uuid"
-              [class.pick-b]="compare.pair()?.b?.uuid === item.request.uuid"
-              [class.fresh]="fresh().has(item.request.uuid)"
-            >
-              <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
-              <!-- Estilo na linha: o arquivo de estilo da lista está no teto do orçamento. -->
-              <button
-                type="button"
-                class="select"
-                [style.padding-left.px]="row.attempt ? 44 : null"
-                [style.box-shadow]="row.hit ? 'inset 3px 0 var(--mat-sys-primary)' : null"
-                [attr.data-uuid]="item.request.uuid"
-                [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-                [attr.aria-label]="(row.attempt?.prefix ?? '') + item.label"
-                [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
-                (focus)="cursor.set(item.request.uuid)"
-                (keydown)="move($event, index)"
-                (click)="choose(item.request, $event)"
+      <!-- A posição de cada linha vem do total, não do DOM: a lista virtual só desenha a faixa visível. -->
+      <div role="list">
+        <ng-container *cdkVirtualFor="let row of rows(); trackBy: trackRow; let index = index">
+          @switch (row.kind) {
+            @case ('item') {
+              @let item = row.item;
+              <div
+                class="item"
+                role="listitem"
+                [attr.aria-posinset]="place().first + index"
+                [attr.aria-setsize]="place().size"
+                [class.active]="store.selected()?.uuid === item.request.uuid"
+                [class.unread]="isUnread(item.request)"
+                [class.base]="compare.picking()?.uuid === item.request.uuid"
+                [class.pick-a]="compare.pair()?.a?.uuid === item.request.uuid"
+                [class.pick-b]="compare.pair()?.b?.uuid === item.request.uuid"
+                [class.fresh]="fresh().has(item.request.uuid)"
               >
-                @if (row.attempt; as attempt) {
-                  <span class="line route-line">
-                    <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
-                    <span class="ago" [title]="localDate(item.request.created_at)">{{
-                      attempt.time
-                    }}</span>
-                    <span class="ago">{{ attempt.gap }}</span>
-                  </span>
-                } @else {
-                  <!-- Linha 1 (B1, lista densa): método, caminho (corta no meio; inteiro no title e no nome
+                <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
+                <!-- Estilo na linha: o arquivo de estilo da lista está no teto do orçamento. -->
+                <button
+                  type="button"
+                  class="select"
+                  [style.padding-left.px]="row.attempt ? 44 : null"
+                  [style.box-shadow]="row.hit ? 'inset 3px 0 var(--mat-sys-primary)' : null"
+                  [attr.data-uuid]="item.request.uuid"
+                  [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
+                  [attr.aria-label]="(row.attempt?.prefix ?? '') + item.label"
+                  [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
+                  (focus)="cursor.set(item.request.uuid)"
+                  (keydown)="move($event, index)"
+                  (click)="choose(item.request, $event)"
+                >
+                  @if (row.attempt; as attempt) {
+                    <span class="line route-line">
+                      <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
+                      <span class="ago" [title]="localDate(item.request.created_at)">{{
+                        attempt.time
+                      }}</span>
+                      <span class="ago">{{ attempt.gap }}</span>
+                    </span>
+                  } @else {
+                    <!-- Linha 1 (B1, lista densa): método, caminho (corta no meio; inteiro no title e no nome
                        acessível), NEW e o tempo relativo, com a hora exata no title (INBOX-11). -->
-                  <span class="line route-line">
-                    @if (compare.pair(); as pair) {
-                      @if (pair.a.uuid === item.request.uuid) {
-                        <span i18n class="tag a">A</span>
-                      } @else if (pair.b.uuid === item.request.uuid) {
-                        <span i18n class="tag b">B</span>
+                    <span class="line route-line">
+                      @if (compare.pair(); as pair) {
+                        @if (pair.a.uuid === item.request.uuid) {
+                          <span i18n class="tag a">A</span>
+                        } @else if (pair.b.uuid === item.request.uuid) {
+                          <span i18n class="tag b">B</span>
+                        }
                       }
-                    }
-                    <app-method-badge class="tinted" [method]="item.request.method" />
-                    <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
-                    <!-- prettier-ignore -->
-                    <span class="route" [title]="item.route"><span class="start"> {{ item.head }}</span><span class="end">{{ item.tail }}</span></span>
-                    @if (fresh().has(item.request.uuid)) {
-                      <span class="new" i18n>NEW</span>
-                    }
-                    <!-- prettier-ignore -->
-                    <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
-                  </span>
-                }
-                <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do
+                      <app-method-badge class="tinted" [method]="item.request.method" />
+                      <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
+                      <!-- prettier-ignore -->
+                      <span class="route" [title]="item.route"><span class="start"> {{ item.head }}</span><span class="end">{{ item.tail }}</span></span>
+                      @if (fresh().has(item.request.uuid)) {
+                        <span class="new" i18n>NEW</span>
+                      }
+                      <!-- prettier-ignore -->
+                      <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
+                    </span>
+                  }
+                  <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do
                      evento do JSON e, à direita, o #id. O IP, o agente e a data por extenso ficam no nome
                      acessível e no detalhe. -->
-                <span class="line meta">
-                  <span class="seals" aria-hidden="true">
-                    @for (seal of item.seals; track seal.kind) {
-                      <app-check-chip
-                        [result]="seal"
-                        [quiet]="true"
-                        [attr.data-family]="seal.kind === 'rule' ? item.status?.charAt(0) : null"
-                      />
+                  <span class="line meta">
+                    <span class="seals" aria-hidden="true">
+                      @for (seal of item.seals; track seal.kind) {
+                        <app-check-chip
+                          [result]="seal"
+                          [quiet]="true"
+                          [attr.data-family]="seal.kind === 'rule' ? item.status?.charAt(0) : null"
+                        />
+                      }
+                    </span>
+                    @if (item.summary) {
+                      <span class="summary"> {{ item.summary }}</span>
                     }
+                    <span class="id">
+                      {{ row.value ?? '#' + item.request.uuid.substring(0, 5) }}</span
+                    >
                   </span>
-                  @if (item.summary) {
-                    <span class="summary"> {{ item.summary }}</span>
-                  }
-                  <span class="id">
-                    {{ row.value ?? '#' + item.request.uuid.substring(0, 5) }}</span
-                  >
-                </span>
-              </button>
-              <!-- Na tentativa de um evento o selo fica no meio da linha: o clique nela abre a tentativa. -->
-              @if (item.status !== null && !touch() && !compare.picking() && !row.attempt) {
-                <app-seal-filter [status]="item.status" />
-              }
-              <button
-                type="button"
-                class="delete"
-                title="Delete"
-                i18n-title
-                [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-                [attr.aria-label]="deleteLabel(item.request.uuid)"
-                (click)="deleteRequest(item.request)"
-              >
-                <app-icon name="trash" [size]="18" />
-              </button>
-            </div>
+                </button>
+                <!-- Na tentativa de um evento o selo fica no meio da linha: o clique nela abre a tentativa. -->
+                @if (item.status !== null && !touch() && !compare.picking() && !row.attempt) {
+                  <app-seal-filter [status]="item.status" />
+                }
+                <button
+                  type="button"
+                  class="delete"
+                  title="Delete"
+                  i18n-title
+                  [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
+                  [attr.aria-label]="deleteLabel(item.request.uuid)"
+                  (click)="deleteRequest(item.request)"
+                >
+                  <app-icon name="trash" [size]="18" />
+                </button>
+              </div>
+            }
+            @case ('event') {
+              <app-event-line
+                role="listitem"
+                [attr.aria-posinset]="place().first + index"
+                [attr.aria-setsize]="place().size"
+                [view]="row.event"
+                [height]="sizes()[index]"
+                [compact]="touch()"
+                [stop]="stop() === row.id"
+                (opened)="choose(row.event.newest, $event)"
+                (toggled)="grouping.toggle(row.event.value)"
+                (moved)="move($event, index)"
+                (focused)="cursor.set(row.id)"
+              />
+            }
+            @case ('more') {
+              <app-event-note
+                role="listitem"
+                [attr.aria-posinset]="place().first + index"
+                [attr.aria-setsize]="place().size"
+                [kind]="'more'"
+                [id]="row.id"
+                [text]="row.text"
+                [height]="sizes()[index]"
+                [stop]="stop() === row.id"
+                (more)="grouping.showAll(row.event)"
+                (moved)="move($event, index)"
+                (focused)="cursor.set(row.id)"
+              />
+            }
+            @case ('wait') {
+              <app-event-note
+                role="listitem"
+                [attr.aria-posinset]="place().first + index"
+                [attr.aria-setsize]="place().size"
+                [kind]="'wait'"
+                [id]="row.id"
+                [text]="row.text"
+                [before]="row.before"
+                [height]="sizes()[index]"
+              />
+            }
+            @case ('note') {
+              <app-event-note
+                role="listitem"
+                [attr.aria-posinset]="place().first + index"
+                [attr.aria-setsize]="place().size"
+                [kind]="'note'"
+                [id]="row.id"
+                [text]="row.text"
+                [height]="sizes()[index]"
+              />
+            }
           }
-          @case ('event') {
-            <app-event-line
-              [view]="row.event"
-              [height]="sizes()[index]"
-              [compact]="touch()"
-              [stop]="stop() === row.id"
-              (opened)="choose(row.event.newest, $event)"
-              (toggled)="grouping.toggle(row.event.value)"
-              (moved)="move($event, index)"
-              (focused)="cursor.set(row.id)"
-            />
-          }
-          @case ('more') {
-            <app-event-note
-              [kind]="'more'"
-              [id]="row.id"
-              [text]="row.text"
-              [height]="sizes()[index]"
-              [stop]="stop() === row.id"
-              (more)="grouping.showAll(row.event)"
-              (moved)="move($event, index)"
-              (focused)="cursor.set(row.id)"
-            />
-          }
-          @case ('wait') {
-            <app-event-note
-              [kind]="'wait'"
-              [id]="row.id"
-              [text]="row.text"
-              [before]="row.before"
-              [height]="sizes()[index]"
-            />
-          }
-          @case ('note') {
-            <app-event-note
-              [kind]="'note'"
-              [id]="row.id"
-              [text]="row.text"
-              [height]="sizes()[index]"
-            />
-          }
-        }
-      </ng-container>
+        </ng-container>
+      </div>
     </cdk-virtual-scroll-viewport>
   </div>
   @if (!failure) {
