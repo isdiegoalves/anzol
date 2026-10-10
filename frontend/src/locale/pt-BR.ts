@@ -3053,6 +3053,8 @@ export const translations: Record<string, string> = {
   '4920112831965948348': 'Não foi possível copiar. Selecione o texto e copie.',
   // Could not delete ({$status}). The request is still here.
   '4468188824353488567': 'Não foi possível apagar ({$status}). A requisição continua aqui.',
+  // Could not delete ({$status}). The requests are still here.
+  '3956698788442319036': 'Não foi possível apagar ({$status}). As requisições continuam aqui.',
   // Skip to content
   '3411805131914952915': 'Pular para o conteúdo',
   // The server did not answer. Nothing was changed.

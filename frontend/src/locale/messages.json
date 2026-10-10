@@ -571,6 +571,7 @@
     "963071689171665060": "This request was deleted from the server by auto cleanup, noticed at {$time}. {$copy}",
     "3520060693784969119": "You deleted this request at {$time}. {$copy}",
     "56780826527671468": "This request is no longer on the server, noticed at {$time}. It may have been deleted or cut by auto cleanup.",
+    "3956698788442319036": "Could not delete ({$status}). The requests are still here.",
     "7933586283890613887": "First request arrived: {$method} {$path}, at {$time}.",
     "2886253525048467023": "Request received · {$method} {$route}",
     "2509141182388535183": "View",

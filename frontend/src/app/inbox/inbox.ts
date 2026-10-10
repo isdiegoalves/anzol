@@ -57,6 +57,7 @@ import { TokenStore } from '../token/token-store';
 import { isProtectedError } from '../token/url-lock';
 import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS, LiveRegion } from '../ui/live-region';
+import { NOTICE_MS } from '../ui/notice';
 import { Split } from '../ui/split';
 
 const GUIDES_KEY = (tokenId: string) => `anzol.guides.${tokenId}`;
@@ -535,8 +536,18 @@ export class Inbox {
   /** Confirma antes: a confirmação (e o `MatDialog`) vêm sob demanda. */
   protected async deleteAllRequests(): Promise<void> {
     const { confirmDeleteAll } = await import('./confirm-delete-all');
-    if (await confirmDeleteAll(this.injector, this.requests.total())) {
+    if (!(await confirmDeleteAll(this.injector, this.requests.total()))) {
+      return;
+    }
+    try {
       await this.requests.deleteAll();
+    } catch (error) {
+      const status = error instanceof HttpErrorResponse ? error.status : 0;
+      this.snackBar.open(
+        $localize`Could not delete (${status}:status:). The requests are still here.`,
+        undefined,
+        { duration: NOTICE_MS },
+      );
     }
   }
 

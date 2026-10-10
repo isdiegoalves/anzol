@@ -1496,6 +1496,32 @@ describe('Dado a tela principal', () => {
       await vi.waitFor(() => expect(TestBed.inject(RequestStore).requests()).toEqual([chegou, S1]));
     });
 
+    it('deve devolver a lista e dizer que não apagou Quando apagar todas falha', async () => {
+      await openToken(`/${TOKEN_ID}`);
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+
+      root().querySelector<HTMLButtonElement>('button[aria-label="Delete all requests"]')?.click();
+      const confirm = await vi.waitFor(() => {
+        const button = [
+          ...document.querySelectorAll<HTMLButtonElement>('mat-dialog-actions button'),
+        ].find((each) => each.textContent?.trim() === 'Delete all');
+        expect(button).toBeDefined();
+        return button as HTMLButtonElement;
+      });
+      confirm.click();
+      await flush(`/token/${TOKEN_ID}/request`, {}, unavailable);
+
+      await vi.waitFor(() =>
+        expect(snack).toHaveBeenCalledWith(
+          'Could not delete (503). The requests are still here.',
+          undefined,
+          { duration: 4000 },
+        ),
+      );
+      await vi.waitFor(() => expect(text()).toContain('Requests (2)'));
+      expect(TestBed.inject(RequestStore).requests()).toEqual([R1, R2]);
+    });
+
     it('deve listar uma vez a que chega pelo tempo real enquanto a lista carrega', async () => {
       await harness.navigateByUrl(`/${TOKEN_ID}`);
       await flush(`/token/${TOKEN_ID}`, token());

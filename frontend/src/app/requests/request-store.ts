@@ -714,8 +714,22 @@ export class RequestStore {
     };
   });
 
+  /**
+   * Esvazia a lista na hora; o DELETE que falha devolve tudo, com o que chegou nesse meio-tempo, e
+   * repassa o erro.
+   */
   async deleteAll(): Promise<void> {
     const tokenId = this.tokenId();
+    const generation = this.generation;
+    const before = {
+      pages: this.pages(),
+      last: this.lastPageReached(),
+      total: this.total(),
+      matched: this.matched(),
+      unread: this.unreadOf(tokenId),
+      selection: this.selection(),
+      gone: this.goneState(),
+    };
     // A aberta segue na tela como cópia, com o aviso.
     const open = this.selected();
     if (open) {
@@ -726,9 +740,28 @@ export class RequestStore {
     this.lastPageReached.set(true);
     this.total.set(0);
     this.matched.set(0);
-    if (tokenId) {
-      this.resetUnread(tokenId);
+    if (!tokenId) {
+      return;
+    }
+    this.resetUnread(tokenId);
+    try {
       await firstValueFrom(this.http.delete(`/token/${tokenId}/request`));
+    } catch (error) {
+      this.changeUnread(tokenId, (unread) => [
+        ...before.unread.filter((id) => !unread.includes(id)),
+        ...unread,
+      ]);
+      if (generation === this.generation && (this.opening() ?? this.tokenId()) === tokenId) {
+        const [arrivals, total] = [this.requests(), this.total()];
+        this.pages.set(before.pages);
+        this.lastPageReached.set(before.last);
+        this.total.set(before.total);
+        this.matched.set(before.matched);
+        this.selection.set(before.selection);
+        this.goneState.set(before.gone);
+        arrivals.forEach((request) => this.append(request, total));
+      }
+      throw error;
     }
   }
 

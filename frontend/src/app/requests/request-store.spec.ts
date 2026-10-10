@@ -373,6 +373,40 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.selected()).toEqual(webhookRequest(2));
       expect(store.gone()).toMatchObject({ id: webhookRequest(2).uuid, cause: 'deleted' });
     });
+
+    it('deve devolver lista, total, não lidas e a aberta Quando apagar todas falha', async () => {
+      store.append(webhookRequest(9), 4);
+      store.select(webhookRequest(2).uuid);
+      const antes = store.requests();
+
+      const deleted = store.deleteAll();
+      http
+        .expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request` })
+        .flush({}, { status: 503, statusText: 'Unavailable' });
+
+      await expect(deleted).rejects.toMatchObject({ status: 503 });
+      expect(store.requests()).toEqual(antes);
+      expect(store.total()).toBe(4);
+      expect(store.hasNextPage()).toBe(true);
+      expect(store.unread()).toEqual([webhookRequest(9).uuid]);
+      expect(store.gone()).toBeNull();
+    });
+
+    it('deve manter a que chegou durante o pedido Quando apagar todas falha', async () => {
+      const deleted = store.deleteAll();
+      const call = http.expectOne({ method: 'DELETE', url: `/token/${TOKEN_ID}/request` });
+      store.append(webhookRequest(9), 4);
+
+      call.flush({}, { status: 503, statusText: 'Unavailable' });
+
+      await expect(deleted).rejects.toMatchObject({ status: 503 });
+      expect(store.requests().map((request) => request.uuid)).toEqual([
+        webhookRequest(1).uuid,
+        webhookRequest(2).uuid,
+        webhookRequest(9).uuid,
+      ]);
+      expect(store.total()).toBe(4);
+    });
   });
 
   describe('Dado a limpeza automática cortando as mais antigas', () => {
