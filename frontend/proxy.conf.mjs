@@ -16,6 +16,8 @@ export default {
   '/token/**': backend,
   // Leitura do link só-leitura (GET /share/{id}); a página dele é a rota #/share/{id}.
   '/share/**': backend,
-  // URL do webhook (/{uuid} e /{uuid}/qualquer/coisa), para a URL exibida na tela funcionar.
-  '^/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(/.*)?$': backend,
+  // Laboratório E2EE (POST /e2ee-lab), que o cartão de decifra de Checks chama.
+  '/e2ee-lab': backend,
+  // URL do webhook (/{uuid}, /{uuid}?a=b e /{uuid}/qualquer/coisa), para a URL exibida na tela funcionar.
+  '^/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}([/?].*)?$': backend,
 };
