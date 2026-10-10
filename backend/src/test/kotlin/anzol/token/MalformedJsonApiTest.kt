@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.data.redis.core.StringRedisTemplate
+import org.springframework.test.annotation.DirtiesContext
 import tools.jackson.databind.json.JsonMapper
 
 private const val CONFIGURED =
@@ -22,6 +23,9 @@ private const val CONFIGURED =
  * vazia: o POST criava com os padrões e o PUT, que substitui a configuração inteira, voltava tudo aos padrões com 200.
  */
 @ApiTest
+// Contexto e Redis novos: no compartilhado, chaves com TTL curto deixadas por outras classes (as falhas de segredo, de 1
+// min) vencem no meio do teste e mudam o retrato de token:* sem que o POST tenha feito nada.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 @DisplayName("JSON malformado em POST e PUT /token")
 class MalformedJsonApiTest(
     @LocalServerPort port: Int,
