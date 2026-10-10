@@ -56,14 +56,34 @@ export async function expectSemViolacoesGraves(page: Page, contexto: string): Pr
       (snackbar) => getComputedStyle(snackbar).opacity === '1',
     ),
   );
+  const snackbars = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('.mat-mdc-snack-bar-container')].map((snackbar) =>
+        Number(getComputedStyle(snackbar).opacity),
+      ),
+    );
+  const antes = await snackbars();
+  let graves = await violacoesGraves(page);
+  const depois = await snackbars();
+  // O snackbar que começa a sair durante a medição é medido no meio do fade: espera ele sumir e mede de novo. O que
+  // segue opaco do começo ao fim é medido de verdade.
+  if (depois.length < antes.length || depois.some((opacidade) => opacidade < 1)) {
+    await page.waitForFunction(
+      () => document.querySelectorAll('.mat-mdc-snack-bar-container').length === 0,
+    );
+    graves = await violacoesGraves(page);
+  }
+  expect(graves, `axe em ${contexto}`).toEqual([]);
+}
+
+async function violacoesGraves(page: Page): Promise<string[]> {
   const { violations } = await (await axe(page)).analyze();
-  const graves = violations
+  return violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
     .map(
       (v) =>
         `${v.impact} ${v.id} (${v.help}): ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
     );
-  expect(graves, `axe em ${contexto}`).toEqual([]);
 }
 
 /**
