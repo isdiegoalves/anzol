@@ -38,8 +38,12 @@ class RawConnection(
     }
 
     /** O que chegou até [wait] desde a abertura: tudo até o servidor fechar, ou o que veio até o prazo com a conexão aberta. */
-    fun read(wait: Duration): Received {
-        val deadline = started + wait.toNanos()
+    fun read(wait: Duration): Received = readUntil(started + wait.toNanos())
+
+    /** A resposta que o servidor já começou a dar: tudo até ele fechar, esperando no máximo [wait] a partir de agora. */
+    fun readAnswer(wait: Duration): Received = readUntil(System.nanoTime() + wait.toNanos())
+
+    private fun readUntil(deadline: Long): Received {
         val bytes = StringBuilder()
         var next = 0
         while (next >= 0 && System.nanoTime() < deadline) {
@@ -247,7 +251,7 @@ class HeldFaultsApiTest(
             await().atMost(Duration.ofSeconds(20)).until { urls.sumOf { messages(it).size() } == 200 }
             await().atMost(Duration.ofSeconds(5)).until { connections.count(RawConnection::answered) == 200 - MAX_HELD }
 
-            val refused = connections.filter(RawConnection::answered).map { it.read(Duration.ofSeconds(1)) }
+            val refused = connections.filter(RawConnection::answered).map { it.readAnswer(Duration.ofSeconds(1)) }
             val times =
                 List(10) {
                     val start = System.nanoTime()
