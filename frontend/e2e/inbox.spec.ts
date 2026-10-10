@@ -156,6 +156,8 @@ test.describe('Dado filtros ativos na Inbox (S10, "Copy as webhook wait-for")', 
     await expect(confirmacao(page)).not.toContainText('The text search is not part of wait-for');
 
     await campoDeBusca(page).fill('id');
+    // O aviso some quando o filtro muda: a cópia vem depois de a busca digitada valer.
+    await expect(page.getByRole('list', { name: 'Active filters' })).toContainText('Search: id');
 
     expect(matchDe(await copiarWaitFor(page))).toEqual({ method: ['POST'], signature: 'absent' });
     await expect(confirmacao(page)).toContainText('The text search is not part of wait-for');
