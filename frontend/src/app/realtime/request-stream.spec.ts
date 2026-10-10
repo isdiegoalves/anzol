@@ -63,14 +63,39 @@ describe('Dado o stream SSE de uma URL', () => {
   });
 
   it.each([
-    ['recusa (ex.: 404 no app atual)', FakeEventSource.CLOSED, 'closed'],
-    ['cai e o navegador vai reconectar', FakeEventSource.CONNECTING, 'reconnecting'],
-  ])('deve refletir o estado Quando o servidor %s', (_caso, readyState, esperado) => {
+    ['recusa (502 ou 503 de um proxy)', FakeEventSource.CLOSED],
+    ['cai e o navegador vai reconectar', FakeEventSource.CONNECTING],
+  ])('deve ficar "reconnecting" Quando o servidor %s', (_caso, readyState) => {
     subscriptions.add(stream.connect(TOKEN_ID).subscribe());
 
     FakeEventSource.latest().fail(readyState);
 
-    expect(stream.status()).toBe(esperado);
+    expect(stream.status()).toBe('reconnecting');
+  });
+
+  it('deve reabrir sozinha a conexão recusada, esperando 5, 10, 20 e 30 s, e recomeçar Quando ela abre', () => {
+    vi.useFakeTimers();
+    try {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      const espera = (segundos: number) => {
+        FakeEventSource.latest().fail(FakeEventSource.CLOSED);
+        const antes = FakeEventSource.instances.length;
+        vi.advanceTimersByTime(segundos * 1000 - 1);
+        expect(FakeEventSource.instances).toHaveLength(antes);
+        vi.advanceTimersByTime(1);
+        expect(FakeEventSource.instances).toHaveLength(antes + 1);
+        expect(stream.status()).toBe('reconnecting');
+      };
+
+      for (const segundos of [5, 10, 20, 30, 30]) {
+        espera(segundos);
+      }
+      FakeEventSource.latest().open();
+      expect(stream.status()).toBe('open');
+      espera(5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe('Dado mais de um assinante da mesma URL (o shell, a Entrada, Regras)', () => {
@@ -134,7 +159,8 @@ describe('Dado o stream SSE de uma URL', () => {
 
     expect(old.readyState).toBe(FakeEventSource.CLOSED);
     expect(FakeEventSource.instances).toHaveLength(2);
-    expect(stream.status()).toBe('connecting');
+    // A nova tentativa de uma conexão que caiu segue reconectando, e não "abrindo pela primeira vez".
+    expect(stream.status()).toBe('reconnecting');
     FakeEventSource.latest().open();
     FakeEventSource.latest().emit('request.created', { request: webhookRequest(1), total: 1 });
     expect(stream.status()).toBe('open');

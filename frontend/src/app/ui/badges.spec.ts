@@ -65,7 +65,6 @@ describe('Dado o chip do tempo real (app-live-status)', () => {
     ['live', 'Live'],
     ['connecting', 'Connecting…'],
     ['reconnecting', 'Reconnecting…'],
-    ['offline', 'Offline'],
   ] as [LiveState, string][])(
     'deve mostrar "%s" sem ser região viva e passar no axe',
     async (state, text) => {

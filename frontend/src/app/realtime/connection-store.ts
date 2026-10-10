@@ -1,9 +1,8 @@
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { firstValueFrom, tap } from 'rxjs';
-import { RequestStream, StreamStatus } from './request-stream';
+import { RETRY_SECONDS, RequestStream, StreamStatus } from './request-stream';
 
-export const RETRY_SECONDS = [5, 10, 20, 30] as const;
 export const RESTORED_NOTE_MS = 5000;
 
 /** Cai com falha de rede numa chamada à API ou com o SSE que não reconecta. */

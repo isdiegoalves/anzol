@@ -4,9 +4,12 @@ import { RequestCreated } from '../requests/webhook-request';
 
 /**
  * `idle`: ninguém assina; `connecting`: abrindo pela primeira vez; `open`: recebendo;
- * `reconnecting`: caiu e o navegador tenta de novo; `closed`: o servidor recusou.
+ * `reconnecting`: caiu ou foi recusado, e o navegador ou a tela tenta de novo.
  */
-export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed';
+export type StreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
+
+/** A espera antes de cada nova tentativa, a partir da primeira, até ficar na última. */
+export const RETRY_SECONDS = [5, 10, 20, 30] as const;
 
 /** Traz o que chegou enquanto a conexão não estava aberta; devolve quantas trouxe. */
 export type Resume = () => Promise<number>;
@@ -19,6 +22,9 @@ interface Shared {
   users: number;
   /** Assinantes que aparecem no "Live" do cabeçalho. */
   loud: number;
+  /** Recusas seguidas do servidor; zera quando a conexão abre. */
+  refusals: number;
+  reopening: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -69,7 +75,7 @@ export class RequestStream {
         shared.users--;
         shared.loud -= quiet ? 0 : 1;
         if (shared.users === 0) {
-          shared.source.close();
+          this.close(shared);
           this.streams.delete(tokenId);
         }
         this.publish();
@@ -79,16 +85,27 @@ export class RequestStream {
 
   /** Fecha a conexão da URL sem esquecer quem assina; o `retry()` a reabre. */
   pause(tokenId: string): void {
-    this.streams.get(tokenId)?.source.close();
+    const shared = this.streams.get(tokenId);
+    if (shared) {
+      this.close(shared);
+    }
   }
 
   /** Reabre as conexões sem esperar a próxima tentativa do navegador. */
   retry(): void {
     for (const [tokenId, shared] of this.streams) {
-      shared.source.close();
+      this.close(shared);
       shared.source = this.source(tokenId, shared);
     }
     this.publish();
+  }
+
+  private close(shared: Shared): void {
+    shared.source.close();
+    if (shared.reopening) {
+      clearTimeout(shared.reopening);
+      shared.reopening = null;
+    }
   }
 
   private open(tokenId: string): Shared {
@@ -97,6 +114,8 @@ export class RequestStream {
       resumes: new Set<Resume>(),
       users: 0,
       loud: 0,
+      refusals: 0,
+      reopening: null,
     } as Shared;
     shared.source = this.source(tokenId, shared);
     this.streams.set(tokenId, shared);
@@ -111,9 +130,12 @@ export class RequestStream {
         this.publish();
       }
     };
-    shared.status = 'connecting';
+    if (shared.status !== 'reconnecting') {
+      shared.status = 'connecting';
+    }
     source.onopen = () => {
       this.drops.set(0);
+      shared.refusals = 0;
       if (shared.resumes.size === 0) {
         this.recovered.set(0);
         set('open');
@@ -127,18 +149,33 @@ export class RequestStream {
         },
       );
     };
-    // O EventSource reconecta sozinho; só fica 'closed' quando o servidor recusa (ex.: 404).
     source.onerror = () => {
-      const closed = source.readyState === EventSource.CLOSED;
-      if (!closed && shared.source === source) {
+      if (shared.source !== source) {
+        return;
+      }
+      // O navegador reconecta sozinho da queda de rede, mas desiste do stream recusado (502/503 de um proxy
+      // na frente do app que reinicia): esse a tela reabre.
+      if (source.readyState === EventSource.CLOSED) {
+        this.reopenLater(tokenId, shared);
+      } else {
         this.drops.update((drops) => drops + 1);
       }
-      set(closed ? 'closed' : 'reconnecting');
+      set('reconnecting');
     };
     source.addEventListener('request.created', (event: MessageEvent<string>) =>
       shared.events.next(JSON.parse(event.data) as RequestCreated),
     );
     return source;
+  }
+
+  private reopenLater(tokenId: string, shared: Shared): void {
+    const seconds = RETRY_SECONDS[Math.min(shared.refusals, RETRY_SECONDS.length - 1)];
+    shared.refusals++;
+    shared.reopening = setTimeout(() => {
+      shared.reopening = null;
+      shared.source = this.source(tokenId, shared);
+      this.publish();
+    }, seconds * 1000);
   }
 
   private publish(): void {

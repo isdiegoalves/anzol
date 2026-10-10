@@ -50,7 +50,7 @@ export class Catalog {
   protected readonly markdown =
     '**Signature invalid**: the HMAC did not match.\n\n- Check the `secret`\n- Compare the raw body';
   protected readonly statuses = [200, 302, 404, 422, 503];
-  protected readonly liveStates: LiveState[] = ['live', 'connecting', 'reconnecting', 'offline'];
+  protected readonly liveStates: LiveState[] = ['live', 'connecting', 'reconnecting'];
   protected readonly headers = [
     { name: 'content-type', value: 'application/json' },
     { name: 'stripe-signature', value: 't=1790438525,v1=5257a869e7ec…' },

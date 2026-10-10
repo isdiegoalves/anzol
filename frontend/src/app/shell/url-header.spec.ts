@@ -214,7 +214,7 @@ describe('Dado o cabeçalho da URL aberta', () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
-    it('deve dizer "Live", "Reconnecting…" e "Offline" conforme a conexão, e sumir sem stream', async () => {
+    it('deve dizer "Live" e "Reconnecting…" conforme a conexão, também na recusa, e sumir sem stream', async () => {
       const { fixture } = await renderWith(token());
       const stream = fixture.debugElement.injector.get(RequestStream);
       const status = () =>
@@ -236,7 +236,7 @@ describe('Dado o cabeçalho da URL aberta', () => {
 
       FakeEventSource.latest().fail(FakeEventSource.CLOSED);
       await fixture.whenStable();
-      expect(status()).toBe('Offline');
+      expect(status()).toBe('Reconnecting…');
 
       subscription.unsubscribe();
       await fixture.whenStable();

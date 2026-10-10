@@ -65,7 +65,6 @@ export class UrlHeader {
       connecting: 'connecting',
       open: 'live',
       reconnecting: 'reconnecting',
-      closed: 'offline',
     };
     return states[this.stream.status()];
   });

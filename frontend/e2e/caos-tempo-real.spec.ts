@@ -143,3 +143,27 @@ test.describe('Dado a Entrada que lê a lista e depois assina o tempo real', () 
     await expect(page.getByRole('heading', { name: 'Requests (2)' })).toBeVisible();
   });
 });
+
+test.describe('Dado o /stream recusado por um proxy na frente do app', () => {
+  test('deve reabrir sozinha o /stream recusado com 503 e receber a que chega depois', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/antes' });
+    const pararDeRecusar = caos.recusar(new RegExp(`^/token/${tokenId}/stream`));
+    const recusado = page.waitForResponse((resposta) =>
+      resposta.url().endsWith(`/token/${tokenId}/stream`),
+    );
+
+    await page.goto(`/#/${tokenId}`);
+    expect((await recusado).status()).toBe(503);
+    await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
+    pararDeRecusar();
+
+    await expect(estadoAoVivo(page)).toContainText('Live', { timeout: 10_000 });
+    const depois = await tokens.send(tokenId, { path: '/depois-do-503' });
+    await expect(item(page, depois)).toBeVisible();
+  });
+});
