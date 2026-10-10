@@ -64,17 +64,86 @@ describe('Dado o total da URL fora da Entrada (B1, UX-12)', () => {
     expect(store.total()).toBe(6);
   });
 
-  it('deve pedir as que chegaram depois da seq dada, na ordem em que chegaram', async () => {
+  it('deve pedir as que chegaram depois da mais nova da URL, seguindo pelo maior seq até a última página', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1, { seq: 12 }), webhookRequest(0, { seq: 11 })]));
+    await loaded;
+    const [A, B, C] = [13, 14, 15].map((seq) => webhookRequest(seq, { seq }));
+
+    const arrived = store.arrivedSinceNewest();
+    http
+      .expectOne(`${listUrl}?after=12`)
+      .flush(requestPage([A, B], { total: 5, is_last_page: false, current_page: 1 }));
+    await vi.waitFor(() =>
+      http.expectOne(`${listUrl}?after=14`).flush(requestPage([C], { total: 5 })),
+    );
+
+    expect(await arrived).toEqual({ data: [A, B, C], total: 5 });
+  });
+
+  it('deve partir da mais nova da URL, e não da maior carregada, Quando a URL abre na página 3', async () => {
+    const loaded = store.load(TOKEN_ID, 3);
+    http
+      .expectOne(`${listUrl}?per_page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(120, { seq: 120 })], { total: 120 }));
+    await vi.waitFor(() =>
+      http
+        .expectOne(`${listUrl}?page=3&sorting=newest`)
+        .flush(requestPage([webhookRequest(20, { seq: 20 })], { total: 120, current_page: 3 })),
+    );
+    await loaded;
+
+    const arrived = store.arrivedSinceNewest();
+    http.expectOne(`${listUrl}?after=120`).flush(requestPage([], { total: 120 }));
+
+    expect(await arrived).toEqual({ data: [], total: 120 });
+  });
+
+  it('deve trazer de volta à lista a chegada contada com filtro Quando a releitura sem filtro falhou', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1, { seq: 10 })], { total: 1 }));
+    await loaded;
+    const filtered = store.applyFilter({ ...NO_FILTER, text: 'x' });
+    http.expectOne(searchUrl).flush(requestPage([], { total: 0 }));
+    await filtered;
+    const chegou = webhookRequest(2, { seq: 20 });
+    store.countArrival(chegou, 2);
+    const cleared = store.applyFilter(NO_FILTER);
+    http.expectOne(`${listUrl}?page=1&sorting=newest`).error(new ProgressEvent('error'));
+    await expect(cleared).rejects.toBeDefined();
+
+    const arrived = store.arrivedSinceNewest();
+    http.expectOne(`${listUrl}?after=10`).flush(requestPage([chegou], { total: 2 }));
+
+    expect(await arrived).toEqual({ data: [chegou], total: 2 });
+  });
+
+  it('não deve ter de onde retomar Quando nenhuma mensagem da URL tem seq', async () => {
     const loaded = store.load(TOKEN_ID);
     http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([webhookRequest(1)]));
     await loaded;
 
-    const arrived = store.arrivedAfter(12);
-    http
-      .expectOne(`${listUrl}?after=12`)
-      .flush(requestPage([webhookRequest(2), webhookRequest(3)], { total: 3 }));
+    expect(await store.arrivedSinceNewest()).toBeNull();
+  });
 
-    expect(await arrived).toEqual({ data: [webhookRequest(2), webhookRequest(3)], total: 3 });
+  it('deve pôr na lista pela ordem do seq, uma vez só, a que chega depois de outra mais nova', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1, { seq: 10 })], { total: 1 }));
+    await loaded;
+    const [nova, retomada] = [webhookRequest(3, { seq: 30 }), webhookRequest(2, { seq: 20 })];
+
+    store.append(nova, 2);
+    store.append(retomada, 3);
+    store.append(nova, 3);
+
+    expect(store.requests().map((request) => request.seq)).toEqual([30, 20, 10]);
+    expect(store.unread()).toEqual([nova.uuid, retomada.uuid]);
   });
 });
 
@@ -150,8 +219,12 @@ describe('Dado o RequestStore da URL aberta', () => {
   let http: HttpTestingController;
   let store: RequestStore;
 
+  /** Na ordem inversa, a carga lê antes a mais nova da URL (a fronteira da volta da conexão). */
   const respond = async (action: Promise<void>, page: number, body: RequestPage) => {
-    http.expectOne(`${listUrl}?page=${page}&sorting=oldest`).flush(body);
+    for (const newest of http.match(`${listUrl}?per_page=1&sorting=newest`)) {
+      newest.flush(requestPage([]));
+    }
+    await vi.waitFor(() => http.expectOne(`${listUrl}?page=${page}&sorting=oldest`).flush(body));
     await action;
   };
 

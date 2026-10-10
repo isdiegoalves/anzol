@@ -880,7 +880,12 @@ test.describe('Dado a faixa "sem conexão"', () => {
     await context.setOffline(true);
     await campoDeBusca(page).fill('x');
     await expect(page.getByRole('button', { name: 'Try again now' })).toBeVisible();
+    // A chegada vem depois de a busca vazia valer: com o "x" ainda ligado, ela só conta, e não vai à pílula.
+    const semFiltro = page.waitForEvent('requestfailed', (pedido) =>
+      pedido.url().includes('/requests?page=1'),
+    );
     await campoDeBusca(page).fill('');
+    await semFiltro;
     await tokens.send(tokenId, { path: '/na-queda' });
     await context.setOffline(false);
     await page.getByRole('button', { name: 'Try again now' }).click();

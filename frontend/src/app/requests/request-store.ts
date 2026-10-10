@@ -71,6 +71,16 @@ export class RequestStore {
   private readonly activeFilter = signal<RequestFilter>(NO_FILTER);
   /** Só vale a resposta da carga mais recente: o filtro pode mudar com uma busca a caminho. */
   private generation = 0;
+  /**
+   * O `seq` da mais nova da URL que a tela conhece, de onde a volta da conexão retoma com filtro; 0 quando nenhuma
+   * tem `seq`. Não é o maior das carregadas: na página 3, na ordem inversa ou com filtro, ele ficaria para trás.
+   */
+  private newestSeq = 0;
+  /**
+   * O mesmo, para a lista sem filtro: só sobe com o que entrou nela, ou com uma releitura sem filtro que deu certo.
+   * Fica atrás do `newestSeq` quando a chegada contada com filtro não entrou na lista (a releitura falhou).
+   */
+  private listedSeq = 0;
 
   private readonly goneState = signal<GoneRequest | null>(null);
   readonly gone = computed(() => {
@@ -164,18 +174,28 @@ export class RequestStore {
     );
   }
 
-  /** As que chegaram depois da `seq` dada (a volta da conexão), da mais antiga para a mais nova. */
-  async arrivedAfter(seq: number): Promise<{ data: WebhookRequest[]; total: number }> {
+  /**
+   * As que chegaram depois da mais nova da URL que a tela conhece (a volta da conexão), da mais antiga para a mais
+   * nova; `null` quando nenhuma tem `seq`. Com `after`, a listagem ignora `page`: o laço segue pelo maior `seq`
+   * recebido até a última página.
+   */
+  async arrivedSinceNewest(): Promise<{ data: WebhookRequest[]; total: number } | null> {
     const tokenId = this.tokenId();
-    if (!tokenId) {
-      return { data: [], total: this.total() };
+    let after = this.filtering() ? this.newestSeq : this.listedSeq;
+    if (!tokenId || after === 0) {
+      return null;
     }
-    const page = await firstValueFrom(
-      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
-        params: { after: seq },
-      }),
-    );
-    return { data: page.data, total: page.total };
+    const data: WebhookRequest[] = [];
+    for (;;) {
+      const page = await firstValueFrom(
+        this.http.get<RequestPage>(`/token/${tokenId}/requests`, { params: { after } }),
+      );
+      data.push(...page.data);
+      if (page.is_last_page) {
+        return { data, total: page.total };
+      }
+      after = Math.max(after, ...page.data.map(seqOf));
+    }
   }
 
   /**
@@ -188,7 +208,14 @@ export class RequestStore {
     this.activeFilter.set(filter);
     this.loading.set(true);
     try {
+      // A fronteira é lida antes da página: o que chegar entre as duas fica depois dela, e a volta da conexão o
+      // traz. Aberta já filtrada (link com a busca), o total da URL vem da listagem sem filtro.
+      const unfiltered = this.filtering() ? await this.fetchList(tokenId, 1) : null;
+      const top = this.newestFirst() && (unfiltered !== null || page === 1);
+      const newest = top ? null : await this.fetchNewestSeq(tokenId);
       const result = await this.fetchPage(tokenId, page);
+      this.newestSeq = newest ?? Math.max(0, ...(unfiltered ?? result).data.map(seqOf));
+      this.listedSeq = this.newestSeq;
       this.tokenId.set(tokenId);
       this.selection.set(undefined);
       this.goneState.set(null);
@@ -196,9 +223,8 @@ export class RequestStore {
       this.pages.set([{ page: result.current_page, data: result.data }]);
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
-      if (this.filtering()) {
-        // Aberta já filtrada (link com a busca): o total da URL vem da listagem sem filtro.
-        this.total.set((await this.fetchList(tokenId, 1)).total);
+      if (unfiltered) {
+        this.total.set(unfiltered.total);
       }
     } finally {
       this.loading.set(false);
@@ -251,6 +277,7 @@ export class RequestStore {
       this.pages.set([{ page: result.current_page, data: result.data }]);
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
+      this.listedAll();
     } finally {
       if (generation === this.generation) {
         this.searching.set(false);
@@ -376,25 +403,37 @@ export class RequestStore {
 
   /**
    * Mensagem nova chegando em tempo real: entra na ponta das novas (o topo, com a mais nova
-   * primeiro; o fim, na ordem inversa) e fica como não lida. As que a
+   * primeiro; o fim, na ordem inversa), na ordem do `seq`, e fica como não lida; a que já está na
+   * lista não entra de novo (o evento e a volta da conexão podem trazer a mesma). As que a
    * limpeza automática cortou (`removed`) saem da lista e das não lidas. Se a mensagem aberta
    * saiu, ela segue na tela como cópia, com o aviso (`gone`); nenhuma outra é aberta.
    */
   append(request: WebhookRequest, total: number, removed: readonly string[] = []): void {
     const cut = new Set(removed);
+    const known = this.find(request.uuid) !== undefined;
     this.noticeCut(removed);
     this.pages.update((pages) => {
       const kept = pages.map((page) => ({
         ...page,
         data: page.data.filter((r) => !cut.has(r.uuid)),
       }));
+      if (known) {
+        return kept;
+      }
       if (this.newestFirst()) {
         const first = kept[0] ?? { page: 1, data: [] };
-        return [{ ...first, data: [request, ...first.data] }, ...kept.slice(1)];
+        return [{ ...first, data: bySeq(first.data, request) }, ...kept.slice(1)];
       }
       const last = kept.at(-1) ?? { page: 1, data: [] };
-      return [...kept.slice(0, -1), { ...last, data: [...last.data, request] }];
+      const data = bySeq([...last.data].reverse(), request).reverse();
+      return [...kept.slice(0, -1), { ...last, data }];
     });
+    if (known) {
+      this.total.set(total);
+      this.changeUnread(this.tokenId(), (unread) => unread.filter((id) => !cut.has(id)));
+      return;
+    }
+    this.listedSeq = Math.max(this.listedSeq, seqOf(request));
     this.countArrival(request, total, removed);
   }
 
@@ -406,8 +445,9 @@ export class RequestStore {
     const cut = new Set(removed);
     this.noticeCut(removed);
     this.total.set(total);
+    this.newestSeq = Math.max(this.newestSeq, seqOf(request));
     this.changeUnread(this.tokenId(), (unread) => [
-      ...unread.filter((id) => !cut.has(id)),
+      ...unread.filter((id) => !cut.has(id) && id !== request.uuid),
       request.uuid,
     ]);
   }
@@ -433,6 +473,7 @@ export class RequestStore {
     this.lastPageReached.set(result.is_last_page);
     this.total.set(total);
     this.countPage(result);
+    this.listedAll();
   }
 
   /**
@@ -561,6 +602,13 @@ export class RequestStore {
     this.changeUnread(this.tokenId(), (unread) => unread.filter((id) => id !== requestId));
   }
 
+  /** A lista sem filtro acabou de ser lida: tem tudo o que a tela sabe que existe. */
+  private listedAll(): void {
+    if (!this.filtering()) {
+      this.listedSeq = this.newestSeq;
+    }
+  }
+
   /** O `total` da página é o da URL sem filtro, ou o de mensagens que casam com ele. */
   private countPage(result: RequestPage): void {
     if (this.filtering()) {
@@ -671,6 +719,25 @@ export class RequestStore {
       }),
     );
   }
+
+  private async fetchNewestSeq(tokenId: string): Promise<number> {
+    const newest = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { per_page: 1, sorting: 'newest' },
+      }),
+    );
+    return Math.max(0, ...newest.data.map(seqOf));
+  }
+}
+
+const seqOf = (request: WebhookRequest): number => request.seq ?? 0;
+
+/** Põe a mensagem na lista da mais nova para a mais antiga pelo `seq`; sem `seq`, no topo. */
+function bySeq(newestFirst: readonly WebhookRequest[], request: WebhookRequest): WebhookRequest[] {
+  const at =
+    request.seq === undefined ? 0 : newestFirst.findIndex((r) => seqOf(r) < seqOf(request));
+  const index = at < 0 ? newestFirst.length : at;
+  return [...newestFirst.slice(0, index), request, ...newestFirst.slice(index)];
 }
 
 /** `GET /token/{id}/request/{rid}` e o que vem embaixo dele (o trace, o raw). */

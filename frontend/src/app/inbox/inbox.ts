@@ -296,8 +296,6 @@ export class Inbox {
   private shownGuide: Guide | null = null;
   /** Os filtros que a tela mandou para a rota e cujo eco ainda não voltou. */
   private readonly pushed: { filter: RequestFilter; at: number }[] = [];
-  /** A maior `seq` que a tela já viu nesta URL: de onde a volta da conexão retoma. */
-  private lastSeq = 0;
 
   constructor() {
     effect((onCleanup) => {
@@ -361,13 +359,8 @@ export class Inbox {
     });
 
     effect(() => {
-      const seen = this.requests.requests().map((request) => request.seq ?? 0);
-      this.lastSeq = Math.max(this.lastSeq, ...seen);
-    });
-    effect(() => {
-      // Outra URL: a contagem recomeça.
+      // Outra URL: a faixa da primeira chegada é da anterior.
       this.tokenId();
-      this.lastSeq = 0;
       this.firstArrival.set(null);
     });
 
@@ -807,7 +800,8 @@ export class Inbox {
     if (!this.listReady()) {
       return;
     }
-    if (this.lastSeq === 0) {
+    const arrived = await this.requests.arrivedSinceNewest();
+    if (!arrived) {
       // Mensagens antigas, sem `seq`: relê o que a lista mostra.
       if (this.requests.filtering()) {
         this.searchRefresh.next();
@@ -816,15 +810,14 @@ export class Inbox {
       }
       return;
     }
-    const { data, total } = await this.requests.arrivedAfter(this.lastSeq);
-    for (const request of data.filter((arrived) => !this.listed(arrived.uuid))) {
+    const { data, total } = arrived;
+    for (const request of data.filter((one) => !this.listed(one.uuid))) {
       if (this.requests.filtering()) {
         // Só a busca diz se ela casa: conta agora, e a busca é refeita em seguida.
         this.requests.countArrival(request, total);
       } else {
         this.requests.append(request, total);
       }
-      this.lastSeq = Math.max(this.lastSeq, request.seq ?? 0);
       this.list()?.receive(request, false);
       this.announceArrival();
     }
