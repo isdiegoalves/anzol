@@ -21,10 +21,16 @@ export class ChangesBar {
   protected readonly label = $localize`Unsaved changes`;
   protected readonly reviewing = signal(false);
   protected readonly shown = computed(() => this.draft.dirty() || this.draft.failure() !== null);
-  protected readonly visible = computed(() => this.draft.alert() || this.draft.preview());
+  private readonly leaving = computed(() => {
+    const name = this.draft.leavingFor();
+    return name ? $localize`Saving… then opening URL ${name}:name:` : '';
+  });
+  protected readonly visible = computed(
+    () => this.leaving() || this.draft.alert() || this.draft.preview(),
+  );
   protected readonly count = computed(() => countOf(this.draft.changes().length));
   protected readonly spoken = computed(() =>
-    this.shown() ? this.draft.alert() || this.draft.summary() : '',
+    this.shown() ? this.leaving() || this.draft.alert() || this.draft.summary() : '',
   );
   protected readonly lines = computed(() => this.draft.changes().map(changeText));
 

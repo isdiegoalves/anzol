@@ -615,6 +615,11 @@ export class Inbox {
     if (stale && !(await this.loadToken(tokenId, page))) {
       return;
     }
+    // A rota mudou durante a carga: quem decide é a chamada da rota nova.
+    const routed = () => this.tokenId() === tokenId && this.requestId() === requestId;
+    if (!routed()) {
+      return;
+    }
     const list = this.requests.requests();
     if (requestId && list.some((request) => request.uuid === requestId)) {
       this.requests.select(requestId, requestId !== this.keepUnread);
@@ -633,7 +638,7 @@ export class Inbox {
         list.find((request) => request.uuid === previous.uuid) ??
         (await this.fetchKept(tokenId, previous.uuid)) ??
         (await this.requests.oldestKept());
-      if (again) {
+      if (again && routed()) {
         await this.openRequest(again, true);
       }
     } else if (requestId !== undefined) {
@@ -758,7 +763,11 @@ export class Inbox {
   /** Várias navegações seguidas para o mesmo token esperam a mesma carga. */
   private loadToken(tokenId: string, page: number): Promise<boolean> {
     if (this.loading?.tokenId !== tokenId) {
-      const done = this.fetchToken(tokenId, page).finally(() => (this.loading = null));
+      const done: Promise<boolean> = this.fetchToken(tokenId, page).finally(() => {
+        if (this.loading?.done === done) {
+          this.loading = null;
+        }
+      });
       this.loading = { tokenId, done };
     }
     return this.loading.done;
@@ -769,6 +778,10 @@ export class Inbox {
     if (this.compare.picking()?.token_id !== tokenId) {
       this.compare.close();
     }
+    const shown = this.requests.opening() ?? this.requests.tokenId();
+    if (shown !== null && shown !== tokenId) {
+      this.panel.dismiss();
+    }
     try {
       await this.tokens.load(tokenId);
     } catch {
@@ -776,14 +789,20 @@ export class Inbox {
       // página única de URL inexistente (`UrlMissing`). Nenhuma das duas cria outra URL (B1).
       return false;
     }
+    if (this.tokenId() !== tokenId) {
+      return false;
+    }
     try {
       await this.requests.load(tokenId, page, untracked(this.routeFilterWithValues));
     } catch (error) {
-      if (!isProtectedError(error)) {
+      if (this.tokenId() === tokenId && !isProtectedError(error)) {
         this.snackBar.open($localize`Requests not found - invalid ID`, undefined, {
           duration: 1000,
         });
       }
+      return false;
+    }
+    if (this.tokenId() !== tokenId || this.requests.tokenId() !== tokenId) {
       return false;
     }
     this.streamTokenId.set(tokenId);
@@ -793,7 +812,9 @@ export class Inbox {
   private async openSavedOrNewToken(): Promise<void> {
     const saved = this.tokens.token();
     const token = saved ?? (await this.tokens.create());
-    await this.router.navigate(['/', token.uuid], { replaceUrl: true });
+    if (this.tokenId() === undefined) {
+      await this.router.navigate(['/', token.uuid], { replaceUrl: true });
+    }
   }
 
   /**
@@ -801,10 +822,14 @@ export class Inbox {
    * nem rolar. Calada: quem diz quantas chegaram é a volta da conexão, numa fala só. Devolve quantas.
    */
   private async resume(): Promise<number> {
+    const tokenId = this.tokenId();
     if (!this.listReady()) {
       return 0;
     }
     const arrived = await this.requests.arrivedSinceNewest();
+    if (!this.listReady() || this.tokenId() !== tokenId) {
+      return 0;
+    }
     if (!arrived) {
       // Mensagens antigas, sem `seq`: relê o que a lista mostra.
       if (this.requests.filtering()) {
@@ -836,16 +861,21 @@ export class Inbox {
   }
 
   private async receive({ request, total, truncated, removed }: RequestCreated): Promise<void> {
+    // O evento da URL anterior ainda chega até o stream da nova abrir.
+    const current = () => this.listReady() && this.tokenId() === request.token_id;
     // A reconexão pode repetir a que a volta da conexão já trouxe.
-    if (this.listed(request.uuid)) {
+    if (!current() || this.listed(request.uuid)) {
       return;
     }
     // Corpo > 1 MB chega cortado no evento, e o atributo decifrado nunca vem nele: a mensagem
-    // completa vem da API.
+    // completa vem da API; sem ela, fica a do evento.
     const complete =
       truncated || request.decryption?.state === 'valid'
-        ? await this.requests.fetchOne(request.token_id, request.uuid)
+        ? await this.requests.fetchOne(request.token_id, request.uuid).catch(() => request)
         : request;
+    if (!current()) {
+      return;
+    }
     if (this.requests.filtering()) {
       // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
       this.requests.countArrival(complete, total, removed);

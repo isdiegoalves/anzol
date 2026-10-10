@@ -80,11 +80,12 @@ export function malformedMatcher(segments: UrlSegment[]): UrlMatchResult | null 
 }
 
 interface LeaveGuarded {
-  canLeave(): Promise<boolean>;
+  canLeave(next: string): Promise<boolean>;
 }
 
 // `null`: com a URL inexistente ou trancada, o shell põe outra tela no lugar do `router-outlet`.
-const askBeforeLeaving: CanDeactivateFn<LeaveGuarded | null> = (page) => page?.canLeave() ?? true;
+const askBeforeLeaving: CanDeactivateFn<LeaveGuarded | null> = (page, _route, _state, next) =>
+  page?.canLeave(next.url) ?? true;
 
 /**
  * Todas as rotas da interface nova (§1 do plano do item 14), declaradas na E3: as fatias seguintes

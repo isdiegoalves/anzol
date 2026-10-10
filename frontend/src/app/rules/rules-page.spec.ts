@@ -1,6 +1,10 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -110,6 +114,33 @@ describe('Dado a página Rules', () => {
     localStorage.clear();
     vi.restoreAllMocks();
   });
+
+  it.each([
+    ['as regras', (call: TestRequest) => call.flush([rule(1)])],
+    ['o erro', (call: TestRequest) => call.flush({}, { status: 503, statusText: 'Unavailable' })],
+  ])(
+    'não deve mostrar %s nem ler os hits da URL anterior Quando a carga dela termina depois da troca',
+    async (_caso, answer) => {
+      const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+      const { fixture } = await renderPage();
+      const daAnterior = http.expectOne({ method: 'GET', url: URL_REGRAS });
+
+      fixture.componentRef.setInput('tokenId', outra);
+      await fixture.whenStable();
+      (await vi.waitFor(() => http.expectOne(`/token/${outra}`))).flush(token({ uuid: outra }));
+      http.expectOne({ method: 'GET', url: `/token/${outra}/rules` }).flush([rule(9)]);
+      await vi.waitFor(() => http.expectOne(`/token/${outra}/stats`).flush(stats()));
+      await screen.findByRole('table', { name: 'Rules' });
+
+      answer(daAnterior);
+      await new Promise((done) => setTimeout(done));
+      await fixture.whenStable();
+
+      expect(screen.queryByText(/Could not load the rules/)).toBeNull();
+      expect(rows().map(([name]) => name)).toEqual(['Rule 9']);
+      http.expectNone(URL_STATS);
+    },
+  );
 
   it('deve listar nome, prioridade, match e status na ordem de avaliação, com os hits e a resposta padrão no fim', async () => {
     const { container } = await open(
@@ -381,6 +412,28 @@ describe('Dado a página Rules', () => {
 
       desfazer.next();
       await expectGuardedPut([rule(2)], [rule(1), rule(2)]);
+    });
+
+    it('não deve voltar para a lista Quando a pessoa saiu do editor durante o Delete', async () => {
+      await open([rule(1), rule(2)], { ruleId: 'r1' });
+      vi.spyOn(TestBed.inject(MatSnackBar), 'open').mockReturnValue({
+        onAction: () => new Subject<void>(),
+      } as unknown as ReturnType<MatSnackBar['open']>);
+      const url = vi
+        .spyOn(TestBed.inject(Router), 'url', 'get')
+        .mockReturnValue(`/${TOKEN_ID}/rules/r1`);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Delete rule' }));
+      await vi.waitFor(() =>
+        http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1), rule(2)]),
+      );
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+      url.mockReturnValue(`/${TOKEN_ID}`);
+      put.flush([rule(2)]);
+      await vi.waitFor(() => expect(TestBed.inject(RuleStore).rules()).toEqual([rule(2)]));
+      await new Promise((done) => setTimeout(done));
+
+      expect(navigate).not.toHaveBeenCalledWith(['/', TOKEN_ID, 'rules']);
     });
 
     it('não deve desfazer o Delete e deve avisar Quando a lista mudou em outro lugar depois de apagar', async () => {

@@ -75,4 +75,55 @@ describe('Dado o TokenStore falando com /token', () => {
     expect(store.token()?.cors).toBe(true);
     expect(store.token()).not.toHaveProperty('actions');
   });
+
+  describe('Dado uma resposta atrasada de outra URL', () => {
+    const OUTRA = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+
+    it('deve ficar com a URL pedida por último Quando a anterior responde depois', async () => {
+      const lenta = store.load(TOKEN_ID);
+      const ultima = store.load(OUTRA);
+      const [daLenta, daUltima] = [
+        http.expectOne(`/token/${TOKEN_ID}`),
+        http.expectOne(`/token/${OUTRA}`),
+      ];
+
+      daUltima.flush(token({ uuid: OUTRA }));
+      await ultima;
+      daLenta.flush(token());
+      await lenta;
+
+      expect(store.token()?.uuid).toBe(OUTRA);
+    });
+
+    it('não deve esquecer a URL aberta Quando a anterior falha depois', async () => {
+      const lenta = store.load(TOKEN_ID);
+      const ultima = store.load(OUTRA);
+      const daLenta = http.expectOne(`/token/${TOKEN_ID}`);
+      http.expectOne(`/token/${OUTRA}`).flush(token({ uuid: OUTRA }));
+      await ultima;
+
+      daLenta.flush({}, { status: 410, statusText: 'Gone' });
+      await expect(lenta).rejects.toThrow(HttpErrorResponse);
+
+      expect(store.token()?.uuid).toBe(OUTRA);
+    });
+
+    it('não deve trocar a URL aberta pela editada Quando a edição de outra termina depois da troca', async () => {
+      TestBed.inject(Preferences).token.set(token({ uuid: OUTRA }));
+      const updated = store.update(TOKEN_ID, { retry_after: '7' });
+      http.expectOne(`/token/${TOKEN_ID}`).flush(token({ retry_after: 7 }));
+      await updated;
+
+      expect(store.token()?.uuid).toBe(OUTRA);
+    });
+
+    it('não deve mudar o CORS da URL aberta Quando a alternância era de outra', async () => {
+      TestBed.inject(Preferences).token.set(token({ uuid: OUTRA, cors: false }));
+      const toggled = store.toggleCors(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}/cors/toggle`).flush({ enabled: true });
+      await toggled;
+
+      expect(store.token()?.cors).toBe(false);
+    });
+  });
 });

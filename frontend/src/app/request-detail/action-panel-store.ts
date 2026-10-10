@@ -83,6 +83,14 @@ export class ActionPanelStore {
     }
   }
 
+  /** Outra URL: o painel era da mensagem da anterior. O foco fica onde a pessoa está (o seletor de URL). */
+  dismiss(): void {
+    this.open.set(false);
+    this.expanded.set(false);
+    this.opener = null;
+    this.save();
+  }
+
   resize(height: number): void {
     this.height.set(Math.max(PANEL_MIN_PX, Math.round(height)));
     this.save();

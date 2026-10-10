@@ -25,7 +25,10 @@ export class ScenarioStore {
       this.scenarios.set([]);
     }
     this.tokenId = tokenId;
-    this.scenarios.set(await firstValueFrom(this.http.get<Scenario[]>(this.url(tokenId))));
+    const scenarios = await firstValueFrom(this.http.get<Scenario[]>(this.url(tokenId)));
+    if (this.tokenId === tokenId) {
+      this.scenarios.set(scenarios);
+    }
   }
 
   async setState(name: string, state: string): Promise<void> {

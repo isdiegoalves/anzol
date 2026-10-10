@@ -71,4 +71,18 @@ describe('Dado os cenários da URL aberta', () => {
   it('deve recusar sem chamar a API Quando nenhuma URL foi carregada', async () => {
     await expect(store.resetAll()).rejects.toThrow('No URL loaded');
   });
+
+  it('deve mostrar os cenários da URL pedida por último Quando os da anterior chegam depois', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const lenta = store.load(TOKEN_ID);
+    const ultima = store.load(outra);
+    const daLenta = http.expectOne({ method: 'GET', url });
+    http.expectOne({ method: 'GET', url: `/token/${outra}/scenarios` }).flush([]);
+    await ultima;
+
+    daLenta.flush([retry]);
+    await lenta;
+
+    expect(store.scenarios()).toEqual([]);
+  });
 });

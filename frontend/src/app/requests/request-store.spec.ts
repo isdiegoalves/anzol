@@ -306,7 +306,7 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.requests()).toHaveLength(1);
       expect(store.total()).toBe(2);
 
-      expect(await deleted).toBe(false);
+      expect(await deleted).toBe('restored');
       http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
       expect(store.requests()).toEqual(antes);
       expect(store.total()).toBe(3);
@@ -330,7 +330,7 @@ describe('Dado o RequestStore da URL aberta', () => {
           .flush({}),
       );
 
-      expect(await deleted).toBe(true);
+      expect(await deleted).toBe('deleted');
       expect(store.requests().map((request) => request.uuid)).toEqual([webhookRequest(1).uuid]);
     });
 
@@ -478,7 +478,7 @@ describe('Dado o RequestStore da URL aberta', () => {
       const deleted = store.deleteRequest(R2, Promise.resolve(true));
       expect(store.gone()?.cause).toBe('deleted');
 
-      expect(await deleted).toBe(false);
+      expect(await deleted).toBe('restored');
 
       expect(store.gone()).toBeNull();
       expect(store.requests()).toEqual([R1, R2]);
@@ -877,5 +877,210 @@ describe('Dado o filtro pelo status respondido', () => {
     await applied;
 
     expect(store.scan()).toBeNull();
+  });
+});
+
+describe('Dado uma resposta atrasada na lista (outra URL ou outro filtro a caminho)', () => {
+  const OUTRA = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+  const TERCEIRA = '7c1d9e2f-3a4b-4c5d-8e6f-0a1b2c3d4e5f';
+  const daOutra = (n: number) => webhookRequest(n, { token_id: OUTRA });
+  const firstPage = (tokenId: string) => `/token/${tokenId}/requests?page=1&sorting=newest`;
+  let http: HttpTestingController;
+  let store: RequestStore;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(firstPage(TOKEN_ID))
+      .flush(requestPage([webhookRequest(2), webhookRequest(1)], { is_last_page: false }));
+    await loaded;
+    store.select(webhookRequest(1).uuid);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve tirar da vista a lista e a mensagem aberta da anterior Quando outra URL começa a abrir', () => {
+    void store.load(OUTRA);
+
+    expect(store.opening()).toBe(OUTRA);
+    expect(store.requests()).toEqual([]);
+    expect(store.selected()).toBeUndefined();
+    expect(store.loading()).toBe(true);
+    http.expectOne(firstPage(OUTRA)).flush(requestPage([daOutra(9)]));
+  });
+
+  it('deve ficar com a lista da URL pedida por último Quando a da anterior responde depois', async () => {
+    const lenta = store.load(OUTRA);
+    const ultima = store.load(TERCEIRA);
+    const [daLenta, daUltima] = [
+      http.expectOne(firstPage(OUTRA)),
+      http.expectOne(firstPage(TERCEIRA)),
+    ];
+
+    daUltima.flush(requestPage([webhookRequest(7, { token_id: TERCEIRA })], { total: 1 }));
+    await ultima;
+    daLenta.flush(requestPage([daOutra(9), daOutra(8)], { total: 2 }));
+    await lenta;
+
+    expect(store.tokenId()).toBe(TERCEIRA);
+    expect(store.opening()).toBeNull();
+    expect(store.requests().map((r) => r.token_id)).toEqual([TERCEIRA]);
+    expect(store.total()).toBe(1);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('deve manter o esqueleto até a carga mais recente chegar Quando a anterior termina antes', async () => {
+    const lenta = store.load(OUTRA);
+    const ultima = store.load(TERCEIRA);
+    const [daLenta, daUltima] = [
+      http.expectOne(firstPage(OUTRA)),
+      http.expectOne(firstPage(TERCEIRA)),
+    ];
+
+    daLenta.flush(requestPage([daOutra(9)]));
+    await lenta;
+    expect(store.loading()).toBe(true);
+    expect(store.requests()).toEqual([]);
+
+    daUltima.flush(requestPage([webhookRequest(7, { token_id: TERCEIRA })]));
+    await ultima;
+    expect(store.loading()).toBe(false);
+  });
+
+  it('não deve reler nem buscar a lista da anterior Quando outra URL está abrindo', async () => {
+    void store.load(OUTRA);
+
+    await store.reload();
+    await store.refreshSearch();
+    await store.loadNextPage();
+    await store.applyFilter({ ...NO_FILTER, text: 'x' });
+
+    http.expectOne(firstPage(OUTRA)).flush(requestPage([daOutra(9)]));
+    http.expectNone(() => true);
+  });
+
+  it('não deve anexar a página seguinte do filtro anterior Quando o filtro muda com ela a caminho', async () => {
+    const proxima = store.loadNextPage();
+    const pagina2 = http.expectOne(`${listUrl}?page=2&sorting=newest`);
+    const aplicado = store.applyFilter({ ...NO_FILTER, text: 'velho' });
+    http
+      .expectOne({ method: 'POST', url: searchUrl })
+      .flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await aplicado;
+
+    pagina2.flush(requestPage([webhookRequest(0)], { current_page: 2 }));
+    await proxima;
+
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+    expect(store.range()).toEqual({ from: 1, to: 1, of: 1 });
+  });
+
+  it('não deve pôr a página anterior do filtro velho Quando o filtro muda com ela a caminho', async () => {
+    const naPagina3 = store.load(TOKEN_ID, 3);
+    http.expectOne(`${listUrl}?per_page=1&sorting=newest`).flush(requestPage([]));
+    await vi.waitFor(() =>
+      http
+        .expectOne(`${listUrl}?page=3&sorting=newest`)
+        .flush(requestPage([webhookRequest(5)], { current_page: 3 })),
+    );
+    await naPagina3;
+
+    const anterior = store.loadPreviousPage();
+    const pagina2 = http.expectOne(`${listUrl}?page=2&sorting=newest`);
+    const aplicado = store.applyFilter({ ...NO_FILTER, text: 'velho' });
+    http
+      .expectOne({ method: 'POST', url: searchUrl })
+      .flush(requestPage([webhookRequest(1)], { total: 1 }));
+    await aplicado;
+    pagina2.flush(requestPage([webhookRequest(4)], { current_page: 2 }));
+    await anterior;
+
+    expect(store.requests()).toEqual([webhookRequest(1)]);
+  });
+
+  it('deve manter o filtro novo Quando o 422 do anterior chega depois dele', async () => {
+    const recusado = store.applyFilter({
+      ...NO_FILTER,
+      values: [{ kind: 'header', name: 'x-a', value: '1' }],
+    });
+    const busca422 = http.expectOne({ method: 'POST', url: searchUrl });
+    const novo = store.applyFilter({ ...NO_FILTER, text: 'novo' });
+    const buscaNova = http.match({ method: 'POST', url: searchUrl });
+    buscaNova.at(-1)?.flush(requestPage([webhookRequest(2)], { total: 1 }));
+    await novo;
+
+    busca422.flush({ message: 'invalid' }, { status: 422, statusText: 'Unprocessable' });
+    await recusado;
+
+    expect(store.filter().text).toBe('novo');
+    expect(store.requests()).toEqual([webhookRequest(2)]);
+    expect(store.rejected()).toEqual([]);
+  });
+
+  it('deve dizer o alcance só da varredura mais recente Quando a anterior responde depois', async () => {
+    const listPage = (page: number) => `${listUrl}?page=${page}&per_page=100&sorting=newest`;
+    const velho = store.applyFilter({ ...NO_FILTER, answered: ['5xx'] });
+    const daVelha = http.expectOne(listPage(1));
+    const novo = store.applyFilter({ ...NO_FILTER, answered: ['4xx'] });
+    const daNova = http.match(listPage(1)).at(-1);
+    daNova?.flush(requestPage([webhookRequest(3, { response: { status: 404 } })], { total: 1 }));
+    await novo;
+
+    daVelha.flush(
+      requestPage([webhookRequest(3), webhookRequest(2)], { total: 700, is_last_page: false }),
+    );
+    for (const n of [2, 3, 4, 5]) {
+      await vi.waitFor(() => http.expectOne(listPage(n)).flush(requestPage([], { total: 700 })));
+    }
+    await velho;
+
+    expect(store.scan()).toEqual({ scanned: 1, total: 1, done: true });
+  });
+
+  describe('Dado uma mensagem apagada com o Undo a caminho', () => {
+    let desfazer!: (undo: boolean) => void;
+    let apagada: Promise<'deleted' | 'restored' | 'kept'>;
+
+    beforeEach(() => {
+      apagada = store.deleteRequest(
+        webhookRequest(1),
+        new Promise((resolve) => (desfazer = resolve)),
+      );
+    });
+
+    it('deve só cancelar o apagar, sem pôr a mensagem na lista nova, Quando o Undo vem em outra URL', async () => {
+      const aberta = store.load(OUTRA);
+      http.expectOne(firstPage(OUTRA)).flush(requestPage([daOutra(9)], { total: 1 }));
+      await aberta;
+
+      desfazer(true);
+
+      expect(await apagada).toBe('kept');
+      expect(store.requests()).toEqual([daOutra(9)]);
+      expect(store.total()).toBe(1);
+      http.expectNone({ method: 'DELETE' });
+    });
+
+    it('não deve repetir a mensagem Quando a lista foi relida antes do Undo', async () => {
+      const relida = store.reload();
+      http
+        .expectOne(firstPage(TOKEN_ID))
+        .flush(requestPage([webhookRequest(2), webhookRequest(1)], { total: 2 }));
+      await relida;
+
+      desfazer(true);
+
+      expect(await apagada).toBe('restored');
+      expect(store.requests()).toEqual([webhookRequest(2), webhookRequest(1)]);
+      expect(store.total()).toBe(2);
+    });
   });
 });

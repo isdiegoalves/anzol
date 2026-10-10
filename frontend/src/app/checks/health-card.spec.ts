@@ -99,6 +99,23 @@ describe('Dado o cartão "Health" de Checks', () => {
     http.expectOne(statsUrl(50)).flush(stats({ window: 50 }));
   });
 
+  it('deve ficar com os números da janela escolhida por último Quando a anterior responde depois', async () => {
+    const { container, http } = await renderCard(HealthCard, token());
+    const lenta = http.expectOne(statsUrl(200));
+    await show();
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Window' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Last 50' }));
+    http.expectOne(statsUrl(50)).flush(stats({ window: 50, evaluated: 50 }));
+    lenta.flush(stats());
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('.brief span')?.textContent).toContain('over the newest 50'),
+    );
+    await new Promise((done) => setTimeout(done));
+    expect(container.querySelector('.brief span')?.textContent).toContain('over the newest 50');
+  });
+
   it('deve dizer que ainda não há números Quando a URL está vazia', async () => {
     const { http } = await renderCard(HealthCard, token());
 

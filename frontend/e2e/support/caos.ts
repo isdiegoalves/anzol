@@ -24,8 +24,9 @@ interface Stream {
 
 interface Segura {
   respondeu: () => void;
-  solta: Promise<void>;
-  liberar: () => void;
+  /** Resolve com o status que substitui a resposta do app, ou sem nada para entregá-la como veio. */
+  solta: Promise<number | undefined>;
+  liberar: (status?: number) => void;
 }
 
 const STREAM = /^\/token\/([^/?]+)\/stream(\?|$)/;
@@ -98,18 +99,22 @@ export class ProxyDeCaos {
 
   /**
    * A resposta da rota fica no proxy até `soltar`: `respondida` resolve quando o app já respondeu, para o teste
-   * agir entre a leitura no servidor e a chegada no navegador.
+   * agir entre a leitura no servidor e a chegada no navegador. `soltar(status)` troca a resposta do app por esse
+   * status, como um proxy que desiste depois de o app ter feito o trabalho.
    */
-  segurar(rota: RegExp, metodo?: string): { respondida: Promise<void>; soltar: () => void } {
+  segurar(
+    rota: RegExp,
+    metodo?: string,
+  ): { respondida: Promise<void>; soltar: (status?: number) => void } {
     let respondeu!: () => void;
-    let liberar!: () => void;
+    let liberar!: (status?: number) => void;
     const respondida = new Promise<void>((ok) => (respondeu = ok));
-    const solta = new Promise<void>((ok) => (liberar = ok));
+    const solta = new Promise<number | undefined>((ok) => (liberar = ok));
     const regra = { rota, metodo, respondeu, solta, liberar };
     this.seguras.add(regra);
-    const soltar = () => {
+    const soltar = (status?: number) => {
       this.seguras.delete(regra);
-      liberar();
+      liberar(status);
     };
     return { respondida, soltar };
   }
@@ -144,8 +149,7 @@ export class ProxyDeCaos {
     const recusa = [...this.recusas].find((regra) => casa(regra, req));
     if (recusa) {
       req.resume();
-      res.writeHead(recusa.status, { 'Content-Type': 'text/html' });
-      res.end(`<html><body><h1>${recusa.status}</h1><p>proxy de caos</p></body></html>`);
+      recusar(res, recusa.status);
     } else if (token && this.cortados.has(token)) {
       req.socket.destroy();
     } else if (token && this.congelados.has(token)) {
@@ -171,7 +175,14 @@ export class ProxyDeCaos {
         const entregar = () => this.entregar(resposta, res, up, token);
         if (segura) {
           segura.respondeu();
-          void segura.solta.then(entregar);
+          void segura.solta.then((status) => {
+            if (status) {
+              resposta.resume();
+              recusar(res, status);
+            } else {
+              entregar();
+            }
+          });
         } else {
           setTimeout(entregar, atraso?.ms ?? 0);
         }
@@ -229,6 +240,11 @@ export class ProxyDeCaos {
     }
     return fechados.length;
   }
+}
+
+function recusar(res: ServerResponse, status: number): void {
+  res.writeHead(status, { 'Content-Type': 'text/html' });
+  res.end(`<html><body><h1>${status}</h1><p>proxy de caos</p></body></html>`);
 }
 
 function casa(regra: Regra, req: IncomingMessage): boolean {

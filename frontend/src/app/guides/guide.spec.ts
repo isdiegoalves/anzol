@@ -395,6 +395,22 @@ describe('Dado um roteiro (R1)', () => {
       );
     });
 
+    it('não deve zerar os cenários Quando a URL muda antes de eles chegarem', async () => {
+      const { fixture } = await show('retry');
+      await create('5');
+      const scenarios = `/token/${TOKEN_ID}/scenarios`;
+      await userEvent.click(screen.getByRole('button', { name: 'Start over' }));
+      const leitura = await vi.waitFor(() => http.expectOne({ method: 'GET', url: scenarios }));
+
+      fixture.componentRef.setInput('tokenId', '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f');
+      await fixture.whenStable();
+      leitura.flush([]);
+      await new Promise((done) => setTimeout(done));
+
+      http.expectNone({ method: 'DELETE' });
+      http.match(() => true).forEach((call) => call.flush([]));
+    });
+
     it('deve mandar as requisições de teste do navegador e dizer que confere as regras, não o remetente', async () => {
       await show('retry');
       await create('1');

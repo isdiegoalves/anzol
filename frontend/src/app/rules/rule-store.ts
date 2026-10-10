@@ -41,6 +41,7 @@ export class RuleStore {
 
   readonly tokenId = signal<string | null>(null);
   readonly rules = signal<readonly Rule[]>([]);
+  private loads = 0;
   /**
    * A lista do servidor mudou desde a leitura e nada foi gravado (toggle, reordenação, apagar,
    * Undo). Fica aqui, e não na página, porque o Undo do "Delete rule" chega depois que o editor
@@ -73,6 +74,7 @@ export class RuleStore {
   );
 
   async load(tokenId: string): Promise<void> {
+    const run = ++this.loads;
     if (tokenId !== this.tokenId()) {
       // O teste da regra vale para esta URL: "Back to list" relê a lista da mesma URL e o mantém.
       this.tested.set(new Map());
@@ -82,12 +84,19 @@ export class RuleStore {
     this.recent = null;
     this.latest = null;
     this.total = null;
-    this.keep(await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))));
+    const rules = await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId)));
+    if (run === this.loads) {
+      this.keep(rules);
+    }
   }
 
   /** Relê a lista do servidor (depois do aviso "changed elsewhere"), sem apagar a da tela antes. */
   async reload(): Promise<void> {
-    this.keep(await this.fetchAll());
+    const run = ++this.loads;
+    const rules = await this.fetchAll();
+    if (run === this.loads) {
+      this.keep(rules);
+    }
   }
 
   /** Relê os hits (`GET /stats`); sem eles, a lista só não mostra as contagens. */
@@ -242,9 +251,14 @@ export class RuleStore {
     const previous = this.rules();
     this.rules.set(rules);
     try {
-      this.keep(await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), rules)));
+      const saved = await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), rules));
+      if (this.tokenId() === tokenId) {
+        this.keep(saved);
+      }
     } catch (error) {
-      this.rules.set(previous);
+      if (this.tokenId() === tokenId) {
+        this.rules.set(previous);
+      }
       throw error;
     }
   }

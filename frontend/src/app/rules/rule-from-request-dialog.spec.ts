@@ -143,6 +143,25 @@ describe('Dado a folha "Create rule from this request"', () => {
     await vi.waitFor(() => expect(dialog.textContent).not.toContain('Too specific'));
   });
 
+  it('não deve levar a Regras Quando a pessoa mudou de tela durante o salvar', async () => {
+    const router = TestBed.inject(Router) as unknown as { url: string };
+    router.url = `/${TOKEN_ID}/${EVENTO.uuid}/1`;
+    const dialog = await open();
+    await counts(1, 1);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create rule' }));
+    (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([]);
+    (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([]);
+    const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+    router.url = `/${TOKEN_ID}/checks`;
+    const lista = put.request.body as Rule[];
+    put.flush([{ ...lista[0], id: 'novo' }]);
+
+    await vi.waitFor(() => expect(TestBed.inject(RuleIntents).created()?.ids).toEqual(['novo']));
+    await new Promise((done) => setTimeout(done));
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('deve gravar antes da pega-tudo, com a prioridade dela, e abrir a lista (E-01)', async () => {
     const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
     const dialog = await open();

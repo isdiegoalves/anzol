@@ -95,6 +95,12 @@ export class RequestStore {
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
+  /**
+   * A URL cuja lista a tela está abrindo no lugar da de `tokenId`, até ela chegar: nada da anterior fica à vista
+   * (lista, mensagem aberta, número do título).
+   */
+  readonly opening = signal<string | null>(null);
+  private loads = 0;
   /** O filtro mudou e o resultado dele ainda não chegou: o que a lista mostra é do filtro anterior. */
   readonly searching = signal(false);
   /**
@@ -203,10 +209,19 @@ export class RequestStore {
    * de uma URL para outra.
    */
   async load(tokenId: string, page = 1, filter: RequestFilter = NO_FILTER): Promise<void> {
-    this.generation++;
+    const generation = ++this.generation;
+    const run = ++this.loads;
     this.searching.set(false);
     this.activeFilter.set(filter);
     this.loading.set(true);
+    if (tokenId !== (this.opening() ?? this.tokenId())) {
+      this.opening.set(tokenId);
+      this.pages.set([]);
+      this.selection.set(undefined);
+      this.goneState.set(null);
+      this.unopened.set(null);
+      this.scan.set(null);
+    }
     try {
       // A fronteira é lida antes da página: o que chegar entre as duas fica depois dela, e a volta da conexão o
       // traz. Aberta já filtrada (link com a busca), o total da URL vem da listagem sem filtro.
@@ -214,9 +229,13 @@ export class RequestStore {
       const top = this.newestFirst() && (unfiltered !== null || page === 1);
       const newest = top ? null : await this.fetchNewestSeq(tokenId);
       const result = await this.fetchPage(tokenId, page);
+      if (generation !== this.generation) {
+        return;
+      }
       this.newestSeq = newest ?? Math.max(0, ...(unfiltered ?? result).data.map(seqOf));
       this.listedSeq = this.newestSeq;
       this.tokenId.set(tokenId);
+      this.opening.set(null);
       this.selection.set(undefined);
       this.goneState.set(null);
       this.unopened.set(null);
@@ -227,7 +246,9 @@ export class RequestStore {
         this.total.set(unfiltered.total);
       }
     } finally {
-      this.loading.set(false);
+      if (run === this.loads) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -237,18 +258,23 @@ export class RequestStore {
    */
   async applyFilter(filter: RequestFilter): Promise<void> {
     const tokenId = this.tokenId();
-    if (!tokenId || sameFilter(filter, this.activeFilter())) {
+    if (!tokenId || this.opening() || sameFilter(filter, this.activeFilter())) {
       return;
     }
     const previous = this.activeFilter();
     this.activeFilter.set(filter);
     this.rejected.set([]);
     this.scanLimit = SCAN_WINDOW;
+    const search = this.reapply(tokenId);
+    const generation = this.generation;
     try {
-      await this.reapply(tokenId);
+      await search;
     } catch (error) {
       if (!(error instanceof HttpErrorResponse) || error.status !== 422) {
         throw error;
+      }
+      if (generation !== this.generation) {
+        return;
       }
       const kept = new Set((previous.values ?? []).map((value) => JSON.stringify(value)));
       this.rejected.set((filter.values ?? []).filter((value) => !kept.has(JSON.stringify(value))));
@@ -259,7 +285,7 @@ export class RequestStore {
 
   async lookOlder(): Promise<void> {
     const tokenId = this.tokenId();
-    if (!tokenId || !this.scan()) {
+    if (!tokenId || this.opening() || !this.scan()) {
       return;
     }
     this.scanLimit += SCAN_WINDOW;
@@ -291,7 +317,7 @@ export class RequestStore {
    */
   async refreshSearch(): Promise<void> {
     const tokenId = this.tokenId();
-    if (!tokenId || !this.filtering()) {
+    if (!tokenId || this.opening() || !this.filtering()) {
       return;
     }
     const generation = ++this.generation;
@@ -312,20 +338,28 @@ export class RequestStore {
   async loadPreviousPage(): Promise<void> {
     const tokenId = this.tokenId();
     const first = this.pages()[0];
-    if (!tokenId || !first || first.page <= 1) {
+    if (!tokenId || this.opening() || !first || first.page <= 1) {
       return;
     }
+    const generation = this.generation;
     const result = await this.fetchPage(tokenId, first.page - 1);
+    if (generation !== this.generation) {
+      return;
+    }
     this.pages.update((pages) => [{ page: result.current_page, data: result.data }, ...pages]);
   }
 
   async loadNextPage(): Promise<void> {
     const tokenId = this.tokenId();
     const last = this.pages().at(-1);
-    if (!tokenId || !last) {
+    if (!tokenId || this.opening() || !last) {
       return;
     }
+    const generation = this.generation;
     const result = await this.fetchPage(tokenId, last.page + 1);
+    if (generation !== this.generation) {
+      return;
+    }
     this.pages.update((pages) => [...pages, { page: result.current_page, data: result.data }]);
     this.lastPageReached.set(result.is_last_page);
   }
@@ -459,7 +493,7 @@ export class RequestStore {
    */
   async reload(): Promise<void> {
     const tokenId = this.tokenId();
-    if (!tokenId) {
+    if (!tokenId || this.opening()) {
       return;
     }
     const generation = ++this.generation;
@@ -478,10 +512,14 @@ export class RequestStore {
 
   /**
    * Tira a mensagem da lista na hora. Com `undo` (o "Undo" do aviso), só apaga no servidor se ele
-   * resolver `false`; com `true`, a mensagem volta ao mesmo lugar e nada é apagado. Devolve se
-   * apagou.
+   * resolver `false`; com `true`, nada é apagado e a mensagem volta ao mesmo lugar, se a lista ainda
+   * é a de quando ela saiu (`kept`: a tela está em outra URL, e ela fica só no servidor).
    */
-  async deleteRequest(request: WebhookRequest, undo?: Promise<boolean>): Promise<boolean> {
+  async deleteRequest(
+    request: WebhookRequest,
+    undo?: Promise<boolean>,
+  ): Promise<'deleted' | 'restored' | 'kept'> {
+    const generation = this.generation;
     const pageIndex = this.pages().findIndex((page) =>
       page.data.some((r) => r.uuid === request.uuid),
     );
@@ -503,6 +541,16 @@ export class RequestStore {
     }
     this.markAsRead(request.uuid);
     if (undo && (await undo)) {
+      if ((this.opening() ?? this.tokenId()) !== request.token_id) {
+        return 'kept';
+      }
+      if (this.goneState()?.id === request.uuid) {
+        this.goneState.set(null);
+      }
+      // Relida depois do apagar, a lista já a trouxe de volta: o DELETE ainda não tinha saído.
+      if (generation !== this.generation) {
+        return 'restored';
+      }
       this.pages.update((pages) =>
         pages.map((page, index) =>
           index === pageIndex
@@ -517,13 +565,10 @@ export class RequestStore {
       if (counted) {
         this.matched.update((matched) => matched + 1);
       }
-      if (this.goneState()?.id === request.uuid) {
-        this.goneState.set(null);
-      }
-      return false;
+      return 'restored';
     }
     await firstValueFrom(this.http.delete(`/token/${request.token_id}/request/${request.uuid}`));
-    return true;
+    return 'deleted';
   }
 
   /** Posição do que está carregado, para o rodapé "1–50 of N" (N com filtro é o que casa). */
@@ -623,7 +668,7 @@ export class RequestStore {
   private fetchPage(tokenId: string, page: number): Promise<RequestPage> {
     const { answered, window: span } = this.activeFilter();
     if (answered?.length || span) {
-      return this.scanInBrowser(tokenId);
+      return this.scanInBrowser(tokenId, this.generation);
     }
     this.scan.set(null);
     if (!this.filtering()) {
@@ -643,7 +688,7 @@ export class RequestStore {
    * casam numa página só. Com a janela e filtro do servidor, o resultado da busca fica só com as que
    * estão entre as n mais novas da URL.
    */
-  private async scanInBrowser(tokenId: string): Promise<RequestPage> {
+  private async scanInBrowser(tokenId: string, generation: number): Promise<RequestPage> {
     const filter = this.activeFilter();
     const span = filter.window ?? null;
     const limit = span ?? this.scanLimit;
@@ -662,10 +707,10 @@ export class RequestStore {
         }),
       );
     const byServer = isFilterActive(others);
-    const found = await this.newestUpTo(byServer ? searched : listed, limit);
+    const found = await this.newestUpTo(byServer ? searched : listed, limit, generation);
     let [scanned, looked, total] = [found.data, found.data.length, found.total];
     if (span !== null && byServer) {
-      const kept = await this.newestUpTo(listed, span);
+      const kept = await this.newestUpTo(listed, span, generation);
       const inWindow = new Set(kept.data.map((request) => request.uuid));
       scanned = scanned.filter((request) => inWindow.has(request.uuid));
       [looked, total] = [kept.data.length, kept.total];
@@ -674,12 +719,14 @@ export class RequestStore {
     const matches = answered.length
       ? scanned.filter((request) => answeredMatches(request, answered))
       : scanned;
-    this.scan.set({
-      scanned: looked,
-      total,
-      done: true,
-      ...(span !== null && { window: total > span ? span : null }),
-    });
+    if (generation === this.generation) {
+      this.scan.set({
+        scanned: looked,
+        total,
+        done: true,
+        ...(span !== null && { window: total > span ? span : null }),
+      });
+    }
     return {
       data: this.newestFirst() ? matches : [...matches].reverse(),
       total: matches.length,
@@ -694,10 +741,13 @@ export class RequestStore {
   private async newestUpTo(
     fetch: (page: number) => Promise<RequestPage>,
     limit: number,
+    generation: number,
   ): Promise<{ data: RequestPage['data']; total: number }> {
     const first = await fetch(1);
     const pages = Math.ceil(Math.min(first.total, limit) / SCAN_PAGE);
-    this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
+    if (generation === this.generation) {
+      this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
+    }
     const rest = await Promise.all(
       Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => fetch(i + 2)),
     );

@@ -241,7 +241,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     const { loader, fixture } = await show(request);
     const remove = vi
       .spyOn(fixture.debugElement.injector.get(RequestStore), 'deleteRequest')
-      .mockResolvedValue(true);
+      .mockResolvedValue('deleted');
     const open = vi.spyOn(fixture.debugElement.injector.get(MatSnackBar), 'open');
 
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));

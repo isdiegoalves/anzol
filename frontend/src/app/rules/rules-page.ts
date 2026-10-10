@@ -655,7 +655,8 @@ export class RulesPage {
   /** "Delete rule" no editor: apaga a regra (com Undo) e volta à lista. */
   protected async deleteFromEditor(id: string): Promise<void> {
     const index = this.store.rules().findIndex((rule) => rule.id === id);
-    if (index >= 0 && (await this.deleteRule(index))) {
+    const from = this.router.url;
+    if (index >= 0 && (await this.deleteRule(index)) && this.router.url === from) {
       void this.router.navigate(['/', this.tokenId(), 'rules']);
     }
   }
@@ -1007,10 +1008,15 @@ export class RulesPage {
     }
     try {
       await this.store.load(tokenId);
+      if (this.tokenId() !== tokenId) {
+        return;
+      }
       this.loaded.set(true);
       void this.store.loadHits(tokenId);
     } catch (error) {
-      this.errors.set(loadMessages(error));
+      if (this.tokenId() === tokenId) {
+        this.errors.set(loadMessages(error));
+      }
     }
   }
 

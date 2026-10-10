@@ -123,12 +123,15 @@ describe('Dado a saída de Regras com alterações não salvas (E-04)', () => {
   ])('deve perguntar à página antes de sair d%s', async (_caso, matcher) => {
     const guard = routes.find((route) => route.matcher === matcher)?.canDeactivate?.[0] as (
       page: unknown,
+      route: unknown,
+      state: unknown,
+      next: { url: string },
     ) => Promise<boolean>;
     const canLeave = vi.fn(() => Promise.resolve(false));
 
-    const result = await guard({ canLeave });
+    const result = await guard({ canLeave }, {}, {}, { url: '/outra/checks' });
 
-    expect(canLeave).toHaveBeenCalled();
+    expect(canLeave).toHaveBeenCalledWith('/outra/checks');
     expect(result).toBe(false);
   });
 });

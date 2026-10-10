@@ -7,7 +7,7 @@ import { merge } from 'rxjs';
 import { Token, TokenSettings } from '../token/token';
 import { UrlLock } from '../token/url-lock';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
-import { ChangedElsewhere, ChecksStore, UnlockFailed } from './checks-store';
+import { ChangedElsewhere, ChecksStore, SaveOptions, UnlockFailed } from './checks-store';
 import { attentionText, updateError } from './url-settings';
 
 export type SectionId = 'signature' | 'schema' | 'e2ee' | 'response' | 'privacy';
@@ -71,6 +71,9 @@ export class ChecksDraft {
   private readonly tick = signal(0);
   readonly base = signal<Token | null>(null);
   readonly saving = signal(false);
+  /** O nome da URL que abre quando o "Save" a caminho terminar: a pessoa trocou de URL durante ele. */
+  readonly leavingFor = signal<string | null>(null);
+  private inFlight: Promise<boolean> | null = null;
   private readonly attempted = signal(false);
   private readonly refusedLabels = signal<readonly string[]>([]);
   readonly failure = signal<SaveFailure | null>(null);
@@ -185,8 +188,27 @@ export class ChecksDraft {
     ) as TokenSettings;
     const cors = dirty.map((section) => section.cors?.() ?? null).find((v) => v !== null) ?? null;
     this.saving.set(true);
+    this.inFlight = this.send(changes, base, { cors, force }, count, dirty).finally(() => {
+      this.saving.set(false);
+      this.inFlight = null;
+    });
+    return this.inFlight;
+  }
+
+  /** O fim do "Save" a caminho: se gravou. Sem nenhum a caminho, `true`. */
+  settled(): Promise<boolean> {
+    return this.inFlight ?? Promise.resolve(true);
+  }
+
+  private async send(
+    changes: TokenSettings,
+    base: Token,
+    options: SaveOptions,
+    count: number,
+    dirty: readonly ChecksSection[],
+  ): Promise<boolean> {
     try {
-      this.loaded(await this.checks.save(changes, base, { cors, force }));
+      this.loaded(await this.checks.save(changes, base, options));
       void this.announcer.announce(
         count === 1 ? $localize`Saved. 1 change.` : $localize`Saved. ${count}:count: changes.`,
         ANNOUNCEMENT_MS,
@@ -194,8 +216,6 @@ export class ChecksDraft {
       return true;
     } catch (error) {
       return this.failed(error, base, dirty);
-    } finally {
-      this.saving.set(false);
     }
   }
 

@@ -1168,4 +1168,172 @@ describe('Dado a tela principal', () => {
 
     expect(localStorage.getItem('autoNavEnable')).toBe('true');
   });
+
+  describe('Dado a troca de URL com uma resposta atrasada', () => {
+    const A = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const B = '7c1d9e2f-3a4b-4c5d-8e6f-0a1b2c3d4e5f';
+    const [A1, B1] = [webhookRequest(11, { token_id: A }), webhookRequest(12, { token_id: B })];
+    const listOf = (tokenId: string) => `/token/${tokenId}/requests?page=1&sorting=newest`;
+    const store = () => TestBed.inject(RequestStore);
+    /** Abre a URL até o pedido da lista, que fica a caminho. */
+    const startOpening = async (tokenId: string) => {
+      await harness.navigateByUrl(`/${tokenId}`);
+      await flush(`/token/${tokenId}`, token({ uuid: tokenId }));
+      return vi.waitFor(() => http.expectOne(listOf(tokenId)));
+    };
+    const openB = async () => {
+      (await startOpening(B)).flush(requestPage([B1]));
+      await vi.waitFor(() => expect(router.url).toBe(`/${B}/${B1.uuid}/1`));
+    };
+
+    beforeEach(async () => {
+      await openToken(`/${TOKEN_ID}`);
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+    });
+
+    it('deve ficar na URL nova, sem navegar para a anterior, Quando a lista da anterior chega depois', async () => {
+      const listaDeA = await startOpening(A);
+      await openB();
+
+      listaDeA.flush(requestPage([A1]));
+      await harness.fixture.whenStable();
+
+      expect(router.url).toBe(`/${B}/${B1.uuid}/1`);
+      expect(store().tokenId()).toBe(B);
+      expect(store().requests()).toEqual([B1]);
+      expect(text()).not.toContain(A1.uuid);
+    });
+
+    it('não deve abrir o stream nem soltar a lista Quando a carga velha da mesma URL termina antes da nova', async () => {
+      const primeira = await startOpening(A);
+      await openB();
+      await harness.navigateByUrl(`/${A}`);
+      await flush(`/token/${A}`, token({ uuid: A }));
+      const segunda = await vi.waitFor(() => http.expectOne(listOf(A)));
+
+      primeira.flush(requestPage([webhookRequest(13, { token_id: A })]));
+      await new Promise((done) => setTimeout(done));
+      expect(store().requests()).toEqual([]);
+      expect(store().loading()).toBe(true);
+      expect(FakeEventSource.instances.map((source) => source.url)).not.toContain(
+        `/token/${A}/stream`,
+      );
+
+      segunda.flush(requestPage([A1]));
+      await vi.waitFor(() => expect(router.url).toBe(`/${A}/${A1.uuid}/1`));
+      expect(store().requests()).toEqual([A1]);
+      await vi.waitFor(() => expect(FakeEventSource.latest().url).toBe(`/token/${A}/stream`));
+    });
+
+    it('não deve pôr na lista nova a mensagem completa da anterior Quando ela chega depois da troca', async () => {
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      const cortada = webhookRequest(3, { content: null });
+      FakeEventSource.latest().emit('request.created', {
+        request: cortada,
+        total: 3,
+        truncated: true,
+      });
+      const completa = await vi.waitFor(() =>
+        http.expectOne(`/token/${TOKEN_ID}/request/${cortada.uuid}`),
+      );
+
+      await openB();
+      completa.flush(webhookRequest(3));
+      await harness.fixture.whenStable();
+
+      expect(store().requests()).toEqual([B1]);
+    });
+
+    it('não deve pôr na lista nova o evento da anterior Quando ele chega antes do stream da nova abrir', async () => {
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      const daAnterior = FakeEventSource.latest();
+      const listaDeB = await startOpening(B);
+
+      daAnterior.emit('request.created', { request: webhookRequest(3), total: 3 });
+      await new Promise((done) => setTimeout(done));
+      expect(store().requests()).toEqual([]);
+
+      listaDeB.flush(requestPage([B1]));
+      await vi.waitFor(() => expect(router.url).toBe(`/${B}/${B1.uuid}/1`));
+
+      expect(store().requests()).toEqual([B1]);
+    });
+
+    it('deve listar a mensagem do evento Quando a completa não vem da API', async () => {
+      await vi.waitFor(() =>
+        expect(FakeEventSource.latest().url).toBe(`/token/${TOKEN_ID}/stream`),
+      );
+      const cortada = webhookRequest(3, { content: null });
+
+      FakeEventSource.latest().emit('request.created', {
+        request: cortada,
+        total: 3,
+        truncated: true,
+      });
+      await flush(
+        `/token/${TOKEN_ID}/request/${cortada.uuid}`,
+        {},
+        { status: 503, statusText: 'Unavailable' },
+      );
+
+      await vi.waitFor(() => expect(store().requests()).toContainEqual(cortada));
+    });
+
+    it('não deve pôr na lista nova o que a volta da conexão da anterior trouxe', async () => {
+      const source = await vi.waitFor(() => FakeEventSource.latest());
+      store().append(webhookRequest(4, { seq: 4 }), 3);
+      source.fail(FakeEventSource.CONNECTING);
+      source.open();
+      const retomada = await vi.waitFor(() =>
+        http.expectOne(`/token/${TOKEN_ID}/requests?after=4`),
+      );
+
+      await openB();
+      retomada.flush(requestPage([webhookRequest(5, { seq: 5 })], { total: 4 }));
+      await new Promise((done) => setTimeout(done));
+
+      expect(store().requests()).toEqual([B1]);
+    });
+
+    it('deve abrir a primeira de uma URL vazia Quando a releitura da volta da conexão a lista durante a busca da completa', async () => {
+      await harness.navigateByUrl(`/${B}`);
+      await flush(`/token/${B}`, token({ uuid: B }));
+      await flush(listOf(B), requestPage([]));
+      const source = await vi.waitFor(() => {
+        expect(FakeEventSource.latest().url).toBe(`/token/${B}/stream`);
+        return FakeEventSource.latest();
+      });
+      const cortada = webhookRequest(14, { token_id: B, content: null });
+      const completa = { ...cortada, content: '{"n":14}' };
+
+      source.open();
+      const releitura = await vi.waitFor(() => http.expectOne(listOf(B)));
+      source.emit('request.created', { request: cortada, total: 1, truncated: true });
+      const busca = await vi.waitFor(() => http.expectOne(`/token/${B}/request/${cortada.uuid}`));
+      releitura.flush(requestPage([completa]));
+      await new Promise((done) => setTimeout(done));
+      busca.flush(completa);
+
+      await vi.waitFor(() => expect(store().selected()?.uuid).toBe(cortada.uuid));
+    });
+
+    it('deve fechar o painel de ação aberto Quando outra URL abre', async () => {
+      const root = harness.routeNativeElement as HTMLElement;
+      await vi.waitFor(() => expect(root.querySelector('app-request-detail')).not.toBeNull());
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }));
+      await vi.waitFor(async () => {
+        await harness.fixture.whenStable();
+        expect(root.querySelector('app-action-panel')).not.toBeNull();
+      });
+
+      await openB();
+      await harness.fixture.whenStable();
+
+      expect(root.querySelector('app-action-panel')).toBeNull();
+    });
+  });
 });

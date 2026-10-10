@@ -259,6 +259,7 @@ export class RuleFromRequestDialog {
       return;
     }
     const tokenId = this.request.token_id;
+    const from = this.router.url;
     this.saving.set(true);
     this.errors.set([]);
     try {
@@ -285,7 +286,9 @@ export class RuleFromRequestDialog {
       this.store.pendingFocus.set({ rule: created[0] ?? null });
       this.dialog.close();
       this.snackBar.open($localize`Rule saved`, undefined, { duration: 4000, politeness: 'off' });
-      await this.router.navigate(['/', tokenId, 'rules']);
+      if (this.router.url === from) {
+        await this.router.navigate(['/', tokenId, 'rules']);
+      }
     } catch (error) {
       this.errors.set(
         error instanceof RulesChangedError

@@ -2009,6 +2009,8 @@ export const translations: Record<string, string> = {
   '8014521341313741580': 'Nome da regra',
   // Unsaved changes
   '6721990731116033031': 'Alterações não salvas',
+  // Saving… then opening URL {$name}
+  '8221982592837909438': 'Salvando… depois abre a URL {$name}',
   // Delete rule
   '4754052462239552170': 'Apagar regra',
   // {$seconds} s delay
@@ -3401,6 +3403,8 @@ export const translations: Record<string, string> = {
   '2106765886275018133': 'O servidor não tem mais esta requisição.',
   // Request restored.
   '8505713565664755746': 'Requisição restaurada.',
+  // Kept in {$name}
+  '7451075484720647780': 'Mantida em {$name}',
   // Checked against the rules as they are now.
   '5397359920811842463': 'Conferido com as regras como estão agora.',
   // No other request was opened in its place.

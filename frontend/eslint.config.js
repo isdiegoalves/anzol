@@ -249,6 +249,7 @@ module.exports = defineConfig([
             'src/app/settings/redirect.ts',
             'src/app/realtime/request-stream.ts',
             'src/app/token/url-lock.ts',
+            'src/app/token/known-urls.ts',
             'src/app/ai/ai-client.ts',
           ],
         },

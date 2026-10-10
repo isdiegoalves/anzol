@@ -1,5 +1,9 @@
 <div class="head">
-  <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
+  @if (count() === null) {
+    <h2 i18n class="header">Requests</h2>
+  } @else {
+    <h2 i18n class="header" [attr.title]="cleanupHint()">Requests ({{ count() }})</h2>
+  }
   <!-- INBOX-34: no celular, a linha visível do protótipo; o heading fica no documento (S15). -->
   <span class="order-line" aria-hidden="true">{{ orderLine() }}</span>
   <!-- INBOX-07: as não lidas ao lado do heading, fora dele (S15). -->
@@ -31,7 +35,9 @@
 <app-compare-band />
 @if (store.loading()) {
   <!-- Esqueleto com a forma do item (C §2.11); o `aria-busy` fica na região da lista. -->
-  <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />
+  @if (skeleton()) {
+    <app-skeleton-list class="skeleton" [itemHeight]="itemHeight()" />
+  }
 } @else if (!store.hasRequests()) {
   <p class="waiting">
     <mat-progress-spinner mode="indeterminate" diameter="16" aria-hidden="true" />

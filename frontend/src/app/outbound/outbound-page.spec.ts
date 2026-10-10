@@ -15,8 +15,10 @@ import { Preferences } from '../settings/preferences';
 import { Redirector } from '../settings/redirect';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Token } from '../token/token';
+import { TokenStore } from '../token/token-store';
 import { OutboundResult } from './outbound';
 import { OutboundPage } from './outbound-page';
+import { OutboundStore } from './outbound-store';
 
 const HISTORY = `/token/${TOKEN_ID}/outbound`;
 const RECENT = `/token/${TOKEN_ID}/requests?page=1&sorting=newest`;
@@ -626,5 +628,32 @@ describe('Dado a página Outbound', () => {
         ).toContain('anzol listen');
       });
     });
+  });
+
+  it('deve mostrar o histórico da URL da rota Quando o da anterior chega depois da troca', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    http = TestBed.inject(HttpTestingController);
+    const harness = await RouterTestingHarness.create();
+    void harness.navigateByUrl(`/${TOKEN_ID}/outbound`);
+    const urlDaAnterior = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
+    const [recentesDaAnterior, historicoDaAnterior] = [
+      http.expectOne(RECENT),
+      http.expectOne(HISTORY),
+    ];
+    void harness.navigateByUrl(`/${outra}/outbound`);
+    (await vi.waitFor(() => http.expectOne(`/token/${outra}`))).flush(token({ uuid: outra }));
+    http.expectOne(`/token/${outra}/requests?page=1&sorting=newest`).flush(requestPage([]));
+    http.expectOne(`/token/${outra}/outbound`).flush([outboundResult(7)]);
+    await vi.waitFor(() =>
+      expect(screen.getByRole('table', { name: 'Outbound history' })).toBeTruthy(),
+    );
+
+    urlDaAnterior.flush(token());
+    recentesDaAnterior.flush(requestPage([PEDIDO, VELHA]));
+    historicoDaAnterior.flush([outboundResult(2), outboundResult(1)]);
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(OutboundStore).history()).toEqual([outboundResult(7)]);
+    expect(TestBed.inject(TokenStore).token()?.uuid).toBe(outra);
   });
 });

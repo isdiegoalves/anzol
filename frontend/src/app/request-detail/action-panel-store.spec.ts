@@ -78,6 +78,19 @@ describe('Dado o estado do painel de ação', () => {
     expect(store().expanded()).toBe(false);
   });
 
+  it('deve fechar sem tirar o foco de onde a pessoa está Quando outra URL abre', () => {
+    const opener = document.body.appendChild(document.createElement('button'));
+    const switcher = document.body.appendChild(document.createElement('input'));
+    store().show('replay', opener);
+    switcher.focus();
+
+    store().dismiss();
+
+    expect(store().open()).toBe(false);
+    expect(saved()).toEqual({ open: false, tab: 'replay', height: null });
+    expect(document.activeElement).toBe(switcher);
+  });
+
   it('não deve ficar abaixo da altura mínima', () => {
     store().resize(100);
     expect(store().height()).toBe(PANEL_MIN_PX);

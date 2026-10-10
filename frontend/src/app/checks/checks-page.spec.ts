@@ -14,7 +14,7 @@ import { translations } from '../../locale/pt-BR';
 import { checksMatcher, routes } from '../app.routes';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Preferences } from '../settings/preferences';
-import { CHECKS_DRAFT_KEY } from './checks-draft';
+import { CHECKS_DRAFT_KEY, ChecksDraft } from './checks-draft';
 import { ChecksPage, checksSections } from './checks-page';
 
 @Component({ template: 'outra página' })
@@ -175,6 +175,21 @@ describe('Dado a página Checks', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
     (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(token());
     await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Privacy' })).toBeTruthy());
+  });
+
+  it('deve mostrar a URL da rota, sem ficar em "Loading this URL…", Quando a anterior chega depois', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const { harness, load } = await open(`/${TOKEN_ID}/checks`);
+    void harness.navigateByUrl(`/${outra}/checks`);
+    (await vi.waitFor(() => http.expectOne(`/token/${outra}`))).flush(token({ uuid: outra }));
+    await harness.fixture.whenStable();
+
+    load.flush(token());
+    await harness.fixture.whenStable();
+
+    expect(screen.queryByText('Loading this URL…')).toBeNull();
+    expect(TestBed.inject(ChecksDraft).base()?.uuid).toBe(outra);
+    await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
   });
 
   describe('Dado a ordem por assunto', () => {
@@ -552,6 +567,47 @@ describe('Dado a página Checks', () => {
         ),
       );
       http.expectNone((sent) => sent.method === 'PUT');
+    });
+
+    it('deve terminar o Save a caminho e só então abrir a outra URL, dizendo isso, sem perguntar', async () => {
+      const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+      await ready();
+      await change('Default status code', '429');
+      await userEvent.click(saveButton());
+      const put = await expectPut(http);
+
+      const left = TestBed.inject(Router).navigateByUrl(`/${outra}/checks`);
+
+      await vi.waitFor(() =>
+        expect(changesBar()?.textContent).toContain('Saving… then opening URL 0b8f2'),
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(TestBed.inject(Router).url).toBe(`/${TOKEN_ID}/checks`);
+      put.flush(token({ default_status: 429 }));
+      await expect(left).resolves.toBe(true);
+      expect(TestBed.inject(Router).url).toBe(`/${outra}/checks`);
+      (await vi.waitFor(() => http.expectOne(`/token/${outra}`))).flush(token({ uuid: outra }));
+      await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
+    });
+
+    it('deve ficar na URL, com o erro do Save, Quando o Save a caminho falha', async () => {
+      const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+      await ready();
+      await change('Default status code', '429');
+      await userEvent.click(saveButton());
+      const put = await expectPut(http);
+      const left = TestBed.inject(Router).navigateByUrl(`/${outra}/checks`);
+      await vi.waitFor(() =>
+        expect(changesBar()?.textContent).toContain('Saving… then opening URL 0b8f2'),
+      );
+
+      put.flush({ message: 'down' }, { status: 503, statusText: 'Unavailable' });
+
+      await expect(left).resolves.toBe(false);
+      expect(TestBed.inject(Router).url).toBe(`/${TOKEN_ID}/checks`);
+      await vi.waitFor(() => expect(within(changesBar()!).getByRole('alert')).toBeTruthy());
+      expect(changesBar()?.textContent).not.toContain('then opening');
+      expect(box('Default status code').value).toBe('429');
     });
 
     it('deve pedir a confirmação do navegador ao fechar a aba Quando há alteração pendente', async () => {

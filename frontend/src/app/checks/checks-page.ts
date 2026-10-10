@@ -17,6 +17,7 @@ import { MatButton } from '@angular/material/button';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { fromNow } from '../request-detail/dates';
 import { Viewport } from '../shell/viewport';
+import { KnownUrls } from '../token/known-urls';
 import { signatureProviderLabel, Token } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
@@ -99,6 +100,7 @@ interface SectionState {
 export class ChecksPage {
   protected readonly tokens = inject(TokenStore);
   protected readonly draft = inject(ChecksDraft);
+  private readonly urls = inject(KnownUrls);
   private readonly viewport = inject(Viewport);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -156,8 +158,24 @@ export class ChecksPage {
     inject(DestroyRef).onDestroy(() => this.draft.flush());
   }
 
-  /** "Save and leave" com campo inválido fica na página, como "Save changes". */
-  async canLeave(): Promise<boolean> {
+  /**
+   * "Save and leave" com campo inválido fica na página, como "Save changes". Com o "Save" a caminho, sair
+   * espera por ele; se ele falhar, a pessoa fica, com o erro à vista.
+   */
+  async canLeave(next = ''): Promise<boolean> {
+    if (this.draft.saving()) {
+      const target = /^\/([^/?]+)/.exec(next)?.[1];
+      this.draft.leavingFor.set(
+        target && target !== this.tokenId()
+          ? this.urls.nicknameOf(target) || target.slice(0, 5)
+          : null,
+      );
+      const saved = await this.draft.settled();
+      this.draft.leavingFor.set(null);
+      if (!saved) {
+        return false;
+      }
+    }
     if (!this.draft.dirty()) {
       return true;
     }
@@ -177,10 +195,16 @@ export class ChecksPage {
     this.tokens
       .load(tokenId)
       .then((token) => {
-        this.draft.start(token);
-        this.loaded.set(tokenId);
+        if (this.tokenId() === tokenId) {
+          this.draft.start(token);
+          this.loaded.set(tokenId);
+        }
       })
-      .catch(() => this.failed.set(true));
+      .catch(() => {
+        if (this.tokenId() === tokenId) {
+          this.failed.set(true);
+        }
+      });
   }
 
   protected stateOf(id: PageSection): SectionState | null {

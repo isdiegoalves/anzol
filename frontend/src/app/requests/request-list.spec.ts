@@ -77,13 +77,14 @@ describe('Dado a lista lateral de mensagens', () => {
     await expectNoAxeViolations(element());
   });
 
-  it('deve mostrar o esqueleto, e não "Waiting for first request...", Quando a lista carrega (E10)', async () => {
+  it('deve mostrar o esqueleto depois de 150 ms, e não "Waiting for first request...", Quando a lista carrega (E10)', async () => {
     const loaded = store.load(TOKEN_ID);
     await fixture.whenStable();
 
-    expect(element().querySelectorAll('.skeleton .ghost')).toHaveLength(6);
+    expect(element().querySelector('.skeleton')).toBeNull();
     expect(element().textContent).not.toContain('Waiting for first request...');
     expect(items()).toHaveLength(0);
+    await vi.waitFor(() => expect(element().querySelectorAll('.skeleton .ghost')).toHaveLength(6));
 
     http
       .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
@@ -92,6 +93,39 @@ describe('Dado a lista lateral de mensagens', () => {
     await fixture.whenStable();
     expect(element().querySelector('.skeleton')).toBeNull();
     expect(items()).toHaveLength(1);
+  });
+
+  it('não deve piscar o esqueleto Quando a lista chega antes de 150 ms', async () => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1)]));
+    await loaded;
+    await new Promise((done) => setTimeout(done, 200));
+    await fixture.whenStable();
+
+    expect(element().querySelector('.skeleton')).toBeNull();
+    expect(items()).toHaveLength(1);
+  });
+
+  it('deve tirar a lista, as não lidas e o número do título da URL anterior Quando outra URL começa a abrir', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: [webhookRequest(1).uuid] });
+    await load([webhookRequest(1), webhookRequest(2)], 2);
+    expect(element().textContent).toContain('1 unread');
+
+    const opening = store.load(outra);
+    await fixture.whenStable();
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests');
+    expect(items()).toHaveLength(0);
+    expect(element().textContent).not.toContain('unread');
+    http
+      .expectOne(`/token/${outra}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(3, { token_id: outra })], { total: 1 }));
+    await opening;
+    await fixture.whenStable();
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (1)');
   });
 
   it('deve usar itens de duas linhas: 40 px, 36 px na densidade compacta e 64 px no celular (B1, S17)', async () => {
@@ -581,6 +615,28 @@ describe('Dado a lista lateral de mensagens', () => {
 
     http.expectNone(`/token/${TOKEN_ID}/request/${webhookRequest(1).uuid}`);
     expect(element().textContent).toContain('Requests (2)');
+  });
+
+  it('deve dizer onde a mensagem ficou, sem pô-la na lista da URL nova, Quando o Undo vem depois da troca de URL', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    await load([webhookRequest(1), webhookRequest(2)]);
+    const open = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+    items()[0].querySelector<HTMLButtonElement>('.delete')?.click();
+    const opening = store.load(outra);
+    http
+      .expectOne(`/token/${outra}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(3, { token_id: outra })]));
+    await opening;
+
+    open.mock.results[0].value.dismissWithAction();
+
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith(`Kept in URL ${TOKEN_ID.slice(0, 5)}`, undefined, {
+        duration: UNDO_MS,
+      }),
+    );
+    expect(store.requests().map((request) => request.token_id)).toEqual([outra]);
+    http.expectNone({ method: 'DELETE' });
   });
 
   it('deve ter a lixeira com o nome "Delete request {uuid}" e passar no axe', async () => {

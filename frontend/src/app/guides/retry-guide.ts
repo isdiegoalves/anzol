@@ -281,9 +281,15 @@ export class RetryGuide {
 
   /** "Start over": o cenário volta a `Started` e a conferência da folha esvazia. */
   protected async startOver(): Promise<void> {
-    await this.scenarios.load(this.tokenId());
+    const tokenId = this.tokenId();
+    await this.scenarios.load(tokenId);
+    if (this.tokenId() !== tokenId) {
+      return;
+    }
     await this.scenarios.resetAll();
-    this.reset();
+    if (this.tokenId() === tokenId) {
+      this.reset();
+    }
   }
 
   private reset(): void {

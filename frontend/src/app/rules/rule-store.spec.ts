@@ -231,6 +231,69 @@ describe('Dado as regras da URL aberta', () => {
   });
 });
 
+describe('Dado uma resposta atrasada nas regras de outra URL', () => {
+  const OUTRA = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+  const urlOf = (tokenId: string) => `/token/${tokenId}/rules`;
+  let http: HttpTestingController;
+  let store: RuleStore;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RuleStore);
+  });
+
+  afterEach(() => http.verify());
+
+  it('deve mostrar as regras da URL pedida por último Quando as da anterior chegam depois', async () => {
+    const lenta = store.load(TOKEN_ID);
+    const ultima = store.load(OUTRA);
+    const daLenta = http.expectOne(urlOf(TOKEN_ID));
+    http.expectOne(urlOf(OUTRA)).flush([rule(9)]);
+    await ultima;
+
+    daLenta.flush([rule(1), rule(2)]);
+    await lenta;
+
+    expect(store.tokenId()).toBe(OUTRA);
+    expect(store.rules()).toEqual([rule(9)]);
+  });
+
+  it('não deve pôr as regras relidas da anterior Quando outra URL abriu durante a releitura', async () => {
+    const primeira = store.load(TOKEN_ID);
+    http.expectOne(urlOf(TOKEN_ID)).flush([rule(1)]);
+    await primeira;
+    const relida = store.reload();
+    const daReleitura = http.expectOne(urlOf(TOKEN_ID));
+    const outra = store.load(OUTRA);
+    http.expectOne(urlOf(OUTRA)).flush([rule(9)]);
+    await outra;
+
+    daReleitura.flush([rule(1), rule(2)]);
+    await relida;
+
+    expect(store.rules()).toEqual([rule(9)]);
+  });
+
+  it('não deve pôr a lista salva da anterior Quando o PUT dela termina depois da troca', async () => {
+    const primeira = store.load(TOKEN_ID);
+    http.expectOne(urlOf(TOKEN_ID)).flush([rule(1)]);
+    await primeira;
+    const salvo = store.save([rule(1), rule(2)]);
+    const put = http.expectOne({ method: 'PUT', url: urlOf(TOKEN_ID) });
+    const outra = store.load(OUTRA);
+    http.expectOne(urlOf(OUTRA)).flush([rule(9)]);
+    await outra;
+
+    put.flush([rule(1), rule(2)]);
+    await salvo;
+
+    expect(store.rules()).toEqual([rule(9)]);
+  });
+});
+
 describe('Dado a resposta de erro ao salvar regras', () => {
   it('deve listar chave e mensagem com a regra numerada a partir de 1 Quando é 422', () => {
     const erro = new HttpErrorResponse({

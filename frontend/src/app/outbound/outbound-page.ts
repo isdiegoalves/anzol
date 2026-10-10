@@ -226,18 +226,32 @@ export class OutboundPage {
     this.loadError.set(null);
     this.token.set(null);
     this.requests.set(null);
+    const current = () => this.tokenId() === tokenId;
     this.tokens
       .load(tokenId)
-      .then((token) => this.token.set(token))
+      .then((token) => {
+        if (current()) {
+          this.token.set(token);
+        }
+      })
       .catch(() => undefined);
     this.store
       .recent(tokenId)
-      .then((requests) => this.requests.set(requests))
-      .catch(() => this.requests.set([]));
+      .catch(() => [])
+      .then((requests) => {
+        if (current()) {
+          this.requests.set(requests);
+        }
+      });
     try {
       await this.store.load(tokenId);
-      this.loaded.set(true);
+      if (current()) {
+        this.loaded.set(true);
+      }
     } catch (error) {
+      if (!current()) {
+        return;
+      }
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
       this.loadError.set(
         status === 404 || status === 410

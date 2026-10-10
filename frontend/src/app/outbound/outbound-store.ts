@@ -31,9 +31,12 @@ export class OutboundStore {
   async load(tokenId: string): Promise<void> {
     this.tokenId.set(tokenId);
     this.history.set([]);
-    this.history.set(
-      await firstValueFrom(this.http.get<OutboundResult[]>(`/token/${tokenId}/outbound`)),
+    const history = await firstValueFrom(
+      this.http.get<OutboundResult[]>(`/token/${tokenId}/outbound`),
     );
+    if (this.tokenId() === tokenId) {
+      this.history.set(history);
+    }
   }
 
   async replay(

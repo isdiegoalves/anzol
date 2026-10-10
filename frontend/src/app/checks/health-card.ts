@@ -101,6 +101,7 @@ export class HealthCard {
     return stats ? { evaluated: stats.evaluated, total: stats.total } : null;
   });
   protected readonly loading = signal(false);
+  private refreshes = 0;
   protected readonly failure = signal<string | null>(null);
   protected readonly open = signal(false);
   protected readonly brief = computed(() => {
@@ -265,15 +266,23 @@ export class HealthCard {
     if (!token) {
       return;
     }
+    const run = ++this.refreshes;
     this.loading.set(true);
     try {
-      this.stats.set(await this.checks.stats(token.uuid, this.window()));
-      this.failure.set(null);
+      const stats = await this.checks.stats(token.uuid, this.window());
+      if (run === this.refreshes) {
+        this.stats.set(stats);
+        this.failure.set(null);
+      }
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : 'unknown';
-      this.failure.set($localize`Could not load the numbers (${status}).`);
+      if (run === this.refreshes) {
+        this.failure.set($localize`Could not load the numbers (${status}).`);
+      }
     } finally {
-      this.loading.set(false);
+      if (run === this.refreshes) {
+        this.loading.set(false);
+      }
     }
   }
 }

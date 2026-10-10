@@ -7,6 +7,7 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   output,
   signal,
@@ -24,6 +25,7 @@ import { fromNow, localDate } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
+import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { CheckChip, spokenOf } from '../ui/check-chip';
 import { EmptyState } from '../ui/empty-state';
@@ -89,6 +91,8 @@ export const ITEM_HEIGHT_TOUCH = 64;
 export const FRESH_MS = 3000;
 /** Quanto tempo o "Undo" do apagar fica disponível antes de apagar no servidor. */
 export const UNDO_MS = 4000;
+/** A carga que chega antes disto troca a lista sem o esqueleto piscar no meio. */
+const SKELETON_DELAY_MS = 150;
 
 /** O que a linha mostra de uma mensagem. */
 export interface ItemView {
@@ -147,6 +151,7 @@ export class RequestList {
   protected readonly grouping = inject(EventGrouping);
   private readonly document = inject(DOCUMENT);
   private readonly tokens = inject(TokenStore);
+  private readonly urls = inject(KnownUrls);
   protected readonly settings = inject(ShellSettings);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
@@ -183,6 +188,9 @@ export class RequestList {
   });
   /** A linha visível do celular (INBOX-34): "57 requests · newest first". */
   protected readonly orderLine = computed(() => {
+    if (this.store.opening()) {
+      return '';
+    }
     const total = this.store.total();
     const count = total === 1 ? $localize`1 request` : $localize`${total}:count: requests`;
     return this.store.newestFirst()
@@ -198,7 +206,11 @@ export class RequestList {
     const limit = this.limit();
     return limit ? $localize`Auto cleanup keeps the ${limit}:limit: most recent requests` : null;
   });
+  /** `null` enquanto a lista de outra URL não chega: o número ainda seria o da anterior. */
   protected readonly count = computed(() => {
+    if (this.store.opening()) {
+      return null;
+    }
     const limit = this.limit();
     const total = limit === null ? `${this.store.total()}` : `${this.store.total()} / ${limit}`;
     // Com filtro (texto, chips ou o desfecho do C2), quantas sobraram de quantas (L9).
@@ -209,7 +221,10 @@ export class RequestList {
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));
   /** As não lidas da URL, ao lado do heading (INBOX-07). */
-  protected readonly unreadCount = computed(() => this.store.unread().length);
+  protected readonly unreadCount = computed(() =>
+    this.store.opening() ? 0 : this.store.unread().length,
+  );
+  protected readonly skeleton = signal(false);
 
   /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
   private readonly now = signal(Date.now());
@@ -269,6 +284,14 @@ export class RequestList {
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor() {
+    effect((onCleanup) => {
+      if (!this.store.loading()) {
+        this.skeleton.set(false);
+        return;
+      }
+      const timer = setTimeout(() => this.skeleton.set(true), SKELETON_DELAY_MS);
+      onCleanup(() => clearTimeout(timer));
+    });
     const clock = setInterval(() => this.now.set(Date.now()), AGO_REFRESH_MS);
     inject(DestroyRef).onDestroy(() => {
       this.timers.forEach(clearTimeout);
@@ -471,7 +494,17 @@ export class RequestList {
     const undo = firstValueFrom(notice.afterDismissed()).then(
       ({ dismissedByAction }) => dismissedByAction,
     );
-    void this.store.deleteRequest(request, undo);
+    void this.store.deleteRequest(request, undo).then((outcome) => {
+      if (outcome === 'kept') {
+        this.snackBar.open(
+          $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+          undefined,
+          {
+            duration: UNDO_MS,
+          },
+        );
+      }
+    });
   }
 
   protected trackRow(_index: number, row: ListRow<ItemView>): string {

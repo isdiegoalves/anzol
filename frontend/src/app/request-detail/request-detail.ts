@@ -26,6 +26,7 @@ import { closestPhrase } from '../pipeline/pipeline';
 import { hasNoCondition } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
 import { Viewport } from '../shell/viewport';
+import { KnownUrls } from '../token/known-urls';
 import { Token } from '../token/token';
 import { Icon } from '../ui/icon';
 import type { CopyFormat } from './copy-as';
@@ -78,6 +79,7 @@ export class RequestDetail {
   private readonly grouping = inject(EventGrouping);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly panel = inject(ActionPanelStore);
+  private readonly urls = inject(KnownUrls);
 
   readonly request = input.required<WebhookRequest>();
   readonly token = input.required<Token>();
@@ -110,10 +112,19 @@ export class RequestDetail {
     const undo = firstValueFrom(notice.afterDismissed()).then(
       ({ dismissedByAction }) => dismissedByAction,
     );
-    void this.requests.deleteRequest(this.request(), undo).then((deleted) => {
-      if (!deleted) {
+    const request = this.request();
+    void this.requests.deleteRequest(request, undo).then((outcome) => {
+      if (outcome === 'restored') {
         // O aviso da requisição some; a frase sai uma vez, pelo anunciador.
         void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
+      } else if (outcome === 'kept') {
+        this.snackBar.open(
+          $localize`Kept in ${this.urls.nameOf(request.token_id)}:name:`,
+          undefined,
+          {
+            duration: UNDO_MS,
+          },
+        );
       }
     });
   }
