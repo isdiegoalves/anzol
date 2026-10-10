@@ -70,10 +70,10 @@ describe('Dado a tela principal', () => {
   });
 
   afterEach(() => {
-    http.verify();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     localStorage.clear();
+    http.verify();
   });
 
   it('deve abrir a última URL do localStorage e a primeira mensagem Quando a raiz é aberta', async () => {
