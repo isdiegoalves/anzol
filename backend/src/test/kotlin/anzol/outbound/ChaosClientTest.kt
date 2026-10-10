@@ -220,14 +220,14 @@ class ChaosClientTest {
                 val index = count.getAndIncrement()
                 events.add("chegou $index")
                 if (index == 0) Thread.sleep(200)
+                events.add("responde $index")
                 exchange.reply(if (index == 0) 201 else 409)
-                events.add("respondeu $index")
             }.closing()
         val client = OutboundClient(PERMISSIVE).closing()
 
         val delivery = client.exchange(post(receiver.url("/p?q=1")), Chaos(duplicate = true, delayMs = 50))
 
-        assertThat(events).containsExactly("chegou 0", "respondeu 0", "chegou 1", "respondeu 1")
+        assertThat(events).containsExactly("chegou 0", "responde 0", "chegou 1", "responde 1")
         val (first, second) = receiver.received
         assertThat(second.method).isEqualTo(first.method)
         assertThat(second.target).isEqualTo("/p?q=1").isEqualTo(first.target)
