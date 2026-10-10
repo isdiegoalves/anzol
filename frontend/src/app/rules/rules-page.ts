@@ -1027,10 +1027,8 @@ export class RulesPage {
       SLOW_READ_MS,
     );
     this.changedElsewhere.set(false);
-    if (this.tokens.token()?.uuid !== tokenId) {
-      // Link direto para as regras de outra URL: o cabeçalho passa a mostrar esta.
-      this.tokens.load(tokenId).catch(() => undefined);
-    }
+    // Link direto para as regras de outra URL: o cabeçalho passa a mostrar esta.
+    this.tokens.ensure(tokenId);
     try {
       await this.store.load(tokenId);
       if (this.tokenId() !== tokenId) {

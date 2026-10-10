@@ -24,6 +24,8 @@ export class TokenStore {
    */
   readonly failure = signal<{ id: string; status: number } | null>(null);
   private loads = 0;
+  /** A URL da leitura mais recente, enquanto ela não volta. */
+  private wanted: string | null = null;
 
   /** URL que recebe os webhooks: `{protocolo}//{host}/{uuid}`. */
   readonly webhookUrl = computed(() => {
@@ -37,6 +39,7 @@ export class TokenStore {
    */
   async load(tokenId: string): Promise<Token> {
     const run = ++this.loads;
+    this.wanted = tokenId;
     try {
       const token = await firstValueFrom(this.http.get<Token>(`/token/${tokenId}`));
       if (run === this.loads) {
@@ -52,6 +55,20 @@ export class TokenStore {
         this.failure.set({ id: tokenId, status });
       }
       throw error;
+    } finally {
+      if (run === this.loads) {
+        this.wanted = null;
+      }
+    }
+  }
+
+  /**
+   * A página de uma URL lê a URL quando ela não é a aberta, ou quando a leitura de outra está a caminho: a
+   * que voltasse depois trocaria o cabeçalho pelo dela.
+   */
+  ensure(tokenId: string): void {
+    if ((this.wanted ?? this.token()?.uuid) !== tokenId) {
+      this.load(tokenId).catch(() => undefined);
     }
   }
 

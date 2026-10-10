@@ -229,8 +229,8 @@ export class RequestStore {
    * de uma URL para outra.
    */
   async load(tokenId: string, page = 1, filter: RequestFilter = NO_FILTER): Promise<void> {
-    const generation = ++this.generation;
     const run = this.begin(tokenId);
+    const generation = this.generation;
     const first = this.opening() === tokenId || this.failure()?.kind === 'list';
     this.searching.set(false);
     this.activeFilter.set(filter);
@@ -273,11 +273,13 @@ export class RequestStore {
   }
 
   /**
-   * A tela vai abrir a lista desta URL: a de outra sai da vista na hora, e o esqueleto e o aviso de
-   * demora contam daqui, desde a leitura da URL, que vem antes da lista.
+   * A tela vai abrir a lista desta URL: a de outra sai da vista na hora, a carga ou a busca que ainda
+   * estava a caminho deixa de valer, e o esqueleto e o aviso de demora contam daqui, desde a leitura da
+   * URL, que vem antes da lista.
    */
   begin(tokenId: string): number {
     const run = ++this.loads;
+    this.generation++;
     this.loading.set(true);
     clearTimeout(this.slowTimer);
     this.slow.set(false);

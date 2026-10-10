@@ -99,10 +99,8 @@ export class ComparePage {
     } else {
       this.state.set({ kind: 'loading' });
     }
-    if (this.tokens.token()?.uuid !== tokenId) {
-      // 401 de URL protegida tranca a tela pelo interceptor.
-      this.tokens.load(tokenId).catch(() => undefined);
-    }
+    // 401 de URL protegida tranca a tela pelo interceptor.
+    this.tokens.ensure(tokenId);
     if (this.requests.tokenId() !== tokenId) {
       this.requests.load(tokenId).catch(() => undefined);
     }

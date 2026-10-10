@@ -613,13 +613,17 @@ export class Inbox {
       requestId === undefined && this.requests.tokenId() === tokenId
         ? this.requests.selected()
         : undefined;
-    // Sem stream (Inbox recriado ao voltar de outro destino), a lista também está velha.
-    const stale = again || this.requests.tokenId() !== tokenId || this.streamTokenId() !== tokenId;
+    // Sem stream (Inbox recriado ao voltar de outro destino), a lista também está velha; com outra URL abrindo, a
+    // desta, que a loja ainda guarda, já saiu da tela.
+    const stale =
+      again ||
+      (this.requests.opening() ?? this.requests.tokenId()) !== tokenId ||
+      this.streamTokenId() !== tokenId;
     if (stale && !(await this.loadToken(tokenId, page, again))) {
       return;
     }
     // A rota mudou durante a carga: quem decide é a chamada da rota nova.
-    const routed = () => this.tokenId() === tokenId && this.requestId() === requestId;
+    const routed = () => this.routedTo(tokenId) && this.requestId() === requestId;
     if (!routed()) {
       return;
     }
@@ -799,7 +803,7 @@ export class Inbox {
       // cria outra URL (B1).
       return false;
     }
-    if (this.tokenId() !== tokenId) {
+    if (!this.routedTo(tokenId)) {
       return false;
     }
     // Antes da lista: o que chegar durante a carga, ou com ela em erro, não se perde.
@@ -810,7 +814,12 @@ export class Inbox {
       // A lista em erro diz isso no lugar dela e tenta de novo sozinha.
       return false;
     }
-    return this.tokenId() === tokenId && this.requests.tokenId() === tokenId;
+    return this.routedTo(tokenId) && this.requests.tokenId() === tokenId;
+  }
+
+  /** A rota ainda é desta URL. A Entrada que saiu da tela guarda a última rota, e não escreve mais nada. */
+  private routedTo(tokenId: string): boolean {
+    return !this.left && this.tokenId() === tokenId;
   }
 
   private async openSavedOrNewToken(): Promise<void> {
@@ -831,7 +840,7 @@ export class Inbox {
       return 0;
     }
     const arrived = await this.requests.arrivedSinceNewest();
-    if (!this.listReady() || this.tokenId() !== tokenId) {
+    if (!this.listReady() || !tokenId || !this.routedTo(tokenId)) {
       return 0;
     }
     if (!arrived) {
@@ -876,7 +885,7 @@ export class Inbox {
       await this.loading.done;
     }
     // O evento da URL anterior ainda chega até o stream da nova abrir.
-    const current = () => this.listReady() && this.tokenId() === request.token_id;
+    const current = () => this.listReady() && this.routedTo(request.token_id);
     // A reconexão pode repetir a que a volta da conexão já trouxe.
     if (!current() || this.listed(request.uuid)) {
       return;

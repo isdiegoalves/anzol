@@ -974,6 +974,19 @@ describe('Dado uma resposta atrasada na lista (outra URL ou outro filtro a camin
     expect(store.loading()).toBe(false);
   });
 
+  it('não deve pôr a lista que estava a caminho Quando outra URL começa a abrir antes dela', async () => {
+    const lenta = store.load(OUTRA);
+    const daLenta = http.expectOne(firstPage(OUTRA));
+
+    store.begin(TERCEIRA);
+    daLenta.flush(requestPage([daOutra(9)]));
+    await lenta;
+
+    expect(store.opening()).toBe(TERCEIRA);
+    expect(store.tokenId()).toBe(TOKEN_ID);
+    expect(store.requests()).toEqual([]);
+  });
+
   it('não deve reler nem buscar a lista da anterior Quando outra URL está abrindo', async () => {
     void store.load(OUTRA);
 

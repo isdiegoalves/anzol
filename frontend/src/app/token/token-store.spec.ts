@@ -134,6 +134,27 @@ describe('Dado o TokenStore falando com /token', () => {
       expect(store.token()?.uuid).toBe(OUTRA);
     });
 
+    it('deve ler a URL da página Quando ela é a aberta mas a leitura de outra está a caminho', async () => {
+      TestBed.inject(Preferences).token.set(token());
+      const outra = store.load(OUTRA);
+      const daOutra = http.expectOne(`/token/${OUTRA}`);
+
+      store.ensure(TOKEN_ID);
+      http.expectOne(`/token/${TOKEN_ID}`).flush(token());
+      daOutra.flush(token({ uuid: OUTRA }));
+      await outra;
+
+      expect(store.token()?.uuid).toBe(TOKEN_ID);
+    });
+
+    it('não deve ler de novo Quando a página é da URL aberta e nada está a caminho', () => {
+      TestBed.inject(Preferences).token.set(token());
+
+      store.ensure(TOKEN_ID);
+
+      http.expectNone(`/token/${TOKEN_ID}`);
+    });
+
     it('não deve esquecer a URL aberta Quando a anterior falha depois', async () => {
       const lenta = store.load(TOKEN_ID);
       const ultima = store.load(OUTRA);

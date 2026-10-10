@@ -120,6 +120,8 @@ export class ChecksPage {
   /** A leitura da URL passou de 30 s sem resposta. */
   protected readonly slow = signal(false);
   private slowTimer: ReturnType<typeof setTimeout> | undefined;
+  /** A página saiu da tela: o rascunho, que é de todas, não é mais dela. */
+  private left = false;
   protected readonly ready = computed(
     () => this.loaded() === this.tokenId() && this.tokens.token()?.uuid === this.tokenId(),
   );
@@ -161,6 +163,7 @@ export class ChecksPage {
       }
     });
     inject(DestroyRef).onDestroy(() => {
+      this.left = true;
       clearTimeout(this.slowTimer);
       this.draft.flush();
     });
@@ -209,7 +212,7 @@ export class ChecksPage {
     this.tokens
       .load(tokenId)
       .then((token) => {
-        if (this.tokenId() === tokenId) {
+        if (!this.left && this.tokenId() === tokenId) {
           this.draft.start(token);
           this.loaded.set(tokenId);
         }

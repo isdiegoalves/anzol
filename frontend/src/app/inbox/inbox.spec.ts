@@ -19,6 +19,7 @@ import { NO_FILTER } from '../search/request-filter';
 import { Redirector } from '../settings/redirect';
 import { RequestList } from '../requests/request-list';
 import { ScreenState } from '../shell/screen-state';
+import { TokenStore } from '../token/token-store';
 import { Viewport, WindowClass } from '../shell/viewport';
 
 const NOVO_TOKEN = '11111111-1111-4111-8111-111111111111';
@@ -1356,6 +1357,57 @@ describe('Dado a tela principal', () => {
       busca.flush(completa);
 
       await vi.waitFor(() => expect(store().selected()?.uuid).toBe(cortada.uuid));
+    });
+
+    it('deve abrir de novo a URL anterior Quando a pessoa volta a ela com a outra ainda abrindo', async () => {
+      await openB();
+      await harness.navigateByUrl(`/${A}`);
+      const urlDeA = await vi.waitFor(() => http.expectOne(`/token/${A}`));
+
+      await harness.navigateByUrl(`/${B}/${B1.uuid}/1`);
+      await flush(`/token/${B}`, token({ uuid: B }));
+      await flush(listOf(B), requestPage([B1]));
+      urlDeA.flush(token({ uuid: A }));
+      await new Promise((done) => setTimeout(done));
+
+      expect(TestBed.inject(TokenStore).token()?.uuid).toBe(B);
+      expect(store().requests()).toEqual([B1]);
+      http.expectNone(listOf(A));
+    });
+
+    it('deve abrir de novo a URL Quando a pessoa volta a ela depois de sair no meio da lista', async () => {
+      const listaDeB = await startOpening(B);
+      await harness.navigateByUrl(`/${A}`);
+      const urlDeA = await vi.waitFor(() => http.expectOne(`/token/${A}`));
+      listaDeB.flush(requestPage([B1]));
+      await new Promise((done) => setTimeout(done));
+
+      await harness.navigateByUrl(`/${B}`);
+      await flush(`/token/${B}`, token({ uuid: B }));
+      await flush(listOf(B), requestPage([B1]));
+      urlDeA.flush(token({ uuid: A }));
+      await vi.waitFor(() => expect(router.url).toBe(`/${B}/${B1.uuid}/1`));
+      await new Promise((done) => setTimeout(done));
+
+      expect(TestBed.inject(TokenStore).token()?.uuid).toBe(B);
+      expect(store().requests()).toEqual([B1]);
+    });
+
+    it('não deve pôr a lista de uma Entrada que já saiu da tela Quando a carga dela termina depois', async () => {
+      await harness.navigateByUrl(`/${B}`);
+      const urlDeB = await vi.waitFor(() => http.expectOne(`/token/${B}`));
+      await harness.navigateByUrl(`/${B}/insights`);
+      await harness.navigateByUrl(`/${A}`);
+      await flush(`/token/${A}`, token({ uuid: A }));
+      await flush(listOf(A), requestPage([A1]));
+      await vi.waitFor(() => expect(router.url).toBe(`/${A}/${A1.uuid}/1`));
+
+      urlDeB.flush(token({ uuid: B }));
+      await new Promise((done) => setTimeout(done));
+
+      http.expectNone(listOf(B));
+      expect(store().requests()).toEqual([A1]);
+      http.match(() => true).forEach((call) => call.flush({}));
     });
 
     it('deve fechar o painel de ação aberto Quando outra URL abre', async () => {

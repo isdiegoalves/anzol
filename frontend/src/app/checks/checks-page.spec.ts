@@ -192,6 +192,22 @@ describe('Dado a página Checks', () => {
     await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
   });
 
+  it('não deve pôr no rascunho a URL de uma página que já saiu da tela Quando ela chega depois', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const { harness, load } = await open(`/${TOKEN_ID}/checks`);
+    await harness.navigateByUrl('/elsewhere');
+    void harness.navigateByUrl(`/${outra}/checks`);
+    (await vi.waitFor(() => http.expectOne(`/token/${outra}`))).flush(token({ uuid: outra }));
+    await harness.fixture.whenStable();
+    await vi.waitFor(() => expect(TestBed.inject(ChecksDraft).base()?.uuid).toBe(outra));
+
+    load.flush(token());
+    await new Promise((done) => setTimeout(done));
+
+    expect(TestBed.inject(ChecksDraft).base()?.uuid).toBe(outra);
+    await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
+  });
+
   it('deve avisar da demora aos 30 s, sem cancelar a leitura, e ler de novo pelo "Try again"', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
     let opened: Awaited<ReturnType<typeof open>>;

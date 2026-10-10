@@ -190,9 +190,7 @@ export class InsightsPage {
     effect(() => {
       const tokenId = this.tokenId();
       untracked(() => {
-        if (this.tokens.token()?.uuid !== tokenId) {
-          this.tokens.load(tokenId).catch(() => undefined);
-        }
+        this.tokens.ensure(tokenId);
         void this.store.load(tokenId, this.window());
       });
     });
