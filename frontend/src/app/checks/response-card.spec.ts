@@ -240,7 +240,7 @@ describe('Dado o cartão "Response" de Checks', () => {
     call.flush({ enabled: true });
 
     await vi.waitFor(() => expect(TestBed.inject(Preferences).token()?.cors).toBe(true));
-    expect(changesBar()).toBeNull();
+    await vi.waitFor(() => expect(changesBar()).toBeNull());
   });
 
   it('CHECKS-20: deve dizer quantas regras ligadas respondem antes, com link para Rules', async () => {
