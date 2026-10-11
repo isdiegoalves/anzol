@@ -117,7 +117,7 @@
                   @if (row.attempt; as attempt) {
                     <span class="line route-line">
                       <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
-                      <span class="ago" [title]="localDate(item.request.created_at)">{{
+                      <span class="ago" [title]="localDateToTheSecond(item.request.created_at)">{{
                         attempt.time
                       }}</span>
                       <span class="ago">{{ attempt.gap }}</span>
@@ -141,7 +141,7 @@
                         <span class="new" i18n>NEW</span>
                       }
                       <!-- prettier-ignore -->
-                      <span class="ago" [title]="localDate(item.request.created_at)"> {{ item.ago }}</span>
+                      <span class="ago" [title]="localDateToTheSecond(item.request.created_at)"> {{ item.ago }}</span>
                     </span>
                   }
                   <!-- Linha 2: os selos (o veredito inteiro fica no title e no nome do item), o tipo do

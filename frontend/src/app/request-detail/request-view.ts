@@ -29,7 +29,7 @@ import { CodeMark, CodeToken } from '../ui/code-lines';
 import { CodeView } from '../ui/code-view';
 import { KvNote, KvRow, KvTable } from '../ui/kv-table';
 import { MethodBadge } from '../ui/method-badge';
-import { fromNow, localDate } from './dates';
+import { fromNow, localDateToTheSecond } from './dates';
 import { FieldPicker } from './field-picker';
 import { detectLanguage, formatContent, highlightXml } from './format-content';
 import { ValueActions } from './value-actions';
@@ -108,7 +108,7 @@ export class RequestView {
   /** A regra que chegou mais perto, vinda do trace (quem tem a URL, o detalhe, pede e passa). */
   readonly closest = input<readonly string[]>([]);
 
-  protected readonly localDate = localDate;
+  protected readonly localDateToTheSecond = localDateToTheSecond;
   protected readonly fromNow = fromNow;
   /** Tamanho do corpo como chegou (bytes do UTF-8), na linha de metadados. */
   protected readonly size = computed(() =>

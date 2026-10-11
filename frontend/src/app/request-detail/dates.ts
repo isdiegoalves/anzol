@@ -24,6 +24,17 @@ export function localDate(value: string, language: string = screenLanguage()): s
   );
 }
 
+/** A data local com os segundos: é o que separa duas requisições do mesmo minuto. */
+export function localDateToTheSecond(value: string, language: string = screenLanguage()): string {
+  const date = parseUtc(value);
+  if (language === 'en') {
+    return formatDate(date, 'MMM d, y h:mm:ss a', 'en-US');
+  }
+  return new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }).format(
+    date,
+  );
+}
+
 /**
  * Tempo relativo com os limiares do `moment().fromNow()` usado pelo app atual: em inglês, os textos
  * dele ("3 minutes ago", "in 7 days"); nos outros idiomas, o `Intl.RelativeTimeFormat`.

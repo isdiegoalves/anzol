@@ -1,4 +1,4 @@
-import { fromNow, localDate, parseUtc } from './dates';
+import { fromNow, localDate, localDateToTheSecond, parseUtc } from './dates';
 
 const CRIADA = '2026-09-26 00:00:00';
 const base = parseUtc(CRIADA).getTime();
@@ -10,6 +10,13 @@ describe('Dado a data de uma mensagem ("Y-m-d H:i:s" em UTC)', () => {
 
   it('deve formatar como o "lll" do moment Quando mostra a data local', () => {
     expect(localDate(CRIADA)).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM)$/);
+  });
+
+  it('deve dizer os segundos Quando duas mensagens do mesmo minuto precisam se distinguir', () => {
+    const text = localDateToTheSecond('2026-09-26 00:43:19');
+
+    expect(text).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2}:19 (AM|PM)$/);
+    expect(text.replace(':19 ', ' ')).toBe(localDate('2026-09-26 00:43:19'));
   });
 
   it.each([
@@ -41,6 +48,13 @@ describe('Dado a data de uma mensagem em outro idioma (Intl)', () => {
 
     expect(text).toMatch(/\d{1,2} de [a-zç]{3}\.? de \d{4}/);
     expect(text).not.toMatch(/\b(AM|PM)\b/);
+  });
+
+  it('deve dizer os segundos pelo Intl do idioma Quando a tela está em pt-BR', () => {
+    const text = localDateToTheSecond('2026-09-26 00:43:19', 'pt-BR');
+
+    expect(text).toMatch(/\d{1,2} de [a-zç]{3}\.? de \d{4}, \d{2}:\d{2}:19$/);
+    expect(text.replace(/:19$/, '')).toBe(localDate('2026-09-26 00:43:19', 'pt-BR'));
   });
 
   it.each([

@@ -46,7 +46,7 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
     );
     await expect(meta).toContainText(/\b\d{1,3}(\.\d{1,3}){3}\b/);
     await expect(meta.getByRole('link', { name: 'whois' })).toBeVisible();
-    await expect(meta).toContainText(/[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (AM|PM)/);
+    await expect(meta).toContainText(/[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)/);
     await expect(meta).toContainText(/a few seconds ago|\d+ s ago/);
     await expect(meta).toContainText('36 B');
     await expect(meta).toContainText(/\bseq \d+/);

@@ -871,7 +871,7 @@ test.describe('Dado a lista densa', () => {
     ).toBeLessThanOrEqual(1);
     const quando = linha.getByText(/^\s*(a few seconds ago|\d+ s ago|just now|a minute ago)\s*$/);
     await expect(quando).toBeVisible();
-    await expect(quando).toHaveAttribute('title', /\b\d{1,2}:\d{2}\b/);
+    await expect(quando).toHaveAttribute('title', /\b\d{1,2}:\d{2}:\d{2}\b/);
     await expect(linha).toContainText(`#${id5(id)}`);
     await expect(linha).not.toContainText(ip);
     await expect(linha).not.toContainText('agente-de-teste/1.0');

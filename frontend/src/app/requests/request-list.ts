@@ -21,7 +21,7 @@ import { CompareBand } from './compare-band';
 import { ListError } from './list-error';
 import { ListFooter } from './list-footer';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
-import { fromNow, localDate } from '../request-detail/dates';
+import { fromNow, localDate, localDateToTheSecond } from '../request-detail/dates';
 import { RequestSearch } from '../search/request-search';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport } from '../shell/viewport';
@@ -719,7 +719,7 @@ export class RequestList {
     };
   }
 
-  protected readonly localDate = localDate;
+  protected readonly localDateToTheSecond = localDateToTheSecond;
 
   /** No Compare, o item diz que é a A ou a B. */
   private compareRole(request: WebhookRequest): string[] {

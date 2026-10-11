@@ -273,7 +273,9 @@ describe('Dado a lista lateral de mensagens', () => {
     );
     // A data absoluta fica fora da linha: no title do tempo relativo e no nome do item (trava 2).
     expect(items()[0].textContent).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
-    expect(items()[0].querySelector('.ago')?.getAttribute('title')).toMatch(/^[A-Z][a-z]{2} \d/);
+    expect(items()[0].querySelector('.ago')?.getAttribute('title')).toMatch(
+      /^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)$/,
+    );
     expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
       /#00000.*[A-Z][a-z]{2} \d{1,2}, \d{4}.*, unread$/,
     );

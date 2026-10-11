@@ -38,7 +38,7 @@
     >
   </span>
   <span class="req-date" [title]="current.created_at + ' UTC'">
-    {{ localDate(current.created_at) }} · {{ fromNow(current.created_at) }}</span
+    {{ localDateToTheSecond(current.created_at) }} · {{ fromNow(current.created_at) }}</span
   >
   <span class="req-size"> {{ size() }}</span>
   @if (current.seq) {
