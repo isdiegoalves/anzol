@@ -19,7 +19,7 @@ contra os schemas dele.
 | `GET /token/{id}/stream` | SSE: um evento `request.created` a cada mensagem gravada (`removed` lista as que a limpeza tirou) e um `ping` na abertura e a cada 15 s, com o intervalo em segundos no `data` (dois intervalos sem nada: a conexão está morta) |
 | `GET`/`PUT /token/{id}/rules` | Lê ou substitui a lista de regras de resposta da URL (o `PUT` é também o import) |
 | `POST /token/{id}/rules/test` | Testa uma regra contra as 500 mensagens mais recentes |
-| `POST /token/{id}/requests/search` | Busca nas mensagens por texto e pelo `match` das regras, paginada como a listagem (ver [Buscar mensagens](#buscar-mensagens)) |
+| `POST /token/{id}/requests/search` | Busca nas mensagens por texto, pelo `match` das regras, pelo desfecho (`outcome`), pelo status respondido (`answered`), pelo motivo exato da assinatura e da decifra (`signature_reason`, `decryption_reason`) e pelo caminho do erro de schema (`schema_path`), paginada como a listagem (ver [Buscar mensagens](#buscar-mensagens)) |
 | `POST /token/{id}/requests/wait` | Espera, com prazo, até chegarem mensagens que casam um `match` das regras (ver [Esperar por mensagens](#esperar-por-mensagens)) |
 | `GET /token/{id}/stats` | Resumo das mensagens mais novas (`window`, padrão 500): métodos, assinatura, schema, regras, mensagens por hora e decifra (ver [Estatísticas da URL](#estatísticas-da-url)) |
 | `GET`/`DELETE /token/{id}/scenarios` | Lista os cenários das regras com o estado atual, ou volta todos a `Started` |
