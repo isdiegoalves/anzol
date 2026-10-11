@@ -32,6 +32,16 @@ const TELAS: Tela[] = [
     },
   },
   {
+    nome: 'desbloqueio com o segredo cobrado',
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create({ read_secret: SEGREDO });
+      await seedStorage(page, {});
+      await page.goto(`/#/${tokenId}`);
+      await page.getByRole('button', { name: 'Unlock' }).click();
+      await expect(page.getByText('Enter the secret.')).toBeVisible();
+    },
+  },
+  {
     nome: 'desbloqueio',
     async abrir(page, tokens) {
       const tokenId = await tokens.create({ read_secret: SEGREDO });
