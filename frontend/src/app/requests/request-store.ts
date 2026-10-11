@@ -106,8 +106,9 @@ export class RequestStore {
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
   /**
-   * Vira a cada requisição apagada ou devolvida: a contagem muda sem busca nova, e quem fala disso é
-   * o aviso da requisição, não a linha de resultado do filtro.
+   * Vira a cada requisição apagada, devolvida ou chegada: a contagem muda sem a pessoa mexer no
+   * filtro, e quem fala disso é o aviso da requisição ou o anúncio da chegada, não a linha de
+   * resultado do filtro.
    */
   readonly recounted = signal(0);
   /**
@@ -436,6 +437,7 @@ export class RequestStore {
     this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
     this.lastPageReached.set(last.is_last_page);
     this.matched.set(last.total);
+    this.recounted.update((times) => times + 1);
     this.failure.set(null);
   }
 
@@ -591,6 +593,7 @@ export class RequestStore {
     const cut = new Set(removed);
     this.noticeCut(removed);
     this.total.set(total);
+    this.recounted.update((times) => times + 1);
     this.newestSeq = Math.max(this.newestSeq, seqOf(request));
     this.changeUnread(this.tokenId(), (unread) => [
       ...unread.filter((id) => !cut.has(id) && id !== request.uuid),

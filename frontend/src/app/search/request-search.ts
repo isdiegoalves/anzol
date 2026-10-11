@@ -193,9 +193,9 @@ export class RequestSearch {
           this.arrivedFiltered = filtering;
           this.result.set('');
         }
-        const byDelete = recounted !== this.recounted;
+        const byEvent = recounted !== this.recounted;
         this.recounted = recounted;
-        if (byDelete && filtering && !waiting && !failure && !this.timer) {
+        if (byEvent && filtering && !waiting && !failure && !this.timer) {
           this.showQuietly(line);
         } else {
           this.say(filtering, waiting, line);
@@ -288,8 +288,9 @@ export class RequestSearch {
   }
 
   /**
-   * A contagem mudou porque uma requisição foi apagada ou devolvida, e disso quem fala é o aviso da
-   * requisição: a região nasce de novo com a linha nova, e região que nasce com texto não é anunciada.
+   * A contagem mudou porque uma requisição foi apagada, devolvida ou chegou, e disso quem fala é o
+   * aviso da requisição ou o anúncio da chegada: a região nasce de novo com a linha nova, e região
+   * que nasce com texto não é anunciada.
    */
   private showQuietly(line: string): void {
     const region = () => this.host.querySelector<HTMLElement>('app-live-region.count');

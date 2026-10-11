@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
+import { anunciados, escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
 import { expect, test } from './support/fixtures';
 import {
   anuncios,
@@ -34,6 +34,55 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
   test.beforeEach(async ({ page, tokens }) => {
     tokenId = await tokens.create();
     await seedStorage(page, {});
+  });
+
+  test('deve dizer só a chegada, e acertar a contagem do filtro sem falar por ela, Quando chega uma que casa com o filtro ligado', async ({
+    page,
+    tokens,
+  }) => {
+    await tokens.send(tokenId, { path: '/fora' });
+    await tokens.send(tokenId, { path: '/base-1' });
+    await tokens.send(tokenId, { path: '/base-2' });
+    await escutarAnuncios(page);
+    const stream = page.waitForResponse((response) =>
+      response.url().endsWith(`/token/${tokenId}/stream`),
+    );
+    await page.goto(`/#/${tokenId}?q=base`);
+    expect((await stream).status()).toBe(200);
+    const resultado = page.getByRole('search').locator('app-live-region.count');
+    await expect(resultado).toContainText('2 requests match');
+    await limparAnuncios(page);
+
+    await tokens.send(tokenId, { path: '/base-3' });
+
+    await expect(resultado).toContainText(
+      '3 requests match · search runs on the server over all 4',
+    );
+    await expectSoEstaFala(page, /^POST \/base-3 arrived · answered 200$/);
+  });
+
+  test('não deve falar nada, e acertar o total da linha do filtro, Quando chega uma que não casa com o filtro ligado', async ({
+    page,
+    tokens,
+  }) => {
+    await tokens.send(tokenId, { path: '/base-1' });
+    await escutarAnuncios(page);
+    const stream = page.waitForResponse((response) =>
+      response.url().endsWith(`/token/${tokenId}/stream`),
+    );
+    await page.goto(`/#/${tokenId}?q=base`);
+    expect((await stream).status()).toBe(200);
+    const resultado = page.getByRole('search').locator('app-live-region.count');
+    await expect(resultado).toContainText('1 request matches');
+    await limparAnuncios(page);
+
+    await tokens.send(tokenId, { path: '/outra' });
+
+    await expect(resultado).toContainText(
+      '1 request matches · search runs on the server over all 2',
+    );
+    await page.waitForTimeout(1_500);
+    expect((await anunciados(page)).filter((anuncio) => !anuncio.nasceuComTexto)).toEqual([]);
   });
 
   test('deve mostrar a mensagem nova, anunciar e contar não lida no título Quando um webhook chega', async ({
