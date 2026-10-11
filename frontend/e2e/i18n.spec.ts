@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { Page } from '@playwright/test';
+import { escutarAnuncios, expectUmAnuncio, limparAnuncios } from './support/anuncios';
 import { expect, test } from './support/fixtures';
+import { estadoAoVivo } from './support/shell';
 import { readStorage, seedStorage } from './support/storage';
 
 // Item 14, E10 (CA-4): tradução em runtime, um build só. Settings › Language troca a tela para pt-BR depois de
@@ -171,6 +173,42 @@ test.describe('Dado o navegador em pt-BR e nenhum idioma escolhido', () => {
         .getByRole('navigation', { name: 'Seções da URL' })
         .getByRole('link', { name: 'Entrada', exact: true }),
     ).toBeVisible();
+  });
+});
+
+test.describe('Dado o idioma pt-BR guardado e a conexão que cai e volta', () => {
+  test('deve dizer a queda, o "Tentar agora" e a volta na língua da tela', async ({
+    page,
+    context,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/antes' });
+    await escutarAnuncios(page);
+    await seedStorage(page, { language: '"pt-BR"' });
+    await page.goto(`/#/${tokenId}`);
+    await expect(estadoAoVivo(page)).toContainText('Ao vivo');
+    await limparAnuncios(page);
+
+    await context.setOffline(true);
+    await page
+      .getByRole('searchbox', { name: 'Buscar', exact: true })
+      .or(page.getByRole('textbox', { name: 'Buscar', exact: true }))
+      .fill('antes');
+
+    const conexao = page.getByRole('group', { name: 'Conexão' }).locator('[role="status"]');
+    await expect(conexao).toContainText(
+      /Sem conexão com o servidor desde \d{1,2}:\d{2}.*\. O que você digitou está guardado\./,
+    );
+    const tentar = page.getByRole('button', { name: 'Tentar agora' });
+    await expect(tentar).toBeVisible();
+
+    await limparAnuncios(page);
+    await context.setOffline(false);
+    await tentar.click();
+
+    await expectUmAnuncio(page, /^Conexão de volta\.$/, /^Conexão$/);
+    await expect(estadoAoVivo(page)).toContainText('Ao vivo');
   });
 });
 
