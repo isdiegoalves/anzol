@@ -1,3 +1,5 @@
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
 import { tokenStats } from '../../testing/stats-fixtures';
 import { localDate } from '../request-detail/dates';
 import {
@@ -177,10 +179,21 @@ describe('Dado as respostas das requisições mais novas (answerRows)', () => {
     ]);
 
     expect(rows.map(({ text, filter }) => [text, filter])).toEqual([
-      ['418 · 2 · both', { answered: '418' }],
+      ['418 · 2 · rules and default', { answered: '418' }],
       ['429 Too Many Requests · 2 · default response', { answered: '429' }],
       ['201 Created · 1 · by rules', { answered: '201' }],
     ]);
+  });
+
+  describe('Com a tela em pt-BR', () => {
+    beforeEach(() => loadTranslations(translations));
+    afterEach(() => clearTranslations());
+
+    it('deve dizer quem respondeu Quando parte foi pelas regras e parte pela resposta padrão', () => {
+      const [row] = answerRows([pelaRegra(418), peloPadrao(418)]);
+
+      expect(row.text).toBe('418 · 2 · regras e padrão');
+    });
   });
 
   it('deve pôr no fim, sem filtro, a falha de rede e a resposta sem registro', () => {

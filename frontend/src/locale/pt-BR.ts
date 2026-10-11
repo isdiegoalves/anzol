@@ -2153,8 +2153,8 @@ export const translations: Record<string, string> = {
   '1182262427154339265': 'por regras',
   // default response
   '5456299837149947366': 'resposta padrão',
-  // both
-  '1598170280549949741': 'as duas',
+  // rules and default
+  '4276763220307997795': 'regras e padrão',
   // {$answer} · {$count} · {$origin}
   '6424199982821671522': '{$answer} · {$count} · {$origin}',
   // {$INTERPOLATION} would now get {$INTERPOLATION_1} from this rule instead of the default {$INTERPOLATION_2}

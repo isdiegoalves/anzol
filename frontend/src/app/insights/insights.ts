@@ -241,7 +241,7 @@ export function answerRows(answers: readonly Answer[]): AnswerRow[] {
           ? $localize`:answer origin:by rules`
           : rules === 0
             ? $localize`:answer origin:default response`
-            : $localize`:answer origin:both`;
+            : $localize`:answer origin:rules and default`;
       return {
         key,
         status,
