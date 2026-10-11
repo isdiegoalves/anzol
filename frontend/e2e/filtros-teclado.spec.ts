@@ -8,6 +8,16 @@ const barra = (page: Page) => page.getByRole('toolbar', { name: 'Filters' });
 const botaoFiltros = (page: Page) => busca(page).getByRole('button', { name: /^Filters/ });
 const dentro = (onde: Locator) => onde.evaluate((no) => no.contains(document.activeElement));
 
+/** Espera a tela desenhar dois quadros: o que a resposta disparou já está no DOM. */
+async function desenhar(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((pronto) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => pronto())),
+      ),
+  );
+}
+
 test.describe('Dado o painel de filtros na janela larga', () => {
   test('deve ser uma barra de ferramentas "Filters", com uma parada de Tab e as setas entre os chips', async ({
     page,
@@ -70,6 +80,72 @@ test.describe('Dado o painel de filtros na janela larga', () => {
     await page.keyboard.press('Escape');
     await expect(chip).toBeFocused();
     await expect(barra(page)).toBeVisible();
+  });
+
+  test('deve levar o foco à primeira regra Quando elas chegam com o menu já aberto', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [
+      { name: 'Primeira', priority: 1, match: { method: ['POST'] }, response: { status: 201 } },
+      { name: 'Segunda', priority: 2, match: { method: ['GET'] }, response: { status: 202 } },
+    ]);
+    let soltar!: () => void;
+    const presa = new Promise<void>((ok) => (soltar = ok));
+    await page.route(`**/token/${tokenId}/rules`, async (rota) => {
+      await presa;
+      await rota.continue();
+    });
+    await page.goto(`/#/${tokenId}`);
+    await botaoFiltros(page).click();
+    const chip = barra(page).getByRole('button', { name: /^Answered by rule/ });
+    const menu = page.getByRole('menu', { name: 'Rules' });
+
+    await chip.focus();
+    await page.keyboard.press('Enter');
+    await expect(menu.getByRole('menuitem', { name: 'Loading the rules…' })).toBeVisible();
+    await expect(menu).toBeFocused();
+    soltar();
+
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    await expect(menu.getByRole('menuitem')).toHaveText(['Primeira', 'Segunda']);
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem').nth(1)).toBeFocused();
+  });
+
+  test('não deve puxar o foco para o menu de regras Quando ele já foi fechado antes de elas chegarem', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [
+      { name: 'Primeira', priority: 1, match: { method: ['POST'] }, response: { status: 201 } },
+    ]);
+    let soltar!: () => void;
+    const presa = new Promise<void>((ok) => (soltar = ok));
+    await page.route(`**/token/${tokenId}/rules`, async (rota) => {
+      await presa;
+      await rota.continue();
+    });
+    await page.goto(`/#/${tokenId}`);
+    await botaoFiltros(page).click();
+    const chip = barra(page).getByRole('button', { name: /^Answered by rule/ });
+
+    await chip.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('menu', { name: 'Rules' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(chip).toBeFocused();
+    const lidas = page.waitForResponse((resposta) => resposta.url().endsWith('/rules'));
+    soltar();
+    await lidas;
+    await desenhar(page);
+
+    await expect(chip).toBeFocused();
+    await expect(page.getByRole('menu')).toHaveCount(0);
   });
 });
 

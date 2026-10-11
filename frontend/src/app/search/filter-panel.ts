@@ -3,11 +3,14 @@ import {
   Component,
   ElementRef,
   Injector,
+  afterNextRender,
   computed,
   inject,
   input,
   output,
   signal,
+  viewChild,
+  viewChildren,
 } from '@angular/core';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { EventGrouping } from '../requests/event-grouping';
@@ -76,6 +79,8 @@ export class FilterPanel {
   protected readonly rules = signal<readonly Rule[] | null>(null);
   /** O chip que abriu o menu de regras. */
   protected readonly rulesFor = signal<'rule' | 'near_miss'>('rule');
+  private readonly rulesMenu = viewChild(MatMenu);
+  private readonly ruleItems = viewChildren(MatMenuItem);
   private rulesToken: string | null = null;
 
   /** "Show 4 requests": o que a lista mostra com os filtros de agora. */
@@ -103,6 +108,17 @@ export class FilterPanel {
     } catch {
       this.rules.set([]);
     }
+    // Aberto antes de as regras chegarem, o menu ficou com o foco no painel dele: vai à primeira regra.
+    afterNextRender(
+      () => {
+        if (this.host.ownerDocument.activeElement?.id === this.rulesMenu()?.panelId) {
+          this.ruleItems()
+            .find((item) => !item.disabled)
+            ?.focus('keyboard');
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   protected groupByEvent(): void {
