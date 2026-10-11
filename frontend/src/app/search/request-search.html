@@ -84,18 +84,13 @@
   }
   <!-- Fora da região viva: o progresso seria anunciado a cada página lida. -->
   @if (store.windowReading(); as reading) {
-    @let size = reading.size;
-    @let looked = reading.looked;
     <p class="count" aria-hidden="true" i18n>
-      {size, plural,
-        =1 {Looking in the newest request · {{ looked }} of 1}
-        other {Looking in the newest {{ size }} requests · {{ looked }} of {{ size }}}
-      }
+      Looking in the newest {{ reading.size }} requests · {{ reading.looked }} of {{ reading.size }}
     </p>
   }
   @if (before(); as step) {
     <button type="button" class="link older" i18n (click)="store.lookBefore()">
-      {step, plural, =1 {Look in the one before} other {Look in the {{ step }} before}}
+      Look in the {{ step }} before
     </button>
   }
   <app-live-region class="note" [text]="waitFor.copied() ?? ''" />
