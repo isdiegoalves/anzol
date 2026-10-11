@@ -190,10 +190,13 @@ test.describe('Dado o idioma pt-BR guardado, nas telas da Saída, de Métricas, 
     await expect(page.getByRole('table', { name: 'Histórico de saída' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Atualizar histórico' })).toBeVisible();
     const nova = page.getByRole('region', { name: 'Nova requisição' });
-    await nova
+    // A carga da URL termina escolhendo "Reenviar": a escolha feita antes disso seria desfeita.
+    await expect(nova.getByRole('region', { name: 'Reenviar requisição' })).toBeVisible();
+    const enviar = nova
       .getByRole('radiogroup', { name: 'Tipo de requisição' })
-      .getByRole('radio', { name: 'Enviar', exact: true })
-      .check();
+      .getByRole('radio', { name: 'Enviar', exact: true });
+    await enviar.click();
+    await expect(enviar).toBeChecked();
     const envio = nova.getByRole('region', { name: 'Mandar requisição' });
     await expect(envio.getByRole('combobox', { name: 'Método' })).toBeVisible();
     await expect(envio.getByRole('spinbutton', { name: 'Tempo limite (s)' })).toBeVisible();
