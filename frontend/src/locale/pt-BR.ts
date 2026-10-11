@@ -2764,6 +2764,10 @@ export const translations: Record<string, string> = {
   '6630712012091556664': 'inválido',
   // schema: expected {$expected}, got {$got}
   '3951080615472233541': 'schema: esperava {$expected}, veio {$got}',
+  // {$state} (1 errors)
+  '6592346015102843800': '{$state} (1 erro de schema)',
+  // {$state} ({$count} errors)
+  '6173204231143518187': '{$state} ({$count} erros de schema)',
   // scenario {$name}: expected state {$expected}, got {$got}
   '3953946883460574491': 'cenário {$name}: esperava o estado {$expected}, estava em {$got}',
   // chance {$chance}%: rolled {$rolled}, not applied

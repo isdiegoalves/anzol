@@ -48,6 +48,17 @@ function schemaState(state: string): string {
   return words[state] ?? state;
 }
 
+/** "invalid (3 errors)": o estado e, no inválido, quantos erros o schema achou. */
+function schemaGot(state: string, errors: string | undefined): string {
+  const got = schemaState(state);
+  if (!errors) {
+    return got;
+  }
+  return errors === '1'
+    ? $localize`:schema result in a failed condition|:${got}:state: (1 errors)`
+    : $localize`:schema result in a failed condition|:${got}:state: (${errors}:count: errors)`;
+}
+
 /** O estado da decifra que a frase cita (`valid`, `invalid`, `unknown_kid`, `absent`). */
 export function decryptionState(state: string): string {
   const words: Record<string, string> = {
@@ -153,8 +164,9 @@ function conditionFamilies(): Family[] {
         $localize`schema: expected ${schemaState(expected)}:expected:, got not configured`,
     ],
     [
-      /^schema: expected (\w+), got (.+)$/,
-      (expected, got) => $localize`schema: expected ${expected}:expected:, got ${got}:got:`,
+      /^schema: expected (\w+), got (\w+)(?: \((\d+) errors\))?$/,
+      (expected, got, errors) =>
+        $localize`schema: expected ${schemaState(expected)}:expected:, got ${schemaGot(got, errors)}:got:`,
     ],
     [
       /^decryption: expected (\w+), got not configured$/,

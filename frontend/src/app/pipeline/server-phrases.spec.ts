@@ -53,8 +53,13 @@ const conditions: [string, string][] = [
   ],
   [
     'schema: expected valid, got invalid (3 errors)',
-    'schema: esperava valid, veio invalid (3 errors)',
+    'schema: esperava válido, veio inválido (3 erros de schema)',
   ],
+  [
+    'schema: expected valid, got invalid (1 errors)',
+    'schema: esperava válido, veio inválido (1 erro de schema)',
+  ],
+  ['schema: expected invalid, got valid', 'schema: esperava inválido, veio válido'],
   [
     'scenario entrega: expected state "falhou 1", got "Started"',
     'cenário entrega: esperava o estado "falhou 1", estava em "Started"',
