@@ -88,6 +88,18 @@ describe('Dado a conexão com o servidor', () => {
     expect(connection.countdown()).toBe(10);
   });
 
+  it('deve parar de aumentar a espera em 30 s, da quarta falha seguida em diante', async () => {
+    failCall();
+    for (const seconds of [5, 10, 20, 30]) {
+      expect(connection.countdown()).toBe(seconds);
+      await vi.advanceTimersByTimeAsync(seconds * 1000);
+      http.expectOne(`/token/${TOKEN_ID}`).error(networkError());
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    expect(connection.countdown()).toBe(30);
+  });
+
   it('deve reabrir o tempo real e dizer "Connected again." por 5 s só Quando ele abre, depois de "Try again now" dar certo', async () => {
     const opened = TestBed.inject(RequestStream).connect(TOKEN_ID).subscribe();
     FakeEventSource.latest().open();
@@ -250,6 +262,51 @@ describe('Dado a conexão com o servidor', () => {
       expect(connection.downSince()).toBeNull();
       expect(connection.notice()).toBe('Connected again. 1 request arrived meanwhile.');
       opened.unsubscribe();
+    });
+
+    it('deve dizer no plural quantas chegaram Quando a queda teve faixa e chegou mais de uma', async () => {
+      const { resume, opened } = await reopen(0);
+      resume.mockResolvedValue(3);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      await vi.advanceTimersByTimeAsync(QUIET_DROP_MS);
+
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.notice()).toBe('Connected again. 3 requests arrived meanwhile.');
+      opened.unsubscribe();
+    });
+
+    it('deve dizer no singular Quando a queda curta trouxe uma só', async () => {
+      const { resume, opened } = await reopen(0);
+      resume.mockResolvedValue(1);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.notice()).toBe('1 request arrived during a brief connection drop.');
+      opened.unsubscribe();
+    });
+
+    it('não deve tratar como queda a abertura seguinte Quando a Entrada saiu com o tempo real caído', async () => {
+      const { resume, opened } = await reopen(0);
+      FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+      TestBed.tick();
+      opened.unsubscribe();
+      TestBed.tick();
+
+      resume.mockResolvedValue(2);
+      const again = TestBed.inject(RequestStream).connect(TOKEN_ID, { resume }).subscribe();
+      FakeEventSource.latest().open();
+      await vi.advanceTimersByTimeAsync(0);
+      TestBed.tick();
+
+      expect(connection.notice()).toBe('');
+      again.unsubscribe();
     });
   });
 });
