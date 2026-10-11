@@ -299,6 +299,30 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     );
   });
 
+  it('deve acertar a contagem numa região que nasce com o texto, sem tirar o foco dela, Quando uma requisição é apagada e devolvida', async () => {
+    await press('POST', THREE.slice(0, 2));
+    await vi.waitFor(() => expect(result()).toMatch(/^2 requests match/), { timeout: 2000 });
+    const region = () => container.querySelector('app-live-region.count') as HTMLElement;
+    const spoken = region();
+    spoken.focus();
+    let undo!: (undo: boolean) => void;
+
+    const deleted = store.deleteRequest(THREE[0], new Promise<boolean>((ok) => (undo = ok)));
+    await vi.waitFor(() =>
+      expect(region().textContent).toBe('1 request matches · search runs on the server over all 2'),
+    );
+    expect(region()).not.toBe(spoken);
+    await vi.waitFor(() => expect(document.activeElement).toBe(region()));
+
+    const afterDelete = region();
+    undo(true);
+    await deleted;
+    await vi.waitFor(() =>
+      expect(region().textContent).toBe('2 requests match · search runs on the server over all 3'),
+    );
+    expect(region()).not.toBe(afterDelete);
+  });
+
   it('deve dizer uma vez, na linha de resultado, que a busca falhou, e buscar de novo pelo "Try again"', async () => {
     await openPanel();
     await userEvent.click(chip('POST'));

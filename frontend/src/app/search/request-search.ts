@@ -148,8 +148,11 @@ export class RequestSearch {
   });
   /** O que a região do resultado diz agora. */
   protected readonly result = signal('');
+  /** Troca a cada linha posta sem fala: a região de resultado nasce de novo, já com o texto. */
+  protected readonly quietTurn = signal(0);
   private timer: ReturnType<typeof setTimeout> | null = null;
   private wasFiltering = false;
+  private recounted = this.store.recounted();
   private tokenId: string | null = null;
   /** Aberta por um link filtrado (Métricas, Saúde): o primeiro resultado diz o filtro. */
   private arrivedFiltered = false;
@@ -180,6 +183,7 @@ export class RequestSearch {
             ? this.statusLine()
             : '';
       const tokenId = this.store.tokenId();
+      const recounted = this.store.recounted();
       this.store.filter();
       untracked(() => {
         if (tokenId !== this.tokenId) {
@@ -189,7 +193,13 @@ export class RequestSearch {
           this.arrivedFiltered = filtering;
           this.result.set('');
         }
-        this.say(filtering, waiting, line);
+        const byDelete = recounted !== this.recounted;
+        this.recounted = recounted;
+        if (byDelete && filtering && !waiting && !failure && !this.timer) {
+          this.showQuietly(line);
+        } else {
+          this.say(filtering, waiting, line);
+        }
       });
     });
     inject(DestroyRef).onDestroy(() => this.stopTimer());
@@ -271,9 +281,24 @@ export class RequestSearch {
     }
     // A região nunca é esvaziada para falar de novo: trocar o texto basta (guia §4.3).
     this.timer = setTimeout(() => {
+      this.timer = null;
       this.wasFiltering = filtering;
       this.result.set(cleared ? this.withoutFilter(this.chips.takeCleared()) : this.said(line));
     }, RESULT_ANNOUNCE_MS);
+  }
+
+  /**
+   * A contagem mudou porque uma requisição foi apagada ou devolvida, e disso quem fala é o aviso da
+   * requisição: a região nasce de novo com a linha nova, e região que nasce com texto não é anunciada.
+   */
+  private showQuietly(line: string): void {
+    const region = () => this.host.querySelector<HTMLElement>('app-live-region.count');
+    const focused = region() === this.host.ownerDocument.activeElement;
+    this.result.set(line);
+    this.quietTurn.update((turn) => turn + 1);
+    if (focused) {
+      afterNextRender(() => region()?.focus(), { injector: this.injector });
+    }
   }
 
   /** Na chegada por um link filtrado, diz também onde a pessoa está ("Inbox. Filtered by …"). */

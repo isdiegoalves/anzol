@@ -68,12 +68,14 @@
   <!-- INBOX-10: só com filtro; diz que a busca é no servidor, sobre a URL inteira. Região viva
        persistente: recebe só o resultado, uma vez, depois que os filtros param de mudar. -->
   <!-- Sem filtro, a frase ("No filter. 34 requests.") fica só para o leitor de tela. -->
-  <app-live-region
-    class="count"
-    tabindex="-1"
-    [class.quiet]="!store.filtering()"
-    [text]="result()"
-  />
+  @for (turn of [quietTurn()]; track turn) {
+    <app-live-region
+      class="count"
+      tabindex="-1"
+      [class.quiet]="!store.filtering()"
+      [text]="result()"
+    />
+  }
   @if (store.failure()?.kind === 'search') {
     <button i18n type="button" class="link again" (click)="store.retrySearch()">Try again</button>
   }

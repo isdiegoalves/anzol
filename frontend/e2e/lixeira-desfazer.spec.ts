@@ -7,7 +7,7 @@ import {
   limparAnuncios,
 } from './support/anuncios';
 import { TokenTracker, expect, test } from './support/fixtures';
-import { abrirItem, item, itens, lixeira } from './support/inbox';
+import { abrirItem, busca, item, itens, lixeira } from './support/inbox';
 import { avisoDaRequisicao } from './support/patamar';
 
 const APAGOU = 'You deleted POST /segunda. Undo is in the request notice.';
@@ -174,6 +174,42 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
     await expect(avisoDaRequisicao(page)).toHaveText(frase);
     await expect(desfazer(page)).toBeVisible();
     await expectSoEstaFala(page, frase, /^Request notice$/);
+  });
+});
+
+test.describe('Dado um filtro ligado, com a contagem dele na linha de resultado', () => {
+  test('deve falar uma vez só, pelo aviso da requisição, e acertar a contagem sem falar por ela', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/fora' });
+    const ultima = await tokens.send(tokenId, { path: '/base-3' });
+    const meio = await tokens.send(tokenId, { path: '/base-2' });
+    await tokens.send(tokenId, { path: '/base-1' });
+    await escutarAnuncios(page);
+    await page.goto(`/#/${tokenId}?q=base`);
+    await expect(page.getByRole('heading', { name: 'Requests (3 of 4)' })).toBeVisible();
+    const resultado = busca(page).locator('app-live-region.count');
+    await expect(resultado).toContainText('3 requests match');
+    await limparAnuncios(page);
+
+    await apagarPeloTeclado(page, meio);
+    await expect(abrirItem(page, ultima)).toBeFocused();
+
+    await expect(page.getByRole('heading', { name: 'Requests (2 of 3)' })).toBeVisible();
+    await expect(resultado).toContainText('2 requests match');
+    await expectSoEstaFala(
+      page,
+      /^You deleted POST \/base-2\. Undo is in the request notice\.$/,
+      /^Request notice$/,
+    );
+    await limparAnuncios(page);
+
+    await desfazer(page).click();
+
+    await expect(busca(page).locator('app-live-region.count')).toContainText('3 requests match');
+    await expectSoEstaFala(page, /^Request restored\.$/);
   });
 });
 

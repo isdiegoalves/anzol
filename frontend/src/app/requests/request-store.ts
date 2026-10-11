@@ -106,6 +106,11 @@ export class RequestStore {
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
   /**
+   * Vira a cada requisição apagada ou devolvida: a contagem muda sem busca nova, e quem fala disso é
+   * o aviso da requisição, não a linha de resultado do filtro.
+   */
+  readonly recounted = signal(0);
+  /**
    * A URL cuja lista a tela está abrindo no lugar da de `tokenId`, até ela chegar: nada da anterior fica à vista
    * (lista, mensagem aberta, número do título).
    */
@@ -648,6 +653,7 @@ export class RequestStore {
     if (counted) {
       this.matched.update((matched) => matched - 1);
     }
+    this.recounted.update((times) => times + 1);
     this.markAsRead(request.uuid);
     if (undo && (await undo)) {
       return this.putBack(request, { generation, pageIndex, position, counted })
@@ -699,6 +705,7 @@ export class RequestStore {
     if (from.counted) {
       this.matched.update((matched) => matched + 1);
     }
+    this.recounted.update((times) => times + 1);
     return true;
   }
 
