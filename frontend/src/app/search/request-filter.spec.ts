@@ -1,5 +1,9 @@
+import { webhookRequest } from '../../testing/fixtures';
 import {
   ValueFilter,
+  answeredMatches,
+  decidedLocally,
+  matchesLocally,
   outsideWaitFor,
   filterFromParams,
   filterToParams,
@@ -335,6 +339,26 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       expect(outsideWaitFor(filter)).toEqual(['answered']);
     });
 
+    it.each([
+      [['4xx'], 429, true],
+      [['4xx'], 201, false],
+      [['2xx'], 250, true],
+      [['2xx'], 299, true],
+      [['2xx', '5xx'], 503, true],
+      [['429'], 429, true],
+      [['429'], 428, false],
+    ])('deve casar %j com o status %d: %s', (answered, status, expected) => {
+      expect(answeredMatches(webhookRequest(1, { response: { status } }), answered)).toBe(expected);
+    });
+
+    it('não deve casar a requisição sem status gravado (falha de rede, gravada antes do campo)', () => {
+      const classes = ['2xx', '3xx', '4xx', '5xx'];
+      expect(
+        answeredMatches(webhookRequest(1, { response: { fault: 'connection_reset' } }), classes),
+      ).toBe(false);
+      expect(answeredMatches(webhookRequest(1, { response: null }), classes)).toBe(false);
+    });
+
     it('deve ler da rota a janela das mais novas, e ignorar a que não é um número positivo', () => {
       expect(filterFromParams({ window: '500', signature: 'invalid' })).toEqual({
         ...NO_FILTER,
@@ -356,6 +380,87 @@ describe('Dado o filtro pelo motivo exato (M1)', () => {
       expect(searchBody(filter, 1)).not.toHaveProperty('window');
       expect(outsideWaitFor(filter)).toEqual([]);
     });
+  });
+});
+
+describe('Dado uma requisição que chega com filtro ligado', () => {
+  const github = (reason: string | null) => ({
+    provider: 'github' as const,
+    valid: reason === null,
+    reason,
+  });
+
+  it('deve decidir sozinha só o filtro de método, status, assinatura e schema', () => {
+    const local = {
+      ...NO_FILTER,
+      methods: ['POST'],
+      signature: 'invalid' as const,
+      schema: 'valid' as const,
+      answered: ['5xx'],
+    };
+
+    expect(decidedLocally(local)).toBe(true);
+    expect(decidedLocally({ ...local, window: 500 })).toBe(true);
+    expect(decidedLocally({ ...local, text: 'pix' })).toBe(false);
+    expect(decidedLocally({ ...local, outcome: { type: 'default' } })).toBe(false);
+    expect(decidedLocally({ ...local, decryption: 'invalid' })).toBe(false);
+    expect(decidedLocally({ ...local, signatureReason: 'signature mismatch' })).toBe(false);
+    expect(decidedLocally({ ...local, decryptionReason: 'downgrade' })).toBe(false);
+    expect(decidedLocally({ ...local, schemaPath: '' })).toBe(false);
+    expect(decidedLocally({ ...local, values: [{ kind: 'path', name: '', value: '/pix' }] })).toBe(
+      false,
+    );
+  });
+
+  it('deve casar o método sem diferenciar maiúsculas, e qualquer um Quando o filtro não tem método', () => {
+    const put = webhookRequest(1, { method: 'put' });
+
+    expect(matchesLocally(put, { ...NO_FILTER, methods: ['POST', 'PUT'] })).toBe(true);
+    expect(matchesLocally(put, { ...NO_FILTER, methods: ['POST'] })).toBe(false);
+    expect(matchesLocally(put, NO_FILTER)).toBe(true);
+  });
+
+  it.each([
+    ['valid', github(null), true],
+    ['valid', github('signature mismatch'), false],
+    ['invalid', github('signature mismatch'), true],
+    ['invalid', github('header X-Hub-Signature-256 absent'), false],
+    ['absent', github('header X-Hub-Signature-256 absent'), true],
+    ['absent', github(null), false],
+    ['valid', null, false],
+    ['invalid', null, false],
+    ['absent', null, false],
+  ] as const)(
+    'deve ler a assinatura %s como o match das regras: %j → %s',
+    (wanted, signature, expected) => {
+      const request = webhookRequest(1, { signature });
+
+      expect(matchesLocally(request, { ...NO_FILTER, signature: wanted })).toBe(expected);
+    },
+  );
+
+  it('deve ler o schema válido e inválido, e não casar a requisição de uma URL sem schema', () => {
+    const valid = webhookRequest(1, { schema: { valid: true, errors: [] } });
+    const invalid = webhookRequest(2, {
+      schema: { valid: false, errors: [{ path: '/id', message: 'required' }] },
+    });
+    const none = webhookRequest(3, { schema: null });
+
+    expect(matchesLocally(valid, { ...NO_FILTER, schema: 'valid' })).toBe(true);
+    expect(matchesLocally(invalid, { ...NO_FILTER, schema: 'valid' })).toBe(false);
+    expect(matchesLocally(invalid, { ...NO_FILTER, schema: 'invalid' })).toBe(true);
+    expect(matchesLocally(none, { ...NO_FILTER, schema: 'valid' })).toBe(false);
+    expect(matchesLocally(none, { ...NO_FILTER, schema: 'invalid' })).toBe(false);
+  });
+
+  it('deve exigir todas as partes do filtro juntas', () => {
+    const filter = { ...NO_FILTER, methods: ['POST'], answered: ['5xx'] };
+
+    expect(matchesLocally(webhookRequest(1, { response: { status: 503 } }), filter)).toBe(true);
+    expect(matchesLocally(webhookRequest(1, { response: { status: 200 } }), filter)).toBe(false);
+    expect(
+      matchesLocally(webhookRequest(1, { method: 'GET', response: { status: 503 } }), filter),
+    ).toBe(false);
   });
 });
 

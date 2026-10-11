@@ -11,7 +11,7 @@ import type { MockInstance } from 'vitest';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
-import { ANNOUNCE_EVERY_MS } from './inbox';
+import { ANNOUNCE_EVERY_MS, SEARCH_REFRESH_DEBOUNCE_MS } from './inbox';
 import { Preferences } from '../settings/preferences';
 import { RequestStore } from '../requests/request-store';
 import { WebhookRequest } from '../requests/webhook-request';
@@ -752,14 +752,14 @@ describe('Dado a tela principal', () => {
       http.expectNone(`/token/${TOKEN_ID}/request/${recusada.uuid}`);
     });
 
-    it('deve refazer a busca uma vez, sem pôr a nova direto na lista nem trocar a aberta Quando chegam mensagens com filtro ativo', async () => {
+    it('deve reler a busca uma vez, sem pôr a nova direto na lista nem trocar a aberta Quando chegam mensagens com um filtro de texto', async () => {
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
       const store = TestBed.inject(RequestStore);
       const searchUrl = `/token/${TOKEN_ID}/requests/search`;
       const applied = store.applyFilter({ ...NO_FILTER, text: 'pedido' });
       await flush(searchUrl, requestPage([R2], { total: 1 }));
       await applied;
-      const [R3, R4] = [webhookRequest(3), webhookRequest(4)];
+      const [R3, R4] = [webhookRequest(3, { seq: 3 }), webhookRequest(4, { seq: 4 })];
 
       FakeEventSource.latest().emit('request.created', { request: R3, total: 3, truncated: false });
       FakeEventSource.latest().emit('request.created', { request: R4, total: 4, truncated: false });
@@ -771,13 +771,42 @@ describe('Dado a tela principal', () => {
       );
       expect(store.requests()).toEqual([R2]);
       expect(store.total()).toBe(4);
-      const call = await flush(searchUrl, requestPage([R2, R4], { total: 2 }));
-      expect(call.request.body).toMatchObject({ text: 'pedido', page: 1 });
-      await vi.waitFor(() => expect(store.requests()).toEqual([R2, R4]));
+      const call = await flush(searchUrl, requestPage([R4, R2], { total: 2 }));
+      expect(call.request.body).toMatchObject({ text: 'pedido', page: 1, sorting: 'newest' });
+      await vi.waitFor(() => expect(store.requests()).toEqual([R4, R2]));
       expect(store.matched()).toBe(2);
+      http.expectNone(searchUrl);
       // A busca vai para a rota (link compartilhável) e a aberta continua.
       expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?q=pedido`);
       expect(store.selected()).toEqual(R1);
+    });
+
+    it('deve pôr na lista e dizer na hora a que casa, sem pedido nenhum, Quando o filtro se decide pela própria requisição', async () => {
+      const store = TestBed.inject(RequestStore);
+      const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+      const applied = store.applyFilter({ ...NO_FILTER, methods: ['GET'], answered: ['2xx'] });
+      await flush(searchUrl, requestPage([R2], { total: 1 }));
+      await applied;
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      const fora = webhookRequest(20, { seq: 20, url: `http://localhost:8084/${TOKEN_ID}/fora` });
+      const dentro = webhookRequest(21, {
+        seq: 21,
+        method: 'GET',
+        url: `http://localhost:8084/${TOKEN_ID}/dentro`,
+        response: { status: 204 },
+      });
+
+      FakeEventSource.latest().emit('request.created', { request: fora, total: 3 });
+      FakeEventSource.latest().emit('request.created', { request: dentro, total: 4 });
+
+      await vi.waitFor(() => expect(store.requests()).toEqual([dentro, R2]));
+      expect(store.matched()).toBe(2);
+      expect(store.total()).toBe(4);
+      expect(announce.mock.calls.map(([message]) => String(message))).toEqual([
+        'GET /dentro arrived · answered 204',
+      ]);
+      await new Promise((later) => setTimeout(later, SEARCH_REFRESH_DEBOUNCE_MS + 100));
+      http.expectNone(searchUrl);
     });
 
     it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim de 10 s', async () => {
@@ -814,13 +843,13 @@ describe('Dado a tela principal', () => {
       await applied;
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
       const [fora, dentro] = ['fora', 'dentro'].map((rota, i) =>
-        webhookRequest(20 + i, { url: `http://localhost:8084/${TOKEN_ID}/${rota}` }),
+        webhookRequest(20 + i, { seq: 20 + i, url: `http://localhost:8084/${TOKEN_ID}/${rota}` }),
       );
 
       FakeEventSource.latest().emit('request.created', { request: fora, total: 3 });
       FakeEventSource.latest().emit('request.created', { request: dentro, total: 4 });
       expect(announce).not.toHaveBeenCalled();
-      await flush(searchUrl, requestPage([R2, dentro], { total: 2 }));
+      await flush(searchUrl, requestPage([dentro, R2], { total: 2 }));
 
       await vi.waitFor(() =>
         expect(announce.mock.calls.map(([message]) => String(message))).toEqual([

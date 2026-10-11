@@ -1,3 +1,4 @@
+import { type CapturedRequest, signatureState } from '../requests/webhook-request';
 import type {
   DecryptionCondition,
   RuleMatch,
@@ -145,6 +146,46 @@ export function filterFromParams(params: FilterParams): RequestFilter {
 }
 
 const ANSWERED = /^([1-5]xx|[1-5]\d\d)$/;
+
+/** Sem status gravado (falha de rede, gravada antes do campo), não casa. */
+export function answeredMatches(request: CapturedRequest, answered: readonly string[]): boolean {
+  const status = request.response?.status;
+  if (status === undefined) {
+    return false;
+  }
+  return answered.some((wanted) =>
+    wanted.endsWith('xx') ? `${Math.floor(status / 100)}xx` === wanted : `${status}` === wanted,
+  );
+}
+
+/**
+ * O filtro se decide olhando só para a requisição que chega: tem só método, status respondido, assinatura e
+ * schema. O texto, o desfecho, os motivos, a decifra e os valores, só a busca do servidor avalia.
+ */
+export function decidedLocally(filter: RequestFilter): boolean {
+  return (
+    filter.text.trim() === '' &&
+    !filter.decryption &&
+    !filter.outcome &&
+    filter.signatureReason == null &&
+    filter.decryptionReason == null &&
+    filter.schemaPath == null &&
+    !filter.values?.length
+  );
+}
+
+/** A requisição casa com o método, o status, a assinatura e o schema do filtro, como a busca os lê. */
+export function matchesLocally(request: CapturedRequest, filter: RequestFilter): boolean {
+  const method = request.method.toUpperCase();
+  const { signature, schema } = request;
+  return (
+    (filter.methods.length === 0 || filter.methods.some((one) => one.toUpperCase() === method)) &&
+    (filter.signature === 'any' ||
+      (!!signature && signatureState(signature) === filter.signature)) &&
+    (filter.schema === 'any' || (!!schema && schema.valid === (filter.schema === 'valid'))) &&
+    (!filter.answered?.length || answeredMatches(request, filter.answered))
+  );
+}
 
 const REASON_MAX = 200;
 const PATH_MAX = 1000;

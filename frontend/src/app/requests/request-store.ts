@@ -6,7 +6,9 @@ import {
   RequestFilter,
   RequestSorting,
   ValueFilter,
+  decidedLocally,
   isFilterActive,
+  matchesLocally,
   sameFilter,
   searchBody,
 } from '../search/request-filter';
@@ -79,6 +81,13 @@ export class RequestStore {
    * Fica atrás do `newestSeq` quando a chegada contada com filtro não entrou na lista (a releitura falhou).
    */
   private listedSeq = 0;
+  /**
+   * O `newestSeq` de quando a busca do filtro foi lida pela última vez: o que chegou depois dele, ela ainda não
+   * viu.
+   */
+  private searchedSeq = 0;
+  /** Só vale a releitura mais recente da busca. */
+  private probes = 0;
 
   private readonly goneState = signal<GoneRequest | null>(null);
   readonly gone = computed(() => {
@@ -242,6 +251,7 @@ export class RequestStore {
       }
       this.newestSeq = newest?.seq ?? Math.max(0, ...result.data.map(seqOf));
       this.listedSeq = this.newestSeq;
+      this.searchedSeq = this.newestSeq;
       this.tokenId.set(tokenId);
       this.opening.set(null);
       this.selection.set(undefined);
@@ -360,6 +370,7 @@ export class RequestStore {
       () => this.searchSlow.set(generation === this.generation && this.searching()),
       SLOW_READ_MS,
     );
+    const seen = this.newestSeq;
     try {
       const result = await this.fetchPage(tokenId, 1);
       if (generation !== this.generation) {
@@ -369,7 +380,12 @@ export class RequestStore {
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
       this.listedAll();
+      this.searchedSeq = seen;
       this.failure.set(null);
+      if (this.filtering() && this.newestSeq > seen) {
+        // Chegou requisição com esta busca a caminho, e ela pode não a ter visto.
+        void this.refreshSearch();
+      }
     } catch (error) {
       // O 422 é do filtro, não do servidor: quem pediu volta ao anterior.
       if (error instanceof HttpErrorResponse && error.status === 422) {
@@ -395,16 +411,60 @@ export class RequestStore {
   }
 
   /**
-   * Com filtro ativo, refaz a busca das páginas carregadas (chegou mensagem nova, que pode casar
-   * ou não). A mensagem aberta continua aberta, mesmo fora do resultado.
+   * Chegou requisição nova com um filtro que só o servidor avalia: lê a busca da mais nova para a mais antiga até
+   * a última que ela já tinha visto (uma página, fora de rajada), põe na lista as que casam e acerta a contagem.
+   * As páginas carregadas ficam como estão, e a mensagem aberta continua aberta.
    */
   async refreshSearch(): Promise<void> {
     const tokenId = this.tokenId();
+    const filter = this.activeFilter();
     if (!tokenId || this.opening() || !this.filtering()) {
       return;
     }
+    if (filter.window || this.failure()?.kind === 'search') {
+      await this.rereadPages(tokenId);
+      return;
+    }
+    const [generation, probe, seen, from] = [
+      this.generation,
+      ++this.probes,
+      this.newestSeq,
+      this.searchedSeq,
+    ];
+    const found: WebhookRequest[] = [];
+    let matched: number;
+    try {
+      for (let number = 1; ; number++) {
+        const page = await firstValueFrom(
+          this.http.post<RequestPage>(
+            `/token/${tokenId}/requests/search`,
+            searchBody(filter, number, 'newest'),
+          ),
+        );
+        matched = page.total;
+        found.push(...page.data.filter((request) => seqOf(request) > from));
+        if (page.is_last_page || page.data.some((request) => seqOf(request) <= from)) {
+          break;
+        }
+      }
+    } catch {
+      // Sem resposta, a lista fica como estava; a próxima chegada busca de novo.
+      return;
+    }
+    if (generation !== this.generation || probe !== this.probes) {
+      return;
+    }
+    found.forEach((request) => this.insertRow(request));
+    this.searchedSeq = Math.max(this.searchedSeq, seen);
+    this.matched.set(matched);
+    this.recounted.update((times) => times + 1);
+  }
+
+  /** Relê as páginas carregadas: a janela das mais novas, e a busca que tinha falhado. */
+  private async rereadPages(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     const loaded = this.pages().map((page) => page.page);
+    const seen = this.newestSeq;
     // Sem resposta, a lista fica como estava; a próxima chegada busca de novo.
     const results = await Promise.all(
       (loaded.length > 0 ? loaded : [1]).map((page) => this.fetchPage(tokenId, page)),
@@ -417,6 +477,7 @@ export class RequestStore {
     this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
     this.lastPageReached.set(last.is_last_page);
     this.matched.set(last.total);
+    this.searchedSeq = seen;
     this.recounted.update((times) => times + 1);
     this.failure.set(null);
   }
@@ -433,6 +494,7 @@ export class RequestStore {
       const result = await this.fetchPage(tokenId, first.page - 1);
       if (generation === this.generation) {
         this.pages.update((pages) => [{ page: result.current_page, data: result.data }, ...pages]);
+        this.recount(result);
       }
     } finally {
       this.paging.set(null);
@@ -452,6 +514,7 @@ export class RequestStore {
       if (generation === this.generation) {
         this.pages.update((pages) => [...pages, { page: result.current_page, data: result.data }]);
         this.lastPageReached.set(result.is_last_page);
+        this.recount(result);
       }
     } finally {
       this.paging.set(null);
@@ -537,28 +600,11 @@ export class RequestStore {
    * saiu, ela segue na tela como cópia, com o aviso (`gone`); nenhuma outra é aberta.
    */
   append(request: WebhookRequest, total: number, removed: readonly string[] = []): void {
-    const cut = new Set(removed);
-    const known = this.find(request.uuid) !== undefined;
     this.noticeCut(removed);
-    this.pages.update((pages) => {
-      const kept = pages.map((page) => ({
-        ...page,
-        data: page.data.filter((r) => !cut.has(r.uuid)),
-      }));
-      if (known) {
-        return kept;
-      }
-      if (this.newestFirst()) {
-        const first = kept[0] ?? { page: 1, data: [] };
-        return [{ ...first, data: bySeq(first.data, request) }, ...kept.slice(1)];
-      }
-      const last = kept.at(-1) ?? { page: 1, data: [] };
-      const data = bySeq([...last.data].reverse(), request).reverse();
-      return [...kept.slice(0, -1), { ...last, data }];
-    });
-    if (known) {
+    this.cutRows(removed);
+    if (!this.insertRow(request)) {
       this.total.set(total);
-      this.changeUnread(this.tokenId(), (unread) => unread.filter((id) => !cut.has(id)));
+      this.changeUnread(this.tokenId(), (unread) => unread.filter((id) => !removed.includes(id)));
       return;
     }
     this.listedSeq = Math.max(this.listedSeq, seqOf(request));
@@ -566,9 +612,23 @@ export class RequestStore {
   }
 
   /**
-   * Mensagem nova com filtro ativo: conta no total e nas não lidas, mas só entra na lista pela
-   * busca (`refreshSearch`), que diz se ela casa.
+   * Requisição nova com filtro ligado: conta na URL e nas não lidas, e as que a limpeza cortou saem da lista.
+   * Quando o filtro se decide só por ela (método, status, assinatura, schema), entra na lista se casa, sem pedido
+   * nenhum. Devolve `false` quando só a busca do servidor diz se ela casa: quem chama a relê (`refreshSearch`).
    */
+  arriveFiltered(request: WebhookRequest, total: number, removed: readonly string[] = []): boolean {
+    const filter = this.activeFilter();
+    // Com a busca do filtro novo a caminho, o resultado dela trocaria a lista por cima da que entrou aqui.
+    const decided = !this.searching() && !filter.window && decidedLocally(filter);
+    this.noticeCut(removed);
+    const cut = this.cutRows(removed);
+    const listed = decided && matchesLocally(request, filter) && this.insertRow(request);
+    this.matched.update((matched) => matched - cut + (listed ? 1 : 0));
+    this.countArrival(request, total, removed);
+    return decided;
+  }
+
+  /** Conta a requisição nova no total da URL e nas não lidas, sem mexer na lista. */
   countArrival(request: WebhookRequest, total: number, removed: readonly string[] = []): void {
     const cut = new Set(removed);
     this.noticeCut(removed);
@@ -579,6 +639,38 @@ export class RequestStore {
       ...unread.filter((id) => !cut.has(id) && id !== request.uuid),
       request.uuid,
     ]);
+  }
+
+  /** Tira da lista as que a limpeza automática cortou; devolve quantas estavam nela. */
+  private cutRows(removed: readonly string[]): number {
+    const cut = new Set(removed);
+    const before = this.requests().length;
+    if (cut.size > 0) {
+      this.pages.update((pages) =>
+        pages.map((page) => ({ ...page, data: page.data.filter((r) => !cut.has(r.uuid)) })),
+      );
+    }
+    return before - this.requests().length;
+  }
+
+  /**
+   * Põe a requisição na ponta das novas (o topo, com a mais nova primeiro; o fim, na ordem inversa), na ordem do
+   * `seq`; `false` quando ela já está na lista.
+   */
+  private insertRow(request: WebhookRequest): boolean {
+    if (this.find(request.uuid)) {
+      return false;
+    }
+    this.pages.update((pages) => {
+      if (this.newestFirst()) {
+        const first = pages[0] ?? { page: 1, data: [] };
+        return [{ ...first, data: bySeq(first.data, request) }, ...pages.slice(1)];
+      }
+      const last = pages.at(-1) ?? { page: 1, data: [] };
+      const data = bySeq([...last.data].reverse(), request).reverse();
+      return [...pages.slice(0, -1), { ...last, data }];
+    });
+    return true;
   }
 
   /**
@@ -592,6 +684,7 @@ export class RequestStore {
       return;
     }
     const generation = ++this.generation;
+    const seen = this.newestSeq;
     const result = await this.fetchPage(tokenId, 1);
     const total = this.filtering() ? (await this.fetchList(tokenId, 1)).total : result.total;
     if (generation !== this.generation) {
@@ -603,6 +696,7 @@ export class RequestStore {
     this.total.set(total);
     this.countPage(result);
     this.listedAll();
+    this.searchedSeq = seen;
     this.failure.set(null);
   }
 
@@ -825,6 +919,13 @@ export class RequestStore {
     }
     this.newestWindow.set(null);
     return this.fetchFiltered(tokenId, page, filter);
+  }
+
+  /** Toda página da busca traz quantas casam agora: o número da tela acompanha. */
+  private recount(result: RequestPage): void {
+    if (this.filtering()) {
+      this.matched.set(result.total);
+    }
   }
 
   /** Página da lista: pela busca com filtro ativo, pela listagem sem ele. */

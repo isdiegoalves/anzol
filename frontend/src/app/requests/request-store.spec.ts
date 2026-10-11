@@ -2,7 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
-import { NO_FILTER } from '../search/request-filter';
+import { NO_FILTER, RequestFilter } from '../search/request-filter';
 import { RequestStore, requestGoneInterceptor } from './request-store';
 import { RequestPage } from './webhook-request';
 
@@ -669,28 +669,6 @@ describe('Dado o RequestStore da URL aberta', () => {
       expect(store.matched()).toBe(1);
     });
 
-    it('deve contar a nova sem pôr na lista e refazer a busca das páginas carregadas Quando chega mensagem com filtro', async () => {
-      const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
-      search().flush(requestPage([R1], { total: 1 }));
-      await applied;
-      const R4 = webhookRequest(4);
-
-      store.countArrival(R4, 4);
-      expect(store.requests()).toEqual([R1]);
-      expect(store.total()).toBe(4);
-      expect(store.unread()).toContain(R4.uuid);
-
-      const refreshed = store.refreshSearch();
-      const call = search();
-      expect(call.request.body).toMatchObject({ page: 1, match: { method: ['POST'] } });
-      call.flush(requestPage([R1, R4], { total: 2 }));
-
-      expect(await refreshed).toBeUndefined();
-      expect(store.requests()).toEqual([R1, R4]);
-      expect(store.matched()).toBe(2);
-      expect(store.selected()).toEqual(R1);
-    });
-
     it('deve limpar o filtro Quando outra URL é carregada', async () => {
       const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });
       search().flush(requestPage([], { total: 0 }));
@@ -851,6 +829,190 @@ describe('Dado o filtro pelo status respondido', () => {
 
     expect(store.requests()).toEqual([answered(9, 500), answered(2, 503)]);
     expect(store.hasNextPage()).toBe(false);
+  });
+});
+
+describe('Dado uma requisição que chega com filtro ligado', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const post = (n: number, status = 200) => webhookRequest(n, { seq: n, response: { status } });
+  const get = (n: number) => webhookRequest(n, { seq: n, method: 'GET' });
+  const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+  const filterBy = async (filter: RequestFilter, found: RequestPage) => {
+    const applied = store.applyFilter(filter);
+    (await search()).flush(found);
+    await applied;
+  };
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([post(5), get(4), post(3)], { total: 40 }));
+    await loaded;
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve pôr na lista a que casa e só contar a que não casa, sem pedido nenhum, Quando o filtro se decide por ela', async () => {
+    await filterBy(
+      { ...NO_FILTER, methods: ['POST'], answered: ['2xx'] },
+      requestPage([post(5), post(3)], { total: 30, is_last_page: false }),
+    );
+
+    expect(store.arriveFiltered(post(6), 41)).toBe(true);
+    expect(store.arriveFiltered(get(7), 42)).toBe(true);
+    expect(store.arriveFiltered(post(8, 503), 43)).toBe(true);
+
+    expect(store.requests()).toEqual([post(6), post(5), post(3)]);
+    expect(store.matched()).toBe(31);
+    expect(store.total()).toBe(43);
+    expect(store.unread()).toEqual([post(6).uuid, get(7).uuid, post(8, 503).uuid]);
+    expect(store.hasNextPage()).toBe(true);
+  });
+
+  it('deve pôr a que casa no fim Quando a lista está da mais antiga para a mais nova', async () => {
+    const sorted = store.toggleSorting();
+    http
+      .expectOne(`${listUrl}?page=1&sorting=oldest`)
+      .flush(requestPage([post(3), get(4), post(5)], { total: 40 }));
+    await sorted;
+    await filterBy({ ...NO_FILTER, methods: ['POST'] }, requestPage([post(3), post(5)]));
+
+    store.arriveFiltered(post(6), 41);
+
+    expect(store.requests()).toEqual([post(3), post(5), post(6)]);
+    expect(store.matched()).toBe(3);
+  });
+
+  it('deve tirar da lista, e do que casa, a que a limpeza cortou', async () => {
+    await filterBy({ ...NO_FILTER, methods: ['POST'] }, requestPage([post(5), post(3)]));
+
+    store.arriveFiltered(get(6), 40, [post(3).uuid, get(4).uuid]);
+
+    expect(store.requests()).toEqual([post(5)]);
+    expect(store.matched()).toBe(1);
+  });
+
+  it('não deve repetir a que já está na lista (o evento e a volta da conexão trazem a mesma)', async () => {
+    await filterBy({ ...NO_FILTER, methods: ['POST'] }, requestPage([post(5), post(3)]));
+
+    store.arriveFiltered(post(6), 41);
+    store.arriveFiltered(post(6), 41);
+
+    expect(store.requests()).toEqual([post(6), post(5), post(3)]);
+    expect(store.matched()).toBe(3);
+  });
+
+  it('deve só contar, e dizer que o servidor é quem sabe, Quando o filtro tem texto ou desfecho', async () => {
+    await filterBy({ ...NO_FILTER, text: 'pix', methods: ['POST'] }, requestPage([post(5)]));
+
+    expect(store.arriveFiltered(post(6), 41)).toBe(false);
+
+    expect(store.requests()).toEqual([post(5)]);
+    expect(store.matched()).toBe(1);
+    expect(store.total()).toBe(41);
+    expect(store.unread()).toContain(post(6).uuid);
+  });
+
+  it('deve reler só a primeira página da busca, da mais nova para a mais antiga, e pôr na lista as novas que casam', async () => {
+    await filterBy(
+      { ...NO_FILTER, text: 'pix' },
+      requestPage([post(5), post(3)], { total: 120, is_last_page: false }),
+    );
+    const next = store.loadNextPage();
+    (await search()).flush(requestPage([post(2), post(1)], { total: 120, current_page: 2 }));
+    await next;
+    store.arriveFiltered(post(6), 41);
+    store.arriveFiltered(get(7), 42);
+    store.arriveFiltered(post(8), 43);
+
+    const refreshed = store.refreshSearch();
+    const call = await search();
+    expect(call.request.body).toEqual({
+      text: 'pix',
+      match: {},
+      sorting: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+    call.flush(
+      requestPage([post(8), post(6), post(5), post(3)], { total: 122, is_last_page: false }),
+    );
+    await refreshed;
+
+    expect(store.requests()).toEqual([post(8), post(6), post(5), post(3), post(2), post(1)]);
+    expect(store.matched()).toBe(122);
+  });
+
+  it('deve seguir para a página seguinte da busca só enquanto todas as lidas são novas', async () => {
+    await filterBy({ ...NO_FILTER, text: 'pix' }, requestPage([post(5)], { total: 1 }));
+    const burst = Array.from({ length: 60 }, (_, i) => post(100 - i));
+    burst.forEach((request, i) => store.arriveFiltered(request, 41 + i));
+
+    const refreshed = store.refreshSearch();
+    (await search()).flush(requestPage(burst.slice(0, 50), { total: 61, is_last_page: false }));
+    const second = await search();
+    expect(second.request.body).toMatchObject({ page: 2, sorting: 'newest' });
+    second.flush(requestPage([...burst.slice(50), post(5)], { total: 61, current_page: 2 }));
+    await refreshed;
+
+    expect(store.requests()).toEqual([...burst, post(5)]);
+    expect(store.matched()).toBe(61);
+  });
+
+  it('deve valer só a releitura mais recente Quando duas correm juntas', async () => {
+    await filterBy({ ...NO_FILTER, text: 'pix' }, requestPage([post(5)], { total: 1 }));
+    store.arriveFiltered(post(6), 41);
+    const older = store.refreshSearch();
+    const first = await search();
+    store.arriveFiltered(post(7), 42);
+    const newer = store.refreshSearch();
+    const second = await search();
+
+    second.flush(requestPage([post(7), post(6), post(5)], { total: 3 }));
+    await newer;
+    first.flush(requestPage([post(6), post(5)], { total: 2 }));
+    await older;
+
+    expect(store.requests()).toEqual([post(7), post(6), post(5)]);
+    expect(store.matched()).toBe(3);
+  });
+
+  it('deve deixar para a busca a que chega com a busca do filtro novo a caminho, e relê-la no fim', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    const first = await search();
+
+    expect(store.arriveFiltered(post(6), 41)).toBe(false);
+    first.flush(requestPage([post(5), post(3)], { total: 2 }));
+    await applied;
+    const again = await search();
+    expect(again.request.body).toMatchObject({ match: { method: ['POST'] }, sorting: 'newest' });
+    again.flush(requestPage([post(6), post(5), post(3)], { total: 3 }));
+
+    await vi.waitFor(() => expect(store.requests()).toEqual([post(6), post(5), post(3)]));
+    expect(store.matched()).toBe(3);
+  });
+
+  it('deve acertar o que casa com o total de cada página da busca que chega', async () => {
+    await filterBy(
+      { ...NO_FILTER, methods: ['POST'] },
+      requestPage([post(5), post(3)], { total: 120, is_last_page: false }),
+    );
+
+    const next = store.loadNextPage();
+    (await search()).flush(requestPage([post(2)], { total: 118, current_page: 2 }));
+    await next;
+
+    expect(store.matched()).toBe(118);
   });
 });
 
@@ -1423,18 +1585,27 @@ describe('Dado o servidor sem responder à lista ou à busca', () => {
 
   it('deve manter a lista filtrada como estava Quando a busca refeita por uma chegada falha', async () => {
     const loaded = store.load(TOKEN_ID);
-    http.expectOne(firstPage).flush(requestPage([webhookRequest(1)], { total: 12 }));
+    http.expectOne(firstPage).flush(requestPage([webhookRequest(1, { seq: 1 })], { total: 12 }));
     await loaded;
     const applied = store.applyFilter({ ...NO_FILTER, text: 'base' });
-    http.expectOne(searchUrl).flush(requestPage([webhookRequest(1)], { total: 1 }));
+    http.expectOne(searchUrl).flush(requestPage([webhookRequest(1, { seq: 1 })], { total: 1 }));
     await applied;
+    const nova = webhookRequest(2, { seq: 2 });
+    store.arriveFiltered(nova, 13);
 
     const refreshed = store.refreshSearch();
     http.expectOne(searchUrl).flush({}, unavailable);
     await refreshed;
 
-    expect(store.requests()).toEqual([webhookRequest(1)]);
+    expect(store.requests()).toEqual([webhookRequest(1, { seq: 1 })]);
     expect(store.failure()).toBeNull();
+
+    const again = store.refreshSearch();
+    http
+      .expectOne(searchUrl)
+      .flush(requestPage([nova, webhookRequest(1, { seq: 1 })], { total: 2 }));
+    await again;
+    expect(store.requests()).toEqual([nova, webhookRequest(1, { seq: 1 })]);
   });
 
   it('deve avisar da demora aos 30 s, sem cancelar a carga, e tirar o aviso Quando ela responde', async () => {

@@ -928,16 +928,17 @@ export class Inbox {
       fresh.forEach((request) => this.list()?.receive(request, false));
       return fresh.length;
     }
+    let undecided = false;
     for (const request of fresh) {
       if (this.requests.filtering()) {
-        // Só a busca diz se ela casa: conta agora, e a busca é refeita em seguida.
-        this.requests.countArrival(request, total);
+        undecided = !this.requests.arriveFiltered(request, total) || undecided;
       } else {
         this.requests.append(request, total);
       }
       this.list()?.receive(request, false);
     }
-    if (this.requests.filtering() && fresh.length > 0) {
+    if (undecided) {
+      // Só a busca diz se elas casam: é relida em seguida.
       this.searchRefresh.next();
     }
     return fresh.length;
@@ -968,10 +969,14 @@ export class Inbox {
       return;
     }
     if (this.requests.filtering()) {
-      // Se a nova casa com o filtro, só a busca diz: conta agora e busca de novo em seguida.
-      this.requests.countArrival(complete, total, removed);
-      this.searchRefresh.next();
+      const decided = this.requests.arriveFiltered(complete, total, removed);
       this.notify(complete, false, 'later');
+      if (decided) {
+        this.announceFound();
+      } else {
+        // Se a nova casa com o filtro, só a busca diz: ela é relida em seguida.
+        this.searchRefresh.next();
+      }
       return;
     }
     const first =
@@ -1054,8 +1059,8 @@ export class Inbox {
   /**
    * O redirect pelo navegador (se ligado), o anúncio e, com a nova fora da vista, o aviso "Request
    * received" com "View", só visual: quem fala a chegada é o anúncio. `speech`: `said` quando outra
-   * fala já a disse (as boas-vindas da primeira, o roteiro que a reclama); `later` com filtro, até a
-   * busca dizer se ela aparece.
+   * fala já a disse (as boas-vindas da primeira, o roteiro que a reclama); `later` com filtro, até se
+   * saber se ela aparece (`announceFound`).
    */
   private notify(
     request: WebhookRequest,
@@ -1084,7 +1089,7 @@ export class Inbox {
     }
   }
 
-  /** A busca refeita disse o que aparece: só essas chegadas são ditas. */
+  /** Já se sabe quais chegadas o filtro mostra: só essas são ditas. */
   private announceFound(): void {
     for (const [requestId, request] of this.unseenArrivals) {
       if (this.listed(requestId)) {

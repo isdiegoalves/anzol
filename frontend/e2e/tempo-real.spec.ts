@@ -28,6 +28,27 @@ async function openListening(page: Page, tokenId: string): Promise<void> {
   expect((await stream).status()).toBe(200);
 }
 
+/** Os pedidos de lista e de busca da URL que terminam daqui em diante, com os bytes da resposta de cada um. */
+function medirPedidosDaLista(
+  page: Page,
+  tokenId: string,
+): { caminho: string; corpo: unknown; bytes: number }[] {
+  const pedidos: { caminho: string; corpo: unknown; bytes: number }[] = [];
+  page.on('requestfinished', async (sent) => {
+    const url = new URL(sent.url());
+    if (!url.pathname.startsWith(`/token/${tokenId}/requests`)) {
+      return;
+    }
+    const tamanho = await sent.sizes();
+    pedidos.push({
+      caminho: `${sent.method()} ${url.pathname.replace(tokenId, '{id}')}${url.search}`,
+      corpo: sent.postDataJSON(),
+      bytes: tamanho.responseHeadersSize + tamanho.responseBodySize,
+    });
+  });
+  return pedidos;
+}
+
 test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => {
   let tokenId: string;
 
@@ -83,6 +104,62 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     );
     await page.waitForTimeout(1_500);
     expect((await anunciados(page)).filter((anuncio) => !anuncio.nasceuComTexto)).toEqual([]);
+  });
+
+  test('deve pôr na lista a que casa sem pedido de lista nem de busca Quando o filtro é só de método e status', async ({
+    page,
+    tokens,
+  }) => {
+    await tokens.send(tokenId, { path: '/base-1' });
+    await tokens.send(tokenId, { method: 'GET', path: '/base-2' });
+    const stream = page.waitForResponse((response) =>
+      response.url().endsWith(`/token/${tokenId}/stream`),
+    );
+    await page.goto(`/#/${tokenId}?methods=POST&answered=2xx`);
+    expect((await stream).status()).toBe(200);
+    const resultado = page.getByRole('search').locator('app-live-region.count');
+    await expect(resultado).toContainText('1 request matches');
+    const pedidos = medirPedidosDaLista(page, tokenId);
+
+    const casa = await tokens.send(tokenId, { path: '/base-3' });
+    const naoCasa = await tokens.send(tokenId, { method: 'GET', path: '/base-4' });
+
+    await expect(resultado).toContainText(
+      '2 requests match · search runs on the server over all 4',
+    );
+    await expect(item(page, casa)).toBeVisible();
+    await expect(item(page, naoCasa)).toHaveCount(0);
+    await page.waitForTimeout(1_000);
+    expect(pedidos.map((pedido) => pedido.caminho)).toEqual([]);
+    expect(pedidos.reduce((soma, pedido) => soma + pedido.bytes, 0)).toBeLessThanOrEqual(20_000);
+  });
+
+  test('deve pedir uma busca só por requisição que chega Quando o filtro tem texto, mesmo com duas páginas carregadas', async ({
+    page,
+    tokens,
+  }) => {
+    await tokens.sendMany(tokenId, 60);
+    const stream = page.waitForResponse((response) =>
+      response.url().endsWith(`/token/${tokenId}/stream`),
+    );
+    await page.goto(`/#/${tokenId}?q=POST`);
+    expect((await stream).status()).toBe(200);
+    const resultado = page.getByRole('search').locator('app-live-region.count');
+    await expect(resultado).toContainText('60 requests match');
+    await page.getByRole('button', { name: 'Next page' }).click();
+    await expect(page.locator('.range')).toContainText('1–60 of 60');
+    const pedidos = medirPedidosDaLista(page, tokenId);
+
+    const nova = await tokens.send(tokenId, { path: '/nova' });
+
+    await expect(resultado).toContainText(
+      '61 requests match · search runs on the server over all 61',
+    );
+    await expect(page.locator('.range')).toContainText('1–61 of 61');
+    await page.waitForTimeout(1_000);
+    expect(pedidos.map((pedido) => pedido.caminho)).toEqual(['POST /token/{id}/requests/search']);
+    expect(pedidos[0].corpo).toMatchObject({ text: 'POST', sorting: 'newest', page: 1 });
+    await expect(item(page, nova)).toHaveCount(1);
   });
 
   test('deve mostrar a mensagem nova, anunciar e contar não lida no título Quando um webhook chega', async ({
