@@ -1,5 +1,9 @@
 @let current = state();
 <main class="page" aria-label="Compare" i18n-aria-label>
+  <!-- Com a comparação na tela, o h1 é o dela. -->
+  @if (current.kind !== 'loaded') {
+    <h1 class="visually-hidden" i18n>Compare</h1>
+  }
   @switch (current.kind) {
     @case ('loaded') {
       @if (twoPanes()) {

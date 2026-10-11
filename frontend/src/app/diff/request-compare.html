@@ -68,7 +68,7 @@
     }
   </div>
 
-  <h3 i18n>Checks</h3>
+  <h3 i18n [attr.aria-level]="partLevel()">Checks</h3>
   @let idA = left().uuid.substring(0, 5);
   @let idB = right().uuid.substring(0, 5);
   <!-- RULES-30: os ids nos cabeçalhos, sem a coluna Status (a linha que mudou diz "changed"); no
@@ -126,7 +126,7 @@
 
   <div class="outcome">
     <section class="card explains" aria-labelledby="explains-title">
-      <h4 i18n id="explains-title">
+      <h4 i18n [attr.aria-level]="cardLevel()" id="explains-title">
         {report.causes.length, plural,
           =1 {1 change explains}
           other {{{ report.causes.length }} changes explain}
@@ -160,7 +160,7 @@
       <section class="card noise" aria-labelledby="noise-title">
         <details>
           <summary>
-            <h4 i18n id="noise-title">
+            <h4 i18n [attr.aria-level]="cardLevel()" id="noise-title">
               {report.noise.length, plural,
                 =1 {1 difference changes}
                 other {{{ report.noise.length }} differences change}
@@ -182,7 +182,7 @@
       <section class="card other" aria-labelledby="other-title">
         <details>
           <summary>
-            <h4 i18n id="other-title">
+            <h4 i18n [attr.aria-level]="cardLevel()" id="other-title">
               {report.other.length, plural,
                 =1 {1 other difference}
                 other {{{ report.other.length }} other differences}
@@ -201,10 +201,10 @@
     }
   </div>
 
-  <app-request-line [parts]="line()" [same]="lineSame()" />
-  <h3 i18n>Query</h3>
+  <app-request-line [parts]="line()" [same]="lineSame()" [level]="partLevel()" />
+  <h3 i18n [attr.aria-level]="partLevel()">Query</h3>
   <app-field-diff label="Query" i18n-label [rows]="query()" [empty]="empty" />
-  <h3 i18n>Headers</h3>
+  <h3 i18n [attr.aria-level]="partLevel()">Headers</h3>
   <p class="note">{{ headersNote() }}</p>
   <app-field-diff
     label="Headers"
@@ -214,7 +214,7 @@
     [noise]="noiseHeaders"
   />
 
-  <h3 i18n>Body</h3>
+  <h3 i18n [attr.aria-level]="partLevel()">Body</h3>
   @let pair = body();
   @if (pair.truncated) {
     <p i18n class="warning" role="alert">

@@ -40,6 +40,13 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     expect(screen.getByRole('group', { name: 'History test' }).tagName).toBe('DIV');
   });
 
+  it('deve ter "Would match" e "Would not match" como títulos de nível 3, irmãos das seções do editor', async () => {
+    await show(RESULTADO);
+
+    expect(screen.getByRole('heading', { name: /^Would match \(/, level: 3 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /^Would not match \(/, level: 3 })).toBeTruthy();
+  });
+
   it('deve dizer quantas das mais recentes casariam, com a nota e o "Test again"', async () => {
     const { container, fixture } = await show(RESULTADO);
     const again = vi.fn();

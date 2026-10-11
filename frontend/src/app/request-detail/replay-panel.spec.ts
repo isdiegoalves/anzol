@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
+import axe from 'axe-core';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
@@ -51,6 +52,14 @@ describe('Dado a aba Replay do painel de ação', () => {
   const target = () => screen.getByRole('textbox', { name: 'Target URL' });
 
   afterEach(() => localStorage.clear());
+
+  it('deve ser o formulário "Replay request", sem um papel que formulário não aceita', async () => {
+    const { container } = await show();
+
+    expect(screen.getByRole('form', { name: 'Replay request' })).toBeTruthy();
+    const { violations } = await axe.run(container, { runOnly: ['aria-allowed-role'] });
+    expect(violations.map((violation) => violation.nodes.map((node) => node.html))).toEqual([]);
+  });
 
   it('deve guardar o lugar do destino final antes do campo, vazio enquanto não há destino', async () => {
     const { container } = await show();

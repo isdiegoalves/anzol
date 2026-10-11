@@ -15,7 +15,7 @@ export interface LineChip {
   selector: 'app-request-line',
   template: `
     <section aria-labelledby="line-title">
-      <h3 i18n id="line-title">Request line</h3>
+      <h3 i18n id="line-title" [attr.aria-level]="level()">Request line</h3>
       @if (same()) {
         <p i18n class="note">method, path and query are the same</p>
       }
@@ -65,4 +65,6 @@ export interface LineChip {
 export class RequestLine {
   readonly parts = input.required<readonly LineChip[]>();
   readonly same = input.required<boolean>();
+  /** O nível do título quando não é o do `h3`: na página do Compare as partes vêm logo abaixo do `h1`. */
+  readonly level = input<number | null>(null);
 }

@@ -14,8 +14,9 @@
   }
   <!-- Focável por código: aberta pelo teclado, a requisição leva o foco ao título (B1). -->
   <!-- O nome do título é a rota: o do botão do caminho não entra nele. -->
+  <!-- No link só-leitura a requisição é a página inteira: o título dela é o de nível 1. -->
   <!-- prettier-ignore -->
-  <h2 class="route" tabindex="-1" [title]="flow.route" [attr.aria-label]="readonly() ? null : flow.route">@if (readonly()) {{{ flow.route }}} @else {<app-value label="Path" i18n-label [target]="{ kind: 'path', name: '', value: routeParts().path }">{{ routeParts().path }}</app-value>{{ routeParts().query }}}</h2>
+  <h2 class="route" tabindex="-1" [title]="flow.route" [attr.aria-level]="readonly() ? 1 : null" [attr.aria-label]="readonly() ? null : flow.route">@if (readonly()) {{{ flow.route }}} @else {<app-value label="Path" i18n-label [target]="{ kind: 'path', name: '', value: routeParts().path }">{{ routeParts().path }}</app-value>{{ routeParts().query }}}</h2>
   <span class="spacer"></span>
   <ng-content select="[viewNav]" />
 </header>

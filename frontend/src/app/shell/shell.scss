@@ -276,8 +276,18 @@
       height: 0;
       padding: 0;
 
-      > :not(.destinations) {
+      > :not(.destinations, h1) {
         display: none;
+      }
+
+      // O título da página sai só da vista: com `display: none` a tela ficaria sem `h1`.
+      > h1 {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
     }
 

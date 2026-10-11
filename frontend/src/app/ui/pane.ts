@@ -11,7 +11,7 @@ let nextId = 0;
   selector: 'app-pane',
   template: `
     @if (heading()) {
-      <header class="header">
+      <div class="header">
         @switch (level()) {
           @case (1) {
             <h1 class="heading" [id]="headingId">{{ heading() }}</h1>
@@ -25,7 +25,7 @@ let nextId = 0;
         }
         <span class="spacer"></span>
         <ng-content select="[paneActions]" />
-      </header>
+      </div>
     }
     <div class="body">
       <ng-content />

@@ -202,6 +202,11 @@ describe('Dado o "Describe the rule"', () => {
       expect(text(element.querySelector('#suggestion-checks') as HTMLElement)).toBe(
         'Checks on this suggestion',
       );
+      // Nível 3: os dois títulos ficam logo abaixo do título do editor, que é um h2.
+      expect([...element.querySelectorAll('h3, h4')].map((title) => title.tagName)).toEqual([
+        'H3',
+        'H3',
+      ]);
       expect(checks(element).slice(0, 2)).toEqual([
         ['OK', 'Matches the example request.'],
         ['OK', 'Would match 7 of the last 34 requests.'],

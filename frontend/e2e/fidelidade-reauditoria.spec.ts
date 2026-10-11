@@ -227,7 +227,7 @@ test.describe('Dado o foco depois das ações (reauditoria)', () => {
     await acoes(page)
       .getByRole('button', { name: /^Replay/ })
       .click();
-    const replay = page.getByRole('region', { name: 'Replay request' });
+    const replay = page.getByRole('form', { name: 'Replay request' });
     await replay.getByRole('textbox', { name: 'Target URL' }).fill('http://169.254.169.254/x');
     await replay.getByRole('button', { name: 'Replay', exact: true }).click();
 

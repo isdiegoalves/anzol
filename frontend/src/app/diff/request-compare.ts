@@ -89,6 +89,13 @@ export class RequestCompare {
   readonly embedded = input(false);
 
   /**
+   * Na página do Compare os títulos das partes vêm logo abaixo do `h1` (nível 2, e os cartões 3). Embutida no
+   * detalhe não há `h1` aqui: valem o `h3` e o `h4` do template, abaixo do `h2` da requisição.
+   */
+  protected readonly partLevel = computed(() => (this.embedded() ? null : 2));
+  protected readonly cardLevel = computed(() => (this.embedded() ? null : 3));
+
+  /**
    * "Swap A and B" troca na tela no mesmo evento do clique, antes da rota nova chegar; quando ela
    * chega (A e B já trocados), volta ao normal.
    */

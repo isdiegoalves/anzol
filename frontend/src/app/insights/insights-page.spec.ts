@@ -181,6 +181,12 @@ describe('Dado a página Insights', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('não deve ter marco de banner dentro do main, nem o cabeçalho da página nem o de um painel', async () => {
+    await open(tokenStats());
+
+    expect(screen.queryAllByRole('banner')).toEqual([]);
+  });
+
   it('deve contar a decifra por estado e por motivo, cada número com link para o filtro', async () => {
     const { container } = await open(
       tokenStats({

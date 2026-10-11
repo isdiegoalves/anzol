@@ -25,7 +25,7 @@ describe('Dado o painel (app-pane)', () => {
 
     const region = screen.getByRole('region', { name: 'Requests (3)' });
     expect(screen.getByRole('heading', { level: 2, name: 'Requests (3)' })).toBeTruthy();
-    expect(region.querySelector('header button')?.textContent).toBe('Refresh');
+    expect(region.querySelector('.header button')?.textContent).toBe('Refresh');
     expect(screen.getByText('Conteúdo')).toBeTruthy();
     await expectNoAxeViolations(container);
   });

@@ -55,6 +55,27 @@ describe('Dado a comparação de duas mensagens', () => {
     url.set(null);
   });
 
+  it('deve pôr os títulos das partes logo abaixo do h1 na página, e um nível abaixo Quando embutida no detalhe', async () => {
+    const { container, fixture } = await show();
+    const partes = ['Checks', 'Request line', 'Query', 'Headers', 'Body'];
+    const comNivel = (level: number) =>
+      partes.filter((name) => screen.queryByRole('heading', { name, level }));
+    const cartoes = () =>
+      [...container.querySelectorAll('.outcome h4')].map((titulo) =>
+        titulo.getAttribute('aria-level'),
+      );
+
+    expect(comNivel(2)).toEqual(partes);
+    expect(cartoes()).toContain('3');
+    expect(new Set(cartoes()).size).toBe(1);
+
+    fixture.componentRef.setInput('embedded', true);
+    await fixture.whenStable();
+
+    expect(comNivel(3)).toEqual(partes);
+    expect(new Set(cartoes())).toEqual(new Set([null]));
+  });
+
   it('deve mostrar A e B no cabeçalho, as verificações lado a lado, e passar no axe', async () => {
     const { container } = await show();
 

@@ -91,7 +91,7 @@
       Review the rule below and click Save to keep it.
     </p>
 
-    <h4 id="suggestion-checks" i18n>Checks on this suggestion</h4>
+    <h3 id="suggestion-checks" i18n>Checks on this suggestion</h3>
     <ul class="checks" aria-labelledby="suggestion-checks">
       @for (check of checks(); track $index) {
         @let verdict = verdicts[check.verdict];
@@ -111,7 +111,7 @@
       }
     </ul>
 
-    <h4 i18n>What this rule does</h4>
+    <h3 i18n>What this rule does</h3>
     <p class="words" role="group" aria-label="Rule in words" i18n-aria-label>{{ words() }}</p>
     <p class="limits" i18n>
       A rule only chooses the answer to a request: status, headers, body, delay or a network fault.

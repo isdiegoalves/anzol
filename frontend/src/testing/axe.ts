@@ -1,6 +1,6 @@
 import axe from 'axe-core';
 
-/** As mesmas regras do E2E (`e2e/support/a11y.ts`): WCAG 2.2 A/AA. */
+/** As regras WCAG 2.2 A/AA do E2E (`e2e/support/a11y.ts`); as de boa prática olham a página inteira e ficam com ele. */
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 /**

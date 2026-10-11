@@ -1,12 +1,17 @@
 import { Locator, Page, expect } from '@playwright/test';
 
 /**
- * Axe no E2E (CA-2 do item 14): WCAG 2.2 A/AA, e o teste falha em qualquer violação, seja qual for o impacto.
+ * Axe no E2E (CA-2 do item 14): WCAG 2.2 A/AA e as regras de boa prática do axe (marcos, níveis de título), e o
+ * teste falha em qualquer violação, seja qual for o impacto.
  *
  * `@axe-core/playwright` é dependência que a E0 instala (§2 do plano do item 14). O import é dinâmico para que,
  * sem o pacote, só os testes de acessibilidade falhem, com um motivo claro, e não a carga de toda a suíte.
  */
 export const TAGS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+// `region` pede todo o conteúdo dentro de um marco, e a moldura do app (a barra do topo e o cabeçalho da URL) ainda
+// não é um. O que o Material abre por cima (`.cdk-overlay-container`) nunca vai ser: quando a regra entrar, ele sai.
+const FORA = ['region'];
 
 const PACOTE = '@axe-core/playwright';
 
@@ -27,6 +32,7 @@ interface Violacao {
 interface Analise {
   withTags(tags: string[]): Analise;
   exclude(seletor: string): Analise;
+  disableRules(regras: string[]): Analise;
   setLegacyMode(legado: boolean): Analise;
   analyze(): Promise<{ violations: Violacao[] }>;
 }
@@ -46,7 +52,8 @@ async function axe(page: Page): Promise<Analise> {
   // Modo legado: o axe não abre a aba em branco em que junta os resultados. No meio de um teste ela apareceria para
   // quem espera a aba nova de um link.
   return new Construtor({ page })
-    .withTags(TAGS_WCAG)
+    .withTags([...TAGS_WCAG, 'best-practice'])
+    .disableRules(FORA)
     .exclude(AVISO_AINDA_NAO_ANUNCIADO)
     .setLegacyMode(true);
 }

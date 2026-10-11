@@ -52,12 +52,7 @@ function hostOf(url: string): string {
   selector: 'app-replay-panel',
   imports: [RouterLink],
   template: `
-    <form
-      class="replay"
-      role="region"
-      aria-labelledby="replay-panel-title"
-      (submit)="replay($event)"
-    >
+    <form class="replay" aria-labelledby="replay-panel-title" (submit)="replay($event)">
       <h3 class="title" id="replay-panel-title" i18n>Replay request</h3>
       <!-- Antes do campo e com a altura guardada: o destino que aparece não empurra o que vem embaixo. -->
       <div class="sends-to" id="replay-sends-to">

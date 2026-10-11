@@ -610,7 +610,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     it('deve tirar a rota da url com [redacted], não ter botão nenhum e mostrar as condições abertas', async () => {
       const { container } = await show(shared(), null, true);
 
-      expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('/pedidos?x=1');
+      // No link só-leitura a requisição é a página: a rota é o título de nível 1.
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('/pedidos?x=1');
       expect(screen.queryAllByRole('button')).toEqual([]);
       // Uma condição só: a frase vai no cartão da regra (INBOX-18).
       expect(document.querySelector('[data-kind="rule"] .detail')?.textContent).toBe(

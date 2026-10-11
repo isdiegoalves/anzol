@@ -10,6 +10,7 @@ import { TokenTracker, expect, test } from './support/fixtures';
 import {
   abrirFiltros,
   abrirItem,
+  abrirMensagem,
   busca,
   campoDeBusca,
   detalhes,
@@ -1333,6 +1334,19 @@ test.describe('Dado o título da aba e os marcos de cada destino', () => {
       await expect(page.getByRole('main'), nome).toHaveCount(1);
       await expect(page.getByRole('main'), nome).toHaveAccessibleName(/\S/);
     }
+  });
+
+  test('deve manter um h1 com a requisição aberta, também em tela cheia no celular', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, { path: '/pedidos' });
+
+    await abrirMensagem(page, tokenId, requestId);
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('Inbox');
   });
 
   test('deve começar pelo "Skip to content", que leva o foco ao conteúdo', async ({

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { within } from '@testing-library/angular';
 import { webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { SharedRequest } from './share';
@@ -82,6 +83,13 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
     expect(rows('Headers')).toEqual(['authorization [redacted]', 'content-type application/json']);
     await openTab(/^Query/);
     expect(rows('Query strings')).toEqual(['api_key [redacted]', 'page 2']);
+  });
+
+  it('deve ter a rota da requisição como o título de nível 1 da página Quando o link vale', async () => {
+    await openShare((url) => http.expectOne(url).flush(shared()));
+
+    const titles = within(page()).getAllByRole('heading', { level: 1 });
+    expect(titles.map((title) => title.className)).toEqual(['route']);
   });
 
   it('não deve ter nenhum botão nem ação que escreva Quando o link vale', async () => {

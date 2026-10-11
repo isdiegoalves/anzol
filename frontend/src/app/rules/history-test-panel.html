@@ -50,7 +50,7 @@
   @if (current.tested > 0) {
     <div class="columns">
       <section class="column" aria-labelledby="would-match-title">
-        <h4 id="would-match-title" i18n>Would match ({{ current.matched }})</h4>
+        <h3 id="would-match-title" i18n>Would match ({{ current.matched }})</h3>
         <ul class="matches">
           @for (match of current.matchList; track match.uuid) {
             <li>
@@ -64,7 +64,7 @@
       </section>
       <section class="column" aria-labelledby="would-not-match-title">
         <div class="column-head">
-          <h4 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h4>
+          <h3 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h3>
           <button
             mat-button
             type="button"

@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
@@ -116,6 +117,8 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     });
     expect(page().textContent).not.toContain(`Request A (#`);
     expect(page().querySelector('app-request-compare')).toBeNull();
+    // Sem a comparação na tela, a página segue com o título de nível 1 dela.
+    expect(within(page()).getByRole('heading', { level: 1 }).textContent).toBe('Compare');
     await expectNoAxeViolations(page());
   });
 
