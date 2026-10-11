@@ -378,16 +378,18 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
     });
 
     describe('Dado a janela das mais novas que o link de Métricas traz', () => {
-      const edge = () =>
+      const edge = (size = 3, oldest = 7) =>
         vi.waitFor(() =>
-          http.expectOne(`/token/${TOKEN_ID}/requests?page=3&per_page=1&sorting=newest`).flush(
-            requestPage([answered(7, 200)], {
-              total: 812,
-              per_page: 1,
-              current_page: 3,
-              is_last_page: false,
-            }),
-          ),
+          http
+            .expectOne(`/token/${TOKEN_ID}/requests?page=${size}&per_page=1&sorting=newest`)
+            .flush(
+              requestPage([answered(oldest, 200)], {
+                total: 812,
+                per_page: 1,
+                current_page: size,
+                is_last_page: false,
+              }),
+            ),
         );
       const found = requestPage([answered(9, 429), answered(8, 429), answered(2, 429)], {
         total: 40,
@@ -407,6 +409,58 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
           () =>
             expect(result()).toBe(
               `2 match in the newest 3 requests up to ${hour(at)} · the URL has 3`,
+            ),
+          { timeout: 2000 },
+        );
+      });
+
+      it('deve dizer "1 matches" Quando só uma casa na janela', async () => {
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
+        await edge();
+        (await search()).flush(requestPage([answered(9, 429), answered(2, 429)], { total: 2 }));
+        await applied;
+
+        const at = store.newestWindow()?.at ?? new Date(0);
+        await vi.waitFor(
+          () =>
+            expect(result()).toBe(
+              `1 matches in the newest 3 requests up to ${hour(at)} · the URL has 3`,
+            ),
+          { timeout: 2000 },
+        );
+      });
+
+      it('deve escrever no singular o resultado, o progresso e o botão Quando a janela é de uma só', async () => {
+        const progress = () => container.querySelector('p.count')?.textContent?.trim();
+
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 1 });
+        await edge(1, 9);
+        await vi.waitFor(() => expect(progress()).toBe('Looking in the newest request · 0 of 1'));
+        (await search()).flush(requestPage([answered(9, 429), answered(2, 429)], { total: 2 }));
+        await applied;
+
+        const at = store.newestWindow()?.at ?? new Date(0);
+        await vi.waitFor(
+          () =>
+            expect(result()).toBe(
+              `1 matches in the newest request up to ${hour(at)} · the URL has 3`,
+            ),
+          { timeout: 2000 },
+        );
+        expect(screen.getByRole('button', { name: 'Look in the one before' })).toBeTruthy();
+      });
+
+      it('deve dizer "0 match in the newest request" Quando a única da janela não casa', async () => {
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 1 });
+        await edge(1, 9);
+        (await search()).flush(requestPage([answered(2, 429)], { total: 1 }));
+        await applied;
+
+        const at = store.newestWindow()?.at ?? new Date(0);
+        await vi.waitFor(
+          () =>
+            expect(result()).toBe(
+              `0 match in the newest request up to ${hour(at)} · the URL has 3`,
             ),
           { timeout: 2000 },
         );

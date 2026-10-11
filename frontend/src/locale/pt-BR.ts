@@ -2833,6 +2833,8 @@ export const translations: Record<string, string> = {
   '5481673356259336453': '{$matched} de {$total}',
   // {$matched} of the newest {$window}
   '587363025418307606': '{$matched} das {$window} mais novas',
+  // {$matched} of the newest one
+  '3235304048366547294': '{$matched} da mais nova',
   //  Empty: any path. After the URL's token.
   '5803951141866487424': ' Vazio: qualquer caminho. Depois do token da URL. ',
   // {VAR_PLURAL, plural, other {{INTERPOLATION} unchanged}}
@@ -3746,11 +3748,19 @@ export const translations: Record<string, string> = {
   // {$count} match in the newest {$window} requests up to {$time} · the URL has {$total}
   '6284050404437382036':
     '{$count} casam nas {$window} requisições mais novas até {$time} · a URL tem {$total}',
-  //  Looking in the newest {$INTERPOLATION} requests · {$INTERPOLATION_1} of {$INTERPOLATION}
-  '2772465411759293792':
-    ' Procurando nas {$INTERPOLATION} requisições mais novas · {$INTERPOLATION_1} de {$INTERPOLATION} ',
-  //  Look in the {$INTERPOLATION} before
-  '7204596479395577630': ' Procurar nas {$INTERPOLATION} anteriores ',
+  // 1 matches in the newest {$window} requests up to {$time} · the URL has {$total}
+  '4857482129484701677':
+    '1 casa nas {$window} requisições mais novas até {$time} · a URL tem {$total}',
+  // 1 matches in the newest request up to {$time} · the URL has {$total}
+  '7884126730085713150': '1 casa na requisição mais nova até {$time} · a URL tem {$total}',
+  // {$count} match in the newest request up to {$time} · the URL has {$total}
+  '1865916184673915778': '{$count} casam na requisição mais nova até {$time} · a URL tem {$total}',
+  // {VAR_PLURAL, plural, =1 {Looking in the newest request · {INTERPOLATION} of 1} other {Looking in the newest {INTERPOLATION_1} requests · {INTERPOLATION} of {INTERPOLATION_1}}}
+  '4237358452782701206':
+    '{VAR_PLURAL, plural, =1 {Procurando na requisição mais nova · {INTERPOLATION} de 1} other {Procurando nas {INTERPOLATION_1} requisições mais novas · {INTERPOLATION} de {INTERPOLATION_1}}}',
+  // {VAR_PLURAL, plural, =1 {Look in the one before} other {Look in the {INTERPOLATION} before}}
+  '796995289289571282':
+    '{VAR_PLURAL, plural, =1 {Procurar na anterior} other {Procurar nas {INTERPOLATION} anteriores}}',
   // Copied the anzol test command.
   '557794263741060364': 'Comando anzol test copiado.',
   // Copied. anzol test only reads --match, so these filters were left out: {$filters}.

@@ -239,9 +239,12 @@ export class RequestList {
     }
     const newest = this.store.newestWindow();
     // Com filtro (texto, chips ou o desfecho do C2), quantas sobraram de quantas (L9).
-    return newest
-      ? $localize`${this.store.matched()}:matched: of the newest ${newest.size}:window:`
-      : $localize`${this.store.matched()}:matched: of ${total}:total:`;
+    if (!newest) {
+      return $localize`${this.store.matched()}:matched: of ${total}:total:`;
+    }
+    return newest.size === 1
+      ? $localize`${this.store.matched()}:matched: of the newest one`
+      : $localize`${this.store.matched()}:matched: of the newest ${newest.size}:window:`;
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));

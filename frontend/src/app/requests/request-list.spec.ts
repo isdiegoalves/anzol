@@ -1179,6 +1179,29 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (1 of the newest 2)');
   });
 
+  it('deve dizer "N of the newest one" no título Quando a janela é de uma só', async () => {
+    const recent = (n: number) => webhookRequest(n, { seq: n, response: { status: 429 } });
+    await load([recent(9), recent(8), recent(7)], 9);
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 1 });
+    await vi.waitFor(() =>
+      http
+        .expectOne(`/token/${TOKEN_ID}/requests?page=1&per_page=1&sorting=newest`)
+        .flush(requestPage([recent(9)], { total: 9, per_page: 1, is_last_page: false })),
+    );
+    await vi.waitFor(() =>
+      http
+        .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+        .flush(requestPage([recent(9), recent(7)], { total: 3 })),
+    );
+    await applied;
+    await fixture.whenStable();
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe(
+      'Requests (1 of the newest one)',
+    );
+  });
+
   it('deve mostrar o esqueleto no lugar da lista de antes durante a leitura da janela das mais novas', async () => {
     const recent = (n: number) => webhookRequest(n, { seq: n, response: { status: 429 } });
     await load([recent(9), recent(8), recent(7)], 9);

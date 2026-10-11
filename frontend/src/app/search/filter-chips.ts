@@ -263,7 +263,14 @@ export class FilterChips {
       minute: '2-digit',
     });
     const [matched, total] = [this.store.matched(), this.store.total()];
-    return $localize`${matched}:count: match in the newest ${newest.size}:window: requests up to ${time}:time: · the URL has ${total}:total:`;
+    if (newest.size === 1) {
+      return matched === 1
+        ? $localize`1 matches in the newest request up to ${time}:time: · the URL has ${total}:total:`
+        : $localize`${matched}:count: match in the newest request up to ${time}:time: · the URL has ${total}:total:`;
+    }
+    return matched === 1
+      ? $localize`1 matches in the newest ${newest.size}:window: requests up to ${time}:time: · the URL has ${total}:total:`
+      : $localize`${matched}:count: match in the newest ${newest.size}:window: requests up to ${time}:time: · the URL has ${total}:total:`;
   }
 
   /** Responde uma vez. */
