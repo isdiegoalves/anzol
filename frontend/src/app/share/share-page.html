@@ -2,8 +2,10 @@
 <main class="share">
   @switch (current.kind) {
     @case ('loaded') {
-      <p i18n class="banner" role="status">
-        Shared read-only link · expires {{ expires(current.request) }}
+      <p class="banner" role="status">
+        <ng-container *appLateContent i18n>
+          Shared read-only link · expires {{ expires(current.request) }}
+        </ng-container>
       </p>
       <app-request-view [request]="current.request" [readonly]="true" />
     }

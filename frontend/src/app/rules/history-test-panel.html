@@ -1,120 +1,122 @@
 @let current = result();
 <div class="history" aria-label="History test" i18n-aria-label role="status">
-  @if (current.tested === 0) {
-    <p i18n class="summary">No recorded requests to test against.</p>
-  } @else {
-    <div class="band">
-      <div>
-        <!-- prettier-ignore -->
-        <p class="summary" i18n><strong>{{ current.matched }}</strong> of the {{ current.tested }} most recent requests would match</p>
-        <p class="note" i18n>Unsaved rule as in the editor · scenario state not considered</p>
-        @if (current.windowFull) {
-          <p i18n class="window">Only the {{ window }} most recent requests were tested.</p>
+  <ng-container *appLateContent>
+    @if (current.tested === 0) {
+      <p i18n class="summary">No recorded requests to test against.</p>
+    } @else {
+      <div class="band">
+        <div>
+          <!-- prettier-ignore -->
+          <p class="summary" i18n><strong>{{ current.matched }}</strong> of the {{ current.tested }} most recent requests would match</p>
+          <p class="note" i18n>Unsaved rule as in the editor · scenario state not considered</p>
+          @if (current.windowFull) {
+            <p i18n class="window">Only the {{ window }} most recent requests were tested.</p>
+          }
+        </div>
+        @if (outOfDate()) {
+          <span class="stale" i18n>Out of date</span>
         }
-      </div>
-      @if (outOfDate()) {
-        <span class="stale" i18n>Out of date</span>
-      }
-      <button
-        mat-stroked-button
-        type="button"
-        [disabled]="!canTest()"
-        [attr.aria-busy]="testing()"
-        (click)="testAgain.emit()"
-      >
-        @if (testing()) {
-          <ng-container i18n>Testing…</ng-container>
-        } @else {
-          <ng-container i18n>Test again</ng-container>
-        }
-      </button>
-      <!-- C4: a resposta renderizada, só sob pedido; sem nada que case, a dica diz por quê. -->
-      <span [attr.title]="current.matched === 0 ? nothingMatches : null">
         <button
           mat-stroked-button
           type="button"
-          [disabled]="current.matched === 0"
-          [attr.aria-busy]="rendering()"
-          (click)="previewResponse.emit()"
-          i18n
+          [disabled]="!canTest()"
+          [attr.aria-busy]="testing()"
+          (click)="testAgain.emit()"
         >
-          Preview response
-        </button>
-      </span>
-    </div>
-    <!-- A prévia com prioridade (S8) sobe para logo abaixo do contador (WM-22). -->
-    <ng-content />
-  }
-  @if (current.tested > 0) {
-    <div class="columns">
-      <section class="column" aria-labelledby="would-match-title">
-        <h4 id="would-match-title" i18n>Would match ({{ current.matched }})</h4>
-        <ul class="matches">
-          @for (match of current.matchList; track match.uuid) {
-            <li>
-              <ng-container
-                [ngTemplateOutlet]="item"
-                [ngTemplateOutletContext]="{ uuid: match.uuid, page: match.page }"
-              />
-            </li>
+          @if (testing()) {
+            <ng-container i18n>Testing…</ng-container>
+          } @else {
+            <ng-container i18n>Test again</ng-container>
           }
-        </ul>
-      </section>
-      <section class="column" aria-labelledby="would-not-match-title">
-        <div class="column-head">
-          <h4 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h4>
+        </button>
+        <!-- C4: a resposta renderizada, só sob pedido; sem nada que case, a dica diz por quê. -->
+        <span [attr.title]="current.matched === 0 ? nothingMatches : null">
           <button
-            mat-button
+            mat-stroked-button
             type="button"
-            [attr.aria-pressed]="closest()"
-            (click)="closest.set(!closest())"
+            [disabled]="current.matched === 0"
+            [attr.aria-busy]="rendering()"
+            (click)="previewResponse.emit()"
             i18n
           >
-            Closest first
+            Preview response
           </button>
-          @if (anyTranslated()) {
-            <button
-              mat-button
-              type="button"
-              [attr.aria-pressed]="showOriginal()"
-              (click)="showOriginal.set(!showOriginal())"
-            >
-              <!-- R2-L4: o rótulo diz como voltar; o estado segue em aria-pressed. -->
-              @if (showOriginal()) {
-                <ng-container i18n>Show translation</ng-container>
-              } @else {
-                <ng-container i18n>Show original</ng-container>
-              }
-            </button>
-          }
-        </div>
-        <!-- Sem nenhuma que falhe, fica só o título com (0), sem lista vazia. -->
-        @if (current.misses.length > 0) {
-          <ul class="misses">
-            @for (miss of misses(); track miss.uuid) {
-              <li [class.near]="miss.failed.length === 1">
+        </span>
+      </div>
+      <!-- A prévia com prioridade (S8) sobe para logo abaixo do contador (WM-22). -->
+      <ng-content />
+    }
+    @if (current.tested > 0) {
+      <div class="columns">
+        <section class="column" aria-labelledby="would-match-title">
+          <h4 id="would-match-title" i18n>Would match ({{ current.matched }})</h4>
+          <ul class="matches">
+            @for (match of current.matchList; track match.uuid) {
+              <li>
                 <ng-container
                   [ngTemplateOutlet]="item"
-                  [ngTemplateOutletContext]="{ uuid: miss.uuid, page: miss.page }"
+                  [ngTemplateOutletContext]="{ uuid: match.uuid, page: match.page }"
                 />
-                &ngsp;<span class="count" i18n>{miss.failed.length, plural,
-                  =1 {1 condition}
-                  other {{{ miss.failed.length }} conditions}
-                }</span
-                >&ngsp;
-                <ul class="failed">
-                  @for (reason of phrases(miss.failed); track $index) {
-                    @let shown = showOriginal() ? reason.original : reason.text;
-                    <li [attr.title]="originalTitle(reason)">{{ shown }}</li>
-                  }
-                </ul>
               </li>
             }
           </ul>
-        }
-      </section>
-    </div>
-  }
+        </section>
+        <section class="column" aria-labelledby="would-not-match-title">
+          <div class="column-head">
+            <h4 id="would-not-match-title" i18n>Would not match ({{ current.misses.length }})</h4>
+            <button
+              mat-button
+              type="button"
+              [attr.aria-pressed]="closest()"
+              (click)="closest.set(!closest())"
+              i18n
+            >
+              Closest first
+            </button>
+            @if (anyTranslated()) {
+              <button
+                mat-button
+                type="button"
+                [attr.aria-pressed]="showOriginal()"
+                (click)="showOriginal.set(!showOriginal())"
+              >
+                <!-- R2-L4: o rótulo diz como voltar; o estado segue em aria-pressed. -->
+                @if (showOriginal()) {
+                  <ng-container i18n>Show translation</ng-container>
+                } @else {
+                  <ng-container i18n>Show original</ng-container>
+                }
+              </button>
+            }
+          </div>
+          <!-- Sem nenhuma que falhe, fica só o título com (0), sem lista vazia. -->
+          @if (current.misses.length > 0) {
+            <ul class="misses">
+              @for (miss of misses(); track miss.uuid) {
+                <li [class.near]="miss.failed.length === 1">
+                  <ng-container
+                    [ngTemplateOutlet]="item"
+                    [ngTemplateOutletContext]="{ uuid: miss.uuid, page: miss.page }"
+                  />
+                  &ngsp;<span class="count" i18n>{miss.failed.length, plural,
+                    =1 {1 condition}
+                    other {{{ miss.failed.length }} conditions}
+                  }</span
+                  >&ngsp;
+                  <ul class="failed">
+                    @for (reason of phrases(miss.failed); track $index) {
+                      @let shown = showOriginal() ? reason.original : reason.text;
+                      <li [attr.title]="originalTitle(reason)">{{ shown }}</li>
+                    }
+                  </ul>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      </div>
+    }
+  </ng-container>
 </div>
 
 <!-- Uma mensagem do resultado: o link (abre ao lado), o trecho do corpo e quem respondeu na época. -->

@@ -112,7 +112,9 @@
           <button mat-flat-button type="button" (click)="load(tokenId())" i18n>Try again</button>
         </div>
       } @else {
-        <p class="loading" role="status" i18n>Loading this URL…</p>
+        <p class="loading" role="status">
+          <ng-container *appLateContent i18n>Loading this URL…</ng-container>
+        </p>
         @if (slow()) {
           <app-slow-notice (retry)="load(tokenId())" />
         }

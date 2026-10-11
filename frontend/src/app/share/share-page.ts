@@ -6,6 +6,7 @@ import { fromNow, localDate } from '../request-detail/dates';
 import { RequestView } from '../request-detail/request-view';
 import { SharedRequest } from './share';
 import { ShareStore } from './share-store';
+import { LateContent } from '../ui/late-content';
 
 type ShareState =
   | { kind: 'loading' }
@@ -19,7 +20,7 @@ type ShareState =
  */
 @Component({
   selector: 'app-share-page',
-  imports: [RequestView],
+  imports: [LateContent, RequestView],
   templateUrl: './share-page.html',
   styleUrl: './share-page.scss',
 })

@@ -5,6 +5,7 @@ import { KnownUrls } from '../token/known-urls';
 import { Icon } from '../ui/icon';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { DENSITIES, Density, ShellSettings, THEMES, Theme } from './shell-settings';
+import { LateContent } from '../ui/late-content';
 
 /** O nome de cada idioma na própria língua: quem não lê a tela atual ainda acha o seu. */
 const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', 'pt-BR': 'Português (Brasil)' };
@@ -15,7 +16,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', 'pt-BR': 'Por
  */
 @Component({
   selector: 'app-settings-sheet',
-  imports: [Icon],
+  imports: [LateContent, Icon],
   templateUrl: './settings-sheet.html',
   styleUrl: './sheet.scss',
 })

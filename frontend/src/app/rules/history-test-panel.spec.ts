@@ -26,11 +26,20 @@ const RESULTADO: HistoryTest = {
 };
 
 describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', () => {
-  const show = (
+  const show = async (
     result: HistoryTest,
     requests = new Map<string, WebhookRequest>(),
     extra: { testing?: boolean; outOfDate?: boolean } = {},
-  ) => render(HistoryTestPanel, { inputs: { result, tokenId: TOKEN_ID, requests, ...extra } });
+  ) => {
+    const view = await render(HistoryTestPanel, {
+      inputs: { result, tokenId: TOKEN_ID, requests, ...extra },
+    });
+    // A região nasce vazia: o resultado entra nela uma tarefa depois.
+    await vi.waitFor(() =>
+      expect(view.container.querySelector('.history')?.childElementCount).toBeGreaterThan(0),
+    );
+    return view;
+  };
   const clean = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
 
   // A prévia "With the rules before it" entra projetada logo abaixo do contador (WM-22): o painel não é

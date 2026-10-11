@@ -28,7 +28,9 @@
   </header>
 
   @if (inferred(); as note) {
-    <p class="banner" [class.info]="!note.error" role="status">{{ note.text }}</p>
+    <p class="banner" [class.info]="!note.error" role="status">
+      <ng-container *appLateContent>{{ note.text }}</ng-container>
+    </p>
   }
 
   <div class="layout" [formGroup]="form">

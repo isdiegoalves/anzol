@@ -35,6 +35,7 @@ import {
   pendingSummary,
   secretChange,
 } from './url-settings';
+import { LateContent } from '../ui/late-content';
 
 type ProviderOption = SignatureProvider | 'none';
 
@@ -204,6 +205,7 @@ const INTEGER = /^[+-]?\d+$/;
 @Component({
   selector: 'app-signature-card',
   imports: [
+    LateContent,
     Icon,
     ReactiveFormsModule,
     RouterLink,

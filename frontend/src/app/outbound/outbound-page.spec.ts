@@ -74,6 +74,14 @@ describe('Dado a página Outbound', () => {
       expect(screen.getByRole('table', { name: 'Outbound history' })).toBeTruthy(),
     );
     await harness.fixture.whenStable();
+    // A região do detalhe nasce vazia: o resultado aberto entra nela uma tarefa depois.
+    await vi.waitFor(() =>
+      expect(
+        screen
+          .queryAllByRole('region', { name: 'Outbound detail' })
+          .every((detail) => detail.childElementCount > 0),
+      ).toBe(true),
+    );
     return harness;
   };
 
@@ -202,8 +210,10 @@ describe('Dado a página Outbound', () => {
     });
 
     const composer = await screen.findByRole('region', { name: 'Replay request' });
-    expect(within(composer).getByRole('status').textContent).toMatch(
-      /The Stripe signature in this request is older than the tolerance \(300 s\): the receiver will likely reject the replay\. It was signed 60 min ago \(t=\d+\)\./,
+    await vi.waitFor(() =>
+      expect(within(composer).getByRole('status').textContent).toMatch(
+        /The Stripe signature in this request is older than the tolerance \(300 s\): the receiver will likely reject the replay\. It was signed 60 min ago \(t=\d+\)\./,
+      ),
     );
     await userEvent.click(
       within(composer).getByRole('button', { name: 'Send as new with a fresh signature' }),

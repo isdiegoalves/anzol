@@ -22,6 +22,7 @@ import {
 import { TARGET_ERROR, TIMEOUT_ERROR, targetValidators, timeoutValidators } from './outbound-form';
 import { OutboundStore } from './outbound-store';
 import { rememberTarget, rememberedTarget } from './replay-target';
+import { LateContent } from '../ui/late-content';
 
 /**
  * Compositor "Replay request" (era o diálogo): a mensagem a reenviar, o destino (lembrado por URL
@@ -32,6 +33,7 @@ import { rememberTarget, rememberedTarget } from './replay-target';
 @Component({
   selector: 'app-replay-composer',
   imports: [
+    LateContent,
     MatMenu,
     MatMenuItem,
     MatMenuTrigger,

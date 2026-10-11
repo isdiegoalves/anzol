@@ -2,6 +2,7 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component, inject, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { CompareStore } from '../diff/compare-store';
+import { LateContent } from '../ui/late-content';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 /**
@@ -11,17 +12,23 @@ import { ANNOUNCEMENT_MS } from '../ui/live-region';
  */
 @Component({
   selector: 'app-compare-band',
-  imports: [MatButton],
+  imports: [LateContent, MatButton],
   template: `
     @if (compare.picking(); as base) {
-      <div class="band" role="status">
-        <span i18n>Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span>
+      <div class="band">
+        <span role="status">
+          <ng-container *appLateContent i18n
+            >Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</ng-container
+          >
+        </span>
         <button i18n mat-button type="button" (click)="cancel(base.uuid)">Cancel</button>
       </div>
     } @else if (compare.pair()) {
-      <p i18n class="band mode" role="status">
-        <strong>Compare mode.</strong> Click a request to make it <strong>B</strong>. Press
-        <kbd>Esc</kbd> to leave.
+      <p class="band mode" role="status">
+        <ng-container *appLateContent i18n>
+          <strong>Compare mode.</strong> Click a request to make it <strong>B</strong>. Press
+          <kbd>Esc</kbd> to leave.
+        </ng-container>
       </p>
     }
   `,

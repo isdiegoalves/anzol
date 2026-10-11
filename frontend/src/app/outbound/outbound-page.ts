@@ -46,6 +46,7 @@ import { ReplayComposer } from './replay-composer';
 import { rememberedTarget } from './replay-target';
 import { SendComposer } from './send-composer';
 import { NOTICE_MS, copyFailedText } from '../ui/notice';
+import { LateContent } from '../ui/late-content';
 
 type Mode = 'replay' | 'send';
 
@@ -60,6 +61,7 @@ type Mode = 'replay' | 'send';
 @Component({
   selector: 'app-outbound-page',
   imports: [
+    LateContent,
     NgTemplateOutlet,
     Icon,
     Split,
@@ -183,14 +185,19 @@ export class OutboundPage {
 
   /**
    * Resultado de um Replay ou Send do compositor: o botão ficou desabilitado no envio e o foco
-   * cairia no body, então ele vai ao título do resultado.
+   * cairia no body, então ele vai ao título do resultado, que entra na região uma tarefa depois dela.
    */
   protected showSent(result: OutboundResult): void {
     this.showResult(result);
-    afterNextRender(
-      () => this.host.querySelector<HTMLElement>('.detail app-outbound-result-view h2')?.focus(),
-      { injector: this.injector },
-    );
+    const focus = (left: number) => {
+      const title = this.host.querySelector<HTMLElement>('.detail app-outbound-result-view h2');
+      if (title) {
+        title.focus();
+      } else if (left > 0) {
+        setTimeout(() => focus(left - 1), 20);
+      }
+    };
+    afterNextRender(() => focus(10), { injector: this.injector });
   }
 
   /** "Run again": o mesmo replay ou send; o resultado novo entra no topo e fica aberto. */

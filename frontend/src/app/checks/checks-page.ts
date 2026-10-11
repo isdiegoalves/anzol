@@ -31,6 +31,7 @@ import { PrivacyCard } from './privacy-card';
 import { ResponseCard } from './response-card';
 import { SchemaCard } from './schema-card';
 import { SignatureCard } from './signature-card';
+import { LateContent } from '../ui/late-content';
 
 /**
  * Seções da página, na ordem do "On this page" (`?section=`) e dos cartões. Função, e não constante
@@ -79,6 +80,7 @@ interface SectionState {
 @Component({
   selector: 'app-checks-page',
   imports: [
+    LateContent,
     Icon,
     MatButton,
     NgTemplateOutlet,

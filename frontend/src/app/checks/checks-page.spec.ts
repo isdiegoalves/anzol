@@ -99,7 +99,7 @@ describe('Dado a página Checks', () => {
     TestBed.inject(Preferences).token.set(token({ default_status: 500 }));
     const { harness, load } = await open(`/${TOKEN_ID}/checks`);
 
-    expect(screen.getByText('Loading this URL…').getAttribute('role')).toBe('status');
+    expect((await screen.findByText('Loading this URL…')).getAttribute('role')).toBe('status');
     expect(screen.queryByRole('region', { name: 'Response' })).toBeNull();
     // O índice já funciona na carga: os esqueletos têm os ids dos cartões.
     expect(

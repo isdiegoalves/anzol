@@ -23,6 +23,7 @@ import {
   schemaText,
   schemaValidator,
 } from './url-settings';
+import { LateContent } from '../ui/late-content';
 
 /**
  * Checks › Schema validation (C §2.6): o schema em `textarea` com número de linha (sem editor de
@@ -33,7 +34,16 @@ import {
  */
 @Component({
   selector: 'app-schema-card',
-  imports: [Icon, ReactiveFormsModule, MatButton, MatFormField, MatOption, MatSelect, CardFoot],
+  imports: [
+    LateContent,
+    Icon,
+    ReactiveFormsModule,
+    MatButton,
+    MatFormField,
+    MatOption,
+    MatSelect,
+    CardFoot,
+  ],
   templateUrl: './schema-card.html',
   styleUrls: ['./card.scss', './schema-card.scss'],
   host: { role: 'region', 'aria-labelledby': 'schema-title' },

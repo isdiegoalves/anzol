@@ -73,8 +73,10 @@ describe('Dado a página de um link só-leitura (#/share/{id})', () => {
     await harness.fixture.whenStable();
 
     expect(document.title).toBe('Shared request · Anzol');
-    expect(page().querySelector('.banner')?.textContent?.trim()).toMatch(
-      /^Shared read-only link · expires Oct 3, 2099 \d+:\d\d [AP]M \(in \d+ years\)$/,
+    await vi.waitFor(() =>
+      expect(page().querySelector('.banner')?.textContent?.trim()).toMatch(
+        /^Shared read-only link · expires Oct 3, 2099 \d+:\d\d [AP]M \(in \d+ years\)$/,
+      ),
     );
     // "Pretty" nasce ligado (INBOX-22): o JSON aparece formatado.
     expect(page().querySelector('pre')?.textContent).toBe('{  "cartao": "4111"}');

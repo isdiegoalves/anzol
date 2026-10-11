@@ -35,6 +35,7 @@ import {
 import { InsightsStore } from './insights-store';
 import { STATS_MAX_WINDOW, STATS_WINDOWS } from '../stats/stats';
 import { ProportionBar } from './proportion-bar';
+import { LateContent } from '../ui/late-content';
 
 /** Porta do Grafana do stack de observabilidade local (`observability/README.md`). */
 const GRAFANA_PORT = 3000;
@@ -49,6 +50,7 @@ const GRAFANA_DASHBOARD = '/d/anzol';
 @Component({
   selector: 'app-insights-page',
   imports: [
+    LateContent,
     MatButton,
     MatFormField,
     MatSelect,

@@ -20,6 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { UrlAccess } from './url-access';
 import { UrlLock } from './url-lock';
 import { NOTICE_MS } from '../ui/notice';
+import { LateContent } from '../ui/late-content';
 
 /** Sem `Retry-After` legível, espera um minuto (a janela das 10 tentativas do servidor). */
 const DEFAULT_WAIT_SECONDS = 60;
@@ -30,7 +31,15 @@ const DEFAULT_WAIT_SECONDS = 60;
  */
 @Component({
   selector: 'app-unlock-screen',
-  imports: [ReactiveFormsModule, MatFormField, MatLabel, MatError, MatInput, MatButton],
+  imports: [
+    LateContent,
+    ReactiveFormsModule,
+    MatFormField,
+    MatLabel,
+    MatError,
+    MatInput,
+    MatButton,
+  ],
   // O campo abre com o foco: sair dele sem digitar não é erro; o "Unlock" com ele vazio, sim.
   providers: [{ provide: ErrorStateMatcher, useClass: ShowOnDirtyErrorStateMatcher }],
   templateUrl: './unlock-screen.html',

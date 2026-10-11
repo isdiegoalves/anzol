@@ -7,6 +7,7 @@ import { ServerPhrase, conditionPhrase, originalTitle } from '../pipeline/server
 import { closestFirst } from './against-history';
 import { HISTORY_TEST_WINDOW, HistoryTest } from './rule';
 import { examplePath } from './rule-example';
+import { LateContent } from '../ui/late-content';
 
 /** Tamanho do trecho do corpo em cada mensagem do resultado (WM-22). */
 const SNIPPET_LENGTH = 80;
@@ -30,7 +31,7 @@ interface Described {
  */
 @Component({
   selector: 'app-history-test-panel',
-  imports: [MatButton, NgTemplateOutlet],
+  imports: [LateContent, MatButton, NgTemplateOutlet],
   templateUrl: './history-test-panel.html',
   styleUrl: './history-test-panel.scss',
 })

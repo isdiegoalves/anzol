@@ -407,5 +407,7 @@
     </app-pane>
   </div>
 } @else if (store.loading()) {
-  <p class="hint" role="status" i18n>Counting the requests…</p>
+  <p class="hint" role="status">
+    <ng-container *appLateContent i18n>Counting the requests…</ng-container>
+  </p>
 }
