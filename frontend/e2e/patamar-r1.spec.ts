@@ -359,6 +359,40 @@ test.describe('Dado a aba Replay do painel', () => {
     await expect(detalhes(page)).toContainText(id);
   });
 
+  test('deve mostrar o destino final acima do campo, sem mover o campo nem "Keep path and query" ao digitar', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const id = await pedido(tokens, tokenId);
+    await seedStorage(page, {});
+    await abrirMensagem(page, tokenId, id);
+    await acoes(page).getByRole('button', { name: 'Replay…' }).click();
+    const alvo = painel(page).getByRole('textbox', { name: 'Target URL' });
+    const manter = painel(page).getByRole('switch', { name: 'Keep path and query' });
+    const topo = async (onde: Locator) => Math.round((await onde.boundingBox())!.y);
+    const antes = [await topo(alvo), await topo(manter)];
+
+    await alvo.fill('destino.example/webhooks');
+
+    const destinoFinal = painel(page).getByText('Sends to http://destino.example/webhooks/pedidos');
+    await expect(destinoFinal).toBeVisible();
+    expect(
+      [await topo(alvo), await topo(manter)],
+      'o campo e o interruptor no mesmo lugar',
+    ).toEqual(antes);
+    expect(await topo(destinoFinal), 'o destino acima do campo').toBeLessThan(antes[0]);
+    await expect(
+      painel(page).getByRole('button', { name: 'Replay', exact: true }),
+    ).toHaveAccessibleDescription('Sends to http://destino.example/webhooks/pedidos');
+
+    await manter.click();
+
+    await expect(
+      painel(page).getByRole('button', { name: 'Replay', exact: true }),
+    ).toHaveAccessibleDescription('Sends to http://destino.example/webhooks');
+  });
+
   test('deve ter alvos de 24 px ou mais no detalhe e no painel, com o resultado do reenvio', async ({
     page,
     tokens,

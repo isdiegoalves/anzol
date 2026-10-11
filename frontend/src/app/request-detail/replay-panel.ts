@@ -59,6 +59,14 @@ function hostOf(url: string): string {
       (submit)="replay($event)"
     >
       <h3 class="title" id="replay-panel-title" i18n>Replay request</h3>
+      <!-- Antes do campo e com a altura guardada: o destino que aparece não empurra o que vem embaixo. -->
+      <div class="sends-to" id="replay-sends-to">
+        @if (target().trim()) {
+          <p class="hint" i18n>
+            Sends to <code>{{ sendsTo() }}</code>
+          </p>
+        }
+      </div>
       <div class="row">
         <label class="field url">
           <span i18n>Target URL</span>
@@ -76,7 +84,12 @@ function hostOf(url: string): string {
             (input)="setTarget(box.value)"
           />
         </label>
-        <button type="submit" class="go" [attr.aria-disabled]="sending() || null">
+        <button
+          type="submit"
+          class="go"
+          aria-describedby="replay-sends-to"
+          [attr.aria-disabled]="sending() || null"
+        >
           @if (sending()) {
             <ng-container i18n>Replaying…</ng-container>
           } @else {
@@ -84,11 +97,6 @@ function hostOf(url: string): string {
           }
         </button>
       </div>
-      @if (target().trim()) {
-        <p class="hint" i18n>
-          Sends to <code>{{ sendsTo() }}</code>
-        </p>
-      }
       @if (translated(); as host) {
         <p class="hint">{{ host }}</p>
       }

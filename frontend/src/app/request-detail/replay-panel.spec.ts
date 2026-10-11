@@ -52,6 +52,37 @@ describe('Dado a aba Replay do painel de ação', () => {
 
   afterEach(() => localStorage.clear());
 
+  it('deve guardar o lugar do destino final antes do campo, vazio enquanto não há destino', async () => {
+    const { container } = await show();
+    const place = container.querySelector('.sends-to');
+
+    expect(place?.textContent?.trim()).toBe('');
+    expect(
+      (place?.compareDocumentPosition(target()) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await userEvent.type(target(), 'localhost:3000/hooks');
+
+    expect(place?.textContent?.trim()).toBe('Sends to http://localhost:3000/hooks/pedidos?x=1');
+  });
+
+  it('deve descrever o botão "Replay" pelo destino final, com e sem "Keep path and query"', async () => {
+    await show();
+    await userEvent.type(target(), 'localhost:3000/hooks');
+    const described = () =>
+      document
+        .getElementById(
+          screen.getByRole('button', { name: 'Replay' }).getAttribute('aria-describedby') ?? '',
+        )
+        ?.textContent?.trim();
+
+    expect(described()).toBe('Sends to http://localhost:3000/hooks/pedidos?x=1');
+
+    await userEvent.click(screen.getByRole('switch', { name: 'Keep path and query' }));
+
+    expect(described()).toBe('Sends to http://localhost:3000/hooks');
+  });
+
   it('deve aceitar o destino sem http://, mostrar para onde manda e reenviar com Enter', async () => {
     const { http, panel, container } = await show();
 

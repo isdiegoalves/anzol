@@ -113,6 +113,17 @@
   font: var(--mat-sys-body-small);
 }
 
+// Duas linhas de 17 px guardadas para o destino final, com ou sem ele; três no celular, onde o
+// endereço quebra mais.
+.sends-to {
+  height: 34px;
+  overflow: hidden;
+
+  @media (width < 600px) {
+    height: 51px;
+  }
+}
+
 .hint {
   color: var(--mat-sys-on-surface-variant);
   overflow-wrap: anywhere;
