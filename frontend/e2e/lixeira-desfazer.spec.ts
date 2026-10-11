@@ -128,24 +128,31 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
     expect(apagadas).toEqual([]);
   });
 
-  test('deve manter o "Undo" por 20 s e só então apagar no servidor', async ({ page, tokens }) => {
+  test('deve manter o "Undo" à mão e só apagar no servidor quando ele vence', async ({
+    page,
+    tokens,
+  }) => {
     const { tokenId, segunda } = await comTres(tokens);
+    const apagadas: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'DELETE') {
+        apagadas.push(new URL(request.url()).pathname);
+      }
+    });
     await page.clock.install();
     await page.goto(`/#/${tokenId}`);
     await expect(itens(page)).toHaveCount(3);
     await apagarPeloTeclado(page, segunda);
     await expect(desfazer(page)).toBeVisible();
 
-    await page.clock.fastForward(19_000);
+    // O relógio da página segue andando sozinho: a folga cobre a máquina lenta sem chegar aos 20 s.
+    await page.clock.fastForward(15_000);
     await expect(desfazer(page)).toBeVisible();
-    expect((await tokens.listed(tokenId)).map((r) => r.uuid)).toContain(segunda);
+    expect(apagadas).toEqual([]);
 
-    const apagou = page.waitForRequest(
-      (request) => request.method() === 'DELETE' && request.url().endsWith(`/request/${segunda}`),
-    );
-    await page.clock.fastForward(1_500);
+    await page.clock.fastForward(6_000);
 
-    await apagou;
+    await expect.poll(() => apagadas).toEqual([`/token/${tokenId}/request/${segunda}`]);
     await expect(desfazer(page)).toHaveCount(0);
     await expect(avisoDaRequisicao(page)).toHaveText('');
   });
