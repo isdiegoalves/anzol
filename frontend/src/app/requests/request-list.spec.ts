@@ -887,13 +887,19 @@ describe('Dado a lista lateral de mensagens', () => {
         (button) => button.dataset['uuid'],
       );
     expect(stops()).toEqual([webhookRequest(1).uuid]);
+    // O jsdom não mede altura nem rolagem: a janela mostra 200 px, cinco linhas de 40.
+    const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))
+      .componentInstance as CdkVirtualScrollViewport;
     const { strategy } = fixture.debugElement.query(By.directive(RowSizes)).injector.get(RowSizes);
+    vi.spyOn(viewport, 'getViewportSize').mockReturnValue(200);
+    const scrolled = vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(200);
 
-    strategy.shown.set({ first: 5, last: 9 });
+    strategy.onContentScrolled();
     await fixture.whenStable();
     expect(stops()).toEqual([webhookRequest(6).uuid]);
 
-    strategy.shown.set({ first: 0, last: 4 });
+    scrolled.mockReturnValue(0);
+    strategy.onContentScrolled();
     await fixture.whenStable();
     expect(stops()).toEqual([webhookRequest(1).uuid]);
   });
