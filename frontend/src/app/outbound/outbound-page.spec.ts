@@ -77,6 +77,43 @@ describe('Dado a página Outbound', () => {
     return harness;
   };
 
+  it('deve manter o "Send" escolhido Quando a URL termina de carregar depois da escolha', async () => {
+    http = TestBed.inject(HttpTestingController);
+    const harness = await RouterTestingHarness.create();
+    void harness.navigateByUrl(`/${TOKEN_ID}/outbound`);
+    const url = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Send' }));
+
+    url.flush(token());
+    http.expectOne(RECENT).flush(requestPage([PEDIDO]));
+    http.expectOne(HISTORY).flush([]);
+    await harness.fixture.whenStable();
+
+    expect(await screen.findByRole('region', { name: 'Send request' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Replay request' })).toBeNull();
+  });
+
+  it('deve manter o "Send" e o que foi digitado Quando "Refresh history" relê a URL', async () => {
+    const harness = await open();
+    await userEvent.click(screen.getByRole('radio', { name: 'Send' }));
+    const send = await screen.findByRole('region', { name: 'Send request' });
+    await userEvent.type(
+      within(send).getByRole('textbox', { name: 'URL' }),
+      'http://localhost:3000/x',
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+    http.expectOne(`/token/${TOKEN_ID}`).flush(token());
+    http.expectOne(RECENT).flush(requestPage([PEDIDO, VELHA]));
+    http.expectOne(HISTORY).flush([]);
+    await harness.fixture.whenStable();
+
+    const again = screen.getByRole('region', { name: 'Send request' });
+    expect((within(again).getByRole('textbox', { name: 'URL' }) as HTMLInputElement).value).toBe(
+      'http://localhost:3000/x',
+    );
+  });
+
   it('deve listar o histórico, abrir o mais novo no detalhe e passar no axe', async () => {
     const harness = await open();
 

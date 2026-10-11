@@ -118,6 +118,10 @@ export class OutboundPage {
   protected readonly signing = signal(false);
   /** Troca a cada abertura do compositor: os formulários nascem de novo com o que a rota pede. */
   protected readonly composerKey = signal(0);
+  /** A rota cujo compositor já foi montado: reler a URL não o monta de novo por cima do que a pessoa fez. */
+  private composed: ParamMap | null = null;
+  /** A pessoa escolheu o modo antes de a rota montar o compositor: a escolha dela vale. */
+  private chose = false;
 
   private readonly selectedId = signal<string | null>(null);
   /** O escolhido no histórico, ou o mais novo (o que acabou de sair aparece aberto). */
@@ -144,7 +148,8 @@ export class OutboundPage {
     effect(() => {
       const query = this.query();
       const token = this.token();
-      if (query && token && this.listed()) {
+      if (query && token && this.listed() && query !== this.composed) {
+        this.composed = query;
         untracked(() => void this.compose(query, token, this.requests() ?? []));
       }
     });
@@ -159,6 +164,7 @@ export class OutboundPage {
   }
 
   protected chooseMode(mode: Mode): void {
+    this.chose = this.composed !== this.query();
     this.mode.set(mode);
     this.draft.set(null);
     this.signing.set(false);
@@ -234,8 +240,12 @@ export class OutboundPage {
   private async open(tokenId: string): Promise<void> {
     this.loaded.set(false);
     this.loadError.set(null);
-    this.token.set(null);
-    this.requests.set(null);
+    // Reler a mesma URL ("Refresh history") mantém os compositores e o que foi digitado neles.
+    if (this.token()?.uuid !== tokenId) {
+      this.token.set(null);
+      this.requests.set(null);
+      this.composed = null;
+    }
     const current = () => this.tokenId() === tokenId;
     this.tokens
       .load(tokenId)
@@ -290,11 +300,11 @@ export class OutboundPage {
         query.get('to') === 'self' && request ? request.url : rememberedTarget(token.uuid);
       this.draft.set(request && draftFromRequest(request, target));
       this.signing.set(false);
-      this.mode.set('send');
+      this.routeMode('send');
     } else if (send !== null || query.has('send-from')) {
       this.draft.set(null);
       this.signing.set(send === 'signed');
-      this.mode.set('send');
+      this.routeMode('send');
     } else {
       const open = this.inbox.selected();
       const id = replay ?? (open?.token_id === token.uuid ? open.uuid : null);
@@ -303,9 +313,17 @@ export class OutboundPage {
         this.requests.set([request, ...requests]);
       }
       this.replayId.set(request?.uuid ?? requests[0]?.uuid ?? null);
-      this.mode.set('replay');
+      this.routeMode('replay');
     }
     this.composerKey.update((key) => key + 1);
+  }
+
+  /** O modo que a rota pede, a não ser que a pessoa já tenha escolhido um enquanto a URL carregava. */
+  private routeMode(mode: Mode): void {
+    if (!this.chose) {
+      this.mode.set(mode);
+    }
+    this.chose = false;
   }
 }
 
