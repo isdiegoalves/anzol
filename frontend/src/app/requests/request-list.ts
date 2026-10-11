@@ -240,7 +240,7 @@ export class RequestList {
     const newest = this.store.newestWindow();
     // Com filtro (texto, chips ou o desfecho do C2), quantas sobraram de quantas (L9).
     return newest
-      ? $localize`${this.store.matched()}:matched: of the newest ${newest}:window:`
+      ? $localize`${this.store.matched()}:matched: of the newest ${newest.size}:window:`
       : $localize`${this.store.matched()}:matched: of ${total}:total:`;
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
@@ -250,6 +250,10 @@ export class RequestList {
     this.store.opening() ? 0 : this.store.unread().length,
   );
   protected readonly skeleton = signal(false);
+  /** A lista de antes sai da vista enquanto a janela das mais novas é lida, como numa carga. */
+  protected readonly reading = computed(
+    () => this.store.loading() || (this.store.searching() && this.store.windowReading() !== null),
+  );
 
   /** Relógio do tempo relativo, refeito a cada AGO_REFRESH_MS. */
   private readonly now = signal(Date.now());
@@ -338,7 +342,7 @@ export class RequestList {
     });
     afterEveryRender(() => this.keepFocus());
     effect((onCleanup) => {
-      if (!this.store.loading()) {
+      if (!this.reading()) {
         this.skeleton.set(false);
         return;
       }

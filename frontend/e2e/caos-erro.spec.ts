@@ -155,6 +155,34 @@ test.describe('Dado o servidor demorando', () => {
     expect(await vistos()).not.toContainEqual(expect.stringMatching(/\(0 of /));
   });
 
+  test('deve mostrar o progresso e o esqueleto, sem a lista de antes, enquanto a janela das mais novas é lida', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.sendMany(tokenId, 60);
+    await page.goto(`/#/${tokenId}`);
+    await expect(titulo(page)).toHaveText('Requests (60)');
+    const presa = caos.segurar(new RegExp(`^/token/${tokenId}/requests/search$`), 'POST');
+
+    await page.goto(`/#/${tokenId}?methods=POST&window=50`);
+    await presa.respondida;
+
+    await expect(
+      lista(page).getByText('Looking in the newest 50 requests · 0 of 50'),
+    ).toBeVisible();
+    await expect(lista(page).locator('.skeleton')).toBeVisible();
+    await expect(itens(page)).toHaveCount(0);
+    await expect(titulo(page)).toHaveText('Requests (60)');
+
+    presa.soltar();
+
+    await expect(titulo(page)).toHaveText('Requests (50 of the newest 50)');
+    await expect(itens(page)).not.toHaveCount(0);
+    await expect(lista(page).getByText(/^Looking in the newest/)).toHaveCount(0);
+  });
+
   test('deve avisar da demora aos 30 s sem cancelar a lista, que entra quando chega', async ({
     page,
     tokens,

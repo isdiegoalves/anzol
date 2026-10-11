@@ -265,7 +265,7 @@ describe('Dado a tela principal', () => {
     const store = TestBed.inject(RequestStore);
     await vi.waitFor(() => expect(store.requests()).toEqual([nova]));
     expect(store.filter()).toMatchObject({ signature: 'invalid', window: 1 });
-    expect(store.newestWindow()).toBe(1);
+    expect(store.newestWindow()).toMatchObject({ size: 1, more: true });
   });
 
   // A rota acompanha o filtro da tela, e o eco dessa navegação chega depois: se a tela já mudou de

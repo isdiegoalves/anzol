@@ -82,5 +82,16 @@
   @if (store.searchSlow()) {
     <app-slow-notice (retry)="store.retrySearch()" />
   }
+  <!-- Fora da região viva: o progresso seria anunciado a cada página lida. -->
+  @if (store.windowReading(); as reading) {
+    <p class="count" aria-hidden="true" i18n>
+      Looking in the newest {{ reading.size }} requests · {{ reading.looked }} of {{ reading.size }}
+    </p>
+  }
+  @if (before(); as step) {
+    <button type="button" class="link older" i18n (click)="store.lookBefore()">
+      Look in the {{ step }} before
+    </button>
+  }
   <app-live-region class="note" [text]="waitFor.copied() ?? ''" />
 </div>

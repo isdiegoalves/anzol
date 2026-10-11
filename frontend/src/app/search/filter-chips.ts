@@ -243,16 +243,27 @@ export class FilterChips {
     if (!added) {
       return;
     }
-    const [matched, newest] = [this.store.matched(), this.store.newestWindow()];
+    const matched = this.store.matched();
     const found =
       matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
-    const result = newest
-      ? $localize`${found}:found:. Counted over the newest ${newest}:window:, as in Insights.`
-      : found;
     void this.announcer.announce(
-      $localize`Filtered by ${added}:filter:. ${result}:result:`,
+      $localize`Filtered by ${added}:filter:. ${this.windowResult() ?? found}:result:`,
       ANNOUNCEMENT_MS,
     );
+  }
+
+  /** O resultado com a janela das mais novas em vigor: quantas casam nela, até que hora, e quantas a URL tem. */
+  windowResult(): string | null {
+    const newest = this.store.newestWindow();
+    if (!newest) {
+      return null;
+    }
+    const time = newest.at.toLocaleTimeString(document.documentElement.lang || 'en', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const [matched, total] = [this.store.matched(), this.store.total()];
+    return $localize`${matched}:count: match in the newest ${newest.size}:window: requests up to ${time}:time: · the URL has ${total}:total:`;
   }
 
   /** Responde uma vez. */

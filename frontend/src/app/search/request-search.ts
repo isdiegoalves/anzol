@@ -110,11 +110,9 @@ export class RequestSearch {
   /** "2 requests match · search runs on the server over all 3" (INBOX-10). */
   private readonly statusLine = computed(() => {
     const [matched, total] = [this.store.matched(), this.store.total()];
-    const newest = this.store.newestWindow();
-    if (newest) {
-      const found =
-        matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
-      return $localize`${found}:found:. Counted over the newest ${newest}:window:, as in Insights.`;
+    const windowed = this.chips.windowResult();
+    if (windowed) {
+      return windowed;
     }
     const key = this.grouping.key();
     if (key) {
@@ -129,6 +127,12 @@ export class RequestSearch {
     return matched === 1
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
       : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
+  });
+  /** O tamanho da janela da rota, com requisições anteriores a ela por procurar; `null` sem elas. */
+  protected readonly before = computed(() => {
+    const more = this.store.newestWindow()?.more ?? false;
+    const idle = !this.store.searching() && !this.store.windowReading();
+    return more && idle ? (this.store.filter().window ?? null) : null;
   });
   /** O que a região do resultado diz agora. */
   protected readonly result = signal('');

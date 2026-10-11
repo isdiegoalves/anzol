@@ -731,7 +731,7 @@ test.describe('Dado Métricas com respostas de status diferentes', () => {
     await expect(padrao).toHaveAttribute('href', new RegExp(`#/${tokenId}(\\?|$)`));
   });
 
-  test('deve levar à Entrada o mesmo número Quando a URL guarda mais que a janela contada', async ({
+  test('deve levar à Entrada o mesmo número Quando a URL guarda mais que a janela contada, e procurar nas anteriores', async ({
     page,
     tokens,
   }) => {
@@ -764,9 +764,13 @@ test.describe('Dado Métricas com respostas de status diferentes', () => {
 
     await numero.click();
 
-    await expect(busca(page).locator('app-live-region.count')).toContainText(
-      '4 requests match. Counted over the newest 50, as in Insights.',
+    const resultado = busca(page).locator('app-live-region.count');
+    await expect(resultado).toContainText(
+      /4 match in the newest 50 requests up to .+ · the URL has 53/,
     );
+    await expect(
+      page.getByRole('heading', { name: 'Requests (4 of the newest 50)' }),
+    ).toBeVisible();
     await expect(itens(page)).toHaveCount(4);
     for (const id of recentes) {
       await expect(item(page, id)).toBeVisible();
@@ -779,6 +783,28 @@ test.describe('Dado Métricas com respostas de status diferentes', () => {
     ]);
     expect(pedidos.listagens).toContain('?page=50&per_page=1&sorting=newest');
     expect(pedidos.listagens.filter((query) => query.includes('per_page=100'))).toEqual([]);
+
+    // A janela vale como foi lida: a que chega depois conta na URL e fica fora dela.
+    const depois = await tokens.send(tokenId, { path: '/limite' });
+    await expect(resultado).toContainText(
+      /4 match in the newest 50 requests up to .+ · the URL has 54/,
+    );
+    await expect(item(page, depois)).toHaveCount(0);
+    expect(pedidos.buscas).toHaveLength(1);
+
+    await page.getByRole('button', { name: 'Look in the 50 before' }).click();
+
+    await expect(resultado).toContainText(
+      /7 match in the newest 53 requests up to .+ · the URL has 54/,
+    );
+    await expect(itens(page)).toHaveCount(7);
+    for (const id of antigas) {
+      await expect(item(page, id)).toHaveCount(1);
+    }
+    await expect(item(page, depois)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Look in the/ })).toHaveCount(0);
+    expect(pedidos.buscas).toHaveLength(2);
+    expect(pedidos.listagens).toContain('?page=101&per_page=1&sorting=newest');
   });
 
   test('deve dizer "No answers yet." numa URL sem requisições', async ({ page, tokens }) => {

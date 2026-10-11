@@ -22,6 +22,16 @@ const REQUESTS_PER_PAGE = 50;
 /** O teto de página da busca e da listagem: a janela das mais novas é lida em páginas cheias. */
 const WINDOW_PAGE = 100;
 
+/** A janela das mais novas em vigor (`?window=`), numa URL que guarda mais que ela. */
+export interface NewestWindow {
+  /** Quantas mais novas ela cobre: a da rota, mais as anteriores já procuradas. */
+  size: number;
+  /** A hora do navegador em que foi lida: o que chegou depois fica fora dela. */
+  at: Date;
+  /** A URL guarda requisições mais antigas que ela. */
+  more: boolean;
+}
+
 /**
  * A requisição aberta sumiu do servidor com a cópia dela na tela. `at` é a hora do navegador
  * quando ele soube; `index` é onde ela estava, para "Newer" e "Older" saírem da cópia.
@@ -98,10 +108,17 @@ export class RequestStore {
   /** Os filtros por valor que a busca recusou (422); a lista voltou ao filtro anterior. */
   readonly rejected = signal<readonly ValueFilter[]>([]);
   /**
-   * A janela da rota (`?window=`) em vigor: o resultado é só o que casa entre as n mais novas da URL. `null` sem
-   * janela, ou quando a URL não guarda mais que ela.
+   * A janela da rota (`?window=`) em vigor: o resultado é só o que casa entre as mais novas da URL, como estavam
+   * quando ela foi lida. `null` sem janela, ou quando a URL não guarda mais que ela.
    */
-  readonly newestWindow = signal<number | null>(null);
+  readonly newestWindow = signal<NewestWindow | null>(null);
+  /** A leitura da janela em curso: das `size` mais novas, quantas já vieram. */
+  readonly windowReading = signal<{ size: number; looked: number } | null>(null);
+  /**
+   * Até onde a janela foi lida: o `seq` da mais antiga dela, a página da leitura em que ele apareceu, e quantas
+   * chegaram depois (cada uma desce a janela uma posição na listagem).
+   */
+  private windowEdge: { from: number; page: number; arrived: number } | null = null;
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
@@ -296,7 +313,7 @@ export class RequestStore {
       this.selection.set(undefined);
       this.goneState.set(null);
       this.unopened.set(null);
-      this.newestWindow.set(null);
+      this.clearWindow();
       this.failure.set(null);
     }
     return run;
@@ -361,6 +378,58 @@ export class RequestStore {
     }
   }
 
+  /**
+   * "Look in the {window} before": lê só as anteriores à janela, a partir da página em que a leitura parou, e
+   * soma ao que ela já mostra. A hora da janela não muda: o que chegou depois dela continua fora.
+   */
+  async lookBefore(): Promise<void> {
+    const [tokenId, filter, shown, edge] = [
+      this.tokenId(),
+      this.activeFilter(),
+      this.newestWindow(),
+      this.windowEdge,
+    ];
+    const busy = this.opening() || this.windowReading();
+    if (!tokenId || busy || !filter.window || !shown?.more || !edge) {
+      return;
+    }
+    const generation = this.generation;
+    const wanted = shown.size + filter.window;
+    this.windowReading.set({ size: wanted, looked: shown.size });
+    try {
+      const next = await this.fetchEdge(tokenId, wanted + edge.arrived);
+      const more = next.total > wanted + edge.arrived;
+      const from = more ? Math.max(0, ...next.data.map(seqOf)) : 0;
+      const read = await this.readWindow(tokenId, filter, generation, {
+        from,
+        below: edge.from,
+        start: edge.page,
+        size: wanted,
+        looked: shown.size,
+      });
+      if (generation !== this.generation) {
+        return;
+      }
+      const older = this.newestFirst() ? read.found : [...read.found].reverse();
+      this.pages.update(([only]) => {
+        const data = only?.data ?? [];
+        const joined = this.newestFirst() ? [...data, ...older] : [...older, ...data];
+        return [{ page: only?.page ?? 1, data: joined }];
+      });
+      this.matched.update((matched) => matched + read.found.length);
+      this.newestWindow.set({
+        size: more ? wanted : next.total - edge.arrived,
+        at: shown.at,
+        more,
+      });
+      this.windowEdge = { from, page: read.page, arrived: edge.arrived };
+    } finally {
+      if (generation === this.generation) {
+        this.windowReading.set(null);
+      }
+    }
+  }
+
   private async reapply(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     this.searching.set(true);
@@ -413,7 +482,8 @@ export class RequestStore {
   /**
    * Chegou requisição nova com um filtro que só o servidor avalia: lê a busca da mais nova para a mais antiga até
    * a última que ela já tinha visto (uma página, fora de rajada), põe na lista as que casam e acerta a contagem.
-   * As páginas carregadas ficam como estão, e a mensagem aberta continua aberta.
+   * As páginas carregadas ficam como estão, e a mensagem aberta continua aberta. A busca que tinha falhado é
+   * refeita inteira; a janela das mais novas não é relida.
    */
   async refreshSearch(): Promise<void> {
     const tokenId = this.tokenId();
@@ -421,8 +491,12 @@ export class RequestStore {
     if (!tokenId || this.opening() || !this.filtering()) {
       return;
     }
-    if (filter.window || this.failure()?.kind === 'search') {
-      await this.rereadPages(tokenId);
+    if (this.failure()?.kind === 'search') {
+      // O 422 que a busca refeita devolvesse ficaria sem dono aqui.
+      await this.reapply(tokenId).catch(() => undefined);
+      return;
+    }
+    if (this.newestWindow()) {
       return;
     }
     const [generation, probe, seen, from] = [
@@ -458,28 +532,6 @@ export class RequestStore {
     this.searchedSeq = Math.max(this.searchedSeq, seen);
     this.matched.set(matched);
     this.recounted.update((times) => times + 1);
-  }
-
-  /** Relê as páginas carregadas: a janela das mais novas, e a busca que tinha falhado. */
-  private async rereadPages(tokenId: string): Promise<void> {
-    const generation = ++this.generation;
-    const loaded = this.pages().map((page) => page.page);
-    const seen = this.newestSeq;
-    // Sem resposta, a lista fica como estava; a próxima chegada busca de novo.
-    const results = await Promise.all(
-      (loaded.length > 0 ? loaded : [1]).map((page) => this.fetchPage(tokenId, page)),
-    ).catch(() => null);
-    if (!results || generation !== this.generation) {
-      return;
-    }
-    this.searching.set(false);
-    const last = results[results.length - 1];
-    this.pages.set(results.map((result) => ({ page: result.current_page, data: result.data })));
-    this.lastPageReached.set(last.is_last_page);
-    this.matched.set(last.total);
-    this.searchedSeq = seen;
-    this.recounted.update((times) => times + 1);
-    this.failure.set(null);
   }
 
   async loadPreviousPage(): Promise<void> {
@@ -614,16 +666,23 @@ export class RequestStore {
   /**
    * Requisição nova com filtro ligado: conta na URL e nas não lidas, e as que a limpeza cortou saem da lista.
    * Quando o filtro se decide só por ela (método, status, assinatura, schema), entra na lista se casa, sem pedido
-   * nenhum. Devolve `false` quando só a busca do servidor diz se ela casa: quem chama a relê (`refreshSearch`).
+   * nenhum; com a janela das mais novas em vigor, nunca entra. Devolve `false` quando só a busca do servidor diz
+   * se ela casa: quem chama a relê (`refreshSearch`).
    */
   arriveFiltered(request: WebhookRequest, total: number, removed: readonly string[] = []): boolean {
     const filter = this.activeFilter();
+    // A janela das mais novas vale como foi lida: a que chega depois fica fora dela.
+    const anchored = this.newestWindow() !== null;
     // Com a busca do filtro novo a caminho, o resultado dela trocaria a lista por cima da que entrou aqui.
-    const decided = !this.searching() && !filter.window && decidedLocally(filter);
+    const decided = !this.searching() && (anchored || decidedLocally(filter));
     this.noticeCut(removed);
     const cut = this.cutRows(removed);
-    const listed = decided && matchesLocally(request, filter) && this.insertRow(request);
+    const listed =
+      decided && !anchored && matchesLocally(request, filter) && this.insertRow(request);
     this.matched.update((matched) => matched - cut + (listed ? 1 : 0));
+    if (this.windowEdge && seqOf(request) > this.newestSeq) {
+      this.windowEdge.arrived++;
+    }
     this.countArrival(request, total, removed);
     return decided;
   }
@@ -914,11 +973,18 @@ export class RequestStore {
 
   private fetchPage(tokenId: string, page: number): Promise<RequestPage> {
     const filter = this.activeFilter();
+    this.windowReading.set(null);
     if (filter.window) {
       return this.fetchWindow(tokenId, page, filter, filter.window, this.generation);
     }
-    this.newestWindow.set(null);
+    this.clearWindow();
     return this.fetchFiltered(tokenId, page, filter);
+  }
+
+  private clearWindow(): void {
+    this.newestWindow.set(null);
+    this.windowReading.set(null);
+    this.windowEdge = null;
   }
 
   /** Toda página da busca traz quantas casam agora: o número da tela acompanha. */
@@ -957,19 +1023,56 @@ export class RequestStore {
     size: number,
     generation: number,
   ): Promise<RequestPage> {
-    const edge = await firstValueFrom(
-      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
-        params: { page: size, per_page: 1, sorting: 'newest' },
-      }),
-    );
-    const cut = edge.total > size;
-    if (generation === this.generation) {
-      this.newestWindow.set(cut ? size : null);
-    }
-    if (!cut) {
+    const edge = await this.fetchEdge(tokenId, size);
+    if (edge.total <= size) {
+      if (generation === this.generation) {
+        this.clearWindow();
+      }
       return this.fetchFiltered(tokenId, page, filter);
     }
     const from = Math.max(0, ...edge.data.map(seqOf));
+    const read = await this.readWindow(tokenId, filter, generation, {
+      from,
+      below: Infinity,
+      start: 1,
+      size,
+      looked: 0,
+    });
+    if (generation === this.generation) {
+      this.newestWindow.set({ size, at: new Date(), more: true });
+      this.windowEdge = { from, page: read.page, arrived: 0 };
+    }
+    return {
+      data: this.newestFirst() ? read.found : read.found.reverse(),
+      total: read.found.length,
+      per_page: WINDOW_PAGE,
+      current_page: 1,
+      is_last_page: true,
+      from: 1,
+      to: read.found.length,
+    };
+  }
+
+  /** A requisição na posição `position` da listagem, da mais nova para a mais antiga, e o total da URL. */
+  private fetchEdge(tokenId: string, position: number): Promise<RequestPage> {
+    return firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: position, per_page: 1, sorting: 'newest' },
+      }),
+    );
+  }
+
+  /**
+   * Lê a janela da página `start` em diante, da mais nova para a mais antiga, até chegar ao `seq` `from`: fica
+   * com as de `seq` de `from` até abaixo de `below`, e diz o progresso a cada página. Devolve também a página em
+   * que parou.
+   */
+  private async readWindow(
+    tokenId: string,
+    filter: RequestFilter,
+    generation: number,
+    range: { from: number; below: number; start: number; size: number; looked: number },
+  ): Promise<{ found: WebhookRequest[]; page: number }> {
     const searched = isFilterActive({ ...filter, window: null });
     const read = (number: number) =>
       searched
@@ -982,25 +1085,28 @@ export class RequestStore {
           });
     // Por uuid: a que chega entre duas páginas empurra a última de uma para o começo da seguinte.
     const inside = new Map<string, WebhookRequest>();
-    for (let number = 1; ; number++) {
-      const found = await firstValueFrom(read(number));
-      found.data
-        .filter((request) => seqOf(request) >= from)
-        .forEach((request) => inside.set(request.uuid, request));
-      if (found.is_last_page || found.data.some((request) => seqOf(request) <= from)) {
-        break;
+    const progress = () => {
+      if (generation === this.generation) {
+        this.windowReading.set({ size: range.size, looked: range.looked + inside.size });
+      }
+    };
+    progress();
+    try {
+      for (let number = range.start; ; number++) {
+        const page = await firstValueFrom(read(number));
+        page.data
+          .filter((request) => seqOf(request) >= range.from && seqOf(request) < range.below)
+          .forEach((request) => inside.set(request.uuid, request));
+        if (page.is_last_page || page.data.some((request) => seqOf(request) <= range.from)) {
+          return { found: [...inside.values()], page: number };
+        }
+        progress();
+      }
+    } finally {
+      if (generation === this.generation) {
+        this.windowReading.set(null);
       }
     }
-    const matches = [...inside.values()];
-    return {
-      data: this.newestFirst() ? matches : matches.reverse(),
-      total: matches.length,
-      per_page: WINDOW_PAGE,
-      current_page: 1,
-      is_last_page: true,
-      from: 1,
-      to: matches.length,
-    };
   }
 
   /** Para a trilha de um evento que o filtro pega só em parte vir inteira. */

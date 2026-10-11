@@ -3743,8 +3743,14 @@ export const translations: Record<string, string> = {
   '5816888929010864485': 'Mais ações da lista',
   // Copy CI test
   '4969155208345973215': 'Copiar o teste de CI',
-  // {$found}. Counted over the newest {$window}, as in Insights.
-  '2381928169413285310': '{$found}. Contado nas {$window} mais novas, como em Métricas.',
+  // {$count} match in the newest {$window} requests up to {$time} · the URL has {$total}
+  '6284050404437382036':
+    '{$count} casam nas {$window} requisições mais novas até {$time} · a URL tem {$total}',
+  //  Looking in the newest {$INTERPOLATION} requests · {$INTERPOLATION_1} of {$INTERPOLATION}
+  '2772465411759293792':
+    ' Procurando nas {$INTERPOLATION} requisições mais novas · {$INTERPOLATION_1} de {$INTERPOLATION} ',
+  //  Look in the {$INTERPOLATION} before
+  '7204596479395577630': ' Procurar nas {$INTERPOLATION} anteriores ',
   // Copied the anzol test command.
   '557794263741060364': 'Comando anzol test copiado.',
   // Copied. anzol test only reads --match, so these filters were left out: {$filters}.

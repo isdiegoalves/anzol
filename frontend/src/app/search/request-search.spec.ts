@@ -377,30 +377,79 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       await expectNoAxeViolations(container);
     });
 
-    it('deve dizer que contou sobre as mais novas, como Métricas, Quando a rota traz a janela', async () => {
-      const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
-      await vi.waitFor(() =>
-        http.expectOne(`/token/${TOKEN_ID}/requests?page=3&per_page=1&sorting=newest`).flush(
-          requestPage([answered(7, 200)], {
-            total: 812,
-            per_page: 1,
-            current_page: 3,
-            is_last_page: false,
-          }),
-        ),
-      );
-      (await search()).flush(
-        requestPage([answered(9, 429), answered(8, 429), answered(2, 429)], {
-          total: 40,
-          is_last_page: false,
-        }),
-      );
-      await applied;
+    describe('Dado a janela das mais novas que o link de Métricas traz', () => {
+      const edge = () =>
+        vi.waitFor(() =>
+          http.expectOne(`/token/${TOKEN_ID}/requests?page=3&per_page=1&sorting=newest`).flush(
+            requestPage([answered(7, 200)], {
+              total: 812,
+              per_page: 1,
+              current_page: 3,
+              is_last_page: false,
+            }),
+          ),
+        );
+      const found = requestPage([answered(9, 429), answered(8, 429), answered(2, 429)], {
+        total: 40,
+        is_last_page: false,
+      });
+      const hour = (at: Date) =>
+        at.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
 
-      await vi.waitFor(
-        () => expect(result()).toBe('2 requests match. Counted over the newest 3, as in Insights.'),
-        { timeout: 2000 },
-      );
+      it('deve dizer quantas casam na janela, até que hora, e quantas a URL tem', async () => {
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
+        await edge();
+        (await search()).flush(found);
+        await applied;
+
+        const at = store.newestWindow()?.at ?? new Date(0);
+        await vi.waitFor(
+          () =>
+            expect(result()).toBe(
+              `2 match in the newest 3 requests up to ${hour(at)} · the URL has 3`,
+            ),
+          { timeout: 2000 },
+        );
+      });
+
+      it('deve mostrar o progresso da leitura fora da região viva, e tirá-lo no fim', async () => {
+        const progress = () => container.querySelector('p.count')?.textContent?.trim();
+
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
+        await edge();
+        await vi.waitFor(() =>
+          expect(progress()).toBe('Looking in the newest 3 requests · 0 of 3'),
+        );
+        expect(container.querySelector('p.count')?.getAttribute('aria-hidden')).toBe('true');
+        expect(result()).toBe('');
+        (await search()).flush(found);
+        await applied;
+
+        await vi.waitFor(() => expect(progress()).toBeUndefined());
+      });
+
+      it('deve oferecer "Look in the 3 before" e procurar só nelas', async () => {
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
+        await edge();
+        (await search()).flush(found);
+        await applied;
+        const older = vi.spyOn(store, 'lookBefore').mockResolvedValue();
+
+        await userEvent.click(
+          await vi.waitFor(() => screen.getByRole('button', { name: 'Look in the 3 before' })),
+        );
+
+        expect(older).toHaveBeenCalledOnce();
+      });
+
+      it('não deve oferecer as anteriores sem a janela, nem Quando ela chegou ao fim da URL', async () => {
+        const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'] });
+        (await search()).flush(requestPage([answered(1, 429)]));
+        await applied;
+        await vi.waitFor(() => expect(result()).toMatch(/^1 request matches/), { timeout: 2000 });
+
+        expect(screen.queryByRole('button', { name: /^Look in the/ })).toBeNull();
+      });
     });
 
     it('deve mostrar o status exato ligado, com o texto das condições, e tirá-lo', async () => {

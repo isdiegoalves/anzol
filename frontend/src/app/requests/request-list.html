@@ -42,7 +42,7 @@
     (retry)="retry.emit()"
   />
 }
-@if (store.loading() && !failure) {
+@if (reading() && !failure) {
   @if (store.slow()) {
     <app-slow-notice (retry)="retry.emit()" />
   } @else if (skeleton()) {
