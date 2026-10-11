@@ -254,14 +254,20 @@ class McpTools {
                 ToolDefinition(
                     "search_requests",
                     "Search a webhook URL's requests by text (method, URL, IP, headers, query and body as received, " +
-                        "case-insensitive) and by a rule match, paginated. The text never searches the decrypted " +
+                        "case-insensitive), by a rule match and by what happened to each one (the outcome, the answered " +
+                        "status, why the signature or the decryption failed, where the schema failed), paginated. All " +
+                        "filters combine with AND. The text never searches the decrypted " +
                         "value of an encrypted attribute, even with the read secret: the body is searched as it " +
                         "arrived, with the JWE. The person can search the decrypted value in the UI.",
                     objectSchema(
                         """$TOKEN_ID,
                         "text": {"type": "string", "description": "Text to find, up to 200 characters"},
                         $MATCH,
+                        "outcome": {"type": "object", "description": "Only requests with this recorded outcome: {type: rule, rule: <rule uuid>} (answered by that rule), {type: near_miss, rule: <rule uuid>} (that rule came closest) or {type: default} (answered by the URL's default response)"},
+                        "answered": {"type": "array", "items": {"type": "string"}, "description": "Only requests answered with one of these, combined with OR: status families (1xx to 5xx) or exact statuses (404), always as text. A request with no recorded status (the rule dropped the connection) never matches"},
+                        "signature_reason": {"type": "string", "description": "Only requests whose signature did not validate, with this reason (signature mismatch, header X-Hub-Signature-256 absent...); a detail in parentheses at the end is ignored"},
                         "decryption_reason": {"type": "string", "description": "Only requests with decryption.state invalid and this reason (downgrade, signature_invalid...)"},
+                        "schema_path": {"type": "string", "description": "Only requests with an invalid schema and an error exactly at this JSON Pointer (/id, /items/0; the empty string is the root)"},
                         "sorting": {"type": "string", "enum": ["newest", "oldest"]},
                         "page": {"type": "integer"},
                         "per_page": {"type": "integer", "description": "1 to 100 (default 50)"}""",
