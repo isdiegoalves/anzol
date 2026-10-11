@@ -52,6 +52,14 @@ export interface ListFailure {
   attempt: number;
 }
 
+/**
+ * Uma página a mais da lista não veio (a seguinte, a anterior, ou as anteriores à janela das mais novas): a
+ * lista fica como estava, e a tela diz o erro como o da carga, com nova tentativa.
+ */
+export interface PageFailure extends ListFailure {
+  read: 'next' | 'previous' | 'before';
+}
+
 export interface UnopenedRequest {
   id: string;
   reason: 'missing' | 'failed';
@@ -135,6 +143,7 @@ export class RequestStore {
   readonly opening = signal<string | null>(null);
   private loads = 0;
   readonly failure = signal<ListFailure | null>(null);
+  readonly pageFailure = signal<PageFailure | null>(null);
   /** A abertura da lista (com a leitura da URL) passou de 30 s sem resposta. */
   readonly slow = signal(false);
   /** A busca passou de 30 s sem resposta. */
@@ -315,6 +324,7 @@ export class RequestStore {
       this.unopened.set(null);
       this.clearWindow();
       this.failure.set(null);
+      this.pageFailure.set(null);
     }
     return run;
   }
@@ -423,6 +433,9 @@ export class RequestStore {
         more,
       });
       this.windowEdge = { from, page: read.page, arrived: edge.arrived };
+      this.pageFailure.set(null);
+    } catch (error) {
+      this.failPage('before', error, generation);
     } finally {
       if (generation === this.generation) {
         this.windowReading.set(null);
@@ -433,6 +446,7 @@ export class RequestStore {
   private async reapply(tokenId: string): Promise<void> {
     const generation = ++this.generation;
     this.searching.set(true);
+    this.pageFailure.set(null);
     clearTimeout(this.searchTimer);
     this.searchSlow.set(false);
     this.searchTimer = setTimeout(
@@ -547,7 +561,10 @@ export class RequestStore {
       if (generation === this.generation) {
         this.pages.update((pages) => [{ page: result.current_page, data: result.data }, ...pages]);
         this.recount(result);
+        this.pageFailure.set(null);
       }
+    } catch (error) {
+      this.failPage('previous', error, generation);
     } finally {
       this.paging.set(null);
     }
@@ -567,10 +584,39 @@ export class RequestStore {
         this.pages.update((pages) => [...pages, { page: result.current_page, data: result.data }]);
         this.lastPageReached.set(result.is_last_page);
         this.recount(result);
+        this.pageFailure.set(null);
       }
+    } catch (error) {
+      this.failPage('next', error, generation);
     } finally {
       this.paging.set(null);
     }
+  }
+
+  /** O "Try again now" da página que não veio: a mesma leitura, de novo. */
+  async retryPage(): Promise<void> {
+    const read = this.pageFailure()?.read;
+    if (read === 'next') {
+      await this.loadNextPage();
+    } else if (read === 'previous') {
+      await this.loadPreviousPage();
+    } else if (read === 'before') {
+      await this.lookBefore();
+    }
+  }
+
+  /** A URL trancada ou que não existe mais é do shell; a busca de outro filtro já não interessa. */
+  private failPage(read: PageFailure['read'], error: unknown, generation: number): void {
+    if (closed(error) || generation !== this.generation) {
+      return;
+    }
+    const previous = this.pageFailure();
+    this.pageFailure.set({
+      kind: 'list',
+      status: statusOf(error),
+      attempt: previous?.read === read ? previous.attempt + 1 : 0,
+      read,
+    });
   }
 
   fetchOne(tokenId: string, requestId: string): Promise<WebhookRequest> {
@@ -744,6 +790,7 @@ export class RequestStore {
     }
     const generation = ++this.generation;
     const seen = this.newestSeq;
+    this.pageFailure.set(null);
     const result = await this.fetchPage(tokenId, 1);
     const total = this.filtering() ? (await this.fetchNewest(tokenId)).total : result.total;
     if (generation !== this.generation) {

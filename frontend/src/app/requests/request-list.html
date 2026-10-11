@@ -41,6 +41,9 @@
     [total]="store.total()"
     (retry)="retry.emit()"
   />
+} @else if (store.pageFailure(); as missed) {
+  <!-- A página a mais que não veio: a lista continua abaixo, e o erro tem a forma do da carga. -->
+  <app-list-error [failure]="missed" (retry)="store.retryPage()" />
 }
 @if (reading() && !failure) {
   @if (store.slow()) {

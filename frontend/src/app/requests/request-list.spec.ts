@@ -1202,6 +1202,27 @@ describe('Dado a lista lateral de mensagens', () => {
     );
   });
 
+  it('deve dizer que a página seguinte não carregou, com a lista e o número no lugar, e tentar de novo pelo "Try again now"', async () => {
+    await load([webhookRequest(1), webhookRequest(2)], 9, false);
+    const next = store.loadNextPage();
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?page=2&sorting=newest`)
+      .flush({}, { status: 503, statusText: 'Unavailable' });
+    await next;
+    await fixture.whenStable();
+
+    const block = element().querySelector('app-list-error') as HTMLElement;
+    expect(block.textContent).toContain('Could not load the list (503).');
+    expect(items()).toHaveLength(2);
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (9)');
+    const again = vi.spyOn(store, 'retryPage').mockResolvedValue();
+
+    within(block).getByRole('button', { name: 'Try again now' }).click();
+
+    expect(again).toHaveBeenCalledOnce();
+    await expectNoAxeViolations(element());
+  });
+
   it('deve mostrar o esqueleto no lugar da lista de antes durante a leitura da janela das mais novas', async () => {
     const recent = (n: number) => webhookRequest(n, { seq: n, response: { status: 429 } });
     await load([recent(9), recent(8), recent(7)], 9);

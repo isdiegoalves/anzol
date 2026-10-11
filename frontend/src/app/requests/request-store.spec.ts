@@ -854,6 +854,130 @@ describe('Dado o filtro pelo status respondido', () => {
   });
 });
 
+describe('Dado uma página da lista que não vem', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const unavailable = { status: 503, statusText: 'Unavailable' };
+  const row = (n: number) => webhookRequest(n, { seq: n, response: { status: 429 } });
+  const page = (number: number) => `${listUrl}?page=${number}&sorting=newest`;
+  const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID, 2);
+    http.expectOne(`${listUrl}?per_page=1&sorting=newest`).flush(requestPage([row(9)]));
+    await vi.waitFor(() =>
+      http
+        .expectOne(page(2))
+        .flush(requestPage([row(6), row(5)], { total: 9, current_page: 2, is_last_page: false })),
+    );
+    await loaded;
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve dizer que a página seguinte não veio, manter a lista e tentar a mesma de novo', async () => {
+    const next = store.loadNextPage();
+    http.expectOne(page(3)).flush({}, unavailable);
+    await next;
+
+    expect(store.pageFailure()).toEqual({ kind: 'list', status: 503, attempt: 0, read: 'next' });
+    expect(store.requests()).toEqual([row(6), row(5)]);
+    expect(store.paging()).toBeNull();
+    expect(store.failure()).toBeNull();
+
+    const again = store.retryPage();
+    http.expectOne(page(3)).flush({}, unavailable);
+    await again;
+    expect(store.pageFailure()).toMatchObject({ attempt: 1, read: 'next' });
+
+    const third = store.retryPage();
+    http.expectOne(page(3)).flush(requestPage([row(4)], { total: 9, current_page: 3 }));
+    await third;
+    expect(store.pageFailure()).toBeNull();
+    expect(store.requests()).toEqual([row(6), row(5), row(4)]);
+  });
+
+  it('deve dizer que a página anterior não veio e tentar a mesma de novo', async () => {
+    const previous = store.loadPreviousPage();
+    http.expectOne(page(1)).error(new ProgressEvent('error'));
+    await previous;
+
+    expect(store.pageFailure()).toEqual({ kind: 'list', status: 0, attempt: 0, read: 'previous' });
+
+    const again = store.retryPage();
+    http.expectOne(page(1)).flush(requestPage([row(9), row(8)], { total: 9, is_last_page: false }));
+    await again;
+    expect(store.pageFailure()).toBeNull();
+    expect(store.requests()).toEqual([row(9), row(8), row(6), row(5)]);
+  });
+
+  it('não deve dizer nada da página Quando a URL foi trancada ou não existe mais: quem mostra é o shell', async () => {
+    const next = store.loadNextPage();
+    http.expectOne(page(3)).flush({}, { status: 401, statusText: 'Unauthorized' });
+    await next;
+
+    expect(store.pageFailure()).toBeNull();
+    expect(store.paging()).toBeNull();
+  });
+
+  it('deve esquecer a página que não veio Quando o filtro muda', async () => {
+    const next = store.loadNextPage();
+    http.expectOne(page(3)).flush({}, unavailable);
+    await next;
+
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    expect(store.pageFailure()).toBeNull();
+    (await search()).flush(requestPage([row(6)]));
+    await applied;
+  });
+
+  it('deve dizer que as anteriores à janela não vieram, manter o que ela mostra e tentar de novo', async () => {
+    const edgeUrl = (position: number) => `${listUrl}?page=${position}&per_page=1&sorting=newest`;
+    const edge = (position: number, oldest: number) =>
+      vi.waitFor(() =>
+        http.expectOne(edgeUrl(position)).flush(
+          requestPage([row(oldest)], {
+            total: 9,
+            per_page: 1,
+            current_page: position,
+            is_last_page: false,
+          }),
+        ),
+      );
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 2 });
+    await edge(2, 8);
+    (await search()).flush(requestPage([row(9), row(8), row(6)], { total: 4 }));
+    await applied;
+
+    const older = store.lookBefore();
+    await edge(4, 6);
+    (await search()).flush({}, unavailable);
+    await older;
+
+    expect(store.pageFailure()).toEqual({ kind: 'list', status: 503, attempt: 0, read: 'before' });
+    expect(store.requests()).toEqual([row(9), row(8)]);
+    expect(store.windowReading()).toBeNull();
+    expect(store.newestWindow()).toMatchObject({ size: 2, more: true });
+
+    const again = store.retryPage();
+    await edge(4, 6);
+    (await search()).flush(requestPage([row(9), row(8), row(6), row(5)], { total: 4 }));
+    await again;
+
+    expect(store.pageFailure()).toBeNull();
+    expect(store.requests()).toEqual([row(9), row(8), row(6)]);
+    expect(store.newestWindow()).toMatchObject({ size: 4, more: true });
+  });
+});
+
 describe('Dado uma requisição que chega com filtro ligado', () => {
   let http: HttpTestingController;
   let store: RequestStore;
@@ -1883,8 +2007,9 @@ describe('Dado a página seguinte ou a anterior a caminho', () => {
     http
       .expectOne(`${listUrl}?page=1&sorting=newest`)
       .flush({}, { status: 503, statusText: 'Unavailable' });
-    await expect(anterior).rejects.toBeDefined();
+    await anterior;
 
     expect(store.paging()).toBeNull();
+    expect(store.pageFailure()).toMatchObject({ status: 503, read: 'previous' });
   });
 });

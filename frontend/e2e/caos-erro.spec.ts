@@ -132,6 +132,56 @@ test.describe('Dado o servidor respondendo 503', () => {
   });
 });
 
+test.describe('Dado uma página a mais da lista que não vem', () => {
+  test('deve dizer que a página seguinte não carregou, manter a lista e trazê-la pelo "Try again now"', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.sendMany(tokenId, 60);
+    await page.goto(`/#/${tokenId}`);
+    await expect(titulo(page)).toHaveText('Requests (60)');
+    const desfaz = caos.recusar(new RegExp(`^/token/${tokenId}/requests\\?page=2&`), 503, 'GET');
+
+    await page.getByRole('button', { name: 'Next page' }).click();
+
+    await expect(lista(page).getByText('Could not load the list (503).')).toBeVisible();
+    await expect(lista(page).locator('.range')).toHaveText('1–50 of 60');
+    await expect(titulo(page)).toHaveText('Requests (60)');
+
+    desfaz();
+    await lista(page).getByRole('button', { name: 'Try again now' }).click();
+
+    await expect(lista(page).locator('.range')).toHaveText('1–60 of 60');
+    await expect(lista(page).getByText(/Could not load the list/)).toHaveCount(0);
+  });
+
+  test('deve dizer que as anteriores à janela não carregaram, manter o que ela mostra e trazê-las pelo "Try again now"', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.sendMany(tokenId, 60);
+    await page.goto(`/#/${tokenId}?methods=POST&window=50`);
+    await expect(titulo(page)).toHaveText('Requests (50 of the newest 50)');
+    const desfaz = caos.recusar(new RegExp(`^/token/${tokenId}/requests/search$`), 503, 'POST');
+
+    await page.getByRole('button', { name: 'Look in the 50 before' }).click();
+
+    await expect(lista(page).getByText('Could not load the list (503).')).toBeVisible();
+    await expect(titulo(page)).toHaveText('Requests (50 of the newest 50)');
+    await expect(lista(page).locator('.range')).toHaveText('1–50 of 50');
+
+    desfaz();
+    await lista(page).getByRole('button', { name: 'Try again now' }).click();
+
+    await expect(titulo(page)).toHaveText('Requests (60 of the newest 60)');
+    await expect(lista(page).getByText(/Could not load the list/)).toHaveCount(0);
+  });
+});
+
 test.describe('Dado o servidor demorando', () => {
   test('deve manter o título no total, nunca "0 of", enquanto a busca do filtro não volta', async ({
     page,
