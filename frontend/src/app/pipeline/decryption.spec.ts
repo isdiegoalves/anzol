@@ -105,7 +105,7 @@ const MOTIVOS: readonly [string, string, string][] = [
   ['app_mismatch', 'app mismatch', 'app divergente'],
   ['iat_missing', 'No iat', 'Sem iat'],
   ['iat_outside_window', 'iat outside window', 'iat fora da janela'],
-  ['data_missing', 'No data claim', 'Sem data'],
+  ['data_missing', 'No data claim', 'Sem claim data'],
 ];
 
 const invalida = (reason: string) =>

@@ -2743,7 +2743,7 @@ export const translations: Record<string, string> = {
   // body: body is not JSON
   '7562279532876293375': 'corpo: o corpo não é JSON',
   // body: not equal to the expected JSON
-  '6434402795018602279': 'corpo: diferente do JSON dado',
+  '6434402795018602279': 'corpo: diferente do JSON esperado',
   // body: expected to contain {$expected}
   '3000720646748437340': 'corpo: esperava conter {$expected}',
   // body: expected to match {$expected}
@@ -2756,7 +2756,11 @@ export const translations: Record<string, string> = {
   // expects the signature to be {$expected}; this one is {$got} ({$original})
   '5578978034203204520': 'pede assinatura {$expected}; esta veio {$got} ({$original})',
   // schema: expected {$expected}, got not configured
-  '1930130574293914257': 'schema: não configurado nesta URL (a regra pede {$expected})',
+  '1930130574293914257': 'schema: não configurado nesta URL (a regra pede schema {$expected})',
+  // valid
+  '8329842910428442457': 'válido',
+  // invalid
+  '6630712012091556664': 'inválido',
   // schema: expected {$expected}, got {$got}
   '3951080615472233541': 'schema: esperava {$expected}, veio {$got}',
   // scenario {$name}: expected state {$expected}, got {$got}
@@ -2784,7 +2788,7 @@ export const translations: Record<string, string> = {
   // The name may not be greater than {$max} characters.
   '6588427496217666784': 'O nome pode ter no máximo {$max} caracteres.',
   // The rules may not have more than {$max} items.
-  '5473226211877652746': 'Mais de {$max} regras.',
+  '5473226211877652746': 'A URL aceita no máximo {$max} regras.',
   // The template is invalid: {$reason}.
   '1900476710738240300': 'Erro no template: {$reason}.',
   // The rendered template is too large.
@@ -4020,9 +4024,9 @@ export const translations: Record<string, string> = {
   // Rotation: encrypted to enc-v1 while enc-v2 is active
   '6982312164038402108': 'Rotação: cifrado para enc-v1 com enc-v2 ativa',
   // Accents and emoji in the data
-  '5102885369519702196': 'Acentos e emoji no data',
+  '5102885369519702196': 'Acentos e emoji no claim data',
   // Large and precise numbers in the data
-  '4865897090636675286': 'Números grandes e exatos no data',
+  '4865897090636675286': 'Números grandes e exatos no claim data',
   // app in a different case from the envelope
   '8796213585604771041': 'app com caixa diferente da do envelope',
   // JWE without a JWS inside (the channel forging with the public key)
@@ -4199,7 +4203,7 @@ export const translations: Record<string, string> = {
   // iat outside window
   '2774403225745773319': 'iat fora da janela',
   // No data claim
-  '5961730565889069577': 'Sem data',
+  '5961730565889069577': 'Sem claim data',
   // Decrypted · repeated jti
   '9201304644456821758': 'Decifrada · jti repetido',
   // Decrypted

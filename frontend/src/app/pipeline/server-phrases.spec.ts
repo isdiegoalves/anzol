@@ -39,13 +39,17 @@ const conditions: [string, string][] = [
   ['body $.status: absent', 'corpo $.status: ausente'],
   ['body $.status: body is not JSON', 'corpo $.status: o corpo não é JSON'],
   ['body: body is not JSON', 'corpo: o corpo não é JSON'],
-  ['body: not equal to the expected JSON', 'corpo: diferente do JSON dado'],
+  ['body: not equal to the expected JSON', 'corpo: diferente do JSON esperado'],
   ['body: expected to contain "pix"', 'corpo: esperava conter "pix"'],
   ['body: expected to match "^\\{"', 'corpo: esperava casar a regex "^\\{"'],
   ['body: expected "a", got "b"', 'corpo: esperava "a", veio "b"'],
   [
     'schema: expected valid, got not configured',
-    'schema: não configurado nesta URL (a regra pede valid)',
+    'schema: não configurado nesta URL (a regra pede schema válido)',
+  ],
+  [
+    'schema: expected invalid, got not configured',
+    'schema: não configurado nesta URL (a regra pede schema inválido)',
   ],
   [
     'schema: expected valid, got invalid (3 errors)',
@@ -116,7 +120,7 @@ const validations: [string, string][] = [
   ['The priority must be at least 1.', 'A prioridade deve ser 1 ou mais.'],
   ['The name field is required.', 'O nome é obrigatório.'],
   ['The name may not be greater than 255 characters.', 'O nome pode ter no máximo 255 caracteres.'],
-  ['The rules may not have more than 50 items.', 'Mais de 50 regras.'],
+  ['The rules may not have more than 50 items.', 'A URL aceita no máximo 50 regras.'],
   ['The template is invalid: unclosed tag.', 'Erro no template: unclosed tag.'],
   ['The selected signature.provider is invalid.', 'O signature.provider escolhido é inválido.'],
   ['The signature.header is invalid.', 'O campo signature.header é inválido.'],

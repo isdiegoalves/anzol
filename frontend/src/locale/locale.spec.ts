@@ -104,6 +104,17 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
     expect(ids.map((id) => translations[id])).toEqual(ids.map(() => expected));
   });
 
+  it.each([
+    ['Accents and emoji in the data', 'Acentos e emoji no claim data'],
+    ['Large and precise numbers in the data', 'Números grandes e exatos no claim data'],
+  ])('deve dizer de que "data" fala o cenário do laboratório "%s"', (source, expected) => {
+    const ids = Object.entries(messages)
+      .filter(([, text]) => text === source)
+      .map(([id]) => id);
+
+    expect(ids.map((id) => translations[id])).toEqual([expected]);
+  });
+
   // O "Reset" que confirma zerar os cenários tem significado próprio: outro "Reset" não herda a tradução dele.
   it('não deve dar a um "Reset" sem significado a tradução "Voltar a Started"', () => {
     const ids = Object.entries(messages)

@@ -39,6 +39,15 @@ function signatureState(state: string): string {
   return words[state] ?? state;
 }
 
+/** O estado do schema que a frase cita (`valid`, `invalid`). */
+function schemaState(state: string): string {
+  const words: Record<string, string> = {
+    valid: $localize`:schema state|:valid`,
+    invalid: $localize`:schema state|:invalid`,
+  };
+  return words[state] ?? state;
+}
+
 /** O estado da decifra que a frase cita (`valid`, `invalid`, `unknown_kid`, `absent`). */
 export function decryptionState(state: string): string {
   const words: Record<string, string> = {
@@ -140,7 +149,8 @@ function conditionFamilies(): Family[] {
     ],
     [
       /^schema: expected (\w+), got not configured$/,
-      (expected) => $localize`schema: expected ${expected}:expected:, got not configured`,
+      (expected) =>
+        $localize`schema: expected ${schemaState(expected)}:expected:, got not configured`,
     ],
     [
       /^schema: expected (\w+), got (.+)$/,
