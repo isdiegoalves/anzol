@@ -152,7 +152,7 @@ describe('Dado a tela principal', () => {
       ],
     });
     await harness.fixture.whenStable();
-    expect(text()).not.toMatch(/Closest rule|closest is/);
+    expect(text()).not.toMatch(/Closest rule/);
   });
 
   it('deve criar uma URL nova e ir para ela Quando a raiz é aberta sem token salvo', async () => {

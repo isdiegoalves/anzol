@@ -275,24 +275,23 @@ export function faultName(fault: string): string {
   return names[fault] ?? fault;
 }
 
-/** "Closest rule: Pedido pago — method: expected POST, got GET" (B2), com o que mais falhou. */
+/** "Closest rule: Pedido pago (method: expected POST, got GET, +2 more)" (B2). */
 export function closestPhrase(name: string, failed: readonly string[]): string {
-  const [reason, more] = closestReason(failed);
-  return $localize`Closest rule: ${name}:rule: — ${reason}:reason:${more}:more:`;
+  return $localize`Closest rule: ${name}:rule: (${closestReason(failed)}:reason:)`;
 }
 
 /** A regra mais perto quando nenhuma casou (o `near_miss`): a frase diz que nenhuma casou. */
 function nearMissPhrase(name: string, failed: readonly string[]): string {
-  const [reason, more] = closestReason(failed);
-  return $localize`No rule matched. The closest is “${name}:rule:” — ${reason}:reason:${more}:more:`;
+  return $localize`No rule matched. Closest rule: ${name}:rule: (${closestReason(failed)}:reason:)`;
 }
 
-function closestReason(failed: readonly string[]): [string, string] {
+/** A primeira condição que falhou e quantas mais falharam. */
+function closestReason(failed: readonly string[]): string {
   const [first] = failed;
-  return [
-    first ? conditionPhrase(first).text : '',
-    failed.length > 1 ? $localize` (+${failed.length - 1}:count: more)` : '',
-  ];
+  const reason = first ? conditionPhrase(first).text : '';
+  return failed.length > 1
+    ? $localize`${reason}:reason:, +${failed.length - 1}:count: more`
+    : reason;
 }
 
 /**

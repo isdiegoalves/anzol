@@ -527,7 +527,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
       await vi.waitFor(() =>
         expect(checks().textContent).toContain(
-          'Closest rule: Pedido pago — method: expected POST, got GET',
+          'Closest rule: Pedido pago (method: expected POST, got GET',
         ),
       );
       expect(checks().textContent).toContain('Answered 404 · by rule');
@@ -550,7 +550,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       await fixture.whenStable();
 
       expect(checks().textContent).toContain('Answered 404 · by rule');
-      expect(checks().textContent).not.toMatch(/Closest rule|closest is/);
+      expect(checks().textContent).not.toMatch(/Closest rule/);
       expect(checks().textContent).not.toContain('Checked against the rules as they are now.');
     });
 
@@ -569,7 +569,7 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
 
       http.expectNone((call) => call.url.endsWith('/rules/trace') || call.url === rulesUrl);
       expect(checks().textContent).toContain('Answered 429 · default response');
-      expect(checks().textContent).not.toMatch(/Closest rule|closest is/);
+      expect(checks().textContent).not.toMatch(/Closest rule/);
     });
   });
 

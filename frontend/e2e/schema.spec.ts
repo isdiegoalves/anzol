@@ -277,7 +277,7 @@ test.describe('Dado a condição "Schema" no editor de regras', () => {
     await expect(verificacoes(page)).toContainText('Schema valid');
     // INBOX-18: com uma condição só, a frase fica no cartão e o "Why? (n)" não aparece.
     await expect(verificacoes(page)).toContainText(
-      /No rule matched\. The closest is “Recusa fora do schema” — schema: expected invalid, got valid/,
+      /No rule matched\. Closest rule: Recusa fora do schema \(schema: expected invalid, got valid\)/,
     );
     await expect(porque(page)).toHaveCount(0);
     await screenshot(page, '08-selo-valido-near-miss');

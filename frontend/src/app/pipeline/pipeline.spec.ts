@@ -2,7 +2,7 @@ import { clearTranslations, loadTranslations } from '@angular/localize';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { CapturedRequest } from '../requests/webhook-request';
-import { CheckResult, checksOf, pipelineOf, routeOf } from './pipeline';
+import { CheckResult, checksOf, closestPhrase, pipelineOf, routeOf } from './pipeline';
 
 /** Só o que o selo mostra, para a tabela caber numa linha por caso. */
 const brief = ({ state, tone, title, detail }: CheckResult) => ({ state, tone, title, detail });
@@ -142,7 +142,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
         tone: 'none',
         title: 'Answered 200 · default response',
         detail:
-          'No rule matched. The closest is “Refund queued” — method: expected POST, got GET (+1 more)',
+          'No rule matched. Closest rule: Refund queued (method: expected POST, got GET, +1 more)',
       },
     ],
     [
@@ -219,7 +219,7 @@ describe('Dado a regra que respondeu a mensagem', () => {
       });
 
       expect(pipelineOf(request).rule.detail).toBe(
-        'Nenhuma regra casou. A mais próxima é “signature: invalid → 401” — pede assinatura inválida; esta veio válida (signature: expected invalid, got valid)',
+        'Nenhuma regra casou. Regra que chegou mais perto: signature: invalid → 401 (pede assinatura inválida; esta veio válida (signature: expected invalid, got valid))',
       );
     } finally {
       clearTranslations();
@@ -233,8 +233,35 @@ describe('Dado a regra que respondeu a mensagem', () => {
 
     // INBOX-18: com uma condição só, a frase dela vai no cartão (o "Why? (n)" sai).
     expect(pipelineOf(request).rule.detail).toBe(
-      'No rule matched. The closest is “Só GET” — method: expected GET, got POST',
+      'No rule matched. Closest rule: Só GET (method: expected GET, got POST)',
     );
+  });
+
+  describe('Dado a regra que chegou mais perto quando uma pega-tudo respondeu (closestPhrase)', () => {
+    const failed = ['method: expected POST, got GET', 'header x-a: absent', 'query p: absent'];
+
+    it('deve pôr o motivo entre parênteses, com quantas condições mais falharam', () => {
+      expect(closestPhrase('Pedido pago', failed.slice(0, 1))).toBe(
+        'Closest rule: Pedido pago (method: expected POST, got GET)',
+      );
+      expect(closestPhrase('Pedido pago', failed)).toBe(
+        'Closest rule: Pedido pago (method: expected POST, got GET, +2 more)',
+      );
+    });
+
+    it('deve dizer o mesmo em pt-BR', () => {
+      loadTranslations(translations);
+      try {
+        expect(closestPhrase('Pedido pago', failed.slice(0, 1))).toBe(
+          'Regra que chegou mais perto: Pedido pago (método: esperava POST, veio GET)',
+        );
+        expect(closestPhrase('Pedido pago', failed)).toBe(
+          'Regra que chegou mais perto: Pedido pago (método: esperava POST, veio GET, e mais 2)',
+        );
+      } finally {
+        clearTranslations();
+      }
+    });
   });
 });
 

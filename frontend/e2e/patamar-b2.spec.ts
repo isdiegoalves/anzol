@@ -598,7 +598,7 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     await expect(cartoes).toContainText('Answered 429 · default response');
     await expect(cartoes).toContainText('Retry-After: 5 (as configured now)');
     await expect(cartoes).toContainText(
-      /No rule matched\. The closest is “Pedido pago” — method: expected POST, got GET/,
+      /No rule matched\. Closest rule: Pedido pago \(method: expected POST, got GET/,
     );
     await expect(cartoes.getByRole('button', { name: 'Why not rule…?' })).toBeVisible();
 
@@ -624,10 +624,20 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
 
     const cartoes = verificacoes(page);
     await expect(cartoes).toContainText('Answered 404 · by rule');
-    await expect(cartoes).toContainText(
-      /Closest rule: Pedido pago — method: expected POST, got GET/,
+    const maisPerto = cartoes.getByText(
+      /^Closest rule: Pedido pago \(method: expected POST, got GET/,
     );
+    await expect(maisPerto).toBeVisible();
     await expect(cartoes).toContainText('Checked against the rules as they are now.');
+    // Quem respondeu pesa mais que a regra que chegou mais perto.
+    const letra = (texto: Locator) =>
+      texto.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+    expect(await letra(maisPerto)).toBeLessThan(
+      await letra(cartoes.getByText('Answered 404 · by rule')),
+    );
+    expect(await letra(maisPerto)).toBe(
+      await letra(cartoes.getByRole('link', { name: 'Tudo o resto', exact: true })),
+    );
   });
 
   test('deve mostrar o status da resposta padrão numa URL sem regras', async ({ page, tokens }) => {

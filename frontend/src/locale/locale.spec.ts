@@ -115,6 +115,17 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
     expect(ids.map((id) => translations[id])).toEqual([expected]);
   });
 
+  it('deve chamar a regra mais próxima de "Regra que chegou mais perto" em todo lugar', () => {
+    const ids = Object.entries(messages)
+      .filter(([, text]) => text.includes('Closest rule'))
+      .map(([id]) => id);
+
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.filter((id) => !translations[id].includes('Regra que chegou mais perto'))).toEqual(
+      [],
+    );
+  });
+
   // O "Reset" que confirma zerar os cenários tem significado próprio: outro "Reset" não herda a tradução dele.
   it('não deve dar a um "Reset" sem significado a tradução "Voltar a Started"', () => {
     const ids = Object.entries(messages)

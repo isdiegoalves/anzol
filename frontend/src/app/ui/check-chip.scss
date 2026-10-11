@@ -154,6 +154,13 @@
   font: var(--mat-sys-body-medium);
 }
 
+// Quando uma regra respondeu, a nota é a regra que chegou mais perto: em corpo pequeno, como o
+// motivo, para não pesar mais que quem respondeu.
+:host(.card[data-state='answered']) .note {
+  color: inherit;
+  font: inherit;
+}
+
 :host(.card.bad),
 :host(.card.near) {
   padding-left: calc(13px - var(--app-note-rule));

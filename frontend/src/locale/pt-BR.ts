@@ -539,7 +539,7 @@ export const translations: Record<string, string> = {
   // Near misses
   '7753383578255871160': 'Quase acertos',
   // Closest rule when none matched
-  '5614787940017710801': 'Regra mais próxima quando nenhuma casou',
+  '5614787940017710801': 'Regra que chegou mais perto quando nenhuma casou',
   // Answers by status
   '2253959432758805530': 'Respostas por status',
   // {VAR_PLURAL, plural, =1 {Counted over the newest request.} other {Counted over the newest {INTERPOLATION} requests.}}
@@ -548,7 +548,7 @@ export const translations: Record<string, string> = {
   // No answers yet.
   '7671642818829633701': 'Nenhuma resposta ainda.',
   // Closest rule: {$rule}
-  '3869916993611205037': 'Regra mais próxima: {$rule}',
+  '3869916993611205037': 'Regra que chegou mais perto: {$rule}',
   // All requests
   '4551006451537993722': 'Todas as requisições',
   // Counting the requests…
@@ -3472,8 +3472,10 @@ export const translations: Record<string, string> = {
     'Esta requisição não está mais no servidor, percebido às {$time}. Ela pode ter sido apagada ou cortada pela limpeza automática.',
   // Connection reset
   '1755383718055848550': 'Conexão reiniciada',
-  // Closest rule: {$rule} — {$reason}{$more}
-  '686882120115347084': 'Regra que chegou mais perto: {$rule} — {$reason}{$more}',
+  // Closest rule: {$rule} ({$reason})
+  '7006431996595751940': 'Regra que chegou mais perto: {$rule} ({$reason})',
+  // {$reason}, +{$count} more
+  '6515851828677681544': '{$reason}, e mais {$count}',
   // Network fault · {$fault}
   '6971063513701035037': 'Falha de rede · {$fault}',
   // Network fault by rule: {$fault}: {$rule}
@@ -4424,8 +4426,8 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {1 regra adicionada: {INTERPOLATION}.} other {{INTERPOLATION_1} regras adicionadas: {INTERPOLATION}.}}',
   // See them in {$START_LINK}Rules{$CLOSE_LINK}.
   '3902748895990896270': 'Veja em {$START_LINK}Regras{$CLOSE_LINK}.',
-  // No rule matched. The closest is “{$rule}” — {$reason}{$more}
-  '2885451637628291284': 'Nenhuma regra casou. A mais próxima é “{$rule}” — {$reason}{$more}',
+  // No rule matched. Closest rule: {$rule} ({$reason})
+  '6546657536098544241': 'Nenhuma regra casou. Regra que chegou mais perto: {$rule} ({$reason})',
   // Lab created from here: URL {$INTERPOLATION} · expires {$INTERPOLATION_1}
   '7934335812325617943':
     'Laboratório criado daqui: URL {$INTERPOLATION} · expira {$INTERPOLATION_1}',
