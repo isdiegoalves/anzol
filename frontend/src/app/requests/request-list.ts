@@ -79,6 +79,13 @@ export function bodySummary(request: WebhookRequest): string {
   return eventType(request) ?? request.user_agent ?? '';
 }
 
+/** "200 · Default response" → 13: o número, " · ", 6 letras do nome e as reticências de quando ele é mais longo. */
+function legibleLetters(seal: string): number {
+  const name = seal.indexOf(' · ') + 3;
+  const letters = seal.length - name;
+  return name + Math.min(letters, 6) + (letters > 6 ? 1 : 0);
+}
+
 /** Altura fixa de um item de duas linhas (B1, lista densa), para a rolagem virtual. */
 export const ITEM_HEIGHT = 40;
 /**
@@ -106,6 +113,8 @@ export interface ItemView {
   summary: string;
   /** Selos que dizem algo (a verificação existia): assinatura, schema, regra. */
   seals: CheckResult[];
+  /** Letras do selo de quem respondeu que ficam legíveis ao dividir a linha com o tipo do evento. */
+  sealLetters: number;
   label: string;
   /** `null` na falha de rede e sem registro: não há status para filtrar. */
   status: string | null;
@@ -704,6 +713,7 @@ export class RequestList {
       ago: fromNow(request.created_at, now),
       summary: eventType(request) ?? '',
       seals,
+      sealLetters: legibleLetters(pipeline.rule.short),
       label,
       status: request.response?.status === undefined ? null : String(request.response.status),
     };

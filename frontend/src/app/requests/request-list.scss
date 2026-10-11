@@ -284,9 +284,9 @@ app-event-line {
   letter-spacing: 0.04em;
 }
 
-// O tipo do evento e o nome de quem respondeu dividem a sobra: crescem por igual a partir do mínimo
-// de cada um (o veredito fica no title). Sem lugar para o mínimo do tipo, ele cai para uma segunda
-// linha, que a altura corta, e o selo fica com a sobra. O #id fica sempre à vista (trava 2).
+// O tipo do evento e o nome de quem respondeu dividem a sobra: crescem por igual a partir de 6 letras
+// de cada um (o veredito fica no title). Sem lugar para as 6 letras dos dois, o tipo cai para uma
+// segunda linha, que a altura corta, e o selo fica com a sobra. O #id fica sempre à vista (trava 2).
 .fit {
   display: flex;
   flex-wrap: wrap;
@@ -317,6 +317,12 @@ app-event-line {
 .seals {
   display: grid;
   flex: 1 1 min-content;
+
+  // Ao dividir a linha com o tipo, o selo conta com as letras legíveis (30 px de ícone e moldura já
+  // estão nos 60 px da coluna); sozinho, ele ainda cede até os 60 px. Onde o navegador não conhece
+  // o calc-size, vale a linha de cima.
+  flex-basis: calc-size(min-content, size + max(0px, var(--seal-letters) * 1ch - 28px));
+  font-family: var(--app-code-family);
   grid-template-columns: minmax(60px, max-content);
   grid-auto-columns: max-content;
   grid-auto-flow: column;

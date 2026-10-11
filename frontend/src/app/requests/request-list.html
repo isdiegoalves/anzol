@@ -149,7 +149,11 @@
                      acessível e no detalhe. -->
                   <span class="line meta">
                     <span class="fit">
-                      <span class="seals" aria-hidden="true">
+                      <span
+                        class="seals"
+                        aria-hidden="true"
+                        [style.--seal-letters]="item.sealLetters"
+                      >
                         @for (seal of item.seals; track seal.kind) {
                           <app-check-chip
                             [result]="seal"

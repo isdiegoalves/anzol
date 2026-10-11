@@ -67,11 +67,11 @@ const TIPO_DO_EVENTO = 'charge.refunded';
  */
 async function comTipoDeEvento(
   tokens: TokenTracker,
-  schema: Record<string, unknown> = { type: 'object' },
+  schema?: Record<string, unknown>,
 ): Promise<{ tokenId: string; id: string }> {
   const tokenId = await tokens.create({
     signature: { provider: 'github', secret: 'segredo-da-lista' },
-    schema,
+    ...(schema && { schema }),
   });
   const id = await tokens.send(tokenId, {
     path: '/pedidos/2026/09/loja-centro/confirmacoes/instantaneas/pagamento-aprovado',
@@ -84,11 +84,18 @@ async function comTipoDeEvento(
   return { tokenId, id };
 }
 
-/**
- * O que a segunda linha do item deixa ver: quantas letras do tipo do evento (a fonte é de largura fixa; 0 quando ele
- * não aparece) e se o #id está inteiro. Conta o que sobra dentro dos recortes dos ancestrais.
- */
-function segundaLinha(linha: Locator): Promise<{ letras: number; idInteiro: boolean }> {
+/** O que a segunda linha do item deixa ver, contando o que sobra dentro dos recortes dos ancestrais. */
+interface SegundaLinha {
+  /** Letras do nome de quem respondeu à vista no selo, depois do "200 · " (a fonte é de largura fixa). */
+  selo: number;
+  /** Letras do tipo do evento à vista; 0 quando ele não aparece. */
+  tipo: number;
+  idInteiro: boolean;
+  /** Os outros selos (assinatura, schema) estão inteiros. */
+  selosInteiros: boolean;
+}
+
+function segundaLinha(linha: Locator): Promise<SegundaLinha> {
   return linha.evaluate((raiz, tipo) => {
     const aVista = (caixa: DOMRect, de: Element | null) => {
       let [esquerda, direita, topo, base] = [caixa.left, caixa.right, caixa.top, caixa.bottom];
@@ -103,24 +110,42 @@ function segundaLinha(linha: Locator): Promise<{ letras: number; idInteiro: bool
       }
       return { largura: Math.max(0, direita - esquerda), altura: Math.max(0, base - topo) };
     };
-    const textos = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
-    let no = textos.nextNode() as Text | null;
-    while (no && !no.data.includes(tipo)) {
-      no = textos.nextNode() as Text | null;
-    }
-    let letras = 0;
-    if (no) {
+    /** Quantas letras de `texto` aparecem; o texto cortado gasta a última com as reticências. */
+    const letras = (dentro: Element, texto: string): number => {
+      const textos = document.createTreeWalker(dentro, NodeFilter.SHOW_TEXT);
+      let no = textos.nextNode() as Text | null;
+      while (no && !no.data.includes(texto)) {
+        no = textos.nextNode() as Text | null;
+      }
+      if (!no) {
+        return 0;
+      }
       const faixa = document.createRange();
-      faixa.setStart(no, no.data.indexOf(tipo));
-      faixa.setEnd(no, no.data.indexOf(tipo) + tipo.length);
+      faixa.setStart(no, no.data.indexOf(texto));
+      faixa.setEnd(no, no.data.indexOf(texto) + texto.length);
       const inteiro = faixa.getBoundingClientRect();
       const visto = aVista(inteiro, no.parentElement);
-      letras =
-        visto.altura >= inteiro.height / 2 ? visto.largura / (inteiro.width / tipo.length) : 0;
-    }
-    const id = raiz.querySelector('.id')!;
-    const caixa = id.getBoundingClientRect();
-    return { letras, idInteiro: aVista(caixa, id).largura >= caixa.width - 0.5 };
+      if (visto.altura < inteiro.height / 2) {
+        return 0;
+      }
+      const cabem = Math.floor((visto.largura + 0.5) / (inteiro.width / texto.length));
+      return cabem >= texto.length ? texto.length : Math.max(0, cabem - 1);
+    };
+    const inteiro = (el: Element) => {
+      const caixa = el.getBoundingClientRect();
+      return aVista(caixa, el).largura >= caixa.width - 0.5;
+    };
+    const selo = raiz.querySelector('.seals app-check-chip[data-kind="rule"] .title')!;
+    const nome = (selo.textContent ?? '').trim();
+    const numero = nome.indexOf(' · ') + 3;
+    return {
+      selo: letras(selo, nome) - numero,
+      tipo: letras(raiz, tipo),
+      idInteiro: inteiro(raiz.querySelector('.id')!),
+      selosInteiros: [
+        ...raiz.querySelectorAll('.seals app-check-chip:not([data-kind="rule"])'),
+      ].every(inteiro),
+    };
   }, TIPO_DO_EVENTO);
 }
 
@@ -683,7 +708,7 @@ test.describe('Dado a lista densa', () => {
       await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
     });
 
-    test('deve mostrar o tipo do evento legível, com o #id inteiro, Quando o selo de quem respondeu é longo', async ({
+    test('deve mostrar 6 letras ou mais do nome de quem respondeu e do tipo do evento, com o #id inteiro, Quando cabem os dois', async ({
       page,
       tokens,
     }, testInfo) => {
@@ -693,13 +718,14 @@ test.describe('Dado a lista densa', () => {
       await abrirEntrada(page, tokenId, 1);
       await page.evaluate(() => document.fonts.ready);
 
-      const { letras, idInteiro } = await segundaLinha(item(page, id));
+      const linha = await segundaLinha(item(page, id));
 
-      expect(letras, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
-      expect(idInteiro, 'o #id inteiro').toBe(true);
+      expect(linha.selo, 'letras do nome de quem respondeu à vista').toBeGreaterThanOrEqual(6);
+      expect(linha.tipo, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
+      expect(linha.idInteiro, 'o #id inteiro').toBe(true);
     });
 
-    test('deve tirar o tipo do evento da linha, e manter o #id inteiro, Quando não sobram 6 letras para ele', async ({
+    test('deve tirar o tipo do evento da linha, com os selos de erro e o #id inteiros, Quando não cabem os dois', async ({
       page,
       tokens,
     }, testInfo) => {
@@ -713,14 +739,15 @@ test.describe('Dado a lista densa', () => {
       await page.evaluate(() => document.fonts.ready);
       await expect(item(page, id)).toContainText('1 schema error');
 
-      const { letras, idInteiro } = await segundaLinha(item(page, id));
+      const linha = await segundaLinha(item(page, id));
 
-      expect(letras, 'letras do tipo do evento à vista').toBe(0);
-      expect(idInteiro, 'o #id inteiro').toBe(true);
+      expect(linha.tipo, 'letras do tipo do evento à vista').toBe(0);
+      expect(linha.selosInteiros, 'os selos de erro inteiros').toBe(true);
+      expect(linha.idInteiro, 'o #id inteiro').toBe(true);
     });
   });
 
-  test('deve mostrar o tipo do evento legível, com o #id inteiro, também a 390 px', async ({
+  test('deve mostrar 6 letras ou mais do nome de quem respondeu, e o tipo do evento legível ou fora da linha, também a 390 px', async ({
     page,
     tokens,
   }, testInfo) => {
@@ -730,10 +757,14 @@ test.describe('Dado a lista densa', () => {
     await abrirEntrada(page, tokenId, 1);
     await page.evaluate(() => document.fonts.ready);
 
-    const { letras, idInteiro } = await segundaLinha(item(page, id));
+    const linha = await segundaLinha(item(page, id));
 
-    expect(letras, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
-    expect(idInteiro, 'o #id inteiro').toBe(true);
+    expect(linha.selo, 'letras do nome de quem respondeu à vista').toBeGreaterThanOrEqual(6);
+    expect(
+      linha.tipo === 0 || linha.tipo >= 6,
+      `letras do tipo do evento à vista: ${linha.tipo}`,
+    ).toBe(true);
+    expect(linha.idInteiro, 'o #id inteiro').toBe(true);
   });
 
   test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({
