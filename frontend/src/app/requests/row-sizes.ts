@@ -3,10 +3,16 @@ import {
   VIRTUAL_SCROLL_STRATEGY,
   VirtualScrollStrategy,
 } from '@angular/cdk/scrolling';
-import { Directive, effect, forwardRef, input } from '@angular/core';
+import { Directive, effect, forwardRef, input, signal } from '@angular/core';
 import { Subject, distinctUntilChanged } from 'rxjs';
 
 const BUFFER_PX = 600;
+
+/** As linhas que aparecem inteiras na janela, pelo índice da primeira e da última. */
+export interface ShownRows {
+  first: number;
+  last: number;
+}
 
 /**
  * A `FixedSizeVirtualScrollStrategy` do CDK com uma altura por linha: a lista agrupada mistura
@@ -15,6 +21,10 @@ const BUFFER_PX = 600;
 export class RowSizeStrategy implements VirtualScrollStrategy {
   private readonly index = new Subject<number>();
   readonly scrolledIndexChange = this.index.pipe(distinctUntilChanged());
+  /** `null` enquanto a janela não tem altura medida. */
+  readonly shown = signal<ShownRows | null>(null, {
+    equal: (a, b) => a?.first === b?.first && a?.last === b?.last,
+  });
   private viewport: CdkVirtualScrollViewport | null = null;
   /** A última posição é a altura total. */
   private offsets: number[] = [0];
@@ -79,6 +89,23 @@ export class RowSizeStrategy implements VirtualScrollStrategy {
     viewport.setRenderedRange({ start: Math.min(start, end), end });
     viewport.setRenderedContentOffset(this.offsetOf(start));
     this.index.next(this.rowAt(top));
+    this.shown.set(this.shownBetween(top, top + viewport.getViewportSize(), length));
+  }
+
+  /** A linha cortada na borda fica de fora: levar o foco a ela rolaria a lista. */
+  private shownBetween(top: number, bottom: number, length: number): ShownRows | null {
+    if (bottom <= top || length === 0) {
+      return null;
+    }
+    let first = this.rowAt(top);
+    if (this.offsets[first] < top - 1) {
+      first++;
+    }
+    let last = Math.min(length - 1, this.rowAt(bottom));
+    if (this.offsets[last + 1] > bottom + 1) {
+      last--;
+    }
+    return first <= last ? { first, last } : null;
   }
 
   private rowAt(offset: number): number {

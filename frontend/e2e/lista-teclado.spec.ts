@@ -49,6 +49,48 @@ test.describe('Dado a lista pelo teclado', () => {
     expect(await foraDaLista(lista(page).locator('cdk-virtual-scroll-viewport'))).toBe(true);
   });
 
+  test('deve pousar numa linha à vista, sem a lista pular, Quando o Tab chega com a lista rolada para longe da parada', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.sendMany(tokenId, 45);
+    await page.goto(`/#/${tokenId}`);
+    await expect(page.getByRole('heading', { name: 'Requests (45)' })).toBeVisible();
+    const viewport = lista(page).locator('cdk-virtual-scroll-viewport');
+    await viewport.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+
+    await expect.poll(() => tabulaveis(page), 'a linha e a lixeira dela').toHaveLength(2);
+    const rolagem = await viewport.evaluate((element) => element.scrollTop);
+    expect(rolagem).toBeGreaterThan(400);
+
+    // O último tabulável antes da lista: o Tab dele entra nela.
+    await viewport.evaluate((element) => {
+      const antes = [
+        ...document.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex]'),
+      ].filter(
+        (each) =>
+          each.tabIndex >= 0 &&
+          each.getClientRects().length > 0 &&
+          !!(each.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+          !each.contains(element),
+      );
+      antes.at(-1)?.focus();
+    });
+    await page.keyboard.press('Tab');
+
+    const pouso = await viewport.evaluate((element) => {
+      const foco = document.activeElement as HTMLElement;
+      const [caixa, janela] = [foco.getBoundingClientRect(), element.getBoundingClientRect()];
+      return {
+        naLista: element.contains(foco) && foco.classList.contains('select'),
+        inteira: caixa.top >= janela.top - 1 && caixa.bottom <= janela.bottom + 1,
+        rolagem: element.scrollTop,
+      };
+    });
+    expect(pouso).toEqual({ naLista: true, inteira: true, rolagem });
+  });
+
   test('deve filtrar pelo status respondido no detalhe só com o teclado, com o selo fora do Tab (CA-12)', async ({
     page,
     tokens,

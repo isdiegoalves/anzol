@@ -24,6 +24,7 @@ import {
   bodySummary,
 } from './request-list';
 import { RequestStore } from './request-store';
+import { RowSizes } from './row-sizes';
 import { WebhookRequest } from './webhook-request';
 
 describe('Dado a lista lateral de mensagens', () => {
@@ -875,6 +876,26 @@ describe('Dado a lista lateral de mensagens', () => {
     );
     expect(store.requests().map((request) => request.token_id)).toEqual([outra]);
     http.expectNone({ method: 'DELETE' });
+  });
+
+  it('deve pôr a parada do Tab numa linha inteira à vista Quando a lista está rolada para longe da aberta', async () => {
+    await load(Array.from({ length: 30 }, (_, n) => webhookRequest(n + 1)));
+    store.select(webhookRequest(1).uuid);
+    await fixture.whenStable();
+    const stops = () =>
+      [...element().querySelectorAll<HTMLElement>('.select[tabindex="0"]')].map(
+        (button) => button.dataset['uuid'],
+      );
+    expect(stops()).toEqual([webhookRequest(1).uuid]);
+    const { strategy } = fixture.debugElement.query(By.directive(RowSizes)).injector.get(RowSizes);
+
+    strategy.shown.set({ first: 5, last: 9 });
+    await fixture.whenStable();
+    expect(stops()).toEqual([webhookRequest(6).uuid]);
+
+    strategy.shown.set({ first: 0, last: 4 });
+    await fixture.whenStable();
+    expect(stops()).toEqual([webhookRequest(1).uuid]);
   });
 
   it('deve dizer o método e a rota no nome da lixeira e passar no axe', async () => {

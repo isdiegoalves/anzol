@@ -158,6 +158,7 @@ export class RequestList {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly windowClass = inject(Viewport).windowClass;
   private readonly viewport = viewChild(CdkVirtualScrollViewport);
+  private readonly rowSizes = viewChild(RowSizes);
 
   readonly openRequest = output<WebhookRequest>();
   /** Aberta pelo teclado (Enter no item): o foco vai ao título do detalhe. */
@@ -180,18 +181,26 @@ export class RequestList {
   protected readonly landed = signal<string | null>(null);
   /**
    * A parada do Tab: a linha do cursor; sem ela na lista, a aberta (ou o evento recolhido dela); sem
-   * ela, a primeira.
+   * ela, a primeira. Com a lista rolada, vale só linha que aparece inteira na janela: a parada numa
+   * linha fora dela tiraria a lista do Tab, ou a faria pular ao receber o foco.
    */
   protected readonly stop = computed(() => {
-    const rows = this.rows().filter((row) => this.focusable(row));
-    const has = (id: string | null | undefined) => !!id && rows.some((row) => row.id === id);
+    const rows = this.rows();
+    const shown = this.rowSizes()?.strategy.shown() ?? null;
+    const usable = (index: number) =>
+      index >= 0 &&
+      this.focusable(rows[index]) &&
+      (shown === null || (index >= shown.first && index <= shown.last));
     const cursor = this.cursor();
     const selected = this.store.selected()?.uuid;
-    if (has(cursor)) {
-      return cursor;
-    }
-    const index = selected ? this.rowIndexOf(selected) : -1;
-    return index >= 0 ? this.rows()[index].id : rows[0]?.id;
+    const candidates = [
+      cursor ? rows.findIndex((row) => row.id === cursor) : -1,
+      selected ? this.rowIndexOf(selected) : -1,
+      rows.findIndex((_row, index) => usable(index)),
+      rows.findIndex((row) => this.focusable(row)),
+    ];
+    const index = candidates.find((each) => usable(each)) ?? candidates[3];
+    return rows[index]?.id;
   });
   /** A linha visível do celular (INBOX-34): "57 requests · newest first". */
   protected readonly orderLine = computed(() => {
