@@ -1,11 +1,11 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DestroyRef, Injectable, Injector, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { MatSnackBar, MatSnackBarRef, TextOnlySnackBar } from '@angular/material/snack-bar';
 import { routeOf } from '../pipeline/pipeline';
 import { KnownUrls } from '../token/known-urls';
-import { ANNOUNCEMENT_MS, afterShownEmpty } from '../ui/live-region';
+import { ANNOUNCEMENT_MS } from '../ui/live-region';
 import { NOTICE_MS, deleteFailedText } from '../ui/notice';
 import { RequestStore } from './request-store';
 import { WebhookRequest } from './webhook-request';
@@ -30,19 +30,17 @@ export class PendingDelete {
   private readonly snackBar = inject(MatSnackBar);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly urls = inject(KnownUrls);
-  private readonly injector = inject(Injector);
   private readonly window = inject(DOCUMENT).defaultView;
 
   readonly pending = signal<Deleting | null>(null);
   /**
-   * O apagar que o aviso diz. Entre um apagar e o seguinte o aviso passa vazio: a mesma frase duas
-   * vezes seguidas (o mesmo método e a mesma rota) não seria anunciada de novo.
+   * Vira a cada apagar: dois seguidos com o mesmo método e a mesma rota dão a mesma frase no aviso,
+   * e ele precisa dizê-la de novo.
    */
-  readonly said = signal<Deleting | null>(null);
+  readonly turn = signal(0);
   /** O aviso da requisição está na tela (a Entrada com o detalhe à vista). */
   readonly noticeShown = signal(false);
   private settle: ((undo: boolean) => void) | null = null;
-  private cancelSaying: (() => void) | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private snack: MatSnackBarRef<TextOnlySnackBar> | null = null;
 
@@ -51,23 +49,16 @@ export class PendingDelete {
     this.window?.addEventListener('pagehide', leave);
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.timer);
-      this.cancelSaying?.();
       this.window?.removeEventListener('pagehide', leave);
     });
   }
 
   delete(request: WebhookRequest): void {
-    const replaces = this.pending() !== null;
     this.finish(false);
-    const deleting = { request, route: routeOf(request.url) };
     const undo = new Promise<boolean>((resolve) => (this.settle = resolve));
     this.timer = setTimeout(() => this.finish(false), UNDO_MS);
-    this.pending.set(deleting);
-    if (replaces) {
-      this.cancelSaying = afterShownEmpty(() => this.said.set(deleting), this.injector);
-    } else {
-      this.said.set(deleting);
-    }
+    this.pending.set({ request, route: routeOf(request.url) });
+    this.turn.update((turn) => turn + 1);
     this.snack = this.snackBar.open($localize`Request deleted`, $localize`Undo`, {
       duration: UNDO_MS,
       politeness: this.noticeShown() ? 'off' : 'polite',
@@ -118,12 +109,9 @@ export class PendingDelete {
 
   private finish(undo: boolean): void {
     clearTimeout(this.timer);
-    this.cancelSaying?.();
-    this.cancelSaying = null;
     const settle = this.settle;
     this.settle = null;
     this.pending.set(null);
-    this.said.set(null);
     this.snack?.dismiss();
     this.snack = null;
     settle?.(undo);

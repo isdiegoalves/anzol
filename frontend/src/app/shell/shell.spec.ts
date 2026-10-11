@@ -642,11 +642,9 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     await user.click(within(language).getByRole('radio', { name: 'Português (Brasil)' }));
 
     expect(localStorage.getItem('language')).toBe('"pt-BR"');
-    await vi.waitFor(() =>
-      expect(
-        within(screen.getByRole('dialog', { name: 'Settings' })).getByRole('status').textContent,
-      ).toContain('The language changes when the page reloads.'),
-    );
+    expect(
+      within(screen.getByRole('dialog', { name: 'Settings' })).getByRole('status').textContent,
+    ).toContain('The language changes when the page reloads.');
     expect(screen.getByRole('button', { name: 'Reload now' })).toBeTruthy();
   });
 

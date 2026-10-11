@@ -82,28 +82,28 @@
     </div>
 
     @if (stale(); as stale) {
-      <div class="warning" role="status">
-        <ng-container *appLateContent>
-          <p i18n>
+      <div class="warning">
+        <p role="status">
+          <span appLateContent i18n>
             The {{ stale.provider }} signature in this request is older than the tolerance ({{
               stale.tolerance
             }}
             s): the receiver will likely reject the replay. It was signed {{ age(stale.age) }} ago
             ({{ stale.signed }}).
+          </span>
+        </p>
+        @if (signer(); as provider) {
+          <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>
+            Send as new with a fresh signature
+          </button>
+          <!-- prettier-ignore -->
+          <p i18n class="hint">Signs the same method, headers and body again as {{ provider }}.</p>
+        } @else {
+          <p class="hint" i18n>
+            To send it with a fresh signature, set up the signature in
+            <a mat-button [routerLink]="['/', token().uuid, 'checks']">Checks</a>.
           </p>
-          @if (signer(); as provider) {
-            <button mat-stroked-button type="button" (click)="current && resign.emit(current)" i18n>
-              Send as new with a fresh signature
-            </button>
-            <!-- prettier-ignore -->
-            <p i18n class="hint">Signs the same method, headers and body again as {{ provider }}.</p>
-          } @else {
-            <p class="hint" i18n>
-              To send it with a fresh signature, set up the signature in
-              <a mat-button [routerLink]="['/', token().uuid, 'checks']">Checks</a>.
-            </p>
-          }
-        </ng-container>
+        }
       </div>
     }
   </form>

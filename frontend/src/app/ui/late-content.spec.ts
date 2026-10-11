@@ -2,39 +2,49 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { render, screen } from '@testing-library/angular';
 import { LateContent } from './late-content';
+import { SPOKEN_AFTER_MS } from './live-region';
 
 describe('Dado a região viva que só existe enquanto tem o que dizer (appLateContent)', () => {
   const TEMPLATE = `
     @if (on) {
-      <p role="status"><ng-container *appLateContent>Saved {{ name }}.</ng-container></p>
+      <p role="status"><span appLateContent>Saved {{ name }}.</span></p>
     }
   `;
+  const show = async (on: boolean) =>
+    render(TEMPLATE, { imports: [LateContent], componentProperties: { on, name: 'Pix' } });
+  const phrase = () => screen.getByRole('status').firstElementChild as HTMLElement;
 
-  it('deve criar a região vazia e pôr o conteúdo numa tarefa depois', async () => {
-    const { rerender, fixture } = await render(TEMPLATE, {
-      imports: [LateContent],
-      componentProperties: { on: false, name: 'Pix' },
-    });
-    const seen: string[] = [];
-    new MutationObserver(() =>
-      seen.push(screen.queryByRole('status')?.textContent ?? 'sem região'),
-    ).observe(fixture.nativeElement, { subtree: true, childList: true, characterData: true });
+  afterEach(() => vi.useRealTimers());
 
-    await rerender({ componentProperties: { on: true, name: 'Pix' } });
-    expect(screen.getByRole('status').textContent).toBe('');
+  it('deve pôr a frase na tela na hora, escondida do leitor, e mostrá-la a ele depois do intervalo do anunciador do CDK', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { fixture } = await show(true);
+    const inserted: string[] = [];
+    new MutationObserver((records) =>
+      records.forEach((record) =>
+        record.addedNodes.forEach((node) => inserted.push(node.textContent ?? '')),
+      ),
+    ).observe(fixture.nativeElement, { subtree: true, childList: true });
 
-    await vi.waitFor(() => expect(screen.getByRole('status').textContent).toBe('Saved Pix.'));
-    expect(seen).toEqual(['', 'Saved Pix.']);
+    expect(phrase().textContent).toBe('Saved Pix.');
+    expect(phrase().getAttribute('aria-hidden')).toBe('true');
+
+    vi.advanceTimersByTime(SPOKEN_AFTER_MS - 1);
+    expect(phrase().getAttribute('aria-hidden')).toBe('true');
+
+    vi.advanceTimersByTime(1);
+    expect(phrase().hasAttribute('aria-hidden')).toBe(false);
+    expect(screen.getByRole('status').textContent).toBe('Saved Pix.');
+    await Promise.resolve();
+    expect(inserted).toEqual(['Saved Pix.']);
   });
 
-  it('não deve pôr o conteúdo Quando a região sai antes dele', async () => {
-    const { rerender, fixture } = await render(TEMPLATE, {
-      imports: [LateContent],
-      componentProperties: { on: true, name: 'Pix' },
-    });
+  it('não deve mexer na frase Quando a região sai antes do intervalo', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { rerender, fixture } = await show(true);
 
     await rerender({ componentProperties: { on: false, name: 'Pix' } });
-    await new Promise((done) => setTimeout(done, 20));
+    vi.advanceTimersByTime(SPOKEN_AFTER_MS);
 
     expect((fixture.nativeElement as HTMLElement).textContent?.trim()).toBe('');
   });
@@ -54,6 +64,8 @@ describe('Dado as regiões vivas escritas nos templates', () => {
     'ui/live-region.ts',
   ];
   const LIVE = /<[a-z][^<>]*?\s(?:role="status"|aria-live="(?:polite|assertive)")[^<>]*>/g;
+  /** Logo dentro da região, a frase num `span appLateContent` (um ícone pode vir antes dela). */
+  const FIRST_IS_LATE = /^\s*(?:<app-icon[^<>]*\/>\s*)?<span\s+appLateContent[\s>]/;
 
   function sources(folder: string): string[] {
     return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
@@ -73,10 +85,7 @@ describe('Dado as regiões vivas escritas nos templates', () => {
       }
       const text = readFileSync(path, 'utf8');
       return [...text.matchAll(LIVE)]
-        .filter(
-          (tag) =>
-            !/^\s*<ng-container \*appLateContent/.test(text.slice(tag.index + tag[0].length)),
-        )
+        .filter((tag) => !FIRST_IS_LATE.test(text.slice(tag.index + tag[0].length)))
         .map((tag) => `${file}: ${tag[0].replace(/\s+/g, ' ')}`);
     });
 

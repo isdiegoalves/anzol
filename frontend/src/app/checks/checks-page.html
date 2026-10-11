@@ -113,7 +113,7 @@
         </div>
       } @else {
         <p class="loading" role="status">
-          <ng-container *appLateContent i18n>Loading this URL…</ng-container>
+          <span appLateContent i18n>Loading this URL…</span>
         </p>
         @if (slow()) {
           <app-slow-notice (retry)="load(tokenId())" />

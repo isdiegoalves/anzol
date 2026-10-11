@@ -44,7 +44,6 @@ describe('Dado o apagar de uma requisição, com o Undo', () => {
 
     expect(store.requests()).toEqual([second]);
     expect(deleting.pending()).toEqual({ request: first, route: '/' });
-    expect(deleting.said()).toEqual({ request: first, route: '/' });
     vi.advanceTimersByTime(UNDO_MS - 1);
     http.expectNone(deleteOf(first.uuid));
 
@@ -69,17 +68,14 @@ describe('Dado o apagar de uma requisição, com o Undo', () => {
     http.expectNone(deleteOf(first.uuid));
   });
 
-  it('deve mandar a primeira ao servidor e deixar o aviso vazio até uma tarefa depois de ele aparecer assim Quando outra é apagada', async () => {
+  it('deve mandar a primeira ao servidor e pedir ao aviso que diga a frase de novo Quando outra é apagada', async () => {
     deleting.delete(first);
+    const turn = deleting.turn();
 
     deleting.delete(second);
 
     expect(deleting.pending()?.request).toEqual(second);
-    expect(deleting.said()).toBeNull();
-    TestBed.tick();
-    expect(deleting.said()).toBeNull();
-    vi.advanceTimersByTime(0);
-    expect(deleting.said()?.request).toEqual(second);
+    expect(deleting.turn()).toBe(turn + 1);
     await vi.waitFor(() => http.expectOne(deleteOf(first.uuid)).flush({}));
     http.expectNone(deleteOf(second.uuid));
     deleting.undo();

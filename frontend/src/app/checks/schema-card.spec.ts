@@ -123,7 +123,7 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
         required: ['id', 'tags'],
       }),
     );
-    expect(await screen.findByText(/^Inferred from request 00000000\./)).toBeTruthy();
+    expect(screen.getByText(/^Inferred from request 00000000\./)).toBeTruthy();
     expect(screen.getByText('Unsaved')).toBeTruthy();
     http.expectNone((sent) => sent.method === 'PUT');
   });

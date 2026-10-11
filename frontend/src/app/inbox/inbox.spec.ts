@@ -844,9 +844,7 @@ describe('Dado a tela principal', () => {
 
     compareWith()?.click();
     await harness.fixture.whenStable();
-    await vi.waitFor(() =>
-      expect(text()).toContain(`Choose a request to compare with #${R1.uuid.substring(0, 5)}`),
-    );
+    expect(text()).toContain(`Choose a request to compare with #${R1.uuid.substring(0, 5)}`);
     expect(text()).toContain(
       `Pick a request in the list to compare with #${R1.uuid.substring(0, 5)}.`,
     );

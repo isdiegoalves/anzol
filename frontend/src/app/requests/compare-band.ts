@@ -17,18 +17,18 @@ import { ANNOUNCEMENT_MS } from '../ui/live-region';
     @if (compare.picking(); as base) {
       <div class="band">
         <span role="status">
-          <ng-container *appLateContent i18n
-            >Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</ng-container
+          <span appLateContent i18n
+            >Choose a request to compare with #{{ base.uuid.substring(0, 5) }}</span
           >
         </span>
         <button i18n mat-button type="button" (click)="cancel(base.uuid)">Cancel</button>
       </div>
     } @else if (compare.pair()) {
       <p class="band mode" role="status">
-        <ng-container *appLateContent i18n>
+        <span appLateContent i18n>
           <strong>Compare mode.</strong> Click a request to make it <strong>B</strong>. Press
           <kbd>Esc</kbd> to leave.
-        </ng-container>
+        </span>
       </p>
     }
   `,

@@ -29,7 +29,7 @@
 
   @if (inferred(); as note) {
     <p class="banner" [class.info]="!note.error" role="status">
-      <ng-container *appLateContent>{{ note.text }}</ng-container>
+      <span appLateContent>{{ note.text }}</span>
     </p>
   }
 

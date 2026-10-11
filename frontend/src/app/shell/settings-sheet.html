@@ -53,11 +53,11 @@
       </label>
     }
     @if (settings.language() !== startLanguage) {
-      <p class="note" role="status">
-        <ng-container *appLateContent>
-          <ng-container i18n>The language changes when the page reloads.</ng-container>
-          <button i18n type="button" class="link" (click)="reload()">Reload now</button>
-        </ng-container>
+      <p class="note">
+        <span role="status"
+          ><span appLateContent i18n>The language changes when the page reloads.</span></span
+        >
+        <button i18n type="button" class="link" (click)="reload()">Reload now</button>
       </p>
     }
   </div>

@@ -105,27 +105,25 @@
   @if (savedConfig && chosen !== savedConfig.provider) {
     @if (chosen === 'none') {
       <p class="banner" role="status">
-        <ng-container *appLateContent i18n>
+        <span appLateContent i18n>
           Saving turns signature verification off. Requests already received keep the result they
           got on arrival.
-        </ng-container>
+        </span>
       </p>
     } @else {
       <p class="banner" role="status">
-        <ng-container *appLateContent>
-          <app-icon name="info" [size]="18" />
-          <span>
-            <span i18n
-              >Unsaved: switching from {{ providerLabel(savedConfig.provider) }} (saved) to
-              {{ providerLabel(chosen) }}. Requests already received keep the result they got on
-              arrival.</span
-            >
-            <span i18n
-              >The saved {{ providerLabel(savedConfig.provider) }} secret is not reused for
-              {{ providerLabel(chosen) }}: paste the {{ providerLabel(chosen) }} secret.</span
-            >
-          </span>
-        </ng-container>
+        <app-icon name="info" [size]="18" />
+        <span appLateContent>
+          <span i18n
+            >Unsaved: switching from {{ providerLabel(savedConfig.provider) }} (saved) to
+            {{ providerLabel(chosen) }}. Requests already received keep the result they got on
+            arrival.</span
+          >
+          <span i18n
+            >The saved {{ providerLabel(savedConfig.provider) }} secret is not reused for
+            {{ providerLabel(chosen) }}: paste the {{ providerLabel(chosen) }} secret.</span
+          >
+        </span>
       </p>
     }
   }

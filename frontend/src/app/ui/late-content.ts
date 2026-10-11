@@ -1,28 +1,15 @@
-import {
-  DestroyRef,
-  Directive,
-  Injector,
-  TemplateRef,
-  ViewContainerRef,
-  inject,
-} from '@angular/core';
-import { afterShownEmpty } from './live-region';
+import { DestroyRef, Directive, ElementRef, Injector, inject } from '@angular/core';
+import { speakLater } from './live-region';
 
 /**
- * O conteúdo de uma região viva que só existe enquanto tem o que dizer (dentro de um `@if`): entra
- * uma tarefa depois de a região aparecer vazia, porque região criada já com texto não é anunciada.
- * Vai num `ng-container` logo dentro do elemento com `role="status"` ou `aria-live`.
+ * A frase de uma região viva que só existe enquanto tem o que dizer (dentro de um `@if`): região
+ * criada já com texto não é anunciada. Vai num `span` logo dentro do elemento com `role="status"` ou
+ * `aria-live`, só com a frase: botão e link ficam fora da região.
  */
 @Directive({ selector: '[appLateContent]' })
 export class LateContent {
   constructor() {
-    const template = inject<TemplateRef<unknown>>(TemplateRef);
-    const container = inject(ViewContainerRef);
-    inject(DestroyRef).onDestroy(
-      afterShownEmpty(
-        () => container.createEmbeddedView(template).detectChanges(),
-        inject(Injector),
-      ),
-    );
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    inject(DestroyRef).onDestroy(speakLater(host, inject(Injector)));
   }
 }

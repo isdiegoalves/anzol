@@ -3,9 +3,9 @@
   @switch (current.kind) {
     @case ('loaded') {
       <p class="banner" role="status">
-        <ng-container *appLateContent i18n>
+        <span appLateContent i18n>
           Shared read-only link · expires {{ expires(current.request) }}
-        </ng-container>
+        </span>
       </p>
       <app-request-view [request]="current.request" [readonly]="true" />
     }

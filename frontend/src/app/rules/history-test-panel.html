@@ -2,13 +2,13 @@
 <div class="history" aria-label="History test" i18n-aria-label role="group">
   @if (current.tested === 0) {
     <p class="summary" role="status">
-      <ng-container *appLateContent i18n>No recorded requests to test against.</ng-container>
+      <span appLateContent i18n>No recorded requests to test against.</span>
     </p>
   } @else {
     <div class="band">
       <div>
         <!-- prettier-ignore -->
-        <p class="summary" role="status"><ng-container *appLateContent i18n><strong>{{ current.matched }}</strong> of the {{ current.tested }} most recent requests would match</ng-container></p>
+        <p class="summary" role="status"><span appLateContent i18n><strong>{{ current.matched }}</strong> of the {{ current.tested }} most recent requests would match</span></p>
         <p class="note" i18n>Unsaved rule as in the editor · scenario state not considered</p>
         @if (current.windowFull) {
           <p i18n class="window">Only the {{ window }} most recent requests were tested.</p>

@@ -4,7 +4,7 @@
   <h2 class="title" tabindex="-1" i18n>Result</h2>
   <!-- Só esta linha é a região viva: o status, o tempo e de onde veio. Os espaços são para a fala. -->
   <span class="result" role="status">
-    <ng-container *appLateContent>
+    <span appLateContent class="said">
       <span [class]="'big-status ' + family()">{{
         current.status ?? failure?.title ?? noAnswer()
       }}</span
@@ -23,7 +23,7 @@
           · {{ date() }}
         </span>
       </span>
-    </ng-container>
+    </span>
   </span>
   <span class="spacer"></span>
   @if (repeatable()) {

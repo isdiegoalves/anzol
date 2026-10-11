@@ -2,7 +2,7 @@
   <h1 i18n>This URL is protected</h1>
   @if (notice(); as saved) {
     <p class="note" role="status">
-      <ng-container *appLateContent>{{ saved }}</ng-container>
+      <span appLateContent>{{ saved }}</span>
     </p>
   }
   <p i18n>

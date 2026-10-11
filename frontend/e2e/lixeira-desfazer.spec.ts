@@ -193,20 +193,17 @@ test.describe('Dado dois apagares seguidos, com o "Undo" do primeiro ainda abert
     await expect(itens(page)).toHaveCount(4);
     await limparAnuncios(page);
 
+    const ditas = async () =>
+      (await anunciados(page))
+        .filter((anuncio) => anuncio.texto.startsWith('You deleted POST /igual.'))
+        .map((anuncio) => anuncio.nasceuComTexto);
+
     await apagarPeloTeclado(page, iguais[1]);
-    await expect(avisoDaRequisicao(page)).toHaveText(
-      'You deleted POST /igual. Undo is in the request notice.',
-    );
+    await expect.poll(ditas, 'o primeiro apagar é dito').toEqual([false]);
     await lixeira(page, iguais[2]).click();
     await expect(itens(page)).toHaveCount(2);
 
-    await expect
-      .poll(async () =>
-        (await anunciados(page))
-          .filter((anuncio) => anuncio.texto.startsWith('You deleted POST /igual.'))
-          .map((anuncio) => anuncio.nasceuComTexto),
-      )
-      .toEqual([false, false]);
+    await expect.poll(ditas, 'o segundo, com a mesma frase, também').toEqual([false, false]);
   });
 
   test('deve mudar o aviso uma vez só Quando o segundo é o da requisição aberta', async ({
@@ -278,6 +275,7 @@ test.describe('Dado o "Undo" que vence com a cópia da apagada na tela', () => {
     await expect(itens(page)).toHaveCount(3);
     await apagarPeloTeclado(page, segunda);
     await expect(avisoDaRequisicao(page)).toContainText('Undo is in the request notice.');
+    await expect(avisoDaRequisicao(page).locator('[aria-hidden]')).toHaveCount(0);
     // O que muda na região viva: texto regravado faz o leitor repetir a frase; nó que só sai, não.
     await avisoDaRequisicao(page).evaluate((regiao) => {
       const mudancas: string[] = [];

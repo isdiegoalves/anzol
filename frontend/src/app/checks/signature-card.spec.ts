@@ -225,7 +225,7 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Turn off' }));
 
       expect(provider('None').getAttribute('aria-checked')).toBe('true');
-      expect(await screen.findByText(/^Saving turns signature verification off/)).toBeTruthy();
+      expect(screen.getByText(/^Saving turns signature verification off/)).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Turn off' })).toBeNull();
     });
 
@@ -330,7 +330,6 @@ describe('Dado o cartão "Signature verification" de Checks', () => {
       await userEvent.click(provider('Shopify'));
 
       const banner = document.querySelector('.banner[role="status"]');
-      await vi.waitFor(() => expect(banner?.querySelector('app-icon')).toBeTruthy());
       const parts = [...(banner?.querySelectorAll('span > span') ?? [])].map((part) =>
         part.textContent?.replace(/\s+/g, ' ').trim(),
       );

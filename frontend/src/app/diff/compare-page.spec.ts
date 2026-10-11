@@ -203,13 +203,9 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
       expect(page().querySelector('app-request-compare')).not.toBeNull();
     });
 
-    const band = await vi.waitFor(() => {
-      const status = [...page().querySelectorAll('[role="status"]')].find((each) =>
-        each.textContent?.includes('Compare mode.'),
-      );
-      expect(status).toBeDefined();
-      return status;
-    });
+    const band = [...page().querySelectorAll('[role="status"]')].find((status) =>
+      status.textContent?.includes('Compare mode.'),
+    );
     expect(band?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       'Compare mode. Click a request to make it B. Press Esc to leave.',
     );

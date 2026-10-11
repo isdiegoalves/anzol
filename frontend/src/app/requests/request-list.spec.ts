@@ -1161,10 +1161,8 @@ describe('Dado a lista lateral de mensagens', () => {
 
     compare.start(webhookRequest(1));
     await fixture.whenStable();
-    await vi.waitFor(() =>
-      expect(element().querySelector('app-compare-band .band')?.textContent).toContain(
-        'Choose a request to compare with #00000',
-      ),
+    expect(element().querySelector('app-compare-band .band')?.textContent).toContain(
+      'Choose a request to compare with #00000',
     );
     expect(items()[0].classList.contains('base')).toBe(true);
     items()[1].querySelector<HTMLButtonElement>('.select')?.click();

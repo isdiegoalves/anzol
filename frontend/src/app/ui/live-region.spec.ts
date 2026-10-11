@@ -2,7 +2,7 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { TestBed } from '@angular/core/testing';
 import { render, screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { ANNOUNCEMENT_MS, LiveRegion } from './live-region';
+import { ANNOUNCEMENT_MS, LiveRegion, SPOKEN_AFTER_MS } from './live-region';
 
 describe('Dado a região viva com nome (o nome fica no grupo em volta)', () => {
   it('deve pôr o nome num group e deixar o status de dentro sem nome', async () => {
@@ -63,6 +63,24 @@ describe('Dado a região viva persistente (app-live-region)', () => {
 
     expect(region.textContent).toBe('You deleted this request.');
     expect(changes).toEqual(['childList']);
+  });
+
+  it('deve esconder a frase do leitor e mostrá-la de novo depois do intervalo Quando ela se repete igual', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const { rerender } = await render('<app-live-region [text]="text" [again]="turn" />', {
+      imports: [LiveRegion],
+      componentProperties: { text: 'You deleted POST /x.', turn: 1 },
+    });
+    const said = () => screen.getByRole('status').querySelector('span span') as HTMLElement;
+    expect(said().hasAttribute('aria-hidden')).toBe(false);
+
+    await rerender({ componentProperties: { text: 'You deleted POST /x.', turn: 2 } });
+    expect(said().getAttribute('aria-hidden')).toBe('true');
+    expect(said().textContent).toBe('You deleted POST /x.');
+
+    vi.advanceTimersByTime(SPOKEN_AFTER_MS);
+    expect(said().hasAttribute('aria-hidden')).toBe(false);
+    vi.useRealTimers();
   });
 
   it('deve virar alert só quando pedido (erro que impede a ação)', async () => {
