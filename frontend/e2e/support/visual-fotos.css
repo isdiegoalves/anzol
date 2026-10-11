@@ -32,3 +32,13 @@ app-url-switcher .name {
     min-width: 170px;
   }
 }
+
+/*
+ * A contagem da próxima tentativa ("Trying again in 5 s") muda a cada segundo: fica sob máscara, com largura fixa
+ * para a máscara não mudar de tamanho com o número.
+ */
+app-connection-band .countdown,
+app-list-error .countdown {
+  display: inline-block !important;
+  width: 140px !important;
+}

@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import path from 'node:path';
-import { Locator, Page } from '@playwright/test';
-import { abrirMensagem, detalhes, verificacoes } from './support/inbox';
+import { BrowserContext, Locator, Page } from '@playwright/test';
+import { abrirMensagem, campoDeBusca, detalhes, verificacoes } from './support/inbox';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
@@ -12,6 +12,9 @@ import { seedStorage } from './support/storage';
 // O que muda de uma execução para outra fica congelado ou mascarado: o relógio do navegador é fixo, as animações
 // ficam desligadas (padrão do `toHaveScreenshot`), e UUIDs, datas, hora e host (a porta do stack muda entre o CI e a
 // máquina de quem roda) ficam sob máscara.
+// As cenas de falha e de fora do caminho feliz (assinatura e schema inválidos, uma delas em pt-BR, filtro sem
+// resultado, lista em erro, sem conexão) não usam a máscara por texto: os mesmos valores são trocados na página por
+// valores fixos, e a comparação delas conta pixels (`fixarVolateis`, `fotografar`).
 
 const SECRET = 'segredo-visual';
 /**
@@ -69,17 +72,63 @@ function mascarasDaLista(page: Page): Locator[] {
 /** CSS só das fotos (a altura fixa dos metadados no compacto); ver o arquivo. */
 const ESTILO_DAS_FOTOS = path.join(__dirname, 'support', 'visual-fotos.css');
 
+/**
+ * A folga de 0,2% da tela cobre a máscara que muda de tamanho com o texto embaixo dela, e deixa passar a cor de um
+ * título (a 1400 × 900 são 2.520 pixels). A cena `exata`, com os valores fixos, não tem o que varie: a folga dela é
+ * de pixels contados.
+ */
 async function fotografar(
   page: Page,
   nome: string,
-  mascaras: Locator[] = [],
-  alvo?: Locator,
+  mascaras: Locator[],
+  alvo: Locator | undefined,
+  exata: boolean,
 ): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
   await expect(alvo ?? page).toHaveScreenshot(`${nome}.png`, {
-    mask: [...mascarasComuns(page), ...mascaras],
-    maxDiffPixelRatio: 0.002,
+    mask: mascaras,
+    ...(exata ? { maxDiffPixels: 30 } : { maxDiffPixelRatio: 0.002 }),
     stylePath: ESTILO_DAS_FOTOS,
+  });
+}
+
+/**
+ * Troca na página cada id, data, hora, IP, seq e host por um valor fixo do mesmo formato. A máscara por texto cobre o
+ * elemento inteiro em volta (a frase da faixa, a linha da data); assim só o que muda sai de cena, e o resto do
+ * texto fica na foto.
+ */
+async function fixarVolateis(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const trocas: [RegExp, (...partes: string[]) => string][] = [
+      [
+        /[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}/g,
+        () => '00000000-0000-4000-8000-000000000000',
+      ],
+      [/#[0-9a-f]{5}\b/g, () => '#00000'],
+      [/\bURL [0-9a-f]{5}\b/g, () => 'URL 00000'],
+      [/\b[A-Z][a-z]{2} \d{1,2}, \d{4}\b/g, () => 'Sep 26, 2026'],
+      [/\b\d{1,2} de [a-zç]{3,4}\.? de \d{4}\b/g, () => '26 de set. de 2026'],
+      [
+        /\b\d{1,2}:\d{2}(:\d{2})?( [AP]M)?/g,
+        (_hora, segundos, periodo) =>
+          `${periodo ? '9:41' : '21:41'}${segundos ? ':00' : ''}${periodo ? ' PM' : ''}`,
+      ],
+      [/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, () => '203.0.113.7'],
+      [/\bseq \d+\b/g, () => 'seq 1000000000000000'],
+      [/host\.docker\.internal(?::\d+)?|localhost:\d+/g, () => 'anzol.test'],
+    ];
+    const fixo = (texto: string) =>
+      trocas.reduce((atual, [padrao, valor]) => atual.replace(padrao, valor), texto);
+    const textos = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let no = textos.nextNode(); no; no = textos.nextNode()) {
+      const trocado = fixo(no.nodeValue ?? '');
+      if (trocado !== no.nodeValue) {
+        no.nodeValue = trocado;
+      }
+    }
+    for (const campo of document.querySelectorAll('input')) {
+      campo.value = fixo(campo.value);
+    }
   });
 }
 
@@ -87,7 +136,11 @@ interface Tela {
   nome: string;
   /** Só nestas classes (padrão: todas). */
   classes?: readonly (typeof CLASSES)[number]['nome'][];
-  abrir(page: Page, tokens: TokenTracker): Promise<Locator[]>;
+  /** Só nestes temas (padrão: os dois). */
+  temas?: readonly (typeof TEMAS)[number][];
+  /** Os ids, datas e horas trocados por valores fixos (`fixarVolateis`), sem a máscara por texto. */
+  semMascaraDeTexto?: boolean;
+  abrir(page: Page, tokens: TokenTracker, context: BrowserContext): Promise<Locator[]>;
   /** Só este elemento, inteiro, em vez da tela à vista. */
   alvo?(page: Page): Locator;
 }
@@ -145,6 +198,45 @@ async function abrirDecifra(page: Page, tokens: TokenTracker, ligada: boolean): 
   }
   await cartao.evaluate((el) => el.scrollIntoView({ block: 'start' }));
   return [];
+}
+
+/**
+ * A busca espera a pessoa parar de digitar, e conta essa espera pela hora do navegador, que aqui está parada: o
+ * relógio anda de novo depois do texto.
+ */
+async function buscar(page: Page, texto: string): Promise<void> {
+  await campoDeBusca(page).fill(texto);
+  await page.clock.setFixedTime(relogio());
+}
+
+/**
+ * URL que confere assinatura e schema, com uma entrega que passa e três que falham de jeitos diferentes: sem
+ * assinatura e sem JSON, respondida com 503 por uma regra, e com a assinatura e o schema inválidos (a devolvida).
+ */
+async function comFalhas(page: Page, tokens: TokenTracker): Promise<[string, string]> {
+  const tokenId = await tokens.create({
+    signature: { provider: 'github', secret: SECRET },
+    schema: { type: 'object', required: ['id'], properties: { valor: { type: 'integer' } } },
+  });
+  const regras = await page.request.put(`/token/${tokenId}/rules`, {
+    data: [
+      {
+        name: 'Fora do ar',
+        priority: 1,
+        match: { path: { equals: '/falha' } },
+        response: { status: 503 },
+      },
+    ],
+  });
+  expect(regras.status()).toBe(200);
+  await tokens.send(tokenId, { path: '/pedidos', ...github(SECRET, '{"id":42,"valor":10}') });
+  await tokens.send(tokenId, { method: 'GET', path: '/status' });
+  await tokens.send(tokenId, { path: '/falha', ...github(SECRET, '{"id":43,"valor":10}') });
+  const invalida = await tokens.send(tokenId, {
+    path: '/pedidos',
+    ...github('outro-segredo', '{"valor":"10","itens":[{"sku":"A1","qtd":2}]}'),
+  });
+  return [tokenId, invalida];
 }
 
 const TELAS: Tela[] = [
@@ -358,6 +450,97 @@ const TELAS: Tela[] = [
       return [faixa, detalhes(page)];
     },
   },
+  {
+    // O detalhe de uma entrega com a assinatura e o schema inválidos: os cartões e as marcas no corpo na cor de
+    // erro e, ao lado (fora do compacto), a lista com os selos de falha.
+    nome: 'falha-detalhe',
+    temas: ['dark'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const [tokenId, invalida] = await comFalhas(page, tokens);
+      await seedStorage(page, { hideTutorial: 'true' });
+      await abrirMensagem(page, tokenId, invalida);
+      await expect(verificacoes(page)).toContainText('Signature invalid');
+      await expect(verificacoes(page)).toContainText('Schema invalid');
+      return [];
+    },
+  },
+  {
+    nome: 'falha-detalhe-pt-BR',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const [tokenId, invalida] = await comFalhas(page, tokens);
+      await seedStorage(page, { hideTutorial: 'true', language: '"pt-BR"' });
+      await page.goto(`/#/${tokenId}/${invalida}/1`);
+      const cartoes = page.getByRole('group', { name: 'Verificações desta requisição' });
+      await expect(cartoes).toContainText('Assinatura inválida');
+      await expect(cartoes).toContainText('Schema inválido');
+      return [];
+    },
+  },
+  {
+    nome: 'falha-lista',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const [tokenId] = await comFalhas(page, tokens);
+      await seedStorage(page, { hideTutorial: 'true' });
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requests (4)' })).toBeVisible();
+      await expect(page.getByRole('listitem').filter({ hasText: '503' })).toBeVisible();
+      return [];
+    },
+  },
+  {
+    nome: 'filtro-sem-resultado',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create();
+      await tokens.send(tokenId, { path: '/pedidos', data: '{"id":42}' });
+      await seedStorage(page, { hideTutorial: 'true' });
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
+      await buscar(page, 'nada-casa');
+      await expect(page.getByText('No requests match these filters')).toBeVisible();
+      return [];
+    },
+  },
+  {
+    nome: 'lista-com-erro',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create();
+      await tokens.send(tokenId, { path: '/pedidos', data: '{"id":42}' });
+      await seedStorage(page, { hideTutorial: 'true' });
+      await page.route(/\/token\/[^/]+\/requests\?/, (rota) => rota.fulfill({ status: 503 }));
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.locator('app-list-error')).toContainText('Could not load the list (503).');
+      return [page.locator('app-list-error .countdown')];
+    },
+  },
+  {
+    nome: 'sem-conexao',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens, context) {
+      const tokenId = await tokens.create();
+      await tokens.send(tokenId, { path: '/pedidos', data: '{"id":42}' });
+      await seedStorage(page, { hideTutorial: 'true' });
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
+      await expect(page.locator('app-live-status')).toContainText('Live');
+      await context.setOffline(true);
+      await buscar(page, 'pedidos');
+      await expect(page.getByRole('button', { name: 'Try again now' })).toBeVisible();
+      await expect(page.getByRole('group', { name: 'Connection' })).toContainText(
+        'What you typed is kept.',
+      );
+      return [page.locator('app-connection-band .countdown')];
+    },
+  },
 ];
 
 test.use({ axeNoFim: false });
@@ -367,15 +550,24 @@ for (const colorScheme of TEMAS) {
     test.describe(`Dado o tema ${colorScheme} na classe ${classe.nome}`, () => {
       test.use({ colorScheme, viewport: classe.viewport });
 
-      for (const tela of TELAS.filter((t) => !t.classes || t.classes.includes(classe.nome))) {
-        test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens }) => {
+      const telas = TELAS.filter(
+        (tela) =>
+          (!tela.classes || tela.classes.includes(classe.nome)) &&
+          (!tela.temas || tela.temas.includes(colorScheme)),
+      );
+      for (const tela of telas) {
+        test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens, context }) => {
           await page.clock.setFixedTime(relogio());
-          const mascaras = await tela.abrir(page, tokens);
+          const mascaras = await tela.abrir(page, tokens, context);
+          if (tela.semMascaraDeTexto) {
+            await fixarVolateis(page);
+          }
           await fotografar(
             page,
             `${tela.nome}-${colorScheme}-${classe.nome}`,
-            mascaras,
+            tela.semMascaraDeTexto ? mascaras : [...mascarasComuns(page), ...mascaras],
             tela.alvo?.(page),
+            tela.semMascaraDeTexto === true,
           );
         });
       }
