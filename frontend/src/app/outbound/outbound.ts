@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { validationPhrase } from '../pipeline/server-phrases';
 import { WebhookRequest } from '../requests/webhook-request';
 import { signatureProviderLabel, SignatureConfig, Token } from '../token/token';
 import { reasonPhrase } from '../ui/status-code';
@@ -212,7 +213,9 @@ export function requestErrorText(error: unknown, now: number = Date.now()): stri
     return $localize`Too many sends from this URL (30 per minute). ${retryText(error.headers.get('Retry-After'), now)}`;
   }
   if (error.status === 422) {
-    const messages = validationMessages(error.error);
+    const messages = validationMessages(error.error).map(
+      (message) => validationPhrase(message).text,
+    );
     return messages.length > 0
       ? $localize`Invalid request: ${messages.join(' ')}`
       : $localize`Invalid request (422).`;

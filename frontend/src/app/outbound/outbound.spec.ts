@@ -1,4 +1,6 @@
 import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { clearTranslations, loadTranslations } from '@angular/localize';
+import { translations } from '../../locale/pt-BR';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import {
   ChaosResult,
@@ -82,6 +84,23 @@ describe('Dado um erro da API ao disparar', () => {
 
   it('deve mostrar o status Quando é outro erro', () => {
     expect(requestErrorText(httpError(500))).toBe('Could not send the request (500).');
+  });
+
+  describe('Com a tela em pt-BR', () => {
+    beforeEach(() => loadTranslations(translations));
+    afterEach(() => clearTranslations());
+
+    it('deve dizer na língua da tela as mensagens do 422 que ela conhece e deixar a desconhecida como veio', () => {
+      const error = httpError(422, {
+        method: ['The selected method is invalid.'],
+        'headers.x y': ['The header name is invalid.'],
+        'chaos.abort_mid_body': ['The abort mid body field requires a request body.'],
+      });
+
+      expect(requestErrorText(error)).toBe(
+        'Requisição inválida: O method escolhido é inválido. O nome do cabeçalho é inválido. The abort mid body field requires a request body.',
+      );
+    });
   });
 });
 
