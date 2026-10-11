@@ -82,6 +82,12 @@
   background: none;
   color: inherit;
   cursor: pointer;
+
+  // Com toque, 44 px de alvo; a margem negativa deixa a linha do tamanho que tinha.
+  @media (pointer: coarse) {
+    margin: -2px;
+    padding: 14px;
+  }
 }
 
 a {
@@ -117,6 +123,10 @@ a {
 
 button.check {
   cursor: pointer;
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 
   &:hover {
     background: var(--mat-sys-surface-container-high);

@@ -629,6 +629,35 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   });
 
+  test('deve dar 44 px de toque ao cartão de verificação, ao "Copy request ID" e à lixeira da lista', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, { path: '/pedidos' });
+    await seedStorage(page, {});
+    await abrirMensagem(page, tokenId, requestId);
+    test.skip(
+      !(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)),
+      'o alvo de toque só cresce com ponteiro grosso',
+    );
+    const medida = async (alvo: Locator) => {
+      const caixa = await alvo.boundingBox();
+      return Math.min(caixa?.width ?? 0, caixa?.height ?? 0);
+    };
+
+    const cartao = verificacoes(page).getByRole('button', { name: /^Signature not checked/ });
+    const copiar = page.getByRole('button', { name: 'Copy request ID' });
+    await expect(cartao).toBeVisible();
+    expect.soft(await medida(cartao), 'cartão de verificação').toBeGreaterThanOrEqual(44);
+    expect.soft(await medida(copiar), 'Copy request ID').toBeGreaterThanOrEqual(44);
+
+    await mostrarLista(page);
+    const lixeira = page.getByRole('button', { name: /^Delete this request/ }).first();
+    await expect(lixeira).toBeVisible();
+    expect.soft(await medida(lixeira), 'lixeira').toBeGreaterThanOrEqual(44);
+  });
+
   test('deve dizer que a regra mais perto veio das regras de agora Quando uma pega-tudo respondeu', async ({
     page,
     tokens,
