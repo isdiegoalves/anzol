@@ -50,7 +50,7 @@ function bodyFields(content: string | null): BodyField[] {
 }
 
 /**
- * "Filter by a field…": com o corpo acima de 100 KB, o clique por linha sai; os campos do corpo
+ * "Filter by a field…": com o corpo acima de 100 KiB, o clique por linha sai; os campos do corpo
  * ficam numa lista com busca, e o escolhido vira o filtro `body {caminho} = {valor}`.
  */
 @Component({

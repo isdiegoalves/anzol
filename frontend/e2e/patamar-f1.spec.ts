@@ -283,7 +283,7 @@ test.describe('Dado um valor da requisição aberta', () => {
     await expect(page.getByRole('menuitem', { name: 'Filter by this value' })).toHaveCount(0);
   });
 
-  test('deve oferecer "Filter by a field…" no lugar do clique por linha Quando o corpo passa de 100 KB', async ({
+  test('deve oferecer "Filter by a field…" no lugar do clique por linha Quando o corpo passa de 100 KiB', async ({
     page,
     tokens,
   }) => {
