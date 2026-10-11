@@ -233,15 +233,14 @@ export class RequestStore {
     this.activeFilter.set(filter);
     try {
       // A fronteira é lida antes da página: o que chegar entre as duas fica depois dela, e a volta da conexão o
-      // traz. Aberta já filtrada (link com a busca), o total da URL vem da listagem sem filtro.
-      const unfiltered = this.filtering() ? await this.fetchList(tokenId, 1) : null;
-      const top = this.newestFirst() && (unfiltered !== null || page === 1);
-      const newest = top ? null : await this.fetchNewestSeq(tokenId);
+      // traz. Aberta já filtrada (link com a busca), a mesma leitura de um item traz o total da URL.
+      const top = this.newestFirst() && page === 1 && !this.filtering();
+      const newest = top ? null : await this.fetchNewest(tokenId);
       const result = await this.fetchPage(tokenId, page);
       if (generation !== this.generation) {
         return;
       }
-      this.newestSeq = newest ?? Math.max(0, ...(unfiltered ?? result).data.map(seqOf));
+      this.newestSeq = newest?.seq ?? Math.max(0, ...result.data.map(seqOf));
       this.listedSeq = this.newestSeq;
       this.tokenId.set(tokenId);
       this.opening.set(null);
@@ -251,8 +250,8 @@ export class RequestStore {
       this.pages.set([{ page: result.current_page, data: result.data }]);
       this.lastPageReached.set(result.is_last_page);
       this.countPage(result);
-      if (unfiltered) {
-        this.total.set(unfiltered.total);
+      if (newest && this.filtering()) {
+        this.total.set(newest.total);
       }
       this.failure.set(null);
     } catch (error) {
@@ -916,13 +915,14 @@ export class RequestStore {
     );
   }
 
-  private async fetchNewestSeq(tokenId: string): Promise<number> {
+  /** O `seq` da mais nova da URL e quantas ela guarda, numa listagem de um item. */
+  private async fetchNewest(tokenId: string): Promise<{ seq: number; total: number }> {
     const newest = await firstValueFrom(
       this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
         params: { per_page: 1, sorting: 'newest' },
       }),
     );
-    return Math.max(0, ...newest.data.map(seqOf));
+    return { seq: Math.max(0, ...newest.data.map(seqOf)), total: newest.total };
   }
 }
 

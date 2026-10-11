@@ -854,6 +854,60 @@ describe('Dado o filtro pelo status respondido', () => {
   });
 });
 
+describe('Dado a URL aberta já com o filtro do endereço', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const newestUrl = `${listUrl}?per_page=1&sorting=newest`;
+  const newest = requestPage([webhookRequest(9, { seq: 9 })], {
+    total: 812,
+    per_page: 1,
+    is_last_page: false,
+  });
+  const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve ler o total e a mais nova da URL numa listagem de um item, sem a página inteira', async () => {
+    const loaded = store.load(TOKEN_ID, 1, { ...NO_FILTER, methods: ['POST'] });
+    http.expectOne(newestUrl).flush(newest);
+    (await search()).flush(requestPage([webhookRequest(4, { seq: 4 })], { total: 3 }));
+    await loaded;
+
+    expect(store.total()).toBe(812);
+    expect(store.matched()).toBe(3);
+    expect(store.requests()).toEqual([webhookRequest(4, { seq: 4 })]);
+
+    const arrived = store.arrivedSinceNewest();
+    http.expectOne(`${listUrl}?after=9`).flush(requestPage([], { total: 812 }));
+    await arrived;
+  });
+
+  it('deve fazer a mesma leitura de um item na ordem da mais antiga primeiro', async () => {
+    store.sorting.set('oldest');
+
+    const loaded = store.load(TOKEN_ID, 1, { ...NO_FILTER, text: 'pix' });
+    http.expectOne(newestUrl).flush(newest);
+    const call = await search();
+    expect(call.request.body).toMatchObject({ text: 'pix', sorting: 'oldest', page: 1 });
+    call.flush(requestPage([webhookRequest(2, { seq: 2 })], { total: 40 }));
+    await loaded;
+
+    expect(store.total()).toBe(812);
+    expect(store.matched()).toBe(40);
+  });
+});
+
 // O link de Métricas e de Saúde traz `?window=n`: a contagem deles é sobre as n mais novas da URL.
 describe('Dado a janela das mais novas na rota', () => {
   let http: HttpTestingController;

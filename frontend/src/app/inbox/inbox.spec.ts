@@ -170,7 +170,10 @@ describe('Dado a tela principal', () => {
   it('deve abrir filtrada pela query da rota, com o total da URL (filtros na rota)', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid&methods=POST,FOO&q=abc`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(
+      `/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`,
+      requestPage([R1], { total: 2 }),
+    );
 
     const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
     expect(search.request.body).toMatchObject({
@@ -197,7 +200,10 @@ describe('Dado a tela principal', () => {
       `/${TOKEN_ID}?signatureReason=timestamp%20outside%20tolerance&schemaPath=`,
     );
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(
+      `/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`,
+      requestPage([R1], { total: 2 }),
+    );
 
     const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
     expect(search.request.body).toMatchObject({
@@ -219,7 +225,10 @@ describe('Dado a tela principal', () => {
   it('deve abrir filtrada pelo motivo da decifra que o link de Métricas trouxe', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}?decryption=invalid&decryptionReason=downgrade`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(
+      `/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`,
+      requestPage([R1], { total: 2 }),
+    );
 
     const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
     expect(search.request.body).toMatchObject({
@@ -239,7 +248,10 @@ describe('Dado a tela principal', () => {
   it('deve contar sobre as mesmas mais novas que o link de Métricas trouxe (?window=)', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}?signature=invalid&window=1`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(
+      `/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`,
+      requestPage([R1], { total: 2 }),
+    );
 
     const [nova, velha] = [webhookRequest(9, { seq: 9 }), webhookRequest(3, { seq: 3 })];
     await flush(
@@ -1168,7 +1180,10 @@ describe('Dado a tela principal', () => {
   it('não deve voltar à Entrada Quando a requisição reaberta chega depois de a pessoa sair dela', async () => {
     await harness.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/1?signature=invalid`);
     await flush(`/token/${TOKEN_ID}`, token());
-    await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
+    await flush(
+      `/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`,
+      requestPage([R1], { total: 2 }),
+    );
     await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R2], { total: 1 }));
     await flush(`/token/${TOKEN_ID}/request/${R1.uuid}`, R1);
     await vi.waitFor(() => expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R1.uuid));
