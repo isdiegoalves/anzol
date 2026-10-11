@@ -110,5 +110,11 @@
     }
   </div>
   <!-- Fora de @if: região viva criada já com texto não é anunciada. -->
-  <app-live-region class="result" label="Action result" i18n-label [text]="store.result()" />
+  <app-live-region
+    class="result"
+    label="Action result"
+    i18n-label
+    [text]="store.result()"
+    [attr.title]="store.resultTitle() || null"
+  />
 </section>

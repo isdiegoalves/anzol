@@ -159,7 +159,7 @@ describe('Dado a página Outbound', () => {
 
     const detail = screen.getByRole('region', { name: 'Outbound detail' });
     expect(
-      within(detail).getByText('Injected: delay 200 ms, sent twice (second: 409 Conflict)'),
+      within(detail).getByText('Injected: delay 200 ms, sent twice (second: answered 409)'),
     ).toBeTruthy();
     expect(detail.querySelector('.big-status')?.textContent?.trim()).toBe('201');
     await expectNoAxeViolations(harness.routeNativeElement as HTMLElement);

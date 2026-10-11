@@ -309,6 +309,7 @@ export class ReplayPanel {
       });
       this.last.set({ typed, result });
       this.panel.result.set(resultText(result));
+      this.panel.resultTitle.set(result.status ? statusText(result.status) : '');
     } catch (error) {
       this.panel.result.set(
         $localize`Replay did not get an answer: ${requestErrorText(error)}:reason:`,
@@ -321,7 +322,7 @@ export class ReplayPanel {
 
 /**
  * O que o app respondeu (ou por que não houve resposta) e, com caos, o que foi injetado:
- * "Replay result: 201 Created in 12 ms. Injected: delay 300 ms. {corpo}".
+ * "Replay result: answered 201 in 12 ms. Injected: delay 300 ms. {corpo}".
  */
 function resultText(result: OutboundResult): string {
   const list = injectedList(result.chaos);
@@ -339,7 +340,7 @@ function resultText(result: OutboundResult): string {
     return injected ? `${line} ${injected}.` : line;
   }
   const body = (result.body ?? '').slice(0, BODY_SHOWN);
-  const line = $localize`Replay result: ${statusText(result.status)}:status: in ${result.duration_ms}:ms: ms`;
+  const line = $localize`Replay result: answered ${result.status}:status: in ${result.duration_ms}:ms: ms`;
   const head = injected ? `${line}. ${injected}.` : `${line}.`;
   if (body) {
     return `${head} ${body}`;

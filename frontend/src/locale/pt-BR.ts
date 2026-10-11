@@ -3756,8 +3756,8 @@ export const translations: Record<string, string> = {
   '7890191666559754116': 'O reenvio não teve resposta: {$reason}',
   // Blocked: this server only sends to public addresses.
   '1167334649637784152': 'Bloqueado: este servidor só manda para endereços públicos.',
-  // Replay result: {$status} in {$ms} ms
-  '4712297722375301309': 'Resultado do reenvio: {$status} em {$ms} ms',
+  // Replay result: answered {$status} in {$ms} ms
+  '7043438662130091661': 'Resultado do reenvio: respondeu {$status} em {$ms} ms',
   // Replay result: no answer read.
   '5203105364598487691': 'Resultado do reenvio: nenhuma resposta lida.',
   // Injected: {$injected}
@@ -3788,6 +3788,8 @@ export const translations: Record<string, string> = {
   '5213147227173408522': 'desistiu depois de {$ms} ms',
   // sent twice (second: {$second})
   '4636930357835628269': 'enviada duas vezes (segunda: {$second})',
+  // sent twice (second: answered {$status})
+  '4887207924326139156': 'enviada duas vezes (segunda: respondeu {$status})',
   // no answer read
   '1774731303607671886': 'nenhuma resposta lida',
   // No answer read

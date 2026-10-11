@@ -198,11 +198,23 @@ describe('Dado o painel de ação acoplado ao detalhe', () => {
   it('deve dizer o resultado da ação pela região "Action result"', async () => {
     const { store, fixture } = await show();
 
-    store.result.set('Replay result: 201 Created in 12 ms');
+    store.result.set('Replay result: answered 201 in 12 ms');
     await fixture.whenStable();
 
-    expect(screen.getByRole('group', { name: 'Action result' }).textContent).toBe(
-      'Replay result: 201 Created in 12 ms',
+    const said = screen.getByRole('group', { name: 'Action result' });
+    expect(said.textContent).toBe('Replay result: answered 201 in 12 ms');
+    expect(said.hasAttribute('title')).toBe(false);
+  });
+
+  it('deve pôr no `title` do resultado a linha de status que o alvo mandou', async () => {
+    const { store, fixture } = await show();
+
+    store.result.set('Replay result: answered 201 in 12 ms');
+    store.resultTitle.set('201 Created');
+    await fixture.whenStable();
+
+    expect(screen.getByRole('group', { name: 'Action result' }).getAttribute('title')).toBe(
+      '201 Created',
     );
   });
 });

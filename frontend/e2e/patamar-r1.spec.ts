@@ -347,8 +347,13 @@ test.describe('Dado a aba Replay do painel', () => {
     await limparAnuncios(page);
     await alvo.press('Enter');
 
-    await expect(resultado(page)).toContainText(/^Replay result: 201 Created in \d+ ms/);
-    await expectUmAnuncio(page, /^Replay result: 201 Created in \d+ ms/, /^Action result$/);
+    await expect(resultado(page)).toContainText(/^Replay result: answered 201 in \d+ ms/);
+    await expectUmAnuncio(page, /^Replay result: answered 201 in \d+ ms/, /^Action result$/);
+    // A linha de status do alvo, como veio, fica no `title` do resultado.
+    await expect(painel(page).getByRole('group', { name: 'Action result' })).toHaveAttribute(
+      'title',
+      '201 Created',
+    );
     await expect(resultado(page)).toContainText('{"recebido":true}');
     await expect(painel(page).getByRole('link', { name: 'Open in Outbound' })).toHaveAttribute(
       'href',

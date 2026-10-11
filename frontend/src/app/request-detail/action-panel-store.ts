@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, linkedSignal, signal } from '@angular/core';
 
 export const ACTION_TABS = ['replay', 'compare', 'rule', 'explain'] as const;
 export type ActionTab = (typeof ACTION_TABS)[number];
@@ -39,6 +39,8 @@ export class ActionPanelStore {
   readonly height = signal<number | null>(this.saved.height);
   readonly expanded = signal(false);
   readonly result = signal('');
+  /** O original do que o resultado resume (a linha de status do alvo do reenvio); sai com ele. */
+  readonly resultTitle = linkedSignal({ source: this.result, computation: () => '' });
   readonly target = signal<string | null>(null);
   /** Só a requisição cuja explicação foi pedida gasta chamada ao modelo; as outras esperam o botão. */
   readonly explainFor = signal<string | null>(null);

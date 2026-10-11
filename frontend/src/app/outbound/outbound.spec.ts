@@ -306,7 +306,7 @@ describe('Dado o caos devolvido por um replay (o que foi injetado)', () => {
         injected: ['delay_ms', 'duplicate'],
         duplicate_result: { status: 201, duration_ms: 9, error: null },
       }),
-      'delay 300 ms, sent twice (second: 201 Created)',
+      'delay 300 ms, sent twice (second: answered 201)',
     ],
     [
       'corpo lento e corte',

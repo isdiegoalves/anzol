@@ -46,6 +46,16 @@ describe('Dado o estado do painel de ação', () => {
     expect(store().result()).toBe('Replay result: 200 OK in 3 ms');
   });
 
+  it('deve esquecer o `title` do resultado Quando o resultado muda', () => {
+    store().result.set('Replay result: answered 201 in 3 ms');
+    store().resultTitle.set('201 Created');
+    expect(store().resultTitle()).toBe('201 Created');
+
+    store().result.set('Compared #aaaaa with #bbbbb. 1 change explains the outcome.');
+
+    expect(store().resultTitle()).toBe('');
+  });
+
   it('deve abrir e fechar pela tecla P, na última aba', () => {
     store().show('rule');
     store().close();

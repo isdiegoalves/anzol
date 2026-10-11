@@ -102,7 +102,7 @@ test.describe('Dado a aba Replay do painel com "Inject failure"', () => {
     await painel(page).getByRole('button', { name: 'Replay', exact: true }).click();
 
     expect((await enviado).postDataJSON()).not.toHaveProperty('chaos');
-    await expect(resultado(page)).toContainText(/^Replay result: 201 Created in \d+ ms/);
+    await expect(resultado(page)).toContainText(/^Replay result: answered 201 in \d+ ms/);
     await expect(resultado(page)).not.toContainText('Injected');
   });
 
@@ -128,7 +128,7 @@ test.describe('Dado a aba Replay do painel com "Inject failure"', () => {
       chaos: { delay_ms: 300, duplicate: true },
     });
     const texto =
-      /^Replay result: 201 Created in \d+ ms\. Injected: delay 300 ms, sent twice \(second: 201 Created\)\./;
+      /^Replay result: answered 201 in \d+ ms\. Injected: delay 300 ms, sent twice \(second: answered 201\)\./;
     await expect(resultado(page)).toContainText(texto);
     await expectSoEstaFala(page, texto, /^Action result$/);
     expect(destino.recebidas).toEqual(['POST /webhooks/pedidos', 'POST /webhooks/pedidos']);
@@ -264,7 +264,9 @@ test.describe('Dado um replay com caos feito pela API', () => {
     await expect(
       page.getByRole('table', { name: 'Outbound history' }).locator('tbody tr'),
     ).toHaveCount(2);
-    await expect(detalhe).toContainText('Injected: delay 200 ms, sent twice (second: 201 Created)');
+    await expect(detalhe).toContainText(
+      'Injected: delay 200 ms, sent twice (second: answered 201)',
+    );
     expect(destino.recebidas).toHaveLength(4);
   });
 });

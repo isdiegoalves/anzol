@@ -94,7 +94,7 @@ export function requestedChaos(chaos: ChaosResult): ReplayChaos {
 }
 
 /**
- * O que o replay injetou, na ordem do servidor: "delay 300 ms, sent twice (second: 201 Created)";
+ * O que o replay injetou, na ordem do servidor: "delay 300 ms, sent twice (second: answered 201)";
  * `null` sem nada injetado.
  */
 export function injectedList(chaos: ChaosResult | null | undefined): string | null {
@@ -112,17 +112,18 @@ function injectedItem(kind: string, chaos: ChaosResult): string {
       return $localize`body cut after ${chaos.body_bytes_sent}:bytes: bytes`;
     case 'timeout_ms':
       return $localize`gave up after ${chaos.timeout_ms}:ms: ms`;
-    case 'duplicate':
-      return $localize`sent twice (second: ${secondCopy(chaos.duplicate_result)}:second:)`;
+    case 'duplicate': {
+      const second = chaos.duplicate_result;
+      return second?.status
+        ? $localize`sent twice (second: answered ${second.status}:status:)`
+        : $localize`sent twice (second: ${secondCopy(second)}:second:)`;
+    }
     default:
       return kind;
   }
 }
 
 function secondCopy(second: ChaosResult['duplicate_result']): string {
-  if (second?.status) {
-    return statusText(second.status);
-  }
   return second?.error ? outboundErrorText(second.error).title : noAnswerRead();
 }
 

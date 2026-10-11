@@ -105,8 +105,10 @@ describe('Dado a aba Replay do painel de ação', () => {
     call.flush(result({ status: 201, body: '{"ok":true}' }));
 
     await vi.waitFor(() =>
-      expect(panel.result()).toBe('Replay result: 201 Created in 12 ms. {"ok":true}'),
+      expect(panel.result()).toBe('Replay result: answered 201 in 12 ms. {"ok":true}'),
     );
+    // A linha de status do alvo, como veio, fica no `title` do resultado.
+    expect(panel.resultTitle()).toBe('201 Created');
     expect(JSON.parse(localStorage.getItem('replayTargets') ?? '{}')).toEqual({
       [TOKEN_ID]: 'http://localhost:3000/hooks',
     });
@@ -223,7 +225,7 @@ describe('Dado a aba Replay do painel de ação', () => {
       );
       await vi.waitFor(() =>
         expect(panel.result()).toBe(
-          'Replay result: 201 Created in 12 ms. Injected: delay 300 ms, sent twice (second: 409 Conflict). {"ok":true}',
+          'Replay result: answered 201 in 12 ms. Injected: delay 300 ms, sent twice (second: answered 409). {"ok":true}',
         ),
       );
     });
@@ -267,7 +269,7 @@ describe('Dado a aba Replay do painel de ação', () => {
       [
         'nada foi injetado (o app respondeu antes do prazo)',
         { status: 200, chaos: caos({ timeout_ms: 5000 }) },
-        'Replay result: 200 OK in 12 ms',
+        'Replay result: answered 200 in 12 ms',
       ],
       [
         'o destino foi recusado',
@@ -312,16 +314,17 @@ describe('Dado a aba Replay do painel de ação', () => {
               delay_ms: 300,
               duplicate: true,
               injected: ['delay_ms', 'duplicate'],
-              duplicate_result: { status: null, duration_ms: 4, error: null },
+              duplicate_result: { status: 409, duration_ms: 4, error: null },
             }),
           }),
         );
 
         await vi.waitFor(() =>
           expect(panel.result()).toBe(
-            'Resultado do reenvio: 201 Created em 12 ms. Injetado: atraso de 300 ms, enviada duas vezes (segunda: nenhuma resposta lida).',
+            'Resultado do reenvio: respondeu 201 em 12 ms. Injetado: atraso de 300 ms, enviada duas vezes (segunda: respondeu 409).',
           ),
         );
+        expect(panel.resultTitle()).toBe('201 Created');
       } finally {
         clearTranslations();
       }
