@@ -313,19 +313,20 @@ export class RequestList {
   protected readonly fresh = signal<ReadonlySet<string>>(new Set());
 
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
-  /** O último elemento da lista que teve o foco, e o foco perdido que espera voltar (com a linha dele). */
-  private lastFocused: HTMLElement | null = null;
+  /** O último elemento da lista que teve o foco, com a linha dele, e o foco perdido que espera voltar. */
+  private lastFocused: { element: HTMLElement; row: string | undefined } | null = null;
   private lostFocus: { row: string | null } | null = null;
 
   constructor() {
     this.host.addEventListener('focusin', (event) => {
-      this.lastFocused = event.target as HTMLElement;
+      const element = event.target as HTMLElement;
+      this.lastFocused = { element, row: this.rowOf(element) };
     });
     this.host.addEventListener('focusout', (event) => {
       const left = event.target as HTMLElement;
       // Clicar fora deixa o elemento no lugar: só a linha que sai do DOM pede o foco de volta.
       queueMicrotask(() => {
-        if (this.lastFocused === left && left.isConnected) {
+        if (this.lastFocused?.element === left && left.isConnected) {
           this.lastFocused = null;
         }
       });
@@ -564,6 +565,12 @@ export class RequestList {
     return row.id;
   }
 
+  private rowOf(element: HTMLElement): string | undefined {
+    return element.closest('[role="listitem"]')?.querySelector<HTMLElement>('[data-uuid]')?.dataset[
+      'uuid'
+    ];
+  }
+
   /** A linha que fica no lugar de outra que sai: a seguinte, ou a anterior se ela era a última. */
   private neighbourOf(uuid: string): string | null {
     const rows = this.rows();
@@ -585,10 +592,10 @@ export class RequestList {
     const body = this.document.body;
     const active = this.document.activeElement;
     const lost = this.lastFocused;
-    if (lost && !lost.isConnected) {
+    // A lista virtual reaproveita o elemento da linha que sai: ele segue no DOM, em outra linha.
+    if (lost && (!lost.element.isConnected || this.rowOf(lost.element) !== lost.row)) {
       this.lastFocused = null;
-      const row = lost.closest('[role="listitem"]')?.querySelector<HTMLElement>('[data-uuid]')
-        ?.dataset['uuid'];
+      const { row } = lost;
       const scrolledAway = row !== undefined && this.rowIndexOf(row) >= 0 && !this.store.loading();
       if ((active === null || active === body) && !scrolledAway) {
         this.lostFocus = { row: row ?? null };

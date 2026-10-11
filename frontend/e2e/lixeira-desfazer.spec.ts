@@ -74,6 +74,25 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
     await expect(item(page, terceira)).toBeVisible();
   });
 
+  test('deve levar o foco à linha seguinte Quando a lista tem mais linhas do que desenha', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const enviadas: string[] = [];
+    for (let numero = 1; numero <= 40; numero++) {
+      enviadas.push(await tokens.send(tokenId, { path: `/linha-${numero}` }));
+    }
+    const [terceira, segunda] = enviadas.slice(-3);
+    await page.goto(`/#/${tokenId}`);
+    await expect(abrirItem(page, segunda)).toBeVisible();
+
+    await apagarPeloTeclado(page, segunda);
+
+    await expect(abrirItem(page, terceira)).toBeFocused();
+    await expect(item(page, segunda)).toHaveCount(0);
+  });
+
   test('deve falar uma vez só, pelo aviso da requisição, com o "Undo" nele', async ({
     page,
     tokens,
