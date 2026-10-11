@@ -1,5 +1,5 @@
 import { CapturedRequest, SignatureResult, absentHeader } from '../requests/webhook-request';
-import { conditionPhrase } from './server-phrases';
+import { conditionPhrase, schemaErrorText } from './server-phrases';
 import { signatureProviderLabel, Token } from '../token/token';
 import { SignatureCheck, signatureCheck, signatureReasonText } from './signature-check';
 import { decryptionResult } from './decryption';
@@ -247,7 +247,7 @@ function schemaResult(request: CapturedRequest, token: Token | null): CheckResul
   const [first] = schema.errors;
   const count = schema.errors.length;
   const detail = first
-    ? `${first.path || $localize`(root)`} ${first.message}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
+    ? `${schemaErrorText(first)}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
     : $localize`Body does not match the schema`;
   const notJson = count === 1 && /not JSON/i.test(first?.message ?? '');
   return {

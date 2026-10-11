@@ -255,8 +255,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
       );
       expect(marked).toEqual(['{', '"id": "7",']);
       expect([...container.querySelectorAll('pre .mark')].map((mark) => mark.textContent)).toEqual([
-        '(root) must have required property total',
-        '/id must be integer',
+        '(root): must have required property total',
+        '/id: must be integer',
       ]);
     });
   });

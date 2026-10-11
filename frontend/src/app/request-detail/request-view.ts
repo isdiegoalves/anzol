@@ -16,7 +16,7 @@ import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { decryptionAdvice } from '../pipeline/decryption';
 import { CheckResult, pipelineOf } from '../pipeline/pipeline';
-import { conditionPhrase, originalTitle } from '../pipeline/server-phrases';
+import { conditionPhrase, originalTitle, schemaErrorText } from '../pipeline/server-phrases';
 import { signatureAdvice } from '../pipeline/signature-check';
 import { CapturedRequest, FieldValue } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
@@ -401,7 +401,7 @@ export class RequestView {
     const schema = this.request().schema;
     return (schema?.valid === false ? schema.errors : []).map((error) => ({
       pointer: error.path,
-      message: `${error.path || $localize`(root)`} ${error.message}`,
+      message: schemaErrorText(error),
     }));
   });
 

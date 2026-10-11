@@ -82,13 +82,18 @@ describe('Dado o schema gravado na mensagem', () => {
         state: 'invalid',
         tone: 'bad',
         title: 'Schema invalid',
-        detail: '/amount must be integer (+1 more)',
+        detail: '/amount: must be integer (+1 more)',
       },
     ],
     [
       'inválido na raiz',
       { valid: false, errors: [{ path: '', message: 'body is not JSON' }] },
-      { state: 'invalid', tone: 'bad', title: 'Schema invalid', detail: '(root) body is not JSON' },
+      {
+        state: 'invalid',
+        tone: 'bad',
+        title: 'Schema invalid',
+        detail: '(root): the body is not JSON',
+      },
     ],
     [
       'nulo (a URL não validava)',

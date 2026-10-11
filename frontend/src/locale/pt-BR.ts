@@ -2807,6 +2807,36 @@ export const translations: Record<string, string> = {
   '1549263646704579002': 'O campo {$field} deve ser uma lista.',
   // The {$field} field must be true or false.
   '2093276602253257282': 'O campo {$field} deve ser true ou false.',
+  // a string
+  '2507046957615888270': 'texto',
+  // a number
+  '477719923170781763': 'número',
+  // an integer
+  '2880048160840678382': 'inteiro',
+  // a boolean
+  '2395063647573042967': 'booleano',
+  // an object
+  '3910371428600003520': 'objeto',
+  // an array
+  '1659341758060445097': 'lista',
+  // null
+  '5526183265203623476': 'nulo',
+  // got {$found}, expected {$expected}
+  '4745020675240075656': 'veio {$found}, esperava {$expected}',
+  // missing {$property}
+  '7775724681689522322': 'faltou {$property}',
+  // not one of {$list}
+  '4859853370722704840': 'não é um de {$list}',
+  // below the minimum of {$min}
+  '558240387504949409': 'abaixo do mínimo de {$min}',
+  // above the maximum of {$max}
+  '6500961304112998663': 'acima do máximo de {$max}',
+  // shorter than {$min} characters
+  '1272763973407644287': 'menos de {$min} caracteres',
+  // longer than {$max} characters
+  '3406693760225038973': 'mais de {$max} caracteres',
+  // does not match the pattern {$regex}
+  '3741195808312280044': 'não casa com o padrão {$regex}',
   // Original: {$phrase}
   '3876084183795082544': 'Original: {$phrase}',
   // Signature absent — the {$provider} check expects the {$header} header

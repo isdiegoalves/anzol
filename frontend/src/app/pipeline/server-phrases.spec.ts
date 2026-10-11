@@ -1,6 +1,12 @@
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { translations } from '../../locale/pt-BR';
-import { conditionPhrase, originalTitle, validationPhrase } from './server-phrases';
+import {
+  conditionPhrase,
+  originalTitle,
+  schemaErrorText,
+  schemaPhrase,
+  validationPhrase,
+} from './server-phrases';
 
 // As frases exatas do servidor (RuleMatching.kt, BodyMatching.kt, RuleFailures.kt, RuleReader.kt).
 const conditions: [string, string][] = [
@@ -138,6 +144,42 @@ const validations: [string, string][] = [
   ],
 ];
 
+// As mensagens do validador de schema (a biblioteca do servidor): [original, en, pt-BR].
+const schemaMessages: [string, string, string][] = [
+  [
+    'string found, number expected',
+    'got a string, expected a number',
+    'veio texto, esperava número',
+  ],
+  [
+    'integer found, boolean expected',
+    'got an integer, expected a boolean',
+    'veio inteiro, esperava booleano',
+  ],
+  [
+    'object found, array expected',
+    'got an object, expected an array',
+    'veio objeto, esperava lista',
+  ],
+  ['null found, string expected', 'got null, expected a string', 'veio nulo, esperava texto'],
+  ["required property 'id' not found", 'missing id', 'faltou id'],
+  [
+    'does not have a value in the enumeration ["pago", "pendente"]',
+    'not one of ["pago", "pendente"]',
+    'não é um de ["pago", "pendente"]',
+  ],
+  ['must have a minimum value of 1', 'below the minimum of 1', 'abaixo do mínimo de 1'],
+  ['must have a maximum value of 10', 'above the maximum of 10', 'acima do máximo de 10'],
+  ['must be at least 3 characters long', 'shorter than 3 characters', 'menos de 3 caracteres'],
+  ['must be at most 5 characters long', 'longer than 5 characters', 'mais de 5 caracteres'],
+  [
+    'does not match the regex pattern ^PED-\\d+$',
+    'does not match the pattern ^PED-\\d+$',
+    'não casa com o padrão ^PED-\\d+$',
+  ],
+];
+const unknownSchemaMessages = ['must be multiple of 2', 'string found, [integer, null] expected'];
+
 describe('server-phrases', () => {
   describe('Dado a tela em inglês', () => {
     it.each([...conditions.map(([en]) => en)])(
@@ -165,6 +207,29 @@ describe('server-phrases', () => {
     it('não deve pôr title na frase que não mudou', () => {
       expect(originalTitle(conditionPhrase('method: expected POST, got GET'))).toBeNull();
     });
+
+    it.each(schemaMessages)(
+      'deve dizer o erro de schema "%s" numa frase da tela, com o original entre parênteses',
+      (original, en) => {
+        expect(schemaPhrase(original)).toBe(`${en} (${original})`);
+      },
+    );
+
+    it.each(unknownSchemaMessages)('deve deixar o erro de schema "%s" como veio', (original) => {
+      expect(schemaPhrase(original)).toBe(original);
+    });
+
+    it('deve dizer o corpo que não é JSON sem repetir a frase entre parênteses', () => {
+      expect(schemaErrorText({ path: '', message: 'body is not JSON' })).toBe(
+        '(root): the body is not JSON',
+      );
+    });
+
+    it('deve pôr o caminho antes do erro de schema', () => {
+      expect(schemaErrorText({ path: '/valor', message: 'string found, number expected' })).toBe(
+        '/valor: got a string, expected a number (string found, number expected)',
+      );
+    });
   });
 
   describe('Dado a tela em pt-BR', () => {
@@ -188,6 +253,16 @@ describe('server-phrases', () => {
 
     it.each(validations)('deve traduzir a mensagem "%s"', (en, pt) => {
       expect(validationPhrase(en)).toEqual({ text: pt, original: en, translated: true });
+    });
+
+    it.each(schemaMessages)('deve traduzir o erro de schema "%s"', (original, _en, pt) => {
+      expect(schemaPhrase(original)).toBe(`${pt} (${original})`);
+    });
+
+    it('deve traduzir o corpo que não é JSON, com o original entre parênteses', () => {
+      expect(schemaErrorText({ path: '', message: 'body is not JSON' })).toBe(
+        '(raiz): o corpo não é JSON (body is not JSON)',
+      );
     });
 
     it('deve guardar o original no title', () => {

@@ -120,8 +120,10 @@ test.describe('Dado o cartão "Schema validation" de Checks', () => {
     await screenshot(page, '03-selo-invalido-com-erros');
 
     await openRequest(page, tokenId, semJson);
-    await expect(verificacoes(page)).toContainText(/Schema invalid\s*\(root\) body is not JSON/);
-    await expect(errorPaths(page)).toHaveText(['(root) body is not JSON']);
+    await expect(verificacoes(page)).toContainText(
+      /Schema invalid\s*\(root\): the body is not JSON/,
+    );
+    await expect(errorPaths(page)).toHaveText(['(root): the body is not JSON']);
   });
 
   test('deve mostrar no campo o erro do servidor, manter o que foi digitado e desligar pelo "Clear schema"', async ({

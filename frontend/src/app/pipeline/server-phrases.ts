@@ -326,3 +326,85 @@ export function validationPhrase(original: string): ServerPhrase {
 export function originalTitle(phrase: ServerPhrase): string | null {
   return phrase.translated ? $localize`Original: ${phrase.original}:phrase:` : null;
 }
+
+/** O tipo do JSON que o validador cita (`string`, `integer`…), ou `''` no que a tela não conhece. */
+function jsonType(type: string): string {
+  const names: Record<string, string> = {
+    string: $localize`:JSON type|:a string`,
+    number: $localize`:JSON type|:a number`,
+    integer: $localize`:JSON type|:an integer`,
+    boolean: $localize`:JSON type|:a boolean`,
+    object: $localize`:JSON type|:an object`,
+    array: $localize`:JSON type|:an array`,
+    null: $localize`:JSON type|:null`,
+  };
+  return names[type] ?? '';
+}
+
+/** As mensagens mais comuns do validador de schema do servidor; `''` deixa a mensagem como veio. */
+function schemaFamilies(): Family[] {
+  return [
+    [
+      /^(\w+) found, (\w+) expected$/,
+      (found, expected) => {
+        const [got, wanted] = [jsonType(found), jsonType(expected)];
+        return got && wanted
+          ? $localize`:schema error|:got ${got}:found:, expected ${wanted}:expected:`
+          : '';
+      },
+    ],
+    [
+      /^required property '(.+)' not found$/,
+      (property) => $localize`:schema error|:missing ${property}:property:`,
+    ],
+    [
+      /^does not have a value in the enumeration (.+)$/s,
+      (list) => $localize`:schema error|:not one of ${list}:list:`,
+    ],
+    [
+      /^must have a minimum value of (.+)$/,
+      (min) => $localize`:schema error|:below the minimum of ${min}:min:`,
+    ],
+    [
+      /^must have a maximum value of (.+)$/,
+      (max) => $localize`:schema error|:above the maximum of ${max}:max:`,
+    ],
+    [
+      /^must be at least (\d+) characters long$/,
+      (min) => $localize`:schema error|:shorter than ${min}:min: characters`,
+    ],
+    [
+      /^must be at most (\d+) characters long$/,
+      (max) => $localize`:schema error|:longer than ${max}:max: characters`,
+    ],
+    [
+      /^does not match the regex pattern (.+)$/s,
+      (regex) => $localize`:schema error|:does not match the pattern ${regex}:regex:`,
+    ],
+  ];
+}
+
+/**
+ * Uma mensagem do validador de schema (`schema.errors[].message`): a frase da tela com a do
+ * validador entre parênteses, nos dois idiomas. Mensagem desconhecida fica como veio.
+ */
+export function schemaPhrase(original: string): string {
+  if (original === 'body is not JSON') {
+    // Em inglês a frase da tela já é a do servidor: o original só entra quando ela foi traduzida.
+    const text = $localize`the body is not JSON`;
+    return text === 'the body is not JSON' ? text : `${text} (${original})`;
+  }
+  for (const [pattern, build] of schemaFamilies()) {
+    const found = pattern.exec(original);
+    const text = found && build(...found.slice(1));
+    if (text) {
+      return `${text} (${original})`;
+    }
+  }
+  return original;
+}
+
+/** "/valor: got a string, expected a number (string found, number expected)"; "(root)" na raiz. */
+export function schemaErrorText(error: { path: string; message: string }): string {
+  return `${error.path || $localize`(root)`}: ${schemaPhrase(error.message)}`;
+}
