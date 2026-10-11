@@ -1,5 +1,4 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
-import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   ElementRef,
@@ -28,7 +27,7 @@ import { WaitForButton } from './wait-for';
  */
 @Component({
   selector: 'app-filter-panel',
-  imports: [CdkTrapFocus, MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet, WaitForButton],
+  imports: [CdkTrapFocus, MatMenu, MatMenuItem, MatMenuTrigger, WaitForButton],
   templateUrl: './filter-panel.html',
   styleUrl: './filter-panel.scss',
   host: {
@@ -70,8 +69,13 @@ export class FilterPanel {
     return Math.min(this.stop(), count - 1);
   });
 
-  /** As regras da URL, para os menus "Answered by rule…" e "Near miss of…" (C2); lidas ao abrir. */
+  /**
+   * As regras da URL, para o menu de "Answered by rule…" e de "Near miss of…" (C2); lidas quando um
+   * dos dois chips ganha o foco ou abre, para o menu aberto pelo teclado já nascer com elas.
+   */
   protected readonly rules = signal<readonly Rule[] | null>(null);
+  /** O chip que abriu o menu de regras. */
+  protected readonly rulesFor = signal<'rule' | 'near_miss'>('rule');
   private rulesToken: string | null = null;
 
   /** "Show 4 requests": o que a lista mostra com os filtros de agora. */
@@ -86,10 +90,9 @@ export class FilterPanel {
     this.buttons()[0]?.focus();
   }
 
-  /** Lê as regras da URL na primeira vez que um dos menus abre. */
   protected async loadRules(): Promise<void> {
     const tokenId = this.store.tokenId();
-    if (!tokenId || (this.rulesToken === tokenId && this.rules() !== null)) {
+    if (!tokenId || this.rulesToken === tokenId) {
       return;
     }
     this.rulesToken = tokenId;
@@ -106,9 +109,9 @@ export class FilterPanel {
     void this.grouping.openDialog(this.injector);
   }
 
-  protected chooseRule(type: 'rule' | 'near_miss', rule: Rule): void {
+  protected chooseRule(rule: Rule): void {
     if (rule.id) {
-      this.chips.setOutcome({ type, rule: rule.id, name: rule.name });
+      this.chips.setOutcome({ type: this.rulesFor(), rule: rule.id, name: rule.name });
     }
   }
 
@@ -121,7 +124,8 @@ export class FilterPanel {
       this.closed.emit();
       return;
     }
-    if (at < 0) {
+    // Com o menu de regras aberto, as setas são dele.
+    if (at < 0 || buttons[at].getAttribute('aria-expanded') === 'true') {
       return;
     }
     const last = buttons.length - 1;

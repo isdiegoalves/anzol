@@ -23,9 +23,9 @@
                 class="chip"
                 aria-pressed="false"
                 [attr.tabindex]="tabStop() === index ? 0 : -1"
-                [matMenuTriggerFor]="menu === 'rule' ? answeredMenu : nearMenu"
-                (focus)="stop.set(index)"
-                (menuOpened)="loadRules()"
+                [matMenuTriggerFor]="rulesMenu"
+                (focus)="stop.set(index); loadRules()"
+                (menuOpened)="rulesFor.set(menu); loadRules()"
               >
                 {{ chip.label }}
               </button>
@@ -60,21 +60,15 @@
     }
   </div>
 </div>
-<mat-menu #answeredMenu="matMenu" aria-label="Rules" i18n-aria-label>
-  <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'rule' }" />
-</mat-menu>
-<mat-menu #nearMenu="matMenu" aria-label="Rules" i18n-aria-label>
-  <ng-container [ngTemplateOutlet]="ruleItems" [ngTemplateOutletContext]="{ type: 'near_miss' }" />
-</mat-menu>
-
-<ng-template #ruleItems let-type="type">
+<!-- Os itens ficam dentro do menu: vindos de um template de fora, o menu não os acha e as setas não andam. -->
+<mat-menu #rulesMenu="matMenu" aria-label="Rules" i18n-aria-label>
   @if (rules(); as list) {
     @for (rule of list; track rule.id ?? $index) {
-      <button mat-menu-item type="button" (click)="chooseRule(type, rule)">{{ rule.name }}</button>
+      <button mat-menu-item type="button" (click)="chooseRule(rule)">{{ rule.name }}</button>
     } @empty {
       <button mat-menu-item type="button" disabled i18n>This URL has no rules.</button>
     }
   } @else {
     <button mat-menu-item type="button" disabled i18n>Loading the rules…</button>
   }
-</ng-template>
+</mat-menu>

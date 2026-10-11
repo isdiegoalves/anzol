@@ -2,6 +2,7 @@ import { Locator, Page } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
 import { expect, test } from './support/fixtures';
 import { busca } from './support/inbox';
+import { gravarRegras } from './support/regras';
 
 const barra = (page: Page) => page.getByRole('toolbar', { name: 'Filters' });
 const botaoFiltros = (page: Page) => busca(page).getByRole('button', { name: /^Filters/ });
@@ -41,6 +42,34 @@ test.describe('Dado o painel de filtros na janela larga', () => {
     await page.keyboard.press('Tab');
     expect(await dentro(barra(page)), 'o Tab sai da barra').toBe(false);
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('deve deixar as setas com o menu de regras Quando um chip o abre', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [
+      { name: 'Primeira', priority: 1, match: { method: ['POST'] }, response: { status: 201 } },
+      { name: 'Segunda', priority: 2, match: { method: ['GET'] }, response: { status: 202 } },
+    ]);
+    await page.goto(`/#/${tokenId}`);
+    await botaoFiltros(page).click();
+    const chip = barra(page).getByRole('button', { name: /^Answered by rule/ });
+
+    const lidas = page.waitForResponse((resposta) => resposta.url().endsWith('/rules'));
+    await chip.focus();
+    await lidas;
+    await page.keyboard.press('Enter');
+    const regras = page.getByRole('menu', { name: 'Rules' }).getByRole('menuitem');
+    await expect(regras.first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+
+    await expect(regras.nth(1)).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(chip).toBeFocused();
+    await expect(barra(page)).toBeVisible();
   });
 });
 
