@@ -1508,6 +1508,8 @@ describe('Dado a tela principal', () => {
         expect(button).toBeDefined();
         return button as HTMLButtonElement;
       });
+      // O botão entra no DOM antes de o diálogo ligar o resultado dele: clicado nesse meio, ele fecha sem confirmar.
+      await harness.fixture.whenStable();
       confirm.click();
       await flush(`/token/${TOKEN_ID}/request`, {}, unavailable);
 
