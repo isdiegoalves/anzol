@@ -2831,6 +2831,8 @@ export const translations: Record<string, string> = {
     'Diga o que deve responder; se este servidor tiver IA configurada, ela rascunha a regra.',
   // {$matched} of {$total}
   '5481673356259336453': '{$matched} de {$total}',
+  // {$matched} of the newest {$window}
+  '587363025418307606': '{$matched} das {$window} mais novas',
   //  Empty: any path. After the URL's token.
   '5803951141866487424': ' Vazio: qualquer caminho. Depois do token da URL. ',
   // {VAR_PLURAL, plural, other {{INTERPOLATION} unchanged}}

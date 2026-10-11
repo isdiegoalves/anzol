@@ -571,6 +571,35 @@ test.describe('Dado a lista densa', () => {
       await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
     });
 
+    test('deve quebrar o cabeçalho da lista em duas linhas só com a janela das mais novas, e ainda mostrar 9 inteiras', async ({
+      page,
+      tokens,
+    }, testInfo) => {
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop');
+      const tokenId = await tokens.create();
+      await tokens.sendMany(tokenId, 60);
+      await seedStorage(page, { language: '"pt-BR"' });
+      const altura = async () =>
+        (await page.locator('app-request-list .head').boundingBox())?.height ?? 0;
+
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requisições (60)' })).toBeVisible();
+      const semFiltro = await altura();
+
+      await page.goto(`/#/${tokenId}?methods=POST`);
+      await expect(page.getByRole('heading', { name: 'Requisições (60 de 60)' })).toBeVisible();
+      expect(await altura(), 'com filtro do servidor, uma linha').toBe(semFiltro);
+
+      await page.goto(`/#/${tokenId}?methods=POST&window=50`);
+      await expect(
+        page.getByRole('heading', { name: 'Requisições (50 das 50 mais novas)' }),
+      ).toBeVisible();
+      expect(await altura(), 'com a janela, no máximo duas linhas').toBeLessThanOrEqual(
+        2 * semFiltro,
+      );
+      await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
+    });
+
     test('deve mostrar 9 requisições inteiras ou mais na densidade compacta de Settings', async ({
       page,
       tokens,

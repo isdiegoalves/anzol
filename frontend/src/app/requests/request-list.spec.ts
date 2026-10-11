@@ -1113,6 +1113,72 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (3 of 9)');
   });
 
+  it('deve ficar no total, sem "N of", enquanto a busca do filtro novo não volta', async () => {
+    const searchUrl = `/token/${TOKEN_ID}/requests/search`;
+    const title = () => element().querySelector('h2')?.textContent?.trim();
+    await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)], 9);
+
+    const first = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    await fixture.whenStable();
+    expect(title()).toBe('Requests (9)');
+    http
+      .expectOne({ method: 'POST', url: searchUrl })
+      .flush(requestPage([webhookRequest(1)], { total: 3 }));
+    await first;
+    await fixture.whenStable();
+    expect(title()).toBe('Requests (3 of 9)');
+
+    const second = store.applyFilter({ ...NO_FILTER, methods: ['POST', 'GET'] });
+    await fixture.whenStable();
+    expect(title()).toBe('Requests (9)');
+    http
+      .expectOne({ method: 'POST', url: searchUrl })
+      .flush(requestPage([webhookRequest(1), webhookRequest(2)], { total: 5 }));
+    await second;
+    await fixture.whenStable();
+    expect(title()).toBe('Requests (5 of 9)');
+  });
+
+  it('deve ficar no total enquanto a mesma URL abre já com o filtro do endereço', async () => {
+    await load([webhookRequest(1), webhookRequest(2)], 9);
+    let done = false;
+
+    const opened = store.load(TOKEN_ID, 1, { ...NO_FILTER, methods: ['POST'] });
+    void opened.then(() => (done = true));
+    await fixture.whenStable();
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (9)');
+    while (!done) {
+      http
+        .match(() => true)
+        .forEach((call) => call.flush(requestPage([webhookRequest(1)], { total: 9 })));
+      await new Promise((turn) => setTimeout(turn));
+    }
+    await fixture.whenStable();
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (9 of 9)');
+  });
+
+  it('deve dizer "N of the newest W" no título Quando a janela das mais novas está em vigor', async () => {
+    const recent = (n: number) => webhookRequest(n, { seq: n, response: { status: 429 } });
+    await load([recent(9), recent(8), recent(7)], 9);
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 2 });
+    await vi.waitFor(() =>
+      http
+        .expectOne(`/token/${TOKEN_ID}/requests?page=2&per_page=1&sorting=newest`)
+        .flush(requestPage([recent(8)], { total: 9, per_page: 1, is_last_page: false })),
+    );
+    await vi.waitFor(() =>
+      http
+        .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+        .flush(requestPage([recent(9), recent(7)], { total: 3 })),
+    );
+    await applied;
+    await fixture.whenStable();
+
+    expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (1 of the newest 2)');
+  });
+
   it('deve manter a busca à vista para limpar o filtro Quando a URL fica vazia com filtro ativo', async () => {
     await load([webhookRequest(1)]);
     const applied = store.applyFilter({ ...NO_FILTER, text: 'x' });

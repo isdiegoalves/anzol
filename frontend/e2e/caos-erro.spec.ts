@@ -1,12 +1,28 @@
 import { Page } from '@playwright/test';
 import { expect, test } from './support/caos';
-import { campoDeBusca, itens, lista } from './support/inbox';
+import { abrirFiltros, campoDeBusca, filtro, itens, lista } from './support/inbox';
 
 const rotulos = (page: Page) =>
   itens(page)
     .locator('button.select')
     .evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('aria-label') ?? ''));
 const titulo = (page: Page) => lista(page).getByRole('heading', { level: 2 });
+/** Todo texto que o título da lista teve daqui em diante, na ordem. */
+async function titulosVistos(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    const vistos: string[] = [];
+    const cabeca = document.querySelector('app-request-list .head');
+    const anotar = () => vistos.push(cabeca?.querySelector('h2')?.textContent?.trim() ?? '');
+    new MutationObserver(anotar).observe(cabeca as Node, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    (window as unknown as { __titulos: string[] }).__titulos = vistos;
+  });
+  return () => page.evaluate(() => (window as unknown as { __titulos: string[] }).__titulos);
+}
+
 const salva = (page: Page) =>
   page.evaluate(
     () => (JSON.parse(localStorage.getItem('token') ?? 'null') as { uuid?: string } | null)?.uuid,
@@ -117,6 +133,28 @@ test.describe('Dado o servidor respondendo 503', () => {
 });
 
 test.describe('Dado o servidor demorando', () => {
+  test('deve manter o título no total, nunca "0 of", enquanto a busca do filtro não volta', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const tokenId = await tokens.create({ default_status: '429' });
+    await tokens.sendMany(tokenId, 12);
+    await page.goto(`/#/${tokenId}`);
+    await expect(titulo(page)).toHaveText('Requests (12)');
+    const vistos = await titulosVistos(page);
+    const presa = caos.segurar(new RegExp(`^/token/${tokenId}/requests/search$`), 'POST');
+
+    await abrirFiltros(page);
+    await filtro(page, 'Answered 4xx').click();
+    await presa.respondida;
+
+    await expect(titulo(page)).toHaveText('Requests (12)');
+    presa.soltar();
+    await expect(titulo(page)).toHaveText('Requests (12 of 12)');
+    expect(await vistos()).not.toContainEqual(expect.stringMatching(/\(0 of /));
+  });
+
   test('deve avisar da demora aos 30 s sem cancelar a lista, que entra quando chega', async ({
     page,
     tokens,

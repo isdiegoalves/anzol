@@ -233,10 +233,15 @@ export class RequestList {
     }
     const limit = this.limit();
     const total = limit === null ? `${this.store.total()}` : `${this.store.total()} / ${limit}`;
+    // Com a busca a caminho, o que casa ainda é do filtro de antes: o título fica no total.
+    if (!this.store.filtering() || this.store.searching() || this.store.loading()) {
+      return total;
+    }
+    const newest = this.store.newestWindow();
     // Com filtro (texto, chips ou o desfecho do C2), quantas sobraram de quantas (L9).
-    return this.store.filtering()
-      ? $localize`${this.store.matched()}:matched: of ${total}:total:`
-      : total;
+    return newest
+      ? $localize`${this.store.matched()}:matched: of the newest ${newest}:window:`
+      : $localize`${this.store.matched()}:matched: of ${total}:total:`;
   });
   /** Consulta por linha desenhada: com milhares de não lidas, `includes` na lista pesaria. */
   private readonly unreadIds = computed(() => new Set(this.store.unread()));
