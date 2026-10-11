@@ -701,13 +701,35 @@ describe('Dado o RequestStore da URL aberta', () => {
       const reloaded = store.reload();
       search().flush(requestPage([R3], { total: 1 }));
       await vi.waitFor(() =>
-        http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([R3])),
+        http
+          .expectOne(`${listUrl}?per_page=1&sorting=newest`)
+          .flush(requestPage([R3], { total: 7, per_page: 1, is_last_page: false })),
       );
       await reloaded;
 
       expect(store.requests()).toEqual([R3]);
       expect(store.matched()).toBe(1);
-      expect(store.total()).toBe(1);
+      expect(store.total()).toBe(7);
+    });
+
+    it('deve ler o total da URL numa listagem de um item Quando a ordem muda com filtro', async () => {
+      const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      search().flush(requestPage([R2, R3], { total: 2 }));
+      await applied;
+
+      const toggled = store.toggleSorting();
+      const call = search();
+      expect(call.request.body).toMatchObject({ sorting: 'newest', page: 1 });
+      call.flush(requestPage([R3, R2], { total: 2 }));
+      await vi.waitFor(() =>
+        http
+          .expectOne(`${listUrl}?per_page=1&sorting=newest`)
+          .flush(requestPage([R3], { total: 812, per_page: 1, is_last_page: false })),
+      );
+      await toggled;
+
+      expect(store.requests()).toEqual([R3, R2]);
+      expect(store.total()).toBe(812);
     });
   });
 

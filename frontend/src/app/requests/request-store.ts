@@ -734,8 +734,8 @@ export class RequestStore {
 
   /**
    * Busca de novo a primeira página, mantendo a mensagem aberta: depois de reduzir a limpeza
-   * automática no `PUT`, que corta sem gerar evento. Com filtro, o total da URL vem da listagem
-   * sem filtro.
+   * automática no `PUT`, que corta sem gerar evento. Com filtro, o total da URL vem de uma
+   * listagem de um item.
    */
   async reload(): Promise<void> {
     const tokenId = this.tokenId();
@@ -745,7 +745,7 @@ export class RequestStore {
     const generation = ++this.generation;
     const seen = this.newestSeq;
     const result = await this.fetchPage(tokenId, 1);
-    const total = this.filtering() ? (await this.fetchList(tokenId, 1)).total : result.total;
+    const total = this.filtering() ? (await this.fetchNewest(tokenId)).total : result.total;
     if (generation !== this.generation) {
       return;
     }
