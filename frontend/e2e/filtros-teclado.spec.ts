@@ -1,5 +1,5 @@
 import { Locator, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { expect, test } from './support/fixtures';
 import { busca } from './support/inbox';
 import { gravarRegras } from './support/regras';
@@ -195,10 +195,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await botaoFiltros(page).click();
         await expect(barra(page)).toBeVisible();
 
-        await expectSemViolacoesGraves(
-          page,
-          `filtros abertos, ${colorScheme}, ${viewport.width} px`,
-        );
+        await expectSemViolacoes(page, `filtros abertos, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Page } from '@playwright/test';
-import { alvosMenores, expectSemViolacoesGraves } from './support/a11y';
+import { alvosMenores, expectSemViolacoes } from './support/a11y';
 import { TokenTracker, Webhook, expect, test } from './support/fixtures';
 import { compacto, rolaNaHorizontal } from './support/shell';
 import { seedStorage } from './support/storage';
@@ -173,7 +173,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await expect(page.getByRole('region', { name: 'Summary' })).toContainText(
           /\b4 of the 4 kept\b/,
         );
-        await expectSemViolacoesGraves(page, `Insights, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `Insights, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

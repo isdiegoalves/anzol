@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page, Request } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { expect, test } from './support/fixtures';
 import {
   aba,
@@ -274,16 +274,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
         await page.goto(`/#/${tokenId}`);
         await expect(itens(page)).toHaveCount(2);
-        await expectSemViolacoesGraves(page, `Inbox, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `Inbox, ${colorScheme}, ${viewport.width} px`);
 
         await abrirItem(page, requestId).click();
         await expect(detalhes(page)).toContainText(requestId);
-        await expectSemViolacoesGraves(page, `detalhe Body, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `detalhe Body, ${colorScheme}, ${viewport.width} px`);
         await abrirAba(page, 'Headers');
-        await expectSemViolacoesGraves(
-          page,
-          `detalhe Headers, ${colorScheme}, ${viewport.width} px`,
-        );
+        await expectSemViolacoes(page, `detalhe Headers, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

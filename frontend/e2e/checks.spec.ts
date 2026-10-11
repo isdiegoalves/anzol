@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { APIRequestContext, Request } from '@playwright/test';
-import { alvosMenores, expectSemViolacoesGraves } from './support/a11y';
+import { alvosMenores, expectSemViolacoes } from './support/a11y';
 import {
   abrirChecks,
   escolherProvedor,
@@ -304,14 +304,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
         const assinatura = await abrirChecks(page, tokenId, 'Signature verification');
         await escolherProvedor(assinatura, 'Generic');
         await expect(pendente(assinatura)).toBeVisible();
-        await expectSemViolacoesGraves(
-          page,
-          `Checks Generic, ${colorScheme}, ${viewport.width} px`,
-        );
+        await expectSemViolacoes(page, `Checks Generic, ${colorScheme}, ${viewport.width} px`);
 
         await botaoSalvar(page).click();
         await expect(pendenteAlerta(assinatura)).toBeVisible();
-        await expectSemViolacoesGraves(
+        await expectSemViolacoes(
           page,
           `Checks Generic após o Save, ${colorScheme}, ${viewport.width} px`,
         );

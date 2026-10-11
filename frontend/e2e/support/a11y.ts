@@ -1,7 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 
 /**
- * Axe no E2E (CA-2 do item 14): WCAG 2.2 A/AA, e o teste falha em violação `serious` ou `critical`.
+ * Axe no E2E (CA-2 do item 14): WCAG 2.2 A/AA, e o teste falha em qualquer violação, seja qual for o impacto.
  *
  * `@axe-core/playwright` é dependência que a E0 instala (§2 do plano do item 14). O import é dinâmico para que,
  * sem o pacote, só os testes de acessibilidade falhem, com um motivo claro, e não a carga de toda a suíte.
@@ -9,6 +9,13 @@ import { Locator, Page, expect } from '@playwright/test';
 export const TAGS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 const PACOTE = '@axe-core/playwright';
+
+// O `MatSnackBar` guarda o conteúdo do aviso num `aria-hidden` pelos primeiros 150 ms, e o botão dele ("Undo") conta
+// como foco escondido; depois disso o Material tira o atributo, e o aviso é medido inteiro.
+const AVISO_AINDA_NAO_ANUNCIADO = '.mat-mdc-snack-bar-label > [aria-hidden="true"]';
+
+/** O que abre por cima da página e pode fechar antes de o teste acabar: diálogo, folha, menu e lista suspensa. */
+const POR_CIMA = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
 
 interface Violacao {
   id: string;
@@ -19,6 +26,8 @@ interface Violacao {
 
 interface Analise {
   withTags(tags: string[]): Analise;
+  exclude(seletor: string): Analise;
+  setLegacyMode(legado: boolean): Analise;
   analyze(): Promise<{ violations: Violacao[] }>;
 }
 
@@ -34,11 +43,32 @@ async function axe(page: Page): Promise<Analise> {
     });
   }
   const Construtor = modulo.default ?? (modulo as unknown as AxeBuilder);
-  return new Construtor({ page }).withTags(TAGS_WCAG);
+  // Modo legado: o axe não abre a aba em branco em que junta os resultados. No meio de um teste ela apareceria para
+  // quem espera a aba nova de um link.
+  return new Construtor({ page })
+    .withTags(TAGS_WCAG)
+    .exclude(AVISO_AINDA_NAO_ANUNCIADO)
+    .setLegacyMode(true);
 }
 
-/** Roda o axe na página inteira e exige zero violações `serious`/`critical`, listando as que houver. */
-export async function expectSemViolacoesGraves(page: Page, contexto: string): Promise<void> {
+// O axe é um só por documento, e duas medidas ao mesmo tempo se atropelam: cada página tem a sua fila.
+const filas = new WeakMap<Page, Promise<unknown>>();
+
+function naFila<T>(page: Page, medida: () => Promise<T>): Promise<T> {
+  const resultado = (filas.get(page) ?? Promise.resolve()).then(medida, medida);
+  filas.set(
+    page,
+    resultado.catch(() => undefined),
+  );
+  return resultado;
+}
+
+/** Roda o axe na página inteira e exige zero violações, listando as que houver. */
+export async function expectSemViolacoes(page: Page, contexto: string): Promise<void> {
+  expect(await naFila(page, () => medir(page)), `axe em ${contexto}`).toEqual([]);
+}
+
+async function medir(page: Page): Promise<string[]> {
   // O axe mede cor no meio de uma transição (ex.: o `mat-error` em fade-in) e acusaria contraste falso. Espera as
   // animações finitas acabarem; as infinitas (um spinner) não acabam e não entram na conta.
   await page.waitForFunction(() =>
@@ -63,7 +93,7 @@ export async function expectSemViolacoesGraves(page: Page, contexto: string): Pr
       ),
     );
   const antes = await snackbars();
-  let graves = await violacoesGraves(page);
+  let achadas = await violacoes(page);
   const depois = await snackbars();
   // O snackbar que começa a sair durante a medição é medido no meio do fade: espera ele sumir e mede de novo. O que
   // segue opaco do começo ao fim é medido de verdade.
@@ -71,19 +101,77 @@ export async function expectSemViolacoesGraves(page: Page, contexto: string): Pr
     await page.waitForFunction(
       () => document.querySelectorAll('.mat-mdc-snack-bar-container').length === 0,
     );
-    graves = await violacoesGraves(page);
+    achadas = await violacoes(page);
   }
-  expect(graves, `axe em ${contexto}`).toEqual([]);
+  return achadas;
 }
 
-async function violacoesGraves(page: Page): Promise<string[]> {
+async function violacoes(page: Page): Promise<string[]> {
   const { violations } = await (await axe(page)).analyze();
-  return violations
-    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-    .map(
-      (v) =>
-        `${v.impact} ${v.id} (${v.help}): ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
-    );
+  return violations.map(
+    (v) => `${v.impact} ${v.id} (${v.help}): ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
+  );
+}
+
+export interface PorCima {
+  /** Espera as medidas a caminho e entrega o que elas acharam desde a última vez. */
+  colher(): Promise<string[]>;
+}
+
+/**
+ * Mede com o axe cada diálogo, folha, menu ou lista suspensa que abre, sem parar o teste. Como o teste segue agindo
+ * enquanto o axe roda, só conta a violação que duas medidas seguidas viram: a que pega uma animação no meio não se
+ * repete.
+ */
+export async function vigiarOQueAbrePorCima(page: Page): Promise<PorCima> {
+  const achadas = new Set<string>();
+  let pedida = false;
+  await page.exposeBinding('__abriuPorCima', () => {
+    if (pedida) {
+      return;
+    }
+    pedida = true;
+    naFila(page, async () => {
+      pedida = false;
+      const primeira = await medir(page);
+      if (primeira.length > 0) {
+        const segunda = await medir(page);
+        primeira.filter((violacao) => segunda.includes(violacao)).forEach((v) => achadas.add(v));
+      }
+    }).catch(() => undefined); // a página fechou ou recarregou no meio da medida
+  });
+  await page.addInitScript((seletor) => {
+    const vistos = new WeakSet<Element>();
+    let marcado = false;
+    const olhar = () => {
+      marcado = false;
+      for (const aberto of document.querySelectorAll(seletor)) {
+        if (!vistos.has(aberto) && aberto.getClientRects().length > 0) {
+          vistos.add(aberto);
+          void (window as unknown as { __abriuPorCima(): Promise<void> }).__abriuPorCima();
+        }
+      }
+    };
+    new MutationObserver(() => {
+      if (!marcado) {
+        marcado = true;
+        setTimeout(olhar, 100);
+      }
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['role', 'hidden', 'class', 'style'],
+    });
+  }, POR_CIMA);
+  return {
+    async colher() {
+      await naFila(page, () => Promise.resolve());
+      const vistas = [...achadas];
+      achadas.clear();
+      return vistas;
+    },
+  };
 }
 
 /**

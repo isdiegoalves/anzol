@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { Webhook, expect, test } from './support/fixtures';
 
 // Item 14, E7: o que a página Outbound acrescenta e reenvio.spec.ts não cobre — o link direto para o compositor
@@ -143,7 +143,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         const tokenId = await tokens.create();
         const requestId = await tokens.send(tokenId, { data: 'x' });
         const replay = await openReplay(page, tokenId, requestId);
-        await expectSemViolacoesGraves(page, `Outbound, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `Outbound, ${colorScheme}, ${viewport.width} px`);
 
         await replay
           .getByRole('textbox', { name: 'Target URL' })
@@ -152,10 +152,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await expect(
           page.getByRole('region', { name: 'Outbound detail' }).getByRole('alert'),
         ).toContainText('Blocked');
-        await expectSemViolacoesGraves(
-          page,
-          `Outbound com erro, ${colorScheme}, ${viewport.width} px`,
-        );
+        await expectSemViolacoes(page, `Outbound com erro, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

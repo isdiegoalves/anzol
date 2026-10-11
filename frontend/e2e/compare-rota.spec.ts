@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { Webhook, expect, test } from './support/fixtures';
 
 // Item 14, E8: o Compare por rota (`#/{token}/compare/{a}/{b}`), com link compartilhável, os checks de A e B lado
@@ -138,7 +138,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await page.goto(`/#/${tokenId}/compare/${a}/${b}`);
         await expect(compare(page)).toBeVisible();
 
-        await expectSemViolacoesGraves(page, `Compare, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `Compare, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

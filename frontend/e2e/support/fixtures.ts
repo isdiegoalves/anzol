@@ -1,5 +1,5 @@
 import { APIRequestContext, Page, test as base, expect } from '@playwright/test';
-import { expectSemViolacoesGraves } from './a11y';
+import { PorCima, expectSemViolacoes, vigiarOQueAbrePorCima } from './a11y';
 
 export interface TokenFields {
   default_status?: string;
@@ -103,7 +103,12 @@ export function tokenInUrl(page: Page): string {
   return match[1];
 }
 
-export const test = base.extend<{ tokens: TokenTracker; axeNoFim: boolean; axeAutomatico: void }>({
+export const test = base.extend<{
+  tokens: TokenTracker;
+  axeNoFim: boolean;
+  axePorCima: PorCima | null;
+  axeAutomatico: void;
+}>({
   tokens: async ({ request }, use) => {
     const tracker = new TokenTracker(request);
     await use(tracker);
@@ -111,15 +116,24 @@ export const test = base.extend<{ tokens: TokenTracker; axeNoFim: boolean; axeAu
   },
   /** Item 14, E11 (CA-2): o axe roda no fim de todo teste que passou; `test.use({ axeNoFim: false })` desliga. */
   axeNoFim: [true, { option: true }],
+  /** O axe do que abre por cima da página durante o teste e pode fechar antes do fim (diálogo, folha, menu). */
+  axePorCima: async ({ page, axeNoFim }, use) => {
+    await use(axeNoFim ? await vigiarOQueAbrePorCima(page) : null);
+  },
   // Depende de `tokens` para rodar antes da limpeza (apagar a URL mudaria a tela).
   axeAutomatico: [
-    async ({ page, axeNoFim, tokens }, use, testInfo) => {
+    async ({ page, axeNoFim, axePorCima, tokens }, use, testInfo) => {
       void tokens;
       await use();
       const passou = testInfo.status === testInfo.expectedStatus && testInfo.status === 'passed';
       const naTela = !page.isClosed() && page.url().startsWith('http');
       if (axeNoFim && passou && naTela) {
-        await expectSemViolacoesGraves(page, `fim de "${testInfo.titlePath.slice(1).join(' › ')}"`);
+        const teste = testInfo.titlePath.slice(1).join(' › ');
+        expect(
+          (await axePorCima?.colher()) ?? [],
+          `axe no que abriu por cima em "${teste}"`,
+        ).toEqual([]);
+        await expectSemViolacoes(page, `fim de "${teste}"`);
       }
     },
     { auto: true },

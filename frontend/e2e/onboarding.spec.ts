@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Page, Route } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { abrirChecks, botaoSalvar } from './support/checks';
 import { expect, test } from './support/fixtures';
 import { campoDeBusca, itens, lista } from './support/inbox';
@@ -269,7 +269,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await page.goto(`/#/${tokenId}`);
         await expect(onboarding(page)).toBeVisible();
 
-        await expectSemViolacoesGraves(page, `onboarding, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `onboarding, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

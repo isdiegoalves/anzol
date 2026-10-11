@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { acaoDoShell, compacto, destino } from './support/shell';
 import { seedStorage } from './support/storage';
@@ -87,12 +87,55 @@ for (const colorScheme of ['light', 'dark'] as const) {
       for (const tela of TELAS) {
         test(`deve passar no axe sem violação grave: ${tela.nome}`, async ({ page, tokens }) => {
           await tela.abrir(page, tokens);
-          await expectSemViolacoesGraves(
-            page,
-            `${tela.nome}, ${colorScheme}, ${viewport.width} px`,
-          );
+          await expectSemViolacoes(page, `${tela.nome}, ${colorScheme}, ${viewport.width} px`);
         });
       }
     });
   }
 }
+
+test.describe('Dado a conferência do axe que acompanha todo teste', () => {
+  test('deve reprovar a violação de qualquer impacto', async ({ page, tokens }) => {
+    await page.goto(`/#/${await tokens.create()}/checks`);
+    await expect(destino(page, 'Checks')).toHaveAttribute('aria-current', 'page');
+    // `role="directory"` é um papel aposentado do ARIA: violação `minor` de WCAG 4.1.2.
+    await page.evaluate(() => {
+      const aposentado = document.createElement('div');
+      aposentado.id = 'papel-aposentado';
+      aposentado.setAttribute('role', 'directory');
+      aposentado.textContent = 'x';
+      document.querySelector('main')?.append(aposentado);
+    });
+
+    await expect(expectSemViolacoes(page, 'papel aposentado')).rejects.toThrow(
+      /minor aria-deprecated-role/,
+    );
+
+    await page.evaluate(() => document.getElementById('papel-aposentado')?.remove());
+  });
+
+  test('deve medir o diálogo que abre e fecha no meio do teste', async ({
+    page,
+    tokens,
+    axePorCima,
+  }) => {
+    await page.goto(`/#/${await tokens.create()}/checks`);
+    await expect(destino(page, 'Checks')).toHaveAttribute('aria-current', 'page');
+    // Um contraste ruim que só existe dentro de um diálogo: com ele fechado, o axe do fim do teste não vê.
+    await page.addStyleTag({
+      content: '[role="dialog"] h2 { color: #bbb !important; background: #fff !important; }',
+    });
+
+    await page.getByRole('button', { name: 'Settings' }).click();
+    const vistas: string[] = [];
+    await expect
+      .poll(async () => {
+        vistas.push(...((await axePorCima?.colher()) ?? []));
+        return vistas.join('\n');
+      })
+      .toContain('color-contrast');
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});

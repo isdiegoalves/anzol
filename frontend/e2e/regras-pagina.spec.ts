@@ -1,5 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import { expect, test } from './support/fixtures';
 import { anuncios } from './support/inbox';
 import { abrirRegras, editor, novaRegra, parte } from './support/regras';
@@ -214,16 +214,13 @@ for (const colorScheme of ['light', 'dark'] as const) {
         const tokenId = await tokens.create();
         await putRules(request, tokenId, [PIX]);
         await abrirRegras(page, tokenId);
-        await expectSemViolacoesGraves(page, `Rules, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `Rules, ${colorScheme}, ${viewport.width} px`);
 
         const regra = await novaRegra(page);
         await parte(regra, 'Match');
-        await expectSemViolacoesGraves(page, `editor Match, ${colorScheme}, ${viewport.width} px`);
+        await expectSemViolacoes(page, `editor Match, ${colorScheme}, ${viewport.width} px`);
         await parte(regra, 'Response');
-        await expectSemViolacoesGraves(
-          page,
-          `editor Response, ${colorScheme}, ${viewport.width} px`,
-        );
+        await expectSemViolacoes(page, `editor Response, ${colorScheme}, ${viewport.width} px`);
       });
     });
   }

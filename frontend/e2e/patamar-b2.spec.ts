@@ -1,5 +1,5 @@
 import { Locator, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import {
   escutarAnuncios,
   expectSemAnuncio,
@@ -625,7 +625,7 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     const link = verificacoes(page).getByRole('link', { name: nome, exact: true });
     await expect(link).toBeVisible();
 
-    await expectSemViolacoesGraves(page, 'cartão da resposta com regra de nome longo');
+    await expectSemViolacoes(page, 'cartão da resposta com regra de nome longo');
     expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   });
 

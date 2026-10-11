@@ -92,7 +92,8 @@
   cor). Specs com TestBed existentes valem até o componente ser reescrito. Guarda: revisão e o
   helper de axe.
 - E2E (Playwright) nos projetos `ui` (1400×900) e `mobile` (390×844, os specs da lista `MOBILE`
-  do `playwright.config.ts`), com axe WCAG 2.2 A/AA no fim de cada spec; regressão visual
+  do `playwright.config.ts`), com axe WCAG 2.2 A/AA no fim de cada teste e em cada diálogo, folha, menu ou
+  lista suspensa que abre no meio dele, reprovando violação de qualquer impacto; regressão visual
   (`VISUAL=1`, `e2e-visual.sh`) na imagem Docker do Playwright, para os pixels baterem entre
   máquinas. Mudança visual de propósito regrava as baselines no mesmo commit.
 - Catálogo de `ui/` em `#/_catalog`, só em desenvolvimento (`fileReplacements` troca as rotas dele

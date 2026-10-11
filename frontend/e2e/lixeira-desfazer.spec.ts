@@ -1,5 +1,5 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
-import { expectSemViolacoesGraves } from './support/a11y';
+import { expectSemViolacoes } from './support/a11y';
 import {
   anunciados,
   escutarAnuncios,
@@ -464,7 +464,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await apagarPeloTeclado(page, segunda);
       await expect(desfazer(page)).toBeVisible();
 
-      await expectSemViolacoesGraves(page, `aviso com Undo, ${colorScheme}`);
+      await expectSemViolacoes(page, `aviso com Undo, ${colorScheme}`);
     });
   });
 }
