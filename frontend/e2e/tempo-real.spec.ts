@@ -188,7 +188,8 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
       '497 requests match · search runs on the server over all 500',
       { timeout: 15_000 },
     );
-    expect(pedidos.length).toBeGreaterThanOrEqual(1);
+    // A frase muda com a resposta; o pedido só entra na medida depois, quando o tamanho dele chega.
+    await expect.poll(() => pedidos.length).toBeGreaterThanOrEqual(1);
     expect(pedidos.length).toBeLessThanOrEqual(2);
     for (const pedido of pedidos) {
       expect(pedido.caminho).toBe('POST /token/{id}/requests/search');
