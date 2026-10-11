@@ -7,7 +7,16 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.core.io.ClassPathResource
 import tools.jackson.databind.json.JsonMapper
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.util.zip.GZIPInputStream
+
+private const val IMMUTABLE = "max-age=31536000, public, immutable"
+private const val REVALIDATE = "no-cache, private"
 
 /** Os arquivos de `src/test/resources/static/` fazem o papel do build do Angular. */
 @ApiTest
@@ -17,6 +26,21 @@ class FrontendApiTest(
     jsonMapper: JsonMapper,
 ) {
     private val api = ApiClient(port, jsonMapper)
+
+    private fun encoded(
+        path: String,
+        coding: String,
+    ): HttpResponse<ByteArray> {
+        val request = HttpRequest.newBuilder(URI.create(api.base + path)).header("Accept-Encoding", coding).build()
+        return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofByteArray())
+    }
+
+    private fun cacheControl(path: String): String =
+        api
+            .send("GET", path)
+            .headers()
+            .firstValue("Cache-Control")
+            .orElseThrow()
 
     @Test
     @DisplayName("Dado o build na imagem, quando pede /, então responde o index.html como página")
@@ -40,6 +64,77 @@ class FrontendApiTest(
         assertThat(script.body()).contains("main do teste")
         assertThat(style.statusCode()).isEqualTo(200)
         assertThat(style.headers().firstValue("Content-Type").orElseThrow()).startsWith("text/css")
+    }
+
+    @Test
+    @DisplayName("Dado o .gz ao lado do arquivo, quando o navegador aceita gzip, então responde o .gz com Vary: Accept-Encoding")
+    fun arquivoComGz_deveResponderGzip() {
+        val response = encoded("/main-TESTE123.js", "gzip")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Encoding")).hasValue("gzip")
+        assertThat(response.headers().allValues("Vary")).contains("Accept-Encoding")
+        assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("text/javascript")
+        assertThat(GZIPInputStream(response.body().inputStream()).readBytes().decodeToString()).contains("main do teste")
+    }
+
+    @Test
+    @DisplayName("Dado o .br ao lado do arquivo, quando o navegador aceita br, então responde o .br com Vary: Accept-Encoding")
+    fun arquivoComBr_deveResponderBrotli() {
+        val response = encoded("/main-TESTE123.js", "br")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Encoding")).hasValue("br")
+        assertThat(response.headers().allValues("Vary")).contains("Accept-Encoding")
+        assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("text/javascript")
+        assertThat(response.body()).isEqualTo(ClassPathResource("static/main-TESTE123.js.br").contentAsByteArray)
+    }
+
+    @Test
+    @DisplayName("Dado o .br e o .gz ao lado do arquivo, quando o navegador aceita os dois e lista gzip primeiro, então responde o .br")
+    fun arquivoComBrEGz_deveResponderBrotliAoNavegador() {
+        val response = encoded("/main-TESTE123.js", "gzip, deflate, br, zstd")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Encoding")).hasValue("br")
+        assertThat(response.body()).isEqualTo(ClassPathResource("static/main-TESTE123.js.br").contentAsByteArray)
+    }
+
+    @Test
+    @DisplayName("Dado um arquivo sem .gz nem .br ao lado, quando o navegador aceita gzip ou br, então responde o original")
+    fun arquivoSemComprimido_deveResponderOriginal() {
+        listOf("gzip", "br").forEach { coding ->
+            val response = encoded("/styles-TESTE123.css", coding)
+
+            assertThat(response.statusCode()).describedAs(coding).isEqualTo(200)
+            assertThat(response.headers().firstValue("Content-Encoding")).describedAs(coding).isEmpty()
+            assertThat(response.body().decodeToString()).describedAs(coding).contains("margin: 0")
+        }
+    }
+
+    @Test
+    @DisplayName("Dado um arquivo com hash no nome (main, chunk, styles), quando pede, então o navegador pode guardar sem revalidar")
+    fun nomeComHash_deveResponderImmutable() {
+        listOf("/main-TESTE123.js", "/chunk--TESTE_1.js", "/styles-TESTE123.css").forEach { path ->
+            assertThat(cacheControl(path)).describedAs(path).isEqualTo(IMMUTABLE)
+        }
+    }
+
+    @Test
+    @DisplayName("Dado o index.html, o favicon e um .js fora dos três nomes com hash, quando pede, então o navegador revalida sempre")
+    fun foraDosNomesComHash_deveResponderNoCache() {
+        listOf("/", "/favicon.ico", "/polyfills-TESTE123.js").forEach { path ->
+            assertThat(cacheControl(path)).describedAs(path).isEqualTo(REVALIDATE)
+        }
+    }
+
+    @Test
+    @DisplayName("Dado um nome com hash que não existe, quando pede, então o 404 não fica guardado no navegador")
+    fun nomeComHashInexistente_naoDeveResponderImmutable() {
+        val response = api.send("GET", "/chunk-NAOEXISTE.js", headers = JSON_CLIENT)
+
+        assertThat(response.statusCode()).isEqualTo(404)
+        assertThat(response.headers().firstValue("Cache-Control").orElseThrow()).isEqualTo(REVALIDATE)
     }
 
     @Test
