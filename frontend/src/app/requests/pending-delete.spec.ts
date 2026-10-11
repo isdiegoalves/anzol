@@ -35,6 +35,7 @@ describe('Dado o apagar de uma requisição, com o Undo', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     http.verify();
   });
 
@@ -90,6 +91,32 @@ describe('Dado o apagar de uma requisição, com o Undo', () => {
     deleting.undo();
 
     expect(open.mock.calls.map(([, , config]) => config?.politeness)).toEqual(['polite', 'off']);
+  });
+
+  it('deve confirmar o apagar num pedido que sobrevive à página, e acabar com o Undo, Quando ela sai', () => {
+    const sent = vi.spyOn(window, 'fetch').mockResolvedValue(new Response());
+    deleting.delete(first);
+
+    window.dispatchEvent(new Event('pagehide'));
+
+    expect(sent.mock.calls).toEqual([
+      [`/token/${TOKEN_ID}/request/${first.uuid}`, { method: 'DELETE', keepalive: true }],
+    ]);
+    expect(deleting.pending()).toBeNull();
+    deleting.undo();
+    vi.advanceTimersByTime(UNDO_MS);
+    expect(store.requests()).toEqual([second]);
+    http.expectNone(deleteOf(first.uuid));
+  });
+
+  it('não deve pedir nada Quando a página sai sem apagar em espera', () => {
+    const sent = vi.spyOn(window, 'fetch').mockResolvedValue(new Response());
+    deleting.delete(first);
+    deleting.undo();
+
+    window.dispatchEvent(new Event('pagehide'));
+
+    expect(sent).not.toHaveBeenCalled();
   });
 
   it('deve tirar o snackbar da tela Quando o Undo vem pelo aviso da requisição', () => {

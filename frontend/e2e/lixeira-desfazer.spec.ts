@@ -1,4 +1,4 @@
-import { Locator, Page } from '@playwright/test';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
 import {
   escutarAnuncios,
@@ -167,6 +167,73 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
     await expect(avisoDaRequisicao(page)).toHaveText(frase);
     await expect(desfazer(page)).toBeVisible();
     await expectSoEstaFala(page, frase, /^Request notice$/);
+  });
+});
+
+test.describe('Dado a página que sai com o "Undo" ainda aberto', () => {
+  /** As requisições que a API ainda lista, com o segredo de leitura quando a URL é protegida. */
+  async function noServidor(
+    request: APIRequestContext,
+    tokenId: string,
+    segredo?: string,
+  ): Promise<string[]> {
+    const resposta = await request.get(`/token/${tokenId}/requests`, {
+      headers: segredo ? { 'X-Anzol-Secret': segredo } : undefined,
+    });
+    return ((await resposta.json()) as { data: { uuid: string }[] }).data.map((r) => r.uuid);
+  }
+
+  test('deve apagar no servidor Quando a página é fechada', async ({ page, tokens, request }) => {
+    const { tokenId, segunda } = await comTres(tokens);
+    await page.goto(`/#/${tokenId}`);
+    await expect(itens(page)).toHaveCount(3);
+    await apagarPeloTeclado(page, segunda);
+    await expect(desfazer(page)).toBeVisible();
+    expect(await noServidor(request, tokenId)).toContain(segunda);
+
+    await page.close({ runBeforeUnload: true });
+
+    await expect.poll(() => noServidor(request, tokenId)).not.toContain(segunda);
+  });
+
+  test('deve apagar no servidor, sem o "Undo" na volta, Quando a página é recarregada', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const { tokenId, segunda } = await comTres(tokens);
+    await page.goto(`/#/${tokenId}`);
+    await expect(itens(page)).toHaveCount(3);
+    await apagarPeloTeclado(page, segunda);
+    await expect(desfazer(page)).toBeVisible();
+
+    await page.reload();
+
+    await expect.poll(() => noServidor(request, tokenId)).not.toContain(segunda);
+    await expect(page.getByRole('heading', { name: /^Requests \(\d\)$/ })).toBeVisible();
+    await expect(desfazer(page)).toHaveCount(0);
+    await expect(avisoDaRequisicao(page)).toHaveText('');
+  });
+
+  test('deve apagar no servidor a requisição de uma URL protegida Quando a página é recarregada', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const segredo = 'segredo-do-undo';
+    const tokenId = await tokens.create({ read_secret: segredo });
+    const fica = await tokens.send(tokenId, { path: '/fica' });
+    const sai = await tokens.send(tokenId, { path: '/sai' });
+    await page.goto(`/#/${tokenId}`);
+    await page.getByLabel('Read secret').fill(segredo);
+    await page.keyboard.press('Enter');
+    await expect(itens(page)).toHaveCount(2);
+    await apagarPeloTeclado(page, sai);
+    await expect(desfazer(page)).toBeVisible();
+
+    await page.reload();
+
+    await expect.poll(() => noServidor(request, tokenId, segredo)).toEqual([fica]);
   });
 });
 
