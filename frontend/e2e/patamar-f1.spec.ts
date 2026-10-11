@@ -199,7 +199,7 @@ test.describe('Dado um valor da requisição aberta', () => {
     await expect(itens(page)).toHaveCount(2);
   });
 
-  test('deve filtrar pelo status respondido clicado no cartão, no navegador', async ({
+  test('deve filtrar pelo status respondido clicado no cartão, pela busca do servidor', async ({
     page,
     tokens,
   }) => {
@@ -224,8 +224,8 @@ test.describe('Dado um valor da requisição aberta', () => {
     await expect(
       lista(page)
         .getByRole('status')
-        .filter({ hasText: /among the newest/ }),
-    ).toContainText('4 match among the newest 5');
+        .filter({ hasText: /requests match/ }),
+    ).toContainText('4 requests match · search runs on the server over all 5');
   });
 
   test('deve copiar o valor e o caminho, anunciando uma vez', async ({ page, tokens }) => {

@@ -1,4 +1,3 @@
-import type { CapturedRequest } from '../requests/webhook-request';
 import type {
   DecryptionCondition,
   RuleMatch,
@@ -39,10 +38,7 @@ export interface RequestFilter {
   decryptionReason?: string | null;
   /** M1: o caminho (JSON Pointer) de um erro de schema; `''` é a raiz. `null` ou ausente, sem ele. */
   schemaPath?: string | null;
-  /**
-   * Por classe (`4xx`) ou exato (`429`). A busca do servidor não filtra por status: roda no
-   * navegador, sobre as mais novas (`RequestStore.scan`).
-   */
+  /** O status respondido, por classe (`4xx`) ou exato (`429`), em OU: o `answered` da busca. */
   answered?: readonly string[] | null;
   /**
    * Ficam no estado da tela e no `sessionStorage` da aba: o dado da requisição não vai para o
@@ -150,17 +146,6 @@ export function filterFromParams(params: FilterParams): RequestFilter {
 
 const ANSWERED = /^([1-5]xx|[1-5]\d\d)$/;
 
-/** Sem status gravado (falha de rede, gravada antes do campo), não casa. */
-export function answeredMatches(request: CapturedRequest, answered: readonly string[]): boolean {
-  const status = request.response?.status;
-  if (status === undefined) {
-    return false;
-  }
-  return answered.some((wanted) =>
-    wanted.endsWith('xx') ? `${Math.floor(status / 100)}xx` === wanted : `${status}` === wanted,
-  );
-}
-
 const REASON_MAX = 200;
 const PATH_MAX = 1000;
 /** JSON Pointer: vazio (a raiz), ou `/` no começo e `~` só como `~0`/`~1` (a busca recusa o resto). */
@@ -211,6 +196,7 @@ export interface SearchBody {
   text?: string;
   match: RuleMatch;
   outcome?: { type: OutcomeFilter['type']; rule?: string };
+  answered?: string[];
   signature_reason?: string;
   decryption_reason?: string;
   schema_path?: string;
@@ -296,9 +282,11 @@ export function searchBody(
     }
   }
   const outcome = filter.outcome;
+  const answered = filter.answered ?? [];
   return {
     ...(text && { text }),
     match,
+    ...(answered.length > 0 && { answered: [...answered] }),
     ...(filter.signatureReason != null && { signature_reason: filter.signatureReason }),
     ...(filter.decryptionReason != null && { decryption_reason: filter.decryptionReason }),
     ...(filter.schemaPath != null && { schema_path: filter.schemaPath }),

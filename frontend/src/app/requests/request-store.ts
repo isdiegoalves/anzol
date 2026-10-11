@@ -6,7 +6,6 @@ import {
   RequestFilter,
   RequestSorting,
   ValueFilter,
-  answeredMatches,
   isFilterActive,
   sameFilter,
   searchBody,
@@ -18,19 +17,8 @@ import { RequestPage, WebhookRequest } from './webhook-request';
 /** Mensagens por página da listagem (e da busca). */
 const REQUESTS_PER_PAGE = 50;
 
-/** O teto de página da busca. */
-export const SCAN_PAGE = 100;
-/** A mesma janela de Métricas. */
-export const SCAN_WINDOW = 500;
-
-/** O alcance do filtro que roda no navegador: a tela nunca diz "0" sem dizer onde procurou. */
-export interface StatusScan {
-  scanned: number;
-  total: number;
-  done: boolean;
-  /** Com a janela pedida: ela, quando a URL guarda mais que ela; `null` quando não guarda. */
-  window?: number | null;
-}
+/** O teto de página da busca e da listagem: a janela das mais novas é lida em páginas cheias. */
+const WINDOW_PAGE = 100;
 
 /**
  * A requisição aberta sumiu do servidor com a cópia dela na tela. `at` é a hora do navegador
@@ -100,8 +88,11 @@ export class RequestStore {
   readonly unopened = signal<UnopenedRequest | null>(null);
   /** Os filtros por valor que a busca recusou (422); a lista voltou ao filtro anterior. */
   readonly rejected = signal<readonly ValueFilter[]>([]);
-  readonly scan = signal<StatusScan | null>(null);
-  private scanLimit = SCAN_WINDOW;
+  /**
+   * A janela da rota (`?window=`) em vigor: o resultado é só o que casa entre as n mais novas da URL. `null` sem
+   * janela, ou quando a URL não guarda mais que ela.
+   */
+  readonly newestWindow = signal<number | null>(null);
 
   /** A lista de uma URL está sendo carregada (`load`): a tela mostra o esqueleto (C §2.11). */
   readonly loading = signal(false);
@@ -296,7 +287,7 @@ export class RequestStore {
       this.selection.set(undefined);
       this.goneState.set(null);
       this.unopened.set(null);
-      this.scan.set(null);
+      this.newestWindow.set(null);
       this.failure.set(null);
     }
     return run;
@@ -343,7 +334,6 @@ export class RequestStore {
     const previous = this.activeFilter();
     this.activeFilter.set(filter);
     this.rejected.set([]);
-    this.scanLimit = SCAN_WINDOW;
     const search = this.reapply(tokenId);
     const generation = this.generation;
     try {
@@ -360,15 +350,6 @@ export class RequestStore {
       this.activeFilter.set(previous);
       await this.reapply(tokenId);
     }
-  }
-
-  async lookOlder(): Promise<void> {
-    const tokenId = this.tokenId();
-    if (!tokenId || this.opening() || !this.scan()) {
-      return;
-    }
-    this.scanLimit += SCAN_WINDOW;
-    await this.reapply(tokenId);
   }
 
   private async reapply(tokenId: string): Promise<void> {
@@ -838,96 +819,87 @@ export class RequestStore {
     }
   }
 
-  /** Página da lista: pela busca com filtro ativo, pela listagem sem ele. */
   private fetchPage(tokenId: string, page: number): Promise<RequestPage> {
-    const { answered, window: span } = this.activeFilter();
-    if (answered?.length || span) {
-      return this.scanInBrowser(tokenId, this.generation);
+    const filter = this.activeFilter();
+    if (filter.window) {
+      return this.fetchWindow(tokenId, page, filter, filter.window, this.generation);
     }
-    this.scan.set(null);
-    if (!this.filtering()) {
+    this.newestWindow.set(null);
+    return this.fetchFiltered(tokenId, page, filter);
+  }
+
+  /** Página da lista: pela busca com filtro ativo, pela listagem sem ele. */
+  private fetchFiltered(
+    tokenId: string,
+    page: number,
+    filter: RequestFilter,
+  ): Promise<RequestPage> {
+    if (!isFilterActive(filter)) {
       return this.fetchList(tokenId, page);
     }
     return firstValueFrom(
       this.http.post<RequestPage>(
         `/token/${tokenId}/requests/search`,
-        searchBody(this.activeFilter(), page, this.sorting()),
+        searchBody(filter, page, this.sorting()),
       ),
     );
   }
 
   /**
-   * O status respondido e a janela das mais novas, no navegador: pede as mais novas em páginas de
-   * 100 (pela busca, com os outros filtros; pela listagem, sem eles) até o teto, e devolve as que
-   * casam numa página só. Com a janela e filtro do servidor, o resultado da busca fica só com as que
-   * estão entre as n mais novas da URL.
+   * A janela das `size` mais novas, que a busca não tem como campo: a `size`-ésima mais nova da URL dá o `seq` da
+   * fronteira, e a busca (a listagem, sem outro filtro) é lida da mais nova para a mais antiga até chegar nela. As
+   * que casam dentro da janela vêm numa página só. Quando a URL não guarda mais que a janela, é a página de sempre.
    */
-  private async scanInBrowser(tokenId: string, generation: number): Promise<RequestPage> {
-    const filter = this.activeFilter();
-    const span = filter.window ?? null;
-    const limit = span ?? this.scanLimit;
-    const others = { ...filter, answered: null, window: null };
-    const listed = (page: number) =>
-      firstValueFrom(
-        this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
-          params: { page, per_page: SCAN_PAGE, sorting: 'newest' },
-        }),
-      );
-    const searched = (page: number) =>
-      firstValueFrom(
-        this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
-          ...searchBody(others, page, 'newest'),
-          per_page: SCAN_PAGE,
-        }),
-      );
-    const byServer = isFilterActive(others);
-    const found = await this.newestUpTo(byServer ? searched : listed, limit, generation);
-    let [scanned, looked, total] = [found.data, found.data.length, found.total];
-    if (span !== null && byServer) {
-      const kept = await this.newestUpTo(listed, span, generation);
-      const inWindow = new Set(kept.data.map((request) => request.uuid));
-      scanned = scanned.filter((request) => inWindow.has(request.uuid));
-      [looked, total] = [kept.data.length, kept.total];
-    }
-    const answered = filter.answered ?? [];
-    const matches = answered.length
-      ? scanned.filter((request) => answeredMatches(request, answered))
-      : scanned;
+  private async fetchWindow(
+    tokenId: string,
+    page: number,
+    filter: RequestFilter,
+    size: number,
+    generation: number,
+  ): Promise<RequestPage> {
+    const edge = await firstValueFrom(
+      this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+        params: { page: size, per_page: 1, sorting: 'newest' },
+      }),
+    );
+    const cut = edge.total > size;
     if (generation === this.generation) {
-      this.scan.set({
-        scanned: looked,
-        total,
-        done: true,
-        ...(span !== null && { window: total > span ? span : null }),
-      });
+      this.newestWindow.set(cut ? size : null);
     }
+    if (!cut) {
+      return this.fetchFiltered(tokenId, page, filter);
+    }
+    const from = Math.max(0, ...edge.data.map(seqOf));
+    const searched = isFilterActive({ ...filter, window: null });
+    const read = (number: number) =>
+      searched
+        ? this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
+            ...searchBody(filter, number, 'newest'),
+            per_page: WINDOW_PAGE,
+          })
+        : this.http.get<RequestPage>(`/token/${tokenId}/requests`, {
+            params: { page: number, per_page: WINDOW_PAGE, sorting: 'newest' },
+          });
+    // Por uuid: a que chega entre duas páginas empurra a última de uma para o começo da seguinte.
+    const inside = new Map<string, WebhookRequest>();
+    for (let number = 1; ; number++) {
+      const found = await firstValueFrom(read(number));
+      found.data
+        .filter((request) => seqOf(request) >= from)
+        .forEach((request) => inside.set(request.uuid, request));
+      if (found.is_last_page || found.data.some((request) => seqOf(request) <= from)) {
+        break;
+      }
+    }
+    const matches = [...inside.values()];
     return {
-      data: this.newestFirst() ? matches : [...matches].reverse(),
+      data: this.newestFirst() ? matches : matches.reverse(),
       total: matches.length,
-      per_page: SCAN_PAGE,
+      per_page: WINDOW_PAGE,
       current_page: 1,
       is_last_page: true,
       from: 1,
       to: matches.length,
-    };
-  }
-
-  private async newestUpTo(
-    fetch: (page: number) => Promise<RequestPage>,
-    limit: number,
-    generation: number,
-  ): Promise<{ data: RequestPage['data']; total: number }> {
-    const first = await fetch(1);
-    const pages = Math.ceil(Math.min(first.total, limit) / SCAN_PAGE);
-    if (generation === this.generation) {
-      this.scan.set({ scanned: first.data.length, total: first.total, done: pages <= 1 });
-    }
-    const rest = await Promise.all(
-      Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => fetch(i + 2)),
-    );
-    return {
-      data: [first, ...rest].flatMap((page) => page.data).slice(0, limit),
-      total: first.total,
     };
   }
 

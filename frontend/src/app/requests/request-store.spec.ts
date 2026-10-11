@@ -790,12 +790,12 @@ describe('Dado o RequestStore da URL aberta', () => {
   });
 });
 
-// A busca do servidor não filtra por status: o filtro roda no navegador, sobre as mais novas.
 describe('Dado o filtro pelo status respondido', () => {
   let http: HttpTestingController;
   let store: RequestStore;
-  const answered = (n: number, status: number) => webhookRequest(n, { response: { status } });
-  const listPage = (page: number) => `${listUrl}?page=${page}&per_page=100&sorting=newest`;
+  const answered = (n: number, status: number) =>
+    webhookRequest(n, { seq: n, response: { status } });
+  const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -813,123 +813,234 @@ describe('Dado o filtro pelo status respondido', () => {
     localStorage.clear();
   });
 
-  it('deve varrer as mais novas pela listagem, filtrar no navegador e dizer o alcance', async () => {
-    const [ok, recusa, outra] = [answered(3, 201), answered(2, 429), answered(1, 404)];
+  it('deve mandar o status na busca do servidor, num pedido só, e contar a URL inteira', async () => {
+    const [limite, fora] = [answered(9, 429), answered(4, 503)];
 
-    const applied = store.applyFilter({ ...NO_FILTER, answered: ['4xx'] });
-    await vi.waitFor(() => http.expectOne(listPage(1)).flush(requestPage([ok, recusa, outra])));
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['4xx', '503'] });
+    const call = await search();
+    expect(call.request.body).toEqual({
+      match: {},
+      answered: ['4xx', '503'],
+      sorting: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+    call.flush(requestPage([limite, fora], { total: 812, is_last_page: false }));
     await applied;
 
-    expect(store.requests()).toEqual([recusa, outra]);
-    expect(store.matched()).toBe(2);
-    expect(store.scan()).toEqual({ scanned: 3, total: 3, done: true });
-    expect(store.hasNextPage()).toBe(false);
+    expect(store.requests()).toEqual([limite, fora]);
+    expect(store.matched()).toBe(812);
+    expect(store.hasNextPage()).toBe(true);
+    expect(store.newestWindow()).toBeNull();
   });
 
-  it('deve parar em 500 e procurar mais 500 Quando pedem as mais antigas', async () => {
-    const page = (n: number, total: number) =>
-      requestPage(
-        Array.from({ length: 100 }, (_, i) => answered(n * 1000 + i, 200)),
-        { total, per_page: 100, current_page: n, is_last_page: false },
-      );
-
-    const applied = store.applyFilter({ ...NO_FILTER, answered: ['5xx'] });
-    await vi.waitFor(() => http.expectOne(listPage(1)).flush(page(1, 505)));
-    for (const n of [2, 3, 4, 5]) {
-      await vi.waitFor(() => http.expectOne(listPage(n)).flush(page(n, 505)));
-    }
+  it('deve pedir a página seguinte à busca, com o mesmo status', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'], answered: ['5xx'] });
+    (await search()).flush(requestPage([answered(9, 500)], { total: 51, is_last_page: false }));
     await applied;
-    expect(store.matched()).toBe(0);
-    expect(store.scan()).toEqual({ scanned: 500, total: 505, done: true });
 
-    const older = store.lookOlder();
-    for (const n of [1, 2, 3, 4, 5]) {
-      await vi.waitFor(() => http.expectOne(listPage(n)).flush(page(n, 505)));
-    }
-    const antiga = answered(9, 503);
-    await vi.waitFor(() =>
-      http.expectOne(listPage(6)).flush(
-        requestPage([5, 6, 7, 8].map((n) => answered(n, 200)).concat(antiga), {
-          total: 505,
-          current_page: 6,
+    const next = store.loadNextPage();
+    const call = await search();
+    expect(call.request.body).toMatchObject({
+      match: { method: ['POST'] },
+      answered: ['5xx'],
+      page: 2,
+    });
+    call.flush(requestPage([answered(2, 503)], { total: 51, current_page: 2 }));
+    await next;
+
+    expect(store.requests()).toEqual([answered(9, 500), answered(2, 503)]);
+    expect(store.hasNextPage()).toBe(false);
+  });
+});
+
+// O link de Métricas e de Saúde traz `?window=n`: a contagem deles é sobre as n mais novas da URL.
+describe('Dado a janela das mais novas na rota', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const answered = (n: number, status: number) =>
+    webhookRequest(n, { seq: n, response: { status } });
+  const edgeUrl = (size: number) => `${listUrl}?page=${size}&per_page=1&sorting=newest`;
+  const listPage = (page: number) => `${listUrl}?page=${page}&per_page=100&sorting=newest`;
+  const edge = (size: number, oldest: number, total: number) =>
+    vi.waitFor(() =>
+      http.expectOne(edgeUrl(size)).flush(
+        requestPage([answered(oldest, 200)], {
+          total,
+          per_page: 1,
+          current_page: size,
+          is_last_page: false,
         }),
       ),
     );
-    await older;
+  const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
 
-    expect(store.requests()).toEqual([antiga]);
-    expect(store.scan()).toEqual({ scanned: 505, total: 505, done: true });
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    const loaded = store.load(TOKEN_ID);
+    http.expectOne(`${listUrl}?page=1&sorting=newest`).flush(requestPage([answered(1, 200)]));
+    await loaded;
   });
 
-  it('deve varrer pela busca do servidor Quando há outros filtros junto', async () => {
-    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'], answered: ['2xx'] });
-    const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve achar a fronteira pelo seq da n-ésima mais nova e ficar com o que a busca acha até ela', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 2 });
+    await edge(2, 8, 3);
+    const call = await search();
     expect(call.request.body).toEqual({
-      match: { method: ['POST'] },
+      match: {},
+      answered: ['429'],
       sorting: 'newest',
       page: 1,
       per_page: 100,
     });
-    call.flush(requestPage([answered(2, 204), answered(1, 500)], { total: 2 }));
-    await applied;
-
-    expect(store.requests()).toEqual([answered(2, 204)]);
-    expect(store.scan()).toEqual({ scanned: 2, total: 2, done: true });
-  });
-
-  it('deve contar só sobre as mais novas da janela, pela listagem, e dizer a janela', async () => {
-    const recentes = [answered(9, 429), answered(8, 201), answered(7, 429)];
-
-    const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 2 });
-    await vi.waitFor(() =>
-      http
-        .expectOne(listPage(1))
-        .flush(requestPage(recentes, { total: 3, per_page: 100, is_last_page: true })),
+    call.flush(
+      requestPage([answered(9, 429), answered(7, 429)], { total: 40, is_last_page: false }),
     );
     await applied;
 
     expect(store.requests()).toEqual([answered(9, 429)]);
     expect(store.matched()).toBe(1);
-    expect(store.scan()).toEqual({ scanned: 2, total: 3, done: true, window: 2 });
+    expect(store.newestWindow()).toBe(2);
+    expect(store.hasNextPage()).toBe(false);
   });
 
-  it('deve cortar o resultado da busca pelas mais novas da URL Quando há janela e filtro do servidor', async () => {
-    const [nova, velha] = [answered(9, 200), answered(3, 200)];
+  it('deve seguir pelas páginas da busca enquanto não cruza a fronteira', async () => {
+    const page = (from: number) => Array.from({ length: 100 }, (_, i) => answered(from - i, 200));
 
-    const applied = store.applyFilter({ ...NO_FILTER, signature: 'invalid', window: 2 });
-    const call = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
-    expect(call.request.body).toMatchObject({ match: { signature: 'invalid' }, per_page: 100 });
-    call.flush(requestPage([nova, velha], { total: 2 }));
+    const applied = store.applyFilter({ ...NO_FILTER, signature: 'invalid', window: 500 });
+    await edge(500, 391, 10_000);
+    const first = await search();
+    expect(first.request.body).toMatchObject({ match: { signature: 'invalid' }, page: 1 });
+    first.flush(requestPage(page(600), { total: 4000, is_last_page: false }));
+    const second = await search();
+    expect(second.request.body).toMatchObject({ page: 2, per_page: 100 });
+    second.flush(requestPage(page(480), { total: 4000, current_page: 2, is_last_page: false }));
+    await applied;
+
+    expect(store.requests()).toHaveLength(190);
+    expect(store.requests().at(-1)).toEqual(answered(391, 200));
+    expect(store.matched()).toBe(190);
+    expect(store.newestWindow()).toBe(500);
+  });
+
+  it('não deve repetir a que a página seguinte traz de novo Quando chega outra entre as duas', async () => {
+    const page = (from: number) => Array.from({ length: 100 }, (_, i) => answered(from - i, 200));
+
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'], window: 500 });
+    await edge(500, 491, 10_000);
+    (await search()).flush(requestPage(page(600), { total: 4000, is_last_page: false }));
+    (await search()).flush(
+      requestPage(page(501), { total: 4001, current_page: 2, is_last_page: false }),
+    );
+    await applied;
+
+    expect(store.requests().map((request) => request.seq)).toEqual(
+      Array.from({ length: 110 }, (_, i) => 600 - i),
+    );
+    expect(store.matched()).toBe(110);
+  });
+
+  it('deve parar na última página da busca Quando ela acaba dentro da janela', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['GET'], window: 2 });
+    await edge(2, 8, 3);
+    (await search()).flush(requestPage([answered(9, 200)], { total: 1 }));
+    await applied;
+
+    expect(store.requests()).toEqual([answered(9, 200)]);
+    expect(store.newestWindow()).toBe(2);
+  });
+
+  it('deve ler a janela pela listagem Quando não há outro filtro', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, window: 2 });
+    await edge(2, 8, 3);
+    await vi.waitFor(() =>
+      http.expectOne(listPage(1)).flush(
+        requestPage(
+          [9, 8, 7].map((n) => answered(n, 200)),
+          { per_page: 100 },
+        ),
+      ),
+    );
+    await applied;
+
+    expect(store.requests()).toEqual([answered(9, 200), answered(8, 200)]);
+    expect(store.matched()).toBe(2);
+    expect(store.newestWindow()).toBe(2);
+  });
+
+  it('deve parar na página que termina na fronteira, sem pedir a seguinte', async () => {
+    const page = (from: number) => Array.from({ length: 100 }, (_, i) => answered(from - i, 200));
+
+    const applied = store.applyFilter({ ...NO_FILTER, window: 200 });
+    await edge(200, 401, 10_000);
     await vi.waitFor(() =>
       http
         .expectOne(listPage(1))
-        .flush(requestPage([nova, answered(8, 200), velha], { total: 3, per_page: 100 })),
+        .flush(requestPage(page(600), { total: 10_000, per_page: 100, is_last_page: false })),
     );
-    await applied;
-
-    expect(store.requests()).toEqual([nova]);
-    expect(store.matched()).toBe(1);
-    expect(store.scan()).toEqual({ scanned: 2, total: 3, done: true, window: 2 });
-  });
-
-  it('não deve dizer a janela Quando a URL não guarda mais que ela', async () => {
-    const applied = store.applyFilter({ ...NO_FILTER, window: 500 });
     await vi.waitFor(() =>
-      http.expectOne(listPage(1)).flush(requestPage([answered(2, 200)], { total: 1 })),
+      http.expectOne(listPage(2)).flush(
+        requestPage(page(500), {
+          total: 10_000,
+          per_page: 100,
+          current_page: 2,
+          is_last_page: false,
+        }),
+      ),
     );
     await applied;
 
-    expect(store.scan()).toEqual({ scanned: 1, total: 1, done: true, window: null });
+    expect(store.requests()).toHaveLength(200);
+    expect(store.requests().at(-1)).toEqual(answered(401, 200));
   });
 
-  it('não deve ter alcance Quando o filtro não tem status', async () => {
+  it('deve mostrar a janela da mais antiga para a mais nova Quando a ordem da lista é essa', async () => {
+    const sorted = store.toggleSorting();
+    http.expectOne(`${listUrl}?page=1&sorting=oldest`).flush(requestPage([answered(1, 200)]));
+    await sorted;
+
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['2xx'], window: 2 });
+    await edge(2, 8, 3);
+    const call = await search();
+    expect(call.request.body).toMatchObject({ sorting: 'newest' });
+    call.flush(requestPage([answered(9, 200), answered(8, 201)], { total: 2 }));
+    await applied;
+
+    expect(store.requests()).toEqual([answered(8, 201), answered(9, 200)]);
+  });
+
+  it('deve ser a busca de sempre, sem janela, Quando a URL não guarda mais que ela', async () => {
+    const applied = store.applyFilter({ ...NO_FILTER, answered: ['2xx'], window: 500 });
+    await vi.waitFor(() =>
+      http
+        .expectOne(edgeUrl(500))
+        .flush(requestPage([], { total: 51, per_page: 1, current_page: 500 })),
+    );
+    const call = await search();
+    expect(call.request.body).toMatchObject({ answered: ['2xx'], page: 1, per_page: 50 });
+    call.flush(requestPage([answered(2, 200)], { total: 51, is_last_page: false }));
+    await applied;
+
+    expect(store.matched()).toBe(51);
+    expect(store.hasNextPage()).toBe(true);
+    expect(store.newestWindow()).toBeNull();
+  });
+
+  it('não deve ter janela Quando o filtro não a pede', async () => {
     const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
-    await vi.waitFor(() =>
-      http.expectOne({ method: 'POST', url: searchUrl }).flush(requestPage([])),
-    );
+    (await search()).flush(requestPage([]));
     await applied;
 
-    expect(store.scan()).toBeNull();
+    expect(store.newestWindow()).toBeNull();
   });
 });
 
@@ -1091,24 +1202,25 @@ describe('Dado uma resposta atrasada na lista (outra URL ou outro filtro a camin
     expect(store.rejected()).toEqual([]);
   });
 
-  it('deve dizer o alcance só da varredura mais recente Quando a anterior responde depois', async () => {
-    const listPage = (page: number) => `${listUrl}?page=${page}&per_page=100&sorting=newest`;
-    const velho = store.applyFilter({ ...NO_FILTER, answered: ['5xx'] });
-    const daVelha = http.expectOne(listPage(1));
+  it('deve dizer a janela só do filtro mais recente Quando a leitura do anterior responde depois', async () => {
+    const edgeUrl = `${listUrl}?page=2&per_page=1&sorting=newest`;
+    const velho = store.applyFilter({ ...NO_FILTER, answered: ['5xx'], window: 2 });
+    const daVelha = http.expectOne(edgeUrl);
     const novo = store.applyFilter({ ...NO_FILTER, answered: ['4xx'] });
-    const daNova = http.match(listPage(1)).at(-1);
-    daNova?.flush(requestPage([webhookRequest(3, { response: { status: 404 } })], { total: 1 }));
+    const daNova = await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
+    daNova.flush(requestPage([webhookRequest(3, { response: { status: 404 } })], { total: 1 }));
     await novo;
 
     daVelha.flush(
-      requestPage([webhookRequest(3), webhookRequest(2)], { total: 700, is_last_page: false }),
+      requestPage([webhookRequest(2, { seq: 2 })], { total: 700, per_page: 1, current_page: 2 }),
     );
-    for (const n of [2, 3, 4, 5]) {
-      await vi.waitFor(() => http.expectOne(listPage(n)).flush(requestPage([], { total: 700 })));
-    }
+    (await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }))).flush(
+      requestPage([], { total: 0 }),
+    );
     await velho;
 
-    expect(store.scan()).toEqual({ scanned: 1, total: 1, done: true });
+    expect(store.newestWindow()).toBeNull();
+    expect(store.matched()).toBe(1);
   });
 
   describe('Dado uma mensagem apagada com o Undo a caminho', () => {

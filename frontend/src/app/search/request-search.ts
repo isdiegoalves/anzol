@@ -110,15 +110,11 @@ export class RequestSearch {
   /** "2 requests match · search runs on the server over all 3" (INBOX-10). */
   private readonly statusLine = computed(() => {
     const [matched, total] = [this.store.matched(), this.store.total()];
-    const scan = this.store.scan();
-    if (scan?.window) {
+    const newest = this.store.newestWindow();
+    if (newest) {
       const found =
         matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
-      return $localize`${found}:found:. Counted over the newest ${scan.window}:window:, as in Insights.`;
-    }
-    if (scan) {
-      // Nunca "0" sem dizer onde procurou.
-      return $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`;
+      return $localize`${found}:found:. Counted over the newest ${newest}:window:, as in Insights.`;
     }
     const key = this.grouping.key();
     if (key) {
@@ -133,18 +129,6 @@ export class RequestSearch {
     return matched === 1
       ? $localize`1 request matches · search runs on the server over all ${total}:total:`
       : $localize`${matched}:count: requests match · search runs on the server over all ${total}:total:`;
-  });
-  protected readonly olderLeft = computed(() => {
-    const scan = this.store.scan();
-    return (
-      !!scan && scan.done && !scan.window && !this.store.searching() && scan.total > scan.scanned
-    );
-  });
-  protected readonly looking = computed(() => {
-    const scan = this.store.scan();
-    return scan && !scan.done
-      ? $localize`Looking in ${scan.scanned}:scanned: of ${scan.total}:total:…`
-      : '';
   });
   /** O que a região do resultado diz agora. */
   protected readonly result = signal('');

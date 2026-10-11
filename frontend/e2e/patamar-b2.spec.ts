@@ -11,6 +11,7 @@ import {
   abrirItem,
   abrirMensagem,
   acoes,
+  busca,
   campoDeBusca,
   detalhes,
   filtro,
@@ -35,6 +36,20 @@ const PIX = {
 
 function detalhe(page: Page): Locator {
   return page.getByRole('region', { name: 'Request detail' });
+}
+
+/** Os pedidos de lista que a tela faz daqui em diante: o corpo de cada busca e a query de cada listagem. */
+function pedidosDaLista(page: Page, tokenId: string): { buscas: unknown[]; listagens: string[] } {
+  const pedidos = { buscas: [] as unknown[], listagens: [] as string[] };
+  page.on('request', (sent) => {
+    const url = new URL(sent.url());
+    if (sent.method() === 'POST' && url.pathname === `/token/${tokenId}/requests/search`) {
+      pedidos.buscas.push(sent.postDataJSON());
+    } else if (sent.method() === 'GET' && url.pathname === `/token/${tokenId}/requests`) {
+      pedidos.listagens.push(url.search);
+    }
+  });
+  return pedidos;
 }
 
 /** Espera a tela desenhar `n` quadros: o que a resposta disparou já correu. */
@@ -629,7 +644,7 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
 });
 
 test.describe('Dado o filtro pela classe do status respondido', () => {
-  test('deve filtrar no navegador, dizer o alcance e anunciar o resultado uma vez', async ({
+  test('deve filtrar pela busca do servidor e anunciar o resultado uma vez', async ({
     page,
     tokens,
   }) => {
@@ -652,16 +667,15 @@ test.describe('Dado o filtro pela classe do status respondido', () => {
     await filtro(page, 'Answered 4xx').click();
 
     await expect(filtro(page, 'Answered 4xx')).toHaveAttribute('aria-pressed', 'true');
-    await expectUmAnuncio(page, /^2 match among the newest 4\.?$/);
-    await expectSemAnuncio(page, /Searching|Looking in/);
+    await expectUmAnuncio(page, /^2 requests match · search runs on the server over all 4\.?$/);
+    await expectSemAnuncio(page, /Searching/);
     await verResultado(page);
     await expect(itens(page)).toHaveCount(2);
     await expect(item(page, a)).toBeVisible();
     await expect(item(page, b)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Look in older requests' })).toHaveCount(0);
   });
 
-  test('deve oferecer "Look in older requests" e nunca dizer zero sem dizer onde procurou', async ({
+  test('deve achar, num pedido de busca só, a que respondeu 5xx além das 500 mais novas', async ({
     page,
     tokens,
   }) => {
@@ -675,18 +689,21 @@ test.describe('Dado o filtro pela classe do status respondido', () => {
     await seedStorage(page, {});
     await page.goto(`/#/${tokenId}`);
     await expect(page.getByRole('heading', { name: 'Requests (505)' })).toBeVisible();
+    const pedidos = pedidosDaLista(page, tokenId);
 
     await abrirFiltros(page);
     await filtro(page, 'Answered 5xx').click();
     await verResultado(page);
 
-    const resultado = lista(page)
-      .getByRole('status')
-      .filter({ hasText: /among the newest/ });
-    await expect(resultado).toContainText('0 match among the newest 500');
-    await page.getByRole('button', { name: 'Look in older requests' }).click();
-    await expect(resultado).toContainText('1 match among the newest 505');
+    await expect(
+      lista(page)
+        .getByRole('status')
+        .filter({ hasText: /requests? match/ }),
+    ).toContainText('1 request matches · search runs on the server over all 505');
+    await expect(itens(page)).toHaveCount(1);
     await expect(item(page, antiga)).toBeVisible();
+    expect(pedidos.buscas).toEqual([expect.objectContaining({ answered: ['5xx'], page: 1 })]);
+    expect(pedidos.listagens).toEqual([]);
   });
 });
 
@@ -712,6 +729,56 @@ test.describe('Dado Métricas com respostas de status diferentes', () => {
     await expect(padrao).toBeVisible();
     await expect(bloco.getByRole('link', { name: /^201 Created · 1 · by rules$/ })).toBeVisible();
     await expect(padrao).toHaveAttribute('href', new RegExp(`#/${tokenId}(\\?|$)`));
+  });
+
+  test('deve levar à Entrada o mesmo número Quando a URL guarda mais que a janela contada', async ({
+    page,
+    tokens,
+  }) => {
+    test.setTimeout(120_000);
+    const tokenId = await tokens.create({ default_status: '200' });
+    await gravarRegras(page.request, tokenId, [
+      { name: 'Limite', match: { path: { equals: '/limite' } }, response: { status: 429 } },
+    ]);
+    const antigas = [];
+    for (let i = 0; i < 3; i++) {
+      antigas.push(await tokens.send(tokenId, { path: '/limite' }));
+    }
+    await tokens.sendMany(tokenId, 40);
+    const recentes = [];
+    for (let i = 0; i < 10; i++) {
+      const id = await tokens.send(tokenId, { path: i % 3 === 0 ? '/limite' : '/ok' });
+      if (i % 3 === 0) {
+        recentes.push(id);
+      }
+    }
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}/insights`);
+    await page.getByRole('combobox', { name: 'Window' }).click();
+    await page.getByRole('option', { name: 'Last 50', exact: true }).click();
+    const bloco = page.getByRole('region', { name: 'Answers by status' });
+    await expect(bloco).toContainText('Counted over the newest 50 requests.');
+    const numero = bloco.getByRole('link', { name: /^429 Too Many Requests · 4 · by rules$/ });
+    await expect(numero).toHaveAttribute('href', /answered=429&window=50/);
+    const pedidos = pedidosDaLista(page, tokenId);
+
+    await numero.click();
+
+    await expect(busca(page).locator('app-live-region.count')).toContainText(
+      '4 requests match. Counted over the newest 50, as in Insights.',
+    );
+    await expect(itens(page)).toHaveCount(4);
+    for (const id of recentes) {
+      await expect(item(page, id)).toBeVisible();
+    }
+    for (const id of antigas) {
+      await expect(item(page, id)).toHaveCount(0);
+    }
+    expect(pedidos.buscas).toEqual([
+      expect.objectContaining({ answered: ['429'], sorting: 'newest', page: 1 }),
+    ]);
+    expect(pedidos.listagens).toContain('?page=50&per_page=1&sorting=newest');
+    expect(pedidos.listagens.filter((query) => query.includes('per_page=100'))).toEqual([]);
   });
 
   test('deve dizer "No answers yet." numa URL sem requisições', async ({ page, tokens }) => {

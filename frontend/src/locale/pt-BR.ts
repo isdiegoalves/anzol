@@ -3457,12 +3457,6 @@ export const translations: Record<string, string> = {
   '2178342429442273342': 'Respondeu {$class}',
   // answered {$status}
   '924699136068025743': 'respondeu {$status}',
-  // Look in older requests
-  '5564639954442159945': 'Procurar nas mais antigas',
-  // {$count} match among the newest {$scanned}
-  '8256896967558960134': '{$count} casam entre as {$scanned} mais novas',
-  // Looking in {$scanned} of {$total}…
-  '9194493308386689993': 'Procurando em {$scanned} de {$total}…',
   // the answered status
   '7064010877324652228': 'o status respondido',
   // Previous pair

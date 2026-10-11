@@ -82,14 +82,5 @@
   @if (store.searchSlow()) {
     <app-slow-notice (retry)="store.retrySearch()" />
   }
-  <!-- Fora da região viva: a contagem da varredura seria anunciada a cada página. -->
-  @if (looking()) {
-    <p class="count" aria-hidden="true">{{ looking() }}</p>
-  }
-  @if (olderLeft()) {
-    <button type="button" class="link older" (click)="store.lookOlder()">
-      <ng-container i18n>Look in older requests</ng-container>
-    </button>
-  }
   <app-live-region class="note" [text]="waitFor.copied() ?? ''" />
 </div>

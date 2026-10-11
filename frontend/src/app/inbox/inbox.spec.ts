@@ -241,18 +241,19 @@ describe('Dado a tela principal', () => {
     await flush(`/token/${TOKEN_ID}`, token());
     await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2]));
 
+    const [nova, velha] = [webhookRequest(9, { seq: 9 }), webhookRequest(3, { seq: 3 })];
+    await flush(
+      `/token/${TOKEN_ID}/requests?page=1&per_page=1&sorting=newest`,
+      requestPage([nova], { total: 2, per_page: 1, is_last_page: false }),
+    );
     const search = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/requests/search`));
     expect(search.request.body).toMatchObject({ match: { signature: 'invalid' }, per_page: 100 });
-    search.flush(requestPage([R1, R2], { total: 2 }));
-    await flush(
-      `/token/${TOKEN_ID}/requests?page=1&per_page=100&sorting=newest`,
-      requestPage([R1, R2], { total: 2 }),
-    );
+    search.flush(requestPage([nova, velha], { total: 2 }));
 
     const store = TestBed.inject(RequestStore);
-    await vi.waitFor(() => expect(store.requests()).toEqual([R1]));
+    await vi.waitFor(() => expect(store.requests()).toEqual([nova]));
     expect(store.filter()).toMatchObject({ signature: 'invalid', window: 1 });
-    expect(store.scan()).toMatchObject({ window: 1 });
+    expect(store.newestWindow()).toBe(1);
   });
 
   // A rota acompanha o filtro da tela, e o eco dessa navegação chega depois: se a tela já mudou de

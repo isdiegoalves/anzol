@@ -243,14 +243,14 @@ export class FilterChips {
     if (!added) {
       return;
     }
-    const [matched, scan] = [this.store.matched(), this.store.scan()];
-    const found = scan
-      ? $localize`${matched}:count: match among the newest ${scan.scanned}:scanned:`
-      : matched === 1
-        ? $localize`1 request matches`
-        : $localize`${matched}:count: requests match`;
+    const [matched, newest] = [this.store.matched(), this.store.newestWindow()];
+    const found =
+      matched === 1 ? $localize`1 request matches` : $localize`${matched}:count: requests match`;
+    const result = newest
+      ? $localize`${found}:found:. Counted over the newest ${newest}:window:, as in Insights.`
+      : found;
     void this.announcer.announce(
-      $localize`Filtered by ${added}:filter:. ${found}:result:`,
+      $localize`Filtered by ${added}:filter:. ${result}:result:`,
       ANNOUNCEMENT_MS,
     );
   }

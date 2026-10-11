@@ -357,69 +357,55 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
   });
 
   describe('Dado o filtro pelo status respondido', () => {
-    const scanUrl = (page: number) =>
-      `/token/${TOKEN_ID}/requests?page=${page}&per_page=100&sorting=newest`;
-    const answered = (n: number, status: number) => webhookRequest(n, { response: { status } });
+    const answered = (n: number, status: number) =>
+      webhookRequest(n, { seq: n, response: { status } });
+    const search = () => vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }));
 
-    it('deve dizer quantas casam entre as mais novas, uma vez, sem "Look in older requests"', async () => {
+    it('deve dizer quantas casam na URL inteira, uma vez, pela busca do servidor', async () => {
       await openPanel();
       await userEvent.click(chip('Answered 4xx'));
       expect(chip('Answered 4xx').getAttribute('aria-pressed')).toBe('true');
-      await vi.waitFor(() =>
-        http
-          .expectOne(scanUrl(1))
-          .flush(requestPage([answered(3, 201), answered(2, 429), answered(1, 404)])),
-      );
+      const call = await search();
+      expect(call.request.body).toMatchObject({ answered: ['4xx'], per_page: 50 });
+      call.flush(requestPage([answered(2, 429), answered(1, 404)], { total: 2 }));
 
-      await vi.waitFor(() => expect(result()).toBe('2 match among the newest 3'), {
-        timeout: 2000,
-      });
-      expect(screen.queryByRole('button', { name: 'Look in older requests' })).toBeNull();
+      await vi.waitFor(
+        () => expect(result()).toBe('2 requests match · search runs on the server over all 3'),
+        { timeout: 2000 },
+      );
       expect(within(activeFilters() as HTMLElement).getByText('Answered 4xx')).toBeTruthy();
       await expectNoAxeViolations(container);
     });
 
-    it('deve oferecer "Look in older requests" Quando a URL guarda mais que as varridas', async () => {
-      const page = (n: number) =>
-        requestPage(
-          Array.from({ length: 100 }, (_, i) => answered(n * 1000 + i, 200)),
-          { total: 505, per_page: 100, current_page: n, is_last_page: false },
-        );
-      await openPanel();
-      await userEvent.click(chip('Answered 5xx'));
-      for (const n of [1, 2, 3, 4, 5]) {
-        await vi.waitFor(() => http.expectOne(scanUrl(n)).flush(page(n)));
-      }
-
-      await vi.waitFor(() => expect(result()).toBe('0 match among the newest 500'), {
-        timeout: 2000,
-      });
-      const older = vi.spyOn(store, 'lookOlder').mockResolvedValue();
-      await userEvent.click(screen.getByRole('button', { name: 'Look in older requests' }));
-      expect(older).toHaveBeenCalledOnce();
-    });
-
-    it('deve dizer que contou sobre as mais novas, como Métricas, sem "Look in older requests"', async () => {
-      const page = requestPage([answered(3, 429), answered(2, 429), answered(1, 200)], {
-        total: 812,
-        per_page: 100,
-        is_last_page: false,
-      });
-
+    it('deve dizer que contou sobre as mais novas, como Métricas, Quando a rota traz a janela', async () => {
       const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'], window: 3 });
-      await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(page));
+      await vi.waitFor(() =>
+        http.expectOne(`/token/${TOKEN_ID}/requests?page=3&per_page=1&sorting=newest`).flush(
+          requestPage([answered(7, 200)], {
+            total: 812,
+            per_page: 1,
+            current_page: 3,
+            is_last_page: false,
+          }),
+        ),
+      );
+      (await search()).flush(
+        requestPage([answered(9, 429), answered(8, 429), answered(2, 429)], {
+          total: 40,
+          is_last_page: false,
+        }),
+      );
       await applied;
 
       await vi.waitFor(
         () => expect(result()).toBe('2 requests match. Counted over the newest 3, as in Insights.'),
         { timeout: 2000 },
       );
-      expect(screen.queryByRole('button', { name: 'Look in older requests' })).toBeNull();
     });
 
     it('deve mostrar o status exato ligado, com o texto das condições, e tirá-lo', async () => {
       const applied = store.applyFilter({ ...NO_FILTER, answered: ['429'] });
-      await vi.waitFor(() => http.expectOne(scanUrl(1)).flush(requestPage([answered(1, 429)])));
+      (await search()).flush(requestPage([answered(1, 429)]));
       await applied;
       await openPanel();
 
