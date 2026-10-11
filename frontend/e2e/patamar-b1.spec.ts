@@ -827,6 +827,52 @@ test.describe('Dado a lista densa', () => {
     expect(linha.idInteiro, 'o #id inteiro').toBe(true);
   });
 
+  test('deve terminar em reticências o selo de erro que não cabe em pt-BR, sem cortá-lo pela borda nem passar por baixo do #id', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, id } = await comTipoDeEvento(tokens, {
+      type: 'object',
+      required: ['id', 'valor'],
+    });
+    await seedStorage(page, { language: '"pt-BR"' });
+    await page.goto(`/#/${tokenId}`);
+    // Em pt-BR a região da lista tem outro nome: o item sai pelo `#` do id.
+    const linhaDaLista = page.locator('.item').filter({ hasText: `#${id5(id)}` });
+    await expect(linhaDaLista).toContainText('2 erros de schema');
+    await page.evaluate(() => document.fonts.ready);
+
+    const selos = await linhaDaLista.evaluate((raiz) => {
+      const borda = raiz.querySelector('.seals')!.getBoundingClientRect().right;
+      const coluna = raiz.querySelector('.id')!.getBoundingClientRect().left;
+      return [...raiz.querySelectorAll('.seals app-check-chip.bad')].map((selo) => {
+        const texto = selo.querySelector('.title')!;
+        const fim = selo.getBoundingClientRect().right;
+        return {
+          texto: texto.textContent,
+          veredito: selo.getAttribute('title'),
+          alemDaBorda: Math.max(0, Math.round((fim - borda) * 10) / 10),
+          sobreOId: Math.max(0, Math.round((fim - coluna) * 10) / 10),
+          encurtado: texto.scrollWidth > texto.clientWidth,
+          comReticencias: getComputedStyle(texto).textOverflow === 'ellipsis',
+        };
+      });
+    });
+
+    expect(selos.map((selo) => selo.texto)).toEqual(['Não confere', '2 erros de schema']);
+    for (const selo of selos) {
+      expect(selo.alemDaBorda, `"${selo.texto}" cortado pela borda dos selos`).toBe(0);
+      expect(selo.sobreOId, `"${selo.texto}" por baixo do #id`).toBe(0);
+      expect(selo.comReticencias, `"${selo.texto}" encurta com reticências`).toBe(true);
+    }
+    // O mais longo é o que encurta; o veredito inteiro segue no title dele.
+    expect(selos[1].encurtado, '"2 erros de schema" encurtado').toBe(true);
+    expect(selos[1].veredito).toMatch(/^Schema inválido/);
+    const linha = await segundaLinha(linhaDaLista);
+    expect(linha.tipo, 'o tipo do evento sai da linha antes de um selo de erro encurtar').toBe(0);
+    expect(linha.idInteiro, 'o #id inteiro').toBe(true);
+  });
+
   test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({
     page,
     tokens,

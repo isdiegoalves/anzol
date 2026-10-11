@@ -115,6 +115,8 @@ export interface ItemView {
   seals: CheckResult[];
   /** Letras do selo de quem respondeu que ficam legíveis ao dividir a linha com o tipo do evento. */
   sealLetters: number;
+  /** Todas as letras desse selo: o que ele ocupa inteiro. */
+  sealLength: number;
   label: string;
   /** `null` na falha de rede e sem registro: não há status para filtrar. */
   status: string | null;
@@ -714,6 +716,7 @@ export class RequestList {
       summary: eventType(request) ?? '',
       seals,
       sealLetters: legibleLetters(pipeline.rule.short),
+      sealLength: pipeline.rule.short.length,
       label,
       status: request.response?.status === undefined ? null : String(request.response.status),
     };

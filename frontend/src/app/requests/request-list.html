@@ -153,6 +153,7 @@
                         class="seals"
                         aria-hidden="true"
                         [style.--seal-letters]="item.sealLetters"
+                        [style.--seal-length]="item.sealLength"
                       >
                         @for (seal of item.seals; track seal.kind) {
                           <app-check-chip

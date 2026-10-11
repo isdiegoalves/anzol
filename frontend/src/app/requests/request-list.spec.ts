@@ -624,11 +624,11 @@ describe('Dado a lista lateral de mensagens', () => {
   });
 
   it.each([
-    [200, 'Default response', '13'],
-    [429, 'Pix', '9'],
+    [200, 'Default response', '13', '22'],
+    [429, 'Pix', '9', '9'],
   ])(
-    'deve contar no selo "%s · %s" as %s letras que ficam legíveis: o número e 6 letras do nome, com as reticências',
-    async (status, name, letters) => {
+    'deve contar no selo "%s · %s" as %s letras que ficam legíveis (o número e 6 letras do nome, com as reticências) e as %s que ele tem',
+    async (status, name, letters, length) => {
       await load([
         webhookRequest(1, {
           rule: name === 'Default response' ? null : { id: 'r', name },
@@ -640,6 +640,7 @@ describe('Dado a lista lateral de mensagens', () => {
 
       expect(seals?.textContent?.trim()).toBe(`${status} · ${name}`);
       expect(seals?.style.getPropertyValue('--seal-letters')).toBe(letters);
+      expect(seals?.style.getPropertyValue('--seal-length')).toBe(length);
     },
   );
 
