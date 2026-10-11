@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { Server, createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { Locator, Page } from '@playwright/test';
@@ -396,6 +397,48 @@ test.describe('Dado a aba Replay do painel', () => {
     await expect(
       painel(page).getByRole('button', { name: 'Replay', exact: true }),
     ).toHaveAccessibleDescription('Sends to http://destino.example/webhooks');
+  });
+
+  test('deve manter no lugar, na Saída, o que vem embaixo do destino final enquanto ele é digitado', async ({
+    page,
+    tokens,
+  }) => {
+    // Só a requisição com a assinatura vencida tem um botão embaixo do destino final.
+    const segredo = 'whsec_destino';
+    const assinada = Math.floor(Date.now() / 1000) - 3600;
+    const corpo = '{"type":"charge.succeeded"}';
+    const v1 = createHmac('sha256', segredo).update(`${assinada}.${corpo}`).digest('hex');
+    const tokenId = await tokens.create({ signature: { provider: 'stripe', secret: segredo } });
+    await tokens.send(tokenId, {
+      path: '/webhooks/pedidos?x=1',
+      headers: { 'Content-Type': 'application/json', 'Stripe-Signature': `t=${assinada},v1=${v1}` },
+      data: corpo,
+    });
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}/outbound`);
+    const reenvio = page.getByRole('region', { name: 'Replay request' });
+    const alvo = reenvio.getByRole('textbox', { name: 'Target URL' });
+    const manter = reenvio.getByRole('switch', { name: 'Keep path and query' });
+    const assinar = reenvio.getByRole('button', { name: 'Send as new with a fresh signature' });
+    await expect(assinar).toBeVisible();
+    await alvo.fill('');
+    /** A distância do campo até cada controle de baixo: a página pode rolar com o foco. */
+    const lugares = async () => {
+      const topo = async (onde: Locator) => Math.round((await onde.boundingBox())!.y);
+      const campo = await topo(alvo);
+      return [(await topo(manter)) - campo, (await topo(assinar)) - campo];
+    };
+    const antes = await lugares();
+
+    const destinos = ['d', 'destino.example/app', `destino.example/${'caminho/'.repeat(9)}app`];
+    for (const destino of destinos) {
+      await alvo.fill(destino);
+      await expect(reenvio.getByText(`Sends to ${destino}/webhooks/pedidos?x=1`)).toBeVisible();
+      expect(await lugares(), `com o destino de ${destino.length} letras`).toEqual(antes);
+    }
+    await expect(
+      reenvio.getByRole('button', { name: 'Replay', exact: true }),
+    ).toHaveAccessibleDescription(`Sends to ${destinos[2]}/webhooks/pedidos?x=1`);
   });
 
   test('deve ter alvos de 24 px ou mais no detalhe e no painel, com o resultado do reenvio', async ({

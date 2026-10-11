@@ -187,10 +187,25 @@ code {
   gap: 4px 12px;
 }
 
+// O destino final guarda o lugar de duas linhas (três no celular) ao lado do interruptor: enquanto ele é
+// digitado, o que vem embaixo não sai do lugar.
+.keep .sends-to {
+  flex: 1 1 240px;
+  min-width: 0;
+  height: 2lh;
+  overflow: hidden;
+
+  @media (width < 600px) {
+    height: 3lh;
+  }
+}
+
+// `break-all`: o endereço continua na linha do "Sends to" e quebra na borda; com `anywhere` só, ele desce
+// inteiro para a linha de baixo e o fim dele some do lugar guardado.
 .sends-to code {
   padding: 0;
   background: none;
-  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 // Send (OUTBOUND-07): método, URL, timeout e o botão numa linha; headers e corpo lado a lado.

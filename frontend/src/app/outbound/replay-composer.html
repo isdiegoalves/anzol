@@ -56,7 +56,13 @@
         />
         <mat-error>{{ timeoutError }}</mat-error>
       </mat-form-field>
-      <button mat-flat-button class="go" type="submit" [disabled]="sending()">
+      <button
+        mat-flat-button
+        class="go"
+        type="submit"
+        aria-describedby="replay-composer-sends-to"
+        [disabled]="sending()"
+      >
         @if (sending()) {
           <ng-container i18n>Sending…</ng-container>
         } @else {
@@ -66,7 +72,7 @@
     </div>
     <div class="row keep">
       <mat-slide-toggle formControlName="keepPath" i18n>Keep path and query</mat-slide-toggle>
-      <span class="sends-to hint" i18n
+      <span class="sends-to hint" id="replay-composer-sends-to" i18n
         >Sends to <code>{{ resolved() }}</code></span
       >
       <span class="hint" i18n
