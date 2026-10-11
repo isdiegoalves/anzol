@@ -1,10 +1,83 @@
 // @ts-check
 // Guardas automáticas do padrão Angular (docs/padroes-angular.md, §7).
+const fs = require('node:fs');
+const path = require('node:path');
 const eslint = require('@eslint/js');
 const { defineConfig } = require('eslint/config');
+const ts = require('typescript');
 const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 const boundaries = require('eslint-plugin-boundaries');
+
+/** Os nomes que o arquivo usa como valor: o import cujos nomes só aparecem como tipo o compilador apaga. */
+function namesUsedAsValue(source) {
+  const used = new Set();
+  const visit = (node) => {
+    const typeOnly =
+      ts.isImportDeclaration(node) ||
+      ts.isTypeNode(node) ||
+      ts.isInterfaceDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      (ts.isHeritageClause(node) && node.token === ts.SyntaxKind.ImplementsKeyword);
+    if (typeOnly) {
+      return;
+    }
+    if (ts.isIdentifier(node)) {
+      used.add(node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return used;
+}
+
+/** Os módulos da tela que o arquivo importa em valor: sem o `import type`, sem o `import()` e sem pacote. */
+function staticImports(file) {
+  const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
+  const used = namesUsedAsValue(source);
+  const imported = [];
+  for (const statement of source.statements) {
+    if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && !statement.isTypeOnly) {
+      imported.push(statement.moduleSpecifier);
+    }
+    if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly) {
+      continue;
+    }
+    const clause = statement.importClause;
+    const bindings = clause?.namedBindings;
+    const names = [
+      ...(clause?.name ? [clause.name.text] : []),
+      ...(bindings && ts.isNamespaceImport(bindings) ? [bindings.name.text] : []),
+      ...(bindings && ts.isNamedImports(bindings)
+        ? bindings.elements.filter((one) => !one.isTypeOnly).map((one) => one.name.text)
+        : []),
+    ];
+    if (!clause || names.some((name) => used.has(name))) {
+      imported.push(statement.moduleSpecifier);
+    }
+  }
+  return imported
+    .map((specifier) => (ts.isStringLiteral(specifier) ? specifier.text : ''))
+    .filter((specifier) => specifier.startsWith('.'))
+    .map((specifier) => path.resolve(path.dirname(file), `${specifier}.ts`))
+    .filter((target) => fs.existsSync(target));
+}
+
+/**
+ * Os arquivos que o `main.ts` alcança por import estático: o módulo deles roda antes do `loadTranslations`.
+ * Calculado a cada lint, para o arquivo novo entrar na guarda no dia em que passa a ser importado.
+ */
+function reachedByMain() {
+  const reached = new Set();
+  const pending = [path.resolve(__dirname, 'src/main.ts')];
+  for (let file = pending.pop(); file; file = pending.pop()) {
+    if (!reached.has(file)) {
+      reached.add(file);
+      pending.push(...staticImports(file));
+    }
+  }
+  return [...reached].map((file) => path.relative(__dirname, file).split(path.sep).join('/'));
+}
 
 /**
  * Atributos que não são texto para o usuário (e ficam fora da guarda de i18n): os técnicos do
@@ -192,17 +265,6 @@ module.exports = defineConfig([
     ],
     ignores: ['**/*.spec.ts'],
     rules: {
-      // § i18n: o módulo destes arquivos roda antes do `loadTranslations` (o `main.ts` os importa
-      // estaticamente); `$localize` numa constante de módulo ficaria em inglês.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            ":matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > TaggedTemplateExpression[tag.name='$localize'], :matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > :matches(ObjectExpression, ArrayExpression) TaggedTemplateExpression[tag.name='$localize']",
-          message:
-            '$localize em constante de módulo alcançada pelo main.ts roda antes da tradução (docs/padroes-angular.md, § i18n): leve para uma função ou para a instância.',
-        },
-      ],
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {
@@ -215,6 +277,22 @@ module.exports = defineConfig([
                 'Traz o Overlay ou barra do Material para o pacote inicial (docs/padroes-angular.md §7): carregue por import() ou rota lazy.',
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // § i18n: o módulo destes arquivos roda antes do `loadTranslations` (o `main.ts` os importa
+    // estaticamente); `$localize` numa constante de módulo ficaria em inglês.
+    files: reachedByMain(),
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            ":matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > TaggedTemplateExpression[tag.name='$localize'], :matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator > :matches(ObjectExpression, ArrayExpression) TaggedTemplateExpression[tag.name='$localize']",
+          message:
+            '$localize em constante de módulo alcançada pelo main.ts roda antes da tradução (docs/padroes-angular.md, § i18n): leve para uma função ou para a instância.',
         },
       ],
     },
