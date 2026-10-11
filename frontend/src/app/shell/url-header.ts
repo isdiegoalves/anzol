@@ -17,7 +17,7 @@ import { UrlSwitcher } from './url-switcher';
 
 /**
  * Cabeçalho fixo da URL aberta, em todo destino: o campo com Copy, o chip do tempo real (só com o
- * stream aberto, isto é, na Inbox), o chip "128 · keeps 1000" e os de assinatura e schema, que levam
+ * stream aberto, isto é, na Inbox), o chip "128 · limit 1000" e os de assinatura e schema, que levam
  * a Checks, e as ações da URL: "Send" (Send de Outbound), "Lock" (só com a URL protegida) e o menu
  * "More URL actions" do protótipo C, com "Edit URL" (o antigo Edit URL, S2), "Open in new tab",
  * "Copy CLI command" e "Delete URL".
@@ -90,7 +90,7 @@ export class UrlHeader {
       label:
         keeps === null
           ? stored
-          : $localize`${stored}:stored:, auto cleanup keeps the ${keeps}:limit: most recent`,
+          : $localize`${stored}:stored:, limit of ${keeps}:limit:: auto cleanup keeps the most recent`,
     };
   });
 

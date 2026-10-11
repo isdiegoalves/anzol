@@ -25,8 +25,8 @@ import { readStorage, seedStorage } from './support/storage';
 // - INBOX-02/CHECKS-23: o destino Inbox do rail (e da barra inferior) mostra o número de não lidas e se chama
 //   "Inbox, N unread"; o destino Checks se chama "Checks, 1 invalid signature since 21:10" quando a URL tem
 //   assinatura ou schema inválidos;
-// - INBOX-03/CHECKS-22: `link "N requests, auto cleanup keeps the M most recent"` no cabeçalho da URL, com o texto
-//   "N · keeps M", levando a `#/{token}/checks?section=response`;
+// - INBOX-03/CHECKS-22: `link "N requests, limit of M: auto cleanup keeps the most recent"` no cabeçalho da URL, com o
+//   texto "N · limit M", levando a `#/{token}/checks?section=response`;
 // - INBOX-04: sai o "Edit" à vista; `button "More URL actions"` abre um menu com `menuitem` "Edit URL", "Open in new
 //   tab" (link para a URL), "Copy CLI command" (copia o `anzol listen … --token {uuid}` da aba CLI) e "Delete URL",
 //   que pede confirmação no `dialog "Delete this URL?"` (botão "Delete URL") e, apagada, abre uma URL nova;
@@ -171,9 +171,9 @@ test.describe('Dado o cabeçalho da URL (INBOX-03/04, CHECKS-22)', () => {
     await page.goto(`/#/${tokenId}`);
 
     const chip = page.getByRole('link', {
-      name: '2 requests, auto cleanup keeps the 500 most recent',
+      name: '2 requests, limit of 500: auto cleanup keeps the most recent',
     });
-    await expect(chip).toContainText('2 · keeps 500');
+    await expect(chip).toContainText('2 · limit 500');
     await chip.click();
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks\\?section=response$`));

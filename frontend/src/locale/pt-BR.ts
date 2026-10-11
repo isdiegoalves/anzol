@@ -1765,8 +1765,8 @@ export const translations: Record<string, string> = {
   '8582782147430932081': 'URL do webhook',
   // Copy URL (C)
   '5765890918485292193': 'Copiar a URL (C)',
-  // · keeps {$INTERPOLATION}
-  '2776081700505103837': '· guarda {$INTERPOLATION}',
+  // · limit {$INTERPOLATION}
+  '2014180394214420875': '· limite {$INTERPOLATION}',
   // Schema validation on. Open Checks
   '8301965875232311588': 'Validação de schema ligada. Abrir Verificações',
   // Send a request from the server: open Outbound
@@ -1781,8 +1781,9 @@ export const translations: Record<string, string> = {
   '8594661010844912779': 'Laboratório · expira {$relative}',
   // E2EE lab URL, expires {$relative}. Open Checks
   '5917116743026150008': 'URL de laboratório E2EE, expira {$relative}. Abrir Verificações',
-  // {$stored}, auto cleanup keeps the {$limit} most recent
-  '1886402781235704922': '{$stored}, a limpeza automática guarda as {$limit} mais recentes',
+  // {$stored}, limit of {$limit}: auto cleanup keeps the most recent
+  '2447734136838482476':
+    '{$stored}, limite de {$limit}: a limpeza automática guarda as mais recentes',
   // Delete this URL?
   '8240225322229955099': 'Apagar esta URL?',
   //  The URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stops receiving, and its requests, rules and history are deleted. This can't be undone. A new URL opens in its place.

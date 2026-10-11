@@ -132,10 +132,28 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await fixture.whenStable();
 
     const chip = screen.getByRole('link', {
-      name: '128 requests, auto cleanup keeps the 1000 most recent',
+      name: '128 requests, limit of 1000: auto cleanup keeps the most recent',
     });
-    expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · keeps 1000');
+    expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · limit 1000');
     expect(chip.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=response`);
+  });
+
+  it('deve dizer o limite em pt-BR, no chip e no nome dele', async () => {
+    loadTranslations(translations);
+    try {
+      const { fixture } = await renderWith(token({ auto_cleanup: 1000 }));
+      const store = fixture.debugElement.injector.get(RequestStore);
+      store.tokenId.set(TOKEN_ID);
+      store.total.set(128);
+      await fixture.whenStable();
+
+      const chip = screen.getByRole('link', {
+        name: '128 requisições, limite de 1000: a limpeza automática guarda as mais recentes',
+      });
+      expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · limite 1000');
+    } finally {
+      clearTranslations();
+    }
   });
 
   it('deve mostrar só a contagem Quando a URL não tem limpeza automática', async () => {
