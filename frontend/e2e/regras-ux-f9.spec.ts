@@ -161,7 +161,7 @@ test.describe('Dado o teste contra o histórico com a tela em pt-BR (WM-05)', ()
 
     await page.getByRole('button', { name: 'Testar contra o histórico' }).click();
 
-    const resultado = page.getByRole('status', { name: 'Teste contra o histórico' });
+    const resultado = page.getByRole('group', { name: 'Teste contra o histórico' });
     await expect(resultado).toContainText('método: esperava POST, veio GET');
     await expect(resultado).toContainText('caminho: esperava "/pagamentos", veio "/outra"');
   });

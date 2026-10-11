@@ -133,7 +133,7 @@ test.describe('Dado uma região viva que só aparece quando tem o que dizer', ()
     await expectNasceuVazia(page, /signature in this request is older than the tolerance/);
   });
 
-  test('deve nascer vazia a do resultado do teste contra o histórico, em Regras', async ({
+  test('deve dizer só a contagem do teste contra o histórico, e não o painel inteiro, em Regras', async ({
     page,
     tokens,
   }) => {
@@ -143,10 +143,19 @@ test.describe('Dado uma região viva que só aparece quando tem o que dizer', ()
 
     await page.getByRole('button', { name: 'Test against history' }).click();
 
-    await expectNasceuVazia(page, /of the 1 most recent requests would match/);
+    await expect(page.getByRole('group', { name: 'History test' })).toBeVisible();
+    await expectNasceuVazia(page, /would match/);
+    expect(
+      (await anunciados(page))
+        .filter((anuncio) => anuncio.texto.includes('would match'))
+        .map((anuncio) => anuncio.texto),
+    ).toEqual(['1 of the 1 most recent requests would match']);
   });
 
-  test('deve nascer vazia a do detalhe do Outbound', async ({ page, tokens }) => {
+  test('deve dizer só a linha do resultado, e não o detalhe inteiro, no Outbound', async ({
+    page,
+    tokens,
+  }) => {
     const tokenId = await tokens.create();
     const requestId = await tokens.send(tokenId, { path: '/pedidos', data: 'x' });
     await page.request.post(`/token/${tokenId}/request/${requestId}/replay`, {
@@ -155,6 +164,15 @@ test.describe('Dado uma região viva que só aparece quando tem o que dizer', ()
 
     await page.goto(`/#/${tokenId}/outbound`);
 
-    await expectNasceuVazia(page, /Run again/);
+    const detalhe = page.getByRole('region', { name: 'Outbound detail' });
+    await expect(detalhe.getByRole('button', { name: 'Copy as curl' })).toBeVisible();
+    await expectNasceuVazia(page, / ms Replay · #/);
+    const falas = (await anunciados(page)).filter((anuncio) =>
+      / ms Replay · #/.test(anuncio.texto),
+    );
+    expect(falas.map((anuncio) => anuncio.texto)).toEqual([
+      expect.stringMatching(/^\S.* \d+ ms Replay · #[0-9a-f]{5} · [^·]+$/),
+    ]);
+    expect(falas[0].texto).not.toContain('Copy as curl');
   });
 });

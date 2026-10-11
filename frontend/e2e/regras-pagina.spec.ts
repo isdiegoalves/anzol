@@ -100,7 +100,7 @@ test.describe('Dado uma regra salva com mensagens que chegaram perto (near miss)
     );
 
     await regra.getByRole('button', { name: 'Test against history' }).click();
-    await expect(regra.getByRole('status', { name: 'History test' })).toBeVisible();
+    await expect(regra.getByRole('group', { name: 'History test' })).toBeVisible();
     await parte(regra, 'Match');
 
     // Fidelidade ao C (item 14.1, RULES-18): um chip por condição, "Fails on N/M" ou "Passes N/M".

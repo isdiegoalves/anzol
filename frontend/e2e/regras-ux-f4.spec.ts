@@ -13,7 +13,7 @@ import {
 // condição; com a condição mudada ganha "Out of date" e reroda sozinho (≥ 1 s depois da última mudança, um pedido
 // por vez, só se o teste já foi pedido). Cada mensagem do resultado é `link "{method} {path} · {time}"` com o trecho
 // do corpo e o selo da época, e abre a mensagem ao lado, dentro de Regras. SUPOSIÇÕES:
-// - SUPOSIÇÃO: o `status "History test"` de hoje continua sendo o contêiner do resultado (o guia o chama de região
+// - SUPOSIÇÃO: o `group "History test"` continua sendo o contêiner do resultado (o guia o chama de região
 //   existente); o chip "Out of date" fica dentro dele.
 // - SUPOSIÇÃO: o nome da `region "Request {id}"` usa o UUID inteiro ou os 5 primeiros caracteres (com ou sem "#").
 // - SUPOSIÇÃO: "Testing…" é o texto do botão que dispara o teste enquanto ele roda ("Test against history" no rodapé
@@ -30,7 +30,7 @@ const pedidosDeTeste = (page: Page, tokenId: string): Request[] => {
 };
 
 function resultado(regra: Locator): Locator {
-  return regra.getByRole('status', { name: 'History test' });
+  return regra.getByRole('group', { name: 'History test' });
 }
 
 function resumo(regra: Locator): Locator {

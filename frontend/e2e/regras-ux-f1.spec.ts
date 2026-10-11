@@ -116,7 +116,7 @@ test.describe('Dado o editor com o formulário inválido (WM-12, WM-04; CA-3)', 
 
     await expect(alertaParaCorrigir(regra, 'test')).toContainText(/To test, fix: .*Status/);
     await expect(status(regra)).toBeFocused();
-    await expect(regra.getByRole('status', { name: 'History test' })).toHaveCount(0);
+    await expect(regra.getByRole('group', { name: 'History test' })).toHaveCount(0);
   });
 });
 
@@ -572,7 +572,7 @@ test.describe('Dado os atalhos do editor (WM-13)', () => {
       'aria-selected',
       'true',
     );
-    await expect(regra.getByRole('status', { name: 'History test' })).toContainText(
+    await expect(regra.getByRole('group', { name: 'History test' })).toContainText(
       /1 of the 1 most recent requests? would match/,
     );
   });

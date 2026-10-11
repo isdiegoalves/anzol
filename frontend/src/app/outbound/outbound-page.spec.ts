@@ -74,12 +74,12 @@ describe('Dado a página Outbound', () => {
       expect(screen.getByRole('table', { name: 'Outbound history' })).toBeTruthy(),
     );
     await harness.fixture.whenStable();
-    // A região do detalhe nasce vazia: o resultado aberto entra nela uma tarefa depois.
+    // A linha do resultado é a região viva, que nasce vazia: o texto entra nela uma tarefa depois.
     await vi.waitFor(() =>
       expect(
         screen
           .queryAllByRole('region', { name: 'Outbound detail' })
-          .every((detail) => detail.childElementCount > 0),
+          .every((detail) => detail.querySelector('.big-status') !== null),
       ).toBe(true),
     );
     return harness;

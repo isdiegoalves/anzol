@@ -279,7 +279,7 @@ test.describe('Dado uma regra que outra anterior sempre responde (E-01, WM-09; C
 
     const regra = await abrirRegra(page, 'Acme');
     await regra.getByRole('button', { name: 'Test against history' }).click();
-    await expect(regra.getByRole('status', { name: 'History test' })).toBeVisible();
+    await expect(regra.getByRole('group', { name: 'History test' })).toBeVisible();
     await voltarALista(page, regra);
 
     await expect(selo(page, 'Acme', 'Likely shadowed by Pagamentos')).toBeVisible();

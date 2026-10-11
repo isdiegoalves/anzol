@@ -157,19 +157,17 @@
     </section>
 
     @if (selected(); as current) {
-      <section class="detail" aria-label="Outbound detail" i18n-aria-label aria-live="polite">
-        <ng-container *appLateContent>
-          <app-outbound-result-view
-            [result]="current"
-            [repeatable]="store.repeatOf(current) !== null"
-            [running]="running()"
-            (runAgain)="runAgain(current)"
-            (copyCurl)="copyCurl(current)"
-          />
-          @if (actionError(); as message) {
-            <p class="errors" role="alert">{{ message }}</p>
-          }
-        </ng-container>
+      <section class="detail" aria-label="Outbound detail" i18n-aria-label>
+        <app-outbound-result-view
+          [result]="current"
+          [repeatable]="store.repeatOf(current) !== null"
+          [running]="running()"
+          (runAgain)="runAgain(current)"
+          (copyCurl)="copyCurl(current)"
+        />
+        @if (actionError(); as message) {
+          <p class="errors" role="alert">{{ message }}</p>
+        }
       </section>
     }
   </div>

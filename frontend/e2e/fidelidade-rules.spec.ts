@@ -435,7 +435,7 @@ test.describe('Dado a aba Test (RULES-20)', () => {
     const { regra } = await pixContraHistorico(page, request, tokens);
     await regra.getByRole('button', { name: 'Test against history' }).click();
 
-    const resultado = regra.getByRole('status', { name: 'History test' });
+    const resultado = regra.getByRole('group', { name: 'History test' });
     await expect(resultado.locator('.summary')).toHaveText(
       /^1 of the 4 most recent requests would match\.?$/,
     );

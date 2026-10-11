@@ -34,9 +34,9 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     const view = await render(HistoryTestPanel, {
       inputs: { result, tokenId: TOKEN_ID, requests, ...extra },
     });
-    // A região nasce vazia: o resultado entra nela uma tarefa depois.
+    // A região viva é só a contagem, que nasce vazia: o texto entra nela uma tarefa depois.
     await vi.waitFor(() =>
-      expect(view.container.querySelector('.history')?.childElementCount).toBeGreaterThan(0),
+      expect(view.container.querySelector('.summary')?.textContent?.trim()).not.toBe(''),
     );
     return view;
   };
@@ -46,7 +46,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   // um `section`, para que a única seção com aquele título seja a da prévia (S8).
   it('não deve ser uma seção que engloba a prévia projetada', async () => {
     await show(RESULTADO);
-    expect(screen.getByRole('status', { name: 'History test' }).tagName).toBe('DIV');
+    expect(screen.getByRole('group', { name: 'History test' }).tagName).toBe('DIV');
   });
 
   it('deve dizer quantas das mais recentes casariam, com a nota e o "Test again"', async () => {
@@ -54,7 +54,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     const again = vi.fn();
     fixture.componentInstance.testAgain.subscribe(again);
 
-    const status = screen.getByRole('status', { name: 'History test' });
+    const status = screen.getByRole('group', { name: 'History test' });
     expect(clean(status.querySelector('.summary'))).toBe(
       '1 of the 3 most recent requests would match',
     );
@@ -80,7 +80,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
     const aberta = vi.fn();
     fixture.componentInstance.openRequest.subscribe(aberta);
 
-    const status = screen.getByRole('status', { name: 'History test' });
+    const status = screen.getByRole('group', { name: 'History test' });
     const casam = within(status).getByRole('heading', { name: 'Would match (1)' }).parentElement;
     const link = within(casam as HTMLElement).getByRole('link', { name: /^POST \/pedidos · .+/ });
     expect(link.getAttribute('href')).toBe(`#/${TOKEN_ID}/${A}/1`);
@@ -97,7 +97,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   it('deve cair no id da mensagem Quando ela não está entre as lidas', async () => {
     await show(RESULTADO);
 
-    const status = screen.getByRole('status', { name: 'History test' });
+    const status = screen.getByRole('group', { name: 'History test' });
     expect(clean(status.querySelector('.misses > li'))).toBe(
       `#${C.substring(0, 5)} 1 condition header x-signature: absent`,
     );
@@ -107,7 +107,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   it('deve marcar "Out of date" e dizer "Testing…" ocupado Quando as condições mudaram e o teste roda de novo', async () => {
     await show(RESULTADO, new Map(), { outOfDate: true, testing: true });
 
-    const status = screen.getByRole('status', { name: 'History test' });
+    const status = screen.getByRole('group', { name: 'History test' });
     expect(within(status).getByText('Out of date')).toBeTruthy();
     const botao = within(status).getByRole('button', { name: 'Testing…' });
     expect(botao.getAttribute('aria-busy')).toBe('true');
@@ -194,7 +194,7 @@ describe('Dado o resultado do teste contra o histórico (aba Test, RULES-20)', (
   it('deve manter o título "Would not match (0)" sem lista vazia Quando todas casariam', async () => {
     await show({ ...RESULTADO, tested: 1, misses: [] });
 
-    const status = screen.getByRole('status', { name: 'History test' });
+    const status = screen.getByRole('group', { name: 'History test' });
     expect(within(status).getByRole('heading', { name: 'Would not match (0)' })).toBeTruthy();
     expect(status.querySelector('.misses')).toBeNull();
   });

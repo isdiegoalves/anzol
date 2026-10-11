@@ -2,22 +2,28 @@
 @let failure = error();
 <div class="head">
   <h2 class="title" tabindex="-1" i18n>Result</h2>
-  <span [class]="'big-status ' + family()">{{
-    current.status ?? failure?.title ?? noAnswer()
-  }}</span>
-  <span class="meta">
-    <strong i18n>{{ current.duration_ms }} ms</strong>
-    <span>
-      @if (current.kind === 'replay') {
-        <ng-container i18n>Replay</ng-container>
-      } @else {
-        <ng-container i18n>Send</ng-container>
-      }
-      @if (current.source_request; as source) {
-        · #{{ source.slice(0, 5) }}
-      }
-      · {{ date() }}
-    </span>
+  <!-- Só esta linha é a região viva: o status, o tempo e de onde veio. Os espaços são para a fala. -->
+  <span class="result" role="status">
+    <ng-container *appLateContent>
+      <span [class]="'big-status ' + family()">{{
+        current.status ?? failure?.title ?? noAnswer()
+      }}</span
+      >&ngsp;
+      <span class="meta">
+        <strong i18n>{{ current.duration_ms }} ms</strong>&ngsp;
+        <span>
+          @if (current.kind === 'replay') {
+            <ng-container i18n>Replay</ng-container>
+          } @else {
+            <ng-container i18n>Send</ng-container>
+          }
+          @if (current.source_request; as source) {
+            · #{{ source.slice(0, 5) }}
+          }
+          · {{ date() }}
+        </span>
+      </span>
+    </ng-container>
   </span>
   <span class="spacer"></span>
   @if (repeatable()) {

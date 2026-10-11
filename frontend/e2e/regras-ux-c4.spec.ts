@@ -30,7 +30,7 @@ async function regraTestada(page: Page, tokenId: string, corpo: string): Promise
   await regra.getByRole('switch', { name: 'Template' }).click();
   await regra.getByRole('textbox', { name: 'Response body' }).fill(corpo);
   await regra.getByRole('button', { name: 'Test against history' }).click();
-  await expect(regra.getByRole('status', { name: 'History test' })).toBeVisible();
+  await expect(regra.getByRole('group', { name: 'History test' })).toBeVisible();
   return regra;
 }
 

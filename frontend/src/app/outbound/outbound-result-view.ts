@@ -12,6 +12,7 @@ import {
   noAnswerReadTitle,
   outboundErrorText,
 } from './outbound';
+import { LateContent } from '../ui/late-content';
 
 /** Abas do resultado (OUTBOUND-09). */
 type Tab = 'body' | 'response' | 'sent';
@@ -26,7 +27,7 @@ const TABS: readonly Tab[] = ['body', 'response', 'sent'];
  */
 @Component({
   selector: 'app-outbound-result-view',
-  imports: [Icon, KvTable, MatButton, MethodBadge],
+  imports: [Icon, KvTable, LateContent, MatButton, MethodBadge],
   templateUrl: './outbound-result-view.html',
   styleUrl: './outbound-result-view.scss',
 })

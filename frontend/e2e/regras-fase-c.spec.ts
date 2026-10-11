@@ -212,7 +212,7 @@ test.describe('Dado o botão "Test against history" no editor', () => {
       'aria-selected',
       'true',
     );
-    const result = dialog.getByRole('status', { name: 'History test' });
+    const result = dialog.getByRole('group', { name: 'History test' });
     await expect(result.locator('.summary')).toHaveText(
       /^1 of the 2 most recent requests would match\.?$/,
     );
@@ -253,7 +253,7 @@ test.describe('Dado o botão "Test against history" no editor', () => {
     await expect(dialog.getByRole('combobox', { name: 'Body 1 type' })).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Test against history' }).click();
 
-    const result = dialog.getByRole('status', { name: 'History test' });
+    const result = dialog.getByRole('group', { name: 'History test' });
     await expect(result.locator('.summary')).toHaveText(
       /^2 of the 2 most recent requests would match\.?$/,
     );
