@@ -293,6 +293,8 @@ test.describe('Dado o "Share read-only link…" de uma mensagem', () => {
     );
 
     await page.goto(link);
+    // Na mesma aba, a Entrada segue na tela até a página do link entrar, com os `status` dela.
+    await expect(page.locator('main.share')).toBeVisible();
     await expect(banner(page)).toContainText('(in an hour)');
     expect(await rows(page, 'Headers')).toEqual(
       expect.arrayContaining(['authorization Bearer aberto']),
