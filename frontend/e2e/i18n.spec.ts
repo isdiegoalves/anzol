@@ -173,3 +173,95 @@ test.describe('Dado o navegador em pt-BR e nenhum idioma escolhido', () => {
     ).toBeVisible();
   });
 });
+
+test.describe('Dado o idioma pt-BR guardado, nas telas da Saída, de Métricas, do link só-leitura e do Comparar', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedStorage(page, { language: '"pt-BR"' });
+  });
+
+  test('deve traduzir a Saída: o título, o histórico e o formulário', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+
+    await page.goto(`/#/${tokenId}/outbound`);
+
+    await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
+    await expect(page.getByRole('heading', { name: 'Saída', level: 1 })).toBeVisible();
+    await expect(page.getByText('os últimos 50 mandados pelo servidor')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Histórico de saída' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Atualizar histórico' })).toBeVisible();
+    const nova = page.getByRole('region', { name: 'Nova requisição' });
+    await nova
+      .getByRole('radiogroup', { name: 'Tipo de requisição' })
+      .getByRole('radio', { name: 'Enviar', exact: true })
+      .check();
+    const envio = nova.getByRole('region', { name: 'Mandar requisição' });
+    await expect(envio.getByRole('combobox', { name: 'Método' })).toBeVisible();
+    await expect(envio.getByRole('spinbutton', { name: 'Tempo limite (s)' })).toBeVisible();
+    await expect(envio.getByRole('textbox', { name: 'Corpo' })).toBeVisible();
+    await expect(envio.getByRole('button', { name: 'Enviar', exact: true })).toBeVisible();
+  });
+
+  test('deve traduzir Métricas: o título, os cartões e a janela contada', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { data: '{"id":1}' });
+
+    await page.goto(`/#/${tokenId}/insights`);
+
+    await expect(page.getByRole('heading', { name: 'Métricas', level: 1 })).toBeVisible();
+    for (const nome of ['Resumo', 'Requisições por hora', 'Respostas por status']) {
+      await expect(page.getByRole('region', { name: nome, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole('region', { name: 'Respostas por status' })).toContainText(
+      'Contado na requisição mais nova.',
+    );
+  });
+
+  test('deve traduzir a página do link só-leitura, com o link de pé e com ele fora do ar', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const requestId = await tokens.send(tokenId, { data: '{"id":1}' });
+    const link = await page.request.post(`/token/${tokenId}/request/${requestId}/share`, {
+      data: {},
+    });
+    expect([200, 201]).toContain(link.status());
+    const { id } = (await link.json()) as { id: string };
+
+    await page.goto(`/#/share/${id}`);
+
+    await expect(page.getByText(/Link só-leitura compartilhado · expira/)).toBeVisible();
+    await expect(page.getByRole('tab', { name: /^Corpo\b/ })).toBeVisible();
+
+    await page.goto('/#/share/00000000-0000-4000-8000-000000000000');
+
+    await expect(
+      page.getByRole('heading', { name: 'Este link não está disponível', level: 1 }),
+    ).toBeVisible();
+  });
+
+  test('deve traduzir o Comparar: a região, as tabelas e os títulos dos quadros', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const a = await tokens.send(tokenId, { headers: { 'X-Lado': 'a' }, data: 'um' });
+    const b = await tokens.send(tokenId, { headers: { 'X-Lado': 'b' }, data: 'dois' });
+
+    await page.goto(`/#/${tokenId}/compare/${a}/${b}`);
+
+    const view = page.getByRole('region', { name: 'Comparar requisições' });
+    await expect(view.getByRole('heading', { name: 'Comparar', level: 1 })).toBeVisible();
+    await expect(view.getByRole('table', { name: 'Verificações' })).toBeVisible();
+    await expect(
+      view.getByRole('table', { name: 'Cabeçalhos' }).getByRole('row', { name: /^x-lado\b/i }),
+    ).toContainText('mudou');
+    await expect(
+      view.getByRole('heading', { name: /^0 mudanças explicam\s+o desfecho$/ }),
+    ).toBeVisible();
+    await expect(view.getByRole('heading', { name: /^\d+ outras? diferenças?$/ })).toBeVisible();
+  });
+});
