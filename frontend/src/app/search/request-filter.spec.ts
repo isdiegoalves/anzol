@@ -182,6 +182,17 @@ describe('Dado os filtros na query da rota da Inbox', () => {
       window: null,
     });
   });
+
+  it('deve separar os métodos por vírgula no endereço, e lê-los de volta', () => {
+    const params = filterToParams({ ...NO_FILTER, methods: ['POST', 'PUT'] });
+
+    expect(params.methods).toBe('POST,PUT');
+    expect(filterFromParams({ methods: params.methods }).methods).toEqual(['POST', 'PUT']);
+  });
+
+  it('deve cortar o texto do endereço em 200 caracteres, o teto da busca', () => {
+    expect(filterFromParams({ q: 'a'.repeat(201) }).text).toBe('a'.repeat(200));
+  });
 });
 
 const RULE = '11111111-2222-4333-8444-555555555555';
@@ -228,6 +239,11 @@ describe('Dado o filtro por desfecho (C2, WM-27)', () => {
     // Tipo desconhecido ou regra que não é UUID: sem desfecho.
     expect(filterFromParams({ outcome: 'rule', rule: 'x' })).toEqual(NO_FILTER);
     expect(filterFromParams({ outcome: 'talvez' })).toEqual(NO_FILTER);
+  });
+
+  it('não deve ler o desfecho da rota Quando sobra texto antes ou depois do UUID da regra', () => {
+    expect(filterFromParams({ outcome: 'rule', rule: `${RULE}-e-mais` })).toEqual(NO_FILTER);
+    expect(filterFromParams({ outcome: 'rule', rule: `x${RULE}` })).toEqual(NO_FILTER);
   });
 });
 
@@ -487,6 +503,20 @@ describe('Dado os filtros por valor', () => {
     });
     expect(isFilterActive(filter)).toBe(true);
     expect(outsideWaitFor(filter)).toEqual([]);
+  });
+
+  it('deve manter os dois valores no match Quando dois cabeçalhos, ou dois parâmetros, são filtrados', () => {
+    const doisDeCada: ValueFilter[] = [
+      { kind: 'header', name: 'x-loja-event-id', value: 'evt_1' },
+      { kind: 'header', name: 'x-loja-tipo', value: 'pix' },
+      { kind: 'query', name: 'tipo', value: 'pix' },
+      { kind: 'query', name: 'loja', value: '7' },
+    ];
+
+    expect(searchBody({ ...NO_FILTER, values: doisDeCada }, 1).match).toEqual({
+      headers: { 'x-loja-event-id': { equals: 'evt_1' }, 'x-loja-tipo': { equals: 'pix' } },
+      query: { tipo: { equals: 'pix' }, loja: { equals: '7' } },
+    });
   });
 
   it('deve dizer no endereço só quantos são, e nunca o valor', () => {
