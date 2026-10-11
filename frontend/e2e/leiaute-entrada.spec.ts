@@ -326,7 +326,7 @@ test.describe('Dado a Entrada em pt-BR, com os rótulos mais compridos', () => {
     await page.goto(`/#/${tokenId}`);
 
     await page.getByRole('button', { name: /^Filtros/ }).click();
-    const filtros = page.getByRole('group', { name: 'Filtros' });
+    const filtros = page.getByRole('toolbar', { name: 'Filtros' });
     await filtros.getByRole('button', { name: 'Assinatura válida', exact: true }).click();
     await filtros.getByRole('button', { name: 'Schema inválido', exact: true }).click();
     await expect(page.getByRole('heading', { name: /^Requisições \(0 de 1\)$/ })).toBeVisible();

@@ -30,7 +30,7 @@ import { readStorage, seedStorage } from './support/storage';
 // - INBOX-04: sai o "Edit" à vista; `button "More URL actions"` abre um menu com `menuitem` "Edit URL", "Open in new
 //   tab" (link para a URL), "Copy CLI command" (copia o `anzol listen … --token {uuid}` da aba CLI) e "Delete URL",
 //   que pede confirmação no `dialog "Delete this URL?"` (botão "Delete URL") e, apagada, abre uma URL nova;
-// - INBOX-09 (trava 4): na linha principal do `group "Filters"`, na ordem, "POST", "GET", "PUT", "Signature invalid",
+// - INBOX-09 (trava 4): na linha principal da `toolbar "Filters"`, na ordem, "POST", "GET", "PUT", "Signature invalid",
 //   "Signature absent" e "Schema invalid"; o `button "More filters"` (com `aria-expanded`) mostra os outros ("PATCH",
 //   "DELETE", "Signature valid", "Schema valid"), sem perder nenhum;
 // - INBOX-11: a linha 2 do item traz o resumo do corpo: o `type` (ou `event`) do JSON quando existe, senão o
@@ -222,7 +222,7 @@ test.describe('Dado os chips de filtro (INBOX-09, trava 4)', () => {
     await tokens.send(tokenId, { method: 'PATCH', data: 'patch' });
     await tokens.send(tokenId, { method: 'POST', data: 'post' });
     await page.goto(`/#/${tokenId}`);
-    const grupo = page.getByRole('group', { name: 'Filters' });
+    const grupo = page.getByRole('toolbar', { name: 'Filters' });
     await expect(itens(page)).toHaveCount(2);
 
     await abrirFiltros(page);
@@ -473,7 +473,7 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     // os filtros: no celular o painel fica por cima dela.
     expect((await itens(page).first().boundingBox())!.y, 'lista perto do topo').toBeLessThan(330);
     await abrirFiltros(page);
-    const chips = page.getByRole('group', { name: 'Filters' }).getByRole('button');
+    const chips = page.getByRole('toolbar', { name: 'Filters' }).getByRole('button');
     const alturas = new Set<number>();
     for (let i = 0; i < 3; i++) {
       alturas.add(Math.round((await chips.nth(i).boundingBox())!.y));

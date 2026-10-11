@@ -10,7 +10,7 @@ import { filtro, item, itens, abrirFiltros } from './support/inbox';
 // - SUPOSIÇÃO: o filtro vai para a rota junto dos parâmetros de hoje (`?signature=invalid&…` / `?schema=invalid&…`),
 //   num parâmetro próprio cujo nome o teste não fixa; o teste só exige o texto do motivo ou do caminho na query
 //   (codificado com `%20` ou `+`, e `/` como `/` ou `%2F`).
-// - SUPOSIÇÃO: o filtro ativo é um chip do `group "Filters"` (`button[aria-pressed="true"]`), como "Answered by:
+// - SUPOSIÇÃO: o filtro ativo é um chip da `toolbar "Filters"` (`button[aria-pressed="true"]`), como "Answered by:
 //   {nome}", com o nome "Signature: {motivo}" / "Schema: {caminho}"; o teste exige só o motivo ou o caminho no nome.
 //   Remover = clicar no chip (como os chips de desfecho de C2); se houver um `button "Remove …"` à parte, ele é usado.
 // - SUPOSIÇÃO: remover o chip do motivo deixa o filtro largo da rota (`Signature invalid` / `Schema invalid`), e a
@@ -70,7 +70,7 @@ function chipDo(page: Page, texto: string): Locator {
     .filter({ hasText: escapado })
     .or(
       page
-        .getByRole('group', { name: 'Filters' })
+        .getByRole('toolbar', { name: 'Filters' })
         .getByRole('button', { name: escapado, pressed: true }),
     )
     .first();

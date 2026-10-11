@@ -87,7 +87,7 @@ export function filtrosLigados(page: Page): Locator {
 export async function verResultado(page: Page): Promise<void> {
   if (compacto(page)) {
     await page.getByRole('button', { name: /^Show \d+ requests?$/ }).click();
-    await expect(page.getByRole('group', { name: 'Filters' })).toBeHidden();
+    await expect(page.getByRole('toolbar', { name: 'Filters' })).toBeHidden();
   }
 }
 
@@ -97,7 +97,7 @@ export async function verResultadoSeAberto(page: Page): Promise<void> {
   if (compacto(page) && (await mostrar.isVisible())) {
     await mostrar.click();
     // A folha some no ciclo seguinte ao clique: sem esperar, quem abre os filtros logo depois ainda a vê aberta.
-    await expect(page.getByRole('group', { name: 'Filters' })).toBeHidden();
+    await expect(page.getByRole('toolbar', { name: 'Filters' })).toBeHidden();
   }
 }
 

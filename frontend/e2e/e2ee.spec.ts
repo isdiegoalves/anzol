@@ -555,7 +555,7 @@ test.describe('Dado a condição "Decryption" no editor de regras', () => {
     await expect(item(page, intrusa)).toHaveCount(0);
     await abrirFiltros(page);
     await expect(
-      page.getByRole('group', { name: 'Filters' }).getByRole('button', {
+      page.getByRole('toolbar', { name: 'Filters' }).getByRole('button', {
         name: /^decryption: the encrypted attribute did not come as a JWE \(downgrade\)/,
       }),
     ).toHaveAttribute('aria-pressed', 'true');

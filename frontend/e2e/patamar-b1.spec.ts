@@ -382,7 +382,7 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
     await seedStorage(page, {});
     await abrirEntrada(page, tokenId, 3);
     const botao = botaoDeFiltros(page);
-    const grupo = page.getByRole('group', { name: 'Filters' });
+    const grupo = page.getByRole('toolbar', { name: 'Filters' });
 
     await expect(botao).toHaveAccessibleName('Filters');
     await expect(botao).toHaveAttribute('aria-expanded', 'false');
@@ -509,7 +509,7 @@ test.describe('Dado os filtros da Entrada numa linha', () => {
     const { tokenId } = await tres(tokens);
     await seedStorage(page, {});
     await abrirEntrada(page, tokenId, 3);
-    const grupo = page.getByRole('group', { name: 'Filters' });
+    const grupo = page.getByRole('toolbar', { name: 'Filters' });
 
     await page.keyboard.press('f');
     await expect(grupo).toBeVisible();

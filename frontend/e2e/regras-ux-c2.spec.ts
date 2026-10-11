@@ -30,7 +30,7 @@ async function tres(tokens: { send: (t: string, w: object) => Promise<string> },
 
 function chip(page: Page, nome: string | RegExp) {
   return page
-    .getByRole('group', { name: 'Filters' })
+    .getByRole('toolbar', { name: 'Filters' })
     .getByRole('button', { name: nome, exact: typeof nome === 'string' });
 }
 

@@ -167,10 +167,10 @@ export function campoDeBusca(page: Page): Locator {
     .or(regiao.getByRole('textbox', { name: 'Search' }));
 }
 
-/** Abre o painel dos chips pelo `button "Filters"`; com o `group "Filters"` já à vista, não faz nada. */
+/** Abre o painel dos chips pelo `button "Filters"`; com a `toolbar "Filters"` já à vista, não faz nada. */
 export async function abrirFiltros(page: Page): Promise<void> {
   await expect(busca(page)).toBeVisible();
-  const grupo = page.getByRole('group', { name: 'Filters' });
+  const grupo = page.getByRole('toolbar', { name: 'Filters' });
   if (await grupo.isVisible()) {
     return;
   }
@@ -178,10 +178,10 @@ export async function abrirFiltros(page: Page): Promise<void> {
   await expect(grupo).toBeVisible();
 }
 
-/** `group "Filters"` com os chips (`button[aria-pressed]`). Com o painel recolhido, `abrirFiltros()` antes. */
+/** `toolbar "Filters"` com os chips (`button[aria-pressed]`). Com o painel recolhido, `abrirFiltros()` antes. */
 export function filtro(page: Page, nome: string): Locator {
   return page
-    .getByRole('group', { name: 'Filters' })
+    .getByRole('toolbar', { name: 'Filters' })
     .getByRole('button', { name: nome, exact: true });
 }
 

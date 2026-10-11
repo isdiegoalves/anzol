@@ -28,7 +28,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
 
   const searches = () => http.match({ method: 'POST', url: searchUrl });
   const filters = () => screen.getByRole('button', { name: /^Filters/ });
-  const group = () => screen.queryByRole('group', { name: 'Filters' });
+  const group = () => screen.queryByRole('toolbar', { name: 'Filters' });
   const openPanel = async () => {
     if (!group()) {
       await userEvent.click(filters());

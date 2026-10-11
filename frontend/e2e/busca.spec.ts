@@ -13,7 +13,7 @@ import {
 // Busca e filtros rápidos (CA-5): o texto e os filtros Method, Signature e Schema reduzem a
 // lista; com filtro ativo, a mensagem nova que casa aparece e a que não casa não; "Clear
 // filters" volta à lista completa. Precisa do backend com `POST /token/{id}/requests/search`.
-// Item 14, E4 (S6): os três `mat-select` viram chips no `group "Filters"` (`button[aria-pressed]`, um clique por
+// Item 14, E4 (S6): os três `mat-select` viram chips na `toolbar "Filters"` (`button[aria-pressed]`, um clique por
 // filtro, C §2.3). SUPOSIÇÕES: um chip por método presente nas mensagens da URL ("GET", "POST", "PUT"…) e os chips
 // "Signature invalid", "Signature absent" e "Schema invalid". Fidelidade ao C (F1): a busca segue a ordem da lista,
 // que abre com as mais novas primeiro (INBOX-01, `sorting: 'newest'`), e o filtro vai para a rota (`?q=`). Fase 2

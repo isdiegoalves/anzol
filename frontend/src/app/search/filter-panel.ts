@@ -1,3 +1,4 @@
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
@@ -19,14 +20,15 @@ import { FilterChips } from './filter-chips';
 import { WaitForButton } from './wait-for';
 
 /**
- * O painel atrás do `button "Filters"` (B1, UX-04): o `group "Filters"` com todos os chips, em
+ * O painel atrás do `button "Filters"` (B1, UX-04): a `toolbar "Filters"` com todos os chips, em
  * quatro subgrupos com rótulo. Aberto, empurra a lista (não cobre); no celular, é uma folha
- * inferior com "Show {n} requests". O painel é uma parada só do Tab (roving tabindex): as setas,
- * Home e End andam entre os chips; Espaço e Enter ligam e desligam; Esc fecha.
+ * inferior com "Show {n} requests", que é um `dialog` e prende o foco enquanto aberta. A barra é
+ * uma parada só do Tab (roving tabindex): as setas, Home e End andam entre os chips; Espaço e Enter
+ * ligam e desligam; Esc fecha.
  */
 @Component({
   selector: 'app-filter-panel',
-  imports: [MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet, WaitForButton],
+  imports: [CdkTrapFocus, MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet, WaitForButton],
   templateUrl: './filter-panel.html',
   styleUrl: './filter-panel.scss',
   host: {
@@ -49,6 +51,7 @@ export class FilterPanel {
   readonly closed = output<void>();
 
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
+  protected readonly sheetName = $localize`Filters`;
   /** O chip que o Tab alcança (os outros ficam com `tabindex="-1"`). */
   protected readonly stop = signal(0);
   /** A posição de cada chip na ordem do painel, para o roving tabindex. */
