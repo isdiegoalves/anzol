@@ -188,7 +188,7 @@
     i18n-aria-label
     [class.shown]="!!requests.gone() || !!deleting.pending()"
   >
-    <app-live-region class="gone-text" [text]="notice()" />
+    <app-live-region class="gone-text" [text]="notice()" [tail]="undoHint()" />
     @if (deleting.pending()) {
       <button type="button" class="text-action" (click)="undoDelete()">
         <span i18n>Undo</span>

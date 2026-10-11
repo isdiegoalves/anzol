@@ -45,6 +45,26 @@ describe('Dado a região viva persistente (app-live-region)', () => {
     expect(screen.getByRole('group', { name: 'Connection' }).classList).not.toContain('empty');
   });
 
+  it('deve tirar a frase do fim sem regravar o texto que fica', async () => {
+    const { rerender } = await render('<app-live-region [text]="text" [tail]="tail" />', {
+      imports: [LiveRegion],
+      componentProperties: { text: 'You deleted this request.', tail: 'Undo is here.' },
+    });
+    const region = screen.getByRole('status');
+    expect(region.textContent).toBe('You deleted this request. Undo is here.');
+    const changes: string[] = [];
+    const observer = new MutationObserver((records) =>
+      changes.push(...records.map((record) => record.type)),
+    );
+    observer.observe(region, { subtree: true, childList: true, characterData: true });
+
+    await rerender({ componentProperties: { text: 'You deleted this request.', tail: '' } });
+    observer.takeRecords().forEach((record) => changes.push(record.type));
+
+    expect(region.textContent).toBe('You deleted this request.');
+    expect(changes).toEqual(['childList']);
+  });
+
   it('deve virar alert só quando pedido (erro que impede a ação)', async () => {
     await render(LiveRegion, { inputs: { label: 'Unsaved changes', text: 'x', alert: true } });
 

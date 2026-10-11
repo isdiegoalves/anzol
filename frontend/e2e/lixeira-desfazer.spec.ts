@@ -177,6 +177,45 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
   });
 });
 
+test.describe('Dado o "Undo" que vence com a cópia da apagada na tela', () => {
+  test('deve tirar do aviso só a frase do "Undo", sem regravar o texto da cópia', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, segunda } = await comTres(tokens);
+    await page.clock.install();
+    await page.goto(`/#/${tokenId}/${segunda}/1`);
+    await expect(itens(page)).toHaveCount(3);
+    await apagarPeloTeclado(page, segunda);
+    await expect(avisoDaRequisicao(page)).toContainText('Undo is in the request notice.');
+    // O que muda na região viva: texto regravado faz o leitor repetir a frase; nó que só sai, não.
+    await avisoDaRequisicao(page).evaluate((regiao) => {
+      const mudancas: string[] = [];
+      (window as unknown as { __mudancas: string[] }).__mudancas = mudancas;
+      const textos = (nos: NodeList) => [...nos].map((no) => no.textContent).join('|');
+      new MutationObserver((registros) => {
+        for (const registro of registros) {
+          mudancas.push(
+            registro.type === 'characterData'
+              ? `texto regravado: ${registro.target.textContent}`
+              : `entrou [${textos(registro.addedNodes)}], saiu [${textos(registro.removedNodes)}]`,
+          );
+        }
+      }).observe(regiao, { subtree: true, childList: true, characterData: true });
+    });
+
+    await page.clock.fastForward(21_000);
+    await expect(desfazer(page)).toHaveCount(0);
+
+    await expect(avisoDaRequisicao(page)).toHaveText(
+      /^You deleted this request at .*This copy goes away when you leave it\.$/,
+    );
+    expect(
+      await page.evaluate(() => (window as unknown as { __mudancas: string[] }).__mudancas),
+    ).toEqual(['entrou [], saiu [ Undo is in the request notice.]']);
+  });
+});
+
 test.describe('Dado a página que sai com o "Undo" ainda aberto', () => {
   /** As requisições que a API ainda lista, com o segredo de leitura quando a URL é protegida. */
   async function noServidor(

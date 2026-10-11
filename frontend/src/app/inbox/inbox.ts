@@ -284,8 +284,14 @@ export class Inbox {
       deleted: $localize`You deleted this request at ${time}:time:. ${copy}:copy:`,
       unknown: $localize`This request is no longer on the server, noticed at ${time}:time:. It may have been deleted or cut by auto cleanup.`,
     };
-    const text = `${causes[gone.cause]} ${leaves}`;
-    return deleting ? `${text} ${$localize`Undo is in the request notice.`}` : text;
+    return `${causes[gone.cause]} ${leaves}`;
+  });
+  /** Com a apagada aberta, a frase do "Undo" vai no fim do aviso da cópia, enquanto ele vale. */
+  protected readonly undoHint = computed(() => {
+    const deleting = this.deleting.pending();
+    return deleting && deleting.request.uuid === this.requests.gone()?.id
+      ? $localize`Undo is in the request notice.`
+      : '';
   });
   private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
