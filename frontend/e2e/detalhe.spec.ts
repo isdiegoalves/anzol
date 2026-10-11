@@ -1,5 +1,15 @@
 import { expect, test } from './support/fixtures';
-import { aba, abrirAba, acoes, corpo, detalhes, expectCorpo, linhas } from './support/inbox';
+import {
+  aba,
+  abrirAba,
+  acaoDaMensagem,
+  acoes,
+  corpo,
+  detalhes,
+  expectCorpo,
+  linhas,
+} from './support/inbox';
+import { compacto } from './support/shell';
 import { seedStorage } from './support/storage';
 
 // Checklist 8. Item 14, E4: o detalhe ganha abas (Body, Headers (n), Query (n), Form (n)) no lugar de
@@ -113,6 +123,42 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
     expect(await (await request.get(raw ?? '')).text()).toBe(
       '{"a":12345678901234567890,"b":[1,2]}',
     );
+  });
+
+  test('deve mostrar cada link ativo com a validade legível, embaixo do link no celular', async ({
+    page,
+  }) => {
+    for (const redact of [true, false]) {
+      const link = await page.request.post(`/token/${tokenId}/request/${requestId}/share`, {
+        data: { redact },
+      });
+      expect([200, 201]).toContain(link.status());
+    }
+    await page.goto(`/#/${tokenId}/${requestId}/1`);
+
+    await acaoDaMensagem(page, 'Share read-only link…');
+    const links = page
+      .getByRole('dialog', { name: 'Share read-only link' })
+      .getByRole('list', { name: 'Active links' });
+    await expect(links.getByRole('listitem')).toHaveCount(2);
+
+    const medida = await links
+      .getByRole('listitem')
+      .first()
+      .evaluate((item) => {
+        const [link, validade] = [item.querySelector('a')!, item.querySelector('.meta')!];
+        const texto = document.createRange();
+        texto.selectNodeContents(validade);
+        const linhas = new Set([...texto.getClientRects()].map((linha) => Math.round(linha.top)));
+        return {
+          linhas: linhas.size,
+          embaixo: validade.getBoundingClientRect().top >= link.getBoundingClientRect().bottom,
+          linkInteiro: link.scrollWidth <= link.clientWidth || link.clientWidth === 0,
+        };
+      });
+    expect(medida.linhas, 'linhas da validade').toBeLessThanOrEqual(3);
+    expect(medida.linkInteiro, 'o link aparece inteiro').toBe(true);
+    expect(medida.embaixo, 'a validade embaixo do link').toBe(compacto(page));
   });
 
   test('deve mostrar só o corpo na aba Body e só os headers na aba Headers, sem "Hide Details"', async ({
