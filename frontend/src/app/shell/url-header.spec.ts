@@ -1,6 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { clearTranslations, loadTranslations } from '@angular/localize';
+import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
@@ -14,6 +15,7 @@ import { Token } from '../token/token';
 import { TokenActions } from '../token/token-actions';
 import { translations } from '../../locale/pt-BR';
 import { RequestStore } from '../requests/request-store';
+import { ScreenState } from './screen-state';
 import { UrlHeader } from './url-header';
 
 describe('Dado o cabeçalho da URL aberta', () => {
@@ -21,15 +23,20 @@ describe('Dado o cabeçalho da URL aberta', () => {
     lockUrl: ReturnType<typeof vi.fn>;
     deleteUrl: ReturnType<typeof vi.fn>;
     cliCommandCopied: ReturnType<typeof vi.fn>;
+    openAnotherUrl: ReturnType<typeof vi.fn>;
   };
+  const switchTo = vi.fn();
 
   const renderWith = (url: Token | null) => {
     actions = {
       lockUrl: vi.fn().mockResolvedValue(undefined),
       deleteUrl: vi.fn().mockResolvedValue(undefined),
       cliCommandCopied: vi.fn(),
+      openAnotherUrl: vi.fn().mockResolvedValue(null),
     };
+    switchTo.mockClear();
     return render(UrlHeader, {
+      on: { switchTo },
       providers: [
         provideRouter([]),
         provideHttpClient(),
@@ -139,6 +146,34 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await fixture.whenStable();
 
     expect(screen.getByRole('link', { name: '1 request' }).textContent?.trim()).toBe('1');
+  });
+
+  describe('Dado "Open another URL…" no seletor', () => {
+    const OUTRA = 'c4291aaa-2222-4222-8222-222222222222';
+    const pedir = async () => {
+      await userEvent.click(screen.getByRole('button', { name: /Switch URL$/ }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: /^Open another URL…/ }));
+    };
+
+    afterEach(() => TestBed.inject(ScreenState).switcherOpen.set(false));
+
+    it('deve pedir a troca para a URL do endereço dado', async () => {
+      await renderWith(token());
+      actions.openAnotherUrl.mockResolvedValue(OUTRA);
+
+      await pedir();
+
+      await vi.waitFor(() => expect(switchTo).toHaveBeenCalledExactlyOnceWith(OUTRA));
+    });
+
+    it('não deve trocar de URL Quando o diálogo é cancelado', async () => {
+      await renderWith(token());
+
+      await pedir();
+
+      await vi.waitFor(() => expect(actions.openAnotherUrl).toHaveBeenCalledOnce());
+      expect(switchTo).not.toHaveBeenCalled();
+    });
   });
 
   it('deve mostrar "Lock" e trancar a URL Quando ela é protegida', async () => {

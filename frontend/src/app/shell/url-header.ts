@@ -132,6 +132,15 @@ export class UrlHeader {
     return this.withActions((actions) => actions.forgetUrls());
   }
 
+  /** "Open another URL…": a URL do endereço dado abre no mesmo destino, como a escolhida na lista. */
+  protected async openAnotherUrl(): Promise<void> {
+    const { TokenActions } = await import('../token/token-actions');
+    const uuid = await this.injector.get(TokenActions).openAnotherUrl();
+    if (uuid) {
+      this.switchTo.emit(uuid);
+    }
+  }
+
   protected lockUrl(): Promise<void> {
     return this.withActions((actions) => actions.lockUrl());
   }

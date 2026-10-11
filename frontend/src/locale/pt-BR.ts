@@ -2965,6 +2965,16 @@ export const translations: Record<string, string> = {
   '952550687544504597': 'Nova URL…',
   // Rename this URL…
   '1573761292761070106': 'Dar um apelido a esta URL…',
+  // Open another URL…
+  '1239934205493627558': 'Abrir outra URL…',
+  // Open another URL
+  '62110040725859848': 'Abrir outra URL',
+  // Address or id
+  '7215657427667039859': 'Endereço ou id',
+  //  Paste the address of an Anzol URL, or just its id.
+  '9198659939123563567': ' Cole o endereço de uma URL do Anzol, ou só o id dela. ',
+  // Open URL
+  '6938114924633464134': 'Abrir URL',
   // Forget a URL…
   '2232671604462752651': 'Esquecer uma URL…',
   // Kept only in this browser.

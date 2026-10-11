@@ -60,6 +60,12 @@ export class TokenActions {
     await forgetUrls(this.injector);
   }
 
+  /** "Open another URL…": o id da URL do endereço dado, ou `null` se a pessoa desistiu. */
+  async openAnotherUrl(): Promise<string | null> {
+    const { openAnotherUrl } = await import('./url-list-dialogs');
+    return openAnotherUrl(this.injector);
+  }
+
   /** "Lock": tira o acesso deste navegador à URL protegida; a tela de desbloqueio assume. */
   async lockUrl(): Promise<void> {
     const token = this.tokens.token();

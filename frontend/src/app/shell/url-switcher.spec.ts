@@ -24,7 +24,7 @@ const url = (uuid: string, nickname: string, minutesAgo: number): KnownUrl => ({
 describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
   const windowClass = signal<WindowClass>('large');
   const chosen = vi.fn();
-  const events = { newUrl: vi.fn(), rename: vi.fn(), forget: vi.fn() };
+  const events = { newUrl: vi.fn(), rename: vi.fn(), forget: vi.fn(), openOther: vi.fn() };
 
   const show = async (urls: KnownUrl[], current = A) => {
     localStorage.setItem(KNOWN_URLS_KEY, JSON.stringify(urls));
@@ -94,6 +94,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
       'New URL…N',
       'Rename this URL…',
       'Forget a URL…',
+      'Open another URL…',
     ]);
     // O rodapé e a busca ficam dentro do menu.
     expect(
@@ -151,11 +152,11 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     await userEvent.keyboard('{ArrowDown}');
     expect(document.activeElement).toBe(radios[1]);
     await userEvent.keyboard('{End}');
-    expect(document.activeElement).toBe(actions[2]);
+    expect(document.activeElement).toBe(actions[3]);
     await userEvent.keyboard('{ArrowDown}');
     expect(document.activeElement).toBe(radios[0]);
     await userEvent.keyboard('{ArrowUp}');
-    expect(document.activeElement).toBe(actions[2]);
+    expect(document.activeElement).toBe(actions[3]);
 
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).toBeNull();
@@ -166,6 +167,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     ['New URL…', 'newUrl'],
     ['Rename this URL…', 'rename'],
     ['Forget a URL…', 'forget'],
+    ['Open another URL…', 'openOther'],
   ] as const)('deve pedir "%s" e fechar o menu', async (name, event) => {
     await show([url(A, '', 0)]);
     await open();
@@ -235,7 +237,7 @@ describe('Dado o seletor de URLs do cabeçalho (B1)', () => {
     expect(within(folha).getByRole('menu', { name: 'Choose a URL' })).toBeTruthy();
     expect(screen.queryByRole('menu', { name: 'URLs in this browser' })).toBeNull();
     const fechar = within(folha).getByRole('button', { name: 'Close' });
-    const ultimo = within(folha).getByRole('menuitem', { name: /^Forget a URL/ });
+    const ultimo = within(folha).getByRole('menuitem', { name: /^Open another URL/ });
     ultimo.focus();
     await userEvent.tab();
     expect(document.activeElement).toBe(fechar);

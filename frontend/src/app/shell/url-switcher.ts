@@ -41,6 +41,7 @@ export class UrlSwitcher {
   readonly newUrl = output<void>();
   readonly rename = output<void>();
   readonly forget = output<void>();
+  readonly openOther = output<void>();
 
   protected readonly id = `url-switcher-${nextId++}`;
   /** Aberto também por fora: a tecla U e o "Switch to another URL". */
@@ -96,6 +97,7 @@ export class UrlSwitcher {
     instance.newUrl.subscribe(() => this.newUrl.emit());
     instance.rename.subscribe(() => this.rename.emit());
     instance.forget.subscribe(() => this.forget.emit());
+    instance.openOther.subscribe(() => this.openOther.emit());
   }
 
   private focusTrigger(): void {

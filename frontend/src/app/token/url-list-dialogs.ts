@@ -1,5 +1,5 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
-import { Component, Injector, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, inject, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -15,6 +15,8 @@ import { KnownUrls, NICKNAME_MAX } from './known-urls';
 import { ANNOUNCEMENT_MS } from '../ui/live-region';
 
 const WIDTH = 'min(420px, calc(100vw - 32px))';
+/** O id da URL dentro do endereço que recebe os webhooks, do da tela ou sozinho. */
+const URL_ID = /[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}/i;
 
 @Component({
   selector: 'app-url-nickname-dialog',
@@ -119,6 +121,63 @@ export class ForgetUrlsDialog {
   }
 }
 
+@Component({
+  selector: 'app-open-url-dialog',
+  imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
+  template: `
+    <h2 mat-dialog-title i18n>Open another URL</h2>
+    <form (submit)="open($event)">
+      <mat-dialog-content>
+        <label class="field">
+          <span class="label" i18n>Address or id</span>
+          <input
+            #box
+            class="box"
+            type="text"
+            name="address"
+            autocomplete="off"
+            spellcheck="false"
+            [attr.aria-invalid]="invalid() ? 'true' : null"
+            [attr.aria-describedby]="invalid() ? 'open-url-error open-url-hint' : 'open-url-hint'"
+            (input)="address.set(box.value); invalid.set(false)"
+          />
+        </label>
+        @if (invalid()) {
+          <p class="error" id="open-url-error" i18n>This address is not a valid URL id.</p>
+        }
+        <p class="hint" id="open-url-hint" i18n>
+          Paste the address of an Anzol URL, or just its id.
+        </p>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button mat-button type="button" [mat-dialog-close]="null" i18n>Cancel</button>
+        <button mat-flat-button type="submit" i18n>Open URL</button>
+      </mat-dialog-actions>
+    </form>
+  `,
+  styleUrl: './url-list-dialogs.scss',
+})
+export class OpenUrlDialog {
+  private readonly announcer = inject(LiveAnnouncer);
+  private readonly dialog = inject<MatDialogRef<OpenUrlDialog, string | null>>(MatDialogRef);
+  private readonly box = viewChild.required<ElementRef<HTMLInputElement>>('box');
+
+  protected readonly address = signal('');
+  protected readonly invalid = signal(false);
+
+  protected open(event: Event): void {
+    event.preventDefault();
+    const [uuid] = URL_ID.exec(this.address()) ?? [];
+    if (uuid) {
+      this.dialog.close(uuid.toLowerCase());
+      return;
+    }
+    this.invalid.set(true);
+    this.box().nativeElement.focus();
+    void this.announcer.announce($localize`This address is not a valid URL id.`, ANNOUNCEMENT_MS);
+  }
+}
+
 export async function renameUrl(injector: Injector, uuid: string): Promise<void> {
   const ref = injector.get(MatDialog).open<UrlNicknameDialog, string, boolean>(UrlNicknameDialog, {
     data: uuid,
@@ -126,6 +185,14 @@ export async function renameUrl(injector: Injector, uuid: string): Promise<void>
     maxWidth: '100vw',
   });
   await firstValueFrom(ref.afterClosed());
+}
+
+/** O id da URL que a pessoa pediu para abrir; `null` se desistiu. */
+export async function openAnotherUrl(injector: Injector): Promise<string | null> {
+  const ref = injector
+    .get(MatDialog)
+    .open<OpenUrlDialog, void, string | null>(OpenUrlDialog, { width: WIDTH, maxWidth: '100vw' });
+  return (await firstValueFrom(ref.afterClosed())) ?? null;
 }
 
 export async function forgetUrls(injector: Injector): Promise<void> {

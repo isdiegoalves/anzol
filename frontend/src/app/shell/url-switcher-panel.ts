@@ -28,9 +28,9 @@ interface Entry {
 /**
  * O painel do seletor de URLs (B1), carregado quando o botão o abre: o `menu "URLs in this
  * browser"` preso ao botão, com a aberta primeiro e marcada, as outras pela última abertura, e
- * "New URL…", "Rename this URL…" e "Forget a URL…". Padrão "menu button" da WAI-ARIA, sem o
- * Overlay do CDK: setas, Home e End andam; Esc fecha e devolve o foco; digitar filtra quando há a
- * busca (8 URLs ou mais). No celular, o mesmo painel é uma folha inferior modal.
+ * "New URL…", "Rename this URL…", "Forget a URL…" e "Open another URL…". Padrão "menu button" da
+ * WAI-ARIA, sem o Overlay do CDK: setas, Home e End andam; Esc fecha e devolve o foco; digitar
+ * filtra quando há a busca (8 URLs ou mais). No celular, o mesmo painel é uma folha inferior modal.
  */
 @Component({
   selector: 'app-url-switcher-panel',
@@ -60,6 +60,7 @@ export class UrlSwitcherPanel {
   readonly newUrl = output<void>();
   readonly rename = output<void>();
   readonly forget = output<void>();
+  readonly openOther = output<void>();
   /** Pede para fechar; `true` devolve o foco ao botão. */
   readonly closed = output<boolean>();
 
@@ -118,7 +119,7 @@ export class UrlSwitcherPanel {
     }
   }
 
-  protected run(action: 'newUrl' | 'rename' | 'forget'): void {
+  protected run(action: 'newUrl' | 'rename' | 'forget' | 'openOther'): void {
     this.closed.emit(true);
     this[action].emit();
   }

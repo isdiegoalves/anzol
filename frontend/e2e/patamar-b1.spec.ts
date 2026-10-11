@@ -173,7 +173,7 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
       new RegExp(`^URL ${id5(a)}, ${id5(a)}, opened .+`),
     );
     await expect(urls.nth(1)).toHaveAttribute('aria-checked', 'false');
-    for (const acao of ['New URL…', 'Rename this URL…', 'Forget a URL…']) {
+    for (const acao of ['New URL…', 'Rename this URL…', 'Forget a URL…', 'Open another URL…']) {
       await expect(painel.getByRole('menuitem', { name: acao, exact: true })).toBeVisible();
     }
     await expect(painel).toContainText('Kept only in this browser.');
@@ -305,6 +305,66 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
     expect((await urlsConhecidas(page)).map((u) => u.uuid)).toEqual([b]);
     await expect((await abrirSeletor(page)).getByRole('menuitemradio')).toHaveCount(1);
     expect((await request.get(`/token/${a}`)).status()).toBe(200);
+  });
+
+  test('deve abrir pelo "Open another URL…" a URL do endereço colado, no mesmo destino, e recusar o texto sem id', async ({
+    page,
+    tokens,
+  }) => {
+    const a = await tokens.create();
+    const b = await tokens.create();
+    await escutarAnuncios(page);
+    await seedStorage(page, {});
+    await page.goto(`/#/${a}/rules`);
+    await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
+
+    const painel = await abrirSeletor(page);
+    await painel.getByRole('menuitem', { name: 'Open another URL…', exact: true }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Open another URL' });
+    const endereco = dialogo.getByRole('textbox', { name: 'Address or id' });
+    await expect(endereco).toBeFocused();
+    await expect(dialogo).toContainText('Paste the address of an Anzol URL, or just its id.');
+
+    await endereco.fill('http://localhost:3000/pedidos');
+    await limparAnuncios(page);
+    await dialogo.getByRole('button', { name: 'Open URL', exact: true }).click();
+    await expect(endereco).toHaveAttribute('aria-invalid', 'true');
+    await expect(dialogo).toContainText('This address is not a valid URL id.');
+    await expectUmAnuncio(page, /^This address is not a valid URL id\.$/);
+
+    await endereco.fill(`${new URL(page.url()).origin}/${b}/pedidos?x=1`);
+    await limparAnuncios(page);
+    await endereco.press('Enter');
+
+    await expect(dialogo).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`#/${b}/rules$`));
+    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
+      new RegExp(`/${b}$`),
+    );
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
+    await expectUmAnuncio(page, new RegExp(`^URL ${id5(b)} opened\\.`));
+    expect((await urlsConhecidas(page)).map((u) => u.uuid)).toEqual([b, a]);
+  });
+
+  test('deve mostrar a página de URL inexistente Quando o id dado em "Open another URL…" não existe', async ({
+    page,
+    tokens,
+  }) => {
+    const a = await tokens.create();
+    const sumida = urlInexistente();
+    await seedStorage(page, {});
+    await abrirEntrada(page, a, 0);
+
+    const painel = await abrirSeletor(page);
+    await painel.getByRole('menuitem', { name: 'Open another URL…', exact: true }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Open another URL' });
+    await dialogo.getByRole('textbox', { name: 'Address or id' }).fill(sumida);
+    await dialogo.getByRole('button', { name: 'Open URL', exact: true }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'This URL no longer exists', level: 1 }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`#/${sumida}$`));
   });
 
   test('deve oferecer a busca "Find a URL" a partir de 8 URLs, por apelido e por início do UUID', async ({

@@ -75,6 +75,10 @@
       <app-icon name="none" [size]="18" />
       <span class="name" i18n>Forget a URL…</span>
     </button>
+    <button type="button" role="menuitem" tabindex="-1" class="item" (click)="run('openOther')">
+      <app-icon name="link" [size]="18" />
+      <span class="name" i18n>Open another URL…</span>
+    </button>
   </div>
   <p class="foot" role="none">
     @if (available()) {
