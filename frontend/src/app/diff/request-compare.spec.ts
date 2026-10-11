@@ -1,10 +1,14 @@
 import { signal } from '@angular/core';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
+import { translations } from '../../locale/pt-BR';
 import { expectNoAxeViolations } from '../../testing/axe';
-import { webhookRequest } from '../../testing/fixtures';
+import { token, webhookRequest } from '../../testing/fixtures';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { Token } from '../token/token';
+import { TokenStore } from '../token/token-store';
 import { CompareStore } from './compare-store';
 import { BODY_LIMIT } from './request-diff';
 import { RequestCompare } from './request-compare';
@@ -25,6 +29,7 @@ const B = webhookRequest(2, {
 describe('Dado a comparação de duas mensagens', () => {
   const windowClass = signal<WindowClass>('large');
   const compare = { swap: vi.fn(), close: vi.fn() };
+  const url = signal<Token | null>(null);
 
   const show = (a: WebhookRequest = A, b: WebhookRequest = B) =>
     render(RequestCompare, {
@@ -32,6 +37,7 @@ describe('Dado a comparação de duas mensagens', () => {
       providers: [
         { provide: Viewport, useValue: { windowClass } },
         { provide: CompareStore, useValue: compare },
+        { provide: TokenStore, useValue: { token: url } },
       ],
     });
   const rows = (name: string) =>
@@ -44,7 +50,10 @@ describe('Dado a comparação de duas mensagens', () => {
       [row.className, row.textContent?.replace(/\s+/g, ' ').trim()].join(' | '),
     );
 
-  beforeEach(() => windowClass.set('large'));
+  beforeEach(() => {
+    windowClass.set('large');
+    url.set(null);
+  });
 
   it('deve mostrar A e B no cabeçalho, as verificações lado a lado, e passar no axe', async () => {
     const { container } = await show();
@@ -102,7 +111,7 @@ describe('Dado a comparação de duas mensagens', () => {
     expect(linha?.querySelectorAll('td')[1].textContent).toContain('changed');
     const explica = screen.getByRole('region', { name: '1 change explains the outcome' });
     expect(within(explica).getByRole('listitem').textContent).toBe(
-      'Decryption: A valid → B invalid (signer_unknown)',
+      "Decryption: A valid → B the JWS says it was signed by a signing key that is not among this URL's trusted signers (signer_unknown)",
     );
     expect(container.querySelectorAll('.card-side')[1].textContent).toContain('Decryption invalid');
     await expectNoAxeViolations(container);
@@ -176,6 +185,67 @@ describe('Dado a comparação de duas mensagens', () => {
         .map((item) => item.textContent),
     ).toEqual(['header x-only-a', 'header x-retry']);
     expect(explains.querySelector('details')).toBeNull();
+  });
+
+  describe('Com a assinatura conferindo em A e não em B, e o cabeçalho dela diferente', () => {
+    const assinada = (n: number, valid: boolean, headers: Record<string, string[]>) =>
+      webhookRequest(n, {
+        headers,
+        content: '{}',
+        signature: { provider: 'generic', valid, reason: valid ? null : 'signature mismatch' },
+      });
+    const showSigned = () =>
+      show(
+        assinada(1, true, { 'x-loja-signature': ['a'], 'x-retry': ['1'] }),
+        assinada(2, false, { 'x-loja-signature': ['b'], 'x-retry': ['2'] }),
+      );
+    const lines = (region: HTMLElement) =>
+      [...region.querySelectorAll('li, .hint')].map((line) =>
+        line.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+
+    beforeEach(() =>
+      url.set(token({ signature: { provider: 'generic', header: 'X-Loja-Signature' } })),
+    );
+
+    it('deve dizer embaixo da linha da assinatura de que cabeçalho ela vem, sem contá-lo como outra causa', async () => {
+      const { container } = await showSigned();
+
+      const explains = screen.getByRole('region', { name: '1 change explains the outcome' });
+      expect(lines(explains)).toEqual([
+        'Signature: A valid → B does not match (signature mismatch) It comes in the header x-loja-signature, which differs between A and B.',
+        'Only what the server recorded: schema error paths, the rule conditions that failed and the signature reason, and the header the signature was read from.',
+      ]);
+      const other = screen.getByRole('region', { name: '1 other difference' });
+      expect(within(other).getByRole('listitem', { hidden: true }).textContent).toBe(
+        'header x-retry',
+      );
+      await expectNoAxeViolations(container);
+    });
+
+    describe('Com a tela em pt-BR', () => {
+      beforeEach(() => loadTranslations(translations));
+      afterEach(() => clearTranslations());
+
+      it('deve dizer as verificações, a causa e o cabeçalho dela na língua da tela', async () => {
+        await showSigned();
+
+        expect(
+          within(screen.getByRole('table', { name: 'Verificações' }))
+            .getAllByRole('rowheader')
+            .map((header) => header.textContent?.replace(/\s+/g, ' ').trim()),
+        ).toEqual(['Assinatura', 'Schema', 'Resposta']);
+        const explains = screen.getByRole('region', { name: '1 mudança explica o desfecho' });
+        expect(lines(explains)).toEqual([
+          'Assinatura: A confere → B não confere (signature mismatch) Ela vem no cabeçalho x-loja-signature, que difere entre A e B.',
+          'Só o que o servidor gravou: os caminhos de erro do schema, as condições da regra que falharam e o motivo da assinatura, e o cabeçalho de onde a assinatura foi lida.',
+        ]);
+        const other = screen.getByRole('region', { name: '1 outra diferença' });
+        expect(within(other).getByRole('listitem', { hidden: true }).textContent).toBe(
+          'cabeçalho x-retry',
+        );
+      });
+    });
   });
 
   it('deve casar headers sem diferenciar maiúsculas e marcar diferente e ausente (A | B | Status)', async () => {

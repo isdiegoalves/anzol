@@ -91,7 +91,10 @@ test.describe('Dado duas entregas com verificações diferentes (S9)', () => {
     const [assinaturaA, assinaturaB] = await linhaDoCheck(view, 'Signature');
     expect(assinaturaA).toMatch(/Signature invalid/);
     expect(assinaturaB).toMatch(/Signature valid/);
-    await expect(explica(view)).toContainText('signature mismatch');
+    await expect(explica(view).getByRole('listitem')).toHaveText([
+      'Signature: A does not match (signature mismatch) → B valid It comes in the header x-hub-signature-256, which differs between A and B.',
+    ]);
+    await expect(view.getByText('header x-hub-signature-256', { exact: true })).toHaveCount(0);
     await expect(
       view
         .getByRole('table', { name: 'Headers' })
@@ -113,7 +116,9 @@ test.describe('Dado duas entregas com verificações diferentes (S9)', () => {
     const [schemaA, schemaB] = await linhaDoCheck(view, 'Schema');
     expect(schemaA).toMatch(/Schema invalid/);
     expect(schemaB).toMatch(/Schema valid/);
-    await expect(explica(view)).toContainText('/valor');
+    await expect(explica(view).getByRole('listitem')).toHaveText([
+      'Schema /valor: A got a string, expected an integer (string found, integer expected) → B valid here',
+    ]);
   });
 });
 

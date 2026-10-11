@@ -265,6 +265,39 @@ test.describe('Dado o idioma pt-BR guardado, nas telas da Saída, de Métricas, 
     await expect(
       view.getByRole('heading', { name: /^0 mudanças explicam\s+o desfecho$/ }),
     ).toBeVisible();
-    await expect(view.getByRole('heading', { name: /^\d+ outras? diferenças?$/ })).toBeVisible();
+    const outras = view.locator('section', {
+      has: page.getByRole('heading', { name: /^\d+ outras? diferenças?$/ }),
+    });
+    await outras.getByRole('heading').click();
+    await expect(outras.getByRole('listitem').filter({ hasText: 'x-lado' })).toHaveText(
+      'cabeçalho x-lado',
+    );
+  });
+
+  test('deve dizer no Comparar o que explica o desfecho: a assinatura, o cabeçalho dela e o erro de schema', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({
+      signature: { provider: 'github', secret: SECRET },
+      schema: { type: 'object', properties: { valor: { type: 'integer' } } },
+    });
+    const a = await tokens.send(tokenId, assinado('outro-segredo', '{"valor":"10"}'));
+    const b = await tokens.send(tokenId, assinado(SECRET, '{"valor":10}'));
+
+    await page.goto(`/#/${tokenId}/compare/${a}/${b}`);
+
+    const view = page.getByRole('region', { name: 'Comparar requisições' });
+    await expect(
+      view.getByRole('table', { name: 'Verificações' }).getByRole('rowheader'),
+    ).toHaveText(['Assinatura', 'Schema', 'Resposta']);
+    const explica = view.locator('section', {
+      has: page.getByRole('heading', { name: /^2 mudanças explicam\s+o desfecho$/ }),
+    });
+    await expect(explica.getByRole('listitem')).toHaveText([
+      'Assinatura: A não confere (signature mismatch) → B confere Ela vem no cabeçalho x-hub-signature-256, que difere entre A e B.',
+      'Schema /valor: A veio texto, esperava inteiro (string found, integer expected) → B válido aqui',
+    ]);
+    await expect(explica).toContainText('e o cabeçalho de onde a assinatura foi lida.');
   });
 });

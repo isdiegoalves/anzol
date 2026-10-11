@@ -15,12 +15,15 @@ export interface SignatureCheck {
   missing: { name: string; note: string } | null;
 }
 
+/** O cabeçalho do Slack que entra na conta sem carregar a assinatura. */
+export const SLACK_TIMESTAMP_HEADER = 'x-slack-request-timestamp';
+
 /** Headers que cada provedor lê; o genérico lê o que a URL configurou. */
 const PROVIDER_HEADERS: Record<Exclude<SignatureProvider, 'generic'>, readonly string[]> = {
   stripe: ['stripe-signature'],
   github: ['x-hub-signature-256'],
   shopify: ['x-shopify-hmac-sha256'],
-  slack: ['x-slack-signature', 'x-slack-request-timestamp'],
+  slack: ['x-slack-signature', SLACK_TIMESTAMP_HEADER],
 };
 
 const ICONS: Record<SignatureState, string> = { valid: '✓', invalid: '✕', absent: '⊘' };
@@ -63,7 +66,7 @@ export function signatureCheck(
   for (const name of names.filter((present) => Object.hasOwn(request.headers, present))) {
     rows.set(
       name,
-      name === 'x-slack-request-timestamp'
+      name === SLACK_TIMESTAMP_HEADER
         ? `${ICONS[state]} ${$localize`Timestamp signed with the body`}`
         : verdict,
     );

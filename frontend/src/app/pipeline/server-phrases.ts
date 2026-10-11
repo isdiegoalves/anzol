@@ -19,7 +19,7 @@ export interface ServerPhrase {
 type Family = [RegExp, (...parts: string[]) => string];
 
 /** `query env` → "query env"; `header x` → "cabeçalho x"; `body $.a` → "corpo $.a". */
-function target(kind: string, name: string): string {
+export function target(kind: string, name: string): string {
   if (kind === 'header') {
     return $localize`:server phrase|Target of a failed condition:header ${name}:name:`;
   }
@@ -40,7 +40,7 @@ function signatureState(state: string): string {
 }
 
 /** O estado da decifra que a frase cita (`valid`, `invalid`, `unknown_kid`, `absent`). */
-function decryptionState(state: string): string {
+export function decryptionState(state: string): string {
   const words: Record<string, string> = {
     valid: $localize`:decryption state|:valid`,
     invalid: $localize`:decryption state|:invalid`,

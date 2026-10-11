@@ -136,7 +136,15 @@
       @if (report.causes.length) {
         <ul>
           @for (cause of report.causes; track $index) {
-            <li>{{ causeText(cause) }}</li>
+            <li>
+              <span>{{ causeText(cause) }}</span>
+              @if (cause.header; as header) {
+                <p i18n>
+                  It comes in the header <code>{{ header }}</code
+                  >, which differs between A and B.
+                </p>
+              }
+            </li>
           }
         </ul>
       } @else {
@@ -144,7 +152,7 @@
       }
       <p i18n class="hint">
         Only what the server recorded: schema error paths, the rule conditions that failed and the
-        signature reason.
+        signature reason, and the header the signature was read from.
       </p>
     </section>
     @if (report.noise.length) {

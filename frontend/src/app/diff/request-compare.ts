@@ -16,6 +16,7 @@ import { EventGrouping } from '../requests/event-grouping';
 import { bodySummary, eventType } from '../requests/request-list';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Viewport } from '../shell/viewport';
+import { TokenStore } from '../token/token-store';
 import { CheckChip } from '../ui/check-chip';
 import { MethodBadge } from '../ui/method-badge';
 import { CompareStore } from './compare-store';
@@ -34,12 +35,15 @@ interface CheckRow {
   same: boolean;
 }
 
-const CHECK_LABELS: Record<CheckResult['kind'], string> = {
-  signature: 'Signature',
-  schema: 'Schema',
-  rule: 'Answer',
-  decryption: 'Decryption',
-};
+function checkLabel(kind: CheckResult['kind']): string {
+  const labels: Record<CheckResult['kind'], string> = {
+    signature: $localize`Signature`,
+    schema: $localize`Schema`,
+    rule: $localize`Answer`,
+    decryption: $localize`Decryption`,
+  };
+  return labels[kind];
+}
 
 /** O lado que a URL não decifrou, na linha da decifra. */
 function notDecrypted(): CheckResult {
@@ -77,6 +81,7 @@ export class RequestCompare {
   private readonly viewport = inject(Viewport);
   private readonly grouping = inject(EventGrouping);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly token = inject(TokenStore).token;
 
   readonly a = input.required<WebhookRequest>();
   readonly b = input.required<WebhookRequest>();
@@ -164,7 +169,7 @@ export class RequestCompare {
     };
     const row = (kind: CheckResult['kind'], resultA: CheckResult, resultB: CheckResult) => ({
       kind,
-      label: CHECK_LABELS[kind],
+      label: checkLabel(kind),
       a: withStatus(resultA, this.left()),
       b: withStatus(resultB, this.right()),
       same: resultA.state === resultB.state && resultA.detail === resultB.detail,
@@ -202,7 +207,9 @@ export class RequestCompare {
     return `${parts.join(', ')} · ${body}`;
   });
 
-  protected readonly outcome = computed(() => explainOutcome(this.left(), this.right()));
+  protected readonly outcome = computed(() =>
+    explainOutcome(this.left(), this.right(), this.token()),
+  );
 
   /** RULES-32: método, caminho sem o token e query, em chips. */
   protected readonly line = computed(() =>
@@ -284,7 +291,7 @@ export class RequestCompare {
   }
 
   protected causeText(cause: OutcomeCause): string {
-    const check = CHECK_LABELS[cause.check];
+    const check = checkLabel(cause.check);
     const where = cause.where === cause.check ? check : `${check} ${cause.where}`;
     return `${where}: A ${cause.a} → B ${cause.b}`;
   }

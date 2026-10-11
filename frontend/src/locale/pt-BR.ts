@@ -339,9 +339,34 @@ export const translations: Record<string, string> = {
     '{VAR_PLURAL, plural, =1 {1 mudança explica} other {{INTERPOLATION} mudanças explicam}}',
   // Signature, schema and rules recorded the same result for both.
   '3587918106035694825': 'Assinatura, schema e regras gravaram o mesmo resultado nas duas.',
-  //  Only what the server recorded: schema error paths, the rule conditions that failed and the signature reason.
-  '6436888347208938224':
-    ' Só o que o servidor gravou: os caminhos de erro do schema, as condições da regra que falharam e o motivo da assinatura. ',
+  //  It comes in the header {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}, which differs between A and B.
+  '6148044569856650154':
+    ' Ela vem no cabeçalho {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE}, que difere entre A e B. ',
+  //  Only what the server recorded: schema error paths, the rule conditions that failed and the signature reason, and the header the signature was read from.
+  '3276568926985952158':
+    ' Só o que o servidor gravou: os caminhos de erro do schema, as condições da regra que falharam e o motivo da assinatura, e o cabeçalho de onde a assinatura foi lida. ',
+  // method
+  '2869028963509248106': 'método',
+  // body
+  '4751042695397535629': 'corpo',
+  // not checked
+  '8310128995341063165': 'não conferida',
+  // valid
+  '5362686489706717164': 'confere',
+  // does not match (signature mismatch)
+  '4044449839712144524': 'não confere (signature mismatch)',
+  // not decrypted
+  '4974610250120859179': 'não decifrada',
+  // not checked
+  '6836518857775273604': 'não conferido',
+  // invalid
+  '2189945453804041810': 'inválido',
+  // valid
+  '3889076352140927603': 'válido',
+  // valid here
+  '2361040152083054969': 'válido aqui',
+  // passed
+  '1947204882886724045': 'passou',
   //  {$ICU} on every delivery
   '526138209295085137': ' {$ICU} a cada entrega ',
   // {VAR_PLURAL, plural, =1 {1 difference changes} other {{INTERPOLATION} differences change}}
