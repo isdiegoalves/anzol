@@ -16,13 +16,14 @@ private val PER_PAGE_RANGE = 1L..100L
 private val SORTINGS = mapOf("newest" to Sorting.NEWEST, "oldest" to Sorting.OLDEST)
 
 /**
- * Corpo do `POST /token/{id}/requests/search`, já validado; [text] vazio e [outcome], [signatureReason],
+ * Corpo do `POST /token/{id}/requests/search`, já validado; [text] e [answered] vazios e [outcome], [signatureReason],
  * [decryptionReason] e [schemaPath] nulos são sem filtro.
  */
 data class SearchRequest(
     val text: String = "",
     val match: RuleMatch = RuleMatch(),
     val outcome: SearchOutcome? = null,
+    val answered: List<IntRange> = emptyList(),
     val signatureReason: String? = null,
     val decryptionReason: String? = null,
     val schemaPath: String? = null,
@@ -32,8 +33,8 @@ data class SearchRequest(
 )
 
 /**
- * `{"text", "match", "outcome", "signature_reason", "decryption_reason", "schema_path", "sorting", "page", "per_page"}`,
- * todos opcionais;
+ * `{"text", "match", "outcome", "answered", "signature_reason", "decryption_reason", "schema_path", "sorting", "page",
+ * "per_page"}`, todos opcionais;
  * corpo vazio vale `{}`. `match` passa pelo leitor das regras (chaves `match.path.regex`…); os outros erros ficam na
  * chave do campo, e o corpo que não é objeto JSON, em `search`.
  */
@@ -44,6 +45,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
     val text = violations.searchText(tree["text"])
     val match = MatchReader(violations).match(tree["match"], "match")
     val outcome = violations.outcome(tree["outcome"])
+    val answered = violations.answered(tree["answered"])
     val signatureReason = violations.signatureReason(tree["signature_reason"])
     val decryptionReason = violations.decryptionReason(tree["decryption_reason"])
     val schemaPath = violations.schemaPath(tree["schema_path"])
@@ -55,6 +57,7 @@ fun parseSearch(body: String): Parsed<SearchRequest> {
             text = checkNotNull(text),
             match = checkNotNull(match),
             outcome = outcome,
+            answered = checkNotNull(answered),
             signatureReason = signatureReason,
             decryptionReason = decryptionReason,
             schemaPath = schemaPath,

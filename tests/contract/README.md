@@ -856,6 +856,17 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
       `count` de cada `decryption.reasons[]` do `/stats` é o `total` da busca.
     - 422 em `decryption_reason` (número, booleano, lista, objeto, vazio, 201 caracteres); 200 caracteres é aceito.
     - O `search_requests` do MCP declara `decryption_reason` no `tools/list` e filtra por ele.
+  - *Busca pelo status respondido* (`busca-status.spec.ts`, v0.6.0): `answered` no topo da busca, fora de `match`.
+    - É uma lista de famílias (`"1xx"` a `"5xx"`) e de status exatos (`"404"`), como texto. Casa a mensagem cujo
+      `response.status` é de alguma família ou igual a algum status; os itens combinam em OU, e item repetido não
+      duplica. A mensagem de regra com falha de rede (`response.fault`, sem status) não casa nenhuma família.
+    - Combina em E com `match`, `text` e `outcome`, com paginação sobre o filtrado. Sem o campo, com `null` ou com a
+      lista vazia, a busca é igual à listagem.
+    - 422 em `answered` quando não é lista (texto, número, booleano, objeto) e em `answered.<índice>` para o item que
+      não é família nem status (`6xx`, `0xx`, `5XX`, `99`, `600`, vazio, com espaço, número, `null`, lista, objeto);
+      os itens válidos da mesma lista não ganham chave.
+    - A mensagem gravada antes de `response` não casa nenhum item e não derruba a busca: fica com os testes do
+      backend, porque o contrato não escreve no Redis.
   - *ReDoS* (`redos.spec.ts`, T1): `((a+)*)+$` contra `a`×30 + `!` e `(.*a){12}` contra `a`×40 + `!`. O `(a+)+$`
     clássico não serve, porque o JDK 25 o resolve em milissegundos.
     - Salvar a regra e o schema é aceito como hoje.

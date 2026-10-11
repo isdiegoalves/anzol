@@ -17,8 +17,9 @@ private const val SCAN_BATCH = 100L
 
 /**
  * Varre todas as mensagens retidas da URL, em trechos do índice na ordem pedida, e guarda só as da
- * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, motivo da
- * assinatura, motivo da decifra, caminho do schema, texto e `match`, em E). O texto procura no valor decifrado só com [includeDecrypted]:
+ * página: na memória ficam um trecho e a página, nunca a URL inteira. `total` conta as que casam (desfecho, status
+ * respondido, motivo da assinatura, motivo da decifra, caminho do schema, texto e `match`, em E). O texto procura no
+ * valor decifrado só com [includeDecrypted]:
  * a API REST, que exige o acesso de leitura da URL; o MCP nunca, porque o agente não vê o valor e a busca o revelaria.
  */
 @Component
@@ -39,6 +40,7 @@ class RequestSearch(
                 batches(token, search.sorting)
                     .flatMap { it.messages }
                     .filter { message -> search.outcome?.matches(message) != false }
+                    .filter { message -> search.answered.isEmpty() || message.answeredIn(search.answered) }
                     .filter { message -> search.signatureReason?.let(message::hasSignatureReason) != false }
                     .filter { message -> search.decryptionReason?.let(message::hasDecryptionReason) != false }
                     .filter { message -> search.schemaPath?.let(message::hasSchemaPath) != false }

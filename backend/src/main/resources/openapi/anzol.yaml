@@ -2903,6 +2903,15 @@ components:
                 type:
                   const: default
             - type: 'null'
+        answered:
+          type: [array, 'null']
+          description: >-
+            The status the URL answered with (`response.status`): any of the listed classes (`5xx`) or exact statuses
+            (`404`). A message with no recorded status (a connection fault, or recorded before `response`) never
+            matches. Empty: no filter.
+          items:
+            type: string
+            pattern: '^[1-5](xx|[0-9]{2})$'
         signature_reason:
           type: [string, 'null']
           minLength: 1
