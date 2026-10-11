@@ -1,4 +1,5 @@
 import { Locator, Page } from '@playwright/test';
+import { expectSemViolacoesGraves } from './support/a11y';
 import {
   escutarAnuncios,
   expectSemAnuncio,
@@ -606,6 +607,26 @@ test.describe('Dado o status respondido no item e no detalhe', () => {
     await expect(cartoes).toContainText('Answered 201 · by rule');
     await expect(cartoes.getByRole('link', { name: 'Pedido pago', exact: true })).toBeVisible();
     await expect(cartoes).not.toContainText('Retry-After');
+  });
+
+  test('deve dar 24 px de alvo ao link de uma regra de nome longo, que chega embaixo do status', async ({
+    page,
+    tokens,
+  }) => {
+    const nome = 'Tudo o resto que chegar';
+    const tokenId = await tokens.create({
+      signature: { provider: 'github', secret: 'segredo-do-alvo' },
+    });
+    await gravarRegras(page.request, tokenId, [{ name: nome, response: { status: 200 } }]);
+    const requestId = await tokens.send(tokenId, { data: '{"id":1}' });
+    await seedStorage(page, {});
+
+    await abrirMensagem(page, tokenId, requestId);
+    const link = verificacoes(page).getByRole('link', { name: nome, exact: true });
+    await expect(link).toBeVisible();
+
+    await expectSemViolacoesGraves(page, 'cartão da resposta com regra de nome longo');
+    expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   });
 
   test('deve dizer que a regra mais perto veio das regras de agora Quando uma pega-tudo respondeu', async ({

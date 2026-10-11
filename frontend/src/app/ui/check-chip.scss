@@ -184,6 +184,15 @@
   overflow-wrap: anywhere;
 }
 
+// Sozinho no motivo, o nome da regra é um alvo, e não um trecho de frase: tem 24 px e começa onde o botão do
+// status acaba (o botão tem 24 px numa linha de 20, e um nome longo chega embaixo dele).
+.detail .link.whole {
+  display: inline-block;
+  min-height: 24px;
+  margin-top: 2px;
+  line-height: 24px;
+}
+
 // O nome da regra (ou "Default response") leva a ela (WM-10): sublinhado, na cor do link; o link a
 // mais (o "Default response" do near miss) numa linha própria.
 .extra {

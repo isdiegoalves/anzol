@@ -51,6 +51,7 @@ export interface ChipLink {
               >{{ parts[0]
               }}<a
                 class="link"
+                [class.whole]="!parts[0] && !parts[2]"
                 [routerLink]="target?.commands"
                 [queryParams]="target?.queryParams"
                 >{{ parts[1] }}</a
