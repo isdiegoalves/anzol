@@ -373,6 +373,69 @@ test.describe('Dado a página que sai com o "Undo" ainda aberto', () => {
   });
 });
 
+test.describe('Dado um painel por vez, com a lista à vista e o aviso da requisição fora da tela', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  const aviso = (page: Page) => page.locator('mat-snack-bar-container');
+  const desfazerDoAviso = (page: Page) => aviso(page).getByRole('button', { name: 'Undo' });
+
+  test('deve falar uma vez só, pelo snackbar, sem citar o aviso da requisição', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, segunda } = await comTres(tokens);
+    await escutarAnuncios(page);
+    await page.goto(`/#/${tokenId}`);
+    await expect(itens(page)).toHaveCount(3);
+    await expect(page.getByRole('group', { name: 'Request notice' })).toHaveCount(0);
+    await limparAnuncios(page);
+
+    await apagarPeloTeclado(page, segunda);
+
+    await expect(aviso(page)).toContainText('Request deleted');
+    await expectSoEstaFala(page, /^Request deleted/);
+    expect(
+      (await anunciados(page)).filter((anuncio) => anuncio.texto.includes('request notice')),
+    ).toEqual([]);
+  });
+
+  test('deve manter o "Undo" do snackbar por 20 s, ao alcance do Tab, e devolver a requisição por ele', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, segunda } = await comTres(tokens);
+    const apagadas: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'DELETE') {
+        apagadas.push(new URL(request.url()).pathname);
+      }
+    });
+    await page.clock.install();
+    await page.goto(`/#/${tokenId}`);
+    await expect(itens(page)).toHaveCount(3);
+    await apagarPeloTeclado(page, segunda);
+    await expect(desfazerDoAviso(page)).toBeVisible();
+
+    await page.clock.fastForward(15_000);
+    await expect(desfazerDoAviso(page)).toBeVisible();
+    expect(apagadas).toEqual([]);
+
+    for (let paradas = 0; paradas < 40; paradas++) {
+      if (await desfazerDoAviso(page).evaluate((botao) => botao === document.activeElement)) {
+        break;
+      }
+      await page.keyboard.press('Tab');
+    }
+    await expect(desfazerDoAviso(page)).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(itens(page)).toHaveCount(3);
+    await expect(item(page, segunda)).toBeVisible();
+    await page.clock.fastForward(21_000);
+    expect(apagadas).toEqual([]);
+  });
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(`Dado o aviso da requisição com o "Undo", no tema ${colorScheme}`, () => {
     test.use({ colorScheme });
