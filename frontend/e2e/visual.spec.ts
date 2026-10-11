@@ -353,8 +353,9 @@ const TELAS: Tela[] = [
       const { id } = (await link.json()) as { id: string };
       await seedStorage(page, { formatJsonEnable: 'true' });
       await page.goto(`/#/share/${id}`);
-      await expect(page.getByText(/Shared read-only link · expires/)).toBeVisible();
-      return [page.getByText(/Shared read-only link · expires/), detalhes(page)];
+      const faixa = page.getByRole('status').filter({ hasText: 'Shared read-only link · expires' });
+      await expect(faixa).toBeVisible();
+      return [faixa, detalhes(page)];
     },
   },
 ];
