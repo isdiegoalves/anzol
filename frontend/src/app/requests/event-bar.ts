@@ -5,7 +5,8 @@ import { RequestStore } from './request-store';
 
 /**
  * Sem chave, a oferta de agrupar, uma vez por URL; com chave, o estado e o "Change". Sem chave e
- * sem candidato, nenhuma palavra sobre evento.
+ * sem candidato, nenhuma palavra sobre evento. Com filtro, a oferta some da vista e do alcance, mas
+ * a faixa guarda o lugar dela.
  */
 @Component({
   selector: 'app-event-bar',
@@ -24,10 +25,15 @@ import { RequestStore } from './request-store';
           <ng-container i18n="action|Changes the event key">Change</ng-container>
         </button>
       </p>
-    } @else if (grouping.offer(); as field) {
+    } @else if (grouping.heldOffer(); as field) {
       <!-- Numa linha só, para a oferta não tirar da primeira tela as requisições; a frase inteira
            fica para o leitor de tela e no title. -->
-      <section class="offer" aria-label="Group by event" i18n-aria-label>
+      <section
+        class="offer"
+        aria-label="Group by event"
+        i18n-aria-label
+        [class.held]="!grouping.offer()"
+      >
         <p class="visually-hidden" i18n>
           Some requests repeat the same <code>{{ field }}</code
           >. Group them by event?
@@ -98,6 +104,18 @@ import { RequestStore } from './request-store';
       border-radius: var(--mat-sys-corner-medium);
       background: var(--mat-sys-surface-container-high);
       font: var(--mat-sys-body-medium);
+    }
+
+    // Guardada: fora da vista, do Tab e do leitor de tela, com a caixa no lugar.
+    .offer.held {
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    .offer {
+      transition:
+        opacity 120ms,
+        visibility 120ms;
     }
 
     .short {

@@ -531,6 +531,32 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(localStorage.getItem(`anzol.eventKey.${TOKEN_ID}`)).toBe('off');
       expect(events()).toEqual([]);
     });
+
+    it('deve guardar o lugar da oferta, sem ela à vista, Quando um filtro liga, e mostrá-la de novo sem ele', async () => {
+      const values = ['a', 'b', 'a', 'c', 'b', 'c'];
+      const all = values.map((value, i) => attempt(i + 1, value, i));
+      await load(all);
+      const offer = () => element().querySelector('[aria-label="Group by event"]');
+      expect(offer()?.classList.contains('held')).toBe(false);
+
+      const filtered = store.applyFilter({ ...NO_FILTER, text: 'x' });
+      await vi.waitFor(() =>
+        http
+          .expectOne({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` })
+          .flush(requestPage(all.slice(0, 1), { total: 1 })),
+      );
+      await filtered;
+      await fixture.whenStable();
+      expect(offer()?.classList.contains('held')).toBe(true);
+
+      const cleared = store.applyFilter(NO_FILTER);
+      await vi.waitFor(() =>
+        http.expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`).flush(requestPage(all)),
+      );
+      await cleared;
+      await fixture.whenStable();
+      expect(offer()?.classList.contains('held')).toBe(false);
+    });
   });
 
   it('deve inverter a ordem pelo botão do cabeçalho', async () => {

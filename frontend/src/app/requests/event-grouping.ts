@@ -1,4 +1,13 @@
-import { Injectable, Injector, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  Injector,
+  linkedSignal,
+  signal,
+  untracked,
+} from '@angular/core';
 import { Rule } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
 import { TokenStore } from '../token/token-store';
@@ -63,6 +72,14 @@ export class EventGrouping {
       return null;
     }
     return this.linkKey() ?? keyCandidates(this.store.requests())[0]?.key ?? null;
+  });
+  /**
+   * Com filtro, a oferta que havia antes dele: a faixa guarda o lugar, sem a oferta à vista, para a
+   * busca não subir embaixo de quem digita.
+   */
+  readonly heldOffer = linkedSignal<EventKey | null | undefined, EventKey | null>({
+    source: () => (this.store.filtering() && !this.decided() ? undefined : this.offer()),
+    computation: (offer, before) => (offer === undefined ? (before?.value ?? null) : offer),
   });
   /** Só das carregadas: a tela não sabe quantos eventos a URL tem. */
   readonly events = computed(() => {
