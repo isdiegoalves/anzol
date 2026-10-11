@@ -1,6 +1,7 @@
 import { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expectSemViolacoesGraves } from './support/a11y';
 import {
+  anunciados,
   escutarAnuncios,
   expectSoEstaFala,
   expectUmAnuncio,
@@ -174,6 +175,59 @@ test.describe('Dado a lixeira de uma linha usada pelo teclado', () => {
     await expect(avisoDaRequisicao(page)).toHaveText(frase);
     await expect(desfazer(page)).toBeVisible();
     await expectSoEstaFala(page, frase, /^Request notice$/);
+  });
+});
+
+test.describe('Dado dois apagares seguidos, com o "Undo" do primeiro ainda aberto', () => {
+  test('deve dizer cada um Quando as duas requisições têm o mesmo método e a mesma rota', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const iguais: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      iguais.push(await tokens.send(tokenId, { path: '/igual' }));
+    }
+    await escutarAnuncios(page);
+    await page.goto(`/#/${tokenId}`);
+    await expect(itens(page)).toHaveCount(4);
+    await limparAnuncios(page);
+
+    await apagarPeloTeclado(page, iguais[1]);
+    await expect(avisoDaRequisicao(page)).toHaveText(
+      'You deleted POST /igual. Undo is in the request notice.',
+    );
+    await lixeira(page, iguais[2]).click();
+    await expect(itens(page)).toHaveCount(2);
+
+    await expect
+      .poll(async () =>
+        (await anunciados(page))
+          .filter((anuncio) => anuncio.texto.startsWith('You deleted POST /igual.'))
+          .map((anuncio) => anuncio.nasceuComTexto),
+      )
+      .toEqual([false, false]);
+  });
+
+  test('deve mudar o aviso uma vez só Quando o segundo é o da requisição aberta', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, primeira, segunda } = await comTres(tokens);
+    await escutarAnuncios(page);
+    await page.goto(`/#/${tokenId}/${primeira}/1`);
+    await expect(itens(page)).toHaveCount(3);
+    await apagarPeloTeclado(page, segunda);
+    await expect(avisoDaRequisicao(page)).toHaveText(APAGOU);
+    await limparAnuncios(page);
+
+    await lixeira(page, primeira).click();
+
+    await expectSoEstaFala(
+      page,
+      /^You deleted this request at .*This copy goes away when you leave it\. Undo is in the request notice\.$/,
+      /^Request notice$/,
+    );
   });
 });
 

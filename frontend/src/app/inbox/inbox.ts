@@ -262,7 +262,7 @@ export class Inbox {
   );
   protected readonly notice = computed(() => {
     const gone = this.requests.gone();
-    const deleting = this.deleting.pending();
+    const deleting = this.deleting.said();
     const loading = this.loadingRequest();
     if (deleting && deleting.request.uuid !== gone?.id) {
       return $localize`You deleted ${deleting.request.method}:method: ${deleting.route}:route:. Undo is in the request notice.`;

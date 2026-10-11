@@ -1,10 +1,24 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, Injector, afterNextRender, computed, input } from '@angular/core';
 
 /**
  * Quanto a frase do `LiveAnnouncer` fica no DOM, o segundo argumento de todo `announce`: o leitor
  * a diz na hora, e quem chega a ela depois, navegando, não acha uma contagem velha.
  */
 export const ANNOUNCEMENT_MS = 5_000;
+
+/**
+ * Roda `fill` numa tarefa depois da próxima renderização, e devolve como desistir. A região viva só
+ * anuncia o que entra com ela já vazia na tela, e o Angular encaixa duas renderizações seguidas na
+ * mesma tarefa: sem a tarefa nova, o leitor de tela não chega a ver a região vazia.
+ */
+export function afterShownEmpty(fill: () => void, injector: Injector): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const rendered = afterNextRender(() => (timer = setTimeout(fill)), { injector });
+  return () => {
+    rendered.destroy();
+    clearTimeout(timer);
+  };
+}
 
 /**
  * Região viva persistente: criada já com texto, ela não é anunciada, então fica no template sem
