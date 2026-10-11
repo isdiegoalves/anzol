@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import {
   escutarAnuncios,
   expectSemAnuncio,
@@ -6,7 +6,7 @@ import {
   expectUmAnuncio,
   limparAnuncios,
 } from './support/anuncios';
-import { expect, test } from './support/fixtures';
+import { TokenTracker, expect, test } from './support/fixtures';
 import {
   abrirFiltros,
   abrirItem,
@@ -56,6 +56,72 @@ const CHIPS: Record<string, string[]> = {
 async function abrirEntrada(page: Page, tokenId: string, n: number, rota = ''): Promise<void> {
   await page.goto(`/#/${tokenId}${rota}`);
   await expect(page.getByRole('heading', { name: `Requests (${n})` })).toBeVisible();
+}
+
+const TIPO_DO_EVENTO = 'charge.refunded';
+
+/**
+ * Uma requisição de rota longa, com tipo de evento no corpo, assinatura que não confere e a resposta padrão (o selo
+ * "200 · Default response"): a segunda linha do item fica disputada. Com `schema` que o corpo não cumpre, entra mais
+ * um selo de erro.
+ */
+async function comTipoDeEvento(
+  tokens: TokenTracker,
+  schema: Record<string, unknown> = { type: 'object' },
+): Promise<{ tokenId: string; id: string }> {
+  const tokenId = await tokens.create({
+    signature: { provider: 'github', secret: 'segredo-da-lista' },
+    schema,
+  });
+  const id = await tokens.send(tokenId, {
+    path: '/pedidos/2026/09/loja-centro/confirmacoes/instantaneas/pagamento-aprovado',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Hub-Signature-256': `sha256=${'0'.repeat(64)}`,
+    },
+    data: JSON.stringify({ type: TIPO_DO_EVENTO }),
+  });
+  return { tokenId, id };
+}
+
+/**
+ * O que a segunda linha do item deixa ver: quantas letras do tipo do evento (a fonte é de largura fixa; 0 quando ele
+ * não aparece) e se o #id está inteiro. Conta o que sobra dentro dos recortes dos ancestrais.
+ */
+function segundaLinha(linha: Locator): Promise<{ letras: number; idInteiro: boolean }> {
+  return linha.evaluate((raiz, tipo) => {
+    const aVista = (caixa: DOMRect, de: Element | null) => {
+      let [esquerda, direita, topo, base] = [caixa.left, caixa.right, caixa.top, caixa.bottom];
+      for (let el = de; el && raiz.contains(el); el = el.parentElement) {
+        if (getComputedStyle(el).overflowX !== 'visible') {
+          const corte = el.getBoundingClientRect();
+          esquerda = Math.max(esquerda, corte.left);
+          direita = Math.min(direita, corte.right);
+          topo = Math.max(topo, corte.top);
+          base = Math.min(base, corte.bottom);
+        }
+      }
+      return { largura: Math.max(0, direita - esquerda), altura: Math.max(0, base - topo) };
+    };
+    const textos = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+    let no = textos.nextNode() as Text | null;
+    while (no && !no.data.includes(tipo)) {
+      no = textos.nextNode() as Text | null;
+    }
+    let letras = 0;
+    if (no) {
+      const faixa = document.createRange();
+      faixa.setStart(no, no.data.indexOf(tipo));
+      faixa.setEnd(no, no.data.indexOf(tipo) + tipo.length);
+      const inteiro = faixa.getBoundingClientRect();
+      const visto = aVista(inteiro, no.parentElement);
+      letras =
+        visto.altura >= inteiro.height / 2 ? visto.largura / (inteiro.width / tipo.length) : 0;
+    }
+    const id = raiz.querySelector('.id')!;
+    const caixa = id.getBoundingClientRect();
+    return { letras, idInteiro: aVista(caixa, id).largura >= caixa.width - 0.5 };
+  }, TIPO_DO_EVENTO);
 }
 
 test.describe('Dado o seletor de URLs no cabeçalho', () => {
@@ -616,6 +682,58 @@ test.describe('Dado a lista densa', () => {
       await expect(page.locator('html')).toHaveClass(/\bcompact\b/);
       await expect.poll(() => itensInteirosNaTela(page)).toBeGreaterThanOrEqual(9);
     });
+
+    test('deve mostrar o tipo do evento legível, com o #id inteiro, Quando o selo de quem respondeu é longo', async ({
+      page,
+      tokens,
+    }, testInfo) => {
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop');
+      const { tokenId, id } = await comTipoDeEvento(tokens);
+      await seedStorage(page, {});
+      await abrirEntrada(page, tokenId, 1);
+      await page.evaluate(() => document.fonts.ready);
+
+      const { letras, idInteiro } = await segundaLinha(item(page, id));
+
+      expect(letras, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
+      expect(idInteiro, 'o #id inteiro').toBe(true);
+    });
+
+    test('deve tirar o tipo do evento da linha, e manter o #id inteiro, Quando não sobram 6 letras para ele', async ({
+      page,
+      tokens,
+    }, testInfo) => {
+      test.skip(!!testInfo.project.use.isMobile, 'medida do desktop');
+      const { tokenId, id } = await comTipoDeEvento(tokens, {
+        type: 'object',
+        required: ['id'],
+      });
+      await seedStorage(page, {});
+      await abrirEntrada(page, tokenId, 1);
+      await page.evaluate(() => document.fonts.ready);
+      await expect(item(page, id)).toContainText('1 schema error');
+
+      const { letras, idInteiro } = await segundaLinha(item(page, id));
+
+      expect(letras, 'letras do tipo do evento à vista').toBe(0);
+      expect(idInteiro, 'o #id inteiro').toBe(true);
+    });
+  });
+
+  test('deve mostrar o tipo do evento legível, com o #id inteiro, também a 390 px', async ({
+    page,
+    tokens,
+  }, testInfo) => {
+    test.skip(!testInfo.project.use.isMobile, 'medida do celular');
+    const { tokenId, id } = await comTipoDeEvento(tokens);
+    await seedStorage(page, {});
+    await abrirEntrada(page, tokenId, 1);
+    await page.evaluate(() => document.fonts.ready);
+
+    const { letras, idInteiro } = await segundaLinha(item(page, id));
+
+    expect(letras, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
+    expect(idInteiro, 'o #id inteiro').toBe(true);
   });
 
   test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({

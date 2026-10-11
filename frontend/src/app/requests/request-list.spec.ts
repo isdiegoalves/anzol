@@ -621,6 +621,22 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()[0].querySelector('.seals app-check-chip[data-kind="signature"]')).toBeNull();
   });
 
+  it.each([
+    ['charge.refunded', '7ch'],
+    ['invoice', '7ch'],
+    ['ping', '4ch'],
+  ])(
+    'deve dar ao tipo do evento "%s" o mínimo de %s na linha: 6 letras e as reticências, ou ele inteiro',
+    async (type, minimo) => {
+      await load([webhookRequest(1, { content: JSON.stringify({ type }) })]);
+
+      const summary = items()[0].querySelector<HTMLElement>('.summary');
+
+      expect(summary?.textContent?.trim()).toBe(type);
+      expect(summary?.style.flexBasis).toBe(minimo);
+    },
+  );
+
   it('deve mostrar os selos de schema e de regra ao lado do de assinatura', async () => {
     await load([
       webhookRequest(1, {

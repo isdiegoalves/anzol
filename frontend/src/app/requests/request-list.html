@@ -148,18 +148,28 @@
                      evento do JSON e, à direita, o #id. O IP, o agente e a data por extenso ficam no nome
                      acessível e no detalhe. -->
                   <span class="line meta">
-                    <span class="seals" aria-hidden="true">
-                      @for (seal of item.seals; track seal.kind) {
-                        <app-check-chip
-                          [result]="seal"
-                          [quiet]="true"
-                          [attr.data-family]="seal.kind === 'rule' ? item.status?.charAt(0) : null"
-                        />
+                    <span class="fit">
+                      <span class="seals" aria-hidden="true">
+                        @for (seal of item.seals; track seal.kind) {
+                          <app-check-chip
+                            [result]="seal"
+                            [quiet]="true"
+                            [attr.data-family]="
+                              seal.kind === 'rule' ? item.status?.charAt(0) : null
+                            "
+                          />
+                        }
+                      </span>
+                      @if (item.summary; as type) {
+                        <!-- O mínimo do tipo: 6 letras e as reticências, ou ele inteiro quando é curto. -->
+                        <span
+                          class="summary"
+                          [style.flex-basis.ch]="type.length < 7 ? type.length : 7"
+                        >
+                          {{ type }}</span
+                        >
                       }
                     </span>
-                    @if (item.summary) {
-                      <span class="summary"> {{ item.summary }}</span>
-                    }
                     <span class="id">
                       {{ row.value ?? '#' + item.request.uuid.substring(0, 5) }}</span
                     >

@@ -284,10 +284,22 @@ app-event-line {
   letter-spacing: 0.04em;
 }
 
-// O tipo do evento é o que cede primeiro, com reticências; depois, o texto dos selos (o veredito
-// fica no title). O #id fica sempre à vista, à direita (trava 2).
+// O tipo do evento e o nome de quem respondeu dividem a sobra: crescem por igual a partir do mínimo
+// de cada um (o veredito fica no title). Sem lugar para o mínimo do tipo, ele cai para uma segunda
+// linha, que a altura corta, e o selo fica com a sobra. O #id fica sempre à vista (trava 2).
+.fit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+  min-width: 0;
+  height: 18px;
+  overflow: hidden;
+}
+
 .summary {
-  flex: 0 1000 auto;
+  flex-grow: 1;
+  max-width: max-content;
   font-family: var(--app-code-family);
 }
 
@@ -300,17 +312,20 @@ app-event-line {
   }
 }
 
+// Só o selo do status cede, pelo nome de quem respondeu, até 60 px (a primeira coluna); o número e o
+// texto de um erro ficam inteiros (uma fração de pixel tirada já os troca por reticências).
 .seals {
-  display: flex;
-  flex: 0 1 auto;
+  display: grid;
+  flex: 1 1 min-content;
+  grid-template-columns: minmax(60px, max-content);
+  grid-auto-columns: max-content;
+  grid-auto-flow: column;
   gap: 3px;
   min-width: 0;
+  max-width: max-content;
   overflow: hidden;
 
-  // Só o selo do status cede, pelo nome de quem respondeu: o número e o texto de um erro ficam
-  // inteiros (uma fração de pixel tirada já os troca por reticências).
   app-check-chip {
-    flex: none;
     gap: 4px;
     padding: 0 4px;
   }
@@ -318,7 +333,6 @@ app-event-line {
   // O filtro por status fica por cima deste selo, e em 40 px ele alcança a altura do meio do item:
   // o selo termina antes do meio da linha, onde o clique abre a requisição.
   .mini[data-kind='rule'] {
-    flex: 0 1 auto;
     min-width: 60px;
     max-width: calc(50cqw - 32px);
   }
