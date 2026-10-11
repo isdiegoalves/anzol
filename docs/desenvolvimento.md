@@ -33,7 +33,12 @@ abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf
 
 O `./ci.sh` da raiz roda tudo o que está acima de uma vez. No GitHub, o workflow `testes`
 (`.github/workflows/testes.yml`) roda a cada push e pull request só a parte sem stack (passo 1 abaixo: backend, CLI e
-frontend); contrato, E2E e aceite do CLI ficam no `./ci.sh`.
+frontend), e o workflow `e2e` (`.github/workflows/e2e.yml`) roda, em pull request que mexa em `frontend/`, em
+`backend/src/main/`, no `Dockerfile`, no compose do stack isolado ou no próprio workflow, uma parte do E2E contra a
+imagem do `Dockerfile`: os specs de caos (`caos*`), os `patamar-*` e o `cores-lista`. A seleção está no script
+`e2e:github` do `frontend/package.json`; para rodá-la como o GitHub roda, com o app no ar:
+`cd frontend && BASE_URL=http://localhost:8084 npm run e2e:github`. Contrato, o E2E inteiro, a regressão visual e o
+aceite do CLI ficam no `./ci.sh`.
 
 ```bash
 ./ci.sh

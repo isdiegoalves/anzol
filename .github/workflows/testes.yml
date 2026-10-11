@@ -1,5 +1,6 @@
-# Testes rápidos a cada push e pull request: backend, CLI e frontend. Contrato, E2E e regressão visual
-# continuam no ./ci.sh local (as baselines visuais são gravadas em arm64 e não batem num runner amd64).
+# Testes rápidos a cada push e pull request: backend, CLI e frontend. Contrato, o E2E inteiro e a regressão visual
+# continuam no ./ci.sh local (as baselines visuais são gravadas em arm64 e não batem num runner amd64); uma parte
+# do E2E roda em e2e.yml.
 name: testes
 
 on:

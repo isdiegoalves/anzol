@@ -1,0 +1,61 @@
+# E2E da tela contra a imagem do Dockerfile, em pull request que mexa na tela, no código do backend, na imagem, no
+# stack ou neste workflow. Roda só a seleção do `npm run e2e:github` (frontend/package.json): os specs de caos
+# (caos*), os patamar-* e o cores-lista. É o que o Vitest não alcança: rede que cai, servidor que falha ou demora,
+# troca de URL, os fluxos de ponta a ponta e a cor de erro na lista. O E2E inteiro, o contrato e a regressão visual
+# continuam no ./ci.sh local (as baselines visuais são gravadas em arm64 e não batem num runner amd64).
+name: e2e
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/src/main/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - ".github/workflows/e2e.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # O stack isolado do ./ci.sh: a imagem na 8088, com Redis e volume próprios.
+  COMPOSE: docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Imagem do Dockerfile e stack no ar
+        run: |
+          $COMPOSE up -d --build
+          curl -fsS -o /dev/null --retry 60 --retry-delay 3 --retry-all-errors http://localhost:8088/
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Seleção do E2E contra a imagem
+        run: npm run e2e:github
+        working-directory: frontend
+        env:
+          BASE_URL: http://localhost:8088
+      - name: Log do app
+        if: failure()
+        run: $COMPOSE logs --tail 200 app
+      # O trace de cada tentativa que falhou, inclusive a do teste que passou na segunda.
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: traces
+          path: frontend/test-results/
+          if-no-files-found: ignore
