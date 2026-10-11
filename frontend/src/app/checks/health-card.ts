@@ -109,19 +109,18 @@ export class HealthCard {
     if (!stats || stats.evaluated === 0) {
       return null;
     }
-    // Duas mensagens para o mesmo "% valid": em pt-BR, "válidas" (assinaturas) e "válido" (schema).
-    const number = (percent: string) => percent.replace('%', '');
+    // Duas mensagens para o mesmo "valid": em pt-BR, "válidas" (assinaturas) e "válido" (schema).
     const signatures = this.signature()?.percent;
     const bodies = this.schema()?.percent;
     const signature = signatures
-      ? $localize`:signatures|Share of valid signatures:${number(signatures)}:rate: % valid`
+      ? $localize`:signatures|Share of valid signatures:${signatures}:rate: valid`
       : $localize`not checked`;
     const schema = bodies
-      ? $localize`:schema|Share of bodies valid against the schema:${number(bodies)}:rate: % valid`
+      ? $localize`:schema|Share of bodies valid against the schema:${bodies}:rate: valid`
       : $localize`not checked`;
     const decrypted = this.decryption()?.percent;
     if (decrypted) {
-      const decryption = $localize`:decryption|Share of decrypted attributes:${number(decrypted)}:rate: % decrypted`;
+      const decryption = $localize`:decryption|Share of decrypted attributes:${decrypted}:rate: decrypted`;
       return $localize`Signatures ${signature}:signature: · Schema ${schema}:schema: · Decryption ${decryption}:decryption:, over the newest ${stats.evaluated}:count:`;
     }
     return $localize`Signatures ${signature}:signature: · Schema ${schema}:schema:, over the newest ${stats.evaluated}:count:`;
@@ -297,12 +296,17 @@ export function line(
   invalidFilter: CountFilter | null = null,
 ): HealthLine {
   const checked = valid + invalid;
+  const rate = new Intl.NumberFormat(document.documentElement.lang || 'en', {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
   return {
     valid,
     invalid,
     unchecked,
     failed,
-    percent: checked === 0 ? null : `${((valid / checked) * 100).toFixed(1)}%`,
+    percent: checked === 0 ? null : rate.format(valid / checked),
     validFilter,
     invalidFilter,
   };

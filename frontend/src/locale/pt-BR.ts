@@ -164,8 +164,8 @@ export const translations: Record<string, string> = {
   '4016244105915317530': ' Limpar schema ',
   // JSON Schema
   '5517579276909761595': 'JSON Schema',
-  // {$INTERPOLATION} of 64 KB
-  '9094564059744122409': '{$INTERPOLATION} de 64 KB',
+  // {$INTERPOLATION} of 64 KiB
+  '4916224994989691093': '{$INTERPOLATION} de 64 KiB',
   //  Validates the JSON body of each request; leave empty to turn off
   '5849679101981511442': ' Valida o corpo JSON de cada requisição; deixe vazio para desligar ',
   // Generate from a message
@@ -1906,8 +1906,8 @@ export const translations: Record<string, string> = {
   '5307814005224398056': ' Cabeçalhos da resposta ({$INTERPOLATION}) ',
   //  Sent headers ({$INTERPOLATION})
   '4033474878383385581': ' Cabeçalhos enviados ({$INTERPOLATION}) ',
-  //  Truncated: only the first 64 KB of the body is shown.
-  '1301096563980270869': ' Cortado: só o primeiro 64 KB do corpo aparece. ',
+  //  Truncated: only the first 64 KiB of the body is shown.
+  '3032516121681287083': ' Cortado: só o primeiro 64 KiB do corpo aparece. ',
   // The target answered with no body.
   '8192263622528673983': 'O destino respondeu sem corpo.',
   // Keep path and query
@@ -3143,14 +3143,14 @@ export const translations: Record<string, string> = {
   '1331381156208841382': '1 alteração não salva',
   // {$count} unsaved changes
   '6049785110692446958': '{$count} alterações não salvas',
-  // {$rate} % valid
-  '8563181798843418348': '{$rate} % válidas',
-  // {$rate} % valid
-  '444478121034528836': '{$rate} % válido',
+  // {$rate} valid
+  '3164270066365821567': '{$rate} válidas',
+  // {$rate} valid
+  '4268938425411707863': '{$rate} válido',
   // Signatures {$signature} · Schema {$schema}, over the newest {$count}
   '1415018692366075249': 'Assinaturas {$signature} · Schema {$schema}, nas {$count} mais novas',
-  // {$rate} % decrypted
-  '4421286978003758560': '{$rate} % decifradas',
+  // {$rate} decrypted
+  '730962435157758495': '{$rate} decifradas',
   // Signatures {$signature} · Schema {$schema} · Decryption {$decryption}, over the newest {$count}
   '6964155684374621560':
     'Assinaturas {$signature} · Schema {$schema} · Decifra {$decryption}, nas {$count} mais novas',

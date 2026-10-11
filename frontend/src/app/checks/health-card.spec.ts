@@ -41,6 +41,17 @@ describe('Dado a linha do Health', () => {
     expect(line(110, 12, 6, []).percent).toBe('90.2%');
     expect(line(0, 0, 5, []).percent).toBeNull();
   });
+
+  it('deve escrever o percentual como o idioma da tela escreve', () => {
+    const before = document.documentElement.lang;
+    document.documentElement.lang = 'pt-BR';
+    try {
+      expect(line(110, 12, 6, []).percent).toBe('90,2%');
+      expect(line(5, 0, 0, []).percent).toBe('100,0%');
+    } finally {
+      document.documentElement.lang = before;
+    }
+  });
 });
 
 describe('Dado o cartão "Health" de Checks', () => {
@@ -53,7 +64,7 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     await vi.waitFor(() =>
       expect(container.querySelector('.brief span')?.textContent).toBe(
-        'Signatures 90.2 % valid · Schema 83.3 % valid, over the newest 128',
+        'Signatures 90.2% valid · Schema 83.3% valid, over the newest 128',
       ),
     );
     expect(screen.getByRole('link', { name: 'Open in Insights' }).getAttribute('href')).toBe(
@@ -229,7 +240,7 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     await vi.waitFor(() =>
       expect(container.querySelector('.brief span')?.textContent).toBe(
-        'Signatures 90.2 % valid · Schema 83.3 % valid · Decryption 83.3 % decrypted, over the newest 128',
+        'Signatures 90.2% valid · Schema 83.3% valid · Decryption 83.3% decrypted, over the newest 128',
       ),
     );
     await show();
@@ -267,7 +278,7 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     await vi.waitFor(() =>
       expect(container.querySelector('.brief span')?.textContent).toBe(
-        'Signatures 90.2 % valid · Schema 83.3 % valid, over the newest 128',
+        'Signatures 90.2% valid · Schema 83.3% valid, over the newest 128',
       ),
     );
     await show();

@@ -63,6 +63,31 @@ describe('Dado a prévia do rascunho com a prioridade das regras salvas (S8)', (
     expect(preview).toEqual({ draft: 1, fromDefault: 0, earlier: [] });
   });
 
+  it('deve desempatar as regras anteriores pelo nome na ordem do idioma da tela', () => {
+    const before = document.documentElement.lang;
+    document.documentElement.lang = 'sv';
+    try {
+      const zeta = rule(1, { priority: 1, name: 'Zeta' });
+      const ake = rule(2, { priority: 2, name: 'Åke' });
+      const answeredBy = new Map<string, RuleRef | null>([
+        ['a', ref(ake)],
+        ['b', ref(zeta)],
+      ]);
+
+      const preview = priorityPreview(
+        [zeta, ake],
+        rule(9, { priority: 7 }),
+        null,
+        ['a', 'b'],
+        answeredBy,
+      );
+
+      expect(preview.earlier.map(({ name }) => name)).toEqual(['Zeta', 'Åke']);
+    } finally {
+      document.documentElement.lang = before;
+    }
+  });
+
   it('deve agrupar por regra anterior, da que mais responde para a que menos', () => {
     const answeredBy = new Map<string, RuleRef | null>([
       ['a', ref(P1)],

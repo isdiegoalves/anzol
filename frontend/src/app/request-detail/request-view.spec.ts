@@ -80,12 +80,14 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
   });
 
   it.each([
-    [0, '0 B'],
-    [1023, '1023 B'],
-    [1536, '1.5 KB'],
-    [3 * 1024 * 1024, '3.0 MB'],
-  ])('deve dizer o tamanho do corpo de %i bytes como %s', (bytes, text) => {
-    expect(sizeText(bytes, 'en')).toBe(text);
+    [0, 'en', '0 B'],
+    [1023, 'en', '1023 B'],
+    [1536, 'en', '1.5 KiB'],
+    [1536, 'pt-BR', '1,5 KiB'],
+    [3 * 1024 * 1024, 'en', '3.0 MiB'],
+    [3 * 1024 * 1024, 'pt-BR', '3,0 MiB'],
+  ])('deve dizer o tamanho do corpo de %i bytes em %s como %s', (bytes, language, text) => {
+    expect(sizeText(bytes, language)).toBe(text);
   });
 
   it('deve mostrar as abas Body, Headers (n), Query (n) e Form (n), com o Body aberto', async () => {

@@ -38,7 +38,7 @@ export interface OutboundResult {
   status?: number | null;
   headers?: HeaderValues | null;
   body?: string | null;
-  /** Corpo da resposta cortado em 64 KB. */
+  /** Corpo da resposta cortado em 64 KiB. */
   truncated?: boolean | null;
   duration_ms: number;
   error?: OutboundError | null;

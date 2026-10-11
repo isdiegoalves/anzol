@@ -59,9 +59,18 @@ export function hourlyBars(hourly: readonly HourlyCount[]): HourBar[] {
   });
 }
 
-/** Percentual inteiro de `count` em `total` ("—" sem total). */
-export function percent(count: number, total: number): string {
-  return total === 0 ? '—' : `${Math.round((count / total) * 100)}%`;
+/** Idioma da tela, que o `loadLocale` pôs no `<html lang>` antes do bootstrap. */
+function screenLanguage(): string {
+  return document.documentElement.lang || 'en';
+}
+
+/** Percentual inteiro de `count` em `total`, como o idioma o escreve ("—" sem total). */
+export function percent(count: number, total: number, language: string = screenLanguage()): string {
+  return total === 0
+    ? '—'
+    : new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 0 }).format(
+        count / total,
+      );
 }
 
 /** Fatias da verificação de assinatura, na ordem da tela. */
@@ -119,7 +128,7 @@ export function decryptionParts(stats: TokenStats): Part[] {
 export function answeredParts(stats: TokenStats): Part[] {
   return [
     ...[...stats.rules.answered]
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, screenLanguage()))
       .map(({ id, name, count }) => ({
         label: name,
         count,

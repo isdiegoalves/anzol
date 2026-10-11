@@ -93,6 +93,34 @@ describe('Dado os agregados do stats', () => {
     expect(percent(count, total)).toBe(expected);
   });
 
+  it('deve escrever o percentual como o idioma pedido escreve', () => {
+    expect(percent(1, 3, 'pt-BR')).toBe('33%');
+    expect(percent(1, 3, 'de')).toBe('33\u00a0%');
+    expect(percent(0, 0, 'de')).toBe('—');
+  });
+
+  it('deve desempatar as regras pelo nome na ordem do idioma da tela', () => {
+    const before = document.documentElement.lang;
+    document.documentElement.lang = 'sv';
+    try {
+      const stats = tokenStats();
+      stats.rules.answered = [
+        { id: 'z', name: 'Zeta', count: 2 },
+        { id: 'a', name: 'Åke', count: 2 },
+        { id: 'b', name: 'Adam', count: 2 },
+      ];
+
+      expect(answeredParts(stats).map(({ label }) => label)).toEqual([
+        'Adam',
+        'Zeta',
+        'Åke',
+        'Default response',
+      ]);
+    } finally {
+      document.documentElement.lang = before;
+    }
+  });
+
   it('deve separar a assinatura em válida, inválida, ausente e não verificada, com o filtro de cada uma', () => {
     expect(
       signatureParts(tokenStats()).map(({ label, count, tone, filter }) => [

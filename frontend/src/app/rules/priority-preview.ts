@@ -64,7 +64,8 @@ export function priorityPreview(
     draft: answeredByDraft,
     fromDefault,
     earlier: [...earlier.values()].sort(
-      (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+      (a, b) =>
+        b.count - a.count || a.name.localeCompare(b.name, document.documentElement.lang || 'en'),
     ),
   };
 }

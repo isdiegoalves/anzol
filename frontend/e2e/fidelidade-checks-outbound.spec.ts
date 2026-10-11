@@ -19,7 +19,7 @@ import { seedStorage } from './support/storage';
 // - CHECKS-12 (trava 7): o formulário do provedor abre com o heading "{Provedor} settings" e "* required";
 //   "Signature header" e "HMAC secret" lado a lado; a ajuda da tolerância é "1 to 86400. Older or future timestamps are
 //   rejected (replay protection).";
-// - CHECKS-15: o editor do schema tem altura limitada (rola por dentro) e o cabeçalho diz "… of 64 KB · valid" (ou
+// - CHECKS-15: o editor do schema tem altura limitada (rola por dentro) e o cabeçalho diz "… of 64 KiB · valid" (ou
 //   "· invalid");
 // - CHECKS-17: cada linha de motivo ou caminho do Health é um `link` com o motivo no nome e o texto "Show in Inbox":
 //   "header … absent" → `#/{token}?signature=absent`, outros motivos → `?signature=invalid`, caminho de schema →
@@ -162,12 +162,12 @@ test.describe('Dado o cartão Schema (CHECKS-15)', () => {
     const tokenId = await tokens.create({ schema: { type: 'object', properties: propriedades } });
     const schema = await abrirChecks(page, tokenId, 'Schema validation');
 
-    await expect(schema.getByText(/of 64 KB · valid$/)).toBeVisible();
+    await expect(schema.getByText(/of 64 KiB · valid$/)).toBeVisible();
     const editor = (await schema.getByRole('textbox', { name: 'JSON Schema' }).boundingBox())!;
     expect(editor.height, 'editor com altura limitada').toBeLessThanOrEqual(300);
 
     await schema.getByRole('textbox', { name: 'JSON Schema' }).fill('{"type": ');
-    await expect(schema.getByText(/of 64 KB · invalid$/)).toBeVisible();
+    await expect(schema.getByText(/of 64 KiB · invalid$/)).toBeVisible();
   });
 });
 

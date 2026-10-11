@@ -163,12 +163,30 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     expect(JSON.parse(field().value)).toMatchObject({ properties: { ok: { type: 'boolean' } } });
   });
 
+  it('deve dizer o tamanho do schema em KiB, com o número no idioma da tela', async () => {
+    const before = document.documentElement.lang;
+    document.documentElement.lang = 'pt-BR';
+    try {
+      const { http, container } = await renderCard(SchemaCard, token({ schema: null }));
+      http.expectOne(RECENTES).flush(requestPage([]));
+      field().focus();
+
+      await userEvent.paste(JSON.stringify({ description: 'x'.repeat(1518) }));
+
+      expect(container.querySelector('.editor-head .hint')?.textContent?.trim()).toMatch(
+        /^1,5 KiB of 64 KiB · valid$/,
+      );
+    } finally {
+      document.documentElement.lang = before;
+    }
+  });
+
   it('CHECKS-15: deve dizer "· valid" ou "· invalid", limitar a textarea a 12 linhas e rolar os números junto', async () => {
     const { http, container } = await renderCard(SchemaCard, token({ schema: SCHEMA }));
     http.expectOne(RECENTES).flush(requestPage([]));
 
     const meta = () => container.querySelector('.editor-head .hint')?.textContent?.trim();
-    expect(meta()).toMatch(/^\d+ B of 64 KB · valid$/);
+    expect(meta()).toMatch(/^\d+ B of 64 KiB · valid$/);
     expect(field().rows).toBe(12);
     const gutter = container.querySelector('.gutter') as HTMLElement;
     field().scrollTop = 40;

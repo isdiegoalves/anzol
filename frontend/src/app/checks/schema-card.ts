@@ -264,5 +264,12 @@ export class SchemaCard implements ChecksSection {
 
 function sizeOf(text: string): string {
   const bytes = new TextEncoder().encode(text).length;
-  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const number = new Intl.NumberFormat(document.documentElement.lang || 'en', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return `${number.format(bytes / 1024)} KiB`;
 }

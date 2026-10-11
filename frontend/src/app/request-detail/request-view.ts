@@ -50,7 +50,7 @@ export const BODY_CLICK_MAX = 100 * 1024;
  * resto (o painel do Explain) logo depois. Em `readonly` (página do link só-leitura) nada é
  * clicável além das abas e do Pretty: a rota sai da `url` com `[redacted]`, sem `token_id`.
  */
-/** "36 B", "1.5 KB", "3.0 MB": o tamanho do corpo no número do idioma da tela. */
+/** "36 B", "1.5 KiB", "3.0 MiB": o tamanho do corpo no número do idioma da tela. */
 export function sizeText(bytes: number, language: string): string {
   const number = new Intl.NumberFormat(language, {
     minimumFractionDigits: 1,
@@ -60,9 +60,9 @@ export function sizeText(bytes: number, language: string): string {
     return `${bytes} B`;
   }
   if (bytes < 1024 * 1024) {
-    return `${number.format(bytes / 1024)} KB`;
+    return `${number.format(bytes / 1024)} KiB`;
   }
-  return `${number.format(bytes / (1024 * 1024))} MB`;
+  return `${number.format(bytes / (1024 * 1024))} MiB`;
 }
 
 /** O `aud` recebido como dado: cada valor entre aspas, para o texto do remetente não se passar por frase da tela. */

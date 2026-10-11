@@ -584,7 +584,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     await seedStorage(page, {});
     const saude = await abrirChecks(page, tokenId, 'Health');
 
-    await expect(saude).toContainText(/Signatures 50(\.0)? % valid/);
+    await expect(saude).toContainText(/Signatures 50(\.0)?% valid/);
     await expect(saude.getByRole('link', { name: 'Open in Insights' })).toHaveAttribute(
       'href',
       new RegExp(`#/${tokenId}/insights`),
