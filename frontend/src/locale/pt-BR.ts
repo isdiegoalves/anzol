@@ -2244,7 +2244,7 @@ export const translations: Record<string, string> = {
   // Resets {$count} scenarios to {$state}: {$names}.
   '4627306994793137545': 'Volta {$count} cenários a {$state}: {$names}.',
   // Reset
-  '7808756054397155068': 'Voltar a Started',
+  '8426733362127190265': 'Voltar a Started',
   // 1 rule created
   '8111803652865274694': '1 regra criada',
   // {$count} rules created

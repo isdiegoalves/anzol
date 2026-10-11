@@ -128,7 +128,7 @@ export class ScenarioPanel {
         names.length === 1
           ? $localize`Resets 1 scenario to ${SCENARIO_STARTED}:state:: ${list}:names:.`
           : $localize`Resets ${names.length}:count: scenarios to ${SCENARIO_STARTED}:state:: ${list}:names:.`,
-      confirm: $localize`Reset`,
+      confirm: $localize`:scenarios|:Reset`,
       cancel: $localize`Cancel`,
     });
     if (confirmed && (await this.run(() => this.store.resetAll()))) {

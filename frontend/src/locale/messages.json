@@ -1796,7 +1796,7 @@
     "949672927874840835": "Reset all scenarios?",
     "2221343192476305963": "Resets 1 scenario to {$state}: {$names}.",
     "4627306994793137545": "Resets {$count} scenarios to {$state}: {$names}.",
-    "7808756054397155068": "Reset",
+    "8426733362127190265": "Reset",
     "1524236363010811687": "Scenarios reset to {$state}",
     "2276106420599073954": "Could not update the scenarios ({$status}).",
     "3071361935587815300": "Sequence",

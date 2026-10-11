@@ -1,3 +1,4 @@
+import { computeMsgId } from '@angular/compiler';
 import { clearTranslations } from '@angular/localize';
 import { readFileSync } from 'node:fs';
 import { languageOf, loadLocale } from './locale';
@@ -101,6 +102,16 @@ describe('Dado o arquivo pt-BR e as mensagens extraídas (ng extract-i18n)', () 
 
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.map((id) => translations[id])).toEqual(ids.map(() => expected));
+  });
+
+  // O "Reset" que confirma zerar os cenários tem significado próprio: outro "Reset" não herda a tradução dele.
+  it('não deve dar a um "Reset" sem significado a tradução "Voltar a Started"', () => {
+    const ids = Object.entries(messages)
+      .filter(([, text]) => text === 'Reset')
+      .map(([id]) => id);
+
+    expect(ids.map((id) => translations[id])).toEqual(['Voltar a Started']);
+    expect(ids).not.toContain(computeMsgId('Reset'));
   });
 
   it('não deve guardar traduções de mensagens que saíram da tela', () => {
