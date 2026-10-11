@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, requestPage, webhookRequest } from '../../testing/fixtures';
 import { NO_FILTER, RequestFilter } from '../search/request-filter';
-import { RequestStore, requestGoneInterceptor } from './request-store';
+import { RECOUNT_EVERY_MS, RequestStore, requestGoneInterceptor } from './request-store';
 import { RequestPage } from './webhook-request';
 
 const listUrl = `/token/${TOKEN_ID}/requests`;
@@ -851,6 +851,138 @@ describe('Dado o filtro pelo status respondido', () => {
 
     expect(store.requests()).toEqual([answered(9, 500), answered(2, 503)]);
     expect(store.hasNextPage()).toBe(false);
+  });
+});
+
+describe('Dado uma URL no teto da limpeza automática com filtro ligado', () => {
+  let http: HttpTestingController;
+  let store: RequestStore;
+  const post = (n: number) => webhookRequest(n, { seq: n });
+  const get = (n: number) => webhookRequest(n, { seq: n, method: 'GET' });
+  const searches = () => http.match({ method: 'POST', url: searchUrl });
+  /** A busca de um item que confere a contagem, respondida com `total`. */
+  const recounted = (total: number) => {
+    const [call, ...others] = searches();
+    expect(others).toEqual([]);
+    expect(call.request.body).toEqual({
+      match: { method: ['POST'] },
+      sorting: 'newest',
+      page: 1,
+      per_page: 1,
+    });
+    call.flush(requestPage([post(999)], { total, per_page: 1, is_last_page: false }));
+    return vi.advanceTimersByTimeAsync(0);
+  };
+  /** Lista de 500 no teto, filtro por POST com 300 casando e só a primeira página carregada. */
+  const filtered = async (matched = 300, isLast = false) => {
+    const loaded = store.load(TOKEN_ID);
+    http
+      .expectOne(`${listUrl}?page=1&sorting=newest`)
+      .flush(requestPage([post(50), get(49)], { total: 500, is_last_page: false }));
+    await loaded;
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['POST'] });
+    (await vi.waitFor(() => http.expectOne({ method: 'POST', url: searchUrl }))).flush(
+      requestPage([post(50), post(48)], { total: matched, is_last_page: isLast }),
+    );
+    await applied;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('deve conferir no servidor, por uma busca de um item, a contagem que o corte pode ter mudado', async () => {
+    await filtered();
+
+    store.arriveFiltered(get(51), 500, ['cortada-que-casava']);
+    expect(store.matched()).toBe(300);
+    await vi.advanceTimersByTimeAsync(0);
+    await recounted(299);
+
+    expect(store.matched()).toBe(299);
+    expect(store.requests()).toEqual([post(50), post(48)]);
+  });
+
+  it('deve conferir no máximo uma vez a cada 10 s enquanto chegam, e mais uma no fim da rajada', async () => {
+    await filtered();
+
+    store.arriveFiltered(get(51), 500, ['cortada-1']);
+    await vi.advanceTimersByTimeAsync(0);
+    await recounted(299);
+    for (const n of [52, 53, 54]) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      store.arriveFiltered(get(n), 500, [`cortada-${n}`]);
+    }
+    await vi.advanceTimersByTimeAsync(RECOUNT_EVERY_MS - 3_001);
+    expect(searches()).toEqual([]);
+    expect(store.matched()).toBe(299);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await recounted(296);
+    expect(store.matched()).toBe(296);
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(searches()).toEqual([]);
+  });
+
+  it('nunca deve dizer que casam mais do que a URL guarda', async () => {
+    await filtered(500);
+
+    store.arriveFiltered(post(51), 500, ['cortada-1']);
+    store.arriveFiltered(post(52), 500, ['cortada-2']);
+
+    expect(store.matched()).toBe(500);
+    await vi.advanceTimersByTimeAsync(0);
+    await recounted(500);
+  });
+
+  it('não deve pedir nada Quando a cortada estava na lista: a conta já é exata', async () => {
+    await filtered(2, true);
+
+    store.arriveFiltered(get(51), 500, [post(48).uuid, 'cortada-que-nao-casava']);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(store.matched()).toBe(1);
+    expect(searches()).toEqual([]);
+  });
+
+  it('não deve pedir nada fora do teto, sem corte', async () => {
+    await filtered();
+
+    store.arriveFiltered(post(51), 501);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(store.matched()).toBe(301);
+    expect(searches()).toEqual([]);
+  });
+
+  it('deve desistir da conferência marcada Quando o filtro muda', async () => {
+    await filtered();
+    store.arriveFiltered(get(51), 500, ['cortada-1']);
+    await vi.advanceTimersByTimeAsync(0);
+    await recounted(299);
+    store.arriveFiltered(get(52), 500, ['cortada-2']);
+
+    const applied = store.applyFilter({ ...NO_FILTER, methods: ['GET'] });
+    const [call] = searches();
+    call.flush(requestPage([get(52)], { total: 200, is_last_page: false }));
+    await vi.advanceTimersByTimeAsync(0);
+    await applied;
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(store.matched()).toBe(200);
+    expect(searches()).toEqual([]);
   });
 });
 

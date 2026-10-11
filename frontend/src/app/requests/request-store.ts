@@ -19,6 +19,9 @@ import { RequestPage, WebhookRequest } from './webhook-request';
 /** Mensagens por página da listagem (e da busca). */
 const REQUESTS_PER_PAGE = 50;
 
+/** O intervalo mínimo entre duas conferências da contagem do filtro numa URL no teto da limpeza. */
+export const RECOUNT_EVERY_MS = 10_000;
+
 /** O teto de página da busca e da listagem: a janela das mais novas é lida em páginas cheias. */
 const WINDOW_PAGE = 100;
 
@@ -106,6 +109,9 @@ export class RequestStore {
   private searchedSeq = 0;
   /** Só vale a releitura mais recente da busca. */
   private probes = 0;
+  /** A hora da última conferência da contagem do filtro no servidor, e a próxima, se marcada. */
+  private recountedAt = 0;
+  private recountTimer: ReturnType<typeof setTimeout> | undefined;
 
   private readonly goneState = signal<GoneRequest | null>(null);
   readonly gone = computed(() => {
@@ -325,6 +331,7 @@ export class RequestStore {
       this.clearWindow();
       this.failure.set(null);
       this.pageFailure.set(null);
+      this.cancelRecount();
     }
     return run;
   }
@@ -447,6 +454,7 @@ export class RequestStore {
     const generation = ++this.generation;
     this.searching.set(true);
     this.pageFailure.set(null);
+    this.cancelRecount();
     clearTimeout(this.searchTimer);
     this.searchSlow.set(false);
     this.searchTimer = setTimeout(
@@ -725,12 +733,62 @@ export class RequestStore {
     const cut = this.cutRows(removed);
     const listed =
       decided && !anchored && matchesLocally(request, filter) && this.insertRow(request);
-    this.matched.update((matched) => matched - cut + (listed ? 1 : 0));
+    // Nunca mais do que a URL guarda: a cortada que a lista não tinha pode ser uma das que casavam.
+    this.matched.update((matched) => Math.min(total, matched - cut + (listed ? 1 : 0)));
     if (this.windowEdge && seqOf(request) > this.newestSeq) {
       this.windowEdge.arrived++;
     }
     this.countArrival(request, total, removed);
+    if (decided && cut < removed.length && !this.oldestLoaded()) {
+      this.recountSoon();
+    }
     return decided;
+  }
+
+  /** A ponta das mais antigas do resultado está carregada: a que a limpeza corta e casa está na lista. */
+  private oldestLoaded(): boolean {
+    return this.newestFirst() ? this.lastPageReached() : (this.pages()[0]?.page ?? 1) === 1;
+  }
+
+  /**
+   * A limpeza cortou uma requisição que a lista não tinha carregado: se ela casava com o filtro, só o servidor
+   * sabe. Marca a conferência da contagem, no máximo uma a cada RECOUNT_EVERY_MS: a que já está marcada cobre
+   * as chegadas até ela, e a última de uma rajada fica com a seguinte.
+   */
+  private recountSoon(): void {
+    if (this.recountTimer !== undefined) {
+      return;
+    }
+    const wait = Math.max(0, this.recountedAt + RECOUNT_EVERY_MS - Date.now());
+    this.recountTimer = setTimeout(() => {
+      this.recountTimer = undefined;
+      void this.recountOnServer();
+    }, wait);
+  }
+
+  private cancelRecount(): void {
+    clearTimeout(this.recountTimer);
+    this.recountTimer = undefined;
+  }
+
+  /** Uma busca de um item traz quantas casam na URL inteira. */
+  private async recountOnServer(): Promise<void> {
+    const [tokenId, filter, generation] = [this.tokenId(), this.activeFilter(), this.generation];
+    if (!tokenId || this.opening() || this.searching() || !this.filtering()) {
+      return;
+    }
+    this.recountedAt = Date.now();
+    // Sem resposta, o número fica como estava; a próxima chegada marca outra conferência.
+    const page = await firstValueFrom(
+      this.http.post<RequestPage>(`/token/${tokenId}/requests/search`, {
+        ...searchBody(filter, 1, 'newest'),
+        per_page: 1,
+      }),
+    ).catch(() => null);
+    if (page && generation === this.generation) {
+      this.matched.set(page.total);
+      this.recounted.update((times) => times + 1);
+    }
   }
 
   /** Conta a requisição nova no total da URL e nas não lidas, sem mexer na lista. */

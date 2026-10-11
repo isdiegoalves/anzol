@@ -162,6 +162,41 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(item(page, nova)).toHaveCount(1);
   });
 
+  test('deve conferir no servidor a contagem do filtro Quando a limpeza corta requisições que casavam e não estavam carregadas', async ({
+    page,
+    tokens,
+  }) => {
+    test.setTimeout(120_000);
+    const noTeto = await tokens.create({ auto_cleanup: 500 });
+    await tokens.sendMany(noTeto, 500);
+    const stream = page.waitForResponse((response) =>
+      response.url().endsWith(`/token/${noTeto}/stream`),
+    );
+    await page.goto(`/#/${noTeto}?methods=POST`);
+    expect((await stream).status()).toBe(200);
+    const resultado = page.getByRole('search').locator('app-live-region.count');
+    await expect(resultado).toContainText(
+      '500 requests match · search runs on the server over all 500',
+    );
+    const pedidos = medirPedidosDaLista(page, noTeto);
+
+    for (let i = 0; i < 3; i++) {
+      await tokens.send(noTeto, { method: 'GET', path: `/fora-${i}` });
+    }
+
+    await expect(resultado).toContainText(
+      '497 requests match · search runs on the server over all 500',
+      { timeout: 15_000 },
+    );
+    expect(pedidos.length).toBeGreaterThanOrEqual(1);
+    expect(pedidos.length).toBeLessThanOrEqual(2);
+    for (const pedido of pedidos) {
+      expect(pedido.caminho).toBe('POST /token/{id}/requests/search');
+      expect(pedido.corpo).toMatchObject({ match: { method: ['POST'] }, per_page: 1 });
+      expect(pedido.bytes).toBeLessThanOrEqual(20_000);
+    }
+  });
+
   test('deve mostrar a mensagem nova, anunciar e contar não lida no título Quando um webhook chega', async ({
     page,
     tokens,
