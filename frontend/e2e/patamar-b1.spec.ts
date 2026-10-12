@@ -924,6 +924,47 @@ test.describe('Dado a lista densa', () => {
     });
   }
 
+  for (const idioma of ['en', 'pt-BR']) {
+    test(`deve manter o cabeçalho da lista numa linha só no celular, com a lixeira ao lado do interruptor, em ${idioma}`, async ({
+      page,
+      tokens,
+    }) => {
+      test.skip(!compacto(page), 'só no celular');
+      const tokenId = await tokens.create();
+      const id = await tokens.send(tokenId, { data: 'x' });
+      await seedStorage(page, { language: `"${idioma}"` });
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.locator('.item').filter({ hasText: `#${id5(id)}` })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+
+      const cabecalho = await page.locator('app-request-list .head').evaluate((head) => {
+        const meio = (el: Element) => {
+          const caixa = el.getBoundingClientRect();
+          return Math.round(caixa.top + caixa.height / 2);
+        };
+        const ferramentas = head.querySelector('.list-tools')!;
+        return {
+          altura: Math.round(head.getBoundingClientRect().height),
+          interruptor: meio(ferramentas.querySelector('mat-slide-toggle')!),
+          lixeira: meio(ferramentas.querySelector('button[mat-icon-button]')!),
+          ordenar: meio(head.querySelector('.order')!),
+          rolaDeLado: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+
+      expect(cabecalho.altura, 'altura de uma linha de alvos de toque').toBeLessThanOrEqual(48);
+      expect(
+        Math.abs(cabecalho.lixeira - cabecalho.interruptor),
+        'a lixeira na linha do interruptor',
+      ).toBeLessThanOrEqual(2);
+      expect(
+        Math.abs(cabecalho.lixeira - cabecalho.ordenar),
+        'a lixeira na linha do botão de ordenar',
+      ).toBeLessThanOrEqual(2);
+      expect(cabecalho.rolaDeLado, 'a página rola de lado').toBe(false);
+    });
+  }
+
   test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({
     page,
     tokens,

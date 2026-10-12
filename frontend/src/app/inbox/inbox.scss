@@ -169,6 +169,13 @@
   .list-pane {
     padding-top: 4px;
   }
+
+  // No celular as ferramentas não se separam: ficam na linha do cabeçalho ou descem juntas.
+  .list-tools {
+    flex: none;
+    flex-wrap: nowrap;
+    margin-left: auto;
+  }
 }
 
 .visually-hidden {

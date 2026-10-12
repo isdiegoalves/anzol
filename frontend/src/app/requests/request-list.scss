@@ -476,10 +476,10 @@ app-event-line {
 }
 
 // Celular: o cabeçalho numa linha só (INBOX-31), com a linha "N requests · newest first" no lugar
-// visível do heading (INBOX-34); itens sem o selo de schema válido (INBOX-32).
+// visível do heading (INBOX-34); itens sem o selo de schema válido (INBOX-32). Quem cede é essa
+// linha, com reticências; se nem sem ela couber, as ferramentas descem juntas para a linha de baixo.
 @media (width < 600px) {
   .head {
-    flex-wrap: nowrap;
     gap: 0 4px;
   }
 
@@ -493,8 +493,10 @@ app-event-line {
 
   .order-line {
     display: inline;
+    flex: 1000 1 0;
     overflow: hidden;
     min-width: 0;
+    max-width: max-content;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--mat-sys-on-surface-variant);
