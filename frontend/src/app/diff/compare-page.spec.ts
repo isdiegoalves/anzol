@@ -30,6 +30,9 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([R1, R2, R3]));
   };
 
+  // A Entrada vem por import() na rota: lida aqui, a espera de cada teste não conta o tempo de carregá-la.
+  beforeAll(() => import('../inbox/inbox'));
+
   beforeEach(async () => {
     // A Inbox (e a lista do Compare) abre o tempo real, e o jsdom não tem EventSource.
     vi.stubGlobal('EventSource', FakeEventSource);
