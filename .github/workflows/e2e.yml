@@ -1,11 +1,20 @@
-# E2E da tela contra a imagem do Dockerfile, em pull request que mexa na tela, no código do backend, na imagem, no
-# stack ou neste workflow. Roda só a seleção do `npm run e2e:github` (frontend/package.json): os specs de caos
+# E2E da tela contra a imagem do Dockerfile, a cada push e em pull request que mexam na tela, no código do backend, na
+# imagem, no stack ou neste workflow. Roda só a seleção do `npm run e2e:github` (frontend/package.json): os specs de caos
 # (caos*), os patamar-* e o cores-lista. É o que o Vitest não alcança: rede que cai, servidor que falha ou demora,
 # troca de URL, os fluxos de ponta a ponta e a cor de erro na lista. O E2E inteiro, o contrato e a regressão visual
 # continuam no ./ci.sh local (as baselines visuais são gravadas em arm64 e não batem num runner amd64).
 name: e2e
 
 on:
+  push:
+    branches: ["**"]
+    paths:
+      - "frontend/**"
+      - "backend/src/main/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - ".github/workflows/e2e.yml"
   pull_request:
     paths:
       - "frontend/**"
