@@ -323,7 +323,7 @@ test.describe('Dado a aba Outbound', () => {
 
     const rows = page.getByRole('table', { name: 'Outbound history' }).locator('tbody tr');
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText('201');
+    await expect(rows.first().locator('app-status-code')).toContainText('201');
     await expect(rows.first()).toContainText('POST');
     await expect(rows.first()).toContainText('/de-fora/x');
     await expect(rows.first()).toContainText('Replay');

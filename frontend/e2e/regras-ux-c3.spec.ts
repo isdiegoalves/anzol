@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { abrirMensagem, item, mostrarLista, verificacoes } from './support/inbox';
 import { gravarRegras } from './support/regras';
@@ -11,6 +11,11 @@ import { gravarRegras } from './support/regras';
 // - SUPOSIÇÃO: a mensagem antiga é simulada tirando `response` na rota (o app atual sempre grava).
 
 const TUDO = { name: 'Tudo o resto', priority: 9, response: { status: 404 } };
+
+/** O selo da resposta no item da lista. O item inteiro traz o `#id` sorteado, que pode conter qualquer número. */
+function seloDaResposta(page: Page, id: string): Locator {
+  return item(page, id).locator('app-check-chip[data-kind="rule"]');
+}
 
 /** Abre a mensagem e mostra a lista da Entrada (a 390 px, um painel por vez: volta à lista pelo detalhe). */
 async function abrirLista(page: Page, tokenId: string, id: string): Promise<void> {
@@ -34,8 +39,8 @@ test.describe('Dado uma mensagem respondida por regra que mudou depois (E-06; CA
 
     await expect(verificacoes(page)).toContainText(/Answered 404 · by rule\s*Tudo o resto/);
     await mostrarLista(page);
-    await expect(item(page, id)).toContainText('404 · Tudo o resto');
-    await expect(item(page, id)).not.toContainText('418');
+    await expect(seloDaResposta(page, id)).toContainText('404 · Tudo o resto');
+    await expect(seloDaResposta(page, id)).not.toContainText('418');
   });
 });
 
@@ -78,7 +83,7 @@ test.describe('Dado uma mensagem antiga, gravada sem a resposta (E-06)', () => {
 
     await abrirLista(page, tokenId, id);
 
-    await expect(item(page, id)).toContainText('— · not recorded');
-    await expect(item(page, id)).not.toContainText('404');
+    await expect(seloDaResposta(page, id)).toContainText('— · not recorded');
+    await expect(seloDaResposta(page, id)).not.toContainText('404');
   });
 });

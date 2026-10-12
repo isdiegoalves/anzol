@@ -61,7 +61,7 @@ test.describe('Dado o teste de uma regra com template (E-05; CA-10)', () => {
 
     const respostas = regra.getByRole('region', { name: 'Rendered responses' });
     await expect(respostas.getByRole('tab', { name: /^POST \/pagamentos · .+/ })).toBeVisible();
-    await expect(respostas).toContainText('202');
+    await expect(respostas.getByRole('tabpanel').getByText('202', { exact: true })).toBeVisible();
     await expect(respostas).toContainText('"eco": "pago"');
     await expect(respostas).toContainText('seq and now are from now.');
 

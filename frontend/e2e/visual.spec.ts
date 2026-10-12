@@ -488,7 +488,11 @@ const TELAS: Tela[] = [
       await seedStorage(page, { hideTutorial: 'true' });
       await page.goto(`/#/${tokenId}`);
       await expect(page.getByRole('heading', { name: 'Requests (4)' })).toBeVisible();
-      await expect(page.getByRole('listitem').filter({ hasText: '503' })).toBeVisible();
+      await expect(
+        page.getByRole('listitem').filter({
+          has: page.locator('app-check-chip[data-kind="rule"]', { hasText: '503' }),
+        }),
+      ).toBeVisible();
       return [];
     },
   },
