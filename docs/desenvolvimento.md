@@ -6,8 +6,11 @@
 # Backend: testes (Redis em container, precisa de Docker), ktlint e detekt
 cd backend && ./gradlew check
 
-# Frontend: lint, testes unitários (Vitest) e build
-cd frontend && npm ci && npx ng lint && npx ng test --watch=false && npx ng build
+# Frontend: lint, tipos dos specs de E2E, stylelint, i18n extraído, formato, testes unitários (Vitest) e build
+cd frontend && npm ci
+npx ng lint && npx tsc --noEmit -p e2e/tsconfig.json && npm run -s lint:styles
+npx ng extract-i18n && git diff --exit-code src/locale/messages.json
+npx prettier --check . && npx ng test --watch=false && npx ng build
 
 # E2E da tela (Playwright) contra o app no ar
 cd frontend && npx playwright install chromium   # uma vez
@@ -47,12 +50,15 @@ aceite do CLI ficam no `./ci.sh`.
 Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da porta 8088 livre.
 
 1. **Sem stack:** `backend` → `./gradlew check`; `cli` → `./gradlew check installDist`;
-   `frontend` → `npm ci`, `ng lint`, `prettier --check .`, `ng test --watch=false`, `ng build`.
+   `frontend` → `npm ci`, `ng lint`, `tsc --noEmit -p e2e/tsconfig.json` (os tipos dos specs de E2E, que o
+   Playwright roda sem conferir), `npm run lint:styles` (stylelint), `ng extract-i18n` com
+   `git diff --exit-code` no `messages.json`, `prettier --check .`, `ng test --watch=false`, `ng build`.
 2. **Stack isolado:** `docker compose -p anzolci` com o override `docker-compose.ci.yml` sobe o
    app na porta 8088, com Redis `anzolci-redis` e volume `anzolci_redis-data` próprios. O app da
    8084 e o Redis `anzol-redis` (dados reais) não são tocados.
 3. **Integração contra a 8088:** contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E da tela
-   (`frontend/e2e`) e aceite do CLI (`tests/cli`, com o CLI do passo 1).
+   (`frontend/e2e`), regressão visual (`frontend/e2e-visual.sh`, na imagem Docker do Playwright) e
+   aceite do CLI (`tests/cli`, com o CLI do passo 1).
 4. **Fim:** `down -v` do stack isolado (containers, rede, volume e imagem do app), também em falha ou
    Ctrl+C, e uma tabela etapa → OK/FALHOU/NÃO RODOU → tempo.
 
