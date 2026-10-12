@@ -460,5 +460,11 @@ describe('Dado um roteiro (R1)', () => {
       expect(text(step('Create'))).toContain('3 rules created · scenario "sequence"');
       expect(screen.queryByRole('button', { name: /^Create/ })).toBeNull();
     });
+
+    it('deve dizer "1 rule created", no singular, Quando a URL tem uma regra só do cenário', async () => {
+      await show('retry', [], [rule(1, { name: 'sequence 1/3', scenario: { name: 'sequence' } })]);
+
+      expect(text(step('Create'))).toContain('1 rule created · scenario "sequence"');
+    });
   });
 });

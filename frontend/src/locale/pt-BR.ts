@@ -3428,6 +3428,8 @@ export const translations: Record<string, string> = {
   '2865391584899672648': '+{$INTERPOLATION} s',
   // Starts at the most common: {$method}, {$count} of {$total}.
   '6490810650501315836': 'Começa no mais comum: {$method}, {$count} de {$total}.',
+  // 1 rule created · scenario "{$name}"
+  '7627522770455276529': '1 regra criada · cenário "{$name}"',
   // {$count} rules created · scenario "{$name}"
   '378328566973426481': '{$count} regras criadas · cenário "{$name}"',
   // (any path)

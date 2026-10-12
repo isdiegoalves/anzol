@@ -539,6 +539,7 @@
     "5724306736011437599": "Attempt {$INTERPOLATION}",
     "2865391584899672648": "+{$INTERPOLATION} s",
     "6490810650501315836": "Starts at the most common: {$method}, {$count} of {$total}.",
+    "7627522770455276529": "1 rule created · scenario \"{$name}\"",
     "378328566973426481": "{$count} rules created · scenario \"{$name}\"",
     "2791776533478758946": "Create {$count} rules",
     "6047408236667940055": "{$state} (stays)",

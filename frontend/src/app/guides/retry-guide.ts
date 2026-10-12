@@ -111,10 +111,12 @@ export class RetryGuide {
     this.store.rules().filter((rule) => rule.scenario?.name === this.scenario()),
   );
   protected readonly created = computed(() => this.sequence().length > 0);
-  protected readonly createdText = computed(
-    () =>
-      $localize`${this.sequence().length}:count: rules created · scenario "${this.scenario()}:name:"`,
-  );
+  protected readonly createdText = computed(() => {
+    const [count, name] = [this.sequence().length, this.scenario()];
+    return count === 1
+      ? $localize`1 rule created · scenario "${name}:name:"`
+      : $localize`${count}:count: rules created · scenario "${name}:name:"`;
+  });
   /** N válido (senão 2, para a prévia não sumir enquanto se digita). */
   private readonly count = computed(() => {
     const times = Number(this.times());
