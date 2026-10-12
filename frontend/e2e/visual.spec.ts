@@ -13,8 +13,8 @@ import { seedStorage } from './support/storage';
 // ficam desligadas (padrão do `toHaveScreenshot`), e UUIDs, datas, hora e host (a porta do stack muda entre o CI e a
 // máquina de quem roda) ficam sob máscara.
 // As cenas de falha e de fora do caminho feliz (assinatura e schema inválidos, uma delas em pt-BR, filtro sem
-// resultado, lista em erro, sem conexão) não usam a máscara por texto: os mesmos valores são trocados na página por
-// valores fixos, e a comparação delas conta pixels (`fixarVolateis`, `fotografar`).
+// resultado, lista em erro, sem conexão) e as de cores forçadas não usam a máscara por texto: os mesmos valores são
+// trocados na página por valores fixos, e a comparação delas conta pixels (`fixarVolateis`, `fotografar`).
 
 const SECRET = 'segredo-visual';
 /**
@@ -590,9 +590,11 @@ for (const colorScheme of TEMAS) {
 test.describe('Dado as cores forçadas do sistema na classe expandida', () => {
   test.use({ colorScheme: 'light', viewport: CLASSES[1].viewport, forcedColors: 'active' });
 
+  // Nas cores forçadas a máscara sai branca, igual a um campo vazio: as duas cenas ficam com os valores fixos.
   for (const tela of TELAS.filter(({ nome }) => ['falha-detalhe', 'rules-editor'].includes(nome))) {
     test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens, context }) => {
-      await abrirEFotografar(tela, 'forcadas-expandida', page, tokens, context);
+      const semMascara = { ...tela, semMascaraDeTexto: true };
+      await abrirEFotografar(semMascara, 'forcadas-expandida', page, tokens, context);
     });
   }
 });
