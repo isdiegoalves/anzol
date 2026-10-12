@@ -246,8 +246,10 @@ function schemaResult(request: CapturedRequest, token: Token | null): CheckResul
   }
   const [first] = schema.errors;
   const count = schema.errors.length;
+  const more =
+    count > 2 ? $localize` (+${count - 1}:count: more)` : count === 2 ? $localize` (+1 more)` : '';
   const detail = first
-    ? `${schemaErrorText(first)}${count > 1 ? $localize` (+${count - 1}:count: more)` : ''}`
+    ? `${schemaErrorText(first)}${more}`
     : $localize`Body does not match the schema`;
   const notJson = count === 1 && /not JSON/i.test(first?.message ?? '');
   return {

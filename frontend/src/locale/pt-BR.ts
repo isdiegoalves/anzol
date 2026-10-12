@@ -834,6 +834,8 @@ export const translations: Record<string, string> = {
   '6840631379395488212': 'O corpo segue o schema · {$dialect}',
   //  (+{$count} more)
   '8644129603938562559': ' (+{$count} outros)',
+  //  (+1 more)
+  '2033591679926268328': ' (+1 outro)',
   // Body does not match the schema
   '2481944308641860792': 'O corpo não casa com o schema',
   // Not JSON

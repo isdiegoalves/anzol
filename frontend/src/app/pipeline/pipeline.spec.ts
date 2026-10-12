@@ -226,6 +226,27 @@ describe('Dado a regra que respondeu a mensagem', () => {
     }
   });
 
+  it.each([
+    [2, '/a: must be integer (+1 more)', '/a: must be integer (+1 outro)'],
+    [3, '/a: must be integer (+2 more)', '/a: must be integer (+2 outros)'],
+  ])(
+    'deve dizer quantos erros de schema ficaram de fora do cartão Quando há %i, no singular e no plural',
+    (count, en, pt) => {
+      const errors = ['/a', '/b', '/c']
+        .slice(0, count)
+        .map((path) => ({ path, message: 'must be integer' }));
+      const request = webhookRequest(1, { schema: { valid: false, errors } });
+
+      expect(pipelineOf(request).schema.detail).toBe(en);
+      loadTranslations(translations);
+      try {
+        expect(pipelineOf(request).schema.detail).toBe(pt);
+      } finally {
+        clearTranslations();
+      }
+    },
+  );
+
   it('deve pôr a condição no cartão Quando só uma falhou (near miss sem conditions, formato antigo)', () => {
     const request = webhookRequest(1, {
       near_miss: { id: 'r2', name: 'Só GET', failed: ['method: expected GET, got POST'] },
