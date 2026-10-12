@@ -545,6 +545,7 @@
     "2894766746158019845": "(any path)",
     "2094621065270066430": "Arriving: {$trail}",
     "6559590418845380926": "Waiting for {$target}. Nothing arrived yet.",
+    "3786018147263311156": "Send 1 test request",
     "6727056494125901404": "Send {$count} test requests",
     "5597568351688685915": "To create, fix: {$fields}",
     "8698042377833318988": "The rules changed elsewhere since this page read them, so nothing was saved. Reload to see the current rules, then try again.",

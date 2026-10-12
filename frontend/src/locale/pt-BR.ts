@@ -3436,6 +3436,8 @@ export const translations: Record<string, string> = {
   '2094621065270066430': 'Chegando: {$trail}',
   // Waiting for {$target}. Nothing arrived yet.
   '6559590418845380926': 'Esperando {$target}. Nada chegou ainda.',
+  // Send 1 test request
+  '3786018147263311156': 'Mandar 1 requisição de teste',
   // Send {$count} test requests
   '6727056494125901404': 'Mandar {$count} requisições de teste',
   // {$count} rules created.

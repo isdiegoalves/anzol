@@ -411,6 +411,14 @@ describe('Dado um roteiro (R1)', () => {
       http.match(() => true).forEach((call) => call.flush([]));
     });
 
+    it('deve dizer "Send 1 test request", no singular, enquanto o roteiro não tem regras', async () => {
+      await show('retry');
+
+      expect(
+        screen.getByRole('button', { name: 'Send 1 test request' }).getAttribute('aria-disabled'),
+      ).toBe('true');
+    });
+
     it('deve mandar as requisições de teste do navegador e dizer que confere as regras, não o remetente', async () => {
       await show('retry');
       await create('1');

@@ -159,9 +159,12 @@ export class RetryGuide {
 
   /** Quantas requisições de teste fecham a sequência. */
   protected readonly sendCount = computed(() => Math.max(this.sequence().length, 1));
-  protected readonly sendLabel = computed(
-    () => $localize`Send ${this.sendCount()}:count: test requests`,
-  );
+  protected readonly sendLabel = computed(() => {
+    const count = this.sendCount();
+    return count === 1
+      ? $localize`Send 1 test request`
+      : $localize`Send ${count}:count: test requests`;
+  });
   /** O intervalo entre as requisições de teste: o `Retry-After` das regras criadas. */
   private readonly gap = computed(() => {
     const asked = retryAfterOf(this.sequence()[0]);

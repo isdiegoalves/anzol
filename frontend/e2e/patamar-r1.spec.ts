@@ -1066,7 +1066,7 @@ test.describe('Dado os roteiros', () => {
     });
     const criar = folha.getByRole('button', { name: 'Create 3 rules' });
     // Sem as regras, o botão conta uma requisição só.
-    const enviar = folha.getByRole('button', { name: /^Send \d test requests$/ });
+    const enviar = folha.getByRole('button', { name: /^Send (1 test request|3 test requests)$/ });
     await preencherRetry(folha, '1', '/cobrancas');
 
     await criar.click();
