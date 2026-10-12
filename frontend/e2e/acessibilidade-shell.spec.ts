@@ -114,6 +114,34 @@ test.describe('Dado a conferência do axe que acompanha todo teste', () => {
     await page.evaluate(() => document.getElementById('papel-aposentado')?.remove());
   });
 
+  test('deve reprovar o conteúdo fora de marco, e não o que o Material abre por cima', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/pedidos' });
+    await seedStorage(page, { hideTutorial: 'true' });
+    await page.goto(`/#/${tokenId}`);
+    await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
+
+    await page.evaluate(() => {
+      const solto = document.createElement('p');
+      solto.id = 'fora-de-marco';
+      solto.textContent = 'texto fora de marco';
+      document.body.append(solto);
+    });
+    await expect(expectSemViolacoes(page, 'texto fora de marco')).rejects.toThrow(
+      /moderate region/,
+    );
+    await page.evaluate(() => document.getElementById('fora-de-marco')?.remove());
+
+    // O menu do Material abre no `.cdk-overlay-container`, que não está em marco nenhum. Ele abre depois de o texto
+    // solto sair: a medida que acompanha o que abre por cima roda sozinha e pegaria os dois juntos.
+    await page.getByRole('button', { name: 'More list actions' }).click();
+    await expect(page.getByRole('menu')).toBeVisible();
+    await expectSemViolacoes(page, 'com um menu aberto');
+  });
+
   test('deve medir o diálogo que abre e fecha no meio do teste', async ({
     page,
     tokens,

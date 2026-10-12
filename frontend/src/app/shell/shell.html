@@ -2,9 +2,9 @@
 @let gone = missing();
 @let unreached = unreachable();
 @let open = token && !locked() && !gone && !unreached ? token : null;
-<!-- O primeiro elemento focável da página; só aparece com o foco (UX-21). -->
-<app-skip-link [href]="here()" />
-<div class="rail" [class.on-detail]="screen.detailFullscreen()">
+<header class="rail" [class.on-detail]="screen.detailFullscreen()">
+  <!-- O primeiro elemento focável da página; só aparece com o foco (UX-21). -->
+  <app-skip-link [href]="here()" />
   <a class="brand" routerLink="/" aria-label="Anzol" i18n-aria-label title="Anzol" i18n-title>
     <app-icon name="hook" [size]="24" />
   </a>
@@ -112,16 +112,18 @@
   >
     <app-icon name="help" [size]="22" />
   </button>
-</div>
+</header>
 <div class="workspace">
   @if (open || gone) {
-    <app-url-header
-      [missing]="gone"
-      [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()"
-      (switchTo)="switchTo($event)"
-      (newUrl)="createUrl()"
-    />
-    <app-connection-band [class.covered]="screen.covered()" />
+    <section class="url-area" aria-label="This URL" i18n-aria-label>
+      <app-url-header
+        [missing]="gone"
+        [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()"
+        (switchTo)="switchTo($event)"
+        (newUrl)="createUrl()"
+      />
+      <app-connection-band [class.covered]="screen.covered()" />
+    </section>
   }
   <div class="content">
     <ng-container #unlockHost />

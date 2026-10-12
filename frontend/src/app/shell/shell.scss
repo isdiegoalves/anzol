@@ -192,6 +192,16 @@
   }
 }
 
+// O "Skip to content" mora no marco do rail, mas é fixo na janela: fora do fluxo, não ocupa lugar nem abre espaço.
+app-skip-link {
+  position: absolute;
+}
+
+.url-area {
+  flex: none;
+  min-width: 0;
+}
+
 .workspace {
   display: flex;
   flex: 1;
@@ -276,7 +286,7 @@
       height: 0;
       padding: 0;
 
-      > :not(.destinations, h1) {
+      > :not(.destinations, h1, app-skip-link) {
         display: none;
       }
 
@@ -330,7 +340,7 @@
 // Uma folha de tela cheia (o editor de regra abaixo de 1200 px) fica por cima do rail e do cabeçalho da URL: o que
 // está atrás dela sai do Tab e do leitor de tela. No celular ela para acima da barra de destinos, que segue viva.
 :host(.covered) {
-  .rail > *,
+  .rail > :not(app-skip-link),
   app-url-header {
     visibility: hidden;
   }

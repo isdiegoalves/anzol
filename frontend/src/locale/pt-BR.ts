@@ -1749,6 +1749,8 @@ export const translations: Record<string, string> = {
   '131281839817929607': 'Nova URL (N)',
   // URL sections
   '190122656479276377': 'Seções da URL',
+  // This URL
+  '5853476510784643259': 'Esta URL',
   // Help and shortcuts (?)
   '5036287821443969284': 'Ajuda e atalhos (?)',
   // {$destination} (G then {$key})

@@ -9,9 +9,10 @@ import { Locator, Page, expect } from '@playwright/test';
  */
 export const TAGS_WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
-// `region` pede todo o conteúdo dentro de um marco, e a moldura do app (a barra do topo e o cabeçalho da URL) ainda
-// não é um. O que o Material abre por cima (`.cdk-overlay-container`) nunca vai ser: quando a regra entrar, ele sai.
-const FORA = ['region'];
+// A regra `region` pede todo o conteúdo dentro de um marco. O que o Material abre por cima (menu, aviso, lista
+// suspensa) fica no `.cdk-overlay-container`, fora de todos por construção do CDK: para a regra ele vale como região,
+// ao lado do que o axe já aceita assim (o diálogo e o `svg`).
+const VALE_COMO_REGIAO = 'dialog, [role=dialog], [role=alertdialog], svg, .cdk-overlay-container';
 
 const PACOTE = '@axe-core/playwright';
 
@@ -32,17 +33,18 @@ interface Violacao {
 interface Analise {
   withTags(tags: string[]): Analise;
   exclude(seletor: string): Analise;
-  disableRules(regras: string[]): Analise;
   setLegacyMode(legado: boolean): Analise;
   analyze(): Promise<{ violations: Violacao[] }>;
 }
 
-type AxeBuilder = new (opcoes: { page: Page }) => Analise;
+type AxeBuilder = new (opcoes: { page: Page; axeSource: string }) => Analise;
 
 async function axe(page: Page): Promise<Analise> {
   let modulo: { default?: AxeBuilder };
+  let nucleo: { default?: { source: string }; source?: string };
   try {
     modulo = (await import(PACOTE)) as { default?: AxeBuilder };
+    nucleo = (await import('axe-core')) as typeof nucleo;
   } catch (erro) {
     throw new Error(`${PACOTE} não está instalado; a E0 do item 14 instala a dependência.`, {
       cause: erro,
@@ -51,9 +53,11 @@ async function axe(page: Page): Promise<Analise> {
   const Construtor = modulo.default ?? (modulo as unknown as AxeBuilder);
   // Modo legado: o axe não abre a aba em branco em que junta os resultados. No meio de um teste ela apareceria para
   // quem espera a aba nova de um link.
-  return new Construtor({ page })
+  // A opção de uma conferência não entra pelo construtor: vai junto com o código do axe que ele injeta na página.
+  const ajuste = { checks: [{ id: 'region', options: { regionMatcher: VALE_COMO_REGIAO } }] };
+  const fonte = (nucleo.default ?? nucleo).source ?? '';
+  return new Construtor({ page, axeSource: `${fonte}\n;axe.configure(${JSON.stringify(ajuste)});` })
     .withTags([...TAGS_WCAG, 'best-practice'])
-    .disableRules(FORA)
     .exclude(AVISO_AINDA_NAO_ANUNCIADO)
     .setLegacyMode(true);
 }

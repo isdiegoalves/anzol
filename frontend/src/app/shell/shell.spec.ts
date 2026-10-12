@@ -5,12 +5,15 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { clearTranslations, loadTranslations } from '@angular/localize';
 import { NavigationError, Router, Routes, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
+import axe from 'axe-core';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { translations } from '../../locale/pt-BR';
 import {
   checksMatcher,
   compareMatcher,
@@ -111,6 +114,30 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     ]);
     expect(screen.getByText('página da rota')).toBeTruthy();
     await expectNoAxeViolations(container);
+  });
+
+  it('deve pôr o rail no marco de cabeçalho e o cabeçalho da URL, com a faixa de conexão, na região "This URL"', async () => {
+    await renderAt(`/${TOKEN_ID}`);
+
+    const banner = screen.getByRole('banner');
+    expect(within(banner).getByRole('link', { name: 'Skip to content' })).toBeTruthy();
+    expect(within(banner).getByRole('link', { name: 'Anzol' })).toBeTruthy();
+    expect(within(banner).getByRole('navigation', { name: 'URL sections' })).toBeTruthy();
+    const url = screen.getByRole('region', { name: 'This URL' });
+    expect(within(url).getByRole('textbox', { name: 'Webhook URL' })).toBeTruthy();
+    expect(within(url).getByRole('group', { name: 'Connection' })).toBeTruthy();
+    expect(within(url).queryByText('página da rota')).toBeNull();
+  });
+
+  it('deve chamar a região do cabeçalho de "Esta URL" Quando a tela está em pt-BR', async () => {
+    loadTranslations(translations);
+    try {
+      await renderAt(`/${TOKEN_ID}`);
+
+      expect(screen.getByRole('region', { name: 'Esta URL' })).toBeTruthy();
+    } finally {
+      clearTranslations();
+    }
   });
 
   it.each([
@@ -736,6 +763,22 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     ).toContain('The language changes when the page reloads.');
     expect(screen.getByRole('button', { name: 'Reload now' })).toBeTruthy();
   });
+
+  it.each(['Settings', 'Help'])(
+    'deve seguir com um só marco de cabeçalho, o do rail, Quando a folha %s abre',
+    async (sheet) => {
+      const user = userEvent.setup();
+      await renderAt(`/${TOKEN_ID}`);
+
+      await user.click(screen.getByRole('button', { name: sheet }));
+      await screen.findByRole('dialog', { name: sheet });
+
+      const { violations } = await axe.run(document.body, {
+        runOnly: ['landmark-no-duplicate-banner'],
+      });
+      expect(violations.map((violation) => violation.nodes.map((node) => node.html))).toEqual([]);
+    },
+  );
 
   it('deve mostrar os atalhos e o About com o GitHub do projeto Quando Help é clicado', async () => {
     const user = userEvent.setup();
