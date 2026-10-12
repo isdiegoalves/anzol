@@ -79,6 +79,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npx ng lint
+      - name: tipos dos E2E (o Playwright roda os specs sem conferi-los)
+        run: npx tsc --noEmit -p e2e/tsconfig.json
       - run: npm run -s lint:styles
       - name: i18n extraído (messages.json igual ao do ng extract-i18n)
         run: npx ng extract-i18n && git diff --exit-code src/locale/messages.json

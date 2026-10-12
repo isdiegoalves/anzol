@@ -72,6 +72,8 @@ backend_check() { (cd backend && ./gradlew check); }
 cli_check() { (cd cli && ./gradlew check installDist); }
 frontend_npm_ci() { (cd frontend && npm ci --no-audit --no-fund); }
 frontend_lint() { (cd frontend && npx ng lint); }
+# O Playwright roda os specs sem conferir tipos: sem esta etapa, um erro de tipo neles passa despercebido.
+frontend_tipos_e2e() { (cd frontend && npx tsc --noEmit -p e2e/tsconfig.json); }
 frontend_stylelint() { (cd frontend && npm run -s lint:styles); }
 # Texto novo sem extração: o messages.json (fonte do pt-BR) tem de sair igual do ng extract-i18n.
 frontend_i18n() {
@@ -177,6 +179,7 @@ etapa "backend: gradlew check" backend_check
 etapa "cli: gradlew check installDist" cli_check
 etapa "frontend: npm ci" frontend_npm_ci
 etapa "frontend: ng lint" frontend_lint
+etapa "frontend: tipos dos E2E (tsc)" frontend_tipos_e2e
 etapa "frontend: stylelint" frontend_stylelint
 etapa "frontend: i18n extraído (messages.json)" frontend_i18n
 etapa "frontend: prettier --check" frontend_prettier
