@@ -141,7 +141,7 @@
         mat-flat-button
         type="button"
         disabledInteractive
-        [disabled]="!created() || sending()"
+        [disabled]="!created() || saving() || sending()"
         (click)="send()"
       >
         {{ sendLabel() }}
@@ -150,7 +150,7 @@
         mat-button
         type="button"
         disabledInteractive
-        [disabled]="!created()"
+        [disabled]="!created() || saving()"
         (click)="copyLoop()"
         i18n
       >

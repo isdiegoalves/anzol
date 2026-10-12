@@ -649,13 +649,8 @@ test.describe('Dado os roteiros', () => {
     return folha.getByRole('group', { name: 'Retry check' });
   }
 
-  /** Preenche o roteiro de retry e cria as regras. */
-  async function criarRetry(
-    page: Page,
-    folha: Locator,
-    espera: string,
-    caminho = '/cobrancas',
-  ): Promise<void> {
+  /** Preenche o roteiro de retry, sem criar as regras. */
+  async function preencherRetry(folha: Locator, espera: string, caminho: string): Promise<void> {
     await metodo(folha, 'POST');
     await folha.getByRole('textbox', { name: 'Path', exact: true }).fill(caminho);
     const status = folha.getByRole('spinbutton', { name: 'Status' });
@@ -663,6 +658,16 @@ test.describe('Dado os roteiros', () => {
     await folha.getByRole('spinbutton', { name: 'Times' }).fill('2');
     await folha.getByRole('spinbutton', { name: 'Retry-After (s)' }).fill(espera);
     await expect(status.nth(1)).toHaveValue('200');
+  }
+
+  /** Preenche o roteiro de retry e cria as regras. */
+  async function criarRetry(
+    page: Page,
+    folha: Locator,
+    espera: string,
+    caminho = '/cobrancas',
+  ): Promise<void> {
+    await preencherRetry(folha, espera, caminho);
     await folha.getByRole('button', { name: 'Create 3 rules' }).click();
     await expect(passo(folha, 'Create')).toContainText('3 rules created');
   }
@@ -1003,6 +1008,77 @@ test.describe('Dado os roteiros', () => {
       'Waiting for POST /cobrancas. Nothing arrived yet.',
     );
     expect((await page.request.post(`/${tokenId}/cobrancas`)).status()).toBe(429);
+  });
+
+  test('deve esperar as regras serem gravadas para oferecer o envio de teste e o laço de curl', async ({
+    page,
+    tokens,
+  }) => {
+    test.setTimeout(60_000);
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    const stream = page.waitForResponse((r) => r.url().endsWith(`/token/${tokenId}/stream`));
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    await stream;
+    const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
+    let gravar!: () => void;
+    const presa = new Promise<void>((ok) => (gravar = ok));
+    await page.route(`**/token/${tokenId}/rules`, async (rota) => {
+      if (rota.request().method() === 'PUT') {
+        await presa;
+      }
+      await rota.continue();
+    });
+    const enviar = folha.getByRole('button', { name: 'Send 3 test requests' });
+    const copiar = folha.getByRole('button', { name: 'Copy curl loop' });
+
+    await criarRetry(page, folha, '1');
+
+    await expect(enviar).toBeDisabled();
+    await expect(copiar).toBeDisabled();
+    gravar();
+    await expect(enviar).toBeEnabled();
+    await expect(copiar).toBeEnabled();
+    await enviar.click();
+    await expect(conferencia(folha)).toContainText('3 requests arrived. Answers: 429, 429, 200', {
+      timeout: 20_000,
+    });
+    await expect(folha).toContainText(
+      'Sent from this browser, 1 s apart. This checks the rules, not your sender.',
+    );
+  });
+
+  test('deve deixar criar de novo, e então enviar, Quando a gravação das regras falha', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    const folha = page.getByRole('region', { name: 'Guide: Test a retry' });
+    let falhas = 1;
+    await page.route(`**/token/${tokenId}/rules`, async (rota) => {
+      if (rota.request().method() === 'PUT' && falhas-- > 0) {
+        await rota.fulfill({ status: 503 });
+      } else {
+        await rota.continue();
+      }
+    });
+    const criar = folha.getByRole('button', { name: 'Create 3 rules' });
+    // Sem as regras, o botão conta uma requisição só.
+    const enviar = folha.getByRole('button', { name: /^Send \d test requests$/ });
+    await preencherRetry(folha, '1', '/cobrancas');
+
+    await criar.click();
+
+    await expect(folha.getByRole('alert')).toBeVisible();
+    await expect(criar).toBeEnabled();
+    await expect(enviar).toBeDisabled();
+    await criar.click();
+    await expect(passo(folha, 'Create')).toContainText('3 rules created');
+    await expect(enviar).toBeEnabled();
+    await expect(enviar).toHaveText('Send 3 test requests');
+    await expect(folha.getByRole('button', { name: 'Copy curl loop' })).toBeEnabled();
   });
 
   test('deve abrir o mesmo roteiro pelo modelo "Fail N times, then accept" de Regras', async ({
