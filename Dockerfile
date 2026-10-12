@@ -7,6 +7,8 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npx ng build
+# Antes da compressão: o .gz e o .br do index.html saem dele já com o preload da tradução.
+RUN node preload-translation.mjs dist/frontend
 # Cada .js e .css do build e o index.html ganham um .gz e um .br ao lado, que o FrontendResources e o IndexController
 # entregam a quem os aceita.
 RUN node -e "const fs = require('node:fs'), zlib = require('node:zlib'); \

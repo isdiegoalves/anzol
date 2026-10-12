@@ -17,7 +17,8 @@ reescritos para `#/` antes do bootstrap. A aba de regras de resposta é `/#/{uui
 carregada sob demanda (fora do bundle inicial).
 
 `npx ng build` gera `dist/frontend/` com `index.html` e os arquivos com hash na raiz, para o
-backend servir.
+backend servir. No `Dockerfile`, o `index.html` passa em seguida pelo `preload-translation.mjs`, que
+põe nele o preload do chunk da tradução para quem vê a tela em pt-BR (§9 do padrão).
 
 ## Verificar
 
