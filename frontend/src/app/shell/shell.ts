@@ -56,6 +56,9 @@ import { UrlHeader } from './url-header';
 const CHUNK_ERROR =
   /dynamically imported module|Importing a module script failed|error loading dynamically/i;
 
+/** A página que chega antes disto não mostra o traço de progresso: em rede boa ninguém o vê. */
+const PROGRESS_AFTER_MS = 200;
+
 /** Folha aberta pelo rail: Settings ou Help, carregadas sob demanda. */
 type Sheet = 'settings' | 'help';
 
@@ -170,6 +173,10 @@ export class Shell {
    */
   protected readonly marked = computed(() => this.heading() ?? this.current());
 
+  /** A página aprovada pelas guardas ainda não abriu, passado o `PROGRESS_AFTER_MS`. */
+  protected readonly progress = signal(false);
+  private progressTimer: ReturnType<typeof setTimeout> | undefined;
+
   /** URL protegida sem acesso, enquanto a rota for dela. */
   protected readonly locked = computed(() => {
     const tokenId = this.urlLock.tokenId();
@@ -221,12 +228,16 @@ export class Shell {
               .root.children['primary']?.segments.map((segment) => segment.path) ?? [],
           ).destination,
         );
+        clearTimeout(this.progressTimer);
+        this.progressTimer = setTimeout(() => this.progress.set(true), PROGRESS_AFTER_MS);
       } else if (
         event instanceof NavigationEnd ||
         event instanceof NavigationCancel ||
         event instanceof NavigationError
       ) {
         this.heading.set(null);
+        clearTimeout(this.progressTimer);
+        this.progress.set(false);
       }
       if (event instanceof NavigationStart && event.navigationTrigger === 'popstate') {
         // Voltar ou avançar para outra URL é uma troca de URL como a do seletor, e é anunciada igual.

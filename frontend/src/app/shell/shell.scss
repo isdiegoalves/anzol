@@ -223,6 +223,32 @@ app-skip-link {
   background: var(--mat-sys-surface-container-lowest);
 }
 
+// Por cima da borda de cima do conteúdo: a margem negativa devolve os 2 px, e nada é empurrado.
+.progress {
+  position: relative;
+  z-index: 4;
+  flex: none;
+  height: 2px;
+  margin-bottom: -2px;
+  background: var(--mat-sys-primary);
+  transform-origin: left;
+  animation: progress var(--app-motion-long) var(--app-motion-easing) infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+
+  @media (forced-colors: active) {
+    background: var(--app-forced-selected);
+  }
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 // A página da rota; escondida (viva) enquanto o `main` mostra que um destino não abriu.
 .page {
   display: flex;

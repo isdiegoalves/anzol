@@ -1,4 +1,5 @@
 import { expect, test } from './support/fixtures';
+import { destino, prenderPedacos, tracoDeProgresso } from './support/shell';
 import { seedStorage } from './support/storage';
 
 test.use({ reducedMotion: 'reduce' });
@@ -42,5 +43,27 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
 
     const legado = page.getByRole('button', { name: 'Forward from this browser (legacy)' });
     await expect(legado.locator('.chevron')).toHaveCSS('transition-duration', '0s');
+  });
+
+  test('deve mostrar o traço de progresso parado e inteiro Quando o pedaço da página demora', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+    await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
+    const soltar = await prenderPedacos(page);
+
+    await destino(page, 'Insights').click();
+
+    const traco = tracoDeProgresso(page);
+    await expect(traco).toBeVisible();
+    await expect(traco).toHaveCSS('animation-name', 'none');
+    expect((await traco.boundingBox())?.width, 'de ponta a ponta do conteúdo').toBe(
+      (await page.locator('app-shell .content').boundingBox())?.width,
+    );
+    soltar();
+    await expect(traco).toHaveCount(0);
   });
 });

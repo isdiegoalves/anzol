@@ -32,6 +32,22 @@ export function destino(page: Page, nome: Destino): Locator {
   return secoes(page).getByRole('link', { name: new RegExp(`^${nome}(, .+)?$`) });
 }
 
+/** O traço de progresso por cima do conteúdo: decorativo, sem papel nem nome. */
+export function tracoDeProgresso(page: Page): Locator {
+  return page.locator('app-shell .progress');
+}
+
+/** Prende na rede os pedaços de página pedidos daqui em diante; devolve quem os solta. */
+export async function prenderPedacos(page: Page): Promise<() => void> {
+  let soltar!: () => void;
+  const presos = new Promise<void>((resolve) => (soltar = resolve));
+  await page.route(/\/chunk-[\w-]+\.js$/, async (rota) => {
+    await presos;
+    await rota.continue();
+  });
+  return soltar;
+}
+
 /**
  * O chip do tempo real no cabeçalho da URL ("Live", "Reconnecting…" ou "Offline"). Não é região viva, então não tem
  * papel que o ache: vai pelo elemento.

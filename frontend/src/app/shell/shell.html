@@ -125,6 +125,10 @@
       <app-connection-band [class.covered]="screen.covered()" />
     </section>
   }
+  @if (progress()) {
+    <!-- Só para quem vê: o destino já marcado no rail é o que o leitor de tela recebe. -->
+    <div class="progress" aria-hidden="true"></div>
+  }
   <div class="content">
     <ng-container #unlockHost />
     <ng-container #missingHost />

@@ -608,6 +608,92 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       await fixture.whenStable();
       expect(marked()).toEqual(['Checks']);
     });
+
+    describe('Dado o traço de progresso em cima do conteúdo', () => {
+      const trace = () => document.querySelector('.progress');
+      /** Com o relógio parado, deixa a navegação andar até as guardas a aprovarem. */
+      const untilApproved = async (fixture: { detectChanges(): void }) => {
+        for (let turn = 0; turn < 50 && marked()[0] !== 'Insights'; turn++) {
+          await vi.advanceTimersByTimeAsync(0);
+          fixture.detectChanges();
+        }
+        expect(marked()).toEqual(['Insights']);
+      };
+      const pass = async (fixture: { detectChanges(): void }, ms: number) => {
+        await vi.advanceTimersByTimeAsync(ms);
+        fixture.detectChanges();
+      };
+
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('deve aparecer só depois de 200 ms com o pedaço preso, fora do leitor de tela, e sumir Quando a página abre', async () => {
+        const { arrive, routes } = slowInsights();
+        const { fixture } = await renderAt(`/${TOKEN_ID}`, true, routes);
+        const router = TestBed.inject(Router);
+
+        const going = router.navigateByUrl(`/${TOKEN_ID}/insights`);
+        await untilApproved(fixture);
+        await pass(fixture, 199);
+        expect(trace()).toBeNull();
+
+        await pass(fixture, 1);
+        expect(trace()?.getAttribute('aria-hidden')).toBe('true');
+        expect(trace()?.textContent).toBe('');
+        expect(screen.getByText('página da rota')).toBeTruthy();
+
+        arrive();
+        await going;
+        await pass(fixture, 0);
+        expect(router.url).toBe(`/${TOKEN_ID}/insights`);
+        expect(trace()).toBeNull();
+      });
+
+      it('não deve aparecer Quando a página abre antes de 200 ms', async () => {
+        const { arrive, routes } = slowInsights();
+        const { fixture } = await renderAt(`/${TOKEN_ID}`, true, routes);
+        const router = TestBed.inject(Router);
+
+        const going = router.navigateByUrl(`/${TOKEN_ID}/insights`);
+        await untilApproved(fixture);
+        await pass(fixture, 199);
+        arrive();
+        await going;
+        await pass(fixture, 1000);
+
+        expect(router.url).toBe(`/${TOKEN_ID}/insights`);
+        expect(trace()).toBeNull();
+      });
+
+      it('deve sumir Quando a navegação cai', async () => {
+        let fail!: () => void;
+        const chunk = new Promise<typeof Page>(
+          (_, reject) =>
+            (fail = () =>
+              reject(new TypeError('Failed to fetch dynamically imported module: insights.js'))),
+        );
+        const { fixture } = await renderAt(`/${TOKEN_ID}`, true, [
+          { matcher: insightsMatcher, loadComponent: () => chunk },
+        ]);
+        const router = TestBed.inject(Router);
+
+        const going = router.navigateByUrl(`/${TOKEN_ID}/insights`).catch(() => false);
+        await untilApproved(fixture);
+        await pass(fixture, 200);
+        expect(trace()).not.toBeNull();
+
+        fail();
+        await going;
+        await pass(fixture, 0);
+        expect(trace()).toBeNull();
+        expect(router.url).toBe(`/${TOKEN_ID}`);
+      });
+    });
   });
 
   describe('Dado um destino cujo pedaço não carregou (B1, UX-16)', () => {

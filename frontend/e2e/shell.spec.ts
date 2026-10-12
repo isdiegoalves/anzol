@@ -9,8 +9,10 @@ import {
   destino,
   estadoAoVivo,
   novaUrl,
+  prenderPedacos,
   rolaNaHorizontal,
   secoes,
+  tracoDeProgresso,
 } from './support/shell';
 import { seedStorage } from './support/storage';
 
@@ -96,6 +98,37 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
     soltar();
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/insights$`));
     await expect(destino(page, 'Insights')).toHaveAttribute('aria-current', 'page');
+  });
+
+  test('deve mostrar um traço de 2 px em cima do conteúdo enquanto o pedaço da página não chega, sem mover nada', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await page.goto(`/#/${tokenId}`);
+    await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
+    const conteudo = page.locator('app-shell .content');
+    const pagina = page.getByRole('main');
+    const [conteudoAntes, paginaAntes] = [await conteudo.boundingBox(), await pagina.boundingBox()];
+    const traco = tracoDeProgresso(page);
+    await expect(traco).toHaveCount(0);
+    const soltar = await prenderPedacos(page);
+
+    await destino(page, 'Insights').click();
+
+    await expect(traco).toBeVisible();
+    await expect(traco).toHaveAttribute('aria-hidden', 'true');
+    await expect(traco).toHaveText('');
+    await expect(traco).toHaveCSS('animation-duration', '1.2s');
+    const caixa = (await traco.boundingBox())!;
+    expect(caixa.height).toBe(2);
+    expect(caixa.y, 'na borda de cima do conteúdo').toBe(conteudoAntes?.y);
+    expect(await conteudo.boundingBox(), 'o conteúdo não se mexe').toEqual(conteudoAntes);
+    expect(await pagina.boundingBox(), 'nem a página de antes').toEqual(paginaAntes);
+
+    soltar();
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/insights$`));
+    await expect(traco).toHaveCount(0);
   });
 
   test('deve abrir cada rota nova pelo link direto, sem redirecionar, com a URL no cabeçalho', async ({

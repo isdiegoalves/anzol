@@ -11,6 +11,7 @@ import {
   novaRegra,
   parte,
 } from './support/regras';
+import { destino, prenderPedacos, tracoDeProgresso } from './support/shell';
 import { seedStorage } from './support/storage';
 
 const SEGREDO = 'segredo-das-cores-forcadas';
@@ -379,5 +380,25 @@ test.describe('Dado as cores forçadas do sistema', () => {
     const sistema = await coresDoSistema(page);
 
     await expectSoEsteMetodoPintado(metodos, 'PUT', sistema);
+  });
+
+  test('deve manter à vista o traço de progresso de quem espera o pedaço da página', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+    await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
+    const sistema = await coresDoSistema(page);
+    const soltar = await prenderPedacos(page);
+
+    await destino(page, 'Insights').click();
+
+    const traco = tracoDeProgresso(page);
+    await expect(traco).toBeVisible();
+    expect(await estilo(traco, 'background-color')).toBe(sistema.escolhido);
+    soltar();
+    await expect(traco).toHaveCount(0);
   });
 });
