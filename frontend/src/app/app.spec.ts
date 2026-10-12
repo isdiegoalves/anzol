@@ -25,6 +25,9 @@ describe('Dado a URL protegida sem acesso', () => {
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
+  // A tela de desbloqueio vem por import(): lida aqui, a espera de cada teste não conta o tempo de carregá-la.
+  beforeAll(() => import('./token/unlock-screen'));
+
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [

@@ -14,6 +14,9 @@ describe('Dado o "Describe the rule" recolhido', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
 
+  // O formulário vem por import(): lido aqui, a espera de cada teste não conta o tempo de carregá-lo.
+  beforeAll(() => import('./rule-suggest-form'));
+
   it('deve vir recolhido, sem o formulário, e carregá-lo ao abrir pelo título', async () => {
     const { container } = await show();
 
