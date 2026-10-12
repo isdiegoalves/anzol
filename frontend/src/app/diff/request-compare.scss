@@ -260,6 +260,10 @@ summary {
   h4 {
     display: inline;
   }
+
+  @media (pointer: coarse) {
+    padding-block: calc((44px - 1lh) / 2);
+  }
 }
 
 // RULES-34: as linhas iguais escondidas abrem pelo botão.

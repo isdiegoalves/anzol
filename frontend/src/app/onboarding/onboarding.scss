@@ -182,6 +182,10 @@ a:not(.card, [mat-button]) {
   summary {
     color: var(--mat-sys-primary);
     cursor: pointer;
+
+    @media (pointer: coarse) {
+      padding-block: calc((44px - 1lh) / 2);
+    }
   }
 
   p {

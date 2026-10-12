@@ -72,6 +72,10 @@
     outline: var(--app-focus-width) solid var(--app-focus-color);
     outline-offset: var(--app-focus-offset);
   }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 // Celular: folha inferior por cima da lista, com "Show {n} requests" no rodapé.

@@ -23,6 +23,10 @@
     outline: var(--app-focus-width) solid var(--app-focus-color);
     outline-offset: -1px;
   }
+
+  @media (pointer: coarse) {
+    height: 44px;
+  }
 }
 
 // Chip de alternância do M3 (como os filtros da busca da Entrada): `aria-pressed` marca o ligado.
@@ -55,6 +59,10 @@
   &:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
   }
 
   &:focus-visible {

@@ -79,6 +79,10 @@ p {
     outline: var(--app-focus-width) solid var(--app-focus-color);
     outline-offset: -1px;
   }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 .preview {

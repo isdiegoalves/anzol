@@ -130,6 +130,10 @@ app-pane {
     padding-block: 2px;
     cursor: pointer;
     color: var(--mat-sys-primary);
+
+    @media (pointer: coarse) {
+      padding-block: calc((44px - 1lh) / 2);
+    }
   }
 }
 

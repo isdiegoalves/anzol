@@ -49,6 +49,12 @@ export interface SuggestionApply {
       summary {
         cursor: pointer;
         font: var(--mat-sys-title-small);
+
+        // Com toque o título ocupa a caixa inteira, por cima do respiro dela: 44 px de alvo.
+        @media (pointer: coarse) {
+          margin-block: -8px;
+          padding-block: calc((44px - 1lh) / 2);
+        }
       }
     }
 

@@ -184,3 +184,30 @@
     height: 36px;
   }
 }
+
+// Com toque, 44 px de alvo em toda largura. O "×" e o "Clear filters" passam da altura do filtro ligado para cima
+// e para baixo, sem mexer na linha; a folga entre as linhas de filtros cresce para um não encostar no outro.
+@media (pointer: coarse) {
+  .pill,
+  .filters,
+  .link {
+    min-height: 44px;
+  }
+
+  .active {
+    row-gap: 8px;
+
+    .link {
+      margin-block: -8px;
+    }
+  }
+
+  .on {
+    height: 36px;
+  }
+
+  .remove {
+    width: 44px;
+    height: 44px;
+  }
+}

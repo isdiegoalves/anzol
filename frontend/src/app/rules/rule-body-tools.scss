@@ -21,6 +21,10 @@
     min-height: 24px;
     cursor: pointer;
     color: var(--mat-sys-primary);
+
+    @media (pointer: coarse) {
+      padding-block: calc((44px - 1lh) / 2);
+    }
   }
 
   dl {
@@ -71,5 +75,9 @@
     font-family: var(--app-code-family);
     font-size: var(--mat-sys-body-small-size);
     overflow-wrap: anywhere;
+  }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
   }
 }

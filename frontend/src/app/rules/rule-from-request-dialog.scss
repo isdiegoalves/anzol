@@ -29,6 +29,12 @@ h3 {
   }
 }
 
+.transport summary {
+  @media (pointer: coarse) {
+    padding-block: calc((44px - 1lh) / 2);
+  }
+}
+
 .why {
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-small);

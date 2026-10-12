@@ -2,8 +2,8 @@ import { Component, input, output } from '@angular/core';
 
 /**
  * A pílula das novas que chegaram fora da vista (C §2.8): "↑ 3 new requests", com a mais nova
- * primeiro (INBOX-01); "↓" na ordem inversa. Fica numa faixa própria de 32 px acima da lista, que só
- * existe enquanto há novas, e não cobre item nenhum (UX-10). Clicar leva até elas.
+ * primeiro (INBOX-01); "↓" na ordem inversa. Fica numa faixa própria de 32 px (44 com toque) acima
+ * da lista, que só existe enquanto há novas, e não cobre item nenhum (UX-10). Clicar leva até elas.
  */
 @Component({
   selector: 'app-new-pill',
@@ -37,6 +37,13 @@ import { Component, input, output } from '@angular/core';
       &:focus-visible {
         outline: 3px solid var(--mat-sys-primary);
         outline-offset: 2px;
+      }
+    }
+
+    @media (pointer: coarse) {
+      :host,
+      .new-pill {
+        height: 44px;
       }
     }
   `,

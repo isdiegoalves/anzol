@@ -319,6 +319,17 @@ html.compact {
   );
 }
 
+// O segmentado do tema tem 40 px de altura; com toque, 44.
+@media (pointer: coarse) {
+  .mat-button-toggle {
+    @include mat.button-toggle-overrides(
+      (
+        height: 44px,
+      )
+    );
+  }
+}
+
 // O trilho do tema tem 20 px: o interruptor do Material fica com 24 px de alvo, e 44 com toque, com o
 // trilho centrado nele.
 .mat-mdc-slide-toggle .mdc-switch {
