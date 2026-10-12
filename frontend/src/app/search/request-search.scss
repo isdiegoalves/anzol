@@ -90,7 +90,8 @@
   list-style: none;
 }
 
-.on {
+// Só na lista dos ligados: o botão "Filters" também leva a classe `on`, e sem o `.active` pegaria a caixa do filtro.
+.active .on {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
@@ -175,7 +176,7 @@
     min-height: 44px;
   }
 
-  .on {
+  .active .on {
     height: 36px;
   }
 
@@ -200,10 +201,10 @@
     .link {
       margin-block: -8px;
     }
-  }
 
-  .on {
-    height: 36px;
+    .on {
+      height: 36px;
+    }
   }
 
   .remove {
