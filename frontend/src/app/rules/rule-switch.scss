@@ -80,3 +80,22 @@
     transition: none;
   }
 }
+
+@media (forced-colors: active) {
+  .handle,
+  .switch:hover .handle {
+    background: var(--app-forced-ink);
+  }
+
+  .switch[aria-checked='true'] {
+    .track {
+      border-color: var(--app-forced-selected);
+      background: var(--app-forced-selected);
+    }
+
+    .handle,
+    &:hover .handle {
+      background: var(--app-forced-on-selected);
+    }
+  }
+}

@@ -196,6 +196,16 @@ html {
   --app-focus-color: var(--mat-sys-primary);
   --app-focus-width: 3px;
   --app-focus-offset: 2px;
+
+  // Em cores forçadas o navegador apaga fundo e sombra e troca toda cor pelas do sistema, menos a que já é uma
+  // delas. O que marcava estado só com fundo usa estas: a tinta e o papel, o par do item escolhido e o desligado.
+  // Fundo pintado com texto por cima pede `forced-color-adjust: none` no elemento: sem ele o navegador põe uma
+  // tarja de papel atrás do texto, que some nela.
+  --app-forced-ink: canvastext;
+  --app-forced-paper: canvas;
+  --app-forced-selected: highlight;
+  --app-forced-on-selected: highlighttext;
+  --app-forced-disabled: graytext;
   --app-motion-short: 120ms;
   --app-motion-long: 1.2s;
   --app-motion-easing: cubic-bezier(0.2, 0, 0, 1);

@@ -123,6 +123,13 @@ import { RequestStore } from './request-store';
       }
     }
 
+    // Sem página, o botão fica desligado sem o atributo disabled: em cores forçadas sairia na cor dos ligados.
+    @media (forced-colors: active) {
+      button[aria-disabled='true'] {
+        color: var(--app-forced-disabled);
+      }
+    }
+
     .hints {
       display: flex;
       flex-wrap: wrap;

@@ -214,3 +214,16 @@
     outline-offset: 1px;
   }
 }
+
+@media (forced-colors: active) {
+  :host(.mini.bad) {
+    forced-color-adjust: none;
+    border-color: var(--app-forced-ink);
+    background: var(--app-forced-ink);
+    color: var(--app-forced-paper);
+  }
+
+  :host(.mini.bad) app-icon {
+    color: var(--app-forced-paper);
+  }
+}

@@ -179,6 +179,14 @@
     }
   }
 
+  // A moldura da escolhida usa o contorno, que é também o do foco: com o foco na linha, vale o dele.
+  @media (forced-colors: active) {
+    tr.selected:not(:focus-visible) {
+      outline: 2px solid var(--app-forced-selected);
+      outline-offset: -2px;
+    }
+  }
+
   .numeric {
     text-align: right;
     white-space: nowrap;

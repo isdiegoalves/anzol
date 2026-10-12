@@ -545,6 +545,27 @@ const TELAS: Tela[] = [
 
 test.use({ axeNoFim: false });
 
+async function abrirEFotografar(
+  tela: Tela,
+  variante: string,
+  page: Page,
+  tokens: TokenTracker,
+  context: BrowserContext,
+): Promise<void> {
+  await page.clock.setFixedTime(relogio());
+  const mascaras = await tela.abrir(page, tokens, context);
+  if (tela.semMascaraDeTexto) {
+    await fixarVolateis(page);
+  }
+  await fotografar(
+    page,
+    `${tela.nome}-${variante}`,
+    tela.semMascaraDeTexto ? mascaras : [...mascarasComuns(page), ...mascaras],
+    tela.alvo?.(page),
+    tela.semMascaraDeTexto === true,
+  );
+}
+
 for (const colorScheme of TEMAS) {
   for (const classe of CLASSES) {
     test.describe(`Dado o tema ${colorScheme} na classe ${classe.nome}`, () => {
@@ -557,20 +578,21 @@ for (const colorScheme of TEMAS) {
       );
       for (const tela of telas) {
         test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens, context }) => {
-          await page.clock.setFixedTime(relogio());
-          const mascaras = await tela.abrir(page, tokens, context);
-          if (tela.semMascaraDeTexto) {
-            await fixarVolateis(page);
-          }
-          await fotografar(
-            page,
-            `${tela.nome}-${colorScheme}-${classe.nome}`,
-            tela.semMascaraDeTexto ? mascaras : [...mascarasComuns(page), ...mascaras],
-            tela.alvo?.(page),
-            tela.semMascaraDeTexto === true,
-          );
+          await abrirEFotografar(tela, `${colorScheme}-${classe.nome}`, page, tokens, context);
         });
       }
     });
   }
 }
+
+// As cores forçadas do sistema (o alto contraste do Windows), em que fundo e sombra somem: a requisição aberta com
+// falha (moldura, selo em negativo, régua, destino atual) e o editor de regra (interruptor, aba e método escolhidos).
+test.describe('Dado as cores forçadas do sistema na classe expandida', () => {
+  test.use({ colorScheme: 'light', viewport: CLASSES[1].viewport, forcedColors: 'active' });
+
+  for (const tela of TELAS.filter(({ nome }) => ['falha-detalhe', 'rules-editor'].includes(nome))) {
+    test(`deve bater com a baseline: ${tela.nome}`, async ({ page, tokens, context }) => {
+      await abrirEFotografar(tela, 'forcadas-expandida', page, tokens, context);
+    });
+  }
+});

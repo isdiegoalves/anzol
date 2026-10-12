@@ -187,6 +187,13 @@
     background: var(--mat-sys-secondary-container);
     color: var(--mat-sys-on-secondary-container);
   }
+
+  @media (forced-colors: active) {
+    tbody tr.open {
+      outline: 2px solid var(--app-forced-selected);
+      outline-offset: -2px;
+    }
+  }
 }
 
 .handle {

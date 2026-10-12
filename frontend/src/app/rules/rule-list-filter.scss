@@ -43,6 +43,15 @@
     color: var(--mat-sys-on-secondary-container);
   }
 
+  @media (forced-colors: active) {
+    &[aria-pressed='true'] {
+      forced-color-adjust: none;
+      border-color: var(--app-forced-selected);
+      background: var(--app-forced-selected);
+      color: var(--app-forced-on-selected);
+    }
+  }
+
   &:disabled {
     opacity: 0.6;
     cursor: default;

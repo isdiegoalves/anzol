@@ -52,3 +52,12 @@
     opacity: 0.35;
   }
 }
+
+@media (forced-colors: active) {
+  .dot,
+  :host(.live) .dot,
+  :host(.reconnecting) .dot,
+  :host(.silent) .dot {
+    background: var(--app-forced-ink);
+  }
+}

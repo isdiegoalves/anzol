@@ -513,3 +513,15 @@ app-event-line {
     display: none;
   }
 }
+
+@media (forced-colors: active) {
+  .item.active {
+    outline: 2px solid var(--app-forced-selected);
+    outline-offset: -2px;
+  }
+
+  .item.unread::before,
+  .item:has(app-check-chip.bad)::after {
+    background: var(--app-forced-ink);
+  }
+}

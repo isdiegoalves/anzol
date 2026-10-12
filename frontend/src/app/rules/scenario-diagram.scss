@@ -41,6 +41,15 @@
     color: var(--mat-sys-on-tertiary);
     font-weight: 600;
   }
+
+  @media (forced-colors: active) {
+    &.current {
+      forced-color-adjust: none;
+      border-color: var(--app-forced-selected);
+      background: var(--app-forced-selected);
+      color: var(--app-forced-on-selected);
+    }
+  }
 }
 
 .steps {

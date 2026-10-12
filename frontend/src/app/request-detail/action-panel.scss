@@ -68,6 +68,13 @@
     border-bottom-color: var(--mat-sys-primary);
     color: var(--mat-sys-primary);
   }
+
+  // Em cores forçadas a borda transparente aparece, e toda aba ficaria sublinhada como a escolhida.
+  @media (forced-colors: active) {
+    &:not([aria-selected='true']) {
+      border-bottom-color: var(--app-forced-paper);
+    }
+  }
 }
 
 .icon,

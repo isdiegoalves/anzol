@@ -326,3 +326,14 @@
     }
   }
 }
+
+@media (forced-colors: active) {
+  .destination.current .indicator {
+    background: var(--app-forced-selected);
+    color: var(--app-forced-on-selected);
+  }
+
+  .dot {
+    background: var(--app-forced-ink);
+  }
+}

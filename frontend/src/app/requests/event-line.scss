@@ -221,3 +221,10 @@
     flex-wrap: wrap;
   }
 }
+
+@media (forced-colors: active) {
+  :host(.early)::after,
+  :host(:has(.mark, .fault))::after {
+    background: var(--app-forced-ink);
+  }
+}

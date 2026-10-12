@@ -249,6 +249,13 @@ button.check {
     color: var(--mat-sys-on-surface);
   }
 
+  // Em cores forçadas a borda transparente aparece, e toda aba ficaria sublinhada como a escolhida.
+  @media (forced-colors: active) {
+    &:not([aria-selected='true']) {
+      border-bottom-color: var(--app-forced-paper);
+    }
+  }
+
   &:focus-visible {
     outline: var(--app-focus-width) solid var(--app-focus-color);
     outline-offset: calc(-1 * var(--app-focus-width));

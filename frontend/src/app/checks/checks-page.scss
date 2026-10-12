@@ -87,6 +87,15 @@ h1 {
     color: var(--mat-sys-on-secondary-container);
   }
 
+  @media (forced-colors: active) {
+    &[aria-current] {
+      forced-color-adjust: none;
+      border-color: var(--app-forced-selected);
+      background: var(--app-forced-selected);
+      color: var(--app-forced-on-selected);
+    }
+  }
+
   @media (width >= 1200px) {
     min-height: 40px;
   }
@@ -109,6 +118,14 @@ h1 {
   height: 7px;
   border-radius: 50%;
   background: var(--app-warning);
+
+  @media (forced-colors: active) {
+    background: var(--app-forced-ink);
+
+    .jump-link[aria-current] & {
+      background: var(--app-forced-on-selected);
+    }
+  }
 }
 
 .cards {
