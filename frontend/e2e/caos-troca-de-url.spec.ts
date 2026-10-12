@@ -212,13 +212,15 @@ test.describe('Dado a rota já na URL nova, com a leitura dela ainda a caminho',
     });
     await page.getByRole('switch', { name: 'Enable rule Regra da nova' }).click();
     await expect
-      .poll(async () => (await lerRegras(page.request, nova)).map((regra) => regra.enabled))
+      .poll(async () => (await lerRegras(page.request, nova)).map((regra) => regra['enabled']))
       .toEqual([false]);
     await page.getByRole('button', { name: 'New rule', exact: true }).click();
     await expect(page.getByRole('region', { name: 'New rule' })).toBeVisible();
     await semMarcasDaAnterior(page);
 
-    expect((await lerRegras(page.request, anterior)).map((regra) => regra.enabled)).toEqual([true]);
+    expect((await lerRegras(page.request, anterior)).map((regra) => regra['enabled'])).toEqual([
+      true,
+    ]);
     expect(paraAAnterior).toEqual([]);
     leitura.soltar();
   });
