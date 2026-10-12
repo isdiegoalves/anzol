@@ -264,12 +264,23 @@ html {
     )
   );
 
-  // Campo contornado na mesma borda do resto (3:1 no papel) e foco de 2 px.
+  // Campo contornado na mesma borda do resto (3:1 no papel). O foco do campo é a borda dele, na largura do contorno
+  // de foco da tela (o Material usa 2 px).
   @include mat.form-field-overrides(
     (
       outlined-outline-color: var(--mat-sys-outline),
       outlined-hover-outline-color: var(--mat-sys-on-surface),
-      outlined-focus-outline-width: 2px,
+      outlined-focus-outline-width: var(--app-focus-width),
+      filled-focus-active-indicator-height: var(--app-focus-width),
+    )
+  );
+
+  // O anel de foco dos componentes do Material, na cor e na largura do contorno da tela: sem ele, o foco de um botão
+  // é só um tom mais claro. Aparece com o foco do teclado ou do código, não com o clique.
+  @include mat.strong-focus-indicators(
+    (
+      border-color: var(--app-focus-color),
+      border-width: var(--app-focus-width),
     )
   );
 
@@ -315,6 +326,18 @@ html.compact {
 
   @media (pointer: coarse) {
     height: 44px;
+  }
+}
+
+// O anel de foco do Material no interruptor é um círculo em volta da alça; com o trilho pequeno e retangular do tema,
+// ele cai por cima do rótulo. No lugar dele, o contorno da tela em volta do interruptor com o rótulo.
+.mat-mdc-slide-toggle {
+  --mat-focus-indicator-display: none;
+
+  &:has(:focus-visible) {
+    border-radius: var(--mat-sys-corner-extra-small);
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
   }
 }
 
