@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import path from 'node:path';
 import { BrowserContext, Locator, Page } from '@playwright/test';
+import { ProxyDeCaos } from './support/caos';
 import { abrirMensagem, campoDeBusca, detalhes, verificacoes } from './support/inbox';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
@@ -13,8 +14,9 @@ import { seedStorage } from './support/storage';
 // ficam desligadas (padrão do `toHaveScreenshot`), e UUIDs, datas, hora e host (a porta do stack muda entre o CI e a
 // máquina de quem roda) ficam sob máscara.
 // As cenas de falha e de fora do caminho feliz (assinatura e schema inválidos, uma delas em pt-BR, filtro sem
-// resultado, lista em erro, sem conexão) e as de cores forçadas não usam a máscara por texto: os mesmos valores são
-// trocados na página por valores fixos, e a comparação delas conta pixels (`fixarVolateis`, `fotografar`).
+// resultado, lista em erro, sem conexão, sem sinal, janela das mais novas em leitura) e as de cores forçadas não usam
+// a máscara por texto: os mesmos valores são trocados na página por valores fixos, e a comparação delas conta pixels
+// (`fixarVolateis`, `fotografar`).
 
 const SECRET = 'segredo-visual';
 /**
@@ -232,6 +234,9 @@ async function comFalhas(page: Page, tokens: TokenTracker): Promise<[string, str
   });
   return [tokenId, invalida];
 }
+
+/** O proxy que a cena `sem-sinal` sobe na frente do `/stream`. */
+let proxy: ProxyDeCaos | undefined;
 
 const TELAS: Tela[] = [
   {
@@ -544,9 +549,62 @@ const TELAS: Tela[] = [
       return [page.locator('app-connection-band .countdown')];
     },
   },
+  {
+    // O `/stream` aberto para de receber sem fechar. A tela só o dá por mudo depois de dois heartbeats e a folga
+    // (35 s), e a faixa entra 5 s depois: o relógio do navegador é adiantado no lugar das duas esperas.
+    nome: 'sem-sinal',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create();
+      await tokens.send(tokenId, { path: '/pedidos', data: '{"id":42}' });
+      await seedStorage(page, { hideTutorial: 'true' });
+      // Só o `/stream` passa pelo proxy: a página segue na origem do app, como nas outras cenas.
+      proxy = await ProxyDeCaos.subir(test.info().project.use.baseURL ?? '');
+      const { url } = proxy;
+      await page.route(/\/token\/[^/]+\/stream$/, (rota) =>
+        rota.continue({ url: url + new URL(rota.request().url()).pathname }),
+      );
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
+      await expect(page.locator('app-live-status')).toContainText('Live');
+      expect(proxy.congelar(tokenId)).toBe(1);
+      await page.clock.fastForward(36_000);
+      await expect(page.locator('app-live-status')).toContainText('No signal');
+      await page.clock.fastForward(6_000);
+      await expect(page.getByRole('group', { name: 'Connection' })).toContainText(
+        'The list may be incomplete.',
+      );
+      return [page.locator('app-connection-band .countdown')];
+    },
+  },
+  {
+    // Estado de passagem: a busca fica sem resposta, e a tela para no começo da leitura da janela.
+    nome: 'janela-em-leitura',
+    temas: ['light'],
+    semMascaraDeTexto: true,
+    async abrir(page, tokens) {
+      const tokenId = await tokens.create();
+      await tokens.sendMany(tokenId, 60);
+      await seedStorage(page, { hideTutorial: 'true' });
+      await page.goto(`/#/${tokenId}`);
+      await expect(page.getByRole('heading', { name: 'Requests (60)' })).toBeVisible();
+      await page.route(/\/token\/[^/]+\/requests\/search$/, () => undefined);
+      await page.goto(`/#/${tokenId}?methods=POST&window=50`);
+      await expect(page.getByText('Looking in the newest 50 requests · 0 of 50')).toBeVisible();
+      // O esqueleto entra um instante depois da frase.
+      await expect(page.locator('app-skeleton-list')).toBeVisible();
+      return [];
+    },
+  },
 ];
 
 test.use({ axeNoFim: false });
+
+test.afterEach(async () => {
+  await proxy?.encerrar();
+  proxy = undefined;
+});
 
 async function abrirEFotografar(
   tela: Tela,
