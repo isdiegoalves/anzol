@@ -76,6 +76,10 @@ h3 {
   min-height: 40px;
   font: var(--mat-sys-body-large);
   cursor: pointer;
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 input {

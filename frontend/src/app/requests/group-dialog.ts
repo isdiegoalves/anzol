@@ -123,6 +123,10 @@ export type GroupChoice = EventKey | typeof NO_GROUPING;
         min-width: 0;
         overflow-wrap: anywhere;
       }
+
+      @media (pointer: coarse) {
+        min-height: 44px;
+      }
     }
 
     input[type='radio'] {
@@ -144,6 +148,10 @@ export type GroupChoice = EventKey | typeof NO_GROUPING;
       color: var(--mat-sys-on-surface);
       font: var(--mat-sys-body-large);
       font-family: var(--app-code-family);
+
+      @media (pointer: coarse) {
+        height: 44px;
+      }
     }
 
     .error {

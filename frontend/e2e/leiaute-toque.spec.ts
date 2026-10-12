@@ -12,11 +12,24 @@ import {
   verResultado,
 } from './support/patamar';
 import { abrirRegras, gravarRegras, novaRegra, parte } from './support/regras';
+import { acaoDoShell } from './support/shell';
 import { seedStorage } from './support/storage';
 
 /** Dos alvos à vista, os que têm menos de 44 px num dos lados, como `"nome" L×A`. Exige ao menos um alvo. */
 async function menoresQue44(alvos: Locator): Promise<string[]> {
   await expect(alvos.first()).toBeVisible();
+  // O diálogo do Material abre crescendo: a medida espera ele chegar ao tamanho.
+  await alvos
+    .page()
+    .waitForFunction(() =>
+      document
+        .getAnimations()
+        .every(
+          (animacao) =>
+            animacao.playState !== 'running' ||
+            animacao.effect?.getTiming().iterations === Infinity,
+        ),
+    );
   return alvos.evaluateAll((elementos) =>
     elementos
       .filter((el) => el.getClientRects().length > 0)
@@ -161,6 +174,35 @@ test.describe('Dado um celular com toque', () => {
 
     await expect(campos.filter({ hasText: 'x-tenant' })).toBeVisible();
     expect(await menoresQue44(campos)).toEqual([]);
+  });
+
+  test('deve dar 44 px às opções da folha "Settings"', async ({ page, tokens }) => {
+    await page.goto(`/#/${await tokens.create()}/checks`);
+    await (await acaoDoShell(page, 'Settings')).click();
+    const folha = page.getByRole('dialog', { name: 'Settings' });
+
+    expect(await menoresQue44(folha.locator('label'))).toEqual([]);
+  });
+
+  test('deve dar 44 px às opções e ao campo do diálogo "Group by event"', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/pedidos' });
+    await seedStorage(page, { hideTutorial: 'true' });
+    await page.goto(`/#/${tokenId}`);
+    await abrirFiltros(page);
+    await page.getByRole('button', { name: 'Group by event…' }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Group by event' });
+
+    expect.soft(await menoresQue44(dialogo.locator('label')), 'opções').toEqual([]);
+    expect
+      .soft(
+        await menoresQue44(dialogo.getByRole('textbox', { name: 'Header name or JSONPath' })),
+        'campo',
+      )
+      .toEqual([]);
   });
 
   test('deve dar 44 px aos alternadores de algoritmo e de codificação em Verificações', async ({
