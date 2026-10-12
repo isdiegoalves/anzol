@@ -78,16 +78,18 @@
             {{ previous.label }}
           </button>
         }
-        <button
-          mat-menu-item
-          type="button"
-          disabledInteractive
-          [disabled]="gone()"
-          [attr.aria-describedby]="goneReason()"
-          (click)="shareRequest()"
-        >
-          <ng-container i18n>Share read-only link&hellip;</ng-container>
-        </button>
+        @if (gone()) {
+          <button
+            mat-menu-item
+            type="button"
+            disabledInteractive
+            [disabled]="gone()"
+            [attr.aria-describedby]="goneReason()"
+            (click)="shareRequest()"
+          >
+            <ng-container i18n>Share read-only link&hellip;</ng-container>
+          </button>
+        }
         <button
           mat-menu-item
           type="button"
@@ -253,44 +255,46 @@
         </button>
       }
     </div>
-    @if (!compact()) {
+    @if (!(compact() && gone())) {
       <div class="group">
         <button
           mat-button
           type="button"
           aria-label="Share read-only link…"
           i18n-aria-label
-          [class.icon-only]="tight()"
+          [class.icon-only]="tight() && !compact()"
           disabledInteractive
           [disabled]="gone()"
           [attr.aria-describedby]="goneReason()"
           (click)="shareRequest()"
         >
           <app-icon name="link" [size]="18" />
-          @if (!tight()) {
+          @if (compact() || !tight()) {
             <ng-container i18n>Share</ng-container>
           }
         </button>
-        <button
-          mat-button
-          type="button"
-          aria-keyshortcuts="E"
-          title="Ask the local model why signature, schema and rules gave this result (E)"
-          i18n-title
-          disabledInteractive
-          [disabled]="explainOff()"
-          [class.icon-only]="tight()"
-          [attr.aria-label]="tight() ? explainName : null"
-          [attr.aria-describedby]="explainReason()"
-          (click)="openExplain($event)"
-        >
-          <app-icon name="info" [size]="18" />
-          @if (!tight()) {
-            <ng-container [ngTemplateOutlet]="explainLabel" />
+        @if (!compact()) {
+          <button
+            mat-button
+            type="button"
+            aria-keyshortcuts="E"
+            title="Ask the local model why signature, schema and rules gave this result (E)"
+            i18n-title
+            disabledInteractive
+            [disabled]="explainOff()"
+            [class.icon-only]="tight()"
+            [attr.aria-label]="tight() ? explainName : null"
+            [attr.aria-describedby]="explainReason()"
+            (click)="openExplain($event)"
+          >
+            <app-icon name="info" [size]="18" />
+            @if (!tight()) {
+              <ng-container [ngTemplateOutlet]="explainLabel" />
+            }
+          </button>
+          @if (ai.disabled()) {
+            <span class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</span>
           }
-        </button>
-        @if (ai.disabled()) {
-          <span class="ai-off" [id]="aiReasonId">{{ aiOffHint }}</span>
         }
       </div>
     }

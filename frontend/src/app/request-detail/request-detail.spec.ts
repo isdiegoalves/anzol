@@ -140,10 +140,13 @@ describe('Dado a requisição aberta que sumiu do servidor', () => {
     expect(
       within(toolbar()).getByRole('button', { name: 'Create rule from this request' }),
     ).toBeTruthy();
+    expect(within(toolbar()).queryByRole('button', { name: 'Share read-only link…' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'More' }));
-    const replay = await screen.findByRole('menuitem', { name: 'Replay…' });
-    expect(replay.getAttribute('aria-disabled')).toBe('true');
-    expect(described(replay)).toBe(REASON);
+    for (const name of ['Replay…', 'Share read-only link…']) {
+      const item = await screen.findByRole('menuitem', { name });
+      expect([name, item.getAttribute('aria-disabled')]).toEqual([name, 'true']);
+      expect(described(item)).toBe(REASON);
+    }
   });
 
   it('deve religar as ações e anunciar "Request restored." Quando o apagar é desfeito', async () => {
@@ -278,8 +281,8 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
     ]);
   });
 
-  // INBOX-33 (trava 5): no celular, as ações principais numa linha e as demais no ⋮ "More".
-  it('deve deixar Replay, Create rule e Copy na barra e levar o resto ao menu "More" Quando a janela é compacta', async () => {
+  // INBOX-33 (trava 5): no celular, as ações principais na barra e as demais no ⋮ "More".
+  it('deve deixar Replay, Create rule, Copy e Share na barra e levar o resto ao menu "More" Quando a janela é compacta', async () => {
     windowClass.set('compact');
     const request = webhookRequest(1, { content: '{"a":1}' });
     const { container, loader, fixture } = await show(request);
@@ -288,12 +291,12 @@ describe('Dado o detalhe de uma mensagem com as ações', () => {
       within(toolbar())
         .getAllByRole('button')
         .map((button) => button.textContent?.trim()),
-    ).toEqual(['Replay…', 'Create rule', 'Copy payload']);
+    ).toEqual(['Replay…', 'Create rule', 'Copy payload', 'Share']);
+    expect(action('Share read-only link…')).toBeTruthy();
     const more = await loader.getHarness(MatMenuHarness.with({ triggerText: '' }));
     await more.open();
     expect(await Promise.all((await more.getItems()).map((item) => item.getText()))).toEqual([
       'Compare with…',
-      'Share read-only link…',
       'Explain',
       'Send as new…',
       'Create schema from this request',
@@ -681,14 +684,14 @@ describe('Dado a requisição de um evento agrupado', () => {
     attempt(2, '2026-09-26 00:40:05'),
   ];
 
-  it('deve trocar o "Compare with…" da barra pela tentativa anterior, e levar o outro ao "More"', async () => {
+  const showSecond = async (size: WindowClass) => {
     const view = await render(RequestDetail, {
       inputs: { request: segunda, token: token(), page: 1 },
       providers: [
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: Viewport, useValue: { windowClass: signal<WindowClass>('large') } },
+        { provide: Viewport, useValue: { windowClass: signal<WindowClass>(size) } },
       ],
       configureTestBed: async (testBed) => {
         const store = testBed.inject(RequestStore);
@@ -702,7 +705,23 @@ describe('Dado a requisição de um evento agrupado', () => {
       },
     });
     await view.fixture.whenStable();
-    const toolbar = screen.getByRole('toolbar', { name: 'Request actions' });
+    return screen.getByRole('toolbar', { name: 'Request actions' });
+  };
+
+  afterEach(() => localStorage.clear());
+
+  it('deve manter o rótulo do "Share" na barra do celular, que não tem a tentativa anterior', async () => {
+    const toolbar = await showSecond('compact');
+
+    expect(
+      within(toolbar)
+        .getAllByRole('button')
+        .map((button) => button.textContent?.trim()),
+    ).toEqual(['Replay…', 'Create rule', 'Copy payload', 'Share']);
+  });
+
+  it('deve trocar o "Compare with…" da barra pela tentativa anterior, e levar o outro ao "More"', async () => {
+    const toolbar = await showSecond('large');
 
     expect(
       within(toolbar)
@@ -718,6 +737,5 @@ describe('Dado a requisição de um evento agrupado', () => {
     ]);
     await userEvent.click(screen.getByRole('button', { name: 'More' }));
     expect(await screen.findByRole('menuitem', { name: 'Compare with…' })).toBeTruthy();
-    localStorage.clear();
   });
 });

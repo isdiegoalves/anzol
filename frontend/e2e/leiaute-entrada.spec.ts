@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { compacto } from './support/shell';
+import { compacto, rolaNaHorizontal } from './support/shell';
 import { seedStorage } from './support/storage';
 
 interface Caixa {
@@ -222,6 +222,71 @@ test.describe('Dado o celular', () => {
     expect(cartao.height, 'o cartão da URL').toBeLessThanOrEqual(120);
     expect(await inteirosNaTela(page)).toBeGreaterThanOrEqual(5);
   });
+});
+
+test.describe('Dado a barra de ações do detalhe no celular', () => {
+  const TEXTOS = {
+    en: { nome: 'Share read-only link…', rotulo: 'Share', noMenu: /^Share read-only link/ },
+    'pt-BR': {
+      nome: 'Compartilhar link só-leitura…',
+      rotulo: 'Compartilhar',
+      noMenu: /^Compartilhar link/,
+    },
+  } as const;
+
+  for (const largura of [360, 375, 390]) {
+    for (const idioma of ['en', 'pt-BR'] as const) {
+      test(`deve ter o "Share" na barra, fora do "More", com 44 px de alvo e os rótulos inteiros, a ${largura} px em ${idioma}`, async ({
+        page,
+        tokens,
+      }) => {
+        test.skip(!compacto(page), 'só no celular');
+        const textos = TEXTOS[idioma];
+        await page.setViewportSize({ width: largura, height: 844 });
+        const tokenId = await tokens.create();
+        const requestId = await tokens.send(tokenId, {
+          path: '/pedidos',
+          headers: { 'Content-Type': 'application/json' },
+          data: '{"id":1}',
+        });
+        await seedStorage(page, {
+          hideTutorial: 'true',
+          ...(idioma === 'pt-BR' && { language: '"pt-BR"' }),
+        });
+        await page.goto(`/#/${tokenId}/${requestId}/1`);
+        const detalhe = page.locator('app-request-detail');
+        const barra = detalhe.locator('.actions');
+        const share = barra.getByRole('button', { name: textos.nome, exact: true });
+
+        await expect(share).toBeVisible();
+        await expect(share).toHaveText(textos.rotulo);
+        await expect(barra.getByRole('button')).toHaveCount(4);
+        const alvo = (await share.locator('.mat-mdc-button-touch-target').boundingBox())!;
+        expect(
+          Math.min(alvo.width, alvo.height),
+          'o alvo de toque do Share',
+        ).toBeGreaterThanOrEqual(44);
+        const quebrados = await barra.getByRole('button').evaluateAll((botoes) =>
+          botoes.flatMap((botao) => {
+            const rotulo = botao.querySelector('.mdc-button__label');
+            const [fora, dentro] = [botao.getBoundingClientRect(), rotulo?.getBoundingClientRect()];
+            const inteiro =
+              dentro &&
+              dentro.height < 30 &&
+              dentro.left >= fora.left - 0.5 &&
+              dentro.right <= fora.right + 0.5;
+            return inteiro ? [] : [`"${botao.textContent?.trim()}"`];
+          }),
+        );
+        expect(quebrados, 'rótulo em duas linhas ou saindo do botão').toEqual([]);
+        expect(await rolaNaHorizontal(page), 'a página não rola de lado').toBe(false);
+
+        await detalhe.locator('.nav').getByRole('button').last().click();
+        await expect(page.getByRole('menuitem').first()).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: textos.noMenu })).toHaveCount(0);
+      });
+    }
+  }
 });
 
 test.describe('Dado a linha de um evento com muitas tentativas', () => {

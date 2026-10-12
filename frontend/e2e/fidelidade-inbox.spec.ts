@@ -481,7 +481,7 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     expect(alturas.size, 'chips na mesma linha').toBe(1);
   });
 
-  test('deve abrir o detalhe com Back no topo, ações numa linha e o resto no menu, sem o cartão da URL', async ({
+  test('deve abrir o detalhe com Back no topo, as ações em duas linhas e o resto no menu, sem o cartão da URL', async ({
     page,
     tokens,
   }) => {
@@ -498,22 +498,34 @@ test.describe('Dado o celular a 390×844 (INBOX-29/30/31/33)', () => {
     expect((await voltar.boundingBox())!.y, 'Back no topo').toBeLessThan(80);
     await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toBeHidden();
     const barra = acoes(page);
-    expect((await barra.boundingBox())!.height, 'ações numa linha').toBeLessThanOrEqual(64);
-    for (const nome of [/^Replay/, 'Create rule from this request', 'Copy payload']) {
-      await expect(barra.getByRole('button', { name: nome })).toBeVisible();
+    const topos: number[] = [];
+    for (const nome of [
+      /^Replay/,
+      'Create rule from this request',
+      'Copy payload',
+      'Share read-only link…',
+    ]) {
+      const botao = barra.getByRole('button', { name: nome });
+      await expect(botao).toBeVisible();
+      topos.push(Math.round((await botao.boundingBox())!.y));
     }
+    expect(new Set(topos.slice(0, 3)).size, 'Replay, Create rule e Copy payload numa linha').toBe(
+      1,
+    );
+    expect(topos[3], 'o Share na linha de baixo').toBeGreaterThan(topos[0]);
+    expect((await barra.boundingBox())!.height, 'duas linhas').toBeLessThanOrEqual(108);
     await page.getByRole('button', { name: 'More', exact: true }).click();
     for (const nome of [
       /^Send as new/,
       /^Compare with/,
       'Create schema from this request',
-      /^Share read-only link/,
       'Explain',
       'Permalink',
       'Raw content',
     ]) {
       await expect(page.getByRole('menuitem', { name: nome })).toBeVisible();
     }
+    await expect(page.getByRole('menuitem', { name: /^Share read-only link/ })).toHaveCount(0);
   });
 
   test('deve mostrar o contador de não lidas na barra inferior', async ({ page, tokens }) => {

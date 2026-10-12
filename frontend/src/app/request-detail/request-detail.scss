@@ -66,13 +66,9 @@
   font: var(--mat-sys-body-small);
 }
 
-// Celular (INBOX-33, trava 5): Replay, Create rule e Copy payload numa linha, sem os ícones para
-// caberem a 390 px; o resto está no "More".
+// Celular (INBOX-33, trava 5): Replay, Create rule e Copy payload sem os ícones, para caberem numa
+// linha a 390 px; o Share desce para a segunda, e o resto está no "More".
 @media (width < 600px) {
-  .actions {
-    flex-wrap: nowrap;
-  }
-
   .actions app-icon {
     display: none;
   }

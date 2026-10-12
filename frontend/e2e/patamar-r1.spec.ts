@@ -126,7 +126,7 @@ test.describe('Dado a barra de ações do detalhe', () => {
     });
   }
 
-  test('deve mostrar "Replay…", "Create rule", "Copy payload" e o More na barra do celular', async ({
+  test('deve mostrar "Replay…", "Create rule", "Copy payload", "Share" e o More na barra do celular', async ({
     page,
     tokens,
   }) => {
@@ -141,7 +141,8 @@ test.describe('Dado a barra de ações do detalhe', () => {
       acoes(page).getByRole('button', { name: 'Create rule from this request' }),
     ).toBeVisible();
     await expect(acoes(page).getByRole('button', { name: 'Copy payload' })).toBeVisible();
-    await expect(acoes(page).getByRole('button')).toHaveCount(3);
+    await expect(acoes(page).getByRole('button', { name: 'Share read-only link…' })).toBeVisible();
+    await expect(acoes(page).getByRole('button')).toHaveCount(4);
     await detalhe(page)
       .getByRole('button', { name: /^More(:|$)/ })
       .click();
