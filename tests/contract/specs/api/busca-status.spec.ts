@@ -13,8 +13,6 @@ import { erros422, salvarRegras, type RegraSalva } from '../../support/regras.js
 // Formato antigo: mensagem gravada antes de `response` não casa nenhum item e não derruba a busca. O contrato não
 // escreve no Redis, então essa leitura fica com os testes do backend (como em `regras-resposta-gravada.spec.ts`).
 
-type Pedido = PedidoDeBusca & { answered?: unknown };
-
 const FORMA_LARAVEL = /^[A-Z].*\.$/s;
 const TODAS_AS_FAMILIAS = ['1xx', '2xx', '3xx', '4xx', '5xx'];
 
@@ -65,8 +63,8 @@ async function montar(request: APIRequestContext, t: string): Promise<Cenario> {
   return { criado, ok, criada, ausente, limite, erro, fora, derrubada };
 }
 
-async function expectBusca(request: APIRequestContext, t: string, pedido: Pedido, esperadas: Mensagem[]): Promise<void> {
-  const completo: Pedido = { sorting: 'oldest', ...pedido };
+async function expectBusca(request: APIRequestContext, t: string, pedido: PedidoDeBusca, esperadas: Mensagem[]): Promise<void> {
+  const completo: PedidoDeBusca = { sorting: 'oldest', ...pedido };
   const pagina = await buscar(request, t, completo);
   const descricao = JSON.stringify(pedido);
   expect(pagina.data.map((m) => m.uuid), descricao).toEqual(esperadas.map((m) => m.uuid));
@@ -130,7 +128,7 @@ test.describe('Busca pelo status respondido', () => {
     const oldest = [c.ausente, c.limite, c.erro, c.fora];
     for (const [sorting, ordem] of [['oldest', oldest], ['newest', [...oldest].reverse()]] as const) {
       for (let page = 1; page <= 5; page++) {
-        const pedido: Pedido = { answered: ['4xx', '5xx'], sorting, page, per_page: 1 };
+        const pedido: PedidoDeBusca = { answered: ['4xx', '5xx'], sorting, page, per_page: 1 };
         const { data, ...meta } = await buscar(request, t, pedido);
         expect(meta, `${sorting} página ${page}`).toEqual(metaEsperada(4, page, 1));
         expect(data.map((m) => m.uuid), `${sorting} página ${page}`).toEqual(ordem.slice(page - 1, page).map((m) => m.uuid));
@@ -143,10 +141,10 @@ test.describe('Busca pelo status respondido', () => {
     const c = await montar(request, t);
     const todas = [c.ok, c.criada, c.ausente, c.limite, c.erro, c.fora, c.derrubada];
     const listagem = await listar(request, t, 'sorting=oldest');
-    for (const pedido of [{}, { answered: null }, { answered: [] }] as Pedido[]) {
+    for (const pedido of [{}, { answered: null }, { answered: [] }] as PedidoDeBusca[]) {
       await expectBusca(request, t, pedido, todas);
       await expectBusca(request, t, { ...pedido, match: { method: ['POST'] } }, [c.criada, c.erro, c.derrubada]);
-      const completo: Pedido = { sorting: 'oldest', ...pedido };
+      const completo: PedidoDeBusca = { sorting: 'oldest', ...pedido };
       expect(await buscar(request, t, completo), JSON.stringify(pedido)).toEqual(listagem);
     }
   });

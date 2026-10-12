@@ -1,5 +1,6 @@
 import { enviarEGuardar, expect, type Listagem } from '../../support/contrato.js';
 import { assinaturaGithub } from '../../support/assinatura.js';
+import type { PedidoDeBusca } from '../../support/busca.js';
 import { MODO_MCP } from '../../support/ia.js';
 import { test, type Mcp } from '../../support/mcp.js';
 import { salvarRegras } from '../../support/regras.js';
@@ -17,7 +18,7 @@ function filtrosDeclarados(mcp: Mcp): string[] {
 }
 
 /** Os uuids que o `search_requests` devolve com o filtro, da mais antiga para a mais nova. */
-async function achadas(mcp: Mcp, tokenId: string, filtro: Record<string, unknown>): Promise<string[]> {
+async function achadas(mcp: Mcp, tokenId: string, filtro: PedidoDeBusca): Promise<string[]> {
   const pagina = await mcp.chamarOk<Listagem>('search_requests', { sorting: 'oldest', ...filtro }, tokenId);
   return pagina.data.map((m) => m.uuid);
 }

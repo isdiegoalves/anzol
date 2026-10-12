@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PedidoDeBusca } from '../../support/busca.js';
 import { BASE_URL } from '../../support/contrato.js';
 import { cifrar, envelope, parEc, politica, selar, type ResultadoDecifra } from '../../support/e2ee.js';
 import { MODO_MCP } from '../../support/ia.js';
@@ -66,13 +67,13 @@ async function montar(urls: { proteger(d?: Record<string, unknown>): Promise<Url
   return { url, valida, desconhecida, emClaro1, emClaro2, semAtributo, forjada };
 }
 
-async function buscar(url: UrlProtegida, corpo: Record<string, unknown>): Promise<Pagina> {
+async function buscar(url: UrlProtegida, corpo: PedidoDeBusca): Promise<Pagina> {
   const res = await http('POST', `/token/${url.uuid}/requests/search`, { headers: comSegredo(url.segredo), corpo });
   expect(res.status, `${JSON.stringify(corpo)}: ${res.texto.slice(0, 300)}`).toBe(200);
   return res.json<Pagina>();
 }
 
-async function expectBusca(url: UrlProtegida, corpo: Record<string, unknown>, esperadas: Mensagem[]): Promise<void> {
+async function expectBusca(url: UrlProtegida, corpo: PedidoDeBusca, esperadas: Mensagem[]): Promise<void> {
   const pagina = await buscar(url, { sorting: 'oldest', ...corpo });
   const descricao = JSON.stringify(corpo);
   expect(pagina.data.map((m) => m.uuid), descricao).toEqual(esperadas.map((m) => m.uuid));

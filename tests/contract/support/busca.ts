@@ -25,6 +25,13 @@ export interface PedidoDeBusca {
   signature_reason?: string | null;
   /** Decisões do Anzol, M1: o `path` (JSON Pointer; `""` = raiz) de um erro do schema, como em `/stats` `schema.paths[].path`. */
   schema_path?: string | null;
+  /** O `decryption.reason` da decifra inválida, exato (o mesmo texto de `/stats` `decryption.reasons[].reason`). */
+  decryption_reason?: string | null;
+  /**
+   * Famílias (`"1xx"` a `"5xx"`) e status exatos (`"404"`) do `response.status`, sempre como texto; os itens combinam
+   * em OU. `null` ou lista vazia = sem filtro.
+   */
+  answered?: string[] | null;
   sorting?: 'newest' | 'oldest';
   page?: number;
   per_page?: number;
