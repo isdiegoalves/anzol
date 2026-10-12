@@ -45,7 +45,7 @@ function github(secret: string, body: string) {
 
 /**
  * O que muda entre execuções em toda tela: a URL da webhook no cabeçalho e todo texto com UUID (inteiro ou o `#` dos
- * 5 primeiros), data, hora, IP ou o host com a porta do stack.
+ * 5 primeiros), data, hora, IP ou host. As expressões casam o valor fixo que `fixarVolateis` deixa no lugar.
  */
 const VOLATEIS = [
   /[0-9a-f]{8}-[0-9a-f]{4}-/,
@@ -53,7 +53,7 @@ const VOLATEIS = [
   /\b[A-Z][a-z]{2} \d{1,2}, \d{4}\b/,
   /\b\d{1,2}:\d{2}\b/,
   /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/,
-  /host\.docker\.internal|localhost:\d+/,
+  /anzol\.test/,
 ];
 
 function mascarasComuns(page: Page): Locator[] {
@@ -72,30 +72,23 @@ function mascarasDaLista(page: Page): Locator[] {
 /** CSS só das fotos (a altura fixa dos metadados no compacto); ver o arquivo. */
 const ESTILO_DAS_FOTOS = path.join(__dirname, 'support', 'visual-fotos.css');
 
-/**
- * A folga de 0,2% da tela cobre a máscara que muda de tamanho com o texto embaixo dela, e deixa passar a cor de um
- * título (a 1400 × 900 são 2.520 pixels). A cena `exata`, com os valores fixos, não tem o que varie: a folga dela é
- * de pixels contados.
- */
 async function fotografar(
   page: Page,
   nome: string,
   mascaras: Locator[],
   alvo: Locator | undefined,
-  exata: boolean,
 ): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
   await expect(alvo ?? page).toHaveScreenshot(`${nome}.png`, {
     mask: mascaras,
-    ...(exata ? { maxDiffPixels: 30 } : { maxDiffPixelRatio: 0.002 }),
+    maxDiffPixels: 30,
     stylePath: ESTILO_DAS_FOTOS,
   });
 }
 
 /**
- * Troca na página cada id, data, hora, IP, seq e host por um valor fixo do mesmo formato. A máscara por texto cobre o
- * elemento inteiro em volta (a frase da faixa, a linha da data); assim só o que muda sai de cena, e o resto do
- * texto fica na foto.
+ * Troca na página cada id, data, hora, IP, seq e host por um valor fixo do mesmo formato: o texto, e a máscara em
+ * volta dele, têm o mesmo tamanho em toda execução.
  */
 async function fixarVolateis(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -138,7 +131,7 @@ interface Tela {
   classes?: readonly (typeof CLASSES)[number]['nome'][];
   /** Só nestes temas (padrão: os dois). */
   temas?: readonly (typeof TEMAS)[number][];
-  /** Os ids, datas e horas trocados por valores fixos (`fixarVolateis`), sem a máscara por texto. */
+  /** Sem a máscara por texto: os valores fixos de `fixarVolateis` ficam na foto. */
   semMascaraDeTexto?: boolean;
   abrir(page: Page, tokens: TokenTracker, context: BrowserContext): Promise<Locator[]>;
   /** Só este elemento, inteiro, em vez da tela à vista. */
@@ -567,15 +560,12 @@ async function abrirEFotografar(
 ): Promise<void> {
   await page.clock.setFixedTime(relogio());
   const mascaras = await tela.abrir(page, tokens, context);
-  if (tela.semMascaraDeTexto) {
-    await fixarVolateis(page);
-  }
+  await fixarVolateis(page);
   await fotografar(
     page,
     `${tela.nome}-${variante}`,
     tela.semMascaraDeTexto ? mascaras : [...mascarasComuns(page), ...mascaras],
     tela.alvo?.(page),
-    tela.semMascaraDeTexto === true,
   );
 }
 
