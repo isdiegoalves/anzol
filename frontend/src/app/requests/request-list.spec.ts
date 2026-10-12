@@ -15,6 +15,7 @@ import { NO_FILTER } from '../search/request-filter';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { TokenStore } from '../token/token-store';
 import { UNDO_MS } from './pending-delete';
 import {
   ITEM_HEIGHT,
@@ -416,6 +417,21 @@ describe('Dado a lista lateral de mensagens', () => {
       );
       await fixture.whenStable();
     };
+
+    it('não deve medir a espera pelo Retry-After da URL anterior Quando a leitura de outra URL ainda não voltou', async () => {
+      const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+      const reading = TestBed.inject(TokenStore).load(outra);
+      await grouped();
+      const eventA = () => events()[1].getAttribute('aria-label');
+
+      expect(eventA()).toMatch(/^Event evt_a, /);
+      expect(eventA()).not.toContain('came before the asked wait');
+
+      http.expectOne(`/token/${outra}`).flush(token({ uuid: outra, retry_after: '3' }));
+      await reading;
+      await fixture.whenStable();
+      expect(eventA()).toContain('1 attempt came before the asked wait');
+    });
 
     it('deve mostrar o evento no lugar das tentativas, com a trilha e sem selo de julgamento', async () => {
       await grouped();
@@ -1021,6 +1037,27 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().querySelector('h2')?.textContent?.trim()).toBe('Requests (12)');
     expect(element().querySelector('h2')?.hasAttribute('title')).toBe(false);
+  });
+
+  it('não deve mostrar o limite da limpeza da URL anterior Quando a lista da URL nova chega antes da leitura dela', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    TestBed.inject(Preferences).token.set(token({ auto_cleanup: 500 }));
+    const reading = TestBed.inject(TokenStore).load(outra);
+    const loaded = store.load(outra);
+    http
+      .expectOne(`/token/${outra}/requests?page=1&sorting=newest`)
+      .flush(requestPage([webhookRequest(1, { token_id: outra })], { total: 12 }));
+    await loaded;
+    await fixture.whenStable();
+    const header = () => element().querySelector('h2');
+
+    expect(header()?.textContent?.trim()).toBe('Requests (12)');
+    expect(header()?.hasAttribute('title')).toBe(false);
+
+    http.expectOne(`/token/${outra}`).flush(token({ uuid: outra, auto_cleanup: 1000 }));
+    await reading;
+    await fixture.whenStable();
+    expect(header()?.textContent?.trim()).toBe('Requests (12 / 1000)');
   });
 
   it('deve desenhar só as linhas visíveis Quando a lista tem 10.000 mensagens', async () => {

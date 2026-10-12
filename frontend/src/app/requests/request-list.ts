@@ -229,7 +229,7 @@ export class RequestList {
     $localize`Delete this request: ${item.request.method}:method: ${item.route}:route:`;
 
   /** Limite da limpeza automática da URL aberta, mostrado ao lado do total. */
-  protected readonly limit = computed(() => this.tokens.token()?.auto_cleanup ?? null);
+  protected readonly limit = computed(() => this.tokens.shown()?.auto_cleanup ?? null);
   protected readonly cleanupHint = computed(() => {
     const limit = this.limit();
     return limit ? $localize`Auto cleanup keeps the ${limit}:limit: most recent requests` : null;

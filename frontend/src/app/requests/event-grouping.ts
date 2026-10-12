@@ -217,7 +217,7 @@ export class EventGrouping {
       const name = Object.keys(headers ?? {}).find((key) => key.toLowerCase() === 'retry-after');
       return name === undefined ? null : headers?.[name];
     }
-    return this.tokens.token()?.retry_after ?? null;
+    return this.tokens.shown()?.retry_after ?? null;
   };
 
   private async loadRules(tokenId: string): Promise<void> {

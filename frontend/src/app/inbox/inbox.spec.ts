@@ -1184,6 +1184,28 @@ describe('Dado a tela principal', () => {
       ]);
     });
 
+    it('não deve levar às páginas da URL anterior Quando outra URL está chegando', async () => {
+      const { root } = await arrive();
+      await vi.waitFor(() => expect(strip(root)?.querySelectorAll('a')).toHaveLength(3));
+
+      const reading = TestBed.inject(TokenStore).load(NOVO_TOKEN);
+      await harness.fixture.whenStable();
+
+      expect(strip(root)?.querySelectorAll('a')).toHaveLength(0);
+      expect(strip(root)?.textContent).toContain('Dismiss');
+
+      http.expectOne(`/token/${NOVO_TOKEN}`).flush(token({ uuid: NOVO_TOKEN }));
+      await reading;
+      await harness.fixture.whenStable();
+      expect(
+        [...(strip(root)?.querySelectorAll('a') ?? [])].map((link) => link.getAttribute('href')),
+      ).toEqual([
+        `/${NOVO_TOKEN}/checks?section=signature`,
+        `/${NOVO_TOKEN}/rules/new`,
+        `/${NOVO_TOKEN}?guide=retry`,
+      ]);
+    });
+
     it('deve somar a que chega logo depois da primeira, sem dizer a primeira de novo', async () => {
       await harness.navigateByUrl(`/${TOKEN_ID}`);
       await flush(`/token/${TOKEN_ID}`, token());
