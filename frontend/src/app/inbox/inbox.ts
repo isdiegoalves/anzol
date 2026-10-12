@@ -672,6 +672,12 @@ export class Inbox {
       await this.openSavedOrNewToken();
       return;
     }
+    // A escolha da tela vale enquanto a rota fica nela: quem volta a essa requisição depois (um link, o voltar do
+    // navegador) pediu para vê-la, e ela vem para a frente e conta como lida.
+    if (requestId !== this.chosenByScreen) {
+      this.chosenByScreen = null;
+      this.keepUnread = null;
+    }
     // Voltando à Inbox sem mensagem na rota (o rail, a marca): a que estava aberta nesta URL.
     const previous =
       requestId === undefined && this.requests.tokenId() === tokenId

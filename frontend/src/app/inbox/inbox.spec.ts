@@ -986,6 +986,32 @@ describe('Dado a tela principal', () => {
     );
   });
 
+  it('deve trazer o detalhe à frente no celular, e contá-la como lida, Quando o endereço volta à requisição que a tela tinha escolhido', async () => {
+    windowClass.set('compact');
+    const preferences = TestBed.inject(Preferences);
+    preferences.unread.set({ [TOKEN_ID]: [R1.uuid, R2.uuid] });
+    await openToken(`/${TOKEN_ID}`);
+    const root = harness.routeNativeElement as HTMLElement;
+    const front = (tag: string, when: string) =>
+      vi.waitFor(async () => {
+        await harness.fixture.whenStable();
+        expect(root.querySelector(tag), when).not.toBeNull();
+      });
+    await front('app-request-list', 'ao abrir a URL');
+    // A tela abriu a primeira sozinha, com a lista à frente.
+    await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R2.uuid}/1`);
+    await front('app-request-detail', 'com o endereço na outra requisição');
+    root.querySelector<HTMLButtonElement>('button[aria-label="Back to requests"]')?.click();
+    await front('app-request-list', 'depois do "Back to requests"');
+
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R1.uuid}/1`);
+    await front('app-request-detail', 'com o endereço de volta na que a tela tinha escolhido');
+    expect(text()).toContain(R1.uuid);
+    expect(preferences.unread(), 'as duas foram vistas no detalhe').toEqual({});
+  });
+
   it('deve mostrar a lista com a primeira mensagem Quando ela chega numa URL vazia na janela estreita (E11)', async () => {
     windowClass.set('compact');
     await harness.navigateByUrl(`/${TOKEN_ID}`);

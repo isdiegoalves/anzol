@@ -1349,6 +1349,42 @@ test.describe('Dado o título da aba e os marcos de cada destino', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('Inbox');
   });
 
+  test('deve trazer o detalhe à frente no celular Quando o endereço volta à requisição que a tela tinha aberto sozinha', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(!compacto(page), 'um painel por vez: só no celular');
+    const tokenId = await tokens.create();
+    const antiga = await tokens.send(tokenId, { path: '/antiga' });
+    const nova = await tokens.send(tokenId, { path: '/nova' });
+    const irPeloEndereco = (requestId: string) =>
+      page.evaluate((hash) => {
+        location.hash = hash;
+      }, `#/${tokenId}/${requestId}/1`);
+    const voltarALista = async () => {
+      await page.getByRole('button', { name: 'Back to requests' }).click();
+      await expect(lista(page)).toBeVisible();
+    };
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}`);
+    // A tela abre a mais nova sozinha e deixa a lista à frente.
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
+    await expect(lista(page)).toBeVisible();
+
+    await irPeloEndereco(antiga);
+    await expect(detalhes(page)).toContainText(antiga);
+    await voltarALista();
+    await irPeloEndereco(nova);
+    await expect(detalhes(page), 'pelo endereço').toContainText(nova);
+
+    await voltarALista();
+    await page.goBack();
+    await expect(detalhes(page), 'pelo voltar do navegador').toContainText(antiga);
+    await voltarALista();
+    await page.goForward();
+    await expect(detalhes(page), 'pelo avançar do navegador').toContainText(nova);
+  });
+
   test('deve começar pelo "Skip to content", que leva o foco ao conteúdo', async ({
     page,
     tokens,
