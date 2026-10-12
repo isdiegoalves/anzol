@@ -67,7 +67,7 @@ textarea.code {
   font: 12px / 1.5 var(--app-code-family);
 
   &:focus-visible {
-    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
+    outline: var(--app-focus-width) solid var(--app-focus-color);
     outline-offset: -1px;
   }
 

@@ -56,9 +56,11 @@
   font: var(--mat-sys-title-large);
   font-size: var(--mat-sys-title-large-size);
 
+  // A linha do foco é mais grossa que a tracejada: a margem negativa devolve a diferença, e o cabeçalho não pula.
   &:focus-visible {
+    margin-bottom: calc(1px - var(--app-focus-width));
     outline: none;
-    border-bottom: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
+    border-bottom: var(--app-focus-width) solid var(--app-focus-color);
   }
 }
 

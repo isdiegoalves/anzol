@@ -38,8 +38,8 @@
   }
 
   &:focus-visible {
-    outline: calc(var(--app-focus-width) - 1px) solid var(--app-focus-color);
-    outline-offset: calc(1px - var(--app-focus-width));
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: calc(-1 * var(--app-focus-width));
   }
 
   // A escolhida em secondary-container, como a linha aberta da Inbox e de Rules (CHECKS-08); o

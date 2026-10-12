@@ -210,7 +210,7 @@
   text-underline-offset: 0.18em;
 
   &:focus-visible {
-    outline: calc(var(--app-focus-width) - 1px) solid currentcolor;
+    outline: var(--app-focus-width) solid currentcolor;
     outline-offset: 1px;
   }
 }

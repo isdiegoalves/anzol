@@ -359,6 +359,12 @@ a {
   text-underline-offset: 0.18em;
 }
 
+// Quem não tem regra própria de foco fica com o contorno da tela, no lugar do anel do navegador. O `:where` zera o
+// peso do seletor: toda regra de componente passa por cima, e o `outline: none` do Material também.
+:where(:focus-visible) {
+  outline: var(--app-focus-width) solid var(--app-focus-color);
+}
+
 // Realce do highlight.js (corpo JSON/XML do detalhe) com os tokens do tema, no lugar do tema
 // claro do pacote (`styles/github.css`), que não tinha escuro e ficava abaixo de 4,5:1 em
 // `.hljs-keyword` e `.hljs-attr`. O conteúdo entra por `innerHTML`, então as regras são globais.
