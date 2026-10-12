@@ -362,8 +362,17 @@ const TELAS: Tela[] = [
       await page.goto(`/#/${tokenId}/rules`);
       const tabela = page.getByRole('table', { name: 'Rules' });
       await expect(tabela).toContainText('Tudo o resto');
-      // O cabeçalho da página ocupa a primeira tela a 390 px: a foto começa na lista.
-      await tabela.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+      // O cabeçalho da página ocupa a primeira tela a 390 px: a foto começa na lista. Quem rola guarda uma folga
+      // no topo (para o foco não ficar atrás do cabeçalho do editor), que deixaria a lista mais abaixo.
+      await tabela.evaluate((el) => {
+        el.scrollIntoView({ block: 'start' });
+        for (let quem = el.parentElement; quem; quem = quem.parentElement) {
+          if (quem.scrollTop > 0) {
+            quem.scrollTop += Number.parseFloat(getComputedStyle(quem).scrollPaddingTop) || 0;
+            break;
+          }
+        }
+      });
       return [];
     },
   },
