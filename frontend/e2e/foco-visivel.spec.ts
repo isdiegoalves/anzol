@@ -88,4 +88,58 @@ test.describe('Dado o foco pelo teclado', () => {
     await expect(page.getByRole('region', { name: 'Compare requests' })).toBeVisible();
     expect(await semContornoDeTresPx(page), 'no Comparar').toEqual([]);
   });
+
+  test('deve deixar abaixo do cabeçalho do editor de regra o campo que recebe o foco ao voltar com Shift+Tab', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const [regra] = await gravarRegras(page.request, tokenId, [
+      {
+        name: 'Fora do ar',
+        priority: 1,
+        match: { path: { equals: '/falha' } },
+        response: { status: 503 },
+      },
+    ]);
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}/rules/${regra.id}`);
+    const regiao = editor(page, 'Edit rule Fora do ar');
+    await expect(regiao).toBeVisible();
+    // O cabeçalho gruda no topo do painel, que rola: do fim para o começo, cada campo entra por baixo dele.
+    await regiao.evaluate((el) => {
+      const focaveis = [
+        ...el.querySelectorAll<HTMLElement>('a[href], button, input, textarea, select'),
+      ].filter((campo) => campo.getBoundingClientRect().height > 0);
+      focaveis.at(-1)?.focus();
+    });
+
+    const cobertos: string[] = [];
+    for (let passo = 0; passo < 60; passo++) {
+      await page.keyboard.press('Shift+Tab');
+      const coberto = await page.evaluate(() => {
+        const cabecalho = document.querySelector('app-rule-editor-header');
+        const campo = document.activeElement;
+        if (!cabecalho || !campo?.closest('app-rule-editor')) {
+          return 'saiu do editor';
+        }
+        if (cabecalho.contains(campo)) {
+          return null;
+        }
+        const barra = cabecalho.getBoundingClientRect();
+        const caixa = campo.getBoundingClientRect();
+        const alto = Math.min(caixa.bottom, barra.bottom) - Math.max(caixa.top, barra.top);
+        const largo = Math.min(caixa.right, barra.right) - Math.max(caixa.left, barra.left);
+        const nome = (campo.getAttribute('aria-label') ?? campo.textContent ?? '').trim();
+        return alto > 1 && largo > 1 ? `${nome.slice(0, 40)}: ${Math.round(alto)} px` : null;
+      });
+      if (coberto === 'saiu do editor') {
+        break;
+      }
+      if (coberto) {
+        cobertos.push(coberto);
+      }
+    }
+    expect(cobertos, 'campos com o foco atrás do cabeçalho').toEqual([]);
+  });
 });
