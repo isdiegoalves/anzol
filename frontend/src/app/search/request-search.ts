@@ -67,7 +67,7 @@ export class RequestSearch {
 
   /** Com a decifra na URL, o texto também procura no valor decifrado (só a API REST e a tela). */
   protected readonly placeholder = computed(() =>
-    this.tokens.token()?.e2ee
+    this.tokens.shown()?.e2ee
       ? $localize`Search path, IP, header, body or decrypted value`
       : $localize`Search path, IP, header or body`,
   );

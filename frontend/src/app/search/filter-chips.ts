@@ -165,7 +165,7 @@ export class FilterChips {
         chips: [...this.answer(filter.outcome ?? null), ...this.answered(filter.answered ?? [])],
       },
       // Só na URL que decifra, ou com o filtro já ligado (o link de outra tela).
-      ...(this.tokens.token()?.e2ee || filter.decryption || decryptionReason != null
+      ...(this.tokens.shown()?.e2ee || filter.decryption || decryptionReason != null
         ? [
             {
               id: 'decryption' as const,

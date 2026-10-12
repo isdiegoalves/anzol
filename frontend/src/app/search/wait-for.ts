@@ -29,7 +29,7 @@ export class WaitFor {
   readonly typed = signal<string | null>(null);
 
   copy(): void {
-    const token = this.tokens.token();
+    const token = this.tokens.shown();
     if (!token) {
       return;
     }

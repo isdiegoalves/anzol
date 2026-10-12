@@ -450,6 +450,36 @@ describe('Dado a tela principal', () => {
     expect(TestBed.inject(RequestStore).selected()?.uuid).toBe(R0.uuid);
   });
 
+  it('não deve dizer o limite da limpeza da URL anterior no aviso da requisição que sumiu Quando outra URL está chegando', async () => {
+    const [R0, R3] = [webhookRequest(10), webhookRequest(3)];
+    await harness.navigateByUrl(`/${TOKEN_ID}/${R0.uuid}/1`);
+    await flush(`/token/${TOKEN_ID}`, token({ auto_cleanup: 500 }));
+    await flush(
+      `/token/${TOKEN_ID}/requests?page=1&sorting=newest`,
+      requestPage([R2, R1], { total: 3, is_last_page: false }),
+    );
+    await flush(`/token/${TOKEN_ID}/request/${R0.uuid}`, R0);
+    await vi.waitFor(() => expect(text()).toContain(R0.uuid));
+    FakeEventSource.latest().emit('request.created', {
+      request: R3,
+      total: 3,
+      truncated: false,
+      removed: [R0.uuid],
+    });
+    await vi.waitFor(() => expect(text()).toContain('(keeps the newest 500)'));
+
+    const reading = TestBed.inject(TokenStore).load(NOVO_TOKEN);
+    await harness.fixture.whenStable();
+
+    expect(text()).toMatch(/This request was deleted from the server by auto cleanup, noticed at/);
+    expect(text()).not.toContain('keeps the newest');
+
+    http.expectOne(`/token/${NOVO_TOKEN}`).flush(token({ uuid: NOVO_TOKEN, auto_cleanup: 1000 }));
+    await reading;
+    await harness.fixture.whenStable();
+    expect(text()).toContain('(keeps the newest 1000)');
+  });
+
   // B1 (P1 decidida): nenhuma tela cria URL sem a pessoa pedir; a página única de URL inexistente
   // (no shell) assume.
   it('não deve criar outra URL nem sair do endereço Quando o token do link sumiu (410)', async () => {
@@ -1159,6 +1189,26 @@ describe('Dado a tela principal', () => {
       return { announce, root: harness.routeNativeElement as HTMLElement };
     };
     const strip = (root: HTMLElement) => root.querySelector<HTMLElement>('section.first');
+
+    it('não deve mostrar o "Your URL is ready" com o endereço da URL anterior Quando outra URL está chegando', async () => {
+      await harness.navigateByUrl(`/${TOKEN_ID}`);
+      await flush(`/token/${TOKEN_ID}`, token());
+      await flush(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`, requestPage([]));
+      await vi.waitFor(() => expect(text()).toContain('Your URL is ready'));
+      expect(text()).toContain(`/${TOKEN_ID}`);
+
+      const reading = TestBed.inject(TokenStore).load(NOVO_TOKEN);
+      await harness.fixture.whenStable();
+
+      expect(text()).not.toContain('Your URL is ready');
+      expect(text()).not.toContain(`/${TOKEN_ID}`);
+
+      http.expectOne(`/token/${NOVO_TOKEN}`).flush(token({ uuid: NOVO_TOKEN }));
+      await reading;
+      await harness.fixture.whenStable();
+      expect(text()).toContain('Your URL is ready');
+      expect(text()).toContain(`/${NOVO_TOKEN}`);
+    });
 
     it('deve trocar o "Your URL is ready" pela faixa "First request arrived", com os passos 3 a 5, e anunciar uma vez', async () => {
       const { announce, root } = await arrive();

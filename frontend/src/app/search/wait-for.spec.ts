@@ -9,6 +9,7 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
+import { TokenStore } from '../token/token-store';
 import { NO_FILTER, RequestFilter } from './request-filter';
 import { WaitFor, WaitForButton } from './wait-for';
 
@@ -61,6 +62,23 @@ describe('Dado o "Copy as anzol wait-for" (S10)', () => {
     );
     expect(copied()).toBe('Copied the anzol wait-for command.');
     await expectNoAxeViolations(container);
+  });
+
+  it('não deve copiar o comando da URL anterior Quando outra URL está chegando', async () => {
+    const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const reading = TestBed.inject(TokenStore).load(outra);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
+
+    expect(copy).not.toHaveBeenCalled();
+    expect(copied()).toBeNull();
+
+    http.expectOne(`/token/${outra}`).flush(token({ uuid: outra }));
+    await reading;
+    await userEvent.click(screen.getByRole('button', { name: 'Copy as anzol wait-for' }));
+    expect(copy).toHaveBeenCalledWith(
+      `anzol wait-for --server '${location.origin}' --token ${outra}`,
+    );
   });
 
   it('deve copiar só o match e avisar que o texto ficou de fora', async () => {

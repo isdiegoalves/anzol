@@ -278,7 +278,7 @@ export class Inbox {
     });
     const copy = $localize`You are seeing the copy this page had loaded.`;
     const leaves = $localize`This copy goes away when you leave it.`;
-    const keeps = this.tokens.token()?.auto_cleanup;
+    const keeps = this.tokens.shown()?.auto_cleanup;
     const causes: Record<typeof gone.cause, string> = {
       cleanup: keeps
         ? $localize`This request was deleted from the server by auto cleanup (keeps the newest ${keeps}:limit:), noticed at ${time}:time:. ${copy}:copy:`

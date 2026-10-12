@@ -1,8 +1,16 @@
 import { Page } from '@playwright/test';
 import { ProxyDeCaos, expect, test } from './support/caos';
 import { abrirChecks, barraDeSalvar, botaoSalvar, secao } from './support/checks';
+import { politica, signatario } from './support/e2ee';
 import { TokenTracker } from './support/fixtures';
-import { acaoDaMensagem, campoDeBusca, detalhes, itens, lista } from './support/inbox';
+import {
+  abrirFiltros,
+  acaoDaMensagem,
+  campoDeBusca,
+  detalhes,
+  itens,
+  lista,
+} from './support/inbox';
 import { CHAVE_URLS, abrirSeletor, listaDeUrls, urlNoSeletor } from './support/patamar';
 import { gravarRegras, lerRegras } from './support/regras';
 import { destino } from './support/shell';
@@ -310,6 +318,50 @@ test.describe('Dado a rota já na URL nova, com a leitura dela ainda a caminho',
     await expect.poll(() => regrasPedidas).toContain('nova');
     expect(regrasPedidas).not.toContain('anterior');
     await expect(lista(page)).toContainText('Waiting for first request');
+  });
+
+  test('deve esperar a leitura na busca da Entrada, sem dizer que busca no valor decifrado nem oferecer a decifra da URL anterior', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const segredo = 'segredo-da-anterior';
+    const anterior = await tokens.create({
+      read_secret: segredo,
+      e2ee: politica([signatario('sig-da-anterior').publica]),
+    });
+    const nova = await tokens.create();
+    await seedStorage(page, { hideTutorial: 'true' });
+    const acesso = await page.request.post(`/token/${anterior}/unlock`, {
+      data: { secret: segredo },
+    });
+    expect(acesso.ok()).toBe(true);
+    await page.goto(`/#/${anterior}`);
+    await abrirFiltros(page);
+    const decifra = page
+      .getByRole('toolbar', { name: 'Filters' })
+      .getByRole('group', { name: 'Decryption' });
+    await expect(decifra).toBeVisible();
+    await expect(campoDeBusca(page)).toHaveAttribute('placeholder', /decrypted value/);
+    const leitura = caos.segurar(new RegExp(`^/token/${nova}$`), 'GET');
+
+    await irPara(page, `#/${nova}`);
+
+    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
+      new RegExp(`/${nova}$`),
+    );
+    await expect(campoDeBusca(page)).toHaveAttribute(
+      'placeholder',
+      'Search path, IP, header or body',
+    );
+    await expect(decifra).toHaveCount(0);
+
+    leitura.soltar();
+    await expect(lista(page)).toContainText('Waiting for first request');
+    await expect(campoDeBusca(page)).toHaveAttribute(
+      'placeholder',
+      'Search path, IP, header or body',
+    );
   });
 
   test('deve mostrar em Métricas os números da URL nova', async ({ page, tokens, caos }) => {

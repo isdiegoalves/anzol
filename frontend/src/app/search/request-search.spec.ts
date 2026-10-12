@@ -11,6 +11,7 @@ import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { ShellSettings } from '../shell/shell-settings';
 import { Viewport, WindowClass } from '../shell/viewport';
+import { TokenStore } from '../token/token-store';
 import { FilterChips } from './filter-chips';
 import { NO_FILTER } from './request-filter';
 import { RESULT_ANNOUNCE_MS, RequestSearch } from './request-search';
@@ -765,5 +766,48 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
         'Search path, IP, header, body or decrypted value',
       ),
     );
+  });
+
+  describe('Dado a URL aberta decifrando e outra URL chegando', () => {
+    const OUTRA = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
+    const e2ee = {
+      path: '$.payload',
+      required: true,
+      audience: 'anzol-lab',
+      bindings: { jti: '$.id', evt: '$.tipo', app: '$.app' },
+      max_age_seconds: 43200,
+      trusted_signers: [],
+    };
+    const placeholder = () =>
+      screen.getByRole('textbox', { name: 'Search' }).getAttribute('placeholder');
+    const decryption = () =>
+      within(group() as HTMLElement).queryByRole('group', { name: 'Decryption' });
+
+    it('não deve dizer que busca no valor decifrado pela URL anterior', async () => {
+      TestBed.inject(Preferences).token.set(token({ e2ee }));
+      await vi.waitFor(() => expect(placeholder()).toContain('decrypted value'));
+
+      const reading = TestBed.inject(TokenStore).load(OUTRA);
+
+      await vi.waitFor(() => expect(placeholder()).toBe('Search path, IP, header or body'));
+
+      http.expectOne(`/token/${OUTRA}`).flush(token({ uuid: OUTRA, e2ee }));
+      await reading;
+      await vi.waitFor(() => expect(placeholder()).toContain('decrypted value'));
+    });
+
+    it('não deve oferecer o subgrupo da decifra pela URL anterior', async () => {
+      TestBed.inject(Preferences).token.set(token({ e2ee }));
+      await openPanel();
+      await vi.waitFor(() => expect(decryption()).not.toBeNull());
+
+      const reading = TestBed.inject(TokenStore).load(OUTRA);
+
+      await vi.waitFor(() => expect(decryption()).toBeNull());
+
+      http.expectOne(`/token/${OUTRA}`).flush(token({ uuid: OUTRA, e2ee }));
+      await reading;
+      await vi.waitFor(() => expect(decryption()).not.toBeNull());
+    });
   });
 });
