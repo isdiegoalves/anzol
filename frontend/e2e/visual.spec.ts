@@ -81,7 +81,8 @@ async function fotografar(
   await page.evaluate(() => document.fonts.ready);
   await expect(alvo ?? page).toHaveScreenshot(`${nome}.png`, {
     mask: mascaras,
-    maxDiffPixels: 30,
+    // Folga zero, medida só nesta máquina: se o Chromium das fotos mudar o serrilhado, regrava-se; não se afrouxa.
+    maxDiffPixels: 0,
     stylePath: ESTILO_DAS_FOTOS,
   });
 }
