@@ -234,7 +234,10 @@ test.describe('Dado dois apagares seguidos, com o "Undo" do primeiro ainda abert
     await page.goto(`/#/${tokenId}/${primeira}/1`);
     await expect(itens(page)).toHaveCount(3);
     await apagarPeloTeclado(page, segunda);
-    await expect(avisoDaRequisicao(page)).toHaveText(APAGOU);
+    // O aviso entra na tela e só é dito um instante depois: as falas voltam a contar depois de ele ser dito.
+    await expect
+      .poll(async () => (await anunciados(page)).map((anuncio) => anuncio.texto))
+      .toContain(APAGOU);
     await limparAnuncios(page);
 
     await lixeira(page, primeira).click();
