@@ -130,9 +130,20 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
       await page.goto(`/#/${tokenId}${rota}`);
       const origin = new URL(page.url()).origin;
 
-      await expect(page.getByRole('textbox', { name: 'Webhook URL' }), rota).toHaveValue(
-        `${origin}/${tokenId}`,
-      );
+      // Abaixo de 1200 px o editor de regra é uma folha de tela cheia, e o cabeçalho da URL fica atrás dela, fora do
+      // Tab e do leitor de tela: ali a prova é o editor aberto.
+      const sobAFolha = rota.startsWith('/rules/') && (page.viewportSize()?.width ?? 1400) < 1200;
+      if (sobAFolha) {
+        await expect(
+          page.getByRole('region', { name: /^(Edit rule|New rule)/ }),
+          rota,
+        ).toBeVisible();
+        await expect(page.getByRole('textbox', { name: 'Webhook URL' }), rota).toBeHidden();
+      } else {
+        await expect(page.getByRole('textbox', { name: 'Webhook URL' }), rota).toHaveValue(
+          `${origin}/${tokenId}`,
+        );
+      }
       if (aberto) {
         await expect(destino(page, aberto), rota).toHaveAttribute('aria-current', 'page');
       } else {
