@@ -238,3 +238,28 @@ test.describe('Dado a rede que some sem avisar: a API cai sem resposta e o /stre
     await expect(item(page, naQueda)).toBeVisible();
   });
 });
+
+test.describe('Dado um pedido só que cai sem resposta, com o /stream vivo', () => {
+  test('deve dizer "Connected again." uma vez e refazer a busca sozinha, sem "Could not search"', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/pedidos/antes' });
+    await escutarAnuncios(page);
+    await abrir(page, tokenId);
+
+    await page.route(/\/requests\/search$/, (rota) => rota.abort('connectionreset'), {
+      times: 1,
+    });
+    await campoDeBusca(page).fill('pedidos');
+
+    await expectUmAnuncio(page, /^Connected again\.$/, /^Connection$/);
+    await expect(
+      page.getByText('1 request matches · search runs on the server over all 1'),
+    ).toBeVisible();
+    await expect(estadoAoVivo(page)).toContainText('Live');
+    await expectSemAnuncio(page, /Could not search/);
+    await expect(page.getByText(/Could not search/)).toHaveCount(0);
+  });
+});
