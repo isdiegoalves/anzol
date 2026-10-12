@@ -1,9 +1,11 @@
 import { Page } from '@playwright/test';
-import { expect, test } from './support/caos';
+import { ProxyDeCaos, expect, test } from './support/caos';
 import { abrirChecks, barraDeSalvar, botaoSalvar, secao } from './support/checks';
+import { TokenTracker } from './support/fixtures';
 import { acaoDaMensagem, campoDeBusca, detalhes, itens, lista } from './support/inbox';
 import { CHAVE_URLS, abrirSeletor, listaDeUrls, urlNoSeletor } from './support/patamar';
-import { gravarRegras } from './support/regras';
+import { gravarRegras, lerRegras } from './support/regras';
+import { destino } from './support/shell';
 import { seedStorage } from './support/storage';
 
 const rotulos = (page: Page) =>
@@ -123,6 +125,152 @@ test.describe('Dado a troca de URL com a resposta da anterior atrasada', () => {
 
     expect(page.url()).toMatch(new RegExp(`#/${b}/rules$`));
     await expect(page.getByText('Regra de A1')).toHaveCount(0);
+  });
+});
+
+test.describe('Dado a rota já na URL nova, com a leitura dela ainda a caminho', () => {
+  type Pagina = 'Rules' | 'Checks' | 'Outbound' | 'Insights';
+
+  /**
+   * A URL anterior tem marcas só dela (responde 418, tipo próprio, assinatura do GitHub, uma regra, uma requisição);
+   * a nova é lisa, com uma regra. A tela abre a anterior na página pedida, e a leitura da nova fica presa.
+   */
+  async function comALeituraPresa(
+    page: Page,
+    tokens: TokenTracker,
+    caos: ProxyDeCaos,
+    pagina: Pagina,
+  ) {
+    const anterior = await tokens.create({
+      default_status: '418',
+      default_content_type: 'application/x-da-anterior',
+      signature: { provider: 'github', secret: 'segredo-da-anterior' },
+    });
+    await gravarRegras(page.request, anterior, [
+      {
+        name: 'Regra da anterior',
+        priority: 1,
+        match: { method: ['PUT'] },
+        response: { status: 201 },
+      },
+    ]);
+    await tokens.send(anterior, { path: '/da-anterior' });
+    const nova = await tokens.create();
+    await gravarRegras(page.request, nova, [
+      { name: 'Regra da nova', priority: 1, match: { method: ['PUT'] }, response: { status: 202 } },
+    ]);
+    await page.goto(`/#/${anterior}/${pagina.toLowerCase()}`);
+    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
+      new RegExp(`/${anterior}$`),
+    );
+    const leitura = caos.segurar(new RegExp(`^/token/${nova}$`), 'GET');
+    const paraAAnterior: string[] = [];
+    page.on('request', (pedido) => {
+      if (pedido.method() !== 'GET' && pedido.url().includes(`/token/${anterior}`)) {
+        paraAAnterior.push(`${pedido.method()} ${pedido.url()}`);
+      }
+    });
+    return { anterior, nova, leitura, paraAAnterior };
+  }
+
+  /** Chega à página da URL nova pelo link direto e, de novo, pela barra lateral (saindo da Entrada dela). */
+  async function chegar(page: Page, nova: string, pagina: Pagina, conferir: () => Promise<void>) {
+    await irPara(page, `#/${nova}/${pagina.toLowerCase()}`);
+    await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
+      new RegExp(`/${nova}$`),
+    );
+    await conferir();
+    await destino(page, 'Inbox').click();
+    await expect(page).toHaveURL(new RegExp(`#/${nova}$`));
+    await destino(page, pagina).click();
+    await expect(page).toHaveURL(new RegExp(`#/${nova}/${pagina.toLowerCase()}$`));
+    await conferir();
+  }
+
+  const conteudo = (page: Page) => page.getByRole('main');
+  const semMarcasDaAnterior = async (page: Page) => {
+    for (const marca of ['418', 'application/x-da-anterior', 'GitHub', 'Regra da anterior']) {
+      await expect(conteudo(page), `"${marca}" é da URL anterior`).not.toContainText(marca);
+    }
+  };
+
+  test('deve mostrar em Regras só o que é da URL nova, e gravar nela', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const { anterior, nova, leitura, paraAAnterior } = await comALeituraPresa(
+      page,
+      tokens,
+      caos,
+      'Rules',
+    );
+
+    await chegar(page, nova, 'Rules', async () => {
+      await expect(page.getByRole('table', { name: 'Rules' })).toContainText('Regra da nova');
+      await semMarcasDaAnterior(page);
+    });
+    await page.getByRole('switch', { name: 'Enable rule Regra da nova' }).click();
+    await expect
+      .poll(async () => (await lerRegras(page.request, nova)).map((regra) => regra.enabled))
+      .toEqual([false]);
+    await page.getByRole('button', { name: 'New rule', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'New rule' })).toBeVisible();
+    await semMarcasDaAnterior(page);
+
+    expect((await lerRegras(page.request, anterior)).map((regra) => regra.enabled)).toEqual([true]);
+    expect(paraAAnterior).toEqual([]);
+    leitura.soltar();
+  });
+
+  test('deve esperar a leitura em Verificações, sem formulário da URL anterior', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const { nova, leitura, paraAAnterior } = await comALeituraPresa(page, tokens, caos, 'Checks');
+
+    await chegar(page, nova, 'Checks', async () => {
+      await expect(conteudo(page)).toContainText('Loading this URL…');
+      await semMarcasDaAnterior(page);
+      await expect(conteudo(page).getByRole('textbox')).toHaveCount(0);
+    });
+
+    expect(paraAAnterior).toEqual([]);
+    leitura.soltar();
+  });
+
+  test('deve esperar a leitura na Saída, sem formulário de envio da URL anterior', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const { nova, leitura, paraAAnterior } = await comALeituraPresa(page, tokens, caos, 'Outbound');
+
+    await chegar(page, nova, 'Outbound', async () => {
+      await expect(conteudo(page)).toContainText('Nothing sent yet.');
+      await expect(conteudo(page)).toContainText('Loading this URL…');
+      await semMarcasDaAnterior(page);
+      await expect(conteudo(page).getByRole('textbox')).toHaveCount(0);
+    });
+
+    expect(paraAAnterior).toEqual([]);
+    leitura.soltar();
+  });
+
+  test('deve mostrar em Métricas os números da URL nova', async ({ page, tokens, caos }) => {
+    const { nova, leitura, paraAAnterior } = await comALeituraPresa(page, tokens, caos, 'Insights');
+
+    await chegar(page, nova, 'Insights', async () => {
+      await expect(conteudo(page)).toContainText('No requests yet');
+      await expect(
+        conteudo(page).getByRole('link', { name: 'All requests, 0 requests. Open in the Inbox' }),
+      ).toBeVisible();
+      await semMarcasDaAnterior(page);
+    });
+
+    expect(paraAAnterior).toEqual([]);
+    leitura.soltar();
   });
 });
 

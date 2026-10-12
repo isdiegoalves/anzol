@@ -217,7 +217,7 @@ export class RulesPage {
   /** Diagnóstico por índice da lista salva: nunca casa, sombreada, provável sombra. */
   private readonly diagnoses = computed(() => {
     const rules = this.store.rules();
-    const token = this.tokens.token();
+    const token = this.tokens.shown();
     const tested = new Map<string, readonly string[]>();
     for (const [id, test] of this.store.tested()) {
       const saved = rules.find((rule) => rule.id === id);
@@ -650,7 +650,7 @@ export class RulesPage {
 
   /** Detalhe da resposta padrão: tipo do corpo e atraso da URL (RULES-09). */
   protected defaultDetail(): string {
-    const token = this.tokens.token();
+    const token = this.tokens.shown();
     return defaultResponseDetail(token?.default_content_type ?? null, token?.timeout ?? 0);
   }
 

@@ -425,7 +425,7 @@
                     [baseId]="'rules-default'"
                     name="Default response"
                     i18n-name
-                    [status]="tokens.token()?.default_status ?? defaultStatus"
+                    [status]="tokens.shown()?.default_status ?? defaultStatus"
                     [detail]="defaultDetail()"
                     [hits]="defaultHits()"
                   />

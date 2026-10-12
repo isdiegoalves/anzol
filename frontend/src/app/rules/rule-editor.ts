@@ -585,7 +585,7 @@ export class RuleEditor {
           host.clear();
           const ref = host.createComponent(view);
           ref.setInput('request', request);
-          ref.setInput('token', this.tokens.token());
+          ref.setInput('token', this.tokens.shown());
           ref.setInput('readonly', true);
         });
       }
@@ -974,7 +974,7 @@ export class RuleEditor {
 
   /** De onde vem o resultado da assinatura: o provedor da URL, ou "not set up". */
   protected signatureOrigin(): string {
-    const provider = this.tokens.token()?.signature?.provider;
+    const provider = this.tokens.shown()?.signature?.provider;
     return provider ? signatureProviderLabel(provider) : $localize`not set up`;
   }
 
@@ -983,7 +983,7 @@ export class RuleEditor {
    * Com a URL ainda não lida, nada se afirma.
    */
   protected neverMatches(kind: 'signature' | 'schema' | 'decryption'): boolean {
-    const token = this.tokens.token();
+    const token = this.tokens.shown();
     if (!token || this.form.controls[kind].value === 'any') {
       return false;
     }
@@ -1001,18 +1001,18 @@ export class RuleEditor {
   protected refusesPlaintext(): boolean {
     return (
       this.form.controls.decryption.value === 'absent' &&
-      this.tokens.token()?.e2ee?.required === true
+      this.tokens.shown()?.e2ee?.required === true
     );
   }
 
   /** De onde vem o resultado da decifra: o atributo da política, ou "not set up". */
   protected decryptionOrigin(): string {
-    return this.tokens.token()?.e2ee?.path ?? $localize`not set up`;
+    return this.tokens.shown()?.e2ee?.path ?? $localize`not set up`;
   }
 
   /** De onde vem o resultado do schema: "JSON Schema" com um salvo na URL, ou "not validated". */
   protected schemaOrigin(): string {
-    return this.tokens.token()?.schema ? $localize`JSON Schema` : $localize`not validated`;
+    return this.tokens.shown()?.schema ? $localize`JSON Schema` : $localize`not validated`;
   }
 
   /** Erro do servidor num controle sem `mat-form-field` (os segmentados). */
@@ -1262,7 +1262,7 @@ export class RuleEditor {
 
   /** O content type padrão da URL (Checks › Response). */
   protected defaultContentType(): string | null {
-    return this.tokens.token()?.default_content_type ?? null;
+    return this.tokens.shown()?.default_content_type ?? null;
   }
 
   /**
@@ -1509,7 +1509,7 @@ export class RuleEditor {
 
   /** Status da resposta padrão da URL ("instead of the default 200"). */
   protected defaultStatus(): number {
-    return this.tokens.token()?.default_status ?? RULE_DEFAULT_STATUS;
+    return this.tokens.shown()?.default_status ?? RULE_DEFAULT_STATUS;
   }
 
   /** O que a regra responde, para a frase da prévia ("would now get 201 from this rule"). */

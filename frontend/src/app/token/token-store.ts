@@ -35,6 +35,9 @@ export class TokenStore {
     return wanted && wanted !== this.token()?.uuid ? wanted : null;
   });
 
+  /** A URL lida que a tela mostra: nenhuma, enquanto outra chega no lugar dela. */
+  readonly shown = computed(() => (this.arriving() ? null : this.token()));
+
   /** URL que recebe os webhooks: `{protocolo}//{host}/{uuid}`. */
   readonly webhookUrl = computed(() => {
     const token = this.token();

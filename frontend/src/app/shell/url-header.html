@@ -21,7 +21,7 @@
 } @else if (tokens.token(); as token) {
   <!-- Com outra URL chegando, o seletor e o endereço já são os dela; o que só a leitura traz espera. -->
   @let arriving = tokens.arriving();
-  @let read = arriving ? null : token;
+  @let read = tokens.shown();
   <app-url-switcher
     [current]="arriving ?? token.uuid"
     (chosen)="switchTo.emit($event)"

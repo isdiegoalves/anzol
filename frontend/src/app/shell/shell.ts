@@ -490,7 +490,7 @@ export class Shell {
 
   /** O ⋮ da barra do celular: o que a barra do topo e o cabeçalho da URL deixam de mostrar. */
   protected readonly topActions = computed<MenuItem[]>(() => {
-    const token = this.tokens.arriving() ? null : this.tokens.token();
+    const token = this.tokens.shown();
     const open = !this.locked() && !this.missing();
     const url: MenuItem[] =
       token && open
