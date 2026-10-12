@@ -867,6 +867,10 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
       os itens válidos da mesma lista não ganham chave.
     - A mensagem gravada antes de `response` não casa nenhum item e não derruba a busca: fica com os testes do
       backend, porque o contrato não escreve no Redis.
+  - *Busca pelo MCP* (`busca-mcp.spec.ts`, v0.6.0): o `search_requests` declara `outcome`, `answered`,
+    `signature_reason` e `schema_path` no `tools/list` e filtra por cada um como a busca da API (a respondida pela
+    regra, a de status `5xx`, a de `signature mismatch` e a com erro em `/status`, cada uma entre outras duas que não
+    casam).
   - *ReDoS* (`redos.spec.ts`, T1): `((a+)*)+$` contra `a`×30 + `!` e `(.*a){12}` contra `a`×40 + `!`. O `(a+)+$`
     clássico não serve, porque o JDK 25 o resolve em milissegundos.
     - Salvar a regra e o schema é aceito como hoje.
@@ -896,7 +900,6 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   Leituras assumidas e o que fica fora estão no `api.md`. Fora do contrato:
   - o 507, que exige o Redis no `maxmemory`;
   - o valor exato do teto de custo da regex;
-  - a ferramenta MCP `search_requests` com os campos novos;
   - codificações encadeadas do UUID (`%252d`, base64 de base64);
   - o `seq` repetido das mensagens gravadas antes do índice (app Laravel), que é o defeito real do T4: `legacyScore`
     dá o mesmo score a mensagens do mesmo segundo. Não se semeia pela API e fica com o teste do backend, com o Redis em
