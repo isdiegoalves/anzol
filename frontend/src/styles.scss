@@ -330,6 +330,25 @@ html.compact {
   }
 }
 
+// A linha da caixa de marcar e do rádio do tema tem 40 px (32 na densidade compacta); com toque, 44.
+@media (pointer: coarse) {
+  mat-checkbox {
+    @include mat.checkbox-overrides(
+      (
+        state-layer-size: 44px,
+      )
+    );
+  }
+
+  mat-radio-button {
+    @include mat.radio-overrides(
+      (
+        state-layer-size: 44px,
+      )
+    );
+  }
+}
+
 // O trilho do tema tem 20 px: o interruptor do Material fica com 24 px de alvo, e 44 com toque, com o
 // trilho centrado nele.
 .mat-mdc-slide-toggle .mdc-switch {

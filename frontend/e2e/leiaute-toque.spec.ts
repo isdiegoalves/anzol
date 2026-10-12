@@ -312,4 +312,28 @@ test.describe('Dado um celular com toque', () => {
     await expect(links).toHaveCount(3);
     expect(await menoresQue44(links)).toEqual([]);
   });
+
+  for (const [densidade, nome] of [
+    ['comfortable', 'confortável'],
+    ['compact', 'compacta'],
+  ]) {
+    test(`deve dar 44 px à linha das caixas de marcar e dos rádios do Material, na densidade ${nome}`, async ({
+      page,
+      tokens,
+    }) => {
+      const tokenId = await tokens.create();
+      const id = await tokens.send(tokenId, {
+        path: '/pedidos',
+        headers: { 'Content-Type': 'application/json' },
+        data: '{"id":"evt_1"}',
+      });
+      await seedStorage(page, { hideTutorial: 'true', density: `"${densidade}"` });
+      await abrirMensagem(page, tokenId, id);
+      await page.getByRole('button', { name: 'Create rule from this request' }).click();
+      const painel = page.getByRole('dialog', { name: 'Actions on this request' });
+
+      expect.soft(await menoresQue44(painel.locator('mat-checkbox')), 'caixas').toEqual([]);
+      expect.soft(await menoresQue44(painel.locator('mat-radio-button')), 'rádios').toEqual([]);
+    });
+  }
 });
