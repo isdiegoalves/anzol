@@ -320,6 +320,28 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     expect(sections()).not.toBeNull();
   });
 
+  it('deve tirar do Tab e do leitor de tela o rail e o cabeçalho da URL enquanto uma folha de tela cheia os cobre', async () => {
+    const { fixture } = await renderAt(`/${TOKEN_ID}/rules`);
+    const covered = () => [
+      screen.queryByRole('link', { name: 'Anzol' }),
+      screen.queryByRole('button', { name: 'Settings' }),
+      screen.queryByRole('link', { name: 'Checks' }),
+      screen.queryByRole('textbox', { name: 'Webhook URL' }),
+    ];
+    expect(covered().every((element) => element !== null)).toBe(true);
+
+    TestBed.inject(ScreenState).covered.set(true);
+    await fixture.whenStable();
+    expect(covered()).toEqual([null, null, null, null]);
+    // O "Skip to content" aparece por cima da folha e leva a ela; a página da rota é a própria folha.
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toBeTruthy();
+    expect(screen.getByText('página da rota')).toBeTruthy();
+
+    TestBed.inject(ScreenState).covered.set(false);
+    await fixture.whenStable();
+    expect(covered().every((element) => element !== null)).toBe(true);
+  });
+
   it('deve reunir no ⋮ da barra do celular as ações que saem da barra (INBOX-29)', async () => {
     const user = userEvent.setup();
     await renderAt(`/${TOKEN_ID}`);

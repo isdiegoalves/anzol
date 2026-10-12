@@ -327,6 +327,21 @@
   }
 }
 
+// Uma folha de tela cheia (o editor de regra abaixo de 1200 px) fica por cima do rail e do cabeçalho da URL: o que
+// está atrás dela sai do Tab e do leitor de tela. No celular ela para acima da barra de destinos, que segue viva.
+:host(.covered) {
+  .rail > *,
+  app-url-header {
+    visibility: hidden;
+  }
+
+  @media (width < 600px) {
+    .rail > .destinations {
+      visibility: visible;
+    }
+  }
+}
+
 @media (forced-colors: active) {
   .destination.current .indicator {
     background: var(--app-forced-selected);

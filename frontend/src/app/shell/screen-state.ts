@@ -11,4 +11,6 @@ export class ScreenState {
   readonly searchOpen = signal(false);
   /** O seletor de URLs do cabeçalho, aberto também pela tecla U e por "Switch to another URL". */
   readonly switcherOpen = signal(false);
+  /** Uma folha de tela cheia (o editor de regra abaixo de 1200 px) está por cima do rail e do cabeçalho da URL. */
+  readonly covered = signal(false);
 }

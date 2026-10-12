@@ -87,6 +87,7 @@ export interface SheetComponent {
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
+  host: { '[class.covered]': 'screen.covered()' },
 })
 export class Shell {
   protected readonly tokens = inject(TokenStore);

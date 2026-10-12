@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { translations } from '../../locale/pt-BR';
+import { ScreenState } from '../shell/screen-state';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { WebhookRequest } from '../requests/webhook-request';
 import { HttpRequest, provideHttpClient } from '@angular/common/http';
@@ -40,6 +41,8 @@ const isLatestRequest = (req: HttpRequest<unknown>) =>
   req.params.get('per_page') === '1';
 
 describe('Dado o editor de regra', () => {
+  /** Largura grande: o cabeçalho com todos os botões (abaixo de 1200 px é a folha, F8). */
+  const windowClass = signal<WindowClass>('large');
   let http: HttpTestingController;
   let fixture: ComponentFixture<RuleEditor>;
   let loader: HarnessLoader;
@@ -121,20 +124,33 @@ describe('Dado o editor de regra', () => {
 
   beforeEach(() => {
     closed = vi.fn();
+    windowClass.set('large');
     TestBed.configureTestingModule({
       imports: [RuleEditor],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        // Largura grande: o cabeçalho com todos os botões (abaixo de 1200 px é a folha, F8).
-        { provide: Viewport, useValue: { windowClass: signal<WindowClass>('large') } },
+        { provide: Viewport, useValue: { windowClass } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => http.verify());
+
+  it('deve dizer ao shell que cobre a tela enquanto é a folha de tela cheia, e deixar de dizer ao sair', async () => {
+    const screen = TestBed.inject(ScreenState);
+    await open({ index: null });
+    expect(screen.covered(), 'na janela larga, ao lado da lista').toBe(false);
+
+    windowClass.set('expanded');
+    await fixture.whenStable();
+    expect(screen.covered(), 'abaixo de 1200 px, a folha').toBe(true);
+
+    fixture.destroy();
+    expect(screen.covered(), 'com o editor fechado').toBe(false);
+  });
 
   it('deve acrescentar a regra montada no formulário e salvar a lista inteira Quando "Save" é clicado', async () => {
     await open({ index: null });

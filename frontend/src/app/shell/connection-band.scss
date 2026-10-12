@@ -54,3 +54,8 @@
     min-height: 44px;
   }
 }
+
+// Atrás de uma folha de tela cheia a faixa não se vê: o botão sai do Tab, e a região viva segue falando.
+:host(.covered) .retry {
+  visibility: hidden;
+}

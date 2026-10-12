@@ -121,7 +121,7 @@
       (switchTo)="switchTo($event)"
       (newUrl)="createUrl()"
     />
-    <app-connection-band />
+    <app-connection-band [class.covered]="screen.covered()" />
   }
   <div class="content">
     <ng-container #unlockHost />

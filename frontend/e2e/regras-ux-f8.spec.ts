@@ -1,5 +1,5 @@
-import { Locator, Page } from '@playwright/test';
-import { expect, test } from './support/fixtures';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
+import { TokenTracker, expect, test } from './support/fixtures';
 import {
   abrirRegra,
   abrirRegras,
@@ -53,9 +53,73 @@ async function alvo(locator: Locator): Promise<{ width: number; height: number }
   return { width: caixa?.width ?? 0, height: caixa?.height ?? 0 };
 }
 
+/**
+ * Anda com a tecla e devolve os elementos do shell (o rail, o cabeçalho da URL) que receberam o foco escondidos
+ * atrás de outra coisa. O que está dentro do editor não conta: é a própria folha.
+ */
+async function focosEscondidos(
+  page: Page,
+  tecla: 'Tab' | 'Shift+Tab',
+  passos: number,
+): Promise<string[]> {
+  const escondidos = new Set<string>();
+  for (let passo = 0; passo < passos; passo++) {
+    await page.keyboard.press(tecla);
+    const escondido = await page.evaluate(() => {
+      const foco = document.activeElement;
+      if (!foco || foco === document.body || foco.closest('app-rule-editor')) {
+        return null;
+      }
+      const caixa = foco.getBoundingClientRect();
+      const noTopo = document.elementFromPoint(
+        caixa.left + caixa.width / 2,
+        caixa.top + caixa.height / 2,
+      );
+      const aVista = !!noTopo && (foco.contains(noTopo) || noTopo.contains(foco));
+      return aVista ? null : (foco.getAttribute('aria-label') ?? foco.textContent ?? '').trim();
+    });
+    if (escondido !== null) {
+      escondidos.add(escondido.slice(0, 40));
+    }
+  }
+  return [...escondidos];
+}
+
+/** A folha aberta pelo teclado: o Tab não sai para trás dela, e o Esc devolve o foco à regra da lista. */
+async function conferirAFolhaNoTeclado(
+  page: Page,
+  request: APIRequestContext,
+  tokens: TokenTracker,
+): Promise<void> {
+  const tokenId = await tokens.create();
+  await gravarRegras(request, tokenId, [PIX, OUTRA]);
+  await abrirRegras(page, tokenId);
+  const naLista = linhaDaRegra(page, PIX.name).locator('td.item').getByRole('button');
+  await naLista.focus();
+  await page.keyboard.press('Enter');
+  const regra = editor(page, `Edit rule ${PIX.name}`);
+  await expect(regra).toBeVisible();
+
+  expect(await focosEscondidos(page, 'Tab', 100), 'com o Tab').toEqual([]);
+  expect(await focosEscondidos(page, 'Shift+Tab', 100), 'com o Shift+Tab').toEqual([]);
+
+  await regra.getByRole('textbox', { name: 'Name', exact: true }).focus();
+  await page.keyboard.press('Escape');
+  await expect(regra).toBeHidden();
+  await expect(naLista).toBeFocused();
+}
+
 test.describe('Dado o editor abaixo de 1200 px (WM-41)', () => {
   test.beforeEach(({ page }) => {
     test.skip(!celular(page), 'só abaixo de 1200 px: o projeto mobile');
+  });
+
+  test('não deve deixar o Tab pousar no que a folha cobre, e deve devolver o foco à regra no Esc', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    await conferirAFolhaNoTeclado(page, request, tokens);
   });
 
   test('deve abrir como folha de tela cheia com "Back to list", nome, Save e ⋮ fixos no topo', async ({
@@ -243,5 +307,36 @@ test.describe('Dado uma janela de 1024 px (WM-41: folha abaixo de 1200 px)', () 
     await expect(regra.getByRole('button', { name: 'Back to list', exact: true })).toBeVisible();
     const caixa = await editor(page, `Edit rule ${PIX.name}`).boundingBox();
     expect(caixa!.width).toBeGreaterThanOrEqual(1024 - 2);
+  });
+});
+
+test.describe('Dado uma janela de 1100 px, em que a folha cobre também o rail', () => {
+  test.use({ viewport: { width: 1100, height: 800 } });
+
+  test('não deve deixar o Tab pousar no que a folha cobre, e deve devolver o foco à regra no Esc', async ({
+    page,
+    request,
+    tokens,
+  }) => {
+    test.skip(!!test.info().project.use.isMobile, 'o caso de 1100 px roda no projeto ui');
+    await conferirAFolhaNoTeclado(page, request, tokens);
+  });
+});
+
+test.describe('Dado o editor ao lado da lista, a partir de 1200 px', () => {
+  test('deve deixar o rail e o cabeçalho da URL no Tab', async ({ page, request, tokens }) => {
+    test.skip(celular(page), 'só a partir de 1200 px: o projeto ui');
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [PIX]);
+    await abrirRegras(page, tokenId);
+    await abrirRegra(page, PIX.name);
+
+    for (const controle of [
+      page.getByRole('button', { name: 'Settings' }),
+      page.getByRole('textbox', { name: 'Webhook URL' }),
+    ]) {
+      await controle.focus();
+      await expect(controle).toBeFocused();
+    }
   });
 });

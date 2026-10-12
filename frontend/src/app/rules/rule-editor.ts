@@ -44,6 +44,7 @@ import { fromNow } from '../request-detail/dates';
 import { WebhookRequest } from '../requests/webhook-request';
 import { signatureProviderLabel } from '../token/token';
 import { TokenStore } from '../token/token-store';
+import { ScreenState } from '../shell/screen-state';
 import { Viewport } from '../shell/viewport';
 import { HistoryTestPanel } from './history-test-panel';
 import { PriorityPreview, priorityPreview } from './priority-preview';
@@ -224,6 +225,7 @@ export class RuleEditor {
   private readonly document = inject(DOCUMENT);
   protected readonly tokens = inject(TokenStore);
   private readonly viewport = inject(Viewport);
+  private readonly screen = inject(ScreenState);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   /** Largura grande: os helpers de template vêm abertos (RULES-23). */
@@ -608,10 +610,13 @@ export class RuleEditor {
         }
       });
     });
+    // Abaixo de 1200 px o editor é a folha de tela cheia: o shell tira do Tab o que fica atrás dela.
+    effect(() => this.screen.covered.set(!this.wide()));
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.testTimer);
       this.testRun?.unsubscribe();
       this.flushDraft();
+      this.screen.covered.set(false);
     });
     effect(() => {
       const data = this.data();
