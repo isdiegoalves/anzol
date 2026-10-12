@@ -315,7 +315,7 @@ export class Shell {
     inject(Hotkeys).register(
       {
         goTo: (key) => this.goTo(DESTINATIONS.find((destination) => destination.key === key)),
-        copyUrl: () => this.tokens.webhookUrl() && this.clipboard.copy(this.tokens.webhookUrl()),
+        copyUrl: () => this.tokens.shownUrl() && this.clipboard.copy(this.tokens.shownUrl()),
         newUrl: () => void this.createUrl(),
         help: () => this.sheet.set('help'),
         search: () => this.openSearch(),
@@ -490,7 +490,7 @@ export class Shell {
 
   /** O ⋮ da barra do celular: o que a barra do topo e o cabeçalho da URL deixam de mostrar. */
   protected readonly topActions = computed<MenuItem[]>(() => {
-    const token = this.tokens.token();
+    const token = this.tokens.arriving() ? null : this.tokens.token();
     const open = !this.locked() && !this.missing();
     const url: MenuItem[] =
       token && open

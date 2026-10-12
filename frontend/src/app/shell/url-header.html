@@ -19,11 +19,14 @@
     <span class="gone" i18n="state of a URL in the switcher">deleted</span>
   }
 } @else if (tokens.token(); as token) {
+  <!-- Com outra URL chegando, o seletor e o endereço já são os dela; o que só a leitura traz espera. -->
+  @let arriving = tokens.arriving();
+  @let read = arriving ? null : token;
   <app-url-switcher
-    [current]="token.uuid"
+    [current]="arriving ?? token.uuid"
     (chosen)="switchTo.emit($event)"
     (newUrl)="newUrl.emit()"
-    (rename)="renameUrl(token.uuid)"
+    (rename)="renameUrl(arriving ?? token.uuid)"
     (forget)="forgetUrls()"
     (openOther)="openAnotherUrl()"
   />
@@ -33,12 +36,12 @@
     i18n-label
     hint="Copy URL (C)"
     i18n-hint
-    [value]="tokens.webhookUrl()"
+    [value]="tokens.shownUrl()"
   />
   @if (live(); as state) {
     <app-live-status [state]="state" />
   }
-  @if (count(); as stored) {
+  @if (read && count(); as stored) {
     <!-- O link em volta do chip: com toque, o alvo cresce sem o chip crescer (sem mudar a linha). -->
     <a
       class="count"
@@ -54,7 +57,7 @@
       </span>
     </a>
   }
-  @if (token.signature; as signature) {
+  @if (read?.signature; as signature) {
     <a
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
@@ -64,7 +67,7 @@
       <app-icon name="checks" [size]="16" />{{ providerLabel(signature.provider) }}
     </a>
   }
-  @if (token.schema) {
+  @if (read?.schema) {
     <a
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
@@ -76,7 +79,7 @@
       <app-icon name="braces" [size]="16" /><span i18n>Schema</span>
     </a>
   }
-  @if (token.lab; as lab) {
+  @if (read?.lab; as lab) {
     <a
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
@@ -87,29 +90,31 @@
     </a>
   }
   <span class="spacer"></span>
-  <div class="actions">
-    <a
-      class="action"
-      [routerLink]="['/', token.uuid, 'outbound']"
-      [queryParams]="{ send: 'new' }"
-      title="Send a request from the server: open Outbound"
-      i18n-title
-    >
-      <app-icon name="outbound" [size]="18" /><span i18n="action|Botão que manda a requisição"
-        >Send</span
+  @if (read) {
+    <div class="actions">
+      <a
+        class="action"
+        [routerLink]="['/', token.uuid, 'outbound']"
+        [queryParams]="{ send: 'new' }"
+        title="Send a request from the server: open Outbound"
+        i18n-title
       >
-    </a>
-    @if (lockable()) {
-      <button type="button" class="action" (click)="lockUrl()">
-        <app-icon name="lock" [size]="18" /><span i18n>Lock</span>
-      </button>
-    }
-    <app-menu
-      label="More URL actions"
-      i18n-label
-      hint="Edit URL, open in new tab, copy CLI command, delete URL"
-      i18n-hint
-      [items]="urlActions()"
-    />
-  </div>
+        <app-icon name="outbound" [size]="18" /><span i18n="action|Botão que manda a requisição"
+          >Send</span
+        >
+      </a>
+      @if (lockable()) {
+        <button type="button" class="action" (click)="lockUrl()">
+          <app-icon name="lock" [size]="18" /><span i18n>Lock</span>
+        </button>
+      }
+      <app-menu
+        label="More URL actions"
+        i18n-label
+        hint="Edit URL, open in new tab, copy CLI command, delete URL"
+        i18n-hint
+        [items]="urlActions()"
+      />
+    </div>
+  }
 }

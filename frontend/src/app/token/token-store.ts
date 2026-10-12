@@ -25,12 +25,25 @@ export class TokenStore {
   readonly failure = signal<{ id: string; status: number } | null>(null);
   private loads = 0;
   /** A URL da leitura mais recente, enquanto ela não volta. */
-  private wanted: string | null = null;
+  private readonly wanted = signal<string | null>(null);
+  /**
+   * Outra URL sendo lida no lugar da aberta. Até a leitura voltar, a tela mostra dela só o que sai do id (o
+   * endereço, o lugar no seletor) e nada do que é da anterior.
+   */
+  readonly arriving = computed(() => {
+    const wanted = this.wanted();
+    return wanted && wanted !== this.token()?.uuid ? wanted : null;
+  });
 
   /** URL que recebe os webhooks: `{protocolo}//{host}/{uuid}`. */
   readonly webhookUrl = computed(() => {
     const token = this.token();
-    return token ? `${this.location.protocol}//${this.location.host}/${token.uuid}` : '';
+    return token ? this.addressOf(token.uuid) : '';
+  });
+  /** O endereço que o cabeçalho mostra e copia: o da URL que chega, quando há uma. */
+  readonly shownUrl = computed(() => {
+    const arriving = this.arriving();
+    return arriving ? this.addressOf(arriving) : this.webhookUrl();
   });
 
   /**
@@ -39,7 +52,7 @@ export class TokenStore {
    */
   async load(tokenId: string): Promise<Token> {
     const run = ++this.loads;
-    this.wanted = tokenId;
+    this.wanted.set(tokenId);
     try {
       const token = await firstValueFrom(this.http.get<Token>(`/token/${tokenId}`));
       if (run === this.loads) {
@@ -57,7 +70,7 @@ export class TokenStore {
       throw error;
     } finally {
       if (run === this.loads) {
-        this.wanted = null;
+        this.wanted.set(null);
       }
     }
   }
@@ -67,7 +80,7 @@ export class TokenStore {
    * que voltasse depois trocaria o cabeçalho pelo dela.
    */
   ensure(tokenId: string): void {
-    if ((this.wanted ?? this.token()?.uuid) !== tokenId) {
+    if ((this.wanted() ?? this.token()?.uuid) !== tokenId) {
       this.load(tokenId).catch(() => undefined);
     }
   }
@@ -90,6 +103,10 @@ export class TokenStore {
       token?.uuid === tokenId ? { ...token, cors: enabled } : token,
     );
     return enabled;
+  }
+
+  private addressOf(uuid: string): string {
+    return `${this.location.protocol}//${this.location.host}/${uuid}`;
   }
 
   private keep(token: Token): Token {

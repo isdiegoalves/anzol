@@ -238,6 +238,52 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
     await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
   });
 
+  test('deve mostrar no cabeçalho a URL da rota, e nada da anterior, enquanto a nova ainda é lida', async ({
+    page,
+    tokens,
+  }) => {
+    const a = await tokens.create({
+      signature: { provider: 'github', secret: 'segredo-da-anterior' },
+    });
+    await tokens.send(a, { path: '/da-anterior' });
+    const b = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${a}/rules`);
+    const cabecalho = page.locator('app-url-header');
+    const campo = page.getByRole('textbox', { name: 'Webhook URL' });
+    const assinatura = cabecalho.getByRole('link', { name: /^Signature verification/ });
+    await expect(campo).toHaveValue(new RegExp(`/${a}$`));
+    // No celular o cabeçalho não tem os selos das verificações.
+    await expect(assinatura).toHaveCount(compacto(page) ? 0 : 1);
+    await expect(cabecalho.getByRole('link', { name: '1 request' })).toBeVisible();
+    let soltar!: () => void;
+    const presa = new Promise<void>((ok) => (soltar = ok));
+    await page.route(`**/token/${b}`, async (rota) => {
+      await presa;
+      await rota.continue();
+    });
+
+    await page.goto(`/#/${b}/rules`);
+    await expect(page).toHaveURL(new RegExp(`#/${b}/rules$`));
+    await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
+
+    await expect(campo).toHaveValue(new RegExp(`/${b}$`));
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
+    await expect(assinatura).toHaveCount(0);
+    await expect(cabecalho.getByRole('link', { name: /^\d+ requests?/ })).toHaveCount(0);
+    await page.keyboard.press('c');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(new RegExp(`/${b}$`));
+    await expect(destino(page, 'Inbox')).toHaveAttribute('href', new RegExp(`#/${b}$`));
+    const painel = await abrirSeletor(page);
+    await expect(urlNoSeletor(painel, a)).toHaveAttribute('aria-checked', 'false');
+    await urlNoSeletor(painel, a).click();
+    await expect(page).toHaveURL(new RegExp(`#/${a}/rules$`));
+    await expect(campo).toHaveValue(new RegExp(`/${a}$`));
+    await expect(cabecalho.getByRole('link', { name: '1 request' })).toBeVisible();
+    soltar();
+    await expect(campo).toHaveValue(new RegExp(`/${a}$`));
+  });
+
   test('deve falar só a URL aberta na Entrada, sem o estado da conexão, e anunciar também a volta pelo navegador', async ({
     page,
     tokens,

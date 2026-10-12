@@ -60,11 +60,11 @@
       }
       @for (destination of destinations; track destination.label) {
         @let here = marked() === destination;
-        @let status = open ? statusOf(destination) : null;
+        @let status = open && !tokens.arriving() ? statusOf(destination) : null;
         <!-- URL inexistente: os destinos ficam desligados, focáveis e com a razão. -->
         <a
           class="destination"
-          [routerLink]="open ? link(destination, open.uuid) : null"
+          [routerLink]="open ? link(destination, tokens.arriving() ?? open.uuid) : null"
           [attr.role]="open ? null : 'link'"
           [attr.tabindex]="open ? null : 0"
           [attr.aria-disabled]="open ? null : 'true'"
