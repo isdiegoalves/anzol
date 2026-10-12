@@ -22,8 +22,9 @@
 }
 
 // O cabeçalho do editor gruda no topo de quem rola (o painel, ou a página em tela baixa), por cima do conteúdo: a
-// folga leva para baixo dele o campo que recebe o foco. O cabeçalho mede 83 px numa linha e 110 em duas.
-:host,
+// folga leva para baixo dele o campo que recebe o foco. O cabeçalho mede 83 px numa linha e 110 em duas. Só com o
+// editor ao lado da lista: sem ele, a folga só deixaria a lista 128 px mais abaixo ao rolar até uma regra.
+:host:has(.split),
 .editor-pane {
   scroll-padding-top: 128px;
 }
