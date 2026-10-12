@@ -510,6 +510,10 @@ const TELAS: Tela[] = [
       await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
       await buscar(page, 'nada-casa');
       await expect(page.getByText('No requests match these filters')).toBeVisible();
+      // A linha do resultado entra na tela um instante depois da lista vazia.
+      await expect(
+        page.getByText('0 requests match · search runs on the server over all 1'),
+      ).toBeVisible();
       return [];
     },
   },
@@ -544,6 +548,7 @@ const TELAS: Tela[] = [
       await expect(page.getByRole('group', { name: 'Connection' })).toContainText(
         'What you typed is kept.',
       );
+      await expect(page.getByText('Could not search (0).')).toBeVisible();
       return [page.locator('app-connection-band .countdown')];
     },
   },
