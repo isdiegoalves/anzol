@@ -1,11 +1,22 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirMensagem, item } from './support/inbox';
-import { abrirRegra, abrirRegras, gravarRegras, linhaDaRegra } from './support/regras';
+import { abrirMensagem, item, lista } from './support/inbox';
+import {
+  abrirRegra,
+  abrirRegras,
+  dialogo,
+  gravarRegras,
+  linhaDaRegra,
+  novaRegra,
+  parte,
+} from './support/regras';
 import { seedStorage } from './support/storage';
 
 const SEGREDO = 'segredo-das-cores-forcadas';
+const CHAVE = 'x-evento';
+// O alvo do reenvio é o próprio Anzol, visto do container.
+const RECEPTOR = process.env['E2E_RECEIVER_HOST'] ?? 'host.docker.internal';
 
 // As cores forçadas do sistema (o alto contraste do Windows): o navegador apaga fundo e sombra e pinta tudo com as
 // cores de quem usa. Elas mudam de uma máquina para outra, e o teste as lê na página.
@@ -52,6 +63,38 @@ function assinado(corpo: string, segredo = SEGREDO): Record<string, string> {
 
 const seloDaAssinatura = (page: Page, uuid: string) =>
   item(page, uuid).locator('app-check-chip[data-kind="signature"]');
+
+const evento = (page: Page, valor: string) =>
+  lista(page)
+    .locator('app-event-line')
+    .filter({ has: page.getByRole('button', { name: new RegExp(`^Event ${valor}, `) }) });
+
+/** A aba aberta é a única sublinhada: nas outras, a borda sai na cor do papel. */
+async function expectSoEstaAbaSublinhada(abas: Locator, aberta: Locator, sistema: Sistema) {
+  await expect(aberta).toHaveAttribute('aria-selected', 'true');
+  expect(await estilo(aberta, 'border-bottom-color'), 'a aberta, sublinhada').not.toBe(
+    sistema.papel,
+  );
+  const outras = abas.and(abas.page().locator('[aria-selected="false"]'));
+  expect(await outras.count(), 'há outras abas').toBeGreaterThan(0);
+  for (const outra of await outras.all()) {
+    expect(await estilo(outra, 'border-bottom-color'), 'as outras, não').toBe(sistema.papel);
+  }
+}
+
+/** O método ligado sai nas cores do item escolhido; os outros ficam só com a borda. */
+async function expectSoEsteMetodoPintado(metodos: Locator, ligado: string, sistema: Sistema) {
+  const chip = (nome: string) => metodos.getByRole('button', { name: nome, exact: true });
+  await expect(chip(ligado)).toHaveAttribute('aria-pressed', 'true');
+  expect(await estilo(chip(ligado), 'background-color'), 'o método ligado').toBe(sistema.escolhido);
+  const desligados = metodos.locator('[aria-pressed="false"]');
+  expect(await desligados.count(), 'há métodos desligados').toBeGreaterThan(0);
+  for (const desligado of await desligados.all()) {
+    expect(await estilo(desligado, 'background-color'), 'os desligados').not.toBe(
+      sistema.escolhido,
+    );
+  }
+}
 
 test.describe('Dado as cores forçadas do sistema', () => {
   test('deve marcar na Entrada a requisição aberta, a falha, o destino atual e a conexão sem depender de fundo', async ({
@@ -195,5 +238,146 @@ test.describe('Dado as cores forçadas do sistema', () => {
       await estilo(atalhos.locator('a:not([aria-current])').first(), 'background-color'),
       'só a atual',
     ).not.toBe(sistema.escolhido);
+  });
+
+  test('deve pôr a régua no evento com tentativa que falhou ou que veio antes da espera, e só nele', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({
+      default_status: '429',
+      retry_after: '3',
+      signature: { provider: 'github', secret: SEGREDO },
+    });
+    // Quem traz `x-final` é respondido pela regra, sem espera pedida.
+    await gravarRegras(page.request, tokenId, [
+      {
+        name: 'Aceita',
+        priority: 1,
+        match: { headers: { 'x-final': { present: true } } },
+        response: { status: 200 },
+      },
+    ]);
+    const tentativa = (valor: string, extra: Record<string, string> = {}, segredo = SEGREDO) =>
+      tokens.send(tokenId, {
+        path: '/notificacoes',
+        headers: { ...assinado('{"n":1}', segredo), [CHAVE]: valor, ...extra },
+        data: '{"n":1}',
+      });
+    await tentativa('evt_inteiro', { 'x-final': '1' });
+    await tentativa('evt_inteiro', { 'x-final': '1' });
+    await tentativa('evt_cedo');
+    await tentativa('evt_cedo');
+    await tentativa('evt_falha', { 'x-final': '1' });
+    await tentativa('evt_falha', { 'x-final': '1' }, 'outro-segredo');
+    await seedStorage(page, { hideTutorial: 'true', [`anzol.eventKey.${tokenId}`]: CHAVE });
+    await page.goto(`/#/${tokenId}`);
+    await expect(lista(page).locator('app-event-line')).toHaveCount(3);
+    const sistema = await coresDoSistema(page);
+
+    await expect(evento(page, 'evt_falha')).toContainText('1 signature does not match');
+    expect(
+      await estilo(evento(page, 'evt_falha'), 'background-color', '::after'),
+      'a régua do evento com falha',
+    ).toBe(sistema.tinta);
+    await expect(evento(page, 'evt_cedo')).toContainText('came before the asked wait');
+    expect(
+      await estilo(evento(page, 'evt_cedo'), 'background-color', '::after'),
+      'a do evento com tentativa antes da espera',
+    ).toBe(sistema.tinta);
+    expect(
+      await estilo(evento(page, 'evt_inteiro'), 'content', '::after'),
+      'o evento sem nada a rever não tem régua',
+    ).toBe('none');
+  });
+
+  test('deve emoldurar na Saída a linha escolhida do histórico e sublinhar só a aba aberta do resultado', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const destino = await tokens.create({ default_status: '201' });
+    const origem = await tokens.send(tokenId, { path: '/x', data: 'um' });
+    const porta = new URL(test.info().project.use.baseURL ?? '').port || '80';
+    for (let i = 0; i < 2; i++) {
+      const reenvio = await page.request.post(`/token/${tokenId}/request/${origem}/replay`, {
+        data: { url: `http://${RECEPTOR}:${porta}/${destino}`, keep_path: true },
+      });
+      expect(reenvio.status(), await reenvio.text()).toBe(200);
+    }
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}/outbound`);
+    const linhas = page.getByRole('table', { name: 'Outbound history' }).locator('tbody tr');
+    await expect(linhas).toHaveCount(2);
+    const detalhe = page.getByRole('region', { name: 'Outbound detail' });
+    const abas = detalhe.getByRole('tab');
+    await expect(abas).toHaveCount(3);
+    const sistema = await coresDoSistema(page);
+
+    await expect(linhas.first()).toHaveAttribute('aria-selected', 'true');
+    expect(await estilo(linhas.first(), 'outline-style'), 'a escolhida tem moldura').toBe('solid');
+    expect(await estilo(linhas.first(), 'outline-color')).toBe(sistema.escolhido);
+    expect(await estilo(linhas.last(), 'outline-style'), 'só a escolhida').toBe('none');
+
+    await expectSoEstaAbaSublinhada(abas, abas.first(), sistema);
+    await abas.last().click();
+    await expectSoEstaAbaSublinhada(abas, abas.last(), sistema);
+  });
+
+  test('deve sublinhar só a aba aberta das respostas renderizadas de uma regra', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    for (const caminho of ['/a', '/b']) {
+      await tokens.send(tokenId, {
+        path: caminho,
+        headers: { 'Content-Type': 'application/json' },
+        data: '{"status":"pago"}',
+      });
+    }
+    await seedStorage(page, {});
+    await abrirRegras(page, tokenId);
+    const regra = await novaRegra(page);
+    await regra.getByRole('textbox', { name: 'Name', exact: true }).fill('Eco');
+    await parte(regra, 'Response');
+    await regra.getByRole('switch', { name: 'Template' }).click();
+    await regra.getByRole('textbox', { name: 'Response body' }).fill('{{request.path}}');
+    await regra.getByRole('button', { name: 'Test against history' }).click();
+    await regra.getByRole('button', { name: 'Preview response' }).click();
+    const abas = regra.getByRole('region', { name: 'Rendered responses' }).getByRole('tab');
+    await expect(abas).toHaveCount(2);
+    const sistema = await coresDoSistema(page);
+
+    await expectSoEstaAbaSublinhada(abas, abas.first(), sistema);
+    await abas.last().click();
+    await expectSoEstaAbaSublinhada(abas, abas.last(), sistema);
+  });
+
+  test('deve pintar só o método escolhido na sequência de um cenário', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await abrirRegras(page, tokenId);
+    const regra = await novaRegra(page);
+    await parte(regra, 'Scenario');
+    await regra.getByRole('button', { name: 'Sequence…' }).click();
+    const metodos = dialogo(page, 'Sequence').getByRole('group', { name: 'Methods' });
+    await metodos.getByRole('button', { name: 'PUT', exact: true }).click();
+    const sistema = await coresDoSistema(page);
+
+    await expectSoEsteMetodoPintado(metodos, 'PUT', sistema);
+  });
+
+  test('deve pintar só o método escolhido no roteiro "Test a retry"', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}?guide=retry`);
+    const metodos = page
+      .getByRole('region', { name: 'Guide: Test a retry' })
+      .getByRole('group', { name: 'Methods' });
+    await metodos.getByRole('button', { name: 'PUT', exact: true }).click();
+    const sistema = await coresDoSistema(page);
+
+    await expectSoEsteMetodoPintado(metodos, 'PUT', sistema);
   });
 });
