@@ -192,3 +192,45 @@ test.describe('Dado a conferência do axe que acompanha todo teste', () => {
     await page.evaluate(() => document.getElementById('dialogo-de-teste')?.remove());
   });
 });
+
+// Em série, no mesmo worker: o primeiro teste falha de propósito (`test.fail`) e o segundo confere o que a guarda
+// deixou para trás na desmontagem dele.
+test.describe('Dado um teste que falha com a medida do que abriu por cima no ar', () => {
+  test.describe.configure({ mode: 'serial' });
+  let medindo = 0;
+  let sobrou: { erros: number; medindo: number } | undefined;
+
+  const falho = test.extend({
+    // A página desmonta depois do vigia: é o último ponto antes de o contexto fechar.
+    page: async ({ page }, use, testInfo) => {
+      const esperar = page.waitForFunction.bind(page);
+      page.waitForFunction = ((...args: Parameters<typeof esperar>) => {
+        medindo++;
+        return esperar(...args).finally(() => medindo--);
+      }) as typeof page.waitForFunction;
+      await use(page);
+      sobrou = { erros: testInfo.errors.length, medindo };
+    },
+  });
+
+  falho.fail('falha de propósito logo depois de abrir um diálogo', async ({ page, tokens }) => {
+    await page.goto(`/#/${await tokens.create()}/checks`);
+    await expect(destino(page, 'Checks')).toHaveAttribute('aria-current', 'page');
+    await page.evaluate(() => {
+      const dialogo = document.createElement('div');
+      dialogo.setAttribute('role', 'dialog');
+      dialogo.setAttribute('aria-label', 'Diálogo de teste');
+      dialogo.textContent = 'diálogo de teste';
+      document.querySelector('main')?.append(dialogo);
+      // A medida espera as animações acabarem: esta a segura no começo, e é o que está no ar na hora da falha.
+      dialogo.animate([{ opacity: 0.99 }, { opacity: 1 }], 1000);
+    });
+    await expect.poll(() => medindo).toBe(1);
+
+    throw new Error('falha de propósito');
+  });
+
+  test('deve terminar só com a falha dele, e com a medida acabada antes de o contexto fechar', () => {
+    expect(sobrou).toEqual({ erros: 1, medindo: 0 });
+  });
+});

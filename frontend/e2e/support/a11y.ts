@@ -130,6 +130,8 @@ interface JanelaVigiada {
 export interface PorCima {
   /** Espera as medidas a caminho e entrega o que elas acharam desde a última vez. */
   colher(): Promise<string[]>;
+  /** Deixa de medir o que abrir daqui em diante e espera a medida que já começou acabar. */
+  parar(): Promise<void>;
 }
 
 /**
@@ -140,15 +142,19 @@ export interface PorCima {
 export async function vigiarOQueAbrePorCima(page: Page): Promise<PorCima> {
   const achadas = new Set<string>();
   let pedida = false;
+  let parado = false;
   await page.exposeBinding('__abriuPorCima', () => {
-    if (pedida) {
+    if (pedida || parado) {
       return;
     }
     pedida = true;
     naFila(page, async () => {
       pedida = false;
+      if (parado) {
+        return;
+      }
       const primeira = await medir(page);
-      if (primeira.length > 0) {
+      if (primeira.length > 0 && !parado) {
         const segunda = await medir(page);
         primeira.filter((violacao) => segunda.includes(violacao)).forEach((v) => achadas.add(v));
       }
@@ -188,6 +194,10 @@ export async function vigiarOQueAbrePorCima(page: Page): Promise<PorCima> {
       const vistas = [...achadas];
       achadas.clear();
       return vistas;
+    },
+    async parar() {
+      parado = true;
+      await naFila(page, () => Promise.resolve());
     },
   };
 }

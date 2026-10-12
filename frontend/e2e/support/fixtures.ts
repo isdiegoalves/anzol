@@ -118,7 +118,11 @@ export const test = base.extend<{
   axeNoFim: [true, { option: true }],
   /** O axe do que abre por cima da página durante o teste e pode fechar antes do fim (diálogo, folha, menu). */
   axePorCima: async ({ page, axeNoFim }, use) => {
-    await use(axeNoFim ? await vigiarOQueAbrePorCima(page) : null);
+    const vigia = axeNoFim ? await vigiarOQueAbrePorCima(page) : null;
+    await use(vigia);
+    // Em todo desfecho: a medida que ficou no ar acaba antes de a página e o contexto fecharem, e o teste que
+    // falha mostra só a falha dele.
+    await vigia?.parar();
   },
   // Depende de `tokens` para rodar antes da limpeza (apagar a URL mudaria a tela).
   axeAutomatico: [
