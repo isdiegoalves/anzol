@@ -35,8 +35,8 @@ O `./ci.sh` da raiz roda tudo o que está acima de uma vez. No GitHub, o workflo
 (`.github/workflows/testes.yml`) roda a cada push e pull request só a parte sem stack (passo 1 abaixo: backend, CLI e
 frontend), e o workflow `e2e` (`.github/workflows/e2e.yml`) roda, a cada push e em pull request que mexam em
 `frontend/`, em `backend/src/main/`, no `Dockerfile`, no compose do stack isolado ou no próprio workflow, uma parte do
-E2E contra a imagem do `Dockerfile`: os specs de caos (`caos*`), os `patamar-*` e o `cores-lista`. A seleção está no script
-`e2e:github` do `frontend/package.json`; para rodá-la como o GitHub roda, com o app no ar:
+E2E contra a imagem do `Dockerfile`: os specs de caos (`caos*`), os `patamar-*`, o `cores-lista` e o `i18n-carga`. A
+seleção está no script `e2e:github` do `frontend/package.json`; para rodá-la como o GitHub roda, com o app no ar:
 `cd frontend && BASE_URL=http://localhost:8084 npm run e2e:github`. Contrato, o E2E inteiro, a regressão visual e o
 aceite do CLI ficam no `./ci.sh`.
 
