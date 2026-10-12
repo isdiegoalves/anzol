@@ -26,6 +26,10 @@
   &.open {
     transform: rotate(90deg);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
 .segmented {

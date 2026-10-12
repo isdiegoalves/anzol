@@ -305,6 +305,47 @@ describe('Dado a página Checks', () => {
     });
   });
 
+  describe('Dado a seção pedida pela rota (?section=)', () => {
+    const scrollIntoView = vi.fn();
+
+    beforeEach(() => {
+      scrollIntoView.mockClear();
+      // O jsdom não rola nem tem `matchMedia`.
+      Element.prototype.scrollIntoView = scrollIntoView;
+    });
+
+    afterEach(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+      vi.unstubAllGlobals();
+    });
+
+    const sistema = (menosMovimento: boolean) =>
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: menosMovimento && query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+
+    it('deve rolar até ela com suavidade', async () => {
+      sistema(false);
+
+      await ready(`/${TOKEN_ID}/checks?section=response`);
+
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'start', behavior: 'smooth' });
+    });
+
+    it('deve ir até ela de uma vez Quando o sistema pede menos movimento', async () => {
+      sistema(true);
+
+      await ready(`/${TOKEN_ID}/checks?section=response`);
+
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'start', behavior: 'auto' });
+    });
+  });
+
   describe('Dado a decifra ligada numa URL sem segredo de leitura', () => {
     it('deve tirar o aviso do segredo assim que a Privacidade é ligada no rascunho, e devolvê-lo ao desligar', async () => {
       await ready(`/${TOKEN_ID}/checks`, token({ protected: false }));

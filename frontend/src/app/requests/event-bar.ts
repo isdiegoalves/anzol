@@ -116,6 +116,10 @@ import { RequestStore } from './request-store';
       transition:
         opacity 120ms,
         visibility 120ms;
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
     }
 
     .short {

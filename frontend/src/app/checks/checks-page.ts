@@ -1,3 +1,4 @@
+import { MediaMatcher } from '@angular/cdk/layout';
 import {
   Component,
   DestroyRef,
@@ -107,6 +108,7 @@ export class ChecksPage {
   protected readonly draft = inject(ChecksDraft);
   private readonly urls = inject(KnownUrls);
   private readonly viewport = inject(Viewport);
+  private readonly lessMotion = inject(MediaMatcher).matchMedia('(prefers-reduced-motion: reduce)');
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap);
@@ -153,9 +155,10 @@ export class ChecksPage {
     afterRenderEffect(() => {
       const target = this.target();
       if (this.ready() && target) {
-        this.host.nativeElement
-          .querySelector(`#checks-${target}`)
-          ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+        this.host.nativeElement.querySelector(`#checks-${target}`)?.scrollIntoView?.({
+          block: 'start',
+          behavior: this.lessMotion.matches ? 'auto' : 'smooth',
+        });
       }
     });
     this.watchSections();
