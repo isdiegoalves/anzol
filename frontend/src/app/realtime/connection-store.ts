@@ -40,7 +40,8 @@ export class Connection {
   }
 
   failed(): void {
-    if (this.downSince()) {
+    // A prova da volta que cai depois de o tempo real abrir não é queda nova.
+    if (this.downSince() || this.trying) {
       return;
     }
     const since = new Date();
@@ -49,6 +50,7 @@ export class Connection {
       since,
       $localize`No connection to the server since ${clock(since)}:time:. What you typed is kept.`,
     );
+    this.stream.doubt();
   }
 
   async retry(): Promise<void> {
@@ -62,19 +64,27 @@ export class Connection {
       return;
     }
     this.trying = true;
+    const answered = await this.answers();
+    this.trying = false;
+    // O tempo real pode abrir sozinho com a prova a caminho: a volta já foi dita.
+    if (!this.downSince()) {
+      return;
+    }
+    if (answered) {
+      this.reopen();
+    } else {
+      this.attempt++;
+      this.wait();
+    }
+  }
+
+  /** Resposta com status (401 da URL trancada, 410) conta: o servidor respondeu, a conexão voltou. */
+  private async answers(): Promise<boolean> {
     try {
       await firstValueFrom(this.http.get(this.probe(), { responseType: 'text' }));
-      this.reopen();
+      return true;
     } catch (error) {
-      // Resposta com status (401 da URL trancada, 410): o servidor respondeu, a conexão voltou.
-      if (error instanceof HttpErrorResponse && error.status !== 0) {
-        this.reopen();
-      } else {
-        this.attempt++;
-        this.wait();
-      }
-    } finally {
-      this.trying = false;
+      return error instanceof HttpErrorResponse && error.status !== 0;
     }
   }
 

@@ -156,6 +156,39 @@ describe('Dado o stream SSE de uma URL', () => {
     expect(stream.status()).toBe('open');
   });
 
+  it('deve fechar a conexão aberta e abrir outra, já em "reconnecting", retomando o que chegou, Quando a tela duvida dela', async () => {
+    const resume = vi.fn().mockResolvedValue(0);
+    subscriptions.add(stream.connect(TOKEN_ID, { resume }).subscribe());
+    const old = FakeEventSource.latest();
+    old.open();
+    await vi.waitFor(() => expect(stream.status()).toBe('open'));
+    resume.mockResolvedValue(2);
+
+    stream.doubt();
+
+    expect(old.readyState).toBe(FakeEventSource.CLOSED);
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(stream.status()).toBe('reconnecting');
+    FakeEventSource.latest().open();
+    await vi.waitFor(() => expect(stream.status()).toBe('open'));
+    expect(resume).toHaveBeenCalledTimes(2);
+    expect(stream.recovered()).toBe(2);
+  });
+
+  it('não deve mexer na conexão que ainda abre, nem na que já reconecta, Quando a tela duvida dela', () => {
+    subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+
+    stream.doubt();
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(stream.status()).toBe('connecting');
+    FakeEventSource.latest().open();
+    FakeEventSource.latest().fail(FakeEventSource.CONNECTING);
+    stream.doubt();
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(stream.status()).toBe('reconnecting');
+  });
+
   describe('Dado uma conexão aberta que para de receber sem fechar', () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());

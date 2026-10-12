@@ -44,6 +44,7 @@ export class ProxyDeCaos {
   private readonly atrasos = new Set<Regra & { ms: number }>();
   private readonly seguras = new Set<Regra & Segura>();
   private readonly recusas = new Set<Regra & { status: number }>();
+  private readonly quedas = new Set<Regra>();
   private readonly agente = new Agent({ keepAlive: true });
   private readonly servidor: Server;
 
@@ -126,12 +127,20 @@ export class ProxyDeCaos {
     return () => this.recusas.delete(regra);
   }
 
+  /** O pedido da rota cai sem resposta, como na rede que some. Devolve a função que desfaz. */
+  derrubar(rota: RegExp, metodo?: string): () => void {
+    const regra = { rota, metodo };
+    this.quedas.add(regra);
+    return () => this.quedas.delete(regra);
+  }
+
   restaurar(): void {
     this.cortados.clear();
     this.congelados.clear();
     this.descartados.clear();
     this.atrasos.clear();
     this.recusas.clear();
+    this.quedas.clear();
     this.seguras.forEach((segura) => segura.liberar());
     this.seguras.clear();
     this.fechar((stream) => stream.congelado);
@@ -150,6 +159,8 @@ export class ProxyDeCaos {
     if (recusa) {
       req.resume();
       recusar(res, recusa.status);
+    } else if ([...this.quedas].some((regra) => casa(regra, req))) {
+      req.socket.destroy();
     } else if (token && this.cortados.has(token)) {
       req.socket.destroy();
     } else if (token && this.congelados.has(token)) {

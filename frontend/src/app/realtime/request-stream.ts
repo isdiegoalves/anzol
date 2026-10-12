@@ -111,6 +111,21 @@ export class RequestStream {
     this.publish();
   }
 
+  /**
+   * Dá por caída a conexão que se diz aberta e a abre de novo: uma chamada à API ficou sem resposta, e
+   * a conexão meio morta só se revelaria pelo silêncio.
+   */
+  doubt(): void {
+    for (const [tokenId, shared] of this.streams) {
+      if (shared.status === 'open') {
+        this.close(shared);
+        shared.status = 'reconnecting';
+        shared.source = this.source(tokenId, shared);
+      }
+    }
+    this.publish();
+  }
+
   private close(shared: Shared): void {
     shared.source.close();
     if (shared.reopening) {

@@ -103,4 +103,19 @@ test.describe('Dado o proxy de caos na frente do app', () => {
     expect(chegadas).toEqual(['outra', 'atrasada']);
     expect(Date.now() - inicio).toBeGreaterThanOrEqual(1500);
   });
+
+  test('deve derrubar sem resposta só a rota pedida, e voltar a entregá-la depois', async ({
+    request,
+    tokens,
+    caos,
+  }) => {
+    const [a, b] = [await tokens.create(), await tokens.create()];
+
+    const voltar = caos.derrubar(new RegExp(`^/token/${a}$`));
+
+    await expect(request.get(`/token/${a}`)).rejects.toThrow(/socket hang up|ECONNRESET/);
+    expect((await request.get(`/token/${b}`)).status()).toBe(200);
+    voltar();
+    expect((await request.get(`/token/${a}`)).status()).toBe(200);
+  });
 });

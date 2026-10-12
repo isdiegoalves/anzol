@@ -111,8 +111,8 @@ describe('Dado a conexão com o servidor', () => {
     http.expectOne(`/token/${TOKEN_ID}`).flush('{}');
     await retry;
 
-    expect(FakeEventSource.instances).toHaveLength(2);
-    expect(FakeEventSource.instances[0].readyState).toBe(FakeEventSource.CLOSED);
+    expect(FakeEventSource.instances).toHaveLength(3);
+    expect(FakeEventSource.instances[1].readyState).toBe(FakeEventSource.CLOSED);
     TestBed.tick();
     expect(connection.notice()).toBe(notice);
     expect(connection.downSince()).not.toBeNull();
@@ -141,6 +141,84 @@ describe('Dado a conexão com o servidor', () => {
 
     expect(connection.downSince()).toBeNull();
     expect(connection.notice()).toBe('Connected again.');
+  });
+
+  describe('Dado uma chamada que falha por rede com o tempo real dizendo "Live"', () => {
+    let opened: Subscription;
+    const resume = vi.fn<() => Promise<number>>();
+    const stream = () => TestBed.inject(RequestStream);
+    const settle = async (ms = 0) => {
+      await vi.advanceTimersByTimeAsync(ms);
+      TestBed.tick();
+    };
+
+    beforeEach(async () => {
+      resume.mockReset().mockResolvedValue(0);
+      opened = stream().connect(TOKEN_ID, { resume }).subscribe();
+      FakeEventSource.latest().open();
+      await settle();
+    });
+
+    afterEach(() => opened.unsubscribe());
+
+    it('deve pôr o tempo real para se provar de novo, uma vez só enquanto a faixa está aberta', async () => {
+      failCall();
+      await settle();
+
+      expect(FakeEventSource.instances).toHaveLength(2);
+      expect(FakeEventSource.instances[0].readyState).toBe(FakeEventSource.CLOSED);
+      expect(stream().status()).toBe('reconnecting');
+
+      failCall('/token/abc');
+      await settle(QUIET_DROP_MS);
+      expect(FakeEventSource.instances).toHaveLength(2);
+      expect(connection.notice()).toMatch(/^No connection to the server since /);
+    });
+
+    it('deve dizer "Connected again." uma vez, com o que chegou, Quando ele abre de novo', async () => {
+      failCall();
+      resume.mockResolvedValue(2);
+
+      FakeEventSource.latest().open();
+      await settle();
+
+      expect(connection.downSince()).toBeNull();
+      expect(connection.notice()).toBe('Connected again. 2 requests arrived meanwhile.');
+      await settle(RESTORED_NOTE_MS);
+      expect(connection.notice()).toBe('');
+      await settle(30_000);
+      http.expectNone(`/token/${TOKEN_ID}`);
+    });
+
+    it('não deve reabrir de novo nem voltar a contar Quando ele abre com a prova da API a caminho', async () => {
+      failCall();
+      await settle(5000);
+      const probe = http.expectOne(`/token/${TOKEN_ID}`);
+      FakeEventSource.latest().open();
+      await settle();
+      expect(connection.notice()).toBe('Connected again.');
+
+      probe.flush('{}');
+      await settle();
+
+      expect(FakeEventSource.instances).toHaveLength(2);
+      expect(connection.countdown()).toBe(0);
+      await settle(30_000);
+      http.expectNone(`/token/${TOKEN_ID}`);
+    });
+
+    it('não deve voltar a contar Quando ele abre e a prova da API, a caminho, falha', async () => {
+      failCall();
+      await settle(5000);
+      const probe = http.expectOne(`/token/${TOKEN_ID}`);
+      FakeEventSource.latest().open();
+      await settle();
+
+      probe.error(networkError());
+      await settle();
+
+      expect(connection.countdown()).toBe(0);
+    });
   });
 
   describe('Dado o tempo real fora de "Live" (regra dos 5 s)', () => {
@@ -187,6 +265,18 @@ describe('Dado a conexão com o servidor', () => {
       expect(connection.notice()).toMatch(
         /^No signal from the server since \d{1,2}:\d{2}.*\. The list may be incomplete\.$/,
       );
+    });
+
+    it('não deve mexer no tempo real que já reconecta Quando uma chamada falha por rede', async () => {
+      source().fail(FakeEventSource.CONNECTING);
+      await settle();
+      const antes = FakeEventSource.instances.length;
+
+      failCall();
+      await settle();
+
+      expect(FakeEventSource.instances).toHaveLength(antes);
+      expect(connection.notice()).toMatch(/^No connection to the server since /);
     });
 
     it('deve reabrir o stream em "Try again now", sem provar a volta pela API, e falar só quando ele abre', async () => {

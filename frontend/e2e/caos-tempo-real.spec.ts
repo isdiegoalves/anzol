@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import { escutarAnuncios, expectSemAnuncio, expectUmAnuncio } from './support/anuncios';
 import { expect, test } from './support/caos';
-import { item, lista } from './support/inbox';
+import { campoDeBusca, item, lista } from './support/inbox';
 import { estadoAoVivo } from './support/shell';
 
 const rodape = (page: Page) => lista(page).locator('.range');
@@ -199,5 +199,42 @@ test.describe('Dado o /stream que para de receber sem fechar', () => {
       /^Connection$/,
     );
     await expect(estadoAoVivo(page)).toContainText('Live');
+  });
+});
+
+test.describe('Dado a rede que some sem avisar: a API cai sem resposta e o /stream segue aberto, mudo', () => {
+  test('deve tirar o chip de "Live" junto com a faixa e, na volta, dizer uma vez "Connected again." com a que chegou', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    test.setTimeout(60_000);
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, { path: '/pedidos/antes' });
+    await escutarAnuncios(page);
+    await abrir(page, tokenId);
+
+    expect(caos.congelar(tokenId)).toBe(1);
+    const voltar = caos.derrubar(new RegExp(`^/token/${tokenId}/(?!stream)`));
+    await campoDeBusca(page).fill('pedidos');
+    await expect(tentarAgora(page)).toBeVisible();
+    await expect(estadoAoVivo(page)).toContainText('Reconnecting…', { timeout: 4_000 });
+    await expectUmAnuncio(
+      page,
+      /^No connection to the server since \d{1,2}:\d{2}.*\. What you typed is kept\.$/,
+      /^Connection$/,
+    );
+    const naQueda = await tokens.send(tokenId, { path: '/pedidos/na-queda' });
+    voltar();
+    caos.soltar(tokenId);
+
+    await expect(estadoAoVivo(page)).toContainText('Live', { timeout: 20_000 });
+    await expectUmAnuncio(
+      page,
+      /^Connected again\. 1 request arrived meanwhile\.$/,
+      /^Connection$/,
+    );
+    await expectSemAnuncio(page, /brief connection drop|Live updates dropped|No signal/);
+    await expect(item(page, naQueda)).toBeVisible();
   });
 });
