@@ -32,10 +32,13 @@ class RedisFullApiTest(
         redis.execute { it.serverCommands().setConfig(name, value) }
     }
 
+    /**
+     * Teto de 1 byte, abaixo de qualquer uso: com o teto no uso do instante, o Redis deixa de estar cheio assim que
+     * libera por conta própria o buffer de um cliente.
+     */
     private fun fillUp() {
-        val used = redis.execute { it.serverCommands().info("memory") }?.getProperty("used_memory")?.toLong() ?: 0
         config("maxmemory-policy", "noeviction")
-        config("maxmemory", used.toString())
+        config("maxmemory", "1")
     }
 
     @AfterEach
