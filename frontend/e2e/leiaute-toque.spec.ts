@@ -145,6 +145,24 @@ test.describe('Dado um celular com toque', () => {
       .toEqual([]);
   });
 
+  test('deve dar 44 px aos botões "Use …" do "From this request" no editor de regra', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, {
+      path: '/pedidos',
+      headers: { 'content-type': 'application/json', 'x-tenant': 'acme' },
+      data: '{"a":1}',
+    });
+    await abrirRegras(page, tokenId);
+    const regra = await novaRegra(page);
+    const campos = regra.getByRole('region', { name: 'From this request' }).getByRole('button');
+
+    await expect(campos.filter({ hasText: 'x-tenant' })).toBeVisible();
+    expect(await menoresQue44(campos)).toEqual([]);
+  });
+
   test('deve dar 44 px aos alternadores de algoritmo e de codificação em Verificações', async ({
     page,
     tokens,
