@@ -218,6 +218,8 @@ test.describe('Dado o seletor de URLs no cabeçalho', () => {
     await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(a)}. Switch URL`);
     await page.goto(`/#/${b}/rules`);
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
+    // Até a URL nova ser lida, o seletor ainda mostra a anterior como a aberta, e escolhê-la não troca nada.
+    await expect(seletor(page)).toHaveAccessibleName(`URL ${id5(b)}. Switch URL`);
     const painel = await abrirSeletor(page);
     await limparAnuncios(page);
 
