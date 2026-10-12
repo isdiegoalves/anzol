@@ -14,6 +14,7 @@ import { translations } from '../../locale/pt-BR';
 import { checksMatcher, routes } from '../app.routes';
 import { Viewport, WindowClass } from '../shell/viewport';
 import { Preferences } from '../settings/preferences';
+import { TokenStore } from '../token/token-store';
 import { CHECKS_DRAFT_KEY, ChecksDraft } from './checks-draft';
 import { ChecksPage, checksSections } from './checks-page';
 
@@ -165,16 +166,15 @@ describe('Dado a página Checks', () => {
     await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/request/${webhookRequest(9).uuid}`));
   });
 
-  it('deve dizer que não carregou e tentar de novo pelo "Try again" Quando a leitura da URL falha', async () => {
+  it('deve deixar a falha da leitura da URL com a página de erro do shell, sem alerta próprio', async () => {
     const { harness, load } = await open(`/${TOKEN_ID}/checks`);
 
     load.flush(null, { status: 500, statusText: 'x' });
+    await new Promise((done) => setTimeout(done));
     await harness.fixture.whenStable();
 
-    expect((await screen.findByRole('alert')).textContent).toContain('Could not load this URL.');
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`))).flush(token());
-    await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Privacy' })).toBeTruthy());
+    expect(TestBed.inject(TokenStore).failure()).toEqual({ id: TOKEN_ID, status: 500 });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('deve mostrar a URL da rota, sem ficar em "Loading this URL…", Quando a anterior chega depois', async () => {
@@ -229,6 +229,31 @@ describe('Dado a página Checks', () => {
     await harness.fixture.whenStable();
 
     expect(document.querySelector('app-slow-notice')).toBeNull();
+    await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
+  });
+
+  it('deve seguir em "Loading this URL…", sem alerta, Quando a leitura de antes do "Try again" da demora falha com a nova a caminho', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+    let opened: Awaited<ReturnType<typeof open>>;
+    try {
+      opened = await open(`/${TOKEN_ID}/checks`);
+      vi.advanceTimersByTime(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+    const { harness, load } = opened;
+    await harness.fixture.whenStable();
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    const again = await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}`));
+
+    load.flush(null, { status: 500, statusText: 'x' });
+    await new Promise((done) => setTimeout(done));
+    await harness.fixture.whenStable();
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Loading this URL…')).toBeTruthy();
+    again.flush(token());
+    await vi.waitFor(() => expect(screen.getByRole('region', { name: 'Privacy' })).toBeTruthy());
     await vi.waitFor(() => http.match(() => true).forEach((call) => call.flush([])));
   });
 

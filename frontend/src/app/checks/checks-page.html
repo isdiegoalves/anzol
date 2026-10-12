@@ -106,11 +106,6 @@
             }
           }
         }
-      } @else if (failed()) {
-        <div class="notice" role="alert">
-          <p i18n>Could not load this URL.</p>
-          <button mat-flat-button type="button" (click)="load(tokenId())" i18n>Try again</button>
-        </div>
       } @else {
         <p class="loading" role="status">
           <span appLateContent i18n>Loading this URL…</span>

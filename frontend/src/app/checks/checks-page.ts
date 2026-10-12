@@ -121,7 +121,6 @@ export class ChecksPage {
   protected readonly schemaFrom = computed(() => this.query()?.get('schema-from') ?? null);
   /** URL carregada do servidor para esta rota; `null` enquanto carrega. */
   private readonly loaded = signal<string | null>(null);
-  protected readonly failed = signal(false);
   /** A leitura da URL passou de 30 s sem resposta. */
   protected readonly slow = signal(false);
   private slowTimer: ReturnType<typeof setTimeout> | undefined;
@@ -207,14 +206,13 @@ export class ChecksPage {
 
   protected load(tokenId: string): void {
     this.loaded.set(null);
-    this.failed.set(false);
     this.slow.set(false);
     clearTimeout(this.slowTimer);
     this.slowTimer = setTimeout(
-      () => this.slow.set(this.tokenId() === tokenId && !this.ready() && !this.failed()),
+      () => this.slow.set(this.tokenId() === tokenId && !this.ready()),
       SLOW_READ_MS,
     );
-    // 401 de URL protegida tranca a tela pelo interceptor; o resto vira o estado de erro.
+    // A falha da leitura é do shell, que troca esta página pela de desbloqueio, de URL inexistente ou de erro.
     this.tokens
       .load(tokenId)
       .then((token) => {
@@ -223,11 +221,7 @@ export class ChecksPage {
           this.loaded.set(tokenId);
         }
       })
-      .catch(() => {
-        if (this.tokenId() === tokenId) {
-          this.failed.set(true);
-        }
-      });
+      .catch(() => undefined);
   }
 
   protected stateOf(id: PageSection): SectionState | null {

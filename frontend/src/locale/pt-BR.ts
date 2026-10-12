@@ -3180,8 +3180,6 @@ export const translations: Record<string, string> = {
   '2347523290020722312': '{$field}: definido (não mostrado)',
   // {$field}: {$old} → {$new}
   '5461607654576853907': '{$field}: {$old} → {$new}',
-  // Could not load this URL.
-  '7581075395114297532': 'Não foi possível carregar esta URL.',
   // unsaved
   '1001212805141003337': 'não salvo',
   // On · {$dialect}
