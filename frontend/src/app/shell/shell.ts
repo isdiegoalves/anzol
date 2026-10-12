@@ -18,6 +18,8 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import {
+  GuardsCheckEnd,
+  NavigationCancel,
   NavigationEnd,
   NavigationError,
   NavigationStart,
@@ -155,8 +157,17 @@ export class Shell {
     return open ? tokenId : null;
   });
 
-  /** Destino marcado no rail (`aria-current="page"`); nenhum no Compare. */
+  /** O destino da rota; nenhum no Compare. */
   protected readonly current = computed(() => this.place().destination);
+
+  /** O destino para onde a navegação vai, das guardas aprovadas até a página abrir ou a navegação cair. */
+  private readonly heading = signal<Destination | null>(null);
+
+  /**
+   * Destino marcado no rail (`aria-current="page"`). Vale desde que as guardas deixam sair, sem esperar o pedaço da
+   * página baixar: o rail responde ao clique na hora.
+   */
+  protected readonly marked = computed(() => this.heading() ?? this.current());
 
   /** URL protegida sem acesso, enquanto a rota for dela. */
   protected readonly locked = computed(() => {
@@ -201,6 +212,21 @@ export class Shell {
     });
 
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof GuardsCheckEnd && event.shouldActivate) {
+        this.heading.set(
+          placeOf(
+            this.router
+              .parseUrl(event.urlAfterRedirects)
+              .root.children['primary']?.segments.map((segment) => segment.path) ?? [],
+          ).destination,
+        );
+      } else if (
+        event instanceof NavigationEnd ||
+        event instanceof NavigationCancel ||
+        event instanceof NavigationError
+      ) {
+        this.heading.set(null);
+      }
       if (event instanceof NavigationStart && event.navigationTrigger === 'popstate') {
         // Voltar ou avançar para outra URL é uma troca de URL como a do seletor, e é anunciada igual.
         const { tokenId } = placeOf(

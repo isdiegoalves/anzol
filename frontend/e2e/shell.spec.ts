@@ -72,6 +72,32 @@ test.describe('Dado o rail com os cinco destinos da URL', () => {
     }
   });
 
+  test('deve marcar o destino no clique, antes de o pedaço da página chegar', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await page.goto(`/#/${tokenId}`);
+    await expect(destino(page, 'Inbox')).toHaveAttribute('aria-current', 'page');
+    // O pedaço da página de Métricas fica preso na rede até o teste soltar.
+    let soltar!: () => void;
+    const preso = new Promise<void>((resolve) => (soltar = resolve));
+    await page.route(/\/chunk-[\w-]+\.js$/, async (rota) => {
+      await preso;
+      await rota.continue();
+    });
+
+    await destino(page, 'Insights').click();
+
+    await expect(destino(page, 'Insights')).toHaveAttribute('aria-current', 'page');
+    await expect(secoes(page).locator('[aria-current="page"]')).toHaveCount(1);
+    await expect(page, 'a página de antes segue na tela').toHaveURL(new RegExp(`#/${tokenId}$`));
+
+    soltar();
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/insights$`));
+    await expect(destino(page, 'Insights')).toHaveAttribute('aria-current', 'page');
+  });
+
   test('deve abrir cada rota nova pelo link direto, sem redirecionar, com a URL no cabeçalho', async ({
     page,
     request,

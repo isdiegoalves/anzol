@@ -5,7 +5,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { NavigationError, Router, provideRouter } from '@angular/router';
+import { NavigationError, Router, Routes, provideRouter } from '@angular/router';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { expectNoAxeViolations } from '../../testing/axe';
@@ -41,12 +41,13 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
   let createUrl: ReturnType<typeof vi.fn>;
   let createDefaultUrl: ReturnType<typeof vi.fn>;
 
-  const renderAt = async (url: string, withToken = true) => {
+  const renderAt = async (url: string, withToken = true, lazy: Routes = []) => {
     createUrl = vi.fn().mockResolvedValue(undefined);
     createDefaultUrl = vi.fn().mockResolvedValue(undefined);
     const view = await render(Shell, {
       providers: [
         provideRouter([
+          ...lazy,
           { matcher: rulesMatcher, component: Page },
           { matcher: checksMatcher, component: Page },
           { matcher: outboundMatcher, component: Page },
@@ -491,6 +492,72 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
       expect(retry).toHaveBeenCalled();
       connection.downSince.set(null);
       connection.notice.set('');
+    });
+  });
+
+  describe('Dado um destino cujo pedaço ainda está baixando', () => {
+    const marked = () =>
+      within(sections() as HTMLElement)
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('aria-current') === 'page')
+        .map((link) => link.textContent?.trim());
+    /** A página de Métricas num pedaço que o teste entrega quando quer. */
+    const slowInsights = () => {
+      let arrive!: () => void;
+      const chunk = new Promise<typeof Page>((resolve) => (arrive = () => resolve(Page)));
+      return { arrive, routes: [{ matcher: insightsMatcher, loadComponent: () => chunk }] };
+    };
+
+    it('deve marcar o destino no rail antes de a página abrir, com a de antes ainda na tela', async () => {
+      const { arrive, routes } = slowInsights();
+      const { fixture } = await renderAt(`/${TOKEN_ID}`, true, routes);
+      const router = TestBed.inject(Router);
+
+      const going = router.navigateByUrl(`/${TOKEN_ID}/insights`);
+      await vi.waitFor(() => expect(marked()).toEqual(['Insights']));
+
+      expect(router.url).toBe(`/${TOKEN_ID}`);
+      expect(screen.getByText('página da rota')).toBeTruthy();
+      expect(document.title).toBe(`Inbox · URL ${TOKEN_ID.slice(0, 5)} · Anzol`);
+
+      arrive();
+      await going;
+      await fixture.whenStable();
+      expect(router.url).toBe(`/${TOKEN_ID}/insights`);
+      expect(marked()).toEqual(['Insights']);
+    });
+
+    it('deve seguir o último clique Quando outro destino é escolhido antes de o primeiro abrir', async () => {
+      const { routes } = slowInsights();
+      const { fixture } = await renderAt(`/${TOKEN_ID}`, true, routes);
+      const router = TestBed.inject(Router);
+
+      void router.navigateByUrl(`/${TOKEN_ID}/insights`);
+      await vi.waitFor(() => expect(marked()).toEqual(['Insights']));
+      await router.navigateByUrl(`/${TOKEN_ID}/rules`);
+      await fixture.whenStable();
+
+      expect(marked()).toEqual(['Rules']);
+    });
+
+    it('deve deixar a marca onde está enquanto uma guarda segura a saída, e Quando ela a recusa', async () => {
+      let answer!: (leave: boolean) => void;
+      const asked = new Promise<boolean>((resolve) => (answer = resolve));
+      const guard = vi.fn(() => asked);
+      const { fixture } = await renderAt(`/${TOKEN_ID}/checks`, true, [
+        { matcher: checksMatcher, component: Page, canDeactivate: [guard] },
+      ]);
+      const router = TestBed.inject(Router);
+
+      const going = router.navigateByUrl(`/${TOKEN_ID}/insights`);
+      await vi.waitFor(() => expect(guard).toHaveBeenCalled());
+      fixture.detectChanges();
+      expect(marked()).toEqual(['Checks']);
+
+      answer(false);
+      await going;
+      await fixture.whenStable();
+      expect(marked()).toEqual(['Checks']);
     });
   });
 

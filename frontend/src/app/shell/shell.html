@@ -59,7 +59,7 @@
         <span id="destination-off" hidden i18n>This URL no longer exists</span>
       }
       @for (destination of destinations; track destination.label) {
-        @let here = current() === destination;
+        @let here = marked() === destination;
         @let status = open ? statusOf(destination) : null;
         <!-- URL inexistente: os destinos ficam desligados, focáveis e com a razão. -->
         <a
