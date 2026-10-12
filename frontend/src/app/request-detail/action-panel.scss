@@ -131,6 +131,10 @@
   margin-top: 8px;
   color: var(--mat-sys-primary);
   font: var(--mat-sys-label-large);
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 // Uma faixa própria embaixo do conteúdo que rola: colada nele, a frase parecia escrita por cima.

@@ -29,6 +29,10 @@
   &:focus-visible {
     outline: var(--app-focus-width) solid var(--app-focus-color);
   }
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 .chevron {

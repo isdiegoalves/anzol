@@ -64,6 +64,12 @@ p {
 
 a {
   color: var(--mat-sys-primary);
+
+  @media (pointer: coarse) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 @media (width < 600px) {

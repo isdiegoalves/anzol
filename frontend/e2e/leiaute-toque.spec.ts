@@ -1,7 +1,7 @@
 import { Locator } from '@playwright/test';
 import { abrirChecks } from './support/checks';
 import { expect, test } from './support/fixtures';
-import { abrirFiltros, filtro, lista } from './support/inbox';
+import { abrirFiltros, abrirMensagem, acaoDaMensagem, filtro, lista } from './support/inbox';
 import {
   CHAVE_URLS,
   abrirSeletor,
@@ -238,5 +238,78 @@ test.describe('Dado um celular com toque', () => {
     await tokens.send(tokenId, { path: '/pedidos' });
     await page.goto(`/#/${tokenId}/insights`);
     expect.soft(await menoresQue44(page.locator('summary', { hasText: 'Data table' }))).toEqual([]);
+  });
+
+  test('deve dar 44 px ao "Open in Outbound" do painel de reenvio', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+    const id = await tokens.send(tokenId, { path: '/pedidos', data: '{"a":1}' });
+    await seedStorage(page, { hideTutorial: 'true' });
+    await abrirMensagem(page, tokenId, id);
+    await acaoDaMensagem(page, 'Replay…');
+    const painel = page.getByRole('dialog', { name: 'Actions on this request' });
+
+    expect(await menoresQue44(painel.getByRole('link', { name: 'Open in Outbound' }))).toEqual([]);
+  });
+
+  test('deve dar 44 px ao botão das linhas iguais escondidas e ao "Open full comparison" do painel de comparação', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const tentativa = (valor: string) =>
+      tokens.send(tokenId, {
+        path: '/pedidos',
+        headers: { 'Content-Type': 'application/json', 'x-evento': 'evt_longo' },
+        data: JSON.stringify(
+          Object.fromEntries(
+            Array.from({ length: 14 }, (_, i) => [`campo_${i + 10}`, i === 7 ? valor : `igual`]),
+          ),
+        ),
+      });
+    await tentativa('antes');
+    // A hora é gravada por segundo: a segunda tentativa precisa vir depois da primeira.
+    await page.waitForTimeout(1100);
+    const segunda = await tentativa('depois');
+    await seedStorage(page, { hideTutorial: 'true', [`anzol.eventKey.${tokenId}`]: 'x-evento' });
+    await abrirMensagem(page, tokenId, segunda);
+    await acaoDaMensagem(page, 'Compare with attempt 1');
+    const painel = page.getByRole('dialog', { name: 'Actions on this request' });
+
+    expect
+      .soft(
+        await menoresQue44(painel.getByRole('button', { name: /unchanged lines hidden/ })),
+        'linhas iguais escondidas',
+      )
+      .toEqual([]);
+    expect
+      .soft(await menoresQue44(painel.getByRole('link', { name: 'Open full comparison' })))
+      .toEqual([]);
+  });
+
+  test('deve dar 44 px ao abre-e-fecha "Forward from this browser (legacy)" da Saída', async ({
+    page,
+    tokens,
+  }) => {
+    await page.goto(`/#/${await tokens.create()}/outbound`);
+
+    expect(
+      await menoresQue44(page.getByRole('button', { name: 'Forward from this browser (legacy)' })),
+    ).toEqual([]);
+  });
+
+  test('deve dar 44 px aos links dos passos do roteiro "First webhook"', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await seedStorage(page, {});
+    await page.goto(`/#/${tokenId}?guide=first`);
+    const roteiro = page.getByRole('region', { name: 'Guide: First webhook' });
+    const links = roteiro.getByRole('link', {
+      name: /^Open (the signature check|a new rule|the retry guide)$/,
+    });
+
+    await expect(links).toHaveCount(3);
+    expect(await menoresQue44(links)).toEqual([]);
   });
 });
