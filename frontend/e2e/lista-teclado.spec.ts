@@ -91,7 +91,7 @@ test.describe('Dado a lista pelo teclado', () => {
     expect(pouso).toEqual({ naLista: true, inteira: true, rolagem });
   });
 
-  test('deve filtrar pelo status respondido no detalhe só com o teclado, com o selo fora do Tab (CA-12)', async ({
+  test('deve filtrar pelo status respondido no detalhe só com o teclado, com o selo fora do Tab', async ({
     page,
     tokens,
   }) => {

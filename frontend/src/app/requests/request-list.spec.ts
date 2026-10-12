@@ -715,7 +715,7 @@ describe('Dado a lista lateral de mensagens', () => {
     },
   );
 
-  it('deve ser uma lista com a posição de cada linha no total da URL (D-08 A)', async () => {
+  it('deve ser uma lista com a posição de cada linha no total da URL', async () => {
     await load([webhookRequest(1), webhookRequest(2), webhookRequest(3)], 120, false);
 
     expect(items()[0].parentElement?.getAttribute('role')).toBe('list');

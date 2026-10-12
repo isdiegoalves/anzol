@@ -299,7 +299,7 @@ export class RequestList {
     });
   });
   /**
-   * O "N de M" do leitor (D-08 A): a posição na URL (ou no que casa com o filtro), como o rodapé
+   * O "N de M" do leitor: a posição na URL (ou no que casa com o filtro), como o rodapé
    * "1–50 of 128"; agrupada, entre as linhas carregadas, porque o evento junta várias requisições.
    */
   protected readonly place = computed(() => {
