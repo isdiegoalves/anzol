@@ -96,7 +96,8 @@ export class FilterPanel {
   }
 
   protected async loadRules(): Promise<void> {
-    const tokenId = this.store.tokenId();
+    // A URL que a tela está abrindo vale antes da já carregada: o menu pode abrir antes de a lista chegar.
+    const tokenId = this.store.opening() ?? this.store.tokenId();
     if (!tokenId || this.rulesToken === tokenId) {
       return;
     }

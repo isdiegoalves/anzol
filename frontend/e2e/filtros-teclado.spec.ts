@@ -149,6 +149,72 @@ test.describe('Dado o painel de filtros na janela larga', () => {
   });
 });
 
+test.describe('Dado o menu de regras do filtro aberto com a lista da URL ainda por chegar', () => {
+  /** Segura a listagem da URL até `soltar`. */
+  async function segurarLista(page: Page, tokenId: string): Promise<() => void> {
+    let soltar!: () => void;
+    const presa = new Promise<void>((ok) => (soltar = ok));
+    await page.route(`**/token/${tokenId}/requests?**`, async (rota) => {
+      await presa;
+      await rota.continue();
+    });
+    return soltar;
+  }
+
+  async function abrirMenuDeRegras(page: Page): Promise<Locator> {
+    await botaoFiltros(page).click();
+    await barra(page)
+      .getByRole('button', { name: /^Answered by rule/ })
+      .focus();
+    await page.keyboard.press('Enter');
+    return page.getByRole('menu', { name: 'Rules' });
+  }
+
+  test('deve trazer as regras da URL para o menu, sem ninguém reabri-lo', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const tokenId = await tokens.create();
+    await gravarRegras(request, tokenId, [
+      { name: 'Primeira', priority: 1, match: { method: ['POST'] }, response: { status: 201 } },
+      { name: 'Segunda', priority: 2, match: { method: ['GET'] }, response: { status: 202 } },
+    ]);
+    const soltar = await segurarLista(page, tokenId);
+    await page.goto(`/#/${tokenId}`);
+
+    const menu = await abrirMenuDeRegras(page);
+
+    await expect(menu.getByRole('menuitem')).toHaveText(['Primeira', 'Segunda']);
+    soltar();
+    await expect(page.getByRole('heading', { name: 'Requests (0)' })).toBeVisible();
+    await expect(menu.getByRole('menuitem')).toHaveText(['Primeira', 'Segunda']);
+  });
+
+  test('deve mostrar as regras da URL que está abrindo, e não as da anterior', async ({
+    page,
+    tokens,
+    request,
+  }) => {
+    const [a, b] = [await tokens.create(), await tokens.create()];
+    await gravarRegras(request, a, [
+      { name: 'Da anterior', priority: 1, response: { status: 201 } },
+    ]);
+    await gravarRegras(request, b, [
+      { name: 'Da que abre', priority: 1, response: { status: 202 } },
+    ]);
+    await page.goto(`/#/${a}`);
+    await expect(page.getByRole('heading', { name: 'Requests (0)' })).toBeVisible();
+    const soltar = await segurarLista(page, b);
+    await page.goto(`/#/${b}`);
+
+    const menu = await abrirMenuDeRegras(page);
+
+    await expect(menu.getByRole('menuitem')).toHaveText(['Da que abre']);
+    soltar();
+  });
+});
+
 test.describe('Dado o painel de filtros no celular', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
