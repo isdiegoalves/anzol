@@ -32,7 +32,14 @@
     <div class="created">
       <mat-form-field class="grow">
         <mat-label i18n>Read-only link</mat-label>
-        <input matInput readonly [value]="address(link)" />
+        <textarea
+          matInput
+          readonly
+          cdkTextareaAutosize
+          cdkAutosizeMinRows="1"
+          class="link"
+          [value]="address(link)"
+        ></textarea>
         <mat-hint i18n>Expires {{ expires(link) }}</mat-hint>
       </mat-form-field>
       <button

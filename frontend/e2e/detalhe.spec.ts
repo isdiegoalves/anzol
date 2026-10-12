@@ -161,6 +161,34 @@ test.describe('Dado uma mensagem JSON com query e header próprio (checklist 8)'
     expect(medida.embaixo, 'a validade embaixo do link').toBe(compacto(page));
   });
 
+  test('deve mostrar inteiro o link recém-criado, quebrando em linhas quando não cabe em uma', async ({
+    page,
+  }) => {
+    await page.goto(`/#/${tokenId}/${requestId}/1`);
+    await acaoDaMensagem(page, 'Share read-only link…');
+    const dialogo = page.getByRole('dialog', { name: 'Share read-only link' });
+    await dialogo.getByRole('button', { name: 'Create link' }).click();
+
+    const link = dialogo.getByLabel('Read-only link');
+    await expect(link).toHaveValue(/#\/share\/\w+$/);
+    const campo = await link.evaluate((el: HTMLInputElement | HTMLTextAreaElement) => {
+      const estilo = getComputedStyle(el);
+      const linha =
+        Number.parseFloat(estilo.lineHeight) || Number.parseFloat(estilo.fontSize) * 1.5;
+      return {
+        cortadoDeLado: el.scrollWidth - el.clientWidth,
+        cortadoEmBaixo: el.scrollHeight - el.clientHeight,
+        linhas: Math.round(el.clientHeight / linha),
+      };
+    });
+
+    expect(campo.cortadoDeLado, 'pixels do link fora do campo, de lado').toBeLessThanOrEqual(0);
+    expect(campo.cortadoEmBaixo, 'pixels do link fora do campo, embaixo').toBeLessThanOrEqual(0);
+    if (compacto(page)) {
+      expect(campo.linhas, 'linhas do link no celular').toBeGreaterThan(1);
+    }
+  });
+
   test('deve mostrar só o corpo na aba Body e só os headers na aba Headers, sem "Hide Details"', async ({
     page,
   }) => {

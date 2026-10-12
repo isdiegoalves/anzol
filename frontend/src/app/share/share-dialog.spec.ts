@@ -127,6 +127,8 @@ describe('Dado o diálogo "Share read-only link…"', () => {
     expect(call.request.body).toEqual({ expires_in: '7d', redact: true });
     const input = await loader.getHarness(MatInputHarness.with({ selector: '[readonly]' }));
     expect(await input.getValue()).toBe(`${location.origin}/#/share/AbC123`);
+    // Um campo de várias linhas: em tela estreita o link quebra e aparece inteiro.
+    expect(element().querySelector('.created [readonly]')?.tagName).toBe('TEXTAREA');
     expect(await loader.getAllHarnesses(MatButtonHarness.with({ text: 'Copy link' }))).toHaveLength(
       1,
     );

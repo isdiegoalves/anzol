@@ -1,4 +1,5 @@
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Injector, inject, signal } from '@angular/core';
@@ -50,6 +51,7 @@ export function openShareDialog(injector: Injector, request: WebhookRequest): vo
   imports: [
     ReactiveFormsModule,
     CdkCopyToClipboard,
+    CdkTextareaAutosize,
     MatDialogTitle,
     MatDialogContent,
     MatDialogActions,
