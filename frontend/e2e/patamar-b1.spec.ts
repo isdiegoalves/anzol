@@ -89,6 +89,14 @@ async function comTipoDeEvento(
 interface SegundaLinha {
   /** Letras do nome de quem respondeu à vista no selo, depois do "200 · " (a fonte é de largura fixa). */
   selo: number;
+  /** O número do status aparece inteiro. */
+  numeroInteiro: boolean;
+  /** Letras à vista depois do número, contando o " · "; 0 quando o selo fica só com o número. */
+  depoisDoNumero: number;
+  /** Quanto o selo do status passa do ícone e do número, em px, quando fica só com eles. */
+  sobraNoSelo: number;
+  /** Os selos de erro que terminam em reticências. */
+  errosEncurtados: string[];
   /** Letras do tipo do evento à vista; 0 quando ele não aparece. */
   tipo: number;
   idInteiro: boolean;
@@ -111,21 +119,29 @@ function segundaLinha(linha: Locator): Promise<SegundaLinha> {
       }
       return { largura: Math.max(0, direita - esquerda), altura: Math.max(0, base - topo) };
     };
-    /** Quantas letras de `texto` aparecem; o texto cortado gasta a última com as reticências. */
-    const letras = (dentro: Element, texto: string): number => {
+    /** Onde `texto` foi desenhado, sem contar o que o recorta, e o elemento em que ele está. */
+    const desenhado = (dentro: Element, texto: string): [DOMRect, Element | null] | null => {
       const textos = document.createTreeWalker(dentro, NodeFilter.SHOW_TEXT);
       let no = textos.nextNode() as Text | null;
       while (no && !no.data.includes(texto)) {
         no = textos.nextNode() as Text | null;
       }
       if (!no) {
-        return 0;
+        return null;
       }
       const faixa = document.createRange();
       faixa.setStart(no, no.data.indexOf(texto));
       faixa.setEnd(no, no.data.indexOf(texto) + texto.length);
-      const inteiro = faixa.getBoundingClientRect();
-      const visto = aVista(inteiro, no.parentElement);
+      return [faixa.getBoundingClientRect(), no.parentElement];
+    };
+    /** Quantas letras de `texto` aparecem; o texto cortado gasta a última com as reticências. */
+    const letras = (dentro: Element, texto: string): number => {
+      const achado = desenhado(dentro, texto);
+      if (!achado) {
+        return 0;
+      }
+      const [inteiro, pai] = achado;
+      const visto = aVista(inteiro, pai);
       if (visto.altura < inteiro.height / 2) {
         return 0;
       }
@@ -138,9 +154,17 @@ function segundaLinha(linha: Locator): Promise<SegundaLinha> {
     };
     const selo = raiz.querySelector('.seals app-check-chip[data-kind="rule"] .title')!;
     const nome = (selo.textContent ?? '').trim();
-    const numero = nome.indexOf(' · ') + 3;
+    const numero = nome.slice(0, nome.indexOf(' · '));
+    const depoisDoNumero = letras(selo, nome.slice(numero.length));
+    const fimDoNumero = desenhado(selo, numero)![0].right;
     return {
-      selo: letras(selo, nome) - numero,
+      selo: Math.max(0, depoisDoNumero - 3),
+      numeroInteiro: letras(selo, numero) === numero.length,
+      depoisDoNumero,
+      sobraNoSelo: selo.closest('app-check-chip')!.getBoundingClientRect().right - fimDoNumero,
+      errosEncurtados: [...raiz.querySelectorAll('.seals app-check-chip.bad .title')]
+        .filter((titulo) => titulo.scrollWidth > titulo.clientWidth)
+        .map((titulo) => titulo.textContent ?? ''),
       tipo: letras(raiz, tipo),
       idInteiro: inteiro(raiz.querySelector('.id')!),
       selosInteiros: [
@@ -836,7 +860,8 @@ test.describe('Dado a lista densa', () => {
       type: 'object',
       required: ['id', 'valor'],
     });
-    await seedStorage(page, { language: '"pt-BR"' });
+    // Com a lista na largura mínima da divisória, os dois selos de erro não cabem inteiros em fonte nenhuma.
+    await seedStorage(page, { language: '"pt-BR"', inboxListWidth: '300' });
     await page.goto(`/#/${tokenId}`);
     // Em pt-BR a região da lista tem outro nome: o item sai pelo `#` do id.
     const linhaDaLista = page.locator('.item').filter({ hasText: `#${id5(id)}` });
@@ -875,7 +900,7 @@ test.describe('Dado a lista densa', () => {
   });
 
   for (const idioma of ['en', 'pt-BR']) {
-    test(`deve mostrar inteiro o número do status com dois selos de erro ao lado, em ${idioma}`, async ({
+    test(`deve mostrar o número do status inteiro, e o nome de quem respondeu legível ou fora do selo, com dois selos de erro ao lado, em ${idioma}`, async ({
       page,
       tokens,
     }) => {
@@ -890,37 +915,31 @@ test.describe('Dado a lista densa', () => {
         await page.setViewportSize({ width: largura, height: largura < 600 ? 844 : 1000 });
         await page.goto(`/#/${tokenId}`);
         const linhaDaLista = page.locator('.item').filter({ hasText: `#${id5(id)}` });
+        const selo = linhaDaLista.locator('.seals app-check-chip[data-kind="rule"]');
         await expect(linhaDaLista.locator('.seals app-check-chip.bad')).toHaveCount(2);
         await page.evaluate(() => document.fonts.ready);
 
-        // O texto cortado termina em reticências, que na fonte de largura fixa ocupam uma letra: o número
-        // aparece inteiro quando cabem as letras dele e mais uma.
-        const selo = await linhaDaLista
-          .locator('.seals app-check-chip[data-kind="rule"] .title')
-          .evaluate((titulo) => {
-            const texto = (titulo.textContent ?? '').trim();
-            const faixa = document.createRange();
-            faixa.selectNodeContents(titulo);
-            const letra = faixa.getBoundingClientRect().width / texto.length;
-            const numero = texto.indexOf(' · ');
-            const cortado = titulo.scrollWidth > titulo.clientWidth;
-            return {
-              texto,
-              cabem: cortado ? Math.floor(titulo.clientWidth / letra) - 1 : texto.length,
-              numero,
-              icone: titulo
-                .closest('app-check-chip')!
-                .querySelector('app-icon')!
-                .getBoundingClientRect().width,
-            };
-          });
+        const linha = await segundaLinha(linhaDaLista);
 
-        expect(selo.texto, `a ${largura} px`).toMatch(/^200 · /);
+        await expect(selo, `a ${largura} px`).toHaveText(/^200 · /);
+        await expect(selo, `o veredito inteiro no title a ${largura} px`).toHaveAttribute(
+          'title',
+          idioma === 'en' ? /Default response/ : /Resposta padrão/,
+        );
+        expect(linha.numeroInteiro, `o número do status inteiro a ${largura} px`).toBe(true);
+        // Depois do número, ou o " · " com 6 letras do nome, ou nada: nem reticências soltas, nem o separador só.
         expect(
-          selo.cabem,
-          `letras do selo do status à vista a ${largura} px`,
-        ).toBeGreaterThanOrEqual(selo.numero);
-        expect(selo.icone, `o ícone do selo do status a ${largura} px`).toBe(16);
+          linha.depoisDoNumero === 0 || linha.selo >= 6,
+          `letras depois do número a ${largura} px: ${linha.depoisDoNumero}`,
+        ).toBe(true);
+        if (linha.depoisDoNumero === 0) {
+          // A moldura fecha logo depois do número: 4 px de folga e 1 px de borda.
+          expect(linha.sobraNoSelo, `o selo só com o número a ${largura} px`).toBeLessThan(7);
+        }
+        if (idioma === 'en' && largura >= 1400) {
+          expect(linha.errosEncurtados, `selos de erro encurtados a ${largura} px`).toEqual([]);
+        }
+        await expect(selo.locator('app-icon')).toHaveCSS('width', '16px');
       }
     });
   }

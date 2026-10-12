@@ -96,8 +96,17 @@
 }
 
 :host(.mini[data-kind='rule']) .title {
+  display: flex;
   font-family: var(--app-code-family);
   font-weight: 600;
+}
+
+// O número do status não encolhe; o nome de quem respondeu cede com reticências, até não sobrar nada dele.
+.by {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 
 .note {

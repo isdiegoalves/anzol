@@ -69,6 +69,9 @@ export interface ChipLink {
               more.text
             }}</a>
           }
+        } @else if (shortParts(); as parts) {
+          <!-- prettier-ignore -->
+          <span class="title"><span>{{ parts[0] }}</span><span class="by">{{ parts[1] }}</span></span>
         } @else {
           <span class="title">{{ result().short }}</span>
         }
@@ -119,6 +122,13 @@ export class CheckChip {
 
   /** O veredito inteiro, no `title` do selo. */
   protected readonly spoken = computed(() => spokenOf(this.result()));
+
+  /** O selo do status em duas partes, "200" e " · Default response": a segunda cede ou sai inteira. */
+  protected readonly shortParts = computed(() => {
+    const { kind, short } = this.result();
+    const at = kind === 'rule' ? short.indexOf(' · ') : -1;
+    return at < 0 ? null : [short.slice(0, at), short.slice(at)];
+  });
 
   /** O título partido em volta do valor: antes, o valor, o separador e o resto. */
   protected readonly titleParts = computed(() => {

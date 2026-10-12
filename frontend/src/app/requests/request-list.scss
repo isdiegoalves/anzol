@@ -289,6 +289,9 @@ app-event-line {
 // segunda linha, que a altura corta, e o selo fica com a sobra. O #id fica sempre à vista (trava 2).
 .fit {
   display: flex;
+
+  // Largura que não depende do conteúdo: é contra ela que os selos medem se o nome de quem respondeu cabe.
+  flex: 1 1 0;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 4px;
@@ -316,9 +319,8 @@ app-event-line {
 // coluna, que fica com o que sobra dos selos de erro); só então um selo de erro encurta, com
 // reticências, o mais longo antes. Nenhum é cortado pela borda.
 .seals {
-  // O número do status nunca é cortado: 30 px de ícone e moldura, as 3 letras dele e as reticências,
-  // e 1 px para o arredondamento não tirar uma letra.
-  --seal-floor: calc(31px + 4ch);
+  // O número do status nunca é cortado: 30 px de ícone e moldura e as 3 letras dele.
+  --seal-floor: calc(30px + 3ch);
 
   display: grid;
   flex: 1 1 max-content;
@@ -337,6 +339,17 @@ app-event-line {
   gap: 3px;
   min-width: 0;
   max-width: max-content;
+
+  // Sem lugar para o nome legível, os selos ocupam só o que ocupam com o número sozinho: o que sobra
+  // fica depois deles, e não entre o selo do status e o seguinte. É o mesmo degrau do selo do status.
+  max-width: calc-size(
+    max-content,
+    clamp(
+      size - var(--seal-whole) + var(--seal-floor),
+      (100% - size + var(--seal-whole) - var(--seal-legible) + 1px) * 9999,
+      size
+    )
+  );
   overflow: hidden;
 
   app-check-chip {
@@ -371,9 +384,13 @@ app-event-line {
 
   // O filtro por status fica por cima deste selo, e em 40 px ele alcança a altura do meio do item:
   // o selo termina antes do meio da linha, onde o clique abre a requisição.
+  // A largura é um degrau: sem lugar na coluna para as letras legíveis do nome, a conta dá um valor
+  // enorme e negativo e o selo fica só com o número; com lugar, enorme e positivo, e ele a ocupa.
   .mini[data-kind='rule'] {
-    min-width: 60px;
+    justify-self: start;
+    width: clamp(var(--seal-floor), (100% - var(--seal-legible) + 1px) * 9999, 100%);
     max-width: calc(50cqw - 32px);
+    font-family: var(--app-code-family);
   }
 }
 
