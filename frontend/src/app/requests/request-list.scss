@@ -312,22 +312,26 @@ app-event-line {
   }
 }
 
-// Quem cede primeiro é o selo do status, pelo nome de quem respondeu, até 60 px (a primeira coluna, que
-// fica com o que sobra dos selos de erro); só então um selo de erro encurta, com reticências, o mais
-// longo antes. Nenhum é cortado pela borda.
+// Quem cede primeiro é o selo do status, pelo nome de quem respondeu, até sobrar o número (a primeira
+// coluna, que fica com o que sobra dos selos de erro); só então um selo de erro encurta, com
+// reticências, o mais longo antes. Nenhum é cortado pela borda.
 .seals {
+  // O número do status nunca é cortado: 30 px de ícone e moldura, as 3 letras dele e as reticências,
+  // e 1 px para o arredondamento não tirar uma letra.
+  --seal-floor: calc(31px + 4ch);
+
   display: grid;
   flex: 1 1 max-content;
 
   // Ao dividir a linha com o tipo, os selos pedem o lugar deles com o do status nas letras legíveis
   // (30 px de ícone e moldura), e não inteiro: o que as outras letras ocupariam sai da conta. Onde o
   // navegador não conhece o calc-size, vale a linha de cima, e o tipo só entra com os selos inteiros.
-  --seal-whole: clamp(60px, 30px + var(--seal-length) * 1ch, 50cqw - 32px);
-  --seal-legible: max(60px, 30px + var(--seal-letters) * 1ch);
+  --seal-whole: clamp(var(--seal-floor), 30px + var(--seal-length) * 1ch, 50cqw - 32px);
+  --seal-legible: max(var(--seal-floor), 30px + var(--seal-letters) * 1ch);
 
   flex-basis: calc-size(max-content, size - var(--seal-whole) + var(--seal-legible));
   font-family: var(--app-code-family);
-  grid-template-columns: minmax(60px, 1fr);
+  grid-template-columns: minmax(var(--seal-floor), 1fr);
   grid-auto-columns: minmax(0, max-content);
   grid-auto-flow: column;
   gap: 3px;

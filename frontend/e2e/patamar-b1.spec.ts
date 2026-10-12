@@ -873,6 +873,57 @@ test.describe('Dado a lista densa', () => {
     expect(linha.idInteiro, 'o #id inteiro').toBe(true);
   });
 
+  for (const idioma of ['en', 'pt-BR']) {
+    test(`deve mostrar inteiro o número do status com dois selos de erro ao lado, em ${idioma}`, async ({
+      page,
+      tokens,
+    }) => {
+      const { tokenId, id } = await comTipoDeEvento(tokens, {
+        type: 'object',
+        required: ['id', 'valor'],
+      });
+      await seedStorage(page, { language: `"${idioma}"` });
+      const larguras = compacto(page) ? [390] : [1400, 1600];
+
+      for (const largura of larguras) {
+        await page.setViewportSize({ width: largura, height: largura < 600 ? 844 : 1000 });
+        await page.goto(`/#/${tokenId}`);
+        const linhaDaLista = page.locator('.item').filter({ hasText: `#${id5(id)}` });
+        await expect(linhaDaLista.locator('.seals app-check-chip.bad')).toHaveCount(2);
+        await page.evaluate(() => document.fonts.ready);
+
+        // O texto cortado termina em reticências, que na fonte de largura fixa ocupam uma letra: o número
+        // aparece inteiro quando cabem as letras dele e mais uma.
+        const selo = await linhaDaLista
+          .locator('.seals app-check-chip[data-kind="rule"] .title')
+          .evaluate((titulo) => {
+            const texto = (titulo.textContent ?? '').trim();
+            const faixa = document.createRange();
+            faixa.selectNodeContents(titulo);
+            const letra = faixa.getBoundingClientRect().width / texto.length;
+            const numero = texto.indexOf(' · ');
+            const cortado = titulo.scrollWidth > titulo.clientWidth;
+            return {
+              texto,
+              cabem: cortado ? Math.floor(titulo.clientWidth / letra) - 1 : texto.length,
+              numero,
+              icone: titulo
+                .closest('app-check-chip')!
+                .querySelector('app-icon')!
+                .getBoundingClientRect().width,
+            };
+          });
+
+        expect(selo.texto, `a ${largura} px`).toMatch(/^200 · /);
+        expect(
+          selo.cabem,
+          `letras do selo do status à vista a ${largura} px`,
+        ).toBeGreaterThanOrEqual(selo.numero);
+        expect(selo.icone, `o ícone do selo do status a ${largura} px`).toBe(16);
+      }
+    });
+  }
+
   test('deve ter item de 36 px na densidade compacta (64 no celular, nas duas densidades)', async ({
     page,
     tokens,
