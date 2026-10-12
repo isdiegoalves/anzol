@@ -124,6 +124,11 @@ async function violacoes(page: Page): Promise<string[]> {
   );
 }
 
+interface JanelaVigiada {
+  __abriuPorCima(): Promise<void>;
+  __olharPorCima?(): Promise<unknown>;
+}
+
 export interface PorCima {
   /** Espera as medidas a caminho e entrega o que elas acharam desde a última vez. */
   colher(): Promise<string[]>;
@@ -152,21 +157,22 @@ export async function vigiarOQueAbrePorCima(page: Page): Promise<PorCima> {
     }).catch(() => undefined); // a página fechou ou recarregou no meio da medida
   });
   await page.addInitScript((seletor) => {
+    const janela = window as unknown as JanelaVigiada;
     const vistos = new WeakSet<Element>();
     let marcado = false;
     const olhar = () => {
       marcado = false;
-      for (const aberto of document.querySelectorAll(seletor)) {
-        if (!vistos.has(aberto) && aberto.getClientRects().length > 0) {
-          vistos.add(aberto);
-          void (window as unknown as { __abriuPorCima(): Promise<void> }).__abriuPorCima();
-        }
-      }
+      const novos = [...document.querySelectorAll(seletor)].filter(
+        (aberto) => !vistos.has(aberto) && aberto.getClientRects().length > 0,
+      );
+      novos.forEach((aberto) => vistos.add(aberto));
+      return Promise.all(novos.map(() => janela.__abriuPorCima()));
     };
+    janela.__olharPorCima = olhar;
     new MutationObserver(() => {
       if (!marcado) {
         marcado = true;
-        setTimeout(olhar, 100);
+        setTimeout(() => void olhar(), 100);
       }
     }).observe(document, {
       childList: true,
@@ -177,6 +183,9 @@ export async function vigiarOQueAbrePorCima(page: Page): Promise<PorCima> {
   }, POR_CIMA);
   return {
     async colher() {
+      // A página avisa com 100 ms de atraso. O que abriu logo antes da colheita ainda não pediu a medida: sem
+      // este pedido ela começaria depois, sem ninguém esperar, e pegaria o contexto fechando no fim do teste.
+      await page.evaluate(() => (window as unknown as JanelaVigiada).__olharPorCima?.());
       await naFila(page, () => Promise.resolve());
       const vistas = [...achadas];
       achadas.clear();

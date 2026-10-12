@@ -166,4 +166,29 @@ test.describe('Dado a conferência do axe que acompanha todo teste', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
+
+  test('deve medir na colheita o diálogo que acabou de abrir, sem deixar a medida para depois', async ({
+    page,
+    tokens,
+    axePorCima,
+  }) => {
+    await page.goto(`/#/${await tokens.create()}/checks`);
+    await expect(destino(page, 'Checks')).toHaveAttribute('aria-current', 'page');
+
+    await page.evaluate(() => {
+      const dialogo = document.createElement('div');
+      dialogo.id = 'dialogo-de-teste';
+      dialogo.setAttribute('role', 'dialog');
+      dialogo.setAttribute('aria-label', 'Diálogo de teste');
+      const texto = document.createElement('p');
+      texto.style.cssText = 'color: #bbb; background: #fff';
+      texto.textContent = 'texto de contraste ruim';
+      dialogo.append(texto);
+      document.querySelector('main')?.append(dialogo);
+    });
+
+    expect((await axePorCima?.colher())?.join('\n')).toContain('color-contrast');
+
+    await page.evaluate(() => document.getElementById('dialogo-de-teste')?.remove());
+  });
 });
