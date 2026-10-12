@@ -258,6 +258,58 @@ test.describe('Dado a rota já na URL nova, com a leitura dela ainda a caminho',
     leitura.soltar();
   });
 
+  test('deve esperar a leitura na Entrada, sem requisição nem endereço da URL anterior, e abrir o roteiro só para a nova', async ({
+    page,
+    tokens,
+    caos,
+  }) => {
+    const anterior = await tokens.create();
+    await tokens.send(anterior, { path: '/da-anterior' });
+    const nova = await tokens.create();
+    await seedStorage(page, {
+      [CHAVE_URLS]: listaDeUrls([{ uuid: anterior }, { uuid: nova }]),
+    });
+    await page.goto(`/#/${anterior}`);
+    await expect(itens(page)).toHaveCount(1);
+    const leitura = caos.segurar(new RegExp(`^/token/${nova}$`), 'GET');
+    const regrasPedidas: string[] = [];
+    page.on('request', (pedido) => {
+      const de = /\/token\/([^/]+)\/rules$/.exec(pedido.url())?.[1];
+      if (de) {
+        regrasPedidas.push(de === nova ? 'nova' : 'anterior');
+      }
+    });
+    const roteiro = page.getByRole('region', { name: 'Guide: Test a retry' });
+    const conferir = async () => {
+      await expect(page.getByRole('textbox', { name: 'Webhook URL' })).toHaveValue(
+        new RegExp(`/${nova}$`),
+      );
+      await expect(lista(page)).toHaveAttribute('aria-busy', 'true');
+      await expect(itens(page)).toHaveCount(0);
+      await expect(conteudo(page)).not.toContainText(anterior);
+      await expect(conteudo(page)).not.toContainText('/da-anterior');
+    };
+
+    await irPara(page, `#/${nova}`);
+    await conferir();
+    await irPara(page, `#/${anterior}`);
+    await expect(itens(page)).toHaveCount(1);
+    await urlNoSeletor(await abrirSeletor(page), nova).click();
+    await expect(page).toHaveURL(new RegExp(`#/${nova}$`));
+    await conferir();
+    await irPara(page, `#/${nova}?guide=retry`);
+    await conferir();
+    await depoisDeTratar(page);
+    await expect(roteiro).toHaveCount(0);
+    expect(regrasPedidas, 'o roteiro não lê as regras de URL nenhuma antes da leitura').toEqual([]);
+
+    leitura.soltar();
+    await expect(roteiro).toBeVisible();
+    await expect.poll(() => regrasPedidas).toContain('nova');
+    expect(regrasPedidas).not.toContain('anterior');
+    await expect(lista(page)).toContainText('Waiting for first request');
+  });
+
   test('deve mostrar em Métricas os números da URL nova', async ({ page, tokens, caos }) => {
     const { nova, leitura, paraAAnterior } = await comALeituraPresa(page, tokens, caos, 'Insights');
 

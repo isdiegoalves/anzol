@@ -325,7 +325,7 @@ export class Inbox {
 
   constructor() {
     effect((onCleanup) => {
-      const [host, name, tokenId] = [this.guideHost(), this.guideName(), this.tokens.token()?.uuid];
+      const [host, name, tokenId] = [this.guideHost(), this.guideName(), this.tokens.shown()?.uuid];
       if (host && name && tokenId) {
         onCleanup(untracked(() => this.showGuide(host, name, tokenId)));
       }
