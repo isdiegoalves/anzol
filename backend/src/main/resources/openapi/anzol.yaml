@@ -13,6 +13,11 @@ info:
     are merged with the body. Errors are JSON for API clients (`Accept: application/json`, a JSON `Content-Type`
     or `X-Requested-With: XMLHttpRequest`) and an HTML page otherwise. Management routes check `Host` and, on
     state-changing methods, `Origin` against the allowed hosts (403 `{"error": "..."}`).
+
+
+    JSON responses of the `/token/...` routes larger than 1 kB are gzip-encoded (`Content-Encoding: gzip`,
+    `Vary: Accept-Encoding`) for clients that send `Accept-Encoding: gzip`. The event stream
+    (`/token/{tokenId}/stream`) and the capture URL are never compressed.
 servers:
   - url: /
 tags:

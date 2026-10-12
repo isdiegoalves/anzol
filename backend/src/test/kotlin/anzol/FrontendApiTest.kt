@@ -54,6 +54,46 @@ class FrontendApiTest(
     }
 
     @Test
+    @DisplayName("Dado o .br e o .gz ao lado do index.html, quando o navegador aceita br, então a página vem em br, com Vary")
+    fun raiz_comBr_deveResponderBrotli() {
+        listOf("br", "gzip, deflate, br, zstd").forEach { coding ->
+            val response = encoded("/", coding)
+
+            assertThat(response.statusCode()).describedAs(coding).isEqualTo(200)
+            assertThat(response.headers().firstValue("Content-Encoding")).describedAs(coding).hasValue("br")
+            assertThat(response.headers().allValues("Vary")).describedAs(coding).contains("Accept-Encoding")
+            val page = ClassPathResource("static/index.html.br").contentAsByteArray
+            assertThat(response.body()).describedAs(coding).isEqualTo(page)
+            val contentType = response.headers().firstValue("Content-Type").orElseThrow()
+            assertThat(contentType.replace(" ", "")).describedAs(coding).isEqualToIgnoringCase("text/html;charset=UTF-8")
+            assertThat(response.headers().firstValue("Cache-Control").orElseThrow()).describedAs(coding).isEqualTo(REVALIDATE)
+        }
+    }
+
+    @Test
+    @DisplayName("Dado o .gz ao lado do index.html, quando o navegador só aceita gzip, então a página vem em gzip, com Vary")
+    fun raiz_comGzip_deveResponderGzip() {
+        val response = encoded("/", "gzip")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Encoding")).hasValue("gzip")
+        assertThat(response.headers().allValues("Vary")).contains("Accept-Encoding")
+        assertThat(GZIPInputStream(response.body().inputStream()).readBytes().decodeToString()).contains("index do teste")
+    }
+
+    @Test
+    @DisplayName("Dado um cliente que não aceita br nem gzip, quando pede /, então a página vem inteira, como hoje")
+    fun raiz_semCodificacao_deveResponderOriginal() {
+        listOf("identity", "deflate", "br;q=0, gzip;q=0").forEach { coding ->
+            val response = encoded("/", coding)
+
+            assertThat(response.statusCode()).describedAs(coding).isEqualTo(200)
+            assertThat(response.headers().firstValue("Content-Encoding")).describedAs(coding).isEmpty()
+            assertThat(response.body().decodeToString()).describedAs(coding).contains("index do teste")
+        }
+    }
+
+    @Test
     @DisplayName("Dado um arquivo com hash na raiz, quando pede o .js e o .css, então responde com o tipo de cada um")
     fun arquivoDoBuild_deveResponderComTipo() {
         val script = api.send("GET", "/main-TESTE123.js")

@@ -53,6 +53,12 @@ faz toda resposta do webhook da URL levar o cabeçalho `Retry-After`; útil com 
 mais recentes e apaga a mais antiga a cada nova (também na hora, se o limite for reduzido). A URL
 nunca para de receber.
 
+As respostas JSON das rotas `/token/...` com mais de 1 kB saem em gzip (`Content-Encoding: gzip`, `Vary:
+Accept-Encoding`, `Content-Length` do corpo comprimido) para o cliente que manda `Accept-Encoding: gzip`: a listagem
+de 500 mensagens cai de meio megabyte para menos de um décimo. Sem o cabeçalho, ou abaixo de 1 kB, saem como sempre
+saíram. O `/token/{id}/stream`, o `/mcp` e o webhook (`/{id}/...`) nunca são comprimidos: o webhook responde ao
+remetente o que a URL manda responder, byte a byte.
+
 ## Verificação de assinatura
 
 Com `signature`, a URL confere em cada mensagem se a assinatura HMAC que o provedor mandou bate com o segredo,

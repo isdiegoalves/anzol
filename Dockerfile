@@ -7,10 +7,11 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npx ng build
-# Cada .js e .css do build ganha um .gz e um .br ao lado, que o FrontendResources entrega a quem os aceita.
+# Cada .js e .css do build e o index.html ganham um .gz e um .br ao lado, que o FrontendResources e o IndexController
+# entregam a quem os aceita.
 RUN node -e "const fs = require('node:fs'), zlib = require('node:zlib'); \
     for (const nome of fs.readdirSync('dist/frontend')) { \
-      if (!nome.endsWith('.js') && !nome.endsWith('.css')) continue; \
+      if (!nome.endsWith('.js') && !nome.endsWith('.css') && nome !== 'index.html') continue; \
       const bytes = fs.readFileSync('dist/frontend/' + nome); \
       fs.writeFileSync('dist/frontend/' + nome + '.gz', zlib.gzipSync(bytes, { level: 9 })); \
       fs.writeFileSync('dist/frontend/' + nome + '.br', zlib.brotliCompressSync(bytes)); \

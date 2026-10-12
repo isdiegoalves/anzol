@@ -1,6 +1,7 @@
 package anzol
 
 import anzol.http.PHP_DEFAULT_CONTENT_TYPE
+import anzol.http.acceptsCoding
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletRequestWrapper
 import org.springframework.context.annotation.Configuration
@@ -23,8 +24,12 @@ import java.time.Duration
 private const val FRONTEND_LOCATION = "classpath:/static/"
 private val HASHED_NAME_MAX_AGE: Duration = Duration.ofDays(365)
 
+/** As variantes comprimidas da página, a menor na frente: a codificação e a extensão do arquivo ao lado dela. */
+private val PAGE_VARIANTS = listOf("br" to "br", "gzip" to "gz")
+
 /**
- * `GET /`: o `index.html` do build do Angular, que o `Dockerfile` da raiz põe em `static/`.
+ * `GET /`: o `index.html` do build do Angular, que o `Dockerfile` da raiz põe em `static/`, com um `.br` e um `.gz`
+ * ao lado; sai a menor variante que o navegador aceita.
  * Sem o build (backend rodando sozinho, com a tela no `ng serve`), responde o 404 de rota.
  */
 @RestController
@@ -32,9 +37,18 @@ class IndexController {
     private val page = ClassPathResource("static/index.html")
 
     @GetMapping("/")
-    fun index(): ResponseEntity<ByteArray> {
+    fun index(request: HttpServletRequest): ResponseEntity<ByteArray> {
         if (!page.exists()) throw ResponseStatusException(HttpStatus.NOT_FOUND)
-        return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, PHP_DEFAULT_CONTENT_TYPE).body(page.contentAsByteArray)
+        val response = ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, PHP_DEFAULT_CONTENT_TYPE)
+        val (coding, variant) =
+            PAGE_VARIANTS
+                .map { (coding, extension) -> coding to ClassPathResource("static/index.html.$extension") }
+                .firstOrNull { (coding, variant) -> request.acceptsCoding(coding) && variant.exists() }
+                ?: return response.body(page.contentAsByteArray)
+        return response
+            .header(HttpHeaders.CONTENT_ENCODING, coding)
+            .header(HttpHeaders.VARY, HttpHeaders.ACCEPT_ENCODING)
+            .body(variant.contentAsByteArray)
     }
 }
 
