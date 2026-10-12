@@ -64,6 +64,8 @@ import { NOTICE_MS } from '../ui/notice';
 import { Split } from '../ui/split';
 
 const GUIDES_KEY = (tokenId: string) => `anzol.guides.${tokenId}`;
+/** Marca, no estado da entrada do histórico, a que a tela criou ao escolher a requisição sozinha. */
+const SCREEN_CHOICE = 'screenChoice';
 
 /** Os filtros por valor ficam na aba: o dado da requisição não vai para o endereço. */
 const VALUE_FILTERS_KEY = (tokenId: string) => `anzol.valueFilters.${tokenId}`;
@@ -339,7 +341,7 @@ export class Inbox {
       const tokenId = this.tokenId();
       const requestId = this.requestId();
       const page = this.pageNumber();
-      untracked(() => void this.openRoute(tokenId, requestId, page));
+      untracked(() => void this.openRoute(tokenId, requestId, page, false, this.cameBack()));
     });
     effect(() => {
       const key = this.key();
@@ -465,13 +467,16 @@ export class Inbox {
       queryParams: filterToParams(filter),
       queryParamsHandling: 'merge',
       replaceUrl: true,
+      // A entrada do histórico é a mesma: o que ela guarda (a escolha da tela) fica.
+      state: this.router.lastSuccessfulNavigation()?.extras.state,
     });
   }
 
   /**
    * Abre a mensagem pela rota. Com `replaceUrl`, é a tela que escolheu (a primeira ao abrir a URL,
    * a que substituiu a cortada): no celular isso não tira a lista da frente, e ela segue não lida
-   * (salvo `read`, quando o detalhe a mostra a quem esperava por ela).
+   * (salvo `read`, quando o detalhe a mostra a quem esperava por ela). A entrada do histórico guarda
+   * essa escolha, para o voltar do navegador devolver a lista.
    */
   protected openRequest(
     request: WebhookRequest,
@@ -489,7 +494,16 @@ export class Inbox {
     return this.router.navigate(['/', request.token_id, request.uuid, page], {
       replaceUrl,
       queryParamsHandling: 'preserve',
+      ...(replaceUrl && { state: { [SCREEN_CHOICE]: true } }),
     });
+  }
+
+  /** O voltar ou o avançar do navegador chegou à entrada do histórico que a tela criou por escolha própria. */
+  private cameBack(): boolean {
+    const navigation = this.router.getCurrentNavigation() ?? this.router.lastSuccessfulNavigation();
+    return (
+      navigation?.trigger !== 'imperative' && navigation?.extras.state?.[SCREEN_CHOICE] === true
+    );
   }
 
   /** Monta o roteiro pedido no endereço; o pedaço dele só é baixado aqui. */
@@ -667,14 +681,23 @@ export class Inbox {
     requestId: string | undefined,
     page: number,
     again = false,
+    cameBack = false,
   ) {
     if (!tokenId) {
       await this.openSavedOrNewToken();
       return;
     }
-    // A escolha da tela vale enquanto a rota fica nela: quem volta a essa requisição depois (um link, o voltar do
-    // navegador) pediu para vê-la, e ela vem para a frente e conta como lida.
-    if (requestId !== this.chosenByScreen) {
+    if (cameBack && requestId && !this.twoPanes()) {
+      // Voltar pelo histórico à entrada que a tela criou devolve, no celular, o que ela mostrava: a lista, com a
+      // requisição que a tela escolheu ainda não lida.
+      this.chosenByScreen = requestId;
+      this.keepUnread = requestId;
+      if (this.showDetail()) {
+        this.backToList();
+      }
+    } else if (requestId !== this.chosenByScreen) {
+      // A escolha da tela vale enquanto a rota fica nela: quem chega a essa requisição depois por uma navegação nova
+      // (um toque, um link) pediu para vê-la, e ela vem para a frente e conta como lida.
       this.chosenByScreen = null;
       this.keepUnread = null;
     }

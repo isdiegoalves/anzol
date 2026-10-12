@@ -1,5 +1,6 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { Location } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -1010,6 +1011,91 @@ describe('Dado a tela principal', () => {
     await front('app-request-detail', 'com o endereço de volta na que a tela tinha escolhido');
     expect(text()).toContain(R1.uuid);
     expect(preferences.unread(), 'as duas foram vistas no detalhe').toEqual({});
+  });
+
+  describe('Dado o voltar do navegador depois de tocar numa requisição', () => {
+    // O harness não liga o roteador ao histórico: sem isto, o voltar e o avançar não navegam.
+    beforeEach(() => router.setUpLocationChangeListener());
+
+    const front = (tag: string, when: string) =>
+      vi.waitFor(async () => {
+        await harness.fixture.whenStable();
+        expect((harness.routeNativeElement as HTMLElement).querySelector(tag), when).not.toBeNull();
+      });
+    const items = () =>
+      (harness.routeNativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        '.item .select',
+      );
+    /** Abre a URL (a tela escolhe a R1) e toca na R2. */
+    const openAndTouch = async () => {
+      TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: [R1.uuid, R2.uuid] });
+      await openToken(`/${TOKEN_ID}`);
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      await vi.waitFor(async () => {
+        await harness.fixture.whenStable();
+        expect(items()).toHaveLength(2);
+      });
+      items()[1].click();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+    };
+
+    it('deve voltar à lista no celular, com a que a tela escolheu ainda não lida, e reabrir o detalhe no avançar', async () => {
+      windowClass.set('compact');
+      await openAndTouch();
+      await front('app-request-detail', 'depois do toque');
+
+      TestBed.inject(Location).back();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      await front('app-request-list', 'depois do voltar do navegador');
+      expect(TestBed.inject(Preferences).unread()).toEqual({ [TOKEN_ID]: [R1.uuid] });
+
+      TestBed.inject(Location).forward();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R2.uuid}/1`));
+      await front('app-request-detail', 'depois do avançar do navegador');
+      expect(text()).toContain(R2.uuid);
+    });
+
+    it('deve mostrar o detalhe da que a tela escolheu, e contá-la como lida, Quando ela é tocada depois do voltar', async () => {
+      windowClass.set('compact');
+      await openAndTouch();
+      TestBed.inject(Location).back();
+      await front('app-request-list', 'depois do voltar do navegador');
+
+      items()[0].click();
+      await front('app-request-detail', 'depois do toque na que a tela tinha escolhido');
+      expect(text()).toContain(R1.uuid);
+      await vi.waitFor(() => expect(TestBed.inject(Preferences).unread()).toEqual({}));
+    });
+
+    it('deve voltar à lista no celular também Quando um filtro mudou o endereço da entrada que a tela criou', async () => {
+      windowClass.set('compact');
+      await openToken(`/${TOKEN_ID}`);
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      // O filtro troca a query no lugar (`replaceUrl`): a entrada do histórico continua a mesma.
+      const applied = TestBed.inject(RequestStore).applyFilter({ ...NO_FILTER, methods: ['POST'] });
+      await flush(`/token/${TOKEN_ID}/requests/search`, requestPage([R1, R2]));
+      await applied;
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?methods=POST`));
+      await vi.waitFor(async () => {
+        await harness.fixture.whenStable();
+        expect(items()).toHaveLength(2);
+      });
+
+      items()[1].click();
+      await front('app-request-detail', 'depois do toque');
+      TestBed.inject(Location).back();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1?methods=POST`));
+      await front('app-request-list', 'depois do voltar do navegador');
+    });
+
+    it('deve seguir mostrando a anterior no detalhe, e contá-la como lida, na janela larga', async () => {
+      await openAndTouch();
+
+      TestBed.inject(Location).back();
+      await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${R1.uuid}/1`));
+      await vi.waitFor(() => expect(text()).toContain(R1.uuid));
+      await vi.waitFor(() => expect(TestBed.inject(Preferences).unread()).toEqual({}));
+    });
   });
 
   it('deve mostrar a lista com a primeira mensagem Quando ela chega numa URL vazia na janela estreita (E11)', async () => {

@@ -1385,6 +1385,41 @@ test.describe('Dado o título da aba e os marcos de cada destino', () => {
     await expect(detalhes(page), 'pelo avançar do navegador').toContainText(nova);
   });
 
+  test('deve voltar à lista no celular Quando o voltar do navegador sai do detalhe aberto pelo toque, e reabri-lo no avançar', async ({
+    page,
+    tokens,
+  }) => {
+    test.skip(!compacto(page), 'um painel por vez: só no celular');
+    const tokenId = await tokens.create();
+    const antiga = await tokens.send(tokenId, { path: '/antiga' });
+    const nova = await tokens.send(tokenId, { path: '/nova' });
+    await seedStorage(page, { unread: JSON.stringify({ [tokenId]: [antiga, nova] }) });
+    await page.goto(`/#/${tokenId}`);
+    // A tela abre a mais nova sozinha e deixa a lista à frente.
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
+    await expect(lista(page)).toBeVisible();
+
+    await abrirItem(page, antiga).click();
+    await expect(detalhes(page)).toContainText(antiga);
+
+    await page.goBack();
+    await expect(lista(page), 'a lista, que estava na tela antes do toque').toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
+    await expect(item(page, nova), 'ninguém abriu a que a tela escolheu').toHaveClass(/unread/);
+    await expect(item(page, antiga)).not.toHaveClass(/unread/);
+
+    await page.goForward();
+    await expect(detalhes(page), 'o detalhe de novo no avançar').toContainText(antiga);
+
+    // A seta de voltar da tela segue igual, e o toque na que a tela escolheu mostra o detalhe dela.
+    await page.getByRole('button', { name: 'Back to requests' }).click();
+    await expect(lista(page)).toBeVisible();
+    await abrirItem(page, nova).click();
+    await expect(detalhes(page)).toContainText(nova);
+    await page.getByRole('button', { name: 'Back to requests' }).click();
+    await expect(item(page, nova)).not.toHaveClass(/unread/);
+  });
+
   test('deve começar pelo "Skip to content", que leva o foco ao conteúdo', async ({
     page,
     tokens,
