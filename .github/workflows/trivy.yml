@@ -1,0 +1,49 @@
+# Trivy. A cada push e pull request: segredos e configuração mal feita (Dockerfile, Helm, compose) em todo o
+# repositório, falhando em severidade alta ou crítica. A cada tag de versão (vX.Y.Z), e quando chamado à mão: a imagem
+# do Dockerfile, falhando em vulnerabilidade alta ou crítica que já tenha correção. A imagem é construída aqui e não
+# espera o imagem.yml, então uma vulnerabilidade achada numa tag avisa sem impedir a publicação.
+# A action fica fixada por SHA: o Dependabot (.github/dependabot.yml) abre o pull request quando sai versão nova.
+name: trivy
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*.*.*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repositorio:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          hide-progress: true
+
+  imagem:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Imagem do Dockerfile
+        run: docker build -t anzol:varredura .
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: anzol:varredura
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          hide-progress: true

@@ -66,6 +66,14 @@ Uma etapa que falha não interrompe as seguintes; se o stack não sobe, as de in
 como NÃO RODOU. A saída é 0 só com tudo OK. Com os caches do Gradle, do npm e do Docker quentes, a
 rodada inteira leva de 7 a 9 minutos.
 
+### Varredura de segurança no GitHub
+
+O workflow `trivy` (`.github/workflows/trivy.yml`) procura segredos e configuração mal feita (Dockerfile, Helm, compose)
+a cada push e pull request, e constrói a imagem do `Dockerfile` e a escaneia a cada tag de versão (ou à mão, em
+Actions → trivy → Run workflow). Falha com vulnerabilidade alta ou crítica que já tenha correção. Para repetir a
+varredura da imagem na máquina: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+ghcr.io/aquasecurity/trivy:0.70.0 image --severity HIGH,CRITICAL --ignore-unfixed <imagem>`.
+
 ## Padrões de código
 
 - Kotlin (`backend/` e `cli/`): [`docs/padroes-kotlin.md`](padroes-kotlin.md)
