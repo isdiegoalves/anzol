@@ -57,6 +57,10 @@ $ curl -s http://localhost:8084/version
 `ai` e `mcp` dizem se a IA local e o servidor MCP estão ligados (`on` ou `off`); o LLM em si não é consultado. No
 Kubernetes, a readiness do chart usa `/health` (ver [Helm](helm.md)).
 
+A imagem traz um `HEALTHCHECK` que lê `/health` a cada 30 s (a cada 2 s enquanto o app sobe): o `docker ps` mostra
+`(healthy)` ou, depois de três leituras sem o 200, `(unhealthy)`, e `docker compose up -d --wait` só volta com o app
+pronto.
+
 ## Memória do Redis
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o

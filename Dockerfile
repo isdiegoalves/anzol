@@ -39,4 +39,7 @@ RUN useradd --system --no-create-home anzol
 COPY --from=backend /src/build/libs/backend-*.jar app.jar
 USER anzol
 EXPOSE 8080
+# A imagem não tem curl nem wget: o pedido sai pelo /dev/tcp do bash. Saudável só com o 200 do /health (Redis no ar).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --start-interval=2s --retries=3 \
+  CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && read -r _ status _ <&3 && [ \"$status\" = 200 ]"]
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
