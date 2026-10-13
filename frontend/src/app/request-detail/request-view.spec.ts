@@ -149,8 +149,8 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
   // INBOX-26: as abas vazias no padrão dos estados vazios.
   // Filtrar pela lista traz a mesma requisição num objeto novo (o da busca).
-  it('deve manter a aba aberta Quando a mesma requisição chega de novo, e voltar ao Body Quando é outra', async () => {
-    const request = webhookRequest(1, { content: '{"a":1}' });
+  it('deve manter a aba aberta Quando a mesma requisição chega de novo e Quando chega outra', async () => {
+    const request = webhookRequest(1, { content: '{"a":1}', headers: { host: ['a'] } });
     const { fixture } = await show(request);
     await openTab(/^Headers/);
 
@@ -158,9 +158,25 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     await fixture.whenStable();
     expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Headers/);
 
-    fixture.componentRef.setInput('request', webhookRequest(2));
+    fixture.componentRef.setInput(
+      'request',
+      webhookRequest(2, { headers: { host: ['b'], 'x-retry': ['2'] } }),
+    );
     await fixture.whenStable();
-    expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Body/);
+    expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Headers \(2\)/);
+    expect(rows('Headers')).toEqual(['host b', 'x-retry 2']);
+  });
+
+  it('deve manter a aba aberta na faixa do celular Quando chega outra requisição', async () => {
+    windowClass.set('compact');
+    const { fixture } = await show(webhookRequest(1, { query: { a: '1' } }));
+    await openTab(/^Query/);
+
+    fixture.componentRef.setInput('request', webhookRequest(2, { query: { b: '2' } }));
+    await fixture.whenStable();
+
+    expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Query \(1\)/);
+    expect(rows('Query strings')).toEqual(['b 2']);
   });
 
   it('deve explicar a aba vazia Quando não há query nem formulário', async () => {
@@ -824,6 +840,37 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
 
       expect(screen.getByRole('tab', { selected: true }).textContent?.trim()).toBe('Decrypted');
       await expectNoAxeViolations(container);
+    });
+
+    it('deve voltar ao Body Quando a aba aberta é a Decrypted e chega uma requisição sem atributo decifrado', async () => {
+      const { fixture } = await show(
+        webhookRequest(1, { decryption: decryption(), decrypted: { cpf: '123' } }),
+      );
+      await openTab(/^Decrypted/);
+
+      fixture.componentRef.setInput('request', webhookRequest(2, { decryption: null }));
+      await fixture.whenStable();
+
+      expect(screen.queryByRole('tab', { name: 'Decrypted' })).toBeNull();
+      expect(screen.getByRole('tab', { selected: true }).textContent).toMatch(/^Body/);
+    });
+
+    it('deve manter a aba Decrypted Quando a outra requisição também tem atributo decifrado', async () => {
+      const { fixture } = await show(
+        webhookRequest(1, { decryption: decryption(), decrypted: { cpf: '123' } }),
+      );
+      await openTab(/^Decrypted/);
+
+      fixture.componentRef.setInput(
+        'request',
+        webhookRequest(2, { decryption: decryption(), decrypted: { cpf: '456' } }),
+      );
+      await fixture.whenStable();
+
+      expect(screen.getByRole('tab', { selected: true }).textContent?.trim()).toBe('Decrypted');
+      expect(screen.getByRole('region', { name: 'Decrypted attribute' }).textContent).toContain(
+        '"456"',
+      );
     });
 
     it('deve dizer no link só-leitura que o valor decifrado não está nele', async () => {

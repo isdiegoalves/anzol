@@ -243,7 +243,6 @@ export class RequestView {
       : null;
   });
 
-  /** Aba aberta; volta ao Body ao abrir outra mensagem. */
   /** Celular (INBOX-33): as abas numa faixa própria, sem a paginação do Material. */
   protected readonly compact = computed(() => this.viewport.windowClass() === 'compact');
   private readonly ids = `request-view-${nextViewId++}`;
@@ -263,9 +262,13 @@ export class RequestView {
    * da lista) não conta como outra, e o que está aberto nela fica.
    */
   private readonly shownId = computed(() => this.request().uuid);
-  protected readonly tab = linkedSignal<string, number>({
-    source: this.shownId,
-    computation: () => 0,
+  /**
+   * A aba aberta fica ao abrir outra requisição; só volta ao Body quando ela some (a do atributo
+   * decifrado, numa requisição sem ele).
+   */
+  protected readonly tab = linkedSignal<number, number>({
+    source: () => this.tabLabels().length,
+    computation: (count, previous) => (previous && previous.value < count ? previous.value : 0),
   });
   /** As frases do near miss na língua da tela (WM-05), com o original. */
   protected readonly whyPhrases = computed(() =>

@@ -2,11 +2,14 @@ import { Page } from '@playwright/test';
 import { anunciados, escutarAnuncios, expectSoEstaFala, limparAnuncios } from './support/anuncios';
 import { expect, test } from './support/fixtures';
 import {
+  aba,
+  abrirAba,
   anuncios,
   corpo as corpoDoDetalhe,
   detalhes,
   expectCorpo,
   item,
+  linhas,
   textoDoCorpo,
 } from './support/inbox';
 import { seedStorage } from './support/storage';
@@ -236,6 +239,26 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
     await expectCorpo(page, 'nova');
+  });
+
+  test('deve seguir na aba Headers Quando "Follow new" abre a mensagem nova', async ({
+    page,
+    tokens,
+  }) => {
+    const tentativa = async () =>
+      (await linhas(page, 'Headers')).find((linha) => /^x-tentativa /i.test(linha))?.toLowerCase();
+    await tokens.send(tokenId, { headers: { 'X-Tentativa': '1' }, data: 'antiga' });
+    await seedStorage(page, { autoNavEnable: 'true' });
+    await openListening(page, tokenId);
+    await expectCorpo(page, 'antiga');
+    await abrirAba(page, 'Headers');
+    await expect.poll(tentativa).toBe('x-tentativa 1');
+
+    const nova = await tokens.send(tokenId, { headers: { 'X-Tentativa': '2' }, data: 'nova' });
+
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${nova}/1$`));
+    await expect.poll(tentativa).toBe('x-tentativa 2');
+    await expect(aba(page, 'Headers')).toHaveAttribute('aria-selected', 'true');
   });
 
   test('deve buscar a mensagem inteira pela API Quando o evento chega truncado (> 1 MB, checklist 13)', async ({

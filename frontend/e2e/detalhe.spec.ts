@@ -233,6 +233,8 @@ test.describe('Dado mensagens XML, formulário e sem corpo (checklist 8)', () =>
     expect(await linhas(page, 'Form values')).toEqual(['f1 v1', 'f2 (empty)']);
 
     await page.goto(`/#/${tokenId}/${vazia}/1`);
+    await expect(aba(page, 'Form')).toHaveAttribute('aria-selected', 'true');
+    await abrirAba(page, 'Body');
     // Fidelidade ao C, fase 2 (INBOX-26): o corpo vazio vira estado vazio, fora do bloco de código.
     await expect(page.getByText('No body content', { exact: true })).toBeVisible();
   });
