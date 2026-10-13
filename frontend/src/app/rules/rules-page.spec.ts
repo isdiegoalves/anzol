@@ -957,7 +957,9 @@ describe('Dado a página Rules', () => {
         .mockReturnValue({ onAction: () => onAction } as never);
 
       chooseFile(JSON.stringify([rule(7), rule(8)]));
-      await userEvent.click(within(await importDialog()).getByRole('button', { name: 'Replace' }));
+      const dialog = within(await importDialog());
+      await userEvent.click(dialog.getByRole('radio', { name: 'Replace the 1 saved rules' }));
+      await userEvent.click(dialog.getByRole('button', { name: 'Replace' }));
 
       await expectGuardedPut([rule(1)], [rule(7), rule(8)]);
       await vi.waitFor(() => expect(rows().map((r) => r[0])).toEqual(['Rule 7', 'Rule 8']));
@@ -1000,7 +1002,9 @@ describe('Dado a página Rules', () => {
       await open([rule(1)]);
 
       chooseFile(JSON.stringify([rule(7)]));
-      await userEvent.click(within(await importDialog()).getByRole('button', { name: 'Replace' }));
+      const dialog = within(await importDialog());
+      await userEvent.click(dialog.getByRole('radio', { name: 'Replace the 1 saved rules' }));
+      await userEvent.click(dialog.getByRole('button', { name: 'Replace' }));
       await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }).flush([rule(1)]));
       const call = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
       call.flush(

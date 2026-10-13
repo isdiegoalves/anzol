@@ -48,7 +48,7 @@ export class ImportRulesDialog {
   protected readonly diff = this.data.diff;
   /** O "Merge" passaria do teto de regras: fica desabilitado, com o motivo à vista. */
   protected readonly tooMany = this.saved + this.diff.added.length > RULES_MAX;
-  protected readonly mode = signal<ImportMode>('replace');
+  protected readonly mode = signal<ImportMode>(this.tooMany ? 'replace' : 'merge');
   protected readonly groups = [
     {
       id: 'changed',

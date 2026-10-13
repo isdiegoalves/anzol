@@ -1,6 +1,6 @@
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { render } from '@testing-library/angular';
+import { render, screen } from '@testing-library/angular';
 import { rule } from '../../testing/rule-fixtures';
 import { translations } from '../../locale/pt-BR';
 import { ImportRulesDialog } from './import-rules-dialog';
@@ -42,6 +42,27 @@ describe('Dado o diálogo "Import rules" (WM-19)', () => {
   it('deve contar as quatro partes em inglês', async () => {
     await umDeCada();
     expect(counts()).toBe('1 unchanged · 1 changed · 1 removed · 1 new');
+  });
+
+  const chosen = (name: string) => screen.getByRole<HTMLInputElement>('radio', { name }).checked;
+
+  it('deve abrir com "Merge" escolhido, e não com o que apaga as salvas', async () => {
+    await umDeCada();
+
+    expect(chosen('Merge: keep the 3, add 1')).toBe(true);
+    expect(chosen('Replace the 3 saved rules')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Merge' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Replace' })).toBeNull();
+  });
+
+  it('deve abrir com "Replace" escolhido Quando o "Merge" passaria de 100 regras', async () => {
+    await show(
+      Array.from({ length: 99 }, (_, i) => rule(i + 1)),
+      [rule(200), rule(201)],
+    );
+
+    expect(chosen('Replace the 99 saved rules')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeTruthy();
   });
 
   // M9: cada parte com o seu plural, e não "1 alteradas · 1 novas".

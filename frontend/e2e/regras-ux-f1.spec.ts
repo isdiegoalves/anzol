@@ -421,7 +421,7 @@ test.describe('Dado o import de um arquivo de regras (WM-19; CA-4)', () => {
     await expect(janela).toContainText(/B\W+response\.status 503 → 200/);
     await expect(janela).toContainText(/Removed \(1\)/);
     await expect(janela).toContainText(/New \(1\)/);
-    await expect(janela.getByRole('radio', { name: 'Merge: keep the 3, add 1' })).toBeEnabled();
+    await expect(janela.getByRole('radio', { name: 'Merge: keep the 3, add 1' })).toBeChecked();
     expect((await lerRegras(request, tokenId)).map((r) => r.name)).toEqual(['A', 'B', 'C']);
 
     await janela.getByRole('radio', { name: 'Replace the 3 saved rules' }).check();

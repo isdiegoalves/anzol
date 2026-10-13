@@ -287,10 +287,8 @@ test.describe('Dado a lista de regras no celular (WM-41, RULES-05; CA-11)', () =
     const cancelar = await janela
       .getByRole('button', { name: 'Cancel', exact: true })
       .boundingBox();
-    const substituir = await janela
-      .getByRole('button', { name: 'Replace', exact: true })
-      .boundingBox();
-    expect(substituir!.y).toBeGreaterThanOrEqual(cancelar!.y + cancelar!.height - 1);
+    const mesclar = await janela.getByRole('button', { name: 'Merge', exact: true }).boundingBox();
+    expect(mesclar!.y).toBeGreaterThanOrEqual(cancelar!.y + cancelar!.height - 1);
   });
 });
 
