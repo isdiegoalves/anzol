@@ -1,20 +1,16 @@
 import { Component, computed, forwardRef, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { jsonTokens } from './json-tokens';
+import { JsonColors } from './json-colors';
 
 /**
- * Editor de JSON de formulário: a `textarea` com o número de cada linha e, atrás dela, o mesmo texto
- * com as cores do `app-code-view`. Quem lê a tela, digita e seleciona fala só com a `textarea`, que
- * fica com o texto transparente; a camada colorida some no alto contraste.
+ * Editor de JSON de formulário: a `textarea` com o número de cada linha e as cores do
+ * `app-json-colors`, também com o JSON pela metade, enquanto se digita.
  */
 @Component({
   selector: 'app-json-editor',
+  imports: [JsonColors],
   template: `<pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
-    <div class="text">
-      <pre
-        class="colors"
-        aria-hidden="true"
-      ><code #colors>@for (token of tokens(); track $index) {<span [class]="'t-' + token.kind">{{ token.text }}</span>}</code></pre>
+    <app-json-colors class="text" partial [text]="text()">
       <textarea
         #textarea
         rows="12"
@@ -26,9 +22,9 @@ import { jsonTokens } from './json-tokens';
         [attr.aria-describedby]="describedBy()"
         (input)="edit(textarea.value)"
         (blur)="touched()"
-        (scroll)="follow(textarea, gutter, colors)"
+        (scroll)="gutter.scrollTop = textarea.scrollTop"
       ></textarea>
-    </div>`,
+    </app-json-colors>`,
   styleUrl: './json-editor.scss',
   host: { '[class.invalid]': 'invalid()' },
   providers: [
@@ -42,7 +38,6 @@ export class JsonEditor implements ControlValueAccessor {
   readonly describedBy = input<string | null>(null);
 
   protected readonly text = signal('');
-  protected readonly tokens = computed(() => jsonTokens(this.text()));
   protected readonly lineNumbers = computed(() =>
     Array.from({ length: this.text().split('\n').length }, (_, i) => i + 1).join('\n'),
   );
@@ -64,11 +59,5 @@ export class JsonEditor implements ControlValueAccessor {
   protected edit(text: string): void {
     this.text.set(text);
     this.changed(text);
-  }
-
-  /** Os números e as cores acompanham a rolagem da `textarea`. */
-  protected follow(textarea: HTMLTextAreaElement, gutter: HTMLElement, colors: HTMLElement): void {
-    gutter.scrollTop = textarea.scrollTop;
-    colors.style.transform = `translate(${-textarea.scrollLeft}px, ${-textarea.scrollTop}px)`;
   }
 }

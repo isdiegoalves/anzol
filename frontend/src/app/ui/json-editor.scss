@@ -1,6 +1,4 @@
-@use 'code-tokens';
-
-// 12 linhas à vista (~262 px): a `textarea` rola, e os números e as cores a acompanham.
+// 12 linhas à vista (~262 px): a `textarea` rola, e os números a acompanham.
 :host {
   display: flex;
   height: 262px;
@@ -21,7 +19,6 @@
 }
 
 .gutter,
-.colors,
 textarea {
   margin: 0;
   padding: 8px;
@@ -39,54 +36,16 @@ textarea {
 }
 
 .text {
-  position: relative;
   flex: 1;
-  min-width: 0;
-}
-
-.colors {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  color: var(--mat-sys-on-surface);
-  user-select: none;
-
-  code {
-    display: block;
-    font: inherit;
-    white-space: pre;
-  }
 }
 
 textarea {
-  position: relative;
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
   resize: none;
   border: 0;
   outline: none;
   background: transparent;
-  color: transparent;
-  caret-color: var(--mat-sys-on-surface);
+  color: var(--mat-sys-on-surface);
   white-space: pre;
-
-  // O texto escolhido é o da `textarea`, nas cores de seleção do sistema: o da camada, atrás, ficaria apagado.
-  &::selection {
-    background: highlight;
-    color: highlighttext;
-  }
-}
-
-@include code-tokens.colors;
-
-@media (forced-colors: active), (prefers-contrast: more) {
-  .colors {
-    display: none;
-  }
-
-  textarea {
-    color: var(--mat-sys-on-surface);
-  }
 }

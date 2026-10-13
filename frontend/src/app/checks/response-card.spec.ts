@@ -55,6 +55,19 @@ describe('Dado o cartão "Response" de Checks', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('deve colorir o corpo que é JSON válido, e não o que é texto simples', async () => {
+    const { container } = await renderCard(ResponseCard, SALVA);
+    const keys = () =>
+      [...container.querySelectorAll('app-json-colors .t-key')].map((key) => key.textContent);
+    expect(keys()).toEqual([]);
+
+    await userEvent.clear(box('Response body'));
+    await userEvent.type(box('Response body'), '{{"ok": true}');
+
+    expect(keys()).toEqual(['"ok"']);
+    expect(box('Response body').parentElement?.tagName).toBe('APP-JSON-COLORS');
+  });
+
   it('deve mandar a resposta com a assinatura e o schema salvos Quando "Save changes" é clicado', async () => {
     const { http } = await renderCard(ResponseCard, SALVA);
     expect(changesBar()).toBeNull();

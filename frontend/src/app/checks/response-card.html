@@ -55,7 +55,9 @@
     </div>
     <mat-form-field appearance="outline">
       <mat-label i18n>Response body</mat-label>
-      <textarea matInput rows="2" class="code" formControlName="default_content"></textarea>
+      <app-json-colors [text]="form.controls.default_content.value">
+        <textarea matInput rows="2" class="code" formControlName="default_content"></textarea>
+      </app-json-colors>
     </mat-form-field>
     <div class="row">
       <div class="delay">

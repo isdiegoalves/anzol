@@ -15,6 +15,7 @@ import {
 } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { JsonColors } from '../ui/json-colors';
 import { CardFold } from './card-fold';
 import { CardFoot } from './card-foot';
 import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
@@ -40,6 +41,7 @@ type CleanupOption = 'off' | `${AutoCleanup}`;
   selector: 'app-response-card',
   imports: [
     Icon,
+    JsonColors,
     ReactiveFormsModule,
     RouterLink,
     MatButtonToggle,

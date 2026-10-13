@@ -759,13 +759,15 @@
           </div>
           <mat-form-field class="full">
             <mat-label i18n>Response body</mat-label>
-            <textarea
-              matInput
-              rows="6"
-              formControlName="responseBody"
-              aria-label="Response body"
-              i18n-aria-label
-            ></textarea>
+            <app-json-colors [text]="form.controls.responseBody.value">
+              <textarea
+                matInput
+                rows="6"
+                formControlName="responseBody"
+                aria-label="Response body"
+                i18n-aria-label
+              ></textarea>
+            </app-json-colors>
             <mat-error>{{ errorOf(form.controls.responseBody, messages.bodyRequired) }}</mat-error>
           </mat-form-field>
           <app-rule-body-tools

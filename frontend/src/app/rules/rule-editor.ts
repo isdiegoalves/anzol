@@ -46,6 +46,7 @@ import { signatureProviderLabel } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { ScreenState } from '../shell/screen-state';
 import { Viewport } from '../shell/viewport';
+import { JsonColors } from '../ui/json-colors';
 import { HistoryTestPanel } from './history-test-panel';
 import { PriorityPreview, priorityPreview } from './priority-preview';
 import {
@@ -206,6 +207,7 @@ const showAtOnce: ErrorStateMatcher = { isErrorState: (control) => !!control?.in
     RuleFromRequestPanel,
     RuleConditionHint,
     RuleBodyTools,
+    JsonColors,
   ],
   templateUrl: './rule-editor.html',
   styleUrl: './rule-editor.scss',

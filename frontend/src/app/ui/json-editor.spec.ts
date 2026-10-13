@@ -102,8 +102,6 @@ describe('Dado o editor de JSON (app-json-editor)', () => {
     field().dispatchEvent(new Event('scroll'));
 
     expect(gutter.scrollTop).toBe(40);
-    expect((colors(container).firstElementChild as HTMLElement).style.transform).toBe(
-      'translate(-12px, -40px)',
-    );
+    expect([colors(container).scrollLeft, colors(container).scrollTop]).toEqual([12, 40]);
   });
 });

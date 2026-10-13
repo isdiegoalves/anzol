@@ -1,4 +1,5 @@
 import { Locator, Page } from '@playwright/test';
+import { camadaDeCores, conferirCamadaDeCores, tintaDoTexto } from './support/cores-de-json';
 import { expect, test } from './support/fixtures';
 import {
   abrirRegras,
@@ -336,6 +337,37 @@ test.describe('Dado o corpo da resposta (WM-42, WM-46, E-10)', () => {
     ).toBeVisible();
     await salvarRegra(page, regra, tokenId);
     expect((await lerRegras(request, tokenId))[0]['response']).toMatchObject({ body: '{"a":\n' });
+  });
+
+  test('deve colorir o corpo que é JSON válido, no lugar do texto da textarea, e deixar o template como texto simples', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await abrirRegras(page, tokenId);
+    const regra = await novaRegra(page);
+    await parte(regra, 'Response');
+    const corpo = caixa(regra, 'Response body');
+    await expect(camadaDeCores(corpo)).toHaveCount(0);
+
+    // Passa das 6 linhas à vista, com uma linha mais larga que o campo.
+    await corpo.fill(
+      JSON.stringify(
+        {
+          ok: true,
+          pedido: { id: 42, valor: 10.5, obs: null, itens: [1, 2, 3], nome: 'x'.repeat(300) },
+        },
+        null,
+        2,
+      ),
+    );
+    await expect(camadaDeCores(corpo).locator('.t-key').first()).toHaveText('"ok"');
+    expect(await tintaDoTexto(corpo)).toBe('transparente');
+    await conferirCamadaDeCores(corpo, [0, 60]);
+
+    await corpo.fill('{"id": {{jsonPath request.body \'$.id\'}}}');
+    await expect(camadaDeCores(corpo)).toHaveCount(0);
+    expect(await tintaDoTexto(corpo)).toBe('visível');
   });
 });
 

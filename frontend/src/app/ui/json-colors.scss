@@ -1,0 +1,44 @@
+@use 'code-tokens';
+
+app-json-colors {
+  position: relative;
+  display: flex;
+  min-width: 0;
+
+  // Rola junto com a `textarea`, com a barra invisível: o texto quebra na mesma largura que o dela.
+  > .colors {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    overflow: auto;
+    border: 0 solid transparent;
+    color: var(--mat-sys-on-surface);
+    pointer-events: none;
+    scrollbar-color: transparent transparent;
+
+    > code {
+      display: block;
+      font: inherit;
+      white-space: inherit;
+
+      // A `textarea` mostra a linha vazia depois da última quebra; o bloco, só com mais uma quebra.
+      &::after {
+        content: '\a';
+      }
+    }
+  }
+
+  @include code-tokens.colors;
+
+  @media not ((forced-colors: active) or (prefers-contrast: more)) {
+    &.colored > textarea {
+      -webkit-text-fill-color: transparent;
+    }
+  }
+
+  @media (forced-colors: active), (prefers-contrast: more) {
+    > .colors {
+      display: none;
+    }
+  }
+}

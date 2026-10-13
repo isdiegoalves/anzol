@@ -173,6 +173,9 @@ describe('Dado o editor de regra', () => {
     await (await input('Response header 1 name')).setValue('Content-Type');
     await (await input('Response header 1 value')).setValue('application/json');
     await (await input('Response body')).setValue('{"ok":true}');
+    expect(
+      [...document.querySelectorAll('app-json-colors .t-key')].map((key) => key.textContent),
+    ).toEqual(['"ok"']);
     await save();
 
     const call = await put();
