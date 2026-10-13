@@ -112,9 +112,13 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
   `expires_at`, sem o atributo decifrado (`decrypted`; ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)) e
   **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com toda ocorrência do UUID no
   JSON inteiro trocada por `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`) — na `url`, nos cabeçalhos
-  (`referer`), na query, no `request` e no corpo (o ping do GitHub traz a própria URL) —, também escrito com
-  maiúsculas ou com caracteres em `%hh` (`%2D` no lugar do hífen). O UUID é do servidor, não dado do remetente: do
-  corpo, só ele sai. Expirado, revogado, de mensagem apagada, de URL apagada ou inexistente: o mesmo `404`.
+  (`referer`), na query, no `request` e no corpo (o ping do GitHub traz a própria URL). A máscara acha o UUID às
+  claras (com ou sem hífens, em maiúsculas ou minúsculas), com caracteres em `%hh` (`%2D` no lugar do hífen) ou em
+  escape de JSON (`\u002d`), e dentro de um texto em base64 ou base64url de uma camada. Não acha o UUID codificado em
+  mais de uma camada (`%252D`, base64 de base64), em entidades HTML, partido entre campos, em hash ou num corpo
+  comprimido: ela evita que o endereço vaze por acidente, não que um remetente o ponha na mensagem de propósito. O
+  UUID é do servidor, não dado do remetente: do corpo, só ele sai. Expirado, revogado, de mensagem apagada, de URL
+  apagada ou inexistente: o mesmo `404`.
 - Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela. O link guarda a `secret_version`
   da URL na criação e só abre enquanto ela for a atual: um link criado no mesmo instante da troca também morre.
 - `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
