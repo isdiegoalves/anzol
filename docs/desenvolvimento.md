@@ -70,8 +70,9 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
 2. **Stack isolado:** `docker compose -p anzolci` com o override `docker-compose.ci.yml` sobe o
    app na porta 8088, com Redis `anzolci-redis` e volume `anzolci_redis-data` próprios. O app da
    8084 e o Redis `anzol-redis` (dados reais) não são tocados.
-3. **Integração contra a 8088:** contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E da tela
-   (`frontend/e2e`), regressão visual (`frontend/e2e-visual.sh`, na imagem Docker do Playwright) e
+3. **Integração contra a 8088:** subida sob rajada (`tests/subida`, que reinicia o app do stack 8 vezes e, a
+   cada uma, dispara 64 clientes assim que ele responde), contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E
+   da tela (`frontend/e2e`), regressão visual (`frontend/e2e-visual.sh`, na imagem Docker do Playwright) e
    aceite do CLI (`tests/cli`, com o CLI do passo 1).
 4. **Fim:** `down -v` do stack isolado (containers, rede, volume e imagem do app), também em falha ou
    Ctrl+C, e uma tabela etapa → OK/FALHOU/NÃO RODOU → tempo.

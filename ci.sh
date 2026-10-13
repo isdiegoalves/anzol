@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CI local: roda o que um pipeline rodaria. Unidade, lint e build de backend, cli e frontend; depois
-# contrato, E2E da tela, regressão visual e aceite do CLI contra um stack isolado (projeto compose `anzolci`, porta
-# 8088, Redis e volume próprios), que é derrubado no fim com `down -v`, mesmo com falha ou Ctrl+C.
+# subida sob rajada, contrato, E2E da tela, regressão visual e aceite do CLI contra um stack isolado (projeto compose
+# `anzolci`, porta 8088, Redis e volume próprios), que é derrubado no fim com `down -v`, mesmo com falha ou Ctrl+C.
 # Uma etapa que falha não interrompe as seguintes; o resumo mostra o quadro inteiro e a saída é
 # diferente de 0 se alguma falhou ou não rodou.
 #
@@ -112,6 +112,13 @@ subir_stack() {
   echo "app no ar em $URL"
 }
 
+# Reinicia o app do stack isolado a cada subida: roda antes das suítes que o usam.
+subida_sob_rajada() {
+  local app
+  app=$("${COMPOSE[@]}" ps -q app) || return 1
+  (cd tests/subida && ANZOL_SERVER="$URL" ANZOL_APP_CONTAINER="$app" node --test)
+}
+
 contrato() {
   (cd tests/contract && npm ci --no-audit --no-fund &&
     BASE_URL="$URL" TETO_PADRAO=10000 ANZOL_FAULT_HOLD_MAX=30 npx playwright test)
@@ -187,16 +194,18 @@ etapa "frontend: ng test" frontend_test
 etapa "frontend: ng build" frontend_build
 
 INTEGRACAO=(
+  "subida sob rajada (tests/subida)"
   "contrato (tests/contract)"
   "E2E da tela (frontend/e2e)"
   "regressão visual (Docker Playwright)"
   "aceite do CLI (tests/cli)"
 )
 if etapa "stack isolado: build e subida" subir_stack; then
-  etapa "${INTEGRACAO[0]}" contrato
-  etapa "${INTEGRACAO[1]}" e2e_frontend
-  etapa "${INTEGRACAO[2]}" regressao_visual
-  etapa "${INTEGRACAO[3]}" aceite_cli
+  etapa "${INTEGRACAO[0]}" subida_sob_rajada
+  etapa "${INTEGRACAO[1]}" contrato
+  etapa "${INTEGRACAO[2]}" e2e_frontend
+  etapa "${INTEGRACAO[3]}" regressao_visual
+  etapa "${INTEGRACAO[4]}" aceite_cli
 else
   for nome in "${INTEGRACAO[@]}"; do registrar "$nome" "NÃO RODOU" -; done
 fi
