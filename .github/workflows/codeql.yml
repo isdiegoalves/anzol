@@ -1,0 +1,57 @@
+# Análise estática CodeQL: Kotlin do backend e do CLI, TypeScript da tela e dos testes de contrato, e os próprios
+# workflows. Roda a cada push e pull request para o main e uma vez por semana (as consultas novas da CodeQL valem
+# também para o código parado). Os alertas aparecem em Security → Code scanning.
+# O Kotlin só é analisado com a compilação rodando sob a CodeQL (build-mode manual): o backend e o CLI são dois
+# projetos Gradle lado a lado, e o autobuild só acharia um.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analisar:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      # Sem daemon e com o compilador do Kotlin no próprio processo: um daemon que já estivesse no ar ficaria fora da
+      # observação da CodeQL e o Kotlin sairia vazio do banco.
+      - if: matrix.language == 'java-kotlin'
+        name: Compilação do backend e do CLI
+        run: |
+          for projeto in backend cli; do
+            (cd "$projeto" && ./gradlew --no-daemon -Dkotlin.compiler.execution.strategy=in-process compileKotlin)
+          done
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -74,6 +74,9 @@ Actions → trivy → Run workflow). Falha com vulnerabilidade alta ou crítica 
 varredura da imagem na máquina: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
 ghcr.io/aquasecurity/trivy:0.70.0 image --severity HIGH,CRITICAL --ignore-unfixed <imagem>`.
 
+O workflow `codeql` (`.github/workflows/codeql.yml`) roda a análise estática da CodeQL no Kotlin, no TypeScript e nos
+workflows a cada push e pull request para o `main` e toda segunda-feira; os alertas ficam em Security → Code scanning.
+
 O Dependabot (`.github/dependabot.yml`) abre toda semana um pull request com as atualizações de minor e patch do Gradle
 (`backend/` e `cli/`), do npm (`frontend/` e `tests/contract/`) e das Actions, e outro, só para versão major, quando
 houver; no Docker (`Dockerfile` e compose) só propõe minor e patch.
