@@ -32,11 +32,14 @@ COPY backend/src/main src/main
 COPY --from=frontend /src/dist/frontend/ src/main/resources/static/
 # Os testes precisam de Docker (Testcontainers) e rodam fora da imagem: cd backend && ./gradlew check
 RUN ./gradlew --no-daemon bootJar
+# O app roda extraído (app.jar fino, com as bibliotecas em lib/ ao lado). Do jar único, com as bibliotecas aninhadas,
+# ele para de responder quando a primeira leva de pedidos chega em paralelo logo depois de subir.
+RUN cp build/libs/backend-*.jar app.jar && java -Djarmode=tools -jar app.jar extract --destination /extraido
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 RUN useradd --system --no-create-home anzol
-COPY --from=backend /src/build/libs/backend-*.jar app.jar
+COPY --from=backend /extraido/ ./
 USER anzol
 EXPOSE 8080
 # A imagem não tem curl nem wget: o pedido sai pelo /dev/tcp do bash. Saudável só com o 200 do /health (Redis no ar).
