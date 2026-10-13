@@ -38,7 +38,8 @@ RUN ./gradlew --no-daemon bootJar
 # ele para de responder quando a primeira leva de pedidos chega em paralelo logo depois de subir.
 RUN cp build/libs/backend-*.jar app.jar && java -Djarmode=tools -jar app.jar extract --destination /extraido
 
-FROM eclipse-temurin:25-jre
+# A variante noble (Ubuntu 24.04), e não a padrão: a padrão traz o /usr/bin/pebble, com CVEs que não são do app.
+FROM eclipse-temurin:25-jre-noble
 WORKDIR /app
 RUN useradd --system --no-create-home anzol
 COPY --from=backend /extraido/ ./
