@@ -48,19 +48,29 @@ import { WebhookRequest } from './webhook-request';
 
 /** De quanto em quanto tempo o tempo relativo dos itens ("2 minutes ago") é refeito. */
 export const AGO_REFRESH_MS = 30_000;
+/** Cabeçalhos em que o provedor diz o tipo do evento (GitHub, Shopify). */
+const EVENT_HEADERS = ['x-github-event', 'x-shopify-topic'];
 /** Campos do JSON que dizem o tipo do evento, na ordem em que os provedores costumam usar. */
 const EVENT_FIELDS = ['type', 'event', 'event_type', 'action', 'topic'] as const;
 
 /**
- * O tipo do evento do JSON (`type`, `event`…), ou `null`. Corpo grande não é lido (a lista não
- * paga o parse).
+ * O tipo do evento, ou `null`: o do cabeçalho do provedor e, sem ele, o do JSON (`type`, `event`…).
+ * Corpo grande não é lido (a lista não paga o parse).
  */
 export function eventType(request: WebhookRequest): string | null {
+  const header = Object.entries(request.headers).find(
+    ([name, values]) => EVENT_HEADERS.includes(name.toLowerCase()) && !!values[0],
+  );
+  if (header) {
+    return header[1][0];
+  }
   const content = request.content;
   if (content && content.length <= 100_000 && content.trimStart().startsWith('{')) {
     try {
       const body = JSON.parse(content) as Record<string, unknown>;
-      const event = EVENT_FIELDS.map((field) => body[field]).find(
+      // Slack: o `type` de fora é o do envelope ("event_callback"); o do evento vem em `event.type`.
+      const inner = (body['event'] as Record<string, unknown> | null)?.['type'];
+      const event = [inner, ...EVENT_FIELDS.map((field) => body[field])].find(
         (value) => typeof value === 'string' && value !== '',
       );
       return typeof event === 'string' ? event : null;
@@ -72,8 +82,8 @@ export function eventType(request: WebhookRequest): string | null {
 }
 
 /**
- * O resumo do corpo (protótipo C, INBOX-11): o tipo do evento do JSON, senão o user-agent. Na lista
- * (B1) só o tipo aparece; o agente fica no detalhe e no Compare.
+ * O resumo do corpo (protótipo C, INBOX-11): o tipo do evento, senão o user-agent. Na lista (B1) só
+ * o tipo aparece; o agente fica no detalhe e no Compare.
  */
 export function bodySummary(request: WebhookRequest): string {
   return eventType(request) ?? request.user_agent ?? '';

@@ -271,6 +271,31 @@ test.describe('Dado o resumo do corpo no item (INBOX-11)', () => {
     await expect(item(page, comTipo)).toContainText('payment_intent.succeeded');
     await expect(item(page, semTipo)).not.toContainText('agente-de-teste/1.0');
   });
+
+  test('deve mostrar o tipo que o GitHub e o Shopify mandam no cabeçalho, e o do evento do Slack', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const json = { 'Content-Type': 'application/json' };
+    const github = await tokens.send(tokenId, {
+      headers: { ...json, 'X-GitHub-Event': 'pull_request' },
+      data: '{"action":"opened","number":7}',
+    });
+    const shopify = await tokens.send(tokenId, {
+      headers: { ...json, 'X-Shopify-Topic': 'orders/create' },
+      data: '{"id":1}',
+    });
+    const slack = await tokens.send(tokenId, {
+      headers: json,
+      data: '{"type":"event_callback","event":{"type":"app_mention"}}',
+    });
+    await page.goto(`/#/${tokenId}`);
+
+    await expect(item(page, github).locator('.summary')).toHaveText('pull_request');
+    await expect(item(page, shopify).locator('.summary')).toHaveText('orders/create');
+    await expect(item(page, slack).locator('.summary')).toHaveText('app_mention');
+  });
 });
 
 test.describe('Dado filtros na rota da Inbox', () => {

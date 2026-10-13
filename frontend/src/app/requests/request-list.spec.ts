@@ -291,6 +291,40 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(bodySummary(webhookRequest(1, { content, user_agent: 'curl/8' }))).toBe(summary);
   });
 
+  it.each([
+    [
+      'o X-GitHub-Event, e não o action do corpo',
+      { 'X-GitHub-Event': ['pull_request'] },
+      '{"action":"opened"}',
+      'pull_request',
+    ],
+    ['o x-shopify-topic', { 'x-shopify-topic': ['orders/create'] }, '{"id":1}', 'orders/create'],
+    ['o X-GitHub-Event com o corpo que não é JSON', { 'x-github-event': ['push'] }, 'a=1', 'push'],
+    [
+      'o type do corpo com o cabeçalho vazio',
+      { 'x-github-event': [''] },
+      '{"type":"ping"}',
+      'ping',
+    ],
+    [
+      'o event.type do Slack, e não o type do envelope',
+      {},
+      '{"type":"event_callback","event":{"type":"app_mention"}}',
+      'app_mention',
+    ],
+    [
+      'o type do envelope do Slack sem evento dentro',
+      {},
+      '{"type":"url_verification","challenge":"x"}',
+      'url_verification',
+    ],
+    ['o type do corpo com um event sem type', {}, '{"type":"a.b","event":{"id":1}}', 'a.b'],
+  ])('deve tirar o tipo do evento d%s', (_caso, headers, content, summary) => {
+    expect(bodySummary(webhookRequest(1, { headers, content, user_agent: 'curl/8' }))).toBe(
+      summary,
+    );
+  });
+
   describe('Dado o teclado na lista (B1): uma parada só do Tab', () => {
     const [A, B, C] = [webhookRequest(1), webhookRequest(2), webhookRequest(3)];
     const selects = () => items().map((item) => item.querySelector('.select') as HTMLElement);
