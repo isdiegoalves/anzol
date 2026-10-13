@@ -83,7 +83,7 @@ async function fotografar(
   await page.evaluate(() => document.fonts.ready);
   await expect(alvo ?? page).toHaveScreenshot(`${nome}.png`, {
     mask: mascaras,
-    // Folga zero, medida só nesta máquina: se o Chromium das fotos mudar o serrilhado, regrava-se; não se afrouxa.
+    // Um pixel diferente reprova, pelo limiar de cor padrão do Playwright (0,2): em zero, execuções iguais falham.
     maxDiffPixels: 0,
     stylePath: ESTILO_DAS_FOTOS,
   });

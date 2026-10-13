@@ -74,6 +74,12 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
    cada uma, dispara 64 clientes assim que ele responde), contrato (`tests/contract`, `TETO_PADRAO=10000`), E2E
    da tela (`frontend/e2e`), regressão visual (`frontend/e2e-visual.sh`, na imagem Docker do Playwright) e
    aceite do CLI (`tests/cli`, com o CLI do passo 1).
+
+   A regressão visual reprova com um pixel diferente (`maxDiffPixels: 0`), mas "diferente" é pelo
+   limiar de cor padrão do Playwright (`threshold` 0,2): uma mudança leve de tom num pixel, ou um
+   pixel de serrilhado, não conta. Com o limiar em zero, de 13 a 15 das 88 fotos falham entre duas
+   execuções iguais na mesma máquina, por 1 a 9 pixels, e as fotos passam a depender da arquitetura
+   do processador.
 4. **Fim:** `down -v` do stack isolado (containers, rede, volume e imagem do app), também em falha ou
    Ctrl+C, e uma tabela etapa → OK/FALHOU/NÃO RODOU → tempo.
 
