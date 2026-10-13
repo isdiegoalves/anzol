@@ -74,6 +74,10 @@ Actions → trivy → Run workflow). Falha com vulnerabilidade alta ou crítica 
 varredura da imagem na máquina: `docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
 ghcr.io/aquasecurity/trivy:0.70.0 image --severity HIGH,CRITICAL --ignore-unfixed <imagem>`.
 
+O Dependabot (`.github/dependabot.yml`) abre toda semana um pull request com as atualizações de minor e patch do Gradle
+(`backend/` e `cli/`), do npm (`frontend/` e `tests/contract/`) e das Actions, e outro, só para versão major, quando
+houver; no Docker (`Dockerfile` e compose) só propõe minor e patch.
+
 ## Padrões de código
 
 - Kotlin (`backend/` e `cli/`): [`docs/padroes-kotlin.md`](padroes-kotlin.md)

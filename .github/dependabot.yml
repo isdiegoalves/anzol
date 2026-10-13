@@ -1,0 +1,44 @@
+# Pull request de atualização semanal das dependências de cada pasta. As atualizações de minor e patch de um mesmo
+# ecossistema vêm juntas num pull request só; major vem separado. Docker não propõe major: o Node 24 e o Java 25 do
+# Dockerfile são escolhas de versão com suporte longo, não a tag mais nova.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directories: ["/backend", "/cli"]
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      gradle:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directories: ["/frontend", "/tests/contract"]
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      npm:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      actions:
+        update-types: ["minor", "patch"]
