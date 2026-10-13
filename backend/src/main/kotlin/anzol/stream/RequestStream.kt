@@ -16,17 +16,19 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import tools.jackson.databind.json.JsonMapper
 import java.io.IOException
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Duration
-import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 private const val EVENT_NAME = "request.created"
 private const val STORAGE = "storage"
 private const val PING = "ping"
 private const val HEARTBEAT_THREAD = "sse-heartbeat"
+
+/** A volta do armazenamento só é dita depois deste número de intervalos do heartbeat sem recusa. */
+private const val QUIET_HEARTBEATS = 2L
 
 /** Sem prazo: a conexão vive enquanto o cliente estiver lá; o heartbeat descobre quem saiu. */
 private const val NO_TIMEOUT = 0L
@@ -67,6 +69,7 @@ class Arrivals(
 class RequestStream(
     private val jsonMapper: JsonMapper,
     registry: MeterRegistry,
+    private val clock: Clock,
     @Value("\${anzol.stream.heartbeat}") heartbeat: Duration,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -76,11 +79,14 @@ class RequestStream(
     private val subscribers = ConcurrentHashMap<TokenId, Set<SseEmitter>>()
     private val listeners = ConcurrentHashMap<TokenId, Set<Arrivals>>()
 
-    /** Desde quando o Redis recusa gravação por falta de espaço; nulo enquanto grava. É do servidor, não da URL. */
-    private val fullSince = AtomicReference<LocalDateTime?>()
+    /** O armazenamento é do servidor, não da URL: um estado só, dito às abas de todas as URLs. */
+    private val storage = StorageWatch(quiet = heartbeat.multipliedBy(QUIET_HEARTBEATS))
 
     /** Assinantes com o envio do heartbeat anterior ainda em andamento (o cliente não lê): o seguinte os pula. */
     private val beating = ConcurrentHashMap.newKeySet<SseEmitter>()
+
+    /** O aviso `storage` que o assinante ainda não recebeu: foi pulado no heartbeat em que ele saiu. */
+    private val owed = ConcurrentHashMap<SseEmitter, StorageState>()
 
     init {
         Gauge
@@ -96,7 +102,8 @@ class RequestStream(
     /**
      * Registra o assinante e já manda um comentário com o primeiro `ping`: isso despacha o status e os cabeçalhos,
      * então o cliente só vê a conexão aberta depois do registro e nenhuma mensagem se perde. Com o armazenamento
-     * cheio, o evento `storage` sai antes desse `ping`: a tela lê um `ping` sem `storage` antes dele como "há espaço".
+     * cheio (e as outras abas já avisadas), o evento `storage` sai antes desse `ping`: a tela lê um `ping` sem `storage`
+     * antes dele como "há espaço".
      */
     fun subscribe(tokenId: TokenId): SseEmitter {
         val emitter = SseEmitter(NO_TIMEOUT)
@@ -105,7 +112,7 @@ class RequestStream(
         emitter.onTimeout { unsubscribe(tokenId, emitter) }
         emitter.onError { unsubscribe(tokenId, emitter) }
         log.info("SSE: assinante entrou no token {} ({} no token, {} no total)", tokenId, subscriberCount(tokenId), subscriberCount())
-        fullSince.get()?.let { emitter.trySend(tokenId, storage(full = true, since = it)) }
+        storage.announcedFull()?.let { emitter.trySend(tokenId, storageEvent(it)) }
         emitter.trySend(tokenId, ping("conectado"))
         return emitter
     }
@@ -139,13 +146,8 @@ class RequestStream(
 
     fun listenerCount(tokenId: TokenId): Int = listeners[tokenId].orEmpty().size
 
-    /**
-     * Uma gravação foi recusada em [at] por falta de espaço (o 507): a primeira avisa as abas de todas as URLs com o
-     * evento `storage`; as seguintes não repetem. Quem diz que voltou é a próxima mensagem gravada ([publish]).
-     */
-    fun storageFull(at: LocalDateTime) {
-        if (fullSince.compareAndSet(null, at)) broadcast(storage(full = true, since = at))
-    }
+    /** Uma gravação foi recusada por falta de espaço (o 507). Só anota: quem avisa as abas é o [heartbeat]. */
+    fun storageRefused() = storage.refused(clock.instant())
 
     /** Avisa as escutas e os assinantes do token; `total` só é contado se houver assinante do SSE. */
     fun publish(
@@ -153,7 +155,7 @@ class RequestStream(
         removed: List<RequestId>,
         total: () -> Long,
     ) {
-        if (fullSince.getAndSet(null) != null) broadcast(storage(full = false, since = request.createdAt))
+        storage.stored(request.createdAt)
         listeners[request.tokenId].orEmpty().forEach { it.offer(Arrival.Created(request)) }
         val emitters = subscribers[request.tokenId].orEmpty()
         if (emitters.isEmpty()) return
@@ -170,13 +172,18 @@ class RequestStream(
      * Comentário e `ping` periódicos: mantêm proxies abertos e revelam conexões mortas. O comentário segue para quem
      * já lia o heartbeat assim; o `EventSource` só entrega ao JavaScript o evento com `data`.
      *
+     * É também aqui, e não no pedido que encheu ou voltou a gravar, que as abas de todas as URLs ouvem o evento
+     * `storage`: no máximo um por intervalo, antes do `ping`.
+     *
      * Cada assinante recebe o envio numa thread virtual própria: o cliente que não lê prende só a dele, até o envio
      * falhar e ele sair do registro, e enquanto isso é pulado, para não acumular uma thread por intervalo.
      */
     @Scheduled(fixedRateString = "\${anzol.stream.heartbeat}")
     fun heartbeat() {
+        val announcement = storage.due(clock.instant())
         subscribers.forEach { (tokenId, emitters) ->
             emitters.forEach { emitter ->
+                if (announcement != null) owed[emitter] = announcement
                 if (beating.add(emitter)) Thread.ofVirtual().name(HEARTBEAT_THREAD).start { beat(tokenId, emitter) }
             }
         }
@@ -187,20 +194,15 @@ class RequestStream(
         emitter: SseEmitter,
     ) {
         try {
+            owed.remove(emitter)?.let { emitter.trySend(tokenId, storageEvent(it)) }
             emitter.trySend(tokenId, ping("heartbeat"))
         } finally {
             beating.remove(emitter)
         }
     }
 
-    private fun storage(
-        full: Boolean,
-        since: LocalDateTime,
-    ): SseEmitter.SseEventBuilder = SseEmitter.event().name(STORAGE).data(StorageState(full, since), MediaType.APPLICATION_JSON)
-
-    private fun broadcast(event: SseEmitter.SseEventBuilder) {
-        subscribers.forEach { (tokenId, emitters) -> emitters.forEach { it.trySend(tokenId, event) } }
-    }
+    private fun storageEvent(state: StorageState): SseEmitter.SseEventBuilder =
+        SseEmitter.event().name(STORAGE).data(state, MediaType.APPLICATION_JSON)
 
     private fun ping(comment: String): SseEmitter.SseEventBuilder =
         SseEmitter
@@ -246,6 +248,7 @@ class RequestStream(
             removed = emitter in current
             (current - emitter).ifEmpty { null }
         }
+        owed.remove(emitter)
         if (removed) {
             log.info("SSE: assinante saiu do token {} ({} no token, {} no total)", tokenId, subscriberCount(tokenId), subscriberCount())
         }

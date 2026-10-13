@@ -5,6 +5,7 @@ import anzol.support.ApiClient
 import anzol.support.ApiTest
 import anzol.support.JSON_BODY
 import anzol.support.JSON_CLIENT
+import anzol.support.SilentSubscriber
 import anzol.support.SseClient
 import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility.await
@@ -13,19 +14,22 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.data.redis.core.StringRedisTemplate
+import org.springframework.test.context.TestPropertySource
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
 private val TIMESTAMP = Regex("""\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}""")
+private val HEARTBEAT: Duration = Duration.ofMillis(200)
 
 /**
  * Redis com `maxmemory` e `noeviction` (docker-compose.yml): cheio, recusa gravação em vez de
  * despejar chaves. O webhook responde 507 (Insufficient Storage), e o que já está gravado continua legível.
  */
 @ApiTest
+@TestPropertySource(properties = ["anzol.stream.heartbeat=200ms"])
 @DisplayName("Redis cheio (noeviction)")
 class RedisFullApiTest(
-    @LocalServerPort port: Int,
+    @LocalServerPort private val port: Int,
     jsonMapper: JsonMapper,
     private val redis: StringRedisTemplate,
 ) {
@@ -36,6 +40,16 @@ class RedisFullApiTest(
 
     /** O `data` de cada evento `storage` que a aba recebeu. */
     private fun SseClient.storage() = events.filter { it.name == "storage" }.map { api.tree(it.data) }
+
+    /** O `full` de cada evento `storage` que a aba recebeu, na ordem. */
+    private fun SseClient.fullSaid() = storage().map { it["full"].asBoolean() }
+
+    /** As abas já ouviram que o servidor está cheio: quem abre o stream agora ouve o `storage` antes do `ping`. */
+    private fun fullAnnounced(tokenId: String): Boolean =
+        subscribe(tokenId).use { client ->
+            wait.until { client.events.isNotEmpty() }
+            client.events.first().name == "storage"
+        }
 
     private fun config(
         name: String,
@@ -55,11 +69,16 @@ class RedisFullApiTest(
 
     private fun unlimited() = config("maxmemory", "0")
 
-    /** A mensagem que passa desfaz o "cheio" que o servidor guarda: os testes do mesmo contexto abrem o stream sem ele. */
+    /**
+     * A mensagem que passa e o silêncio de recusas desfazem o "cheio" que o servidor guarda: os testes do mesmo
+     * contexto abrem o stream sem ele.
+     */
     @AfterEach
     fun storingAgain() {
         unlimited()
-        api.send("GET", "/${api.tokenId()}")
+        val tokenId = api.tokenId()
+        api.send("GET", "/$tokenId")
+        wait.until { !fullAnnounced(tokenId) }
     }
 
     @Test
@@ -88,33 +107,34 @@ class RedisFullApiTest(
 
     @Test
     @DisplayName(
-        "Dado abas em duas URLs, quando o Redis enche e depois volta, então todas recebem storage cheio uma vez, com a " +
-            "hora, e storage livre na primeira mensagem gravada",
+        "Dado abas em duas URLs e pedidos que alternam entre não caber e caber, quando o Redis enche e volta, então " +
+            "todas ouvem storage cheio uma vez e a volta uma vez, depois do silêncio de recusas",
     )
-    fun stream_redisEncheEVolta_deveAvisarTodasAsAbasNasDuasTransicoes() {
+    fun stream_recusasEGravacoesAlternando_deveAnunciarCheioEAVoltaUmaVezCada() {
         val tokenId = api.tokenId()
         val other = api.tokenId()
         subscribe(tokenId).use { client ->
             subscribe(other).use { otherClient ->
-                fillUp()
-                val rejected = api.send("POST", "/$tokenId", "x".repeat(10_000).toByteArray())
-                api.send("POST", "/$tokenId", "x".repeat(10_000).toByteArray())
-                wait.until { client.storage().isNotEmpty() && otherClient.storage().isNotEmpty() }
-                val full = client.storage().toList()
-                unlimited()
-                api.send("POST", "/$other", "cabe".toByteArray())
-                wait.until { client.storage().size == 2 && otherClient.storage().size == 2 }
+                val answers =
+                    (1..10).flatMap {
+                        fillUp()
+                        val refused = api.send("POST", "/$tokenId", "x".repeat(10_000).toByteArray())
+                        unlimited()
+                        listOf(refused, api.send("POST", "/$other", "cabe".toByteArray()))
+                    }
+                wait.until { client.fullSaid().lastOrNull() == false && otherClient.fullSaid().lastOrNull() == false }
+                Thread.sleep(HEARTBEAT.multipliedBy(3).toMillis())
 
-                assertThat(rejected.statusCode()).isEqualTo(507)
-                assertThat(full).hasSize(1)
-                assertThat(full.single().propertyNames().toList()).containsExactly("full", "since")
-                assertThat(full.single()["full"].asBoolean()).isTrue()
-                assertThat(full.single()["since"].asString()).matches(TIMESTAMP.pattern)
-                assertThat(otherClient.storage().first()).isEqualTo(full.single())
-                assertThat(client.storage().last()["full"].asBoolean()).isFalse()
-                assertThat(client.storage().last()["since"].asString()).matches(TIMESTAMP.pattern)
-                assertThat(otherClient.storage().last()).isEqualTo(client.storage().last())
-                assertThat(otherClient.created()).hasSize(1)
+                val newest = api.json(api.send("GET", "/token/$other/requests?sorting=newest", headers = JSON_CLIENT))
+                val lastStored = newest["data"].first()
+                assertThat(answers.map { it.statusCode() }.distinct()).containsExactly(507, 200)
+                val (full, back) = client.storage()
+                assertThat(client.fullSaid()).containsExactly(true, false)
+                assertThat(otherClient.storage()).isEqualTo(client.storage())
+                assertThat(full.propertyNames().toList()).containsExactly("full", "since")
+                assertThat(full["since"].asString()).matches(TIMESTAMP.pattern)
+                assertThat(back["since"]).isEqualTo(lastStored["created_at"])
+                assertThat(otherClient.created()).hasSize(10)
             }
         }
     }
@@ -125,6 +145,7 @@ class RedisFullApiTest(
         val tokenId = api.tokenId()
         fillUp()
         api.send("POST", "/$tokenId", "x".repeat(10_000).toByteArray())
+        wait.until { fullAnnounced(tokenId) }
 
         val duringFull =
             subscribe(tokenId).use { client ->
@@ -143,6 +164,27 @@ class RedisFullApiTest(
         assertThat(duringFull).hasSize(1)
         assertThat(duringFull.single()["full"].asBoolean()).isTrue()
         assertThat(afterwards).isEmpty()
+    }
+
+    @Test
+    @DisplayName(
+        "Dado um assinante que não lia quando o cheio foi avisado, quando ele volta a ler, então ouve o storage que ficou devendo",
+    )
+    fun stream_assinanteQueVoltaALer_deveOuvirOStorageDevido() {
+        val tokenId = api.tokenId()
+        subscribe(tokenId).use { client ->
+            SilentSubscriber(api, port, api.tokenId()).use { silent ->
+                Thread.sleep(HEARTBEAT.multipliedBy(5).toMillis())
+                fillUp()
+                api.send("POST", "/$tokenId", "x".repeat(10_000).toByteArray())
+                wait.until { client.storage().isNotEmpty() }
+
+                silent.startReading()
+
+                wait.until { "event:storage" in silent.received() }
+                assertThat(silent.received().substringAfter("event:storage").substringBefore("\n\n")).contains("\"full\":true")
+            }
+        }
     }
 
     @Test

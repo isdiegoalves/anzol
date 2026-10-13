@@ -635,9 +635,11 @@ paths:
         `decrypted`; above 1,000,000 characters, without `content`, `headers` and `user_agent`, and
         `truncated: true`), the current `total`, and the uuids `removed` by the automatic cleanup. An event named
         `storage`, whose `data` is `{"full": true|false, "since": "<UTC timestamp>"}`, tells the state of the storage of
-        the whole server: sent to every stream when a write is first refused with 507 (`full: true`), when the next
-        message is recorded on any URL (`full: false`), and, before the first `ping`, when a stream opens while the
-        storage is full. Closed when the read secret changes.
+        the whole server, to every stream and at most once per heartbeat, just before the `ping`. `full: true` follows
+        the first write refused with 507, with the time of that refusal. `full: false` follows once a message has been
+        recorded on any URL after the last refusal and two heartbeat intervals have passed without another refusal,
+        with the time of that message. A stream opened while the storage is full gets `full: true` before its first
+        `ping`. Closed when the read secret changes.
       security:
         - {}
         - readSecret: []

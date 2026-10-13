@@ -1006,8 +1006,9 @@ os cabeçalhos: o servidor só deve enviá-los depois de registrar o assinante, 
 disparado logo em seguida se perde. Comentários (`:`) servem de keep-alive e são ignorados.
 
 O evento `storage` (`data:` `{"full": true|false, "since": "<data UTC>"}`: o armazenamento do servidor encheu, voltou
-a gravar, ou já estava cheio quando o stream abriu, e aí vem antes do primeiro `ping`) fica fora do contrato pelo mesmo motivo do 507: o Redis cheio não
-se provoca pela API. É coberto pelo teste do backend (`RedisFullApiTest`).
+a gravar, ou já estava cheio quando o stream abriu, e aí vem antes do primeiro `ping`) fica fora do contrato pelo
+mesmo motivo do 507: o Redis cheio não se provoca pela API. É coberto pelos testes do backend (`RedisFullApiTest` e
+`StorageWatchTest`).
 
 ## Mudanças de comportamento decididas pelo dono
 
