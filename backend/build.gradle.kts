@@ -120,3 +120,9 @@ configurations.configureEach {
 tasks.jar {
     enabled = false
 }
+
+// O Kotlin lista o jar desligado acima entre os módulos "amigos" do teste, e o detekt o abre e imprime
+// NoSuchFileException a cada build, embora termine verde.
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
+    friendPaths.setFrom(friendPaths.files.filterNot { it.name.endsWith("-plain.jar") })
+}
