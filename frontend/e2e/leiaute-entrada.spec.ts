@@ -389,6 +389,8 @@ test.describe('Dado a Entrada em pt-BR, com os rótulos mais compridos', () => {
     await tokens.send(tokenId);
     await emPortugues(page);
     await page.goto(`/#/${tokenId}`);
+    // Com a lista ainda a caminho, a tela não aceita filtro: o clique no chip não liga nada.
+    await expect(page.getByRole('heading', { name: 'Requisições (1)' })).toBeVisible();
 
     await page.getByRole('button', { name: /^Filtros/ }).click();
     const filtros = page.getByRole('toolbar', { name: 'Filtros' });
@@ -472,6 +474,8 @@ test.describe('Dado a faixa "First request arrived"', () => {
     const stream = page.waitForResponse((r) => r.url().endsWith(`/token/${tokenId}/stream`));
     await page.goto(`/#/${tokenId}`);
     await stream;
+    // A que a primeira leitura da lista já traz não é "a primeira que chegou": a faixa é só da que chega depois.
+    await expect(page.getByRole('region', { name: 'Your URL is ready' })).toBeVisible();
 
     await tokens.send(tokenId, { path: '/primeira' });
 
