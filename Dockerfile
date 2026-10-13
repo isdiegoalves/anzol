@@ -1,7 +1,9 @@
 # Imagem única: o Spring Boot serve a API, o webhook, o SSE e a tela Angular.
 # Todas as bases são multi-arquitetura (amd64/arm64): roda nativa no Mac com Apple Silicon.
 
-FROM node:24-slim AS frontend
+# Os estágios frontend e backend rodam na plataforma de quem constrói, não na da imagem: os estáticos e o jar saem iguais
+# em qualquer arquitetura, e emulados (QEMU) são muito mais lentos.
+FROM --platform=$BUILDPLATFORM node:24-slim AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -19,7 +21,7 @@ RUN node -e "const fs = require('node:fs'), zlib = require('node:zlib'); \
       fs.writeFileSync('dist/frontend/' + nome + '.br', zlib.brotliCompressSync(bytes)); \
     }"
 
-FROM eclipse-temurin:25-jdk AS backend
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS backend
 WORKDIR /src
 COPY backend/gradlew backend/settings.gradle.kts backend/build.gradle.kts ./
 COPY backend/gradle gradle
