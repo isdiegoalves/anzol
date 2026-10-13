@@ -24,6 +24,7 @@ import {
   rulesMatcher,
 } from '../app.routes';
 import { Connection } from '../realtime/connection-store';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { Preferences } from '../settings/preferences';
 import { KNOWN_URLS_KEY, KnownUrls } from '../token/known-urls';
@@ -508,6 +509,45 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
         procuras.mock.calls.filter(([seletor]) => seletor === '[role="search"] input'),
       ).toEqual([]);
       procuras.mockRestore();
+    });
+  });
+
+  describe('Dado a faixa "armazenamento cheio"', () => {
+    const region = () => within(screen.getByRole('group', { name: 'Storage' })).getByRole('status');
+
+    it('deve existir vazia desde a carga, na região "This URL", abaixo da faixa de conexão', async () => {
+      const { container } = await renderAt(`/${TOKEN_ID}/checks`);
+
+      const url = screen.getByRole('region', { name: 'This URL' });
+      const connection = within(url).getByRole('group', { name: 'Connection' });
+      const storage = within(url).getByRole('group', { name: 'Storage' });
+      expect(region().textContent).toBe('');
+      expect(
+        connection.compareDocumentPosition(storage) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      await expectNoAxeViolations(container);
+    });
+
+    it('deve dizer na região, sem botão, desde quando está cheio, e depois que voltou a gravar', async () => {
+      const { container, fixture } = await renderAt(`/${TOKEN_ID}`);
+      const stream = TestBed.inject(RequestStream);
+
+      stream.storage.set({ full: true, since: '2026-10-13 13:17:22' });
+      await fixture.whenStable();
+
+      expect(region().textContent).toMatch(
+        /^Storage is full since \d{1,2}:\d{2}.*: new requests are being refused\.$/,
+      );
+      expect(
+        within(screen.getByRole('group', { name: 'Storage' })).queryByRole('button'),
+      ).toBeNull();
+      await expectNoAxeViolations(container);
+
+      stream.storage.set({ full: false, since: '2026-10-13 13:20:00' });
+      await fixture.whenStable();
+
+      expect(region().textContent).toBe('Storing again.');
+      stream.storage.set(null);
     });
   });
 

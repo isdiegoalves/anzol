@@ -293,4 +293,38 @@ describe('Dado o stream SSE de uma URL', () => {
     expect(source.readyState).toBe(FakeEventSource.CLOSED);
     expect(stream.status()).toBe('idle');
   });
+
+  describe('Dado o evento storage, o estado do armazenamento do servidor', () => {
+    beforeEach(() => {
+      subscriptions.add(stream.connect(TOKEN_ID).subscribe());
+      FakeEventSource.latest().open();
+    });
+
+    it('deve começar sem estado e guardar o que o servidor disser', () => {
+      expect(stream.storage()).toBeNull();
+
+      FakeEventSource.latest().emit('storage', { full: true, since: '2026-10-13 13:17:22' });
+
+      expect(stream.storage()).toEqual({ full: true, since: '2026-10-13 13:17:22' });
+    });
+
+    it('deve manter o cheio nos pings seguintes da conexão que o ouviu', () => {
+      FakeEventSource.latest().emit('storage', { full: true, since: '2026-10-13 13:17:22' });
+
+      FakeEventSource.latest().emit('ping', 15);
+
+      expect(stream.storage()?.full).toBe(true);
+    });
+
+    it('deve desfazer o cheio de uma conexão anterior Quando a nova manda o ping sem storage antes', () => {
+      FakeEventSource.latest().emit('storage', { full: true, since: '2026-10-13 13:17:22' });
+      stream.retry();
+      FakeEventSource.latest().open();
+      expect(stream.storage()?.full).toBe(true);
+
+      FakeEventSource.latest().emit('ping', 15);
+
+      expect(stream.storage()).toBeNull();
+    });
+  });
 });

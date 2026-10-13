@@ -3107,6 +3107,13 @@ export const translations: Record<string, string> = {
   '91400465433579092': 'Tentar agora',
   // Trying again in {$seconds} s
   '6526354410800284325': 'Nova tentativa em {$seconds} s',
+  // Storage
+  '57403663622654391': 'Armazenamento',
+  // Storage is full since {$time}: new requests are being refused.
+  '1164282578703135773':
+    'O armazenamento está cheio desde {$time}: requisições novas estão sendo recusadas.',
+  // Storing again.
+  '6495967179488358284': 'Voltou a gravar.',
   // Could not load the list ({$status}).
   '1268922153738676840': 'Não foi possível carregar a lista ({$status}).',
   // 1 arrived just now

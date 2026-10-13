@@ -1,0 +1,25 @@
+// Vazia, a faixa não ocupa altura, mas a região viva segue na árvore de acessibilidade (dentro de
+// `display: none` a primeira frase não seria dita).
+:host {
+  display: block;
+}
+
+:host(.shown) {
+  margin: 0 8px 8px 0;
+  padding: 8px 16px;
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  font: var(--mat-sys-body-medium);
+}
+
+:host(.full) {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+@media (width < 600px) {
+  :host(.shown) {
+    margin: 0 8px 8px;
+  }
+}

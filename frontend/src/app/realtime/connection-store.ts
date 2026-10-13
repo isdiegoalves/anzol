@@ -214,7 +214,7 @@ export class Connection {
   }
 }
 
-function clock(date: Date): string {
+export function clock(date: Date): string {
   return date.toLocaleTimeString(document.documentElement.lang || 'en', {
     hour: '2-digit',
     minute: '2-digit',

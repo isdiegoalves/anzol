@@ -46,6 +46,7 @@ import { ScreenState } from './screen-state';
 import { ChecksSeen, decryptionFailed } from './checks-seen';
 import { ShellSettings } from './shell-settings';
 import { SkipLink } from './skip-link';
+import { StorageBand } from './storage-band';
 import type { TokenActions } from '../token/token-actions';
 import { ConnectionBand } from './connection-band';
 import { OpenFailed } from './open-failed';
@@ -85,6 +86,7 @@ export interface SheetComponent {
     RouterLink,
     RouterOutlet,
     SkipLink,
+    StorageBand,
     UrlFailed,
     UrlHeader,
   ],

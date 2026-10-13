@@ -15,6 +15,12 @@ export const RETRY_SECONDS = [5, 10, 20, 30] as const;
 /** Traz o que chegou enquanto a conexão não estava aberta; devolve quantas trouxe. */
 export type Resume = () => Promise<number>;
 
+/** O `data` do evento `storage`: o Redis recusa gravação por falta de espaço (`full`), e desde quando (UTC). */
+export interface StorageState {
+  readonly full: boolean;
+  readonly since: string;
+}
+
 /** O heartbeat do servidor até o primeiro `ping` dizer o dele. */
 export const HEARTBEAT_MS = 15_000;
 
@@ -55,6 +61,8 @@ export class RequestStream {
   readonly recovered = signal(0);
   /** Quando veio o último sinal do servidor (abertura, `ping` ou mensagem). */
   heardAt: Date | null = null;
+  /** O armazenamento do servidor inteiro, como o último evento `storage` disse; nulo enquanto ele não diz nada. */
+  readonly storage = signal<StorageState | null>(null);
 
   /**
    * Abre o `EventSource` com o primeiro assinante e o fecha com o último. `quiet`: a assinatura não
@@ -185,10 +193,21 @@ export class RequestStream {
       }, silenceLimit(shared.heartbeatMs));
     };
     heard(false);
+    // O servidor cheio manda o `storage` antes do primeiro `ping`: `ping` sem ele nesta conexão diz que há espaço,
+    // e desfaz o "cheio" que ficou de uma conexão anterior.
+    let storageSaid = false;
+    source.addEventListener('storage', (event: MessageEvent<string>) => {
+      heard();
+      storageSaid = true;
+      this.storage.set(JSON.parse(event.data) as StorageState);
+    });
     source.addEventListener('ping', (event: MessageEvent<string>) => {
       const seconds = Number(event.data);
       shared.heartbeatMs = seconds > 0 ? seconds * 1000 : HEARTBEAT_MS;
       heard();
+      if (!storageSaid) {
+        this.storage.set(null);
+      }
     });
     source.onopen = () => {
       heard();
