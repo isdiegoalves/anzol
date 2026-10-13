@@ -989,6 +989,12 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
   são a mesma resposta de quem não manda, que segue sem `Content-Encoding`; a resposta do webhook nunca vem comprimida,
   nem quando a URL responde JSON grande a quem aceita gzip.
 
+- **Saúde e versão** (`specs/api/saude.spec.ts`): `GET /health` responde 200 com exatamente `status` (`ok`),
+  `version`, `redis` (`ok`), `ai` e `mcp` (`on` ou `off`, conforme `CONTRATO_IA` e `CONTRATO_MCP`), e `GET /version`,
+  200 com a mesma `version`; as duas seguem o documento OpenAPI e respondem igual com um `Host` fora da lista de
+  aceitos (a probe do Kubernetes chega com o IP do pod). Fica fora o 503 do `/health` com o Redis fora do ar, que o
+  contrato não provoca (teste do backend, `HealthRedisDownApiTest`).
+
 ### Contrato do SSE
 
 `GET {BASE_URL}/token/{id}/stream` responde 200 com `Content-Type: text/event-stream` e, a cada

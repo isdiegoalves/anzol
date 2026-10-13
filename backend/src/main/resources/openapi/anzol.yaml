@@ -41,6 +41,8 @@ tags:
     description: Local language model helpers. Answer 503 when AI is disabled.
   - name: Stats
     description: Summary of the newest messages.
+  - name: Server
+    description: Health and version of the server itself.
 
 paths:
   /token:
@@ -1567,6 +1569,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/SimpleError'
               example: {error: Too many lab runs for this URL; try again later}
+
+  /health:
+    get:
+      tags: [Server]
+      operationId: getHealth
+      summary: Health of the server
+      description: >-
+        Ready only while Redis answers a `PING` within 2 seconds. Meant for container health checks and Kubernetes
+        probes: the `Host` header is not checked.
+      security: []
+      responses:
+        '200':
+          description: The server is ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Redis does not answer; `status` is `unavailable` and `redis` is `down`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /version:
+    get:
+      tags: [Server]
+      operationId: getVersion
+      summary: Version of the server
+      description: The version of the running build. Answers with Redis down too; the `Host` header is not checked.
+      security: []
+      responses:
+        '200':
+          description: The version.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version]
+                properties:
+                  version:
+                    type: string
 
 components:
   securitySchemes:
@@ -3665,3 +3709,22 @@ components:
               request_id:
                 type: [string, 'null']
                 format: uuid
+
+    Health:
+      type: object
+      required: [status, version, redis, ai, mcp]
+      properties:
+        status:
+          enum: [ok, unavailable]
+          description: '`ok` only while Redis answers.'
+        version:
+          type: string
+          description: The version of the running build.
+        redis:
+          enum: [ok, down]
+        ai:
+          enum: ['on', 'off']
+          description: Whether the AI routes are enabled.
+        mcp:
+          enum: ['on', 'off']
+          description: Whether the MCP server at `/mcp` is enabled.

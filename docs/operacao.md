@@ -41,6 +41,22 @@ services:
       - "host.docker.internal:host-gateway"
 ```
 
+## Saúde e versão
+
+`GET /health` responde `200` só enquanto o Redis responde a um `PING` em até 2 s; fora disso, `503` com
+`"status": "unavailable"` e `"redis": "down"`. `GET /version` diz a versão que está rodando e responde também com o
+Redis fora do ar. Nenhuma das duas confere o `Host`: servem a probes e a balanceadores, que chegam por IP.
+
+```console
+$ curl -s http://localhost:8084/health
+{"status":"ok","version":"0.6.1","redis":"ok","ai":"off","mcp":"off"}
+$ curl -s http://localhost:8084/version
+{"version":"0.6.1"}
+```
+
+`ai` e `mcp` dizem se a IA local e o servidor MCP estão ligados (`on` ou `off`); o LLM em si não é consultado. No
+Kubernetes, a readiness do chart usa `/health` (ver [Helm](helm.md)).
+
 ## Memória do Redis
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o

@@ -85,7 +85,8 @@ spec:
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          # Sem actuator: GET / é o index.html da tela, lido do jar (não toca no Redis nem confere o Host).
+          # GET /health só responde 200 com o Redis no ar: sem ele o pod sai do Service. A partida e a liveness ficam em
+          # GET / (o index.html da tela, lido do jar, que não toca no Redis): Redis fora do ar não reinicia o app.
           startupProbe:
             httpGet:
               path: /
@@ -94,7 +95,7 @@ spec:
             failureThreshold: 40
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: http
             periodSeconds: 10
             timeoutSeconds: 3

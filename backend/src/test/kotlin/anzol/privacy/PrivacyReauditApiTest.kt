@@ -40,6 +40,8 @@ private val READ_ONLY_GETS =
         "/error",
         "/share/{shareId}",
         "/e2ee-lab/scenarios",
+        // Saúde e versão do servidor: um PING no Redis e a versão do build, sem gravar nada.
+        "/health",
         "/openapi.json",
         "/openapi.yaml",
         "/token/{tokenId}",
@@ -56,6 +58,7 @@ private val READ_ONLY_GETS =
         // Item 14 (B2): só lê um resumo das mensagens mais novas.
         "/token/{tokenId}/stats",
         "/token/{tokenId}/stream",
+        "/version",
     )
 
 /**

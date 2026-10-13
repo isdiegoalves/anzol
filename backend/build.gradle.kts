@@ -126,3 +126,10 @@ tasks.jar {
 tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
     friendPaths.setFrom(friendPaths.files.filterNot { it.name.endsWith("-plain.jar") })
 }
+
+// A versão que /health e /version respondem. Sem a hora do build, que mudaria o jar a cada execução.
+springBoot {
+    buildInfo {
+        excludes = setOf("time")
+    }
+}

@@ -40,6 +40,8 @@ ingress:
 - `anzol.outbound.allowPrivate` e `anzol.mcp.enabled` ficam `false` no chart: no cluster, o primeiro abre o replay e
   o send para o Redis e qualquer Service, e o MCP não tem autenticação.
 
-Sem actuator, as probes usam `GET /` (o `index.html`, lido do jar). O container do app roda como o usuário `anzol`
+A readiness usa `GET /health`, que só responde 200 com o Redis no ar: sem ele o pod sai do Service. A partida e a
+liveness usam `GET /` (o `index.html`, lido do jar, sem tocar no Redis), para que o Redis fora do ar não reinicie o
+app. O container do app roda como o usuário `anzol`
 (uid 999), sem privilégios e com o sistema de arquivos só-leitura, com um `emptyDir` em `/tmp` para o Tomcat e a JVM.
 Cada opção está comentada em [`helm/values.yaml`](../helm/values.yaml).
