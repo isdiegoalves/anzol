@@ -166,6 +166,85 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
     expect(JSON.parse(field().value)).toMatchObject({ properties: { ok: { type: 'boolean' } } });
   });
 
+  describe('Dado um texto no editor e o schema gerado por cima dele', () => {
+    const undo = () => screen.queryByRole('button', { name: 'Undo' });
+    const generate = () => userEvent.click(screen.getByRole('button', { name: 'Generate schema' }));
+
+    async function generated(typed: string) {
+      const { http } = await renderCard(SchemaCard, token());
+      http.expectOne(RECENTES).flush(requestPage([webhookRequest(2, { content: '{"ok": true}' })]));
+      if (typed) {
+        await userEvent.type(field(), typed);
+      }
+      await screen.findByRole('combobox', { name: 'Request' });
+      expect(undo()).toBeNull();
+      await generate();
+      expect(JSON.parse(field().value)).toMatchObject({ properties: { ok: { type: 'boolean' } } });
+    }
+
+    it('deve devolver o texto de antes, fechar o aviso e focar o campo Quando "Undo" é clicado', async () => {
+      await generated('{{"type": "object"}');
+      expect(screen.getByText(/^Inferred from request /)).toBeTruthy();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+      expect(field().value).toBe('{"type": "object"}');
+      expect(screen.queryByText(/^Inferred from request /)).toBeNull();
+      expect(undo()).toBeNull();
+      expect(document.activeElement).toBe(field());
+    });
+
+    it('deve devolver o editor vazio Quando não havia nada antes de gerar', async () => {
+      await generated('');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+      expect(field().value).toBe('');
+      expect(screen.queryByText('Unsaved')).toBeNull();
+    });
+
+    it('deve deixar o "Undo" fora da região viva do aviso', async () => {
+      await generated('');
+
+      const notice = screen.getByText(/^Inferred from request /).closest('[role="status"]');
+      expect(notice).toBeTruthy();
+      expect(notice?.contains(undo())).toBe(false);
+      await expectNoAxeViolations(card());
+    });
+
+    it('deve voltar só à geração anterior Quando gera de novo', async () => {
+      await generated('{{"a": 1}');
+      const first = field().value;
+      await userEvent.type(field(), ' ');
+      await generate();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+      expect(field().value).toBe(`${first} `);
+      expect(undo()).toBeNull();
+    });
+
+    it('deve deixar de oferecer "Undo" Quando "Clear schema" esvazia o editor', async () => {
+      await generated('{{"a": 1}');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Clear schema' }));
+
+      expect(undo()).toBeNull();
+    });
+  });
+
+  it('não deve oferecer "Undo" Quando a mensagem pedida não tem corpo JSON e nada foi trocado', async () => {
+    const pedido = webhookRequest(7, { content: 'nome=Ana' });
+    const { http } = await renderCard(SchemaCard, token({ schema: SCHEMA }), {
+      inputs: { schemaFrom: pedido.uuid },
+    });
+    http.expectOne(RECENTES).flush(requestPage([]));
+    http.expectOne(`/token/${TOKEN_ID}/request/${pedido.uuid}`).flush(pedido);
+
+    expect(await screen.findByText('That request has no JSON body to infer from.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull();
+  });
+
   it('deve dizer o tamanho do schema em KiB, com o número no idioma da tela', async () => {
     const before = document.documentElement.lang;
     document.documentElement.lang = 'pt-BR';

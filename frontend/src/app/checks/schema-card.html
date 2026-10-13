@@ -28,9 +28,14 @@
   </header>
 
   @if (inferred(); as note) {
-    <p class="banner" [class.info]="!note.error" role="status">
-      <span appLateContent>{{ note.text }}</span>
-    </p>
+    <div class="inferred">
+      <p class="banner" [class.info]="!note.error" role="status">
+        <span appLateContent>{{ note.text }}</span>
+      </p>
+      @if (replaced() !== null) {
+        <button mat-button type="button" (click)="undoGenerated()" i18n>Undo</button>
+      }
+    </div>
   }
 
   <div class="layout" [formGroup]="form">

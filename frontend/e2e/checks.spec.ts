@@ -197,6 +197,31 @@ test.describe('Dado o cartão Schema validation', () => {
     expect(put['schema']).toEqual(inferido);
   });
 
+  test('deve devolver o que estava no editor Quando "Undo" é usado depois de gerar o schema', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await tokens.send(tokenId, {
+      headers: { 'Content-Type': 'application/json' },
+      data: '{"id": 42}',
+    });
+    const schema = await abrirChecks(page, tokenId, 'Schema validation');
+    const campo = schema.getByRole('textbox', { name: 'JSON Schema' });
+    await campo.fill('{"type": "object"}');
+    await expect(schema.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+
+    await schema.getByRole('button', { name: 'Generate schema' }).click();
+    await expect(campo).toHaveValue(/"required": \[/);
+    await expect(schema.getByText(/^Inferred from request /)).toBeVisible();
+    await schema.getByRole('button', { name: 'Undo', exact: true }).click();
+
+    await expect(campo).toHaveValue('{"type": "object"}');
+    await expect(campo).toBeFocused();
+    await expect(schema.getByText(/^Inferred from request /)).toHaveCount(0);
+    await expect(schema.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(0);
+  });
+
   test('deve rolar até o cartão Quando a rota traz ?section=schema', async ({ page, tokens }) => {
     const tokenId = await tokens.create();
 

@@ -73,6 +73,8 @@ export class SchemaCard implements ChecksSection {
   protected readonly recent = signal<readonly WebhookRequest[] | null>(null);
   /** Aviso sobre o schema inferido (de onde veio, ou por que não deu). */
   protected readonly inferred = signal<CardNotice | null>(null);
+  /** O texto que o schema gerado trocou, enquanto dá para voltar a ele; `null` sem o que desfazer. */
+  protected readonly replaced = signal<string | null>(null);
 
   constructor() {
     this.draft.register(this);
@@ -125,6 +127,13 @@ export class SchemaCard implements ChecksSection {
     this.setDraft('');
   }
 
+  /** "Undo" do aviso do schema gerado: o editor volta ao texto de antes, com o foco nele. */
+  protected undoGenerated(): void {
+    this.setDraft(this.replaced() ?? '');
+    this.inferred.set(null);
+    this.host.nativeElement.querySelector<HTMLElement>('textarea')?.focus();
+  }
+
   changes(): ChangeLine[] {
     const text = this.form.controls.schema.value;
     const saved = schemaText(this.saved());
@@ -160,6 +169,7 @@ export class SchemaCard implements ChecksSection {
     this.form.controls.schema.reset(schemaText(this.saved()));
     this.attempted.set(false);
     this.inferred.set(null);
+    this.replaced.set(null);
   }
 
   refused(error: unknown): string[] {
@@ -235,7 +245,9 @@ export class SchemaCard implements ChecksSection {
       });
       return;
     }
+    const before = this.form.controls.schema.value;
     this.setDraft(schemaText(inferSchema(body.value)));
+    this.replaced.set(before);
     this.inferred.set({
       text: $localize`Inferred from request ${request.uuid.slice(0, 8)}. Every key present became required; review it and save.`,
       error: false,
@@ -246,6 +258,7 @@ export class SchemaCard implements ChecksSection {
     const control = this.form.controls.schema;
     control.setValue(text);
     control.markAsDirty();
+    this.replaced.set(null);
   }
 
   private fields(): readonly PendingField[] {

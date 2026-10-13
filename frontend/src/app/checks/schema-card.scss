@@ -26,6 +26,17 @@
   }
 }
 
+.inferred {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+
+  .banner {
+    flex: 1 1 240px;
+  }
+}
+
 .error {
   margin: 0;
   color: var(--mat-sys-error);
