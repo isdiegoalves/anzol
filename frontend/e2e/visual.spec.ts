@@ -197,12 +197,12 @@ async function abrirDecifra(page: Page, tokens: TokenTracker, ligada: boolean): 
 }
 
 /**
- * A busca espera a pessoa parar de digitar, e conta essa espera pela hora do navegador, que aqui está parada: o
- * relógio anda de novo depois do texto.
+ * A busca espera a pessoa parar de digitar, e conta essa espera (300 ms) pela hora do navegador, que aqui está
+ * parada: depois do texto, o relógio anda 1 s além do `relogio()`, tenha o teste levado o tempo que for até aqui.
  */
 async function buscar(page: Page, texto: string): Promise<void> {
   await campoDeBusca(page).fill(texto);
-  await page.clock.setFixedTime(relogio());
+  await page.clock.setFixedTime(new Date(relogio().getTime() + 1_000));
 }
 
 /**
