@@ -64,7 +64,7 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
 
 Uma etapa que falha não interrompe as seguintes; se o stack não sobe, as de integração aparecem
 como NÃO RODOU. A saída é 0 só com tudo OK. Com os caches do Gradle, do npm e do Docker quentes, a
-rodada inteira leva uns 2 minutos.
+rodada inteira leva de 7 a 9 minutos.
 
 ## Padrões de código
 
