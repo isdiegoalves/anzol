@@ -65,8 +65,10 @@ pronto.
 
 O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
 webhook responde `507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado
-continua legível. Com mensagens de ~15 KB, 1 GB guarda cerca de 60 mil; `ANZOL_MAX_REQUESTS` e
-`auto_cleanup` limitam cada URL. Mudar o `command` do Redis no compose recria o container, e os
+continua legível. A tela avisa: o `GET /token/{id}/stream` de toda URL manda o evento `storage` com `"full": true`
+no primeiro 507, e com `"full": false` quando a primeira mensagem volta a ser gravada. O app só sabe que há espaço de
+novo quando uma gravação passa: liberada a memória, o aviso fica até a próxima mensagem chegar, em qualquer URL. Com
+mensagens de ~15 KB, 1 GB guarda cerca de 60 mil; `ANZOL_MAX_REQUESTS` e `auto_cleanup` limitam cada URL. Mudar o `command` do Redis no compose recria o container, e os
 dados ficam no volume.
 
 ## Observabilidade

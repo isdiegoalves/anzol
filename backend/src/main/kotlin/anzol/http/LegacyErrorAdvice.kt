@@ -1,6 +1,8 @@
 package anzol.http
 
+import anzol.stream.RequestStream
 import anzol.telemetry.AnzolTelemetry
+import anzol.token.legacyNow
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataAccessException
@@ -14,6 +16,7 @@ import org.springframework.web.context.request.async.AsyncRequestNotUsableExcept
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.servlet.NoHandlerFoundException
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import java.time.Clock
 
 /** Mensagem do 507: o Redis atingiu o `maxmemory` (política `noeviction`) e recusou a gravação. */
 const val STORAGE_FULL_MESSAGE = "Storage is full; the request was not stored."
@@ -22,6 +25,8 @@ const val STORAGE_FULL_MESSAGE = "Storage is full; the request was not stored."
 @RestControllerAdvice
 class LegacyErrorAdvice(
     private val telemetry: AnzolTelemetry,
+    private val stream: RequestStream,
+    private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -48,7 +53,8 @@ class LegacyErrorAdvice(
 
     /**
      * Redis no teto de memória (`maxmemory` + `noeviction`, docker-compose.yml): a gravação é recusada
-     * inteira pelo Redis, sem estado parcial. Qualquer outra falha de acesso a dados segue como 500.
+     * inteira pelo Redis, sem estado parcial, e as abas abertas ficam sabendo pelo evento `storage` do stream. Qualquer
+     * outra falha de acesso a dados segue como 500.
      */
     @ExceptionHandler(DataAccessException::class)
     fun onDataAccess(
@@ -58,6 +64,7 @@ class LegacyErrorAdvice(
         if (!error.isRedisOutOfMemory()) return onUnexpected(error, request)
         log.warn("Redis cheio: {} {} recusado", request.method, request.requestURI)
         telemetry.storageFull()
+        stream.storageFull(clock.legacyNow())
         return request.legacyError(HttpStatus.INSUFFICIENT_STORAGE, STORAGE_FULL_MESSAGE)
     }
 

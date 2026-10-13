@@ -633,8 +633,11 @@ paths:
         that hears nothing for two intervals can take the connection as dead and open it again. Each captured
         message is an event named `request.created` whose `data` is a JSON `RequestCreated`: the message (without
         `decrypted`; above 1,000,000 characters, without `content`, `headers` and `user_agent`, and
-        `truncated: true`), the current `total`, and the uuids `removed` by the automatic cleanup. Closed when the
-        read secret changes.
+        `truncated: true`), the current `total`, and the uuids `removed` by the automatic cleanup. An event named
+        `storage`, whose `data` is `{"full": true|false, "since": "<UTC timestamp>"}`, tells the state of the storage of
+        the whole server: sent to every stream when a write is first refused with 507 (`full: true`), when the next
+        message is recorded on any URL (`full: false`), and, before the first `ping`, when a stream opens while the
+        storage is full. Closed when the read secret changes.
       security:
         - {}
         - readSecret: []
@@ -653,6 +656,9 @@ paths:
 
                 event:request.created
                 data:{"request":{"uuid":"…","seq":1790438426238928},"total":1,"truncated":false,"removed":[]}
+
+                event:storage
+                data:{"full":true,"since":"2026-09-26 14:02:07"}
 
                 :heartbeat
                 event:ping

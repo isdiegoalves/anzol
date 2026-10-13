@@ -1,10 +1,13 @@
 package anzol.stream
 
 import anzol.RequestId
+import anzol.TIMESTAMP_PATTERN
 import anzol.capture.CapturedRequest
+import com.fasterxml.jackson.annotation.JsonFormat
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
+import java.time.LocalDateTime
 
 /** Acima disto (em caracteres do `json_encode` do PHP) o evento vai sem o corpo. */
 private const val TRUNCATE_ABOVE = 1_000_000L
@@ -23,6 +26,16 @@ data class RequestCreated(
     val total: Long,
     val truncated: Boolean,
     val removed: List<RequestId>,
+)
+
+/**
+ * `data:` do evento `storage`, o estado do armazenamento do servidor inteiro: [full] quando o Redis recusa gravação
+ * por falta de espaço, e desde quando (UTC) ele está assim.
+ */
+data class StorageState(
+    val full: Boolean,
+    @field:JsonFormat(pattern = TIMESTAMP_PATTERN)
+    val since: LocalDateTime,
 )
 
 /**

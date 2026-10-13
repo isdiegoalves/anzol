@@ -1005,6 +1005,10 @@ corta sem evento: quem editou recarrega a lista. O adaptador considera a assinat
 os cabeçalhos: o servidor só deve enviá-los depois de registrar o assinante, senão um webhook
 disparado logo em seguida se perde. Comentários (`:`) servem de keep-alive e são ignorados.
 
+O evento `storage` (`data:` `{"full": true|false, "since": "<data UTC>"}`: o armazenamento do servidor encheu, voltou
+a gravar, ou já estava cheio quando o stream abriu, e aí vem antes do primeiro `ping`) fica fora do contrato pelo mesmo motivo do 507: o Redis cheio não
+se provoca pela API. É coberto pelo teste do backend (`RedisFullApiTest`).
+
 ## Mudanças de comportamento decididas pelo dono
 
 Plano de features "limpeza automática e Retry-After" (2026-09-26). O contrato mudou antes do código;
