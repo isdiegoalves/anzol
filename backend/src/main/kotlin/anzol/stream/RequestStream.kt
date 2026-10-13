@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference
 private const val EVENT_NAME = "request.created"
 private const val STORAGE = "storage"
 private const val PING = "ping"
+private const val HEARTBEAT_THREAD = "sse-heartbeat"
 
 /** Sem prazo: a conexão vive enquanto o cliente estiver lá; o heartbeat descobre quem saiu. */
 private const val NO_TIMEOUT = 0L
@@ -77,6 +78,9 @@ class RequestStream(
 
     /** Desde quando o Redis recusa gravação por falta de espaço; nulo enquanto grava. É do servidor, não da URL. */
     private val fullSince = AtomicReference<LocalDateTime?>()
+
+    /** Assinantes com o envio do heartbeat anterior ainda em andamento (o cliente não lê): o seguinte os pula. */
+    private val beating = ConcurrentHashMap.newKeySet<SseEmitter>()
 
     init {
         Gauge
@@ -165,11 +169,27 @@ class RequestStream(
     /**
      * Comentário e `ping` periódicos: mantêm proxies abertos e revelam conexões mortas. O comentário segue para quem
      * já lia o heartbeat assim; o `EventSource` só entrega ao JavaScript o evento com `data`.
+     *
+     * Cada assinante recebe o envio numa thread virtual própria: o cliente que não lê prende só a dele, até o envio
+     * falhar e ele sair do registro, e enquanto isso é pulado, para não acumular uma thread por intervalo.
      */
     @Scheduled(fixedRateString = "\${anzol.stream.heartbeat}")
     fun heartbeat() {
         subscribers.forEach { (tokenId, emitters) ->
-            emitters.forEach { it.trySend(tokenId, ping("heartbeat")) }
+            emitters.forEach { emitter ->
+                if (beating.add(emitter)) Thread.ofVirtual().name(HEARTBEAT_THREAD).start { beat(tokenId, emitter) }
+            }
+        }
+    }
+
+    private fun beat(
+        tokenId: TokenId,
+        emitter: SseEmitter,
+    ) {
+        try {
+            emitter.trySend(tokenId, ping("heartbeat"))
+        } finally {
+            beating.remove(emitter)
         }
     }
 

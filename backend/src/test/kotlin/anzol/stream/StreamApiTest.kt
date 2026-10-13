@@ -4,6 +4,7 @@ import anzol.TokenId
 import anzol.support.ApiClient
 import anzol.support.ApiTest
 import anzol.support.JSON_CLIENT
+import anzol.support.SilentSubscriber
 import anzol.support.SseClient
 import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility.await
@@ -15,11 +16,16 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.util.UUID
 
+private val HEARTBEAT: Duration = Duration.ofMillis(200)
+
+/** Tempo para as mensagens grandes encherem o caminho até o assinante que não lê e o envio a ele parar. */
+private val HEARTBEATS_TO_FILL: Duration = HEARTBEAT.multipliedBy(5)
+
 @ApiTest
 @TestPropertySource(properties = ["anzol.stream.heartbeat=200ms"])
 @DisplayName("Tempo real por SSE")
 class StreamApiTest(
-    @LocalServerPort port: Int,
+    @LocalServerPort private val port: Int,
     jsonMapper: JsonMapper,
     private val stream: RequestStream,
 ) {
@@ -27,6 +33,8 @@ class StreamApiTest(
     private val wait = await().atMost(Duration.ofSeconds(5))
 
     private fun subscribe(tokenId: String) = SseClient("${api.base}/token/$tokenId/stream")
+
+    private fun SseClient.pings(): Int = events.count { it.name == "ping" }
 
     @Test
     @DisplayName("Dado uma aba assinando o token, quando chega uma mensagem, então recebe request.created com a mensagem gravada")
@@ -84,6 +92,22 @@ class StreamApiTest(
             }
             assertThat(client.created()).isEmpty()
         }
+    }
+
+    @Test
+    @DisplayName("Dado um assinante que não lê o stream, quando o heartbeat passa, então os das outras URLs seguem recebendo o ping")
+    fun heartbeat_assinanteQueNaoLe_naoDeveSegurarOsOutros() {
+        val others = (1..12).map { subscribe(api.tokenId()) }
+        SilentSubscriber(api, port, api.tokenId()).use { _ ->
+            Thread.sleep(HEARTBEATS_TO_FILL.toMillis())
+            val before = others.map { it.pings() }
+
+            Thread.sleep(HEARTBEAT.multipliedBy(10).toMillis())
+
+            val heard = others.zip(before).map { (client, already) -> client.pings() - already }
+            assertThat(heard).allSatisfy { assertThat(it).isGreaterThanOrEqualTo(5) }
+        }
+        others.forEach { it.close() }
     }
 
     @Test
