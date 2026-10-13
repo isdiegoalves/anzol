@@ -1,7 +1,7 @@
 # Observabilidade do Anzol
 
-O app exporta métricas, traces e logs por OTLP quando o ambiente liga (`docker-compose.yml`, variáveis
-`OTEL_*`); o destino é o Grafana Alloy do stack de observabilidade local, que grava métricas no Mimir, traces
+O app exporta métricas, traces e logs por OTLP quando o ambiente liga (variáveis `OTEL_*`, no
+[`docker-compose.override.yml`](../docs/operacao.md#ligar-no-compose)); o destino é o Grafana Alloy do stack de observabilidade local, que grava métricas no Mimir, traces
 no Tempo e logs no Loki. Este diretório tem o dashboard desses dados e o script que o importa no Grafana.
 
 | Arquivo | O que é |
@@ -11,7 +11,7 @@ no Tempo e logs no Loki. Este diretório tem o dashboard desses dados e o script
 
 O dashboard espera os datasources com os uids `prometheus` (Mimir), `tempo` e `loki`, os do
 `observability-stack/grafana/datasources/grafana-datasources.yml`. A variável **Instância** separa o app do
-`docker-compose.yml` (`anzol-local`, o padrão) dos stacks de teste (`anzol-dev`).
+compose local (`anzol-local`, o padrão) dos stacks de teste (`anzol-dev`).
 
 ## Importar pela API
 

@@ -94,17 +94,18 @@ class RefutacaoSsrfTest {
     }
 
     /**
-     * Com `allow-private=true` o motor alcança o loopback do Mac (via alias), a rede do Docker (o Redis) e a LAN;
+     * Com `allow-private=true` o motor alcança o loopback do host (via alias), a rede do Docker (o Redis) e a LAN;
      * publicada em todas as interfaces (`"8084:8080"`), a porta dá esse alcance a qualquer um na mesma rede, sem
-     * credencial (o `POST /token` é aberto).
+     * credencial (o `POST /token` é aberto). O compose do CI liga a variável; o base não, mas o
+     * `docker-compose.override.yml` de quem a liga herda a porta dele.
      */
-    @Test
-    @DisplayName("Dado o compose com ANZOL_OUTBOUND_ALLOW_PRIVATE=true, quando publica a porta, então só em 127.0.0.1")
-    fun composePermissivo_devePublicarSoNoLoopback() {
-        val compose = File("../docker-compose.yml").readText()
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["docker-compose.yml", "docker-compose.ci.yml"])
+    @DisplayName("Dado um compose do repositório, quando publica a porta, então só em 127.0.0.1")
+    fun compose_devePublicarSoNoLoopback(file: String) {
+        val compose = File("../$file").readText()
         val ports = Regex("""^\s*-\s*"([^"]*:\d+)"\s*$""", RegexOption.MULTILINE).findAll(compose).map { it.groupValues[1] }.toList()
 
-        assertThat(compose).contains("ANZOL_OUTBOUND_ALLOW_PRIVATE=true")
         assertThat(ports).isNotEmpty().allSatisfy { assertThat(it).startsWith("127.0.0.1:") }
     }
 }

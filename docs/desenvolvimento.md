@@ -26,6 +26,12 @@ cd cli && ./gradlew check
 cd tests/cli && node --test
 ```
 
+O E2E e o contrato exigem a saída para a rede privada, o MCP e a IA (num LLM falso que as próprias suítes sobem)
+ligados, o que o `docker-compose.yml` sozinho não faz. Suba o stack do CI local e aponte as suítes para ele:
+`docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml up -d --build` e
+`BASE_URL=http://localhost:8088` (no contrato, também `ANZOL_FAULT_HOLD_MAX=30`, o teto desse stack); ao terminar, o
+mesmo `docker compose` com `down -v`.
+
 O Vitest roda os testes em ordem aleatória, e a semente sai no topo do relatório (`Running tests with seed "…"`).
 Para repetir a ordem de uma rodada que falhou: `VITEST_SEED=<semente> npx ng test --watch=false`.
 

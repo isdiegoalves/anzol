@@ -7,11 +7,39 @@
 | `ANZOL_MAX_REQUESTS` | `10000` | Mensagens guardadas por URL sem limpeza automática (`auto_cleanup` nulo). Ao passar, a mais antiga sai; a URL nunca para de receber. Com `auto_cleanup`, vale o limite da URL |
 | `ANZOL_EXPIRY` | `604800` | Segundos até um token e suas mensagens expirarem (renovado a cada uso) |
 | `ANZOL_FAULT_HOLD_MAX` | `300` | Segundos, no máximo, que as falhas `hang` e `stall_after_headers` das regras prendem a conexão; ela fecha antes se o cliente desistir |
-| `ANZOL_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](api.md#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` liga e por isso publica a porta só em `127.0.0.1` (`"127.0.0.1:8084:8080"`); **deixe `false` ao publicar** |
-| `ANZOL_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. O `docker-compose.yml` usa `host.docker.internal` (o Mac, onde roda o app local) |
-| `ANZOL_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](mcp-e-ia.md#mcp)). O `docker-compose.yml` liga |
-| `ANZOL_AI_ENABLED`, `ANZOL_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](mcp-e-ia.md#ia-local)). O `docker-compose.yml` liga, apontando para o oMLX do Mac |
+| `ANZOL_OUTBOUND_ALLOW_PRIVATE` | `false` | Replay e send podem sair para loopback, redes privadas, CGNAT e ULA (ver [Reenvio e envio pelo servidor](api.md#reenvio-e-envio-pelo-servidor)). O `docker-compose.yml` publica a porta só em `127.0.0.1` (`"127.0.0.1:8084:8080"`), para que ligar a variável não abra o send a quem está na mesma rede; **deixe `false` ao publicar** |
+| `ANZOL_OUTBOUND_LOCALHOST_ALIAS` | vazio | Nome que substitui `localhost`/`127.0.0.1`/`::1` no alvo do replay e do send. No compose, `host.docker.internal` (a máquina onde roda o app local) |
+| `ANZOL_MCP_ENABLED` | `false` | Servidor MCP em `/mcp` (ver [MCP](mcp-e-ia.md#mcp)) |
+| `ANZOL_AI_ENABLED`, `ANZOL_AI_*` | `false` | IA local: `rules/suggest` e `explain` com um LLM OpenAI-compatível (ver [IA local](mcp-e-ia.md#ia-local)) |
 | `ANZOL_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],host.docker.internal` | Nomes aceitos no `Host` das rotas de gestão e do `/mcp`, contra DNS rebinding; o `Origin` dos métodos que mudam estado só passa na mesma porta do `Host` ou com `nome:porta` na lista, contra CSRF (ver [Proteção contra DNS rebinding/CSRF](privacidade.md#proteção-contra-dns-rebindingcsrf)). Vazio vale o padrão. `*` desliga a conferência da gestão: **inseguro** |
+
+### Ligar no compose
+
+O `docker-compose.yml` sobe só o padrão da tabela. Para ligar a saída para a rede local, o MCP, a IA local ou a
+exportação OTLP, crie um `docker-compose.override.yml` ao lado dele com as variáveis que quiser deste modelo e rode
+`docker compose up -d` de novo. O compose carrega esse arquivo sozinho, e o git o ignora:
+
+```yaml
+services:
+  app:
+    environment:
+      # Replay e send alcançam a sua máquina e a rede privada; `localhost` no alvo vira a máquina do Docker.
+      - ANZOL_OUTBOUND_ALLOW_PRIVATE=true
+      - ANZOL_OUTBOUND_LOCALHOST_ALIAS=host.docker.internal
+      - ANZOL_MCP_ENABLED=true
+      # LLM OpenAI-compatível na sua máquina; a chave vem do `.env` ao lado (ver docs/mcp-e-ia.md).
+      - ANZOL_AI_ENABLED=true
+      - ANZOL_AI_BASE_URL=http://host.docker.internal:8000
+      - ANZOL_AI_API_KEY=${ANZOL_AI_API_KEY:-}
+      # Métricas, traces e logs por OTLP HTTP para um coletor na sua máquina (ver Observabilidade, abaixo).
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_SERVICE_NAME=anzol
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.instance.id=anzol-local
+    extra_hosts:
+      # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
+      - "host.docker.internal:host-gateway"
+```
 
 ## Memória do Redis
 
@@ -23,10 +51,10 @@ dados ficam no volume.
 
 ## Observabilidade
 
-O `docker-compose.yml` manda métricas, traces e logs por OTLP HTTP para um Grafana Alloy em
-`host.docker.internal:4318` (`service.name=anzol`, `deployment.environment=local`). São as variáveis
-`OTEL_*` do serviço `app`: sem elas (o padrão do app, os testes e o `./ci.sh`) nada é exportado, e com o Alloy
-fora do ar o app segue normal. Métricas de negócio: `anzol_requests_captured_total` (por `method`,
+Com as variáveis `OTEL_*` do [modelo acima](#ligar-no-compose), o app manda métricas, traces e logs por OTLP HTTP
+para um Grafana Alloy em `host.docker.internal:4318` (`service.name=anzol`, `deployment.environment=local`). Sem elas
+(o padrão do app, o `docker-compose.yml`, os testes e o `./ci.sh`) nada é exportado, e com o Alloy fora do ar o app
+segue normal. Métricas de negócio: `anzol_requests_captured_total` (por `method`,
 `status_class`, `rule`, `signature`, `schema` e `fault`, nunca com token), `anzol_capture_duration_seconds`,
 `anzol_storage_full_total`, `anzol_cleanup_removed_total`, `anzol_sse_subscribers`, `anzol_wait_active` e
 `anzol_outbound_total` (replay e send, por `kind` e `outcome`: `2xx`…`5xx`, `blocked`, `error`; nunca com URL ou token),

@@ -11,7 +11,10 @@ Nenhum teste lê código ou chaves do Redis: tudo passa pela API.
 
 ## Como rodar
 
-Pré-requisitos: Node 24+ e o app no ar (`docker compose up -d --build` na raiz, porta 8084).
+Pré-requisitos: Node 24+ e o app no ar com a saída para a rede privada, o MCP e a IA ligados: o stack do
+`docker-compose.ci.yml` (`docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml up -d --build` na
+raiz, porta 8088, com `BASE_URL=http://localhost:8088 ANZOL_FAULT_HOLD_MAX=30`) ou o da porta 8084 com um
+[`docker-compose.override.yml`](../../docs/operacao.md#ligar-no-compose).
 
 ```bash
 cd tests/contract

@@ -1,3 +1,4 @@
 .env
 .idea/
 .docs-arquivo/
+docker-compose.override.yml

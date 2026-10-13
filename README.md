@@ -32,8 +32,9 @@ app; **Métricas** resume.
 
 Os dados ficam no volume `anzol_redis-data` e sobrevivem a `docker compose down` (só `down -v` os apaga). Lá ficam
 em claro os segredos HMAC, as chaves privadas de cifra e os valores decifrados: trate o volume e o backup como segredo.
-Esse compose liga também o MCP, a IA local e a saída para a rede local, e por isso publica a porta só em
-`127.0.0.1`; para publicar o app, veja [Configuração](docs/operacao.md#configuração).
+O compose sobe o padrão do app e publica a porta só em `127.0.0.1`: o MCP, a IA local e a saída do servidor para a
+rede local (o reenvio da **Saída** para um app em `localhost`) vêm desligados. Para ligá-los, ou para publicar o app,
+veja [Configuração](docs/operacao.md#configuração).
 
 ### Imagem pronta (atalho)
 

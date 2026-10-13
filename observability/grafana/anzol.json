@@ -97,7 +97,7 @@
           "text": "anzol-local",
           "value": "anzol-local"
         },
-        "description": "service.instance.id: anzol-local é o app do docker-compose.yml; anzol-dev, os stacks de teste."
+        "description": "service.instance.id: anzol-local é o app do compose local; anzol-dev, os stacks de teste."
       }
     ]
   },

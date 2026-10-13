@@ -2,8 +2,8 @@
 
 ## MCP
 
-Com `ANZOL_MCP_ENABLED=true` (ligado no `docker-compose.yml`), o app é um servidor
-[MCP](https://modelcontextprotocol.io) em `/mcp` (Streamable HTTP, Spring AI 2.0): agentes de IA operam o
+Com `ANZOL_MCP_ENABLED=true` (desligado por padrão; [como ligar no compose](operacao.md#ligar-no-compose)), o app é
+um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` (Streamable HTTP, Spring AI 2.0): agentes de IA operam o
 Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude Code:
 
 ```bash
@@ -76,9 +76,9 @@ resume o relatório (`27 de 27 conferem`). Para testar um cliente de fora, passe
 
 ## IA local
 
-Com `ANZOL_AI_ENABLED=true`, duas rotas usam um LLM local OpenAI-compatível (no `docker-compose.yml`, o
-oMLX do Mac, em `host.docker.internal:8000`). Os payloads não saem da máquina, e o
-LLM nunca grava nada.
+Com `ANZOL_AI_ENABLED=true`, duas rotas usam um LLM local OpenAI-compatível (por exemplo o oMLX no Mac, que do
+container é `host.docker.internal:8000`; [como ligar no compose](operacao.md#ligar-no-compose)). Os payloads não saem
+da máquina, e o LLM nunca grava nada.
 
 - `POST /token/{id}/rules/suggest` `{"prompt": "responda 429 com Retry-After 5 para POST em /pagamentos", "lang"?:
   "pt-BR", "request_id"?: "<uuid de uma mensagem de exemplo>"}` → `{"rule", "explanation", "attempts", "check"}`. O modelo
@@ -109,7 +109,7 @@ LLM nunca grava nada.
 |---|---|---|
 | `ANZOL_AI_ENABLED` | `false` | Liga as rotas; desligada, respondem `503 {"error": "AI is not configured"}` e o resto da API segue igual |
 | `ANZOL_AI_BASE_URL` | `http://localhost:8000` | Raiz do servidor, sem o `/v1` (o app chama `{base}/v1/chat/completions`). No compose, `http://host.docker.internal:8000` |
-| `ANZOL_AI_API_KEY` | vazia | `Authorization: Bearer`; vazia, o pedido sai sem o cabeçalho. O compose lê de um `.env` ao lado dele, fora do git (permissão 600): **nunca** no compose, no repositório ou no log |
+| `ANZOL_AI_API_KEY` | vazia | `Authorization: Bearer`; vazia, o pedido sai sem o cabeçalho. O `docker-compose.override.yml` a lê de um `.env` ao lado dele, fora do git (permissão 600): **nunca** no compose, no repositório ou no log |
 | `ANZOL_AI_MODEL_JSON` | `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` | Modelo do suggest (saída estruturada) |
 | `ANZOL_AI_MODEL_TEXT` | `KAT-Coder-V2.5-Dev-oQ4e-mtp` | Modelo do explain |
 

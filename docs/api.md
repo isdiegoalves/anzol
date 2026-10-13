@@ -637,11 +637,12 @@ URL protegida sem acesso dá 401, como toda rota `/token/{id}/...`.
 ## Reenvio e envio pelo servidor
 
 > **Aviso de SSRF.** Aqui o servidor abre conexão para uma URL escolhida por quem usa a API. Com
-> `ANZOL_OUTBOUND_ALLOW_PRIVATE=true` (o `docker-compose.yml` local) ele alcança a sua máquina e a rede privada em
-> que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço público. Pelo mesmo motivo
-> o `docker-compose.yml` publica a porta só no loopback (`"127.0.0.1:8084:8080"`): publicada em todas as interfaces
-> (`"8084:8080"`) com `allow-private=true`, qualquer um na mesma rede, sem credencial, usaria o send como proxy para
-> a LAN, para a rede do Docker (o Redis) e para o seu Mac. Não troque o bind enquanto a variável estiver ligada.
+> `ANZOL_OUTBOUND_ALLOW_PRIVATE=true` ([ligado por você no compose](operacao.md#ligar-no-compose)) ele alcança a sua
+> máquina e a rede privada em que roda: **não publique o app assim**. O padrão do app (`false`) só sai para endereço
+> público. Pelo mesmo motivo o `docker-compose.yml` publica a porta só no loopback (`"127.0.0.1:8084:8080"`):
+> publicada em todas as interfaces (`"8084:8080"`) com `allow-private=true`, qualquer um na mesma rede, sem
+> credencial, usaria o send como proxy para a LAN, para a rede do Docker (o Redis) e para o seu Mac. Não troque o bind
+> enquanto a variável estiver ligada.
 
 `POST /token/{id}/request/{requestId}/replay` reenvia uma mensagem gravada; `POST /token/{id}/send` envia uma
 requisição montada:

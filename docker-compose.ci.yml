@@ -1,8 +1,8 @@
 # Stack isolado do ./ci.sh, ao lado do app do dono (porta 8084, Redis `anzol-redis` com dados reais):
 #   docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml ...
 # O `-p anzolci` dá rede e volume próprios (anzolci_default, anzolci_redis-data), que o
-# ./ci.sh apaga no fim com `down -v`. Aqui só muda o que o compose fixa e colidiria, e a exportação de
-# observabilidade sai: o tráfego do contrato não vai para o stack de observabilidade do dono.
+# ./ci.sh apaga no fim com `down -v`. Aqui muda o que o compose fixa e colidiria, e liga o que o contrato e o E2E
+# exigem e o padrão do app desliga: saída para a rede privada, MCP e IA (num LLM falso).
 services:
   app:
     ports: !override
@@ -24,5 +24,8 @@ services:
       # Teto curto das conexões presas (hang, stall_after_headers): o teste do teto não espera os 300 s do padrão. O
       # contrato recebe o mesmo valor (ci.sh); abaixo de 30 s ele fecharia conexões que outros testes ainda conferem.
       - ANZOL_FAULT_HOLD_MAX=30
+    extra_hosts:
+      # host.docker.internal também no Docker do Linux (Docker Desktop e OrbStack já o resolvem).
+      - "host.docker.internal:host-gateway"
   redis:
     container_name: anzolci-redis
