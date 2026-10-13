@@ -2,8 +2,8 @@
 # imagem, no stack ou neste workflow. Roda só a seleção do `npm run e2e:github` (frontend/package.json): os specs de caos
 # (caos*), os patamar-*, o cores-lista e o i18n-carga. É o que o Vitest não alcança: rede que cai, servidor que falha ou
 # demora, troca de URL, os fluxos de ponta a ponta, a cor de erro na lista e o preload da tradução no index.html da
-# imagem. O E2E inteiro, o contrato e a regressão visual continuam no ./ci.sh local (as baselines visuais são gravadas
-# em arm64 e não batem num runner amd64).
+# imagem. Depois roda a regressão visual (frontend/e2e-visual.sh) contra as fotos commitadas, que são gravadas em
+# arm64. O E2E inteiro e o contrato continuam no ./ci.sh local.
 name: e2e
 
 on:
@@ -59,6 +59,14 @@ jobs:
         working-directory: frontend
         env:
           BASE_URL: http://localhost:8088
+      # O container do Playwright entra na rede do container do app: de outro container, a porta que o stack publica
+      # só no loopback do runner não é alcançável. As fotos que diferem e os traces ficam em test-results/visual, sem
+      # apagar os da seleção acima.
+      - name: Regressão visual contra a imagem
+        run: ./e2e-visual.sh http://localhost:8080 --output=test-results/visual
+        working-directory: frontend
+        env:
+          APP: anzolci-app-1
       - name: Log do app
         if: failure()
         run: $COMPOSE logs --tail 200 app
