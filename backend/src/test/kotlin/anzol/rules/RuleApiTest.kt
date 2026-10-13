@@ -114,6 +114,24 @@ class RuleApiTest(
         }
 
         @Test
+        @DisplayName("Dado um jsonPath com o path vazio, quando salva, testa ou busca com ele, então responde 422 no path, e não 500")
+        fun rotas_jsonPathVazio_deveResponder422() {
+            val tokenId = api.tokenId()
+            val match = """{"body":[{"jsonPath":{"path":"","equals":1}}]}"""
+            val invalid = """["The path is invalid."]"""
+
+            val saved = putRules(tokenId, """[{"name":"a","match":$match}]""")
+            val tested = api.send("POST", "/token/$tokenId/rules/test", """{"name":"a","match":$match}""".toByteArray(), JSON_BODY)
+            val searched = api.send("POST", "/token/$tokenId/requests/search", """{"match":$match}""".toByteArray(), JSON_BODY)
+
+            assertThat(listOf(saved, tested, searched).map { it.statusCode() }).containsExactly(422, 422, 422)
+            assertThat(api.json(saved)).isEqualTo(api.tree("""{"0.match.body.0.jsonPath.path":$invalid}"""))
+            assertThat(api.json(tested)).isEqualTo(api.tree("""{"match.body.0.jsonPath.path":$invalid}"""))
+            assertThat(api.json(searched)).isEqualTo(api.tree("""{"match.body.0.jsonPath.path":$invalid}"""))
+            assertThat(getRules(tokenId)).isEqualTo(api.tree("[]"))
+        }
+
+        @Test
         @DisplayName("Dado um corpo que não é JSON, quando salva, então responde 422 em rules, mesmo sem Accept JSON")
         fun put_corpoNaoJson_deveResponder422() {
             val response = api.send("PUT", "/token/${api.tokenId()}/rules", "isto não é json".toByteArray())

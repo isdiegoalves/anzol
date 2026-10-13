@@ -127,6 +127,7 @@ class RuleParserTest {
             {"name":"a","match":{"body":[{"jsonPath":{}}]}}      | 0.match.body.0.jsonPath.path | The path field is required.
             {"name":"a","match":{"body":[{"jsonPath":{"path":"$['status'"}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
             {"name":"a","match":{"body":[{"jsonPath":{"path":"$.a."}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
+            {"name":"a","match":{"body":[{"jsonPath":{"path":""}}]}} | 0.match.body.0.jsonPath.path | The path is invalid.
             {"name":"a","match":{"body":[{"equalToJson":"{a"}]}} | 0.match.body.0.equalToJson | The equalToJson must be a valid JSON string.
             {"name":"a","scenario":"s"}                          | 0.scenario                 | The scenario must be an object.
             {"name":"a","scenario":{}}                           | 0.scenario.name            | The name field is required.

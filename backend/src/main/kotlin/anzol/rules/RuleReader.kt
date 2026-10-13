@@ -363,6 +363,9 @@ class MatchReader(
                     BodyMatcher.JsonPathMatch(source, JsonPath.compile(source), given["equals"].given())
                 } catch (_: InvalidPathException) {
                     violations.fail(pathKey, "The path is invalid.")
+                } catch (_: IllegalArgumentException) {
+                    // O texto vazio: o compilador o recusa antes de tentar ler um caminho.
+                    violations.fail(pathKey, "The path is invalid.")
                 }
             }
         }
