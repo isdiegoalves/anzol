@@ -32,6 +32,14 @@ Para repetir a ordem de uma rodada que falhou: `VITEST_SEED=<semente> npx ng tes
 Para mexer na tela com recarga automática, com o compose no ar: `cd frontend && npx ng serve`
 abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf.mjs`).
 
+### Verificação rápida
+
+`./verificar.sh` roda, sem Docker e sem subir o app, só o que dá retorno rápido nas partes com mudança no git: ktlint,
+detekt e compilação (inclusive dos testes) no `backend/` e no `cli/`; lint, tipos, stylelint, i18n, formato e
+testes unitários na tela. Imprime uma linha por etapa e, nas que falham, as primeiras linhas do erro. Não roda os testes
+do backend e do CLI, o E2E, o contrato nem a regressão visual: esses ficam no `./ci.sh`. `./verificar.sh backend cli`
+escolhe as partes.
+
 ### CI local
 
 O `./ci.sh` da raiz roda tudo o que está acima de uma vez. No GitHub, o workflow `testes`
