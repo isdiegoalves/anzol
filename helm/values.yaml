@@ -3,9 +3,9 @@
 
 image:
   repository: ghcr.io/isdiegoalves/anzol
-  # O workflow imagem.yml publica a imagem a cada tag de versão vX.Y.Z (tags X.Y.Z, X.Y e latest): escreva aqui a tag
-  # publicada. Sem tag de versão publicada, construa com o Dockerfile da raiz e publique.
-  tag: latest
+  # O workflow imagem.yml publica a imagem a cada tag de versão vX.Y.Z (tags X.Y.Z, X.Y e latest). Vazio, vale a
+  # versão do chart (appVersion do Chart.yaml), que é a da release de onde ele veio. Para outra imagem, a tag dela.
+  tag: ""
   pullPolicy: IfNotPresent
 
 # Pacote do ghcr.io é privado até ser tornado público: aqui vai o Secret docker-registry, ex. [{name: ghcr}].

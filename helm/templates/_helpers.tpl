@@ -11,6 +11,11 @@
 {{- printf "%s-redis" (include "anzol.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{/* A imagem do app: a tag de image.tag ou, com ela vazia, a versão do chart. */}}
+{{- define "anzol.image" -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) -}}
+{{- end -}}
+
 {{/* Recebe (dict "ctx" . "component" "app"|"redis"). */}}
 {{- define "anzol.selectorLabels" -}}
 app.kubernetes.io/name: {{ .ctx.Chart.Name }}

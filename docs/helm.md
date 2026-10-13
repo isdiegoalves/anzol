@@ -3,8 +3,9 @@
 O chart `anzol` em `helm/` sobe no Kubernetes o mesmo que o `docker-compose.yml`: o app (imagem
 `ghcr.io/isdiegoalves/anzol`, porta 8080, uma réplica) e um Redis 8 como StatefulSet com PVC, `--maxmemory` e
 `noeviction`, gravando o `dump.rdb` em `/data`. O workflow `imagem` (`.github/workflows/imagem.yml`) publica a imagem no
-`ghcr.io`, para amd64 e arm64, a cada tag de versão `vX.Y.Z` enviada ao GitHub (tags `X.Y.Z`, `X.Y` e `latest`); informe
-a tag publicada. Sem tag de versão publicada, construa com o `Dockerfile` da raiz e publique você mesmo.
+`ghcr.io`, para amd64 e arm64, a cada tag de versão `vX.Y.Z` enviada ao GitHub (tags `X.Y.Z`, `X.Y` e `latest`). O
+chart usa a imagem da versão dele (o `appVersion` do `helm/Chart.yaml`, a release de onde ele veio); `image.tag` troca
+por outra. Sem tag de versão publicada, construa com o `Dockerfile` da raiz e publique você mesmo.
 
 ```bash
 helm install anzol ./helm -f valores.yaml
@@ -15,8 +16,6 @@ helm install anzol ./helm -f valores.yaml --set-string anzol.ai.apiKey="$ANZOL_A
 Um `valores.yaml` mínimo para publicar atrás do ingress-nginx:
 
 ```yaml
-image:
-  tag: <tag publicada>
 ingress:
   enabled: true
   hosts: [anzol.example.com]

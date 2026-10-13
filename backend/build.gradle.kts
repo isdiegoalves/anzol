@@ -8,7 +8,16 @@ plugins {
 }
 
 group = "anzol"
-version = "0.0.1-SNAPSHOT"
+
+// A versão vem de quem constrói: a tag, na imagem publicada (o build-arg ANZOL_VERSION do Dockerfile). Sem ela, "dev".
+version = providers.environmentVariable("ANZOL_VERSION").getOrElse("dev")
+
+// A versão que /health e /version respondem. Sem a hora do build, que mudaria o jar a cada execução.
+springBoot {
+    buildInfo {
+        excludes = setOf("time")
+    }
+}
 
 // O Spring Boot 4.1.1 traz Tomcat 11.0.24 e Jackson 3.1.5/2.21.5, com CVEs corrigidas nestas versões; sai quando o
 // Boot trouxer versões iguais ou mais novas.
@@ -125,11 +134,4 @@ tasks.jar {
 // NoSuchFileException a cada build, embora termine verde.
 tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
     friendPaths.setFrom(friendPaths.files.filterNot { it.name.endsWith("-plain.jar") })
-}
-
-// A versão que /health e /version respondem. Sem a hora do build, que mudaria o jar a cada execução.
-springBoot {
-    buildInfo {
-        excludes = setOf("time")
-    }
 }

@@ -31,6 +31,8 @@ COPY backend/src/main src/main
 # O build do Angular vira recurso estático do jar (IndexController e FrontendResources).
 COPY --from=frontend /src/dist/frontend/ src/main/resources/static/
 # Os testes precisam de Docker (Testcontainers) e rodam fora da imagem: cd backend && ./gradlew check
+# A versão que o app diz no /version: a tag, sem o "v", passada por quem constrói. O Gradle a lê do ambiente.
+ARG ANZOL_VERSION=dev
 RUN ./gradlew --no-daemon bootJar
 # O app roda extraído (app.jar fino, com as bibliotecas em lib/ ao lado). Do jar único, com as bibliotecas aninhadas,
 # ele para de responder quando a primeira leva de pedidos chega em paralelo logo depois de subir.

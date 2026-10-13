@@ -1,4 +1,4 @@
-Anzol instalado: {{ include "anzol.fullname" . }} ({{ .Values.image.repository }}:{{ .Values.image.tag }}), Redis em {{ .Values.redis.external.host | default (printf "%s (StatefulSet do chart, PVC de %s)" (include "anzol.redisName" .) .Values.redis.persistence.size) }}.
+Anzol instalado: {{ include "anzol.fullname" . }} ({{ include "anzol.image" . }}), Redis em {{ .Values.redis.external.host | default (printf "%s (StatefulSet do chart, PVC de %s)" (include "anzol.redisName" .) .Values.redis.persistence.size) }}.
 
 Acesso
 {{- if .Values.ingress.enabled }}

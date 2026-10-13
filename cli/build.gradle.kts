@@ -7,7 +7,9 @@ plugins {
 }
 
 group = "anzol"
-version = "0.0.1-SNAPSHOT"
+
+// A versão vem de quem constrói: a tag, na imagem publicada (o build-arg ANZOL_VERSION do Dockerfile). Sem ela, "dev".
+version = providers.environmentVariable("ANZOL_VERSION").getOrElse("dev")
 
 // Constrói com o JDK 25 e roda em Java 21 (o LTS das máquinas de dev e de CI): classes no formato do 21 e, com o
 // -Xjdk-release, só a API do JDK 21 à vista do compilador (usar algo do 22 em diante não compila).
