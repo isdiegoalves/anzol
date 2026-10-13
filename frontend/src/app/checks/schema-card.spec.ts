@@ -26,6 +26,9 @@ describe('Dado o cartão "Schema validation" de Checks', () => {
 
     expect(field().value).toBe(JSON.stringify(SCHEMA, null, 2));
     expect(container.querySelector('.gutter')?.textContent).toBe('1\n2\n3\n4\n5\n6');
+    expect([...container.querySelectorAll('.colors .t-key')].map((key) => key.textContent)).toEqual(
+      ['"type"', '"required"'],
+    );
     expect(screen.getByText('On')).toBeTruthy();
     await vi.waitFor(() =>
       expect(screen.getByText('No request with a JSON body yet.')).toBeTruthy(),

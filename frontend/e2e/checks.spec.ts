@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { APIRequestContext, Request } from '@playwright/test';
+import { APIRequestContext, Locator, Request } from '@playwright/test';
 import { alvosMenores, expectSemViolacoes } from './support/a11y';
 import {
   abrirChecks,
@@ -204,6 +204,129 @@ test.describe('Dado o cartão Schema validation', () => {
 
     await expect(secao(page, 'Schema validation')).toBeInViewport();
   });
+});
+
+/** Schema que passa das 12 linhas à vista e tem uma linha mais larga que o editor. */
+const SCHEMA_LONGO = {
+  type: 'object',
+  description: 'x'.repeat(400),
+  required: ['id'],
+  minProperties: 1,
+  additionalProperties: true,
+  properties: Object.fromEntries(
+    Array.from({ length: 20 }, (_, n) => [`campo${n}`, { type: n % 2 ? 'integer' : 'null' }]),
+  ),
+};
+
+/**
+ * Onde a camada colorida do editor do schema põe o texto, contra onde a `textarea` o põe: o canto do texto (a
+ * `textarea` tem 8 px de respiro e rola) e o tamanho dele (na largura que rola, o Chromium só conta o respiro da
+ * esquerda).
+ */
+function textoDasCamadas(schema: Locator) {
+  return schema.locator('app-json-editor').evaluate((editor) => {
+    const campo = editor.querySelector('textarea')!;
+    const cores = editor.querySelector<HTMLElement>('.colors code')!;
+    const [c, t] = [cores.getBoundingClientRect(), campo.getBoundingClientRect()];
+    return {
+      cores: { x: c.left, y: c.top, largura: cores.scrollWidth, altura: cores.scrollHeight },
+      campo: {
+        x: t.left + 8 - campo.scrollLeft,
+        y: t.top + 8 - campo.scrollTop,
+        largura: campo.scrollWidth - 8,
+        altura: campo.scrollHeight - 16,
+      },
+    };
+  });
+}
+
+async function conferirCamadas(schema: Locator): Promise<void> {
+  const campo = schema.getByRole('textbox', { name: 'JSON Schema' });
+  await expect(schema.locator('app-json-editor .colors')).toHaveText(await campo.inputValue());
+  const parado = await textoDasCamadas(schema);
+  expect(parado.cores).toEqual(parado.campo);
+
+  await campo.evaluate((el) => el.scrollTo(120, 200));
+  await expect.poll(async () => (await textoDasCamadas(schema)).cores.y).toBe(parado.campo.y - 200);
+  const rolado = await textoDasCamadas(schema);
+  expect(rolado.cores).toEqual(rolado.campo);
+}
+
+test.describe('Dado o editor do JSON Schema com um schema salvo', () => {
+  test('deve colorir o texto com as cores do corpo da requisição, no lugar do texto da textarea, também ao rolar', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create({ schema: SCHEMA_LONGO });
+    const schema = await abrirChecks(page, tokenId, 'Schema validation');
+
+    const cores = await schema.locator('app-json-editor').evaluate((editor) => {
+      const sonda = editor.appendChild(document.createElement('span'));
+      const token = (valor: string) => {
+        sonda.style.color = `var(${valor})`;
+        return getComputedStyle(sonda).color;
+      };
+      const pedaco = (classe: string) =>
+        getComputedStyle(editor.querySelector(`.colors .${classe}`)!).color;
+      const lidas = {
+        pedacos: ['t-key', 't-string', 't-number', 't-literal', 't-punct'].map(pedaco),
+        tokens: [
+          '--mat-sys-primary',
+          '--app-success',
+          '--mat-sys-secondary',
+          '--mat-sys-tertiary',
+          '--mat-sys-on-surface-variant',
+        ].map(token),
+        campo: getComputedStyle(editor.querySelector('textarea')!).color,
+      };
+      sonda.remove();
+      return lidas;
+    });
+    expect(cores.pedacos).toEqual(cores.tokens);
+    expect(new Set(cores.pedacos).size).toBe(5);
+    expect(cores.campo).toBe('rgba(0, 0, 0, 0)');
+
+    await conferirCamadas(schema);
+  });
+
+  test.describe('com zoom de 200 %', () => {
+    test.use({ viewport: { width: 700, height: 450 }, deviceScaleFactor: 2 });
+
+    test('deve manter as cores no lugar do texto da textarea', async ({ page, tokens }) => {
+      const tokenId = await tokens.create({ schema: SCHEMA_LONGO });
+
+      await conferirCamadas(await abrirChecks(page, tokenId, 'Schema validation'));
+    });
+  });
+
+  for (const [nome, sistema] of [
+    ['as cores forçadas do sistema', { forcedColors: 'active' }],
+    ['o contraste alto pedido ao sistema', { contrast: 'more' }],
+  ] as const) {
+    test.describe(`com ${nome}`, () => {
+      test.use(sistema);
+
+      test('deve esconder a camada colorida e mostrar o texto da própria textarea', async ({
+        page,
+        tokens,
+      }) => {
+        const tokenId = await tokens.create({ schema: SCHEMA_LONGO });
+        const schema = await abrirChecks(page, tokenId, 'Schema validation');
+
+        await expect(schema.locator('app-json-editor .colors')).toBeHidden();
+        const tinta = await schema
+          .getByRole('textbox', { name: 'JSON Schema' })
+          .evaluate((campo) => {
+            const sonda = campo.parentElement!.appendChild(document.createElement('span'));
+            sonda.style.color = 'var(--mat-sys-on-surface)';
+            const cores = [getComputedStyle(campo).color, getComputedStyle(sonda).color];
+            sonda.remove();
+            return cores;
+          });
+        expect(tinta[0]).toBe(tinta[1]);
+      });
+    });
+  }
 });
 
 test.describe('Dado o cartão Signature verification', () => {

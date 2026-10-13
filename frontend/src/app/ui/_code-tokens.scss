@@ -1,0 +1,21 @@
+@mixin colors {
+  .t-key {
+    color: var(--mat-sys-primary);
+  }
+
+  .t-string {
+    color: var(--app-success);
+  }
+
+  .t-number {
+    color: var(--mat-sys-secondary);
+  }
+
+  .t-literal {
+    color: var(--mat-sys-tertiary);
+  }
+
+  .t-punct {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}

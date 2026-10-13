@@ -1,0 +1,92 @@
+@use 'code-tokens';
+
+// 12 linhas à vista (~262 px): a `textarea` rola, e os números e as cores a acompanham.
+:host {
+  display: flex;
+  height: 262px;
+  overflow: hidden;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container-lowest);
+  font: 12px / 1.5 var(--app-code-family);
+}
+
+:host(:focus-within) {
+  outline: var(--app-focus-width) solid var(--app-focus-color);
+  outline-offset: -1px;
+}
+
+:host(.invalid) {
+  border-color: var(--mat-sys-error);
+}
+
+.gutter,
+.colors,
+textarea {
+  margin: 0;
+  padding: 8px;
+  font: inherit;
+}
+
+.gutter {
+  flex: none;
+  min-width: 2ch;
+  overflow: hidden;
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface-variant);
+  text-align: right;
+  user-select: none;
+}
+
+.text {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.colors {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--mat-sys-on-surface);
+  user-select: none;
+
+  code {
+    display: block;
+    font: inherit;
+    white-space: pre;
+  }
+}
+
+textarea {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--mat-sys-on-surface);
+  white-space: pre;
+
+  // O texto escolhido é o da `textarea`, nas cores de seleção do sistema: o da camada, atrás, ficaria apagado.
+  &::selection {
+    background: highlight;
+    color: highlighttext;
+  }
+}
+
+@include code-tokens.colors;
+
+@media (forced-colors: active), (prefers-contrast: more) {
+  .colors {
+    display: none;
+  }
+
+  textarea {
+    color: var(--mat-sys-on-surface);
+  }
+}

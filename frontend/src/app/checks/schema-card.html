@@ -46,22 +46,12 @@
           }
         </span>
       </div>
-      <div class="editor" [class.invalid]="message">
-        <pre class="gutter" aria-hidden="true" #gutter>{{ lineNumbers() }}</pre>
-        <textarea
-          #textarea
-          id="schema-text"
-          formControlName="schema"
-          rows="12"
-          wrap="off"
-          spellcheck="false"
-          [attr.aria-invalid]="message ? 'true' : null"
-          [attr.aria-describedby]="
-            message ? 'schema-text-help schema-text-error' : 'schema-text-help'
-          "
-          (scroll)="syncGutter(textarea, gutter)"
-        ></textarea>
-      </div>
+      <app-json-editor
+        formControlName="schema"
+        [inputId]="'schema-text'"
+        [invalid]="!!message"
+        [describedBy]="message ? 'schema-text-help schema-text-error' : 'schema-text-help'"
+      />
       @if (message) {
         <p id="schema-text-error" class="error">{{ message }}</p>
       }

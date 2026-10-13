@@ -8,6 +8,7 @@ import { WebhookRequest } from '../requests/webhook-request';
 import { JsonSchema, Token, TokenSettings } from '../token/token';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { JsonEditor } from '../ui/json-editor';
 import { CardFold } from './card-fold';
 import { CardFoot, CardNotice } from './card-foot';
 import { ChangeLine, ChecksDraft, ChecksSection } from './checks-draft';
@@ -26,17 +27,17 @@ import {
 import { LateContent } from '../ui/late-content';
 
 /**
- * Checks › Schema validation (C §2.6): o schema em `textarea` com número de linha (sem editor de
- * código, fora de escopo), o tamanho contra o limite do servidor, "Clear schema", "Generate from a
- * message" com o `inferSchema` e as regras do jogo. Com `schemaFrom` (a rota
- * `?schema-from={requestId}`, "Create schema from this request"), o campo já vem com o schema
- * inferido daquela mensagem, sem salvar.
+ * Checks › Schema validation (C §2.6): o schema no `app-json-editor`, o tamanho contra o limite do
+ * servidor, "Clear schema", "Generate from a message" com o `inferSchema` e as regras do jogo. Com
+ * `schemaFrom` (a rota `?schema-from={requestId}`, "Create schema from this request"), o campo já
+ * vem com o schema inferido daquela mensagem, sem salvar.
  */
 @Component({
   selector: 'app-schema-card',
   imports: [
     LateContent,
     Icon,
+    JsonEditor,
     ReactiveFormsModule,
     MatButton,
     MatFormField,
@@ -97,22 +98,12 @@ export class SchemaCard implements ChecksSection {
     return sizeOf(this.form.controls.schema.value);
   }
 
-  protected lineNumbers(): string {
-    const lines = this.form.controls.schema.value.split('\n').length;
-    return Array.from({ length: lines }, (_, i) => i + 1).join('\n');
-  }
-
   protected error(): string | null {
     const control = this.form.controls.schema;
     if (!control.invalid || !(control.touched || this.attempted())) {
       return null;
     }
     return (control.errors?.['json'] ?? control.errors?.['server']) as string;
-  }
-
-  /** Os números acompanham a rolagem da textarea (12 linhas à vista, CHECKS-15). */
-  protected syncGutter(textarea: HTMLTextAreaElement, gutter: HTMLElement): void {
-    gutter.scrollTop = textarea.scrollTop;
   }
 
   /** "· valid" ao lado do tamanho: JSON objeto (ou vazio, que desliga). */
