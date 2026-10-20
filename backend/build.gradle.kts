@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.spring") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.spring") version "2.4.21"
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
@@ -47,7 +47,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.62) do Spring Boot.
-    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.28.1-alpha")
+    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.32.0-alpha")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")
@@ -59,7 +59,7 @@ dependencies {
     }
     // JSON Schema da URL (drafts 7, 2019-09 e 2020-12) sobre o Jackson 3. A 3.0.6 é compilada com o
     // Jackson 3.1.4, a mesma linha 3.1 que o Spring Boot impõe; a 3.0.7 já exige o 3.2.
-    implementation("com.networknt:json-schema-validator:3.0.6")
+    implementation("com.networknt:json-schema-validator:3.0.8")
     // JWE (ECDH-ES + A256GCM) com JWS ES256 dentro: a decifra de atributo da URL.
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
     // O documento OpenAPI é escrito em YAML e servido também em JSON (versão do Jackson do Spring Boot).
