@@ -6,6 +6,10 @@ webhooks e clientes HTTP na sua máquina, sem expor um servidor à internet (*an
 
 ![Apresentação do Anzol em 15 segundos: o anzol fisga uma URL ao vivo, as requisições chegam na hora, a assinatura e o schema são conferidos e uma regra derruba 60% dos PUT de propósito](docs/imagens/apresentacao.webp)
 
+Em 32 segundos, 22 requisições gravadas por um Anzol 0.7.0 local, na ordem e no tempo em que chegaram:
+
+https://github.com/user-attachments/assets/db11dcfc-0866-4504-8e3d-65bf963d44c2
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/entrada-escuro.webp">
   <img src="docs/imagens/entrada-claro.webp" alt="Entrada do Anzol: à esquerda, a lista de requisições com o método, o status respondido e os selos de assinatura e schema em cores; à direita, o detalhe de um POST com assinatura válida, schema válido, a resposta padrão com a regra mais próxima e o corpo JSON formatado">
