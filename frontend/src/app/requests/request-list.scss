@@ -285,14 +285,13 @@ app-event-line {
 }
 
 // O tipo do evento e o nome de quem respondeu dividem a sobra: crescem por igual a partir de 6 letras
-// de cada um (o veredito fica no title). Sem lugar para as 6 letras dos dois, o tipo cai para uma
-// segunda linha, que a altura corta, e o selo fica com a sobra. O #id fica sempre à vista (trava 2).
+// de cada um (o veredito fica no title). O tipo nunca sai da linha: sem lugar para os dois, ele fica
+// com as 6 letras e quem cede são os selos. O #id fica sempre à vista (trava 2).
 .fit {
   display: flex;
 
   // Largura que não depende do conteúdo: é contra ela que os selos medem se o nome de quem respondeu cabe.
   flex: 1 1 0;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0 4px;
   min-width: 0;
@@ -302,6 +301,7 @@ app-event-line {
 
 .summary {
   flex-grow: 1;
+  flex-shrink: 0;
   max-width: max-content;
   font-family: var(--app-code-family);
 }
@@ -342,11 +342,16 @@ app-event-line {
 
   // Sem lugar para o nome legível, os selos ocupam só o que ocupam com o número sozinho: o que sobra
   // fica depois deles, e não entre o selo do status e o seguinte. É o mesmo degrau do selo do status.
+  // O lugar é o da linha menos o que o tipo do evento guarda (as letras mínimas dele e os 4 px antes). Com o
+  // tipo, entra mais 1 px, que anula a folga de arredondamento do degrau: ao lado dele, faltar menos de 1 px
+  // já troca a última letra do nome pelas reticências.
+  --type-room: calc(var(--type-letters, 0) * 1ch + min(var(--type-letters, 0), 1) * 5px);
+
   max-width: calc-size(
     max-content,
     clamp(
       size - var(--seal-whole) + var(--seal-floor),
-      (100% - size + var(--seal-whole) - var(--seal-legible) + 1px) * 9999,
+      (100% - var(--type-room) - size + var(--seal-whole) - var(--seal-legible) + 1px) * 9999,
       size
     )
   );

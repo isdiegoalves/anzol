@@ -3,7 +3,7 @@ name: anzol
 description: Anzol (URL que grava e mostra em tempo real toda requisição HTTP recebida) com o Redis que o guarda
 type: application
 version: 0.1.0
-appVersion: "0.7.0"
+appVersion: "0.7.1"
 keywords:
   - anzol
   - webhook

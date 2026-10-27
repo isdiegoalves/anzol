@@ -148,7 +148,12 @@
                      evento do JSON e, à direita, o #id. O IP, o agente e a data por extenso ficam no nome
                      acessível e no detalhe. -->
                   <span class="line meta">
-                    <span class="fit">
+                    <span
+                      class="fit"
+                      [style.--type-letters]="
+                        item.summary ? (item.summary.length < 7 ? item.summary.length : 7) : 0
+                      "
+                    >
                       <span
                         class="seals"
                         aria-hidden="true"

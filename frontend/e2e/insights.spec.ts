@@ -144,6 +144,59 @@ test.describe('Dado uma URL com mensagens verificadas', () => {
     await expect(tabela.getByRole('columnheader', { name: 'Compartilhar' })).toHaveCount(0);
   });
 
+  test('deve pôr a vírgula logo depois de cada método e dar a ele o alvo de toque inteiro', async ({
+    page,
+    tokens,
+  }, testInfo) => {
+    const tokenId = await tokens.create();
+    for (const method of ['POST', 'POST', 'POST', 'POST', 'PUT', 'PUT', 'GET', 'DELETE']) {
+      await tokens.send(tokenId, { method });
+    }
+
+    await abrirInsights(page, tokenId);
+    const metodos = page.getByRole('region', { name: 'Summary' }).locator('.methods');
+    await expect(metodos).toContainText('GET 1');
+    await page.evaluate(() => document.fonts.ready);
+    await metodos.scrollIntoViewIfNeeded();
+
+    const medidas = await metodos.evaluate((raiz) =>
+      [...raiz.querySelectorAll('a')].map((link) => {
+        const faixa = document.createRange();
+        faixa.selectNodeContents(link);
+        const texto = faixa.getBoundingClientRect();
+        const virgula = link.nextElementSibling?.getBoundingClientRect() ?? null;
+        const [x, y] = [texto.left + texto.width / 2, texto.top + texto.height / 2];
+        // Os pontos a 21 px do centro, nas quatro direções, ainda caem no link.
+        const alcance = [
+          [x - 21, y],
+          [x + 21, y],
+          [x, y - 21],
+          [x, y + 21],
+        ].map(([px, py]) => document.elementFromPoint(px, py)?.closest('a') === link);
+        return {
+          link: link.textContent?.trim(),
+          vaoAteAVirgula: virgula ? Math.round((virgula.left - texto.right) * 10) / 10 : 0,
+          alcance,
+        };
+      }),
+    );
+
+    expect(medidas.map((medida) => medida.link)).toEqual(['POST 4', 'PUT 2', 'DELETE 1', 'GET 1']);
+    for (const medida of medidas) {
+      expect(medida.vaoAteAVirgula, `vão entre "${medida.link}" e a vírgula`).toBeLessThanOrEqual(
+        1,
+      );
+      if (testInfo.project.use.hasTouch) {
+        expect(medida.alcance, `alvo de 44 px em "${medida.link}"`).toEqual([
+          true,
+          true,
+          true,
+          true,
+        ]);
+      }
+    }
+  });
+
   test('deve levar ao dashboard do Grafana pelo link "Open in Grafana"', async ({
     page,
     tokens,
