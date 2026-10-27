@@ -858,7 +858,7 @@ test.describe('Dado a lista densa', () => {
       expect(linha.idInteiro, 'o #id inteiro').toBe(true);
     });
 
-    test('deve tirar o tipo do evento da linha, com os selos de erro e o #id inteiros, Quando não cabem os dois', async ({
+    test('deve manter 6 letras ou mais do tipo do evento e o #id inteiro, Quando os selos de erro disputam a linha', async ({
       page,
       tokens,
     }, testInfo) => {
@@ -874,13 +874,12 @@ test.describe('Dado a lista densa', () => {
 
       const linha = await segundaLinha(item(page, id));
 
-      expect(linha.tipo, 'letras do tipo do evento à vista').toBe(0);
-      expect(linha.selosInteiros, 'os selos de erro inteiros').toBe(true);
+      expect(linha.tipo, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
       expect(linha.idInteiro, 'o #id inteiro').toBe(true);
     });
   });
 
-  test('deve mostrar 6 letras ou mais do nome de quem respondeu, e o tipo do evento legível ou fora da linha, também a 390 px', async ({
+  test('deve mostrar 6 letras ou mais do tipo do evento, e o nome de quem respondeu legível ou fora do selo, também a 390 px', async ({
     page,
     tokens,
   }, testInfo) => {
@@ -892,11 +891,11 @@ test.describe('Dado a lista densa', () => {
 
     const linha = await segundaLinha(item(page, id));
 
-    expect(linha.selo, 'letras do nome de quem respondeu à vista').toBeGreaterThanOrEqual(6);
     expect(
-      linha.tipo === 0 || linha.tipo >= 6,
-      `letras do tipo do evento à vista: ${linha.tipo}`,
+      linha.depoisDoNumero === 0 || linha.selo >= 6,
+      `letras do nome de quem respondeu à vista: ${linha.selo}`,
     ).toBe(true);
+    expect(linha.tipo, 'letras do tipo do evento à vista').toBeGreaterThanOrEqual(6);
     expect(linha.idInteiro, 'o #id inteiro').toBe(true);
   });
 
@@ -943,7 +942,7 @@ test.describe('Dado a lista densa', () => {
     expect(selos[1].encurtado, '"2 erros de schema" encurtado').toBe(true);
     expect(selos[1].veredito).toMatch(/^Schema inválido/);
     const linha = await segundaLinha(linhaDaLista);
-    expect(linha.tipo, 'o tipo do evento sai da linha antes de um selo de erro encurtar').toBe(0);
+    expect(linha.tipo, 'o tipo do evento fica e o selo de erro encurta').toBeGreaterThanOrEqual(6);
     expect(linha.idInteiro, 'o #id inteiro').toBe(true);
   });
 
@@ -984,9 +983,10 @@ test.describe('Dado a lista densa', () => {
           // A moldura fecha logo depois do número: 4 px de folga e 1 px de borda.
           expect(linha.sobraNoSelo, `o selo só com o número a ${largura} px`).toBeLessThan(7);
         }
-        if (idioma === 'en' && largura >= 1400) {
-          expect(linha.errosEncurtados, `selos de erro encurtados a ${largura} px`).toEqual([]);
-        }
+        expect(
+          linha.tipo,
+          `letras do tipo do evento à vista a ${largura} px`,
+        ).toBeGreaterThanOrEqual(6);
         await expect(selo.locator('app-icon')).toHaveCSS('width', '16px');
       }
     });
