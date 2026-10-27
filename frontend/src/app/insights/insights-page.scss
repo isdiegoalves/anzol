@@ -232,6 +232,25 @@ a.rule,
   }
 }
 
+// Na frase dos métodos, a largura mínima abriria um vão entre o método e a vírgula: o alvo de toque
+// vem de uma área invisível centrada no link, que não ocupa lugar na linha.
+.methods a {
+  position: relative;
+  min-width: 0;
+
+  @media (pointer: coarse) {
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 .table a.count {
   justify-content: flex-end;
 }
