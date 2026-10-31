@@ -3,6 +3,7 @@ import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
+// Sozinho (o projeto `carga` roda depois de todos): `npx playwright test e2e/circuito-carga.spec.ts --no-deps`.
 // Feature "Circuito", F2 (CA-5): com 10.000 mensagens carregadas e uma rajada de 64 clientes, o circuito vira fluxo
 // sem perder quadros (≤ 5 %) e as interações (J/K, abrir uma linha, filtrar pelo nó) respondem em até 200 ms (INP).
 

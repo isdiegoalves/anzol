@@ -67,7 +67,7 @@ export default defineConfig({
     : [
         {
           name: 'ui',
-          testIgnore: /visual\.spec\.ts$/,
+          testIgnore: [/visual\.spec\.ts$/, /circuito-carga\.spec\.ts$/],
           use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
         },
         {
@@ -80,6 +80,14 @@ export default defineConfig({
             hasTouch: true,
             deviceScaleFactor: 2,
           },
+        },
+        {
+          // Circuito, F2 (CA-5): os quadros perdidos sob rajada medem a tela, não a máquina ocupada com os outros
+          // navegadores. Roda sozinha, depois do resto (com o resto, a disputa pela CPU passava dos 5 %).
+          name: 'carga',
+          testMatch: /circuito-carga\.spec\.ts$/,
+          dependencies: ['ui', 'mobile'],
+          use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
         },
       ],
 });
