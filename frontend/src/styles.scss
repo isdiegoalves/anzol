@@ -213,6 +213,72 @@ html {
   --app-motion-long: 1.2s;
   --app-motion-easing: cubic-bezier(0.2, 0, 0, 1);
 
+  // Molas do M3 em `linear()` (pesquisa A §3.6): as Standard dividem a curva e mudam só a duração; a de efeitos não
+  // passa do alvo. Usadas só em evento (a chegada pelo tempo real), nunca em ação frequente.
+  --app-spring-standard: linear(
+    0,
+    0.049,
+    0.161,
+    0.295,
+    0.43,
+    0.553,
+    0.659,
+    0.746,
+    0.815,
+    0.868,
+    0.909,
+    0.938,
+    0.96,
+    0.975,
+    0.985,
+    0.992,
+    0.996,
+    0.999,
+    1,
+    1.001,
+    1.001,
+    1.002,
+    1.001,
+    1.001,
+    1
+  );
+  --app-spring-effects-curve: linear(
+    0,
+    0.057,
+    0.18,
+    0.32,
+    0.454,
+    0.572,
+    0.67,
+    0.749,
+    0.812,
+    0.86,
+    0.896,
+    0.924,
+    0.944,
+    0.959,
+    0.971,
+    0.979,
+    0.985,
+    0.989,
+    0.992,
+    0.994,
+    0.996,
+    0.997,
+    0.998,
+    0.999,
+    1
+  );
+  --app-spring-fast: 224ms var(--app-spring-standard);
+  --app-spring-effects: 231ms var(--app-spring-effects-curve);
+
+  // O pulso do circuito (proposta 1 §6): o salto por aresta na chegada isolada e na rajada até 5/s, o tempo de o
+  // caminho percorrido assentar, e o passo dos contadores e da espessura das arestas no modo fluxo.
+  --app-pulse-hop: 180ms;
+  --app-pulse-hop-short: 90ms;
+  --app-pulse-trail: 1500ms;
+  --app-flow-step: var(--app-spring-effects);
+
   // Régua de anotação na margem: a falha em vermelho de revisão, o "quase" em âmbar.
   --app-note-rule: 2px;
 
@@ -464,4 +530,38 @@ pre code.hljs {
 .hljs-variable,
 .hljs-template-variable {
   color: var(--mat-sys-secondary);
+}
+
+// Feature "Circuito", F2. A linha que acabou de chegar sozinha nasce do nó Resposta: desce 16 px e aparece em 224 ms
+// (proposta 1 §4 M1). Aqui, e não no estilo da lista, que está no teto do orçamento; a lista põe a classe só na linha
+// nova com a vista no topo. Com movimento reduzido, nada se desloca: só o fade de 120 ms (MR-0).
+@keyframes app-born {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+@keyframes app-born-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.app-born {
+  animation: app-born var(--app-spring-fast) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-born {
+    animation: app-born-fade var(--app-motion-short) linear both;
+  }
+}
+
+// Os contadores dos nós do circuito rolam até o número novo (C-6) por esta propriedade registrada; o número de
+// verdade fica no texto, ao lado.
+@property --n {
+  syntax: '<integer>';
+  inherits: false;
+  initial-value: 0;
 }
