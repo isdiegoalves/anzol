@@ -105,10 +105,12 @@ export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
 export const ECHO_MS = 5000;
 /**
  * Para o leitor de tela, a primeira chegada de uma leva fala na hora (quando a linha nasce), e as seguintes falam
- * somadas a cada segundo, com as anomalias contadas (WCAG 4.1.3; demo combinada, R2: "13 novas requisições; 1 com
- * assinatura inválida").
+ * somadas, com as anomalias contadas (WCAG 4.1.3; demo combinada, R2: "13 novas requisições; 1 com assinatura
+ * inválida"): ao fim de 1 s, como na rajada da demo; enquanto as janelas não ficam vazias, a seguinte cresce para 3 s
+ * e depois 10 s (uma cadência constante não fala a cada segundo, F2-R03); depois de uma janela vazia, volta a 1 s.
  */
-export const ANNOUNCE_EVERY_MS = 1000;
+export const ANNOUNCE_WINDOWS_MS = [1000, 3000, 10_000] as const;
+export const ANNOUNCE_EVERY_MS = ANNOUNCE_WINDOWS_MS[0];
 /** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
 export const RECEIVED_NOTICE_MS = 4000;
 /** Limites da lista ao lado do detalhe, em px, e a chave da largura que a pessoa deixou. */
@@ -1200,15 +1202,15 @@ export class Inbox {
     this.openAnnounceWindow();
   }
 
-  private openAnnounceWindow(): void {
+  private openAnnounceWindow(window = 0): void {
     this.announceTimer = setTimeout(() => {
       const arrivals = this.arrivals;
       [this.announceTimer, this.arrivals] = [null, []];
       if (arrivals.length > 0) {
         this.say(moreArrivedText(arrivals));
-        this.openAnnounceWindow();
+        this.openAnnounceWindow(Math.min(window + 1, ANNOUNCE_WINDOWS_MS.length - 1));
       }
-    }, ANNOUNCE_EVERY_MS);
+    }, ANNOUNCE_WINDOWS_MS[window]);
   }
 
   private say(message: string): void {

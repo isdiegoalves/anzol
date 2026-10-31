@@ -843,6 +843,63 @@ describe('Dado a tela principal', () => {
       http.expectNone(searchUrl);
     });
 
+    describe('Quando as chegadas não param (F2-R03)', () => {
+      /**
+       * Emite uma chegada a cada `passo` ms, por `ms` (a segunda `adianta` ms antes do passo), e devolve as falas de
+       * chegada com o instante de cada uma.
+       */
+      const cadencia = async (passo: number, ms: number, adianta = 0) => {
+        const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+        const inicio = Date.now();
+        const falas: [number, string][] = [];
+        announce.mockImplementation(async (message) => {
+          falas.push([Date.now() - inicio, String(message)]);
+        });
+        for (let t = 0; t < ms; t += passo) {
+          const request = webhookRequest(100 + enviadas++, { response: { status: 200 } });
+          FakeEventSource.latest().emit('request.created', { request, total: 3, truncated: false });
+          vi.advanceTimersByTime(t === 0 ? passo - adianta : passo);
+        }
+        return falas.filter(([, message]) => /request/.test(message));
+      };
+
+      /** As mensagens mandadas no teste (uma repetida não entra de novo na lista). */
+      let enviadas = 0;
+      beforeEach(() => {
+        enviadas = 0;
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+      });
+      afterEach(() => vi.useRealTimers());
+
+      it('deve somar a 3 por segundo em janelas de 1, 3 e 10 s, e não a cada segundo', async () => {
+        const falas = await cadencia(333, 16_000);
+
+        expect(falas.map(([t]) => t)).toEqual([0, 1000, 4000, 14_000]);
+        expect(falas.map(([, message]) => message)).toEqual([
+          'New request: POST /; answered 200 by the default response.',
+          '3 new requests; no anomaly.',
+          '9 new requests; no anomaly.',
+          '30 new requests; no anomaly.',
+        ]);
+      });
+
+      it('deve somar a 1 por segundo também em janelas crescentes, e voltar à de 1 s depois de uma janela vazia', async () => {
+        const falas = await cadencia(1000, 14_000, 50);
+        vi.advanceTimersByTime(25_000);
+        const depois = await cadencia(1000, 2000, 50);
+
+        expect(falas.map(([t]) => t)).toEqual([0, 1000, 4000]);
+        expect(falas.map(([, message]) => message).slice(1)).toEqual([
+          '1 new request; no anomaly.',
+          '3 new requests; no anomaly.',
+        ]);
+        // A janela de 10 s (de 4 a 14 s) fecha com as 10 dela; a seguinte fica vazia e a escada volta ao começo.
+        expect(depois.map(([t]) => t)).toEqual([0, 1000]);
+        expect(depois[0][1]).toMatch(/^New request: /);
+        expect(depois[1][1]).toBe('1 new request; no anomaly.');
+      });
+    });
+
     it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim do segundo, com as anomalias', async () => {
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
