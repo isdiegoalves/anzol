@@ -4,7 +4,9 @@ O Anzol gera uma URL que grava toda requisição HTTP recebida e a mostra na tel
 verificação de assinatura, validação de schema, decifra de atributo e injeção de falhas. Serve para testar e depurar
 webhooks e clientes HTTP na sua máquina, sem expor um servidor à internet (*anzol* é “fishhook” em português).
 
-![Apresentação do Anzol em 15 segundos: o anzol fisga uma URL ao vivo, as requisições chegam na hora, a assinatura e o schema são conferidos e uma regra derruba 60% dos PUT de propósito](docs/imagens/apresentacao.webp)
+![Apresentação do Anzol em 30 segundos: a pergunta "chegou ou sumiu no caminho? Ninguém sabe."; sem expor porta nem IP público, o Anzol dá uma URL que grava toda requisição HTTP e a mostra ao vivo; a assinatura e o JSON Schema 2020-12 são conferidos, a decifra E2EE abre o atributo cifrado e uma regra falha de propósito antes do 200; tudo pela tela, pela CLI, pela API, pelo MCP e com IA local; 27 cenários de decifra, 18 ferramentas MCP e uma imagem Docker](docs/imagens/apresentacao.webp)
+
+[Assista com som (MP4, 1080p)](https://github.com/isdiegoalves/anzol/releases/download/v0.8.0/anzol-apresentacao-1080p.mp4) · [vertical, para celular](https://github.com/isdiegoalves/anzol/releases/download/v0.8.0/anzol-apresentacao-vertical.mp4)
 
 ![Tráfego gravado por um Anzol 0.7.0 local, em 32 segundos: 22 requisições aparecem na ordem e no tempo em que chegaram, com o tipo do evento do GitHub, do Shopify e do Slack, uma regra que falha duas vezes antes do 200, a assinatura que não confere quando o corpo muda, o schema que aponta o campo errado e a aba Métricas resumindo tudo](docs/imagens/dados-reais.webp)
 
