@@ -586,8 +586,45 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(nasce).toBeInstanceOf(Promise);
       expect(fixture.componentInstance.draw(NOVA, 'full', true)?.born).toBe(1080);
       expect(container.querySelector('.fx .dot')).toBeNull();
-      expect(animations).toHaveLength(0);
+      // Nada aparece aos poucos: as animações só seguram o que espera a linha nascer.
+      for (const { keyframes } of animations) {
+        expect(new Set(keyframes.map((frame) => JSON.stringify(frame))).size).toBe(1);
+      }
       expect(TestBed.inject(CircuitFlow).arrive(daP1(1), { at: 80 })).toBeNull();
+    });
+
+    it('deve acender o Remetente com o IP já, e o resto do caminho de uma vez quando a linha nasce, com movimento reduzido (CA-4)', async () => {
+      const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      } as unknown as MediaQueryList);
+      const { container, fixture } = await mostrar();
+      reduzido.mockRestore();
+
+      void TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0, opens: true });
+      await fixture.whenStable();
+
+      expect(container.querySelector('[data-key="sender:sub"]')?.textContent).toBe(NOVA.ip);
+      expect(animadas('[data-key="sender:sub"]')).toHaveLength(0);
+      expect(animadas('[data-mark="sender"]')).toHaveLength(0);
+      // O resto fica escondido, parado, até a linha nascer (1080 ms), e aparece sem fade.
+      const escondido = (seletor: string) =>
+        animadas(seletor).map(({ keyframes, options }) => ({
+          valores: keyframes.map((frame) => frame['opacity'] ?? frame['stroke']),
+          duracao: options.duration,
+          atraso: options.delay ?? 0,
+        }));
+      for (const chave of ['signature:gl', 'schema:gl', 'response:data']) {
+        expect(escondido(`[data-key="${chave}"]`)).toEqual([
+          { valores: [0, 0], duracao: 1080, atraso: 0 },
+        ]);
+      }
+      expect(escondido('.route path[data-edge="rs"]')).toEqual([
+        { valores: [0, 0], duracao: 1080, atraso: 0 },
+      ]);
+      expect(animadas('.route')).toHaveLength(0);
+      expect(container.querySelector('.fx .dot')).toBeNull();
     });
 
     it('não deve desenhar chegada nenhuma no celular (a linha do caminho)', async () => {

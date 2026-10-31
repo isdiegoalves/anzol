@@ -343,7 +343,8 @@ export class Circuit implements FlowStage {
    * Uma chegada pelo tempo real (a `CircuitFlow` decidiu o degrau): conta as arestas dela; no fluxo, engrossa as
    * arestas; no pulso curto, entra no lote do quadro; na chegada isolada, lança o pulso inteiro e, se a tela vai
    * abri-la, a mostra enquanto ele passa. Devolve em quanto tempo a linha nasce (o pulso chegou à Resposta e se
-   * desfez); com movimento reduzido, sem pulso, o mesmo tempo, e tudo aparece de uma vez no fim (MR-0).
+   * desfez); com movimento reduzido, sem pulso, o mesmo tempo: o Remetente acende já e o resto aparece de uma vez
+   * no fim (MR-0).
    */
   draw(
     request: WebhookRequest,
@@ -361,7 +362,13 @@ export class Circuit implements FlowStage {
     const motion = this.motion();
     const born = (shape.hops.length + 1) * motion.hop;
     if (this.reducedMotion.matches) {
-      return step === 'full' ? { born, hurry: () => undefined } : null;
+      if (step !== 'full') {
+        return null;
+      }
+      if (opens) {
+        this.startReveal(request, born, motion);
+      }
+      return { born, hurry: () => this.finishReveal() };
     }
     if (step === 'short') {
       this.queueShort(shape.hops);
@@ -509,7 +516,8 @@ export class Circuit implements FlowStage {
     if (!stage || !view || typeof stage.animate !== 'function') {
       return;
     }
-    const at = (hops: number) => hops * motion.hop;
+    const reduced = this.reducedMotion.matches;
+    const at = (hops: number) => (reduced && hops > 0 ? born : hops * motion.hop);
     const animations: Animation[] = [];
     stage.querySelectorAll<SVGPathElement>('.route path').forEach((path) => {
       const lit = view.lit[path.dataset['edge'] ?? ''];
@@ -528,7 +536,9 @@ export class Circuit implements FlowStage {
     }
     for (const label of view.labels) {
       const element = stage.querySelector<HTMLElement>(`[data-key="${label.key}"]`);
-      if (label.reveal !== undefined && element) {
+      if (reduced && label.reveal && element) {
+        animations.push(element.animate([{ opacity: 0 }, { opacity: 0 }], { duration: born }));
+      } else if (!reduced && label.reveal !== undefined && element) {
         animations.push(
           element.animate([{ opacity: 0 }, { opacity: 1 }], {
             duration: motion.effects.duration,
@@ -545,7 +555,7 @@ export class Circuit implements FlowStage {
     });
     this.revealing = animations;
     const route = stage.querySelector<SVGElement>('.route');
-    if (route) {
+    if (route && !reduced) {
       const total = born + motion.settle;
       this.settling = {
         id: request.uuid,
