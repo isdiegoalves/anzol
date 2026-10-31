@@ -695,7 +695,25 @@ export class RequestList {
     return viewport.measureScrollOffset('top') <= this.itemHeight() / 2;
   }
 
+  /**
+   * O item de cada mensagem, montado uma vez enquanto o que ele mostra não muda (o relógio do tempo relativo, a não
+   * lida, o papel no Compare): com 10.000 carregadas, remontar todos a cada chegada (a data por extenso, o `$localize`)
+   * perdia quadros sob rajada (Circuito, F2, CA-5).
+   */
+  private readonly items = new WeakMap<WebhookRequest, { key: string; item: ItemView }>();
+
   private itemOf(request: WebhookRequest, now: number): ItemView {
+    const key = `${now}|${this.isUnread(request)}|${this.compareRole(request).join()}`;
+    const known = this.items.get(request);
+    if (known?.key === key) {
+      return known.item;
+    }
+    const item = this.buildItem(request, now);
+    this.items.set(request, { key, item });
+    return item;
+  }
+
+  private buildItem(request: WebhookRequest, now: number): ItemView {
     const pipeline = pipelineOf(request);
     // O status respondido aparece sempre; os outros, só quando dizem algo.
     const seals = [
