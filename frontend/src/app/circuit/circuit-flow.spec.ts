@@ -1,3 +1,4 @@
+import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TOKEN_ID, webhookRequest } from '../../testing/fixtures';
 import { CircuitFlow, FlowStage, METER_EVERY_MS } from './circuit-flow';
@@ -42,6 +43,21 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
 
     expect(nasceu).toBe(true);
     expect(drawn).toEqual([{ step: 'full', opens: true }]);
+  });
+
+  it('deve deixar a linha entrar já Quando o desenho da chegada falha', () => {
+    const erros = TestBed.inject(ErrorHandler);
+    const relatado = vi.spyOn(erros, 'handleError').mockImplementation(() => undefined);
+    const falha = new TypeError("Failed to execute 'animate' on 'Element': Invalid easing");
+    flow.attach({
+      draw: () => {
+        throw falha;
+      },
+      clear: () => undefined,
+    });
+
+    expect(flow.arrive(chegada(1), { at: 0, opens: true })).toBeNull();
+    expect(relatado).toHaveBeenCalledWith(falha);
   });
 
   it('deve soltar na hora a primeira que esperava, e apressar o pulso dela, Quando a segunda da rajada chega (CA-2)', async () => {

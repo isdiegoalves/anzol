@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { DestroyRef, Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, ErrorHandler, Injectable, inject, signal } from '@angular/core';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Escada, Step } from './escada';
 
@@ -32,6 +32,7 @@ export const METER_EVERY_MS = 250;
 @Injectable({ providedIn: 'root' })
 export class CircuitFlow {
   private readonly document = inject(DOCUMENT);
+  private readonly errors = inject(ErrorHandler);
   private stage: FlowStage | null = null;
   private escada = new Escada();
   private tokenId: string | null = null;
@@ -75,7 +76,7 @@ export class CircuitFlow {
   /**
    * Uma chegada pelo tempo real, na hora em que a sessão a recebeu (`at`, de `performance.now()`). `opens`: a tela vai
    * abri-la (a primeira de uma Entrada vazia, ou "Follow new"), e o circuito a mostra enquanto o pulso passa.
-   * Devolve quando a linha dela nasce, ou `null` se ela entra já.
+   * Devolve quando a linha dela nasce, ou `null` se ela entra já (também quando o desenho falha).
    */
   arrive(
     request: WebhookRequest,
@@ -94,7 +95,13 @@ export class CircuitFlow {
     if (!this.stage || this.document.hidden) {
       return null;
     }
-    const drawn = this.stage.draw(request, step, opens);
+    let drawn: ReturnType<FlowStage['draw']>;
+    try {
+      drawn = this.stage.draw(request, step, opens);
+    } catch (error) {
+      this.errors.handleError(error);
+      return null;
+    }
     if (!drawn || drawn.born <= 0) {
       return null;
     }

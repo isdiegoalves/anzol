@@ -75,6 +75,25 @@ describe('Dado o pulso do circuito', () => {
     spy.mockRestore();
   });
 
+  it('deve trocar as molas em linear() pelas curvas da demo Quando o navegador não conhece linear()', () => {
+    const element = document.createElement('div');
+    const tokens: Record<string, string> = {
+      '--app-spring-standard': 'linear(0, 0.5, 1)',
+      '--app-spring-effects': '231ms linear(0, 0.6, 1)',
+    };
+    const estilo = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockReturnValue({ getPropertyValue: (name: string) => tokens[name] ?? '' } as never);
+    const suporte = vi.spyOn(CSS, 'supports').mockReturnValue(false);
+
+    expect(readMotion(element)).toMatchObject({
+      standard: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      effects: { duration: 231, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' },
+    });
+    estilo.mockRestore();
+    suporte.mockRestore();
+  });
+
   describe('Quando a camada lança um pulso', () => {
     let host: HTMLElement;
     let animations: FakeAnimation[];

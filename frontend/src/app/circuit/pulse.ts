@@ -35,20 +35,26 @@ function milliseconds(value: string, fallback: number): number {
   return Number(match[1]) * (match[2] === 's' ? 1000 : 1);
 }
 
-/** Lê os tokens de motion no elemento (os custom properties do `html`). */
+/**
+ * Lê os tokens de motion no elemento (os custom properties do `html`). O navegador sem `linear()` recusaria a mola no
+ * `animate()`: ganha as curvas que a demo usa no lugar dela.
+ */
 export function readMotion(element: Element): Motion {
   const style = getComputedStyle(element);
   const read = (name: string) => style.getPropertyValue(name).trim();
   const effects = read('--app-spring-effects');
   const curve = /\blinear\(.*\)/s.exec(effects)?.[0];
+  const springs = CSS.supports('animation-timing-function', 'linear(0, 1)');
   return {
     hop: milliseconds(read('--app-pulse-hop'), FALLBACK.hop),
     hopShort: milliseconds(read('--app-pulse-hop-short'), FALLBACK.hopShort),
     settle: milliseconds(read('--app-pulse-trail'), FALLBACK.settle),
-    standard: read('--app-spring-standard') || FALLBACK.standard,
+    standard: springs
+      ? read('--app-spring-standard') || FALLBACK.standard
+      : 'cubic-bezier(0.2, 0.8, 0.2, 1)',
     effects: {
       duration: milliseconds(effects, FALLBACK.effects.duration),
-      easing: curve ?? FALLBACK.effects.easing,
+      easing: springs ? (curve ?? FALLBACK.effects.easing) : 'cubic-bezier(0.3, 0.7, 0.2, 1)',
     },
   };
 }
