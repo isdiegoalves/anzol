@@ -4,6 +4,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  afterRenderEffect,
   computed,
   effect,
   inject,
@@ -138,8 +139,13 @@ export class Circuit {
     return view ? view.edges.filter((edge) => view.route.includes(edge.id)) : [];
   });
 
-  /** Como o palco cabe na largura da faixa (medida pelo `ResizeObserver`). */
-  protected readonly fit = signal(stageFit(STAGE_WIDTH + STAGE_MARGIN));
+  /**
+   * Como o palco cabe na largura da faixa: medida antes da primeira pintura (`afterRenderEffect`) e depois pelo
+   * `ResizeObserver`. A mesma medida não pinta de novo.
+   */
+  protected readonly fit = signal(stageFit(STAGE_WIDTH + STAGE_MARGIN), {
+    equal: (a, b) => a.scale === b.scale && a.margin === b.margin && a.scrolls === b.scrolls,
+  });
 
   constructor() {
     // As regras de cada URL: lidas quando ela abre; a que a store já tem é relida em silêncio na primeira vez.
@@ -191,6 +197,16 @@ export class Circuit {
       if (loaded && untracked(this.unavailable)) {
         untracked(() => this.reread('event'));
       }
+    });
+    // A faixa nova já pinta na medida dela: a leitura e a escrita acontecem antes de o navegador pintar (F1-R16).
+    afterRenderEffect({
+      earlyRead: () => this.band()?.nativeElement.clientWidth ?? 0,
+      write: (width) => {
+        // Sem largura (sem leiaute ainda, ou escondida), fica a medida de antes.
+        if (width() > 0) {
+          this.fit.set(stageFit(width()));
+        }
+      },
     });
     afterNextRender(() => this.observeBand());
     inject(DestroyRef).onDestroy(() => clearTimeout(this.retry));

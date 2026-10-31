@@ -354,6 +354,40 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     });
   }
 
+  test('deve abrir já com a altura final da faixa, sem salto depois da primeira pintura, a 1200 px (F1-R16)', async ({
+    page,
+    tokens,
+  }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    const { tokenId, valida } = await urlDaDemo(page, tokens);
+    // Cada altura da faixa que chega à tela: o `ResizeObserver` avisa antes de cada pintura em que ela mudou.
+    await page.addInitScript(() => {
+      const alturas: number[] = [];
+      Object.assign(window, { alturasDaFaixa: alturas });
+      const vistas = new WeakSet<Element>();
+      const observador = new ResizeObserver((entradas) =>
+        entradas.forEach((entrada) => alturas.push(entrada.borderBoxSize[0].blockSize)),
+      );
+      new MutationObserver(() => {
+        const faixa = document.querySelector('app-circuit .band');
+        if (faixa && !vistas.has(faixa)) {
+          vistas.add(faixa);
+          observador.observe(faixa);
+        }
+      }).observe(document, { childList: true, subtree: true });
+    });
+    await abrirMensagem(page, tokenId, valida);
+    await expect(no(page, /^Resend/)).toBeVisible();
+
+    const alturas = await page.evaluate(
+      () => (window as unknown as { alturasDaFaixa: number[] }).alturasDaFaixa,
+    );
+    expect(alturas.length).toBeGreaterThan(0);
+    expect(alturas, 'a altura da faixa a cada pintura').toEqual(alturas.map(() => alturas[0]));
+    // Já na primeira pintura, o palco no piso da escala (área útil abaixo de 1135 px): 120 × 10/11 px e a borda.
+    expect(alturas[0]).toBeCloseTo((120 * 10) / 11 + 1, 0);
+  });
+
   test('deve rolar por dentro só abaixo do piso legível, com a barra embaixo do palco (F1-R04)', async ({
     page,
     tokens,
