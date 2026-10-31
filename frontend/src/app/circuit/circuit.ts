@@ -26,8 +26,12 @@ const STAGE_WIDTH = 1248;
 const STAGE_MARGIN = 24;
 /** O piso da escala: o texto de 11 px do palco não fica abaixo de 10 px. */
 const MIN_SCALE = 10 / 11;
-/** Com a leitura das regras em falha, a próxima tentativa sozinha. */
+/** Com a leitura das regras em falha, a próxima tentativa sozinha; antes dela, nenhuma outra. */
 export const RULES_RETRY_MS = 15_000;
+/** O intervalo mínimo entre as releituras pedidas pela volta da conexão ou pela lista carregada de novo. */
+export const REREAD_MIN_MS = 5_000;
+/** A folga do relógio para a tentativa marcada não ser barrada por chegar um instante antes dos 15 s. */
+const RETRY_SLACK_MS = 100;
 
 /**
  * Como o palco cabe na faixa: a margem cede primeiro (até 0), depois o palco encolhe até o piso legível e só então a
@@ -73,6 +77,9 @@ export class Circuit {
   /** As URLs que esta Entrada já leu ou releu (voltar a uma delas não lê de novo). */
   private readonly seen = new Set<string>();
   private retry: ReturnType<typeof setTimeout> | undefined;
+  /** Quando começou a última leitura e quando a última falhou (`null` depois de uma que deu certo). */
+  private lastReadAt = Number.NEGATIVE_INFINITY;
+  private lastFailedAt: number | null = null;
 
   /**
    * As mensagens que contam nos nós: as carregadas sem filtro. Com a lista filtrada (pelo próprio circuito, por
@@ -161,7 +168,7 @@ export class Circuit {
       const back = status === 'open' && (before === 'reconnecting' || before === 'silent');
       before = status;
       if (back) {
-        untracked(() => this.reread());
+        untracked(() => this.reread('event'));
       }
     });
     // A lista carregou de novo (o "Try again" da lista em erro): com as regras em falha, tenta junto.
@@ -171,19 +178,32 @@ export class Circuit {
       const loaded = listLoading && !loading && !this.requests.failure();
       listLoading = loading;
       if (loaded && untracked(this.unavailable)) {
-        untracked(() => this.reread());
+        untracked(() => this.reread('event'));
       }
     });
     afterNextRender(() => this.observeBand());
     inject(DestroyRef).onDestroy(() => clearTimeout(this.retry));
   }
 
-  /** Relê as regras da URL aberta (a volta da conexão, a lista de novo, a tentativa depois da falha). */
-  private reread(): void {
+  /**
+   * Relê as regras da URL aberta: a tentativa marcada depois da falha (`retry`) ou um sinal de que elas podem ter
+   * mudado (`event`: a volta da conexão, a lista de novo). Com freio (F1-R12): a leitura que falha sem resposta
+   * derruba o tempo real (`connectionInterceptor`), que volta logo e pediria outra, num laço. Depois de uma falha,
+   * nenhuma leitura antes da tentativa de 15 s; e os sinais não releem a menos de 5 s da última.
+   */
+  private reread(cause: 'retry' | 'event'): void {
     const tokenId = this.tokens.shown()?.uuid;
-    if (tokenId && this.reading !== tokenId) {
-      void this.readRules(tokenId);
+    if (!tokenId || this.reading === tokenId) {
+      return;
     }
+    const now = Date.now();
+    if (this.lastFailedAt !== null && now - this.lastFailedAt < RULES_RETRY_MS - RETRY_SLACK_MS) {
+      return;
+    }
+    if (cause === 'event' && now - this.lastReadAt < REREAD_MIN_MS) {
+      return;
+    }
+    void this.readRules(tokenId);
   }
 
   /**
@@ -192,8 +212,10 @@ export class Circuit {
    */
   private async readRules(tokenId: string): Promise<void> {
     this.reading = tokenId;
+    this.lastReadAt = Date.now();
     clearTimeout(this.retry);
     let failed = false;
+    let erred = false;
     try {
       if (this.ruleStore.tokenId() === tokenId && this.ruleStore.loadedFor() === tokenId) {
         await this.ruleStore.reload();
@@ -202,6 +224,8 @@ export class Circuit {
       }
       this.seen.add(tokenId);
     } catch {
+      erred = true;
+      // A releitura que falha deixa a lista de antes na tela: as regras seguem disponíveis.
       failed = this.ruleStore.loadedFor() !== tokenId;
     }
     if (this.reading !== tokenId) {
@@ -209,8 +233,9 @@ export class Circuit {
     }
     this.reading = null;
     this.read.set({ tokenId, failed });
-    if (failed) {
-      this.retry = setTimeout(() => this.reread(), RULES_RETRY_MS);
+    this.lastFailedAt = erred ? Date.now() : null;
+    if (erred) {
+      this.retry = setTimeout(() => this.reread('retry'), RULES_RETRY_MS);
     }
   }
 

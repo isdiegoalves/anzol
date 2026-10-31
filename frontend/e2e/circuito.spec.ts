@@ -22,6 +22,9 @@ function assinado(corpo: string, segredo = SEGREDO) {
 }
 
 /** A URL da demo: assinatura, schema e P1–P3; uma válida (pela padrão, P1 a mais próxima) e uma que não confere. */
+/** O teto de `GET /requests` e de `GET /stream` em 3 s sem laço (a abertura e uma volta do tempo real). */
+const PEDIDOS_SEM_LACO = 6;
+
 async function urlDaDemo(page: Page, tokens: TokenTracker) {
   const tokenId = await tokens.create({
     signature: { provider: 'github', secret: SEGREDO },
@@ -239,6 +242,36 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await page.clock.fastForward(16_000);
     await expect(no(page, /^Rule P1 Assinatura inválida/)).toBeVisible();
     await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
+  });
+
+  test('não deve entrar em laço Quando a leitura das regras falha sem resposta (status 0) (F1-R12)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, naoConfere } = await urlDaDemo(page, tokens);
+    // Sem resposta nenhuma: o `connectionInterceptor` derruba o tempo real, que volta logo em seguida.
+    await page.route(/\/token\/[^/]+\/rules$/, (rota) =>
+      rota.request().method() === 'GET' ? rota.abort('failed') : rota.continue(),
+    );
+    const pedidos = { rules: 0, requests: 0, stream: 0 };
+    page.on('request', (pedido) => {
+      const caminho = new URL(pedido.url()).pathname;
+      if (caminho.endsWith('/rules')) {
+        pedidos.rules++;
+      } else if (caminho.endsWith('/requests')) {
+        pedidos.requests++;
+      } else if (caminho.endsWith('/stream')) {
+        pedidos.stream++;
+      }
+    });
+    await abrirMensagem(page, tokenId, naoConfere);
+    await expect(rotulo(page, 'rules unavailable')).toBeVisible();
+
+    await page.waitForTimeout(3_000);
+    expect(pedidos.rules).toBeLessThanOrEqual(2);
+    expect(pedidos.requests).toBeLessThanOrEqual(PEDIDOS_SEM_LACO);
+    expect(pedidos.stream).toBeLessThanOrEqual(PEDIDOS_SEM_LACO);
+    await expect(rotulo(page, 'rules unavailable')).toBeVisible();
   });
 
   for (const [largura, altura] of [

@@ -14,7 +14,7 @@ import { RequestStore } from '../requests/request-store';
 import { RuleStore } from '../rules/rule-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
-import { Circuit, stageFit } from './circuit';
+import { Circuit, REREAD_MIN_MS, RULES_RETRY_MS, stageFit } from './circuit';
 
 const REGRAS = [
   rule(1, {
@@ -57,7 +57,7 @@ describe('Dado o circuito da URL na Entrada', () => {
   const mostrar = async (
     mensagens: WebhookRequest[] = [PELA_PADRAO, DA_P1],
     line = false,
-    regras: object | 'falha' = REGRAS,
+    regras: object | 'falha' | 'sem-rede' = REGRAS,
   ) => {
     conexao.set('open');
     const rendered = await render(Circuit, {
@@ -80,6 +80,9 @@ describe('Dado o circuito da URL na Entrada', () => {
     const lidas = http.expectOne(`/token/${TOKEN_ID}/rules`);
     if (regras === 'falha') {
       lidas.flush({}, { status: 503, statusText: 'Unavailable' });
+    } else if (regras === 'sem-rede') {
+      // Status 0: a chamada não teve resposta (o `connectionInterceptor` derruba o tempo real com isso).
+      lidas.error(new ProgressEvent('error'));
     } else {
       lidas.flush(regras);
     }
@@ -93,6 +96,14 @@ describe('Dado o circuito da URL na Entrada', () => {
   };
 
   afterEach(() => http.verify());
+
+  /** O tempo real cai e volta (o que o `connectionInterceptor` provoca com um status 0). */
+  const quedaEVolta = async (fixture: { whenStable(): Promise<unknown> }) => {
+    conexao.set('reconnecting');
+    await fixture.whenStable();
+    conexao.set('open');
+    await fixture.whenStable();
+  };
 
   it('deve mostrar a configuração da URL sem mensagem aberta, com os nós alcançáveis e axe limpo (CA-3, CA-5)', async () => {
     const { container } = await mostrar();
@@ -237,14 +248,71 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(container.textContent).not.toContain('no rules');
     expect(screen.queryByRole('button', { name: /^Rule P1/ })).toBeNull();
 
-    conexao.set('reconnecting');
-    await fixture.whenStable();
-    conexao.set('open');
-    await fixture.whenStable();
+    // Depois da falha, nenhuma leitura antes de 15 s, qualquer que seja o gatilho (F1-R12).
+    const agora = Date.now();
+    const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + 5_000);
+    await quedaEVolta(fixture);
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
+    relogio.mockReturnValue(agora + RULES_RETRY_MS + 1_000);
+    await quedaEVolta(fixture);
     http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    relogio.mockRestore();
     await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy());
     expect(container.textContent).not.toContain('rules unavailable');
     await expectNoAxeViolations(container);
+  });
+
+  it('não deve entrar em laço Quando a leitura das regras falha sem resposta e o tempo real cai e volta (F1-R12)', async () => {
+    const { fixture, container } = await mostrar(undefined, false, 'sem-rede');
+    expect(container.textContent).toContain('rules unavailable');
+
+    // O `connectionInterceptor` derruba o tempo real com o status 0, e ele volta logo: cada volta não relê.
+    for (let volta = 0; volta < 5; volta++) {
+      await quedaEVolta(fixture);
+    }
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
+  });
+
+  it('deve espaçar as releituras da volta da conexão em 5 s ou mais, com as regras lidas (F1-R12)', async () => {
+    const { fixture } = await mostrar();
+    const agora = Date.now();
+    const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + REREAD_MIN_MS + 1_000);
+    await quedaEVolta(fixture);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    await fixture.whenStable();
+
+    relogio.mockReturnValue(agora + REREAD_MIN_MS + 2_000);
+    await quedaEVolta(fixture);
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
+
+    relogio.mockReturnValue(agora + 2 * REREAD_MIN_MS + 2_000);
+    await quedaEVolta(fixture);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    relogio.mockRestore();
+  });
+
+  it('deve esperar 15 s depois de uma releitura que falhou, mesmo com a lista de antes na tela (F1-R12)', async () => {
+    const { fixture, container } = await mostrar();
+    const agora = Date.now();
+    const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + REREAD_MIN_MS + 1_000);
+    await quedaEVolta(fixture);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).error(new ProgressEvent('error'));
+    // A falha atravessa a store e o circuito antes de o relógio andar.
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+    // A lista de antes fica: as regras seguem na escada, sem "rules unavailable".
+    expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy();
+    expect(container.textContent).not.toContain('rules unavailable');
+
+    // Passados os 5 s dos sinais, mas não os 15 s da falha: nada.
+    relogio.mockReturnValue(agora + 2 * REREAD_MIN_MS + 2_000);
+    await quedaEVolta(fixture);
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
+
+    relogio.mockReturnValue(agora + REREAD_MIN_MS + RULES_RETRY_MS + 2_000);
+    await quedaEVolta(fixture);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    relogio.mockRestore();
   });
 
   it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior (F1-R06)', async () => {
