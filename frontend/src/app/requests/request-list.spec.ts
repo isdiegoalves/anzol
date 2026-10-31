@@ -1189,6 +1189,33 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('.new-pill')).toBeNull();
   });
 
+  it('deve compensar todas as que entram acima antes de uma renderização, com a vista fora do topo (Circuito F2-R01)', async () => {
+    const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
+    await load(vinte);
+    const list = fixture.componentInstance;
+    const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))
+      .componentInstance as CdkVirtualScrollViewport;
+    vi.spyOn(viewport, 'getViewportSize').mockReturnValue(3 * ITEM_HEIGHT);
+    vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(10 * ITEM_HEIGHT);
+    const rolar = vi.spyOn(viewport, 'scrollToOffset');
+
+    // Uma rajada: três chegam antes de a lista renderizar (todas leem a mesma posição de antes).
+    for (const nova of [21, 22, 23].map((n) => webhookRequest(n))) {
+      store.append(nova, nova.seq ?? 0);
+      expect(list.receive(nova)).toBe(false);
+    }
+    await fixture.whenStable();
+
+    expect(rolar.mock.calls).toEqual([[13 * ITEM_HEIGHT]]);
+    rolar.mockClear();
+    // A seguinte, depois da renderização, parte da posição nova.
+    const quarta = webhookRequest(24);
+    store.append(quarta, 24);
+    list.receive(quarta);
+    await fixture.whenStable();
+    expect(rolar.mock.calls).toEqual([[11 * ITEM_HEIGHT]]);
+  });
+
   it('não deve contar na pílula a nova que a tela abriu', async () => {
     await load([webhookRequest(1)]);
     const nova = webhookRequest(2);

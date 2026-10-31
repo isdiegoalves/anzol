@@ -350,6 +350,8 @@ export class RequestList {
   protected readonly born = signal<ReadonlySet<string>>(new Set());
 
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  /** As novas que entraram acima da vista desde a última renderização, e a posição de antes delas. */
+  private shift: { from: number; rows: number } | null = null;
   /** O último elemento da lista que teve o foco, com a linha dele, e o foco perdido que espera voltar. */
   private lastFocused: { element: HTMLElement; row: string | undefined } | null = null;
   private lostFocus: { row: string | null } | null = null;
@@ -516,17 +518,34 @@ export class RequestList {
     if (inView) {
       afterNextRender(() => this.scrollToNewest(), { injector: this.injector });
     } else if (this.store.newestFirst()) {
-      // A nova entrou acima: sem compensar, a vista desceria um item.
-      const viewport = this.viewport();
-      const offset = viewport?.measureScrollOffset('top') ?? 0;
-      afterNextRender(() => viewport?.scrollToOffset(offset + this.itemHeight()), {
-        injector: this.injector,
-      });
+      this.keepViewBelow();
     }
     if (!opened) {
       this.newBelow.update((count) => count + 1);
     }
     return inView;
+  }
+
+  /**
+   * A nova entrou acima da vista: sem compensar, a lista desceria um item sob o cursor. Numa rajada, várias entram antes
+   * de uma renderização e leem a mesma posição: a compensação soma todas e vai de uma vez, depois da renderização
+   * (F2-R01).
+   */
+  private keepViewBelow(): void {
+    if (this.shift) {
+      this.shift.rows++;
+      return;
+    }
+    const viewport = this.viewport();
+    const shift = { from: viewport?.measureScrollOffset('top') ?? 0, rows: 1 };
+    this.shift = shift;
+    afterNextRender(
+      () => {
+        this.shift = null;
+        viewport?.scrollToOffset(shift.from + shift.rows * this.itemHeight());
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Põe o foco no item aberto (a volta do detalhe em tela cheia, o Esc), rolando até ele. */

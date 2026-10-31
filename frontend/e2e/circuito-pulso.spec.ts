@@ -372,39 +372,83 @@ test.describe('Dado uma rajada', () => {
     await expect(circuito(page).locator('[data-key="default:ann"]')).toHaveText('200 · 170');
   });
 
-  test('não deve rolar a lista nem fazer a linha nascer fora do topo; a pílula conta as novas (CA-3)', async ({
-    page,
-    tokens,
-  }) => {
+  /** A primeira linha visível da lista e a posição dela na janela da lista. */
+  const primeiraVisivel = (page: Page) =>
+    page.locator('cdk-virtual-scroll-viewport').evaluate((el) => {
+      const topo = el.getBoundingClientRect().top;
+      const item = [...el.querySelectorAll<HTMLElement>('.item')].find(
+        (each) => each.getBoundingClientRect().bottom > topo + 1,
+      );
+      return {
+        id: item?.querySelector<HTMLElement>('[data-uuid]')?.dataset['uuid'],
+        y: Math.round((item?.getBoundingClientRect().top ?? 0) - topo),
+      };
+    });
+
+  /** 40 mensagens, a vista rolada para baixo (fora do topo): onde as novas entram acima, sem a lista se mover. */
+  const foraDoTopo = async (page: Page, tokens: TokenTracker) => {
     const tokenId = await urlR2(page, tokens);
     await tokens.sendMany(tokenId, 39);
     await cronometrar(page);
     await page.goto(`/#/${tokenId}`);
     await aoVivo(page);
     await expect(page.getByRole('heading', { name: 'Requests (40)' })).toBeVisible();
-    const vista = page.locator('cdk-virtual-scroll-viewport');
-    await vista.evaluate((el) => el.scrollTo({ top: 400 }));
+    await page.locator('cdk-virtual-scroll-viewport').evaluate((el) => el.scrollTo({ top: 400 }));
     await page.waitForTimeout(300);
-    const primeira = async () =>
-      vista.evaluate((el) => {
-        const topo = el.getBoundingClientRect().top;
-        const item = [...el.querySelectorAll<HTMLElement>('.item')].find(
-          (each) => each.getBoundingClientRect().bottom > topo + 1,
-        );
-        return {
-          id: item?.querySelector<HTMLElement>('[data-uuid]')?.dataset['uuid'],
-          y: Math.round((item?.getBoundingClientRect().top ?? 0) - topo),
-        };
-      });
-    const antes = await primeira();
+    return tokenId;
+  };
+
+  test('não deve rolar a lista nem fazer a linha nascer fora do topo; a pílula conta as novas (CA-3)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await foraDoTopo(page, tokens);
+    const antes = await primeiraVisivel(page);
 
     await tokens.send(tokenId, assinado('{"event_id":"fora"}'));
 
     await expect(page.locator('.new-pill')).toHaveText(/1 new request/);
     await page.waitForTimeout(1300);
-    expect(await primeira()).toEqual(antes);
+    expect(await primeiraVisivel(page)).toEqual(antes);
     expect((await marcas(page)).nascidas).toHaveLength(0);
     await expect(page.locator('.item.app-born')).toHaveCount(0);
+  });
+
+  test('não deve deslizar a lista fora do topo numa rajada de 150 a 60 por segundo (CA-3, F2-R01)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await foraDoTopo(page, tokens);
+    const antes = await primeiraVisivel(page);
+
+    const envios: Promise<string>[] = [];
+    for (let n = 1; n <= 150; n++) {
+      envios.push(tokens.send(tokenId, assinado(`{"event_id":"r${n}"}`)));
+      await new Promise((passo) => setTimeout(passo, 1000 / 60));
+    }
+    await Promise.all(envios);
+
+    await expect(page.getByRole('heading', { name: 'Requests (190)' })).toBeVisible();
+    await expect(page.locator('.new-pill')).toHaveText(/150 new requests/);
+    await page.waitForTimeout(500);
+    expect(await primeiraVisivel(page)).toEqual(antes);
+  });
+
+  test('não deve deslizar a lista fora do topo com 64 clientes ao mesmo tempo (CA-3, F2-R01)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await foraDoTopo(page, tokens);
+    const antes = await primeiraVisivel(page);
+
+    await Promise.all(
+      Array.from({ length: 64 }, (_, n) => tokens.send(tokenId, assinado(`{"event_id":"c${n}"}`))),
+    );
+
+    await expect(page.getByRole('heading', { name: 'Requests (104)' })).toBeVisible();
+    await expect(page.locator('.new-pill')).toHaveText(/64 new requests/);
+    await page.waitForTimeout(500);
+    expect(await primeiraVisivel(page)).toEqual(antes);
   });
 });
 
