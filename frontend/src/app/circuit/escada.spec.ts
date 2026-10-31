@@ -58,3 +58,40 @@ describe('Dado a escada de rajada do circuito (CA-2)', () => {
     expect(escada.rate(4000)).toBe(0);
   });
 });
+
+describe('Dado chegadas sustentadas entre 1 e 5 por segundo (F2-R02)', () => {
+  /** 3 por segundo durante 8 s, sem pausa. */
+  const TRES_POR_SEGUNDO = Array.from({ length: 25 }, (_, i) => Math.round(i * 333.3));
+
+  it('deve parar o pulso curto depois de 5 s sem pausa de 2 s, como no fluxo, até a próxima pausa', () => {
+    const escada = new Escada();
+
+    const steps = TRES_POR_SEGUNDO.map((at) => escada.arrive(at));
+
+    expect(steps[0]).toBe('full');
+    const curtos = TRES_POR_SEGUNDO.filter((at, i) => steps[i] === 'short');
+    expect(curtos.at(-1)).toBeLessThan(5000);
+    expect(
+      TRES_POR_SEGUNDO.filter((at) => at >= 5000).every(
+        (at) => steps[TRES_POR_SEGUNDO.indexOf(at)] === 'flow',
+      ),
+    ).toBe(true);
+    // A pausa de 2 s volta ao degrau de antes; depois, o pulso volta.
+    const ultima = TRES_POR_SEGUNDO[TRES_POR_SEGUNDO.length - 1];
+    expect(escada.stepAt(ultima + 1999)).toBe('flow');
+    expect(escada.settlesAt(ultima)).toBe(ultima + 2000);
+    expect(escada.stepAt(ultima + 2000)).toBe('short');
+    expect(escada.arrive(ultima + 3100)).toBe('full');
+  });
+
+  it('não deve mudar a rajada da demo (R2): curto até a 5.ª, fluxo dali até o fim das duas partes', () => {
+    const escada = new Escada();
+    const parte1 = R2.map((at) => escada.arrive(at));
+    const parte2 = Array.from({ length: 300 }, (_, j) =>
+      escada.arrive(4000 + ((j + 1) * 1000) / 60),
+    );
+
+    expect(parte1.slice(0, 5)).toEqual<Step[]>(['full', 'short', 'short', 'short', 'short']);
+    expect([...parte1.slice(5), ...parte2].every((step) => step === 'flow')).toBe(true);
+  });
+});

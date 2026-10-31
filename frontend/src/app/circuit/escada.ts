@@ -11,6 +11,11 @@ export const WINDOW_MS = 1000;
 export const FLOW_ABOVE = 5;
 /** Quanto a escada espera, depois de a janela voltar abaixo do limiar, para descer um degrau. */
 export const HYSTERESIS_MS = 2000;
+/**
+ * O pulso curto não corre mais que isto sem uma pausa de `HYSTERESIS_MS` entre duas chegadas: daí em diante, como no
+ * fluxo (sem pulso, os contadores rolando), até a pausa. Nada se move mais de 5 s sem parar (WCAG 2.2.2, F2-R02).
+ */
+export const SHORT_LIMIT_MS = 5000;
 
 /**
  * A escada com histerese: sobe na hora e só desce 2 s depois de a janela (1 s) voltar abaixo do limiar, então uma
@@ -22,9 +27,16 @@ export class Escada {
   private head = 0;
   private lastHigh = Number.NEGATIVE_INFINITY;
   private lastMid = Number.NEGATIVE_INFINITY;
+  /** A última chegada e a primeira da sequência sem pausa em que ela está. */
+  private lastAt = Number.NEGATIVE_INFINITY;
+  private streak = Number.NEGATIVE_INFINITY;
 
   /** Conta a chegada de `at` e diz o degrau dela. */
   arrive(at: number): Step {
+    if (at - this.lastAt >= HYSTERESIS_MS) {
+      this.streak = at;
+    }
+    this.lastAt = at;
     this.times.push(at);
     const count = this.rate(at);
     if (count > FLOW_ABOVE) {
@@ -42,7 +54,15 @@ export class Escada {
     if (at - this.lastHigh < WINDOW_MS + HYSTERESIS_MS) {
       return 'flow';
     }
-    return at - this.lastMid < WINDOW_MS + HYSTERESIS_MS ? 'short' : 'full';
+    if (at - this.lastMid < WINDOW_MS + HYSTERESIS_MS) {
+      return this.sustained(at) ? 'flow' : 'short';
+    }
+    return 'full';
+  }
+
+  /** O pulso curto passou do teto: a sequência sem pausa já dura `SHORT_LIMIT_MS` e não parou ainda. */
+  private sustained(at: number): boolean {
+    return at - this.lastAt < HYSTERESIS_MS && this.lastAt - this.streak >= SHORT_LIMIT_MS;
   }
 
   /** Quando o degrau de agora desce, se nada mais chegar; `null` quando ele já é o de baixo. */
@@ -51,7 +71,10 @@ export class Escada {
     if (step === 'full') {
       return null;
     }
-    return (step === 'flow' ? this.lastHigh : this.lastMid) + WINDOW_MS + HYSTERESIS_MS;
+    if (at - this.lastHigh < WINDOW_MS + HYSTERESIS_MS) {
+      return this.lastHigh + WINDOW_MS + HYSTERESIS_MS;
+    }
+    return step === 'flow' ? this.lastAt + HYSTERESIS_MS : this.lastMid + WINDOW_MS + HYSTERESIS_MS;
   }
 
   /** Quantas chegaram no último segundo (o medidor "N/s" do Remetente). */

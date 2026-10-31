@@ -75,6 +75,21 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
     expect(flow.step()).toBe('full');
   });
 
+  it('deve parar os pulsos curtos de uma cadência de 3 por segundo depois de 5 s sem pausa, e voltar depois de 2 s parado (F2-R02)', async () => {
+    flow.attach(stage);
+    for (let n = 0; n < 25; n++) {
+      flow.arrive(chegada(n), { at: performance.now() });
+      await vi.advanceTimersByTimeAsync(333);
+    }
+
+    const passos = drawn.map((each) => each.step);
+    expect(passos.slice(1, 15).every((step) => step === 'short')).toBe(true);
+    expect(passos.slice(16).every((step) => step === 'flow')).toBe(true);
+    expect(flow.step()).toBe('flow');
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(flow.step()).not.toBe('flow');
+  });
+
   it('não deve enfileirar pulso com a aba oculta, e deve soltar a que esperava quando a aba sai da vista', async () => {
     flow.attach(stage);
     let nasceu = false;
