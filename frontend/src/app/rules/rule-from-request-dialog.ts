@@ -263,14 +263,14 @@ export class RuleFromRequestDialog {
     this.saving.set(true);
     this.errors.set([]);
     try {
-      if (this.store.tokenId() !== tokenId) {
-        await this.store.load(tokenId);
-      }
-      const rules = [...this.store.rules()];
+      // A lista lida desta URL, esperando a leitura em curso (a do circuito da Entrada, por exemplo): nunca a vazia
+      // de antes de ela chegar, que faria a gravação falhar com "changed elsewhere" ou apagar as outras regras.
+      const current = await this.store.ready(tokenId);
+      const rules = [...current];
       const placement = catchAllPlacement(rules);
       const rule = { ...this.rule(), ...(placement && { priority: placement.priority }) };
       rules.splice(placement ? placement.index : rules.length, 0, rule);
-      const before = new Set(this.store.rules().map(({ id }) => id));
+      const before = new Set(current.map(({ id }) => id));
       await this.store.saveIfUnchanged(rules);
       const created = this.store
         .rules()

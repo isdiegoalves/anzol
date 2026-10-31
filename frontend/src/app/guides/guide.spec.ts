@@ -25,8 +25,12 @@ describe('Dado um roteiro (R1)', () => {
   let http: HttpTestingController;
   let arrivals: Subject<RequestCreated>;
 
-  /** Abre o roteiro numa URL com estas requisições e estas regras. */
-  const show = async (name: GuideName, requests: WebhookRequest[] = [], rules: Rule[] = []) => {
+  /** Abre o roteiro numa URL com estas requisições e estas regras (`'pending'`: a leitura delas fica por responder). */
+  const show = async (
+    name: GuideName,
+    requests: WebhookRequest[] = [],
+    rules: Rule[] | 'pending' = [],
+  ) => {
     arrivals = new Subject<RequestCreated>();
     const connect = vi.fn(() => arrivals);
     const result = await render(Guide, {
@@ -42,9 +46,12 @@ describe('Dado um roteiro (R1)', () => {
     const loaded = TestBed.inject(RequestStore).load(TOKEN_ID);
     http.expectOne(URL_REQUESTS).flush(requestPage(requests));
     await loaded;
-    http.expectOne({ method: 'GET', url: URL_RULES }).flush(rules);
+    const read = http.expectOne({ method: 'GET', url: URL_RULES });
+    if (rules !== 'pending') {
+      read.flush(rules);
+    }
     await result.fixture.whenStable();
-    return { ...result, connect };
+    return { ...result, connect, read };
   };
   const step = (name: string) =>
     screen
@@ -257,6 +264,28 @@ describe('Dado um roteiro (R1)', () => {
       expect(text(group())).toBe('Waiting for POST /cobrancas. Nothing arrived yet.');
       // A criação já foi anunciada: a espera fica à vista, fora da região viva.
       expect(text(check())).toBe('');
+    });
+
+    it('deve esperar as regras da URL e gravar a partir delas Quando "Create 3 rules" vem antes de elas chegarem (F1-R14)', async () => {
+      const { read } = await show('retry', [], 'pending');
+      const existente = rule(1, { id: 'r1', name: 'Já existia', priority: 1 });
+      await userEvent.type(screen.getByRole('textbox', { name: 'Path' }), '/cobrancas');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Create 3 rules' }));
+      // Nada parte da lista vazia de antes da leitura: a gravação espera a leitura em curso.
+      http.expectNone({ method: 'GET', url: URL_RULES });
+      read.flush([existente]);
+      await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_RULES }).flush([existente]));
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_RULES }));
+      const body = put.request.body as Rule[];
+      expect(body.map(({ name }) => name)).toEqual([
+        'Já existia',
+        'cobrancas 1/3',
+        'cobrancas 2/3',
+        'cobrancas 3/3',
+      ]);
+      put.flush(saved(body));
+      await vi.waitFor(() => expect(text(step('Create'))).toContain('3 rules created'));
     });
 
     it('deve dizer o que corrigir, sem gravar, Quando um campo é inválido', async () => {

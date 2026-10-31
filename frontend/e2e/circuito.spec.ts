@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { abrirMensagem, itens } from './support/inbox';
-import { folhaDeCriarRegra } from './support/regras';
+import { folhaDeCriarRegra, lerRegras } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Feature "Circuito", F1: o circuito da URL abaixo do cabeçalho da Entrada (demo combinada). O caminho da mensagem
@@ -298,6 +298,35 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     // A leitura do roteiro falhou, e a lista de antes segue: nada some do circuito.
     await expect(no(page, /^Rule P1 Assinatura inválida/)).toBeVisible();
     await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
+  });
+
+  test('deve criar a regra pela folha enquanto a leitura das regras da abertura demora, sem apagar as outras (F1-R14)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, valida } = await urlDaDemo(page, tokens);
+    // Rede lenta: as leituras das regras dos primeiros 3 s só respondem passados os 3 s.
+    const lentaAte = Date.now() + 3_000;
+    await page.route(/\/token\/[^/]+\/rules$/, async (rota) => {
+      const espera = lentaAte - Date.now();
+      if (rota.request().method() === 'GET' && espera > 0) {
+        await new Promise((pronto) => setTimeout(pronto, espera));
+      }
+      await rota.continue();
+    });
+    await abrirMensagem(page, tokenId, valida);
+
+    await page.getByRole('button', { name: 'Create rule from this request' }).click();
+    await folhaDeCriarRegra(page).getByRole('button', { name: 'Create rule' }).click();
+
+    await expect(page.getByRole('group', { name: 'Action result' })).toContainText('Rule created', {
+      timeout: 10_000,
+    });
+    const regras = await lerRegras(page.request, tokenId);
+    expect(regras.map((regra) => regra.name)).toEqual(
+      expect.arrayContaining(['Assinatura inválida', 'Estoque instável', 'Pedido inexistente']),
+    );
+    expect(regras).toHaveLength(4);
   });
 
   for (const [largura, altura] of [

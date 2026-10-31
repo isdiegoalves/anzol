@@ -202,6 +202,34 @@ describe('Dado a folha "Create rule from this request"', () => {
     }
   });
 
+  it('deve esperar a leitura das regras em curso (a do circuito) e gravar a partir dela, sem o aviso falso de "changed" (F1-R14)', async () => {
+    // O circuito da Entrada começou a ler as regras da URL, e a resposta demora.
+    const doCircuito = TestBed.inject(RuleStore)
+      .load(TOKEN_ID)
+      .catch(() => undefined);
+    const lenta = http.expectOne({ method: 'GET', url: URL_REGRAS });
+    const dialog = await open();
+    await counts(1, 1);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create rule' }));
+
+    // Nada parte da lista vazia de antes da leitura: a gravação espera a do circuito.
+    http.expectNone({ method: 'GET', url: URL_REGRAS });
+    const tudo = rule(9, { name: 'Tudo o resto', priority: 9, match: {} });
+    lenta.flush([tudo]);
+    await doCircuito;
+    (await vi.waitFor(() => http.expectOne({ method: 'GET', url: URL_REGRAS }))).flush([tudo]);
+    const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url: URL_REGRAS }));
+    const lista = put.request.body as Rule[];
+    expect(lista.map(({ name }) => name)).toEqual(['POST /pagamentos', 'Tudo o resto']);
+    put.flush([{ ...lista[0], id: 'novo' }, tudo]);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules']));
+    expect(within(dialog).queryByText(/changed elsewhere/)).toBeNull();
+    for (const call of http.match({ method: 'POST', url: `${URL_REGRAS}/test` })) {
+      call.flush({ matches: [], misses: [] });
+    }
+  });
+
   it('deve levar o rascunho ao editor da regra nova com a mensagem de exemplo, sem gravar', async () => {
     const dialog = await open();
     await counts(1, 1);

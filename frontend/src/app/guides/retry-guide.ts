@@ -221,11 +221,14 @@ export class RetryGuide {
     if (this.exceeds()) {
       return;
     }
-    const before = this.store.rules().length;
-    const { rules } = insertSequence(this.store.rules(), this.spec());
     this.errors.set([]);
     this.saving.set(true);
+    let before: number;
     try {
+      // A lista lida da URL, esperando a leitura em curso: nunca a vazia de antes de ela chegar.
+      const current = await this.store.ready(this.tokenId());
+      before = current.length;
+      const { rules } = insertSequence(current, this.spec());
       await this.store.saveIfUnchanged(rules);
     } catch (error) {
       this.errors.set(
