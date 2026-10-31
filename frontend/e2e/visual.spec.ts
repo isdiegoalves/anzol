@@ -618,7 +618,7 @@ async function abrirEFotografar(
   // Na Entrada, o circuito da URL desenha os nós quando as regras chegam (feature "Circuito", F1).
   const circuito = page.locator('app-circuit section.band');
   if ((await circuito.count()) > 0) {
-    await expect(circuito.getByRole('toolbar')).toBeVisible();
+    await expect(circuito.locator('.nodes')).toBeVisible();
   }
   await fixarVolateis(page);
   await fotografar(

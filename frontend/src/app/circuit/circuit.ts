@@ -1,6 +1,9 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -8,20 +11,40 @@ import {
   linkedSignal,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { CapturedRequest } from '../requests/webhook-request';
-import { Rule } from '../rules/rule';
 import { RuleStore } from '../rules/rule-store';
 import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { CircuitNode, circuitOf } from './circuit-model';
 
+/** A largura do palco da demo e a margem dele à esquerda (onde fica a legenda "circuito"). */
+const STAGE_WIDTH = 1248;
+const STAGE_MARGIN = 24;
+/** O piso da escala: o texto de 11 px do palco não fica abaixo de 10 px. */
+const MIN_SCALE = 10 / 11;
+/** Com a leitura das regras em falha, a próxima tentativa sozinha. */
+export const RULES_RETRY_MS = 15_000;
+
+/**
+ * Como o palco cabe na faixa: a margem cede primeiro (até 0), depois o palco encolhe até o piso legível e só então a
+ * faixa rola por dentro.
+ */
+export function stageFit(available: number): { scale: number; margin: number; scrolls: boolean } {
+  const margin = Math.max(0, Math.min(STAGE_MARGIN, available - STAGE_WIDTH));
+  const scale = Math.max(MIN_SCALE, Math.min(1, available / STAGE_WIDTH));
+  return { scale, margin, scrolls: STAGE_WIDTH * scale > available };
+}
+
 /**
  * O circuito da URL na Entrada, abaixo do cabeçalho (C-1, demo combinada): o desenho de 1248 × 120 com os nós da
- * configuração e, com uma mensagem aberta, o caminho dela e a regra que quase casou. Os nós são botões numa barra
- * (uma parada do Tab; as setas andam entre eles); clicar filtra a lista pelo que passou ali e clicar de novo tira,
- * sem motion. No celular (`line`), só a frase "caminho: …" da mensagem aberta, numa linha que rola.
+ * configuração e, com uma mensagem aberta, o caminho dela e a regra que quase casou. Os nós são botões num grupo,
+ * cada um uma parada do Tab, como na demo (as setas são um atalho a mais); clicar filtra a lista pelo que passou ali
+ * e clicar de novo tira, sem motion. No celular (`line`), só a frase "caminho: …" da mensagem aberta, numa linha que
+ * rola.
  */
 @Component({
   selector: 'app-circuit',
@@ -32,23 +55,32 @@ export class Circuit {
   private readonly tokens = inject(TokenStore);
   private readonly requests = inject(RequestStore);
   private readonly ruleStore = inject(RuleStore);
+  private readonly stream = inject(RequestStream);
   private readonly known = inject(KnownUrls);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly injector = inject(Injector);
+  private readonly band = viewChild<ElementRef<HTMLElement>>('band');
 
   /** Celular: a linha de glifos com o caminho da mensagem aberta, no lugar do desenho. */
   readonly line = input(false);
 
-  /** As regras da URL; `loaded` também quando a leitura falhou (aí sem escada nem "sem regras"). */
-  private readonly rules = signal<{ tokenId: string; rules: readonly Rule[] | null } | null>(null);
-  private reads = 0;
+  /**
+   * A última leitura das regras que acabou: a URL e se falhou. As regras em si são as da `RuleStore` (a folha
+   * "Create rule" e o roteiro gravam por ela, e a escada acompanha na hora).
+   */
+  private readonly read = signal<{ tokenId: string; failed: boolean } | null>(null);
+  private reading: string | null = null;
+  /** As URLs que esta Entrada já leu ou releu (voltar a uma delas não lê de novo). */
+  private readonly seen = new Set<string>();
+  private retry: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * As mensagens que contam nos nós: as carregadas sem filtro. Com a lista filtrada (pelo próprio circuito, por
-   * exemplo), as contagens ficam as de antes do filtro, e não as do resultado dele.
+   * exemplo), as contagens ficam as de antes do filtro; aberta já filtrada (um link), conta o resultado do filtro.
    */
   private readonly counted = linkedSignal<
     { tokenId: string | null; filtering: boolean; list: readonly CapturedRequest[] },
-    readonly CapturedRequest[]
+    { list: readonly CapturedRequest[]; unfiltered: boolean }
   >({
     source: () => ({
       tokenId: this.requests.tokenId(),
@@ -57,30 +89,39 @@ export class Circuit {
     }),
     computation: (source, previous) => {
       if (!source.filtering) {
-        return source.list;
+        return { list: source.list, unfiltered: true };
       }
-      return previous && previous.source.tokenId === source.tokenId ? previous.value : [];
+      return previous?.value.unfiltered && previous.source.tokenId === source.tokenId
+        ? previous.value
+        : { list: source.list, unfiltered: false };
     },
   });
 
-  protected readonly token = computed(() => {
-    const token = this.tokens.shown();
-    const read = this.rules();
-    return token && read?.tokenId === token.uuid ? token : null;
+  /** As regras desta URL, quando a `RuleStore` está nela; `null` enquanto não chegaram (ou se a leitura falhou). */
+  private readonly rules = computed(() => {
+    const tokenId = this.tokens.shown()?.uuid;
+    return tokenId && this.ruleStore.loadedFor() === tokenId ? this.ruleStore.rules() : null;
+  });
+  private readonly unavailable = computed(() => {
+    const read = this.read();
+    return !this.rules() && !!read?.failed && read.tokenId === this.tokens.shown()?.uuid;
   });
 
   protected readonly view = computed(() => {
-    const token = this.token();
-    if (!token) {
+    const token = this.tokens.shown();
+    const rules = this.rules();
+    if (!token || (!rules && !this.unavailable())) {
       return null;
     }
     return circuitOf({
       token,
       name: this.known.nameOf(token.uuid),
-      rules: this.rules()?.rules ?? null,
-      requests: this.counted(),
+      rules,
+      rulesUnavailable: this.unavailable(),
+      requests: this.counted().list,
       selected: this.requests.selected() ?? null,
       filter: this.requests.filter(),
+      scale: this.fit().scale,
     });
   });
 
@@ -90,33 +131,110 @@ export class Circuit {
     return view ? view.edges.filter((edge) => view.route.includes(edge.id)) : [];
   });
 
-  /** O nó que o Tab alcança (os outros ficam com `tabindex="-1"`, e as setas andam entre eles). */
-  protected readonly stop = signal(0);
-  protected readonly tabStop = computed(() =>
-    Math.min(this.stop(), Math.max(0, (this.view()?.nodes.length ?? 1) - 1)),
-  );
+  /** Como o palco cabe na largura da faixa (medida pelo `ResizeObserver`). */
+  protected readonly fit = signal(stageFit(STAGE_WIDTH + STAGE_MARGIN));
 
   constructor() {
-    // As regras de cada URL, lidas quando ela abre; voltar à mesma URL não lê de novo.
+    // As regras de cada URL: lidas quando ela abre; a que a store já tem é relida em silêncio na primeira vez.
     effect(() => {
       const tokenId = this.tokens.shown()?.uuid;
-      if (tokenId && untracked(this.rules)?.tokenId !== tokenId) {
-        untracked(() => void this.readRules(tokenId));
+      if (!tokenId) {
+        return;
+      }
+      const loaded = this.ruleStore.loadedFor() === tokenId;
+      untracked(() => {
+        if (this.reading === tokenId || this.read()?.tokenId === tokenId) {
+          return;
+        }
+        if (!loaded) {
+          void this.readRules(tokenId);
+        } else if (!this.seen.has(tokenId)) {
+          this.seen.add(tokenId);
+          void this.readRules(tokenId);
+        }
+      });
+    });
+    // A conexão voltou (o tempo real reabriu depois da queda): as regras podem ter mudado, ou a leitura ter falhado.
+    let before = untracked(this.stream.status);
+    effect(() => {
+      const status = this.stream.status();
+      const back = status === 'open' && (before === 'reconnecting' || before === 'silent');
+      before = status;
+      if (back) {
+        untracked(() => this.reread());
       }
     });
+    // A lista carregou de novo (o "Try again" da lista em erro): com as regras em falha, tenta junto.
+    let listLoading = untracked(this.requests.loading);
+    effect(() => {
+      const loading = this.requests.loading();
+      const loaded = listLoading && !loading && !this.requests.failure();
+      listLoading = loading;
+      if (loaded && untracked(this.unavailable)) {
+        untracked(() => this.reread());
+      }
+    });
+    afterNextRender(() => this.observeBand());
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.retry));
   }
 
+  /** Relê as regras da URL aberta (a volta da conexão, a lista de novo, a tentativa depois da falha). */
+  private reread(): void {
+    const tokenId = this.tokens.shown()?.uuid;
+    if (tokenId && this.reading !== tokenId) {
+      void this.readRules(tokenId);
+    }
+  }
+
+  /**
+   * Lê pela `RuleStore`: na URL que ela já tem, sem apagar a lista enquanto a resposta não chega (`reload`); em
+   * outra, carregando a desta. Falhou: o circuito diz "regras indisponíveis" e tenta de novo daqui a pouco.
+   */
   private async readRules(tokenId: string): Promise<void> {
-    const read = ++this.reads;
-    let rules: readonly Rule[] | null;
+    this.reading = tokenId;
+    clearTimeout(this.retry);
+    let failed = false;
     try {
-      rules = await this.ruleStore.listRules(tokenId);
+      if (this.ruleStore.tokenId() === tokenId && this.ruleStore.loadedFor() === tokenId) {
+        await this.ruleStore.reload();
+      } else {
+        await this.ruleStore.load(tokenId);
+      }
+      this.seen.add(tokenId);
     } catch {
-      rules = null;
+      failed = this.ruleStore.loadedFor() !== tokenId;
     }
-    if (read === this.reads) {
-      this.rules.set({ tokenId, rules });
+    if (this.reading !== tokenId) {
+      return;
     }
+    this.reading = null;
+    this.read.set({ tokenId, failed });
+    if (failed) {
+      this.retry = setTimeout(() => this.reread(), RULES_RETRY_MS);
+    }
+  }
+
+  /** A largura útil da faixa decide a margem, a escala e se ela rola (`stageFit`). */
+  private observeBand(): void {
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      const band = this.band()?.nativeElement;
+      if (band) {
+        this.fit.set(stageFit(band.clientWidth));
+      }
+    });
+    effect(
+      (onCleanup) => {
+        const band = this.band()?.nativeElement;
+        if (band) {
+          observer.observe(band);
+          onCleanup(() => observer.unobserve(band));
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   /**
@@ -136,6 +254,7 @@ export class Circuit {
     this.requests.applyFilter({ ...filter, ...change }).catch(() => undefined);
   }
 
+  /** Atalho a mais: as setas, Home e End andam entre os nós (o Tab anda em todos, como na demo). */
   protected move(event: KeyboardEvent): void {
     const nodes = [...this.host.querySelectorAll<HTMLButtonElement>('.node')];
     const at = nodes.indexOf(event.target as HTMLButtonElement);
@@ -156,7 +275,6 @@ export class Circuit {
       return;
     }
     event.preventDefault();
-    this.stop.set(next);
     nodes[next].focus();
   }
 }

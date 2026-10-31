@@ -6,10 +6,17 @@
     <p class="line" role="region" tabindex="0" aria-label="Request path" i18n-aria-label><span class="lead" i18n="circuit path phrase, before the steps">path:</span>@for (part of parts; track $index) {<span class="arrow">{{ $index > 0 ? ' → ' : ' ' }}</span><span [class.fail]="part.bad">{{ part.text }}</span>}</p>
   }
 } @else {
-  <section class="band" aria-label="URL circuit" i18n-aria-label>
+  <section
+    #band
+    class="band"
+    aria-label="URL circuit"
+    i18n-aria-label
+    [class.scrolls]="fit().scrolls"
+    [style.min-height.px]="120 * fit().scale"
+  >
     <span class="caption" aria-hidden="true" i18n="circuit band caption">circuit</span>
     @if (circuit) {
-      <div class="stage">
+      <div class="stage" [style.margin-left.px]="fit().margin" [style.zoom]="fit().scale">
         <svg
           class="drawing"
           role="img"
@@ -45,8 +52,8 @@
             <span class="lab" [class]="label.align + ' ' + label.kind" [class.muted]="label.muted" [class.bad]="label.rule === 'bad'" [class.near]="label.rule === 'near'" [style.left.px]="label.x" [style.top.px]="label.y">@if (label.glyph; as glyph) {<span class="glyph" [class]="glyph.tone">{{ glyph.text }}</span>{{ ' ' }}}{{ label.text }}@if (label.badge) {<span class="badge">{{ label.badge }}</span>}</span>
           }
         </div>
-        <div class="nodes" role="toolbar" aria-label="Circuit nodes" i18n-aria-label>
-          @for (node of circuit.nodes; track node.id; let i = $index) {
+        <div class="nodes" role="group" aria-label="Circuit nodes" i18n-aria-label>
+          @for (node of circuit.nodes; track node.id) {
             <button
               type="button"
               class="node"
@@ -56,8 +63,6 @@
               [style.height.px]="node.h"
               [attr.aria-label]="node.label"
               [attr.aria-pressed]="node.pressed"
-              [attr.tabindex]="i === tabStop() ? 0 : -1"
-              (focus)="stop.set(i)"
               (click)="toggle(node)"
               (keydown)="move($event)"
             ></button>

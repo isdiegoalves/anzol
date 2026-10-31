@@ -6,15 +6,19 @@
   min-width: 0;
 }
 
-// Mais estreita que o palco, a faixa rola por dentro: a página nunca rola na horizontal.
+// O palco cabe na faixa (`stageFit`: a margem cede, depois ele encolhe até o texto de 10 px); só abaixo disso a
+// faixa rola por dentro, e a barra fica embaixo do palco, sem cobrir a última linha. A página nunca rola na horizontal.
 .band {
   position: relative;
-  height: 120px;
-  overflow: auto hidden;
+  overflow: hidden;
   border-bottom: 1px solid var(--mat-sys-outline-variant);
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font-variant-numeric: tabular-nums;
+
+  &.scrolls {
+    overflow: auto hidden;
+  }
 }
 
 .caption {
@@ -35,7 +39,6 @@
   position: relative;
   width: 1248px;
   height: 120px;
-  margin-left: 24px;
 }
 
 .drawing,
@@ -115,7 +118,8 @@
   font-weight: 600;
 }
 
-.name {
+.name,
+.data {
   max-width: 146px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -149,8 +153,12 @@
   text-overflow: ellipsis;
 }
 
+// Como na demo: só o ✗ (e o ⚡) e o ◔ em negrito; o ✓ fica no peso do texto.
 .glyph {
-  font-weight: 700;
+  &.bad,
+  &.near {
+    font-weight: 700;
+  }
 
   &.bad {
     color: var(--mat-sys-error);

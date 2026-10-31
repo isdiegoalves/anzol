@@ -56,6 +56,25 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.rules()).toEqual([rule(1), rule(2)]);
   });
 
+  it('deve dizer de que URL é a lista lida (o circuito da Entrada desenha a escada dela), e nada enquanto ela não chega ou se falhou', async () => {
+    const lendo = store.load(TOKEN_ID);
+    expect(store.loadedFor()).toBeNull();
+    http.expectOne(url).flush([rule(1)]);
+    await lendo;
+    expect(store.loadedFor()).toBe(TOKEN_ID);
+
+    const gravando = store.save([rule(1), rule(2)]);
+    http.expectOne({ method: 'PUT', url }).flush([rule(1), rule(2)]);
+    await gravando;
+    expect(store.loadedFor()).toBe(TOKEN_ID);
+    expect(store.rules()).toEqual([rule(1), rule(2)]);
+
+    const falhando = store.load(TOKEN_ID);
+    http.expectOne(url).flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect(falhando).rejects.toBeInstanceOf(HttpErrorResponse);
+    expect(store.loadedFor()).toBeNull();
+  });
+
   it('deve guardar o último teste da regra salva e mantê-lo ao reler a mesma URL (Likely shadowed)', async () => {
     await loaded();
     const test = store.testRule(rule(1));

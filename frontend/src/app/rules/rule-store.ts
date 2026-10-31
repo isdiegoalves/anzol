@@ -41,6 +41,12 @@ export class RuleStore {
 
   readonly tokenId = signal<string | null>(null);
   readonly rules = signal<readonly Rule[]>([]);
+  /**
+   * A URL cuja lista está em `rules`, lida do servidor ou gravada nele; `null` enquanto a leitura não chegou ou se
+   * ela falhou. O circuito da Entrada desenha a escada daqui: a regra que a folha "Create rule" ou o roteiro gravam
+   * entra nele na hora.
+   */
+  readonly loadedFor = signal<string | null>(null);
   private loads = 0;
   /**
    * A lista do servidor mudou desde a leitura e nada foi gravado (toggle, reordenação, apagar,
@@ -81,6 +87,7 @@ export class RuleStore {
     }
     this.tokenId.set(tokenId);
     this.rules.set([]);
+    this.loadedFor.set(null);
     this.recent = null;
     this.latest = null;
     this.total = null;
@@ -236,6 +243,7 @@ export class RuleStore {
   private keep(rules: Rule[]): void {
     this.serverList = JSON.stringify(rules);
     this.rules.set(rules);
+    this.loadedFor.set(this.tokenId());
   }
 
   /** Lista atual do servidor (o export baixa o que está salvo, não o que a tela mostra). */

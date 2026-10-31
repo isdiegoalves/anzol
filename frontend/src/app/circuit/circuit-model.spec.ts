@@ -261,11 +261,15 @@ describe('Dado a mensagem aberta com uma regra que quase casou (CA-2)', () => {
     );
   });
 
-  it('deve ficar na linha de cima (y = 9) com uma regra só, sem cruzar a Resposta (y = 24 e 40)', () => {
-    const view = circuito({ rules: [P1], selected: PELA_PADRAO });
+  it('deve ficar junto da P1 (y = 9) com uma regra só, com a escada começando em y = 24 como na demo (F1-R08)', () => {
+    const uma = circuito({ rules: [P1], selected: PELA_PADRAO });
+    const duas = circuito({ rules: [P1, P3], selected: PELA_PADRAO });
 
-    expect(rotulo(view, 'near').y).toBe(9);
-    expect(view.marks.filter((mark) => mark.x === 860).map((mark) => mark.y)).toEqual([48, 72]);
+    expect(rotulo(uma, 'near').y).toBe(9);
+    expect(uma.marks.filter((mark) => mark.x === 860).map((mark) => mark.y)).toEqual([24, 48]);
+    expect(duas.marks.filter((mark) => mark.x === 860).map((mark) => mark.y)).toEqual([24, 48, 72]);
+    // O caminho pela padrão de uma regra só: entra em P1, desce à padrão e sobe ao coletor (y = 60).
+    expect(uma.route).toEqual(['rs', 'ss', 'sd', 'br', 's0', 'x1', 'c1', 'out']);
   });
 
   it('deve sumir Quando a mensagem aberta não tem near miss', () => {
@@ -391,10 +395,11 @@ describe('Dado o clique num nó (filtro "passou por")', () => {
 });
 
 describe('Dado muitas regras', () => {
+  const muitas = Array.from({ length: 8 }, (_, i) =>
+    rule(i + 1, { id: `r${i + 1}`, priority: i + 1, name: `Regra ${i + 1}` }),
+  );
+
   it('deve juntar as que não cabem numa linha "+N rules" e seguir o caminho por ela', () => {
-    const muitas = Array.from({ length: 8 }, (_, i) =>
-      rule(i + 1, { id: `r${i + 1}`, priority: i + 1, name: `Regra ${i + 1}` }),
-    );
     const daSetima: CapturedRequest = webhookRequest(70, {
       signature: valida,
       schema: schemaOk,
@@ -404,15 +409,141 @@ describe('Dado muitas regras', () => {
     const view = circuito({ rules: muitas, selected: daSetima });
     const linhas = view.nodes.filter((node) => node.id.startsWith('rule:') || node.id === 'more');
 
-    expect(linhas.map((node) => node.id)).toEqual([
-      'rule:r1',
-      'rule:r2',
-      'rule:r3',
-      'rule:r4',
-      'more',
+    expect(linhas.map((node) => node.id)).toEqual(['rule:r1', 'rule:r2', 'more']);
+    expect(texto(view, 'more:name')).toBe('+6 rules');
+    expect(view.route).toContain('x2');
+    expect(view.marks.filter((mark) => mark.x === 860).map((mark) => mark.y)).toEqual([
+      24, 48, 72, 96,
     ]);
-    expect(texto(view, 'more:name')).toBe('+4 rules');
-    expect(view.route).toContain('x4');
-    expect(view.marks.filter((mark) => mark.x === 860)).toHaveLength(6);
+  });
+
+  it('deve dar a todo nó um alvo de 24 × 24 px ou mais na tela, também com o palco encolhido (WCAG 2.5.8, F1-R11)', () => {
+    for (const scale of [1, 10 / 11]) {
+      for (const rules of [REGRAS, [P1], muitas, []]) {
+        for (const node of circuito({ rules, selected: PELA_PADRAO, scale }).nodes) {
+          expect(Math.min(node.w, node.h) * scale, `${node.id} a ${scale}`).toBeGreaterThanOrEqual(
+            24,
+          );
+        }
+      }
+    }
+    // A escada se abre para isso; o resto do desenho não muda.
+    expect(
+      circuito({ scale: 10 / 11 })
+        .marks.filter((mark) => mark.x === 860)
+        .map((mark) => mark.y),
+    ).toEqual([24, 50.4, 76.8, 103.2]);
+  });
+});
+
+describe('Dado as falhas de rede que a regra pode injetar (F1-R03)', () => {
+  it.each([
+    ['hang', 'Hang', '⚡ hang · 1', 'Hang · P2', 'hang'],
+    [
+      'stall_after_headers',
+      'Stall',
+      '⚡ stall after headers · 1',
+      'Stall · P2',
+      'stall after headers',
+    ],
+    ['truncated_body', 'Truncated', '⚡ truncated body · 1', 'Truncated · P2', 'truncated body'],
+    [
+      'empty_response',
+      'Empty response',
+      '⚡ empty response · 1',
+      'Empty response · P2',
+      'empty response',
+    ],
+  ] as const)(
+    'deve nomear %s na escada, na Resposta e na frase',
+    (fault, curto, contado, resposta, frase) => {
+      const falha = rule(2, { ...P2, response: { fault } });
+      const dela = webhookRequest(19, { ...DA_P2, response: { fault } });
+      const sem = circuito({ rules: [P1, falha, P3] });
+      const com = circuito({ rules: [P1, falha, P3], requests: [dela], selected: dela });
+
+      expect(texto(sem, 'rule:p2:ann')).toBe(curto);
+      expect(texto(com, 'rule:p2:ann')).toBe(contado);
+      expect(texto(com, 'response:data')).toBe(resposta);
+      expect(com.description).toContain(`P2 ✓ → ${frase}.`);
+      // O id cru da falha ("stall_after_headers") não chega à tela.
+      expect(com.description).not.toContain('after_headers');
+      expect(com.description).not.toContain('truncated_body');
+    },
+  );
+});
+
+describe('Dado a mensagem gravada antes das regras (F1-R07)', () => {
+  it('deve ir direto da Decifra à Resposta, sem passar pela escada nem dizer "P1 ✗"', () => {
+    const antiga = webhookRequest(3, {
+      signature: valida,
+      schema: schemaOk,
+      rule: null,
+      near_miss: null,
+      response: { status: 200 },
+    });
+    const view = circuito({ selected: antiga });
+
+    expect(view.route).toEqual(['rs', 'ss', 'sd', 'skip', 'out']);
+    expect(view.edges.find((edge) => edge.id === 'skip')?.d).toBe('M640,60 H1060');
+    expect(marcados(view)).toEqual(['sender', 'signature', 'schema', 'decryption', 'response']);
+    expect(view.description).toContain('path: signature ✓ → schema ✓ → default response 200.');
+    expect(view.description).not.toContain('P1 ✗');
+    expect(texto(view, 'response:data')).toBe('200 · default');
+    // Sem mensagem assim aberta, a aresta não existe.
+    expect(circuito({ selected: PELA_PADRAO }).edges.some((edge) => edge.id === 'skip')).toBe(
+      false,
+    );
+  });
+});
+
+describe('Dado a regra que respondeu e saiu da escada (desligada ou apagada) (F1-R09)', () => {
+  const desligada = rule(9, {
+    id: 'p9',
+    name: 'Assinatura antiga com um nome bem comprido',
+    priority: 0,
+    enabled: false,
+    match: { signature: 'invalid' },
+    response: { status: 401 },
+  });
+  const daDesligada = webhookRequest(9, {
+    signature: naoConfere,
+    schema: schemaOk,
+    rule: { id: 'p9', name: 'Assinatura antiga com um nome bem comprido' },
+    response: { status: 401 },
+  });
+
+  it('deve dizer o mesmo nome no desenho e na frase, e contar a anomalia no nó', () => {
+    const view = circuito({
+      rules: [...REGRAS, desligada],
+      requests: [daDesligada],
+      selected: daDesligada,
+    });
+
+    expect(texto(view, 'response:data')).toBe('401 · Assinatura antiga com um nome bem comprido');
+    expect(view.description).toContain(
+      'path: signature ✗ → schema ✓ → Assinatura antiga com um nome bem comprido ✓ → 401.',
+    );
+    // A regra não está na escada para levar o ✗: ele fica no nó Assinatura.
+    expect(texto(view, 'signature:note')).toBe('✗ 1');
+  });
+});
+
+describe('Dado as regras que não puderam ser lidas (F1-R02)', () => {
+  it('deve dizer "rules unavailable" em tinta fraca, sem "no rules" nem anotação de anomalia', () => {
+    const view = circuito({
+      rules: null,
+      rulesUnavailable: true,
+      requests: [DA_P1, SCHEMA_RUIM],
+      selected: DA_P1,
+    });
+
+    expect(texto(view, 'unavailable')).toBe('rules unavailable');
+    expect(rotulo(view, 'unavailable').muted).toBe(true);
+    expect(texto(view, 'none')).toBeNull();
+    expect(texto(view, 'signature:note')).toBeNull();
+    expect(texto(view, 'schema:note')).toBeNull();
+    // O resultado da mensagem aberta continua: ele não depende das regras.
+    expect(texto(view, 'signature:gl')).toBe('✗ invalid · Generic');
   });
 });

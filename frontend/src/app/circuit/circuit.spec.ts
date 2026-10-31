@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { clearTranslations, loadTranslations } from '@angular/localize';
 import { render, screen } from '@testing-library/angular';
@@ -8,10 +9,12 @@ import { expectNoAxeViolations } from '../../testing/axe';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { rule } from '../../testing/rule-fixtures';
 import { translations } from '../../locale/pt-BR';
+import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
+import { RuleStore } from '../rules/rule-store';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
-import { Circuit } from './circuit';
+import { Circuit, stageFit } from './circuit';
 
 const REGRAS = [
   rule(1, {
@@ -48,10 +51,22 @@ describe('Dado o circuito da URL na Entrada', () => {
   let http: HttpTestingController;
   let store: RequestStore;
 
-  const mostrar = async (mensagens: WebhookRequest[] = [PELA_PADRAO, DA_P1], line = false) => {
+  /** O estado do tempo real, para simular a queda e a volta da conexão. */
+  const conexao = signal('open');
+
+  const mostrar = async (
+    mensagens: WebhookRequest[] = [PELA_PADRAO, DA_P1],
+    line = false,
+    regras: object | 'falha' = REGRAS,
+  ) => {
+    conexao.set('open');
     const rendered = await render(Circuit, {
       inputs: { line },
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: RequestStream, useValue: { status: conexao } },
+      ],
       configureTestBed: (testBed) =>
         testBed.inject(Preferences).token.set(
           token({
@@ -62,7 +77,12 @@ describe('Dado o circuito da URL na Entrada', () => {
     });
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(RequestStore);
-    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    const lidas = http.expectOne(`/token/${TOKEN_ID}/rules`);
+    if (regras === 'falha') {
+      lidas.flush({}, { status: 503, statusText: 'Unavailable' });
+    } else {
+      lidas.flush(regras);
+    }
     const loaded = store.load(TOKEN_ID);
     http
       .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
@@ -93,9 +113,10 @@ describe('Dado o circuito da URL na Entrada', () => {
       'Response',
       'Resend',
     ]);
-    // Uma parada só do Tab: o primeiro nó.
-    expect(nos.filter((no) => no.tabIndex === 0)).toHaveLength(1);
-    expect(screen.getByRole('toolbar', { name: 'Circuit nodes' })).toBeTruthy();
+    // Como na demo: cada nó é uma parada do Tab, num grupo "Circuit nodes" (F1-R05).
+    expect(nos.every((no) => no.tabIndex === 0)).toBe(true);
+    expect(screen.getByRole('group', { name: 'Circuit nodes' })).toBeTruthy();
+    expect(screen.queryByRole('toolbar')).toBeNull();
     // A contagem das carregadas: P1 com a anomalia (glifo e texto), a padrão neutra.
     expect(
       screen.getByRole('button', { name: /^Rule P1 Assinatura inválida: ✗ 401 · 1\./ }),
@@ -171,9 +192,11 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(store.filter().signature).toBe('invalid');
     expect(assinatura.getAttribute('aria-pressed')).toBe('true');
 
-    await userEvent.keyboard('{ArrowLeft}');
+    // O Tab anda de nó em nó (como na demo); as setas são atalho a mais.
+    await userEvent.tab();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Schema/ }));
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Sender/ }));
-    expect((document.activeElement as HTMLElement).tabIndex).toBe(0);
     await userEvent.keyboard('{Enter}');
     http
       .expectOne(`/token/${TOKEN_ID}/requests?page=1&sorting=newest`)
@@ -183,6 +206,91 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(store.filter().signature).toBe('any');
     await userEvent.keyboard('{End}');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Resend/ }));
+  });
+
+  it('deve acompanhar a regra gravada na própria Entrada (folha "Create rule", roteiro), sem trocar de URL (F1-R01)', async () => {
+    const { fixture } = await mostrar();
+    const regras = TestBed.inject(RuleStore);
+    expect(screen.queryByRole('button', { name: /^Rule P2 Nova/ })).toBeNull();
+
+    // O que a folha faz: lê pela store (já na URL) e grava a lista com a regra nova.
+    const nova = rule(2, { id: 'p2', name: 'Nova', priority: 2, response: { status: 202 } });
+    const gravar = regras.saveIfUnchanged([...REGRAS, nova]);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    await vi.waitFor(() =>
+      http.expectOne({ method: 'PUT', url: `/token/${TOKEN_ID}/rules` }).flush([...REGRAS, nova]),
+    );
+    await gravar;
+    await fixture.whenStable();
+
+    expect(screen.getByRole('button', { name: /^Rule P2 Nova: 202\./ })).toBeTruthy();
+    http.expectNone(`/token/${TOKEN_ID}/rules`);
+  });
+
+  it('deve dizer "rules unavailable" quando a leitura das regras falha, e ler de novo quando a conexão volta (F1-R02)', async () => {
+    const { container, fixture } = await mostrar(undefined, false, 'falha');
+
+    const aviso = [...container.querySelectorAll('.lab')].find(
+      (lab) => lab.textContent === 'rules unavailable',
+    );
+    expect(aviso?.classList.contains('muted')).toBe(true);
+    expect(container.textContent).not.toContain('no rules');
+    expect(screen.queryByRole('button', { name: /^Rule P1/ })).toBeNull();
+
+    conexao.set('reconnecting');
+    await fixture.whenStable();
+    conexao.set('open');
+    await fixture.whenStable();
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy());
+    expect(container.textContent).not.toContain('rules unavailable');
+    await expectNoAxeViolations(container);
+  });
+
+  it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior (F1-R06)', async () => {
+    const rendered = await render(Circuit, {
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: RequestStream, useValue: { status: conexao } },
+      ],
+      configureTestBed: (testBed) => testBed.inject(Preferences).token.set(token()),
+    });
+    http = TestBed.inject(HttpTestingController);
+    store = TestBed.inject(RequestStore);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    const filtro = {
+      text: '',
+      methods: [],
+      signature: 'any' as const,
+      schema: 'any' as const,
+      outcome: { type: 'rule' as const, rule: 'p1', name: 'Assinatura inválida' },
+    };
+    const loaded = store.load(TOKEN_ID, 1, filtro);
+    http
+      .expectOne(`/token/${TOKEN_ID}/requests?per_page=1&sorting=newest`)
+      .flush(requestPage([DA_P1], { total: 2 }));
+    await vi.waitFor(() =>
+      http.expectOne(`/token/${TOKEN_ID}/requests/search`).flush(requestPage([DA_P1])),
+    );
+    await loaded;
+    await rendered.fixture.whenStable();
+
+    expect(
+      screen.getByRole('button', { name: /^Rule P1 Assinatura inválida: ✗ 401 · 1\./ }),
+    ).toBeTruthy();
+  });
+
+  it('deve caber o palco na faixa: margem de até 24 px, escala até 10 px de texto e só então rolar (F1-R04)', () => {
+    // 1440 × 900 (área útil 1343): palco inteiro, margem de 24 px.
+    expect(stageFit(1343)).toEqual({ scale: 1, margin: 24, scrolls: false });
+    // 1366 × 768 (1269): a margem cede os 3 px que faltavam; nada rola.
+    expect(stageFit(1269)).toEqual({ scale: 1, margin: 21, scrolls: false });
+    // 1280 × 800 (1183): o palco encolhe, sem margem, e cabe inteiro.
+    expect(stageFit(1183)).toMatchObject({ margin: 0, scrolls: false });
+    expect(stageFit(1183).scale).toBeCloseTo(1183 / 1248, 5);
+    // No piso, o texto de 11 px fica com 10 px; abaixo dele, a faixa rola por dentro.
+    expect(stageFit(1000)).toEqual({ scale: 10 / 11, margin: 0, scrolls: true });
   });
 
   it('deve mostrar no celular só o caminho da mensagem aberta, numa linha que rola', async () => {
@@ -209,7 +317,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       await fixture.whenStable();
 
       expect(screen.getByRole('region', { name: 'Circuito da URL' })).toBeTruthy();
-      expect(screen.getByRole('toolbar', { name: 'Nós do circuito' })).toBeTruthy();
+      expect(screen.getByRole('group', { name: 'Nós do circuito' })).toBeTruthy();
       expect(container.querySelector('.caption')?.textContent?.trim()).toBe('circuito');
       expect(container.querySelector('.near')?.textContent?.trim()).toBe(
         '◔ quase · faltou: assinatura inválida',

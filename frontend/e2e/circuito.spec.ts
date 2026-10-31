@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { abrirMensagem, itens } from './support/inbox';
+import { folhaDeCriarRegra } from './support/regras';
 import { seedStorage } from './support/storage';
 
 // Feature "Circuito", F1: o circuito da URL abaixo do cabeçalho da Entrada (demo combinada). O caminho da mensagem
@@ -57,8 +58,8 @@ async function urlDaDemo(page: Page, tokens: TokenTracker) {
 
 const circuito = (page: Page) => page.getByRole('region', { name: 'URL circuit' });
 const desenho = (page: Page) => circuito(page).getByRole('img');
-const no = (page: Page, nome: RegExp) =>
-  page.getByRole('toolbar', { name: 'Circuit nodes' }).getByRole('button', { name: nome });
+const nos = (page: Page) => page.getByRole('group', { name: 'Circuit nodes' });
+const no = (page: Page, nome: RegExp) => nos(page).getByRole('button', { name: nome });
 const rotulo = (page: Page, texto: string) =>
   circuito(page).locator('.lab').filter({ hasText: texto });
 
@@ -91,12 +92,18 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     );
     const resposta = rotulo(page, '401 · P1');
     await expect(resposta).toBeVisible();
+    // O nome comprido de quem respondeu termina em reticências, sem passar por cima do Reenvio (F1-R09).
+    expect(await cor(resposta, 'max-width')).toBe('146px');
+    expect(await cor(resposta, 'text-overflow')).toBe('ellipsis');
     // 401 de regra: tinta neutra, sem vermelho (VS-02/03).
     expect(await cor(resposta, 'color')).toBe(await token(page, '--mat-sys-on-surface'));
     const falha = rotulo(page, 'invalid · GitHub');
     await expect(falha).toBeVisible();
     expect(await cor(falha, 'border-left-width')).toBe('2px');
     expect(await cor(falha.locator('.glyph'), 'color')).toBe(await token(page, '--mat-sys-error'));
+    // Como na demo, só ✗ e ◔ em negrito; o ✓ no peso do texto (F1-R10).
+    expect(await cor(falha.locator('.glyph'), 'font-weight')).toBe('700');
+    expect(await cor(rotulo(page, 'valid · 2020-12').locator('.glyph'), 'font-weight')).toBe('400');
     // O caminho em tinta, parando em P1.
     await expect(circuito(page).locator('.route path')).toHaveCount(8);
   });
@@ -169,7 +176,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     const { tokenId, valida } = await urlDaDemo(page, tokens);
     await abrirMensagem(page, tokenId, valida);
 
-    const barra = page.getByRole('toolbar', { name: 'Circuit nodes' });
+    const barra = nos(page);
     await page.getByRole('textbox', { name: 'Webhook URL' }).focus();
     for (
       let i = 0;
@@ -180,11 +187,127 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     }
     await expect(no(page, /^Sender/)).toBeFocused();
     expect(await cor(no(page, /^Sender/), 'outline-width')).toBe('3px');
-    await page.keyboard.press('ArrowRight');
-    await expect(no(page, /^Signature/)).toBeFocused();
-    // Uma parada só: o Tab seguinte sai da barra.
+    // Como na demo, cada nó é uma parada do Tab (F1-R05); as setas são atalho a mais.
     await page.keyboard.press('Tab');
-    expect(await barra.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+    await expect(no(page, /^Signature/)).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(no(page, /^Schema/)).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(no(page, /^Signature/)).toBeFocused();
+  });
+
+  test('deve pôr na escada a regra criada pela folha "Create rule from this request", sem trocar de URL (F1-R01)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const id = await tokens.send(tokenId, assinado('{"event_id":"evt_1"}'));
+    await seedStorage(page, { hideTutorial: 'true' });
+    await abrirMensagem(page, tokenId, id);
+    await expect(rotulo(page, 'no rules')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Create rule from this request' }).click();
+    await folhaDeCriarRegra(page).getByRole('button', { name: 'Create rule' }).click();
+    await expect(page.getByRole('group', { name: 'Action result' })).toContainText('Rule created');
+
+    await expect(no(page, /^Rule P\d+ POST \/webhooks\/pagamentos/)).toBeVisible();
+    await expect(rotulo(page, 'no rules')).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${id}/`));
+  });
+
+  test('deve dizer "rules unavailable" quando a leitura das regras falha e tentar de novo sozinho (F1-R02)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, naoConfere } = await urlDaDemo(page, tokens);
+    let falhar = true;
+    await page.route(/\/token\/[^/]+\/rules$/, (rota) =>
+      falhar && rota.request().method() === 'GET' ? rota.fulfill({ status: 503 }) : rota.continue(),
+    );
+    await page.clock.install();
+    await abrirMensagem(page, tokenId, naoConfere);
+
+    await expect(rotulo(page, 'rules unavailable')).toBeVisible();
+    expect(await cor(rotulo(page, 'rules unavailable'), 'color')).toBe(
+      await token(page, '--app-ink-2'),
+    );
+    await expect(rotulo(page, 'no rules')).toHaveCount(0);
+    // Sem as regras, não se diz onde a anomalia parou: nada de "✗ 1" no nó Assinatura.
+    await expect(circuito(page).locator('.lab.note')).toHaveCount(0);
+
+    falhar = false;
+    await page.clock.fastForward(16_000);
+    await expect(no(page, /^Rule P1 Assinatura inválida/)).toBeVisible();
+    await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
+  });
+
+  for (const [largura, altura] of [
+    [1366, 768],
+    [1280, 800],
+  ] as const) {
+    test(`deve caber inteiro, sem rolar, a ${largura} × ${altura} (F1-R04)`, async ({
+      page,
+      tokens,
+    }) => {
+      await page.setViewportSize({ width: largura, height: altura });
+      const { tokenId, valida } = await urlDaDemo(page, tokens);
+      await abrirMensagem(page, tokenId, valida);
+      await expect(no(page, /^Resend/)).toBeVisible();
+
+      const faixa = circuito(page);
+      expect(await faixa.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      const [caixa, reenvio] = [await faixa.boundingBox(), await no(page, /^Resend/).boundingBox()];
+      expect(reenvio!.x + reenvio!.width).toBeLessThanOrEqual(caixa!.x + caixa!.width);
+      // O menor texto do palco (11 px) não fica abaixo de 10 px.
+      const zoom = Number(
+        await faixa.locator('.stage').evaluate((el) => getComputedStyle(el).zoom),
+      );
+      expect(11 * zoom).toBeGreaterThanOrEqual(10);
+    });
+  }
+
+  test('deve rolar por dentro só abaixo do piso legível, com a barra embaixo do palco (F1-R04)', async ({
+    page,
+    tokens,
+  }) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    const { tokenId, valida } = await urlDaDemo(page, tokens);
+    await abrirMensagem(page, tokenId, valida);
+    await expect(no(page, /^Sender/)).toBeVisible();
+
+    const faixa = circuito(page);
+    expect(await faixa.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    // A faixa não tem altura fixa: a barra clássica (Windows, Linux) entra embaixo do palco e não cobre a linha de
+    // y = 108. O Chromium sem janela esconde a barra, então o teste confere a altura livre (só o mínimo do palco).
+    expect(await faixa.evaluate((el) => (el as HTMLElement).style.height)).toBe('');
+    expect(await faixa.evaluate((el) => getComputedStyle(el).overflowX)).toBe('auto');
+    // A barra de rolagem não cobre a última linha do palco (y = 108).
+    expect(
+      await faixa.evaluate((el) => {
+        const palco = el.querySelector('.stage')?.getBoundingClientRect().height ?? 0;
+        return el.clientHeight + 0.5 >= palco;
+      }),
+    ).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      1100,
+    );
+  });
+
+  test('deve dar a todo nó um alvo de 24 × 24 px ou mais (WCAG 2.5.8, F1-R11)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, valida } = await urlDaDemo(page, tokens);
+    await abrirMensagem(page, tokenId, valida);
+    await expect(no(page, /^Resend/)).toBeVisible();
+
+    const caixas = await nos(page)
+      .getByRole('button')
+      .evaluateAll((botoes) => botoes.map((b) => b.getBoundingClientRect()));
+    expect(caixas.length).toBeGreaterThan(0);
+    for (const caixa of caixas) {
+      expect(Math.min(caixa.width, caixa.height)).toBeGreaterThanOrEqual(24);
+    }
   });
 
   test.describe('no tema escuro', () => {

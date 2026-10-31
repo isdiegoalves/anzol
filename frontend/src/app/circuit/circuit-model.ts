@@ -22,6 +22,13 @@ export interface CircuitInput {
   name: string;
   /** As regras da URL; `null` enquanto não chegaram (nem a escada nem "sem regras" aparecem). */
   rules: readonly Rule[] | null;
+  /** A leitura das regras falhou: o circuito diz isso, e não "sem regras" com anomalias que talvez uma regra pegue. */
+  rulesUnavailable?: boolean;
+  /**
+   * A escala do palco na faixa (`stageFit`); abaixo de 1 a escada se abre para cada linha seguir com 24 px de alvo
+   * na tela (WCAG 2.5.8).
+   */
+  scale?: number;
   /** As mensagens que contam: as carregadas, sem filtro. */
   requests: readonly CapturedRequest[];
   /** A mensagem aberta: o caminho dela vai em tinta cheia. */
@@ -120,9 +127,13 @@ const X = {
   response: 1140,
   resend: 1220,
 } as const;
-/** Linhas da escada (com "padrão"); acima disto, as do meio viram "+N regras". */
-const MAX_ROWS = 6;
+/**
+ * Linhas da escada (com "padrão"), de 24 em 24 px a partir de y = 24, como na demo: cada nó da escada tem um alvo de
+ * 24 px (WCAG 2.5.8). Com mais regras, as que não cabem viram "+N regras".
+ */
+const MAX_ROWS = 4;
 const ROW_STEP = 24;
+const ROW_TOP = 24;
 const CIRCLED = ['①', '②', '③', '④'];
 
 const PROVIDER_HEADERS: Record<Exclude<SignatureProvider, 'generic'>, string> = {
@@ -145,6 +156,7 @@ function words() {
     default: $localize`:circuit ladder, the URL's default response:default`,
     defaultResponse: $localize`:circuit node, the URL's default response:Default response`,
     noRules: $localize`:circuit, the URL has no rules:no rules`,
+    unavailable: $localize`:circuit, the URL rules could not be read:rules unavailable`,
     signatureOff: $localize`:circuit signature|Signature check turned off:off`,
     schemaOff: $localize`:circuit schema|Schema check turned off:off`,
     decryptionOff: $localize`:circuit decryption|Decryption turned off:off`,
@@ -357,11 +369,9 @@ function decryptionResult(request: CapturedRequest): Result | null {
   };
 }
 
-/** As linhas da escada no espaço de 24 a 96 px, centradas na linha principal. */
-function rowYs(count: number): number[] {
-  const step = count > 1 ? Math.min(ROW_STEP, 72 / (count - 1)) : 0;
-  const top = MAIN_Y - (step * (count - 1)) / 2;
-  return Array.from({ length: count }, (_, i) => Math.round((top + i * step) * 10) / 10);
+/** As linhas da escada, de y = 24 para baixo (a primeira junto do "quase", em y = 9), a `step` uma da outra. */
+function rowYs(count: number, step: number): number[] {
+  return Array.from({ length: count }, (_, i) => Math.round((ROW_TOP + i * step) * 10) / 10);
 }
 
 function plain(label: Pick<CircuitLabel, 'text' | 'glyph'>): string {
@@ -380,6 +390,17 @@ export function circuitOf(input: CircuitInput): CircuitView {
   const withRules = !!rules && rules.length > 0;
   const decrypts = !!token.e2ee;
   const showDecryption = withRules || decrypts;
+  const unavailable = !rules && !!input.rulesUnavailable;
+  // Com o palco encolhido, as linhas se afastam para o alvo de cada uma seguir com 24 px na tela.
+  const rowStep = ROW_STEP / Math.min(1, input.scale ?? 1);
+  /** A mensagem aberta não passou pelas regras: nem respondida por uma, nem com a mais próxima gravada. */
+  const bypassed = !!selected && withRules && !selected.rule && !selected.near_miss;
+  // As regras ligadas, na ordem; as que cabem têm linha própria, as outras dividem a linha "+N regras".
+  const enabled = rules ?? [];
+  const visible = enabled.length + 1 > MAX_ROWS ? enabled.slice(0, MAX_ROWS - 2) : enabled;
+  const hidden = enabled.slice(visible.length);
+  const enabledById = new Map(enabled.map((rule) => [rule.id ?? '', rule]));
+  const inLadder = new Map(visible.map((rule) => [rule.id ?? '', rule]));
 
   // Contagens das mensagens carregadas: por regra, pela padrão e as anomalias que nenhuma regra pegou.
   const byRule = new Map<string, number>();
@@ -388,7 +409,8 @@ export function circuitOf(input: CircuitInput): CircuitView {
   let schemaCount = 0;
   let decryptionCount = 0;
   for (const request of input.requests) {
-    const answered = request.rule ? ruleById.get(request.rule.id) : undefined;
+    // A anomalia conta na linha da regra que a pegou só se a regra tem linha na escada para mostrá-la.
+    const answered = request.rule ? inLadder.get(request.rule.id) : undefined;
     if (request.rule) {
       byRule.set(request.rule.id, (byRule.get(request.rule.id) ?? 0) + 1);
     } else {
@@ -525,7 +547,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       });
       parts.push(plain(main.result));
     }
-    if (main.count > 0) {
+    if (main.count > 0 && !unavailable) {
       const note = { glyph: { text: '✗', tone: 'bad' as const }, text: String(main.count) };
       label(`${main.id}:note`, main.x, 108, 'c', 'note', note.text, {
         glyph: note.glyph,
@@ -552,22 +574,26 @@ export function circuitOf(input: CircuitInput): CircuitView {
   const pre = ['rs', 'ss'];
 
   // A resposta da mensagem aberta: o status (ou a falha de rede) e quem respondeu, em tinta neutra.
-  const answeredRule = selected?.rule ? ruleById.get(selected.rule.id) : undefined;
+  // Quem respondeu, igual no desenho e na frase: "P1" para regra da escada, o nome gravado para a que saiu dela.
+  const answeredRule = selected?.rule ? enabledById.get(selected.rule.id) : undefined;
+  const whoAnswered = selected?.rule
+    ? answeredRule
+      ? pLabel(answeredRule)
+      : selected.rule.name
+    : w.default;
   const responseData = (() => {
     if (!selected) {
       return null;
     }
-    const who = selected.rule
-      ? answeredRule
-        ? pLabel(answeredRule)
-        : selected.rule.name
-      : w.default;
+    const who = whoAnswered;
     const fault = selected.response?.fault;
     const status = selected.response?.status;
     return `${fault ? faultShort(fault) : (status ?? '—')} · ${who}`;
   })();
 
   let rows: Row[] = [];
+  // Sem mensagem aberta e sem regras, responde a padrão; com as regras por saber, não se diz.
+  const noMessage = rules ? `${w.default} · ${token.default_status}` : '—';
   if (!withRules) {
     // R1: sem regras, a linha vai do Schema (ou da Decifra) direto à Resposta.
     if (decrypts) {
@@ -580,19 +606,13 @@ export function circuitOf(input: CircuitInput): CircuitView {
     }
     if (rules) {
       label('none', X.ladder, 76, 'c', 'sub', w.noRules, { muted: true });
+    } else if (unavailable) {
+      label('unavailable', X.ladder, 76, 'c', 'sub', w.unavailable, { muted: true });
     }
     marks.push({ id: 'response', x: X.response, y: MAIN_Y, r: 4, on: false });
-    label(
-      'response:data',
-      X.response,
-      24,
-      'c',
-      'data',
-      responseData ?? `${w.default} · ${token.default_status}`,
-      {
-        muted: !selected,
-      },
-    );
+    label('response:data', X.response, 24, 'c', 'data', responseData ?? noMessage, {
+      muted: !selected,
+    });
     label('response:title', X.response, 40, 'c', 'title', w.response, {
       ...(badges.has('response') && { badge: badges.get('response') }),
     });
@@ -602,7 +622,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       y: 12,
       w: 124,
       h: 58,
-      label: `${w.response}: ${responseData ?? `${w.default} · ${token.default_status}`}. ${showAll}`,
+      label: `${w.response}: ${responseData ?? noMessage}. ${showAll}`,
       filter: null,
       off: null,
       pressed: null,
@@ -616,10 +636,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
   } else {
     edge('sd', `M${X.schema},${MAIN_Y} H${X.decryption}`);
     pre.push('sd');
-    const enabled = rules ?? [];
-    const visible = enabled.length + 1 > MAX_ROWS ? enabled.slice(0, MAX_ROWS - 2) : enabled;
-    const hidden = enabled.slice(visible.length);
-    const ys = rowYs(visible.length + (hidden.length > 0 ? 1 : 0) + 1);
+    const ys = rowYs(visible.length + (hidden.length > 0 ? 1 : 0) + 1, rowStep);
     const count = (list: readonly Rule[]) =>
       list.reduce((sum, rule) => sum + (byRule.get(rule.id ?? '') ?? 0), 0);
     const outcome = filter.outcome ?? null;
@@ -747,7 +764,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       }
       const nearHere = near && row.rules.some((rule) => rule.id === near.id) ? nearText : null;
       const state = spokenOf([plain(row.ann), nearHere]);
-      const h = Math.min(22, rows.length > 1 ? rows[1].y - rows[0].y : 22);
+      const h = rowStep;
       nodes.push({
         id: row.id,
         x: 704,
@@ -807,8 +824,12 @@ export function circuitOf(input: CircuitInput): CircuitView {
       const at = selected.rule
         ? rows.findIndex((row) => row.rules.some((rule) => rule.id === selected.rule?.id))
         : rows.length - 1;
-      // Regra que não existe mais (ou desligada): o caminho para na decifra; a Resposta diz quem respondeu.
-      if (at >= 0) {
+      if (bypassed) {
+        // Gravada sem passar pelas regras (antes delas, ou com todas desligadas): direto à Resposta.
+        edge('skip', `M${X.decryption},${MAIN_Y} H${X.collector}`);
+        route.push('skip', 'out');
+      } else if (at >= 0) {
+        // Regra que não existe mais (ou desligada): o caminho para na decifra; a Resposta diz quem respondeu.
         route.push('br');
         for (let i = 0; i < at; i++) {
           route.push(`s${i}`);
@@ -838,24 +859,18 @@ export function circuitOf(input: CircuitInput): CircuitView {
       { text: schema.word, bad: schema.bad },
       ...(decryption ? [{ text: decryption.word, bad: decryption.bad }] : []),
     ];
-    const at = selected.rule ? enabledIndex(rules ?? [], selected.rule.id) : -1;
+    const at = selected.rule ? enabledIndex(enabled, selected.rule.id) : -1;
+    const fault = selected.response?.fault;
+    const answer = fault ? lowerFirst(faultName(fault)) : String(selected.response?.status ?? '—');
     if (selected.rule && at >= 0) {
-      (rules ?? [])
-        .slice(0, at)
-        .forEach((rule) => parts.push({ text: `${pLabel(rule)} ✗`, bad: false }));
-      const rule = (rules ?? [])[at];
-      const fault = selected.response?.fault;
-      const answer = fault
-        ? lowerFirst(faultName(fault))
-        : String(selected.response?.status ?? '—');
-      parts.push({ text: `${pLabel(rule)} ✓ → ${answer}`, bad: false });
+      enabled.slice(0, at).forEach((rule) => parts.push({ text: `${pLabel(rule)} ✗`, bad: false }));
+      parts.push({ text: `${whoAnswered} ✓ → ${answer}`, bad: false });
     } else if (selected.rule) {
-      parts.push({
-        text: `${selected.rule.name} ✓ → ${selected.response?.status ?? '—'}`,
-        bad: false,
-      });
+      parts.push({ text: `${whoAnswered} ✓ → ${answer}`, bad: false });
     } else {
-      (rules ?? []).forEach((rule) => parts.push({ text: `${pLabel(rule)} ✗`, bad: false }));
+      if (!bypassed) {
+        (rules ?? []).forEach((rule) => parts.push({ text: `${pLabel(rule)} ✗`, bad: false }));
+      }
       const status = selected.response?.status ?? '—';
       parts.push({
         text: $localize`:circuit path phrase:default response ${status}:status:`,
