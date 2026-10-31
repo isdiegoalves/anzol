@@ -84,7 +84,7 @@ describe('Dado chegadas sustentadas entre 1 e 5 por segundo', () => {
     expect(escada.arrive(ultima + 3100)).toBe('full');
   });
 
-  it('não deve mudar a rajada da demo (R2): curto até a 5.ª, fluxo dali até o fim das duas partes', () => {
+  it('não deve mudar a rajada de referência: curto até a 5.ª, fluxo dali até o fim das duas partes', () => {
     const escada = new Escada();
     const parte1 = R2.map((at) => escada.arrive(at));
     const parte2 = Array.from({ length: 300 }, (_, j) =>

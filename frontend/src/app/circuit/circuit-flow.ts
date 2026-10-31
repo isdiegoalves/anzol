@@ -21,7 +21,7 @@ interface Birth {
   timer: ReturnType<typeof setTimeout>;
 }
 
-/** De quanto em quanto tempo o medidor "N/s" do modo fluxo se refaz (demo: 250 ms). */
+/** De quanto em quanto tempo o medidor "N/s" do modo fluxo se refaz. */
 export const METER_EVERY_MS = 250;
 
 /**

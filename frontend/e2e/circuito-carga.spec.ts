@@ -13,9 +13,9 @@ const CARREGADAS = 10_000;
 const CLIENTES = 64;
 
 /**
- * A régua dos quadros (a da demo, `measure`, sem o descarte dos quadros de 500 ms ou mais: aqui a aba nunca sai da
- * vista, e um quadro longo é a tela travada) e a das interações (Event Timing), instaladas antes da tela. Guarda
- * também quando cada chegada do tempo real e cada tecla aconteceram, e se a tecla caiu com o circuito no fluxo.
+ * A régua dos quadros (conta também os de 500 ms ou mais: aqui a aba nunca sai da vista, e um quadro longo é a tela
+ * travada) e a das interações (Event Timing), instaladas antes da tela. Guarda também quando cada chegada do tempo
+ * real e cada tecla aconteceram, e se a tecla caiu com o circuito no fluxo.
  */
 async function medir(page: Page): Promise<void> {
   await page.addInitScript(() => {

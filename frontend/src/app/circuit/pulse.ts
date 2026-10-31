@@ -37,7 +37,7 @@ function milliseconds(value: string, fallback: number): number {
 
 /**
  * Lê os tokens de motion no elemento (os custom properties do `html`). O navegador sem `linear()` recusaria a mola no
- * `animate()`: ganha as curvas que a demo usa no lugar dela.
+ * `animate()`: ganha curvas `cubic-bezier` parecidas no lugar dela.
  */
 export function readMotion(element: Element): Motion {
   const style = getComputedStyle(element);
@@ -130,7 +130,7 @@ export function reverseLine(d: string): string {
 
 /**
  * Os quadros do ponto: um por fim de salto, todos com o mesmo tempo (o salto longo anda mais depressa), cada um com
- * a curva da mola, como na demo.
+ * a curva da mola.
  */
 export function hopKeyframes(hops: readonly string[], easing: string): Keyframe[] {
   const ends = [0];
@@ -175,7 +175,7 @@ export class Pulse {
     this.trailAnimation = animation;
   }
 
-  /** Chegou a segunda da rajada: o pulso inteiro termina na metade do tempo, sem rastro (demo, `downgrade`). */
+  /** Chegou a segunda da rajada: o pulso inteiro termina na metade do tempo, sem rastro. */
   downgrade(): void {
     if (this.down || this.ended) {
       return;
@@ -272,7 +272,7 @@ export class PulseLayer {
     }
     let last = travel;
     if (options.discharge) {
-      // O ponto chega ao nó Resposta e se desfaz (cresce e some) no tempo de um salto, como na demo.
+      // O ponto chega ao nó Resposta e se desfaz (cresce e some) no tempo de um salto.
       last = dot.animate(
         [
           { opacity: 1, transform: 'scale(1)' },

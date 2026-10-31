@@ -8,13 +8,13 @@ import { NO_FILTER, RequestFilter } from '../search/request-filter';
 import { Token } from '../token/token';
 import { CircuitInput, CircuitLabel, CircuitView, circuitOf, flowWidth } from './circuit-model';
 
-/** A URL da demo: assinatura genérica no X-PagaFacil-Assinatura e schema 2020-12. */
+/** A URL de exemplo: assinatura genérica no X-PagaFacil-Assinatura e schema 2020-12. */
 const URL_DA_DEMO: Token = token({
   signature: { provider: 'generic', header: 'X-PagaFacil-Assinatura', algorithm: 'sha512' },
   schema: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
 });
 
-/** P1–P3 da demo, na ordem de avaliação (prioridades 1, 2 e 3). */
+/** P1–P3 de exemplo, na ordem de avaliação (prioridades 1, 2 e 3). */
 const P1 = rule(1, {
   id: 'p1',
   name: 'Assinatura inválida',
@@ -115,8 +115,8 @@ function rotulo(view: CircuitView, key: string): CircuitLabel {
 
 const marcados = (view: CircuitView) => view.marks.filter((mark) => mark.on).map((m) => m.id);
 
-describe('Dado o circuito da URL com P1, P2 e P3 (o desenho da demo)', () => {
-  it('deve pôr as regras na ordem de avaliação, com "padrão" no fim, e os nós da demo', () => {
+describe('Dado o circuito da URL com P1, P2 e P3', () => {
+  it('deve pôr as regras na ordem de avaliação, com "padrão" no fim, e os nós do Remetente ao Reenvio', () => {
     const view = circuito();
 
     expect(view.nodes.map((node) => node.id)).toEqual([
@@ -134,7 +134,7 @@ describe('Dado o circuito da URL com P1, P2 e P3 (o desenho da demo)', () => {
     expect(texto(view, 'rule:p1:name')).toBe('P1 Assinatura inválida');
     expect(texto(view, 'rule:p3:name')).toBe('P3 Pedido inexistente');
     expect(texto(view, 'default:name')).toBe('default');
-    // Geometria da demo: escada em x = 860, y = 24, 48, 72 e 96.
+    // Escada em x = 860, y = 24, 48, 72 e 96.
     expect(view.marks.filter((mark) => mark.x === 860).map((mark) => mark.y)).toEqual([
       24, 48, 72, 96,
     ]);
@@ -261,7 +261,7 @@ describe('Dado a mensagem aberta com uma regra que quase casou', () => {
     );
   });
 
-  it('deve ficar junto da P1 (y = 9) com uma regra só, com a escada começando em y = 24 como na demo', () => {
+  it('deve ficar junto da P1 (y = 9) com uma regra só, com a escada começando em y = 24', () => {
     const uma = circuito({ rules: [P1], selected: PELA_PADRAO });
     const duas = circuito({ rules: [P1, P3], selected: PELA_PADRAO });
 
@@ -322,7 +322,7 @@ describe('Dado a mensagem aberta com uma regra que quase casou', () => {
 describe('Dado a URL sem regras (R1)', () => {
   const nova = token({ signature: null, schema: null });
 
-  it('deve mostrar os 4 nós da demo e "sem regras" em tinta fraca', () => {
+  it('deve mostrar os 4 nós da URL sem regras, com "sem regras" em tinta fraca', () => {
     const view = circuito({ token: nova, rules: [] });
 
     expect(view.nodes.map((node) => node.id)).toEqual([

@@ -28,7 +28,7 @@ import { CircuitInput, CircuitNode, CircuitView, circuitOf, flowWidth } from './
 import { Step } from './escada';
 import { Motion, PulseLayer, readMotion } from './pulse';
 
-/** A largura do palco da demo e a margem dele à esquerda (onde fica a legenda "circuito"). */
+/** A largura do palco e a margem dele à esquerda (onde fica a legenda "circuito"). */
 const STAGE_WIDTH = 1248;
 const STAGE_MARGIN = 24;
 /** O piso da escala: o texto de 11 px do palco não fica abaixo de 10 px. */
@@ -58,7 +58,7 @@ export function stageFit(available: number): { scale: number; margin: number; sc
 /**
  * O circuito da URL na Entrada, abaixo do cabeçalho: o desenho de 1248 × 120 com os nós da
  * configuração e, com uma mensagem aberta, o caminho dela e a regra que quase casou. Os nós são botões num grupo,
- * cada um uma parada do Tab, como na demo (as setas são um atalho a mais); clicar filtra a lista pelo que passou ali
+ * cada um uma parada do Tab (as setas são um atalho a mais); clicar filtra a lista pelo que passou ali
  * e clicar de novo tira, sem motion. No celular (`line`), só a frase "caminho: …" da mensagem aberta, numa linha que
  * rola.
  */
@@ -213,7 +213,7 @@ export class Circuit implements FlowStage {
     computation: (source, previous) => !!previous && source.landed !== previous.source.landed,
   });
 
-  /** A espessura das arestas no modo fluxo, por id (demo: de 1 a 3 px pelas chegadas que passaram por elas). */
+  /** A espessura das arestas no modo fluxo, por id (de 1 a 3 px pelas chegadas que passaram por elas). */
   protected readonly widths = signal<Record<string, number>>({});
 
   /** As arestas do caminho da mensagem aberta, desenhadas por cima em tinta. */
@@ -449,7 +449,7 @@ export class Circuit implements FlowStage {
     return shape;
   }
 
-  /** Conta a chegada nas arestas dela; no fluxo, a espessura de todas segue as contagens (demo, `thickness`). */
+  /** Conta a chegada nas arestas dela; no fluxo, a espessura de todas segue as contagens. */
   private countSegments(shape: Shape, step: Step): void {
     for (const id of shape.route) {
       this.segments.set(id, (this.segments.get(id) ?? 0) + 1);
@@ -498,7 +498,7 @@ export class Circuit implements FlowStage {
   }
 
   /**
-   * A chegada que a tela vai abrir aparece no circuito enquanto o pulso passa (demo, R1): cada aresta acende quando
+   * A chegada que a tela vai abrir aparece no circuito enquanto o pulso passa: cada aresta acende quando
    * o ponto a termina, e o que a mensagem mostra num nó (o IP, ✓ válida, a resposta) aparece em 231 ms quando ele
    * chega ao nó. Quando a linha nasce, o caminho fica em tinta cheia e assenta em 1,5 s.
    */
@@ -669,7 +669,7 @@ export class Circuit implements FlowStage {
   }
 
   /**
-   * Um filtro do circuito por vez, como na demo: o nó liga o dele e tira o dos outros nós (assinatura, schema,
+   * Um filtro do circuito por vez: o nó liga o dele e tira o dos outros nós (assinatura, schema,
    * decifra e desfecho); de novo, tira o dele. Os nós sem filtro mostram todas.
    */
   protected toggle(node: CircuitNode): void {
@@ -690,7 +690,7 @@ export class Circuit implements FlowStage {
     this.requests.applyFilter({ ...filter, ...change }).catch(() => undefined);
   }
 
-  /** Atalho a mais: as setas, Home e End andam entre os nós (o Tab anda em todos, como na demo). */
+  /** Atalho a mais: as setas, Home e End andam entre os nós (o Tab anda em todos). */
   protected move(event: KeyboardEvent): void {
     const nodes = [...this.host.querySelectorAll<HTMLButtonElement>('.node')];
     const at = nodes.indexOf(event.target as HTMLButtonElement);

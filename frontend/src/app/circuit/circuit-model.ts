@@ -15,7 +15,7 @@ import { joinPath, reverseLine } from './pulse';
 /**
  * O circuito da URL: remetente → assinatura → schema → decifra → regras na ordem de
  * avaliação → resposta → reenvio. Tudo derivado da URL, das regras e das mensagens carregadas; nenhuma API nova. A
- * geometria é a da demo: um palco de 1248 × 120, linha principal em y = 60, escada de regras em x = 860.
+ * geometria: um palco de 1248 × 120, linha principal em y = 60, escada de regras em x = 860.
  */
 export interface CircuitInput {
   token: Token;
@@ -47,7 +47,7 @@ export interface CircuitGlyph {
   tone: GlyphTone;
 }
 
-/** Os tipos de rótulo da demo: título (12 px), nome da regra (12 px) e os de dado (mono 11 px). */
+/** Os tipos de rótulo: título (12 px), nome da regra (12 px) e os de dado (mono 11 px). */
 export type LabelKind =
   'title' | 'name' | 'sub' | 'gl' | 'note' | 'data' | 'ann' | 'near' | 'meter';
 
@@ -158,7 +158,7 @@ const X = {
   resend: 1220,
 } as const;
 /**
- * Linhas da escada (com "padrão"), de 24 em 24 px a partir de y = 24, como na demo: cada nó da escada tem um alvo de
+ * Linhas da escada (com "padrão"), de 24 em 24 px a partir de y = 24: cada nó da escada tem um alvo de
  * 24 px (WCAG 2.5.8). Com mais regras, as que não cabem viram "+N regras".
  */
 const MAX_ROWS = 4;
@@ -428,7 +428,7 @@ function tally(before: string, value: number): { text: string; count: CircuitCou
 }
 
 /**
- * A espessura da aresta no modo fluxo (demo, `thickness`): de 1 px a 3 px pelo número de chegadas que passaram por
+ * A espessura da aresta no modo fluxo: de 1 px a 3 px pelo número de chegadas que passaram por
  * ela, em escala de log (256 enchem), em quartos de pixel.
  */
 export function flowWidth(count: number): number {
@@ -594,7 +594,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
   ];
   const spokenOf = (parts: (string | null | undefined)[]) =>
     parts.filter((part): part is string => !!part && part !== '—').join('; ');
-  // O medidor do modo fluxo, ao lado do título do Remetente (demo, `rem:meter`).
+  // O medidor do modo fluxo, ao lado do título do Remetente.
   const meter =
     input.meter !== null && input.meter !== undefined
       ? counted(
@@ -839,7 +839,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
     edge('out', `M${X.collector},${MAIN_Y} H${X.response}`);
     edge('rv', `M${X.response},${MAIN_Y} H${X.resend}`);
 
-    // O "quase casou" da mensagem aberta, em âmbar, na linha acima da escada (a da demo, y = 9).
+    // O "quase casou" da mensagem aberta, em âmbar, na linha acima da escada (y = 9).
     let nearText: string | null = null;
     if (near) {
       const nearRule = ruleById.get(near.id);
@@ -967,7 +967,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
     mark.on = onPath.has(mark.id);
   }
 
-  // O nome acessível do desenho e a frase "caminho: …" (a linha do celular), como na demo.
+  // O nome acessível do desenho e a frase "caminho: …" (a linha do celular).
   let path: PathPart[] | null = null;
   const nodeCount = nodes.length;
   let description = $localize`:circuit description:URL circuit ${input.name}:name: with ${nodeCount}:count: nodes.`;

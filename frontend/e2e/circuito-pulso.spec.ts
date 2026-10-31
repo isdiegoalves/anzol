@@ -125,7 +125,7 @@ const token = (page: Page, nome: string) =>
     nome,
   );
 
-/** A URL da demo, R1: assinatura e schema, sem regras. */
+/** A URL da chegada isolada: assinatura e schema, sem regras. */
 async function urlR1(page: Page, tokens: TokenTracker): Promise<string> {
   const tokenId = await tokens.create({
     signature: { provider: 'github', secret: SEGREDO },
@@ -135,7 +135,7 @@ async function urlR1(page: Page, tokens: TokenTracker): Promise<string> {
   return tokenId;
 }
 
-/** A URL da demo, R2: P1–P3 e uma mensagem antiga. */
+/** A URL da rajada: P1–P3 e uma mensagem antiga. */
 async function urlR2(page: Page, tokens: TokenTracker): Promise<string> {
   const tokenId = await urlR1(page, tokens);
   const regras = await page.request.put(`/token/${tokenId}/rules`, {
@@ -333,7 +333,7 @@ test.describe('Dado uma rajada', () => {
     await page.goto(`/#/${tokenId}`);
     await aoVivo(page);
     await expect(page.getByRole('heading', { name: 'Requests (20)' })).toBeVisible();
-    // Como na demo R2: a vista fora do topo (a pílula conta), o caso em que cada chegada mede a lista.
+    // A vista fora do topo (a pílula conta), o caso em que cada chegada mede a lista.
     await page.locator('cdk-virtual-scroll-viewport').evaluate((el) => el.scrollTo({ top: 200 }));
     await page.evaluate(() => {
       const atrasos: number[] = [];

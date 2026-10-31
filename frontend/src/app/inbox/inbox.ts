@@ -106,7 +106,7 @@ export const ECHO_MS = 5000;
 /**
  * Para o leitor de tela, a primeira chegada de uma leva fala na hora (quando a linha nasce), e as seguintes falam
  * somadas, com as anomalias contadas (WCAG 4.1.3: "13 novas requisições; 1 com assinatura
- * inválida"): ao fim de 1 s, como na rajada da demo; enquanto as janelas não ficam vazias, a seguinte cresce para 3 s
+ * inválida"): ao fim de 1 s; enquanto as janelas não ficam vazias, a seguinte cresce para 3 s
  * e depois 10 s (uma cadência constante não fala a cada segundo); depois de uma janela vazia, volta a 1 s.
  */
 export const ANNOUNCE_WINDOWS_MS = [1000, 3000, 10_000] as const;

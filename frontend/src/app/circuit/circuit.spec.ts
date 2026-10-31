@@ -133,7 +133,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       'Response',
       'Resend',
     ]);
-    // Como na demo: cada nó é uma parada do Tab, num grupo "Circuit nodes".
+    // Cada nó é uma parada do Tab, num grupo "Circuit nodes".
     expect(nos.every((no) => no.tabIndex === 0)).toBe(true);
     expect(screen.getByRole('group', { name: 'Circuit nodes' })).toBeTruthy();
     expect(screen.queryByRole('toolbar')).toBeNull();
@@ -212,7 +212,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(store.filter().signature).toBe('invalid');
     expect(assinatura.getAttribute('aria-pressed')).toBe('true');
 
-    // O Tab anda de nó em nó (como na demo); as setas são atalho a mais.
+    // O Tab anda de nó em nó; as setas são atalho a mais.
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Schema/ }));
     await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');

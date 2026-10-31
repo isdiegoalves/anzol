@@ -24,7 +24,7 @@ function assinado(corpo: string, segredo = SEGREDO) {
 /** O teto de `GET /requests` e de `GET /stream` em 3 s sem laço (a abertura e uma volta do tempo real). */
 const PEDIDOS_SEM_LACO = 6;
 
-/** A URL da demo: assinatura, schema e P1–P3; uma válida (pela padrão, P1 a mais próxima) e uma que não confere. */
+/** A URL: assinatura, schema e P1–P3; uma válida (pela padrão, P1 a mais próxima) e uma que não confere. */
 async function urlDaDemo(page: Page, tokens: TokenTracker) {
   const tokenId = await tokens.create({
     signature: { provider: 'github', secret: SEGREDO },
@@ -104,7 +104,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(falha).toBeVisible();
     expect(await cor(falha, 'border-left-width')).toBe('2px');
     expect(await cor(falha.locator('.glyph'), 'color')).toBe(await token(page, '--mat-sys-error'));
-    // Como na demo, só ✗ e ◔ em negrito; o ✓ no peso do texto.
+    // Só ✗ e ◔ em negrito; o ✓ no peso do texto.
     expect(await cor(falha.locator('.glyph'), 'font-weight')).toBe('700');
     expect(await cor(rotulo(page, 'valid · 2020-12').locator('.glyph'), 'font-weight')).toBe('400');
     // O caminho em tinta, parando em P1.
@@ -190,7 +190,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     }
     await expect(no(page, /^Sender/)).toBeFocused();
     expect(await cor(no(page, /^Sender/), 'outline-width')).toBe('3px');
-    // Como na demo, cada nó é uma parada do Tab; as setas são atalho a mais.
+    // Cada nó é uma parada do Tab; as setas são atalho a mais.
     await page.keyboard.press('Tab');
     await expect(no(page, /^Signature/)).toBeFocused();
     await page.keyboard.press('ArrowRight');

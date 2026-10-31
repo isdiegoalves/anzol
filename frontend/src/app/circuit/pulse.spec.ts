@@ -75,7 +75,7 @@ describe('Dado o pulso do circuito', () => {
     spy.mockRestore();
   });
 
-  it('deve trocar as molas em linear() pelas curvas da demo Quando o navegador não conhece linear()', () => {
+  it('deve trocar as molas em linear() por curvas cubic-bezier Quando o navegador não conhece linear()', () => {
     const element = document.createElement('div');
     const tokens: Record<string, string> = {
       '--app-spring-standard': 'linear(0, 0.5, 1)',
