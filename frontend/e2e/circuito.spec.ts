@@ -147,10 +147,11 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(p1).toHaveAttribute('aria-pressed', 'false');
 
     await p1.click();
+    await expect(p1).toHaveAttribute('aria-pressed', 'true');
+    // Filtrar é ação frequente: nada no circuito anima, nem o contorno que acabou de entrar.
     expect(await circuito(page).evaluate((el) => el.getAnimations({ subtree: true }).length)).toBe(
       0,
     );
-    await expect(p1).toHaveAttribute('aria-pressed', 'true');
     await expect(itens(page)).toHaveCount(1);
     expect(await cor(p1, 'border-top-style')).toBe('dashed');
     await expect(page).toHaveURL(/outcome=rule/);
