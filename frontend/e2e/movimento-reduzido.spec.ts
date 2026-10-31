@@ -7,8 +7,8 @@ import { seedStorage } from './support/storage';
 test.use({ reducedMotion: 'reduce' });
 
 /**
- * MR-0 (`docs/padroes-angular.md` §5): com movimento reduzido, nada se desloca. O fade (opacidade) e a troca de cor
- * ficam; o resto vira o estado final. As animações vivas de uma parte da tela, com as propriedades que mexem.
+ * Movimento reduzido útil (`docs/padroes-angular.md` §5): com movimento reduzido, nada se desloca. O fade
+ * (opacidade) e a troca de cor ficam; o resto vira o estado final. As animações vivas de uma parte da tela, com as propriedades que mexem.
  */
 async function propriedadesAnimadas(page: Page, onde: string): Promise<string[]> {
   return page.evaluate((seletor) => {
@@ -101,7 +101,7 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
     await expect(traco).toHaveCount(0);
   });
 
-  test('deve mostrar a chegada isolada de uma vez no instante em que o pulso terminaria: caminho sólido, "path: …" no detalhe e a linha com fade de 120 ms, sem nada se deslocar (Circuito F2, CA-4)', async ({
+  test('deve mostrar a chegada isolada de uma vez no instante em que o pulso terminaria: caminho sólido, "path: …" no detalhe e a linha com fade de 120 ms, sem nada se deslocar', async ({
     page,
     tokens,
   }) => {
@@ -192,7 +192,7 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
     ).toHaveAccessibleName(/path: signature ✓ → schema ✓ → default response 200\.$/);
   });
 
-  test('deve virar fluxo na rajada sem pulso nem transição: contadores e espessura trocam em 0 ms (Circuito F2, MR-0)', async ({
+  test('deve virar fluxo na rajada sem pulso nem transição: contadores e espessura trocam em 0 ms', async ({
     page,
     tokens,
   }) => {

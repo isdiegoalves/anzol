@@ -19,7 +19,7 @@ const DA_P1 = webhookRequest(7, {
   response: { status: 401 },
 });
 
-describe('Dado o detalhe com movimento reduzido (MR-0)', () => {
+describe('Dado o detalhe com movimento reduzido', () => {
   const mostrar = async (reduzido: boolean) => {
     const media = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
       matches: reduzido,

@@ -2,7 +2,7 @@
   <!-- UX-21: um h1 por destino. No celular ele é o título da barra do topo (no shell). -->
   @if (!compact()) {
     <h1 class="visually-hidden" i18n>Inbox</h1>
-    <!-- C-1: o circuito da URL abaixo do cabeçalho; no celular, só o caminho da mensagem aberta. -->
+    <!-- O circuito da URL abaixo do cabeçalho; no celular, só o caminho da mensagem aberta. -->
     <app-circuit />
   } @else if (showDetail() && requests.selected()) {
     <app-circuit [line]="true" />

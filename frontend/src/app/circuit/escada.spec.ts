@@ -3,7 +3,7 @@ import { Escada, Step } from './escada';
 /** A rajada canônica das demos (proposta 1, demo-spec §4 R2): #i em i × 75 ms, 13 por segundo. */
 const R2 = Array.from({ length: 40 }, (_, i) => (i + 1) * 75);
 
-describe('Dado a escada de rajada do circuito (CA-2)', () => {
+describe('Dado a escada de rajada do circuito', () => {
   it('deve dar pulso inteiro à chegada isolada', () => {
     const escada = new Escada();
 
@@ -59,7 +59,7 @@ describe('Dado a escada de rajada do circuito (CA-2)', () => {
   });
 });
 
-describe('Dado chegadas sustentadas entre 1 e 5 por segundo (F2-R02)', () => {
+describe('Dado chegadas sustentadas entre 1 e 5 por segundo', () => {
   /** 3 por segundo durante 8 s, sem pausa. */
   const TRES_POR_SEGUNDO = Array.from({ length: 25 }, (_, i) => Math.round(i * 333.3));
 
@@ -96,7 +96,7 @@ describe('Dado chegadas sustentadas entre 1 e 5 por segundo (F2-R02)', () => {
   });
 });
 
-describe('Dado uma cadência regular de 1 por segundo (F2-R04)', () => {
+describe('Dado uma cadência regular de 1 por segundo', () => {
   it('deve ficar sempre no pulso inteiro, com o atraso da rede variando ±10 ms', () => {
     const escada = new Escada();
     // Um a cada segundo, com o atraso alternando entre −10 e +10 ms (a pior combinação: 980 ms entre duas).

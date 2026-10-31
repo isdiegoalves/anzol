@@ -36,7 +36,7 @@ export interface CircuitInput {
   selected: CapturedRequest | null;
   /** O filtro da lista: o nó dele leva o contorno de filtro. */
   filter: RequestFilter;
-  /** No modo fluxo, quantas chegaram no último segundo: o medidor "N/s" ao lado do Remetente (F2). */
+  /** No modo fluxo, quantas chegaram no último segundo: o medidor "N/s" ao lado do Remetente. */
   meter?: number | null;
 }
 
@@ -51,7 +51,7 @@ export interface CircuitGlyph {
 export type LabelKind =
   'title' | 'name' | 'sub' | 'gl' | 'note' | 'data' | 'ann' | 'near' | 'meter';
 
-/** Um contador do rótulo: o número, que rola até o novo na chegada (C-6), e o texto em volta dele. */
+/** Um contador do rótulo: o número, que rola até o novo na chegada, e o texto em volta dele. */
 export interface CircuitCount {
   value: number;
   before: string;
@@ -112,7 +112,7 @@ export interface CircuitNode {
   off: Partial<RequestFilter> | null;
   /** O filtro do nó está ligado (`aria-pressed`); `null` nos nós sem filtro. */
   pressed: boolean | null;
-  /** O Enter abre o painel Filtros em vez de filtrar ("+N regras": as regras de lá têm chip lá, D-F1-15). */
+  /** O Enter abre o painel Filtros em vez de filtrar ("+N regras": as regras de lá têm chip lá). */
   opens?: 'filters';
 }
 
@@ -127,7 +127,7 @@ export interface CircuitView {
   /** As arestas do caminho da mensagem aberta (vazio sem mensagem). */
   route: string[];
   /**
-   * O caminho da mensagem aberta em saltos, como o pulso o percorre (F2): o desenho de cada salto, na direção da
+   * O caminho da mensagem aberta em saltos, como o pulso o percorre: o desenho de cada salto, na direção da
    * viagem, e em que salto cada aresta do caminho acende (1 no fim do primeiro).
    */
   hops: string[];
@@ -764,8 +764,8 @@ export function circuitOf(input: CircuitInput): CircuitView {
         hidden.length === 1
           ? $localize`:circuit ladder, rules that do not fit:+1 rule`
           : $localize`:circuit ladder, rules that do not fit:+${hidden.length}:count: rules`;
-      // A regra escondida que respondeu à mensagem aberta (ou quase casou com ela) aparece no lugar da contagem
-      // (F1-A01): o caminho passa por esta linha, e ela diz por quem.
+      // A regra escondida que respondeu à mensagem aberta (ou quase casou com ela) aparece no lugar da contagem:
+      // o caminho passa por esta linha, e ela diz por quem.
       const answeredHere = selected?.rule
         ? hidden.find((rule) => rule.id === selected.rule?.id)
         : undefined;

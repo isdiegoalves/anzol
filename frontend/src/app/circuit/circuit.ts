@@ -56,7 +56,7 @@ export function stageFit(available: number): { scale: number; margin: number; sc
 }
 
 /**
- * O circuito da URL na Entrada, abaixo do cabeçalho (C-1, demo combinada): o desenho de 1248 × 120 com os nós da
+ * O circuito da URL na Entrada, abaixo do cabeçalho (demo combinada): o desenho de 1248 × 120 com os nós da
  * configuração e, com uma mensagem aberta, o caminho dela e a regra que quase casou. Os nós são botões num grupo,
  * cada um uma parada do Tab, como na demo (as setas são um atalho a mais); clicar filtra a lista pelo que passou ali
  * e clicar de novo tira, sem motion. No celular (`line`), só a frase "caminho: …" da mensagem aberta, numa linha que
@@ -143,7 +143,7 @@ export class Circuit implements FlowStage {
   /**
    * As mensagens que as contagens do desenho mostram: as contadas, com no máximo uma troca por passo do fluxo (231 ms)
    * enquanto a rajada passa de 5 por segundo. A cada troca o contador recomeça a rolar do número em que está; trocado a
-   * cada chegada (60 por segundo), ele mal saía do lugar e ficava centenas atrás (C-6: cada passo rola 231 ms).
+   * cada chegada (60 por segundo), ele mal saía do lugar e ficava centenas atrás (cada passo rola 231 ms).
    */
   protected readonly tally = signal<readonly CapturedRequest[]>([]);
   private tallyAt = Number.NEGATIVE_INFINITY;
@@ -202,7 +202,7 @@ export class Circuit implements FlowStage {
   });
 
   /**
-   * Os contadores e a espessura das arestas mudam com transição só quando a contagem mudou por uma chegada (C-6): um
+   * Os contadores e a espessura das arestas mudam com transição só quando a contagem mudou por uma chegada: um
    * filtro que sai, uma requisição apagada ou outra URL trocam o número em 0 ms.
    */
   protected readonly rolls = linkedSignal<
@@ -281,7 +281,7 @@ export class Circuit implements FlowStage {
         untracked(() => this.reread('event'));
       }
     });
-    // A faixa nova já pinta na medida dela: a leitura e a escrita acontecem antes de o navegador pintar (F1-R16).
+    // A faixa nova já pinta na medida dela: a leitura e a escrita acontecem antes de o navegador pintar.
     afterRenderEffect({
       earlyRead: () => this.band()?.nativeElement.clientWidth ?? 0,
       write: (width) => {
@@ -344,7 +344,7 @@ export class Circuit implements FlowStage {
    * arestas; no pulso curto, entra no lote do quadro; na chegada isolada, lança o pulso inteiro e, se a tela vai
    * abri-la, a mostra enquanto ele passa. Devolve em quanto tempo a linha nasce (o pulso chegou à Resposta e se
    * desfez); com movimento reduzido, sem pulso, o mesmo tempo: o Remetente acende já e o resto aparece de uma vez
-   * no fim (MR-0).
+   * no fim.
    */
   draw(
     request: WebhookRequest,
@@ -591,7 +591,7 @@ export class Circuit implements FlowStage {
 
   /**
    * Relê as regras da URL aberta: a tentativa marcada depois da falha (`retry`), um sinal de que elas podem ter
-   * mudado (`event`: a volta da conexão, a lista de novo) ou a lista que saiu da store (`lost`). Com freio (F1-R12):
+   * mudado (`event`: a volta da conexão, a lista de novo) ou a lista que saiu da store (`lost`). Com freio:
    * a leitura que falha sem resposta derruba o tempo real (`connectionInterceptor`), que volta logo e pediria outra,
    * num laço. Depois de uma falha, nenhuma leitura antes da tentativa de 15 s; e os sinais não releem a menos de 5 s
    * da última.
@@ -673,7 +673,7 @@ export class Circuit implements FlowStage {
    * decifra e desfecho); de novo, tira o dele. Os nós sem filtro mostram todas.
    */
   protected toggle(node: CircuitNode): void {
-    // "+N regras": as regras de lá se filtram no painel Filtros (o controle equivalente, D-F1-15).
+    // "+N regras": as regras de lá se filtram no painel Filtros (o controle equivalente).
     if (node.opens === 'filters') {
       this.chips.askPanel();
       return;

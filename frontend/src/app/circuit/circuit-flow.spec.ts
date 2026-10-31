@@ -32,7 +32,7 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
     expect(flow.arrive(chegada(1), { at: 0 })).toBeNull();
   });
 
-  it('deve esperar o pulso chegar ao nó Resposta para a linha nascer, na chegada isolada (CA-1)', async () => {
+  it('deve esperar o pulso chegar ao nó Resposta para a linha nascer, na chegada isolada', async () => {
     flow.attach(stage);
     let nasceu = false;
 
@@ -60,7 +60,7 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
     expect(relatado).toHaveBeenCalledWith(falha);
   });
 
-  it('deve soltar na hora a primeira que esperava, e apressar o pulso dela, Quando a segunda da rajada chega (CA-2)', async () => {
+  it('deve soltar na hora a primeira que esperava, e apressar o pulso dela, Quando a segunda da rajada chega', async () => {
     flow.attach(stage);
     let nasceu = false;
     void flow.arrive(chegada(1), { at: 0 })?.then(() => (nasceu = true));
@@ -91,7 +91,7 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
     expect(flow.step()).toBe('full');
   });
 
-  it('deve parar os pulsos curtos de uma cadência de 3 por segundo depois de 5 s sem pausa, e voltar depois de 2 s parado (F2-R02)', async () => {
+  it('deve parar os pulsos curtos de uma cadência de 3 por segundo depois de 5 s sem pausa, e voltar depois de 2 s parado', async () => {
     flow.attach(stage);
     for (let n = 0; n < 25; n++) {
       flow.arrive(chegada(n), { at: performance.now() });

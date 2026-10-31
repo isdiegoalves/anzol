@@ -266,7 +266,7 @@ describe('Dado um roteiro (R1)', () => {
       expect(text(check())).toBe('');
     });
 
-    it('deve esperar as regras da URL e gravar a partir delas Quando "Create 3 rules" vem antes de elas chegarem (F1-R14)', async () => {
+    it('deve esperar as regras da URL e gravar a partir delas Quando "Create 3 rules" vem antes de elas chegarem', async () => {
       const { read } = await show('retry', [], 'pending');
       const existente = rule(1, { id: 'r1', name: 'Já existia', priority: 1 });
       await userEvent.type(screen.getByRole('textbox', { name: 'Path' }), '/cobrancas');

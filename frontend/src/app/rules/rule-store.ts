@@ -82,7 +82,7 @@ export class RuleStore {
   );
   /**
    * O `tested` de cada URL que saiu da store: o circuito da Entrada lê as regras de outra URL por aqui, e a volta a
-   * Regras não perde a "sombra provável" (F1-R15).
+   * Regras não perde a "sombra provável".
    */
   private readonly testedByUrl = new Map<
     string,
@@ -91,7 +91,7 @@ export class RuleStore {
 
   /**
    * Lê as regras da URL. Na URL cuja lista já está aqui, relê sem apagá-la (`reload`): o circuito da Entrada e quem
-   * mais a mostra seguem com ela até a nova chegar, e com ela se a leitura falha (F1-R13).
+   * mais a mostra seguem com ela até a nova chegar, e com ela se a leitura falha.
    */
   async load(tokenId: string): Promise<void> {
     this.recent = null;
@@ -129,7 +129,7 @@ export class RuleStore {
 
   /**
    * A lista desta URL para mudar a partir dela (a folha "Create rule", o roteiro): a que já está aqui, a da leitura
-   * em curso (de quem a pediu) ou uma leitura nova. Nunca a lista vazia de uma leitura que ainda não chegou (F1-R14);
+   * em curso (de quem a pediu) ou uma leitura nova. Nunca a lista vazia de uma leitura que ainda não chegou;
    * falha como a leitura, ou se outra URL tomou o lugar desta no meio do caminho.
    */
   async ready(tokenId: string): Promise<readonly Rule[]> {
@@ -304,7 +304,7 @@ export class RuleStore {
    * Substitui a lista no servidor. A tela mostra a mudança na hora (o toggle não pula de volta)
    * e fica com a lista que o servidor devolve, com os `id`s e padrões; se o `PUT` falha, volta à
    * lista anterior e repassa o erro (o 422 é mostrado por quem chamou). A leitura desta URL que saiu antes
-   * de o `PUT` voltar é descartada quando chega (F1-R17): o servidor pode tê-la respondido com a lista de antes.
+   * de o `PUT` voltar é descartada quando chega: o servidor pode tê-la respondido com a lista de antes.
    */
   async save(rules: readonly Rule[]): Promise<void> {
     const tokenId = this.requireToken();

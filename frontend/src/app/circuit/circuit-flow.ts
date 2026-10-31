@@ -25,7 +25,7 @@ interface Birth {
 export const METER_EVERY_MS = 250;
 
 /**
- * As chegadas pelo tempo real no circuito (F2): a escada de rajada decide o degrau de cada uma; a chegada isolada
+ * As chegadas pelo tempo real no circuito: a escada de rajada decide o degrau de cada uma; a chegada isolada
  * espera o pulso chegar ao nó Resposta para a linha nascer na lista (e o anúncio, no mesmo instante); a segunda de
  * uma rajada solta na hora a que esperava. Aba oculta: nada se enfileira, e a linha entra já.
  */
@@ -44,7 +44,7 @@ export class CircuitFlow {
   readonly step = signal<Step>('full');
   /** Quantas chegaram no último segundo, refeito a cada 250 ms no modo fluxo. */
   readonly rate = signal(0);
-  /** Vira a cada chegada que entrou na lista: os contadores rolam só por ela (C-6), não por filtro nem por seleção. */
+  /** Vira a cada chegada que entrou na lista: os contadores rolam só por ela, não por filtro nem por seleção. */
   readonly landed = signal(0);
 
   constructor() {

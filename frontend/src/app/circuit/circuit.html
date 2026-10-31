@@ -59,12 +59,12 @@
         </svg>
         <div class="labels" aria-hidden="true">
           @for (label of circuit.labels; track label.key) {
-            <!-- O contador rola até o número novo (C-6); o número de verdade fica no texto, escondido da vista. -->
+            <!-- O contador rola até o número novo; o número de verdade fica no texto, escondido da vista. -->
             <!-- prettier-ignore -->
             <span class="lab" [class]="label.align + ' ' + label.kind" [class.muted]="label.muted" [class.bad]="label.rule === 'bad'" [class.near]="label.rule === 'near'" [attr.data-key]="label.key" [style.left.px]="label.x" [style.top.px]="label.y">@if (label.glyph; as glyph) {<span class="glyph" [class]="glyph.tone">{{ glyph.text }}</span>{{ ' ' }}}@if (label.count; as count) {{{ count.before }}<span class="ctr" [style.--n]="count.value"><span class="real">{{ count.value }}</span></span>{{ count.after }}} @else {{{ label.text }}}@if (label.badge) {<span class="badge">{{ label.badge }}</span>}</span>
           }
         </div>
-        <!-- Os pulsos das chegadas (F2), por cima do desenho e embaixo dos nós. -->
+        <!-- Os pulsos das chegadas, por cima do desenho e embaixo dos nós. -->
         <div #fx class="fx" aria-hidden="true"></div>
         <div class="nodes" role="group" aria-label="Circuit nodes" i18n-aria-label>
           @for (node of circuit.nodes; track node.id) {

@@ -3,7 +3,7 @@ import { Page } from '@playwright/test';
 import { TokenTracker, expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
-// Feature "Circuito", F2: o pulso de cada chegada, a escada de rajada com histerese, a linha que nasce do nó Resposta e
+// O pulso de cada chegada, a escada de rajada com histerese, a linha que nasce do nó Resposta e
 // o que nunca anima (demo combinada; proposta 1 §4 M1–M2). Tempos e curvas pela WAAPI do navegador (`getAnimations`).
 
 const SEGREDO = 'segredo-pulso';
@@ -184,7 +184,7 @@ const animacoes = (page: Page, seletor: string) =>
   );
 
 test.describe('Dado uma chegada isolada pelo tempo real', () => {
-  test('deve percorrer o caminho com o pulso (180 ms por aresta, com rastro) e a linha nascer do nó Resposta, com o anúncio no mesmo instante (CA-1)', async ({
+  test('deve percorrer o caminho com o pulso (180 ms por aresta, com rastro) e a linha nascer do nó Resposta, com o anúncio no mesmo instante', async ({
     page,
     tokens,
   }) => {
@@ -274,7 +274,7 @@ test.describe('Dado uma chegada isolada pelo tempo real', () => {
 });
 
 test.describe('Dado uma rajada', () => {
-  test('deve dar pulso só até 5 por segundo e virar fluxo: arestas engrossando, o medidor e os contadores rolando 231 ms, com histerese de 2 s (CA-2)', async ({
+  test('deve dar pulso só até 5 por segundo e virar fluxo: arestas engrossando, o medidor e os contadores rolando 231 ms, com histerese de 2 s', async ({
     page,
     tokens,
   }) => {
@@ -324,7 +324,7 @@ test.describe('Dado uma rajada', () => {
     await expect.poll(async () => (await marcas(page)).rastros.length).toBe(2);
   });
 
-  test('deve rolar os contadores sem ficar para trás numa rajada de 60 por segundo, e chegar ao número quando ela acaba (CA-2, C-6)', async ({
+  test('deve rolar os contadores sem ficar para trás numa rajada de 60 por segundo, e chegar ao número quando ela acaba', async ({
     page,
     tokens,
   }) => {
@@ -398,7 +398,7 @@ test.describe('Dado uma rajada', () => {
     return tokenId;
   };
 
-  test('não deve rolar a lista nem fazer a linha nascer fora do topo; a pílula conta as novas (CA-3)', async ({
+  test('não deve rolar a lista nem fazer a linha nascer fora do topo; a pílula conta as novas', async ({
     page,
     tokens,
   }) => {
@@ -414,7 +414,7 @@ test.describe('Dado uma rajada', () => {
     await expect(page.locator('.item.app-born')).toHaveCount(0);
   });
 
-  test('não deve deslizar a lista fora do topo numa rajada de 150 a 60 por segundo (CA-3, F2-R01)', async ({
+  test('não deve deslizar a lista fora do topo numa rajada de 150 a 60 por segundo', async ({
     page,
     tokens,
   }) => {
@@ -434,7 +434,7 @@ test.describe('Dado uma rajada', () => {
     expect(await primeiraVisivel(page)).toEqual(antes);
   });
 
-  test('não deve deslizar a lista fora do topo com 64 clientes ao mesmo tempo (CA-3, F2-R01)', async ({
+  test('não deve deslizar a lista fora do topo com 64 clientes ao mesmo tempo', async ({
     page,
     tokens,
   }) => {
@@ -453,7 +453,7 @@ test.describe('Dado uma rajada', () => {
 });
 
 test.describe('Dado as ações frequentes', () => {
-  test('não deve animar nada no circuito nem na lista com J/K, a seleção, o filtro pelo nó e o hover no nó (CA-6)', async ({
+  test('não deve animar nada no circuito nem na lista com J/K, a seleção, o filtro pelo nó e o hover no nó', async ({
     page,
     tokens,
   }) => {

@@ -843,7 +843,7 @@ describe('Dado a tela principal', () => {
       http.expectNone(searchUrl);
     });
 
-    describe('Quando as chegadas não param (F2-R03)', () => {
+    describe('Quando as chegadas não param', () => {
       /**
        * Emite uma chegada a cada `passo` ms, por `ms` (a segunda `adianta` ms antes do passo), e devolve as falas de
        * chegada com o instante de cada uma.
@@ -971,7 +971,7 @@ describe('Dado a tela principal', () => {
       expect(redirect).toHaveBeenCalledWith(nova);
     });
 
-    it('deve pôr na ordem em que chegaram, com o total da última, a que vem logo atrás de uma que esperava o pulso (Circuito F2)', async () => {
+    it('deve pôr na ordem em que chegaram, com o total da última, a que vem logo atrás de uma que esperava o pulso', async () => {
       TestBed.inject(CircuitFlow).attach({
         draw: (_request, step) => (step === 'full' ? { born: 720, hurry: () => undefined } : null),
         clear: () => undefined,
@@ -994,7 +994,7 @@ describe('Dado a tela principal', () => {
       expect(store.total()).toBe(4);
     });
 
-    it('deve pôr a chegada isolada na lista, nascendo do circuito, e dizê-la no instante em que o pulso chega à Resposta, com o reenvio pelo navegador na hora (Circuito F2, CA-1)', async () => {
+    it('deve pôr a chegada isolada na lista, nascendo do circuito, e dizê-la no instante em que o pulso chega à Resposta, com o reenvio pelo navegador na hora', async () => {
       TestBed.inject(Preferences).redirectEnable.set(true);
       const redirect = vi.spyOn(TestBed.inject(Redirector), 'redirect').mockResolvedValue();
       const receive = vi.spyOn(RequestList.prototype, 'receive');

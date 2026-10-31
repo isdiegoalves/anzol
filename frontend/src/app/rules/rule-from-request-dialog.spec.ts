@@ -202,7 +202,7 @@ describe('Dado a folha "Create rule from this request"', () => {
     }
   });
 
-  it('deve esperar a leitura das regras em curso (a do circuito) e gravar a partir dela, sem o aviso falso de "changed" (F1-R14)', async () => {
+  it('deve esperar a leitura das regras em curso (a do circuito) e gravar a partir dela, sem o aviso falso de "changed"', async () => {
     // O circuito da Entrada começou a ler as regras da URL, e a resposta demora.
     const doCircuito = TestBed.inject(RuleStore)
       .load(TOKEN_ID)

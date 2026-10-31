@@ -40,7 +40,7 @@ export class UrlHeader {
   /** A URL da rota não existe: o cabeçalho mostra o endereço pedido, nunca o de outra URL. */
   readonly missing = input<MissingUrl | null>(null);
   /**
-   * Na Entrada, a assinatura e o schema são nós do circuito logo abaixo (C-1): os chips deles saem do cabeçalho. Nos
+   * Na Entrada, a assinatura e o schema são nós do circuito logo abaixo: os chips deles saem do cabeçalho. Nos
    * outros destinos, sem o circuito, ficam.
    */
   readonly circuit = input(false);

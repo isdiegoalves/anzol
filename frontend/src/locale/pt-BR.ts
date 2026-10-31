@@ -4502,7 +4502,7 @@ export const translations: Record<string, string> = {
   //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as Unknown key and are not decrypted. The private key is removed from this URL.
   '321796578656992291':
     ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
-  // Circuito da URL (feature "Circuito", F1)
+  // Circuito da URL
   // Sender
   '910656806257300801': 'Remetente',
   // Resend

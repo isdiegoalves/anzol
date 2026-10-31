@@ -1189,7 +1189,7 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(element().querySelector('.new-pill')).toBeNull();
   });
 
-  it('deve compensar todas as que entram acima antes de uma renderização, com a vista fora do topo (Circuito F2-R01)', async () => {
+  it('deve compensar todas as que entram acima antes de uma renderização, com a vista fora do topo', async () => {
     const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
     await load(vinte);
     const list = fixture.componentInstance;
@@ -1228,7 +1228,7 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(items()[0].classList.contains('fresh')).toBe(true);
   });
 
-  it('deve fazer a linha nascer do circuito só na chegada isolada com o topo à vista, e tirar a marca depois (Circuito F2, CA-1, CA-3)', async () => {
+  it('deve fazer a linha nascer do circuito só na chegada isolada com o topo à vista, e tirar a marca depois', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
       const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
@@ -1255,7 +1255,7 @@ describe('Dado a lista lateral de mensagens', () => {
       await fixture.whenStable();
       expect(items()[0].classList.contains('app-born')).toBe(false);
 
-      // Fora do topo, a lista não se move: nada nasce, e a pílula conta (CA-3).
+      // Fora do topo, a lista não se move: nada nasce, e a pílula conta.
       top.mockReturnValue(10 * ITEM_HEIGHT);
       const foraDaVista = webhookRequest(23);
       store.append(foraDaVista, 23);

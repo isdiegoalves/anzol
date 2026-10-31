@@ -75,7 +75,7 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.rules()).toEqual([rule(1), rule(2)]);
   });
 
-  it('deve reler sem apagar a lista nem `loadedFor` Quando `load` pede a URL já lida, e mantê-las se a leitura falha (F1-R13)', async () => {
+  it('deve reler sem apagar a lista nem `loadedFor` Quando `load` pede a URL já lida, e mantê-las se a leitura falha', async () => {
     await loaded();
 
     // Outro componente (o roteiro "Test a retry") lê a mesma URL: a lista segue na tela até a nova chegar.
@@ -95,7 +95,7 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.loadedFor()).toBe(TOKEN_ID);
   });
 
-  describe('Dado uma releitura em voo durante uma gravação (F1-R17)', () => {
+  describe('Dado uma releitura em voo durante uma gravação', () => {
     const gravada = [rule(1), rule(2), rule(3)];
 
     it('deve ficar com a lista gravada Quando a releitura que saiu antes do PUT chega depois dele, sem acusar mudança em outro lugar na próxima', async () => {
@@ -157,7 +157,7 @@ describe('Dado as regras da URL aberta', () => {
       await expect(store.ready(TOKEN_ID)).resolves.toEqual([rule(1), rule(2)]);
     });
 
-    it('deve esperar a leitura em curso da URL, sem pedir outra nem devolver a lista vazia de antes dela (F1-R14)', async () => {
+    it('deve esperar a leitura em curso da URL, sem pedir outra nem devolver a lista vazia de antes dela', async () => {
       const doCircuito = store.load(TOKEN_ID);
       const pronta = store.ready(TOKEN_ID);
       http.expectOne(url).flush([rule(1)]);
@@ -166,7 +166,7 @@ describe('Dado as regras da URL aberta', () => {
       await expect(pronta).resolves.toEqual([rule(1)]);
     });
 
-    it('deve esperar a leitura da mesma URL que tomou o lugar da esperada no meio do caminho (F1-R13)', async () => {
+    it('deve esperar a leitura da mesma URL que tomou o lugar da esperada no meio do caminho', async () => {
       const pronta = store.ready(TOKEN_ID);
       const doRoteiro = store.load(TOKEN_ID);
       const [primeira, segunda] = http.match(url);
@@ -207,7 +207,7 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.tested().size).toBe(0);
   });
 
-  it('deve guardar o teste de cada URL Quando outra tela (o circuito da Entrada) lê outra URL no meio, e devolvê-lo na volta (F1-R15)', async () => {
+  it('deve guardar o teste de cada URL Quando outra tela (o circuito da Entrada) lê outra URL no meio, e devolvê-lo na volta', async () => {
     await loaded();
     const test = store.testRule(rule(1));
     http.expectOne({ method: 'POST', url: `${url}/test` }).flush({
@@ -461,7 +461,7 @@ describe('Dado uma resposta atrasada nas regras de outra URL', () => {
     expect(store.rules()).toEqual([rule(9)]);
   });
 
-  it('deve pôr as regras da outra URL Quando o PUT da anterior termina antes da leitura dela (F1-R17)', async () => {
+  it('deve pôr as regras da outra URL Quando o PUT da anterior termina antes da leitura dela', async () => {
     const primeira = store.load(TOKEN_ID);
     http.expectOne(urlOf(TOKEN_ID)).flush([rule(1)]);
     await primeira;

@@ -114,7 +114,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await fixture.whenStable();
   };
 
-  it('deve mostrar a configuração da URL sem mensagem aberta, com os nós alcançáveis e axe limpo (CA-3, CA-5)', async () => {
+  it('deve mostrar a configuração da URL sem mensagem aberta, com os nós alcançáveis e axe limpo', async () => {
     const { container } = await mostrar();
 
     expect(screen.getByRole('region', { name: 'URL circuit' })).toBeTruthy();
@@ -133,7 +133,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       'Response',
       'Resend',
     ]);
-    // Como na demo: cada nó é uma parada do Tab, num grupo "Circuit nodes" (F1-R05).
+    // Como na demo: cada nó é uma parada do Tab, num grupo "Circuit nodes".
     expect(nos.every((no) => no.tabIndex === 0)).toBe(true);
     expect(screen.getByRole('group', { name: 'Circuit nodes' })).toBeTruthy();
     expect(screen.queryByRole('toolbar')).toBeNull();
@@ -145,7 +145,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve desenhar o caminho da mensagem aberta e o "quase" de P1 (CA-1, CA-2)', async () => {
+  it('deve desenhar o caminho da mensagem aberta e o "quase" de P1', async () => {
     const { container, fixture } = await mostrar();
     store.select(PELA_PADRAO.uuid);
     await fixture.whenStable();
@@ -170,7 +170,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve filtrar a lista pelo nó com clique e tirar com outro clique, sem motion (CA-4)', async () => {
+  it('deve filtrar a lista pelo nó com clique e tirar com outro clique, sem motion', async () => {
     const { fixture } = await mostrar();
     const p1 = () => screen.getByRole('button', { name: /^Rule P1 Assinatura inválida/ });
     expect(p1().getAttribute('aria-pressed')).toBe('false');
@@ -228,7 +228,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Resend/ }));
   });
 
-  it('deve acompanhar a regra gravada na própria Entrada (folha "Create rule", roteiro), sem trocar de URL (F1-R01)', async () => {
+  it('deve acompanhar a regra gravada na própria Entrada (folha "Create rule", roteiro), sem trocar de URL', async () => {
     const { fixture } = await mostrar();
     const regras = TestBed.inject(RuleStore);
     expect(screen.queryByRole('button', { name: /^Rule P2 Nova/ })).toBeNull();
@@ -247,7 +247,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     http.expectNone(`/token/${TOKEN_ID}/rules`);
   });
 
-  it('deve dizer "rules unavailable" quando a leitura das regras falha, e ler de novo quando a conexão volta (F1-R02)', async () => {
+  it('deve dizer "rules unavailable" quando a leitura das regras falha, e ler de novo quando a conexão volta', async () => {
     const { container, fixture } = await mostrar(undefined, false, 'falha');
 
     const aviso = [...container.querySelectorAll('.lab')].find(
@@ -257,7 +257,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(container.textContent).not.toContain('no rules');
     expect(screen.queryByRole('button', { name: /^Rule P1/ })).toBeNull();
 
-    // Depois da falha, nenhuma leitura antes de 15 s, qualquer que seja o gatilho (F1-R12).
+    // Depois da falha, nenhuma leitura antes de 15 s, qualquer que seja o gatilho.
     const agora = Date.now();
     const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + 5_000);
     await quedaEVolta(fixture);
@@ -271,7 +271,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('não deve entrar em laço Quando a leitura das regras falha sem resposta e o tempo real cai e volta (F1-R12)', async () => {
+  it('não deve entrar em laço Quando a leitura das regras falha sem resposta e o tempo real cai e volta', async () => {
     const { fixture, container } = await mostrar(undefined, false, 'sem-rede');
     expect(container.textContent).toContain('rules unavailable');
 
@@ -282,7 +282,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     http.expectNone(`/token/${TOKEN_ID}/rules`);
   });
 
-  it('deve espaçar as releituras da volta da conexão em 5 s ou mais, com as regras lidas (F1-R12)', async () => {
+  it('deve espaçar as releituras da volta da conexão em 5 s ou mais, com as regras lidas', async () => {
     const { fixture } = await mostrar();
     const agora = Date.now();
     const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + REREAD_MIN_MS + 1_000);
@@ -300,7 +300,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     relogio.mockRestore();
   });
 
-  it('deve esperar 15 s depois de uma releitura que falhou, mesmo com a lista de antes na tela (F1-R12)', async () => {
+  it('deve esperar 15 s depois de uma releitura que falhou, mesmo com a lista de antes na tela', async () => {
     const { fixture, container } = await mostrar();
     const agora = Date.now();
     const relogio = vi.spyOn(Date, 'now').mockReturnValue(agora + REREAD_MIN_MS + 1_000);
@@ -324,7 +324,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     relogio.mockRestore();
   });
 
-  it('deve dizer "rules unavailable" Quando outra leitura da mesma URL troca a do circuito e falha (o roteiro "Test a retry", F1-R13)', async () => {
+  it('deve dizer "rules unavailable" Quando outra leitura da mesma URL troca a do circuito e falha (o roteiro "Test a retry")', async () => {
     const { container } = await mostrar(undefined, false, (lidas) => {
       // O roteiro lê as regras da URL antes de a leitura do circuito chegar, e a dele falha.
       void TestBed.inject(RuleStore)
@@ -341,7 +341,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(container.querySelector('.stage')).not.toBeNull();
   });
 
-  it('deve reler as regras da URL aberta Quando a store passa a outra URL por fora, e dizer "rules unavailable" se falha (F1-R13)', async () => {
+  it('deve reler as regras da URL aberta Quando a store passa a outra URL por fora, e dizer "rules unavailable" se falha', async () => {
     const { container, fixture } = await mostrar();
     const regras = TestBed.inject(RuleStore);
 
@@ -363,7 +363,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy());
   });
 
-  it('deve abrir o painel Filtros pelo nó "+N rules", sem mexer no filtro da lista (F1-A01)', async () => {
+  it('deve abrir o painel Filtros pelo nó "+N rules", sem mexer no filtro da lista', async () => {
     const muitas = Array.from({ length: 6 }, (_, i) =>
       rule(i + 1, { id: `r${i + 1}`, priority: i + 1, name: `Regra ${i + 1}` }),
     );
@@ -382,7 +382,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     http.expectNone({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` });
   });
 
-  it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior (F1-R06)', async () => {
+  it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior', async () => {
     const rendered = await render(Circuit, {
       providers: [
         provideHttpClient(),
@@ -416,7 +416,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     ).toBeTruthy();
   });
 
-  describe('Dado as chegadas pelo tempo real (F2)', () => {
+  describe('Dado as chegadas pelo tempo real', () => {
     /** As animações pedidas ao navegador: o jsdom não tem WAAPI. */
     let animations: {
       target: Element;
@@ -467,7 +467,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       TestBed.inject(CircuitFlow).release();
     });
 
-    it('deve lançar o pulso inteiro pelo caminho da chegada isolada e fazer a linha nascer quando ele se desfaz na Resposta (CA-1)', async () => {
+    it('deve lançar o pulso inteiro pelo caminho da chegada isolada e fazer a linha nascer quando ele se desfaz na Resposta', async () => {
       const { container, fixture } = await mostrar();
       const flow = TestBed.inject(CircuitFlow);
 
@@ -516,7 +516,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(assenta.state).toBe('cancelled');
     });
 
-    it('deve rebaixar o pulso inteiro, sem rastro e no dobro da velocidade, e dar pulso curto de 90 ms à segunda da rajada (CA-2)', async () => {
+    it('deve rebaixar o pulso inteiro, sem rastro e no dobro da velocidade, e dar pulso curto de 90 ms à segunda da rajada', async () => {
       const { container } = await mostrar();
       const flow = TestBed.inject(CircuitFlow);
       flow.arrive(NOVA, { at: 0 });
@@ -533,7 +533,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(viagens.map(({ options }) => options.duration)).toEqual([900, 450]);
     });
 
-    it('deve virar fluxo acima de 5 por segundo: sem pulso, arestas engrossando, o medidor "N/s" e os contadores rolando só pela chegada (CA-2)', async () => {
+    it('deve virar fluxo acima de 5 por segundo: sem pulso, arestas engrossando, o medidor "N/s" e os contadores rolando só pela chegada', async () => {
       const { container, fixture } = await mostrar();
       const flow = TestBed.inject(CircuitFlow);
       for (let n = 1; n <= 7; n++) {
@@ -572,7 +572,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       });
     });
 
-    it('deve dizer quando a linha nasce sem desenhar pulso nem aparecer aos poucos, com movimento reduzido (CA-4)', async () => {
+    it('deve dizer quando a linha nasce sem desenhar pulso nem aparecer aos poucos, com movimento reduzido', async () => {
       const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
         matches: true,
         addEventListener: () => undefined,
@@ -593,7 +593,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(TestBed.inject(CircuitFlow).arrive(daP1(1), { at: 80 })).toBeNull();
     });
 
-    it('deve acender o Remetente com o IP já, e o resto do caminho de uma vez quando a linha nasce, com movimento reduzido (CA-4)', async () => {
+    it('deve acender o Remetente com o IP já, e o resto do caminho de uma vez quando a linha nasce, com movimento reduzido', async () => {
       const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
         matches: true,
         addEventListener: () => undefined,
@@ -650,7 +650,7 @@ describe('Dado o circuito da URL na Entrada', () => {
     await expectNoAxeViolations(container);
   });
 
-  it('deve falar pt-BR Quando a tradução está carregada (CA-6)', async () => {
+  it('deve falar pt-BR Quando a tradução está carregada', async () => {
     loadTranslations(translations);
     try {
       const { fixture, container } = await mostrar();
@@ -680,7 +680,7 @@ describe('Dado o circuito da URL na Entrada', () => {
 // Função pura, fora do `describe` acima: o `afterEach` de lá confere o `HttpTestingController` do último teste que
 // desenhou o circuito, e um pedido atrasado daquele teste caía na conta deste.
 describe('Dado a largura útil da faixa', () => {
-  it('deve caber o palco na faixa: margem de até 24 px, escala até 10 px de texto e só então rolar (F1-R04)', () => {
+  it('deve caber o palco na faixa: margem de até 24 px, escala até 10 px de texto e só então rolar', () => {
     // 1440 × 900 (área útil 1343): palco inteiro, margem de 24 px.
     expect(stageFit(1343)).toEqual({ scale: 1, margin: 24, scrolls: false });
     // 1366 × 768 (1269): a margem cede os 3 px que faltavam; nada rola.

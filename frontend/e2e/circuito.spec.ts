@@ -5,7 +5,7 @@ import { abrirMensagem, itens } from './support/inbox';
 import { folhaDeCriarRegra, lerRegras } from './support/regras';
 import { seedStorage } from './support/storage';
 
-// Feature "Circuito", F1: o circuito da URL abaixo do cabeçalho da Entrada (demo combinada). O caminho da mensagem
+// O circuito da URL abaixo do cabeçalho da Entrada (demo combinada). O caminho da mensagem
 // aberta, o "quase casou" em âmbar, a configuração sem mensagem, o filtro pelo nó, o teclado, as cores e o reflow.
 
 const SEGREDO = 'segredo-circuito';
@@ -83,7 +83,7 @@ async function token(page: Page, nome: string): Promise<string> {
 }
 
 test.describe('Dado o circuito da URL na Entrada', () => {
-  test('deve desenhar o caminho da mensagem aberta, com ✓/✗ por nó e o status em tinta neutra (CA-1)', async ({
+  test('deve desenhar o caminho da mensagem aberta, com ✓/✗ por nó e o status em tinta neutra', async ({
     page,
     tokens,
   }) => {
@@ -95,7 +95,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     );
     const resposta = rotulo(page, '401 · P1');
     await expect(resposta).toBeVisible();
-    // O nome comprido de quem respondeu termina em reticências, sem passar por cima do Reenvio (F1-R09).
+    // O nome comprido de quem respondeu termina em reticências, sem passar por cima do Reenvio.
     expect(await cor(resposta, 'max-width')).toBe('146px');
     expect(await cor(resposta, 'text-overflow')).toBe('ellipsis');
     // 401 de regra: tinta neutra, sem vermelho (VS-02/03).
@@ -104,14 +104,14 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(falha).toBeVisible();
     expect(await cor(falha, 'border-left-width')).toBe('2px');
     expect(await cor(falha.locator('.glyph'), 'color')).toBe(await token(page, '--mat-sys-error'));
-    // Como na demo, só ✗ e ◔ em negrito; o ✓ no peso do texto (F1-R10).
+    // Como na demo, só ✗ e ◔ em negrito; o ✓ no peso do texto.
     expect(await cor(falha.locator('.glyph'), 'font-weight')).toBe('700');
     expect(await cor(rotulo(page, 'valid · 2020-12').locator('.glyph'), 'font-weight')).toBe('400');
     // O caminho em tinta, parando em P1.
     await expect(circuito(page).locator('.route path')).toHaveCount(8);
   });
 
-  test('deve pôr "◔ near · missing: signature invalid" em âmbar na mais próxima e tirar com outra aberta (CA-2)', async ({
+  test('deve pôr "◔ near · missing: signature invalid" em âmbar na mais próxima e tirar com outra aberta', async ({
     page,
     tokens,
   }) => {
@@ -129,7 +129,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(rotulo(page, 'near ·')).toHaveCount(0);
   });
 
-  test('deve mostrar a configuração da URL sem mensagem aberta, e "no rules" na URL sem regras (CA-3)', async ({
+  test('deve mostrar a configuração da URL sem mensagem aberta, e "no rules" na URL sem regras', async ({
     page,
     tokens,
   }) => {
@@ -146,7 +146,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(page.getByRole('link', { name: /Signature verification/ })).toHaveCount(0);
   });
 
-  test('deve filtrar a lista pelo nó com clique e tirar com outro, sem motion (CA-4)', async ({
+  test('deve filtrar a lista pelo nó com clique e tirar com outro, sem motion', async ({
     page,
     tokens,
   }) => {
@@ -172,7 +172,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(page).not.toHaveURL(/outcome=/);
   });
 
-  test('deve levar o Tab aos nós, com foco visível e as setas andando entre eles (CA-5)', async ({
+  test('deve levar o Tab aos nós, com foco visível e as setas andando entre eles', async ({
     page,
     tokens,
   }) => {
@@ -190,7 +190,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     }
     await expect(no(page, /^Sender/)).toBeFocused();
     expect(await cor(no(page, /^Sender/), 'outline-width')).toBe('3px');
-    // Como na demo, cada nó é uma parada do Tab (F1-R05); as setas são atalho a mais.
+    // Como na demo, cada nó é uma parada do Tab; as setas são atalho a mais.
     await page.keyboard.press('Tab');
     await expect(no(page, /^Signature/)).toBeFocused();
     await page.keyboard.press('ArrowRight');
@@ -199,7 +199,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(no(page, /^Signature/)).toBeFocused();
   });
 
-  test('deve pôr na escada a regra criada pela folha "Create rule from this request", sem trocar de URL (F1-R01)', async ({
+  test('deve pôr na escada a regra criada pela folha "Create rule from this request", sem trocar de URL', async ({
     page,
     tokens,
   }) => {
@@ -218,7 +218,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${id}/`));
   });
 
-  test('deve dizer "rules unavailable" quando a leitura das regras falha e tentar de novo sozinho (F1-R02)', async ({
+  test('deve dizer "rules unavailable" quando a leitura das regras falha e tentar de novo sozinho', async ({
     page,
     tokens,
   }) => {
@@ -244,7 +244,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
   });
 
-  test('não deve entrar em laço Quando a leitura das regras falha sem resposta (status 0) (F1-R12)', async ({
+  test('não deve entrar em laço Quando a leitura das regras falha sem resposta (status 0)', async ({
     page,
     tokens,
   }) => {
@@ -274,7 +274,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(rotulo(page, 'rules unavailable')).toBeVisible();
   });
 
-  test('deve manter a escada Quando o roteiro "Test a retry" lê as regras e a leitura falha (F1-R13)', async ({
+  test('deve manter a escada Quando o roteiro "Test a retry" lê as regras e a leitura falha', async ({
     page,
     tokens,
   }) => {
@@ -300,7 +300,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
   });
 
-  test('deve criar a regra pela folha enquanto a leitura das regras da abertura demora, sem apagar as outras (F1-R14)', async ({
+  test('deve criar a regra pela folha enquanto a leitura das regras da abertura demora, sem apagar as outras', async ({
     page,
     tokens,
   }) => {
@@ -329,7 +329,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     expect(regras).toHaveLength(4);
   });
 
-  test('deve dizer na linha "+N rules" a regra escondida que respondeu, e abrir os Filtros por ela (F1-A01)', async ({
+  test('deve dizer na linha "+N rules" a regra escondida que respondeu, e abrir os Filtros por ela', async ({
     page,
     tokens,
   }) => {
@@ -394,10 +394,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     [1366, 768],
     [1280, 800],
   ] as const) {
-    test(`deve caber inteiro, sem rolar, a ${largura} × ${altura} (F1-R04)`, async ({
-      page,
-      tokens,
-    }) => {
+    test(`deve caber inteiro, sem rolar, a ${largura} × ${altura}`, async ({ page, tokens }) => {
       await page.setViewportSize({ width: largura, height: altura });
       const { tokenId, valida } = await urlDaDemo(page, tokens);
       await abrirMensagem(page, tokenId, valida);
@@ -415,7 +412,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     });
   }
 
-  test('deve abrir já com a altura final da faixa, sem salto depois da primeira pintura, a 1200 px (F1-R16)', async ({
+  test('deve abrir já com a altura final da faixa, sem salto depois da primeira pintura, a 1200 px', async ({
     page,
     tokens,
   }) => {
@@ -449,7 +446,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     expect(alturas[0]).toBeCloseTo((120 * 10) / 11 + 1, 0);
   });
 
-  test('deve rolar por dentro só abaixo do piso legível, com a barra embaixo do palco (F1-R04)', async ({
+  test('deve rolar por dentro só abaixo do piso legível, com a barra embaixo do palco', async ({
     page,
     tokens,
   }) => {
@@ -476,7 +473,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     );
   });
 
-  test('deve dar a todo nó um alvo de 24 × 24 px ou mais (WCAG 2.5.8, F1-R11)', async ({
+  test('deve dar a todo nó um alvo de 24 × 24 px ou mais (WCAG 2.5.8)', async ({
     page,
     tokens,
   }) => {
@@ -496,7 +493,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
   test.describe('no tema escuro', () => {
     test.use({ colorScheme: 'dark' });
 
-    test('deve manter o caminho, o "quase" e o axe limpo (CA-5)', async ({ page, tokens }) => {
+    test('deve manter o caminho, o "quase" e o axe limpo', async ({ page, tokens }) => {
       const { tokenId, valida } = await urlDaDemo(page, tokens);
       await abrirMensagem(page, tokenId, valida);
 
@@ -509,7 +506,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
   test.describe('com as cores forçadas do sistema', () => {
     test.use({ forcedColors: 'active' });
 
-    test('deve desenhar o caminho em tinta do sistema e o filtro em destaque (CA-5)', async ({
+    test('deve desenhar o caminho em tinta do sistema e o filtro em destaque', async ({
       page,
       tokens,
     }) => {
@@ -531,7 +528,7 @@ test.describe('Dado o circuito da URL na Entrada', () => {
   test.describe('no celular de 320 px', () => {
     test.use({ viewport: { width: 320, height: 720 } });
 
-    test('deve mostrar só o caminho da mensagem aberta numa linha que rola, sem rolar a página (CA-5)', async ({
+    test('deve mostrar só o caminho da mensagem aberta numa linha que rola, sem rolar a página', async ({
       page,
       tokens,
     }) => {

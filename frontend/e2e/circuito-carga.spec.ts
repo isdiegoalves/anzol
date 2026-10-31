@@ -4,7 +4,7 @@ import { expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
 // Roda sozinho, fora dos outros E2E: `CARGA=1 npx playwright test`.
-// Feature "Circuito", F2 (CA-5): com 10.000 mensagens carregadas e uma rajada de 64 clientes, o circuito vira fluxo
+// Com 10.000 mensagens carregadas e uma rajada de 64 clientes, o circuito vira fluxo
 // sem perder quadros (≤ 5 %) e as interações (J/K, abrir uma linha, filtrar pelo nó) respondem em até 200 ms (INP).
 
 /** Quantas mensagens a lista carrega antes da rajada. */
@@ -126,7 +126,7 @@ async function dezMil(
 test.describe('Dado a Entrada com 10.000 mensagens carregadas', () => {
   test.setTimeout(180_000);
 
-  test('deve aguentar a rajada de 64 clientes sem perder mais de 5 % dos quadros, com INP de até 200 ms (CA-5)', async ({
+  test('deve aguentar a rajada de 64 clientes sem perder mais de 5 % dos quadros, com INP de até 200 ms', async ({
     page,
     tokens,
   }) => {

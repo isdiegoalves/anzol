@@ -68,7 +68,7 @@
   stroke-width: 1px;
 }
 
-// No modo fluxo a aresta engrossa pelas chegadas que passaram por ela, e os contadores rolam (C-6): só quando a
+// No modo fluxo a aresta engrossa pelas chegadas que passaram por ela, e os contadores rolam: só quando a
 // contagem mudou por uma chegada (`.rolls`); com movimento reduzido, em 0 ms (sem transição nenhuma).
 @media (prefers-reduced-motion: no-preference) {
   .rolls {
@@ -212,7 +212,7 @@
   text-overflow: ellipsis;
 }
 
-// O "◔ P6 Nome" na linha "+N regras" (F1-A01) não passa do coletor, como as outras anotações.
+// O "◔ P6 Nome" na linha "+N regras" não passa do coletor, como as outras anotações.
 .ann.near {
   max-width: 180px;
 }

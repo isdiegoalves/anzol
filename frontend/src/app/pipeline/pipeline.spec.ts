@@ -557,7 +557,7 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
   });
 });
 
-describe('Dado a falha de rede que a regra injetou (F1-R03)', () => {
+describe('Dado a falha de rede que a regra injetou', () => {
   it.each([
     ['connection_reset', 'Connection reset'],
     ['empty_response', 'Empty response'],

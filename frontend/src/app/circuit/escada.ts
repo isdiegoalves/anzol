@@ -11,14 +11,14 @@ export const WINDOW_MS = 1000;
 export const FLOW_ABOVE = 5;
 /**
  * O pulso curto pede duas chegadas a menos disto uma da outra: a folga de 100 ms sob a janela de 1 s deixa uma cadência
- * regular de 1 por segundo sempre no pulso inteiro, sem oscilar com o atraso da rede (F2-R04).
+ * regular de 1 por segundo sempre no pulso inteiro, sem oscilar com o atraso da rede.
  */
 export const SHORT_WITHIN_MS = 900;
 /** Quanto a escada espera, depois de a janela voltar abaixo do limiar, para descer um degrau. */
 export const HYSTERESIS_MS = 2000;
 /**
  * O pulso curto não corre mais que isto sem uma pausa de `HYSTERESIS_MS` entre duas chegadas: daí em diante, como no
- * fluxo (sem pulso, os contadores rolando), até a pausa. Nada se move mais de 5 s sem parar (WCAG 2.2.2, F2-R02).
+ * fluxo (sem pulso, os contadores rolando), até a pausa. Nada se move mais de 5 s sem parar (WCAG 2.2.2).
  */
 export const SHORT_LIMIT_MS = 5000;
 

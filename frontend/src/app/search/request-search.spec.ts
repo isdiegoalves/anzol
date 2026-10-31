@@ -676,7 +676,7 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       expect(document.activeElement).toBe(filters());
     });
 
-    it('deve abrir com o foco no primeiro chip Quando outro lugar pede o painel (o "+N rules" do circuito), e não fechar se já aberto (F1-A01)', async () => {
+    it('deve abrir com o foco no primeiro chip Quando outro lugar pede o painel (o "+N rules" do circuito), e não fechar se já aberto', async () => {
       const chips = TestBed.inject(FilterChips);
 
       chips.askPanel();

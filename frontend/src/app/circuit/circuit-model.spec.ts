@@ -140,7 +140,7 @@ describe('Dado o circuito da URL com P1, P2 e P3 (o desenho da demo)', () => {
     ]);
   });
 
-  it('deve mostrar a configuração Quando nenhuma mensagem está aberta (CA-3)', () => {
+  it('deve mostrar a configuração Quando nenhuma mensagem está aberta', () => {
     const view = circuito();
 
     expect(texto(view, 'sender:sub')).toBe('—');
@@ -177,7 +177,7 @@ describe('Dado o circuito da URL com P1, P2 e P3 (o desenho da demo)', () => {
     expect(texto(view, 'response:sub')).toBe('5 responses');
   });
 
-  it('deve desenhar o caminho da mensagem aberta até a padrão, com ✓ por nó e status neutro (CA-1)', () => {
+  it('deve desenhar o caminho da mensagem aberta até a padrão, com ✓ por nó e status neutro', () => {
     const view = circuito({ requests: [PELA_PADRAO], selected: PELA_PADRAO });
 
     expect(view.route).toEqual(['rs', 'ss', 'sd', 'br', 's0', 's1', 's2', 'x3', 'c3', 'c2', 'out']);
@@ -248,7 +248,7 @@ describe('Dado o circuito da URL com P1, P2 e P3 (o desenho da demo)', () => {
   });
 });
 
-describe('Dado a mensagem aberta com uma regra que quase casou (CA-2)', () => {
+describe('Dado a mensagem aberta com uma regra que quase casou', () => {
   it('deve pôr "◔ near · missing: signature invalid" em âmbar, com régua, acima de P1', () => {
     const view = circuito({ selected: PELA_PADRAO });
 
@@ -261,7 +261,7 @@ describe('Dado a mensagem aberta com uma regra que quase casou (CA-2)', () => {
     );
   });
 
-  it('deve ficar junto da P1 (y = 9) com uma regra só, com a escada começando em y = 24 como na demo (F1-R08)', () => {
+  it('deve ficar junto da P1 (y = 9) com uma regra só, com a escada começando em y = 24 como na demo', () => {
     const uma = circuito({ rules: [P1], selected: PELA_PADRAO });
     const duas = circuito({ rules: [P1, P3], selected: PELA_PADRAO });
 
@@ -423,7 +423,7 @@ describe('Dado muitas regras', () => {
       webhookRequest(80 + i, { rule: { id: `r${i + 3}`, name: `Regra ${i + 3}` } }),
     );
 
-  it('deve dizer na linha "+N rules" a regra escondida que respondeu à mensagem aberta, no lugar da contagem (F1-A01)', () => {
+  it('deve dizer na linha "+N rules" a regra escondida que respondeu à mensagem aberta, no lugar da contagem', () => {
     const daSetima: CapturedRequest = webhookRequest(70, {
       signature: valida,
       schema: schemaOk,
@@ -444,7 +444,7 @@ describe('Dado muitas regras', () => {
     expect(view.description).toContain('P7 ✓ → 503.');
   });
 
-  it('deve dizer na linha "+N rules" a falha de rede da regra escondida que respondeu (F1-A01)', () => {
+  it('deve dizer na linha "+N rules" a falha de rede da regra escondida que respondeu', () => {
     const daQuinta: CapturedRequest = webhookRequest(71, {
       rule: { id: 'r5', name: 'Regra 5' },
       response: { fault: 'connection_reset' },
@@ -454,7 +454,7 @@ describe('Dado muitas regras', () => {
     expect(texto(view, 'more:ann')).toBe('P5 Regra 5 · TCP RST');
   });
 
-  it('deve dizer na linha "+N rules" a regra escondida que quase casou, em âmbar (F1-A01)', () => {
+  it('deve dizer na linha "+N rules" a regra escondida que quase casou, em âmbar', () => {
     const quaseSexta: CapturedRequest = webhookRequest(72, {
       signature: valida,
       schema: schemaOk,
@@ -471,7 +471,7 @@ describe('Dado muitas regras', () => {
     );
   });
 
-  it('deve dizer em pt-BR "+6 regras, entre elas P7 Regra 7, que respondeu: 503" (F1-A01)', () => {
+  it('deve dizer em pt-BR "+6 regras, entre elas P7 Regra 7, que respondeu: 503"', () => {
     loadTranslations(translations);
     try {
       const daSetima: CapturedRequest = webhookRequest(70, {
@@ -488,7 +488,7 @@ describe('Dado muitas regras', () => {
     }
   });
 
-  it('deve contar as mensagens das escondidas Quando a aberta não passou por elas, e abrir os Filtros pelo Enter (F1-A01)', () => {
+  it('deve contar as mensagens das escondidas Quando a aberta não passou por elas, e abrir os Filtros pelo Enter', () => {
     const view = circuito({ rules: muitas, requests: lidas(3), selected: PELA_PADRAO });
 
     expect(texto(view, 'more:ann')).toBe('3');
@@ -497,7 +497,7 @@ describe('Dado muitas regras', () => {
     expect(no(view, 'rule:r1')?.opens).toBeUndefined();
   });
 
-  it('deve dar a todo nó um alvo de 24 × 24 px ou mais na tela, também com o palco encolhido (WCAG 2.5.8, F1-R11)', () => {
+  it('deve dar a todo nó um alvo de 24 × 24 px ou mais na tela, também com o palco encolhido (WCAG 2.5.8)', () => {
     for (const scale of [1, 10 / 11]) {
       for (const rules of [REGRAS, [P1], muitas, []]) {
         for (const node of circuito({ rules, selected: PELA_PADRAO, scale }).nodes) {
@@ -516,7 +516,7 @@ describe('Dado muitas regras', () => {
   });
 });
 
-describe('Dado as falhas de rede que a regra pode injetar (F1-R03)', () => {
+describe('Dado as falhas de rede que a regra pode injetar', () => {
   it.each([
     ['hang', 'Hang', '⚡ hang · 1', 'Hang · P2', 'hang'],
     [
@@ -553,7 +553,7 @@ describe('Dado as falhas de rede que a regra pode injetar (F1-R03)', () => {
   );
 });
 
-describe('Dado a mensagem gravada antes das regras (F1-R07)', () => {
+describe('Dado a mensagem gravada antes das regras', () => {
   it('deve ir direto da Decifra à Resposta, sem passar pela escada nem dizer "P1 ✗"', () => {
     const antiga = webhookRequest(3, {
       signature: valida,
@@ -577,7 +577,7 @@ describe('Dado a mensagem gravada antes das regras (F1-R07)', () => {
   });
 });
 
-describe('Dado a regra que respondeu e saiu da escada (desligada ou apagada) (F1-R09)', () => {
+describe('Dado a regra que respondeu e saiu da escada (desligada ou apagada)', () => {
   const desligada = rule(9, {
     id: 'p9',
     name: 'Assinatura antiga com um nome bem comprido',
@@ -609,7 +609,7 @@ describe('Dado a regra que respondeu e saiu da escada (desligada ou apagada) (F1
   });
 });
 
-describe('Dado as regras que não puderam ser lidas (F1-R02)', () => {
+describe('Dado as regras que não puderam ser lidas', () => {
   it('deve dizer "rules unavailable" em tinta fraca, sem "no rules" nem anotação de anomalia', () => {
     const view = circuito({
       rules: null,
@@ -628,7 +628,7 @@ describe('Dado as regras que não puderam ser lidas (F1-R02)', () => {
   });
 });
 
-describe('Dado o caminho da mensagem aberta em saltos, para o pulso (F2)', () => {
+describe('Dado o caminho da mensagem aberta em saltos, para o pulso', () => {
   it('deve dar os 5 saltos da escada até a padrão, subindo o coletor de baixo para cima, e o salto em que cada aresta acende', () => {
     const view = circuito({ selected: PELA_PADRAO });
 
@@ -691,7 +691,7 @@ describe('Dado o caminho da mensagem aberta em saltos, para o pulso (F2)', () =>
     expect(circuito().labels.some((label) => label.reveal !== undefined)).toBe(false);
   });
 
-  it('deve separar o número das contagens, para o contador rolar até ele (C-6)', () => {
+  it('deve separar o número das contagens, para o contador rolar até ele', () => {
     const view = circuito({ requests: [PELA_PADRAO, DA_P1, DA_P1, SCHEMA_RUIM] });
 
     expect(rotulo(view, 'rule:p1:ann').count).toEqual({ value: 2, before: '401 · ', after: '' });

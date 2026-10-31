@@ -344,7 +344,7 @@ export class RequestList {
   /** As que acabaram de chegar, destacadas por alguns segundos. */
   protected readonly fresh = signal<ReadonlySet<string>>(new Set());
   /**
-   * As que nasceram do circuito agora (F2): a chegada isolada, com a vista no topo, entra descendo 16 px a partir do
+   * As que nasceram do circuito agora: a chegada isolada, com a vista no topo, entra descendo 16 px a partir do
    * nó Resposta (`app-born`, no `styles.scss`).
    */
   protected readonly born = signal<ReadonlySet<string>>(new Set());
@@ -528,8 +528,7 @@ export class RequestList {
 
   /**
    * A nova entrou acima da vista: sem compensar, a lista desceria um item sob o cursor. Numa rajada, várias entram antes
-   * de uma renderização e leem a mesma posição: a compensação soma todas e vai de uma vez, depois da renderização
-   * (F2-R01).
+   * de uma renderização e leem a mesma posição: a compensação soma todas e vai de uma vez, depois da renderização.
    */
   private keepViewBelow(): void {
     if (this.shift) {
@@ -732,7 +731,7 @@ export class RequestList {
   /**
    * O item de cada mensagem, montado uma vez enquanto o que ele mostra não muda (o relógio do tempo relativo, a não
    * lida, o papel no Compare): com 10.000 carregadas, remontar todos a cada chegada (a data por extenso, o `$localize`)
-   * perdia quadros sob rajada (Circuito, F2, CA-5).
+   * perdia quadros sob rajada.
    */
   private readonly items = new WeakMap<WebhookRequest, { key: string; item: ItemView }>();
 

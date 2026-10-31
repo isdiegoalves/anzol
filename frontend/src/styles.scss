@@ -532,9 +532,9 @@ pre code.hljs {
   color: var(--mat-sys-secondary);
 }
 
-// Feature "Circuito", F2. A linha que acabou de chegar sozinha nasce do nó Resposta: desce 16 px e aparece em 224 ms
+// A linha que acabou de chegar sozinha nasce do nó Resposta: desce 16 px e aparece em 224 ms
 // (proposta 1 §4 M1). Aqui, e não no estilo da lista, que está no teto do orçamento; a lista põe a classe só na linha
-// nova com a vista no topo. Com movimento reduzido, nada se desloca: só o fade de 120 ms (MR-0).
+// nova com a vista no topo. Com movimento reduzido, nada se desloca: só o fade de 120 ms.
 @keyframes app-born {
   from {
     opacity: 0;
@@ -558,7 +558,7 @@ pre code.hljs {
   }
 }
 
-// Os contadores dos nós do circuito rolam até o número novo (C-6) por esta propriedade registrada; o número de
+// Os contadores dos nós do circuito rolam até o número novo por esta propriedade registrada; o número de
 // verdade fica no texto, ao lado.
 @property --n {
   syntax: '<integer>';
