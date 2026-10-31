@@ -4585,4 +4585,8 @@ export const translations: Record<string, string> = {
   '1059778215596491745': 'circuito',
   // Circuit nodes
   '8810397811583160300': 'Nós do circuito',
+  // Stall after headers (falha de rede)
+  '437163469819605895': 'Parada depois dos cabeçalhos',
+  // Truncated body (falha de rede)
+  '5521466753234650852': 'Corpo cortado',
 };

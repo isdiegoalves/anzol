@@ -2,7 +2,7 @@ import { clearTranslations, loadTranslations } from '@angular/localize';
 import { TOKEN_ID, token, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { CapturedRequest } from '../requests/webhook-request';
-import { CheckResult, checksOf, closestPhrase, pipelineOf, routeOf } from './pipeline';
+import { CheckResult, checksOf, closestPhrase, faultName, pipelineOf, routeOf } from './pipeline';
 
 /** Só o que o selo mostra, para a tabela caber numa linha por caso. */
 const brief = ({ state, tone, title, detail }: CheckResult) => ({ state, tone, title, detail });
@@ -554,5 +554,23 @@ describe('Dado o selo curto da lista e o cartão do detalhe (INBOX-13/18)', () =
     });
 
     expect(pipelineOf(request).signature.detail).toBe('Stripe · signed 5 s before arrival');
+  });
+});
+
+describe('Dado a falha de rede que a regra injetou (F1-R03)', () => {
+  it.each([
+    ['connection_reset', 'Connection reset'],
+    ['empty_response', 'Empty response'],
+    ['malformed_chunk', 'Malformed chunk'],
+    ['random_data_then_close', 'Random data'],
+    ['hang', 'Hang'],
+    ['stall_after_headers', 'Stall after headers'],
+    ['truncated_body', 'Truncated body'],
+  ])('deve dar nome a %s, sem o id cru', (fault, nome) => {
+    expect(faultName(fault)).toBe(nome);
+  });
+
+  it('deve dizer a falha como veio Quando a tela não a conhece', () => {
+    expect(faultName('nova_falha')).toBe('nova_falha');
   });
 });

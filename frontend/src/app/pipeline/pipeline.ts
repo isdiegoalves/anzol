@@ -273,6 +273,9 @@ export function faultName(fault: string): string {
     empty_response: $localize`:network fault:Empty response`,
     malformed_chunk: $localize`:network fault:Malformed chunk`,
     random_data_then_close: $localize`:network fault:Random data`,
+    hang: $localize`:network fault:Hang`,
+    stall_after_headers: $localize`:network fault:Stall after headers`,
+    truncated_body: $localize`:network fault:Truncated body`,
   };
   return names[fault] ?? fault;
 }
