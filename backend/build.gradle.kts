@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.spring") version "2.4.20"
-    id("org.springframework.boot") version "4.1.1"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.spring") version "2.4.21"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("dev.detekt") version "2.0.0-alpha.6"
@@ -37,8 +37,8 @@ repositories {
 
 dependencyManagement {
     imports {
-        // Spring AI 2.0.1 é compilado contra o Spring Boot 4.1.1 (o mesmo deste projeto) e o Spring Framework 7.0.9.
-        mavenBom("org.springframework.ai:spring-ai-bom:2.0.1")
+        // Spring AI 2.0.2 é compilado contra o Spring Boot 4.1.2 (o mesmo deste projeto) e o Spring Framework 7.0.10.
+        mavenBom("org.springframework.ai:spring-ai-bom:2.0.2")
     }
 }
 

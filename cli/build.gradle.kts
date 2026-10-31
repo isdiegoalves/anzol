@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.4.20"
-    kotlin("plugin.serialization") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.serialization") version "2.4.21"
     application
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("dev.detekt") version "2.0.0-alpha.6"
@@ -40,8 +40,8 @@ repositories {
 
 dependencies {
     implementation("com.github.ajalt.clikt:clikt-core:5.1.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-    testImplementation(platform("org.junit:junit-bom:6.0.3"))
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.awaitility:awaitility:4.3.0")
