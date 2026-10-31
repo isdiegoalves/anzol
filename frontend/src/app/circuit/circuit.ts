@@ -100,6 +100,8 @@ export class Circuit implements FlowStage {
   /** As animações do aparecer (arestas, glifos) e do assentar do caminho da chegada aberta. */
   private revealing: Animation[] = [];
   private settling: { id: string; animation: Animation } | null = null;
+  /** A chegada cujo caminho a seguinte trocou: ela ainda vai nascer, e a tela a abre. */
+  private landing: string | null = null;
 
   /** Celular: a linha de glifos com o caminho da mensagem aberta, no lugar do desenho. */
   readonly line = input(false);
@@ -319,10 +321,15 @@ export class Circuit implements FlowStage {
       }
     });
     // A pessoa abriu outra mensagem enquanto o caminho da chegada assentava: ele para no estado final, sem motion.
+    // A chegada anterior, que nasce e a tela abre, não é a pessoa: a que passa segue à vista.
     effect(() => {
       const selected = this.requests.selected()?.uuid ?? null;
       untracked(() => {
-        if (this.settling && selected !== null && selected !== this.settling.id) {
+        const reveal = this.reveal();
+        if (reveal && selected !== null && selected === this.landing) {
+          this.landing = null;
+          this.reveal.set({ ...reveal, before: selected });
+        } else if (this.settling && selected !== null && selected !== this.settling.id) {
           this.stopReveal();
         }
       });
@@ -503,6 +510,7 @@ export class Circuit implements FlowStage {
    * chega ao nó. Quando a linha nasce, o caminho fica em tinta cheia e assenta em 1,5 s.
    */
   private startReveal(request: WebhookRequest, born: number, motion: Motion): void {
+    this.landing = untracked(this.reveal)?.request.uuid ?? null;
     this.stopReveal();
     this.reveal.set({ request, before: untracked(this.requests.selected)?.uuid ?? null });
     clearTimeout(this.revealTimer);

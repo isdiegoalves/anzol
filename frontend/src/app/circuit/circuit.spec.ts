@@ -516,6 +516,39 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(assenta.state).toBe('cancelled');
     });
 
+    it('deve seguir mostrando a chegada seguinte enquanto o pulso passa Quando a tela abre a anterior, que acabou de nascer', async () => {
+      const { fixture } = await mostrar();
+      const flow = TestBed.inject(CircuitFlow);
+      const SEGUINTE = {
+        ...NOVA,
+        uuid: 'seguinte',
+        url: `http://localhost:8084/${TOKEN_ID}/webhooks/seguinte`,
+      };
+      void flow.arrive(NOVA, { at: 0, opens: true });
+      await fixture.whenStable();
+      const antes = animations.length;
+      void flow.arrive(SEGUINTE, { at: 1000, opens: true });
+      await fixture.whenStable();
+      const revelacao = animations.slice(antes).filter(({ target }) => !target.closest('.fx'));
+      expect(revelacao.length).toBeGreaterThan(0);
+
+      // Com "Follow new", a anterior nasce na lista e a tela a abre, 80 ms depois.
+      store.append(NOVA, 3);
+      store.select(NOVA.uuid);
+      await fixture.whenStable();
+
+      expect(revelacao.map(({ state }) => state)).toEqual(revelacao.map(() => 'running'));
+      expect(screen.getByRole('img').getAttribute('aria-label')).toContain(
+        'Open request: POST /webhooks/seguinte',
+      );
+
+      // A pessoa abre outra mensagem: aí o desenho é o dela, já.
+      store.select(DA_P1.uuid);
+      await fixture.whenStable();
+      expect(screen.getByRole('img').getAttribute('aria-label')).toMatch(/P1 ✓ → 401\.$/);
+      expect(revelacao.some(({ state }) => state === 'running')).toBe(false);
+    });
+
     it('deve rebaixar o pulso inteiro, sem rastro e no dobro da velocidade, e dar pulso curto de 90 ms à segunda da rajada', async () => {
       const { container } = await mostrar();
       const flow = TestBed.inject(CircuitFlow);
