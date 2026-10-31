@@ -72,6 +72,9 @@ function receivedAud(aud: readonly string[]): string {
     : $localize`Received aud: none`;
 }
 
+/** Os números dos nós do circuito, na ordem dos cartões. */
+const CIRCLED = ['①', '②', '③', '④'];
+
 @Component({
   selector: 'app-request-view',
   imports: [
@@ -107,6 +110,11 @@ export class RequestView {
   readonly readonly = input(false);
   /** A regra que chegou mais perto, vinda do trace (quem tem a URL, o detalhe, pede e passa). */
   readonly closest = input<readonly string[]>([]);
+  /**
+   * Na Entrada, os cartões ganham ① ② ③, os números dos nós do circuito que mostram a mesma verificação (como na
+   * demo combinada). No celular o circuito é a linha do caminho, sem os números: os cartões também ficam sem.
+   */
+  readonly numbered = input(false);
 
   protected readonly localDateToTheSecond = localDateToTheSecond;
   protected readonly fromNow = fromNow;
@@ -130,6 +138,23 @@ export class RequestView {
   protected readonly checks = computed(() => {
     const { signature, schema, decryption, rule } = this.pipeline();
     return [signature, schema, ...(decryption ? [decryption] : []), rule];
+  });
+  /** O número de cada cartão (① ② ③ ④), na ordem dos nós do circuito; vazio sem os números. */
+  protected readonly numbers = computed(() =>
+    this.numbered() && !this.compact() ? this.checks().map((_, i) => CIRCLED[i]) : [],
+  );
+  /** A legenda do cabeçalho: "① Assinatura · ② Schema · ③ Resposta". */
+  protected readonly numberKey = computed(() => {
+    const names: Record<CheckResult['kind'], string> = {
+      signature: $localize`:circuit node:Signature`,
+      schema: $localize`:circuit node:Schema`,
+      decryption: $localize`:circuit node:Decryption`,
+      rule: $localize`:circuit node:Response`,
+    };
+    const numbers = this.numbers();
+    return this.checks().flatMap((check, i) =>
+      numbers[i] ? [{ number: numbers[i], name: names[check.kind] }] : [],
+    );
   });
   /**
    * O que fazer com a decifra que falhou, e o que mais ela gravou: a chave, quem assinou, o `jti` e,

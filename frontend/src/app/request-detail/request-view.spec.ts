@@ -45,6 +45,39 @@ describe('Dado a visualização de uma mensagem (detalhe e link só-leitura)', (
     windowClass.set('large');
   });
 
+  it('deve numerar os cartões ① ② ③ como os nós do circuito, com a legenda no cabeçalho, só na Entrada larga', async () => {
+    const request = webhookRequest(1, {
+      signature: { provider: 'github', valid: true, reason: null },
+      schema: { valid: true, errors: [] },
+      rule: null,
+      response: { status: 200 },
+    });
+    const { container, fixture } = await show(request);
+    expect(container.querySelector('.num')).toBeNull();
+
+    fixture.componentRef.setInput('numbered', true);
+    await fixture.whenStable();
+
+    const cartoes = screen.getByRole('group', { name: 'Checks on this request' });
+    expect([...cartoes.querySelectorAll('.num')].map((num) => num.textContent?.trim())).toEqual([
+      '①',
+      '②',
+      '③',
+    ]);
+    expect(container.querySelector('.key')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      '① Signature · ② Schema · ③ Response',
+    );
+    // Os números são a ponte com o desenho: o leitor de tela já ouve o nó, e não "círculo um".
+    expect(container.querySelector('.key')?.getAttribute('aria-hidden')).toBe('true');
+    expect(cartoes.querySelector('.num')?.getAttribute('aria-hidden')).toBe('true');
+    await expectNoAxeViolations(container);
+
+    windowClass.set('compact');
+    await fixture.whenStable();
+    expect(container.querySelector('.num')).toBeNull();
+    expect(container.querySelector('.key')).toBeNull();
+  });
+
   it('deve mostrar método e rota e a linha de metadados (URL, host, data, tamanho, seq, ID), e passar no axe', async () => {
     const request = {
       ...webhookRequest(1, {

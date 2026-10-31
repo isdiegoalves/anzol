@@ -57,7 +57,8 @@
       </span>
     </a>
   }
-  @if (read?.signature; as signature) {
+  <!-- Na Entrada, a assinatura e o schema são nós do circuito, abaixo do cabeçalho. -->
+  @if (!circuit() && read?.signature; as signature) {
     <a
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"
@@ -67,7 +68,7 @@
       <app-icon name="checks" [size]="16" />{{ providerLabel(signature.provider) }}
     </a>
   }
-  @if (read?.schema) {
+  @if (read?.schema && !circuit()) {
     <a
       class="chip check"
       [routerLink]="['/', token.uuid, 'checks']"

@@ -231,6 +231,18 @@ describe('Dado o cabeçalho da URL aberta', () => {
     );
   });
 
+  it('não deve mostrar os chips de assinatura e schema Quando o circuito da Entrada os mostra como nós', async () => {
+    const { fixture } = await renderWith(
+      token({ signature: { provider: 'stripe', secret: '••••1234' }, schema: { type: 'object' } }),
+    );
+    fixture.componentRef.setInput('circuit', true);
+    await fixture.whenStable();
+
+    expect(screen.queryByRole('link', { name: /Signature verification/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Schema validation/ })).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Webhook URL' })).toBeTruthy();
+  });
+
   it('deve marcar a URL de laboratório e quando ela expira, levando a Checks › Decifra', async () => {
     const daqui5Horas = new Date(Date.now() + 5 * 3_600_000 + 60_000)
       .toISOString()

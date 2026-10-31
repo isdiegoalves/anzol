@@ -18,6 +18,18 @@
   <!-- prettier-ignore -->
   <h2 class="route" tabindex="-1" [title]="flow.route" [attr.aria-level]="readonly() ? 1 : null" [attr.aria-label]="readonly() ? null : flow.route">@if (readonly()) {{{ flow.route }}} @else {<app-value label="Path" i18n-label [target]="{ kind: 'path', name: '', value: routeParts().path }">{{ routeParts().path }}</app-value>{{ routeParts().query }}}</h2>
   <span class="spacer"></span>
+  @if (numberKey().length > 0) {
+    <!-- Só para quem vê o circuito: os nós já dizem a mesma verificação a quem ouve. -->
+    <span class="key" aria-hidden="true">
+      @for (key of numberKey(); track key.number) {
+        @if (!$first) {
+          &ngsp;·&ngsp;
+        }
+        <b>{{ key.number }}</b
+        >&ngsp;{{ key.name }}
+      }
+    </span>
+  }
   <ng-content select="[viewNav]" />
 </header>
 
@@ -67,13 +79,24 @@
 </div>
 
 <div class="checks" role="group" aria-label="Checks on this request" i18n-aria-label>
-  @for (check of checks(); track check.kind) {
+  @for (check of checks(); track check.kind; let i = $index) {
     @if (!readonly() && tabOf(check) !== null) {
-      <button type="button" class="check" (click)="showCheck(check)">
+      <button
+        type="button"
+        class="check"
+        [class.numbered]="!!numbers()[i]"
+        (click)="showCheck(check)"
+      >
+        @if (numbers()[i]; as number) {
+          <span class="num" aria-hidden="true">{{ number }}</span>
+        }
         <app-check-chip [result]="check" size="card" [notes]="notesOf(check)" />
       </button>
     } @else if (check.kind === 'decryption') {
-      <div class="check">
+      <div class="check" [class.numbered]="!!numbers()[i]">
+        @if (numbers()[i]; as number) {
+          <span class="num" aria-hidden="true">{{ number }}</span>
+        }
         <app-check-chip
           [result]="check"
           size="card"
@@ -82,7 +105,10 @@
         />
       </div>
     } @else {
-      <div class="check">
+      <div class="check" [class.numbered]="!!numbers()[i]">
+        @if (numbers()[i]; as number) {
+          <span class="num" aria-hidden="true">{{ number }}</span>
+        }
         <app-check-chip
           [result]="check"
           size="card"

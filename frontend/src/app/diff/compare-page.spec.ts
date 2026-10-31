@@ -7,6 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { FakeEventSource } from '../../testing/fake-event-source';
+import { withoutCircuit } from '../../testing/no-circuit';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { Viewport, WindowClass } from '../shell/viewport';
@@ -46,6 +47,7 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
         { provide: Viewport, useValue: { windowClass } },
       ],
     });
+    withoutCircuit();
     http = TestBed.inject(HttpTestingController);
     harness = await RouterTestingHarness.create();
   });

@@ -190,6 +190,9 @@ html {
   --app-on-warning-container: light-dark(#5c3b00, #f5dda6);
   --app-code-family: #{'"Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace'};
 
+  // Tinta-2 do circuito (proposta combinada §6): subtítulos, contagens sem acerto e "sem regras".
+  --app-ink-2: light-dark(#5d6870, #9aa4ab);
+
   // A voz dos títulos vem do peso e do tamanho; a família não tem eixo de arredondado.
   --app-heading-variation: normal;
   --app-pane-shape: 0;

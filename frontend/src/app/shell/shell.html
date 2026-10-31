@@ -118,6 +118,7 @@
     <section class="url-area" aria-label="This URL" i18n-aria-label>
       <app-url-header
         [missing]="gone"
+        [circuit]="current() === destinations[0]"
         [class.collapsed]="screen.detailFullscreen() || screen.searchOpen()"
         (switchTo)="switchTo($event)"
         (newUrl)="createUrl()"

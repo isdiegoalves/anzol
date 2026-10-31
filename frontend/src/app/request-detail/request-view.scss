@@ -120,6 +120,43 @@ a {
   }
 }
 
+// ① ② ③: o número do nó do circuito logo depois da régua do cartão, antes do glifo, e a legenda no cabeçalho (demo
+// combinada).
+.numbered {
+  position: relative;
+
+  app-check-chip {
+    padding-left: 38px;
+  }
+}
+
+.num {
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  left: 13px;
+  color: var(--mat-sys-primary);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+// A legenda não tira largura da rota no detalhe estreito: abaixo de 1200 px, ficam os números nos cartões.
+.key {
+  flex: none;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+  white-space: nowrap;
+
+  @media (width < 1200px) {
+    display: none;
+  }
+
+  b {
+    color: var(--mat-sys-primary);
+    font-weight: 400;
+  }
+}
+
 button.check {
   cursor: pointer;
 

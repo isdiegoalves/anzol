@@ -615,6 +615,11 @@ async function abrirEFotografar(
 ): Promise<void> {
   await page.clock.setFixedTime(relogio());
   const mascaras = await tela.abrir(page, tokens, context);
+  // Na Entrada, o circuito da URL desenha os nós quando as regras chegam (feature "Circuito", F1).
+  const circuito = page.locator('app-circuit section.band');
+  if ((await circuito.count()) > 0) {
+    await expect(circuito.getByRole('toolbar')).toBeVisible();
+  }
   await fixarVolateis(page);
   await fotografar(
     page,

@@ -1,0 +1,266 @@
+// O circuito da demo combinada: palco de 1248 × 120, papel e tinta do Manual, réguas de 1 px, rótulos em HTML
+// por cima do desenho (título 12 px, dado em mono 11 px), nós como botões transparentes por cima de tudo.
+:host {
+  display: block;
+  flex: none;
+  min-width: 0;
+}
+
+// Mais estreita que o palco, a faixa rola por dentro: a página nunca rola na horizontal.
+.band {
+  position: relative;
+  height: 120px;
+  overflow: auto hidden;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  height: 112px;
+  color: var(--app-ink-2);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(180deg);
+  writing-mode: vertical-rl;
+}
+
+.stage {
+  position: relative;
+  width: 1248px;
+  height: 120px;
+  margin-left: 24px;
+}
+
+.drawing,
+.labels,
+.nodes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1248px;
+  height: 120px;
+}
+
+.drawing {
+  overflow: visible;
+}
+
+.labels {
+  pointer-events: none;
+}
+
+.edge,
+.route path {
+  fill: none;
+  stroke: var(--mat-sys-outline-variant);
+  stroke-width: 1px;
+}
+
+// O caminho da mensagem aberta em tinta, no estado assentado da demo (70 %); sem movimento, inteiro.
+.route {
+  opacity: 0.7;
+
+  path {
+    stroke: var(--mat-sys-on-surface);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
+  }
+}
+
+.junction {
+  fill: var(--mat-sys-outline-variant);
+}
+
+.mark {
+  fill: var(--mat-sys-surface);
+  stroke: var(--mat-sys-outline-variant);
+  stroke-width: 1px;
+
+  &.on {
+    stroke: var(--mat-sys-on-surface);
+  }
+}
+
+.lab {
+  position: absolute;
+  font: 11px / 14px var(--app-code-family);
+  white-space: nowrap;
+}
+
+.c {
+  transform: translate(-50%, -50%);
+}
+
+.l {
+  transform: translate(0, -50%);
+}
+
+.r {
+  transform: translate(-100%, -50%);
+}
+
+.title,
+.name {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.name {
+  max-width: 146px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// A contagem passa por cima da aresta da regra: o papel atrás do texto a interrompe.
+.ann {
+  max-width: 180px;
+  padding: 0 3px;
+  overflow: hidden;
+  background: var(--mat-sys-surface);
+  text-overflow: ellipsis;
+}
+
+.muted {
+  color: var(--app-ink-2);
+}
+
+// A régua de 2 px na margem do rótulo: a falha em vermelho de revisão, o "quase" em âmbar.
+.lab.bad,
+.lab.near {
+  padding-left: 4px;
+  border-left: var(--app-note-rule) solid var(--mat-sys-error);
+}
+
+.lab.near {
+  max-width: 370px;
+  overflow: hidden;
+  border-left-color: var(--app-warning);
+  color: var(--app-warning);
+  text-overflow: ellipsis;
+}
+
+.glyph {
+  font-weight: 700;
+
+  &.bad {
+    color: var(--mat-sys-error);
+  }
+
+  &.near {
+    color: var(--app-warning);
+  }
+}
+
+.badge {
+  margin-left: 3px;
+  color: var(--mat-sys-primary);
+  font-weight: 400;
+}
+
+.node {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--mat-sys-corner-medium);
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--mat-sys-outline-variant);
+  }
+
+  // O contorno de filtro da demo: tracejado em primária.
+  &[aria-pressed='true'] {
+    border: 1px dashed var(--mat-sys-primary);
+  }
+
+  &:focus-visible {
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: 0;
+  }
+}
+
+// Celular: a frase do caminho da mensagem aberta, numa linha de 32 px que rola por dentro.
+.line {
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  overflow: auto hidden;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: 11px / 32px var(--app-code-family);
+  white-space: nowrap;
+
+  &:focus-visible {
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: calc(-1 * var(--app-focus-width));
+  }
+
+  .lead,
+  .arrow {
+    color: var(--app-ink-2);
+  }
+
+  .fail {
+    color: var(--mat-sys-error);
+    font-weight: 700;
+  }
+}
+
+// Cores forçadas: o navegador não troca o traço do SVG; as arestas vão em cinza do sistema, o caminho em tinta.
+@media (forced-colors: active) {
+  .edge,
+  .mark {
+    stroke: var(--app-forced-disabled);
+  }
+
+  .junction {
+    fill: var(--app-forced-disabled);
+  }
+
+  .mark {
+    fill: var(--app-forced-paper);
+  }
+
+  .route {
+    opacity: 1;
+
+    path {
+      stroke: var(--app-forced-ink);
+    }
+  }
+
+  .mark.on {
+    stroke: var(--app-forced-ink);
+  }
+
+  // O botão do nó é transparente: sem isto o navegador desenha a borda de todos, por cima do desenho.
+  .node {
+    forced-color-adjust: none;
+
+    &:hover {
+      border-color: var(--app-forced-ink);
+    }
+
+    &[aria-pressed='true'] {
+      border-color: var(--app-forced-selected);
+    }
+
+    &:focus-visible {
+      outline-color: var(--app-forced-selected);
+    }
+  }
+}

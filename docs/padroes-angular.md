@@ -132,8 +132,9 @@ separação do Trajan entre código compartilhado e funcionalidades isoladas vir
 
 A Inbox é feita de quatro pastas que se compõem e se importam entre si: a página (`inbox/`), a
 lista (`requests/`), o detalhe (`request-detail/`) e a busca (`search/`); o Compare (`diff/`)
-usa a mesma lista e o onboarding (`onboarding/`) ocupa o detalhe da URL vazia, e os dois entram
-no grupo (`INBOX_PARTS` no `eslint.config.js`). Componente que duas features usam vai para `ui/`
+usa a mesma lista, o onboarding (`onboarding/`) ocupa o detalhe da URL vazia e o circuito
+(`circuit/`) é a faixa da URL acima da lista, e os três entram no grupo (`INBOX_PARTS` no
+`eslint.config.js`). Componente que duas features usam vai para `ui/`
 (como o `app-markdown` da IA) ou para a feature que o mostra (o Explain no detalhe, o Suggest em
 Rules); `ai/` guarda só o cliente. A lista "legado" do item 14 zerou na E11: nada importa de
 outra feature sem uma regra da tabela acima.

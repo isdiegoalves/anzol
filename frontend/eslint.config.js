@@ -195,10 +195,10 @@ const I18N_IGNORED_ATTRIBUTES = [
 ];
 
 /**
- * As pastas da Inbox, do Compare (usa a mesma lista) e do onboarding (o detalhe da URL vazia), §8
- * do padrão: importam umas das outras.
+ * As pastas da Inbox, do Compare (usa a mesma lista), do onboarding (o detalhe da URL vazia) e do circuito da URL
+ * (a faixa abaixo do cabeçalho), §8 do padrão: importam umas das outras.
  */
-const INBOX_PARTS = '{inbox,requests,request-detail,search,diff,onboarding}';
+const INBOX_PARTS = '{inbox,requests,request-detail,search,diff,onboarding,circuit}';
 
 module.exports = defineConfig([
   {
@@ -436,7 +436,8 @@ module.exports = defineConfig([
             {
               // A Inbox (item 14, E4) é feita de quatro pastas que se compõem: a página (inbox/),
               // a lista (requests/), o detalhe (request-detail/) e a busca (search/); o Compare
-              // (diff/, E8) usa a mesma lista e o onboarding (onboarding/, E10) ocupa o detalhe vazio.
+              // (diff/, E8) usa a mesma lista, o onboarding (onboarding/, E10) ocupa o detalhe vazio e o circuito
+              // (circuit/) é a faixa da URL acima deles.
               from: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } },
               allow: { to: { element: { type: 'feature', captured: { feature: INBOX_PARTS } } } },
             },

@@ -18,7 +18,7 @@ import { UrlSwitcher } from './url-switcher';
 /**
  * Cabeçalho fixo da URL aberta, em todo destino: o campo com Copy, o chip do tempo real (só com o
  * stream aberto, isto é, na Inbox), o chip "128 · limit 1000" e os de assinatura e schema, que levam
- * a Checks, e as ações da URL: "Send" (Send de Outbound), "Lock" (só com a URL protegida) e o menu
+ * a Checks (fora da Entrada, onde viram nós do circuito), e as ações da URL: "Send" (Send de Outbound), "Lock" (só com a URL protegida) e o menu
  * "More URL actions" do protótipo C, com "Edit URL" (o antigo Edit URL, S2), "Open in new tab",
  * "Copy CLI command" e "Delete URL".
  */
@@ -39,6 +39,11 @@ export class UrlHeader {
 
   /** A URL da rota não existe: o cabeçalho mostra o endereço pedido, nunca o de outra URL. */
   readonly missing = input<MissingUrl | null>(null);
+  /**
+   * Na Entrada, a assinatura e o schema são nós do circuito logo abaixo (C-1): os chips deles saem do cabeçalho. Nos
+   * outros destinos, sem o circuito, ficam.
+   */
+  readonly circuit = input(false);
   /** Outra URL escolhida no seletor: o shell a abre no mesmo destino. */
   readonly switchTo = output<string>();
   /** "New URL…" do seletor: o diálogo "Create New URL" de sempre. */

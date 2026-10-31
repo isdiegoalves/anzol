@@ -23,6 +23,7 @@ import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PRIMARY_OUTLET, Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
+import { Circuit } from '../circuit/circuit';
 import { CompareStore } from '../diff/compare-store';
 import type { Guide, GuideName } from '../guides/guide';
 import { routeOf } from '../pipeline/pipeline';
@@ -128,6 +129,7 @@ export function defaultListWidth(windowWidth: number): number {
   selector: 'app-inbox',
   imports: [
     ActionPanel,
+    Circuit,
     Icon,
     MatButton,
     MatIconButton,

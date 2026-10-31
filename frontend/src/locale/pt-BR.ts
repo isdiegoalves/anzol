@@ -4489,4 +4489,100 @@ export const translations: Record<string, string> = {
   //  Requests encrypted to {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} from now on are recorded as Unknown key and are not decrypted. The private key is removed from this URL.
   '321796578656992291':
     ' As requisições cifradas para {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} daqui em diante ficam gravadas como Chave desconhecida e não são decifradas. A chave privada sai da URL. ',
+  // Circuito da URL (feature "Circuito", F1)
+  // Sender
+  '910656806257300801': 'Remetente',
+  // Resend
+  '2644718968755414439': 'Reenvio',
+  // default
+  '6855462350544488601': 'padrão',
+  // no rules
+  '5368438114531788345': 'sem regras',
+  // off (assinatura)
+  '142020699712023356': 'desligada',
+  // off (schema)
+  '759104740892976387': 'desligado',
+  // off (decifra)
+  '6252988499514654260': 'desligada',
+  // signature {$state}
+  '690333166882199346': 'assinatura {$state}',
+  // schema {$state}
+  '3093972816524349303': 'schema {$state}',
+  // decryption {$state}
+  '482827324476297591': 'decifra {$state}',
+  // method {$method}
+  '1257737963564853711': 'método {$method}',
+  // path {$path}
+  '4250371398285408904': 'caminho {$path}',
+  // scenario {$name}
+  '1993834486588794379': 'cenário {$name}',
+  // not checked (assinatura)
+  '5332128290639964302': 'não verificada',
+  // valid (assinatura)
+  '2384685785005618301': 'válida',
+  // invalid (assinatura)
+  '685554886668732508': 'inválida',
+  // stale (assinatura)
+  '5004379882907745868': 'fora do prazo',
+  // absent (assinatura)
+  '3433237047660417328': 'ausente',
+  // not checked (schema)
+  '6640301834459831923': 'não verificado',
+  // valid (schema)
+  '3692859328825485922': 'válido',
+  // invalid (schema)
+  '1993728430488600129': 'inválido',
+  // decryption
+  '232409990110238643': 'decifra',
+  // valid (decifra)
+  '126207250558301998': 'válida',
+  // invalid (decifra)
+  '7650448389076192013': 'inválida',
+  // unknown key
+  '2131143992093501476': 'chave desconhecida',
+  // plaintext
+  '6722588683077888951': 'em claro',
+  // Enter shows all in the list.
+  '340874174633417126': 'Enter mostra todas na lista.',
+  // Enter filters the list: {$filter}.
+  '3354053529471053126': 'Enter filtra a lista: {$filter}.',
+  // Rule {$name}
+  '2603177480508215298': 'Regra {$name}',
+  // answered by {$rule}
+  '7932602372451666066': 'respondidas por {$rule}',
+  // +1 rule
+  '4120000776905285107': '+1 regra',
+  // +{$count} rules
+  '1053278522685046040': '+{$count} regras',
+  // answered by the default response
+  '1027350697298588929': 'respondidas pela padrão',
+  // near · missing: {$missing}
+  '7297689388586994934': 'quase · faltou: {$missing}',
+  // near {$rule} · missing: {$missing}
+  '6684665786216198318': 'quase {$rule} · faltou: {$missing}',
+  // 1 response
+  '5819604758765484076': '1 resposta',
+  // {$count} responses
+  '7489691150230603881': '{$count} respostas',
+  // URL circuit {$name} with {$count} nodes.
+  '1434003195524643987': 'Circuito da URL {$name} com {$count} nós.',
+  // default response {$status}
+  '1378213613384250334': 'resposta padrão {$status}',
+  // Open request: {$method} {$route} from {$ip}; path: {$path}; near match: {$rule}.
+  '6298975211815208646':
+    'Mensagem selecionada: {$method} {$route} de {$ip}; caminho: {$path}; quase casou: {$rule}.',
+  // Open request: {$method} {$route} from {$ip}; path: {$path}.
+  '6662125963505295749': 'Mensagem selecionada: {$method} {$route} de {$ip}; caminho: {$path}.',
+  // No request open.
+  '5827018601391333256': 'Nenhuma mensagem selecionada.',
+  // Request path
+  '8921045615424106051': 'Caminho da requisição',
+  // path:
+  '7017131733157013939': 'caminho:',
+  // URL circuit
+  '8416715363682687877': 'Circuito da URL',
+  // circuit
+  '1059778215596491745': 'circuito',
+  // Circuit nodes
+  '8810397811583160300': 'Nós do circuito',
 };

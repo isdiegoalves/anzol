@@ -10,6 +10,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { MockInstance } from 'vitest';
 import { FakeEventSource } from '../../testing/fake-event-source';
+import { withoutCircuit } from '../../testing/no-circuit';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { routes } from '../app.routes';
 import { ANNOUNCE_EVERY_MS, SEARCH_REFRESH_DEBOUNCE_MS } from './inbox';
@@ -65,6 +66,7 @@ describe('Dado a tela principal', () => {
         { provide: Viewport, useValue: { windowClass } },
       ],
     });
+    withoutCircuit();
     http = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
     snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');

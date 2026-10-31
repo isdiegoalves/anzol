@@ -1,0 +1,69 @@
+@let circuit = view();
+@if (line()) {
+  <!-- Celular: só o caminho da mensagem aberta, numa linha que rola (sem nada focável dentro). -->
+  @if (view()?.path; as parts) {
+    <!-- prettier-ignore -->
+    <p class="line" role="region" tabindex="0" aria-label="Request path" i18n-aria-label><span class="lead" i18n="circuit path phrase, before the steps">path:</span>@for (part of parts; track $index) {<span class="arrow">{{ $index > 0 ? ' → ' : ' ' }}</span><span [class.fail]="part.bad">{{ part.text }}</span>}</p>
+  }
+} @else {
+  <section class="band" aria-label="URL circuit" i18n-aria-label>
+    <span class="caption" aria-hidden="true" i18n="circuit band caption">circuit</span>
+    @if (circuit) {
+      <div class="stage">
+        <svg
+          class="drawing"
+          role="img"
+          width="1248"
+          height="120"
+          viewBox="0 0 1248 120"
+          [attr.aria-label]="circuit.description"
+        >
+          @for (edge of circuit.edges; track edge.id) {
+            <path class="edge" [attr.d]="edge.d" />
+          }
+          <g class="route">
+            @for (edge of routeEdges(); track edge.id) {
+              <path [attr.d]="edge.d" />
+            }
+          </g>
+          @for (junction of circuit.junctions; track $index) {
+            <circle class="junction" r="2" [attr.cx]="junction[0]" [attr.cy]="junction[1]" />
+          }
+          @for (mark of circuit.marks; track mark.id) {
+            <circle
+              class="mark"
+              [class.on]="mark.on"
+              [attr.cx]="mark.x"
+              [attr.cy]="mark.y"
+              [attr.r]="mark.r"
+            />
+          }
+        </svg>
+        <div class="labels" aria-hidden="true">
+          @for (label of circuit.labels; track label.key) {
+            <!-- prettier-ignore -->
+            <span class="lab" [class]="label.align + ' ' + label.kind" [class.muted]="label.muted" [class.bad]="label.rule === 'bad'" [class.near]="label.rule === 'near'" [style.left.px]="label.x" [style.top.px]="label.y">@if (label.glyph; as glyph) {<span class="glyph" [class]="glyph.tone">{{ glyph.text }}</span>{{ ' ' }}}{{ label.text }}@if (label.badge) {<span class="badge">{{ label.badge }}</span>}</span>
+          }
+        </div>
+        <div class="nodes" role="toolbar" aria-label="Circuit nodes" i18n-aria-label>
+          @for (node of circuit.nodes; track node.id; let i = $index) {
+            <button
+              type="button"
+              class="node"
+              [style.left.px]="node.x"
+              [style.top.px]="node.y"
+              [style.width.px]="node.w"
+              [style.height.px]="node.h"
+              [attr.aria-label]="node.label"
+              [attr.aria-pressed]="node.pressed"
+              [attr.tabindex]="i === tabStop() ? 0 : -1"
+              (focus)="stop.set(i)"
+              (click)="toggle(node)"
+              (keydown)="move($event)"
+            ></button>
+          }
+        </div>
+      </div>
+    }
+  </section>
+}

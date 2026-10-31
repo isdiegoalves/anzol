@@ -40,10 +40,13 @@ test.describe('Dado o tutorial (checklist 12)', () => {
       await expect(tutorial).toBeHidden();
       expect((await readStorage(page))['hideTutorial']).toBe('true');
     }
-    // O detalhe começa no topo do painel: o cabeçalho da mensagem está à vista sem rolar.
+    // O detalhe começa no topo do painel: o cabeçalho da mensagem está à vista sem rolar. Medido do topo do painel
+    // (136 px, os 200 de antes menos os 64 do cabeçalho da URL): o circuito da URL (feature "Circuito", F1, K-5)
+    // desceu o painel 121 px.
     await expect(page.getByRole('heading', { name: '/', exact: true })).toBeInViewport();
     const cabecalho = (await page.getByRole('heading', { name: '/', exact: true }).boundingBox())!;
-    expect(cabecalho.y, 'cabeçalho da mensagem no topo').toBeLessThan(200);
+    const painel = (await page.getByRole('region', { name: 'Request detail' }).boundingBox())!;
+    expect(cabecalho.y - painel.y, 'cabeçalho da mensagem no topo').toBeLessThan(136);
   });
 
   test('deve mostrar o tutorial mesmo escondido Quando a URL não tem mensagens', async ({
