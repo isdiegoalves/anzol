@@ -95,6 +95,61 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.loadedFor()).toBe(TOKEN_ID);
   });
 
+  describe('Dado uma releitura em voo durante uma gravação (F1-R17)', () => {
+    const gravada = [rule(1), rule(2), rule(3)];
+
+    it('deve ficar com a lista gravada Quando a releitura que saiu antes do PUT chega depois dele, sem acusar mudança em outro lugar na próxima', async () => {
+      await loaded();
+      const relendo = store.reload();
+      const releitura = http.expectOne({ method: 'GET', url });
+
+      const gravando = store.save(gravada);
+      http.expectOne({ method: 'PUT', url }).flush(gravada);
+      await gravando;
+      releitura.flush([rule(1), rule(2)]);
+      await relendo;
+
+      expect(store.rules()).toEqual(gravada);
+      // O próximo "Create rule" parte da lista gravada: a conferência não acusa "changed elsewhere".
+      const proxima = store.saveIfUnchanged([...gravada, rule(4)]);
+      http.expectOne({ method: 'GET', url }).flush(gravada);
+      const put = await vi.waitFor(() => http.expectOne({ method: 'PUT', url }));
+      put.flush(put.request.body);
+      await expect(proxima).resolves.toBeUndefined();
+    });
+
+    it('deve ficar com a lista gravada Quando a releitura sai durante o PUT, o servidor a responde com a lista de antes e ela chega depois', async () => {
+      await loaded();
+      const gravando = store.save(gravada);
+      const put = http.expectOne({ method: 'PUT', url });
+      const relendo = store.reload();
+      const releitura = http.expectOne({ method: 'GET', url });
+
+      put.flush(gravada);
+      await gravando;
+      releitura.flush([rule(1), rule(2)]);
+      await relendo;
+
+      expect(store.rules()).toEqual(gravada);
+    });
+
+    it('deve ficar com a releitura em voo Quando o PUT falha (a gravação não aconteceu)', async () => {
+      await loaded();
+      const relendo = store.reload();
+      const releitura = http.expectOne({ method: 'GET', url });
+
+      const gravando = store.save(gravada);
+      http
+        .expectOne({ method: 'PUT', url })
+        .flush({ errors: {} }, { status: 422, statusText: 'Unprocessable Entity' });
+      await expect(gravando).rejects.toBeInstanceOf(HttpErrorResponse);
+      releitura.flush([rule(1), rule(2), rule(5)]);
+      await relendo;
+
+      expect(store.rules()).toEqual([rule(1), rule(2), rule(5)]);
+    });
+  });
+
   describe('Quando quem vai mudar a lista pede a da URL (`ready`)', () => {
     it('deve devolver a lista já lida, sem ler de novo', async () => {
       await loaded();
@@ -403,6 +458,24 @@ describe('Dado uma resposta atrasada nas regras de outra URL', () => {
     put.flush([rule(1), rule(2)]);
     await salvo;
 
+    expect(store.rules()).toEqual([rule(9)]);
+  });
+
+  it('deve pôr as regras da outra URL Quando o PUT da anterior termina antes da leitura dela (F1-R17)', async () => {
+    const primeira = store.load(TOKEN_ID);
+    http.expectOne(urlOf(TOKEN_ID)).flush([rule(1)]);
+    await primeira;
+    const salvo = store.save([rule(1), rule(2)]);
+    const put = http.expectOne({ method: 'PUT', url: urlOf(TOKEN_ID) });
+    const outra = store.load(OUTRA);
+    const daOutra = http.expectOne(urlOf(OUTRA));
+
+    put.flush([rule(1), rule(2)]);
+    await salvo;
+    daOutra.flush([rule(9)]);
+    await outra;
+
+    expect(store.loadedFor()).toBe(OUTRA);
     expect(store.rules()).toEqual([rule(9)]);
   });
 });

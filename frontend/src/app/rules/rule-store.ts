@@ -303,7 +303,8 @@ export class RuleStore {
   /**
    * Substitui a lista no servidor. A tela mostra a mudança na hora (o toggle não pula de volta)
    * e fica com a lista que o servidor devolve, com os `id`s e padrões; se o `PUT` falha, volta à
-   * lista anterior e repassa o erro (o 422 é mostrado por quem chamou).
+   * lista anterior e repassa o erro (o 422 é mostrado por quem chamou). A leitura desta URL que saiu antes
+   * de o `PUT` voltar é descartada quando chega (F1-R17): o servidor pode tê-la respondido com a lista de antes.
    */
   async save(rules: readonly Rule[]): Promise<void> {
     const tokenId = this.requireToken();
@@ -312,6 +313,7 @@ export class RuleStore {
     try {
       const saved = await firstValueFrom(this.http.put<Rule[]>(this.url(tokenId), rules));
       if (this.tokenId() === tokenId) {
+        ++this.loads;
         this.keep(saved);
       }
     } catch (error) {
