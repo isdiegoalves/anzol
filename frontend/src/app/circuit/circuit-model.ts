@@ -13,7 +13,7 @@ import { SignatureProvider, Token, signatureProviderLabel } from '../token/token
 import { joinPath, reverseLine } from './pulse';
 
 /**
- * O circuito da URL (proposta-1 §3, demo combinada): remetente → assinatura → schema → decifra → regras na ordem de
+ * O circuito da URL: remetente → assinatura → schema → decifra → regras na ordem de
  * avaliação → resposta → reenvio. Tudo derivado da URL, das regras e das mensagens carregadas; nenhuma API nova. A
  * geometria é a da demo: um palco de 1248 × 120, linha principal em y = 60, escada de regras em x = 860.
  */

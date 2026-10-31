@@ -4,7 +4,7 @@ import { TokenTracker, expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
 // O pulso de cada chegada, a escada de rajada com histerese, a linha que nasce do nó Resposta e
-// o que nunca anima (demo combinada; proposta 1 §4 M1–M2). Tempos e curvas pela WAAPI do navegador (`getAnimations`).
+// o que nunca anima. Tempos e curvas pela WAAPI do navegador (`getAnimations`).
 
 const SEGREDO = 'segredo-pulso';
 

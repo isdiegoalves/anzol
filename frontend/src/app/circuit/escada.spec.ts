@@ -1,6 +1,6 @@
 import { Escada, Step } from './escada';
 
-/** A rajada canônica das demos (proposta 1, demo-spec §4 R2): #i em i × 75 ms, 13 por segundo. */
+/** A rajada de referência da especificação: #i em i × 75 ms, 13 por segundo. */
 const R2 = Array.from({ length: 40 }, (_, i) => (i + 1) * 75);
 
 describe('Dado a escada de rajada do circuito', () => {

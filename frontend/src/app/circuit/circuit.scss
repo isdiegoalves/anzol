@@ -1,4 +1,4 @@
-// O circuito da demo combinada: palco de 1248 × 120, papel e tinta do Manual, réguas de 1 px, rótulos em HTML
+// O circuito: palco de 1248 × 120, papel e tinta do Manual, réguas de 1 px, rótulos em HTML
 // por cima do desenho (título 12 px, dado em mono 11 px), nós como botões transparentes por cima de tudo.
 :host {
   display: block;
@@ -97,7 +97,7 @@
   clip-path: inset(50%);
 }
 
-// O pulso (proposta 1 §4 M1): ponto de 6 px em primária e, na chegada isolada, rastro de 24 px; os dois andam pelas
+// O pulso: ponto de 6 px em primária e, na chegada isolada, rastro de 24 px; os dois andam pelas
 // arestas por `offset-path`, que o pulso põe em cada um.
 .dot,
 .trail {

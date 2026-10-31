@@ -190,7 +190,7 @@ html {
   --app-on-warning-container: light-dark(#5c3b00, #f5dda6);
   --app-code-family: #{'"Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace'};
 
-  // Tinta-2 do circuito (proposta combinada §6): subtítulos, contagens sem acerto e "sem regras".
+  // Tinta-2 do circuito: subtítulos, contagens sem acerto e "sem regras".
   --app-ink-2: light-dark(#5d6870, #9aa4ab);
 
   // A voz dos títulos vem do peso e do tamanho; a família não tem eixo de arredondado.
@@ -272,7 +272,7 @@ html {
   --app-spring-fast: 224ms var(--app-spring-standard);
   --app-spring-effects: 231ms var(--app-spring-effects-curve);
 
-  // O pulso do circuito (proposta 1 §6): o salto por aresta na chegada isolada e na rajada até 5/s, o tempo de o
+  // O pulso do circuito: o salto por aresta na chegada isolada e na rajada até 5/s, o tempo de o
   // caminho percorrido assentar, e o passo dos contadores e da espessura das arestas no modo fluxo.
   --app-pulse-hop: 180ms;
   --app-pulse-hop-short: 90ms;
@@ -532,9 +532,9 @@ pre code.hljs {
   color: var(--mat-sys-secondary);
 }
 
-// A linha que acabou de chegar sozinha nasce do nó Resposta: desce 16 px e aparece em 224 ms
-// (proposta 1 §4 M1). Aqui, e não no estilo da lista, que está no teto do orçamento; a lista põe a classe só na linha
-// nova com a vista no topo. Com movimento reduzido, nada se desloca: só o fade de 120 ms.
+// A linha que acabou de chegar sozinha nasce do nó Resposta: desce 16 px e aparece em 224 ms.
+// Aqui, e não no estilo da lista, que está no teto do orçamento; a lista põe a classe só na linha nova com a vista
+// no topo. Com movimento reduzido, nada se desloca: só o fade de 120 ms.
 @keyframes app-born {
   from {
     opacity: 0;

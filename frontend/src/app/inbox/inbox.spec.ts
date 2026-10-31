@@ -908,7 +908,7 @@ describe('Dado a tela principal', () => {
           webhookRequest(10 + i, {
             url: `http://localhost:8084/${TOKEN_ID}/${rota}?x=1`,
             response: { status: 201 },
-            // A demo combinada (R2) conta as anomalias do segundo: uma assinatura que não confere, uma falha de rede.
+            // A soma do segundo conta as anomalias: uma assinatura que não confere, uma falha de rede.
             ...(rota === 'c' && {
               signature: { provider: 'github', valid: false, reason: 'signature mismatch' },
             }),

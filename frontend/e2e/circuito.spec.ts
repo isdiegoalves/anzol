@@ -5,7 +5,7 @@ import { abrirMensagem, itens } from './support/inbox';
 import { folhaDeCriarRegra, lerRegras } from './support/regras';
 import { seedStorage } from './support/storage';
 
-// O circuito da URL abaixo do cabeçalho da Entrada (demo combinada). O caminho da mensagem
+// O circuito da URL abaixo do cabeçalho da Entrada. O caminho da mensagem
 // aberta, o "quase casou" em âmbar, a configuração sem mensagem, o filtro pelo nó, o teclado, as cores e o reflow.
 
 const SEGREDO = 'segredo-circuito';

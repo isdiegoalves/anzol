@@ -105,7 +105,7 @@ export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
 export const ECHO_MS = 5000;
 /**
  * Para o leitor de tela, a primeira chegada de uma leva fala na hora (quando a linha nasce), e as seguintes falam
- * somadas, com as anomalias contadas (WCAG 4.1.3; demo combinada, R2: "13 novas requisições; 1 com assinatura
+ * somadas, com as anomalias contadas (WCAG 4.1.3: "13 novas requisições; 1 com assinatura
  * inválida"): ao fim de 1 s, como na rajada da demo; enquanto as janelas não ficam vazias, a seguinte cresce para 3 s
  * e depois 10 s (uma cadência constante não fala a cada segundo); depois de uma janela vazia, volta a 1 s.
  */
@@ -1219,7 +1219,7 @@ export class Inbox {
 }
 
 /**
- * A chegada que fala sozinha (demo combinada, R1): "New request: POST /webhooks/pagamentos; answered 200 by the
+ * A chegada que fala sozinha: "New request: POST /webhooks/pagamentos; answered 200 by the
  * default response; signature valid; schema valid." Só as verificações que a URL fez entram.
  */
 function arrivedText(request: WebhookRequest): string {
@@ -1274,7 +1274,7 @@ function answerText(request: WebhookRequest): string | null {
 }
 
 /**
- * As chegadas de um segundo, somadas, com as anomalias contadas (demo combinada, R2): "13 new requests; 1 with
+ * As chegadas de um segundo, somadas, com as anomalias contadas: "13 new requests; 1 with
  * invalid signature; 1 with network failure." ou "60 new requests; no anomaly."
  */
 function moreArrivedText(arrivals: readonly WebhookRequest[]): string {

@@ -111,8 +111,8 @@ export class RequestView {
   /** A regra que chegou mais perto, vinda do trace (quem tem a URL, o detalhe, pede e passa). */
   readonly closest = input<readonly string[]>([]);
   /**
-   * Na Entrada, os cartões ganham ① ② ③, os números dos nós do circuito que mostram a mesma verificação (como na
-   * demo combinada). No celular o circuito é a linha do caminho, sem os números: os cartões também ficam sem.
+   * Na Entrada, os cartões ganham ① ② ③, os números dos nós do circuito que mostram a mesma verificação. No
+   * celular o circuito é a linha do caminho, sem os números: os cartões também ficam sem.
    */
   readonly numbered = input(false);
 

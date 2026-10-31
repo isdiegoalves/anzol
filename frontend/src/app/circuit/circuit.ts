@@ -56,7 +56,7 @@ export function stageFit(available: number): { scale: number; margin: number; sc
 }
 
 /**
- * O circuito da URL na Entrada, abaixo do cabeçalho (demo combinada): o desenho de 1248 × 120 com os nós da
+ * O circuito da URL na Entrada, abaixo do cabeçalho: o desenho de 1248 × 120 com os nós da
  * configuração e, com uma mensagem aberta, o caminho dela e a regra que quase casou. Os nós são botões num grupo,
  * cada um uma parada do Tab, como na demo (as setas são um atalho a mais); clicar filtra a lista pelo que passou ali
  * e clicar de novo tira, sem motion. No celular (`line`), só a frase "caminho: …" da mensagem aberta, numa linha que

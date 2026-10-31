@@ -9,7 +9,7 @@ import { circuitOf } from './circuit-model';
 
 /**
  * Com movimento reduzido, o detalhe ganha a frase "caminho: assinatura ✓ → schema ✓ → resposta padrão 200" logo
- * abaixo do título (demo combinada, `.dpath`): o que o pulso mostraria vira texto, no mesmo instante em que ele
+ * abaixo do título: o que o pulso mostraria vira texto, no mesmo instante em que ele
  * terminaria (a chegada abre quando a linha nasce). As regras são as que o circuito da faixa já leu; esta frase não
  * lê nada. Sem movimento reduzido, ou sem as regras, ela não existe (e não ocupa lugar no detalhe).
  */

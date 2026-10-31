@@ -1,5 +1,5 @@
 /**
- * O pulso do circuito (proposta 1 §4 M1 e §7, demo combinada): um ponto de 6 px em primária, com rastro de 24 px na
+ * O pulso do circuito: um ponto de 6 px em primária, com rastro de 24 px na
  * chegada isolada, que percorre as arestas do caminho por `offset-path`, um salto por trecho, com WAAPI (cancelável,
  * só `offset-distance`, `transform` e `opacity`). O caminho de cada salto vem do modelo (`CircuitView.hops`).
  */
@@ -18,7 +18,7 @@ export interface Motion {
   effects: { duration: number; easing: string };
 }
 
-/** Sem os tokens (o jsdom não calcula estilo), os valores da proposta 1 §6. */
+/** Sem os tokens (o jsdom não calcula estilo), os valores da especificação de movimento. */
 const FALLBACK: Motion = {
   hop: 180,
   hopShort: 90,

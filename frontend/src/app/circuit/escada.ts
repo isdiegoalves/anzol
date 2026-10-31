@@ -1,5 +1,5 @@
 /**
- * O degrau da escada de rajada (proposta 1 §4 M2, demo combinada): `full`, o pulso inteiro da chegada isolada (180 ms
+ * O degrau da escada de rajada: `full`, o pulso inteiro da chegada isolada (180 ms
  * por aresta, com rastro); `short`, o pulso curto de 1 a 5 chegadas por segundo (90 ms, sem rastro); `flow`, acima de
  * 5 por segundo, sem pulso: as arestas engrossam e os contadores rolam.
  */
