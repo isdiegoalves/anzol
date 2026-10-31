@@ -95,3 +95,20 @@ describe('Dado chegadas sustentadas entre 1 e 5 por segundo (F2-R02)', () => {
     expect([...parte1.slice(5), ...parte2].every((step) => step === 'flow')).toBe(true);
   });
 });
+
+describe('Dado uma cadência regular de 1 por segundo (F2-R04)', () => {
+  it('deve ficar sempre no pulso inteiro, com o atraso da rede variando ±10 ms', () => {
+    const escada = new Escada();
+    // Um a cada segundo, com o atraso alternando entre −10 e +10 ms (a pior combinação: 980 ms entre duas).
+    const chegadas = Array.from({ length: 20 }, (_, i) => i * 1000 + (i % 2 === 0 ? 10 : -10));
+
+    expect(chegadas.map((at) => escada.arrive(at)).every((step) => step === 'full')).toBe(true);
+  });
+
+  it('deve dar pulso curto a duas chegadas a menos de 900 ms uma da outra', () => {
+    const escada = new Escada();
+    escada.arrive(0);
+
+    expect(escada.arrive(899)).toBe('short');
+  });
+});

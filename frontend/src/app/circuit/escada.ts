@@ -9,6 +9,11 @@ export type Step = 'full' | 'short' | 'flow';
 export const WINDOW_MS = 1000;
 /** Acima disto na janela, o circuito vira fluxo. */
 export const FLOW_ABOVE = 5;
+/**
+ * O pulso curto pede duas chegadas a menos disto uma da outra: a folga de 100 ms sob a janela de 1 s deixa uma cadência
+ * regular de 1 por segundo sempre no pulso inteiro, sem oscilar com o atraso da rede (F2-R04).
+ */
+export const SHORT_WITHIN_MS = 900;
 /** Quanto a escada espera, depois de a janela voltar abaixo do limiar, para descer um degrau. */
 export const HYSTERESIS_MS = 2000;
 /**
@@ -43,7 +48,7 @@ export class Escada {
       this.lastHigh = at;
       return 'flow';
     }
-    if (count >= 2 && at - this.lastHigh >= WINDOW_MS + HYSTERESIS_MS) {
+    if (this.within(at, SHORT_WITHIN_MS) >= 2 && at - this.lastHigh >= WINDOW_MS + HYSTERESIS_MS) {
       this.lastMid = at;
     }
     return this.stepAt(at);
@@ -75,6 +80,15 @@ export class Escada {
       return this.lastHigh + WINDOW_MS + HYSTERESIS_MS;
     }
     return step === 'flow' ? this.lastAt + HYSTERESIS_MS : this.lastMid + WINDOW_MS + HYSTERESIS_MS;
+  }
+
+  /** Quantas das que estão na janela chegaram nos últimos `ms`. */
+  private within(at: number, ms: number): number {
+    let count = 0;
+    for (let i = this.times.length - 1; i >= this.head && this.times[i] > at - ms; i--) {
+      count++;
+    }
+    return count;
   }
 
   /** Quantas chegaram no último segundo (o medidor "N/s" do Remetente). */
