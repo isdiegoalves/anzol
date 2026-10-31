@@ -80,6 +80,14 @@ export class RuleStore {
   readonly tested = signal<ReadonlyMap<string, { match: RuleMatch; matches: readonly string[] }>>(
     new Map(),
   );
+  /**
+   * O `tested` de cada URL que saiu da store: o circuito da Entrada lê as regras de outra URL por aqui, e a volta a
+   * Regras não perde a "sombra provável" (F1-R15).
+   */
+  private readonly testedByUrl = new Map<
+    string,
+    ReadonlyMap<string, { match: RuleMatch; matches: readonly string[] }>
+  >();
 
   /**
    * Lê as regras da URL. Na URL cuja lista já está aqui, relê sem apagá-la (`reload`): o circuito da Entrada e quem
@@ -93,9 +101,13 @@ export class RuleStore {
       return this.reload();
     }
     const run = ++this.loads;
-    if (tokenId !== this.tokenId()) {
-      // O teste da regra vale para esta URL: "Back to list" relê a lista da mesma URL e o mantém.
-      this.tested.set(new Map());
+    const previous = this.tokenId();
+    if (tokenId !== previous) {
+      // O teste da regra vale para a URL dele: fica guardado com ela, e o desta volta.
+      if (previous) {
+        this.testedByUrl.set(previous, this.tested());
+      }
+      this.tested.set(this.testedByUrl.get(tokenId) ?? new Map());
     }
     this.tokenId.set(tokenId);
     this.rules.set([]);

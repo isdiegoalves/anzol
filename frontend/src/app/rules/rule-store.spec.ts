@@ -152,6 +152,27 @@ describe('Dado as regras da URL aberta', () => {
     expect(store.tested().size).toBe(0);
   });
 
+  it('deve guardar o teste de cada URL Quando outra tela (o circuito da Entrada) lê outra URL no meio, e devolvê-lo na volta (F1-R15)', async () => {
+    await loaded();
+    const test = store.testRule(rule(1));
+    http.expectOne({ method: 'POST', url: `${url}/test` }).flush({
+      matches: [{ uuid: 'm1', seq: 2 }],
+      misses: [],
+    });
+    http.expectOne((req) => req.url === `/token/${TOKEN_ID}/requests`).flush({ total: 1 });
+    await test;
+
+    const doCircuito = store.load('outra-url');
+    http.expectOne('/token/outra-url/rules').flush([]);
+    await doCircuito;
+    expect(store.tested().size).toBe(0);
+
+    const deVolta = store.load(TOKEN_ID);
+    http.expectOne(url).flush([rule(1), rule(2)]);
+    await deVolta;
+    expect(store.tested().get('r1')?.matches).toEqual(['m1']);
+  });
+
   it('deve enviar a lista inteira no PUT e ficar com a lista que o servidor devolve Quando salva', async () => {
     await loaded();
     const nova = { ...rule(3), id: undefined };
