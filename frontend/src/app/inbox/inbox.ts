@@ -324,6 +324,8 @@ export class Inbox {
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A última chegada que ainda espera o pulso dela (ou a vez dela): as seguintes entram depois. */
+  private waiting: Promise<void> | null = null;
   /** O roteiro aberto no lugar do detalhe; a conferência do retry anuncia as chegadas dela. */
   private shownGuide: Guide | null = null;
   /** Os filtros que a tela mandou para a rota e cujo eco ainda não voltou. */
@@ -1006,13 +1008,23 @@ export class Inbox {
     if (this.preferences.redirectEnable()) {
       void this.redirector.redirect(complete);
     }
-    // O pulso no circuito (F2): a chegada isolada entra na lista quando ele chega ao nó Resposta; na rajada, já.
+    // O pulso no circuito (F2): a chegada isolada entra na lista quando ele chega ao nó Resposta; na rajada, já. A
+    // que vem atrás de uma que espera entra depois dela, na ordem em que chegaram (o total do evento é o da hora).
     const born = this.flow.arrive(complete, {
       at: this.stream.arrivedAt(request.uuid) ?? undefined,
       opens: this.opensArrival(),
     });
-    if (born) {
-      await born;
+    const ahead = this.waiting;
+    if (born || ahead) {
+      const turn = (async () => {
+        await ahead;
+        await born;
+      })();
+      this.waiting = turn;
+      await turn;
+      if (this.waiting === turn) {
+        this.waiting = null;
+      }
       if (!current() || this.listed(complete.uuid)) {
         return;
       }

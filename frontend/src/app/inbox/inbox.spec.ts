@@ -914,6 +914,29 @@ describe('Dado a tela principal', () => {
       expect(redirect).toHaveBeenCalledWith(nova);
     });
 
+    it('deve pôr na ordem em que chegaram, com o total da última, a que vem logo atrás de uma que esperava o pulso (Circuito F2)', async () => {
+      TestBed.inject(CircuitFlow).attach({
+        draw: (_request, step) => (step === 'full' ? { born: 720, hurry: () => undefined } : null),
+        clear: () => undefined,
+      });
+      const store = TestBed.inject(RequestStore);
+      const [primeira, segunda] = [webhookRequest(3, { seq: 3 }), webhookRequest(4, { seq: 4 })];
+
+      FakeEventSource.latest().emit('request.created', {
+        request: primeira,
+        total: 3,
+        truncated: false,
+      });
+      FakeEventSource.latest().emit('request.created', {
+        request: segunda,
+        total: 4,
+        truncated: false,
+      });
+
+      await vi.waitFor(() => expect(store.requests().slice(0, 2)).toEqual([segunda, primeira]));
+      expect(store.total()).toBe(4);
+    });
+
     it('deve pôr a chegada isolada na lista, nascendo do circuito, e dizê-la no instante em que o pulso chega à Resposta, com o reenvio pelo navegador na hora (Circuito F2, CA-1)', async () => {
       TestBed.inject(Preferences).redirectEnable.set(true);
       const redirect = vi.spyOn(TestBed.inject(Redirector), 'redirect').mockResolvedValue();
