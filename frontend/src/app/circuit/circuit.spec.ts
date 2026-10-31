@@ -543,6 +543,12 @@ describe('Dado o circuito da URL na Entrada', () => {
       store.append(daP1(1), 3);
       flow.land();
       await fixture.whenStable();
+      // O passo do fluxo (231 ms): a contagem troca uma vez por passo, para o contador rolar até o número novo.
+      const contador = container.querySelector<HTMLElement>('[data-key="rule:p1:ann"] .ctr');
+      await vi.waitFor(async () => {
+        await fixture.whenStable();
+        expect(contador?.style.getPropertyValue('--n')).toBe('2');
+      });
 
       const espessura = (id: string) =>
         container.querySelector<SVGElement>(`.edge[data-edge="${id}"]`)?.style.strokeWidth;
@@ -550,16 +556,20 @@ describe('Dado o circuito da URL na Entrada', () => {
       expect(espessura('x1')).toBe('');
       expect(container.querySelector('.meter')?.textContent).toBe('7/s');
       expect(container.querySelector('.band')?.classList.contains('rolls')).toBe(true);
-      const contador = container.querySelector<HTMLElement>('[data-key="rule:p1:ann"] .ctr');
-      expect(contador?.style.getPropertyValue('--n')).toBe('2');
       expect(container.querySelector('[data-key="rule:p1:ann"]')?.textContent).toBe('✗ 401 · 2');
       // Só o pulso inteiro da primeira e um curto (as de 2 a 5 dividem o quadro): da 6.ª em diante, nenhum.
       expect(animadas('.dot').filter(({ options }) => !options.delay)).toHaveLength(2);
 
-      // A contagem que muda sem chegada (outra lista, uma apagada) troca em 0 ms.
+      // No mesmo passo, a próxima contagem espera o fim dele (a 60 por segundo, o contador recomeçaria a cada uma e
+      // não sairia do lugar); a que muda sem chegada (outra lista, uma apagada) troca sem rolar.
       store.append(daP1(9), 4);
       await fixture.whenStable();
+      expect(contador?.style.getPropertyValue('--n')).toBe('2');
       expect(container.querySelector('.band')?.classList.contains('rolls')).toBe(false);
+      await vi.waitFor(async () => {
+        await fixture.whenStable();
+        expect(contador?.style.getPropertyValue('--n')).toBe('3');
+      });
     });
 
     it('deve dizer quando a linha nasce sem desenhar pulso nem aparecer aos poucos, com movimento reduzido (CA-4)', async () => {

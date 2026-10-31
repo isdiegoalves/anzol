@@ -140,6 +140,15 @@ export class Circuit implements FlowStage {
     },
   });
 
+  /**
+   * As mensagens que as contagens do desenho mostram: as contadas, com no máximo uma troca por passo do fluxo (231 ms)
+   * enquanto a rajada passa de 5 por segundo. A cada troca o contador recomeça a rolar do número em que está; trocado a
+   * cada chegada (60 por segundo), ele mal saía do lugar e ficava centenas atrás (C-6: cada passo rola 231 ms).
+   */
+  protected readonly tally = signal<readonly CapturedRequest[]>([]);
+  private tallyAt = Number.NEGATIVE_INFINITY;
+  private tallyTimer: ReturnType<typeof setTimeout> | undefined;
+
   /** As regras desta URL, quando a `RuleStore` está nela; `null` enquanto não chegaram (ou se a leitura falhou). */
   private readonly rules = computed(() => {
     const tokenId = this.tokens.shown()?.uuid;
@@ -185,7 +194,7 @@ export class Circuit implements FlowStage {
     }
     return circuitOf({
       ...layout,
-      requests: this.counted().list,
+      requests: this.tally(),
       selected: this.showing(),
       filter: this.requests.filter(),
       meter: this.flow.step() === 'flow' ? this.flow.rate() : null,
@@ -283,6 +292,12 @@ export class Circuit implements FlowStage {
       },
     });
     afterNextRender(() => this.observeBand());
+    // As contagens seguem as mensagens contadas; no fluxo, um passo por vez.
+    effect(() => {
+      const list = this.counted().list;
+      const flowing = this.flow.step() === 'flow';
+      untracked(() => this.recount(list, flowing));
+    });
     // As chegadas pelo tempo real: só o desenho da faixa as mostra (no celular, a linha do caminho não tem pulso).
     let detach = () => undefined as void;
     afterNextRender(() => {
@@ -317,6 +332,7 @@ export class Circuit implements FlowStage {
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.retry);
       clearTimeout(this.revealTimer);
+      clearTimeout(this.tallyTimer);
       this.reducedMotion.removeEventListener?.('change', motionChanged);
       detach();
       this.clear();
@@ -379,6 +395,18 @@ export class Circuit implements FlowStage {
       this.frame = null;
     }
     this.stopReveal();
+  }
+
+  /** Troca as mensagens das contagens já ou, no fluxo, no fim do passo em curso (com a lista de então). */
+  private recount(list: readonly CapturedRequest[], flowing: boolean): void {
+    clearTimeout(this.tallyTimer);
+    const wait = flowing ? this.tallyAt + this.motion().effects.duration - performance.now() : 0;
+    if (wait <= 0) {
+      this.tallyAt = performance.now();
+      this.tally.set(list);
+      return;
+    }
+    this.tallyTimer = setTimeout(() => this.recount(untracked(this.counted).list, false), wait);
   }
 
   /** O caminho da chegada no desenho de agora (o mesmo para as que respondem igual: guardado por resposta). */

@@ -69,22 +69,16 @@
 }
 
 // No modo fluxo a aresta engrossa pelas chegadas que passaram por ela, e os contadores rolam (C-6): só quando a
-// contagem mudou por uma chegada (`.rolls`); com movimento reduzido, em 0 ms.
-.rolls {
-  .edge,
-  .route path {
-    transition: stroke-width var(--app-flow-step);
-  }
-
-  .ctr {
-    transition: --n var(--app-flow-step);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
+// contagem mudou por uma chegada (`.rolls`); com movimento reduzido, em 0 ms (sem transição nenhuma).
+@media (prefers-reduced-motion: no-preference) {
+  .rolls {
     .edge,
-    .route path,
+    .route path {
+      transition: stroke-width var(--app-flow-step);
+    }
+
     .ctr {
-      transition: none;
+      transition: --n var(--app-flow-step);
     }
   }
 }
@@ -100,11 +94,7 @@
 // O número de verdade, no texto do rótulo (o desenho mostra o do contador).
 .real {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
   clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 // O pulso (proposta 1 §4 M1): ponto de 6 px em primária e, na chegada isolada, rastro de 24 px; os dois andam pelas
