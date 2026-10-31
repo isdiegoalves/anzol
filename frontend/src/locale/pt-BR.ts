@@ -459,19 +459,32 @@ export const translations: Record<string, string> = {
   '2886253525048467023': 'Requisição recebida · {$method} {$route}',
   // View
   '2509141182388535183': 'Ver',
-  // {$method} {$route} arrived
-  '7111157730468327340': 'Chegou {$method} {$route}',
-  // {$method} {$route} arrived · answered {$status}
-  '1726102406184555033': 'Chegou {$method} {$route} · respondeu {$status}',
-  // 1 more request arrived: {$method} {$route}
-  '5747204300912474314': 'Mais 1 requisição chegou: {$method} {$route}',
-  // 1 more request arrived: {$method} {$route} · answered {$status}
-  '7730024890928837822': 'Mais 1 requisição chegou: {$method} {$route} · respondeu {$status}',
-  // {$count} more requests arrived, the last {$method} {$route}
-  '7921529121671825844': 'Mais {$count} requisições chegaram, a última {$method} {$route}',
-  // {$count} more requests arrived, the last {$method} {$route} · answered {$status}
-  '6698504429320474439':
-    'Mais {$count} requisições chegaram, a última {$method} {$route} · respondeu {$status}',
+  // New request: {$method} {$route}
+  '5389830797089341998': 'Nova requisição: {$method} {$route}',
+  // signature stale
+  '2044943463583938297': 'assinatura vencida',
+  // {$fault} by rule {$rule}
+  '4959331707565881359': '{$fault} pela regra {$rule}',
+  // answered {$status} by rule {$rule}
+  '7263453049031570658': 'respondeu {$status} pela regra {$rule}',
+  // answered {$status} by the default response
+  '3154104218514396066': 'respondeu {$status} pela resposta padrão',
+  // 1 new request
+  '8707615652422420984': '1 nova requisição',
+  // {$count} new requests
+  '7807766772577658282': '{$count} novas requisições',
+  // {$count} with invalid signature
+  '928337453455863029': '{$count} com assinatura inválida',
+  // {$count} with invalid schema
+  '9079006738651084928': '{$count} com schema inválido',
+  // {$count} with decryption failure
+  '7007014394665895047': '{$count} com falha na decifra',
+  // {$count} with network failure
+  '5735034454450703377': '{$count} com falha de rede',
+  // no anomaly
+  '2777310927786764918': 'nenhuma anomalia',
+  // {$count}/s
+  '4293639515961469708': '{$count}/s',
   // peak {$INTERPOLATION}
   '7771802040576367067': 'pico {$INTERPOLATION}',
   // {$hour}: 1 request

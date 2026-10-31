@@ -91,7 +91,7 @@ test.describe('Dado o /stream de uma URL que cai e volta', () => {
       /^3 requests arrived during a brief connection drop\.$/,
       /^Connection$/,
     );
-    await expectSemAnuncio(page, /new requests? arrived/);
+    await expectSemAnuncio(page, /^New request: |^\d+ new requests?;/);
     await expect(estadoAoVivo(page)).toContainText('Live');
     await tokens.send(tokenId, { path: '/depois' });
     await expect(page.getByRole('heading', { name: 'Requests (24)' })).toBeVisible();

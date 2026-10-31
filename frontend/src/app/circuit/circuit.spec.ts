@@ -1,3 +1,4 @@
+import { MediaMatcher } from '@angular/cdk/layout';
 import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
@@ -20,6 +21,7 @@ import { FilterChips } from '../search/filter-chips';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Circuit, REREAD_MIN_MS, RULES_RETRY_MS, stageFit } from './circuit';
+import { CircuitFlow } from './circuit-flow';
 
 const REGRAS = [
   rule(1, {
@@ -412,6 +414,177 @@ describe('Dado o circuito da URL na Entrada', () => {
     expect(
       screen.getByRole('button', { name: /^Rule P1 Assinatura inválida: ✗ 401 · 1\./ }),
     ).toBeTruthy();
+  });
+
+  describe('Dado as chegadas pelo tempo real (F2)', () => {
+    /** As animações pedidas ao navegador: o jsdom não tem WAAPI. */
+    let animations: {
+      target: Element;
+      keyframes: Keyframe[];
+      options: KeyframeAnimationOptions;
+      rate: number;
+      state: string;
+    }[];
+    const NOVA = webhookRequest(30, {
+      token_id: TOKEN_ID,
+      url: `http://localhost:8084/${TOKEN_ID}/webhooks/novo`,
+      signature: valida,
+      schema: { valid: true, errors: [] },
+      rule: null,
+      near_miss: PELA_PADRAO.near_miss,
+      response: { status: 200 },
+    });
+    const daP1 = (n: number) => ({ ...DA_P1, uuid: `p1-${n}`, token_id: TOKEN_ID });
+    const animadas = (seletor: string) =>
+      animations.filter((animation) => animation.target.matches(seletor));
+
+    beforeEach(() => {
+      animations = [];
+      Object.defineProperty(Element.prototype, 'animate', {
+        configurable: true,
+        value(this: Element, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
+          const record = { target: this, keyframes, options, rate: 1, state: 'running' };
+          animations.push(record);
+          const animation = new EventTarget() as EventTarget & Partial<Animation>;
+          Object.assign(animation, {
+            updatePlaybackRate: (rate: number) => (record.rate = rate),
+            cancel: () => {
+              record.state = 'cancelled';
+              animation.dispatchEvent(new Event('cancel'));
+            },
+            finish: () => {
+              record.state = 'finished';
+              animation.dispatchEvent(new Event('finish'));
+            },
+          });
+          return animation;
+        },
+      });
+    });
+
+    afterEach(() => {
+      delete (Element.prototype as { animate?: unknown }).animate;
+      TestBed.inject(CircuitFlow).release();
+    });
+
+    it('deve lançar o pulso inteiro pelo caminho da chegada isolada e fazer a linha nascer quando ele se desfaz na Resposta (CA-1)', async () => {
+      const { container, fixture } = await mostrar();
+      const flow = TestBed.inject(CircuitFlow);
+
+      const nasce = flow.arrive(NOVA, { at: 0 });
+
+      expect(nasce).toBeInstanceOf(Promise);
+      const ponto = container.querySelector<HTMLElement>('.fx .dot');
+      expect(ponto?.style.getPropertyValue('offset-path')).toBe(
+        'path("M80,60 H280 H460 H640 H686 Q690,60 690,56 V16 Q690,12 694,12 H856 Q860,12 860,16 V24 V48 V72 H1060 V60 H1140")',
+      );
+      expect(container.querySelector('.fx .trail')).not.toBeNull();
+      // 5 saltos de 180 ms; o ponto se desfaz no tempo de mais um; a linha nasce em 1080 ms.
+      expect(animadas('.dot')[0].options).toEqual({ duration: 900, fill: 'forwards' });
+      expect(fixture.componentInstance.draw(NOVA, 'full', false)?.born).toBe(1080);
+      // Sem a tela abri-la, o desenho segue o de antes (a configuração).
+      expect(screen.getByRole('img').getAttribute('aria-label')).toMatch(/No request open\.$/);
+    });
+
+    it('deve mostrar a chegada que a tela vai abrir enquanto o pulso passa: cada aresta acende e cada ✓ aparece quando ele chega ao nó', async () => {
+      const { container, fixture } = await mostrar();
+
+      void TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0, opens: true });
+      await fixture.whenStable();
+
+      expect(screen.getByRole('img').getAttribute('aria-label')).toContain(
+        'Open request: POST /webhooks/novo',
+      );
+      const aparece = (key: string) =>
+        animadas(`[data-key="${key}"]`).map(({ options }) => [options.delay, options.duration]);
+      expect(aparece('sender:sub')).toEqual([[0, 231]]);
+      expect(aparece('signature:gl')).toEqual([[180, 231]]);
+      expect(aparece('schema:gl')).toEqual([[360, 231]]);
+      expect(aparece('response:data')).toEqual([[900, 231]]);
+      expect(animadas('.route path[data-edge="rs"]')[0].options.duration).toBe(180);
+      expect(animadas('.route path[data-edge="out"]')[0].options.duration).toBe(900);
+      // O caminho fica em tinta cheia até a linha nascer e assenta em 70 % em 1,5 s.
+      const assenta = animadas('.route')[0];
+      expect(assenta.options.duration).toBe(1080 + 1500);
+      expect(assenta.keyframes.map((frame) => frame['opacity'])).toEqual([1, 1, 0.7]);
+      expect(container.querySelectorAll('.badge').length).toBeGreaterThan(0);
+
+      // A pessoa abre outra mensagem: o desenho é o dela, já, e o assentar para (sem motion).
+      store.select(DA_P1.uuid);
+      await fixture.whenStable();
+      expect(screen.getByRole('img').getAttribute('aria-label')).toMatch(/P1 ✓ → 401\.$/);
+      expect(assenta.state).toBe('cancelled');
+    });
+
+    it('deve rebaixar o pulso inteiro, sem rastro e no dobro da velocidade, e dar pulso curto de 90 ms à segunda da rajada (CA-2)', async () => {
+      const { container } = await mostrar();
+      const flow = TestBed.inject(CircuitFlow);
+      flow.arrive(NOVA, { at: 0 });
+      const inteiro = animadas('.dot')[0];
+
+      expect(flow.arrive(daP1(1), { at: 75 })).toBeNull();
+      flow.arrive(daP1(2), { at: 90 });
+      await new Promise((frame) => requestAnimationFrame(frame));
+
+      expect(inteiro.rate).toBe(2);
+      expect(container.querySelectorAll('.fx .trail')).toHaveLength(0);
+      // As duas do mesmo caminho no mesmo quadro dividem um pulso curto: 5 saltos de 90 ms.
+      const viagens = animadas('.dot').filter(({ options }) => !options.delay);
+      expect(viagens.map(({ options }) => options.duration)).toEqual([900, 450]);
+    });
+
+    it('deve virar fluxo acima de 5 por segundo: sem pulso, arestas engrossando, o medidor "N/s" e os contadores rolando só pela chegada (CA-2)', async () => {
+      const { container, fixture } = await mostrar();
+      const flow = TestBed.inject(CircuitFlow);
+      for (let n = 1; n <= 7; n++) {
+        flow.arrive(daP1(n), { at: performance.now() });
+      }
+      await new Promise((frame) => requestAnimationFrame(frame));
+      store.append(daP1(1), 3);
+      flow.land();
+      await fixture.whenStable();
+
+      const espessura = (id: string) =>
+        container.querySelector<SVGElement>(`.edge[data-edge="${id}"]`)?.style.strokeWidth;
+      expect(espessura('x0')).toBe('1.75px');
+      expect(espessura('x1')).toBe('');
+      expect(container.querySelector('.meter')?.textContent).toBe('7/s');
+      expect(container.querySelector('.band')?.classList.contains('rolls')).toBe(true);
+      const contador = container.querySelector<HTMLElement>('[data-key="rule:p1:ann"] .ctr');
+      expect(contador?.style.getPropertyValue('--n')).toBe('2');
+      expect(container.querySelector('[data-key="rule:p1:ann"]')?.textContent).toBe('✗ 401 · 2');
+      // Só o pulso inteiro da primeira e um curto (as de 2 a 5 dividem o quadro): da 6.ª em diante, nenhum.
+      expect(animadas('.dot').filter(({ options }) => !options.delay)).toHaveLength(2);
+
+      // A contagem que muda sem chegada (outra lista, uma apagada) troca em 0 ms.
+      store.append(daP1(9), 4);
+      await fixture.whenStable();
+      expect(container.querySelector('.band')?.classList.contains('rolls')).toBe(false);
+    });
+
+    it('deve dizer quando a linha nasce sem desenhar pulso nem aparecer aos poucos, com movimento reduzido (CA-4)', async () => {
+      const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      } as unknown as MediaQueryList);
+      const { container, fixture } = await mostrar();
+      reduzido.mockRestore();
+
+      const nasce = TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0, opens: true });
+
+      expect(nasce).toBeInstanceOf(Promise);
+      expect(fixture.componentInstance.draw(NOVA, 'full', true)?.born).toBe(1080);
+      expect(container.querySelector('.fx .dot')).toBeNull();
+      expect(animations).toHaveLength(0);
+      expect(TestBed.inject(CircuitFlow).arrive(daP1(1), { at: 80 })).toBeNull();
+    });
+
+    it('não deve desenhar chegada nenhuma no celular (a linha do caminho)', async () => {
+      await mostrar(undefined, true);
+
+      expect(TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0 })).toBeNull();
+    });
   });
 
   it('deve mostrar no celular só o caminho da mensagem aberta, numa linha que rola', async () => {

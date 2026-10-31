@@ -97,6 +97,7 @@
                 [class.pick-a]="compare.pair()?.a?.uuid === item.request.uuid"
                 [class.pick-b]="compare.pair()?.b?.uuid === item.request.uuid"
                 [class.fresh]="fresh().has(item.request.uuid)"
+                [class.app-born]="born().has(item.request.uuid)"
               >
                 <!-- A lista é uma parada só do Tab (roving tabindex): ↑ e ↓ andam sem abrir, Enter abre. -->
                 <!-- Estilo na linha: o arquivo de estilo da lista está no teto do orçamento. -->

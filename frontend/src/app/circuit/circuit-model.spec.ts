@@ -6,7 +6,7 @@ import { CapturedRequest } from '../requests/webhook-request';
 import { Rule } from '../rules/rule';
 import { NO_FILTER, RequestFilter } from '../search/request-filter';
 import { Token } from '../token/token';
-import { CircuitInput, CircuitLabel, CircuitView, circuitOf } from './circuit-model';
+import { CircuitInput, CircuitLabel, CircuitView, circuitOf, flowWidth } from './circuit-model';
 
 /** A URL da demo: assinatura genérica no X-PagaFacil-Assinatura e schema 2020-12. */
 const URL_DA_DEMO: Token = token({
@@ -625,5 +625,100 @@ describe('Dado as regras que não puderam ser lidas (F1-R02)', () => {
     expect(texto(view, 'schema:note')).toBeNull();
     // O resultado da mensagem aberta continua: ele não depende das regras.
     expect(texto(view, 'signature:gl')).toBe('✗ invalid · Generic');
+  });
+});
+
+describe('Dado o caminho da mensagem aberta em saltos, para o pulso (F2)', () => {
+  it('deve dar os 5 saltos da escada até a padrão, subindo o coletor de baixo para cima, e o salto em que cada aresta acende', () => {
+    const view = circuito({ selected: PELA_PADRAO });
+
+    expect(view.hops).toEqual([
+      'M80,60 H280',
+      'M280,60 H460',
+      'M460,60 H640',
+      'M640,60 H686 Q690,60 690,56 V16 Q690,12 694,12 H856 Q860,12 860,16 V24 V48 V72 V96',
+      'M860,96 H1060 V72 V60 H1140',
+    ]);
+    expect(view.lit).toEqual({
+      rs: 1,
+      ss: 2,
+      sd: 3,
+      br: 4,
+      s0: 4,
+      s1: 4,
+      s2: 4,
+      x3: 5,
+      c3: 5,
+      c2: 5,
+      out: 5,
+    });
+  });
+
+  it('deve descer o coletor Quando a regra que respondeu fica acima da linha principal', () => {
+    const view = circuito({ selected: DA_P1 });
+
+    expect(view.hops.at(-1)).toBe('M860,24 H1060 V48 V60 H1140');
+    expect(view.hops).toHaveLength(5);
+  });
+
+  it('deve ir em 3 saltos do Remetente à Resposta na URL sem regras (R1), e direto pelo atalho na gravada antes delas', () => {
+    expect(circuito({ rules: [], selected: PELA_PADRAO }).hops).toEqual([
+      'M80,60 H280',
+      'M280,60 H460',
+      'M460,60 H1140',
+    ]);
+    const antiga = webhookRequest(3, { rule: null, near_miss: null, response: { status: 200 } });
+    expect(circuito({ selected: antiga }).hops.slice(3)).toEqual([
+      'M640,60 H1060',
+      'M1060,60 H1140',
+    ]);
+    expect(circuito().hops).toEqual([]);
+  });
+
+  it('deve dizer em que salto cada coisa da mensagem aparece: o IP no Remetente, o ✓ em cada nó, o "quase" na escada, a resposta no fim', () => {
+    const view = circuito({ selected: PELA_PADRAO });
+    const aparece = (key: string) => rotulo(view, key).reveal;
+
+    expect(aparece('sender:sub')).toBe(0);
+    expect(aparece('signature:gl')).toBe(1);
+    expect(aparece('schema:gl')).toBe(2);
+    expect(aparece('near')).toBe(4);
+    expect(aparece('response:data')).toBe(5);
+    expect(rotulo(view, 'response:title').reveal).toBeUndefined();
+    expect(view.marks.find((mark) => mark.id === 'response')?.reveal).toBe(5);
+    expect(rotulo(circuito({ rules: [], selected: PELA_PADRAO }), 'response:data').reveal).toBe(3);
+    // Sem mensagem aberta, nada espera o pulso.
+    expect(circuito().labels.some((label) => label.reveal !== undefined)).toBe(false);
+  });
+
+  it('deve separar o número das contagens, para o contador rolar até ele (C-6)', () => {
+    const view = circuito({ requests: [PELA_PADRAO, DA_P1, DA_P1, SCHEMA_RUIM] });
+
+    expect(rotulo(view, 'rule:p1:ann').count).toEqual({ value: 2, before: '401 · ', after: '' });
+    expect(rotulo(view, 'default:ann').count).toEqual({ value: 2, before: '200 · ', after: '' });
+    expect(rotulo(view, 'schema:note').count).toEqual({ value: 1, before: '', after: '' });
+    expect(rotulo(view, 'response:sub')).toMatchObject({
+      text: '4 responses',
+      count: { value: 4, before: '', after: ' responses' },
+    });
+    // Sem acerto, a linha diz só o status, sem contador.
+    expect(rotulo(view, 'rule:p3:ann').count).toBeUndefined();
+  });
+
+  it('deve mostrar o medidor "N/s" ao lado do Remetente no modo fluxo, também no nome do nó', () => {
+    const view = circuito({ meter: 13 });
+
+    expect(rotulo(view, 'sender:meter')).toMatchObject({
+      text: '13/s',
+      x: 116,
+      y: 40,
+      count: { value: 13, before: '', after: '/s' },
+    });
+    expect(view.nodes[0].label).toContain('13/s');
+    expect(circuito().labels.some((label) => label.key === 'sender:meter')).toBe(false);
+  });
+
+  it('deve engrossar a aresta de 1 a 3 px pelas chegadas, em escala de log, em quartos de pixel', () => {
+    expect([0, 1, 15, 255, 10_000].map(flowWidth)).toEqual([1, 1.25, 2, 3, 3]);
   });
 });

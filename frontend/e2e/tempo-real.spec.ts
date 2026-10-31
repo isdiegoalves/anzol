@@ -82,7 +82,10 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(resultado).toContainText(
       '3 requests match · search runs on the server over all 4',
     );
-    await expectSoEstaFala(page, /^POST \/base-3 arrived · answered 200$/);
+    await expectSoEstaFala(
+      page,
+      /^New request: POST \/base-3; answered 200 by the default response\.$/,
+    );
   });
 
   test('não deve falar nada, e acertar o total da linha do filtro, Quando chega uma que não casa com o filtro ligado', async ({
@@ -215,7 +218,7 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await expect(
       anuncios(page).filter({ hasText: /^First request arrived: POST \/, at \d{1,2}:\d{2}/ }),
     ).toHaveCount(1, { timeout: 15_000 });
-    await expect(anuncios(page).filter({ hasText: /^POST \/ arrived/ })).toHaveCount(0);
+    await expect(anuncios(page).filter({ hasText: /^New request: POST \// })).toHaveCount(0);
     await expect(page.getByText('Request received')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Requests (1)' })).toBeVisible();
     await expect(detalhes(page)).toContainText(requestId);
@@ -299,6 +302,9 @@ test.describe('Dado a tela aberta recebendo em tempo real (checklist 7)', () => 
     await tokens.send(tokenId, { path: '/fora-da-vista' });
 
     await expect(page.getByText('Request received · POST /fora-da-vista')).toBeVisible();
-    await expectSoEstaFala(page, /^POST \/fora-da-vista arrived · answered 200$/);
+    await expectSoEstaFala(
+      page,
+      /^New request: POST \/fora-da-vista; answered 200 by the default response\.$/,
+    );
   });
 });

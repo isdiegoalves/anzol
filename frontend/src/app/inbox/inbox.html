@@ -250,6 +250,10 @@
       [page]="requests.pageOf(request.uuid)"
       (openRequest)="openRequest($event)"
     >
+      <!-- Lado a lado, com movimento reduzido: "caminho: …" abaixo do título (no celular, a linha fica no topo). -->
+      @if (twoPanes()) {
+        <app-circuit-path detailPath />
+      }
       <!-- Um painel por vez (INBOX-33): o Back abre o cabeçalho do detalhe, como no protótipo. -->
       @if (!twoPanes()) {
         <button

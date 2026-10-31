@@ -10,6 +10,7 @@ import {
 } from '../rules/rule';
 import { RequestFilter } from '../search/request-filter';
 import { SignatureProvider, Token, signatureProviderLabel } from '../token/token';
+import { joinPath, reverseLine } from './pulse';
 
 /**
  * O circuito da URL (proposta-1 §3, demo combinada): remetente → assinatura → schema → decifra → regras na ordem de
@@ -35,6 +36,8 @@ export interface CircuitInput {
   selected: CapturedRequest | null;
   /** O filtro da lista: o nó dele leva o contorno de filtro. */
   filter: RequestFilter;
+  /** No modo fluxo, quantas chegaram no último segundo: o medidor "N/s" ao lado do Remetente (F2). */
+  meter?: number | null;
 }
 
 export type GlyphTone = 'ok' | 'bad' | 'near';
@@ -45,7 +48,15 @@ export interface CircuitGlyph {
 }
 
 /** Os tipos de rótulo da demo: título (12 px), nome da regra (12 px) e os de dado (mono 11 px). */
-export type LabelKind = 'title' | 'name' | 'sub' | 'gl' | 'note' | 'data' | 'ann' | 'near';
+export type LabelKind =
+  'title' | 'name' | 'sub' | 'gl' | 'note' | 'data' | 'ann' | 'near' | 'meter';
+
+/** Um contador do rótulo: o número, que rola até o novo na chegada (C-6), e o texto em volta dele. */
+export interface CircuitCount {
+  value: number;
+  before: string;
+  after: string;
+}
 
 export interface CircuitLabel {
   key: string;
@@ -62,6 +73,13 @@ export interface CircuitLabel {
   glyph?: CircuitGlyph;
   /** O número do cartão do detalhe que corresponde ao nó (① ② ③). */
   badge?: string;
+  /** O texto tem um contador: `text` é o texto inteiro, com o número. */
+  count?: CircuitCount;
+  /**
+   * O que a mensagem aberta mostra no nó (o IP, o ✓/✗, a resposta) aparece quando o pulso chega a ele: o número de
+   * saltos até o nó (0 no Remetente).
+   */
+  reveal?: number;
 }
 
 export interface CircuitEdge {
@@ -76,6 +94,8 @@ export interface CircuitMark {
   r: number;
   /** No caminho da mensagem aberta: contorno em tinta. */
   on: boolean;
+  /** Os saltos do pulso até o nó, no caminho da mensagem aberta. */
+  reveal?: number;
 }
 
 export interface CircuitNode {
@@ -106,6 +126,12 @@ export interface CircuitView {
   edges: CircuitEdge[];
   /** As arestas do caminho da mensagem aberta (vazio sem mensagem). */
   route: string[];
+  /**
+   * O caminho da mensagem aberta em saltos, como o pulso o percorre (F2): o desenho de cada salto, na direção da
+   * viagem, e em que salto cada aresta do caminho acende (1 no fim do primeiro).
+   */
+  hops: string[];
+  lit: Record<string, number>;
   junctions: (readonly [number, number])[];
   marks: CircuitMark[];
   labels: CircuitLabel[];
@@ -117,6 +143,8 @@ export interface CircuitView {
 }
 
 const MAIN_Y = 60;
+/** Os saltos do pulso até a escada: Remetente → Assinatura → Schema → Decifra → linha da regra. */
+const LADDER_HOPS = 4;
 /** A linha do "quase casou", acima da escada e da Resposta (y = 24), em qualquer número de regras. */
 const NEAR_Y = 9;
 const X = {
@@ -383,6 +411,30 @@ function plain(label: Pick<CircuitLabel, 'text' | 'glyph'>): string {
   return [label.glyph?.text, label.text].filter(Boolean).join(' ');
 }
 
+/** O lugar do número na frase traduzida: a frase vem com ele, e o contador entra ali. */
+const COUNT = '\u0001';
+
+/** A frase com o contador no lugar de `COUNT`: o texto inteiro, para ler, e as partes, para desenhar. */
+function counted(phrase: string, value: number): { text: string; count: CircuitCount } {
+  const at = phrase.indexOf(COUNT);
+  const before = at < 0 ? phrase : phrase.slice(0, at);
+  const after = at < 0 ? '' : phrase.slice(at + COUNT.length);
+  return { text: `${before}${value}${after}`, count: { value, before, after } };
+}
+
+/** "401 · " e o contador: a anotação de uma linha da escada. */
+function tally(before: string, value: number): { text: string; count: CircuitCount } {
+  return { text: `${before}${value}`, count: { value, before, after: '' } };
+}
+
+/**
+ * A espessura da aresta no modo fluxo (demo, `thickness`): de 1 px a 3 px pelo número de chegadas que passaram por
+ * ela, em escala de log (256 enchem), em quartos de pixel.
+ */
+export function flowWidth(count: number): number {
+  return Math.round((1 + 2 * Math.min(1, Math.log2(1 + count) / Math.log2(257))) * 4) / 4;
+}
+
 export function circuitOf(input: CircuitInput): CircuitView {
   const w = words();
   const { token, selected, filter } = input;
@@ -445,6 +497,9 @@ export function circuitOf(input: CircuitInput): CircuitView {
   const labels: CircuitLabel[] = [];
   const nodes: CircuitNode[] = [];
   const onPath = new Set<string>();
+  /** Os saltos do pulso (as arestas de cada um, na ordem) e as do coletor que ele sobe, de baixo para cima. */
+  const hopIds: string[][] = [];
+  const upward = new Set<string>();
   const label = (
     key: string,
     x: number,
@@ -539,17 +594,33 @@ export function circuitOf(input: CircuitInput): CircuitView {
   ];
   const spokenOf = (parts: (string | null | undefined)[]) =>
     parts.filter((part): part is string => !!part && part !== '—').join('; ');
-  for (const main of mains) {
-    marks.push({ id: main.id, x: main.x, y: MAIN_Y, r: 4, on: false });
+  // O medidor do modo fluxo, ao lado do título do Remetente (demo, `rem:meter`).
+  const meter =
+    input.meter !== null && input.meter !== undefined
+      ? counted(
+          $localize`:circuit meter, requests that arrived in the last second:${COUNT}:count:/s`,
+          input.meter,
+        )
+      : null;
+  mains.forEach((main, index) => {
+    marks.push({ id: main.id, x: main.x, y: MAIN_Y, r: 4, on: false, reveal: index });
     label(`${main.id}:title`, main.x, 40, 'c', 'title', main.title, {
       ...(badges.has(main.id) && { badge: badges.get(main.id) }),
     });
-    label(`${main.id}:sub`, main.x, 76, 'c', 'sub', main.sub, { muted: main.subMuted });
+    label(`${main.id}:sub`, main.x, 76, 'c', 'sub', main.sub, {
+      muted: main.subMuted,
+      ...(main.id === 'sender' && selected && { reveal: 0 }),
+    });
     const parts: (string | null)[] = [main.sub];
+    if (main.id === 'sender' && meter) {
+      label('sender:meter', X.sender + 36, 40, 'l', 'meter', meter.text, { count: meter.count });
+      parts.push(meter.text);
+    }
     if (main.result) {
       label(`${main.id}:gl`, main.x, 92, 'c', 'gl', main.result.text, {
         glyph: main.result.glyph,
         rule: main.result.bad ? 'bad' : null,
+        reveal: index,
       });
       parts.push(plain(main.result));
     }
@@ -558,6 +629,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       label(`${main.id}:note`, main.x, 108, 'c', 'note', note.text, {
         glyph: note.glyph,
         rule: 'bad',
+        count: { value: main.count, before: '', after: '' },
       });
       parts.push(plain(note));
     }
@@ -573,7 +645,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       off: main.off,
       pressed: main.pressed,
     });
-  }
+  });
 
   edge('rs', `M${X.sender},${MAIN_Y} H${X.signature}`);
   edge('ss', `M${X.signature},${MAIN_Y} H${X.schema}`);
@@ -615,9 +687,10 @@ export function circuitOf(input: CircuitInput): CircuitView {
     } else if (unavailable) {
       label('unavailable', X.ladder, 76, 'c', 'sub', w.unavailable, { muted: true });
     }
-    marks.push({ id: 'response', x: X.response, y: MAIN_Y, r: 4, on: false });
+    marks.push({ id: 'response', x: X.response, y: MAIN_Y, r: 4, on: false, reveal: pre.length });
     label('response:data', X.response, 24, 'c', 'data', responseData ?? noMessage, {
       muted: !selected,
+      ...(selected && { reveal: pre.length }),
     });
     label('response:title', X.response, 40, 'c', 'title', w.response, {
       ...(badges.has('response') && { badge: badges.get('response') }),
@@ -635,6 +708,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
     });
     if (selected) {
       route.push(...pre);
+      hopIds.push(...pre.map((id) => [id]));
       ['sender', 'signature', 'schema', ...(decrypts ? ['decryption'] : []), 'response'].forEach(
         (id) => onPath.add(id),
       );
@@ -655,7 +729,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
         ? hits > 0
           ? {
               glyph: { text: '⚡', tone: 'bad' as const },
-              text: `${lowerFirst(faultName(fault))} · ${hits}`,
+              ...tally(`${lowerFirst(faultName(fault))} · `, hits),
               muted: false,
               rule: 'bad' as const,
             }
@@ -664,11 +738,11 @@ export function circuitOf(input: CircuitInput): CircuitView {
           ? catchesAny(rule)
             ? {
                 glyph: { text: '✗', tone: 'bad' as const },
-                text: `${status} · ${hits}`,
+                ...tally(`${status} · `, hits),
                 muted: false,
                 rule: 'bad' as const,
               }
-            : { text: `${status} · ${hits}`, muted: false, rule: null }
+            : { ...tally(`${status} · `, hits), muted: false, rule: null }
           : { text: String(status), muted: true, rule: null };
       const name = `${pLabel(rule)} ${rule.name}`;
       return {
@@ -715,7 +789,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
           : nearHere
             ? { glyph: { text: '◔', tone: 'near' }, text: amongName, muted: false, rule: 'near' }
             : hits > 0
-              ? { text: String(hits), muted: false, rule: null }
+              ? { ...tally('', hits), muted: false, rule: null }
               : { text: '', muted: true, rule: null },
         annSpoken: !among,
         filter: null,
@@ -733,7 +807,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
       rules: [],
       ann:
         byDefault > 0
-          ? { text: `${token.default_status} · ${byDefault}`, muted: false, rule: null }
+          ? { ...tally(`${token.default_status} · `, byDefault), muted: false, rule: null }
           : { text: String(token.default_status), muted: true, rule: null },
       filter: { outcome: { type: 'default' } },
       off: { outcome: null },
@@ -778,11 +852,12 @@ export function circuitOf(input: CircuitInput): CircuitView {
       label('near', 872, NEAR_Y, 'l', 'near', nearText, {
         glyph: { text: '◔', tone: 'near' },
         rule: 'near',
+        reveal: LADDER_HOPS,
       });
     }
 
     rows.forEach((row) => {
-      marks.push({ id: row.id, x: X.ladder, y: row.y, r: 3, on: false });
+      marks.push({ id: row.id, x: X.ladder, y: row.y, r: 3, on: false, reveal: LADDER_HOPS });
       label(`${row.id}:name`, 850, row.y, 'r', 'name', row.name);
       if (row.ann.text) {
         label(`${row.id}:ann`, 872, row.y, 'l', 'ann', row.ann.text, row.ann);
@@ -804,18 +879,32 @@ export function circuitOf(input: CircuitInput): CircuitView {
       });
     });
 
-    marks.push({ id: 'response', x: X.response, y: MAIN_Y, r: 4, on: false });
+    // A mensagem cuja regra saiu da escada para na decifra (3 saltos); as outras chegam à Resposta em 5.
+    const answered = selected?.rule
+      ? rows.findIndex((row) => row.rules.some((rule) => rule.id === selected.rule?.id))
+      : rows.length - 1;
+    const responseHops = bypassed || answered >= 0 ? LADDER_HOPS + 1 : LADDER_HOPS - 1;
+    marks.push({ id: 'response', x: X.response, y: MAIN_Y, r: 4, on: false, reveal: responseHops });
     marks.push({ id: 'resend', x: X.resend, y: MAIN_Y, r: 4, on: false });
-    label('response:data', X.response, 24, 'c', 'data', responseData ?? '—', { muted: !selected });
+    label('response:data', X.response, 24, 'c', 'data', responseData ?? '—', {
+      muted: !selected,
+      ...(selected && { reveal: responseHops }),
+    });
     label('response:title', X.response, 40, 'c', 'title', w.response, {
       ...(badges.has('response') && { badge: badges.get('response') }),
     });
     const responses =
       input.requests.length === 1
-        ? $localize`:circuit, requests the URL answered:1 response`
-        : $localize`:circuit, requests the URL answered:${input.requests.length}:count: responses`;
+        ? { text: $localize`:circuit, requests the URL answered:1 response` }
+        : counted(
+            $localize`:circuit, requests the URL answered:${COUNT}:count: responses`,
+            input.requests.length,
+          );
     if (input.requests.length > 0) {
-      label('response:sub', X.response, 76, 'c', 'sub', responses, { muted: true });
+      label('response:sub', X.response, 76, 'c', 'sub', responses.text, {
+        muted: true,
+        ...('count' in responses && { count: responses.count }),
+      });
     }
     label('resend:title', X.resend, 40, 'c', 'title', w.resend);
     label('resend:sub', X.resend, 76, 'c', 'sub', w.outbound, { muted: true });
@@ -826,7 +915,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
         y: 12,
         w: 106,
         h: 76,
-        label: `${w.response}: ${spokenOf([responseData, input.requests.length > 0 ? responses : null]) || '—'}. ${showAll}`,
+        label: `${w.response}: ${spokenOf([responseData, input.requests.length > 0 ? responses.text : null]) || '—'}. ${showAll}`,
         filter: null,
         off: null,
         pressed: null,
@@ -846,26 +935,29 @@ export function circuitOf(input: CircuitInput): CircuitView {
 
     if (selected) {
       route.push(...pre);
+      hopIds.push(...pre.map((id) => [id]));
       ['sender', 'signature', 'schema', 'decryption'].forEach((id) => onPath.add(id));
-      const at = selected.rule
-        ? rows.findIndex((row) => row.rules.some((rule) => rule.id === selected.rule?.id))
-        : rows.length - 1;
+      const at = answered;
       if (bypassed) {
         // Gravada sem passar pelas regras (antes delas, ou com todas desligadas): direto à Resposta.
         edge('skip', `M${X.decryption},${MAIN_Y} H${X.collector}`);
         route.push('skip', 'out');
+        hopIds.push(['skip'], ['out']);
       } else if (at >= 0) {
         // Regra que não existe mais (ou desligada): o caminho para na decifra; a Resposta diz quem respondeu.
-        route.push('br');
-        for (let i = 0; i < at; i++) {
-          route.push(`s${i}`);
-        }
-        route.push(`x${at}`);
+        const descent = ['br', ...Array.from({ length: at }, (_, i) => `s${i}`)];
         const from = stops.indexOf(rows[at].y);
         const main = stops.indexOf(MAIN_Y);
         const [a, b] = from < main ? [from, main] : [main, from];
         const collector = Array.from({ length: b - a }, (_, i) => `c${a + i}`);
-        route.push(...(from < main ? collector : collector.reverse()), 'out');
+        if (from > main) {
+          // Abaixo da linha principal, o pulso sobe o coletor.
+          collector.reverse();
+          collector.forEach((id) => upward.add(id));
+        }
+        const exit = [`x${at}`, ...collector, 'out'];
+        route.push(...descent, ...exit);
+        hopIds.push(descent, exit);
         rows.slice(0, at + 1).forEach((row) => onPath.add(row.id));
       }
       onPath.add('response');
@@ -918,7 +1010,20 @@ export function circuitOf(input: CircuitInput): CircuitView {
     description += ' ' + $localize`:circuit description:No request open.`;
   }
 
-  return { edges, route, junctions, marks, labels, nodes, description, path };
+  // O caminho em saltos, para o pulso: o desenho de cada salto e o salto em que cada aresta acende.
+  const drawn = new Map(edges.map((each) => [each.id, each.d]));
+  const lit: Record<string, number> = {};
+  const hops = hopIds.map((ids, i) => {
+    ids.forEach((id) => (lit[id] = i + 1));
+    return joinPath(
+      ids.map((id) => {
+        const d = drawn.get(id) ?? '';
+        return upward.has(id) ? reverseLine(d) : d;
+      }),
+    );
+  });
+
+  return { edges, route, hops, lit, junctions, marks, labels, nodes, description, path };
 }
 
 function enabledIndex(rules: readonly Rule[], id: string): number {

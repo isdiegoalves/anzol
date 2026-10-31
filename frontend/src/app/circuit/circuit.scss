@@ -43,6 +43,7 @@
 
 .drawing,
 .labels,
+.fx,
 .nodes {
   position: absolute;
   top: 0;
@@ -55,7 +56,8 @@
   overflow: visible;
 }
 
-.labels {
+.labels,
+.fx {
   pointer-events: none;
 }
 
@@ -64,6 +66,73 @@
   fill: none;
   stroke: var(--mat-sys-outline-variant);
   stroke-width: 1px;
+}
+
+// No modo fluxo a aresta engrossa pelas chegadas que passaram por ela, e os contadores rolam (C-6): só quando a
+// contagem mudou por uma chegada (`.rolls`); com movimento reduzido, em 0 ms.
+.rolls {
+  .edge,
+  .route path {
+    transition: stroke-width var(--app-flow-step);
+  }
+
+  .ctr {
+    transition: --n var(--app-flow-step);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .edge,
+    .route path,
+    .ctr {
+      transition: none;
+    }
+  }
+}
+
+.ctr {
+  counter-reset: n var(--n);
+
+  &::after {
+    content: counter(n);
+  }
+}
+
+// O número de verdade, no texto do rótulo (o desenho mostra o do contador).
+.real {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// O pulso (proposta 1 §4 M1): ponto de 6 px em primária e, na chegada isolada, rastro de 24 px; os dois andam pelas
+// arestas por `offset-path`, que o pulso põe em cada um.
+.dot,
+.trail {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mat-sys-primary);
+  offset-anchor: 50% 50%;
+  offset-rotate: 0deg;
+}
+
+.trail {
+  width: 24px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(to right, transparent, var(--mat-sys-primary));
+  opacity: 0.4;
+  offset-anchor: 100% 50%;
+  offset-rotate: auto;
 }
 
 // O caminho da mensagem aberta em tinta, no estado assentado da demo (70 %); sem movimento, inteiro.
@@ -258,6 +327,12 @@
 
   .mark.on {
     stroke: var(--app-forced-ink);
+  }
+
+  .dot,
+  .trail {
+    background: var(--app-forced-selected);
+    forced-color-adjust: none;
   }
 
   // O botão do nó é transparente: sem isto o navegador desenha a borda de todos, por cima do desenho.

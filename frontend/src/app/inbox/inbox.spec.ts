@@ -12,6 +12,7 @@ import type { MockInstance } from 'vitest';
 import { FakeEventSource } from '../../testing/fake-event-source';
 import { withoutCircuit } from '../../testing/no-circuit';
 import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
+import { CircuitFlow } from '../circuit/circuit-flow';
 import { routes } from '../app.routes';
 import { ANNOUNCE_EVERY_MS, SEARCH_REFRESH_DEBOUNCE_MS } from './inbox';
 import { Preferences } from '../settings/preferences';
@@ -836,13 +837,13 @@ describe('Dado a tela principal', () => {
       expect(store.matched()).toBe(2);
       expect(store.total()).toBe(4);
       expect(announce.mock.calls.map(([message]) => String(message))).toEqual([
-        'GET /dentro arrived · answered 204',
+        'New request: GET /dentro; answered 204 by the default response.',
       ]);
       await new Promise((later) => setTimeout(later, SEARCH_REFRESH_DEBOUNCE_MS + 100));
       http.expectNone(searchUrl);
     });
 
-    it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim de 10 s', async () => {
+    it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim do segundo, com as anomalias', async () => {
       const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
       try {
@@ -850,6 +851,11 @@ describe('Dado a tela principal', () => {
           webhookRequest(10 + i, {
             url: `http://localhost:8084/${TOKEN_ID}/${rota}?x=1`,
             response: { status: 201 },
+            // A demo combinada (R2) conta as anomalias do segundo: uma assinatura que não confere, uma falha de rede.
+            ...(rota === 'c' && {
+              signature: { provider: 'github', valid: false, reason: 'signature mismatch' },
+            }),
+            ...(rota === 'd' && { response: { fault: 'connection_reset' } }),
           }),
         );
         for (const request of leva) {
@@ -859,9 +865,9 @@ describe('Dado a tela principal', () => {
         vi.advanceTimersByTime(ANNOUNCE_EVERY_MS);
 
         const said = announce.mock.calls.map(([message]) => String(message));
-        expect(said.filter((message) => /arrived/.test(message))).toEqual([
-          'POST /a arrived · answered 201',
-          '4 more requests arrived, the last POST /e · answered 201',
+        expect(said.filter((message) => /request/.test(message))).toEqual([
+          'New request: POST /a; answered 201 by the default response.',
+          '4 new requests; 1 with invalid signature; 1 with network failure.',
         ]);
       } finally {
         vi.useRealTimers();
@@ -886,7 +892,7 @@ describe('Dado a tela principal', () => {
 
       await vi.waitFor(() =>
         expect(announce.mock.calls.map(([message]) => String(message))).toEqual([
-          'POST /dentro arrived',
+          'New request: POST /dentro.',
         ]),
       );
     });
@@ -906,6 +912,46 @@ describe('Dado a tela principal', () => {
 
       await vi.waitFor(() => expect(router.url).toBe(`/${TOKEN_ID}/${nova.uuid}/1`));
       expect(redirect).toHaveBeenCalledWith(nova);
+    });
+
+    it('deve pôr a chegada isolada na lista, nascendo do circuito, e dizê-la no instante em que o pulso chega à Resposta, com o reenvio pelo navegador na hora (Circuito F2, CA-1)', async () => {
+      TestBed.inject(Preferences).redirectEnable.set(true);
+      const redirect = vi.spyOn(TestBed.inject(Redirector), 'redirect').mockResolvedValue();
+      const receive = vi.spyOn(RequestList.prototype, 'receive');
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce');
+      const desenhos: string[] = [];
+      TestBed.inject(CircuitFlow).attach({
+        draw: (request, step) => {
+          desenhos.push(`${request.uuid}:${step}`);
+          return step === 'full' ? { born: 720, hurry: () => undefined } : null;
+        },
+        clear: () => undefined,
+      });
+      const store = TestBed.inject(RequestStore);
+      const nova = webhookRequest(3, { response: { status: 200 } });
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        FakeEventSource.latest().emit('request.created', {
+          request: nova,
+          total: 3,
+          truncated: false,
+        });
+        await vi.advanceTimersByTimeAsync(700);
+
+        expect(desenhos).toEqual([`${nova.uuid}:full`]);
+        expect(redirect).toHaveBeenCalledWith(nova);
+        expect(store.requests()).not.toContain(nova);
+        expect(announce).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(20);
+        expect(store.requests()[0]).toEqual(nova);
+        expect(receive).toHaveBeenCalledWith(nova, false, true);
+        expect(announce.mock.calls.map(([message]) => String(message))).toEqual([
+          'New request: POST /; answered 200 by the default response.',
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -1280,9 +1326,9 @@ describe('Dado a tela principal', () => {
         vi.advanceTimersByTime(ANNOUNCE_EVERY_MS);
 
         const said = announce.mock.calls.map(([message]) => String(message));
-        expect(said.filter((message) => /arrived/.test(message))).toEqual([
+        expect(said.filter((message) => /request/.test(message))).toEqual([
           expect.stringMatching(/^First request arrived: POST \/primeira, at /),
-          '1 more request arrived: POST /segunda · answered 201',
+          '1 new request; no anomaly.',
         ]);
       } finally {
         vi.useRealTimers();

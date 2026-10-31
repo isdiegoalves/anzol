@@ -107,6 +107,8 @@ export const ITEM_HEIGHT_COMPACT = 36;
 export const ITEM_HEIGHT_TOUCH = 64;
 /** Quanto tempo a mensagem que acabou de chegar fica destacada. */
 export const FRESH_MS = 3000;
+/** Por quanto tempo a linha que nasceu do circuito leva a classe da entrada (a animação dura 224 ms). */
+export const BORN_MS = 600;
 /** A carga que chega antes disto troca a lista sem o esqueleto piscar no meio. */
 const SKELETON_DELAY_MS = 150;
 
@@ -341,6 +343,11 @@ export class RequestList {
   readonly newBelow = signal(0);
   /** As que acabaram de chegar, destacadas por alguns segundos. */
   protected readonly fresh = signal<ReadonlySet<string>>(new Set());
+  /**
+   * As que nasceram do circuito agora (F2): a chegada isolada, com a vista no topo, entra descendo 16 px a partir do
+   * nó Resposta (`app-born`, no `styles.scss`).
+   */
+  protected readonly born = signal<ReadonlySet<string>>(new Set());
 
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   /** O último elemento da lista que teve o foco, com a linha dele, e o foco perdido que espera voltar. */
@@ -490,14 +497,22 @@ export class RequestList {
    * Uma mensagem chegou (já está na ponta das novas: o topo, com a mais nova primeiro): fica
    * destacada; se essa ponta estava à vista, a lista acompanha; se não, a vista fica onde estava.
    * Se a tela não a abriu (`opened`), ela conta na pílula das novas. Devolve se a nova ficou à vista.
+   * `born`: a chegada isolada, cujo pulso acabou de chegar ao nó Resposta; com o topo à vista, a linha nasce dele.
    */
-  receive(request: WebhookRequest, opened = false): boolean {
+  receive(request: WebhookRequest, opened = false, born = false): boolean {
     this.fresh.update((fresh) => new Set([...fresh, request.uuid]));
     this.later(
       () => this.fresh.update((fresh) => new Set([...fresh].filter((id) => id !== request.uuid))),
       FRESH_MS,
     );
     const inView = this.store.newestFirst() ? this.wasAtTop() : this.wasAtEnd();
+    if (born && inView && this.store.newestFirst()) {
+      this.born.update((ids) => new Set([...ids, request.uuid]));
+      this.later(
+        () => this.born.update((ids) => new Set([...ids].filter((id) => id !== request.uuid))),
+        BORN_MS,
+      );
+    }
     if (inView) {
       afterNextRender(() => this.scrollToNewest(), { injector: this.injector });
     } else if (this.store.newestFirst()) {

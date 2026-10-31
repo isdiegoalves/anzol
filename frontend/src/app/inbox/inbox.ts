@@ -24,9 +24,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { PRIMARY_OUTLET, Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { Circuit } from '../circuit/circuit';
+import { CircuitFlow } from '../circuit/circuit-flow';
+import { CircuitPath } from '../circuit/circuit-path';
 import { CompareStore } from '../diff/compare-store';
 import type { Guide, GuideName } from '../guides/guide';
-import { routeOf } from '../pipeline/pipeline';
+import { faultName, pipelineOf, routeOf } from '../pipeline/pipeline';
 import { RequestStream } from '../realtime/request-stream';
 import { ActionPanel } from '../request-detail/action-panel';
 import { ActionPanelStore, ActionTab } from '../request-detail/action-panel-store';
@@ -102,10 +104,11 @@ export const SEARCH_REFRESH_DEBOUNCE_MS = 300;
 /** Quanto tempo a tela espera o eco de uma navegação que ela mesma fez. */
 export const ECHO_MS = 5000;
 /**
- * Para o leitor de tela, a primeira chegada de uma leva fala na hora, e as seguintes falam somadas no máximo a esta
- * distância (WCAG 4.1.3, sem inundar).
+ * Para o leitor de tela, a primeira chegada de uma leva fala na hora (quando a linha nasce), e as seguintes falam
+ * somadas a cada segundo, com as anomalias contadas (WCAG 4.1.3; demo combinada, R2: "13 novas requisições; 1 com
+ * assinatura inválida").
  */
-export const ANNOUNCE_EVERY_MS = 10_000;
+export const ANNOUNCE_EVERY_MS = 1000;
 /** O aviso "Request received" (M3: 4 s), só quando a nova não está à vista. */
 export const RECEIVED_NOTICE_MS = 4000;
 /** Limites da lista ao lado do detalhe, em px, e a chave da largura que a pessoa deixou. */
@@ -130,6 +133,7 @@ export function defaultListWidth(windowWidth: number): number {
   imports: [
     ActionPanel,
     Circuit,
+    CircuitPath,
     Icon,
     MatButton,
     MatIconButton,
@@ -157,6 +161,7 @@ export class Inbox {
   protected readonly preferences = inject(Preferences);
   protected readonly compare = inject(CompareStore);
   private readonly stream = inject(RequestStream);
+  private readonly flow = inject(CircuitFlow);
   private readonly redirector = inject(Redirector);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
@@ -309,9 +314,8 @@ export class Inbox {
   private readonly streamTokenId = signal<string | null>(null);
   private loading: { tokenId: string; done: Promise<boolean> } | null = null;
   private readonly searchRefresh = new Subject<void>();
-  /** As chegadas depois da que abriu a janela do anúncio, e a última delas. */
-  private arrivals = 0;
-  private lastArrival: WebhookRequest | null = null;
+  /** As chegadas depois da que abriu a janela do anúncio, ditas juntas no fim dela. */
+  private arrivals: WebhookRequest[] = [];
   /** Com filtro, a chegada espera a busca dizer se ela aparece na lista para ser dita. */
   private readonly unseenArrivals = new Map<string, WebhookRequest>();
   /** A mensagem que a própria tela abriu por último (sem o usuário pedir). */
@@ -999,6 +1003,20 @@ export class Inbox {
     if (!current()) {
       return;
     }
+    if (this.preferences.redirectEnable()) {
+      void this.redirector.redirect(complete);
+    }
+    // O pulso no circuito (F2): a chegada isolada entra na lista quando ele chega ao nó Resposta; na rajada, já.
+    const born = this.flow.arrive(complete, {
+      at: this.stream.arrivedAt(request.uuid) ?? undefined,
+      opens: this.opensArrival(),
+    });
+    if (born) {
+      await born;
+      if (!current() || this.listed(complete.uuid)) {
+        return;
+      }
+    }
     if (this.requests.filtering()) {
       const decided = this.requests.arriveFiltered(complete, total, removed);
       this.notify(complete, false, 'later');
@@ -1015,6 +1033,7 @@ export class Inbox {
     // A limpeza automática pode ter cortado a mensagem aberta: ela segue na tela, como cópia, com o
     // aviso; nenhuma outra é aberta no lugar.
     this.requests.append(complete, total, removed);
+    this.flow.land();
     const list = this.requests.requests();
     if (first) {
       this.welcome(complete);
@@ -1026,7 +1045,7 @@ export class Inbox {
       await this.openRequest(list[0], true, this.twoPanes());
     }
     if (this.preferences.autoNavEnable() && !this.document.hidden) {
-      this.list()?.receive(complete, true);
+      this.list()?.receive(complete, true, !!born);
       await this.openRequest(complete);
       this.list()?.scrollTo(complete.uuid);
       this.notify(complete, true);
@@ -1034,8 +1053,19 @@ export class Inbox {
     }
     // A que a tela abriu (a primeira numa Inbox vazia, ou a que substituiu a cortada) está à vista.
     const opened = this.requests.selected()?.uuid === complete.uuid;
-    const inView = (this.list()?.receive(complete, opened) ?? true) || opened;
+    const inView = (this.list()?.receive(complete, opened, !!born) ?? true) || opened;
     this.notify(complete, inView, first ? 'said' : 'now');
+  }
+
+  /** A chegada vai ser aberta pela tela: a primeira de uma Entrada vazia, ou cada uma com "Follow new". */
+  private opensArrival(): boolean {
+    if (this.requests.filtering()) {
+      return false;
+    }
+    return (
+      (!this.requests.selected() && !this.requests.unopened()) ||
+      (this.preferences.autoNavEnable() && !this.document.hidden)
+    );
   }
 
   private welcome(request: WebhookRequest): void {
@@ -1098,9 +1128,6 @@ export class Inbox {
     inView: boolean,
     speech: 'now' | 'said' | 'later' = 'now',
   ): void {
-    if (this.preferences.redirectEnable()) {
-      void this.redirector.redirect(request);
-    }
     if (speech === 'later') {
       this.unseenArrivals.set(request.uuid, request);
     } else {
@@ -1151,8 +1178,7 @@ export class Inbox {
   private announceArrival(request: WebhookRequest, said = false): void {
     if (this.announceTimer) {
       if (!said) {
-        this.arrivals++;
-        this.lastArrival = request;
+        this.arrivals.push(request);
       }
       return;
     }
@@ -1164,10 +1190,10 @@ export class Inbox {
 
   private openAnnounceWindow(): void {
     this.announceTimer = setTimeout(() => {
-      const [count, last] = [this.arrivals, this.lastArrival];
-      [this.announceTimer, this.arrivals, this.lastArrival] = [null, 0, null];
-      if (count > 0 && last) {
-        this.say(moreArrivedText(count, last));
+      const arrivals = this.arrivals;
+      [this.announceTimer, this.arrivals] = [null, []];
+      if (arrivals.length > 0) {
+        this.say(moreArrivedText(arrivals));
         this.openAnnounceWindow();
       }
     }, ANNOUNCE_EVERY_MS);
@@ -1178,26 +1204,79 @@ export class Inbox {
   }
 }
 
-function spokenRoute(request: WebhookRequest): { method: string; route: string; status?: number } {
-  const [route] = routeOf(request.url).split('?');
-  return { method: request.method, route, status: request.response?.status };
-}
-
+/**
+ * A chegada que fala sozinha (demo combinada, R1): "New request: POST /webhooks/pagamentos; answered 200 by the
+ * default response; signature valid; schema valid." Só as verificações que a URL fez entram.
+ */
 function arrivedText(request: WebhookRequest): string {
-  const { method, route, status } = spokenRoute(request);
-  return status === undefined
-    ? $localize`${method}:method: ${route}:route: arrived`
-    : $localize`${method}:method: ${route}:route: arrived · answered ${status}:status:`;
+  const [route] = routeOf(request.url).split('?');
+  const parts = [$localize`New request: ${request.method}:method: ${route}:route:`];
+  const answer = answerText(request);
+  if (answer) {
+    parts.push(answer);
+  }
+  const pipeline = pipelineOf(request);
+  const signatures: Record<string, string> = {
+    valid: $localize`:arrival announcement:signature valid`,
+    invalid: $localize`:arrival announcement:signature invalid`,
+    absent: $localize`:arrival announcement:signature absent`,
+    stale: $localize`:arrival announcement:signature stale`,
+  };
+  if (request.signature) {
+    parts.push(signatures[pipeline.signature.state] ?? signatures['invalid']);
+  }
+  if (request.schema) {
+    parts.push(
+      request.schema.valid
+        ? $localize`:arrival announcement:schema valid`
+        : $localize`:arrival announcement:schema invalid`,
+    );
+  }
+  const decryption = request.decryption?.state;
+  if (decryption === 'valid') {
+    parts.push($localize`:arrival announcement:decryption valid`);
+  } else if (decryption === 'invalid' || decryption === 'unknown_kid') {
+    parts.push($localize`:arrival announcement:decryption invalid`);
+  }
+  return `${parts.join('; ')}.`;
 }
 
-function moreArrivedText(count: number, last: WebhookRequest): string {
-  const { method, route, status } = spokenRoute(last);
-  if (count === 1) {
-    return status === undefined
-      ? $localize`1 more request arrived: ${method}:method: ${route}:route:`
-      : $localize`1 more request arrived: ${method}:method: ${route}:route: · answered ${status}:status:`;
+/** Quem respondeu e o quê: "answered 401 by rule Assinatura inválida", "connection reset by rule Estoque instável". */
+function answerText(request: WebhookRequest): string | null {
+  const fault = request.response?.fault;
+  const status = request.response?.status;
+  const rule = request.rule?.name;
+  if (fault) {
+    const name = faultName(fault);
+    const what = name.charAt(0).toLocaleLowerCase() + name.slice(1);
+    return rule ? $localize`:arrival announcement:${what}:fault: by rule ${rule}:rule:` : what;
   }
-  return status === undefined
-    ? $localize`${count}:count: more requests arrived, the last ${method}:method: ${route}:route:`
-    : $localize`${count}:count: more requests arrived, the last ${method}:method: ${route}:route: · answered ${status}:status:`;
+  if (status === undefined) {
+    return null;
+  }
+  return rule
+    ? $localize`:arrival announcement:answered ${status}:status: by rule ${rule}:rule:`
+    : $localize`:arrival announcement:answered ${status}:status: by the default response`;
+}
+
+/**
+ * As chegadas de um segundo, somadas, com as anomalias contadas (demo combinada, R2): "13 new requests; 1 with
+ * invalid signature; 1 with network failure." ou "60 new requests; no anomaly."
+ */
+function moreArrivedText(arrivals: readonly WebhookRequest[]): string {
+  const count = arrivals.length;
+  const head = count === 1 ? $localize`1 new request` : $localize`${count}:count: new requests`;
+  const signature = arrivals.filter((one) => one.signature && !one.signature.valid).length;
+  const schema = arrivals.filter((one) => one.schema && !one.schema.valid).length;
+  const decryption = arrivals.filter(
+    (one) => one.decryption?.state === 'invalid' || one.decryption?.state === 'unknown_kid',
+  ).length;
+  const network = arrivals.filter((one) => !!one.response?.fault).length;
+  const parts = [
+    ...(signature > 0 ? [$localize`${signature}:count: with invalid signature`] : []),
+    ...(schema > 0 ? [$localize`${schema}:count: with invalid schema`] : []),
+    ...(decryption > 0 ? [$localize`${decryption}:count: with decryption failure`] : []),
+    ...(network > 0 ? [$localize`${network}:count: with network failure`] : []),
+  ];
+  return `${head}; ${parts.length > 0 ? parts.join('; ') : $localize`no anomaly`}.`;
 }

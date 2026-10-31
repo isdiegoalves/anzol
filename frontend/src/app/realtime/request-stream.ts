@@ -21,6 +21,9 @@ export interface StorageState {
   readonly since: string;
 }
 
+/** Quantas horas de chegada a sessão guarda. */
+export const ARRIVALS_KEPT = 1024;
+
 /** O heartbeat do servidor até o primeiro `ping` dizer o dele. */
 export const HEARTBEAT_MS = 15_000;
 
@@ -55,6 +58,8 @@ interface Shared {
 @Injectable({ providedIn: 'root' })
 export class RequestStream {
   private readonly streams = new Map<string, Shared>();
+  /** A hora de chegada de cada mensagem recebida nesta sessão (as últimas `ARRIVALS_KEPT`). */
+  private readonly arrivals = new Map<string, number>();
   private readonly state = signal<StreamStatus>('idle');
   readonly status = this.state.asReadonly();
   /** Quantas a retomada trouxe na última vez que a conexão abriu. */
@@ -239,9 +244,29 @@ export class RequestStream {
     };
     source.addEventListener('request.created', (event: MessageEvent<string>) => {
       heard();
-      shared.events.next(JSON.parse(event.data) as RequestCreated);
+      const created = JSON.parse(event.data) as RequestCreated;
+      this.note(created.request.uuid);
+      shared.events.next(created);
     });
     return source;
+  }
+
+  /**
+   * Quando esta sessão recebeu a mensagem pelo tempo real (`performance.now()`), ou `null` se ela não veio por aqui
+   * (a lista, a volta da conexão). Só na memória da aba: o circuito mede a rajada por esta hora, e nada vai ao
+   * servidor.
+   */
+  arrivedAt(requestId: string): number | null {
+    return this.arrivals.get(requestId) ?? null;
+  }
+
+  private note(requestId: string): void {
+    this.arrivals.set(requestId, performance.now());
+    // Só as recentes interessam (a escada olha 1 s para trás): a memória não cresce sem teto sob rajada longa.
+    if (this.arrivals.size > ARRIVALS_KEPT) {
+      const [oldest] = this.arrivals.keys();
+      this.arrivals.delete(oldest);
+    }
   }
 
   private reopenLater(tokenId: string, shared: Shared): void {

@@ -21,6 +21,7 @@ import {
   ITEM_HEIGHT,
   ITEM_HEIGHT_COMPACT,
   ITEM_HEIGHT_TOUCH,
+  BORN_MS,
   RequestList,
   bodySummary,
 } from './request-list';
@@ -1198,6 +1199,48 @@ describe('Dado a lista lateral de mensagens', () => {
 
     expect(element().querySelector('.new-pill')).toBeNull();
     expect(items()[0].classList.contains('fresh')).toBe(true);
+  });
+
+  it('deve fazer a linha nascer do circuito só na chegada isolada com o topo à vista, e tirar a marca depois (Circuito F2, CA-1, CA-3)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const vinte = Array.from({ length: 20 }, (_, n) => webhookRequest(n + 1));
+      await load(vinte);
+      const list = fixture.componentInstance;
+      const viewport = fixture.debugElement.query(By.directive(CdkVirtualScrollViewport))
+        .componentInstance as CdkVirtualScrollViewport;
+      vi.spyOn(viewport, 'getViewportSize').mockReturnValue(3 * ITEM_HEIGHT);
+      const top = vi.spyOn(viewport, 'measureScrollOffset').mockReturnValue(0);
+
+      const isolada = webhookRequest(21);
+      store.append(isolada, 21);
+      list.receive(isolada, false, true);
+      await fixture.whenStable();
+      expect(items()[0].classList.contains('app-born')).toBe(true);
+      vi.advanceTimersByTime(BORN_MS);
+      await fixture.whenStable();
+      expect(items()[0].classList.contains('app-born')).toBe(false);
+
+      // Na rajada, a linha entra sem nascer do circuito.
+      const daRajada = webhookRequest(22);
+      store.append(daRajada, 22);
+      list.receive(daRajada, false, false);
+      await fixture.whenStable();
+      expect(items()[0].classList.contains('app-born')).toBe(false);
+
+      // Fora do topo, a lista não se move: nada nasce, e a pílula conta (CA-3).
+      top.mockReturnValue(10 * ITEM_HEIGHT);
+      const foraDaVista = webhookRequest(23);
+      store.append(foraDaVista, 23);
+      expect(list.receive(foraDaVista, false, true)).toBe(false);
+      await fixture.whenStable();
+      expect(element().querySelector('.app-born')).toBeNull();
+      expect(element().querySelector('.new-pill')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+        '↑3 new requests',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('deve mostrar a busca acima da lista, também na URL vazia (UX-11)', async () => {
