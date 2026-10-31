@@ -324,6 +324,54 @@ test.describe('Dado uma rajada', () => {
     await expect.poll(async () => (await marcas(page)).rastros.length).toBe(2);
   });
 
+  test('deve rolar os contadores sem ficar para trás numa rajada de 60 por segundo, e chegar ao número quando ela acaba (CA-2, C-6)', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await urlR2(page, tokens);
+    await tokens.sendMany(tokenId, 19);
+    await page.goto(`/#/${tokenId}`);
+    await aoVivo(page);
+    await expect(page.getByRole('heading', { name: 'Requests (20)' })).toBeVisible();
+    // Como na demo R2: a vista fora do topo (a pílula conta), o caso em que cada chegada mede a lista.
+    await page.locator('cdk-virtual-scroll-viewport').evaluate((el) => el.scrollTo({ top: 200 }));
+    await page.evaluate(() => {
+      const atrasos: number[] = [];
+      Object.assign(window, { atrasos });
+      const medir = () => {
+        // O total da lista (todas válidas: a padrão respondeu todas) menos o número que o contador mostra.
+        const contador = document.querySelector<HTMLElement>('[data-key="default:ann"] .ctr');
+        const total = /\((\d+)\)/.exec(
+          document.querySelector('app-request-list h2')?.textContent ?? '',
+        );
+        if (contador && total) {
+          atrasos.push(
+            Number(total[1]) - Number(getComputedStyle(contador).getPropertyValue('--n')),
+          );
+        }
+        requestAnimationFrame(medir);
+      };
+      requestAnimationFrame(medir);
+    });
+
+    // 60 por segundo, pelo relógio do Node (o `waitForTimeout` da página espaçaria mais).
+    const envios: Promise<string>[] = [];
+    for (let n = 1; n <= 150; n++) {
+      envios.push(tokens.send(tokenId, assinado(`{"event_id":"f${n}"}`)));
+      await new Promise((passo) => setTimeout(passo, 1000 / 60));
+    }
+    await Promise.all(envios);
+    await expect(circuito(page).locator('[data-key="default:ann"] .real')).toHaveText('170');
+    await page.waitForTimeout(600);
+
+    const atrasos = await page.evaluate(() => (window as unknown as { atrasos: number[] }).atrasos);
+    console.log(`atraso máximo do contador: ${Math.max(...atrasos)}`);
+    // Um passo de 231 ms a 60 por segundo são uns 14 números: o contador fica no máximo uns dois passos atrás.
+    expect(Math.max(...atrasos)).toBeLessThanOrEqual(30);
+    expect(atrasos.at(-1)).toBe(0);
+    await expect(circuito(page).locator('[data-key="default:ann"]')).toHaveText('200 · 170');
+  });
+
   test('não deve rolar a lista nem fazer a linha nascer fora do topo; a pílula conta as novas (CA-3)', async ({
     page,
     tokens,
