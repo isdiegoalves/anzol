@@ -1,5 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { clearTranslations, loadTranslations } from '@angular/localize';
@@ -57,7 +61,7 @@ describe('Dado o circuito da URL na Entrada', () => {
   const mostrar = async (
     mensagens: WebhookRequest[] = [PELA_PADRAO, DA_P1],
     line = false,
-    regras: object | 'falha' | 'sem-rede' = REGRAS,
+    regras: object | 'falha' | 'sem-rede' | ((lidas: TestRequest) => void) = REGRAS,
   ) => {
     conexao.set('open');
     const rendered = await render(Circuit, {
@@ -78,7 +82,9 @@ describe('Dado o circuito da URL na Entrada', () => {
     http = TestBed.inject(HttpTestingController);
     store = TestBed.inject(RequestStore);
     const lidas = http.expectOne(`/token/${TOKEN_ID}/rules`);
-    if (regras === 'falha') {
+    if (typeof regras === 'function') {
+      regras(lidas);
+    } else if (regras === 'falha') {
       lidas.flush({}, { status: 503, statusText: 'Unavailable' });
     } else if (regras === 'sem-rede') {
       // Status 0: a chamada não teve resposta (o `connectionInterceptor` derruba o tempo real com isso).
@@ -313,6 +319,45 @@ describe('Dado o circuito da URL na Entrada', () => {
     await quedaEVolta(fixture);
     http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
     relogio.mockRestore();
+  });
+
+  it('deve dizer "rules unavailable" Quando outra leitura da mesma URL troca a do circuito e falha (o roteiro "Test a retry", F1-R13)', async () => {
+    const { container } = await mostrar(undefined, false, (lidas) => {
+      // O roteiro lê as regras da URL antes de a leitura do circuito chegar, e a dele falha.
+      void TestBed.inject(RuleStore)
+        .load(TOKEN_ID)
+        .catch(() => undefined);
+      lidas.flush(REGRAS);
+      http
+        .expectOne(`/token/${TOKEN_ID}/rules`)
+        .flush({}, { status: 503, statusText: 'Unavailable' });
+    });
+    await new Promise((resolve) => setTimeout(resolve));
+
+    await vi.waitFor(() => expect(container.textContent).toContain('rules unavailable'));
+    expect(container.querySelector('.stage')).not.toBeNull();
+  });
+
+  it('deve reler as regras da URL aberta Quando a store passa a outra URL por fora, e dizer "rules unavailable" se falha (F1-R13)', async () => {
+    const { container, fixture } = await mostrar();
+    const regras = TestBed.inject(RuleStore);
+
+    void regras.load('outra-url').catch(() => undefined);
+    await fixture.whenStable();
+    http.expectOne('/token/outra-url/rules').flush([]);
+    http
+      .expectOne(`/token/${TOKEN_ID}/rules`)
+      .flush({}, { status: 503, statusText: 'Unavailable' });
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+
+    expect(container.textContent).toContain('rules unavailable');
+    // A tentativa seguinte, passados os 15 s, traz as regras de volta.
+    const relogio = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + RULES_RETRY_MS + 1_000);
+    await quedaEVolta(fixture);
+    http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
+    relogio.mockRestore();
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy());
   });
 
   it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior (F1-R06)', async () => {

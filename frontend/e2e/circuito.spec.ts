@@ -274,6 +274,32 @@ test.describe('Dado o circuito da URL na Entrada', () => {
     await expect(rotulo(page, 'rules unavailable')).toBeVisible();
   });
 
+  test('deve manter a escada Quando o roteiro "Test a retry" lê as regras e a leitura falha (F1-R13)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId, valida } = await urlDaDemo(page, tokens);
+    await abrirMensagem(page, tokenId, valida);
+    await expect(no(page, /^Rule P1 Assinatura inválida/)).toBeVisible();
+    let lidas = 0;
+    await page.route(/\/token\/[^/]+\/rules$/, (rota) => {
+      if (rota.request().method() !== 'GET') {
+        return rota.continue();
+      }
+      lidas++;
+      return rota.fulfill({ status: 503 });
+    });
+
+    await page.getByRole('button', { name: 'Guides', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Test a retry', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Guide: Test a retry' })).toBeVisible();
+    await expect.poll(() => lidas).toBeGreaterThan(0);
+
+    // A leitura do roteiro falhou, e a lista de antes segue: nada some do circuito.
+    await expect(no(page, /^Rule P1 Assinatura inválida/)).toBeVisible();
+    await expect(rotulo(page, 'rules unavailable')).toHaveCount(0);
+  });
+
   for (const [largura, altura] of [
     [1366, 768],
     [1280, 800],

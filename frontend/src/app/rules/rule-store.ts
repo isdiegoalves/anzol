@@ -48,6 +48,8 @@ export class RuleStore {
    */
   readonly loadedFor = signal<string | null>(null);
   private loads = 0;
+  /** A última leitura pedida por `load` enquanto não acaba: quem precisa da lista da URL espera por ela (`ready`). */
+  private pending: { tokenId: string; done: Promise<void> } | null = null;
   /**
    * A lista do servidor mudou desde a leitura e nada foi gravado (toggle, reordenação, apagar,
    * Undo). Fica aqui, e não na página, porque o Undo do "Delete rule" chega depois que o editor
@@ -79,7 +81,17 @@ export class RuleStore {
     new Map(),
   );
 
+  /**
+   * Lê as regras da URL. Na URL cuja lista já está aqui, relê sem apagá-la (`reload`): o circuito da Entrada e quem
+   * mais a mostra seguem com ela até a nova chegar, e com ela se a leitura falha (F1-R13).
+   */
   async load(tokenId: string): Promise<void> {
+    this.recent = null;
+    this.latest = null;
+    this.total = null;
+    if (tokenId === this.loadedFor()) {
+      return this.reload();
+    }
     const run = ++this.loads;
     if (tokenId !== this.tokenId()) {
       // O teste da regra vale para esta URL: "Back to list" relê a lista da mesma URL e o mantém.
@@ -88,13 +100,38 @@ export class RuleStore {
     this.tokenId.set(tokenId);
     this.rules.set([]);
     this.loadedFor.set(null);
-    this.recent = null;
-    this.latest = null;
-    this.total = null;
-    const rules = await firstValueFrom(this.http.get<Rule[]>(this.url(tokenId)));
-    if (run === this.loads) {
-      this.keep(rules);
+    const done = firstValueFrom(this.http.get<Rule[]>(this.url(tokenId))).then((rules) => {
+      if (run === this.loads) {
+        this.keep(rules);
+      }
+    });
+    this.pending = { tokenId, done };
+    try {
+      await done;
+    } finally {
+      if (this.pending?.done === done) {
+        this.pending = null;
+      }
     }
+  }
+
+  /**
+   * A lista desta URL para mudar a partir dela (a folha "Create rule", o roteiro): a que já está aqui, a da leitura
+   * em curso (de quem a pediu) ou uma leitura nova. Nunca a lista vazia de uma leitura que ainda não chegou (F1-R14);
+   * falha como a leitura, ou se outra URL tomou o lugar desta no meio do caminho.
+   */
+  async ready(tokenId: string): Promise<readonly Rule[]> {
+    if (this.loadedFor() !== tokenId && this.pending?.tokenId !== tokenId) {
+      await this.load(tokenId);
+    }
+    // Uma leitura da mesma URL pode ter trocado a esperada no meio do caminho: vale a última.
+    while (this.loadedFor() !== tokenId && this.pending?.tokenId === tokenId) {
+      await this.pending.done;
+    }
+    if (this.loadedFor() !== tokenId) {
+      throw new Error(`The rules of ${tokenId} were not read.`);
+    }
+    return this.rules();
   }
 
   /** Relê a lista do servidor (depois do aviso "changed elsewhere"), sem apagar a da tela antes. */

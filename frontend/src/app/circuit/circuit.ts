@@ -161,6 +161,17 @@ export class Circuit {
         }
       });
     });
+    // A lista desta URL saiu da store sem uma leitura do circuito em curso (outra tela leu outra URL nela): relê.
+    let had: string | null = null;
+    effect(() => {
+      const tokenId = this.tokens.shown()?.uuid ?? null;
+      const loaded = this.ruleStore.loadedFor();
+      const lost = !!tokenId && had === tokenId && loaded !== tokenId;
+      had = loaded;
+      if (lost && untracked(() => this.reading) !== tokenId) {
+        untracked(() => this.reread('lost'));
+      }
+    });
     // A conexão voltou (o tempo real reabriu depois da queda): as regras podem ter mudado, ou a leitura ter falhado.
     let before = untracked(this.stream.status);
     effect(() => {
@@ -186,12 +197,13 @@ export class Circuit {
   }
 
   /**
-   * Relê as regras da URL aberta: a tentativa marcada depois da falha (`retry`) ou um sinal de que elas podem ter
-   * mudado (`event`: a volta da conexão, a lista de novo). Com freio (F1-R12): a leitura que falha sem resposta
-   * derruba o tempo real (`connectionInterceptor`), que volta logo e pediria outra, num laço. Depois de uma falha,
-   * nenhuma leitura antes da tentativa de 15 s; e os sinais não releem a menos de 5 s da última.
+   * Relê as regras da URL aberta: a tentativa marcada depois da falha (`retry`), um sinal de que elas podem ter
+   * mudado (`event`: a volta da conexão, a lista de novo) ou a lista que saiu da store (`lost`). Com freio (F1-R12):
+   * a leitura que falha sem resposta derruba o tempo real (`connectionInterceptor`), que volta logo e pediria outra,
+   * num laço. Depois de uma falha, nenhuma leitura antes da tentativa de 15 s; e os sinais não releem a menos de 5 s
+   * da última.
    */
-  private reread(cause: 'retry' | 'event'): void {
+  private reread(cause: 'retry' | 'event' | 'lost'): void {
     const tokenId = this.tokens.shown()?.uuid;
     if (!tokenId || this.reading === tokenId) {
       return;
@@ -208,7 +220,8 @@ export class Circuit {
 
   /**
    * Lê pela `RuleStore`: na URL que ela já tem, sem apagar a lista enquanto a resposta não chega (`reload`); em
-   * outra, carregando a desta. Falhou: o circuito diz "regras indisponíveis" e tenta de novo daqui a pouco.
+   * outra, esperando a leitura em curso desta URL ou carregando-a (`ready`). Sem a lista no fim (falhou, a nossa ou
+   * a que tomou o lugar dela): o circuito diz "regras indisponíveis" e tenta de novo daqui a pouco.
    */
   private async readRules(tokenId: string): Promise<void> {
     this.reading = tokenId;
@@ -217,10 +230,10 @@ export class Circuit {
     let failed = false;
     let erred = false;
     try {
-      if (this.ruleStore.tokenId() === tokenId && this.ruleStore.loadedFor() === tokenId) {
+      if (this.ruleStore.loadedFor() === tokenId) {
         await this.ruleStore.reload();
       } else {
-        await this.ruleStore.load(tokenId);
+        await this.ruleStore.ready(tokenId);
       }
       this.seen.add(tokenId);
     } catch {

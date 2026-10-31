@@ -57,6 +57,11 @@ describe('Dado as regras da URL aberta', () => {
   });
 
   it('deve dizer de que URL é a lista lida (o circuito da Entrada desenha a escada dela), e nada enquanto ela não chega ou se falhou', async () => {
+    const falhando = store.load(TOKEN_ID);
+    http.expectOne(url).flush({}, { status: 503, statusText: 'Unavailable' });
+    await expect(falhando).rejects.toBeInstanceOf(HttpErrorResponse);
+    expect(store.loadedFor()).toBeNull();
+
     const lendo = store.load(TOKEN_ID);
     expect(store.loadedFor()).toBeNull();
     http.expectOne(url).flush([rule(1)]);
@@ -68,11 +73,63 @@ describe('Dado as regras da URL aberta', () => {
     await gravando;
     expect(store.loadedFor()).toBe(TOKEN_ID);
     expect(store.rules()).toEqual([rule(1), rule(2)]);
+  });
 
+  it('deve reler sem apagar a lista nem `loadedFor` Quando `load` pede a URL já lida, e mantê-las se a leitura falha (F1-R13)', async () => {
+    await loaded();
+
+    // Outro componente (o roteiro "Test a retry") lê a mesma URL: a lista segue na tela até a nova chegar.
     const falhando = store.load(TOKEN_ID);
+    expect(store.rules()).toEqual([rule(1), rule(2)]);
+    expect(store.loadedFor()).toBe(TOKEN_ID);
     http.expectOne(url).flush({}, { status: 503, statusText: 'Unavailable' });
     await expect(falhando).rejects.toBeInstanceOf(HttpErrorResponse);
-    expect(store.loadedFor()).toBeNull();
+    expect(store.rules()).toEqual([rule(1), rule(2)]);
+    expect(store.loadedFor()).toBe(TOKEN_ID);
+
+    const relendo = store.load(TOKEN_ID);
+    expect(store.rules()).toEqual([rule(1), rule(2)]);
+    http.expectOne(url).flush([rule(3)]);
+    await relendo;
+    expect(store.rules()).toEqual([rule(3)]);
+    expect(store.loadedFor()).toBe(TOKEN_ID);
+  });
+
+  describe('Quando quem vai mudar a lista pede a da URL (`ready`)', () => {
+    it('deve devolver a lista já lida, sem ler de novo', async () => {
+      await loaded();
+
+      await expect(store.ready(TOKEN_ID)).resolves.toEqual([rule(1), rule(2)]);
+    });
+
+    it('deve esperar a leitura em curso da URL, sem pedir outra nem devolver a lista vazia de antes dela (F1-R14)', async () => {
+      const doCircuito = store.load(TOKEN_ID);
+      const pronta = store.ready(TOKEN_ID);
+      http.expectOne(url).flush([rule(1)]);
+      await doCircuito;
+
+      await expect(pronta).resolves.toEqual([rule(1)]);
+    });
+
+    it('deve esperar a leitura da mesma URL que tomou o lugar da esperada no meio do caminho (F1-R13)', async () => {
+      const pronta = store.ready(TOKEN_ID);
+      const doRoteiro = store.load(TOKEN_ID);
+      const [primeira, segunda] = http.match(url);
+      primeira.flush([rule(1)]);
+      // A esperada chega (e é descartada) antes da que tomou o lugar dela.
+      await new Promise((resolve) => setTimeout(resolve));
+      segunda.flush([rule(3)]);
+      await doRoteiro;
+
+      await expect(pronta).resolves.toEqual([rule(3)]);
+    });
+
+    it('deve falhar com a leitura, sem devolver lista nenhuma', async () => {
+      const pronta = store.ready(TOKEN_ID);
+      http.expectOne(url).flush({}, { status: 503, statusText: 'Unavailable' });
+
+      await expect(pronta).rejects.toBeInstanceOf(HttpErrorResponse);
+    });
   });
 
   it('deve guardar o último teste da regra salva e mantê-lo ao reler a mesma URL (Likely shadowed)', async () => {
