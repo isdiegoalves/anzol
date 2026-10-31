@@ -898,6 +898,26 @@ describe('Dado a tela principal', () => {
         expect(depois[0][1]).toMatch(/^New request: /);
         expect(depois[1][1]).toBe('1 new request; no anomaly.');
       });
+
+      it('deve dizer na hora, com a frase inteira, a chegada isolada que vem 2 s ou mais depois do fim de uma rajada', async () => {
+        const rajada = await cadencia(333, 6000);
+        vi.advanceTimersByTime(3000 - 333);
+        const isolada = await cadencia(1000, 1000);
+
+        expect(rajada.map(([t]) => t)).toEqual([0, 1000, 4000]);
+        // Junto com ela, as que a janela comprida somava desde 4 s, numa fala só (a seguinte calaria a anterior).
+        expect(isolada).toEqual([
+          [
+            0,
+            '6 new requests; no anomaly. New request: POST /; answered 200 by the default response.',
+          ],
+        ]);
+        vi.advanceTimersByTime(20_000);
+        // Daí em diante, a janela volta a ser de 1 s.
+        const depois = await cadencia(333, 1000);
+        expect(depois.map(([t]) => t)).toEqual([0, 1000]);
+        expect(depois[0][1]).toMatch(/^New request: /);
+      });
     });
 
     it('deve dizer na hora a primeira de uma leva, com rota e status, e as seguintes juntas no fim do segundo, com as anomalias', async () => {

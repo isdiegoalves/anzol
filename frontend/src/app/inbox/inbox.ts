@@ -26,6 +26,7 @@ import { EMPTY, Subject, debounceTime, switchMap } from 'rxjs';
 import { Circuit } from '../circuit/circuit';
 import { CircuitFlow } from '../circuit/circuit-flow';
 import { CircuitPath } from '../circuit/circuit-path';
+import { HYSTERESIS_MS } from '../circuit/escada';
 import { CompareStore } from '../diff/compare-store';
 import type { Guide, GuideName } from '../guides/guide';
 import { faultName, pipelineOf, routeOf } from '../pipeline/pipeline';
@@ -326,6 +327,7 @@ export class Inbox {
   /** A que a tela abriu sem ninguém a ver: segue nas não lidas (INBOX-02). */
   private keepUnread: string | null = null;
   private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastArrival = Number.NEGATIVE_INFINITY;
   /** A última chegada que ainda espera o pulso dela (ou a vez dela): as seguintes entram depois. */
   private waiting: Promise<void> | null = null;
   /** O roteiro aberto no lugar do detalhe; a conferência do retry anuncia as chegadas dela. */
@@ -1186,18 +1188,28 @@ export class Inbox {
 
   /**
    * Borda de entrada: a chegada que encontra o anúncio livre fala na hora e abre uma janela; as que
-   * chegam dentro dela falam juntas no fim, e a janela se renova enquanto houver o que dizer.
+   * chegam dentro dela falam juntas no fim, e a janela se renova enquanto houver o que dizer. A que
+   * vem depois de uma pausa de 2 s fecha a janela e fala na hora, com o que ela somava.
    * `said`: outra fala já disse esta; ela abre a janela, mas não entra na soma.
    */
   private announceArrival(request: WebhookRequest, said = false): void {
-    if (this.announceTimer) {
+    const now = Date.now();
+    const paused = now - this.lastArrival >= HYSTERESIS_MS;
+    this.lastArrival = now;
+    if (this.announceTimer && !paused) {
       if (!said) {
         this.arrivals.push(request);
       }
       return;
     }
-    if (!said) {
-      this.say(arrivedText(request));
+    const summed = this.arrivals.length > 0 ? [moreArrivedText(this.arrivals)] : [];
+    if (this.announceTimer) {
+      clearTimeout(this.announceTimer);
+      [this.announceTimer, this.arrivals] = [null, []];
+    }
+    const message = [...summed, ...(said ? [] : [arrivedText(request)])].join(' ');
+    if (message) {
+      this.say(message);
     }
     this.openAnnounceWindow();
   }
