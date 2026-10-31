@@ -414,18 +414,6 @@ describe('Dado o circuito da URL na Entrada', () => {
     ).toBeTruthy();
   });
 
-  it('deve caber o palco na faixa: margem de até 24 px, escala até 10 px de texto e só então rolar (F1-R04)', () => {
-    // 1440 × 900 (área útil 1343): palco inteiro, margem de 24 px.
-    expect(stageFit(1343)).toEqual({ scale: 1, margin: 24, scrolls: false });
-    // 1366 × 768 (1269): a margem cede os 3 px que faltavam; nada rola.
-    expect(stageFit(1269)).toEqual({ scale: 1, margin: 21, scrolls: false });
-    // 1280 × 800 (1183): o palco encolhe, sem margem, e cabe inteiro.
-    expect(stageFit(1183)).toMatchObject({ margin: 0, scrolls: false });
-    expect(stageFit(1183).scale).toBeCloseTo(1183 / 1248, 5);
-    // No piso, o texto de 11 px fica com 10 px; abaixo dele, a faixa rola por dentro.
-    expect(stageFit(1000)).toEqual({ scale: 10 / 11, margin: 0, scrolls: true });
-  });
-
   it('deve mostrar no celular só o caminho da mensagem aberta, numa linha que rola', async () => {
     const { container, fixture } = await mostrar(undefined, true);
     expect(screen.queryByRole('region', { name: 'Request path' })).toBeNull();
@@ -466,5 +454,21 @@ describe('Dado o circuito da URL na Entrada', () => {
     } finally {
       clearTranslations();
     }
+  });
+});
+
+// Função pura, fora do `describe` acima: o `afterEach` de lá confere o `HttpTestingController` do último teste que
+// desenhou o circuito, e um pedido atrasado daquele teste caía na conta deste.
+describe('Dado a largura útil da faixa', () => {
+  it('deve caber o palco na faixa: margem de até 24 px, escala até 10 px de texto e só então rolar (F1-R04)', () => {
+    // 1440 × 900 (área útil 1343): palco inteiro, margem de 24 px.
+    expect(stageFit(1343)).toEqual({ scale: 1, margin: 24, scrolls: false });
+    // 1366 × 768 (1269): a margem cede os 3 px que faltavam; nada rola.
+    expect(stageFit(1269)).toEqual({ scale: 1, margin: 21, scrolls: false });
+    // 1280 × 800 (1183): o palco encolhe, sem margem, e cabe inteiro.
+    expect(stageFit(1183)).toMatchObject({ margin: 0, scrolls: false });
+    expect(stageFit(1183).scale).toBeCloseTo(1183 / 1248, 5);
+    // No piso, o texto de 11 px fica com 10 px; abaixo dele, a faixa rola por dentro.
+    expect(stageFit(1000)).toEqual({ scale: 10 / 11, margin: 0, scrolls: true });
   });
 });
