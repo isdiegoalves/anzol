@@ -3,7 +3,7 @@ import { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { seedStorage } from './support/storage';
 
-// Sozinho (o projeto `carga` roda depois de todos): `npx playwright test e2e/circuito-carga.spec.ts --no-deps`.
+// Roda sozinho, fora dos outros E2E: `CARGA=1 npx playwright test`.
 // Feature "Circuito", F2 (CA-5): com 10.000 mensagens carregadas e uma rajada de 64 clientes, o circuito vira fluxo
 // sem perder quadros (≤ 5 %) e as interações (J/K, abrir uma linha, filtrar pelo nó) respondem em até 200 ms (INP).
 
@@ -12,23 +12,47 @@ const CARREGADAS = 10_000;
 /** Os clientes da rajada (o `tests/subida` dispara 64). */
 const CLIENTES = 64;
 
-/** A régua dos quadros (a da demo, `measure`) e a das interações (Event Timing), instaladas antes da tela. */
+/**
+ * A régua dos quadros (a da demo, `measure`, sem o descarte dos quadros de 500 ms ou mais: aqui a aba nunca sai da
+ * vista, e um quadro longo é a tela travada) e a das interações (Event Timing), instaladas antes da tela. Guarda
+ * também quando cada chegada do tempo real e cada tecla aconteceram, e se a tecla caiu com o circuito no fluxo.
+ */
 async function medir(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const medida = {
       quadros: 0,
       perdidos: 0,
+      maior: 0,
       ligada: false,
       interacoes: new Map<number, number>(),
+      chegadas: [] as number[],
+      teclas: [] as { em: number; fluxo: boolean }[],
     };
     Object.assign(window, { medida });
+    const Stream = window.EventSource;
+    window.EventSource = class extends Stream {
+      constructor(url: string | URL, init?: EventSourceInit) {
+        super(url, init);
+        this.addEventListener('request.created', () => medida.chegadas.push(performance.now()));
+      }
+    };
+    document.addEventListener(
+      'keydown',
+      () =>
+        medida.teclas.push({
+          em: performance.now(),
+          fluxo: document.querySelector('app-circuit .lab.meter') !== null,
+        }),
+      true,
+    );
     const recentes: number[] = [];
     let base = 1000 / 60;
     let antes: number | null = null;
     const quadro = (agora: number) => {
       const dt = antes === null ? 0 : agora - antes;
       antes = agora;
-      if (medida.ligada && dt > 0 && dt < 500) {
+      if (medida.ligada && dt > 0) {
+        medida.maior = Math.max(medida.maior, dt);
         recentes.push(dt);
         if (recentes.length > 60) {
           recentes.shift();
@@ -142,16 +166,25 @@ test.describe('Dado a Entrada com 10.000 mensagens carregadas', () => {
     await expect(linhas.first()).toBeVisible();
     await page.waitForTimeout(1000);
 
-    await page.evaluate(() => {
-      const medida = (window as unknown as { medida: { ligada: boolean } }).medida;
+    const antes = await page.evaluate(() => {
+      const medida = (window as unknown as { medida: { ligada: boolean; chegadas: number[] } })
+        .medida;
       medida.ligada = true;
+      return medida.chegadas.length;
     });
     const rajada = Promise.all(
       Array.from({ length: CLIENTES }, (_, i) =>
         tokens.send(tokenId, { path: '/webhooks/pagamentos', data: `{"n":${i}}` }),
       ),
     );
-    // Enquanto a rajada chega: J e K e abrir uma linha (ações frequentes, sem motion).
+    // Com a rajada em curso (o circuito no fluxo): J e K e abrir uma linha (ações frequentes, sem motion).
+    await page.waitForFunction(
+      () => document.querySelector('app-circuit .lab.meter') !== null,
+      null,
+      {
+        polling: 'raf',
+      },
+    );
     await page.keyboard.press('j');
     await page.keyboard.press('j');
     await page.keyboard.press('k');
@@ -172,23 +205,35 @@ test.describe('Dado a Entrada com 10.000 mensagens carregadas', () => {
     await expect(padrao).toHaveAttribute('aria-pressed', 'false');
     await page.waitForTimeout(500);
 
-    const { quadros, perdidos, inp } = await page.evaluate(() => {
+    const { quadros, perdidos, maior, inp, chegadas, teclas } = await page.evaluate((lidas) => {
       const medida = (
         window as unknown as {
-          medida: { quadros: number; perdidos: number; interacoes: Map<number, number> };
+          medida: {
+            quadros: number;
+            perdidos: number;
+            maior: number;
+            interacoes: Map<number, number>;
+            chegadas: number[];
+            teclas: { em: number; fluxo: boolean }[];
+          };
         }
       ).medida;
       return {
         quadros: medida.quadros,
         perdidos: medida.perdidos,
+        maior: Math.round(medida.maior),
         inp: Math.max(0, ...medida.interacoes.values()),
+        chegadas: medida.chegadas.slice(lidas),
+        teclas: medida.teclas,
       };
-    });
-    test.info().annotations.push({
-      type: 'medida',
-      description: `quadros perdidos: ${perdidos} de ${quadros} (${((100 * perdidos) / quadros).toFixed(1)} %); INP: ${inp} ms`,
-    });
-    console.log(`quadros perdidos: ${perdidos} de ${quadros}; INP ${inp} ms`);
+    }, antes);
+    const depois = chegadas.filter((chegada) => chegada > teclas[0].em).length;
+    const medidas = `quadros perdidos: ${perdidos} de ${quadros} (${((100 * perdidos) / quadros).toFixed(1)} %); maior quadro: ${maior} ms; INP: ${inp} ms; chegadas da rajada depois da 1.ª tecla: ${depois} de ${chegadas.length}`;
+    test.info().annotations.push({ type: 'medida', description: medidas });
+    console.log(medidas);
+    expect(chegadas).toHaveLength(CLIENTES);
+    expect(teclas[0].em).toBeGreaterThanOrEqual(chegadas[0]);
+    expect(teclas.map((tecla) => tecla.fluxo)).toEqual([true, true, true]);
     expect(quadros).toBeGreaterThan(60);
     expect(perdidos / quadros).toBeLessThanOrEqual(0.05);
     expect(inp).toBeLessThanOrEqual(200);

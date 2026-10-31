@@ -17,6 +17,12 @@ const baseURL = process.env['BASE_URL'] ?? 'http://localhost:4200';
 const visual = process.env['VISUAL'] === '1';
 
 /**
+ * `CARGA=1` roda só a régua dos quadros sob rajada do circuito (`circuito-carga.spec.ts`), numa execução própria: ela
+ * mede a tela, não a máquina ocupada com os outros navegadores (com eles, a disputa pela CPU passava dos 5 %).
+ */
+const carga = process.env['CARGA'] === '1';
+
+/**
  * Specs que também rodam no celular: shell (barra inferior, desbloqueio e link só-leitura), URL e link, tema,
  * onboarding, detalhe, apagar e copiar, Checks e Insights, e as de Regras (UX de Regras, F8/CA-11: `regras*` e
  * `fidelidade-rules*`, com o que é só de desktop marcado no próprio teste), as `patamar*` e as `falhas*`. Ficam de fora as que supõem lista e detalhe lado a lado
@@ -64,30 +70,30 @@ export default defineConfig({
           use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
         },
       ]
-    : [
-        {
-          name: 'ui',
-          testIgnore: [/visual\.spec\.ts$/, /circuito-carga\.spec\.ts$/],
-          use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
-        },
-        {
-          name: 'mobile',
-          testMatch: MOBILE,
-          use: {
-            ...devices['Desktop Chrome'],
-            viewport: { width: 390, height: 844 },
-            isMobile: true,
-            hasTouch: true,
-            deviceScaleFactor: 2,
+    : carga
+      ? [
+          {
+            name: 'carga',
+            testMatch: /circuito-carga\.spec\.ts$/,
+            use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
           },
-        },
-        {
-          // Circuito, F2 (CA-5): os quadros perdidos sob rajada medem a tela, não a máquina ocupada com os outros
-          // navegadores. Roda sozinha, depois do resto (com o resto, a disputa pela CPU passava dos 5 %).
-          name: 'carga',
-          testMatch: /circuito-carga\.spec\.ts$/,
-          dependencies: ['ui', 'mobile'],
-          use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
-        },
-      ],
+        ]
+      : [
+          {
+            name: 'ui',
+            testIgnore: [/visual\.spec\.ts$/, /circuito-carga\.spec\.ts$/],
+            use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 900 } },
+          },
+          {
+            name: 'mobile',
+            testMatch: MOBILE,
+            use: {
+              ...devices['Desktop Chrome'],
+              viewport: { width: 390, height: 844 },
+              isMobile: true,
+              hasTouch: true,
+              deviceScaleFactor: 2,
+            },
+          },
+        ],
 });

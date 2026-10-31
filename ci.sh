@@ -128,6 +128,11 @@ e2e_frontend() {
   (cd frontend && npx playwright install chromium && BASE_URL="$URL" npx playwright test)
 }
 
+# A régua dos quadros sob rajada do circuito roda sozinha: com os outros navegadores, ela mediria a máquina.
+carga_frontend() {
+  (cd frontend && CARGA=1 BASE_URL="$URL" npx playwright test)
+}
+
 # Regressão visual (item 14, E11) na imagem Docker do Playwright da versão instalada: os pixels só batem com a mesma
 # fonte e o mesmo rasterizador. O container chega ao stack por host.docker.internal (na lista de ANZOL_ALLOWED_HOSTS).
 # Baselines em frontend/e2e/visual.spec.ts-snapshots; para regravar: (cd frontend && ./e2e-visual.sh <URL> -u).
@@ -197,6 +202,7 @@ INTEGRACAO=(
   "subida sob rajada (tests/subida)"
   "contrato (tests/contract)"
   "E2E da tela (frontend/e2e)"
+  "carga da tela (circuito-carga)"
   "regressão visual (Docker Playwright)"
   "aceite do CLI (tests/cli)"
 )
@@ -204,8 +210,9 @@ if etapa "stack isolado: build e subida" subir_stack; then
   etapa "${INTEGRACAO[0]}" subida_sob_rajada
   etapa "${INTEGRACAO[1]}" contrato
   etapa "${INTEGRACAO[2]}" e2e_frontend
-  etapa "${INTEGRACAO[3]}" regressao_visual
-  etapa "${INTEGRACAO[4]}" aceite_cli
+  etapa "${INTEGRACAO[3]}" carga_frontend
+  etapa "${INTEGRACAO[4]}" regressao_visual
+  etapa "${INTEGRACAO[5]}" aceite_cli
 else
   for nome in "${INTEGRACAO[@]}"; do registrar "$nome" "NÃO RODOU" -; done
 fi
