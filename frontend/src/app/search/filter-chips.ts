@@ -60,6 +60,15 @@ export class FilterChips {
   private cleared = false;
   /** No celular, com o detalhe à frente, nenhuma linha de resultado está na tela. */
   private listening = 0;
+  /**
+   * Quantas vezes outro lugar pediu o painel (o "+N regras" do circuito da Entrada, cujas regras têm chip aqui):
+   * a busca o abre com o foco no primeiro chip.
+   */
+  readonly panelAsked = signal(0);
+
+  askPanel(): void {
+    this.panelAsked.update((asked) => asked + 1);
+  }
 
   private readonly groupLabels: Record<ChipGroup['id'], string> = {
     method: $localize`:filter group:Method`,

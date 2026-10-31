@@ -417,6 +417,86 @@ describe('Dado muitas regras', () => {
     ]);
   });
 
+  const no = (view: CircuitView, id: string) => view.nodes.find((node) => node.id === id);
+  const lidas = (n: number) =>
+    Array.from({ length: n }, (_, i) =>
+      webhookRequest(80 + i, { rule: { id: `r${i + 3}`, name: `Regra ${i + 3}` } }),
+    );
+
+  it('deve dizer na linha "+N rules" a regra escondida que respondeu à mensagem aberta, no lugar da contagem (F1-A01)', () => {
+    const daSetima: CapturedRequest = webhookRequest(70, {
+      signature: valida,
+      schema: schemaOk,
+      rule: { id: 'r7', name: 'Regra 7' },
+      response: { status: 503 },
+    });
+    const view = circuito({ rules: muitas, requests: [...lidas(3), daSetima], selected: daSetima });
+
+    expect(texto(view, 'more:ann')).toBe('P7 Regra 7 · 503');
+    // Em tinta: nem fraca, nem com o fio de anomalia ou de "quase".
+    expect(rotulo(view, 'more:ann')).toMatchObject({ muted: false, rule: null });
+    expect(no(view, 'more')?.label).toBe(
+      '+6 rules, among them P7 Regra 7, which answered: 503. Enter opens Filters.',
+    );
+    expect(no(view, 'more')?.opens).toBe('filters');
+    // A frase e a Resposta dizem o mesmo.
+    expect(texto(view, 'response:data')).toBe('503 · P7');
+    expect(view.description).toContain('P7 ✓ → 503.');
+  });
+
+  it('deve dizer na linha "+N rules" a falha de rede da regra escondida que respondeu (F1-A01)', () => {
+    const daQuinta: CapturedRequest = webhookRequest(71, {
+      rule: { id: 'r5', name: 'Regra 5' },
+      response: { fault: 'connection_reset' },
+    });
+    const view = circuito({ rules: muitas, selected: daQuinta });
+
+    expect(texto(view, 'more:ann')).toBe('P5 Regra 5 · TCP RST');
+  });
+
+  it('deve dizer na linha "+N rules" a regra escondida que quase casou, em âmbar (F1-A01)', () => {
+    const quaseSexta: CapturedRequest = webhookRequest(72, {
+      signature: valida,
+      schema: schemaOk,
+      rule: null,
+      near_miss: { id: 'r6', name: 'Regra 6', failed: ['method: expected DELETE, got POST'] },
+      response: { status: 200 },
+    });
+    const view = circuito({ rules: muitas, requests: lidas(3), selected: quaseSexta });
+
+    expect(texto(view, 'more:ann')).toBe('◔ P6 Regra 6');
+    expect(rotulo(view, 'more:ann')).toMatchObject({ rule: 'near', glyph: { tone: 'near' } });
+    expect(no(view, 'more')?.label).toBe(
+      '+6 rules, among them P6 Regra 6, which almost matched: near P6 · missing: method DELETE. Enter opens Filters.',
+    );
+  });
+
+  it('deve dizer em pt-BR "+6 regras, entre elas P7 Regra 7, que respondeu: 503" (F1-A01)', () => {
+    loadTranslations(translations);
+    try {
+      const daSetima: CapturedRequest = webhookRequest(70, {
+        rule: { id: 'r7', name: 'Regra 7' },
+        response: { status: 503 },
+      });
+      const view = circuito({ rules: muitas, selected: daSetima });
+
+      expect(no(view, 'more')?.label).toBe(
+        '+6 regras, entre elas P7 Regra 7, que respondeu: 503. Enter abre os Filtros.',
+      );
+    } finally {
+      clearTranslations();
+    }
+  });
+
+  it('deve contar as mensagens das escondidas Quando a aberta não passou por elas, e abrir os Filtros pelo Enter (F1-A01)', () => {
+    const view = circuito({ rules: muitas, requests: lidas(3), selected: PELA_PADRAO });
+
+    expect(texto(view, 'more:ann')).toBe('3');
+    expect(no(view, 'more')?.label).toBe('+6 rules: 3. Enter opens Filters.');
+    expect(no(view, 'more')?.opens).toBe('filters');
+    expect(no(view, 'rule:r1')?.opens).toBeUndefined();
+  });
+
   it('deve dar a todo nó um alvo de 24 × 24 px ou mais na tela, também com o palco encolhido (WCAG 2.5.8, F1-R11)', () => {
     for (const scale of [1, 10 / 11]) {
       for (const rules of [REGRAS, [P1], muitas, []]) {

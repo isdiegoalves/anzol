@@ -16,6 +16,7 @@ import { translations } from '../../locale/pt-BR';
 import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { RuleStore } from '../rules/rule-store';
+import { FilterChips } from '../search/filter-chips';
 import { WebhookRequest } from '../requests/webhook-request';
 import { Preferences } from '../settings/preferences';
 import { Circuit, REREAD_MIN_MS, RULES_RETRY_MS, stageFit } from './circuit';
@@ -358,6 +359,25 @@ describe('Dado o circuito da URL na Entrada', () => {
     http.expectOne(`/token/${TOKEN_ID}/rules`).flush(REGRAS);
     relogio.mockRestore();
     await vi.waitFor(() => expect(screen.getByRole('button', { name: /^Rule P1/ })).toBeTruthy());
+  });
+
+  it('deve abrir o painel Filtros pelo nó "+N rules", sem mexer no filtro da lista (F1-A01)', async () => {
+    const muitas = Array.from({ length: 6 }, (_, i) =>
+      rule(i + 1, { id: `r${i + 1}`, priority: i + 1, name: `Regra ${i + 1}` }),
+    );
+    await mostrar(undefined, false, muitas);
+    const chips = TestBed.inject(FilterChips);
+    const pedidos = chips.panelAsked();
+    const mais = screen.getByRole('button', { name: /^\+4 rules/ });
+    expect(mais.getAttribute('aria-label')).toMatch(/Enter opens Filters\.$/);
+    expect(mais.hasAttribute('aria-pressed')).toBe(false);
+
+    await userEvent.click(mais);
+    expect(chips.panelAsked()).toBe(pedidos + 1);
+    mais.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(chips.panelAsked()).toBe(pedidos + 2);
+    http.expectNone({ method: 'POST', url: `/token/${TOKEN_ID}/requests/search` });
   });
 
   it('deve contar a lista filtrada Quando a Entrada já abre filtrada (o link), sem contagem anterior (F1-R06)', async () => {

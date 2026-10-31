@@ -21,10 +21,10 @@ function assinado(corpo: string, segredo = SEGREDO) {
   };
 }
 
-/** A URL da demo: assinatura, schema e P1–P3; uma válida (pela padrão, P1 a mais próxima) e uma que não confere. */
 /** O teto de `GET /requests` e de `GET /stream` em 3 s sem laço (a abertura e uma volta do tempo real). */
 const PEDIDOS_SEM_LACO = 6;
 
+/** A URL da demo: assinatura, schema e P1–P3; uma válida (pela padrão, P1 a mais próxima) e uma que não confere. */
 async function urlDaDemo(page: Page, tokens: TokenTracker) {
   const tokenId = await tokens.create({
     signature: { provider: 'github', secret: SEGREDO },
@@ -327,6 +327,67 @@ test.describe('Dado o circuito da URL na Entrada', () => {
       expect.arrayContaining(['Assinatura inválida', 'Estoque instável', 'Pedido inexistente']),
     );
     expect(regras).toHaveLength(4);
+  });
+
+  test('deve dizer na linha "+N rules" a regra escondida que respondeu, e abrir os Filtros por ela (F1-A01)', async ({
+    page,
+    tokens,
+  }) => {
+    const { tokenId } = await urlDaDemo(page, tokens);
+    const regras = await page.request.put(`/token/${tokenId}/rules`, {
+      data: [
+        {
+          name: 'Assinatura inválida',
+          priority: 1,
+          match: { signature: 'invalid' },
+          response: { status: 401 },
+        },
+        {
+          name: 'Estoque',
+          priority: 2,
+          match: { path: { prefix: '/webhooks/estoque' } },
+          response: { status: 202 },
+        },
+        {
+          name: 'Pedidos',
+          priority: 3,
+          match: { path: { prefix: '/webhooks/pedidos' } },
+          response: { status: 404 },
+        },
+        {
+          name: 'Fora do ar',
+          priority: 4,
+          match: { path: { prefix: '/webhooks/fora' } },
+          response: { status: 503 },
+        },
+        {
+          name: 'Lento',
+          priority: 5,
+          match: { path: { prefix: '/webhooks/lento' } },
+          response: { status: 200 },
+        },
+      ],
+    });
+    expect(regras.status()).toBe(200);
+    const corpo = '{"event_id":"evt_9"}';
+    const fora = await tokens.send(tokenId, { ...assinado(corpo), path: '/webhooks/fora' });
+    await abrirMensagem(page, tokenId, fora);
+
+    const mais = no(page, /^\+3 rules/);
+    await expect(mais).toHaveAccessibleName(
+      '+3 rules, among them P4 Fora do ar, which answered: 503. Enter opens Filters.',
+    );
+    await expect(rotulo(page, 'P4 Fora do ar · 503')).toBeVisible();
+    expect(await cor(rotulo(page, 'P4 Fora do ar · 503'), 'color')).toBe(
+      await token(page, '--app-ink'),
+    );
+
+    await mais.focus();
+    await page.keyboard.press('Enter');
+    const painel = page.getByRole('toolbar', { name: 'Filters' });
+    await expect(painel).toBeVisible();
+    await expect(painel.getByRole('button').first()).toBeFocused();
+    await expect(page).toHaveURL(new RegExp(`#/${tokenId}/${fora}/`));
   });
 
   for (const [largura, altura] of [

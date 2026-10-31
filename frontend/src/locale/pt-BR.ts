@@ -4591,4 +4591,10 @@ export const translations: Record<string, string> = {
   '437163469819605895': 'Parada depois dos cabeçalhos',
   // Truncated body (falha de rede)
   '5521466753234650852': 'Corpo cortado',
+  // Enter opens Filters. (o nó "+N regras" do circuito)
+  '2470315963504424733': 'Enter abre os Filtros.',
+  // {$rules}, among them {$rule}, which answered: {$answer}
+  '951150664317776348': '{$rules}, entre elas {$rule}, que respondeu: {$answer}',
+  // {$rules}, among them {$rule}, which almost matched
+  '3360103870472053219': '{$rules}, entre elas {$rule}, que quase casou',
 };

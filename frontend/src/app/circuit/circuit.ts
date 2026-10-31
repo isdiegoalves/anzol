@@ -18,6 +18,7 @@ import { RequestStream } from '../realtime/request-stream';
 import { RequestStore } from '../requests/request-store';
 import { CapturedRequest } from '../requests/webhook-request';
 import { RuleStore } from '../rules/rule-store';
+import { FilterChips } from '../search/filter-chips';
 import { KnownUrls } from '../token/known-urls';
 import { TokenStore } from '../token/token-store';
 import { CircuitNode, circuitOf } from './circuit-model';
@@ -62,6 +63,7 @@ export class Circuit {
   private readonly ruleStore = inject(RuleStore);
   private readonly stream = inject(RequestStream);
   private readonly known = inject(KnownUrls);
+  private readonly chips = inject(FilterChips);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly injector = inject(Injector);
   private readonly band = viewChild<ElementRef<HTMLElement>>('band');
@@ -296,6 +298,11 @@ export class Circuit {
    * decifra e desfecho); de novo, tira o dele. Os nós sem filtro mostram todas.
    */
   protected toggle(node: CircuitNode): void {
+    // "+N regras": as regras de lá se filtram no painel Filtros (o controle equivalente, D-F1-15).
+    if (node.opens === 'filters') {
+      this.chips.askPanel();
+      return;
+    }
     const filter = this.requests.filter();
     const cleared = {
       signature: 'any' as const,

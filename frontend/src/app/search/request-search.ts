@@ -201,6 +201,16 @@ export class RequestSearch {
         untracked(() => this.result.set(said.text));
       }
     });
+
+    // O painel pedido de fora (o "+N regras" do circuito): abre, ou fica aberto, com o foco no primeiro chip.
+    let asked = untracked(this.chips.panelAsked);
+    effect(() => {
+      const now = this.chips.panelAsked();
+      if (now !== asked) {
+        asked = now;
+        untracked(() => this.openWithFocus());
+      }
+    });
   }
 
   /** O botão e a tecla F; pela tecla, o foco vai ao primeiro chip. */
@@ -209,10 +219,16 @@ export class RequestSearch {
       this.close();
       return;
     }
-    this.open.set(true);
     if (byKey) {
-      afterNextRender(() => this.panel()?.focusFirst(), { injector: this.injector });
+      this.openWithFocus();
+    } else {
+      this.open.set(true);
     }
+  }
+
+  private openWithFocus(): void {
+    this.open.set(true);
+    afterNextRender(() => this.panel()?.focusFirst(), { injector: this.injector });
   }
 
   /** Fecha o painel e devolve o foco ao botão. */

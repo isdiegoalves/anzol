@@ -153,6 +153,11 @@
   text-overflow: ellipsis;
 }
 
+// O "◔ P6 Nome" na linha "+N regras" (F1-A01) não passa do coletor, como as outras anotações.
+.ann.near {
+  max-width: 180px;
+}
+
 // Como na demo: só o ✗ (e o ⚡) e o ◔ em negrito; o ✓ fica no peso do texto.
 .glyph {
   &.bad,

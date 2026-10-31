@@ -1,7 +1,7 @@
 import { Clipboard } from '@angular/cdk/clipboard';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { signal } from '@angular/core';
+import { ApplicationRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
@@ -674,6 +674,20 @@ describe('Dado a busca da lista numa linha, com os filtros atrás de "Filters" (
       await userEvent.keyboard('f');
       expect(group()).toBeNull();
       expect(document.activeElement).toBe(filters());
+    });
+
+    it('deve abrir com o foco no primeiro chip Quando outro lugar pede o painel (o "+N rules" do circuito), e não fechar se já aberto (F1-A01)', async () => {
+      const chips = TestBed.inject(FilterChips);
+
+      chips.askPanel();
+      await vi.waitFor(() => expect(document.activeElement).toBe(chip('POST')));
+      expect(filters().getAttribute('aria-expanded')).toBe('true');
+
+      chips.askPanel();
+      await TestBed.inject(ApplicationRef).whenStable();
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(group()).not.toBeNull();
+      expect(document.activeElement).toBe(chip('POST'));
     });
 
     it('não deve abrir pela tecla F digitada na busca, nem com os atalhos desligados', async () => {

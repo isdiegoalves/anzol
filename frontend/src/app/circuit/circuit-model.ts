@@ -92,6 +92,8 @@ export interface CircuitNode {
   off: Partial<RequestFilter> | null;
   /** O filtro do nó está ligado (`aria-pressed`); `null` nos nós sem filtro. */
   pressed: boolean | null;
+  /** O Enter abre o painel Filtros em vez de filtrar ("+N regras": as regras de lá têm chip lá, D-F1-15). */
+  opens?: 'filters';
 }
 
 /** Um trecho de "caminho: …" (a linha do celular); `bad` é o ✗ de verificação, em vermelho de revisão. */
@@ -175,6 +177,9 @@ interface Row {
   off: Partial<RequestFilter> | null;
   pressed: boolean | null;
   hint: string;
+  /** A anotação entra no nome acessível; não quando `spoken` já diz o que ela diz. */
+  annSpoken?: boolean;
+  opens?: 'filters';
 }
 
 const priorityOf = (rule: Rule) => rule.priority ?? RULE_DEFAULT_PRIORITY;
@@ -454,6 +459,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
   const showAll = $localize`:circuit node without a filter:Enter shows all in the list.`;
   const filters = (description: string) =>
     $localize`:circuit node with a filter:Enter filters the list: ${description}:filter:.`;
+  const opensFilters = $localize`:circuit node that opens the Filters panel:Enter opens Filters.`;
 
   // Nós principais: título em y = 40, subtítulo em 76, o resultado da mensagem em 92, a anotação em 108.
   interface Main {
@@ -640,6 +646,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
     const count = (list: readonly Rule[]) =>
       list.reduce((sum, rule) => sum + (byRule.get(rule.id ?? '') ?? 0), 0);
     const outcome = filter.outcome ?? null;
+    const near = selected && !selected.rule ? selected.near_miss : null;
     rows = visible.map((rule, i): Row => {
       const hits = count([rule]);
       const fault = rule.response?.fault;
@@ -683,20 +690,39 @@ export function circuitOf(input: CircuitInput): CircuitView {
         hidden.length === 1
           ? $localize`:circuit ladder, rules that do not fit:+1 rule`
           : $localize`:circuit ladder, rules that do not fit:+${hidden.length}:count: rules`;
+      // A regra escondida que respondeu à mensagem aberta (ou quase casou com ela) aparece no lugar da contagem
+      // (F1-A01): o caminho passa por esta linha, e ela diz por quem.
+      const answeredHere = selected?.rule
+        ? hidden.find((rule) => rule.id === selected.rule?.id)
+        : undefined;
+      const nearHere = near ? hidden.find((rule) => rule.id === near.id) : undefined;
+      const among = answeredHere ?? nearHere;
+      const amongName = among ? `${pLabel(among)} ${among.name}` : '';
+      const fault = selected?.response?.fault;
+      const answer = fault ? faultShort(fault) : String(selected?.response?.status ?? '—');
       rows.push({
         id: 'more',
         y: ys[visible.length],
         name,
-        spoken: name,
+        spoken: answeredHere
+          ? $localize`:circuit ladder, rules that do not fit, with the hidden rule that answered the open request:${name}:rules:, among them ${amongName}:rule:, which answered: ${answer}:answer:`
+          : nearHere
+            ? $localize`:circuit ladder, rules that do not fit, with the hidden rule that almost matched the open request:${name}:rules:, among them ${amongName}:rule:, which almost matched`
+            : name,
         rules: hidden,
-        ann:
-          hits > 0
-            ? { text: String(hits), muted: false, rule: null }
-            : { text: '', muted: true, rule: null },
+        ann: answeredHere
+          ? { text: `${amongName} · ${answer}`, muted: false, rule: null }
+          : nearHere
+            ? { glyph: { text: '◔', tone: 'near' }, text: amongName, muted: false, rule: 'near' }
+            : hits > 0
+              ? { text: String(hits), muted: false, rule: null }
+              : { text: '', muted: true, rule: null },
+        annSpoken: !among,
         filter: null,
         off: null,
         pressed: null,
         hint: '',
+        opens: 'filters',
       });
     }
     rows.push({
@@ -740,7 +766,6 @@ export function circuitOf(input: CircuitInput): CircuitView {
     edge('rv', `M${X.response},${MAIN_Y} H${X.resend}`);
 
     // O "quase casou" da mensagem aberta, em âmbar, na linha acima da escada (a da demo, y = 9).
-    const near = selected && !selected.rule ? selected.near_miss : null;
     let nearText: string | null = null;
     if (near) {
       const nearRule = ruleById.get(near.id);
@@ -763,7 +788,7 @@ export function circuitOf(input: CircuitInput): CircuitView {
         label(`${row.id}:ann`, 872, row.y, 'l', 'ann', row.ann.text, row.ann);
       }
       const nearHere = near && row.rules.some((rule) => rule.id === near.id) ? nearText : null;
-      const state = spokenOf([plain(row.ann), nearHere]);
+      const state = spokenOf([row.annSpoken === false ? null : plain(row.ann), nearHere]);
       const h = rowStep;
       nodes.push({
         id: row.id,
@@ -771,10 +796,11 @@ export function circuitOf(input: CircuitInput): CircuitView {
         y: row.y - h / 2,
         w: 340,
         h,
-        label: `${row.spoken}${state ? `: ${state}` : ''}. ${row.filter ? filters(row.hint) : showAll}`,
+        label: `${row.spoken}${state ? `: ${state}` : ''}. ${row.opens ? opensFilters : row.filter ? filters(row.hint) : showAll}`,
         filter: row.filter,
         off: row.off,
         pressed: row.pressed,
+        ...(row.opens && { opens: row.opens }),
       });
     });
 
