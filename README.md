@@ -71,7 +71,7 @@ docker network create anzol
 docker run -d --name anzol-db --network anzol -v anzol-db:/data redis:8.10.2-alpine \
   redis-server --maxmemory 1gb --maxmemory-policy noeviction
 docker run -d --name anzol --network anzol -p 127.0.0.1:8084:8080 -e REDIS_HOST=anzol-db \
-  ghcr.io/isdiegoalves/anzol:0.5.0
+  ghcr.io/isdiegoalves/anzol:0.8.1
 ```
 
 As tags (`X.Y.Z`, `X.Y`, `latest`) saem a cada versão em <https://github.com/isdiegoalves/anzol/pkgs/container/anzol>.
