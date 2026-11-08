@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Anzol">
+  <rect width="120" height="120" rx="28" fill="#1B5A68"/>
+  <g transform="translate(21.5 21.5) scale(3.5)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="15" cy="4" r="2"/>
+    <path d="M15 6v9a5 5 0 0 1-10 0v-3"/>
+    <path d="m5 12 3 3"/>
+  </g>
+</svg>

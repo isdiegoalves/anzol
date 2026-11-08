@@ -1,8 +1,28 @@
-# Anzol
+<div align="center">
 
-O Anzol gera uma URL que grava toda requisição HTTP recebida e a mostra na tela em tempo real, com regras de resposta,
-verificação de assinatura, validação de schema, decifra de atributo e injeção de falhas. Serve para testar e depurar
-webhooks e clientes HTTP na sua máquina, sem expor um servidor à internet (*anzol* é “fishhook” em português).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/marca-escuro.svg">
+  <img src="docs/imagens/marca-claro.svg" width="120" height="120" alt="Ícone do Anzol: um anzol em traço">
+</picture>
+
+<h1>Anzol</h1>
+
+**Veja cada webhook chegar, confira se veio de quem devia e faça a resposta falhar de propósito, tudo na sua máquina.**<br>
+Uma URL grava toda requisição HTTP e a mostra ao vivo, com regras de resposta, assinatura HMAC, JSON Schema,<br>
+decifra E2EE e injeção de falhas, sem expor porta nem IP público (*anzol* é “fishhook” em português).
+
+![Kotlin · Spring Boot 4.1 | Angular 22](https://img.shields.io/badge/Kotlin_%C2%B7_Spring_Boot_4.1-Angular_22-1B5A68?labelColor=6B737C)
+![OpenAPI 3.1 · MCP · JSON Schema 2020-12 | protocolos](https://img.shields.io/badge/OpenAPI_3.1_%C2%B7_MCP_%C2%B7_JSON_Schema_2020--12-protocolos-1B5A68?labelColor=6B737C)
+![licença | MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-1B5A68?labelColor=6B737C)
+![versão | 0.8.1](https://img.shields.io/badge/vers%C3%A3o-0.8.1-1B5A68?labelColor=6B737C)
+
+[![Rodar local com Docker](https://img.shields.io/badge/Rodar_local_com_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#início-rápido)
+
+[API](docs/api.md) · [CLI](docs/cli.md) · [MCP e IA](docs/mcp-e-ia.md)
+
+</div>
+
+---
 
 ![Apresentação do Anzol em 30 segundos: a pergunta "chegou ou sumiu no caminho? Ninguém sabe."; sem expor porta nem IP público, o Anzol dá uma URL que grava toda requisição HTTP e a mostra ao vivo; a assinatura e o JSON Schema 2020-12 são conferidos, a decifra E2EE abre o atributo cifrado e uma regra falha de propósito antes do 200; tudo pela tela, pela CLI, pela API, pelo MCP e com IA local; 27 cenários de decifra, 18 ferramentas MCP e uma imagem Docker](docs/imagens/apresentacao.webp)
 
