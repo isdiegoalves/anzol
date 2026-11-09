@@ -41,6 +41,8 @@ RUN cp build/libs/backend-*.jar app.jar && java -Djarmode=tools -jar app.jar ext
 # A variante noble (Ubuntu 24.04), e não a padrão: a padrão traz o /usr/bin/pebble, com CVEs que não são do app.
 FROM eclipse-temurin:25-jre-noble
 WORKDIR /app
+# A base sai depois das correções de segurança do Ubuntu; sem o upgrade, a varredura da tag reprova a imagem.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home anzol
 COPY --from=backend /extraido/ ./
 USER anzol
