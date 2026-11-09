@@ -20,11 +20,15 @@ import java.time.Duration
 
 private const val REDIS_PORT = 6379
 
-/**
- * Com o coletor fora do ar, captura e desligamento terminam neste prazo, bem abaixo dos 10 s do `docker stop`
- * (o desligamento espera no máximo o envio pendente, que desiste em 2 s: `otlp.timeout` do application.yaml).
- */
+/** Com o coletor fora do ar, a captura responde neste prazo. */
 private val NO_WAIT = Duration.ofSeconds(5)
+
+/**
+ * Com o coletor fora do ar, o desligamento termina neste prazo, abaixo dos 10 s do `docker stop`. Ele espera o envio
+ * em curso e o envio final, e cada um leva até uns 3 s: o `otlp.timeout` (2 s) cancela o pedido, mas não interrompe a
+ * espera entre tentativas que já começou.
+ */
+private val SHUTDOWN_LIMIT = Duration.ofSeconds(8)
 
 private fun ApplicationContext.otlpExporters(): List<Any> =
     listOf(OtlpMeterRegistry::class.java, OtlpHttpSpanExporter::class.java, OtlpHttpLogRecordExporter::class.java)
@@ -74,7 +78,7 @@ class OtlpCollectorDownTest {
             assertThat(exporters).hasSize(3)
             assertThat(captures).containsOnly(200)
             assertThat(captureTook).isLessThan(NO_WAIT)
-            assertThat(closeTook).isLessThan(NO_WAIT)
+            assertThat(closeTook).isLessThan(SHUTDOWN_LIMIT)
         }
     }
 
@@ -85,6 +89,8 @@ class OtlpCollectorDownTest {
         // Argumentos de linha de comando: vencem o application.yaml (as `properties` do builder perderiam para ele).
         SpringApplicationBuilder(BackendApplication::class.java).run(
             "--server.port=0",
+            // Ouvindo em todas as interfaces, o Tomcat no macOS leva 2 s para soltar a porta ao desligar, sem relação com o OTLP.
+            "--server.address=127.0.0.1",
             "--spring.data.redis.host=${redis.host}",
             "--spring.data.redis.port=${redis.getMappedPort(REDIS_PORT)}",
             "--management.otlp.metrics.export.enabled=true",
