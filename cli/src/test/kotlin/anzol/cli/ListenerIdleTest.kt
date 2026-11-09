@@ -24,6 +24,8 @@ class ListenerIdleTest {
         threads.forEach(Thread::interrupt)
         app.close()
         site.close()
+        // A thread morre com InterruptedException; viva, morreria durante o await do teste seguinte, que o Awaitility reprovaria.
+        threads.forEach(Thread::join)
     }
 
     @Test
