@@ -127,12 +127,12 @@ class StreamApiTest(
     @Test
     @DisplayName("Dado um token inexistente, quando assina, então responde 410 sem registrar assinante")
     fun stream_tokenInexistente_deveResponder410() {
-        val before = stream.subscriberCount()
+        val missing = "00000000-0000-4000-8000-000000000000"
 
-        val response = api.send("GET", "/token/00000000-0000-4000-8000-000000000000/stream", headers = JSON_CLIENT)
+        val response = api.send("GET", "/token/$missing/stream", headers = JSON_CLIENT)
 
         assertThat(response.statusCode()).isEqualTo(410)
         assertThat(api.json(response)["error"]["message"].asString()).isEqualTo("Token not found")
-        assertThat(stream.subscriberCount()).isEqualTo(before)
+        assertThat(stream.subscriberCount(TokenId(UUID.fromString(missing)))).isZero()
     }
 }
