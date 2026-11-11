@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { Locator, Page } from '@playwright/test';
-import { expect, test } from './support/fixtures';
+import { expect, test, TokenTracker } from './support/fixtures';
 import { destino, prenderPedacos, tracoDeProgresso } from './support/shell';
 import { seedStorage } from './support/storage';
 
@@ -325,5 +325,81 @@ test.describe('Dado o movimento normal e a conexão que cai', () => {
       opacity: '0',
       transform: 'translateY(-8px)',
     });
+  });
+});
+
+/** Abre a Entrada com uma requisição e faz chegar outra fora da vista; devolve a pílula. */
+async function pilulaQueChega(page: Page, tokens: TokenTracker) {
+  const tokenId = await tokens.create();
+  await tokens.send(tokenId, { path: '/antes' });
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.goto(`/#/${tokenId}`);
+  await expect(page.locator('app-live-status')).toContainText('Live');
+  await tokens.send(tokenId, { path: '/depois' });
+  const pilula = page.locator('app-new-pill');
+  await expect(pilula).toBeVisible();
+  return pilula;
+}
+
+/** Apaga a requisição aberta pelo botão da linha; devolve a faixa "You deleted …". */
+async function faixaDeApagada(page: Page, tokens: TokenTracker) {
+  const tokenId = await tokens.create();
+  await tokens.send(tokenId, { path: '/apagar' });
+  await tokens.send(tokenId, { path: '/fica' });
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.goto(`/#/${tokenId}`);
+  await page.getByRole('button', { name: /^Delete this request: POST \/apagar/ }).click();
+  const faixa = page.locator('app-inbox .gone');
+  await expect(faixa).toContainText('You deleted POST /apagar');
+  return faixa;
+}
+
+test.describe('Dado o sistema pedindo menos movimento e o que avisa na lista', () => {
+  test('deve mostrar a pílula das novas só com o fade de 120 ms, sem descer', async ({
+    page,
+    tokens,
+  }) => {
+    const entrada = await animacoesDe(await pilulaQueChega(page, tokens));
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    expect(entrada[0].quadros[0]).not.toHaveProperty('transform');
+  });
+
+  test('deve mostrar a faixa de quem apagou só com o fade de 120 ms, sem descer', async ({
+    page,
+    tokens,
+  }) => {
+    const entrada = await animacoesDe(await faixaDeApagada(page, tokens));
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    expect(entrada[0].quadros[0]).not.toHaveProperty('transform');
+  });
+});
+
+test.describe('Dado o movimento normal e o que avisa na lista', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve trazer a pílula das novas de 8 px acima com a mola de 224 ms, porque veio do tempo real', async ({
+    page,
+    tokens,
+  }) => {
+    const entrada = await animacoesDe(await pilulaQueChega(page, tokens));
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-arrive', duracao: 224 });
+    expect(entrada[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
+  });
+
+  test('deve trazer a faixa de quem apagou de 8 px acima em 120 ms, porque responde ao toque', async ({
+    page,
+    tokens,
+  }) => {
+    const entrada = await animacoesDe(await faixaDeApagada(page, tokens));
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-arrive', duracao: 120 });
+    expect(entrada[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
   });
 });

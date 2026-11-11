@@ -191,6 +191,7 @@
     aria-label="Request notice"
     i18n-aria-label
     [class.shown]="!!requests.gone() || !!deleting.pending()"
+    [class.app-arrive-short]="!!requests.gone() || !!deleting.pending()"
   >
     <app-live-region
       class="gone-text"

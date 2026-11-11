@@ -564,9 +564,14 @@ pre code.hljs {
   animation: app-arrive var(--app-spring-fast) backwards;
 }
 
+.app-arrive-short {
+  animation: app-arrive var(--app-motion-short) var(--app-motion-easing) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-born,
-  .app-arrive {
+  .app-arrive,
+  .app-arrive-short {
     animation: app-born-fade var(--app-motion-short) linear both;
   }
 }

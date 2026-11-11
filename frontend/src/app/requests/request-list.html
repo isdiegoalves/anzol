@@ -76,7 +76,12 @@
   }
   <!-- UX-10: a pílula das novas numa faixa própria, acima da lista: não cobre item nenhum. -->
   @if (newBelow() > 0) {
-    <app-new-pill [count]="newBelow()" [up]="store.newestFirst()" (show)="showNew()" />
+    <app-new-pill
+      class="app-arrive"
+      [count]="newBelow()"
+      [up]="store.newestFirst()"
+      (show)="showNew()"
+    />
   }
   <div class="list">
     <cdk-virtual-scroll-viewport class="viewport" [appRowSizes]="sizes()">
