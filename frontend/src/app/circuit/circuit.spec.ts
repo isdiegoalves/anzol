@@ -605,7 +605,7 @@ describe('Dado o circuito da URL na Entrada', () => {
       });
     });
 
-    it('deve dizer quando a linha nasce sem desenhar pulso nem aparecer aos poucos, com movimento reduzido', async () => {
+    it('deve fazer a linha nascer já, sem pulso nem animação no circuito, com movimento reduzido', async () => {
       const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
         matches: true,
         addEventListener: () => undefined,
@@ -613,20 +613,20 @@ describe('Dado o circuito da URL na Entrada', () => {
       } as unknown as MediaQueryList);
       const { container, fixture } = await mostrar();
       reduzido.mockRestore();
+      const flow = TestBed.inject(CircuitFlow);
+      let nasceu = false;
 
-      const nasce = TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0, opens: true });
+      void flow.arrive(NOVA, { at: 0, opens: true })?.then(() => (nasceu = true));
+      await fixture.whenStable();
 
-      expect(nasce).toBeInstanceOf(Promise);
-      expect(fixture.componentInstance.draw(NOVA, 'full', true)?.born).toBe(1080);
+      expect(nasceu).toBe(true);
+      expect(fixture.componentInstance.draw(NOVA, 'full', true)?.born).toBe(0);
       expect(container.querySelector('.fx .dot')).toBeNull();
-      // Nada aparece aos poucos: as animações só seguram o que espera a linha nascer.
-      for (const { keyframes } of animations) {
-        expect(new Set(keyframes.map((frame) => JSON.stringify(frame))).size).toBe(1);
-      }
-      expect(TestBed.inject(CircuitFlow).arrive(daP1(1), { at: 80 })).toBeNull();
+      expect(animations).toHaveLength(0);
+      expect(flow.arrive(daP1(1), { at: 80 })).toBeNull();
     });
 
-    it('deve acender o Remetente com o IP já, e o resto do caminho de uma vez quando a linha nasce, com movimento reduzido', async () => {
+    it('deve mostrar o caminho inteiro de uma vez, sem animação, Quando a tela abre a chegada, com movimento reduzido', async () => {
       const reduzido = vi.spyOn(MediaMatcher.prototype, 'matchMedia').mockReturnValue({
         matches: true,
         addEventListener: () => undefined,
@@ -636,28 +636,15 @@ describe('Dado o circuito da URL na Entrada', () => {
       reduzido.mockRestore();
 
       void TestBed.inject(CircuitFlow).arrive(NOVA, { at: 0, opens: true });
+      store.append(NOVA, 3);
+      store.select(NOVA.uuid);
       await fixture.whenStable();
 
+      expect(screen.getByRole('img').getAttribute('aria-label')).toContain(
+        'Open request: POST /webhooks/novo',
+      );
       expect(container.querySelector('[data-key="sender:sub"]')?.textContent).toBe(NOVA.ip);
-      expect(animadas('[data-key="sender:sub"]')).toHaveLength(0);
-      expect(animadas('[data-mark="sender"]')).toHaveLength(0);
-      // O resto fica escondido, parado, até a linha nascer (1080 ms), e aparece sem fade.
-      const escondido = (seletor: string) =>
-        animadas(seletor).map(({ keyframes, options }) => ({
-          valores: keyframes.map((frame) => frame['opacity'] ?? frame['stroke']),
-          duracao: options.duration,
-          atraso: options.delay ?? 0,
-        }));
-      for (const chave of ['signature:gl', 'schema:gl', 'response:data']) {
-        expect(escondido(`[data-key="${chave}"]`)).toEqual([
-          { valores: [0, 0], duracao: 1080, atraso: 0 },
-        ]);
-      }
-      expect(escondido('.route path[data-edge="rs"]')).toEqual([
-        { valores: [0, 0], duracao: 1080, atraso: 0 },
-      ]);
-      expect(animadas('.route')).toHaveLength(0);
-      expect(container.querySelector('.fx .dot')).toBeNull();
+      expect(animations).toHaveLength(0);
     });
 
     it('não deve desenhar chegada nenhuma no celular (a linha do caminho)', async () => {

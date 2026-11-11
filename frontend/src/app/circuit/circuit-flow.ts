@@ -7,8 +7,8 @@ import { Escada, Step } from './escada';
 export interface FlowStage {
   /**
    * Desenha a chegada no degrau dado. Devolve em quantos ms a linha dela nasce (o pulso inteiro chegou à Resposta e
-   * se desfez; com movimento reduzido, o instante em que ele terminaria) e como apressar o pulso; `null` quando a
-   * linha entra já (rajada, ou nada a desenhar).
+   * se desfez; com movimento reduzido, 0: ela nasce já) e como apressar o pulso; `null` quando a linha entra já, sem
+   * nascer do circuito (rajada, ou nada a desenhar).
    */
   draw(request: WebhookRequest, step: Step, opens: boolean): { born: number; hurry(): void } | null;
   /** Tira os pulsos do desenho (a aba saiu da vista). */
@@ -102,8 +102,11 @@ export class CircuitFlow {
       this.errors.handleError(error);
       return null;
     }
-    if (!drawn || drawn.born <= 0) {
+    if (!drawn) {
       return null;
+    }
+    if (drawn.born <= 0) {
+      return Promise.resolve();
     }
     return new Promise<void>((resolve) => {
       const birth: Birth = {
