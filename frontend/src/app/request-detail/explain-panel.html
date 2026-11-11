@@ -46,7 +46,11 @@
       </button>
     }
     @if (kept(); as answer) {
-      <app-markdown class="text" [text]="answer.explanation" />
+      <app-markdown
+        class="text"
+        [class.app-arrive-short]="!!outcome()"
+        [text]="answer.explanation"
+      />
       <p class="answered">
         {{ answered() }}
         <button i18n mat-button type="button" (click)="askAgain()">Ask again</button>

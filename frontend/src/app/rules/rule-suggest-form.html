@@ -81,7 +81,7 @@
 }
 @if (result(); as suggestion) {
   <!-- Proposta, não substituição (E-13): nada muda no editor até "Apply". -->
-  <section class="result" role="region" aria-label="Suggestion" i18n-aria-label>
+  <section class="result app-arrive-short" role="region" aria-label="Suggestion" i18n-aria-label>
     <p class="summary" tabindex="-1" [class.problem]="problems() > 0">
       <app-icon [name]="problems() > 0 ? 'bad' : 'ok'" [size]="18" />{{ summary() }}
     </p>

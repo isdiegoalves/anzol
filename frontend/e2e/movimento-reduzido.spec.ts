@@ -716,3 +716,67 @@ test.describe('Dado o movimento normal e as folhas do rail', () => {
     expect(saida[0].quadros.at(-1)).toMatchObject({ opacity: '0' });
   });
 });
+
+/** Pede a explicação de uma requisição com o modelo simulado (responde em 600 ms); devolve a espera e a resposta. */
+async function explicacaoQueChega(
+  page: Page,
+  tokens: TokenTracker,
+): Promise<{ espera: string[]; resposta: Entrada[] }> {
+  const tokenId = await tokens.create();
+  await tokens.send(tokenId, { path: '/explicar' });
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.route('**/explain', async (rota) => {
+    await new Promise((pronto) => setTimeout(pronto, 600));
+    await rota.fulfill({ json: { explanation: 'Respondeu 200 pela resposta padrão.' } });
+  });
+  await page.goto(`/#/${tokenId}`);
+  await page
+    .getByRole('toolbar', { name: 'Request actions' })
+    .getByRole('button', { name: /^Explain/ })
+    .click();
+  const corrida = page.locator('app-ai-wait .run');
+  await expect(corrida).toBeVisible();
+  const espera = await corrida.evaluate((elemento) => [
+    ...new Set(
+      elemento
+        .getAnimations()
+        .flatMap((animacao) => (animacao.effect as KeyframeEffect).getKeyframes())
+        .flatMap((quadro) =>
+          Object.keys(quadro).filter(
+            (chave) => !['offset', 'computedOffset', 'easing', 'composite'].includes(chave),
+          ),
+        ),
+    ),
+  ]);
+  const texto = page.getByRole('region', { name: 'Explanation' }).locator('app-markdown');
+  await expect(texto).toContainText('Respondeu 200');
+  return { espera, resposta: await animacoesDe(texto) };
+}
+
+test.describe('Dado o sistema pedindo menos movimento e a IA', () => {
+  test('deve esperar com a barra parada e mostrar a resposta só com o fade de 120 ms', async ({
+    page,
+    tokens,
+  }) => {
+    const { espera, resposta } = await explicacaoQueChega(page, tokens);
+
+    expect(espera).toEqual([]);
+    expect(resposta).toHaveLength(1);
+    expect(resposta[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+  });
+});
+
+test.describe('Dado o movimento normal e a IA', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve esperar com a barra andando só por transform e trazer a resposta de 8 px acima em 120 ms', async ({
+    page,
+    tokens,
+  }) => {
+    const { espera, resposta } = await explicacaoQueChega(page, tokens);
+
+    expect(espera).toEqual(['transform']);
+    expect(resposta).toHaveLength(1);
+    expect(resposta[0]).toMatchObject({ nome: 'app-arrive', duracao: 120 });
+  });
+});
