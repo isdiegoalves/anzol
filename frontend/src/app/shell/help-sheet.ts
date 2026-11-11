@@ -31,6 +31,7 @@ function shortcuts(): readonly { keys: string; action: string }[] {
   imports: [Icon, RouterLink],
   templateUrl: './help-sheet.html',
   styleUrl: './sheet.scss',
+  host: { '[animate.leave]': "'app-leave-hold'" },
 })
 export class HelpSheet {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);

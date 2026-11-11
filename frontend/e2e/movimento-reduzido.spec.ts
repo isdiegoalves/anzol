@@ -634,3 +634,85 @@ test.describe('Dado o movimento normal e os filtros', () => {
     await expect(painel).toHaveCount(0);
   });
 });
+
+/** Grava cada animação CSS que começa num elemento que casa com o seletor; devolve quem lê e esvazia a gravação. */
+async function gravarAnimacoes(page: Page, seletor: string): Promise<() => Promise<Entrada[]>> {
+  await page.addInitScript((seletor) => {
+    const gravadas: Entrada[] = [];
+    Object.assign(window, { gravadas });
+    document.addEventListener('animationstart', (evento) => {
+      const alvo = evento.target as Element;
+      if (!alvo.matches(seletor)) {
+        return;
+      }
+      const efeito = alvo
+        .getAnimations()
+        .find((a) => (a as CSSAnimation).animationName === evento.animationName)?.effect as
+        KeyframeEffect | undefined;
+      gravadas.push({
+        nome: evento.animationName,
+        duracao: efeito?.getTiming().duration as number,
+        quadros: efeito?.getKeyframes() ?? [],
+      });
+    });
+  }, seletor);
+  return () =>
+    page.evaluate(() => (window as unknown as { gravadas: Entrada[] }).gravadas.splice(0));
+}
+
+/** Abre e fecha a folha Settings; devolve o que animou na entrada e na saída. */
+async function folhaQueAbreEFecha(
+  page: Page,
+  tokens: TokenTracker,
+): Promise<{ entrada: Entrada[]; saida: Entrada[] }> {
+  const lidas = await gravarAnimacoes(page, '.sheet');
+  const tokenId = await tokens.create();
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.goto(`/#/${tokenId}`);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const folha = page.getByRole('dialog', { name: 'Settings' });
+  await expect(folha).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => (window as unknown as { gravadas: unknown[] }).gravadas.length),
+    )
+    .toBeGreaterThan(0);
+  const entrada = await lidas();
+  await folha.getByRole('button', { name: 'Close' }).click();
+  await expect(folha).toHaveCount(0);
+  return { entrada, saida: await lidas() };
+}
+
+test.describe('Dado o sistema pedindo menos movimento e as folhas do rail', () => {
+  test('deve abrir a folha só com o fade de 120 ms e fechá-la na hora', async ({
+    page,
+    tokens,
+  }) => {
+    const { entrada, saida } = await folhaQueAbreEFecha(page, tokens);
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    expect(saida).toEqual([]);
+  });
+});
+
+test.describe('Dado o movimento normal e as folhas do rail', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve trazer a folha 24 px da direita em 120 ms e fechá-la num fade de 120 ms', async ({
+    page,
+    tokens,
+  }) => {
+    const { entrada, saida } = await folhaQueAbreEFecha(page, tokens);
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-arrive-across', duracao: 120 });
+    expect(entrada[0].quadros[0]).toMatchObject({
+      transform: expect.stringMatching(/^translateX?\(24px\)$/),
+    });
+    expect(saida).toHaveLength(1);
+    expect(saida[0]).toMatchObject({ nome: 'app-leave', duracao: 120 });
+    expect(saida[0].quadros.at(-1)).toMatchObject({ opacity: '0' });
+  });
+});

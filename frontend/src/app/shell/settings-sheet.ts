@@ -19,6 +19,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { en: 'English', 'pt-BR': 'Por
   imports: [LateContent, Icon],
   templateUrl: './settings-sheet.html',
   styleUrl: './sheet.scss',
+  host: { '[animate.leave]': "'app-leave-hold'" },
 })
 export class SettingsSheet {
   protected readonly settings = inject(ShellSettings);
