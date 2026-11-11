@@ -552,8 +552,21 @@ pre code.hljs {
   animation: app-born var(--app-spring-fast) both;
 }
 
+@keyframes app-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.app-arrive {
+  // Sem `both`: a animação que segue aplicada depois do fim muda a composição e o antialiasing do texto da tela.
+  animation: app-arrive var(--app-spring-fast) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .app-born {
+  .app-born,
+  .app-arrive {
     animation: app-born-fade var(--app-motion-short) linear both;
   }
 }

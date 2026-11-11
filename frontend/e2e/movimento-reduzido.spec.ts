@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { destino, prenderPedacos, tracoDeProgresso } from './support/shell';
 import { seedStorage } from './support/storage';
@@ -231,5 +231,99 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
     const contador = circuito.locator('[data-key="default:ann"] .ctr');
     await expect(contador).toHaveCSS('transition-duration', '0s');
     await expect(circuito.locator('.edge').first()).toHaveCSS('transition-duration', '0s');
+  });
+});
+
+type Entrada = { nome: string; duracao: number; quadros: Keyframe[] };
+
+// A animação que termina sai de `getAnimations()`: cada uma é gravada quando começa, com o elemento dela.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const comecadas: (Entrada & { alvo: Element })[] = [];
+    Object.assign(window, { comecadas });
+    document.addEventListener('animationstart', (evento) => {
+      const alvo = evento.target as Element;
+      const efeito = alvo
+        .getAnimations()
+        .find((a) => (a as CSSAnimation).animationName === evento.animationName)?.effect as
+        KeyframeEffect | undefined;
+      comecadas.push({
+        alvo,
+        nome: evento.animationName,
+        duracao: efeito?.getTiming().duration as number,
+        quadros: efeito?.getKeyframes() ?? [],
+      });
+    });
+  });
+});
+
+/** As animações CSS que começaram no elemento desde a carga da página. */
+async function animacoesDe(local: Locator): Promise<Entrada[]> {
+  const ler = () =>
+    local.evaluate((elemento) =>
+      (window as unknown as { comecadas: (Entrada & { alvo: Element })[] }).comecadas
+        .filter((comecada) => comecada.alvo === elemento)
+        .map(({ nome, duracao, quadros }) => ({ nome, duracao, quadros })),
+    );
+  await expect.poll(async () => (await ler()).length).toBeGreaterThan(0);
+  return ler();
+}
+
+/** Derruba o `/stream` até a faixa de conexão aparecer e devolve as animações com que ela entrou. */
+async function faixaQueEntra(page: Page, tokenId: string): Promise<Entrada[]> {
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.route(`**/token/${tokenId}/stream`, (rota) => rota.abort('connectionreset'));
+  await page.goto(`/#/${tokenId}`);
+  await expect(page.getByRole('button', { name: 'Try again now' })).toBeVisible({
+    timeout: 15_000,
+  });
+  return animacoesDe(page.locator('app-connection-band'));
+}
+
+/** Solta o `/stream` e espera a faixa dizer a volta. */
+async function conexaoVolta(page: Page, tokenId: string): Promise<void> {
+  await page.unroute(`**/token/${tokenId}/stream`);
+  await page.getByRole('button', { name: 'Try again now' }).click();
+  await expect(page.locator('app-connection-band')).toContainText('Connected again.');
+}
+
+test.describe('Dado o sistema pedindo menos movimento e a conexão que cai', () => {
+  test('deve mostrar a faixa só com o fade de 120 ms, sem descer, e trocar a cor dela e a do ponto na volta', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+
+    const entrada = await faixaQueEntra(page, tokenId);
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    expect(entrada[0].quadros[0]).not.toHaveProperty('transform');
+    await conexaoVolta(page, tokenId);
+    await expect(page.locator('app-connection-band')).toHaveCSS(
+      'transition-property',
+      'background-color, color',
+    );
+    await expect(page.locator('app-live-status .dot')).toHaveCSS(
+      'transition-property',
+      'background-color',
+    );
+  });
+});
+
+test.describe('Dado o movimento normal e a conexão que cai', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve trazer a faixa de 8 px acima com a mola de 224 ms', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+
+    const entrada = await faixaQueEntra(page, tokenId);
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-arrive', duracao: 224 });
+    expect(entrada[0].quadros[0]).toMatchObject({
+      opacity: '0',
+      transform: 'translateY(-8px)',
+    });
   });
 });

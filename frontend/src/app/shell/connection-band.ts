@@ -23,6 +23,7 @@ import { LiveRegion } from '../ui/live-region';
   host: {
     '[class.down]': '!!connection.downSince()',
     '[class.shown]': '!!connection.notice()',
+    '[class.app-arrive]': '!!connection.notice()',
   },
 })
 export class ConnectionBand {
