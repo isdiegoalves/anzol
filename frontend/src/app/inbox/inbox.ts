@@ -10,6 +10,7 @@ import {
   computed,
   effect,
   inject,
+  linkedSignal,
   input,
   signal,
   untracked,
@@ -308,6 +309,11 @@ export class Inbox {
   private readonly loadingRequest = signal<string | null>(null);
   /** Um painel por vez: o detalhe em tela cheia depois de escolher na lista. */
   protected readonly showDetail = signal(false);
+  /** No celular, para que lado a tela andou na última troca entre lista e detalhe; a carga não anda. */
+  protected readonly turned = linkedSignal<boolean, 'forward' | 'back' | null>({
+    source: this.showDetail,
+    computation: (shown, previous) => (previous ? (shown ? 'forward' : 'back') : null),
+  });
   protected readonly listMin = LIST_MIN;
   protected readonly listMax = LIST_MAX;
   protected readonly listWidthKey = LIST_WIDTH_KEY;

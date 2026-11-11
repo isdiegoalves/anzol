@@ -33,7 +33,12 @@
       </section>
     </app-split>
   } @else if (guideName() || (showDetail() && (requests.selected() || requests.unopened()))) {
-    <section class="pane detail-pane" aria-label="Request detail" i18n-aria-label>
+    <section
+      class="pane detail-pane"
+      aria-label="Request detail"
+      i18n-aria-label
+      [class.app-arrive-forward]="turned() === 'forward'"
+    >
       <div class="detail-scroll"><ng-container [ngTemplateOutlet]="detailPane" /></div>
       <ng-container [ngTemplateOutlet]="actionPanel" />
     </section>
@@ -44,6 +49,7 @@
       i18n-aria-label
       tabindex="-1"
       [class.waiting]="!requests.hasRequests() && !requests.loading() && !requests.failure()"
+      [class.app-arrive-back]="turned() === 'back'"
       [attr.aria-busy]="requests.loading() || null"
     >
       <ng-container [ngTemplateOutlet]="listPane" />

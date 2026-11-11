@@ -437,3 +437,96 @@ test.describe('Dado o movimento normal e o apagar desfeito', () => {
     expect(volta[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
   });
 });
+
+type Troca = { carga: Entrada[]; ida: Entrada[]; volta: Entrada[] };
+
+/** No celular, abre a lista, toca numa requisição e volta; devolve como cada painel entrou. */
+async function paineisQueTrocam(page: Page, tokens: TokenTracker): Promise<Troca> {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tokenId = await tokens.create();
+  await tokens.send(tokenId, { path: '/primeira' });
+  await tokens.send(tokenId, { path: '/segunda' });
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.addInitScript(() => {
+    const entradas: Entrada[] = [];
+    Object.assign(window, { entradas });
+    document.addEventListener('animationstart', (evento) => {
+      const alvo = evento.target as Element;
+      if (!alvo.matches('.pane')) {
+        return;
+      }
+      const animacao = alvo
+        .getAnimations()
+        .find((a) => (a as CSSAnimation).animationName === evento.animationName);
+      const efeito = animacao?.effect as KeyframeEffect | undefined;
+      entradas.push({
+        nome: evento.animationName,
+        duracao: efeito?.getTiming().duration as number,
+        quadros: efeito?.getKeyframes() ?? [],
+      });
+    });
+  });
+  const lidas = () =>
+    page.evaluate(() => (window as unknown as { entradas: Entrada[] }).entradas.splice(0));
+  await page.goto(`/#/${tokenId}`);
+  const lista = page.getByRole('region', { name: 'Request list' });
+  const detalhe = page.getByRole('region', { name: 'Request detail' });
+  await expect(lista.locator('.item').first()).toBeVisible();
+  const carga = await lidas();
+  await lista.locator('.item', { hasText: '/primeira' }).getByRole('button').first().click();
+  await expect(detalhe).toContainText('/primeira');
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => (window as unknown as { entradas: unknown[] }).entradas.length),
+    )
+    .toBeGreaterThan(0);
+  const ida = await lidas();
+  await page.getByRole('button', { name: 'Back to requests' }).first().click();
+  await expect(lista).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => (window as unknown as { entradas: unknown[] }).entradas.length),
+    )
+    .toBeGreaterThan(0);
+  return { carga, ida, volta: await lidas() };
+}
+
+test.describe('Dado o sistema pedindo menos movimento e o celular entre lista e detalhe', () => {
+  test('deve trocar os painéis só com o fade de 120 ms, sem deslizar', async ({ page, tokens }) => {
+    const { carga, ida, volta } = await paineisQueTrocam(page, tokens);
+
+    expect(carga).toEqual([]);
+    for (const entrada of [ida, volta]) {
+      expect(entrada).toHaveLength(1);
+      expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+      expect(entrada[0].quadros[0]).not.toHaveProperty('transform');
+    }
+  });
+});
+
+test.describe('Dado o movimento normal e o celular entre lista e detalhe', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve trazer o detalhe da direita e a lista da esquerda em 120 ms, e carregar parada', async ({
+    page,
+    tokens,
+  }) => {
+    const { carga, ida, volta } = await paineisQueTrocam(page, tokens);
+
+    expect(carga).toEqual([]);
+    expect(ida).toHaveLength(1);
+    expect(ida[0]).toMatchObject({ nome: 'app-arrive-across', duracao: 120 });
+    expect(ida[0].quadros[0]).toMatchObject({
+      opacity: '0',
+      transform: expect.stringMatching(/^translateX?\(24px\)$/),
+    });
+    expect(volta).toHaveLength(1);
+    expect(volta[0]).toMatchObject({ nome: 'app-arrive-across', duracao: 120 });
+    expect(volta[0].quadros[0]).toMatchObject({
+      opacity: '0',
+      transform: expect.stringMatching(/^translateX?\(-24px\)$/),
+    });
+  });
+});

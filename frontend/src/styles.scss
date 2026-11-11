@@ -568,10 +568,33 @@ pre code.hljs {
   animation: app-arrive var(--app-motion-short) var(--app-motion-easing) backwards;
 }
 
+@keyframes app-arrive-across {
+  from {
+    opacity: 0;
+    transform: translateX(var(--app-arrive-from));
+  }
+}
+
+// Sem `both`: um transform que ficasse no painel prenderia nele a folha `position: fixed` de dentro.
+.app-arrive-forward,
+.app-arrive-back {
+  animation: app-arrive-across var(--app-motion-short) var(--app-motion-easing) backwards;
+}
+
+.app-arrive-forward {
+  --app-arrive-from: 24px;
+}
+
+.app-arrive-back {
+  --app-arrive-from: -24px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-born,
   .app-arrive,
-  .app-arrive-short {
+  .app-arrive-short,
+  .app-arrive-forward,
+  .app-arrive-back {
     animation: app-born-fade var(--app-motion-short) linear both;
   }
 }
