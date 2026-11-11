@@ -34,7 +34,7 @@
   border: 1px solid var(--mat-sys-outline);
   border-radius: var(--mat-sys-corner-small);
   background: var(--mat-sys-surface-container-lowest);
-  transition: background-color 100ms linear;
+  transition: background-color var(--app-motion-short) var(--app-motion-easing);
 }
 
 .handle {
@@ -47,9 +47,8 @@
   background: var(--mat-sys-outline);
   transform: translateY(-50%);
   transition:
-    left 100ms linear,
-    width 100ms linear,
-    height 100ms linear;
+    transform var(--app-motion-short) var(--app-motion-easing),
+    background-color var(--app-motion-short) var(--app-motion-easing);
 }
 
 .switch[aria-checked='true'] {
@@ -58,11 +57,10 @@
     background: var(--mat-sys-primary);
   }
 
+  // De 12 para 14 px e de 3 para 19 px à esquerda, como antes, mas por transform: o centro anda 17 px.
   .handle {
-    left: 19px;
-    width: 14px;
-    height: 14px;
     background: var(--mat-sys-on-primary);
+    transform: translate(17px, -50%) scale(calc(14 / 12));
   }
 }
 
@@ -75,9 +73,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .track,
   .handle {
-    transition: none;
+    transition: background-color var(--app-motion-short) var(--app-motion-easing);
   }
 }
 

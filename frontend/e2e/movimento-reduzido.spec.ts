@@ -780,3 +780,48 @@ test.describe('Dado o movimento normal e a IA', () => {
     expect(resposta[0]).toMatchObject({ nome: 'app-arrive', duracao: 120 });
   });
 });
+
+/** Abre Rules de uma URL com uma regra; devolve o interruptor dela. */
+async function interruptorDeRegra(page: Page, tokens: TokenTracker): Promise<Locator> {
+  const tokenId = await tokens.create();
+  const regras = await page.request.put(`/token/${tokenId}/rules`, {
+    data: [{ name: 'Pago', priority: 1, match: { method: ['POST'] }, response: { status: 202 } }],
+  });
+  expect(regras.status()).toBe(200);
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.goto(`/#/${tokenId}/rules`);
+  const interruptor = page.locator('app-rule-switch').first();
+  await expect(interruptor).toBeVisible();
+  return interruptor;
+}
+
+test.describe('Dado o sistema pedindo menos movimento e o interruptor de regra', () => {
+  test('deve trocar só a cor do trilho e da alça, sem a alça andar', async ({ page, tokens }) => {
+    const interruptor = await interruptorDeRegra(page, tokens);
+
+    await expect(interruptor.locator('.handle')).toHaveCSS(
+      'transition-property',
+      'background-color',
+    );
+    await expect(interruptor.locator('.track')).toHaveCSS(
+      'transition-property',
+      'background-color',
+    );
+  });
+});
+
+test.describe('Dado o movimento normal e o interruptor de regra', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve andar a alça só por transform em 120 ms, com a cor junto', async ({
+    page,
+    tokens,
+  }) => {
+    const interruptor = await interruptorDeRegra(page, tokens);
+    const alca = interruptor.locator('.handle');
+
+    await expect(alca).toHaveCSS('transition-property', 'transform, background-color');
+    await expect(alca).toHaveCSS('transition-duration', '0.12s, 0.12s');
+    await expect(interruptor.locator('.track')).toHaveCSS('transition-duration', '0.12s');
+  });
+});
