@@ -12,6 +12,7 @@ import {
   inject,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { MatButton } from '@angular/material/button';
@@ -348,6 +349,8 @@ export class RequestList {
    * nó Resposta (`app-born`, no `styles.scss`).
    */
   protected readonly born = signal<ReadonlySet<string>>(new Set());
+  /** As que o "Undo" devolveu agora: voltam descendo 8 px (`app-arrive-short`). */
+  protected readonly back = signal<ReadonlySet<string>>(new Set());
 
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   /** As novas que entraram acima da vista desde a última renderização, e a posição de antes delas. */
@@ -371,6 +374,19 @@ export class RequestList {
       });
     });
     afterEveryRender(() => this.keepFocus());
+    effect(() => {
+      const uuid = this.deleting.restored()?.uuid;
+      if (!uuid) {
+        return;
+      }
+      untracked(() => {
+        this.back.update((ids) => new Set([...ids, uuid]));
+        this.later(
+          () => this.back.update((ids) => new Set([...ids].filter((id) => id !== uuid))),
+          BORN_MS,
+        );
+      });
+    });
     effect((onCleanup) => {
       if (!this.reading()) {
         this.skeleton.set(false);

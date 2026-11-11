@@ -403,3 +403,37 @@ test.describe('Dado o movimento normal e o que avisa na lista', () => {
     expect(entrada[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
   });
 });
+
+/** Apaga a requisição pela lixeira da linha e desfaz pelo aviso; devolve como a linha voltou. */
+async function linhaQueVolta(page: Page, tokens: TokenTracker): Promise<Entrada[]> {
+  const faixa = await faixaDeApagada(page, tokens);
+  await faixa.getByRole('button', { name: 'Undo' }).click();
+  const linha = page.locator('app-request-list .item', { hasText: '/apagar' });
+  await expect(linha).toBeVisible();
+  return animacoesDe(linha);
+}
+
+test.describe('Dado o sistema pedindo menos movimento e o apagar desfeito', () => {
+  test('deve devolver a linha só com o fade de 120 ms, sem descer', async ({ page, tokens }) => {
+    const volta = await linhaQueVolta(page, tokens);
+
+    expect(volta).toHaveLength(1);
+    expect(volta[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    expect(volta[0].quadros[0]).not.toHaveProperty('transform');
+  });
+});
+
+test.describe('Dado o movimento normal e o apagar desfeito', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve devolver a linha de 8 px acima em 120 ms, porque responde ao toque', async ({
+    page,
+    tokens,
+  }) => {
+    const volta = await linhaQueVolta(page, tokens);
+
+    expect(volta).toHaveLength(1);
+    expect(volta[0]).toMatchObject({ nome: 'app-arrive', duracao: 120 });
+    expect(volta[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
+  });
+});

@@ -40,6 +40,8 @@ export class PendingDelete {
   readonly turn = signal(0);
   /** O aviso da requisição está na tela (a Entrada com o detalhe à vista). */
   readonly noticeShown = signal(false);
+  /** A última que o "Undo" devolveu à lista; um objeto novo a cada vez, para a mesma voltar duas vezes. */
+  readonly restored = signal<{ uuid: string } | null>(null);
   private settle: ((undo: boolean) => void) | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private snack: MatSnackBarRef<TextOnlySnackBar> | null = null;
@@ -67,6 +69,7 @@ export class PendingDelete {
     this.store.deleteRequest(request, undo).then(
       (outcome) => {
         if (outcome === 'restored') {
+          this.restored.set({ uuid: request.uuid });
           void this.announcer.announce($localize`Request restored.`, ANNOUNCEMENT_MS);
         } else if (outcome === 'kept') {
           this.snackBar.open(
