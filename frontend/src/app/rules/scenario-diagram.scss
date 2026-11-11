@@ -112,7 +112,7 @@
   }
 }
 
-// O estado atual acabou de mudar: pisca uma vez (E-09), sem movimento se o sistema pede menos.
+// O estado atual acabou de mudar: pisca uma vez (E-09). É só cor, então fica com movimento reduzido.
 .pill.changed {
   animation: state-changed var(--app-motion-long) ease-out 1;
 }
@@ -125,12 +125,6 @@
 
   100% {
     box-shadow: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pill.changed {
-    animation: none;
   }
 }
 

@@ -825,3 +825,37 @@ test.describe('Dado o movimento normal e o interruptor de regra', () => {
     await expect(interruptor.locator('.track')).toHaveCSS('transition-duration', '0.12s');
   });
 });
+
+test.describe('Dado o sistema pedindo menos movimento e o estado do cenário que muda', () => {
+  test('deve manter o halo de cor do estado novo, que não desloca nada', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    const regras = await page.request.put(`/token/${tokenId}/rules`, {
+      data: [
+        {
+          name: 'Início',
+          priority: 1,
+          scenario: { name: 'entrega', requiredState: 'Started', newState: 'enviada' },
+        },
+      ],
+    });
+    expect(regras.status()).toBe(200);
+    await seedStorage(page, { hideTutorial: 'true' });
+    await page.goto(`/#/${tokenId}/rules`);
+    await page
+      .getByRole('table', { name: 'Rules' })
+      .getByRole('row', { name: /Início/ })
+      .locator('td.item')
+      .getByRole('button')
+      .click();
+    await page.getByRole('tab', { name: /Scenario/ }).click();
+    const estado = page.locator('app-scenario-diagram .pill').first();
+    await expect(estado).toBeVisible();
+
+    await estado.evaluate((pilula) => pilula.classList.add('changed'));
+
+    await expect(estado).toHaveCSS('animation-name', /state-changed$/);
+  });
+});
