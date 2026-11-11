@@ -42,7 +42,8 @@ RUN cp build/libs/backend-*.jar app.jar && java -Djarmode=tools -jar app.jar ext
 FROM eclipse-temurin:25-jre-noble
 WORKDIR /app
 # A base sai depois das correções de segurança do Ubuntu; sem o upgrade, a varredura da tag reprova a imagem.
-RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Sem `--error-on=any`, o update sai com 0 quando o Ubuntu está fora do ar, e o upgrade não atualiza nada.
+RUN apt-get update --error-on=any && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home anzol
 COPY --from=backend /extraido/ ./
 USER anzol
