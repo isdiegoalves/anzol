@@ -44,12 +44,12 @@
 
 @media (prefers-reduced-motion: no-preference) {
   :host(.live) .dot {
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulse var(--app-motion-long) ease-in-out infinite alternate;
   }
 }
 
 @keyframes pulse {
-  50% {
+  to {
     opacity: 0.35;
   }
 }

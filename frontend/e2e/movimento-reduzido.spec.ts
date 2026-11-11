@@ -311,6 +311,35 @@ test.describe('Dado o sistema pedindo menos movimento e a conexão que cai', () 
   });
 });
 
+test.describe('Dado o sistema pedindo menos movimento e a conexão ao vivo', () => {
+  test('deve deixar o ponto do "Live" parado', async ({ page, tokens }) => {
+    const tokenId = await tokens.create();
+    await page.goto(`/#/${tokenId}`);
+    await expect(page.locator('app-live-status')).toContainText('Live');
+
+    await expect(page.locator('app-live-status .dot')).toHaveCSS('animation-name', 'none');
+  });
+});
+
+test.describe('Dado o movimento normal e a conexão ao vivo', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve pulsar o ponto do "Live" só por opacidade, no ritmo do token longo, indo e voltando', async ({
+    page,
+    tokens,
+  }) => {
+    const tokenId = await tokens.create();
+    await page.goto(`/#/${tokenId}`);
+    await expect(page.locator('app-live-status')).toContainText('Live');
+    const ponto = page.locator('app-live-status .dot');
+
+    await expect(ponto).toHaveCSS('animation-duration', '1.2s');
+    await expect(ponto).toHaveCSS('animation-iteration-count', 'infinite');
+    await expect(ponto).toHaveCSS('animation-direction', 'alternate');
+    await expect.poll(() => propriedadesAnimadas(page, 'app-live-status')).toEqual(['opacity']);
+  });
+});
+
 test.describe('Dado o movimento normal e a conexão que cai', () => {
   test.use({ reducedMotion: 'no-preference' });
 
