@@ -35,6 +35,8 @@ import { WaitForButton } from './wait-for';
   styleUrl: './filter-panel.scss',
   host: {
     '[class.sheet]': 'compact()',
+    '[class.app-arrive-short]': '!compact()',
+    '[animate.leave]': "compact() ? 'app-leave-hold' : []",
     '(keydown)': 'move($event)',
   },
 })

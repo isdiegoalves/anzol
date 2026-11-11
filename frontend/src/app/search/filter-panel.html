@@ -1,8 +1,9 @@
 @if (compact()) {
-  <div class="scrim" aria-hidden="true"></div>
+  <div class="scrim app-fade-short" aria-hidden="true"></div>
 }
 <div
   class="panel"
+  [class.app-rise]="compact()"
   [id]="panelId()"
   [attr.role]="compact() ? 'dialog' : null"
   [attr.aria-modal]="compact() ? 'true' : null"

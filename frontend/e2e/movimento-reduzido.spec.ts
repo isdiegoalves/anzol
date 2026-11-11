@@ -530,3 +530,107 @@ test.describe('Dado o movimento normal e o celular entre lista e detalhe', () =>
     });
   });
 });
+
+/** As animações de saída (`app-leave`) do painel de filtros, se ele ainda está na página. */
+function saidas(page: Page): Promise<Entrada[]> {
+  return page.evaluate(() =>
+    (document.querySelector('app-filter-panel')?.getAnimations({ subtree: true }) ?? [])
+      .filter((animacao) => (animacao as CSSAnimation).animationName === 'app-leave')
+      .map((animacao) => ({
+        nome: (animacao as CSSAnimation).animationName,
+        duracao: animacao.effect?.getTiming().duration as number,
+        quadros: (animacao.effect as KeyframeEffect).getKeyframes(),
+      })),
+  );
+}
+
+/** Abre a Entrada com uma requisição, na largura dada, e abre os filtros. */
+async function filtrosAbertos(page: Page, tokens: TokenTracker, largura: number): Promise<Locator> {
+  await page.setViewportSize({ width: largura, height: 844 });
+  const tokenId = await tokens.create();
+  await tokens.send(tokenId, { path: '/pedidos' });
+  await seedStorage(page, { hideTutorial: 'true' });
+  await page.goto(`/#/${tokenId}`);
+  await page.getByRole('button', { name: /^Filters(, \d+ active)?$/ }).click();
+  await expect(page.getByRole('toolbar', { name: 'Filters' })).toBeVisible();
+  return page.locator('app-filter-panel');
+}
+
+test.describe('Dado o sistema pedindo menos movimento e os filtros', () => {
+  test('deve abrir o painel da janela larga só com o fade de 120 ms', async ({ page, tokens }) => {
+    const entrada = await animacoesDe(await filtrosAbertos(page, tokens, 1400));
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+  });
+
+  test('deve abrir a folha do celular só com fades e fechá-la na hora', async ({
+    page,
+    tokens,
+  }) => {
+    const painel = await filtrosAbertos(page, tokens, 390);
+    const folha = await animacoesDe(painel.locator('.panel'));
+
+    expect(folha).toHaveLength(1);
+    expect(folha[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
+    await page.keyboard.press('Escape');
+    expect(await saidas(page)).toEqual([]);
+    await expect(painel).toHaveCount(0);
+  });
+});
+
+test.describe('Dado o movimento normal e os filtros', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('deve abrir o painel da janela larga de 8 px acima em 120 ms, e fechá-lo na hora', async ({
+    page,
+    tokens,
+  }) => {
+    const painel = await filtrosAbertos(page, tokens, 1400);
+    const entrada = await animacoesDe(painel);
+
+    expect(entrada).toHaveLength(1);
+    expect(entrada[0]).toMatchObject({ nome: 'app-arrive', duracao: 120 });
+    expect(entrada[0].quadros[0]).toMatchObject({ transform: 'translateY(-8px)' });
+    await page.getByRole('button', { name: /^Filters(, \d+ active)?$/ }).click();
+    expect(await saidas(page)).toEqual([]);
+    await expect(painel).toHaveCount(0);
+  });
+
+  test('deve subir a folha do celular 16 px em 120 ms e fechá-la num fade de 120 ms', async ({
+    page,
+    tokens,
+  }) => {
+    const painel = await filtrosAbertos(page, tokens, 390);
+    const folha = await animacoesDe(painel.locator('.panel'));
+
+    expect(folha).toHaveLength(1);
+    expect(folha[0]).toMatchObject({ nome: 'app-rise', duracao: 120 });
+    expect(folha[0].quadros[0]).toMatchObject({ transform: 'translateY(16px)' });
+    await page.evaluate(() => {
+      const painel = document.querySelector('app-filter-panel');
+      painel?.addEventListener('animationstart', (evento) => {
+        const animacao = painel
+          .getAnimations()
+          .find(
+            (a) => (a as CSSAnimation).animationName === (evento as AnimationEvent).animationName,
+          );
+        animacao?.pause();
+      });
+    });
+    await page.keyboard.press('Escape');
+    await expect.poll(() => saidas(page)).toHaveLength(2);
+    for (const saida of await saidas(page)) {
+      expect(saida).toMatchObject({ nome: 'app-leave', duracao: 120 });
+      expect(saida.quadros.at(-1)).toMatchObject({ opacity: '0' });
+    }
+    await expect(painel).toHaveCSS('animation-name', 'app-leave-hold');
+    await page.evaluate(() =>
+      document
+        .querySelector('app-filter-panel')
+        ?.getAnimations({ subtree: true })
+        .forEach((animacao) => animacao.finish()),
+    );
+    await expect(painel).toHaveCount(0);
+  });
+});

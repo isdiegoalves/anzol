@@ -176,6 +176,15 @@ export async function abrirFiltros(page: Page): Promise<void> {
   }
   await page.getByRole('button', { name: /^Filters(, \d+ active)?$/ }).click();
   await expect(grupo).toBeVisible();
+  // No celular a folha sobe ao abrir: quem mede os chips espera ela parar.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animacao) =>
+          animacao.playState !== 'running' || animacao.effect?.getTiming().iterations === Infinity,
+      ),
+  );
 }
 
 /** `toolbar "Filters"` com os chips (`button[aria-pressed]`). Com o painel recolhido, `abrirFiltros()` antes. */

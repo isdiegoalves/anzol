@@ -568,6 +568,43 @@ pre code.hljs {
   animation: app-arrive var(--app-motion-short) var(--app-motion-easing) backwards;
 }
 
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.app-rise {
+  animation: app-rise var(--app-motion-short) var(--app-motion-easing) backwards;
+}
+
+.app-fade-short {
+  animation: app-born-fade var(--app-motion-short) var(--app-motion-easing) backwards;
+}
+
+@keyframes app-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+// O host só segura a saída pelo tempo dela, para o `animate.leave` esperar; quem some são os filhos. Opacidade no host
+// faria dele um contexto de empilhamento, e uma folha `position: fixed` lá dentro passaria para baixo da tela.
+@keyframes app-leave-hold {
+  to {
+    visibility: visible;
+  }
+}
+
+.app-leave {
+  animation: app-leave var(--app-motion-short) var(--app-motion-easing) both;
+}
+
+.app-leave-hold {
+  animation: app-leave-hold var(--app-motion-short) both;
+}
+
 @keyframes app-arrive-across {
   from {
     opacity: 0;
@@ -589,13 +626,24 @@ pre code.hljs {
   --app-arrive-from: -24px;
 }
 
+.app-leave-hold > * {
+  animation: app-leave var(--app-motion-short) var(--app-motion-easing) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-born,
   .app-arrive,
   .app-arrive-short,
   .app-arrive-forward,
-  .app-arrive-back {
+  .app-arrive-back,
+  .app-rise {
     animation: app-born-fade var(--app-motion-short) linear both;
+  }
+
+  .app-leave,
+  .app-leave-hold,
+  .app-leave-hold > * {
+    animation: none;
   }
 }
 
