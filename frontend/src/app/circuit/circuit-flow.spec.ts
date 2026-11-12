@@ -45,6 +45,17 @@ describe('Dado as chegadas pelo tempo real no circuito', () => {
     expect(drawn).toEqual([{ step: 'full', opens: true }]);
   });
 
+  it('deve fazer a linha nascer do circuito já Quando o desenho não tem pulso a esperar (movimento reduzido)', async () => {
+    flow.attach({ draw: () => ({ born: 0, hurry: () => hurried++ }), clear: () => undefined });
+    let nasceu = false;
+
+    void flow.arrive(chegada(1), { at: 0 })?.then(() => (nasceu = true));
+    await Promise.resolve();
+
+    expect(nasceu).toBe(true);
+    expect(hurried).toBe(0);
+  });
+
   it('deve deixar a linha entrar já Quando o desenho da chegada falha', () => {
     const erros = TestBed.inject(ErrorHandler);
     const relatado = vi.spyOn(erros, 'handleError').mockImplementation(() => undefined);

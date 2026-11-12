@@ -101,7 +101,7 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
     await expect(traco).toHaveCount(0);
   });
 
-  test('deve mostrar a chegada isolada de uma vez no instante em que o pulso terminaria: caminho sólido, "path: …" no detalhe e a linha com fade de 120 ms, sem nada se deslocar', async ({
+  test('deve mostrar a chegada isolada de uma vez, na hora em que ela chega: caminho sólido, "path: …" no detalhe e a linha com fade de 120 ms, sem nada se deslocar', async ({
     page,
     tokens,
   }) => {
@@ -175,10 +175,9 @@ test.describe('Dado o sistema pedindo menos movimento', () => {
           }
         ).marcas,
     );
-    // Sem pulso: a linha, o caminho e a frase aparecem juntos, quando o pulso terminaria (3 saltos e o desfazer: 720 ms).
+    // Sem pulso: a linha, o caminho e a frase aparecem juntos, sem esperar os 720 ms que o pulso levaria.
     expect(marcas.pontos).toBe(0);
-    expect(marcas.linha - enviada).toBeGreaterThanOrEqual(700);
-    expect(marcas.linha - enviada).toBeLessThan(1200);
+    expect(marcas.linha - enviada).toBeLessThan(600);
     expect(Math.abs(marcas.caminho - marcas.linha)).toBeLessThan(100);
     expect(marcas.entrada).toHaveLength(1);
     expect(marcas.entrada[0]).toMatchObject({ nome: 'app-born-fade', duracao: 120 });
