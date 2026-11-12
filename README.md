@@ -28,6 +28,8 @@ decifra E2EE e injeção de falhas, sem expor porta nem IP público (*anzol* é 
 
 [Assista com som (MP4, 1080p)](https://github.com/isdiegoalves/anzol/releases/download/v0.8.0/anzol-apresentacao-1080p.mp4) · [vertical, para celular](https://github.com/isdiegoalves/anzol/releases/download/v0.8.0/anzol-apresentacao-vertical.mp4)
 
+![O circuito em 30 segundos: a pergunta "Chegou. E depois?"; o caminho de cada requisição, do remetente à regra e à resposta; na tela, 12 requisições chegam à Entrada e o contador sobe, uma rajada de 16 passa pelo circuito com os contadores de cada regra, um cenário falha duas vezes antes do 200, a resposta padrão mostra a regra que chegou mais perto, a assinatura não confere, o schema aponta o campo errado e a aba Métricas conta tudo; fecha com "Veja o caminho de cada webhook."](docs/imagens/circuito.webp)
+
 ![Tráfego gravado por um Anzol 0.7.0 local, em 32 segundos: 22 requisições aparecem na ordem e no tempo em que chegaram, com o tipo do evento do GitHub, do Shopify e do Slack, uma regra que falha duas vezes antes do 200, a assinatura que não confere quando o corpo muda, o schema que aponta o campo errado e a aba Métricas resumindo tudo](docs/imagens/dados-reais.webp)
 
 <picture>
