@@ -35,7 +35,7 @@ enum class DefenseScenario(
 ) {
     I1(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Forged signature (wrong secret)", "OWASP API2:2023", SignatureState.INVALID),
     I2(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Body changed after the HMAC", "OWASP API2:2023", SignatureState.INVALID),
-    I3(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Signature absent", "OWASP API2:2023", SignatureState.ABSENT),
+    I3(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Missing signature header", "OWASP API2:2023", SignatureState.ABSENT),
     I4(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Replay outside the timestamp tolerance", "OWASP API2:2023", SignatureState.INVALID),
     ;
 
