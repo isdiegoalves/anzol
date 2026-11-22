@@ -108,7 +108,14 @@ class TokenStore(
                     RedisKeys.shares(token.uuid),
                     RedisKeys.e2eeJti(token.uuid),
                     RedisKeys.labRuns(token.uuid),
+                    RedisKeys.defenseRounds(token.uuid),
+                    RedisKeys.defenseVerdicts(token.uuid),
+                    RedisKeys.defenseOpenRound(token.uuid),
+                    RedisKeys.defenseRoundRate(token.uuid),
                 ) + shares,
-            ).also { if (token.lab != null) redis.opsForZSet().remove(RedisKeys.LABS, token.uuid.toString()) } > 0
+            ).also {
+                if (token.lab != null) redis.opsForZSet().remove(RedisKeys.LABS, token.uuid.toString())
+                if (token.defenseLab != null) redis.opsForZSet().remove(RedisKeys.DEFENSE_LABS, token.uuid.toString())
+            } > 0
     }
 }

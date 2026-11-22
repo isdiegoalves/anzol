@@ -37,6 +37,8 @@ tags:
     description: Read secret, unlock cookie and read-only shared links.
   - name: E2EE
     description: Attribute decryption keys and the E2EE lab.
+  - name: Defense
+    description: The defense lab, with synthetic attack scenarios, an answer key, rounds and the report.
   - name: AI
     description: Local language model helpers. Answer 503 when AI is disabled.
   - name: Stats
@@ -1578,6 +1580,211 @@ paths:
                 $ref: '#/components/schemas/SimpleError'
               example: {error: Too many lab runs for this URL; try again later}
 
+  /defense-lab:
+    post:
+      tags: [Defense]
+      operationId: createDefenseLab
+      summary: Create a defense lab URL
+      description: >-
+        A new URL ready for a defense round: read secret (returned only here), Stripe-style signature with
+        timestamp tolerance, the event JSON Schema and no rules. The HMAC secret is never returned. Lives 24 h;
+        up to 20 active defense labs on the server (422 in `defense_lab`). The body has no fields.
+      security: []
+      responses:
+        '201':
+          description: The defense lab URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefenseLabCreated'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /defense-lab/scenarios:
+    get:
+      tags: [Defense]
+      operationId: listDefenseLabScenarios
+      summary: List the defense lab scenarios
+      description: The public catalog. It does not say which request of a round belongs to which scenario.
+      security: []
+      responses:
+        '200':
+          description: The catalog.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DefenseScenario'
+
+  /token/{tokenId}/defense-lab/rounds:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+    post:
+      tags: [Defense]
+      operationId: startDefenseRound
+      summary: Open a defense round
+      description: >-
+        Delivers wave 1 (legitimate traffic and one attack per scenario, shuffled) through the real capture and
+        keeps the answer key on the server. Only on a defense lab URL (422 in `defense_lab`); one open round per
+        URL (409); up to 6 rounds per minute per URL. The seed is only returned in the report.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefenseRoundRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DefenseRoundRequest'
+      responses:
+        '201':
+          description: The open round.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefenseRoundStarted'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '409':
+          $ref: '#/components/responses/DefenseRoundConflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: >-
+            Too many defense rounds on this URL, or (on a protected URL) too many wrong read secrets.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleError'
+              example: {error: Too many defense rounds for this URL; try again later}
+
+  /token/{tokenId}/defense-lab/rounds/{roundId}:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RoundId'
+    get:
+      tags: [Defense]
+      operationId: getDefenseRound
+      summary: Read the report of a finished round
+      description: The same report `finish` returned. An open round answers 409.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefenseReport'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/DefenseRoundNotFound'
+        '409':
+          $ref: '#/components/responses/DefenseRoundConflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /token/{tokenId}/defense-lab/rounds/{roundId}/verdicts:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RoundId'
+    post:
+      tags: [Defense]
+      operationId: submitDefenseVerdicts
+      summary: Send verdicts for wave 1
+      description: >-
+        May be sent in parts until `finish`; for the same `request_id` the last one wins. A request without a
+        verdict counts as `legitimate`. A `request_id` that is not part of the round answers 422.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefenseVerdictsRequest'
+      responses:
+        '200':
+          description: How many requests of wave 1 have a verdict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefenseVerdictsRecorded'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/DefenseRoundNotFound'
+        '409':
+          $ref: '#/components/responses/DefenseRoundConflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /token/{tokenId}/defense-lab/rounds/{roundId}/finish:
+    parameters:
+      - $ref: '#/components/parameters/TokenId'
+      - $ref: '#/components/parameters/RoundId'
+    post:
+      tags: [Defense]
+      operationId: finishDefenseRound
+      summary: Finish a defense round
+      description: >-
+        Delivers wave 2 (new variations of the same scenarios) against the rules the URL has now, measures and
+        returns the report. The answer key only leaves the server here. The body has no fields.
+      security:
+        - {}
+        - readSecret: []
+        - accessCookie: []
+      responses:
+        '200':
+          description: The report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DefenseReport'
+        '302':
+          $ref: '#/components/responses/ValidationRedirect'
+        '400':
+          $ref: '#/components/responses/MalformedJson'
+        '401':
+          $ref: '#/components/responses/Protected'
+        '404':
+          $ref: '#/components/responses/DefenseRoundNotFound'
+        '409':
+          $ref: '#/components/responses/DefenseRoundConflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /health:
     get:
       tags: [Server]
@@ -1642,6 +1849,14 @@ components:
       in: path
       required: true
       description: The URL uuid (lowercase).
+      schema:
+        type: string
+        format: uuid
+    RoundId:
+      name: roundId
+      in: path
+      required: true
+      description: The defense round uuid (lowercase).
       schema:
         type: string
         format: uuid
@@ -1762,6 +1977,32 @@ components:
           example:
             success: false
             error: {message: Request not found, id: null}
+        text/html:
+          schema:
+            type: string
+    DefenseRoundNotFound:
+      description: The round does not exist on this URL.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            success: false
+            error: {message: Round not found, id: null}
+        text/html:
+          schema:
+            type: string
+    DefenseRoundConflict:
+      description: >-
+        The round is not in the state the call needs: the URL already has an open round, the round is already
+        finished, or (reading the report) it is still open.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            success: false
+            error: {message: This round is already finished, id: null}
         text/html:
           schema:
             type: string
@@ -1997,6 +2238,8 @@ components:
         protected:
           type: boolean
           description: Whether reading and managing the URL requires the read secret.
+        defense_lab:
+          $ref: '#/components/schemas/DefenseLabMark'
 
     TokenSettings:
       type: object
@@ -3618,6 +3861,219 @@ components:
           description: Other public signer JWKs, placed before the test signer.
           items:
             $ref: '#/components/schemas/Jwk'
+
+    DefenseLabMark:
+      type: object
+      description: Present only on a defense lab URL; absent on every other URL.
+      required: [expires_at]
+      properties:
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    DefenseFamily:
+      type: string
+      enum: [integrity]
+
+    DefenseScenario:
+      type: object
+      required: [code, family, layer, title, reference]
+      properties:
+        code:
+          type: string
+          examples: [I1]
+        family:
+          $ref: '#/components/schemas/DefenseFamily'
+        layer:
+          type: string
+          enum: [floor, agent]
+          description: Who is expected to catch it, the URL checks alone (`floor`) or only the agent.
+        title:
+          type: string
+        reference:
+          type: string
+          examples: ['OWASP API2:2023']
+
+    DefenseLabCreated:
+      type: object
+      required: [token, read_secret, briefing, scenarios]
+      properties:
+        token:
+          $ref: '#/components/schemas/Token'
+        read_secret:
+          type: string
+          description: Returned only here.
+        briefing:
+          type: string
+          description: The context an operator would have, with the domain, the events and their normal order.
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefenseScenario'
+
+    DefenseRoundRequest:
+      type: object
+      properties:
+        seed:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 9007199254740991
+          description: >-
+            Reproduces a round: the same seed and catalog version give the same vectors. Absent, the server
+            draws one.
+
+    DefenseRoundStarted:
+      type: object
+      required: [round_id, catalog_version, requests]
+      properties:
+        round_id:
+          type: string
+          format: uuid
+        catalog_version:
+          type: string
+          examples: [defense-catalog/1]
+        requests:
+          type: integer
+          description: How many requests wave 1 delivered.
+
+    DefenseVerdict:
+      type: object
+      required: [request_id, verdict]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        verdict:
+          type: string
+          enum: [legitimate, attack]
+        family:
+          oneOf:
+            - $ref: '#/components/schemas/DefenseFamily'
+            - type: 'null'
+
+    DefenseVerdictsRequest:
+      type: object
+      required: [verdicts]
+      properties:
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefenseVerdict'
+
+    DefenseVerdictsRecorded:
+      type: object
+      required: [recorded, requests]
+      properties:
+        recorded:
+          type: integer
+        requests:
+          type: integer
+
+    DefenseScenarioResult:
+      type: object
+      required: [code, family, layer, title, floor, detection, containment]
+      properties:
+        code:
+          type: string
+        family:
+          $ref: '#/components/schemas/DefenseFamily'
+        layer:
+          type: string
+          enum: [floor, agent]
+        title:
+          type: string
+        floor:
+          type: object
+          description: The signature state the URL recorded on the wave 1 attack, against the expected one.
+          required: [expected, actual, ok]
+          properties:
+            expected:
+              type: string
+              enum: [valid, invalid, absent]
+            actual:
+              type: [string, 'null']
+              enum: [valid, invalid, absent, null]
+            ok:
+              type: boolean
+        detection:
+          type: object
+          description: The verdict the agent gave to the wave 1 attack; without one it counts as `legitimate`.
+          required: [request_id, verdict, family, detected]
+          properties:
+            request_id:
+              type: string
+              format: uuid
+            verdict:
+              type: string
+              enum: [legitimate, attack]
+            family:
+              oneOf:
+                - $ref: '#/components/schemas/DefenseFamily'
+                - type: 'null'
+            detected:
+              type: boolean
+        containment:
+          type: object
+          description: What the URL answered to the wave 2 attack; blocked is status 400 or above.
+          required: [request_id, status, blocked]
+          properties:
+            request_id:
+              type: [string, 'null']
+              format: uuid
+            status:
+              type: integer
+            blocked:
+              type: boolean
+
+    DefenseReport:
+      type: object
+      required: [round_id, catalog_version, seed, containment_seconds, scenarios, detection, containment, false_positives]
+      properties:
+        round_id:
+          type: string
+          format: uuid
+        catalog_version:
+          type: string
+        seed:
+          type: integer
+        containment_seconds:
+          type: integer
+          description: From the end of the wave 1 delivery to the `finish` call.
+        scenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/DefenseScenarioResult'
+        detection:
+          type: object
+          description: Wave 1.
+          required: [attacks, detected, legitimate, false_positives]
+          properties:
+            attacks:
+              type: integer
+            detected:
+              type: integer
+            legitimate:
+              type: integer
+            false_positives:
+              type: integer
+        containment:
+          type: object
+          description: Wave 2. A legitimate request passed when the answer was 2xx.
+          required: [attacks, blocked, legitimate, passed]
+          properties:
+            attacks:
+              type: integer
+            blocked:
+              type: integer
+            legitimate:
+              type: integer
+            passed:
+              type: integer
+        false_positives:
+          type: array
+          description: Legitimate requests of wave 1 the agent called an attack.
+          items:
+            type: string
+            format: uuid
 
     LabCreated:
       type: object

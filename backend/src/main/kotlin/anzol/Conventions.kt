@@ -79,6 +79,21 @@ object RedisKeys {
     /** URLs de laboratório E2EE ativas: ZSET uuid → fim da vida em milissegundos (o teto de ativas). */
     const val LABS = "anzol:labs"
 
+    /** Rodadas do laboratório de defesa: hash id da rodada → JSON (semente, gabarito e, fechada, o relatório). */
+    fun defenseRounds(id: TokenId): String = "token:$id:defense:rounds"
+
+    /** Veredictos da rodada aberta: hash id da requisição → JSON do veredicto. */
+    fun defenseVerdicts(id: TokenId): String = "token:$id:defense:verdicts"
+
+    /** O id da rodada aberta da URL (só uma por vez). */
+    fun defenseOpenRound(id: TokenId): String = "token:$id:defense:round"
+
+    /** Rodadas do laboratório de defesa abertas na janela de um minuto (limite por URL). */
+    fun defenseRoundRate(id: TokenId): String = "token:$id:defense:rounds:rate"
+
+    /** URLs de laboratório de defesa ativas: ZSET uuid → fim da vida em milissegundos (o teto de ativas). */
+    const val DEFENSE_LABS = "anzol:defense-labs"
+
     /** Chave do servidor (32 bytes em Base64) que assina o cookie de desbloqueio; criada no primeiro uso, sem TTL. */
     const val SERVER_KEY = "anzol:server-key"
 }
