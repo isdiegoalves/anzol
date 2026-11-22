@@ -12,6 +12,10 @@ updates:
     groups:
       gradle:
         update-types: ["minor", "patch"]
+    # O appender do logback sobe junto com o OTel que o Spring Boot gerencia, não sozinho (backend/build.gradle.kts).
+    ignore:
+      - dependency-name: "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: npm
     directories: ["/frontend", "/tests/contract"]

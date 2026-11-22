@@ -47,7 +47,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.62) do Spring Boot.
-    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.33.1-alpha")
+    // A linha 2.x do appender acompanha o OTel do Spring Boot (1.62 no Boot 4.1): a 2.33 pede o 1.67 e quebra o OTLP.
+    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.28.1-alpha")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")
