@@ -27,7 +27,10 @@ private const val SECRET = "segredo-do-mcp-Wn4t"
 private const val READ_SECRET = "leitura-do-mcp-8Hj"
 private const val CONCURRENT_PAIRS = 50
 
-/** As 14 ferramentas da §1 do plano "ia-local", o `diff_rules` (E-07 da UX de Regras) e as 3 do laboratório E2EE. */
+/**
+ * As 14 ferramentas da §1 do plano "ia-local", o `diff_rules` (E-07 da UX de Regras), as 3 do laboratório E2EE e as 5
+ * do laboratório de defesa.
+ */
 private val TOOLS =
     listOf(
         "create_url",
@@ -48,10 +51,22 @@ private val TOOLS =
         "create_e2ee_lab",
         "list_e2ee_scenarios",
         "run_e2ee_scenarios",
+        "create_defense_lab",
+        "list_defense_scenarios",
+        "start_defense_round",
+        "submit_defense_verdicts",
+        "finish_defense_round",
     )
 
 /** As do laboratório E2EE: precisam de uma URL de laboratório, e têm o teste próprio. */
 private val LAB_TOOLS = setOf("create_e2ee_lab", "list_e2ee_scenarios", "run_e2ee_scenarios")
+
+/** As do laboratório de defesa: precisam de uma URL de laboratório e de uma rodada, e têm o teste próprio. */
+private val DEFENSE_TOOLS =
+    setOf("create_defense_lab", "list_defense_scenarios", "start_defense_round", "submit_defense_verdicts", "finish_defense_round")
+
+/** As que não recebem `token_id`: criam a URL ou só listam um catálogo. */
+private val WITHOUT_TOKEN = setOf("create_url", "create_e2ee_lab", "list_e2ee_scenarios", "create_defense_lab", "list_defense_scenarios")
 
 @AiApiTest
 @DisplayName("Servidor MCP em /mcp")
@@ -101,7 +116,7 @@ class McpServerApiTest(
             assertThat(tool.description()).isNotBlank()
             assertThat(tool.inputSchema()["type"]).isEqualTo("object")
         }
-        assertThat(tools.filter { it.name() !in setOf("create_url", "create_e2ee_lab", "list_e2ee_scenarios") }).allSatisfy { tool ->
+        assertThat(tools.filter { it.name() !in WITHOUT_TOKEN }).allSatisfy { tool ->
             assertThat(@Suppress("UNCHECKED_CAST") (tool.inputSchema()["properties"] as Map<String, Any>)).containsKey("token_id")
         }
     }
@@ -390,7 +405,7 @@ class McpServerApiTest(
 
         val errors = calls.mapValues { (tool, arguments) -> call(tool, arguments) }.filterValues { it.isError == true }
 
-        assertThat(calls.keys + "create_url" + LAB_TOOLS).containsExactlyInAnyOrderElementsOf(TOOLS)
+        assertThat(calls.keys + "create_url" + LAB_TOOLS + DEFENSE_TOOLS).containsExactlyInAnyOrderElementsOf(TOOLS)
         assertThat(errors.mapValues { (it.value.content().single() as TextContent).text() }).isEmpty()
     }
 

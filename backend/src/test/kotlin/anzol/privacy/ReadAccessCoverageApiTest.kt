@@ -27,6 +27,7 @@ private const val SECRET = "segredo-da-varredura"
 private const val PROTECTED = """{"error":"This URL is protected","protected":true}"""
 
 /** As únicas rotas de uma URL que respondem sem acesso: as do §1 do item 12 e o JWKS (só chaves públicas). */
+private const val ROUND_ID = "00000000-0000-4000-8000-000000000000"
 private val OPEN_ROUTES = setOf("POST /token/{tokenId}/unlock", "POST /token/{tokenId}/lock", "GET /token/{tokenId}/jwks.json")
 
 /** Menos que isto é sinal de que a varredura não achou as rotas, e passaria sem provar nada. */
@@ -68,7 +69,7 @@ class ReadAccessCoverageApiTest(
                 .orElseThrow()
         val shareId =
             api.json(api.send("POST", "/token/$tokenId/request/$requestId/share", "{}".toByteArray(), JSON_BODY + secret))["id"].asString()
-        val values = mapOf("tokenId" to tokenId, "requestId" to requestId, "shareId" to shareId)
+        val values = mapOf("tokenId" to tokenId, "requestId" to requestId, "shareId" to shareId, "roundId" to ROUND_ID)
         val routes = mapping.routes().filter { it.pattern.startsWith("/token/{") }
 
         val answers = routes.associateWith { call(it, it.path(values)) }

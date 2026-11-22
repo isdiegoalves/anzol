@@ -2,6 +2,8 @@ package anzol.outbound
 
 import anzol.RateLimited
 import anzol.capture.CapturedRequest
+import anzol.defense.lab.DefenseAction
+import anzol.defense.lab.DefenseActionLog
 import anzol.rules.Parsed
 import anzol.signature.sign
 import anzol.token.Token
@@ -37,6 +39,7 @@ class OutboundActions(
     private val outbound: OutboundService,
     private val store: OutboundStore,
     private val clock: Clock,
+    private val actions: DefenseActionLog,
 ) {
     /** [body] é o JSON do pedido (`{"url", "keep_path"?, "timeout"?, "chaos"?}`). */
     fun replay(
@@ -45,8 +48,14 @@ class OutboundActions(
         body: String,
     ): Dispatch =
         when (val parsed = parseReplay(body, hasBody = message.content.isNotEmpty())) {
-            is Parsed.Valid -> replay(token, message, parsed.value)
-            is Parsed.Invalid -> Dispatch.Invalid(parsed.errors)
+            is Parsed.Valid -> {
+                actions.record(token.uuid, DefenseAction.OUTBOUND) { body }
+                replay(token, message, parsed.value)
+            }
+
+            is Parsed.Invalid -> {
+                Dispatch.Invalid(parsed.errors)
+            }
         }
 
     /** A mensagem gravada sai com o método, os cabeçalhos filtrados e o corpo; com `keep_path`, também o caminho e a query. */
@@ -82,6 +91,7 @@ class OutboundActions(
                 is Parsed.Valid -> parsed.value
                 is Parsed.Invalid -> return Dispatch.Invalid(parsed.errors)
             }
+        actions.record(token.uuid, DefenseAction.OUTBOUND) { body }
         val content = input.body.toByteArray(UTF_8)
         val signed = if (input.sign && signature != null) signature.sign(content, clock.instant()) else emptyMap()
         val overLimits = input.headers.overLimits()

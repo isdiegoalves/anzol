@@ -72,6 +72,30 @@ test('chaves, JWKS e laboratório E2EE seguem o documento', async ({ urls }) => 
   await conferir('POST', '/token/{tokenId}/keys', chave, 201);
 });
 
+test('o laboratório de defesa segue o documento: criar, catálogo, rodada, relatório e erros', async ({ urls }) => {
+  const lab = await conferir('POST', '/defense-lab', await http('POST', '/defense-lab', { corpo: {} }), 201);
+  urls.lembrar(lab.token.uuid, lab.read_secret);
+  const segredo = comSegredo(lab.read_secret);
+  const r = `/token/${lab.token.uuid}/defense-lab/rounds`;
+  await conferir('GET', '/defense-lab/scenarios', await http('GET', '/defense-lab/scenarios'), 200);
+
+  const aberta = await conferir('POST', '/token/{tokenId}/defense-lab/rounds', await http('POST', r, { headers: segredo, corpo: {} }), 201);
+  await conferir('POST', '/token/{tokenId}/defense-lab/rounds', await http('POST', r, { headers: segredo, corpo: {} }), 409);
+  await conferir('GET', '/token/{tokenId}/defense-lab/rounds/{roundId}', await http('GET', `${r}/${aberta.round_id}`, { headers: segredo }), 409);
+  const mensagens = (await http('GET', `/token/${lab.token.uuid}/requests?per_page=100`, { headers: segredo })).json<{ data: { uuid: string }[] }>();
+  const verdicts = [{ request_id: mensagens.data[0].uuid, verdict: 'attack', family: 'integrity' }];
+  await conferir(
+    'POST', '/token/{tokenId}/defense-lab/rounds/{roundId}/verdicts',
+    await http('POST', `${r}/${aberta.round_id}/verdicts`, { headers: segredo, corpo: { verdicts } }), 200,
+  );
+  await conferir(
+    'POST', '/token/{tokenId}/defense-lab/rounds/{roundId}/finish',
+    await http('POST', `${r}/${aberta.round_id}/finish`, { headers: segredo, corpo: {} }), 200,
+  );
+  await conferir('GET', '/token/{tokenId}/defense-lab/rounds/{roundId}', await http('GET', `${r}/${aberta.round_id}`, { headers: segredo }), 200);
+  await conferir('GET', '/token/{tokenId}/defense-lab/rounds/{roundId}', await http('GET', `${r}/${randomUUID()}`, { headers: segredo }), 404);
+});
+
 test('os erros seguem o documento: 422, 401, 404 e 410', async ({ urls }) => {
   await conferir('POST', '/token', await http('POST', '/token', { corpo: { timeout: 11 } }), 422);
 

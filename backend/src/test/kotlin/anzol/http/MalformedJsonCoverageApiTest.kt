@@ -19,6 +19,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import tools.jackson.databind.json.JsonMapper
 
 private val BODY_METHODS = setOf("POST", "PUT", "PATCH")
+private val PREFIXES = listOf("/token", "/share", "/e2ee-lab", "/defense-lab")
+private const val ROUND_ID = "00000000-0000-4000-8000-000000000000"
 
 /** Rotas de gestão que não leem corpo nenhum: o que vier é ignorado. Rota nova só entra aqui por decisão. */
 private val WITHOUT_BODY = setOf("PUT /token/{tokenId}/cors/toggle", "POST /token/{tokenId}/lock")
@@ -33,6 +35,10 @@ private val BAD_REQUEST =
         "POST /token/{tokenId}/keys",
         "POST /e2ee-lab",
         "POST /token/{tokenId}/e2ee-lab/run",
+        "POST /defense-lab",
+        "POST /token/{tokenId}/defense-lab/rounds",
+        "POST /token/{tokenId}/defense-lab/rounds/{roundId}/verdicts",
+        "POST /token/{tokenId}/defense-lab/rounds/{roundId}/finish",
     )
 
 /** Menos que isto é sinal de que a varredura não achou as rotas, e passaria sem provar nada. */
@@ -42,8 +48,8 @@ private const val BROKEN = """{"secret": "segredo-valido-123", "expires_in": "1h
 
 /**
  * Guarda: nenhuma rota de gestão lê JSON quebrado como entrada vazia. A lista vem dos mapeamentos do Spring: toda rota
- * `POST`/`PUT`/`PATCH` de `/token`, `/share` e `/e2ee-lab` responde 400 (as do [requireJsonObject]) ou o 422 da validação própria
- * dela, e nunca 2xx. Rota nova que leia o corpo de outro jeito e o aceite quebrado faz este teste falhar.
+ * `POST`/`PUT`/`PATCH` de `/token`, `/share`, `/e2ee-lab` e `/defense-lab` responde 400 (as do [requireJsonObject]) ou o 422 da
+ * validação própria dela, e nunca 2xx. Rota nova que leia o corpo de outro jeito e o aceite quebrado faz este teste falhar.
  */
 @AiApiTest
 @DisplayName("Guarda: JSON quebrado nunca vira entrada vazia nas rotas de gestão")
@@ -65,7 +71,7 @@ class MalformedJsonCoverageApiTest(
     private fun bodyRoutes(): List<Route> =
         mapping.routes().filter {
             it.method in BODY_METHODS &&
-                (it.pattern.startsWith("/token") || it.pattern.startsWith("/share") || it.pattern.startsWith("/e2ee-lab"))
+                PREFIXES.any(it.pattern::startsWith)
         }
 
     @Test
@@ -73,7 +79,7 @@ class MalformedJsonCoverageApiTest(
     fun varredura_jsonQuebrado_nuncaDeveSerAceito() {
         val tokenId = api.tokenId("""{"default_status":418,"read_secret":null}""")
         val requestId = api.capture(tokenId, "POST", body = "guardada".toByteArray())["uuid"].asString()
-        val values = mapOf("tokenId" to tokenId, "requestId" to requestId, "name" to "cenario")
+        val values = mapOf("tokenId" to tokenId, "requestId" to requestId, "name" to "cenario", "roundId" to ROUND_ID)
         val routes = bodyRoutes().filterNot { it.normalized() in WITHOUT_BODY }
 
         val answers = routes.associate { it.normalized() to api.send(it.method, it.path(values), BROKEN.toByteArray(), JSON_BODY) }

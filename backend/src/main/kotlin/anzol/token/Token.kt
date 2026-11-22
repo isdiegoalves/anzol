@@ -2,6 +2,8 @@ package anzol.token
 
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
+import anzol.defense.lab.DefenseLabMark
+import anzol.defense.lab.DefenseLabView
 import anzol.e2ee.DeletedE2eeKey
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eeKeyView
@@ -57,6 +59,9 @@ data class Token(
     /** As chaves de cifra apagadas mais novas: a decifra distingue a chave que a URL apagou da que ela nunca teve. */
     @field:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val e2eeDeletedKeys: List<DeletedE2eeKey> = emptyList(),
+    /** Só na URL de laboratório de defesa; nasce com ela e nenhuma rota a troca. */
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val defenseLab: DefenseLabMark? = null,
 ) {
     /**
      * `PUT /token/{id}`: troca a resposta configurada; `updated_at` fica como está, como no app antigo. A
@@ -82,7 +87,7 @@ data class Token(
     fun expiry(
         default: Duration,
         now: Instant,
-    ): Duration = lab?.remaining(now) ?: default
+    ): Duration = lab?.remaining(now) ?: defenseLab?.remaining(now) ?: default
 
     /** Sem [JsonIgnore], o Jackson gravaria `protected` no Redis como se fosse campo. */
     @JsonIgnore
@@ -117,6 +122,7 @@ data class Token(
             e2eeKeys = e2eeKeys.map { it.view() },
             lab = lab?.view(),
             protected = isProtected(),
+            defenseLab = defenseLab?.view(),
         )
 }
 
@@ -146,6 +152,9 @@ data class TokenView(
     val e2eeKeys: List<E2eeKeyView>,
     val lab: LabView?,
     val protected: Boolean,
+    /** Só aparece na URL de laboratório de defesa: o JSON das demais não muda. */
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val defenseLab: DefenseLabView? = null,
 )
 
 /** Os campos que o cliente escolhe na criação e na edição. */

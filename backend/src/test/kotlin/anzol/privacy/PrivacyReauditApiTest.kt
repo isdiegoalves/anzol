@@ -40,6 +40,8 @@ private val READ_ONLY_GETS =
         "/error",
         "/share/{shareId}",
         "/e2ee-lab/scenarios",
+        "/defense-lab/scenarios",
+        "/token/{tokenId}/defense-lab/rounds/{roundId}",
         // Saúde e versão do servidor: um PING no Redis e a versão do build, sem gravar nada.
         "/health",
         "/openapi.json",
@@ -266,7 +268,7 @@ class PrivacyReauditApiTest(
                 "que mude estado: a lista de GETs é a de leitura conhecida (um GET novo entra aqui por decisão)",
         )
         fun rotasGet_saoSoDeLeitura() {
-            val names = mapOf("tokenId" to "{tokenId}", "requestId" to "{requestId}", "shareId" to "{shareId}")
+            val names = mapOf("tokenId" to "{tokenId}", "requestId" to "{requestId}", "shareId" to "{shareId}", "roundId" to "{roundId}")
             val gets =
                 mapping
                     .routes()
