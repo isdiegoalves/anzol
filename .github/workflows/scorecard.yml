@@ -1,0 +1,37 @@
+# OpenSSF Scorecard: nota das práticas de segurança da cadeia de suprimentos do repositório (Actions fixadas, permissões
+# dos tokens, política de segurança, proteção de branch...). Roda a cada push para o main, quando a proteção de branch
+# muda e uma vez por semana. O resultado vai para Security → Code scanning e é publicado em scorecard.dev, de onde
+# sai o selo do README.
+# A publicação exige o formato que a scorecard-action valida: permissões do workflow só de leitura, id-token no job
+# e apenas as actions da lista dela nos passos. Um passo a mais faz a publicação falhar.
+name: scorecard
+
+on:
+  push:
+    branches: [main]
+  branch_protection_rule:
+  schedule:
+    - cron: "29 6 * * 1"
+
+permissions: read-all
+
+jobs:
+  analisar:
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@23f22cd43608bae7a1f1fa2603d7314dee9538a5 # v2.6.0
+        with:
+          results_file: resultado.sarif
+          results_format: sarif
+          publish_results: true
+          fail_on_publish_error: true
+      - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        if: always()
+        with:
+          sarif_file: resultado.sarif

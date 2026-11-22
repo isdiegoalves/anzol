@@ -15,6 +15,7 @@ decifra E2EE e injeção de falhas, sem expor porta nem IP público (*anzol* é 
 ![OpenAPI 3.1 · MCP · JSON Schema 2020-12 | protocolos](https://img.shields.io/badge/OpenAPI_3.1_%C2%B7_MCP_%C2%B7_JSON_Schema_2020--12-protocolos-1B5A68?labelColor=6B737C)
 ![licença | MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-1B5A68?labelColor=6B737C)
 ![versão | 0.9.1](https://img.shields.io/badge/vers%C3%A3o-0.9.1-1B5A68?labelColor=6B737C)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/isdiegoalves/anzol?label=OpenSSF%20Scorecard&labelColor=6B737C)](https://scorecard.dev/viewer/?uri=github.com/isdiegoalves/anzol)
 
 [![Rodar local com Docker](https://img.shields.io/badge/Rodar_local_com_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#início-rápido)
 

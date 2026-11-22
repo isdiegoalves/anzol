@@ -3,7 +3,7 @@
 
 # Os estágios frontend e backend rodam na plataforma de quem constrói, não na da imagem: os estáticos e o jar saem iguais
 # em qualquer arquitetura, e emulados (QEMU) são muito mais lentos.
-FROM --platform=$BUILDPLATFORM node:24-slim AS frontend
+FROM --platform=$BUILDPLATFORM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -21,7 +21,7 @@ RUN node -e "const fs = require('node:fs'), zlib = require('node:zlib'); \
       fs.writeFileSync('dist/frontend/' + nome + '.br', zlib.brotliCompressSync(bytes)); \
     }"
 
-FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS backend
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk@sha256:ce2ef9d2d67a68de5e196d4de9d743327c44a10b57fe02ec39f572c652cacfd3 AS backend
 WORKDIR /src
 COPY backend/gradlew backend/settings.gradle.kts backend/build.gradle.kts ./
 COPY backend/gradle gradle
@@ -39,7 +39,7 @@ RUN ./gradlew --no-daemon bootJar
 RUN cp build/libs/backend-*.jar app.jar && java -Djarmode=tools -jar app.jar extract --destination /extraido
 
 # A variante noble (Ubuntu 24.04), e não a padrão: a padrão traz o /usr/bin/pebble, com CVEs que não são do app.
-FROM eclipse-temurin:25-jre-noble
+FROM eclipse-temurin:25-jre-noble@sha256:f3dd0838e69b881cc382237d5901e74ae3705b1056ad964b2e0e523b174fef99
 WORKDIR /app
 # A base sai depois das correções de segurança do Ubuntu; sem o upgrade, a varredura da tag reprova a imagem.
 # Sem `--error-on=any`, o update sai com 0 quando o Ubuntu está fora do ar, e o upgrade não atualiza nada.
