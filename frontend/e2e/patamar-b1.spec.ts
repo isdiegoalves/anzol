@@ -1083,7 +1083,9 @@ test.describe('Dado a lista densa', () => {
     expect(await textoVisivel(linha)).not.toContain(ip);
     expect(await textoVisivel(linha)).not.toContain('agente-de-teste/1.0');
     await expect(abrirItem(page, id)).toHaveAccessibleName(
-      new RegExp(`^POST ${caminho} .*#${id5(id)} ?, from ${ip.replace(/\./g, '\\.')}, `),
+      new RegExp(
+        `^POST ${caminho} .*#${id5(id)} ?, from ${ip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `,
+      ),
     );
     await expect(linha.locator(`[title="${caminho}"]`)).toHaveCount(1);
   });
