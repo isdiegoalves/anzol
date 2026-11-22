@@ -12,6 +12,10 @@ updates:
     groups:
       gradle:
         update-types: ["minor", "patch"]
+    # O appender do logback sobe junto com o OTel que o Spring Boot gerencia, não sozinho (backend/build.gradle.kts).
+    ignore:
+      - dependency-name: "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: npm
     directories: ["/frontend", "/tests/contract"]
@@ -22,6 +26,16 @@ updates:
     groups:
       npm:
         update-types: ["minor", "patch"]
+    # Os tipos do Node acompanham o Node 24 do Dockerfile e dos workflows: o major dos tipos só sobe junto com o runtime.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # O axe 4.14 passa a cobrar a WCAG 2.5.3 (o nome acessível contém o texto visível) em linhas da lista que
+      # ainda não cumprem; ele sobe junto com essa correção da tela.
+      - dependency-name: "axe-core"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@axe-core/playwright"
+        update-types: ["version-update:semver-minor"]
 
   - package-ecosystem: docker
     directory: "/"

@@ -47,6 +47,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.62) do Spring Boot.
+    // A linha 2.x do appender acompanha o OTel do Spring Boot (1.62 no Boot 4.1): a 2.33 pede o 1.67 e quebra o OTLP.
     implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.28.1-alpha")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
@@ -54,12 +55,12 @@ dependencies {
     // Cache dos templates de regra já compilados (versão do Spring Boot).
     implementation("com.github.ben-manes.caffeine:caffeine")
     // Templates das regras de resposta. Sem o Nashorn: helpers em JavaScript nunca são registrados.
-    implementation("com.github.jknack:handlebars:4.5.5") {
+    implementation("com.github.jknack:handlebars:4.5.8") {
         exclude(group = "org.openjdk.nashorn")
     }
     // JSON Schema da URL (drafts 7, 2019-09 e 2020-12) sobre o Jackson 3. A 3.0.6 é compilada com o
     // Jackson 3.1.4, a mesma linha 3.1 que o Spring Boot impõe; a 3.0.7 já exige o 3.2.
-    implementation("com.networknt:json-schema-validator:3.0.6")
+    implementation("com.networknt:json-schema-validator:3.0.9")
     // JWE (ECDH-ES + A256GCM) com JWS ES256 dentro: a decifra de atributo da URL.
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
     // O documento OpenAPI é escrito em YAML e servido também em JSON (versão do Jackson do Spring Boot).

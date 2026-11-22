@@ -86,9 +86,7 @@ import { NOTICE_MS, copyFailedText } from '../ui/notice';
               Encrypted attribute: <code>{{ own.path }}</code>
             </li>
             <li i18n>
-              Bindings: <code>{{ own.jti }}</code
-              >, <code>{{ own.evt }}</code
-              >,
+              Bindings: <code>{{ own.jti }}</code>, <code>{{ own.evt }}</code>,
               <code>{{ own.app }}</code>
             </li>
             <li i18n>

@@ -105,10 +105,9 @@ export function scenarioSummary(
       <ul class="steps">
         @for (step of steps(); track $index) {
           <li>
-            <span class="state">{{ step.from }}</span
-            >&ngsp; <span class="arrow" aria-hidden="true">→</span>&ngsp;
-            <span class="rule">{{ step.rule }}</span
-            >&ngsp;
+            <span class="state">{{ step.from }}</span>&ngsp;
+            <span class="arrow" aria-hidden="true">→</span>&ngsp;
+            <span class="rule">{{ step.rule }}</span>&ngsp;
             <app-status-code [status]="step.status" error="Network fault" i18n-error />&ngsp;
             <span class="arrow" aria-hidden="true">→</span>&ngsp;
             @if (step.stays) {

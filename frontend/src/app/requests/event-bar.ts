@@ -35,8 +35,7 @@ import { RequestStore } from './request-store';
         [class.held]="!grouping.offer()"
       >
         <p class="visually-hidden" i18n>
-          Some requests repeat the same <code>{{ field }}</code
-          >. Group them by event?
+          Some requests repeat the same <code>{{ field }}</code>. Group them by event?
         </p>
         <span class="short" aria-hidden="true" [title]="sentence(field)"
           ><code>{{ field }}</code

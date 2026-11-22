@@ -48,8 +48,7 @@
                 [count]="stats.evaluated"
                 [what]="allRequests"
                 [countScope]="statsScope"
-                >{{ stats.evaluated }}</a
-              >&ngsp;<span class="of">{{
+                >{{ stats.evaluated }}</a>&ngsp;<span class="of">{{
                 keptText(stats.evaluated, stats.total, stats.window)
               }}</span>
             </dd>
@@ -89,8 +88,7 @@
           <p class="window" i18n>
             The {{ stats.evaluated }} most recent of the {{ stats.total }} requests this URL keeps,
             from <time [attr.datetime]="oldest.iso" [title]="oldest.utc">{{ oldest.text }}</time> to
-            <time [attr.datetime]="newest.iso" [title]="newest.utc">{{ newest.text }}</time
-            >.
+            <time [attr.datetime]="newest.iso" [title]="newest.utc">{{ newest.text }}</time>.
           </p>
           <p class="methods">
             <span i18n>Methods:</span>&ngsp;

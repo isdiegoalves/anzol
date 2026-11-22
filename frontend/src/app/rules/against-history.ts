@@ -26,8 +26,9 @@ export function closestFirst(misses: readonly HistoryMiss[]): HistoryMiss[] {
       <h3 i18n>Against history</h3>
       @if (result(); as current) {
         <p class="total">
-          <span class="big">{{ current.matched }}</span
-          >&ngsp;<span class="of" i18n>of the {{ current.tested }} most recent would match</span>
+          <span class="big">{{ current.matched }}</span>&ngsp;<span class="of" i18n
+            >of the {{ current.tested }} most recent would match</span
+          >
         </p>
         @if (closest().length > 0) {
           <h4 i18n>Closest misses</h4>
