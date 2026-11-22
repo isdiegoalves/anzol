@@ -22,6 +22,10 @@ updates:
     groups:
       npm:
         update-types: ["minor", "patch"]
+    # Os tipos do Node acompanham o Node 24 do Dockerfile e dos workflows: o major dos tipos só sobe junto com o runtime.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: "/"
