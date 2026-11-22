@@ -114,7 +114,7 @@ export class RuleBodyTools {
   }
 
   protected insertLabel(helper: TemplateHelper): string {
-    return $localize`Insert ${helper.name}:helper:`;
+    return $localize`Insert ${helper.snippet}:helper:`;
   }
 
   protected useDefaultLabel(type: string): string {

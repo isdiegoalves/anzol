@@ -18,6 +18,7 @@ import {
   item,
   itens,
   lista,
+  textoVisivel,
 } from './support/inbox';
 import {
   CHAVE_URLS,
@@ -1079,10 +1080,12 @@ test.describe('Dado a lista densa', () => {
     await expect(quando).toBeVisible();
     await expect(quando).toHaveAttribute('title', /\b\d{1,2}:\d{2}:\d{2}\b/);
     await expect(linha).toContainText(`#${id5(id)}`);
-    await expect(linha).not.toContainText(ip);
-    await expect(linha).not.toContainText('agente-de-teste/1.0');
+    expect(await textoVisivel(linha)).not.toContain(ip);
+    expect(await textoVisivel(linha)).not.toContain('agente-de-teste/1.0');
     await expect(abrirItem(page, id)).toHaveAccessibleName(
-      new RegExp(`^POST ${caminho}, #${id5(id)}, from ${ip.replace(/\./g, '\\.')}, `),
+      new RegExp(
+        `^POST ${caminho} .*#${id5(id)} ?, from ${ip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `,
+      ),
     );
     await expect(linha.locator(`[title="${caminho}"]`)).toHaveCount(1);
   });

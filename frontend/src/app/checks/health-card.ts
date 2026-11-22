@@ -211,6 +211,11 @@ export class HealthCard {
     );
   });
 
+  /** Na ordem do que a linha mostra: o motivo, "Open in the Inbox" e a contagem. */
+  protected readonly reasonName = (what: string, count: number) =>
+    count === 1
+      ? $localize`${what}:what:. Open in the Inbox, 1 request`
+      : $localize`${what}:what:. Open in the Inbox, ${count}:count: requests`;
   protected readonly barLabel = (valid: number, invalid: number) =>
     $localize`${valid}:valid: valid, ${invalid}:invalid: invalid`;
   protected readonly metrics = computed(() => [

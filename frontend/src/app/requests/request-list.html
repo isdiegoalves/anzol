@@ -114,7 +114,6 @@
                   [style.box-shadow]="row.hit ? 'inset 3px 0 var(--mat-sys-primary)' : null"
                   [attr.data-uuid]="item.request.uuid"
                   [attr.tabindex]="stop() === item.request.uuid ? 0 : -1"
-                  [attr.aria-label]="(row.attempt?.prefix ?? '') + item.label"
                   [attr.aria-current]="store.selected()?.uuid === item.request.uuid ? 'true' : null"
                   (focus)="cursor.set(item.request.uuid)"
                   (blur)="landed.set(null)"
@@ -123,11 +122,14 @@
                 >
                   @if (row.attempt; as attempt) {
                     <span class="line route-line">
-                      <span [title]="attempt.title ?? ''">{{ attempt.number }}</span>
+                      <span class="app-spoken">{{ attempt.prefix }}</span>
+                      <span aria-hidden="true" [title]="attempt.title ?? ''">{{
+                        attempt.number
+                      }}</span>
                       <span class="ago" [title]="localDateToTheSecond(item.request.created_at)">{{
                         attempt.time
                       }}</span>
-                      <span class="ago">{{ attempt.gap }}</span>
+                      <span class="ago" aria-hidden="true">{{ attempt.gap }}</span>
                     </span>
                   } @else {
                     <!-- Linha 1 (B1, lista densa): método, caminho (corta no meio; inteiro no title e no nome
@@ -143,7 +145,7 @@
                       <app-method-badge class="tinted" [method]="item.request.method" />
                       <!-- Espaço dentro do texto: o do leiaute (gap) não entra no texto do item. -->
                       <!-- prettier-ignore -->
-                      <span class="route" [title]="item.route"><span class="start"> {{ item.head }}</span><span class="end">{{ item.tail }}</span></span>
+                      <span class="route" [title]="item.route"><span class="start" aria-hidden="true"> {{ item.head }}</span><span class="end" aria-hidden="true">{{ item.tail }}</span><span class="app-spoken">{{ item.route }}</span></span>
                       @if (fresh().has(item.request.uuid)) {
                         <span class="new" i18n>NEW</span>
                       }
@@ -191,6 +193,8 @@
                       {{ row.value ?? '#' + item.request.uuid.substring(0, 5) }}</span
                     >
                   </span>
+                  <!-- prettier-ignore -->
+                  <span class="app-spoken">@if (row.value) {, #{{ item.request.uuid.substring(0, 5) }}}@if (row.attempt) {, {{ item.request.method }} {{ item.route }}}{{ item.spoken }}</span>
                 </button>
                 <!-- Na tentativa de um evento o selo fica no meio da linha: o clique nela abre a tentativa. -->
                 @if (item.status !== null && !touch() && !compare.picking() && !row.attempt) {

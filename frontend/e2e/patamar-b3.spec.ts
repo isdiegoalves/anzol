@@ -549,8 +549,8 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     const indice = page.getByRole('navigation', { name: 'On this page' });
 
     await expect(indice.getByRole('link', { name: /^Signature, GitHub$/ })).toBeVisible();
-    await expect(indice.getByRole('link', { name: /^Schema, on\b/ })).toBeVisible();
-    await expect(indice.getByRole('link', { name: /^Decryption, off$/ })).toBeVisible();
+    await expect(indice.getByRole('link', { name: /^Schema, On\b/ })).toBeVisible();
+    await expect(indice.getByRole('link', { name: /^Decryption, Off$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Response, 429$/ })).toBeVisible();
     await expect(indice.getByRole('link', { name: /^Privacy, open$/ })).toBeVisible();
 

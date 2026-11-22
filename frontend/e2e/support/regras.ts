@@ -38,12 +38,15 @@ import { expect } from './fixtures';
 
 export type ParteDaRegra = 'Match' | 'Response' | 'Scenario' | 'Test';
 
-/** A linha de uma regra na `table "Rules"`, pelo botão que abre o editor. */
+const textoExato = (texto: string) =>
+  new RegExp(`^${texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+
+/** A linha de uma regra na `table "Rules"`, pelo nome no botão que abre o editor. */
 export function linhaDaRegra(page: Page, nome: string): Locator {
   return page
     .getByRole('table', { name: 'Rules' })
     .locator('tbody tr[data-rule-id]')
-    .filter({ has: page.locator('td.item').getByRole('button', { name: nome, exact: true }) });
+    .filter({ has: page.locator('td.item .name').filter({ hasText: textoExato(nome) }) });
 }
 
 /** Abre o editor de uma regra salva pela linha dela (RULES-04: a linha inteira abre o editor). */

@@ -68,7 +68,7 @@ const seloDaAssinatura = (page: Page, uuid: string) =>
 const evento = (page: Page, valor: string) =>
   lista(page)
     .locator('app-event-line')
-    .filter({ has: page.getByRole('button', { name: new RegExp(`^Event ${valor}, `) }) });
+    .filter({ has: page.locator(`button.select[data-uuid="event:${valor}"]`) });
 
 /** A aba aberta é a única sublinhada: nas outras, a borda sai na cor do papel. */
 async function expectSoEstaAbaSublinhada(abas: Locator, aberta: Locator, sistema: Sistema) {

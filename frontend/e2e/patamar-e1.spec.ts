@@ -19,6 +19,7 @@ import {
   item,
   lista,
   mostrarLista,
+  textoVisivel,
 } from './support/inbox';
 import { comHoras, filtrosLigados, horaDaApi, id5, verResultadoSeAberto } from './support/patamar';
 import { gravarRegras } from './support/regras';
@@ -103,7 +104,7 @@ function oferta(page: Page): Locator {
 }
 
 function evento(page: Page, valor: string): Locator {
-  return lista(page).getByRole('button', { name: new RegExp(`^Event ${valor}, `) });
+  return lista(page).locator(`app-event-line button.select[data-uuid="event:${valor}"]`);
 }
 
 function tentativas(page: Page, valor: string): Locator {
@@ -169,7 +170,7 @@ test.describe('Dado a oferta de agrupar por evento', () => {
     await expect(faixa.getByRole('button', { name: 'Group by event', exact: true })).toBeVisible();
     await expect(faixa.getByRole('button', { name: 'Choose another field…' })).toBeVisible();
     // Sem a chave, a lista é a plana: nenhuma linha de evento.
-    await expect(lista(page).getByRole('button', { name: /^Event / })).toHaveCount(0);
+    await expect(lista(page).locator('app-event-line')).toHaveCount(0);
 
     await faixa.getByRole('button', { name: 'Not now' }).click();
     await expect(faixa).toHaveCount(0);
@@ -198,7 +199,7 @@ test.describe('Dado a oferta de agrupar por evento', () => {
       await expect(oferta(page)).toHaveCount(0);
       // Pelo texto à vista (o painel de filtros recolhido pode ter o "Group by event…" no DOM).
       expect(await lista(page).innerText()).not.toMatch(/\bevents?\b/i);
-      await expect(lista(page).getByRole('button', { name: /^Event / })).toHaveCount(0);
+      await expect(lista(page).locator('app-event-line')).toHaveCount(0);
     });
   }
 
@@ -244,7 +245,7 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
       await expect(tentativas(page, valor)).toHaveAttribute('aria-expanded', 'false');
     }
     await expect(evento(page, 'evt_a')).toHaveAccessibleName(
-      /^Event evt_a, POST \/notificacoes, 3 attempts in .+, answers 429 429 200, .*Open the newest attempt$/,
+      /^POST \/notificacoes (?=.*\bevt_a\b)(?=.* answers 429 429 200\b)(?=.* 3 attempts in ).*Open the newest attempt$/,
     );
     // A requisição sem o campo continua uma linha comum, no lugar dela.
     await expect(item(page, saude)).toBeVisible();
@@ -280,7 +281,9 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
       .evaluateAll((botoes) => botoes.map((b) => b.getAttribute('aria-label') ?? b.textContent));
     expect(nomes.map((n) => /^Attempt (\d+) of 3/.exec(n ?? '')?.[1])).toEqual(['3', '2', '1']);
     await expect(abrirItem(page, a[2])).toHaveAccessibleName(
-      new RegExp(`^Attempt 3 of 3, \\d+ s after the previous, POST /notificacoes, #${id5(a[2])}, `),
+      new RegExp(
+        `^Attempt 3 of 3, \\d+ s after the previous, .*#${id5(a[2])} ?, POST /notificacoes, from `,
+      ),
     );
     await expect(item(page, a[2])).toContainText('attempt 3');
     await expect(item(page, a[2]).getByText('200 · Retry: aceita', { exact: true })).toBeVisible();
@@ -334,7 +337,7 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
 
     await expect(evento(page, 'evt_unico')).toHaveCount(0);
     await expect(item(page, sozinha)).toContainText('evt_unico');
-    await expect(item(page, sozinha)).not.toContainText(`#${id5(sozinha)}`);
+    expect(await textoVisivel(item(page, sozinha))).not.toContain(`#${id5(sozinha)}`);
     await abrirItem(page, sozinha).click();
     await expect(detalhes(page)).toContainText(sozinha);
   });
@@ -354,7 +357,7 @@ test.describe('Dado a Entrada agrupada pela chave do evento', () => {
     await dialogo.getByRole('button', { name: 'Group', exact: true }).click();
 
     await expectUmAnuncio(page, /^Showing requests one by one\.$/);
-    await expect(lista(page).getByRole('button', { name: /^Event / })).toHaveCount(0);
+    await expect(lista(page).locator('app-event-line')).toHaveCount(0);
     await expect(item(page, a[0])).toBeVisible();
     await expect(lista(page)).not.toContainText('Grouped by');
   });

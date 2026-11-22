@@ -199,7 +199,7 @@ describe('Dado a página Outbound', () => {
     const composer = await screen.findByRole('region', { name: 'Replay request' });
     expect(
       within(composer).getByRole('button', {
-        name: `Request to replay: #${PEDIDO.uuid.slice(0, 5)}, PUT /pedidos?x=1. Change`,
+        name: `Request to replay: PUT #${PEDIDO.uuid.slice(0, 5)} /pedidos?x=1. Change`,
       }),
     ).toBeTruthy();
     expect(within(composer).getByText('/pedidos?x=1')).toBeTruthy();
@@ -604,7 +604,7 @@ describe('Dado a página Outbound', () => {
         within(composer)
           .getByRole('button', { name: /^Request to replay: / })
           .getAttribute('aria-label'),
-      ).toBe(`Request to replay: #${VELHA.uuid.slice(0, 5)}, POST /. Change`);
+      ).toBe(`Request to replay: POST #${VELHA.uuid.slice(0, 5)} /. Change`);
     });
 
     describe('Dado as decisões do dono (F2 fase 2)', () => {

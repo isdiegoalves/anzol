@@ -67,6 +67,10 @@ export const translations: Record<string, string> = {
   '2369742814572661392': 'Carregando…',
   // (root)
   '5267671911622079393': '(raiz)',
+  // {$what}. Open in the Inbox, 1 request
+  '4651340804460062014': '{$what}. Abrir na Entrada, 1 requisição',
+  // {$what}. Open in the Inbox, {$count} requests
+  '6182507215010562107': '{$what}. Abrir na Entrada, {$count} requisições',
   // {$valid} valid, {$invalid} invalid
   '3721271038538548419': '{$valid} válidas, {$invalid} inválidas',
   // Signature
@@ -1782,8 +1786,12 @@ export const translations: Record<string, string> = {
   '8582782147430932081': 'URL do webhook',
   // Copy URL (C)
   '5765890918485292193': 'Copiar a URL (C)',
+  // {VAR_PLURAL, plural, =1 {request} other {requests}}
+  '8230506787034350305': '{VAR_PLURAL, plural, =1 {requisição} other {requisições}}',
   // · limit {$INTERPOLATION}
   '2014180394214420875': '· limite {$INTERPOLATION}',
+  // (auto cleanup keeps the most recent)
+  '8613464723240195968': '(a limpeza automática guarda as mais recentes)',
   // Schema validation on. Open Checks
   '8301965875232311588': 'Validação de schema ligada. Abrir Verificações',
   // Send a request from the server: open Outbound
@@ -1796,11 +1804,8 @@ export const translations: Record<string, string> = {
   '7448920973178183690': 'Verificação de assinatura: {$provider}. Abrir Verificações',
   // Lab · expires {$relative}
   '8594661010844912779': 'Laboratório · expira {$relative}',
-  // E2EE lab URL, expires {$relative}. Open Checks
-  '5917116743026150008': 'URL de laboratório E2EE, expira {$relative}. Abrir Verificações',
-  // {$stored}, limit of {$limit}: auto cleanup keeps the most recent
-  '2447734136838482476':
-    '{$stored}, limite de {$limit}: a limpeza automática guarda as mais recentes',
+  // E2EE lab, expires {$relative}. Open Checks
+  '7665981311574826582': 'URL E2EE de laboratório, expira {$relative}. Abrir Verificações',
   // Delete this URL?
   '8240225322229955099': 'Apagar esta URL?',
   //  The URL {$START_TAG_CODE}{$INTERPOLATION}{$CLOSE_TAG_CODE} stops receiving, and its requests, rules and history are deleted. This can't be undone. A new URL opens in its place.
@@ -1970,8 +1975,8 @@ export const translations: Record<string, string> = {
     '· método, cabeçalhos e corpo como chegaram; os cabeçalhos hop-by-hop saem',
   // Request to replay. Choose
   '1481637659035866979': 'Requisição a reenviar. Escolher',
-  // Request to replay: #{$id}, {$method} {$path}. Change
-  '4897714653704161369': 'Requisição a reenviar: #{$id}, {$method} {$path}. Trocar',
+  // Request to replay: {$method} #{$id} {$path}. Change
+  '2660893060293389407': 'Requisição a reenviar: {$method} #{$id} {$path}. Trocar',
   // Same formula, same secret, over the exact bytes received, compared in constant time. Each request is marked valid, invalid with the reason, or absent (the header did not come). With E2EE decryption on, an invalid or absent signature also blocks decryption.
   '8598163494528443031':
     'Mesma fórmula, mesmo segredo, sobre os bytes exatos recebidos, comparados em tempo constante. Cada requisição fica marcada como Válida, Inválida com o motivo, ou Sem assinatura (faltou o cabeçalho). Com a decifra E2EE ligada, assinatura inválida ou ausente também impede a decifra.',
@@ -3599,6 +3604,10 @@ export const translations: Record<string, string> = {
   '7450195745920996659': '1 evento nas {$loaded} carregadas',
   // {$events} events in the {$loaded} loaded
   '4134443978746333591': '{$events} eventos nas {$loaded} carregadas',
+  // answers {$INTERPOLATION}
+  '8632337591235127670': 'respostas {$INTERPOLATION}',
+  // Open the newest attempt
+  '1396277305979143416': 'Abrir a tentativa mais nova',
   // Attempts of {$value}
   '689808152544993810': 'Tentativas de {$value}',
   // Requests with the same value in this field are shown together.
@@ -3653,9 +3662,6 @@ export const translations: Record<string, string> = {
   '7633946700269709741': '1 tentativa chegou antes da espera pedida',
   // {$count} attempts came before the asked wait
   '2359897495521070234': '{$count} tentativas chegaram antes da espera pedida',
-  // Event {$value}, {$method} {$route}, {$count}, answers {$answers}, {$problems}newest at {$time}. Open the newest attempt
-  '7328238802626481809':
-    'Evento {$value}, {$method} {$route}, {$count}, respostas {$answers}, {$problems}a mais nova às {$time}. Abrir a tentativa mais nova',
   // … {$hidden} more attempts. Show all {$total} attempts
   '4672029361197341837': '… mais {$hidden} tentativas. Mostrar as {$total} tentativas',
   // attempt {$number}

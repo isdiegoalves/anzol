@@ -14,6 +14,7 @@ import {
   lista,
   porque,
   verificacoes,
+  textoVisivel,
 } from './support/inbox';
 import { seedStorage } from './support/storage';
 
@@ -428,7 +429,7 @@ test.describe('Dado a lista no celular a 390×844 (INBOX-32/34)', () => {
     await expect(page.getByRole('heading', { name: /^Requests \(2( \/ \d+)?\)$/ })).toBeAttached();
 
     await expect(item(page, valida)).toBeVisible();
-    expect(await item(page, valida).innerText()).not.toMatch(IPV4);
+    expect(await textoVisivel(item(page, valida))).not.toMatch(IPV4);
     await expect(selo(page, valida, 'signature')).toBeVisible();
     await expect(selo(page, valida, 'schema')).toBeHidden();
     await expect(selo(page, invalida, 'schema')).toBeVisible();

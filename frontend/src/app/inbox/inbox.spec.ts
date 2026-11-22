@@ -1160,9 +1160,7 @@ describe('Dado a tela principal', () => {
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(root.querySelector('.item .select[aria-current="true"]')),
     );
-    expect(document.activeElement?.getAttribute('aria-label')).toContain(
-      `#${R2.uuid.substring(0, 5)}`,
-    );
+    expect(document.activeElement?.textContent).toContain(`#${R2.uuid.substring(0, 5)}`);
   });
 
   it('deve trazer o detalhe à frente no celular, e contá-la como lida, Quando o endereço volta à requisição que a tela tinha escolhido', async () => {

@@ -62,7 +62,8 @@ function mascarasComuns(page: Page): Locator[] {
   return [
     page.getByRole('textbox', { name: 'Webhook URL' }),
     page.locator('app-url-switcher .name'),
-    ...VOLATEIS.map((texto) => page.getByText(texto)),
+    // O texto só do leitor de tela (`.app-spoken`) não aparece na foto: mascarado, viraria um pixel.
+    ...VOLATEIS.map((texto) => page.getByText(texto).and(page.locator(':not(.app-spoken)'))),
   ];
 }
 

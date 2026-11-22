@@ -47,12 +47,13 @@
       class="count"
       [routerLink]="['/', token.uuid, 'checks']"
       [queryParams]="{ section: 'response' }"
-      [attr.aria-label]="stored.label"
     >
       <span class="chip">
         <app-icon name="inbox" [size]="16" />{{ stored.total }}
+        <span class="app-spoken" i18n>{stored.total, plural, =1 {request} other {requests}}</span>
         @if (stored.keeps !== null) {
           <span class="keeps" i18n>· limit {{ stored.keeps }}</span>
+          <span class="app-spoken" i18n>(auto cleanup keeps the most recent)</span>
         }
       </span>
     </a>

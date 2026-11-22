@@ -77,7 +77,7 @@
           <span class="indicator"
             ><app-icon [name]="destination.icon" [size]="22" />
             @if (status?.badge; as badge) {
-              <span class="badge" aria-hidden="true">{{ badge }}</span>
+              <span class="badge" aria-hidden="true" [attr.data-count]="badge"></span>
             } @else if (status) {
               <span class="dot" aria-hidden="true"></span>
             }

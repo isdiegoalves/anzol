@@ -195,7 +195,7 @@ describe('Dado o shell (rail, cabeçalho da URL e a página da rota)', () => {
     TestBed.inject(Preferences).unread.set({ [TOKEN_ID]: ['a', 'b', 'c'] });
     await screen.findByRole('link', { name: 'Inbox, 3 unread' });
 
-    expect(container.querySelector('.destination .badge')?.textContent?.trim()).toBe('3');
+    expect(container.querySelector('.destination .badge')?.getAttribute('data-count')).toBe('3');
     await expectNoAxeViolations(container);
   });
 

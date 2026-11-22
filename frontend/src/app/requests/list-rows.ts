@@ -39,11 +39,12 @@ export interface EventView {
   time: string;
   when: string;
   trail: TrailSeal[];
+  /** Os status da trilha em texto, para o nome da linha: "429 429 200", ou "429 ×14 200". */
+  answers: string;
   count: string;
   notes: string[];
   /** Alguma tentativa chegou antes da espera pedida. */
   early: boolean;
-  label: string;
   expanded: boolean;
 }
 
@@ -93,10 +94,6 @@ function duration(seconds: number): string {
   return seconds < 7200
     ? $localize`${Math.round(seconds / 60)}:minutes: min`
     : $localize`${Math.round(seconds / 3600)}:hours: h`;
-}
-
-export function sealText(seal: TrailSeal, marked: boolean): string {
-  return `${seal.text}${marked && seal.mark ? '✗' : ''}${seal.count > 1 ? ` ×${seal.count}` : ''}`;
 }
 
 function countOf(attempts: readonly WebhookRequest[], context: RowContext<unknown>): string {
@@ -188,8 +185,6 @@ export function rowsOf<Item>(
     ];
     const count = countOf(attempts, context);
     const time = timeOf(newest.created_at, context.language);
-    const answers = trail.map((seal) => sealText(seal, false)).join(' ');
-    const problems = notes.map((note) => `${note}, `).join('');
     rows.push({
       kind: 'event',
       id: `event:${value}`,
@@ -204,10 +199,12 @@ export function rowsOf<Item>(
         time,
         when: localDate(newest.created_at, context.language),
         trail,
+        answers: trail
+          .map((seal) => (seal.count > 1 ? `${seal.text} ×${seal.count}` : seal.text))
+          .join(' '),
         count,
         notes,
         early: early > 0,
-        label: $localize`Event ${value}:value:, ${newest.method}:method: ${route}:route:, ${count}:count:, answers ${answers}:answers:, ${problems}:problems:newest at ${time}:time:. Open the newest attempt`,
         expanded,
       },
     });
