@@ -461,6 +461,14 @@ API (depois dele tudo responde 410) e é coberto pelo teste do backend (`TokenAp
     argumentos, sem `warnings`; as descrições das duas dizem que o MCP não muda `e2ee` e não apontam a rota, e a do
     `update_url` diz o que `signature: null` tira de uma URL que decifra.
 
+- **Laboratório de defesa** (`specs/api/defesa-lab-criar.spec.ts`, `defesa-lab-rodada.spec.ts`,
+  `defesa-lab-mcp.spec.ts`): `POST /defense-lab` cria a URL pronta (segredo de leitura só na criação, assinatura com
+  tolerância, schema, nenhuma regra, sem o segredo do HMAC; a marca `defense_lab` só nela) e o catálogo público com os
+  14 cenários e os dois não contíveis; a rodada em duas ondas com o defensor do piso (detecção, contenção, cobertura,
+  ações, afrouxamento, somas por família e camada, relatório igual no `GET`); nenhuma leitura traz o gabarito antes
+  do fim; a ficha de injeção conta mesmo com a regra apagada e o segredo de leitura numa regra denuncia o P6; a mesma
+  semente repete a onda; os erros 422, 409, 404 e 401; e a rodada inteira pelo MCP, com a listagem da onda abaixo de
+  60.000 caracteres.
 - **Documento OpenAPI 3.1** (`specs/api/openapi.spec.ts`, helper em `support/openapi.ts`): o `GET /openapi.json`
   é carregado no Ajv (JSON Schema 2020-12, o dialeto do OAS 3.1) e as respostas reais das rotas principais (token,
   captura, mensagens, regras, cenários, busca, espera, estatísticas, envio, links, chaves, JWKS, laboratório) e dos
