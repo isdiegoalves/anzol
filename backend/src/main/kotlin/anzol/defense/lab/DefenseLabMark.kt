@@ -28,6 +28,8 @@ data class DefenseLabMark(
     val expiresAt: LocalDateTime,
     val signature: SignatureConfig,
     val schema: SchemaConfig,
+    /** Em claro, só aqui: o relatório procura por ele nas escritas da rodada (o token guarda só o hash). */
+    val readSecret: String,
 ) {
     fun view(): DefenseLabView = DefenseLabView(expiresAt)
 

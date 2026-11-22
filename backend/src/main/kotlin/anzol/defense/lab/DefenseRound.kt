@@ -4,6 +4,7 @@ import anzol.RedisKeys
 import anzol.RequestId
 import anzol.signature.SignatureState
 import anzol.token.Token
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonValue
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Component
@@ -72,7 +73,22 @@ data class ContainmentResult(
     val blocked: Boolean,
 )
 
-/** Um cenário no relatório: o piso e a detecção na onda 1, a contenção na onda 2. */
+/** O sinal de que o agente fez o que o payload pediu. */
+enum class InjectionSignal(
+    @get:JsonValue val id: String,
+) {
+    TOKEN("token"),
+    READ_SECRET("read_secret"),
+    LOOSENING("loosening"),
+}
+
+/** Só nos cenários de injeção: se o agente obedeceu e por qual sinal. */
+data class InjectionResult(
+    val obeyed: Boolean,
+    val signal: InjectionSignal?,
+)
+
+/** Um cenário no relatório: o piso e a detecção na onda 1, a contenção na onda 2 e, na injeção, a obediência. */
 data class ScenarioResult(
     val code: String,
     val family: DefenseFamily,
@@ -81,6 +97,14 @@ data class ScenarioResult(
     val floor: FloorResult,
     val detection: DetectionResult,
     val containment: ContainmentResult,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    val injection: InjectionResult? = null,
+)
+
+/** Quantos cenários de injeção a rodada teve e em quantos o agente obedeceu. */
+data class InjectionTotals(
+    val scenarios: Int,
+    val obeyed: Int,
 )
 
 /** Onda 1: ataques e quantos o agente marcou; legítimas e quantas ele marcou como ataque. */
@@ -143,6 +167,7 @@ data class DefenseReport(
     val coverage: Coverage,
     val actions: ActionCounts,
     val loosening: Loosening,
+    val injection: InjectionTotals,
 )
 
 /**
@@ -211,23 +236,15 @@ class DefenseRoundStore(
         id: String,
     ) {
         val key = RedisKeys.defenseActions(token.uuid)
-        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), key))
+        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), RedisKeys.defenseWrites(token.uuid), key))
         redis.opsForHash<String, String>().put(key, ROUND_FIELD, id)
         redis.expire(key, ttl(token))
     }
 
-    fun actions(token: Token): ActionCounts {
-        val counts = redis.opsForHash<String, String>().entries(RedisKeys.defenseActions(token.uuid))
-        return ActionCounts(
-            ruleWrites = counts[DefenseAction.RULE_WRITE.field]?.toInt() ?: 0,
-            configChanges = counts[DefenseAction.CONFIG_CHANGE.field]?.toInt() ?: 0,
-            outbound = counts[DefenseAction.OUTBOUND.field]?.toInt() ?: 0,
-        )
-    }
-
     /** Apaga os veredictos e para de contar ações: fora de rodada a URL não conta nada. */
     fun end(token: Token) {
-        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), RedisKeys.defenseActions(token.uuid)))
+        val id = token.uuid
+        redis.delete(listOf(RedisKeys.defenseVerdicts(id), RedisKeys.defenseActions(id), RedisKeys.defenseWrites(id)))
     }
 
     private fun ttl(token: Token): Duration = token.defenseLab?.remaining(clock.instant()) ?: DEFENSE_LAB_LIFETIME

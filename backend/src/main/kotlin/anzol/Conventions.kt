@@ -88,6 +88,9 @@ object RedisKeys {
     /** Escritas na URL durante a rodada aberta: hash tipo da ação → quantas; só existe com rodada aberta. */
     fun defenseActions(id: TokenId): String = "token:$id:defense:actions"
 
+    /** O que foi escrito na URL durante a rodada aberta: lista, a escrita mais nova no fim; só existe com rodada aberta. */
+    fun defenseWrites(id: TokenId): String = "token:$id:defense:writes"
+
     /** O id da rodada aberta da URL (só uma por vez). */
     fun defenseOpenRound(id: TokenId): String = "token:$id:defense:round"
 

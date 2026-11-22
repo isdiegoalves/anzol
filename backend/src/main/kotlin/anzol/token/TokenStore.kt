@@ -70,9 +70,19 @@ class TokenStore(
                 decryptedAfter?.toString().orEmpty(),
             ) ==
                 1L
-        if (replaced) actions.record(token.uuid, DefenseAction.CONFIG_CHANGE)
+        if (replaced) actions.record(token.uuid, DefenseAction.CONFIG_CHANGE, written(token))
         return replaced
     }
+
+    /** O que a rodada de defesa guarda de uma mudança da URL: o token sem a marca (que tem os segredos de criação). */
+    private fun written(token: Token): String =
+        if (token.defenseLab ==
+            null
+        ) {
+            ""
+        } else {
+            jsonMapper.writeValueAsString(token.copy(defenseLab = null))
+        }
 
     fun store(token: Token): Token {
         redis.opsForValue().set(
@@ -117,6 +127,7 @@ class TokenStore(
                     RedisKeys.defenseRounds(token.uuid),
                     RedisKeys.defenseVerdicts(token.uuid),
                     RedisKeys.defenseActions(token.uuid),
+                    RedisKeys.defenseWrites(token.uuid),
                     RedisKeys.defenseOpenRound(token.uuid),
                     RedisKeys.defenseRoundRate(token.uuid),
                 ) + shares,

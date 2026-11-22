@@ -18,7 +18,7 @@ import java.time.Duration
 
 /** Grande demais para aparecer por acaso num valor, num id ou num instante. */
 private const val SEED = 9_000_000_000_000_001L
-private const val WAVE = 22
+private const val WAVE = 28
 
 /** O que só o gabarito e o relatório dizem. */
 private val ANSWER_KEY_WORDS =

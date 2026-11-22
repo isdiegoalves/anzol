@@ -75,11 +75,13 @@ class DefenseLabService(
         userAgent: String?,
     ): Parsed<DefenseLabCreated> {
         val now = clock.instant()
+        val readSecret = newShareId()
         val mark =
             DefenseLabMark(
                 expiresAt = now.plus(DEFENSE_LAB_LIFETIME).toLegacyDateTime(),
                 signature = SignatureConfig(SignatureProvider.Stripe(DEFENSE_TOLERANCE_SECONDS), Secret(newShareId())),
                 schema = SchemaConfig.fromJson(bodyMapper.readTree(EVENT_SCHEMA) as ObjectNode),
+                readSecret = readSecret,
             )
         val uuid = TokenId(UUID.randomUUID())
         val slot =
@@ -99,7 +101,6 @@ class DefenseLabService(
                 mapOf("defense_lab" to listOf("There are already $MAX_ACTIVE_DEFENSE_LABS active defense lab URLs; delete one or wait.")),
             )
         }
-        val readSecret = newShareId()
         val token =
             Token(
                 uuid = uuid,

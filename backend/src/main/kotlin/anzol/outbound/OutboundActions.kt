@@ -48,8 +48,14 @@ class OutboundActions(
         body: String,
     ): Dispatch =
         when (val parsed = parseReplay(body, hasBody = message.content.isNotEmpty())) {
-            is Parsed.Valid -> replay(token, message, parsed.value)
-            is Parsed.Invalid -> Dispatch.Invalid(parsed.errors)
+            is Parsed.Valid -> {
+                actions.record(token.uuid, DefenseAction.OUTBOUND, body)
+                replay(token, message, parsed.value)
+            }
+
+            is Parsed.Invalid -> {
+                Dispatch.Invalid(parsed.errors)
+            }
         }
 
     /** A mensagem gravada sai com o método, os cabeçalhos filtrados e o corpo; com `keep_path`, também o caminho e a query. */
@@ -62,7 +68,6 @@ class OutboundActions(
         if (body.size > MAX_OUTBOUND_BODY) {
             return Dispatch.Invalid(mapOf("body" to listOf("The recorded body may not be greater than $MAX_OUTBOUND_BODY bytes.")))
         }
-        actions.record(token.uuid, DefenseAction.OUTBOUND)
         val url = if (input.keepPath) message.keepPathTarget(input.url, token.uuid) else input.url
         val outgoing = OutboundRequest(message.method, url, message.replayHeaders(), body, input.timeout)
         val chaos = input.chaos
@@ -86,7 +91,7 @@ class OutboundActions(
                 is Parsed.Valid -> parsed.value
                 is Parsed.Invalid -> return Dispatch.Invalid(parsed.errors)
             }
-        actions.record(token.uuid, DefenseAction.OUTBOUND)
+        actions.record(token.uuid, DefenseAction.OUTBOUND, body)
         val content = input.body.toByteArray(UTF_8)
         val signed = if (input.sign && signature != null) signature.sign(content, clock.instant()) else emptyMap()
         val overLimits = input.headers.overLimits()

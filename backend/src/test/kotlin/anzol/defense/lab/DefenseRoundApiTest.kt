@@ -17,7 +17,10 @@ import java.net.http.HttpResponse
 
 private const val UNKNOWN_ROUND = "00000000-0000-4000-8000-000000000000"
 private const val LEGITIMATE = 18
-private const val ATTACKS = 4
+private const val ATTACKS = 10
+
+/** Os ataques que o piso pega: os quatro de integridade. */
+private const val FLOOR_ATTACKS = 4
 
 /** O que o piso sabe fazer sozinho: barrar o que a assinatura reprova. */
 private const val FLOOR_RULES =
@@ -95,7 +98,7 @@ class DefenseRoundApiTest(
     @Test
     @DisplayName(
         "Dado o defensor do piso (marca o que a assinatura reprova e barra com regra), quando roda, então detecta e barra os " +
-            "4 ataques e as 18 legítimas passam",
+            "4 ataques de integridade e as 18 legítimas passam",
     )
     fun rodada_defensorDoPiso_deveDetectarEBarrarTudo() {
         val lab = lab()
@@ -110,20 +113,21 @@ class DefenseRoundApiTest(
         assertThat(opened.statusCode()).isEqualTo(201)
         assertThat(api.json(opened)["requests"].asInt()).isEqualTo(LEGITIMATE + ATTACKS)
         assertThat(api.json(opened).has("seed")).isFalse()
-        assertThat(api.json(recorded)["recorded"].asInt()).isEqualTo(ATTACKS)
+        assertThat(api.json(recorded)["recorded"].asInt()).isEqualTo(FLOOR_ATTACKS)
         assertThat(response.statusCode()).isEqualTo(200)
         assertThat(report["catalog_version"].asString()).isEqualTo("defense-catalog/1")
         assertThat(report["seed"].asLong()).isBetween(0, MAX_SEED)
         assertThat(report["containment_seconds"].asLong()).isBetween(0, 60)
-        assertThat(report["scenarios"].toList().map { it["code"].asString() }).containsExactly("I1", "I2", "I3", "I4")
+        assertThat(report["scenarios"].toList().map { it["code"].asString() })
+            .containsExactly("I1", "I2", "I3", "I4", "P1", "P2", "P3", "P4", "P5", "P6")
         assertThat(report["scenarios"].toList().map { it["floor"]["actual"].asString() })
-            .containsExactly("invalid", "invalid", "absent", "invalid")
+            .containsExactly("invalid", "invalid", "absent", "invalid", "valid", "valid", "valid", "valid", "valid", "valid")
         assertThat(report["scenarios"].toList().filterNot { it["floor"]["ok"].asBoolean() }).isEmpty()
-        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":4,"detected":4,"legitimate":18,"false_positives":0}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":4,"legitimate":18,"passed":18}""")
-        assertThat(report["scenarios"].toList().map { it["containment"]["status"].asInt() }).containsOnly(401)
+        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":10,"detected":4,"legitimate":18,"false_positives":0}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":10,"blocked":4,"legitimate":18,"passed":18}""")
+        assertThat(report["scenarios"].toList().take(FLOOR_ATTACKS).map { it["containment"]["status"].asInt() }).containsOnly(401)
         assertThat(report["false_positives"].size()).isZero()
-        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":4}""")
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":28,"judged":4}""")
         assertThat(report["actions"].toString()).isEqualTo("""{"rule_writes":1,"config_changes":0,"outbound":0}""")
         assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"kept","schema":"kept","loosened":false}""")
         delete(lab)
@@ -131,7 +135,7 @@ class DefenseRoundApiTest(
 
     @Test
     @DisplayName(
-        "Dado uma legítima julgada legítima e nenhum outro veredicto, quando fecha, então a cobertura é 1 de 22 e não há falso " +
+        "Dado uma legítima julgada legítima e nenhum outro veredicto, quando fecha, então a cobertura é 1 de 28 e não há falso " +
             "positivo: sem veredicto e julgada legítima são números diferentes",
     )
     fun cobertura_deveContarSoVeredictoExplicito() {
@@ -142,19 +146,19 @@ class DefenseRoundApiTest(
         post(lab, "/$round/verdicts", """{"verdicts":[{"request_id":"$legitimate","verdict":"legitimate"}]}""")
         val report = api.json(finish(lab, round))
 
-        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":1}""")
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":28,"judged":1}""")
         assertThat(report["detection"]["false_positives"].asInt()).isZero()
         delete(lab)
     }
 
     @Test
-    @DisplayName("Dado nenhum veredicto, quando fecha, então a cobertura é 0 de 22")
+    @DisplayName("Dado nenhum veredicto, quando fecha, então a cobertura é 0 de 28")
     fun cobertura_semVeredicto_deveSerZero() {
         val lab = lab()
 
         val report = api.json(finish(lab, started(lab)))
 
-        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":0}""")
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":28,"judged":0}""")
         delete(lab)
     }
 
@@ -219,7 +223,7 @@ class DefenseRoundApiTest(
 
         assertThat(response.statusCode()).isEqualTo(200)
         assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"removed","schema":"removed","loosened":true}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":0,"legitimate":18,"passed":18}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":10,"blocked":0,"legitimate":18,"passed":18}""")
         delete(lab)
     }
 
@@ -265,8 +269,8 @@ class DefenseRoundApiTest(
 
         val report = api.json(finish(lab, round))
 
-        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":4,"detected":0,"legitimate":18,"false_positives":0}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":0,"legitimate":18,"passed":18}""")
+        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":10,"detected":0,"legitimate":18,"false_positives":0}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":10,"blocked":0,"legitimate":18,"passed":18}""")
         assertThat(report["scenarios"].toList().map { it["detection"]["verdict"].asString() }).containsOnly("legitimate")
         delete(lab)
     }
@@ -284,8 +288,8 @@ class DefenseRoundApiTest(
         rules(lab, BLOCK_EVERYTHING)
         val report = api.json(finish(lab, round))
 
-        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":4,"detected":4,"legitimate":18,"false_positives":18}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":4,"legitimate":18,"passed":0}""")
+        assertThat(report["detection"].toString()).isEqualTo("""{"attacks":10,"detected":10,"legitimate":18,"false_positives":18}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":10,"blocked":10,"legitimate":18,"passed":0}""")
         assertThat(report["false_positives"].size()).isEqualTo(LEGITIMATE)
         delete(lab)
     }

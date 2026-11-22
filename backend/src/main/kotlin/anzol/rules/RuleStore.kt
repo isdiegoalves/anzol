@@ -34,12 +34,13 @@ class RuleStore(
         id: TokenId,
         rules: List<Rule>,
     ): List<Rule> {
+        val json = jsonMapper.writeValueAsString(rules)
         if (rules.isEmpty()) {
             redis.delete(RedisKeys.rules(id))
         } else {
-            redis.opsForValue().set(RedisKeys.rules(id), jsonMapper.writeValueAsString(rules), properties.expiry)
+            redis.opsForValue().set(RedisKeys.rules(id), json, properties.expiry)
         }
-        actions.record(id, DefenseAction.RULE_WRITE)
+        actions.record(id, DefenseAction.RULE_WRITE, json)
         return rules
     }
 }

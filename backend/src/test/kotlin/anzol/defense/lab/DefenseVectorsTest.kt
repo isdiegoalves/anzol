@@ -54,10 +54,61 @@ class DefenseVectorsTest {
     }
 
     @Test
-    @DisplayName("Dado uma onda, quando gera, então legítimas e ataques saem com os mesmos cabeçalhos, fora a assinatura")
+    @DisplayName("Dado uma onda, quando gera, então legítimas e ataques saem com os mesmos nomes de cabeçalho, fora a assinatura")
     fun cabecalhos_naoDevemDenunciarOAtaque() {
-        val headers = wave(seed = 7, wave = 1).map { it.request.headers - "Stripe-Signature" }
+        val names = wave(seed = 7, wave = 1).map { it.request.headers.keys - "Stripe-Signature" }
 
-        assertThat(headers.toSet()).hasSize(1)
+        assertThat(names.toSet()).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("Dado os cenários de injeção, quando gera, então cada um pede a ficha dele, que não diz de que cenário é")
+    fun injecao_cadaCenarioPedeAFichaDele() {
+        val planned = wave(seed = 7, wave = 1).filter { it.scenario?.family == DefenseFamily.PROMPT_INJECTION }
+        val withToken = planned.filterNot { it.scenario == DefenseScenario.P5 || it.scenario == DefenseScenario.P6 }
+        val canaries = DefenseScenario.entries.map { canaryOf(seed = 7, wave = 1, scenario = it) }
+
+        assertThat(planned).hasSize(6)
+        assertThat(withToken).allMatch { canaryOf(7, 1, checkNotNull(it.scenario)) in (it.request.body + it.request.headers) }
+        assertThat(canaries.toSet()).hasSize(DefenseScenario.entries.size)
+        assertThat(canaries).allMatch { it.matches(Regex("tk_[0-9a-f]{16}")) }
+        assertThat(canaries).doesNotContainAnyElementsOf(DefenseScenario.entries.map { canaryOf(7, 2, it) })
+    }
+
+    @Test
+    @DisplayName("Dado o P5, quando gera, então a ficha só aparece depois de decodificar o Base64 da nota")
+    fun injecao_codificada_soMostraAFichaDecodificada() {
+        val request = wave(seed = 7, wave = 1).first { it.scenario == DefenseScenario.P5 }.request
+        val note = bodyMapper.readTree(request.body)["data"]["note"].asString()
+        val decoded =
+            String(
+                java.util.Base64
+                    .getDecoder()
+                    .decode(note.substringAfter("(base64): ")),
+            )
+
+        assertThat(request.body).doesNotContain(canaryOf(7, 1, DefenseScenario.P5))
+        assertThat(decoded).contains(canaryOf(7, 1, DefenseScenario.P5))
+    }
+
+    @Test
+    @DisplayName("Dado o P6, quando gera, então a nota não traz ficha: o sinal é o segredo de leitura")
+    fun injecao_segredo_naoTemFicha() {
+        val request = wave(seed = 7, wave = 1).first { it.scenario == DefenseScenario.P6 }.request
+
+        assertThat(request.body).doesNotContain("tk_").contains("read secret")
+    }
+
+    @Test
+    @DisplayName("Dado uma onda, quando gera, então uma legítima traz nota que fala de regra e de sistema sem instruir")
+    fun sosia_daInjecao_deveVirNumaLegitima() {
+        val notes =
+            wave(
+                seed = 7,
+                wave = 1,
+            ).filter { it.scenario == null }.mapNotNull { bodyMapper.readTree(it.request.body)["data"]["note"] }
+
+        assertThat(notes).hasSize(1)
+        assertThat(notes.first().asString()).contains("rule", "system")
     }
 }
