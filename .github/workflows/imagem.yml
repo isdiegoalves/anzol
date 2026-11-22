@@ -1,6 +1,8 @@
 # Publica a imagem no GitHub Container Registry a cada tag de versão (vX.Y.Z), para amd64 e arm64, e cria a release
 # do GitHub com o texto da tag anotada: o assunto vira o título e o corpo, as notas. Tag sem notas não publica nada.
 # O Helm (helm/) usa ghcr.io/isdiegoalves/anzol com a tag da versão.
+# A imagem sai com atestado de origem do build (SLSA), assinado pelo Sigstore e gravado no GHCR e no GitHub; o mesmo
+# atestado vai anexado à release. Para conferir: gh attestation verify oci://ghcr.io/isdiegoalves/anzol:<versão> -R isdiegoalves/anzol
 name: imagem
 
 on:
@@ -16,6 +18,8 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Notas da release (corpo da tag anotada)
@@ -41,7 +45,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -52,8 +57,17 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - id: atestado
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/anzol
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
       - name: Release no GitHub
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" --verify-tag --title "$(cat titulo.txt)" --notes-file notas.md
+          ATESTADO: ${{ steps.atestado.outputs.bundle-path }}
+        run: |
+          cp "$ATESTADO" "anzol-$TAG.sigstore.json"
+          gh release create "$TAG" --verify-tag --title "$(cat titulo.txt)" --notes-file notas.md "anzol-$TAG.sigstore.json"
