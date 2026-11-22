@@ -4,7 +4,6 @@ import anzol.RedisKeys
 import anzol.RequestId
 import anzol.capture.RequestStore
 import anzol.countInWindow
-import anzol.signature.SignatureConfig
 import anzol.token.Token
 import org.springframework.core.env.Environment
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -64,6 +63,13 @@ data class DefenseVerdictsRecorded(
     val requests: Int,
 )
 
+/** O que se mede no fim, antes da onda 2: o tempo até a contenção, as ações da rodada e o afrouxamento. */
+private data class Measured(
+    val seconds: Long,
+    val actions: ActionCounts,
+    val loosening: Loosening,
+)
+
 /** O que a captura respondeu a uma requisição entregue. */
 private data class Delivery(
     val status: Int,
@@ -73,7 +79,7 @@ private data class Delivery(
 /**
  * Conduz a rodada numa URL de laboratório de defesa: entrega a onda 1 pela captura de verdade (por loopback, com a
  * assinatura, o schema e as regras da URL), guarda o gabarito, recebe os veredictos e, no fim, entrega a onda 2 e
- * mede. O gabarito só sai no relatório.
+ * mede. As ondas saem assinadas com a assinatura de criação da URL. O gabarito só sai no relatório.
  */
 @Component
 class DefenseRunner(
@@ -90,13 +96,9 @@ class DefenseRunner(
         token: Token,
         seed: Long?,
     ): RoundOutcome<DefenseRoundStarted> {
-        val signature = token.signature
+        val mark = token.defenseLab ?: return RoundOutcome.Invalid(NOT_A_DEFENSE_LAB)
         val id = UUID.randomUUID().toString()
-        return when {
-            token.defenseLab == null -> RoundOutcome.Invalid(NOT_A_DEFENSE_LAB)
-            signature == null -> RoundOutcome.Invalid(NO_SIGNATURE)
-            else -> limited(token) ?: if (rounds.open(token, id)) started(token, signature, id, seed) else RoundOutcome.Conflict(ROUND_OPEN)
-        }
+        return limited(token) ?: if (rounds.open(token, id)) started(token, mark, id, seed) else RoundOutcome.Conflict(ROUND_OPEN)
     }
 
     private fun limited(token: Token): RoundOutcome.Limited? =
@@ -106,17 +108,17 @@ class DefenseRunner(
 
     private fun started(
         token: Token,
-        signature: SignatureConfig,
+        mark: DefenseLabMark,
         id: String,
         seed: Long?,
     ): RoundOutcome<DefenseRoundStarted> {
         val chosen = seed ?: Random.nextLong(MAX_SEED + 1)
         val wave1 =
-            DefenseVectors(signature, clock.instant(), chosen, wave = 1).wave().map {
+            DefenseVectors(mark.signature, clock.instant(), chosen, wave = 1).wave().map {
                 val delivery = deliver(token, it.request)
                 Delivered(checkNotNull(delivery.requestId) { "a captura não devolveu o id da requisição" }, it.scenario)
             }
-        rounds.clearVerdicts(token)
+        rounds.begin(token, id)
         rounds.save(token, DefenseRound(id, chosen, wave1, clock.millis()))
         return RoundOutcome.Done(DefenseRoundStarted(id, DEFENSE_CATALOG_VERSION, wave1.size))
     }
@@ -154,25 +156,26 @@ class DefenseRunner(
         roundId: String,
     ): RoundOutcome<DefenseReport> {
         val round = rounds.find(token, roundId) ?: return RoundOutcome.NotFound
-        val signature = token.signature
+        val mark = token.defenseLab
         return when {
-            signature == null -> RoundOutcome.Invalid(NO_SIGNATURE)
+            mark == null -> RoundOutcome.Invalid(NOT_A_DEFENSE_LAB)
             round.report != null || !rounds.close(token, roundId) -> RoundOutcome.Conflict(ROUND_CLOSED)
-            else -> RoundOutcome.Done(finished(token, signature, round))
+            else -> RoundOutcome.Done(finished(token, mark, round))
         }
     }
 
     private fun finished(
         token: Token,
-        signature: SignatureConfig,
+        mark: DefenseLabMark,
         round: DefenseRound,
     ): DefenseReport {
         val seconds = Duration.ofMillis(clock.millis() - round.deliveredAtMillis).seconds
-        val vectors = DefenseVectors(signature, clock.instant(), round.seed, wave = 2)
+        val measured = Measured(seconds, rounds.actions(token), loosening(token, mark))
+        val vectors = DefenseVectors(mark.signature, clock.instant(), round.seed, wave = 2)
         val wave2 = vectors.wave().map { it.scenario to deliver(token, it.request) }
-        val report = report(token, round, rounds.verdicts(token), wave2, seconds)
+        val report = report(token, round, rounds.verdicts(token), wave2, measured)
         rounds.save(token, round.copy(report = report))
-        rounds.clearVerdicts(token)
+        rounds.end(token)
         return report
     }
 
@@ -190,7 +193,7 @@ class DefenseRunner(
         round: DefenseRound,
         verdicts: Map<String, Verdict>,
         wave2: List<Pair<DefenseScenario?, Delivery>>,
-        seconds: Long,
+        measured: Measured,
     ): DefenseReport {
         val scenarios =
             round.wave1
@@ -204,7 +207,7 @@ class DefenseRunner(
             roundId = round.id,
             catalogVersion = DEFENSE_CATALOG_VERSION,
             seed = round.seed,
-            containmentSeconds = seconds,
+            containmentSeconds = measured.seconds,
             scenarios = scenarios,
             detection = DetectionTotals(scenarios.size, scenarios.count { it.detection.detected }, legitimate1.size, flagged.size),
             containment =
@@ -215,6 +218,9 @@ class DefenseRunner(
                     passed = legitimate2.count { it.second.status in PASSED },
                 ),
             falsePositives = flagged,
+            coverage = Coverage(round.wave1.size, verdicts.size),
+            actions = measured.actions,
+            loosening = measured.loosening,
         )
     }
 
@@ -263,8 +269,27 @@ class DefenseRunner(
     }
 }
 
+/** A assinatura e o schema que a URL tem agora, contra os de criação. */
+private fun loosening(
+    token: Token,
+    mark: DefenseLabMark,
+): Loosening {
+    val signature = state(mark.signature, token.signature)
+    val schema = state(mark.schema, token.schema)
+    return Loosening(signature, schema, loosened = signature != ConfigState.KEPT || schema != ConfigState.KEPT)
+}
+
+private fun <T : Any> state(
+    created: T,
+    current: T?,
+): ConfigState =
+    when (current) {
+        null -> ConfigState.REMOVED
+        created -> ConfigState.KEPT
+        else -> ConfigState.CHANGED
+    }
+
 private val NOT_A_DEFENSE_LAB = mapOf("defense_lab" to listOf("This is not a defense lab URL: create one with POST /defense-lab."))
-private val NO_SIGNATURE = mapOf("signature" to listOf("The defense lab URL has no signature anymore: create a new one."))
 private const val ROUND_OPEN = "This URL already has an open round; finish it first"
 private const val ROUND_CLOSED = "This round is already finished"
 private const val ROUND_STILL_OPEN = "This round is still open; finish it to get the report"

@@ -3,6 +3,8 @@ package anzol.token
 import anzol.AnzolProperties
 import anzol.RedisKeys
 import anzol.TokenId
+import anzol.defense.lab.DefenseAction
+import anzol.defense.lab.DefenseActionLog
 import org.springframework.core.io.ClassPathResource
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.data.redis.core.script.RedisScript
@@ -30,6 +32,7 @@ class TokenStore(
     private val jsonMapper: JsonMapper,
     private val properties: AnzolProperties,
     private val clock: Clock,
+    private val actions: DefenseActionLog,
 ) {
     fun find(id: TokenId): Token? {
         val key = RedisKeys.token(id)
@@ -57,15 +60,18 @@ class TokenStore(
         decryptedAfter: Long? = null,
     ): Boolean {
         val keys = listOf(RedisKeys.token(token.uuid), RedisKeys.requests(token.uuid), RedisKeys.requestIndex(token.uuid))
-        return redis.execute(
-            REPLACE,
-            keys,
-            read.json,
-            jsonMapper.writeValueAsString(token),
-            token.expiry(properties.expiry, clock.instant()).seconds.toString(),
-            decryptedAfter?.toString().orEmpty(),
-        ) ==
-            1L
+        val replaced =
+            redis.execute(
+                REPLACE,
+                keys,
+                read.json,
+                jsonMapper.writeValueAsString(token),
+                token.expiry(properties.expiry, clock.instant()).seconds.toString(),
+                decryptedAfter?.toString().orEmpty(),
+            ) ==
+                1L
+        if (replaced) actions.record(token.uuid, DefenseAction.CONFIG_CHANGE)
+        return replaced
     }
 
     fun store(token: Token): Token {
@@ -110,6 +116,7 @@ class TokenStore(
                     RedisKeys.labRuns(token.uuid),
                     RedisKeys.defenseRounds(token.uuid),
                     RedisKeys.defenseVerdicts(token.uuid),
+                    RedisKeys.defenseActions(token.uuid),
                     RedisKeys.defenseOpenRound(token.uuid),
                     RedisKeys.defenseRoundRate(token.uuid),
                 ) + shares,

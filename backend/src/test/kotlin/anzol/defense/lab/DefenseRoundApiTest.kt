@@ -78,6 +78,11 @@ class DefenseRoundApiTest(
             json(mapOf("verdicts" to requests.map { attack(it["uuid"].asString()) })),
         )
 
+    private fun configure(
+        lab: JsonNode,
+        settings: String,
+    ) = api.send("PUT", "/token/${id(lab)}", settings.toByteArray(), JSON_BODY + secret(lab))
+
     private fun attack(requestId: String) = mapOf("request_id" to requestId, "verdict" to "attack", "family" to "integrity")
 
     private fun rules(
@@ -118,6 +123,137 @@ class DefenseRoundApiTest(
         assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":4,"legitimate":18,"passed":18}""")
         assertThat(report["scenarios"].toList().map { it["containment"]["status"].asInt() }).containsOnly(401)
         assertThat(report["false_positives"].size()).isZero()
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":4}""")
+        assertThat(report["actions"].toString()).isEqualTo("""{"rule_writes":1,"config_changes":0,"outbound":0}""")
+        assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"kept","schema":"kept","loosened":false}""")
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma legítima julgada legítima e nenhum outro veredicto, quando fecha, então a cobertura é 1 de 22 e não há falso " +
+            "positivo: sem veredicto e julgada legítima são números diferentes",
+    )
+    fun cobertura_deveContarSoVeredictoExplicito() {
+        val lab = lab()
+        val round = started(lab)
+        val legitimate = messages(lab).first { it["signature"]["valid"].asBoolean() }["uuid"].asString()
+
+        post(lab, "/$round/verdicts", """{"verdicts":[{"request_id":"$legitimate","verdict":"legitimate"}]}""")
+        val report = api.json(finish(lab, round))
+
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":1}""")
+        assertThat(report["detection"]["false_positives"].asInt()).isZero()
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado nenhum veredicto, quando fecha, então a cobertura é 0 de 22")
+    fun cobertura_semVeredicto_deveSerZero() {
+        val lab = lab()
+
+        val report = api.json(finish(lab, started(lab)))
+
+        assertThat(report["coverage"].toString()).isEqualTo("""{"requests":22,"judged":0}""")
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado duas gravações de regra, uma mudança de configuração e um envio pela Saída durante a rodada, quando fecha, então " +
+            "o relatório conta cada tipo",
+    )
+    fun acoes_duranteARodada_devemSerContadasPorTipo() {
+        val lab = lab()
+        val round = started(lab)
+
+        rules(lab, FLOOR_RULES)
+        rules(lab, BLOCK_EVERYTHING)
+        configure(lab, """{"default_status":201}""")
+        api.send("POST", "/token/${id(lab)}/send", """{"url":"http://127.0.0.1:1/x","body":"x"}""".toByteArray(), JSON_BODY + secret(lab))
+        val report = api.json(finish(lab, round))
+
+        assertThat(report["actions"].toString()).isEqualTo("""{"rule_writes":2,"config_changes":1,"outbound":1}""")
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado regras gravadas antes de abrir a rodada e depois de fechá-la, quando lê o relatório, então nenhuma conta")
+    fun acoes_foraDaRodada_naoDevemContar() {
+        val lab = lab()
+        rules(lab, FLOOR_RULES)
+        val round = started(lab)
+
+        val report = api.json(finish(lab, round))
+        rules(lab, BLOCK_EVERYTHING)
+
+        assertThat(report["actions"]["rule_writes"].asInt()).isZero()
+        assertThat(redis.hasKey("token:${id(lab)}:defense:actions")).isFalse()
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado uma URL comum, quando grava regras e muda a configuração, então nenhuma chave de ações nasce")
+    fun acoes_urlComum_naoDevemGravarNada() {
+        val id = api.tokenId()
+
+        api.send("PUT", "/token/$id/rules", FLOOR_RULES.toByteArray(), JSON_BODY)
+        api.send("PUT", "/token/$id", """{"default_status":201}""".toByteArray(), JSON_BODY)
+
+        assertThat(redis.keys("token:$id:defense:*")).isEmpty()
+    }
+
+    @Test
+    @DisplayName(
+        "Dado a assinatura e o schema removidos da URL durante a rodada, quando fecha, então 200 com afrouxamento nos dois, e as " +
+            "regras do piso não barram mais nada",
+    )
+    fun afrouxamento_removido_deveSerMedidoSemTravarARodada() {
+        val lab = lab()
+        val round = started(lab)
+
+        rules(lab, FLOOR_RULES)
+        configure(lab, """{"default_status":200}""")
+        val response = finish(lab, round)
+        val report = api.json(response)
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"removed","schema":"removed","loosened":true}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":4,"blocked":0,"legitimate":18,"passed":18}""")
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado a tolerância da assinatura trocada e o schema reenviado igual, quando fecha, então a assinatura sai como trocada e " +
+            "o schema como mantido",
+    )
+    fun afrouxamento_trocado_deveDistinguirDoMantido() {
+        val lab = lab()
+        val round = started(lab)
+        val signature = """{"provider":"stripe","secret":"outro-segredo-do-defensor","toleranceSeconds":3600}"""
+
+        val changed = configure(lab, """{"default_status":200,"signature":$signature,"schema":${lab["token"]["schema"]}}""")
+        val report = api.json(finish(lab, round))
+
+        assertThat(changed.statusCode()).isEqualTo(200)
+        assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"changed","schema":"kept","loosened":true}""")
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado a assinatura da URL trocada antes de abrir a rodada, quando roda, então as ondas saem com a assinatura de criação: " +
+            "as legítimas deixam de conferir na URL",
+    )
+    fun ondas_devemSairComAAssinaturaDeCriacao() {
+        val lab = lab()
+        val signature = """{"provider":"stripe","secret":"outro-segredo-do-defensor","toleranceSeconds":300}"""
+        configure(lab, """{"default_status":200,"signature":$signature,"schema":${lab["token"]["schema"]}}""")
+
+        started(lab)
+
+        assertThat(messages(lab).map { it["signature"]["valid"].asBoolean() }).containsOnly(false)
         delete(lab)
     }
 
@@ -349,7 +485,7 @@ class DefenseRoundApiTest(
 
         delete(lab)
 
-        assertThat(before).hasSize(4)
+        assertThat(before).hasSize(5)
         assertThat(redis.keys("token:${id(lab)}:defense:*")).isEmpty()
     }
 }

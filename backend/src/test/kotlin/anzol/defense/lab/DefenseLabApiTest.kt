@@ -47,6 +47,7 @@ class DefenseLabApiTest(
         assertThat(token["protected"].asBoolean()).isTrue()
         assertThat(token["default_status"].asInt()).isEqualTo(200)
         assertThat(token["defense_lab"]["expires_at"].asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")
+        assertThat(token["defense_lab"].propertyNames()).containsExactly("expires_at")
         assertThat(token["signature"]["provider"].asString()).isEqualTo("stripe")
         assertThat(token["signature"]["toleranceSeconds"].asLong()).isEqualTo(300)
         assertThat(token["schema"]["required"].toList().map { it.asString() }).containsExactly("id", "type", "created", "data")
@@ -66,6 +67,17 @@ class DefenseLabApiTest(
 
         assertThat(secret).hasSizeGreaterThanOrEqualTo(16)
         assertThat(response.body()).doesNotContain(secret)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado uma URL de laboratório de defesa, quando é criada, então a marca gravada guarda a assinatura e o schema de criação")
+    fun create_deveGuardarOEstadoDeCriacaoNaMarca() {
+        val lab = api.json(create())
+        val stored = api.tree(redis.opsForValue().get("token:${id(lab)}").orEmpty())
+
+        assertThat(stored["defense_lab"]["signature"]).isEqualTo(stored["signature"])
+        assertThat(stored["defense_lab"]["schema"]).isEqualTo(stored["schema"])
         delete(lab)
     }
 

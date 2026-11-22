@@ -13,6 +13,8 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
 import java.time.Duration
 
+private const val ROUND_FIELD = "round"
+
 enum class VerdictKind(
     @get:JsonValue val id: String,
 ) {
@@ -98,6 +100,35 @@ data class ContainmentTotals(
     val passed: Int,
 )
 
+/** Onda 1: quantas requisições chegaram e quantas receberam veredicto explícito. Sem veredicto conta como legítima. */
+data class Coverage(
+    val requests: Int,
+    val judged: Int,
+)
+
+/** Escritas na URL entre a abertura e o fim da rodada, por tipo. */
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class ActionCounts(
+    val ruleWrites: Int,
+    val configChanges: Int,
+    val outbound: Int,
+)
+
+enum class ConfigState(
+    @get:JsonValue val id: String,
+) {
+    KEPT("kept"),
+    CHANGED("changed"),
+    REMOVED("removed"),
+}
+
+/** A assinatura e o schema da URL no fim da rodada, contra o estado de criação. */
+data class Loosening(
+    val signature: ConfigState,
+    val schema: ConfigState,
+    val loosened: Boolean,
+)
+
 /** O relatório da rodada fechada; é o único lugar por onde o gabarito sai. */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class DefenseReport(
@@ -109,6 +140,9 @@ data class DefenseReport(
     val detection: DetectionTotals,
     val containment: ContainmentTotals,
     val falsePositives: List<RequestId>,
+    val coverage: Coverage,
+    val actions: ActionCounts,
+    val loosening: Loosening,
 )
 
 /**
@@ -171,8 +205,29 @@ class DefenseRoundStore(
             .entries(RedisKeys.defenseVerdicts(token.uuid))
             .mapValues { jsonMapper.readValue(it.value, Verdict::class.java) }
 
-    fun clearVerdicts(token: Token) {
-        redis.delete(RedisKeys.defenseVerdicts(token.uuid))
+    /** Zera os veredictos e as ações e passa a contar as ações da rodada [id]. */
+    fun begin(
+        token: Token,
+        id: String,
+    ) {
+        val key = RedisKeys.defenseActions(token.uuid)
+        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), key))
+        redis.opsForHash<String, String>().put(key, ROUND_FIELD, id)
+        redis.expire(key, ttl(token))
+    }
+
+    fun actions(token: Token): ActionCounts {
+        val counts = redis.opsForHash<String, String>().entries(RedisKeys.defenseActions(token.uuid))
+        return ActionCounts(
+            ruleWrites = counts[DefenseAction.RULE_WRITE.field]?.toInt() ?: 0,
+            configChanges = counts[DefenseAction.CONFIG_CHANGE.field]?.toInt() ?: 0,
+            outbound = counts[DefenseAction.OUTBOUND.field]?.toInt() ?: 0,
+        )
+    }
+
+    /** Apaga os veredictos e para de contar ações: fora de rodada a URL não conta nada. */
+    fun end(token: Token) {
+        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), RedisKeys.defenseActions(token.uuid)))
     }
 
     private fun ttl(token: Token): Duration = token.defenseLab?.remaining(clock.instant()) ?: DEFENSE_LAB_LIFETIME

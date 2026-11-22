@@ -85,6 +85,9 @@ object RedisKeys {
     /** Veredictos da rodada aberta: hash id da requisição → JSON do veredicto. */
     fun defenseVerdicts(id: TokenId): String = "token:$id:defense:verdicts"
 
+    /** Escritas na URL durante a rodada aberta: hash tipo da ação → quantas; só existe com rodada aberta. */
+    fun defenseActions(id: TokenId): String = "token:$id:defense:actions"
+
     /** O id da rodada aberta da URL (só uma por vez). */
     fun defenseOpenRound(id: TokenId): String = "token:$id:defense:round"
 

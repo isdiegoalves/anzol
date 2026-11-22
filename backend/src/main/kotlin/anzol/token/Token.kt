@@ -3,6 +3,7 @@ package anzol.token
 import anzol.TIMESTAMP_PATTERN
 import anzol.TokenId
 import anzol.defense.lab.DefenseLabMark
+import anzol.defense.lab.DefenseLabView
 import anzol.e2ee.DeletedE2eeKey
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eeKeyView
@@ -121,7 +122,7 @@ data class Token(
             e2eeKeys = e2eeKeys.map { it.view() },
             lab = lab?.view(),
             protected = isProtected(),
-            defenseLab = defenseLab,
+            defenseLab = defenseLab?.view(),
         )
 }
 
@@ -153,7 +154,7 @@ data class TokenView(
     val protected: Boolean,
     /** Só aparece na URL de laboratório de defesa: o JSON das demais não muda. */
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
-    val defenseLab: DefenseLabMark? = null,
+    val defenseLab: DefenseLabView? = null,
 )
 
 /** Os campos que o cliente escolhe na criação e na edição. */

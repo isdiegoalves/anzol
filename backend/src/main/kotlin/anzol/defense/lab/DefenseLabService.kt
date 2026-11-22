@@ -75,7 +75,12 @@ class DefenseLabService(
         userAgent: String?,
     ): Parsed<DefenseLabCreated> {
         val now = clock.instant()
-        val mark = DefenseLabMark(now.plus(DEFENSE_LAB_LIFETIME).toLegacyDateTime())
+        val mark =
+            DefenseLabMark(
+                expiresAt = now.plus(DEFENSE_LAB_LIFETIME).toLegacyDateTime(),
+                signature = SignatureConfig(SignatureProvider.Stripe(DEFENSE_TOLERANCE_SECONDS), Secret(newShareId())),
+                schema = SchemaConfig.fromJson(bodyMapper.readTree(EVENT_SCHEMA) as ObjectNode),
+            )
         val uuid = TokenId(UUID.randomUUID())
         val slot =
             redis.execute(
@@ -106,8 +111,8 @@ class DefenseLabService(
                 timeout = 0,
                 createdAt = now.toLegacyDateTime(),
                 updatedAt = now.toLegacyDateTime(),
-                signature = SignatureConfig(SignatureProvider.Stripe(DEFENSE_TOLERANCE_SECONDS), Secret(newShareId())),
-                schema = SchemaConfig.fromJson(bodyMapper.readTree(EVENT_SCHEMA) as ObjectNode),
+                signature = mark.signature,
+                schema = mark.schema,
                 defenseLab = mark,
             ).withReadSecret(ReadSecretChange.Set(readSecret))
         tokens.store(token)

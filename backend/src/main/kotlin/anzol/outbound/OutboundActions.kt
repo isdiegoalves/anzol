@@ -2,6 +2,8 @@ package anzol.outbound
 
 import anzol.RateLimited
 import anzol.capture.CapturedRequest
+import anzol.defense.lab.DefenseAction
+import anzol.defense.lab.DefenseActionLog
 import anzol.rules.Parsed
 import anzol.signature.sign
 import anzol.token.Token
@@ -37,6 +39,7 @@ class OutboundActions(
     private val outbound: OutboundService,
     private val store: OutboundStore,
     private val clock: Clock,
+    private val actions: DefenseActionLog,
 ) {
     /** [body] é o JSON do pedido (`{"url", "keep_path"?, "timeout"?, "chaos"?}`). */
     fun replay(
@@ -59,6 +62,7 @@ class OutboundActions(
         if (body.size > MAX_OUTBOUND_BODY) {
             return Dispatch.Invalid(mapOf("body" to listOf("The recorded body may not be greater than $MAX_OUTBOUND_BODY bytes.")))
         }
+        actions.record(token.uuid, DefenseAction.OUTBOUND)
         val url = if (input.keepPath) message.keepPathTarget(input.url, token.uuid) else input.url
         val outgoing = OutboundRequest(message.method, url, message.replayHeaders(), body, input.timeout)
         val chaos = input.chaos
@@ -82,6 +86,7 @@ class OutboundActions(
                 is Parsed.Valid -> parsed.value
                 is Parsed.Invalid -> return Dispatch.Invalid(parsed.errors)
             }
+        actions.record(token.uuid, DefenseAction.OUTBOUND)
         val content = input.body.toByteArray(UTF_8)
         val signed = if (input.sign && signature != null) signature.sign(content, clock.instant()) else emptyMap()
         val overLimits = input.headers.overLimits()

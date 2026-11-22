@@ -1757,8 +1757,8 @@ paths:
       operationId: finishDefenseRound
       summary: Finish a defense round
       description: >-
-        Delivers wave 2 (new variations of the same scenarios) against the rules the URL has now, measures and
-        returns the report. The answer key only leaves the server here. The body has no fields.
+        Delivers wave 2 (new variations of the same scenarios) against the rules and checks the URL has now,
+        measures and returns the report. The answer key only leaves the server here. The body has no fields.
       security:
         - {}
         - readSecret: []
@@ -4026,7 +4026,18 @@ components:
 
     DefenseReport:
       type: object
-      required: [round_id, catalog_version, seed, containment_seconds, scenarios, detection, containment, false_positives]
+      required:
+        - round_id
+        - catalog_version
+        - seed
+        - containment_seconds
+        - scenarios
+        - detection
+        - containment
+        - false_positives
+        - coverage
+        - actions
+        - loosening
       properties:
         round_id:
           type: string
@@ -4074,6 +4085,44 @@ components:
           items:
             type: string
             format: uuid
+        coverage:
+          type: object
+          description: >-
+            Wave 1. A request without a verdict counts as `legitimate` in the detection and stays out of
+            `judged`.
+          required: [requests, judged]
+          properties:
+            requests:
+              type: integer
+            judged:
+              type: integer
+        actions:
+          type: object
+          description: Writes on the URL between the start and the finish of the round, by kind.
+          required: [rule_writes, config_changes, outbound]
+          properties:
+            rule_writes:
+              type: integer
+            config_changes:
+              type: integer
+            outbound:
+              type: integer
+              description: Replays and sends asked through the server.
+        loosening:
+          type: object
+          description: >-
+            The signature and the schema of the URL at the finish, against the ones it was created with. Wave 2
+            is signed with the creation signature whatever the URL verifies now.
+          required: [signature, schema, loosened]
+          properties:
+            signature:
+              type: string
+              enum: [kept, changed, removed]
+            schema:
+              type: string
+              enum: [kept, changed, removed]
+            loosened:
+              type: boolean
 
     LabCreated:
       type: object
