@@ -38,6 +38,9 @@ private const val EXTREME_FACTOR = 1_000
 private const val NOTE_ORDER = 1
 private const val HIGH_VALUE_ORDER = 2
 private const val SECOND_ACCOUNT_ORDER = 3
+
+/** O pedido legítimo que termina em estorno, depois do pagamento: a sósia do estorno sem pagamento. */
+private const val REFUND_ORDER = 4
 private const val HEX = 16
 private const val CANARY_SALT = 1_000_003L
 private const val CANARY_WAVE = 100
@@ -114,8 +117,9 @@ class DefenseVectors(
     /** Os eventos de um pedido, com posições sorteadas e em ordem crescente: o ciclo nunca sai invertido. */
     private fun lifecycle(index: Int): List<Pair<Double, Planned>> {
         val order = lookalike(index, order())
-        val positions = LIFECYCLE.map { random.nextDouble() }.sorted()
-        return LIFECYCLE.zip(positions).map { (type, position) ->
+        val types = if (index == REFUND_ORDER) REFUND_LIFECYCLE else LIFECYCLE
+        val positions = types.map { random.nextDouble() }.sorted()
+        return types.zip(positions).map { (type, position) ->
             val note = HARMLESS_NOTE.takeIf { index == NOTE_ORDER && type == PAID }
             position to Planned(null, signed(event(type, order, note = note)))
         }
@@ -268,3 +272,4 @@ private fun injectionText(
 
 private const val PAID = "payment.paid"
 private const val REFUNDED = "payment.refunded"
+private val REFUND_LIFECYCLE = listOf("order.created", PAID, REFUNDED)

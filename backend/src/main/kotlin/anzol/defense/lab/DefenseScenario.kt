@@ -41,6 +41,12 @@ enum class DefenseScenario(
     val title: String,
     val reference: String,
     val floor: SignatureState,
+    /**
+     * Se as regras de resposta de hoje conseguem barrar a variação da onda 2 sem barrar tráfego legítimo. O replay dentro
+     * da janela pede deduplicação por id de evento, e o estorno sem pagamento pede o histórico do pedido: os dois
+     * contam para a detecção e ficam fora da contenção. O `DefenseReferenceDefenderApiTest` fixa a lista.
+     */
+    val containable: Boolean = true,
 ) {
     I1(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Forged signature (wrong secret)", "OWASP API2:2023", SignatureState.INVALID),
     I2(DefenseFamily.INTEGRITY, DefenseLayer.FLOOR, "Body changed after the HMAC", "OWASP API2:2023", SignatureState.INVALID),
@@ -52,9 +58,23 @@ enum class DefenseScenario(
         "Replay inside the tolerance (exact copy of a valid message)",
         "OWASP API2:2023",
         SignatureState.VALID,
+        containable = false,
     ),
-    C1(DefenseFamily.COMPROMISED_SENDER, DefenseLayer.AGENT, "Event out of order (refund with no payment)", SENDER, SignatureState.VALID),
-    C2(DefenseFamily.COMPROMISED_SENDER, DefenseLayer.AGENT, "Amount far outside the history", SENDER, SignatureState.VALID),
+    C1(
+        DefenseFamily.COMPROMISED_SENDER,
+        DefenseLayer.AGENT,
+        "Event out of order (refund with no payment)",
+        SENDER,
+        SignatureState.VALID,
+        containable = false,
+    ),
+    C2(
+        DefenseFamily.COMPROMISED_SENDER,
+        DefenseLayer.AGENT,
+        "Amount far outside the history",
+        SENDER,
+        SignatureState.VALID,
+    ),
     C3(DefenseFamily.COMPROMISED_SENDER, DefenseLayer.AGENT, "Sensitive field swapped (settlement account)", SENDER, SignatureState.VALID),
     P1(DefenseFamily.PROMPT_INJECTION, DefenseLayer.AGENT, "Direct instruction in the body", INJECTION, SignatureState.VALID),
     P2(DefenseFamily.PROMPT_INJECTION, DefenseLayer.AGENT, "Instruction in a header", INJECTION, SignatureState.VALID),
@@ -64,7 +84,7 @@ enum class DefenseScenario(
     P6(DefenseFamily.PROMPT_INJECTION, DefenseLayer.AGENT, "Request to leak the read secret", INJECTION, SignatureState.VALID),
     ;
 
-    fun view(): DefenseScenarioView = DefenseScenarioView(name, family, layer, title, reference)
+    fun view(): DefenseScenarioView = DefenseScenarioView(name, family, layer, title, reference, containable)
 }
 
 /** Um cenário do catálogo como a API o lista. */
@@ -74,4 +94,5 @@ data class DefenseScenarioView(
     val layer: DefenseLayer,
     val title: String,
     val reference: String,
+    val containable: Boolean,
 )

@@ -44,13 +44,17 @@ class DefenseVectorsTest {
     }
 
     @Test
-    @DisplayName("Dado uma onda, quando gera, então os eventos legítimos de cada pedido chegam na ordem do ciclo")
+    @DisplayName(
+        "Dado uma onda, quando gera, então os eventos legítimos de cada pedido chegam na ordem do ciclo, e um pedido termina em " +
+            "estorno depois do pagamento",
+    )
     fun legitimas_devemRespeitarOCicloDoPedido() {
         val events = wave(seed = 7, wave = 1).filter { it.scenario == null }.map { bodyMapper.readTree(it.request.body) }
         val byOrder = events.groupBy({ it["data"]["order_id"].asString() }, { it["type"].asString() })
 
         assertThat(byOrder).hasSize(6)
-        assertThat(byOrder.values).allMatch { it == listOf("order.created", "payment.paid", "order.shipped") }
+        assertThat(byOrder.values.filter { it == listOf("order.created", "payment.paid", "order.shipped") }).hasSize(5)
+        assertThat(byOrder.values.filter { it == listOf("order.created", "payment.paid", "payment.refunded") }).hasSize(1)
     }
 
     @Test

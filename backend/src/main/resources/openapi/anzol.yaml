@@ -3876,7 +3876,7 @@ components:
 
     DefenseScenario:
       type: object
-      required: [code, family, layer, title, reference]
+      required: [code, family, layer, title, reference, containable]
       properties:
         code:
           type: string
@@ -3892,6 +3892,11 @@ components:
         reference:
           type: string
           examples: ['OWASP API2:2023']
+        containable:
+          type: boolean
+          description: >-
+            Whether today's response rules can block the wave 2 variation without blocking legitimate traffic.
+            A scenario that is not containable counts for detection and stays out of the containment totals.
 
     DefenseLabCreated:
       type: object
@@ -4014,7 +4019,7 @@ components:
         containment:
           type: object
           description: What the URL answered to the wave 2 attack; blocked is status 400 or above.
-          required: [request_id, status, blocked]
+          required: [request_id, status, blocked, containable]
           properties:
             request_id:
               type: [string, 'null']
@@ -4022,6 +4027,8 @@ components:
             status:
               type: integer
             blocked:
+              type: boolean
+            containable:
               type: boolean
         injection:
           type: object
@@ -4085,7 +4092,9 @@ components:
               type: integer
         containment:
           type: object
-          description: Wave 2. A legitimate request passed when the answer was 2xx.
+          description: >-
+            Wave 2. `attacks` counts the containable scenarios and `blocked` how many of them were blocked. A
+            legitimate request passed when the answer was 2xx.
           required: [attacks, blocked, legitimate, passed]
           properties:
             attacks:
@@ -4154,13 +4163,15 @@ components:
           description: The scenarios of each family, with how many the agent flagged in wave 1 and how many wave 2 blocked.
           items:
             type: object
-            required: [family, attacks, detected, blocked]
+            required: [family, attacks, detected, containable, blocked]
             properties:
               family:
                 $ref: '#/components/schemas/DefenseFamily'
               attacks:
                 type: integer
               detected:
+                type: integer
+              containable:
                 type: integer
               blocked:
                 type: integer
@@ -4169,7 +4180,7 @@ components:
           description: The same, by layer, which is what the URL checks catch alone against what only the agent can.
           items:
             type: object
-            required: [layer, attacks, detected, blocked]
+            required: [layer, attacks, detected, containable, blocked]
             properties:
               layer:
                 type: string
@@ -4177,6 +4188,8 @@ components:
               attacks:
                 type: integer
               detected:
+                type: integer
+              containable:
                 type: integer
               blocked:
                 type: integer

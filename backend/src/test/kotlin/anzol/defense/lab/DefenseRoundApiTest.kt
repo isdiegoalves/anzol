@@ -124,7 +124,7 @@ class DefenseRoundApiTest(
             .isEqualTo(listOf("invalid", "invalid", "absent", "invalid") + List(10) { "valid" })
         assertThat(report["scenarios"].toList().filterNot { it["floor"]["ok"].asBoolean() }).isEmpty()
         assertThat(report["detection"].toString()).isEqualTo("""{"attacks":14,"detected":4,"legitimate":18,"false_positives":0}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":14,"blocked":4,"legitimate":18,"passed":18}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":12,"blocked":4,"legitimate":18,"passed":18}""")
         assertThat(report["scenarios"].toList().take(FLOOR_ATTACKS).map { it["containment"]["status"].asInt() }).containsOnly(401)
         assertThat(report["false_positives"].size()).isZero()
         assertThat(report["coverage"].toString()).isEqualTo("""{"requests":32,"judged":4}""")
@@ -132,14 +132,14 @@ class DefenseRoundApiTest(
         assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"kept","schema":"kept","loosened":false}""")
         assertThat(report["by_family"].toList().map { it.toString() })
             .containsExactly(
-                """{"family":"integrity","attacks":5,"detected":4,"blocked":4}""",
-                """{"family":"compromised_sender","attacks":3,"detected":0,"blocked":0}""",
-                """{"family":"prompt_injection","attacks":6,"detected":0,"blocked":0}""",
+                """{"family":"integrity","attacks":5,"detected":4,"containable":4,"blocked":4}""",
+                """{"family":"compromised_sender","attacks":3,"detected":0,"containable":2,"blocked":0}""",
+                """{"family":"prompt_injection","attacks":6,"detected":0,"containable":6,"blocked":0}""",
             )
         assertThat(report["by_layer"].toList().map { it.toString() })
             .containsExactly(
-                """{"layer":"floor","attacks":4,"detected":4,"blocked":4}""",
-                """{"layer":"agent","attacks":10,"detected":0,"blocked":0}""",
+                """{"layer":"floor","attacks":4,"detected":4,"containable":4,"blocked":4}""",
+                """{"layer":"agent","attacks":10,"detected":0,"containable":8,"blocked":0}""",
             )
         delete(lab)
     }
@@ -234,7 +234,7 @@ class DefenseRoundApiTest(
 
         assertThat(response.statusCode()).isEqualTo(200)
         assertThat(report["loosening"].toString()).isEqualTo("""{"signature":"removed","schema":"removed","loosened":true}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":14,"blocked":0,"legitimate":18,"passed":18}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":12,"blocked":0,"legitimate":18,"passed":18}""")
         delete(lab)
     }
 
@@ -281,7 +281,7 @@ class DefenseRoundApiTest(
         val report = api.json(finish(lab, round))
 
         assertThat(report["detection"].toString()).isEqualTo("""{"attacks":14,"detected":0,"legitimate":18,"false_positives":0}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":14,"blocked":0,"legitimate":18,"passed":18}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":12,"blocked":0,"legitimate":18,"passed":18}""")
         assertThat(report["scenarios"].toList().map { it["detection"]["verdict"].asString() }).containsOnly("legitimate")
         delete(lab)
     }
@@ -300,7 +300,7 @@ class DefenseRoundApiTest(
         val report = api.json(finish(lab, round))
 
         assertThat(report["detection"].toString()).isEqualTo("""{"attacks":14,"detected":14,"legitimate":18,"false_positives":18}""")
-        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":14,"blocked":14,"legitimate":18,"passed":0}""")
+        assertThat(report["containment"].toString()).isEqualTo("""{"attacks":12,"blocked":12,"legitimate":18,"passed":0}""")
         assertThat(report["false_positives"].size()).isEqualTo(LEGITIMATE)
         delete(lab)
     }

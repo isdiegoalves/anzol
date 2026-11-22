@@ -74,6 +74,7 @@ data class ContainmentResult(
     val requestId: RequestId?,
     val status: Int,
     val blocked: Boolean,
+    val containable: Boolean,
 )
 
 /** O sinal de que o agente fez o que o payload pediu. */
@@ -104,11 +105,15 @@ data class ScenarioResult(
     val injection: InjectionResult? = null,
 )
 
-/** Os cenários de uma família: quantos, quantos o agente marcou na onda 1 e quantos foram barrados na onda 2. */
+/**
+ * Os cenários de uma família: quantos, quantos o agente marcou na onda 1, quantos são contíveis e, desses, quantos
+ * foram barrados na onda 2.
+ */
 data class FamilyTotals(
     val family: DefenseFamily,
     val attacks: Int,
     val detected: Int,
+    val containable: Int,
     val blocked: Int,
 )
 
@@ -117,6 +122,7 @@ data class LayerTotals(
     val layer: DefenseLayer,
     val attacks: Int,
     val detected: Int,
+    val containable: Int,
     val blocked: Int,
 )
 
@@ -135,7 +141,7 @@ data class DetectionTotals(
     val falsePositives: Int,
 )
 
-/** Onda 2: ataques e quantos foram barrados (status 400 ou mais); legítimas e quantas passaram (2xx). */
+/** Onda 2: ataques contíveis e quantos deles foram barrados (status 400 ou mais); legítimas e quantas passaram (2xx). */
 data class ContainmentTotals(
     val attacks: Int,
     val blocked: Int,

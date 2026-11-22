@@ -57,7 +57,7 @@ class DefenseLabApiTest(
                 it["code"].asString()
             },
         ).containsExactly("I1", "I2", "I3", "I4", "I5", "C1", "C2", "C3", "P1", "P2", "P3", "P4", "P5", "P6")
-        assertThat(lab["scenarios"][0].propertyNames()).containsExactly("code", "family", "layer", "title", "reference")
+        assertThat(lab["scenarios"][0].propertyNames()).containsExactly("code", "family", "layer", "title", "reference", "containable")
         assertThat(redis.hasKey("token:${id(lab)}:rules")).isFalse()
         delete(lab)
     }
